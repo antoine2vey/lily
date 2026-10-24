@@ -2,8 +2,11 @@ import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { assertRoomBelongsTo } from '@lily/api/services/plants/helpers/assert-room-belongs-to'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
+import type { RoomNotFoundError } from '@lily/shared'
 import { type LimitExceededError, luxToSliderValue } from '@lily/shared'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
@@ -25,8 +28,9 @@ export const createPlant = (
   request: EnhancedPlantCreateRequest
 ): Effect.Effect<
   Plant,
-  SqlError | LimitExceededError,
+  SqlError | LimitExceededError | RoomNotFoundError,
   | PlantRepository
+  | RoomRepository
   | CareScheduleRepository
   | EventBus
   | CurrentUser
@@ -42,6 +46,7 @@ export const createPlant = (
     const sql = yield* SqlClient.SqlClient
 
     yield* Effect.annotateCurrentSpan('plant.name', request.name)
+    yield* assertRoomBelongsTo(request.roomId, userId)
 
     // Set next care dates to now (due immediately)
     const now = DateTime.toDateUtc(DateTime.nowUnsafe())

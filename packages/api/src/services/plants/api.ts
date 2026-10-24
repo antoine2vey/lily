@@ -1,5 +1,10 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
-import { LimitExceededError, OpenAIError, PaginationParams } from '@lily/shared'
+import {
+  LimitExceededError,
+  OpenAIError,
+  PaginationParams,
+  RoomNotFoundError,
+} from '@lily/shared'
 import {
   AlreadyCaredTodayError,
   FutureDateNotAllowedError,
@@ -82,6 +87,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       payload: EnhancedPlantCreateRequest,
       success: Plant.pipe(HttpApiSchema.status(201)),
       error: [
+        RoomNotFoundError,
         LimitExceededError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
@@ -231,6 +237,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       }).pipe(HttpApiSchema.asMultipart()),
       success: Plant,
       error: [
+        RoomNotFoundError,
         PlantNotFoundError,
         PlantNotAuthorizedError,
         InvalidImageError,

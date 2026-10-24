@@ -1,12 +1,16 @@
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
+import { RoomNotFoundError } from '@lily/shared'
 import { GCSService } from '@lily/shared/services/file/gcs'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import { describe, expect, it } from 'vitest'
 
@@ -33,11 +37,19 @@ const findSchedule = (
     Option.getOrNull
   )
 
+const strangersRoom = {
+  ...mockRooms[0]!,
+  id: 'room-stranger',
+  userId: 'user-stranger',
+}
+const roomsWithStranger = [...mockRooms, strangersRoom]
+
 describe('updatePlant', () => {
   const createTestLayer = (plants = mockPlants) => {
     const schedules = schedulesFromPlants(plants)
     return {
       layer: Layer.mergeAll(
+        createMockRoomRepository(roomsWithStranger),
         createMockPlantRepository({ plants }),
         createMockCareScheduleRepository({ schedules, plants }),
         Layer.succeed(GCSService, {} as any),
@@ -100,5 +112,25 @@ describe('updatePlant', () => {
     )
 
     expect(result.health).toBe('THRIVING')
+  })
+
+  describe('room', () => {
+    const move = (roomId: string) =>
+      Effect.runPromiseExit(
+        updatePlant(toPlantWithRoom(mockPlants[0]!), {
+          id: 'plant-1',
+          roomId,
+        }).pipe(Effect.provide(createTestLayer().layer))
+      )
+
+    it("refuses to move the plant into a room its owner doesn't have", async () => {
+      expect(failureOf(await move('room-stranger'))).toBeInstanceOf(
+        RoomNotFoundError
+      )
+    })
+
+    it("moves the plant into one of its owner's rooms", async () => {
+      expect(Exit.isSuccess(await move('room-2'))).toBe(true)
+    })
   })
 })

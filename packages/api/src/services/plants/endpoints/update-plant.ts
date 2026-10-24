@@ -3,7 +3,9 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import type { CareType } from '@lily/shared'
+import type { RoomRepository } from '@lily/api/repositories/room.repository'
+import { assertRoomBelongsTo } from '@lily/api/services/plants/helpers/assert-room-belongs-to'
+import type { CareType, RoomNotFoundError } from '@lily/shared'
 import type { PlantUpdateRequest } from '@lily/shared/plant'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type {
@@ -56,14 +58,20 @@ export const updatePlant = (
   | SqlError
   | GCSUploadError
   | InvalidImageError
+  | RoomNotFoundError
   | GCSConfigError
   | PlatformError,
-  PlantRepository | CareScheduleRepository | GCSService | FileSystem
+  | PlantRepository
+  | CareScheduleRepository
+  | RoomRepository
+  | GCSService
+  | FileSystem
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
+    yield* assertRoomBelongsTo(request.roomId, plant.userId)
 
     const now = DateTime.toDateUtc(DateTime.nowUnsafe())
 

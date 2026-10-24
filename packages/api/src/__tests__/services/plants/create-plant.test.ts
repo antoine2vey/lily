@@ -1,4 +1,6 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import {
@@ -6,12 +8,14 @@ import {
   MockLimitCheckerLive,
 } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import type { AppEvent } from '@lily/api/events'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { RoomNotFoundError } from '@lily/shared'
+import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const findSchedule = (
@@ -26,6 +30,13 @@ const findSchedule = (
     ),
     Option.getOrNull
   )
+
+const strangersRoom = {
+  ...mockRooms[0]!,
+  id: 'room-stranger',
+  userId: 'user-stranger',
+}
+const roomsWithStranger = [...mockRooms, strangersRoom]
 
 describe('createPlant', () => {
   const validRequest = {
@@ -42,6 +53,7 @@ describe('createPlant', () => {
     const schedules: CareScheduleRow[] = []
     return {
       layer: Layer.mergeAll(
+        createMockRoomRepository(roomsWithStranger),
         createMockPlantRepository({ plants: mockPlants }),
         createMockEventBus(),
         createMockCurrentUser({ id: 'user-1' }),
@@ -217,6 +229,7 @@ describe('createPlant', () => {
       createPlant(validRequest).pipe(
         Effect.provide(
           Layer.mergeAll(
+            createMockRoomRepository(roomsWithStranger),
             createMockPlantRepository({ plants: mockPlants }),
             eventBusMock,
             createMockCurrentUser({ id: 'user-1' }),
@@ -302,6 +315,7 @@ describe('createPlant', () => {
   it('should fail with LimitExceededError when plant limit is reached', async () => {
     const schedules: CareScheduleRow[] = []
     const layer = Layer.mergeAll(
+      createMockRoomRepository(roomsWithStranger),
       createMockPlantRepository({ plants: mockPlants }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
@@ -315,5 +329,27 @@ describe('createPlant', () => {
     )
 
     expect(result._tag).toBe('Failure')
+  })
+
+  describe('room', () => {
+    it("refuses another user's room", async () => {
+      const exit = await Effect.runPromiseExit(
+        createPlant({ ...validRequest, roomId: 'room-stranger' }).pipe(
+          Effect.provide(createTestLayer().layer)
+        )
+      )
+
+      expect(failureOf(exit)).toBeInstanceOf(RoomNotFoundError)
+    })
+
+    it('accepts one of your own rooms', async () => {
+      const exit = await Effect.runPromiseExit(
+        createPlant({ ...validRequest, roomId: 'room-1' }).pipe(
+          Effect.provide(createTestLayer().layer)
+        )
+      )
+
+      expect(Exit.isSuccess(exit)).toBe(true)
+    })
   })
 })
