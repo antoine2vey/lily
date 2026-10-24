@@ -1,8 +1,10 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -54,12 +56,12 @@ describe('withPlantAuth', () => {
     expect(result.id).toBe('plant-1')
   })
 
-  it('should fail with PlantNotAuthorizedError for unauthorized user', async () => {
+  it("answers someone else's plant exactly like a missing one", async () => {
     const exit = await Effect.runPromiseExit(
       withPlantAuth('plant-1').pipe(Effect.provide(createLayer('user-3')))
     )
 
-    expect(Exit.isFailure(exit)).toBe(true)
+    expect(failureOf(exit)).toBeInstanceOf(PlantNotFoundError)
   })
 
   it('should fail with PlantNotFoundError for non-existent plant', async () => {

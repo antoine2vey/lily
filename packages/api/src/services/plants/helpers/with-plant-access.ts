@@ -27,7 +27,7 @@ export const withPlantAuth = (
   plantId: string
 ): Effect.Effect<
   PlantWithRoom,
-  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantNotFoundError | SqlError,
   PlantRepository | CurrentUser | DelegationRepository
 > =>
   Effect.gen(function* () {
@@ -52,16 +52,12 @@ export const withPlantOwnerAuth = (
 ): Effect.Effect<
   PlantWithRoom,
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
-  PlantRepository | CurrentUser
+  PlantRepository | CurrentUser | DelegationRepository
 > =>
   Effect.gen(function* () {
-    const repo = yield* PlantRepository
-    const plant = yield* repo.findById(plantId)
+    const plant = yield* withPlantAuth(plantId)
 
-    if (!plant) {
-      return yield* new PlantNotFoundError()
-    }
-
+    // Only a caretaker gets here without owning the plant; they know it exists
     yield* assertIsPlantOwner(plant.userId)
 
     return plant
