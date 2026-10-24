@@ -1,5 +1,6 @@
 import { mockFollowUsers } from '@lily/api/__tests__/fixtures/follows'
 import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.repository'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { searchUsers } from '@lily/api/services/social/endpoints/search-users'
 import { Array, Effect, Layer } from 'effect'
@@ -16,6 +17,7 @@ const buildLayer = (
 ) =>
   Layer.mergeAll(
     createMockCurrentUser({ id: currentUserId }),
+    createMockRateLimiterService(),
     createMockFollowRepository({
       follows,
       users: mockFollowUsers,
@@ -54,7 +56,7 @@ describe('searchUsers', () => {
 
   it('should not return current user in results', async () => {
     const result = await Effect.runPromise(
-      searchUsers({ query: '', page: '1', limit: '20' }).pipe(
+      searchUsers({ query: 'li', page: '1', limit: '20' }).pipe(
         Effect.provide(buildLayer())
       )
     )
@@ -77,5 +79,28 @@ describe('searchUsers', () => {
       )
     )
     expect(result.items[0]?.isFollowing).toBe(true)
+  })
+
+  it.each(['', ' ', 'A'])(
+    'returns nothing for the too-short query %j instead of listing everyone',
+    async (query) => {
+      const result = await Effect.runPromise(
+        searchUsers({ query, page: '1', limit: '20' }).pipe(
+          Effect.provide(buildLayer())
+        )
+      )
+
+      expect(result).toMatchObject({ items: [], total: 0 })
+    }
+  )
+
+  it('caps the page size at 50', async () => {
+    const result = await Effect.runPromise(
+      searchUsers({ query: 'Alice', page: '1', limit: '100000' }).pipe(
+        Effect.provide(buildLayer())
+      )
+    )
+
+    expect(result.limit).toBe(50)
   })
 })

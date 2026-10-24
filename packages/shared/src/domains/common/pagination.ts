@@ -14,10 +14,16 @@ export const PaginationParams = Schema.Struct({
 
 export type PaginationParams = typeof PaginationParams.Type
 
+// Largest page any client asks for (the rooms screen loads 200 plants)
+export const MAX_PAGE_SIZE = 200
+
 // Parse pagination params from URL strings to numbers
-export const parsePaginationParams = (params: PaginationParams) => ({
-  page: parseInt(params.page, 10) || 1,
-  limit: parseInt(params.limit, 10) || 20,
+export const parsePaginationParams = (
+  params: PaginationParams,
+  maxLimit = MAX_PAGE_SIZE
+) => ({
+  page: Math.max(parseInt(params.page, 10) || 1, 1),
+  limit: Math.min(Math.max(parseInt(params.limit, 10) || 20, 1), maxLimit),
 })
 
 // Generic paginated response - use `items` for all endpoints

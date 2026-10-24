@@ -1,4 +1,5 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
+import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import {
   AlreadyFollowingError,
   CannotFollowSelfError,
@@ -80,6 +81,7 @@ export const SocialApi = HttpApiGroup.make('social')
     HttpApiEndpoint.get('searchUsers', '/search', {
       query: UserSearchParams,
       success: UserCardListResponse,
+      error: RateLimitExceededError,
     })
   )
   .add(

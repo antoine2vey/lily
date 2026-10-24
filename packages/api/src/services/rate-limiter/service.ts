@@ -29,6 +29,8 @@ export const RATE_LIMITS = {
   REFRESH: { maxRequests: 10, windowSeconds: 60 },
   REDEEM_CODE: { maxRequests: 5, windowSeconds: 600 },
   USERNAME_CHANGE: { maxRequests: 5, windowSeconds: 86_400 },
+  USERNAME_CHECK: { maxRequests: 60, windowSeconds: 60 },
+  USER_SEARCH: { maxRequests: 30, windowSeconds: 60 },
 } as const
 
 /**

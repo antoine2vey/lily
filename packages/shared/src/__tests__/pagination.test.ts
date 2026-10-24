@@ -42,6 +42,29 @@ describe('Pagination Utilities', () => {
   })
 
   describe('parsePaginationParams', () => {
+    it.each([
+      [
+        { page: '1', limit: '100000' },
+        { page: 1, limit: 200 },
+      ],
+      [
+        { page: '-3', limit: '-5' },
+        { page: 1, limit: 1 },
+      ],
+      [
+        { page: '2', limit: '0' },
+        { page: 2, limit: 20 },
+      ],
+    ])('keeps %j within bounds', (params, expected) => {
+      expect(parsePaginationParams(params)).toEqual(expected)
+    })
+
+    it('honors a tighter per-endpoint maximum', () => {
+      expect(parsePaginationParams({ page: '1', limit: '500' }, 50).limit).toBe(
+        50
+      )
+    })
+
     it('should parse valid string numbers to integers', () => {
       const result = parsePaginationParams({
         page: '3',
@@ -82,16 +105,6 @@ describe('Pagination Utilities', () => {
       expect(result.limit).toBe(20)
     })
 
-    it('should parse large numbers correctly', () => {
-      const result = parsePaginationParams({
-        page: '1000',
-        limit: '500',
-      })
-
-      expect(result.page).toBe(1000)
-      expect(result.limit).toBe(500)
-    })
-
     it('should handle zero values', () => {
       const result = parsePaginationParams({
         page: '0',
@@ -101,17 +114,6 @@ describe('Pagination Utilities', () => {
       // parseInt('0') returns 0 which is falsy, so defaults apply
       expect(result.page).toBe(1)
       expect(result.limit).toBe(20)
-    })
-
-    it('should handle negative values as defaults', () => {
-      const result = parsePaginationParams({
-        page: '-5',
-        limit: '-10',
-      })
-
-      // parseInt returns negative numbers, which are truthy
-      expect(result.page).toBe(-5)
-      expect(result.limit).toBe(-10)
     })
 
     it('should handle decimal strings by truncating', () => {

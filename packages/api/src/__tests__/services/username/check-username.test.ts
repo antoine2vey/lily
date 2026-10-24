@@ -1,11 +1,22 @@
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { checkUsername } from '@lily/api/services/username/endpoints/check-username'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('checkUsername', () => {
-  const createTestLayer = () => createMockUserRepository([...mockUsers])
+  const users = [
+    ...mockUsers,
+    { ...mockUsers[0]!, id: 'user-handle', name: 'taken_handle' },
+  ]
+  const createTestLayer = () =>
+    Layer.mergeAll(
+      createMockUserRepository(users),
+      createMockRateLimiterService(),
+      createMockCurrentUser({ id: 'user-1' })
+    )
 
   it('should return available: true for unused username', async () => {
     const result = await Effect.runPromise(
@@ -16,14 +27,21 @@ describe('checkUsername', () => {
     expect(result.username).toBe('newusername')
   })
 
-  it('should return available: false for taken username', async () => {
-    // mockUsers contains a user with name 'Test User'
+  it('reports a handle taken in another case as unavailable', async () => {
     const result = await Effect.runPromise(
-      checkUsername('Test User').pipe(Effect.provide(createTestLayer()))
+      checkUsername('Taken_Handle').pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.available).toBe(false)
-    expect(result.username).toBe('Test User')
+    expect(result.username).toBe('Taken_Handle')
+  })
+
+  it('reports a reserved handle as unavailable', async () => {
+    const result = await Effect.runPromise(
+      checkUsername('admin').pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.available).toBe(false)
   })
 
   it('should return the checked username in response', async () => {

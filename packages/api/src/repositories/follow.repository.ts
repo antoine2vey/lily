@@ -5,7 +5,17 @@ import {
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plants, userFollows, userNudges, users } from '@lily/db/schema'
-import { and, count, desc, eq, ilike, inArray, ne, sql } from 'drizzle-orm'
+import {
+  and,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  ne,
+  sql,
+} from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -294,10 +304,14 @@ export const FollowRepositoryLive = Layer.effect(
           limit?: number
         }) {
           const { limit, offset } = getPaginationParams(params)
-          const searchPattern = `%${params.query}%`
+          // `%` and `_` in the query match literally, not as wildcards
+          const escaped = params.query.replace(/[\\%_]/g, '\\$&')
+          const searchPattern = `%${escaped}%`
 
           const whereClause = and(
             eq(users.publicProfile, true),
+            eq(users.status, 'active'),
+            isNull(users.deletedAt),
             ne(users.id, params.currentUserId),
             ilike(users.name, searchPattern)
           )
