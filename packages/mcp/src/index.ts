@@ -9,6 +9,7 @@ import {
   CareScheduleResourceLayer,
   PlantResourceLayer,
 } from '@lily/mcp/resources/layers'
+import { SecurityHeadersMiddleware } from '@lily/mcp/security-headers'
 import { ToolsLayer } from '@lily/mcp/tools/handlers'
 import { WidgetResourcesLayer } from '@lily/mcp/widgets/resources'
 import { Effect, String as EffectString, Layer, pipe } from 'effect'
@@ -75,7 +76,7 @@ const AppRoutes = Layer.mergeAll(
 )
 
 /**
- * CORS wraps the endpoint guard so 401 responses carry CORS headers and
+ * CORS and the security headers wrap the endpoint guard so 401 responses carry both, and
  * preflights are answered before auth. One middleware keeps that order
  * explicit; separately registered global middlewares have no build order.
  */
@@ -99,7 +100,10 @@ const MiddlewareLayer = Layer.unwrap(
       maxAge: 86400,
       credentials: true,
     })
-    return HttpRouter.middleware((app) => cors(guard(app)), { global: true })
+    return HttpRouter.middleware(
+      (app) => cors(SecurityHeadersMiddleware(guard(app))),
+      { global: true }
+    )
   })
 )
 
