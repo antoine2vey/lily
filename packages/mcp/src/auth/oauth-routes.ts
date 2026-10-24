@@ -8,8 +8,18 @@ const SCOPES_SUPPORTED = ['plants:read', 'plants:write', 'knowledge:read']
 
 // ── Validation Schema ─────────────────────────────────────────────────
 
+const SCRIPT_SCHEMES = new Set(['javascript:', 'data:', 'vbscript:'])
+
+// Custom schemes stay allowed: native MCP clients register `myapp://...`
+export const RedirectUri = Schema.String.check(
+  Schema.makeFilter(
+    (uri) => URL.canParse(uri) && !SCRIPT_SCHEMES.has(new URL(uri).protocol),
+    { message: 'Expected an absolute, non-script redirect URI' }
+  )
+)
+
 const ClientRegistrationBody = Schema.Struct({
-  redirect_uris: Schema.NonEmptyArray(Schema.String),
+  redirect_uris: Schema.NonEmptyArray(RedirectUri),
   client_name: Schema.optionalKey(Schema.String),
   client_uri: Schema.optionalKey(Schema.String),
   logo_uri: Schema.optionalKey(Schema.String),
