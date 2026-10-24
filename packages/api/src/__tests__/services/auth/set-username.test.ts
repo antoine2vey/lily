@@ -1,13 +1,16 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   mockUser1,
   mockUser2,
   mockUsers,
 } from '@lily/api/__tests__/fixtures/users'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { setUsername } from '@lily/api/services/auth/endpoints/set-username'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { Effect, Layer } from 'effect'
+import type { AuthError } from '@lily/shared'
+import { Effect, Exit, Layer, Option, Predicate, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('setUsername', () => {
@@ -21,6 +24,7 @@ describe('setUsername', () => {
     const users = options.users ?? mockUsers
 
     return Layer.mergeAll(
+      createMockRateLimiterService(),
       createMockUserRepository(users),
       Layer.succeed(CurrentUser, currentUser)
     )
@@ -200,5 +204,78 @@ describe('setUsername', () => {
     )
 
     expect(result.name).toBe('samename')
+  })
+
+  describe('handle rules', () => {
+    const currentUser = { ...mockUserProfile, name: 'my_handle' }
+    const users = [
+      { ...mockUser1, id: currentUser.id, name: 'my_handle' },
+      { ...mockUser2, name: 'lilytester1' },
+    ]
+
+    const attempt = (
+      username: string,
+      layer = createTestLayer({ currentUser, users })
+    ) =>
+      Effect.runPromiseExit(
+        setUsername({ username }).pipe(Effect.provide(layer))
+      )
+
+    const messageOf = (exit: Exit.Exit<unknown, unknown>) =>
+      pipe(
+        failureOf(exit),
+        Option.fromNullishOr,
+        Option.flatMap(Option.liftPredicate(Predicate.isTagged('AuthError'))),
+        Option.map((error) => (error as AuthError).message),
+        Option.getOrUndefined
+      )
+
+    it('treats a handle that differs only in case as taken', async () => {
+      expect(messageOf(await attempt('LilyTester1'))).toBe(
+        'Username is already taken'
+      )
+    })
+
+    it.each(['admin', 'Admin', 'SUPPORT', 'lily'])(
+      'refuses the reserved handle %s',
+      async (username) => {
+        expect(messageOf(await attempt(username))).toBe(
+          'This username is reserved'
+        )
+      }
+    )
+
+    it('lets you change only the case of your own handle', async () => {
+      expect(Exit.isSuccess(await attempt('My_Handle'))).toBe(true)
+    })
+
+    it('limits a user to five renames a day', async () => {
+      const layer = createTestLayer({ currentUser, users })
+      const outcomes = []
+      for (const name of [
+        'one_a',
+        'two_b',
+        'three_c',
+        'four_d',
+        'five_e',
+        'six_f',
+      ]) {
+        const exit = await attempt(name, layer)
+        outcomes.push(
+          Exit.isSuccess(exit)
+            ? 'ok'
+            : (failureOf(exit) as { _tag: string })._tag
+        )
+      }
+
+      expect(outcomes).toEqual([
+        'ok',
+        'ok',
+        'ok',
+        'ok',
+        'ok',
+        'RateLimitExceededError',
+      ])
+    })
   })
 })

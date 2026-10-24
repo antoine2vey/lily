@@ -52,34 +52,34 @@ describe('checkUsername', () => {
     expect(result.username).toBe('user123')
   })
 
-  it('should handle empty string username', async () => {
+  it('reports an empty username as unavailable', async () => {
     const result = await Effect.runPromise(
       checkUsername('').pipe(Effect.provide(createTestLayer()))
     )
 
     // Empty string won't match any user name
-    expect(result.available).toBe(true)
+    expect(result.available).toBe(false)
     expect(result.username).toBe('')
   })
 
-  it('should handle very long username', async () => {
+  it('reports a username over 30 characters as unavailable', async () => {
     const longName = 'a'.repeat(255)
     const result = await Effect.runPromise(
       checkUsername(longName).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(result.available).toBe(true)
+    expect(result.available).toBe(false)
     expect(result.username).toBe(longName)
   })
 
-  it('should handle username with special characters', async () => {
+  it('reports a username with characters outside [a-zA-Z0-9_] as unavailable', async () => {
     const result = await Effect.runPromise(
       checkUsername('user_name-123.test').pipe(
         Effect.provide(createTestLayer())
       )
     )
 
-    expect(result.available).toBe(true)
+    expect(result.available).toBe(false)
     expect(result.username).toBe('user_name-123.test')
   })
 })

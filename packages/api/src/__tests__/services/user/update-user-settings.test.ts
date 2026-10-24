@@ -6,6 +6,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
@@ -16,6 +17,7 @@ import { describe, expect, it } from 'vitest'
 describe('updateUserSettings', () => {
   const createTestLayer = (userId: string) =>
     Layer.mergeAll(
+      createMockRateLimiterService(),
       createMockUserRepository([...mockUsers]),
       createMockCurrentUser({ id: userId }),
       createMockNotificationRepository([]),
@@ -29,12 +31,12 @@ describe('updateUserSettings', () => {
 
   it('should update user name', async () => {
     const result = await Effect.runPromise(
-      updateUserSettings({ name: 'Updated Name' }).pipe(
+      updateUserSettings({ name: 'updated_name' }).pipe(
         Effect.provide(createTestLayer('user-1'))
       )
     )
 
-    expect(result.name).toBe('Updated Name')
+    expect(result.name).toBe('updated_name')
   })
 
   it('should update user bio', async () => {
@@ -81,7 +83,7 @@ describe('updateUserSettings', () => {
   it('should update multiple fields at once', async () => {
     const result = await Effect.runPromise(
       updateUserSettings({
-        name: 'New Name',
+        name: 'new_name',
         bio: 'New bio',
         image: 'https://new-image.com/avatar.png',
         notifications: {
@@ -90,7 +92,7 @@ describe('updateUserSettings', () => {
       }).pipe(Effect.provide(createTestLayer('user-1')))
     )
 
-    expect(result.name).toBe('New Name')
+    expect(result.name).toBe('new_name')
     expect(result.bio).toBe('New bio')
     expect(result.image).toBe('https://new-image.com/avatar.png')
     expect(result.notifications.ads).toBe(true)
@@ -136,6 +138,7 @@ describe('updateUserSettings', () => {
       due({ id: 'in-flight', type: 'watering_reminder', status: 'queued' }),
     ]
     const layer = Layer.mergeAll(
+      createMockRateLimiterService(),
       createMockUserRepository([...mockUsers]),
       createMockCurrentUser({ id: 'user-1' }),
       createMockNotificationRepository(notifications),
@@ -158,12 +161,12 @@ describe('updateUserSettings', () => {
 
   it('should preserve unchanged fields', async () => {
     const result = await Effect.runPromise(
-      updateUserSettings({ name: 'Changed Name' }).pipe(
+      updateUserSettings({ name: 'changed_name' }).pipe(
         Effect.provide(createTestLayer('user-2'))
       )
     )
 
-    expect(result.name).toBe('Changed Name')
+    expect(result.name).toBe('changed_name')
     expect(result.email).toBe('another@example.com')
     expect(result.bio).toBe('Plant enthusiast')
     expect(result.notifications.careReminders).toBe(false)

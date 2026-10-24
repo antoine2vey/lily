@@ -1,5 +1,6 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
-import { UnauthorizedError, UserNotFoundError } from '@lily/shared'
+import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
+import { AuthError, UnauthorizedError, UserNotFoundError } from '@lily/shared'
 import {
   MultipleFilesError,
   NoFilesError,
@@ -28,7 +29,12 @@ export const UsersApi = HttpApiGroup.make('users')
     HttpApiEndpoint.put('updateUserSettings', '/settings', {
       payload: UserSettingsUpdateRequest,
       success: UserSettings,
-      error: [UserNotFoundError, UnauthorizedError],
+      error: [
+        UserNotFoundError,
+        UnauthorizedError,
+        AuthError,
+        RateLimitExceededError,
+      ],
     })
   )
   .add(

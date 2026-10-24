@@ -229,7 +229,7 @@ export const UserRepositoryLive = Layer.effect(
         const [user] = yield* db
           .select()
           .from(users)
-          .where(eq(users.name, username))
+          .where(sql`lower(${users.name}) = lower(${username})`)
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
 

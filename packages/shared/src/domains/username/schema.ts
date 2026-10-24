@@ -8,3 +8,4 @@ export const UsernameAvailability = Schema.Struct({
 
 // Type exports
 export type UsernameAvailability = typeof UsernameAvailability.Type
+export * from './rules'

@@ -8,6 +8,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -74,6 +75,7 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockRateLimiterService(),
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
@@ -135,6 +137,7 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockRateLimiterService(),
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
@@ -196,6 +199,7 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockRateLimiterService(),
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
@@ -255,6 +259,7 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockRateLimiterService(),
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
@@ -268,7 +273,7 @@ describe('updateUserSettings - notification recalculation', () => {
 
     // Update name only - should NOT trigger recalculation
     await Effect.runPromise(
-      updateUserSettings({ name: 'New Name' }).pipe(Effect.provide(layer))
+      updateUserSettings({ name: 'new_name' }).pipe(Effect.provide(layer))
     )
 
     expect(updateScheduledAtCalled).toBe(false)

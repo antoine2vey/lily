@@ -1,10 +1,12 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
+import { AuthError } from '@lily/shared'
 import type { AdminUserUpdateRequest } from '@lily/shared/admin'
 import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { User } from '@lily/shared/user'
-import { Effect } from 'effect'
+import { usernameProblem } from '@lily/shared/username'
+import { Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const updateUser = (
@@ -12,7 +14,7 @@ export const updateUser = (
   data: AdminUserUpdateRequest
 ): Effect.Effect<
   User,
-  SqlError | UserNotFoundError | CannotModifySelfError,
+  SqlError | UserNotFoundError | CannotModifySelfError | AuthError,
   UserRepository | AdminUser
 > =>
   Effect.gen(function* () {
@@ -22,6 +24,13 @@ export const updateUser = (
     // Prevent admins from modifying their own status
     if (id === currentAdmin.id && data.status !== undefined) {
       return yield* new CannotModifySelfError()
+    }
+
+    if (data.name !== undefined) {
+      yield* Option.match(usernameProblem(data.name), {
+        onNone: () => Effect.void,
+        onSome: (message) => Effect.fail(new AuthError({ message })),
+      })
     }
 
     const updated = yield* repo.update(id, {

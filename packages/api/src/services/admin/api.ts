@@ -1,5 +1,5 @@
 import { AdminAuth } from '@lily/api/services/admin/middleware.types'
-import { PaginatedResponse, PaginationParams } from '@lily/shared'
+import { AuthError, PaginatedResponse, PaginationParams } from '@lily/shared'
 import {
   AdminGiftEvent,
   AdminGiftSubscriptionRequest,
@@ -76,7 +76,12 @@ export const AdminApi = HttpApiGroup.make('admin')
       params: { id: userIdParam },
       payload: AdminUserUpdateRequest,
       success: AdminUser,
-      error: [UserNotFoundError, CannotModifySelfError, ForbiddenError],
+      error: [
+        UserNotFoundError,
+        CannotModifySelfError,
+        ForbiddenError,
+        AuthError,
+      ],
     })
   )
   .add(

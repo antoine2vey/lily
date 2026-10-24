@@ -24,14 +24,14 @@ const mockAdminLayer = Layer.succeed(AdminUser, mockAdminContext)
 describe('updateUser', () => {
   it('should update user name', async () => {
     const result = await Effect.runPromise(
-      updateUser('user-1', { name: 'Updated Name' }).pipe(
+      updateUser('user-1', { name: 'updated_name' }).pipe(
         Effect.provide(
           Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
 
-    expect(result.name).toBe('Updated Name')
+    expect(result.name).toBe('updated_name')
   })
 
   it('should update user email', async () => {
@@ -72,7 +72,7 @@ describe('updateUser', () => {
 
   it('should fail when user not found', async () => {
     const result = await Effect.runPromiseExit(
-      updateUser('non-existent', { name: 'New Name' }).pipe(
+      updateUser('non-existent', { name: 'new_name' }).pipe(
         Effect.provide(
           Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
@@ -96,33 +96,33 @@ describe('updateUser', () => {
 
   it('should allow admin to modify own non-status fields', async () => {
     const result = await Effect.runPromise(
-      updateUser(mockAdminUser.id, { name: 'Updated Admin Name' }).pipe(
+      updateUser(mockAdminUser.id, { name: 'updated_admin' }).pipe(
         Effect.provide(
           Layer.merge(createMockUserRepository([mockAdminUser]), mockAdminLayer)
         )
       )
     )
 
-    expect(result.name).toBe('Updated Admin Name')
+    expect(result.name).toBe('updated_admin')
   })
 
   it('should allow partial updates', async () => {
     const result = await Effect.runPromise(
-      updateUser('user-1', { name: 'Only Name Updated' }).pipe(
+      updateUser('user-1', { name: 'only_name' }).pipe(
         Effect.provide(
           Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
 
-    expect(result.name).toBe('Only Name Updated')
+    expect(result.name).toBe('only_name')
     expect(result.email).toBe('test@example.com') // Original email
   })
 
   it('should update multiple fields at once', async () => {
     const result = await Effect.runPromise(
       updateUser('user-1', {
-        name: 'New Name',
+        name: 'new_name',
         email: 'new@example.com',
         bio: 'New bio',
       }).pipe(
@@ -132,7 +132,7 @@ describe('updateUser', () => {
       )
     )
 
-    expect(result.name).toBe('New Name')
+    expect(result.name).toBe('new_name')
     expect(result.email).toBe('new@example.com')
     expect(result.bio).toBe('New bio')
   })

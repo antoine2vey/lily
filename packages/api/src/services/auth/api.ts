@@ -94,6 +94,7 @@ export const AuthApi = HttpApiGroup.make('auth')
       error: [
         AuthError.pipe(HttpApiSchema.status(400)),
         AuthError.pipe(HttpApiSchema.status(401)),
+        RateLimitExceededError,
       ],
     }).middleware(Authentication)
   )

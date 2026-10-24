@@ -4,7 +4,18 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
-import { type CareType, compact, trimAndNullify } from '@lily/shared'
+import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
+import type { RateLimiterService } from '@lily/api/services/rate-limiter/service'
+import {
+  claimUsername,
+  usernameTakenOnConflict,
+} from '@lily/api/services/username/claim-username'
+import {
+  type AuthError,
+  type CareType,
+  compact,
+  trimAndNullify,
+} from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { CARE_TOPICS, ENGAGEMENT_TOPICS } from '@lily/shared/server'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
@@ -16,8 +27,9 @@ export const updateUserSettings = (
   data: UserSettingsUpdateRequest
 ): Effect.Effect<
   UserSettings,
-  SqlError | UserNotFoundError,
+  SqlError | UserNotFoundError | AuthError | RateLimitExceededError,
   | UserRepository
+  | RateLimiterService
   | CurrentUser
   | NotificationRepository
   | CareScheduleRepository
@@ -47,8 +59,13 @@ export const updateUserSettings = (
     const lastNameUpdate =
       data.lastName === undefined ? undefined : trimAndNullify(data.lastName)
 
+    const name =
+      data.name === undefined
+        ? undefined
+        : yield* claimUsername(existingUser, data.name)
+
     const updateData = compact({
-      name: data.name,
+      name,
       firstName: trimmedFirst,
       lastName: lastNameUpdate,
       image: data.image,
@@ -74,7 +91,7 @@ export const updateUserSettings = (
       language: data.language,
     })
 
-    const user = yield* repo.update(id, updateData)
+    const user = yield* usernameTakenOnConflict(repo.update(id, updateData))
 
     if (!user) {
       return yield* new UserNotFoundError()

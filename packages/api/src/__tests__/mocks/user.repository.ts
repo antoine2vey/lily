@@ -41,7 +41,10 @@ export const createMockUserRepository = (
     findByUsername: (username: string) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(users, (u) => u.name === username),
+          Array.findFirst(
+            users,
+            (u) => u.name?.toLowerCase() === username.toLowerCase()
+          ),
           Option.getOrNull
         )
       ),

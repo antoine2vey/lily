@@ -1,8 +1,14 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
+import type { RateLimiterService } from '@lily/api/services/rate-limiter/service'
+import {
+  claimUsername,
+  usernameTakenOnConflict,
+} from '@lily/api/services/username/claim-username'
 import { AuthError } from '@lily/shared'
 import type { UsernameRequest, UserProfile } from '@lily/shared/auth'
-import { Effect, String as EffectString } from 'effect'
+import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -13,43 +19,18 @@ export const setUsername = (
   request: UsernameRequest
 ): Effect.Effect<
   UserProfile,
-  AuthError | SqlError,
-  UserRepository | CurrentUser
+  AuthError | RateLimitExceededError | SqlError,
+  UserRepository | CurrentUser | RateLimiterService
 > =>
   Effect.gen(function* () {
     const currentUser = yield* CurrentUser
     const userRepo = yield* UserRepository
 
-    // Validate username format
-    const username = EffectString.trim(request.username)
-    if (username.length < 3) {
-      return yield* new AuthError({
-        message: 'Username must be at least 3 characters',
-      })
-    }
-    if (username.length > 30) {
-      return yield* new AuthError({
-        message: 'Username must be at most 30 characters',
-      })
-    }
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      return yield* new AuthError({
-        message: 'Username can only contain letters, numbers, and underscores',
-      })
-    }
+    const username = yield* claimUsername(currentUser, request.username)
 
-    // Check if username is already taken (if different from current)
-    if (currentUser.name !== username) {
-      const existingUser = yield* userRepo.findByUsername(username)
-      if (existingUser && existingUser.id !== currentUser.id) {
-        return yield* new AuthError({ message: 'Username is already taken' })
-      }
-    }
-
-    // Update username
-    const updatedUser = yield* userRepo.update(currentUser.id, {
-      name: username,
-    })
+    const updatedUser = yield* usernameTakenOnConflict(
+      userRepo.update(currentUser.id, { name: username })
+    )
 
     if (!updatedUser) {
       return yield* new AuthError({ message: 'Failed to update username' })
