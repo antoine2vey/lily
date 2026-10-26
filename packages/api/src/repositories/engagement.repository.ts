@@ -1,5 +1,6 @@
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
+import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careLogs,
@@ -208,7 +209,7 @@ export const EngagementRepositoryLive = Layer.effect(
             sql`(MAX(${plantPhotos.takenAt}) IS NOT NULL AND MAX(${plantPhotos.takenAt}) < ${beforeDate}) OR (MAX(${plantPhotos.takenAt}) IS NULL AND ${plants.dateAdded} < ${beforeDate})`
           )
 
-        return rows
+        return Array.filter(rows, hasUserOwner)
       }),
 
       hasNotificationInPeriod: Effect.fn(
@@ -343,7 +344,7 @@ export const EngagementRepositoryLive = Layer.effect(
             and(isLivingPlant(), sql`(${sql.join(conditions, sql` OR `)})`)
           )
 
-        return rows
+        return Array.filter(rows, hasUserOwner)
       }),
 
       getHealthyPlantCountForUser: Effect.fn(

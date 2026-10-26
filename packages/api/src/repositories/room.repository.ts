@@ -1,5 +1,9 @@
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
+import {
+  hasUserOwner,
+  userOwnedOrNull,
+} from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plants, rooms } from '@lily/db/schema'
 import { nowAsDate, type Orientation } from '@lily/shared'
@@ -26,26 +30,23 @@ export interface UpdateRoomData {
   isOutdoor?: boolean | undefined
 }
 
+export type PersonalRoom = typeof rooms.$inferSelect & { userId: string }
+
 export interface IRoomRepository {
   readonly findAll: (
     userId: string
-  ) => Effect.Effect<
-    Array<typeof rooms.$inferSelect & { plantCount: number }>,
-    SqlError
-  >
+  ) => Effect.Effect<Array<PersonalRoom & { plantCount: number }>, SqlError>
   readonly findById: (
     id: string
-  ) => Effect.Effect<typeof rooms.$inferSelect | null, SqlError>
+  ) => Effect.Effect<PersonalRoom | null, SqlError>
   readonly create: (
     data: CreateRoomData
-  ) => Effect.Effect<typeof rooms.$inferSelect | null, SqlError>
+  ) => Effect.Effect<PersonalRoom | null, SqlError>
   readonly update: (
     id: string,
     data: UpdateRoomData
-  ) => Effect.Effect<typeof rooms.$inferSelect | null, SqlError>
-  readonly delete: (
-    id: string
-  ) => Effect.Effect<typeof rooms.$inferSelect | null, SqlError>
+  ) => Effect.Effect<PersonalRoom | null, SqlError>
+  readonly delete: (id: string) => Effect.Effect<PersonalRoom | null, SqlError>
   readonly getMaxOrder: (userId: string) => Effect.Effect<number, SqlError>
   readonly countByUserId: (userId: string) => Effect.Effect<number, SqlError>
 }
@@ -62,7 +63,7 @@ export const RoomRepositoryLive = Layer.effect(
 
     return {
       findAll: Effect.fn('RoomRepository.findAll')(function* (userId: string) {
-        return yield* db
+        const rows = yield* db
           .select({
             id: rooms.id,
             name: rooms.name,
@@ -72,6 +73,7 @@ export const RoomRepositoryLive = Layer.effect(
             isOutdoor: rooms.isOutdoor,
             order: rooms.order,
             userId: rooms.userId,
+            canopyId: rooms.canopyId,
             createdAt: rooms.createdAt,
             updatedAt: rooms.updatedAt,
             plantCount: count(plants.id),
@@ -83,18 +85,19 @@ export const RoomRepositoryLive = Layer.effect(
           .where(eq(rooms.userId, userId))
           .groupBy(rooms.id)
           .orderBy(asc(rooms.order), asc(rooms.name))
+        return Array.filter(rows, hasUserOwner)
       }),
 
       findById: Effect.fn('RoomRepository.findById')(function* (id: string) {
         const [room] = yield* db.select().from(rooms).where(eq(rooms.id, id))
-        return Option.getOrNull(Option.fromNullishOr(room))
+        return userOwnedOrNull(room)
       }),
 
       create: Effect.fn('RoomRepository.create')(function* (
         data: CreateRoomData
       ) {
         const [room] = yield* db.insert(rooms).values(data).returning()
-        return Option.getOrNull(Option.fromNullishOr(room))
+        return userOwnedOrNull(room)
       }),
 
       update: Effect.fn('RoomRepository.update')(function* (
@@ -106,7 +109,7 @@ export const RoomRepositoryLive = Layer.effect(
           .set({ ...data, updatedAt: nowAsDate() })
           .where(eq(rooms.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullishOr(room))
+        return userOwnedOrNull(room)
       }),
 
       delete: Effect.fn('RoomRepository.delete')(function* (id: string) {
@@ -114,7 +117,7 @@ export const RoomRepositoryLive = Layer.effect(
           .delete(rooms)
           .where(eq(rooms.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullishOr(room))
+        return userOwnedOrNull(room)
       }),
 
       getMaxOrder: Effect.fn('RoomRepository.getMaxOrder')(function* (

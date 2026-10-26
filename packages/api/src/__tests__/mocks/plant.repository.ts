@@ -3,15 +3,15 @@ import {
   type FindPhotosParams,
   type FindPlantsParams,
   type IPlantRepository,
+  type PersonalPlant,
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import type { plants } from '@lily/db/schema'
 import { endOfDay, type Orientation, paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
-type PlantRecord = typeof plants.$inferSelect
+type PlantRecord = PersonalPlant
 
 interface MockRoom {
   id: string
@@ -246,6 +246,8 @@ export const createMockPlantRepository = (
         deathCause: null,
         deathNote: null,
         userId: createData.userId,
+        canopyId: null,
+        createdByUserId: createData.userId,
       }
       plantsData.push(newPlant)
       return Effect.succeed(newPlant)

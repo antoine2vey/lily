@@ -1,4 +1,5 @@
 import { Effect, Schema } from 'effect'
+import { CanopyRef } from '../canopy/schema'
 import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
@@ -12,7 +13,7 @@ export const PlantHealthStatus = Schema.Literals([
 ])
 export type PlantHealthStatus = typeof PlantHealthStatus.Type
 
-export const PlantOwnership = Schema.Literals(['owned', 'caretaking'])
+export const PlantOwnership = Schema.Literals(['owned', 'caretaking', 'canopy'])
 export type PlantOwnership = typeof PlantOwnership.Type
 
 // `dead` lists the cemetery; every other value implies living plants only.
@@ -63,7 +64,24 @@ export const PlantCareSchedule = Schema.Struct({
 
 export type PlantCareSchedule = typeof PlantCareSchedule.Type
 
-export const Plant = Schema.Struct({
+// Null once the member who added the plant deleted their account.
+export const PlantCreator = Schema.Struct({
+  id: Schema.String,
+  name: Schema.NullOr(Schema.String),
+})
+export type PlantCreator = typeof PlantCreator.Type
+
+const plantOwnershipMatchesCanopy = Schema.makeFilter<{
+  readonly ownership: PlantOwnership
+  readonly canopy?: CanopyRef | undefined
+}>(
+  (plant) =>
+    (plant.ownership === 'canopy') === (plant.canopy !== undefined) ||
+    'a canopy plant carries its canopy, and only a canopy plant does',
+  { identifier: 'PlantOwnershipMatchesCanopy' }
+)
+
+const plantFields = {
   id: Schema.String,
   name: Schema.String,
   description: Schema.NullOr(Schema.String),
@@ -94,8 +112,14 @@ export const Plant = Schema.Struct({
     Schema.withDecodingDefaultType(Effect.succeed(null)),
     Schema.withConstructorDefault(Effect.succeed(null))
   ),
+  canopy: Schema.optionalKey(CanopyRef),
+  createdBy: Schema.optionalKey(Schema.NullOr(PlantCreator)),
   schedules: Schema.Array(PlantCareSchedule),
-})
+}
+
+export const Plant = Schema.Struct(plantFields).check(
+  plantOwnershipMatchesCanopy
+)
 
 export const PlantUpdateRequest = Schema.Struct({
   name: Schema.optional(Schema.String),
@@ -192,9 +216,9 @@ export const PlantPhotoUploadResponse = Schema.Struct({
 
 // Plant detail with photos (for single plant endpoint)
 export const PlantDetail = Schema.Struct({
-  ...Plant.fields,
+  ...plantFields,
   photos: Schema.Array(PlantPhoto),
-})
+}).check(plantOwnershipMatchesCanopy)
 
 // Generic care request (for POST /plants/:id/care)
 export const PlantCareRequest = Schema.Struct({

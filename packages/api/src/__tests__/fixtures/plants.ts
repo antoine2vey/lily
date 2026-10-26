@@ -1,8 +1,8 @@
-import type { plants } from '@lily/db/schema'
+import type { PersonalPlant } from '@lily/api/repositories/plant.repository'
 import type { CareType } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 
-export type PlantRecord = typeof plants.$inferSelect
+export type PlantRecord = PersonalPlant
 
 export interface ScheduleSpec {
   careType: CareType
@@ -60,6 +60,8 @@ export const mockPlants: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 7,
@@ -95,6 +97,8 @@ export const mockPlants: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [wateringSpec({ frequencyDays: 14 })],
   },
   {
@@ -119,6 +123,8 @@ export const mockPlants: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-2',
+    canopyId: null,
+    createdByUserId: 'user-2',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 10,
@@ -173,6 +179,8 @@ export const mockOverduePlants: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 7,
@@ -203,6 +211,8 @@ export const mockOverduePlants: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 14,
@@ -233,6 +243,8 @@ export const mockOverduePlants: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 7,
@@ -263,6 +275,8 @@ export const mockOverduePlants: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [wateringSpec({ frequencyDays: 30 })],
   },
   {
@@ -287,6 +301,8 @@ export const mockOverduePlants: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-2',
+    canopyId: null,
+    createdByUserId: 'user-2',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 7,
@@ -321,6 +337,8 @@ export const createTestPlant = (
   deathCause: null,
   deathNote: null,
   userId: 'user-1',
+  canopyId: null,
+  createdByUserId: 'user-1',
   scheduleSpecs: [wateringSpec()],
   ...overrides,
 })
