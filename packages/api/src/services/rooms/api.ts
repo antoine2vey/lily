@@ -6,7 +6,7 @@ import {
   RoomNotFoundError,
   RoomUpdateRequest,
 } from '@lily/shared'
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 const roomIdParam = Schema.String.check(Schema.isGUID())
@@ -14,6 +14,12 @@ const roomIdParam = Schema.String.check(Schema.isGUID())
 export const RoomsApi = HttpApiGroup.make('rooms')
   .add(
     HttpApiEndpoint.get('getRooms', '/', {
+      query: Schema.Struct({
+        includeCanopy: Schema.String.pipe(
+          Schema.withDecodingDefaultType(Effect.succeed('false')),
+          Schema.withConstructorDefault(Effect.succeed('false'))
+        ),
+      }),
       success: RoomListWithCountsResponse,
       error: Schema.Struct({ error: Schema.String }).pipe(
         HttpApiSchema.status(401)

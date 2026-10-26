@@ -4,7 +4,7 @@ import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.rep
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { assertRoomBelongsTo } from '@lily/api/services/plants/helpers/assert-room-belongs-to'
+import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { RoomNotFoundError } from '@lily/shared'
 import { type LimitExceededError, luxToSliderValue } from '@lily/shared'
@@ -46,7 +46,7 @@ export const createPlant = (
     const sql = yield* SqlClient.SqlClient
 
     yield* Effect.annotateCurrentSpan('plant.name', request.name)
-    yield* assertRoomBelongsTo(request.roomId, userId)
+    yield* assertRoomFits(request.roomId, { _tag: 'User', userId })
 
     // Set next care dates to now (due immediately)
     const now = DateTime.toDateUtc(DateTime.nowUnsafe())

@@ -1,12 +1,12 @@
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
-import type { PersonalPlant } from '@lily/api/repositories/plant.repository'
 import { checkOverduePlants } from '@lily/api/services/health-scheduler/scheduler'
+import type { plants } from '@lily/db/schema'
 import { Effect } from 'effect'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-type PlantRecord = PersonalPlant
+type PlantRecord = typeof plants.$inferSelect
 
 const createTestPlant = (
   overrides: Partial<PlantRecord> = {}

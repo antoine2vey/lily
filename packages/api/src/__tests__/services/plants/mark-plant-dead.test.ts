@@ -3,13 +3,15 @@ import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
 import type { AppEvent } from '@lily/shared/server'
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const asPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
-  ...plant,
+  ...withOwner(plant),
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
@@ -28,7 +30,8 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
-            createMockEventBus()
+            createMockEventBus(),
+            createMockCurrentUser({ id: 'user-1' })
           )
         )
       )
@@ -47,7 +50,8 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
-            createMockEventBus()
+            createMockEventBus(),
+            createMockCurrentUser({ id: 'user-1' })
           )
         )
       )
@@ -69,7 +73,8 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
-            createMockEventBus()
+            createMockEventBus(),
+            createMockCurrentUser({ id: 'user-1' })
           )
         )
       )
@@ -111,7 +116,8 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository(notifications),
-            createMockEventBus()
+            createMockEventBus(),
+            createMockCurrentUser({ id: 'user-1' })
           )
         )
       )
@@ -133,7 +139,8 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
-            createMockEventBus({ publishedEvents: published })
+            createMockEventBus({ publishedEvents: published }),
+            createMockCurrentUser({ id: 'user-1' })
           )
         )
       )

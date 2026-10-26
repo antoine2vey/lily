@@ -1,8 +1,8 @@
-import type { PersonalPlant } from '@lily/api/repositories/plant.repository'
+import type { plants } from '@lily/db/schema'
 import type { CareType } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 
-export type PlantRecord = PersonalPlant
+export type PlantRecord = typeof plants.$inferSelect
 
 export interface ScheduleSpec {
   careType: CareType

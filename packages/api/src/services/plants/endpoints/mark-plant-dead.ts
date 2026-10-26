@@ -4,6 +4,8 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { settingsUserFor } from '@lily/api/services/plants/helpers/with-plant-access'
 import {
   PlantAlreadyDeadError,
   PlantNotFoundError,
@@ -23,7 +25,7 @@ export const markPlantDead = (
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
-  PlantRepository | NotificationRepository | EventBus
+  PlantRepository | NotificationRepository | EventBus | CurrentUser
 > =>
   Effect.gen(function* () {
     if (plant.diedAt !== null) {
@@ -34,7 +36,7 @@ export const markPlantDead = (
     const notificationRepo = yield* NotificationRepository
     const eventBus = yield* EventBus
 
-    const updated = yield* repo.markDead(plant.id, {
+    const updated = yield* repo.markDead(plant.id, plant.owner, {
       diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
       cause: request.cause,
       note: Option.getOrNull(Option.fromNullishOr(request.note)),
@@ -48,7 +50,7 @@ export const markPlantDead = (
     yield* publishWithRetry(
       eventBus.publish({
         _tag: 'PlantLifecycleChanged',
-        userId: plant.userId,
+        userId: yield* settingsUserFor(plant.owner),
         plantId: plant.id,
       })
     )

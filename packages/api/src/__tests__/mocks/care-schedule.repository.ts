@@ -7,11 +7,12 @@ import {
   type ScheduleWithPlant,
   type UpsertScheduleData,
 } from '@lily/api/repositories/care-schedule.repository'
-import type { PersonalPlant } from '@lily/api/repositories/plant.repository'
+import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
+import type { plants } from '@lily/db/schema'
 import { earliestOverdueDate } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
-type PlantRecord = PersonalPlant
+type PlantRecord = typeof plants.$inferSelect
 
 interface MockRoom {
   id: string
@@ -34,7 +35,8 @@ export const createMockCareScheduleRepository = (
   )
   const plantsData = pipe(
     Option.fromNullishOr(data.plants),
-    Option.getOrElse(() => [] as PlantRecord[])
+    Option.getOrElse(() => [] as PlantRecord[]),
+    Array.filter(hasUserOwner)
   )
   const roomsData = pipe(
     Option.fromNullishOr(data.rooms),

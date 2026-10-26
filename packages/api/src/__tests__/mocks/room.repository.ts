@@ -1,23 +1,42 @@
+import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import {
   type IRoomRepository,
-  type PersonalRoom,
   RoomRepository,
 } from '@lily/api/repositories/room.repository'
+import type { rooms } from '@lily/db/schema'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
-type RoomRecord = PersonalRoom
+type RoomRecord = typeof rooms.$inferSelect
+
+export interface MockMembership {
+  readonly userId: string
+  readonly canopyId: string
+}
 
 export const createMockRoomRepository = (
-  roomsData: RoomRecord[]
+  roomsData: RoomRecord[],
+  memberships: ReadonlyArray<MockMembership> = []
 ): Layer.Layer<RoomRepository> => {
   const repo: IRoomRepository = {
-    findAll: (userId: string) => {
-      const filtered = Array.filter(roomsData, (r) => r.userId === userId)
+    findAll: ({ userId, includeCanopy }) => {
+      const canopyIds = pipe(
+        memberships,
+        Array.filter((m) => m.userId === userId),
+        Array.map((m) => m.canopyId)
+      )
+      const filtered = Array.filter(
+        roomsData,
+        (r) =>
+          r.userId === userId ||
+          (includeCanopy === true &&
+            r.canopyId !== null &&
+            Array.contains(canopyIds, r.canopyId))
+      )
       const sorted = [...filtered].sort((a, b) =>
         a.order !== b.order ? a.order - b.order : a.name.localeCompare(b.name)
       )
       return Effect.succeed(
-        Array.map(sorted, (room) => ({ ...room, plantCount: 0 }))
+        Array.map(sorted, (room) => ({ ...withOwner(room), plantCount: 0 }))
       )
     },
 
@@ -25,6 +44,7 @@ export const createMockRoomRepository = (
       Effect.succeed(
         pipe(
           Array.findFirst(roomsData, (r) => r.id === id),
+          Option.map(withOwner),
           Option.getOrNull
         )
       ),
@@ -43,10 +63,10 @@ export const createMockRoomRepository = (
         createdAt: new Date(),
         updatedAt: new Date(),
       }
-      return Effect.succeed(newRoom)
+      return Effect.succeed(withOwner(newRoom))
     },
 
-    update: (id, data) => {
+    update: (id, _owner, data) => {
       const roomOption = Array.findFirst(roomsData, (r) => r.id === id)
       return Option.match(roomOption, {
         onNone: () => Effect.succeed(null),
@@ -61,15 +81,16 @@ export const createMockRoomRepository = (
               ? { luminosity: data.luminosity }
               : {}),
           }
-          return Effect.succeed(updated)
+          return Effect.succeed(withOwner(updated))
         },
       })
     },
 
-    delete: (id) =>
+    delete: (id, _owner) =>
       Effect.succeed(
         pipe(
           Array.findFirst(roomsData, (r) => r.id === id),
+          Option.map(withOwner),
           Option.getOrNull
         )
       ),

@@ -12,6 +12,7 @@ import {
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { settingsUserFor } from '@lily/api/services/plants/helpers/with-plant-access'
 import { startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
@@ -99,7 +100,7 @@ const correctSingleCareDate = (
     if (nextCareAt) {
       yield* scheduleCareReminder({
         plantId,
-        userId: plant.userId,
+        userId: yield* settingsUserFor(plant.owner),
         type: `${careType}_reminder` as const,
         scheduledDate: nextCareAt,
         remindersEnabled: plant.remindersEnabled,
@@ -125,7 +126,7 @@ export const correctCareDates = (
     const repo = yield* PlantRepository
     const userRepo = yield* UserRepository
 
-    const user = yield* userRepo.findById(plant.userId)
+    const user = yield* userRepo.findById(yield* settingsUserFor(plant.owner))
     const timezone = pipe(
       Option.fromNullishOr(user),
       Option.flatMap((u) => Option.fromNullishOr(u.timezone)),

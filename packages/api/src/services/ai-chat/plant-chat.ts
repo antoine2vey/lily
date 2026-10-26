@@ -17,7 +17,7 @@ import {
   type ToolContext,
 } from '@lily/api/services/ai-chat/tools'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
+import { assertPlantAction } from '@lily/api/services/plants/helpers/with-plant-access'
 import { daysSince } from '@lily/shared'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
@@ -223,7 +223,7 @@ const buildPlantContext = (
     if (!plant) {
       return yield* new PlantNotFoundError({ plantId })
     }
-    yield* assertCanAccessPlant(plant.userId, plant.id)
+    yield* assertPlantAction(plant, 'chat')
 
     const schedules = yield* scheduleRepo.findByPlant(plantId)
     const careLogsResponse = yield* careLogRepo.findByPlantId({

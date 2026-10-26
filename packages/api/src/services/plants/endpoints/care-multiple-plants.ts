@@ -1,3 +1,4 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
@@ -6,8 +7,11 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
-import { canAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import {
+  canPerform,
+  settingsUserFor,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { startOfDay } from '@lily/shared'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type {
@@ -32,6 +36,7 @@ export const careMultiplePlants = (
   | SqlClient.SqlClient
   | CurrentUser
   | DelegationRepository
+  | CanopyRepository
   | EventBus
 > =>
   Effect.gen(function* () {
@@ -72,7 +77,7 @@ export const careMultiplePlants = (
 
               const hasAccess = yield* Option.match(plantOption, {
                 onNone: () => Effect.succeed(false),
-                onSome: (plant) => canAccessPlant(plant.userId, plant.id),
+                onSome: (plant) => canPerform(plant, 'care'),
               })
 
               if (!hasAccess) {
@@ -105,7 +110,7 @@ export const careMultiplePlants = (
                 : undefined
 
               // Create care log + publish events
-              yield* createCareLog(plantId, {
+              yield* createCareLog(plant, {
                 type: request.careType,
                 date: now,
               })
@@ -129,7 +134,7 @@ export const careMultiplePlants = (
               if (nextCareAt) {
                 yield* scheduleCareReminder({
                   plantId,
-                  userId: plant.userId,
+                  userId: yield* settingsUserFor(plant.owner),
                   type: `${request.careType}_reminder` as const,
                   scheduledDate: nextCareAt,
                   remindersEnabled: plant.remindersEnabled,

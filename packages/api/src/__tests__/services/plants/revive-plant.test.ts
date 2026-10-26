@@ -7,7 +7,9 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import type { Notification } from '@lily/shared/notification'
 import type { AppEvent } from '@lily/shared/server'
@@ -26,7 +28,7 @@ const deadPlant = () =>
   })
 
 const asPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
-  ...plant,
+  ...withOwner(plant),
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
@@ -51,6 +53,7 @@ const makeLayer = (options: {
       createTestUser({ id: 'user-1', timezone: 'UTC', careReminders: true }),
     ]),
     createMockDelegationRepository({}),
+    createMockCurrentUser({ id: 'user-1' }),
     createMockLimitChecker({
       plantLimitReached: options.plantLimitReached ?? false,
     }),

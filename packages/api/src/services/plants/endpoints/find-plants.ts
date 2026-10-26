@@ -17,6 +17,7 @@ export const findPlants = (params: {
   sort?: PlantSort
   roomId?: string
   includeCaretaking?: boolean
+  includeCanopy?: boolean
 }): Effect.Effect<
   FindPlantsResult,
   SqlError,

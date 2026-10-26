@@ -71,7 +71,10 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
 
     // Verify all plants belong to the current user
     const plants = yield* plantRepo.findByIds(plantIds)
-    const allOwned = Array.every(plants, (p) => p.userId === currentUserId)
+    const allOwned = Array.every(
+      plants,
+      (p) => p.owner._tag === 'User' && p.owner.userId === currentUserId
+    )
     if (plants.length !== plantIds.length || !allOwned) {
       return yield* new PlantNotAuthorizedError()
     }

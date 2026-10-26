@@ -15,13 +15,14 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { correctCareDates } from '@lily/api/services/plants/endpoints/correct-care-dates'
 import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const toPlantWithRoom = (plant: TestPlant): PlantWithRoom => ({
-  ...plant,
+  ...withOwner(plant),
   room: null,
   ownership: 'owned' as const,
   ownerName: null,

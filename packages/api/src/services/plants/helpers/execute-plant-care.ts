@@ -12,6 +12,7 @@ import type { WeatherRepository } from '@lily/api/repositories/weather.repositor
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { settingsUserFor } from '@lily/api/services/plants/helpers/with-plant-access'
 import {
   calculatePlantAdjustment,
   type PlantForAdjustment,
@@ -142,7 +143,8 @@ export const executePlantCare = (
 
     // Load user once — both timezone (for day-boundary math) and weather flags
     // (consumed inside applyWeatherAdjustment) come from the same row.
-    const user = yield* userRepo.findById(plant.userId)
+    const settingsUserId = yield* settingsUserFor(plant.owner)
+    const user = yield* userRepo.findById(settingsUserId)
     const timezone = pipe(
       Option.fromNullishOr(user),
       Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
@@ -198,7 +200,7 @@ export const executePlantCare = (
 
         // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
         // Called before plant update so createCareLog sees the original health state
-        return yield* createCareLog(params.plantId, {
+        return yield* createCareLog(plant, {
           type: params.careType,
           notes: params.notes,
           date: careDate,
@@ -301,7 +303,7 @@ export const executePlantCare = (
     if (finalNextCareAt) {
       yield* scheduleCareReminder({
         plantId: params.plantId,
-        userId: plant.userId,
+        userId: settingsUserId,
         type: `${params.careType}_reminder` as const,
         scheduledDate: finalNextCareAt,
         remindersEnabled: plant.remindersEnabled,

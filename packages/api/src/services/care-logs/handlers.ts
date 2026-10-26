@@ -20,7 +20,7 @@ export const CareLogsApiLive = (api: Api) =>
         }).pipe(withInfraErrorsAsDefect)
       )
       .handle('getCareLogs', ({ params: { plantId }, query: urlParams }) =>
-        withPlantAuth(plantId).pipe(
+        withPlantAuth(plantId, 'view').pipe(
           Effect.andThen(
             getCareLogs({
               plantId,
@@ -36,25 +36,25 @@ export const CareLogsApiLive = (api: Api) =>
         )
       )
       .handle('createCareLog', ({ params: { plantId }, payload }) =>
-        withPlantAuth(plantId).pipe(
-          Effect.andThen(createCareLog(plantId, payload)),
+        withPlantAuth(plantId, 'care').pipe(
+          Effect.flatMap((plant) => createCareLog(plant, payload)),
           withInfraErrorsAsDefect
         )
       )
       .handle('getCareLog', ({ params: { plantId, logId } }) =>
-        withPlantAuth(plantId).pipe(
+        withPlantAuth(plantId, 'view').pipe(
           Effect.andThen(getCareLog(plantId, logId)),
           withInfraErrorsAsDefect
         )
       )
       .handle('updateCareLog', ({ params: { plantId, logId }, payload }) =>
-        withPlantAuth(plantId).pipe(
+        withPlantAuth(plantId, 'care').pipe(
           Effect.andThen(updateCareLog(plantId, logId, payload)),
           withInfraErrorsAsDefect
         )
       )
       .handle('deleteCareLog', ({ params: { plantId, logId } }) =>
-        withPlantAuth(plantId).pipe(
+        withPlantAuth(plantId, 'care').pipe(
           Effect.andThen(deleteCareLog(plantId, logId)),
           withInfraErrorsAsDefect
         )

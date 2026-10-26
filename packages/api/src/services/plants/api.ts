@@ -65,6 +65,10 @@ export const PlantsQueryParams = Schema.Struct({
     Schema.withDecodingDefaultType(Effect.succeed('false')),
     Schema.withConstructorDefault(Effect.succeed('false'))
   ),
+  includeCanopy: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('false')),
+    Schema.withConstructorDefault(Effect.succeed('false'))
+  ),
 })
 
 export type PlantsQueryParams = typeof PlantsQueryParams.Type

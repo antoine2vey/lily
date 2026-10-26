@@ -1,64 +1,126 @@
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
   PlantRepository,
+  type PlantRow,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
-import { assertIsPlantOwner } from '@lily/api/services/plants/helpers/assert-is-plant-owner'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
-  type PlantNotAuthorizedError,
+  allows,
+  type PlantAction,
+  type PlantRole,
+  plantRole,
+} from '@lily/api/services/plants/helpers/plant-access'
+import type { PlantOwner } from '@lily/shared'
+import {
+  PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { Effect } from 'effect'
+import { Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
+export type PlantAccessContext =
+  | CurrentUser
+  | DelegationRepository
+  | CanopyRepository
+
+export const resolvePlantRole = (
+  plant: PlantRow
+): Effect.Effect<Option.Option<PlantRole>, SqlError, PlantAccessContext> =>
+  Effect.gen(function* () {
+    const { id: userId } = yield* CurrentUser
+    const facts =
+      plant.owner._tag === 'User'
+        ? {
+            userId,
+            membership: null,
+            caretaker:
+              plant.owner.userId !== userId &&
+              (yield* (yield* DelegationRepository).hasActiveDelegationForPlant(
+                userId,
+                plant.id
+              )),
+          }
+        : {
+            userId,
+            membership: yield* (yield* CanopyRepository).findMembershipByUser(
+              userId
+            ),
+            caretaker: false,
+          }
+    return plantRole(plant, facts)
+  }).pipe(Effect.withSpan('resolvePlantRole'))
+
 /**
- * Fetches a plant by ID, checks ownership/delegation, and returns the plant.
+ * A plant the caller has no role on reads as not found, with the same body
+ * as a plant that doesn't exist, so plant ids can't be probed. A role that
+ * exists but lacks the action gets 403: that caller can already see the plant.
+ */
+export const assertPlantAction = (
+  plant: PlantRow,
+  action: PlantAction
+): Effect.Effect<
+  void,
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantAccessContext
+> =>
+  Effect.flatMap(
+    resolvePlantRole(plant),
+    (role): Effect.Effect<void, PlantNotFoundError | PlantNotAuthorizedError> =>
+      Option.match(role, {
+        onNone: () =>
+          Effect.fail(new PlantNotFoundError({ plantId: plant.id })),
+        onSome: (role) =>
+          allows(action)(role)
+            ? Effect.void
+            : Effect.fail(new PlantNotAuthorizedError()),
+      })
+  )
+
+/**
+ * The user whose settings, limit and reminders a plant action uses: the owner
+ * of a personal plant, or the acting member of a Canopy plant until C3 gives
+ * Canopy plants their own limit and C4 their own reminder recipients.
+ */
+export const settingsUserFor = (
+  owner: PlantOwner
+): Effect.Effect<string, never, CurrentUser> =>
+  owner._tag === 'User'
+    ? Effect.succeed(owner.userId)
+    : Effect.map(CurrentUser, (user) => user.id)
+
+export const canPerform = (
+  plant: PlantRow,
+  action: PlantAction
+): Effect.Effect<boolean, SqlError, PlantAccessContext> =>
+  Effect.map(resolvePlantRole(plant), Option.exists(allows(action)))
+
+/**
+ * Fetches a plant by ID, checks the caller may perform `action` on it, and
+ * returns the plant.
  *
- * Use `Effect.flatMap` to pass the plant to endpoints that need it (eliminates
- * the double-fetch where `withPlantAuth` loaded the plant for auth and the
- * endpoint loaded it again for business logic).
- *
- * For endpoints that only need authorization (e.g. photo operations), use
- * `Effect.zipRight` to discard the plant value.
+ * Use `Effect.flatMap` to pass the plant to endpoints that need it, and
+ * `Effect.zipRight` or `Effect.andThen` for endpoints that only need the
+ * check. Endpoints must not re-fetch a plant received from here.
  */
 export const withPlantAuth = (
-  plantId: string
+  plantId: string,
+  action: PlantAction
 ): Effect.Effect<
   PlantWithRoom,
-  PlantNotFoundError | SqlError,
-  PlantRepository | CurrentUser | DelegationRepository
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantRepository | PlantAccessContext
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     const plant = yield* repo.findById(plantId)
 
     if (!plant) {
-      return yield* new PlantNotFoundError()
+      return yield* new PlantNotFoundError({ plantId })
     }
 
-    yield* assertCanAccessPlant(plant.userId, plant.id)
+    yield* assertPlantAction(plant, action)
 
     return plant
-  }).pipe(Effect.withSpan('withPlantAuth'))
-
-/**
- * Like `withPlantAuth` but owner-only: delegated caretakers are refused.
- * Used by lifecycle endpoints (say goodbye, bring back, delete).
- */
-export const withPlantOwnerAuth = (
-  plantId: string
-): Effect.Effect<
-  PlantWithRoom,
-  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
-  PlantRepository | CurrentUser | DelegationRepository
-> =>
-  Effect.gen(function* () {
-    const plant = yield* withPlantAuth(plantId)
-
-    // Only a caretaker gets here without owning the plant; they know it exists
-    yield* assertIsPlantOwner(plant.userId)
-
-    return plant
-  }).pipe(Effect.withSpan('withPlantOwnerAuth'))
+  }).pipe(Effect.withSpan('withPlantAuth', { attributes: { action } }))

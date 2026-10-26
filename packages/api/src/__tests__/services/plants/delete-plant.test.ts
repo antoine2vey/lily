@@ -1,54 +1,47 @@
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
+import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
+const asPlantWithRoom = (
+  plant: ReturnType<typeof createTestPlant>
+): PlantWithRoom => ({
+  ...withOwner(plant),
+  room: null,
+  ownership: 'owned',
+  ownerName: null,
+  schedules: [],
+})
+
 describe('deletePlant', () => {
-  it('should delete existing plant', async () => {
+  it('returns the plant it deleted', async () => {
+    const plant = createTestPlant({ id: 'plant-1', name: 'Monstera' })
     const result = await Effect.runPromise(
-      deletePlant({ id: 'plant-1' }).pipe(
-        Effect.provide(createMockPlantRepository({ plants: mockPlants }))
-      )
-    )
-
-    expect(result.id).toBe('plant-1')
-  })
-
-  it('should return the deleted plant', async () => {
-    const result = await Effect.runPromise(
-      deletePlant({ id: 'plant-1' }).pipe(
-        Effect.provide(createMockPlantRepository({ plants: mockPlants }))
+      deletePlant(asPlantWithRoom(plant)).pipe(
+        Effect.provide(createMockPlantRepository({ plants: [plant] }))
       )
     )
 
     expect(result).toMatchObject({
-      id: mockPlants[0]?.id,
-      name: mockPlants[0]?.name,
+      id: 'plant-1',
+      name: 'Monstera',
       room: null,
       ownership: 'owned',
       ownerName: null,
     })
   })
 
-  it('should fail with PlantNotFoundError when plant not found', async () => {
+  it('fails with PlantNotFoundError when the row is already gone', async () => {
+    const plant = createTestPlant({ id: 'plant-1' })
     const result = await Effect.runPromiseExit(
-      deletePlant({ id: 'non-existent' }).pipe(
+      deletePlant(asPlantWithRoom(plant)).pipe(
         Effect.provide(createMockPlantRepository({ plants: [] }))
       )
     )
 
     expect(result._tag).toBe('Failure')
-  })
-
-  it('should return correct plant data on deletion', async () => {
-    const result = await Effect.runPromise(
-      deletePlant({ id: 'plant-2' }).pipe(
-        Effect.provide(createMockPlantRepository({ plants: mockPlants }))
-      )
-    )
-
-    expect(result.id).toBe('plant-2')
-    expect(result.name).toBe('Snake Plant')
   })
 })

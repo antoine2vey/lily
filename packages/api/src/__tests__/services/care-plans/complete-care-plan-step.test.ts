@@ -24,6 +24,7 @@ import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-pro
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { completeCarePlanStep } from '@lily/api/services/care-plans/endpoints/complete-care-plan-step'
 import { uncompleteCarePlanStep } from '@lily/api/services/care-plans/endpoints/uncomplete-care-plan-step'
@@ -36,7 +37,7 @@ const userId = 'user-1'
 const plantId = 'plant-1'
 
 const toPlantWithRoom = (plant: TestPlant): PlantWithRoom => ({
-  ...plant,
+  ...withOwner(plant),
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
