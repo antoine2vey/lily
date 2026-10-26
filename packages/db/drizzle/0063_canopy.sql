@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS "canopies" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "canopy_members" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"canopy_id" uuid NOT NULL REFERENCES "canopies"("id") ON DELETE CASCADE,
-	"user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+	"canopy_id" uuid NOT NULL CONSTRAINT "canopy_members_canopy_id_canopies_id_fk" REFERENCES "canopies"("id") ON DELETE CASCADE,
+	"user_id" uuid NOT NULL CONSTRAINT "canopy_members_user_id_users_id_fk" REFERENCES "users"("id") ON DELETE CASCADE,
 	"role" "canopy_member_role" DEFAULT 'member' NOT NULL,
 	"joined_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -33,9 +33,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS "canopy_members_one_owner_unique" ON "canopy_m
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "canopy_invites" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"canopy_id" uuid NOT NULL REFERENCES "canopies"("id") ON DELETE CASCADE,
+	"canopy_id" uuid NOT NULL CONSTRAINT "canopy_invites_canopy_id_canopies_id_fk" REFERENCES "canopies"("id") ON DELETE CASCADE,
 	"token_hash" text NOT NULL,
-	"created_by_user_id" uuid REFERENCES "users"("id") ON DELETE SET NULL,
+	"created_by_user_id" uuid CONSTRAINT "canopy_invites_created_by_user_id_users_id_fk" REFERENCES "users"("id") ON DELETE SET NULL,
 	"expires_at" timestamp with time zone NOT NULL,
 	"revoked_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -45,17 +45,17 @@ CREATE TABLE IF NOT EXISTS "canopy_invites" (
 CREATE UNIQUE INDEX IF NOT EXISTS "canopy_invites_one_live_unique" ON "canopy_invites" USING btree ("canopy_id") WHERE "revoked_at" IS NULL;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "canopy_plant_mutes" (
-	"user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
-	"plant_id" uuid NOT NULL REFERENCES "plants"("id") ON DELETE CASCADE,
+	"user_id" uuid NOT NULL CONSTRAINT "canopy_plant_mutes_user_id_users_id_fk" REFERENCES "users"("id") ON DELETE CASCADE,
+	"plant_id" uuid NOT NULL CONSTRAINT "canopy_plant_mutes_plant_id_plants_id_fk" REFERENCES "plants"("id") ON DELETE CASCADE,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "canopy_plant_mutes_user_id_plant_id_pk" PRIMARY KEY("user_id","plant_id")
 );
 --> statement-breakpoint
 ALTER TABLE "plants" ALTER COLUMN "user_id" DROP NOT NULL;
 --> statement-breakpoint
-ALTER TABLE "plants" ADD COLUMN IF NOT EXISTS "canopy_id" uuid REFERENCES "canopies"("id") ON DELETE RESTRICT;
+ALTER TABLE "plants" ADD COLUMN IF NOT EXISTS "canopy_id" uuid CONSTRAINT "plants_canopy_id_canopies_id_fk" REFERENCES "canopies"("id") ON DELETE RESTRICT;
 --> statement-breakpoint
-ALTER TABLE "plants" ADD COLUMN IF NOT EXISTS "created_by_user_id" uuid REFERENCES "users"("id") ON DELETE SET NULL;
+ALTER TABLE "plants" ADD COLUMN IF NOT EXISTS "created_by_user_id" uuid CONSTRAINT "plants_created_by_user_id_users_id_fk" REFERENCES "users"("id") ON DELETE SET NULL;
 --> statement-breakpoint
 DO $$
 BEGIN
@@ -76,7 +76,7 @@ WHERE "created_by_user_id" IS NULL
 --> statement-breakpoint
 ALTER TABLE "rooms" ALTER COLUMN "user_id" DROP NOT NULL;
 --> statement-breakpoint
-ALTER TABLE "rooms" ADD COLUMN IF NOT EXISTS "canopy_id" uuid REFERENCES "canopies"("id") ON DELETE RESTRICT;
+ALTER TABLE "rooms" ADD COLUMN IF NOT EXISTS "canopy_id" uuid CONSTRAINT "rooms_canopy_id_canopies_id_fk" REFERENCES "canopies"("id") ON DELETE RESTRICT;
 --> statement-breakpoint
 DO $$
 BEGIN
@@ -85,7 +85,7 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 --> statement-breakpoint
-ALTER TABLE "care_logs" ADD COLUMN IF NOT EXISTS "performed_by_user_id" uuid REFERENCES "users"("id") ON DELETE SET NULL;
+ALTER TABLE "care_logs" ADD COLUMN IF NOT EXISTS "performed_by_user_id" uuid CONSTRAINT "care_logs_performed_by_user_id_users_id_fk" REFERENCES "users"("id") ON DELETE SET NULL;
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "care_logs_performed_by_user_id_idx" ON "care_logs" USING btree ("performed_by_user_id");
 --> statement-breakpoint
