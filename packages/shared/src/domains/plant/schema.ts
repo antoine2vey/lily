@@ -64,7 +64,6 @@ export const PlantCareSchedule = Schema.Struct({
 
 export type PlantCareSchedule = typeof PlantCareSchedule.Type
 
-// Null once the member who added the plant deleted their account.
 export const PlantCreator = Schema.Struct({
   id: Schema.String,
   name: Schema.NullOr(Schema.String),

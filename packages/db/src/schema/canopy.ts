@@ -44,7 +44,6 @@ export const canopyMembers = pgTable(
       .defaultNow(),
   },
   (table) => [
-    // One Canopy per user. Drop this index if several Canopies per user ship.
     uniqueIndex('canopy_members_user_id_unique').on(table.userId),
     uniqueIndex('canopy_members_one_owner_unique')
       .on(table.canopyId)

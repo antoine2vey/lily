@@ -1,6 +1,3 @@
--- Canopy: a shared household. A plant or room belongs to exactly one owner,
--- a user or a Canopy. Every statement is additive and safe to rerun, and the
--- old API keeps working because it always writes user_id.
 DO $$
 BEGIN
   CREATE TYPE "canopy_member_role" AS ENUM ('owner', 'member');
@@ -26,7 +23,6 @@ CREATE TABLE IF NOT EXISTS "canopy_members" (
 	"joined_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
--- One Canopy per user. Drop this index if several Canopies per user ship.
 CREATE UNIQUE INDEX IF NOT EXISTS "canopy_members_user_id_unique" ON "canopy_members" USING btree ("user_id");
 --> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "canopy_members_one_owner_unique" ON "canopy_members" USING btree ("canopy_id") WHERE "role" = 'owner';
@@ -68,7 +64,6 @@ END $$;
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "plants_canopy_id_living_idx" ON "plants" USING btree ("canopy_id") WHERE "died_at" IS NULL;
 --> statement-breakpoint
--- Every existing plant was created by its owner.
 UPDATE "plants"
 SET "created_by_user_id" = "user_id"
 WHERE "created_by_user_id" IS NULL
@@ -96,30 +91,30 @@ END $$;
 --> statement-breakpoint
 ALTER TABLE "care_logs" ADD COLUMN IF NOT EXISTS "performed_by_user_id" uuid;
 --> statement-breakpoint
--- A log written while a delegation covered the plant was done by the
--- caretaker. A delegation covered it only once accepted (active, completed,
--- or canceled after acceptance), from start_date until it ended or was
--- canceled. Overlaps go to the latest-started delegation.
-UPDATE "care_logs" cl
-SET "performed_by_user_id" = cover."caretaker_id"
-FROM (
+WITH "accepted_delegations" AS (
+  SELECT
+    "id",
+    "caretaker_id",
+    "start_date" AS "covered_from",
+    LEAST("end_date", COALESCE("canceled_at", "end_date")) AS "covered_until"
+  FROM "care_delegations"
+  WHERE "status" IN ('active', 'completed')
+    OR ("status" = 'canceled' AND "responded_at" IS NOT NULL)
+),
+"latest_covering_caretaker" AS (
   SELECT DISTINCT ON (l."id") l."id" AS "care_log_id", d."caretaker_id"
   FROM "care_logs" l
   JOIN "delegation_plants" dp ON dp."plant_id" = l."plant_id"
-  JOIN "care_delegations" d ON d."id" = dp."delegation_id"
+  JOIN "accepted_delegations" d ON d."id" = dp."delegation_id"
   WHERE l."performed_by_user_id" IS NULL
-    AND (
-      d."status" IN ('active', 'completed')
-      OR (d."status" = 'canceled' AND d."responded_at" IS NOT NULL)
-    )
-    AND l."date" >= d."start_date"
-    AND l."date" <= LEAST(d."end_date", COALESCE(d."canceled_at", d."end_date"))
-  ORDER BY l."id", d."start_date" DESC
-) cover
-WHERE cl."id" = cover."care_log_id";
+    AND l."date" BETWEEN d."covered_from" AND d."covered_until"
+  ORDER BY l."id", d."covered_from" DESC
+)
+UPDATE "care_logs" cl
+SET "performed_by_user_id" = c."caretaker_id"
+FROM "latest_covering_caretaker" c
+WHERE cl."id" = c."care_log_id";
 --> statement-breakpoint
--- Every other log, including those of deleted delegations, was done by the
--- plant owner.
 UPDATE "care_logs" cl
 SET "performed_by_user_id" = p."user_id"
 FROM "plants" p

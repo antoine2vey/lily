@@ -6,8 +6,6 @@ export const CANOPY_NAME_MAX_LENGTH = 50
 export const CanopyId = Schema.String.pipe(Schema.brand('CanopyId'))
 export type CanopyId = typeof CanopyId.Type
 
-// The one owner of a plant or room. Every access, reminder and limit check
-// derives from it.
 export const PlantOwner = Schema.TaggedUnion({
   User: { userId: Schema.String },
   Canopy: { canopyId: CanopyId },
@@ -92,10 +90,8 @@ export const JoinCanopyRequest = Schema.Struct({
 })
 export type JoinCanopyRequest = typeof JoinCanopyRequest.Type
 
-// Sharing or unsharing clears the room; the same sheet offers a room in the
-// new scope.
 export const MovePlantScopeRequest = Schema.Struct({
-  roomId: Schema.optional(Schema.NullOr(Schema.String)),
+  roomId: Schema.optionalKey(Schema.String),
 })
 export type MovePlantScopeRequest = typeof MovePlantScopeRequest.Type
 

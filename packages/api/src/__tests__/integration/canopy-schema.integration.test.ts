@@ -1,7 +1,12 @@
+import {
+  PlantRepository,
+  PlantRepositoryLive,
+} from '@lily/api/repositories/plant.repository'
+import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Option, Predicate } from 'effect'
+import { Effect, Layer, Option, Predicate } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -21,6 +26,11 @@ const violatedConstraint = async (
       : undefined
   }
 }
+
+const RepositoryLive = PlantRepositoryLive.pipe(
+  Layer.provideMerge(DrizzleLive),
+  Layer.provideMerge(PgLive)
+)
 
 const plantValues = {
   name: 'Monstera',
@@ -208,6 +218,41 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Option.getOrNull
         )
       ).toEqual({ id: canopyPlant?.id, createdByUserId: null })
+    })
+
+    it('records the owner as the creator of a plant the repository creates', async () => {
+      const created = await Effect.runPromise(
+        Effect.gen(function* () {
+          const repo = yield* PlantRepository
+          return yield* repo.create({
+            ...plantValues,
+            description: null,
+            category: null,
+            health: 'HEALTHY',
+            userId: alexId,
+          })
+        }).pipe(Effect.provide(RepositoryLive))
+      )
+
+      expect(created?.createdByUserId).toBe(alexId)
+    })
+
+    it('treats a Canopy plant as absent until owner-based access lands', async () => {
+      const canopyId = await createCanopy('Home')
+      const [canopyPlant] = await db
+        .insert(schema.plants)
+        .values({ ...plantValues, canopyId, createdByUserId: alexId })
+        .returning()
+      if (!canopyPlant) throw new Error('plant insert returned nothing')
+
+      const found = await Effect.runPromise(
+        Effect.gen(function* () {
+          const repo = yield* PlantRepository
+          return yield* repo.findById(canopyPlant.id)
+        }).pipe(Effect.provide(RepositoryLive))
+      )
+
+      expect(found).toBeNull()
     })
   }
 )

@@ -617,6 +617,7 @@ const seedDemoData = Effect.gen(function* () {
       .values({
         ...plantFields,
         userId: user.id,
+        createdByUserId: user.id,
         dateAdded: Option.getOrElse(
           Option.fromNullishOr(plantData.dateAdded),
           () => new Date()
@@ -1478,7 +1479,12 @@ const seedDemoData = Effect.gen(function* () {
     const { schedules, ...plantFields } = plantData
     const result = yield* db
       .insert(plants)
-      .values({ ...plantFields, userId: lily.id, dateAdded: new Date() })
+      .values({
+        ...plantFields,
+        userId: lily.id,
+        createdByUserId: lily.id,
+        dateAdded: new Date(),
+      })
       .returning({ id: plants.id, name: plants.name })
     const plant = getFirst(result)
     lilyCreatedPlants.push(plant)

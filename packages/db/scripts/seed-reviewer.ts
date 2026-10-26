@@ -395,6 +395,7 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
             health: plant.health,
             isFavorite: plant.isFavorite,
             userId: user.id,
+            createdByUserId: user.id,
             roomId: getAt(createdRooms, getAt(PLANT_ROOM_ASSIGNMENTS, index))
               .id,
             dateAdded: daysAgo(30),

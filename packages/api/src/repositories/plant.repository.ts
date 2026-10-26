@@ -501,7 +501,10 @@ export const PlantRepositoryLive = Layer.effect(
       create: Effect.fn('PlantRepository.create')(function* (
         data: CreatePlantData
       ) {
-        const [plant] = yield* db.insert(plants).values(data).returning()
+        const [plant] = yield* db
+          .insert(plants)
+          .values({ ...data, createdByUserId: data.userId })
+          .returning()
         return userOwnedOrNull(plant)
       }),
 
