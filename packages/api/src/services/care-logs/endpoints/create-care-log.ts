@@ -36,6 +36,7 @@ export const createCareLog = (
       date: request.date,
       photoUrl: request.photoUrl,
       plantId,
+      performedByUserId: userId,
     })
 
     if (!logOrNull) {

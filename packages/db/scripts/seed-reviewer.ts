@@ -496,7 +496,11 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
       })
     )
 
-    yield* db.insert(careLogs).values(careLogEntries)
+    yield* db
+      .insert(careLogs)
+      .values(
+        A.map(careLogEntries, (log) => ({ ...log, performedByUserId: user.id }))
+      )
     yield* Console.log(`Created ${careLogEntries.length} care log entries`)
 
     // 6. Create plant photos for some plants
