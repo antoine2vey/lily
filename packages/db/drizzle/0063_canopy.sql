@@ -1,3 +1,29 @@
+-- Live traffic locks care_logs then plants (care) and plants then care_logs
+-- (plant delete), so any fixed lock order can deadlock with one of them.
+-- Take every lock this file needs without ever waiting while holding one:
+-- a failed NOWAIT attempt rolls back its savepoint and releases what it got.
+SET LOCAL lock_timeout = '5s';
+--> statement-breakpoint
+DO $$
+DECLARE
+  attempts integer := 0;
+BEGIN
+  LOOP
+    BEGIN
+      LOCK TABLE "users" IN SHARE ROW EXCLUSIVE MODE NOWAIT;
+      LOCK TABLE "care_logs", "plants", "rooms" IN ACCESS EXCLUSIVE MODE NOWAIT;
+      EXIT;
+    EXCEPTION
+      WHEN lock_not_available THEN
+        attempts := attempts + 1;
+        IF attempts >= 200 THEN
+          RAISE;
+        END IF;
+        PERFORM pg_sleep(0.05);
+    END;
+  END LOOP;
+END $$;
+--> statement-breakpoint
 DO $$
 BEGIN
   CREATE TYPE "canopy_member_role" AS ENUM ('owner', 'member');
@@ -96,7 +122,7 @@ WITH "accepted_delegations" AS (
     "id",
     "caretaker_id",
     "start_date" AS "covered_from",
-    LEAST("end_date", COALESCE("canceled_at", "end_date")) AS "covered_until"
+    LEAST("end_date", "canceled_at", "completed_at") AS "covered_until"
   FROM "care_delegations"
   WHERE "status" IN ('active', 'completed')
     OR ("status" = 'canceled' AND "responded_at" IS NOT NULL)
@@ -107,8 +133,9 @@ WITH "accepted_delegations" AS (
   JOIN "delegation_plants" dp ON dp."plant_id" = l."plant_id"
   JOIN "accepted_delegations" d ON d."id" = dp."delegation_id"
   WHERE l."performed_by_user_id" IS NULL
-    AND l."date" BETWEEN d."covered_from" AND d."covered_until"
-  ORDER BY l."id", d."covered_from" DESC
+    AND l."date" >= d."covered_from"
+    AND l."date" < d."covered_until"
+  ORDER BY l."id", d."covered_from" DESC, d."id"
 )
 UPDATE "care_logs" cl
 SET "performed_by_user_id" = c."caretaker_id"

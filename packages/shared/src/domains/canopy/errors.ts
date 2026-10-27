@@ -27,14 +27,14 @@ export class CanopyFullError extends Schema.TaggedError<CanopyFullError>()(
   { httpApiStatus: 409 }
 ) {}
 
-export class InviteNotFoundError extends Schema.TaggedError<InviteNotFoundError>()(
-  'InviteNotFoundError',
+export class CanopyInviteNotFoundError extends Schema.TaggedError<CanopyInviteNotFoundError>()(
+  'CanopyInviteNotFoundError',
   { message: message('Invite not found') },
   { httpApiStatus: 404 }
 ) {}
 
-export class InviteExpiredError extends Schema.TaggedError<InviteExpiredError>()(
-  'InviteExpiredError',
+export class CanopyInviteExpiredError extends Schema.TaggedError<CanopyInviteExpiredError>()(
+  'CanopyInviteExpiredError',
   { message: message('This invite has expired') },
   { httpApiStatus: 410 }
 ) {}
@@ -45,8 +45,8 @@ export class NotCanopyOwnerError extends Schema.TaggedError<NotCanopyOwnerError>
   { httpApiStatus: 403 }
 ) {}
 
-export class PlantDelegatedError extends Schema.TaggedError<PlantDelegatedError>()(
-  'PlantDelegatedError',
+export class PlantInDelegationError extends Schema.TaggedError<PlantInDelegationError>()(
+  'PlantInDelegationError',
   {
     plantId: Schema.String,
     message: message('This plant is in a care delegation'),

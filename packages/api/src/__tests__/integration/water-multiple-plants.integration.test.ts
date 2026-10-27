@@ -168,6 +168,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             type: 'watering' as const,
             plantId,
             date: now,
+            performedByUserId: testUserId,
           }))
         )
 
