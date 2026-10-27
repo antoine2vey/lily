@@ -174,8 +174,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(created).toHaveLength(1)
     })
 
-    // Auckland (UTC+13 in October) day of the 21st spans 20T11:00Z to 21T11:00Z.
-    // Paris (UTC+2 then) splits those two instants across the 20th and 21st.
     it('counts a Canopy plant day in the Canopy timezone, not the acting member', async () => {
       const [canopy] = await db
         .insert(schema.canopies)
@@ -250,12 +248,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           }).pipe(Effect.result)
         }).pipe(Effect.provide(layer))
 
-      const first = await Effect.runPromise(
-        careAt(new Date('2026-10-20T20:00:00.000Z'))
-      )
-      const second = await Effect.runPromise(
-        careAt(new Date('2026-10-21T02:00:00.000Z'))
-      )
+      const aucklandOct21Morning = new Date('2026-10-20T20:00:00.000Z')
+      const aucklandOct21Afternoon = new Date('2026-10-21T02:00:00.000Z')
+      const first = await Effect.runPromise(careAt(aucklandOct21Morning))
+      const second = await Effect.runPromise(careAt(aucklandOct21Afternoon))
 
       expect(Result.isSuccess(first)).toBe(true)
       expect(

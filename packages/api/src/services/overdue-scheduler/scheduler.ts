@@ -12,6 +12,7 @@ import {
   scheduleSimpleNotification,
 } from '@lily/api/services/helpers/schedule-notification'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
+import { canopyPlantCapFrom } from '@lily/api/services/subscriptions/canopy-plant-cap'
 import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import {
   AlreadySentTodayError,
@@ -42,9 +43,6 @@ const ownerKey = (owner: PlantOwner): string =>
     Match.exhaustive
   )
 
-// Process a single recipient's overdue plants — fails with skip errors when
-// the recipient should not receive a notification. Canopy plants reach each
-// member under their own userId; the free cap applies per owner scope.
 export const processUserOverdueReminders = (
   userId: string,
   plants: readonly OverdueRecipientPlant[],
@@ -61,8 +59,6 @@ export const processUserOverdueReminders = (
       return yield* new CareRemindersDisabledError({ userId })
     }
 
-    // Recipient on vacation: only reminders routed to a (non-vacationing)
-    // caretaker may go out; everything recipient-bound is muted below.
     const recipientOnVacation = isOnVacation(settings, nowAsDate())
 
     const timezone = pipe(
@@ -91,7 +87,6 @@ export const processUserOverdueReminders = (
 
     if (Array.isReadonlyArrayEmpty(strictlyOverdue)) return 0
 
-    // Oldest first, then each owner scope keeps up to its own cap
     const sorted = Array.sort(
       strictlyOverdue,
       Order.mapInput(Order.Date, (p: OverdueRecipientPlant) => p.dateAdded)
@@ -124,7 +119,6 @@ export const processUserOverdueReminders = (
       randomValue * 0.5 // clamp to [0, 0.5) to always prefer morning window
     )
 
-    // Resolve delegation routing per plant; Canopy plants cannot be delegated
     const routed = yield* Effect.forEach(eligible, (plant) =>
       Match.value(plant.owner).pipe(
         Match.tag('Canopy', () => Effect.succeed(null)),
@@ -160,8 +154,6 @@ export const processUserOverdueReminders = (
       )
     )
 
-    // Mute recipient-bound reminders while the recipient is on vacation, and
-    // caretaker-bound reminders while that caretaker is on vacation.
     const deliverable = Array.filter(routed, ({ caretakerId }) =>
       pipe(
         Option.fromNullishOr(caretakerId),
@@ -190,8 +182,6 @@ export const processUserOverdueReminders = (
       })
     )
 
-    // Send a daily nudge when free-tier plants overflow the cap — but not
-    // while the recipient is on vacation (engagement topics are muted).
     if (overflowCount > 0 && !recipientOnVacation) {
       const alreadySentNudge =
         yield* notificationRepo.hasNotificationOfTypeTodayForUser(
@@ -222,12 +212,10 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
 
   yield* Effect.log('Running overdue reminder check...')
 
-  // Single query: fetch plants overdue for any care type, grouped by recipient
   const grouped = yield* scheduleRepo.findOverdueByUser()
 
   if (Record.isEmptyRecord(grouped)) return
 
-  // A Canopy's cap depends on every member's tier, not only the recipients'
   const canopyIds = pipe(
     Record.values(grouped),
     Array.flatten,
@@ -242,7 +230,6 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
   )
   const membersByCanopy = yield* canopyRepo.findMemberIdsByCanopyIds(canopyIds)
 
-  // Batch-fetch subscriptions and tier configs (4 queries total)
   const userIds = pipe(
     Record.values(membersByCanopy),
     Array.flatten,
@@ -277,12 +264,8 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
       })
     )
 
-  // Same rule as LimitChecker.canopyPlantCap: one unlimited member lifts the
-  // Canopy's cap, otherwise the Canopy shares the free cap.
   const maxPlantsOfCanopy = Record.map(membersByCanopy, (members) =>
-    Array.some(members, (memberId) => maxPlantsOfUser(memberId) === null)
-      ? null
-      : freeTierMaxPlants
+    canopyPlantCapFrom(Array.map(members, maxPlantsOfUser), freeTierMaxPlants)
   )
 
   const maxPlantsFor = (owner: PlantOwner): number | null =>

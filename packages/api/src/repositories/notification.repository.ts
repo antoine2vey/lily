@@ -431,7 +431,6 @@ export const NotificationRepositoryLive = Layer.effect(
           )
       }),
 
-      // Queued rows go too: the worker's claim then finds nothing and skips.
       deleteUndeliveredForMemberOnCanopy: Effect.fn(
         'NotificationRepository.deleteUndeliveredForMemberOnCanopy'
       )(function* (userId: string, canopyId: string) {

@@ -3,7 +3,6 @@ import { CareTasksResponse } from '@lily/shared'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-// Opt-in so app builds from before Canopy never receive a Canopy task.
 export const CareTasksQueryParams = Schema.Struct({
   includeCanopy: Schema.optional(Schema.String),
 })

@@ -49,7 +49,6 @@ export interface OwnerScheduleRow {
   }
 }
 
-/** An overdue plant addressed to one recipient: the owner, or one member. */
 export type OverdueRecipientPlant = OverduePlant & { owner: PlantOwner }
 
 export interface UpsertScheduleData {
@@ -199,7 +198,6 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .where(and(overdue, isNotNull(plants.userId)))
             .orderBy(asc(plants.userId))
 
-          // One row per unmuted member: the digest is addressed per recipient.
           const shared = yield* db
             .select({
               plantId: plants.id,

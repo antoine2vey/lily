@@ -20,11 +20,6 @@ export const DEFAULT_CARE_CONTEXT: CareContext = {
   weather: noWeather,
 }
 
-/**
- * The timezone and weather location that govern a plant's care: the owner's
- * when a user owns it, the Canopy's when the Canopy does. A Canopy has no
- * weather switch, so its weather is on exactly when it has a location.
- */
 export const careContext = (
   owner: PlantOwner
 ): Effect.Effect<CareContext, SqlError, UserRepository | CanopyRepository> =>
