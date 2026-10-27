@@ -1,12 +1,16 @@
 -- API containers that predate 0063 keep inserting plants and care logs
 -- without the actor columns until the rollout replaces them. This reruns
 -- the 0063 actor backfill over the rows they wrote so far, and adds insert
--- triggers that apply the owner fallback to the rows they write after it,
--- which a backfill applied in the same deploy as 0063 cannot reach.
+-- triggers that apply the same rules, delegation first and then the owner,
+-- to the rows they write after it, which a backfill applied in the same
+-- deploy as 0063 cannot reach.
 -- EXCLUSIVE keeps plain reads flowing while it blocks every writer and row
--- locker of plants and care_logs, and it covers CREATE TRIGGER; the users
--- lock covers the foreign-key checks on the new values. Locks are taken the
--- 0063 way, never waiting while holding one.
+-- locker of plants and care_logs, and it covers CREATE OR REPLACE TRIGGER,
+-- which unlike DROP TRIGGER needs no ACCESS EXCLUSIVE upgrade on a rerun.
+-- The users lock covers the foreign-key checks on the new values. SHARE on
+-- delegation_plants covers its plant_id index, built before the backfill
+-- and the care-log trigger that both look plants up through it. Locks are
+-- taken the 0063 way, never waiting while holding one.
 SET LOCAL lock_timeout = '5s';
 --> statement-breakpoint
 DO $$
@@ -29,6 +33,8 @@ BEGIN
     END;
   END LOOP;
 END $$;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "delegation_plants_plant_id_idx" ON "delegation_plants" USING btree ("plant_id");
 --> statement-breakpoint
 UPDATE "plants"
 SET "created_by_user_id" = "user_id"
@@ -76,13 +82,9 @@ BEGIN
   RETURN NEW;
 END $$;
 --> statement-breakpoint
-DROP TRIGGER IF EXISTS "plants_creator_fallback" ON "plants";
---> statement-breakpoint
-CREATE TRIGGER "plants_creator_fallback"
+CREATE OR REPLACE TRIGGER "plants_creator_fallback"
 BEFORE INSERT ON "plants"
 FOR EACH ROW EXECUTE FUNCTION "plants_creator_fallback"();
---> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "delegation_plants_plant_id_idx" ON "delegation_plants" USING btree ("plant_id");
 --> statement-breakpoint
 CREATE OR REPLACE FUNCTION "care_logs_actor_fallback"() RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -109,8 +111,6 @@ BEGIN
   RETURN NEW;
 END $$;
 --> statement-breakpoint
-DROP TRIGGER IF EXISTS "care_logs_actor_fallback" ON "care_logs";
---> statement-breakpoint
-CREATE TRIGGER "care_logs_actor_fallback"
+CREATE OR REPLACE TRIGGER "care_logs_actor_fallback"
 BEFORE INSERT ON "care_logs"
 FOR EACH ROW EXECUTE FUNCTION "care_logs_actor_fallback"();

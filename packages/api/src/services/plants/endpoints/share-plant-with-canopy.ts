@@ -44,7 +44,7 @@ export const sharePlantWithCanopy = Effect.fn('PlantsService.shareWithCanopy')(
       withOwnerLock(canopy)(
         Effect.gen(function* () {
           if (yield* delegationRepo.hasOpenDelegationForPlant(plant.id)) {
-            return yield* new PlantInDelegationError({ plantId: plant.id })
+            return yield* new PlantInDelegationError({ plantId: requestedId })
           }
           const current = yield* reloadOwnedPlant(plant, requestedId)
           yield* assertRoomFits(roomId, canopy)
