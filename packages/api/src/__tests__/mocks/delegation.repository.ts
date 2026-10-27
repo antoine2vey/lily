@@ -318,6 +318,21 @@ export const createMockDelegationRepository = (
         )
       ),
 
+    hasOpenDelegationForPlant: (plantId) =>
+      Effect.succeed(
+        Array.some(
+          dpLinks,
+          (link) =>
+            link.plantId === plantId &&
+            Array.some(
+              delegations,
+              (d) =>
+                d.id === link.delegationId &&
+                Array.contains(['pending', 'accepted', 'active'], d.status)
+            )
+        )
+      ),
+
     findActiveCaretakerForPlant: (plantId) =>
       Effect.succeed(
         pipe(

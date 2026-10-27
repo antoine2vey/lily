@@ -15,6 +15,8 @@ type MutableNotification = {
 export interface MockNotificationRepositoryOptions {
   queuedAt?: Record<string, Date>
   deliveryClaims?: Record<string, string>
+  /** Plant ids per Canopy id, for `deletePendingForMemberOnCanopy`. */
+  canopyPlants?: Record<string, ReadonlyArray<string>>
 }
 
 export const createMockNotificationRepository = (
@@ -244,6 +246,23 @@ export const createMockNotificationRepository = (
         const toKeep = Array.filter(
           notificationsState,
           (n) => !(n.plantId === plantId && n.status === 'pending')
+        )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
+    deletePendingForMemberOnCanopy: (userId: string, canopyId: string) =>
+      Effect.sync(() => {
+        const plantIds = options.canopyPlants?.[canopyId] ?? []
+        const toKeep = Array.filter(
+          notificationsState,
+          (n) =>
+            !(
+              n.userId === userId &&
+              n.status === 'pending' &&
+              n.plantId !== undefined &&
+              Array.contains(plantIds, n.plantId)
+            )
         )
         notificationsState.length = 0
         notificationsState.push(...toKeep)

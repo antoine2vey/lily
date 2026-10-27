@@ -4,6 +4,7 @@ import { AdminApi } from '@lily/api/services/admin/api'
 import { AdminAnalyticsApi } from '@lily/api/services/admin-analytics/api'
 import { AIChatApi } from '@lily/api/services/ai-chat/api'
 import { AuthApi } from '@lily/api/services/auth/api'
+import { CanopyApi, CanopyInvitesApi } from '@lily/api/services/canopy/api'
 import { CareLogsApi } from '@lily/api/services/care-logs/api'
 import { CarePlansApi } from '@lily/api/services/care-plans/api'
 import { CareTasksApi } from '@lily/api/services/care-tasks/api'
@@ -55,6 +56,8 @@ export const Api = HttpApi.make('Api')
   .add(SubscriptionWebhooksApi.prefix('/api'))
   .add(SocialApi.prefix('/api'))
   .add(DelegationApi.prefix('/api'))
+  .add(CanopyApi.prefix('/api'))
+  .add(CanopyInvitesApi.prefix('/api'))
   .add(VacationApi.prefix('/api'))
   .add(WeatherApi.prefix('/api'))
   .add(KnowledgeIngestionApi.prefix('/api'))

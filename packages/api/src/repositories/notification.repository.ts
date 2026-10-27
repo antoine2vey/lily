@@ -3,7 +3,7 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { notifications } from '@lily/db/schema'
+import { notifications, plants } from '@lily/db/schema'
 import {
   nowAsDate,
   paginate,
@@ -115,6 +115,11 @@ export interface INotificationRepository {
   ) => Effect.Effect<void, SqlError>
   readonly deletePendingByPlantId: (
     plantId: string
+  ) => Effect.Effect<void, SqlError>
+  /** The member's pending rows for every plant of the Canopy. */
+  readonly deletePendingForMemberOnCanopy: (
+    userId: string,
+    canopyId: string
   ) => Effect.Effect<void, SqlError>
   readonly deleteByIds: (
     ids: ReadonlyArray<string>
@@ -405,6 +410,26 @@ export const NotificationRepositoryLive = Layer.effect(
             and(
               eq(notifications.plantId, plantId),
               eq(notifications.status, 'pending')
+            )
+          )
+      }),
+
+      deletePendingForMemberOnCanopy: Effect.fn(
+        'NotificationRepository.deletePendingForMemberOnCanopy'
+      )(function* (userId: string, canopyId: string) {
+        yield* db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.status, 'pending'),
+              inArray(
+                notifications.plantId,
+                db
+                  .select({ id: plants.id })
+                  .from(plants)
+                  .where(eq(plants.canopyId, canopyId))
+              )
             )
           )
       }),

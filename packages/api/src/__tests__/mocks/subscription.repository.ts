@@ -11,7 +11,7 @@ import type {
   TierConfig,
   UsageField,
 } from '@lily/shared'
-import { Effect, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Layer, Option, pipe, Result } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 
 // Default free tier config
@@ -56,6 +56,11 @@ interface MockSubscriptionOptions {
   failingCreates?: number | undefined
   onReserveUsage?: (userId: string, field: UsageField) => void
   onReleaseUsage?: (userId: string, field: UsageField) => void
+  /**
+   * One subscription per user. When set, lookups go by user id and
+   * `getTier` answers by tier name instead of returning `tier`.
+   */
+  subscriptionsByUser?: Record<string, typeof userSubscriptions.$inferSelect>
 }
 
 const rowFromCreate = (
@@ -109,10 +114,25 @@ export const createMockSubscriptionRepository = (
   )
 
   const tierConfig = tier === 'paid' ? paidTierConfig : freeTierConfig
+  const byUser = options.subscriptionsByUser
 
   const repo: ISubscriptionRepository = {
-    findByUserId: () => Effect.succeed(subscription),
-    findByUserIds: () => Effect.succeed(subscription ? [subscription] : []),
+    findByUserId: (userId) =>
+      Effect.succeed(
+        byUser === undefined
+          ? subscription
+          : pipe(Option.fromNullishOr(byUser[userId]), Option.getOrNull)
+      ),
+    findByUserIds: (userIds) =>
+      Effect.succeed(
+        byUser === undefined
+          ? subscription
+            ? [subscription]
+            : []
+          : Array.filterMap(userIds, (id) =>
+              Result.fromOption(Option.fromNullishOr(byUser[id]), () => id)
+            )
+      ),
     findStoreSubscriptions: () =>
       Effect.succeed(
         subscription && subscription.externalSubscriptionId !== null
@@ -153,7 +173,14 @@ export const createMockSubscriptionRepository = (
       return Effect.succeed(subscription)
     },
     cancel: () => Effect.succeed(subscription),
-    getTier: () => Effect.succeed(tierConfig),
+    getTier: (name) =>
+      Effect.succeed(
+        byUser === undefined
+          ? tierConfig
+          : name === 'paid'
+            ? paidTierConfig
+            : freeTierConfig
+      ),
     getAllTiers: () => Effect.succeed([freeTierConfig, paidTierConfig]),
     getCurrentUsage: () => Effect.succeed(usage),
     reserveUsage: (userId, field, limit) => {

@@ -14,7 +14,10 @@ export class CanopyNotFoundError extends Schema.TaggedError<CanopyNotFoundError>
 
 export class AlreadyInCanopyError extends Schema.TaggedError<AlreadyInCanopyError>()(
   'AlreadyInCanopyError',
-  { message: message('Leave your current Canopy before joining another') },
+  {
+    canopyName: Schema.String,
+    message: message('Leave your current Canopy before joining another'),
+  },
   { httpApiStatus: 409 }
 ) {}
 
@@ -25,6 +28,12 @@ export class CanopyFullError extends Schema.TaggedError<CanopyFullError>()(
     message: message('This Canopy is full'),
   },
   { httpApiStatus: 409 }
+) {}
+
+export class CanopyMemberNotFoundError extends Schema.TaggedError<CanopyMemberNotFoundError>()(
+  'CanopyMemberNotFoundError',
+  { message: message('Member not found') },
+  { httpApiStatus: 404 }
 ) {}
 
 export class CanopyInviteNotFoundError extends Schema.TaggedError<CanopyInviteNotFoundError>()(

@@ -12,6 +12,7 @@ import {
   DelegationOverlapError,
   LimitExceededError,
   PaginationParams,
+  PlantInDelegationError,
   RespondDelegationRequest,
   UserNotFoundError,
 } from '@lily/shared'
@@ -42,6 +43,7 @@ export const DelegationApi = HttpApiGroup.make('delegations')
         DelegationOverlapError,
         DelegationNotFoundError,
         PlantNotAuthorizedError,
+        PlantInDelegationError,
         UserNotFoundError,
       ],
     })

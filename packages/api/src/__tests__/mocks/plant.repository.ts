@@ -1,6 +1,7 @@
 import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
+  ownerColumns,
   sameOwner,
   withCanopyOwner,
   withOwner,
@@ -315,9 +316,8 @@ export const createMockPlantRepository = (
         diedAt: null,
         deathCause: null,
         deathNote: null,
-        userId: createData.userId,
-        canopyId: null,
-        createdByUserId: createData.userId,
+        ...ownerColumns(createData.owner),
+        createdByUserId: createData.createdByUserId,
       }
       plantsData.push(newPlant)
       return Effect.succeed(withOwner(newPlant))
@@ -350,6 +350,9 @@ export const createMockPlantRepository = (
         deathCause: null,
         deathNote: null,
       }),
+
+    moveTo: (id, from, to, roomId) =>
+      patchPlant(id, from, { ...ownerColumns(to), roomId }),
 
     findPhotos: (params: FindPhotosParams) => {
       const page = pipe(

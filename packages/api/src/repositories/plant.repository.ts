@@ -6,6 +6,7 @@ import {
 import {
   type CanopyOwner,
   ownedBy,
+  ownerColumns,
   type UserOwner,
   type WithOwner,
   withCanopyOwner,
@@ -135,7 +136,8 @@ export interface CreatePlantData {
   health: PlantHealthStatus
   potWidthCm?: number | null
   potHeightCm?: number | null
-  userId: string
+  owner: PlantOwner
+  createdByUserId: string
   roomId?: string | null
 }
 
@@ -201,6 +203,13 @@ export interface IPlantRepository {
   readonly revive: (
     id: string,
     owner: PlantOwner
+  ) => Effect.Effect<PlantRow | null, SqlError>
+  /** Hands the plant from one owner to the other and sets its room. */
+  readonly moveTo: (
+    id: string,
+    from: PlantOwner,
+    to: PlantOwner,
+    roomId: string | null
   ) => Effect.Effect<PlantRow | null, SqlError>
   readonly findPhotos: (
     params: FindPhotosParams
@@ -626,9 +635,10 @@ export const PlantRepositoryLive = Layer.effect(
       create: Effect.fn('PlantRepository.create')(function* (
         data: CreatePlantData
       ) {
+        const { owner, ...fields } = data
         const [plant] = yield* db
           .insert(plants)
-          .values({ ...data, createdByUserId: data.userId })
+          .values({ ...fields, ...ownerColumns(owner) })
           .returning()
         return withOwnerOrNull(plant)
       }),
@@ -682,6 +692,20 @@ export const PlantRepositoryLive = Layer.effect(
           .update(plants)
           .set({ diedAt: null, deathCause: null, deathNote: null })
           .where(and(eq(plants.id, id), ownedBy(plants, owner)))
+          .returning()
+        return withOwnerOrNull(plant)
+      }),
+
+      moveTo: Effect.fn('PlantRepository.moveTo')(function* (
+        id: string,
+        from: PlantOwner,
+        to: PlantOwner,
+        roomId: string | null
+      ) {
+        const [plant] = yield* db
+          .update(plants)
+          .set({ ...ownerColumns(to), roomId, updatedAt: nowAsDate() })
+          .where(and(eq(plants.id, id), ownedBy(plants, from)))
           .returning()
         return withOwnerOrNull(plant)
       }),

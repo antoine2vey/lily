@@ -13,10 +13,16 @@ import { findPlantById } from '@lily/api/services/plants/endpoints/find-plant-by
 import { findPlants } from '@lily/api/services/plants/endpoints/find-plants'
 import { getPlantPhotos } from '@lily/api/services/plants/endpoints/get-plant-photos'
 import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
+import {
+  mutePlant,
+  unmutePlant,
+} from '@lily/api/services/plants/endpoints/mute-plant'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { scanCard } from '@lily/api/services/plants/endpoints/scan-card'
 import { scanCardMultiple } from '@lily/api/services/plants/endpoints/scan-card-multiple'
 import { sharePlant } from '@lily/api/services/plants/endpoints/share-plant'
+import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-plant-with-canopy'
+import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
@@ -140,6 +146,30 @@ export const PlantsApiLive = (api: Api) =>
       .handle('sharePlant', ({ params: { id } }) =>
         withPlantAuth(id, 'view').pipe(
           Effect.andThen(sharePlant(id)),
+          withInfraErrorsAsDefect
+        )
+      )
+      .handle('sharePlantWithCanopy', ({ params: { id }, payload }) =>
+        withPlantAuth(id, 'share').pipe(
+          Effect.flatMap((plant) => sharePlantWithCanopy(plant, payload)),
+          withInfraErrorsAsDefect
+        )
+      )
+      .handle('unsharePlant', ({ params: { id }, payload }) =>
+        withPlantAuth(id, 'unshare').pipe(
+          Effect.flatMap((plant) => unsharePlant(plant, payload)),
+          withInfraErrorsAsDefect
+        )
+      )
+      .handle('mutePlant', ({ params: { id } }) =>
+        withPlantAuth(id, 'mute').pipe(
+          Effect.flatMap((plant) => mutePlant(plant)),
+          withInfraErrorsAsDefect
+        )
+      )
+      .handle('unmutePlant', ({ params: { id } }) =>
+        withPlantAuth(id, 'mute').pipe(
+          Effect.flatMap((plant) => unmutePlant(plant)),
           withInfraErrorsAsDefect
         )
       )

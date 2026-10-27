@@ -14,7 +14,7 @@ import {
   withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
-import type { CanopyId } from '@lily/shared'
+import type { CanopyId, PlantOwner } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import type { AppEvent } from '@lily/shared/server'
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
@@ -64,7 +64,8 @@ const makeLayer = (options: {
   plant: ReturnType<typeof createTestPlant>
   schedules?: ReturnType<typeof createTestSchedule>[]
   notifications?: Notification[]
-  plantLimitReached?: boolean
+  plantLimitReached?: boolean | ((owner: PlantOwner) => boolean)
+  checkedOwners?: PlantOwner[]
   publishedEvents?: AppEvent[]
 }) =>
   Layer.mergeAll(
@@ -81,6 +82,7 @@ const makeLayer = (options: {
     createMockCurrentUser({ id: 'user-1' }),
     createMockLimitChecker({
       plantLimitReached: options.plantLimitReached ?? false,
+      checkedOwners: options.checkedOwners,
     }),
     createMockEventBus({ publishedEvents: options.publishedEvents ?? [] })
   )
@@ -91,15 +93,34 @@ const failureTag = (exit: Exit.Exit<unknown, { _tag: string }>) =>
     : Option.none()
 
 describe('revivePlant', () => {
-  it("revives a Canopy plant without counting it against the member's personal limit", async () => {
+  it("checks a Canopy revive against the Canopy's limit, not the member's", async () => {
     const plant = deadCanopyPlant()
+    const checkedOwners: PlantOwner[] = []
     const result = await Effect.runPromise(
+      revivePlant(asCanopyPlantWithRoom(plant)).pipe(
+        Effect.provide(
+          makeLayer({
+            plant,
+            plantLimitReached: (owner) => owner._tag === 'User',
+            checkedOwners,
+          })
+        )
+      )
+    )
+
+    expect(result.diedAt).toBeNull()
+    expect(checkedOwners).toEqual([{ _tag: 'Canopy', canopyId: 'canopy-1' }])
+  })
+
+  it('keeps a Canopy plant buried when the Canopy is at its cap', async () => {
+    const plant = deadCanopyPlant()
+    const exit = await Effect.runPromiseExit(
       revivePlant(asCanopyPlantWithRoom(plant)).pipe(
         Effect.provide(makeLayer({ plant, plantLimitReached: true }))
       )
     )
 
-    expect(result.diedAt).toBeNull()
+    expect(failureTag(exit)).toEqual(Option.some('LimitExceededError'))
   })
 
   it('clears the death columns', async () => {

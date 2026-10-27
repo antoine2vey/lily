@@ -1,11 +1,14 @@
 import type { ILimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
-import { LimitExceededError } from '@lily/shared'
+import { LimitExceededError, type PlantOwner } from '@lily/shared'
 import { Effect, Layer } from 'effect'
 
 interface MockLimitCheckerOptions {
-  plantLimitReached?: boolean | undefined
+  /** A predicate decides per owner; the error names that owner's feature. */
+  plantLimitReached?: boolean | ((owner: PlantOwner) => boolean) | undefined
   delegationAccessDenied?: boolean | undefined
+  /** Every owner `checkPlantLimit` was asked about, in order. */
+  checkedOwners?: PlantOwner[] | undefined
 }
 
 export const createMockLimitChecker = (
@@ -14,17 +17,24 @@ export const createMockLimitChecker = (
   const { plantLimitReached = false, delegationAccessDenied = false } = options
 
   const checker: ILimitChecker = {
-    checkPlantLimit: () =>
-      plantLimitReached
-        ? Effect.fail(
-            new LimitExceededError({
-              feature: 'plants',
-              limit: 5,
-              current: 5,
-              message: 'Plant limit reached',
-            })
-          )
-        : Effect.void,
+    checkPlantLimit: (owner) =>
+      Effect.suspend(() => {
+        options.checkedOwners?.push(owner)
+        const reached =
+          typeof plantLimitReached === 'function'
+            ? plantLimitReached(owner)
+            : plantLimitReached
+        return reached
+          ? Effect.fail(
+              new LimitExceededError({
+                feature: owner._tag === 'Canopy' ? 'canopy_plants' : 'plants',
+                limit: 5,
+                current: 5,
+                message: 'Plant limit reached',
+              })
+            )
+          : Effect.void
+      }),
 
     checkDelegationAccess: () =>
       delegationAccessDenied

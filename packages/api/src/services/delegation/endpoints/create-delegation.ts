@@ -15,6 +15,7 @@ import {
   DelegationNotFoundError,
   DelegationOverlapError,
   nowAsDate,
+  PlantInDelegationError,
   UserNotFoundError,
 } from '@lily/shared'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
@@ -76,6 +77,16 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
     // Verify all plants belong to the current user
     const plants = yield* plantRepo.findByIds(plantIds)
     const who = yield* caller
+    // Canopy plants are never delegated; say so only to a member who sees one.
+    const canopyPlant = yield* Effect.findFirst(
+      Array.filter(plants, (p) => p.owner._tag === 'Canopy'),
+      (p) => canPerform(who, p, 'view')
+    )
+    if (Option.isSome(canopyPlant)) {
+      return yield* new PlantInDelegationError({
+        plantId: canopyPlant.value.id,
+      })
+    }
     const allOwned = yield* Effect.forEach(plants, (p) =>
       canPerform(who, p, 'delegate')
     ).pipe(Effect.map(Array.every((allowed) => allowed)))

@@ -3,7 +3,10 @@ import {
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import {
+  createTestPlant,
+  mockPlants,
+} from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
@@ -20,6 +23,7 @@ import {
   DelegationDateError,
   DelegationOverlapError,
   LimitExceededError,
+  PlantInDelegationError,
   UserNotFoundError,
 } from '@lily/shared'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
@@ -52,7 +56,15 @@ const validRequest = {
   message: 'Please water my plants',
 }
 
+const canopyPlant = createTestPlant({
+  id: 'canopy-plant',
+  userId: null,
+  canopyId: 'canopy-1',
+  createdByUserId: mockUser2.id,
+})
+
 const createLayer = (options?: {
+  canopyMember?: boolean | undefined
   delegationAccessDenied?: boolean | undefined
   delegations?: DelegationRow[] | undefined
   delegationPlants?: { delegationId: string; plantId: string }[] | undefined
@@ -63,8 +75,19 @@ const createLayer = (options?: {
       delegationAccessDenied: options?.delegationAccessDenied,
     }),
     createMockUserRepository([mockUser1, mockUser2]),
-    createMockPlantRepository({ plants: mockPlants }),
-    createMockCanopyRepository(),
+    createMockPlantRepository({ plants: [...mockPlants, canopyPlant] }),
+    createMockCanopyRepository(
+      options?.canopyMember
+        ? [
+            {
+              userId: mockUser1.id,
+              canopyId: 'canopy-1',
+              role: 'member',
+              joinedAt: new Date('2024-01-01'),
+            },
+          ]
+        : []
+    ),
     createMockNotificationRepository(notifications),
     createMockMessageQueue(),
     createMockDelegationRepository({
@@ -87,6 +110,28 @@ const createLayer = (options?: {
   )
 
 describe('createDelegation', () => {
+  it('refuses a Canopy plant to a member who can see it', async () => {
+    const exit = await Effect.runPromiseExit(
+      createDelegation({
+        ...validRequest,
+        plantIds: ['plant-1', 'canopy-plant'],
+      }).pipe(Effect.provide(createLayer({ canopyMember: true })))
+    )
+    expect(failureOf(exit)).toEqual(
+      new PlantInDelegationError({ plantId: 'canopy-plant' })
+    )
+  })
+
+  it('answers a Canopy plant the caller cannot see like any foreign plant', async () => {
+    const exit = await Effect.runPromiseExit(
+      createDelegation({
+        ...validRequest,
+        plantIds: ['plant-1', 'canopy-plant'],
+      }).pipe(Effect.provide(createLayer()))
+    )
+    expect(failureOf(exit)).toEqual(new PlantNotAuthorizedError())
+  })
+
   it('should create a delegation with valid data', async () => {
     const layer = createLayer()
 

@@ -1,8 +1,11 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
+  CanopyNotFoundError,
   LimitExceededError,
+  MovePlantScopeRequest,
   OpenAIError,
   PaginationParams,
+  PlantInDelegationError,
   RoomNotFoundError,
 } from '@lily/shared'
 import {
@@ -90,6 +93,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       error: [
         RoomNotFoundError,
         LimitExceededError,
+        CanopyNotFoundError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
     })
@@ -364,6 +368,64 @@ export const PlantsApi = HttpApiGroup.make('plants')
   .add(
     // POST /plants/:id/share - Notify that plant was shared
     HttpApiEndpoint.post('sharePlant', '/:id/share', {
+      params: { id: plantIdParam },
+      success: Schema.Void,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
+  )
+  .add(
+    // POST /plants/:id/share-with-canopy - Move a personal plant into the
+    // caller's Canopy. Unrelated to `sharePlant`, the social share event.
+    HttpApiEndpoint.post('sharePlantWithCanopy', '/:id/share-with-canopy', {
+      params: { id: plantIdParam },
+      payload: MovePlantScopeRequest,
+      success: Plant,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        CanopyNotFoundError,
+        PlantInDelegationError,
+        LimitExceededError,
+        RoomNotFoundError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
+  )
+  .add(
+    // POST /plants/:id/unshare - Move a Canopy plant to the caller's plants
+    HttpApiEndpoint.post('unsharePlant', '/:id/unshare', {
+      params: { id: plantIdParam },
+      payload: MovePlantScopeRequest,
+      success: Plant,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        CanopyNotFoundError,
+        LimitExceededError,
+        RoomNotFoundError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
+  )
+  .add(
+    // PUT /plants/:id/mute - Silence a Canopy plant for the caller only
+    HttpApiEndpoint.put('mutePlant', '/:id/mute', {
+      params: { id: plantIdParam },
+      success: Schema.Void,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
+  )
+  .add(
+    // DELETE /plants/:id/mute - Unmute a Canopy plant for the caller
+    HttpApiEndpoint.delete('unmutePlant', '/:id/mute', {
       params: { id: plantIdParam },
       success: Schema.Void,
       error: [

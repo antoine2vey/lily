@@ -1,5 +1,5 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
@@ -8,7 +8,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
 import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
@@ -16,7 +16,7 @@ import {
   PlantNotDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { Array, DateTime, Effect } from 'effect'
+import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -46,15 +46,12 @@ export const revivePlant = (
     }
 
     const repo = yield* PlantRepository
-    const scheduleRepo = yield* CareScheduleRepository
     const limitChecker = yield* LimitChecker
     const eventBus = yield* EventBus
 
     // A revived plant takes a slot again; free users at the cap are paywalled
     // exactly like on create, so bury-then-revive is not a way around it.
-    if (plant.owner._tag === 'User') {
-      yield* limitChecker.checkPlantLimit(plant.owner.userId)
-    }
+    yield* limitChecker.checkPlantLimit(plant.owner)
     const settingsUserId = yield* interimSettingsUserFor(plant.owner)
 
     const updated = yield* repo.revive(plant.id, plant.owner)
@@ -62,26 +59,7 @@ export const revivePlant = (
       return yield* new PlantNotFoundError({ plantId: requestedId })
     }
 
-    const schedules = yield* scheduleRepo.findByPlant(plant.id)
-    const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
-    yield* Effect.forEach(
-      Array.filter(
-        schedules,
-        (schedule) =>
-          schedule.nextCareAt !== null &&
-          DateTime.toEpochMillis(DateTime.makeUnsafe(schedule.nextCareAt)) >
-            nowMs
-      ),
-      (schedule) =>
-        scheduleCareReminder({
-          plantId: plant.id,
-          userId: settingsUserId,
-          type: `${schedule.careType}_reminder` as const,
-          // biome-ignore lint/style/noNonNullAssertion: filtered non-null above
-          scheduledDate: schedule.nextCareAt!,
-          remindersEnabled: updated.remindersEnabled,
-        })
-    )
+    yield* rescheduleReminders(updated, settingsUserId)
 
     yield* publishWithRetry(
       eventBus.publish({

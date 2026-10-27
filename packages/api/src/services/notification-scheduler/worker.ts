@@ -506,6 +506,12 @@ const validateTopic = Match.type<NotificationTopic>().pipe(
     () => true
   ),
   Match.whenOr(
+    'canopy_member_joined',
+    'canopy_member_removed',
+    'canopy_member_left',
+    () => true
+  ),
+  Match.whenOr(
     'daily_tip',
     'inactivity_nudge',
     'photo_reminder',

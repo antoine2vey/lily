@@ -335,6 +335,11 @@ const TOPIC_ROUTES = {
   delegation_activated: delegationRoute,
   delegation_completed: delegationRoute,
 
+  // Canopy membership → no destination until the app has a Canopy screen
+  canopy_member_joined: () => null,
+  canopy_member_removed: () => null,
+  canopy_member_left: () => null,
+
   // Daily tip → tip modal with content
   daily_tip: (data) => {
     const title =
