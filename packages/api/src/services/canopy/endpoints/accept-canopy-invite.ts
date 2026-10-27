@@ -59,17 +59,15 @@ export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
       })
     )
 
+    yield* rebuildMemberReminders(userId)
     yield* Option.match(joined.notify, {
       onNone: () => Effect.void,
       onSome: ({ canopyName, members }) =>
-        Effect.andThen(
-          rebuildMemberReminders(userId),
-          Effect.forEach(members, (member) =>
-            notifyMemberBestEffort('canopy_member_joined', member, {
-              ...senderNameOf(joinerName),
-              canopyName,
-            })
-          )
+        Effect.forEach(members, (member) =>
+          notifyMemberBestEffort('canopy_member_joined', member, {
+            ...senderNameOf(joinerName),
+            canopyName,
+          })
         ),
     })
 
