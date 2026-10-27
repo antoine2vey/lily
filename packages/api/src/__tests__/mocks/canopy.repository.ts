@@ -17,7 +17,11 @@ export const createMockCanopyRepository = (
       Effect.succeed(
         pipe(
           Array.findFirst(members, (m) => m.userId === userId),
-          Option.map(({ userId: _, ...membership }) => membership),
+          Option.map(({ canopyId, role, joinedAt }) => ({
+            canopyId,
+            role,
+            joinedAt,
+          })),
           Option.getOrNull
         )
       ),

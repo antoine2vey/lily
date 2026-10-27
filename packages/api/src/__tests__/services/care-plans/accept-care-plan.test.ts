@@ -4,6 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/care-plans'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
@@ -87,6 +88,7 @@ const buildLayer = (
     createMockNotificationRepository([]),
     createMockUserRepository([user]),
     createMockDelegationRepository({}),
+    createMockCanopyRepository(),
     createMockCurrentUser({ id: currentUserId })
   )
 }

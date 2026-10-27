@@ -1,6 +1,5 @@
 import type { CanopyMembership } from '@lily/api/repositories/canopy.repository'
-import type { PlantOwner } from '@lily/shared'
-import { Array, Data, Match, Option, pipe } from 'effect'
+import { Array, Data, Option, pipe } from 'effect'
 
 export type PlantRole = Data.TaggedEnum<{
   Owner: {}
@@ -67,40 +66,30 @@ export const allowedRoles: Record<PlantAction, ReadonlyArray<RoleTag>> = {
 export const allows = (action: PlantAction) => (role: PlantRole) =>
   Array.contains(allowedRoles[action], role._tag)
 
-export interface PlantAccessFacts {
-  readonly userId: string
-  readonly membership: CanopyMembership | null
-  readonly caretaker: boolean
-}
+export const personalRole = (
+  ownerId: string,
+  userId: string,
+  caretaker: boolean
+): Option.Option<PlantRole> =>
+  ownerId === userId
+    ? Option.some(PlantRole.Owner())
+    : caretaker
+      ? Option.some(PlantRole.Caretaker())
+      : Option.none()
 
-export const plantRole = (
-  plant: {
-    readonly owner: PlantOwner
-    readonly createdByUserId: string | null
-  },
-  facts: PlantAccessFacts
+export const canopyRole = (
+  plant: { readonly canopyId: string; readonly createdByUserId: string | null },
+  userId: string,
+  membership: CanopyMembership | null
 ): Option.Option<PlantRole> =>
   pipe(
-    Match.value(plant.owner),
-    Match.tag('User', ({ userId }) =>
-      userId === facts.userId
-        ? Option.some(PlantRole.Owner())
-        : facts.caretaker
-          ? Option.some(PlantRole.Caretaker())
-          : Option.none()
-    ),
-    Match.tag('Canopy', ({ canopyId }) =>
-      pipe(
-        Option.fromNullishOr(facts.membership),
-        Option.filter((membership) => membership.canopyId === canopyId),
-        Option.map((membership) =>
-          membership.role === 'owner'
-            ? PlantRole.CanopyOwner()
-            : plant.createdByUserId === facts.userId
-              ? PlantRole.CanopyCreator()
-              : PlantRole.CanopyMember()
-        )
-      )
-    ),
-    Match.exhaustive
+    Option.fromNullishOr(membership),
+    Option.filter((m) => m.canopyId === plant.canopyId),
+    Option.map((m) =>
+      m.role === 'owner'
+        ? PlantRole.CanopyOwner()
+        : plant.createdByUserId === userId
+          ? PlantRole.CanopyCreator()
+          : PlantRole.CanopyMember()
+    )
   )

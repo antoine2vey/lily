@@ -11,16 +11,16 @@ import {
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
   allows,
+  canopyRole,
   type PlantAction,
   type PlantRole,
-  plantRole,
+  personalRole,
 } from '@lily/api/services/plants/helpers/plant-access'
-import type { PlantOwner } from '@lily/shared'
 import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { Effect, Option } from 'effect'
+import { Effect, Match, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type PlantAccessContext =
@@ -55,26 +55,29 @@ export const plantRoleFor = (
   who: Caller,
   plant: PlantRow
 ): Effect.Effect<Option.Option<PlantRole>, SqlError, DelegationRepository> =>
-  Effect.gen(function* () {
-    const facts =
-      plant.owner._tag === 'User'
-        ? {
-            userId: who.userId,
-            membership: null,
-            caretaker:
-              plant.owner.userId !== who.userId &&
-              (yield* (yield* DelegationRepository).hasActiveDelegationForPlant(
-                who.userId,
-                plant.id
-              )),
-          }
-        : {
-            userId: who.userId,
-            membership: yield* who.membership,
-            caretaker: false,
-          }
-    return plantRole(plant, facts)
-  }).pipe(Effect.withSpan('plantRoleFor'))
+  pipe(
+    Match.value(plant.owner),
+    Match.tag('User', ({ userId: ownerId }) =>
+      ownerId === who.userId
+        ? Effect.succeed(personalRole(ownerId, who.userId, false))
+        : Effect.map(
+            Effect.flatMap(DelegationRepository, (repo) =>
+              repo.hasActiveDelegationForPlant(who.userId, plant.id)
+            ),
+            (caretaker) => personalRole(ownerId, who.userId, caretaker)
+          )
+    ),
+    Match.tag('Canopy', ({ canopyId }) =>
+      Effect.map(who.membership, (membership) =>
+        canopyRole(
+          { canopyId, createdByUserId: plant.createdByUserId },
+          who.userId,
+          membership
+        )
+      )
+    ),
+    Match.exhaustive
+  ).pipe(Effect.withSpan('plantRoleFor'))
 
 export const resolvePlantRole = (
   plant: PlantRow
@@ -106,18 +109,6 @@ export const assertPlantAction = (
             : Effect.fail(new PlantNotAuthorizedError()),
       })
   )
-
-/**
- * The user whose settings, limit and reminders a plant action uses: the owner
- * of a personal plant, or the acting member of a Canopy plant until C3 gives
- * Canopy plants their own limit and C4 their own reminder recipients.
- */
-export const settingsUserFor = (
-  owner: PlantOwner
-): Effect.Effect<string, never, CurrentUser> =>
-  owner._tag === 'User'
-    ? Effect.succeed(owner.userId)
-    : Effect.map(CurrentUser, (user) => user.id)
 
 export const canPerform = (
   who: Caller,

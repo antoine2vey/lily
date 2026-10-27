@@ -5,7 +5,7 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { settingsUserFor } from '@lily/api/services/plants/helpers/with-plant-access'
+import { settingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   PlantAlreadyDeadError,
   PlantNotFoundError,

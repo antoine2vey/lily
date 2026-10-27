@@ -5,6 +5,7 @@ import {
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -63,6 +64,7 @@ const createLayer = (options?: {
     }),
     createMockUserRepository([mockUser1, mockUser2]),
     createMockPlantRepository({ plants: mockPlants }),
+    createMockCanopyRepository(),
     createMockNotificationRepository(notifications),
     createMockMessageQueue(),
     createMockDelegationRepository({

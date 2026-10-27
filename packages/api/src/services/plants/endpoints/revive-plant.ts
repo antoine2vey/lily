@@ -9,7 +9,7 @@ import {
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { settingsUserFor } from '@lily/api/services/plants/helpers/with-plant-access'
+import { settingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
 import {

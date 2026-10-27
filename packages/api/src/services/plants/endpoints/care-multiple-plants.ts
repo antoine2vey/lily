@@ -8,10 +8,10 @@ import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { settingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   caller,
   canPerform,
-  settingsUserFor,
 } from '@lily/api/services/plants/helpers/with-plant-access'
 import { startOfDay } from '@lily/shared'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'

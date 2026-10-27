@@ -1,6 +1,6 @@
 import {
   createTestMembership,
-  mockCanopy,
+  mockCanopyId,
 } from '@lily/api/__tests__/fixtures/canopies'
 import { mockDelegation2 } from '@lily/api/__tests__/fixtures/delegations'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
@@ -26,7 +26,7 @@ const alexPlant = createTestPlant({ id: 'alex-plant', userId: alex })
 const canopyPlant = createTestPlant({
   id: 'canopy-plant',
   userId: null,
-  canopyId: mockCanopy.id,
+  canopyId: mockCanopyId,
   createdByUserId: lily,
 })
 
@@ -149,7 +149,7 @@ describe('withPlantAuth', () => {
       withPlantAuth('canopy-plant', 'view').pipe(Effect.provide(layerFor(sam)))
     )
     expect(plant.ownership).toBe('canopy')
-    expect(plant.ownership === 'canopy' && plant.canopy.id).toBe(mockCanopy.id)
+    expect(plant.ownership === 'canopy' && plant.canopy.id).toBe(mockCanopyId)
   })
 
   it('lets a member mark a Canopy plant dead and revive it', async () => {

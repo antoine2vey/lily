@@ -12,7 +12,7 @@ import {
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { settingsUserFor } from '@lily/api/services/plants/helpers/with-plant-access'
+import { settingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'

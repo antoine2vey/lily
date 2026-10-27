@@ -47,6 +47,7 @@ import {
   lte,
   notInArray,
   or,
+  sql,
 } from 'drizzle-orm'
 import {
   Array,
@@ -400,6 +401,7 @@ export const PlantRepositoryLive = Layer.effect(
       const conditions = and(
         eq(careDelegations.caretakerId, params.userId),
         eq(careDelegations.status, 'active'),
+        isNotNull(plants.userId),
         ...extraConditions
       )
 
@@ -520,6 +522,15 @@ export const PlantRepositoryLive = Layer.effect(
           toOwnedPlant(row, ownedSchedules(row.plant.id))
         )
 
+        if (!params.includeCaretaking && !params.includeCanopy) {
+          const paginated = pipe(
+            ownedItems,
+            Array.drop(offset),
+            Array.take(limit)
+          )
+          return paginate(paginated, ownedTotal, page, limit)
+        }
+
         const caretaking = params.includeCaretaking
           ? yield* findCaretakingPlants(params, extraConditions, orderBy)
           : { items: [], total: 0 }
@@ -564,16 +575,9 @@ export const PlantRepositoryLive = Layer.effect(
 
       findById: Effect.fn('PlantRepository.findById')(function* (id: string) {
         const [row] = yield* db
-          .select({
-            plant: plants,
-            room: roomSelect,
-            canopy: canopySelect,
-            creator: creatorSelect,
-          })
+          .select({ plant: plants, room: roomSelect })
           .from(plants)
           .leftJoin(rooms, eq(plants.roomId, rooms.id))
-          .leftJoin(canopies, eq(plants.canopyId, canopies.id))
-          .leftJoin(users, eq(plants.createdByUserId, users.id))
           .where(eq(plants.id, id))
 
         if (!row) return null
@@ -592,9 +596,20 @@ export const PlantRepositoryLive = Layer.effect(
           })
         )
 
-        return row.canopy !== null
-          ? toCanopyPlant({ ...row, canopy: row.canopy }, schedules)
-          : toOwnedPlant(row, schedules)
+        if (row.plant.canopyId === null) return toOwnedPlant(row, schedules)
+
+        const [scope] = yield* db
+          .select({ canopy: canopySelect, creator: creatorSelect })
+          .from(canopies)
+          .leftJoin(
+            users,
+            row.plant.createdByUserId === null
+              ? sql`false`
+              : eq(users.id, row.plant.createdByUserId)
+          )
+          .where(eq(canopies.id, row.plant.canopyId))
+        if (!scope) return null
+        return toCanopyPlant({ ...row, ...scope }, schedules)
       }),
 
       create: Effect.fn('PlantRepository.create')(function* (

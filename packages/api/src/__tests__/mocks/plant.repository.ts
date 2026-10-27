@@ -1,5 +1,8 @@
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
-import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
+import {
+  sameOwner,
+  withOwner,
+} from '@lily/api/repositories/helpers/plant-owner'
 import {
   type FindPhotosParams,
   type FindPlantsParams,
@@ -12,6 +15,7 @@ import {
   type CanopyId,
   endOfDay,
   type Orientation,
+  type PlantOwner,
   paginate,
 } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
@@ -153,8 +157,15 @@ export const createMockPlantRepository = (
 
   // Shared by update/markDead/revive: mutates the working copy and mirrors
   // the change onto the caller's original array so tests can observe it.
-  const patchPlant = (id: string, patch: Partial<PlantRecord>) => {
-    const idxOption = Array.findFirstIndex(plantsData, (p) => p.id === id)
+  const patchPlant = (
+    id: string,
+    owner: PlantOwner,
+    patch: Partial<PlantRecord>
+  ) => {
+    const idxOption = Array.findFirstIndex(
+      plantsData,
+      (p) => p.id === id && sameOwner(withOwner(p).owner, owner)
+    )
     if (Option.isNone(idxOption)) return Effect.succeed(null)
     const idx = idxOption.value
     const existing = plantsData[idx]
@@ -315,26 +326,33 @@ export const createMockPlantRepository = (
       return Effect.succeed(withOwner(newPlant))
     },
 
-    update: (id, _owner, updateData) => patchPlant(id, updateData),
+    update: (id, owner, updateData) => patchPlant(id, owner, updateData),
 
-    delete: (id, _owner) =>
+    delete: (id, owner) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(plantsData, (p) => p.id === id),
+          Array.findFirst(
+            plantsData,
+            (p) => p.id === id && sameOwner(withOwner(p).owner, owner)
+          ),
           Option.map(withOwner),
           Option.getOrNull
         )
       ),
 
-    markDead: (id, _owner, data) =>
-      patchPlant(id, {
+    markDead: (id, owner, data) =>
+      patchPlant(id, owner, {
         diedAt: data.diedAt,
         deathCause: data.cause,
         deathNote: data.note,
       }),
 
-    revive: (id, _owner) =>
-      patchPlant(id, { diedAt: null, deathCause: null, deathNote: null }),
+    revive: (id, owner) =>
+      patchPlant(id, owner, {
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
+      }),
 
     findPhotos: (params: FindPhotosParams) => {
       const page = pipe(

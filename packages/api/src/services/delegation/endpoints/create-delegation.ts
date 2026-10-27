@@ -3,6 +3,10 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  caller,
+  canPerform,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
   CannotDelegateSelfError,
@@ -71,10 +75,10 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
 
     // Verify all plants belong to the current user
     const plants = yield* plantRepo.findByIds(plantIds)
-    const allOwned = Array.every(
-      plants,
-      (p) => p.owner._tag === 'User' && p.owner.userId === currentUserId
-    )
+    const who = yield* caller
+    const allOwned = yield* Effect.forEach(plants, (p) =>
+      canPerform(who, p, 'delegate')
+    ).pipe(Effect.map(Array.every((allowed) => allowed)))
     if (plants.length !== plantIds.length || !allOwned) {
       return yield* new PlantNotAuthorizedError()
     }

@@ -12,7 +12,7 @@ import type { WeatherRepository } from '@lily/api/repositories/weather.repositor
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { settingsUserFor } from '@lily/api/services/plants/helpers/with-plant-access'
+import { settingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   calculatePlantAdjustment,
   type PlantForAdjustment,

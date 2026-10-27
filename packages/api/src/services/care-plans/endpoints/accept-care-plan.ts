@@ -2,13 +2,21 @@ import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import {
+  type PlantAccessContext,
+  withPlantAuth,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { type CareType, nowAsDate } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import { CarePlanNotProposedError } from '@lily/shared/errors/care-plan'
+import type {
+  PlantNotAuthorizedError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
 import { Array, Effect, Filter, Option, Order, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -53,20 +61,20 @@ export const acceptCarePlan = (
   plan: CarePlan
 ): Effect.Effect<
   CarePlan,
-  CarePlanNotProposedError | SqlError,
+  | CarePlanNotProposedError
+  | PlantNotFoundError
+  | PlantNotAuthorizedError
+  | SqlError,
   | CarePlanRepository
   | CareScheduleRepository
   | PlantRepository
   | NotificationRepository
   | UserRepository
-  | DelegationRepository
-  | CurrentUser
+  | PlantAccessContext
 > =>
   Effect.gen(function* () {
     const repo = yield* CarePlanRepository
     const scheduleRepo = yield* CareScheduleRepository
-    const plantRepo = yield* PlantRepository
-
     if (plan.status !== 'proposed') {
       return yield* new CarePlanNotProposedError({
         planId: plan.id,
@@ -74,12 +82,7 @@ export const acceptCarePlan = (
       })
     }
 
-    const plant = yield* plantRepo.findById(plan.plantId)
-    const remindersEnabled = pipe(
-      Option.fromNullishOr(plant),
-      Option.map((p) => p.remindersEnabled),
-      Option.getOrElse(() => false)
-    )
+    const { remindersEnabled } = yield* withPlantAuth(plan.plantId, 'care')
 
     // Move each affected schedule's next date to the step's due date (either
     // direction). Plants without a schedule of that type are left alone: the

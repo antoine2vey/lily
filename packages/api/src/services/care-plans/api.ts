@@ -9,7 +9,10 @@ import {
   CarePlanNotProposedError,
   CarePlanStepNotFoundError,
 } from '@lily/shared/errors/care-plan'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import {
+  PlantNotAuthorizedError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
@@ -45,6 +48,8 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
       error: [
         CarePlanNotFoundError,
         CarePlanNotProposedError,
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
         Unauthorized.pipe(HttpApiSchema.status(401)),
       ],
     })
@@ -81,6 +86,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
           CarePlanNotFoundError,
           CarePlanStepNotFoundError,
           PlantNotFoundError,
+          PlantNotAuthorizedError,
           Unauthorized.pipe(HttpApiSchema.status(401)),
         ],
       }

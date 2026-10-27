@@ -1,4 +1,7 @@
-import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
+import {
+  sameOwner,
+  withOwner,
+} from '@lily/api/repositories/helpers/plant-owner'
 import {
   type IRoomRepository,
   RoomRepository,
@@ -66,8 +69,11 @@ export const createMockRoomRepository = (
       return Effect.succeed(withOwner(newRoom))
     },
 
-    update: (id, _owner, data) => {
-      const roomOption = Array.findFirst(roomsData, (r) => r.id === id)
+    update: (id, owner, data) => {
+      const roomOption = Array.findFirst(
+        roomsData,
+        (r) => r.id === id && sameOwner(withOwner(r).owner, owner)
+      )
       return Option.match(roomOption, {
         onNone: () => Effect.succeed(null),
         onSome: (room) => {
@@ -86,10 +92,13 @@ export const createMockRoomRepository = (
       })
     },
 
-    delete: (id, _owner) =>
+    delete: (id, owner) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(roomsData, (r) => r.id === id),
+          Array.findFirst(
+            roomsData,
+            (r) => r.id === id && sameOwner(withOwner(r).owner, owner)
+          ),
           Option.map(withOwner),
           Option.getOrNull
         )
