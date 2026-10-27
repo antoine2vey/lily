@@ -317,9 +317,6 @@ export const processMessage = Effect.fn('notification-worker.process')(
     // resolved it must not be nagged about. Only the all-dead case is
     // dropped; a message that still names a living plant goes out as built
     // (its text was resolved seconds earlier and cannot be rewritten here).
-    // The same window covers a Canopy plant whose Canopy the user has since
-    // left: care paths insert rows without the Canopy lock, so membership is
-    // checked here, at delivery.
     if (
       TOPIC_CATEGORY[message.topic] === 'care' &&
       Array.isReadonlyArrayNonEmpty(message.payload.plantIds)

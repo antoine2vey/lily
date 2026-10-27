@@ -51,7 +51,6 @@ export const createMockCareScheduleRepository = (
   const isMuted = (userId: string, plantId: string) =>
     Array.some(mutes, (m) => m.userId === userId && m.plantId === plantId)
 
-  // Mirrors `caredForBy`: own plants, plus unmuted Canopy plants on request.
   const caredForBy = (userId: string, includeCanopy: boolean) => {
     const canopyIds = pipe(
       memberships,
@@ -152,7 +151,6 @@ export const createMockCareScheduleRepository = (
           s.nextCareAt.getTime() <= now.getTime()
       )
 
-      // Group by plant, then fan each plant out to its recipients
       const byPlant = Array.groupBy(overdue, (s) => s.plantId)
 
       const mapped = pipe(

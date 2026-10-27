@@ -66,13 +66,6 @@ const scheduleForRecipient = (
     })
   })
 
-/**
- * Replace the plant's pending reminder of this type with one row per
- * recipient, each at that recipient's preferred time and under their own
- * do-not-disturb, vacation and reminder switch. The content is built at
- * delivery, where the notification-scheduler groups a user's plants into one
- * push.
- */
 export const scheduleCareReminder = (
   params: ScheduleCareReminderParams
 ): Effect.Effect<void, SqlError, ScheduleContext> =>

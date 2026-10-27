@@ -1,6 +1,7 @@
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
+import { canopyPlantCapFrom } from '@lily/api/services/subscriptions/canopy-plant-cap'
 import { resolveTierConfig } from '@lily/api/services/subscriptions/effective-tier'
 import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import {
@@ -86,11 +87,11 @@ export const LimitCheckerLive = Layer.effect(
           ),
           subRepo.getTier
         )
-        if (Array.some(memberTiers, (tier) => tier.maxPlants === null)) {
-          return null
-        }
         const free = yield* subRepo.getTier('free')
-        return free.maxPlants
+        return canopyPlantCapFrom(
+          Array.map(memberTiers, (tier) => tier.maxPlants),
+          free.maxPlants
+        )
       })
 
     const checkPlantLimit = Effect.fn('LimitChecker.checkPlantLimit')(

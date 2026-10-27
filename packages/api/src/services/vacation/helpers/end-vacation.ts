@@ -103,7 +103,6 @@ const endVacationInTransaction = (params: EndVacationParams) =>
 
     const rows = yield* scheduleRepo.findByOwnerWithPlant(user.id)
 
-    // One caretaker lookup per personal plant, not per schedule row.
     const plantIds = pipe(
       Array.filter(rows, (row) => row.plant.owner._tag === 'User'),
       Array.map((row) => row.plant.id),

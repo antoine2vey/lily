@@ -9,11 +9,6 @@ export interface ReminderPlant {
   readonly owner: PlantOwner
 }
 
-/**
- * Who gets a reminder, a Live Activity refresh, or a digest entry for a
- * plant. A personal plant goes to its active caretaker, else its owner. A
- * Canopy plant goes to every member who has not muted it.
- */
 export const reminderRecipients = (
   plant: ReminderPlant
 ): Effect.Effect<

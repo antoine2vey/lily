@@ -4,11 +4,6 @@ import { and, eq, inArray, notExists, or } from 'drizzle-orm'
 
 type Db = PgDrizzle.PgDrizzle['Service']
 
-/**
- * The plants whose care a user is on the hook for: their own, plus every
- * Canopy plant they have not muted when `includeCanopy` is set. Caretaking
- * plants stay out, as on trunk.
- */
 export const caredForBy = (db: Db, userId: string, includeCanopy: boolean) =>
   includeCanopy
     ? or(

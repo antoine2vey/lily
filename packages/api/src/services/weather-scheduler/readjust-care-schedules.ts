@@ -90,19 +90,6 @@ type ReadjustContext =
   | DelegationRepository
   | CanopyRepository
 
-/**
- * Readjust care schedules for the given weather scopes (users and Canopies)
- * based on pre-built weather contexts (one per distinct location).
- *
- * Uses the forecast-averaged delta model: instead of recalculating
- * nextWateringAt from scratch, we compute a stable delta (in days) and
- * apply it. Re-running with the same weather produces delta = 0.
- *
- * The caller (scheduler) is responsible for:
- * 1. Fetching the scopes (avoids a duplicate DB query)
- * 2. Building the weather context map keyed by "lat_lng" (avoids
- *    redundant DB/cache hits when several scopes share a location)
- */
 export const readjustCareSchedules = (
   scopes: ReadonlyArray<WeatherScope>,
   weatherContextMap: ReadonlyMap<string, WeatherContext>
