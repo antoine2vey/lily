@@ -100,8 +100,6 @@ const refreshLiveActivity = (params: {
     )
   })
 
-// Every card that lists the plant refreshes: the actor's, and each reminder
-// recipient's (the caretaker, or every unmuted Canopy member).
 const refreshCardsFor = (params: {
   actorId: string
   plantId: string

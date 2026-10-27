@@ -18,7 +18,6 @@ import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
 // Cleanup snapshots older than this many days (once per day)
 const CLEANUP_OLDER_THAN_DAYS = 30
 
-/** True when the wall clock in `timeZone` reads one of WEATHER_FETCH_HOURS. */
 export const isWeatherFetchHour = (
   now: DateTime.Utc,
   timeZone: string
@@ -79,7 +78,6 @@ const refreshWeatherData = Effect.gen(function* () {
     }
   )
 
-  // Filter locations where at least one scope's local hour matches a fetch hour
   const locationsToFetch = pipe(
     Record.values(locationRecord),
     Array.filter((loc) =>
@@ -112,7 +110,6 @@ const refreshWeatherData = Effect.gen(function* () {
     { concurrency: 5 }
   )
 
-  // Build weather context map (one per distinct location, reused across scopes)
   const weatherContextResults = yield* Effect.forEach(
     locationsToFetch,
     (loc) =>
@@ -136,7 +133,6 @@ const refreshWeatherData = Effect.gen(function* () {
     Array.getSomes(weatherContextResults)
   )
 
-  // Readjust care schedules, passing the already-fetched scopes and pre-built contexts
   yield* readjustCareSchedules(scopes, weatherContextMap)
 
   // Run cleanup once per day (when UTC hour is 0)
