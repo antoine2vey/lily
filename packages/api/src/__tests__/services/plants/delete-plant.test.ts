@@ -1,6 +1,6 @@
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
+import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
 import { Effect } from 'effect'
@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 const asPlantWithRoom = (
   plant: ReturnType<typeof createTestPlant>
 ): PlantWithRoom => ({
-  ...withOwner(plant),
+  ...withUserOwner(plant),
   room: null,
   ownership: 'owned',
   ownerName: null,

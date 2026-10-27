@@ -1,9 +1,9 @@
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
-  assertPlantAction,
   type PlantAccessContext,
+  withPlantAuth,
 } from '@lily/api/services/plants/helpers/with-plant-access'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import {
@@ -35,12 +35,7 @@ export const createConversation = (
       if (!plantId) {
         return yield* new PlantNotFoundError({ plantId: 'undefined' })
       }
-      const plantRepo = yield* PlantRepository
-      const plant = yield* plantRepo.findById(plantId)
-      if (!plant) {
-        return yield* new PlantNotFoundError({ plantId })
-      }
-      yield* assertPlantAction(plant, 'chat')
+      yield* withPlantAuth(plantId, 'chat')
       return yield* chatRepo.findOrCreatePlantConversation({ userId, plantId })
     }
 

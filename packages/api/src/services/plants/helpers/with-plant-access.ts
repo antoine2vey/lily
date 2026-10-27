@@ -86,10 +86,12 @@ export const resolvePlantRole = (
 
 /**
  * A plant the caller has no role on reads as not found, with the same body
- * as a plant that doesn't exist, so plant ids can't be probed. A role that
- * exists but lacks the action gets 403: that caller can already see the plant.
+ * as a plant that doesn't exist, so plant ids can't be probed: both echo the
+ * id exactly as the caller sent it. A role that exists but lacks the action
+ * gets 403: that caller can already see the plant.
  */
 export const assertPlantAction = (
+  requestedId: string,
   plant: PlantRow,
   action: PlantAction
 ): Effect.Effect<
@@ -102,7 +104,7 @@ export const assertPlantAction = (
     (role): Effect.Effect<void, PlantNotFoundError | PlantNotAuthorizedError> =>
       Option.match(role, {
         onNone: () =>
-          Effect.fail(new PlantNotFoundError({ plantId: plant.id })),
+          Effect.fail(new PlantNotFoundError({ plantId: requestedId })),
         onSome: (role) =>
           allows(action)(role)
             ? Effect.void
@@ -141,7 +143,7 @@ export const withPlantAuth = (
       return yield* new PlantNotFoundError({ plantId })
     }
 
-    yield* assertPlantAction(plant, action)
+    yield* assertPlantAction(plantId, plant, action)
 
     return plant
   }).pipe(Effect.withSpan('withPlantAuth', { attributes: { action } }))

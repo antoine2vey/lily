@@ -1,7 +1,10 @@
+import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
   sameOwner,
+  withCanopyOwner,
   withOwner,
+  withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
 import {
   type FindPhotosParams,
@@ -12,7 +15,6 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db/schema'
 import {
-  type CanopyId,
   endOfDay,
   type Orientation,
   type PlantOwner,
@@ -22,12 +24,6 @@ import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
-
-export interface MockMembership {
-  readonly userId: string
-  readonly canopyId: string
-  readonly canopyName?: string
-}
 
 interface MockRoom {
   id: string
@@ -80,33 +76,34 @@ export const createMockPlantRepository = (
     () => [] as MockMembership[]
   )
 
-  const canopyRefFor = (canopyId: string) => ({
-    id: canopyId as CanopyId,
-    name: pipe(
+  const canopyNameFor = (canopyId: string) =>
+    pipe(
       Array.findFirst(memberships, (m) => m.canopyId === canopyId),
       Option.flatMap((m) => Option.fromNullishOr(m.canopyName)),
       Option.getOrElse(() => 'Canopy')
-    ),
-  })
+    )
 
-  const toPlantWithRoom = (p: PlantRecord): PlantWithRoom =>
-    p.canopyId !== null
-      ? {
-          ...withOwner(p),
-          room: resolveRoom(p.roomId),
-          ownership: 'canopy' as const,
-          ownerName: null,
-          canopy: canopyRefFor(p.canopyId),
-          createdBy: null,
-          schedules: [],
-        }
-      : {
-          ...withOwner(p),
-          room: resolveRoom(p.roomId),
-          ownership: 'owned' as const,
-          ownerName: null,
-          schedules: [],
-        }
+  const toPlantWithRoom = (p: PlantRecord): PlantWithRoom => {
+    if (p.canopyId === null) {
+      return {
+        ...withUserOwner(p),
+        room: resolveRoom(p.roomId),
+        ownership: 'owned' as const,
+        ownerName: null,
+        schedules: [],
+      }
+    }
+    const plant = withCanopyOwner(p)
+    return {
+      ...plant,
+      room: resolveRoom(p.roomId),
+      ownership: 'canopy' as const,
+      ownerName: null,
+      canopy: { id: plant.owner.canopyId, name: canopyNameFor(p.canopyId) },
+      createdBy: null,
+      schedules: [],
+    }
+  }
 
   const resolveRoom = (roomId: string | null) =>
     pipe(
@@ -219,7 +216,7 @@ export const createMockPlantRepository = (
               Array.map(caretakingPlants, (cp) => cp.plant),
               (plants) => applyFilters(plants, params),
               Array.map((p) => ({
-                ...withOwner(p),
+                ...withUserOwner(p),
                 room: resolveRoom(p.roomId),
                 ownership: 'caretaking' as const,
                 ownerName: pipe(

@@ -1,17 +1,21 @@
+import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
+import {
+  withCanopyOwner,
+  withUserOwner,
+} from '@lily/api/repositories/helpers/plant-owner'
 import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
 import type { AppEvent } from '@lily/shared/server'
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const asPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
-  ...withOwner(plant),
+  ...withUserOwner(plant),
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
@@ -148,6 +152,48 @@ describe('markPlantDead', () => {
 
     expect(published).toEqual([
       { _tag: 'PlantLifecycleChanged', userId: 'user-1', plantId: 'plant-1' },
+    ])
+  })
+
+  it('names the acting member in the event for a Canopy plant', async () => {
+    const plant = createTestPlant({
+      id: 'canopy-plant',
+      userId: null,
+      canopyId: mockCanopyId,
+      createdByUserId: 'user-1',
+    })
+    const published: AppEvent[] = []
+
+    await Effect.runPromise(
+      markPlantDead(
+        {
+          ...withCanopyOwner(plant),
+          room: null,
+          ownership: 'canopy',
+          ownerName: null,
+          canopy: { id: mockCanopyId, name: 'Home' },
+          createdBy: null,
+          schedules: [],
+        },
+        { cause: 'heat' }
+      ).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockPlantRepository({ plants: [plant] }),
+            createMockNotificationRepository([]),
+            createMockEventBus({ publishedEvents: published }),
+            createMockCurrentUser({ id: 'user-2' })
+          )
+        )
+      )
+    )
+
+    expect(published).toEqual([
+      {
+        _tag: 'PlantLifecycleChanged',
+        userId: 'user-2',
+        plantId: 'canopy-plant',
+      },
     ])
   })
 })

@@ -4,10 +4,14 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import {
+  type CanopyOwner,
   ownedBy,
+  type UserOwner,
   type WithOwner,
+  withCanopyOwner,
   withOwner,
   withOwnerOrNull,
+  withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -101,16 +105,17 @@ export type PlantCareScheduleRef = {
 export type PlantRow = WithOwner<typeof plants.$inferSelect>
 
 export type PlantScope =
-  | { ownership: 'owned'; ownerName: null }
-  | { ownership: 'caretaking'; ownerName: string | null }
+  | { owner: UserOwner; ownership: 'owned'; ownerName: null }
+  | { owner: UserOwner; ownership: 'caretaking'; ownerName: string | null }
   | {
+      owner: CanopyOwner
       ownership: 'canopy'
       ownerName: null
       canopy: CanopyRef
       createdBy: PlantCreator | null
     }
 
-export type PlantWithRoom = PlantRow &
+export type PlantWithRoom = RawPlant &
   PlantScope & {
     room: RoomRef
     schedules: PlantCareScheduleRef[]
@@ -292,7 +297,7 @@ function buildPlantOrderBy(sort: FindPlantsParams['sort']) {
 
 type RawPlant = typeof plants.$inferSelect
 
-const canopySelect = { id: canopies.id, name: canopies.name }
+const canopySelect = { name: canopies.name }
 const creatorSelect = { id: users.id, name: users.name }
 
 // Map a DB row to an owned PlantWithRoom
@@ -304,7 +309,7 @@ function toOwnedPlant(
   schedules: PlantCareScheduleRef[] = []
 ): PlantWithRoom {
   return {
-    ...withOwner(row.plant),
+    ...withUserOwner(row.plant),
     room: row.room,
     ownership: 'owned' as const,
     ownerName: null,
@@ -322,7 +327,7 @@ function toCaretakingPlant(
   schedules: PlantCareScheduleRef[] = []
 ): PlantWithRoom {
   return {
-    ...withOwner(row.plant),
+    ...withUserOwner(row.plant),
     room: row.room,
     ownership: 'caretaking' as const,
     ownerName: row.ownerName,
@@ -334,17 +339,18 @@ function toCanopyPlant(
   row: {
     plant: RawPlant
     room: RoomRef
-    canopy: { id: string; name: string }
+    canopy: { name: string }
     creator: PlantCreator | null
   },
   schedules: PlantCareScheduleRef[] = []
 ): PlantWithRoom {
+  const plant = withCanopyOwner(row.plant)
   return {
-    ...withOwner(row.plant),
+    ...plant,
     room: row.room,
     ownership: 'canopy' as const,
     ownerName: null,
-    canopy: { id: row.canopy.id as CanopyRef['id'], name: row.canopy.name },
+    canopy: { id: plant.owner.canopyId, name: row.canopy.name },
     createdBy: row.creator,
     schedules,
   }
@@ -543,16 +549,19 @@ export const PlantRepositoryLive = Layer.effect(
           Array.appendAll(caretaking.items),
           Array.appendAll(canopy.items)
         )
-        const sortOrder = pipe(
-          Match.value(params.sort),
-          Match.when('name', () =>
-            Order.mapInput(Order.String, (p: PlantWithRoom) => p.name)
-          ),
-          Match.orElse(() =>
-            Order.mapInput(Order.flip(Order.Number), (p: PlantWithRoom) =>
-              p.dateAdded.getTime()
+        const sortOrder = Order.combine(
+          pipe(
+            Match.value(params.sort),
+            Match.when('name', () =>
+              Order.mapInput(Order.String, (p: PlantWithRoom) => p.name)
+            ),
+            Match.orElse(() =>
+              Order.mapInput(Order.flip(Order.Number), (p: PlantWithRoom) =>
+                p.dateAdded.getTime()
+              )
             )
-          )
+          ),
+          Order.mapInput(Order.String, (p: PlantWithRoom) => p.id)
         )
         const sorted = Array.sort(allItems, sortOrder)
 

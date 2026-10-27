@@ -11,30 +11,12 @@ import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 type RoomRecord = typeof rooms.$inferSelect
 
-export interface MockMembership {
-  readonly userId: string
-  readonly canopyId: string
-}
-
 export const createMockRoomRepository = (
-  roomsData: RoomRecord[],
-  memberships: ReadonlyArray<MockMembership> = []
+  roomsData: RoomRecord[]
 ): Layer.Layer<RoomRepository> => {
   const repo: IRoomRepository = {
-    findAll: ({ userId, includeCanopy }) => {
-      const canopyIds = pipe(
-        memberships,
-        Array.filter((m) => m.userId === userId),
-        Array.map((m) => m.canopyId)
-      )
-      const filtered = Array.filter(
-        roomsData,
-        (r) =>
-          r.userId === userId ||
-          (includeCanopy === true &&
-            r.canopyId !== null &&
-            Array.contains(canopyIds, r.canopyId))
-      )
+    findAll: ({ userId }) => {
+      const filtered = Array.filter(roomsData, (r) => r.userId === userId)
       const sorted = [...filtered].sort((a, b) =>
         a.order !== b.order ? a.order - b.order : a.name.localeCompare(b.name)
       )

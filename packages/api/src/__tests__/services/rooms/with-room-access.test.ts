@@ -8,7 +8,7 @@ import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.rep
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { withRoomAuth } from '@lily/api/services/rooms/helpers/with-room-access'
-import { RoomNotFoundError } from '@lily/shared'
+import { type CanopyId, RoomNotFoundError } from '@lily/shared'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -26,7 +26,7 @@ const canopyRoom = createTestRoom({
 const members = [
   createTestMembership({ userId: alex, role: 'owner' }),
   createTestMembership({ userId: lily }),
-  createTestMembership({ userId: sam, canopyId: 'canopy-2' }),
+  createTestMembership({ userId: sam, canopyId: 'canopy-2' as CanopyId }),
 ]
 
 const run = (userId: string, roomId: string) =>

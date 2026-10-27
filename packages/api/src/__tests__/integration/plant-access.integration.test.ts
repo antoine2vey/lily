@@ -1,3 +1,7 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import {
   PlantRepository,
   PlantRepositoryLive,
@@ -6,12 +10,14 @@ import {
   RoomRepository,
   RoomRepositoryLive,
 } from '@lily/api/repositories/room.repository'
+import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { CanopyId, PlantOwner } from '@lily/shared'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Effect, Layer } from 'effect'
+import { Array, Effect, Layer, String } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -19,7 +25,9 @@ const { Pool } = pg
 
 const RepositoriesLive = Layer.mergeAll(
   PlantRepositoryLive,
-  RoomRepositoryLive
+  RoomRepositoryLive,
+  CanopyRepositoryLive,
+  DelegationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const run = <A, E>(
@@ -152,6 +160,54 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       ).toEqual(['Home', 'Home'])
       expect(stranger.total).toBe(0)
+    })
+
+    it('answers a hidden plant and a missing plant alike when the id is sent in uppercase', async () => {
+      const plant = await insertPlant(canopyOwner)
+      const hiddenId = String.toUpperCase(plant.id)
+      const missingId = String.toUpperCase(
+        '00000000-0000-4000-8000-000000000000'
+      )
+      const asSam = createMockCurrentUser({ id: samId })
+
+      const [hidden, missing] = await Promise.all([
+        Effect.runPromiseExit(
+          withPlantAuth(hiddenId, 'view').pipe(
+            Effect.provide(Layer.mergeAll(RepositoriesLive, asSam))
+          )
+        ),
+        Effect.runPromiseExit(
+          withPlantAuth(missingId, 'view').pipe(
+            Effect.provide(Layer.mergeAll(RepositoriesLive, asSam))
+          )
+        ),
+      ])
+
+      expect(failureOf(hidden)).toEqual(
+        new PlantNotFoundError({ plantId: hiddenId })
+      )
+      expect(failureOf(missing)).toEqual(
+        new PlantNotFoundError({ plantId: missingId })
+      )
+    })
+
+    it('keeps Canopy plants out of a caretaking list that did not ask for them', async () => {
+      await insertPlant(alexOwner, 'Mine')
+      await insertPlant(canopyOwner, 'Shared')
+
+      const oldBuild = await run(
+        Effect.gen(function* () {
+          const repo = yield* PlantRepository
+          return yield* repo.findAll({
+            userId: alexId,
+            timezone: 'UTC',
+            includeCaretaking: true,
+          })
+        })
+      )
+
+      expect(Array.map(oldBuild.items, (p) => p.ownership)).toEqual(['owned'])
+      expect(oldBuild.total).toBe(1)
     })
 
     it('lists Canopy rooms for a member only when asked', async () => {

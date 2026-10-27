@@ -7,6 +7,9 @@ export interface OwnerColumns {
   readonly canopyId: string | null
 }
 
+export type UserOwner = Extract<PlantOwner, { _tag: 'User' }>
+export type CanopyOwner = Extract<PlantOwner, { _tag: 'Canopy' }>
+
 export type WithOwner<R extends OwnerColumns> = R & {
   readonly owner: PlantOwner
 }
@@ -37,6 +40,32 @@ export const withOwnerOrNull = <R extends OwnerColumns>(
   row: R | undefined
 ): WithOwner<R> | null =>
   pipe(Option.fromNullishOr(row), Option.map(withOwner), Option.getOrNull)
+
+export const withUserOwner = <R extends OwnerColumns>(
+  row: R
+): R & { readonly owner: UserOwner } => ({
+  ...row,
+  owner: {
+    _tag: 'User',
+    userId: pipe(
+      Option.fromNullishOr(row.userId),
+      Option.getOrThrowWith(() => new Error('row has no user_id'))
+    ),
+  },
+})
+
+export const withCanopyOwner = <R extends OwnerColumns>(
+  row: R
+): R & { readonly owner: CanopyOwner } => ({
+  ...row,
+  owner: {
+    _tag: 'Canopy',
+    canopyId: pipe(
+      Option.fromNullishOr(row.canopyId),
+      Option.getOrThrowWith(() => new Error('row has no canopy_id'))
+    ) as CanopyId,
+  },
+})
 
 export const ownedBy = (
   table: { readonly userId: Column; readonly canopyId: Column },

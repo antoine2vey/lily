@@ -10,6 +10,7 @@ import {
   PlantRole,
   personalRole,
 } from '@lily/api/services/plants/helpers/plant-access'
+import type { CanopyId } from '@lily/shared'
 import { Array, Option, Record } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -113,7 +114,7 @@ describe('canopyRole', () => {
         sam,
         createTestMembership({
           userId: sam,
-          canopyId: 'canopy-2',
+          canopyId: 'canopy-2' as CanopyId,
           role: 'owner',
         })
       )

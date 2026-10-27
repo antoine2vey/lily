@@ -5,12 +5,13 @@ import {
 } from '@lily/api/repositories/canopy.repository'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
-export interface MockCanopyMember extends CanopyMembership {
+export interface MockMembership extends CanopyMembership {
   readonly userId: string
+  readonly canopyName?: string
 }
 
 export const createMockCanopyRepository = (
-  members: ReadonlyArray<MockCanopyMember> = []
+  members: ReadonlyArray<MockMembership> = []
 ): Layer.Layer<CanopyRepository> => {
   const repo: ICanopyRepository = {
     findMembershipByUser: (userId) =>

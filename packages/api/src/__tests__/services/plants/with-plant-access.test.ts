@@ -40,10 +40,7 @@ const layerFor = (userId: string, caretakerOf: readonly string[] = []) =>
   Layer.mergeAll(
     createMockPlantRepository({
       plants: [alexPlant, canopyPlant],
-      memberships: members.map(({ userId, canopyId }) => ({
-        userId,
-        canopyId,
-      })),
+      memberships: members,
     }),
     createMockCurrentUser({ id: userId }),
     createMockCanopyRepository(members),

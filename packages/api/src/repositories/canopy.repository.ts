@@ -1,12 +1,12 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { canopyMembers } from '@lily/db/schema'
-import type { CanopyMemberRole } from '@lily/shared'
+import type { CanopyId, CanopyMemberRole } from '@lily/shared'
 import { eq } from 'drizzle-orm'
 import { Context, Effect, Layer, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface CanopyMembership {
-  readonly canopyId: string
+  readonly canopyId: CanopyId
   readonly role: CanopyMemberRole
   readonly joinedAt: Date
 }
@@ -39,7 +39,15 @@ export const CanopyRepositoryLive = Layer.effect(
             .from(canopyMembers)
             .where(eq(canopyMembers.userId, userId))
             .limit(1)
-          return Option.getOrNull(Option.fromNullishOr(row))
+          return Option.getOrNull(
+            Option.map(
+              Option.fromNullishOr(row),
+              (m): CanopyMembership => ({
+                ...m,
+                canopyId: m.canopyId as CanopyId,
+              })
+            )
+          )
         }
       ),
     }

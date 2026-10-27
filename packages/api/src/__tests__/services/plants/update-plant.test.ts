@@ -6,7 +6,7 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
-import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
+import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { RoomNotFoundError } from '@lily/shared'
@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest'
 const toPlantWithRoom = (
   plant: (typeof mockPlants)[number]
 ): PlantWithRoom => ({
-  ...withOwner(plant),
+  ...withUserOwner(plant),
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
