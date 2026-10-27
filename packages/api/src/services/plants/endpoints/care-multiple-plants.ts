@@ -8,7 +8,7 @@ import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { settingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
+import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   caller,
   canPerform,
@@ -136,7 +136,7 @@ export const careMultiplePlants = (
               if (nextCareAt) {
                 yield* scheduleCareReminder({
                   plantId,
-                  userId: yield* settingsUserFor(plant.owner),
+                  userId: yield* interimSettingsUserFor(plant.owner),
                   type: `${request.careType}_reminder` as const,
                   scheduledDate: nextCareAt,
                   remindersEnabled: plant.remindersEnabled,

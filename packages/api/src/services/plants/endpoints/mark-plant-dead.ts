@@ -5,7 +5,7 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { settingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
+import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   PlantAlreadyDeadError,
   PlantNotFoundError,
@@ -50,7 +50,7 @@ export const markPlantDead = (
     yield* publishWithRetry(
       eventBus.publish({
         _tag: 'PlantLifecycleChanged',
-        userId: yield* settingsUserFor(plant.owner),
+        userId: yield* interimSettingsUserFor(plant.owner),
         plantId: plant.id,
       })
     )

@@ -11,6 +11,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
+import type { CanopyId } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import type { AppEvent } from '@lily/shared/server'
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
@@ -32,6 +33,27 @@ const asPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
+  schedules: [],
+})
+
+const deadCanopyPlant = () =>
+  createTestPlant({
+    id: 'canopy-plant',
+    userId: null,
+    canopyId: 'canopy-1',
+    createdByUserId: 'user-2',
+    diedAt: new Date('2026-01-01'),
+    deathCause: 'underwatering',
+    deathNote: null,
+  })
+
+const asCanopyPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
+  ...withOwner(plant),
+  room: null,
+  ownership: 'canopy' as const,
+  ownerName: null,
+  canopy: { id: 'canopy-1' as CanopyId, name: 'Home' },
+  createdBy: null,
   schedules: [],
 })
 
@@ -66,6 +88,17 @@ const failureTag = (exit: Exit.Exit<unknown, { _tag: string }>) =>
     : Option.none()
 
 describe('revivePlant', () => {
+  it("revives a Canopy plant without counting it against the member's personal limit", async () => {
+    const plant = deadCanopyPlant()
+    const result = await Effect.runPromise(
+      revivePlant(asCanopyPlantWithRoom(plant)).pipe(
+        Effect.provide(makeLayer({ plant, plantLimitReached: true }))
+      )
+    )
+
+    expect(result.diedAt).toBeNull()
+  })
+
   it('clears the death columns', async () => {
     const plant = deadPlant()
     const result = await Effect.runPromise(

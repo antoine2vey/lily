@@ -12,7 +12,7 @@ import type { WeatherRepository } from '@lily/api/repositories/weather.repositor
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { settingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
+import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   calculatePlantAdjustment,
   type PlantForAdjustment,
@@ -143,7 +143,7 @@ export const executePlantCare = (
 
     // Load user once — both timezone (for day-boundary math) and weather flags
     // (consumed inside applyWeatherAdjustment) come from the same row.
-    const settingsUserId = yield* settingsUserFor(plant.owner)
+    const settingsUserId = yield* interimSettingsUserFor(plant.owner)
     const user = yield* userRepo.findById(settingsUserId)
     const timezone = pipe(
       Option.fromNullishOr(user),

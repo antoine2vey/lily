@@ -21,7 +21,6 @@ const roles = [
   PlantRole.CanopyMember(),
 ]
 
-// decisions.md, "Actions on a Canopy plant", "Moving plants", "Reminders"
 const expected: Record<PlantAction, ReadonlyArray<PlantRole['_tag']>> = {
   view: ['Owner', 'Caretaker', 'CanopyOwner', 'CanopyCreator', 'CanopyMember'],
   edit: ['Owner', 'Caretaker', 'CanopyOwner', 'CanopyCreator', 'CanopyMember'],
