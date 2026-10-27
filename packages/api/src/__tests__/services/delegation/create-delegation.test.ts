@@ -1,3 +1,4 @@
+import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import {
   mockDelegation1,
   mockDelegationPlants,
@@ -59,7 +60,7 @@ const validRequest = {
 const canopyPlant = createTestPlant({
   id: 'canopy-plant',
   userId: null,
-  canopyId: 'canopy-1',
+  canopyId: mockCanopyId,
   createdByUserId: mockUser2.id,
 })
 
@@ -81,7 +82,7 @@ const createLayer = (options?: {
         ? [
             {
               userId: mockUser1.id,
-              canopyId: 'canopy-1',
+              canopyId: mockCanopyId,
               role: 'member',
               joinedAt: new Date('2024-01-01'),
             },

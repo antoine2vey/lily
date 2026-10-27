@@ -1,3 +1,4 @@
+import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { mockAdminUser } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
@@ -26,21 +27,21 @@ const home = (): MockCanopyStore =>
     canopies: [createTestCanopyRow({ id: 'canopy-1', name: 'Home' })],
     members: [
       {
-        canopyId: 'canopy-1',
+        canopyId: mockCanopyId,
         userId: 'lily',
         name: 'Lily',
         role: 'member',
         joinedAt: new Date('2024-06-01'),
       },
       {
-        canopyId: 'canopy-1',
+        canopyId: mockCanopyId,
         userId: 'alex',
         name: 'Alex',
         role: 'owner',
         joinedAt: new Date('2024-01-01'),
       },
       {
-        canopyId: 'canopy-1',
+        canopyId: mockCanopyId,
         userId: 'sam',
         name: 'Sam',
         role: 'member',
@@ -50,19 +51,19 @@ const home = (): MockCanopyStore =>
     plants: [
       {
         id: 'fern',
-        canopyId: 'canopy-1',
+        canopyId: mockCanopyId,
         userId: null,
         remindersEnabled: true,
         diedAt: null,
       },
     ],
-    rooms: [{ id: 'kitchen', canopyId: 'canopy-1', userId: null }],
+    rooms: [{ id: 'kitchen', canopyId: mockCanopyId, userId: null }],
   })
 
 const soloHome = (): MockCanopyStore => {
   const store = home()
   store.members.splice(0, store.members.length, {
-    canopyId: 'canopy-1',
+    canopyId: mockCanopyId,
     userId: 'alex',
     name: 'Alex',
     role: 'owner',

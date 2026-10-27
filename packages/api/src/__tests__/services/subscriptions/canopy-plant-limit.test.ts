@@ -1,3 +1,4 @@
+import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
@@ -73,13 +74,13 @@ const check = (options: {
               createMockCanopyRepository([
                 {
                   userId: 'alex',
-                  canopyId: 'canopy-1',
+                  canopyId: mockCanopyId,
                   role: 'owner',
                   joinedAt: new Date('2024-01-01'),
                 },
                 {
                   userId: 'lily',
-                  canopyId: 'canopy-1',
+                  canopyId: mockCanopyId,
                   role: 'member',
                   joinedAt: new Date('2024-02-01'),
                 },

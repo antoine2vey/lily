@@ -1,3 +1,4 @@
+import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
@@ -40,13 +41,13 @@ const alexPlant = createTestPlant({
 const sharedByLily = createTestPlant({
   id: 'lily-cactus',
   userId: null,
-  canopyId: 'canopy-1',
+  canopyId: mockCanopyId,
   createdByUserId: 'lily',
 })
 const sharedBySam = createTestPlant({
   id: 'sam-ivy',
   userId: null,
-  canopyId: 'canopy-1',
+  canopyId: mockCanopyId,
   createdByUserId: 'sam',
 })
 
@@ -55,19 +56,19 @@ const home = (): MockCanopyStore =>
     canopies: [createTestCanopyRow({ id: 'canopy-1' })],
     members: [
       {
-        canopyId: 'canopy-1',
+        canopyId: mockCanopyId,
         userId: 'alex',
         role: 'owner',
         joinedAt: new Date('2024-01-01'),
       },
       {
-        canopyId: 'canopy-1',
+        canopyId: mockCanopyId,
         userId: 'lily',
         role: 'member',
         joinedAt: new Date('2024-02-01'),
       },
       {
-        canopyId: 'canopy-1',
+        canopyId: mockCanopyId,
         userId: 'sam',
         role: 'member',
         joinedAt: new Date('2024-03-01'),
@@ -86,11 +87,7 @@ const world = (options: {
   return Layer.mergeAll(
     createMockPlantRepository({
       plants: [alexPlant, sharedByLily, sharedBySam].map((p) => ({ ...p })),
-      memberships: store.members.map((m) => ({
-        userId: m.userId,
-        canopyId: m.canopyId,
-        canopyName: 'Home',
-      })),
+      memberships: store.members.map((m) => ({ ...m, canopyName: 'Home' })),
     }),
     createMockCanopyRepository(store),
     createMockRoomRepository([]),
@@ -288,7 +285,7 @@ describe('createPlant with owner canopy', () => {
     if (!Exit.isSuccess(exit)) return
     expect(exit.value).toMatchObject({
       ownership: 'canopy',
-      canopyId: 'canopy-1',
+      canopyId: mockCanopyId,
       userId: null,
       createdByUserId: 'lily',
     })

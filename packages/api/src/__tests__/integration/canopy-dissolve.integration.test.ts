@@ -33,8 +33,8 @@ const AppLive = Layer.mergeAll(
   createMockMessageQueue()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
-const run = <A, E, R extends Layer.Success<typeof AppLive>>(
-  effect: Effect.Effect<A, E, R>
+const run = <A, E>(
+  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive>>
 ) => Effect.runPromise(Effect.provide(effect, AppLive))
 
 const plantValues = {

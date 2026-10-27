@@ -1,3 +1,4 @@
+import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   createCanopyStore,
@@ -18,6 +19,7 @@ import { removeCanopyMember } from '@lily/api/services/canopy/endpoints/remove-c
 import { revokeCanopyInvite } from '@lily/api/services/canopy/endpoints/revoke-canopy-invite'
 import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-canopy'
 import { hashInviteToken } from '@lily/api/services/canopy/helpers/invite-token'
+import type { CanopyId } from '@lily/shared'
 import {
   AlreadyInCanopyError,
   CANOPY_JOIN_URL_PREFIX,
@@ -39,7 +41,7 @@ const homeWithAlex = (): MockCanopyStore =>
     canopies: [createTestCanopyRow({ id: 'canopy-1', name: 'Home' })],
     members: [
       {
-        canopyId: 'canopy-1',
+        canopyId: mockCanopyId,
         userId: 'alex',
         name: 'Alex',
         role: 'owner',
@@ -54,7 +56,7 @@ const withInvite = (
   expiresAt = new Date(Date.now() + day)
 ) => {
   store.invites.push({
-    canopyId: 'canopy-1',
+    canopyId: mockCanopyId,
     tokenHash: hashInviteToken(token),
     createdByUserId: 'alex',
     expiresAt,
@@ -113,7 +115,7 @@ describe('acceptCanopyInvite', () => {
   it('joins as a member and pushes every other member, not the joiner', async () => {
     const store = withInvite(homeWithAlex(), 'tok')
     store.members.push({
-      canopyId: 'canopy-1',
+      canopyId: mockCanopyId,
       userId: 'sam',
       name: 'Sam',
       role: 'member',
@@ -140,7 +142,7 @@ describe('acceptCanopyInvite', () => {
     const store = withInvite(homeWithAlex(), 'tok')
     Array.forEach(Array.range(2, CANOPY_MAX_MEMBERS), (n) =>
       store.members.push({
-        canopyId: 'canopy-1',
+        canopyId: mockCanopyId,
         userId: `member-${n}`,
         role: 'member',
         joinedAt: new Date(`2024-03-${String.padStart(2, '0')(`${n}`)}`),
@@ -179,7 +181,7 @@ describe('acceptCanopyInvite', () => {
     const store = withInvite(homeWithAlex(), 'tok')
     store.canopies.push(createTestCanopyRow({ id: 'canopy-2', name: 'Cabin' }))
     store.members.push({
-      canopyId: 'canopy-2',
+      canopyId: 'canopy-2' as CanopyId,
       userId: 'sam',
       role: 'owner',
       joinedAt: new Date('2024-01-01'),
@@ -257,7 +259,7 @@ describe('getMyCanopy', () => {
   it('lists members by join date and the active invite', async () => {
     const store = withInvite(homeWithAlex(), 'tok')
     store.members.unshift({
-      canopyId: 'canopy-1',
+      canopyId: mockCanopyId,
       userId: 'lily',
       role: 'member',
       joinedAt: new Date('2024-05-01'),
@@ -284,7 +286,7 @@ describe('updateMyCanopy', () => {
   const withLily = () => {
     const store = homeWithAlex()
     store.members.push({
-      canopyId: 'canopy-1',
+      canopyId: mockCanopyId,
       userId: 'lily',
       role: 'member',
       joinedAt: new Date('2024-05-01'),
@@ -329,7 +331,7 @@ describe('removeCanopyMember', () => {
   const withLily = () => {
     const store = homeWithAlex()
     store.members.push({
-      canopyId: 'canopy-1',
+      canopyId: mockCanopyId,
       userId: 'lily',
       role: 'member',
       joinedAt: new Date('2024-05-01'),
@@ -341,7 +343,7 @@ describe('removeCanopyMember', () => {
     const store = withLily()
     store.plants.push({
       id: 'canopy-plant',
-      canopyId: 'canopy-1',
+      canopyId: mockCanopyId,
       userId: null,
       remindersEnabled: true,
       diedAt: null,

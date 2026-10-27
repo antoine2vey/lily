@@ -6,7 +6,7 @@ import {
   type ICanopyRepository,
   type MovedPlant,
 } from '@lily/api/repositories/canopy.repository'
-import type { LanguageCode } from '@lily/shared'
+import type { CanopyId, LanguageCode } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockMembership extends CanopyMembership {
@@ -149,7 +149,12 @@ export const createMockCanopyRepository = (
         if (Array.some(store.members, (m) => m.userId === userId)) {
           return false
         }
-        store.members.push({ canopyId, userId, role, joinedAt: new Date() })
+        store.members.push({
+          canopyId: canopyId as CanopyId,
+          userId,
+          role,
+          joinedAt: new Date(),
+        })
         return true
       }),
     removeMember: (canopyId, userId) =>
