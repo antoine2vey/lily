@@ -9,11 +9,7 @@ import { HttpApiBuilder } from 'effect/http-api'
 export const RoomsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'rooms', (handlers) =>
     handlers
-      .handle('getRooms', ({ query: urlParams }) =>
-        findRooms({ includeCanopy: urlParams.includeCanopy === 'true' }).pipe(
-          withInfraErrorsAsDefect
-        )
-      )
+      .handle('getRooms', () => findRooms().pipe(withInfraErrorsAsDefect))
       .handle('createRoom', ({ payload }) =>
         createRoom(payload).pipe(withInfraErrorsAsDefect)
       )

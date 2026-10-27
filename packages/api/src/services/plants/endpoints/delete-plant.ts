@@ -21,7 +21,7 @@ export const deletePlant = (
       return yield* new PlantNotFoundError({ plantId: plant.id })
     }
 
-    return plant
+    return { ...plant, room: null, schedules: [] }
   }).pipe(
     Effect.withSpan('PlantsService.deletePlant', {
       attributes: { 'plant.id': plant.id },

@@ -1,4 +1,7 @@
-import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import {
+  type CanopyMembership,
+  CanopyRepository,
+} from '@lily/api/repositories/canopy.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
   PlantRepository,
@@ -25,32 +28,58 @@ export type PlantAccessContext =
   | DelegationRepository
   | CanopyRepository
 
-export const resolvePlantRole = (
+export interface Caller {
+  readonly userId: string
+  readonly membership: Effect.Effect<CanopyMembership | null, SqlError>
+}
+
+/**
+ * The requesting user with a memoized membership lookup, so a request that
+ * touches many plants resolves the membership once and a request that only
+ * touches personal plants never resolves it.
+ */
+export const caller: Effect.Effect<
+  Caller,
+  never,
+  CurrentUser | CanopyRepository
+> = Effect.gen(function* () {
+  const { id: userId } = yield* CurrentUser
+  const canopyRepo = yield* CanopyRepository
+  const membership = yield* Effect.cached(
+    canopyRepo.findMembershipByUser(userId)
+  )
+  return { userId, membership }
+})
+
+export const plantRoleFor = (
+  who: Caller,
   plant: PlantRow
-): Effect.Effect<Option.Option<PlantRole>, SqlError, PlantAccessContext> =>
+): Effect.Effect<Option.Option<PlantRole>, SqlError, DelegationRepository> =>
   Effect.gen(function* () {
-    const { id: userId } = yield* CurrentUser
     const facts =
       plant.owner._tag === 'User'
         ? {
-            userId,
+            userId: who.userId,
             membership: null,
             caretaker:
-              plant.owner.userId !== userId &&
+              plant.owner.userId !== who.userId &&
               (yield* (yield* DelegationRepository).hasActiveDelegationForPlant(
-                userId,
+                who.userId,
                 plant.id
               )),
           }
         : {
-            userId,
-            membership: yield* (yield* CanopyRepository).findMembershipByUser(
-              userId
-            ),
+            userId: who.userId,
+            membership: yield* who.membership,
             caretaker: false,
           }
     return plantRole(plant, facts)
-  }).pipe(Effect.withSpan('resolvePlantRole'))
+  }).pipe(Effect.withSpan('plantRoleFor'))
+
+export const resolvePlantRole = (
+  plant: PlantRow
+): Effect.Effect<Option.Option<PlantRole>, SqlError, PlantAccessContext> =>
+  Effect.flatMap(caller, (who) => plantRoleFor(who, plant))
 
 /**
  * A plant the caller has no role on reads as not found, with the same body
@@ -91,10 +120,11 @@ export const settingsUserFor = (
     : Effect.map(CurrentUser, (user) => user.id)
 
 export const canPerform = (
+  who: Caller,
   plant: PlantRow,
   action: PlantAction
-): Effect.Effect<boolean, SqlError, PlantAccessContext> =>
-  Effect.map(resolvePlantRole(plant), Option.exists(allows(action)))
+): Effect.Effect<boolean, SqlError, DelegationRepository> =>
+  Effect.map(plantRoleFor(who, plant), Option.exists(allows(action)))
 
 /**
  * Fetches a plant by ID, checks the caller may perform `action` on it, and

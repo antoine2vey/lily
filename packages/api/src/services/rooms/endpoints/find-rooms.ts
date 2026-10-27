@@ -4,9 +4,7 @@ import type { RoomListWithCountsResponse } from '@lily/shared'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const findRooms = (
-  params: { includeCanopy?: boolean } = {}
-): Effect.Effect<
+export const findRooms = (): Effect.Effect<
   RoomListWithCountsResponse,
   SqlError,
   RoomRepository | CurrentUser
@@ -14,5 +12,5 @@ export const findRooms = (
   Effect.gen(function* () {
     const repo = yield* RoomRepository
     const { id: userId } = yield* CurrentUser
-    return yield* repo.findAll({ userId, ...params })
+    return yield* repo.findAll({ userId })
   }).pipe(Effect.withSpan('RoomsService.findRooms'))

@@ -6,6 +6,7 @@ import {
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import type { CareType, RoomNotFoundError } from '@lily/shared'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { PlantUpdateRequest } from '@lily/shared/plant'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type {
@@ -59,6 +60,7 @@ export const updatePlant = (
   | GCSUploadError
   | InvalidImageError
   | RoomNotFoundError
+  | PlantNotFoundError
   | GCSConfigError
   | PlatformError,
   | PlantRepository
@@ -103,7 +105,10 @@ export const updatePlant = (
     ) as Record<string, unknown>
 
     // Update non-care plant fields
-    yield* repo.update(request.id, plant.owner, data)
+    const written = yield* repo.update(request.id, plant.owner, data)
+    if (!written) {
+      return yield* new PlantNotFoundError({ plantId: request.id })
+    }
 
     // Fetch all existing schedules in a single query
     const existingSchedules = yield* scheduleRepo.findByPlant(request.id)

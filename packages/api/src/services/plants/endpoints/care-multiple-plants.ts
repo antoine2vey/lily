@@ -9,6 +9,7 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import {
+  caller,
   canPerform,
   settingsUserFor,
 } from '@lily/api/services/plants/helpers/with-plant-access'
@@ -64,6 +65,7 @@ export const careMultiplePlants = (
 
         const nowDt = DateTime.nowUnsafe()
         const now = DateTime.toDateUtc(nowDt)
+        const who = yield* caller
 
         // 2. Update each plant in parallel
         const results = yield* Effect.forEach(
@@ -77,7 +79,7 @@ export const careMultiplePlants = (
 
               const hasAccess = yield* Option.match(plantOption, {
                 onNone: () => Effect.succeed(false),
-                onSome: (plant) => canPerform(plant, 'care'),
+                onSome: (plant) => canPerform(who, plant, 'care'),
               })
 
               if (!hasAccess) {
