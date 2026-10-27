@@ -16,6 +16,10 @@ import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { startAnalyticsScheduler } from '@lily/api/services/analytics-scheduler/scheduler'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { startBlogGeneratorScheduler } from '@lily/api/services/blog-generator/scheduler'
+import {
+  CanopyApiLive,
+  CanopyInvitesApiLive,
+} from '@lily/api/services/canopy/handlers'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { CarePlansApiLive } from '@lily/api/services/care-plans/handlers'
 import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
@@ -175,6 +179,8 @@ const CoreApiHandlers = Layer.mergeAll(
 
 const ExtensionApiHandlers = Layer.mergeAll(
   ActivityPushTokensApiLive(Api),
+  CanopyApiLive(Api),
+  CanopyInvitesApiLive(Api),
   CarePlansApiLive(Api),
   AdminAnalyticsApiLive(Api),
   InternalApiLive(Api),

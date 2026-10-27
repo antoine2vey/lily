@@ -3,6 +3,7 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import { withUserLock } from '@lily/api/services/plants/helpers/owner-lock'
 import {
   caller,
   canPerform,
@@ -10,6 +11,7 @@ import {
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
   CannotDelegateSelfError,
+  CanopyPlantNotDelegableError,
   type CreateDelegationRequest,
   DelegationDateError,
   DelegationNotFoundError,
@@ -73,37 +75,52 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
       })
     }
 
-    // Verify all plants belong to the current user
-    const plants = yield* plantRepo.findByIds(plantIds)
-    const who = yield* caller
-    const allOwned = yield* Effect.forEach(plants, (p) =>
-      canPerform(who, p, 'delegate')
-    ).pipe(Effect.map(Array.every((allowed) => allowed)))
-    if (plants.length !== plantIds.length || !allOwned) {
-      return yield* new PlantNotAuthorizedError()
-    }
+    const delegation = yield* withUserLock(currentUserId)(
+      Effect.gen(function* () {
+        // Verify all plants belong to the current user
+        const plants = yield* plantRepo.findByIds(plantIds)
+        const who = yield* caller
+        const canopyPlant = yield* Effect.findFirst(
+          Array.filter(plants, (p) => p.owner._tag === 'Canopy'),
+          (p) => canPerform(who, p, 'view')
+        )
+        if (Option.isSome(canopyPlant)) {
+          return yield* new CanopyPlantNotDelegableError({
+            plantId: canopyPlant.value.id,
+          })
+        }
+        const allOwned = yield* Effect.forEach(plants, (p) =>
+          canPerform(who, p, 'delegate')
+        ).pipe(Effect.map(Array.every((allowed) => allowed)))
+        if (plants.length !== plantIds.length || !allOwned) {
+          return yield* new PlantNotAuthorizedError()
+        }
 
-    const overlapping = yield* delegationRepo.findOverlappingDelegations({
-      plantIds,
-      startDate,
-      endDate,
-    })
+        const overlapping = yield* delegationRepo.findOverlappingDelegations({
+          plantIds,
+          startDate,
+          endDate,
+        })
 
-    if (Array.isArrayNonEmpty(overlapping)) {
-      return yield* new DelegationOverlapError({
-        plantIds: overlapping,
+        if (Array.isArrayNonEmpty(overlapping)) {
+          return yield* new DelegationOverlapError({
+            plantIds: overlapping,
+          })
+        }
+
+        const delegation = yield* delegationRepo.create({
+          ownerId: currentUserId,
+          caretakerId: request.caretakerId,
+          startDate,
+          endDate,
+          message: request.message,
+        })
+
+        yield* delegationRepo.addPlants(delegation.id, plantIds)
+
+        return delegation
       })
-    }
-
-    const delegation = yield* delegationRepo.create({
-      ownerId: currentUserId,
-      caretakerId: request.caretakerId,
-      startDate,
-      endDate,
-      message: request.message,
-    })
-
-    yield* delegationRepo.addPlants(delegation.id, plantIds)
+    )
 
     const detail = yield* delegationRepo.findById(delegation.id)
 

@@ -1,6 +1,7 @@
 import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
+  ownerColumns,
   sameOwner,
   withCanopyOwner,
   withOwner,
@@ -315,9 +316,8 @@ export const createMockPlantRepository = (
         diedAt: null,
         deathCause: null,
         deathNote: null,
-        userId: createData.userId,
-        canopyId: null,
-        createdByUserId: createData.userId,
+        ...ownerColumns(createData.owner),
+        createdByUserId: createData.createdByUserId,
       }
       plantsData.push(newPlant)
       return Effect.succeed(withOwner(newPlant))
@@ -338,18 +338,25 @@ export const createMockPlantRepository = (
       ),
 
     markDead: (id, owner, data) =>
-      patchPlant(id, owner, {
-        diedAt: data.diedAt,
-        deathCause: data.cause,
-        deathNote: data.note,
-      }),
+      Array.some(plantsData, (p) => p.id === id && p.diedAt === null)
+        ? patchPlant(id, owner, {
+            diedAt: data.diedAt,
+            deathCause: data.cause,
+            deathNote: data.note,
+          })
+        : Effect.succeed(null),
 
     revive: (id, owner) =>
-      patchPlant(id, owner, {
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-      }),
+      Array.some(plantsData, (p) => p.id === id && p.diedAt !== null)
+        ? patchPlant(id, owner, {
+            diedAt: null,
+            deathCause: null,
+            deathNote: null,
+          })
+        : Effect.succeed(null),
+
+    moveTo: (id, from, to, roomId) =>
+      patchPlant(id, from, { ...ownerColumns(to), roomId }),
 
     findPhotos: (params: FindPhotosParams) => {
       const page = pipe(

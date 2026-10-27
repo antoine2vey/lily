@@ -1,9 +1,13 @@
+import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import {
   mockDelegation1,
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import {
+  createTestPlant,
+  mockPlants,
+} from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
@@ -11,12 +15,14 @@ import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createDelegation } from '@lily/api/services/delegation/endpoints/create-delegation'
 import {
   CannotDelegateSelfError,
+  CanopyPlantNotDelegableError,
   DelegationDateError,
   DelegationOverlapError,
   LimitExceededError,
@@ -52,7 +58,15 @@ const validRequest = {
   message: 'Please water my plants',
 }
 
+const canopyPlant = createTestPlant({
+  id: 'canopy-plant',
+  userId: null,
+  canopyId: mockCanopyId,
+  createdByUserId: mockUser2.id,
+})
+
 const createLayer = (options?: {
+  canopyMember?: boolean | undefined
   delegationAccessDenied?: boolean | undefined
   delegations?: DelegationRow[] | undefined
   delegationPlants?: { delegationId: string; plantId: string }[] | undefined
@@ -63,10 +77,22 @@ const createLayer = (options?: {
       delegationAccessDenied: options?.delegationAccessDenied,
     }),
     createMockUserRepository([mockUser1, mockUser2]),
-    createMockPlantRepository({ plants: mockPlants }),
-    createMockCanopyRepository(),
+    createMockPlantRepository({ plants: [...mockPlants, canopyPlant] }),
+    createMockCanopyRepository(
+      options?.canopyMember
+        ? [
+            {
+              userId: mockUser1.id,
+              canopyId: mockCanopyId,
+              role: 'member',
+              joinedAt: new Date('2024-01-01'),
+            },
+          ]
+        : []
+    ),
     createMockNotificationRepository(notifications),
     createMockMessageQueue(),
+    MockSqlClientLive,
     createMockDelegationRepository({
       delegations: options?.delegations ?? [],
       delegationPlants: options?.delegationPlants ?? [],
@@ -87,6 +113,28 @@ const createLayer = (options?: {
   )
 
 describe('createDelegation', () => {
+  it('refuses a Canopy plant to a member who can see it', async () => {
+    const exit = await Effect.runPromiseExit(
+      createDelegation({
+        ...validRequest,
+        plantIds: ['plant-1', 'canopy-plant'],
+      }).pipe(Effect.provide(createLayer({ canopyMember: true })))
+    )
+    expect(failureOf(exit)).toEqual(
+      new CanopyPlantNotDelegableError({ plantId: 'canopy-plant' })
+    )
+  })
+
+  it('answers a Canopy plant the caller cannot see like any foreign plant', async () => {
+    const exit = await Effect.runPromiseExit(
+      createDelegation({
+        ...validRequest,
+        plantIds: ['plant-1', 'canopy-plant'],
+      }).pipe(Effect.provide(createLayer()))
+    )
+    expect(failureOf(exit)).toEqual(new PlantNotAuthorizedError())
+  })
+
   it('should create a delegation with valid data', async () => {
     const layer = createLayer()
 

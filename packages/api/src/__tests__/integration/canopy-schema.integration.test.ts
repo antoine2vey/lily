@@ -229,7 +229,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             description: null,
             category: null,
             health: 'HEALTHY',
-            userId: alexId,
+            owner: { _tag: 'User', userId: alexId },
+            createdByUserId: alexId,
           })
         }).pipe(Effect.provide(RepositoryLive))
       )

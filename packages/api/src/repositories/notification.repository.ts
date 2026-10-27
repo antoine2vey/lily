@@ -3,7 +3,7 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { notifications } from '@lily/db/schema'
+import { notifications, plants } from '@lily/db/schema'
 import {
   nowAsDate,
   paginate,
@@ -116,6 +116,10 @@ export interface INotificationRepository {
   readonly deletePendingByPlantId: (
     plantId: string
   ) => Effect.Effect<void, SqlError>
+  readonly deletePendingForMemberOnCanopy: (
+    userId: string,
+    canopyId: string
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly deleteByIds: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<void, SqlError>
@@ -407,6 +411,33 @@ export const NotificationRepositoryLive = Layer.effect(
               eq(notifications.status, 'pending')
             )
           )
+      }),
+
+      deletePendingForMemberOnCanopy: Effect.fn(
+        'NotificationRepository.deletePendingForMemberOnCanopy'
+      )(function* (userId: string, canopyId: string) {
+        const deleted = yield* db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.status, 'pending'),
+              inArray(
+                notifications.plantId,
+                db
+                  .select({ id: plants.id })
+                  .from(plants)
+                  .where(eq(plants.canopyId, canopyId))
+              )
+            )
+          )
+          .returning({ plantId: notifications.plantId })
+        return Array.dedupe(
+          Array.filter(
+            Array.map(deleted, (row) => row.plantId),
+            (id): id is string => id !== null
+          )
+        )
       }),
 
       deleteByIds: Effect.fn('NotificationRepository.deleteByIds')(function* (

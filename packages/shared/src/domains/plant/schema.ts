@@ -159,6 +159,7 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   potWidthCm: Schema.optional(Schema.NullOr(Schema.Number)),
   potHeightCm: Schema.optional(Schema.NullOr(Schema.Number)),
   roomId: Schema.optional(Schema.String),
+  owner: Schema.optional(Schema.Literals(['me', 'canopy'])),
 })
 
 // AI identify response (shared by both AI identify and nursery card scan)

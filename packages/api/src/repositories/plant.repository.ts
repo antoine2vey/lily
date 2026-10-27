@@ -6,6 +6,7 @@ import {
 import {
   type CanopyOwner,
   ownedBy,
+  ownerColumns,
   type UserOwner,
   type WithOwner,
   withCanopyOwner,
@@ -48,6 +49,7 @@ import {
   eq,
   inArray,
   isNotNull,
+  isNull,
   lte,
   notInArray,
   or,
@@ -135,7 +137,8 @@ export interface CreatePlantData {
   health: PlantHealthStatus
   potWidthCm?: number | null
   potHeightCm?: number | null
-  userId: string
+  owner: PlantOwner
+  createdByUserId: string
   roomId?: string | null
 }
 
@@ -201,6 +204,12 @@ export interface IPlantRepository {
   readonly revive: (
     id: string,
     owner: PlantOwner
+  ) => Effect.Effect<PlantRow | null, SqlError>
+  readonly moveTo: (
+    id: string,
+    from: PlantOwner,
+    to: PlantOwner,
+    roomId: string | null
   ) => Effect.Effect<PlantRow | null, SqlError>
   readonly findPhotos: (
     params: FindPhotosParams
@@ -626,9 +635,10 @@ export const PlantRepositoryLive = Layer.effect(
       create: Effect.fn('PlantRepository.create')(function* (
         data: CreatePlantData
       ) {
+        const { owner, ...fields } = data
         const [plant] = yield* db
           .insert(plants)
-          .values({ ...data, createdByUserId: data.userId })
+          .values({ ...fields, ...ownerColumns(owner) })
           .returning()
         return withOwnerOrNull(plant)
       }),
@@ -669,7 +679,13 @@ export const PlantRepositoryLive = Layer.effect(
             deathCause: data.cause,
             deathNote: data.note,
           })
-          .where(and(eq(plants.id, id), ownedBy(plants, owner)))
+          .where(
+            and(
+              eq(plants.id, id),
+              ownedBy(plants, owner),
+              isNull(plants.diedAt)
+            )
+          )
           .returning()
         return withOwnerOrNull(plant)
       }),
@@ -681,7 +697,27 @@ export const PlantRepositoryLive = Layer.effect(
         const [plant] = yield* db
           .update(plants)
           .set({ diedAt: null, deathCause: null, deathNote: null })
-          .where(and(eq(plants.id, id), ownedBy(plants, owner)))
+          .where(
+            and(
+              eq(plants.id, id),
+              ownedBy(plants, owner),
+              isNotNull(plants.diedAt)
+            )
+          )
+          .returning()
+        return withOwnerOrNull(plant)
+      }),
+
+      moveTo: Effect.fn('PlantRepository.moveTo')(function* (
+        id: string,
+        from: PlantOwner,
+        to: PlantOwner,
+        roomId: string | null
+      ) {
+        const [plant] = yield* db
+          .update(plants)
+          .set({ ...ownerColumns(to), roomId, updatedAt: nowAsDate() })
+          .where(and(eq(plants.id, id), ownedBy(plants, from)))
           .returning()
         return withOwnerOrNull(plant)
       }),

@@ -7,12 +7,13 @@ import {
   userAchievements,
   users,
 } from '@lily/db/schema'
-import type { AchievementKey, CareType } from '@lily/shared'
+import type { AchievementKey, CareType, PlantOwner } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 import { isLivingPlant } from './helpers/living-plant'
 import { unwrapPgRows } from './helpers/pagination'
+import { ownedBy } from './helpers/plant-owner'
 import { hasUserOwner } from './helpers/user-owner'
 
 export interface IAchievementRepository {
@@ -40,7 +41,7 @@ export interface IAchievementRepository {
   readonly countPlants: (userId: string) => Effect.Effect<number, SqlError>
   /** Living plants only — the plan limit; achievements keep `countPlants`. */
   readonly countLivingPlants: (
-    userId: string
+    owner: PlantOwner
   ) => Effect.Effect<number, SqlError>
 
   readonly countPhotos: (userId: string) => Effect.Effect<number, SqlError>
@@ -164,11 +165,11 @@ export const AchievementRepositoryLive = Layer.effect(
       }),
 
       countLivingPlants: Effect.fn('AchievementRepository.countLivingPlants')(
-        function* (userId: string) {
+        function* (owner: PlantOwner) {
           const [result] = yield* db
             .select({ count: count() })
             .from(plants)
-            .where(and(eq(plants.userId, userId), isLivingPlant()))
+            .where(and(ownedBy(plants, owner), isLivingPlant()))
           return pipe(
             Option.fromNullishOr(result),
             Option.flatMap((r) => Option.fromNullishOr(r.count)),

@@ -14,7 +14,10 @@ export class CanopyNotFoundError extends Schema.TaggedError<CanopyNotFoundError>
 
 export class AlreadyInCanopyError extends Schema.TaggedError<AlreadyInCanopyError>()(
   'AlreadyInCanopyError',
-  { message: message('Leave your current Canopy before joining another') },
+  {
+    canopyName: Schema.String,
+    message: message('Leave your current Canopy before joining another'),
+  },
   { httpApiStatus: 409 }
 ) {}
 
@@ -25,6 +28,12 @@ export class CanopyFullError extends Schema.TaggedError<CanopyFullError>()(
     message: message('This Canopy is full'),
   },
   { httpApiStatus: 409 }
+) {}
+
+export class CanopyMemberNotFoundError extends Schema.TaggedError<CanopyMemberNotFoundError>()(
+  'CanopyMemberNotFoundError',
+  { message: message('Member not found') },
+  { httpApiStatus: 404 }
 ) {}
 
 export class CanopyInviteNotFoundError extends Schema.TaggedError<CanopyInviteNotFoundError>()(
@@ -43,6 +52,15 @@ export class NotCanopyOwnerError extends Schema.TaggedError<NotCanopyOwnerError>
   'NotCanopyOwnerError',
   { message: message('Only the Canopy owner can do this') },
   { httpApiStatus: 403 }
+) {}
+
+export class CanopyPlantNotDelegableError extends Schema.TaggedError<CanopyPlantNotDelegableError>()(
+  'CanopyPlantNotDelegableError',
+  {
+    plantId: Schema.String,
+    message: message('Canopy plants cannot be delegated'),
+  },
+  { httpApiStatus: 409 }
 ) {}
 
 export class PlantInDelegationError extends Schema.TaggedError<PlantInDelegationError>()(

@@ -163,6 +163,10 @@ export interface IDelegationRepository {
   readonly findActiveCaretakerForPlant: (
     plantId: string
   ) => Effect.Effect<string | null, SqlError>
+
+  readonly hasOpenDelegationForPlant: (
+    plantId: string
+  ) => Effect.Effect<boolean, SqlError>
 }
 
 export class DelegationRepository extends Context.Service<
@@ -578,6 +582,26 @@ export const DelegationRepositoryLive = Layer.effect(
           )
 
         return groupPlantRows(rows)
+      }),
+
+      hasOpenDelegationForPlant: Effect.fn(
+        'DelegationRepository.hasOpenDelegationForPlant'
+      )(function* (plantId: string) {
+        const rows = yield* db
+          .select({ id: careDelegations.id })
+          .from(careDelegations)
+          .innerJoin(
+            delegationPlants,
+            eq(careDelegations.id, delegationPlants.delegationId)
+          )
+          .where(
+            and(
+              eq(delegationPlants.plantId, plantId),
+              inArray(careDelegations.status, ['pending', 'accepted', 'active'])
+            )
+          )
+          .limit(1)
+        return Array.isArrayNonEmpty(rows)
       }),
 
       hasActiveDelegationForPlant: Effect.fn(

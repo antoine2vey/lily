@@ -75,6 +75,13 @@ export const ownedBy = (
     ? eq(table.userId, owner.userId)
     : eq(table.canopyId, owner.canopyId)
 
+export const ownerColumns = (
+  owner: PlantOwner
+): { readonly userId: string | null; readonly canopyId: string | null } =>
+  owner._tag === 'User'
+    ? { userId: owner.userId, canopyId: null }
+    : { userId: null, canopyId: owner.canopyId }
+
 export const sameOwner = (a: PlantOwner, b: PlantOwner): boolean =>
   a._tag === 'User'
     ? b._tag === 'User' && a.userId === b.userId

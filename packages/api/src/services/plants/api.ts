@@ -1,8 +1,11 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
+  CanopyNotFoundError,
   LimitExceededError,
+  MovePlantScopeRequest,
   OpenAIError,
   PaginationParams,
+  PlantInDelegationError,
   RoomNotFoundError,
 } from '@lily/shared'
 import {
@@ -90,6 +93,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       error: [
         RoomNotFoundError,
         LimitExceededError,
+        CanopyNotFoundError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
     })
@@ -364,6 +368,59 @@ export const PlantsApi = HttpApiGroup.make('plants')
   .add(
     // POST /plants/:id/share - Notify that plant was shared
     HttpApiEndpoint.post('sharePlant', '/:id/share', {
+      params: { id: plantIdParam },
+      success: Schema.Void,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
+  )
+  .add(
+    HttpApiEndpoint.post('sharePlantWithCanopy', '/:id/share-with-canopy', {
+      params: { id: plantIdParam },
+      payload: MovePlantScopeRequest,
+      success: Plant,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        CanopyNotFoundError,
+        PlantInDelegationError,
+        LimitExceededError,
+        RoomNotFoundError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
+  )
+  .add(
+    HttpApiEndpoint.post('unsharePlant', '/:id/unshare', {
+      params: { id: plantIdParam },
+      payload: MovePlantScopeRequest,
+      success: Plant,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        CanopyNotFoundError,
+        LimitExceededError,
+        RoomNotFoundError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
+  )
+  .add(
+    HttpApiEndpoint.put('mutePlant', '/:id/mute', {
+      params: { id: plantIdParam },
+      success: Schema.Void,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
+  )
+  .add(
+    HttpApiEndpoint.delete('unmutePlant', '/:id/mute', {
       params: { id: plantIdParam },
       success: Schema.Void,
       error: [

@@ -1,6 +1,12 @@
+import { createTestMembership } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import {
+  createCanopyStore,
+  createMockCanopyRepository,
+  createTestCanopyRow,
+} from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -8,13 +14,14 @@ import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
   withCanopyOwner,
   withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
-import type { CanopyId } from '@lily/shared'
+import type { CanopyId, PlantOwner } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import type { AppEvent } from '@lily/shared/server'
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
@@ -64,7 +71,8 @@ const makeLayer = (options: {
   plant: ReturnType<typeof createTestPlant>
   schedules?: ReturnType<typeof createTestSchedule>[]
   notifications?: Notification[]
-  plantLimitReached?: boolean
+  plantLimitReached?: boolean | ((owner: PlantOwner) => boolean)
+  checkedOwners?: PlantOwner[]
   publishedEvents?: AppEvent[]
 }) =>
   Layer.mergeAll(
@@ -81,8 +89,16 @@ const makeLayer = (options: {
     createMockCurrentUser({ id: 'user-1' }),
     createMockLimitChecker({
       plantLimitReached: options.plantLimitReached ?? false,
+      checkedOwners: options.checkedOwners,
     }),
-    createMockEventBus({ publishedEvents: options.publishedEvents ?? [] })
+    createMockEventBus({ publishedEvents: options.publishedEvents ?? [] }),
+    createMockCanopyRepository(
+      createCanopyStore({
+        canopies: [createTestCanopyRow()],
+        members: [createTestMembership({ userId: 'user-1' })],
+      })
+    ),
+    MockSqlClientLive
   )
 
 const failureTag = (exit: Exit.Exit<unknown, { _tag: string }>) =>
@@ -91,15 +107,34 @@ const failureTag = (exit: Exit.Exit<unknown, { _tag: string }>) =>
     : Option.none()
 
 describe('revivePlant', () => {
-  it("revives a Canopy plant without counting it against the member's personal limit", async () => {
+  it("checks a Canopy revive against the Canopy's limit, not the member's", async () => {
     const plant = deadCanopyPlant()
+    const checkedOwners: PlantOwner[] = []
     const result = await Effect.runPromise(
+      revivePlant(asCanopyPlantWithRoom(plant)).pipe(
+        Effect.provide(
+          makeLayer({
+            plant,
+            plantLimitReached: (owner) => owner._tag === 'User',
+            checkedOwners,
+          })
+        )
+      )
+    )
+
+    expect(result.diedAt).toBeNull()
+    expect(checkedOwners).toEqual([{ _tag: 'Canopy', canopyId: 'canopy-1' }])
+  })
+
+  it('keeps a Canopy plant buried when the Canopy is at its cap', async () => {
+    const plant = deadCanopyPlant()
+    const exit = await Effect.runPromiseExit(
       revivePlant(asCanopyPlantWithRoom(plant)).pipe(
         Effect.provide(makeLayer({ plant, plantLimitReached: true }))
       )
     )
 
-    expect(result.diedAt).toBeNull()
+    expect(failureTag(exit)).toEqual(Option.some('LimitExceededError'))
   })
 
   it('clears the death columns', async () => {
@@ -179,5 +214,16 @@ describe('revivePlant', () => {
     expect(publishedEvents).toEqual([
       { _tag: 'PlantLifecycleChanged', userId: 'user-1', plantId: 'plant-1' },
     ])
+  })
+
+  it('answers PlantNotDeadError, not the limit, to a second revive', async () => {
+    const alive = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+    const exit = await Effect.runPromiseExit(
+      revivePlant(asPlantWithRoom(deadPlant())).pipe(
+        Effect.provide(makeLayer({ plant: alive, plantLimitReached: true }))
+      )
+    )
+
+    expect(failureTag(exit)).toEqual(Option.some('PlantNotDeadError'))
   })
 })

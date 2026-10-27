@@ -255,7 +255,8 @@ const RedisFullLive = Layer.mergeAll(
 ).pipe(Layer.provideMerge(RedisClientLive))
 
 // Repo-dependent infra: these need specific repositories to be available.
-// LimitCheckerLive needs SubscriptionRepository + AchievementRepository.
+// LimitCheckerLive needs SubscriptionRepository + AchievementRepository +
+// CanopyRepository.
 // UsageTrackerLive needs SubscriptionRepository.
 // The push provider needs DeviceTokenRepository, PendingPushReceipts (Redis)
 // and ExpoPushClient.

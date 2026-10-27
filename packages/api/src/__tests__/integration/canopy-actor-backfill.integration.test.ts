@@ -9,9 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const { Pool } = pg
 
-const migrationPath = fileURLToPath(
-  new URL('../../../../db/drizzle/0063_canopy.sql', import.meta.url)
-)
+const migrationPath = (file: string) =>
+  fileURLToPath(new URL(`../../../../db/drizzle/${file}`, import.meta.url))
 
 type Actor = 'owner' | 'first' | 'second'
 
@@ -159,11 +158,40 @@ const optionalDate = (iso: string | undefined) =>
   iso === undefined ? null : new Date(iso)
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
-  '0063 care-log actor backfill - Integration',
+  '0063 care-log actor backfill and 0064 insert trigger - Integration',
   () => {
     let pool: pg.Pool
     let db: ReturnType<typeof drizzle<typeof schema>>
     const expected: Array<{ label: string; actorId: string }> = []
+    const plantIds: Record<string, string> = {}
+    let ids: Record<Actor, string>
+
+    const insertLogs = async (prefix: string) => {
+      for (const scenario of scenarios) {
+        for (const log of scenario.logs) {
+          const label = `${prefix}${scenario.name} @ ${log.at}`
+          await db.insert(schema.careLogs).values({
+            type: 'watering',
+            date: new Date(log.at),
+            plantId: plantIds[scenario.name] ?? '',
+            notes: label,
+          })
+          expected.push({ label, actorId: ids[log.actor] })
+        }
+      }
+    }
+
+    const applyMigration = async (file: string) => {
+      const migration = await readFile(migrationPath(file), 'utf8')
+      const client = await pool.connect()
+      try {
+        await client.query('BEGIN')
+        await client.query(migration)
+        await client.query('COMMIT')
+      } finally {
+        client.release()
+      }
+    }
     const actual: Record<string, string | null> = {}
 
     beforeAll(async () => {
@@ -182,7 +210,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .returning({ id: schema.users.id })
       const [owner, first, second] = people
       if (!owner || !first || !second) throw new Error('user insert failed')
-      const ids: Record<Actor, string> = {
+      ids = {
         owner: owner.id,
         first: first.id,
         second: second.id,
@@ -202,6 +230,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
           .returning({ id: schema.plants.id })
         if (!plant) throw new Error('plant insert failed')
+        plantIds[scenario.name] = plant.id
 
         for (const d of scenario.delegations) {
           const [delegation] = await db
@@ -222,28 +251,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             .insert(schema.delegationPlants)
             .values({ delegationId: delegation.id, plantId: plant.id })
         }
-
-        for (const log of scenario.logs) {
-          const label = `${scenario.name} @ ${log.at}`
-          await db.insert(schema.careLogs).values({
-            type: 'watering',
-            date: new Date(log.at),
-            plantId: plant.id,
-            notes: label,
-          })
-          expected.push({ label, actorId: ids[log.actor] })
-        }
       }
 
-      const migration = await readFile(migrationPath, 'utf8')
-      const client = await pool.connect()
-      try {
-        await client.query('BEGIN')
-        await client.query(migration)
-        await client.query('COMMIT')
-      } finally {
-        client.release()
-      }
+      await insertLogs('')
+      await applyMigration('0063_canopy.sql')
+      await applyMigration('0064_canopy_actor_backfill_rerun.sql')
+      await insertLogs('inserted after 0064: ')
 
       const rows = await db
         .select({
@@ -257,11 +270,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     afterAll(async () => {
+      await db.execute(
+        sql`DROP TRIGGER IF EXISTS care_logs_actor_fallback ON care_logs`
+      )
+      await db.execute(
+        sql`DROP TRIGGER IF EXISTS plants_creator_fallback ON plants`
+      )
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
       await pool.end()
     })
 
-    it('credits each care log to whoever was responsible at that instant', () => {
+    it('credits each care log to whoever was responsible at that instant, backfilled or inserted', () => {
       expect(R.size(actual)).toBe(expected.length)
       const mismatches = Arr.filter(
         expected,

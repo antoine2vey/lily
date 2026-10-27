@@ -1,17 +1,19 @@
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { resolveTierConfig } from '@lily/api/services/subscriptions/effective-tier'
+import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import {
   DisableLimitsConfig,
   NodeEnvConfig,
 } from '@lily/api/services/subscriptions/limits-config'
-import { LimitExceededError } from '@lily/shared'
-import { Context, Effect, Layer } from 'effect'
+import { LimitExceededError, type PlantOwner } from '@lily/shared'
+import { Array, Context, Effect, Layer, Match, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface ILimitChecker {
   readonly checkPlantLimit: (
-    userId: string
+    owner: PlantOwner
   ) => Effect.Effect<void, LimitExceededError | SqlError>
 
   readonly checkDelegationAccess: (
@@ -51,6 +53,7 @@ export const LimitCheckerLive = Layer.effect(
 
     const subRepo = yield* SubscriptionRepository
     const achievementRepo = yield* AchievementRepository
+    const canopyRepo = yield* CanopyRepository
 
     const checkDelegationAccess = Effect.fn(
       'LimitChecker.checkDelegationAccess'
@@ -68,29 +71,71 @@ export const LimitCheckerLive = Layer.effect(
       }
     })
 
+    const canopyPlantCap = (canopyId: string) =>
+      Effect.gen(function* () {
+        const members = yield* canopyRepo.findMembersByJoinDate(canopyId)
+        const subscriptions = yield* subRepo.findByUserIds(
+          Array.map(members, (m) => m.userId)
+        )
+        const memberTiers = yield* Effect.forEach(
+          pipe(
+            subscriptions,
+            Array.filter(hasPremiumAccess),
+            Array.map((sub) => sub.tier),
+            Array.dedupe
+          ),
+          subRepo.getTier
+        )
+        if (Array.some(memberTiers, (tier) => tier.maxPlants === null)) {
+          return null
+        }
+        const free = yield* subRepo.getTier('free')
+        return free.maxPlants
+      })
+
+    const checkPlantLimit = Effect.fn('LimitChecker.checkPlantLimit')(
+      function* (owner: PlantOwner) {
+        const maxPlants = yield* Match.value(owner).pipe(
+          Match.tag('User', ({ userId }) =>
+            Effect.map(
+              resolveTierConfig(subRepo, userId),
+              (tier) => tier.maxPlants
+            )
+          ),
+          Match.tag('Canopy', ({ canopyId }) => canopyPlantCap(canopyId)),
+          Match.exhaustive
+        )
+
+        // null means unlimited
+        if (maxPlants === null) {
+          return
+        }
+
+        // Dead plants free their slot; the cemetery is not capped.
+        const currentCount = yield* achievementRepo.countLivingPlants(owner)
+
+        if (currentCount >= maxPlants) {
+          return yield* new LimitExceededError(
+            owner._tag === 'User'
+              ? {
+                  feature: 'plants',
+                  limit: maxPlants,
+                  current: currentCount,
+                  message: `You've reached your limit of ${maxPlants} plants. Upgrade to Premium for unlimited plants!`,
+                }
+              : {
+                  feature: 'canopy_plants',
+                  limit: maxPlants,
+                  current: currentCount,
+                  message: `This Canopy has reached its limit of ${maxPlants} plants. Any member going Premium lifts it.`,
+                }
+          )
+        }
+      }
+    )
+
     return {
-      checkPlantLimit: (userId: string) =>
-        Effect.gen(function* () {
-          const tierConfig = yield* resolveTierConfig(subRepo, userId)
-
-          // null means unlimited
-          if (tierConfig.maxPlants === null) {
-            return
-          }
-
-          // Dead plants free their slot; the cemetery is not capped.
-          const currentCount = yield* achievementRepo.countLivingPlants(userId)
-
-          if (currentCount >= tierConfig.maxPlants) {
-            return yield* new LimitExceededError({
-              feature: 'plants',
-              limit: tierConfig.maxPlants,
-              current: currentCount,
-              message: `You've reached your limit of ${tierConfig.maxPlants} plants. Upgrade to Premium for unlimited plants!`,
-            })
-          }
-        }),
-
+      checkPlantLimit,
       checkDelegationAccess,
     }
   })

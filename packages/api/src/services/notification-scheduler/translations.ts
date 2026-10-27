@@ -52,6 +52,9 @@ export type SimpleNotificationType =
   | 'delegation_canceled'
   | 'delegation_activated'
   | 'delegation_completed'
+  | 'canopy_member_joined'
+  | 'canopy_member_removed'
+  | 'canopy_member_left'
   | 'daily_tip'
   | 'inactivity_nudge'
   | 'photo_reminder'
@@ -76,6 +79,15 @@ export type NotificationParamsMap = {
   readonly delegation_canceled: { readonly senderName?: string }
   readonly delegation_activated: { readonly plantCount?: number }
   readonly delegation_completed: { readonly plantCount?: number }
+  readonly canopy_member_joined: {
+    readonly senderName?: string
+    readonly canopyName: string
+  }
+  readonly canopy_member_removed: { readonly canopyName: string }
+  readonly canopy_member_left: {
+    readonly senderName?: string
+    readonly canopyName: string
+  }
   readonly daily_tip: { readonly tipTitle?: string; readonly tipBody?: string }
   readonly inactivity_nudge: { readonly plantCount?: number }
   readonly photo_reminder: {
@@ -112,6 +124,7 @@ export type NotificationParamsMap = {
 // All fields optional because each translation only reads its own subset.
 type InternalNotificationParams = {
   readonly senderName?: string
+  readonly canopyName?: string
   readonly plantCount?: number
   readonly plantName?: string
   readonly daysSinceJoin?: number
@@ -189,6 +202,20 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
         )
         return `Your care for ${count} ${enPlural(count, 'plant', 'plants')} has wrapped up. Nicely done!`
       },
+    },
+    canopy_member_joined: {
+      title: () => '🏡 New Canopy member',
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} joined ${p.canopyName}`,
+    },
+    canopy_member_removed: {
+      title: () => '🏡 Canopy update',
+      body: (p) => `You're no longer a member of ${p.canopyName}`,
+    },
+    canopy_member_left: {
+      title: () => '🏡 Canopy update',
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} left ${p.canopyName}`,
     },
     inactivity_nudge: {
       title: () => '🌿 Your plants miss you!',
@@ -455,6 +482,20 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
         )
         return `Ta garde de ${count} ${frPlural(count, 'plante', 'plantes')} est terminée. Bravo !`
       },
+    },
+    canopy_member_joined: {
+      title: () => '🏡 Nouveau membre dans la Canopy',
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} a rejoint ${p.canopyName}`,
+    },
+    canopy_member_removed: {
+      title: () => '🏡 Du nouveau dans ta Canopy',
+      body: (p) => `Tu ne fais plus partie de ${p.canopyName}`,
+    },
+    canopy_member_left: {
+      title: () => '🏡 Du nouveau dans ta Canopy',
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} a quitté ${p.canopyName}`,
     },
     inactivity_nudge: {
       title: () => "🌿 Tes plantes t'attendent !",

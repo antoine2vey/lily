@@ -96,7 +96,7 @@ Activity.
   gated by `withPlantAuth(id, 'markDead' | 'revive' | 'delete')`. Bury cancels pending notifications and
   publishes `PlantLifecycleChanged`, which the Live Activity subscriber uses to
   refresh the card. Revive re-runs `scheduleCareReminder` for future due dates
-  and, for a personal plant, enforces the plant limit through
-  `countLivingPlants`; the Canopy cap lands with C3.
+  and enforces the limit of the plant's owner, a user or a Canopy, through
+  `LimitChecker.checkPlantLimit`.
 - Deliberately unfiltered: achievements (`countPlants`), admin analytics, and
   care-log history/streaks (past care stays history).

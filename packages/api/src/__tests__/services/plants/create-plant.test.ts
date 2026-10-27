@@ -1,6 +1,7 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import {
@@ -59,6 +60,7 @@ describe('createPlant', () => {
         createMockCurrentUser({ id: 'user-1' }),
         MockLimitCheckerLive,
         MockSqlClientLive,
+        createMockCanopyRepository(),
         createMockCareScheduleRepository({ schedules })
       ),
       schedules,
@@ -235,6 +237,7 @@ describe('createPlant', () => {
             createMockCurrentUser({ id: 'user-1' }),
             MockLimitCheckerLive,
             MockSqlClientLive,
+            createMockCanopyRepository(),
             createMockCareScheduleRepository({ schedules })
           )
         )
@@ -321,6 +324,7 @@ describe('createPlant', () => {
       createMockCurrentUser({ id: 'user-1' }),
       createMockLimitChecker({ plantLimitReached: true }),
       MockSqlClientLive,
+      createMockCanopyRepository(),
       createMockCareScheduleRepository({ schedules })
     )
 

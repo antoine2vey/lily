@@ -1,5 +1,6 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
@@ -8,7 +9,9 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
+import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
 import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
@@ -16,7 +19,8 @@ import {
   PlantNotDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { Array, DateTime, Effect } from 'effect'
+import { Effect } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -39,6 +43,8 @@ export const revivePlant = (
   | LimitChecker
   | EventBus
   | CurrentUser
+  | SqlClient.SqlClient
+  | CanopyRepository
 > =>
   Effect.gen(function* () {
     if (plant.diedAt === null) {
@@ -46,41 +52,30 @@ export const revivePlant = (
     }
 
     const repo = yield* PlantRepository
-    const scheduleRepo = yield* CareScheduleRepository
     const limitChecker = yield* LimitChecker
     const eventBus = yield* EventBus
 
-    // A revived plant takes a slot again; free users at the cap are paywalled
-    // exactly like on create, so bury-then-revive is not a way around it.
-    if (plant.owner._tag === 'User') {
-      yield* limitChecker.checkPlantLimit(plant.owner.userId)
-    }
     const settingsUserId = yield* interimSettingsUserFor(plant.owner)
 
-    const updated = yield* repo.revive(plant.id, plant.owner)
-    if (!updated) {
-      return yield* new PlantNotFoundError({ plantId: requestedId })
-    }
-
-    const schedules = yield* scheduleRepo.findByPlant(plant.id)
-    const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
-    yield* Effect.forEach(
-      Array.filter(
-        schedules,
-        (schedule) =>
-          schedule.nextCareAt !== null &&
-          DateTime.toEpochMillis(DateTime.makeUnsafe(schedule.nextCareAt)) >
-            nowMs
-      ),
-      (schedule) =>
-        scheduleCareReminder({
-          plantId: plant.id,
-          userId: settingsUserId,
-          type: `${schedule.careType}_reminder` as const,
-          // biome-ignore lint/style/noNonNullAssertion: filtered non-null above
-          scheduledDate: schedule.nextCareAt!,
-          remindersEnabled: updated.remindersEnabled,
-        })
+    // A revived plant takes a slot again; free users at the cap are paywalled
+    // exactly like on create, so bury-then-revive is not a way around it.
+    yield* withOwnerLock(plant.owner)(
+      Effect.gen(function* () {
+        const current = yield* reloadOwnedPlant(plant, requestedId)
+        if (current.diedAt === null) {
+          return yield* new PlantNotDeadError()
+        }
+        yield* limitChecker.checkPlantLimit(plant.owner)
+        const updated = yield* repo.revive(plant.id, plant.owner)
+        if (!updated) {
+          return yield* new PlantNotFoundError({ plantId: requestedId })
+        }
+        yield* rescheduleReminders(updated, settingsUserId)
+      })
+    ).pipe(
+      Effect.catchTag('CanopyNotFoundError', () =>
+        Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
+      )
     )
 
     yield* publishWithRetry(

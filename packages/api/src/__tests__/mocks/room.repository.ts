@@ -1,4 +1,5 @@
 import {
+  ownerColumns,
   sameOwner,
   withOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
@@ -43,8 +44,7 @@ export const createMockRoomRepository = (
         orientation: data.orientation ?? null,
         isOutdoor: data.isOutdoor ?? false,
         order: data.order,
-        userId: data.userId,
-        canopyId: null,
+        ...ownerColumns(data.owner),
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -86,8 +86,10 @@ export const createMockRoomRepository = (
         )
       ),
 
-    getMaxOrder: (userId: string) => {
-      const filtered = Array.filter(roomsData, (r) => r.userId === userId)
+    getMaxOrder: (owner) => {
+      const filtered = Array.filter(roomsData, (r) =>
+        sameOwner(withOwner(r).owner, owner)
+      )
       return Effect.succeed(
         Option.getOrElse(
           Option.map(

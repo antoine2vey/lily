@@ -1,6 +1,13 @@
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { carePlanSteps, carePlans, plants } from '@lily/db/schema'
+import {
+  canopyMembers,
+  careDelegations,
+  carePlanSteps,
+  carePlans,
+  delegationPlants,
+  plants,
+} from '@lily/db/schema'
 import { type CareType, nowAsDate } from '@lily/shared'
 import type {
   CarePlan,
@@ -8,7 +15,7 @@ import type {
   CarePlanStatus,
   CarePlanStep,
 } from '@lily/shared/care-plan'
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, exists, inArray, isNull, or } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, Order, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -159,6 +166,34 @@ export const CarePlanRepositoryLive = Layer.effect(
 
     const plantSelect = { name: plants.name, imageUrl: plants.imageUrl }
 
+    const authorReachesPlant = or(
+      eq(plants.userId, carePlans.userId),
+      inArray(
+        plants.canopyId,
+        db
+          .select({ canopyId: canopyMembers.canopyId })
+          .from(canopyMembers)
+          .where(eq(canopyMembers.userId, carePlans.userId))
+      ),
+      exists(
+        db
+          .select({ id: delegationPlants.plantId })
+          .from(delegationPlants)
+          .innerJoin(
+            careDelegations,
+            eq(careDelegations.id, delegationPlants.delegationId)
+          )
+          .where(
+            and(
+              eq(delegationPlants.plantId, plants.id),
+              eq(careDelegations.caretakerId, carePlans.userId),
+              eq(careDelegations.ownerId, plants.userId),
+              eq(careDelegations.status, 'active')
+            )
+          )
+      )
+    )
+
     const stepsForPlans = (planIds: ReadonlyArray<string>) =>
       Array.isReadonlyArrayEmpty(planIds)
         ? Effect.succeed([] as CarePlanStepRow[])
@@ -186,16 +221,25 @@ export const CarePlanRepositoryLive = Layer.effect(
         )
       })
 
-    const findOne = (planId: string, userId: string) =>
+    const findPlan = (where: ReturnType<typeof and>) =>
       Effect.gen(function* () {
         const rows = yield* db
           .select({ plan: carePlans, plant: plantSelect })
           .from(carePlans)
           .innerJoin(plants, eq(carePlans.plantId, plants.id))
-          .where(and(eq(carePlans.id, planId), eq(carePlans.userId, userId)))
+          .where(where)
         const hydrated = yield* hydrate(rows)
         return pipe(Array.head(hydrated), Option.getOrNull)
       })
+
+    const findOne = (planId: string, userId: string) =>
+      findPlan(
+        and(
+          eq(carePlans.id, planId),
+          eq(carePlans.userId, userId),
+          authorReachesPlant
+        )
+      )
 
     return {
       create: Effect.fn('CarePlanRepository.create')(function* (
@@ -236,7 +280,7 @@ export const CarePlanRepositoryLive = Layer.effect(
           )
         }
 
-        const created = yield* findOne(plan.id, data.userId)
+        const created = yield* findPlan(eq(carePlans.id, plan.id))
         return pipe(Option.fromNullishOr(created), Option.getOrThrow)
       }),
 
@@ -261,6 +305,7 @@ export const CarePlanRepositoryLive = Layer.effect(
             and(
               eq(carePlans.userId, userId),
               isLivingPlant(),
+              authorReachesPlant,
               ...pipe(
                 Option.fromNullishOr(status),
                 Option.map((s) => [eq(carePlans.status, s)]),
@@ -281,7 +326,11 @@ export const CarePlanRepositoryLive = Layer.effect(
           .from(carePlans)
           .innerJoin(plants, eq(carePlans.plantId, plants.id))
           .where(
-            and(eq(carePlans.plantId, plantId), eq(carePlans.userId, userId))
+            and(
+              eq(carePlans.plantId, plantId),
+              eq(carePlans.userId, userId),
+              authorReachesPlant
+            )
           )
           .orderBy(desc(carePlans.createdAt))
         return yield* hydrate(rows)
