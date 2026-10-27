@@ -378,8 +378,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/:id/share-with-canopy - Move a personal plant into the
-    // caller's Canopy. Unrelated to `sharePlant`, the social share event.
     HttpApiEndpoint.post('sharePlantWithCanopy', '/:id/share-with-canopy', {
       params: { id: plantIdParam },
       payload: MovePlantScopeRequest,
@@ -396,7 +394,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/:id/unshare - Move a Canopy plant to the caller's plants
     HttpApiEndpoint.post('unsharePlant', '/:id/unshare', {
       params: { id: plantIdParam },
       payload: MovePlantScopeRequest,
@@ -412,7 +409,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // PUT /plants/:id/mute - Silence a Canopy plant for the caller only
     HttpApiEndpoint.put('mutePlant', '/:id/mute', {
       params: { id: plantIdParam },
       success: Schema.Void,
@@ -424,7 +420,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // DELETE /plants/:id/mute - Unmute a Canopy plant for the caller
     HttpApiEndpoint.delete('unmutePlant', '/:id/mute', {
       params: { id: plantIdParam },
       success: Schema.Void,

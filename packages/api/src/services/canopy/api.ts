@@ -21,8 +21,6 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 const userIdParam = Schema.String.check(Schema.isGUID())
 
-// Invite tokens travel in request bodies, never in a path or query string,
-// because the request logger and the trace record every URL.
 export const CanopyApi = HttpApiGroup.make('canopy')
   .add(
     HttpApiEndpoint.post('createCanopy', '/canopies', {

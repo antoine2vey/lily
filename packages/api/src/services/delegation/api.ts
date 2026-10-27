@@ -1,6 +1,7 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   CannotDelegateSelfError,
+  CanopyPlantNotDelegableError,
   CreateDelegationRequest,
   DelegatedCareTask,
   Delegation,
@@ -12,7 +13,6 @@ import {
   DelegationOverlapError,
   LimitExceededError,
   PaginationParams,
-  PlantInDelegationError,
   RespondDelegationRequest,
   UserNotFoundError,
 } from '@lily/shared'
@@ -43,7 +43,7 @@ export const DelegationApi = HttpApiGroup.make('delegations')
         DelegationOverlapError,
         DelegationNotFoundError,
         PlantNotAuthorizedError,
-        PlantInDelegationError,
+        CanopyPlantNotDelegableError,
         UserNotFoundError,
       ],
     })

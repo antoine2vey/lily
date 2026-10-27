@@ -3,7 +3,6 @@ import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { Effect } from 'effect'
 
-/** A member silences one Canopy plant's reminders for themselves only. */
 export const mutePlant = Effect.fn('PlantsService.mutePlant')(function* (
   plant: PlantWithRoom
 ) {

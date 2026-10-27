@@ -16,7 +16,6 @@ export * from './services/event-bus'
 // File services (Node.js Buffer, @google-cloud/storage)
 export * from './services/file/fileservice'
 export * from './services/file/gcs'
-// Caller IP behind the Railway edge and Cloudflare
 export * from './services/http/client-ip'
 
 // Message queue (Redis)

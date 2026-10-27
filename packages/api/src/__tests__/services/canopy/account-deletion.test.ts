@@ -17,11 +17,6 @@ import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-/**
- * Alex owns Home. Sam joined before Lily, so Sam is the longest-standing
- * member after Alex even though Lily is listed first. One Canopy plant and
- * one Canopy room.
- */
 const home = (): MockCanopyStore =>
   createCanopyStore({
     canopies: [createTestCanopyRow({ id: 'canopy-1', name: 'Home' })],

@@ -36,7 +36,6 @@ export const toCanopy = (
   updatedAt: canopy.updatedAt,
 })
 
-/** The Canopy as `viewerId` sees it; not found unless they are a member. */
 export const canopyView = (
   canopyId: string,
   viewerId: string
@@ -47,7 +46,7 @@ export const canopyView = (
     if (canopy === null) {
       return yield* new CanopyNotFoundError()
     }
-    const members = yield* repo.findMembers(canopyId)
+    const members = yield* repo.findMembersByJoinDate(canopyId)
     const viewer = yield* pipe(
       Array.findFirst(members, (m) => m.userId === viewerId),
       Option.match({

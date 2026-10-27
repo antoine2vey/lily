@@ -13,7 +13,6 @@ export interface MockAchievementRepositoryData {
   plantCount?: number
   /** Defaults to `plantCount` when omitted. */
   livingPlantCount?: number
-  /** Overrides `livingPlantCount` per owner. */
   livingPlantCountFor?: (owner: PlantOwner) => number
   careLogCounts?: Partial<Record<CareType, number>>
   photoCount?: number

@@ -56,10 +56,6 @@ interface MockSubscriptionOptions {
   failingCreates?: number | undefined
   onReserveUsage?: (userId: string, field: UsageField) => void
   onReleaseUsage?: (userId: string, field: UsageField) => void
-  /**
-   * One subscription per user. When set, lookups go by user id and
-   * `getTier` answers by tier name instead of returning `tier`.
-   */
   subscriptionsByUser?: Record<string, typeof userSubscriptions.$inferSelect>
 }
 

@@ -2,9 +2,10 @@ import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
-import { leaveCanopy } from '@lily/api/services/canopy/helpers/leave-canopy'
+import { leaveCanopyIfMember } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { MessageQueue } from '@lily/shared/server'
@@ -25,6 +26,7 @@ export const deleteUser = (
   | CareScheduleRepository
   | NotificationRepository
   | DelegationRepository
+  | PlantRepository
   | MessageQueue
 > =>
   Effect.gen(function* () {
@@ -36,9 +38,7 @@ export const deleteUser = (
       return yield* new CannotModifySelfError()
     }
 
-    // Hand the Canopy over first: the cascade would leave it without an
-    // owner, or orphan the plants of a Canopy whose only member this is.
-    yield* leaveCanopy(id)
+    yield* leaveCanopyIfMember(id)
     const deleted = yield* repo.delete(id)
 
     if (!deleted) {

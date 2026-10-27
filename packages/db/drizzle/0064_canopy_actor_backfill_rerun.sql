@@ -1,9 +1,12 @@
 -- API containers that predate 0063 keep inserting plants and care logs
 -- without the actor columns until the rollout replaces them. This reruns
--- the 0063 actor backfill over those rows. No DDL here, so EXCLUSIVE keeps plain
--- reads flowing while it blocks every writer and row locker of plants and
--- care_logs; the users lock covers the foreign-key checks on the new
--- values. Locks are taken the 0063 way, never waiting while holding one.
+-- the 0063 actor backfill over the rows they wrote so far, and adds insert
+-- triggers that apply the owner fallback to the rows they write after it,
+-- which a backfill applied in the same deploy as 0063 cannot reach.
+-- EXCLUSIVE keeps plain reads flowing while it blocks every writer and row
+-- locker of plants and care_logs, and it covers CREATE TRIGGER; the users
+-- lock covers the foreign-key checks on the new values. Locks are taken the
+-- 0063 way, never waiting while holding one.
 SET LOCAL lock_timeout = '5s';
 --> statement-breakpoint
 DO $$
@@ -62,3 +65,35 @@ FROM "plants" p
 WHERE p."id" = cl."plant_id"
   AND cl."performed_by_user_id" IS NULL
   AND p."user_id" IS NOT NULL;
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION "plants_creator_fallback"() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW."created_by_user_id" IS NULL THEN
+    NEW."created_by_user_id" := NEW."user_id";
+  END IF;
+  RETURN NEW;
+END $$;
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS "plants_creator_fallback" ON "plants";
+--> statement-breakpoint
+CREATE TRIGGER "plants_creator_fallback"
+BEFORE INSERT ON "plants"
+FOR EACH ROW EXECUTE FUNCTION "plants_creator_fallback"();
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION "care_logs_actor_fallback"() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW."performed_by_user_id" IS NULL THEN
+    SELECT p."user_id" INTO NEW."performed_by_user_id"
+    FROM "plants" p
+    WHERE p."id" = NEW."plant_id";
+  END IF;
+  RETURN NEW;
+END $$;
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS "care_logs_actor_fallback" ON "care_logs";
+--> statement-breakpoint
+CREATE TRIGGER "care_logs_actor_fallback"
+BEFORE INSERT ON "care_logs"
+FOR EACH ROW EXECUTE FUNCTION "care_logs_actor_fallback"();

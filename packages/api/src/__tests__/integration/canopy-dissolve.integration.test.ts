@@ -1,4 +1,6 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import {
   CanopyRepository,
   CanopyRepositoryLive,
@@ -10,14 +12,24 @@ import {
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import {
+  UserRepository,
+  UserRepositoryLive,
+} from '@lily/api/repositories/user.repository'
+import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
 import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canopy'
-import { leaveCanopy } from '@lily/api/services/canopy/helpers/leave-canopy'
+import { hashInviteToken } from '@lily/api/services/canopy/helpers/invite-token'
+import {
+  leaveCanopy,
+  leaveCanopyIfMember,
+} from '@lily/api/services/canopy/helpers/leave-canopy'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { CANOPY_MAX_MEMBERS, CanopyFullError } from '@lily/shared'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Effect, Layer } from 'effect'
+import { Array, Effect, Exit, Layer } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -29,6 +41,7 @@ const AppLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
+  PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
@@ -353,6 +366,106 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         memberCount: 1,
         revokedAt: null,
       })
+    })
+
+    it("deletes a sole member's Canopy plants and rooms with the account", async () => {
+      await join(lilyId, 'owner', '2024-01-01')
+      const fern = await insertPlant({ canopyId, createdByUserId: lilyId })
+      const alexsFern = await insertPlant({
+        userId: alexId,
+        createdByUserId: alexId,
+      })
+      await db.insert(schema.rooms).values({ name: 'Kitchen', canopyId })
+
+      await run(
+        Effect.andThen(
+          leaveCanopyIfMember(lilyId),
+          Effect.flatMap(UserRepository, (repo) => repo.delete(lilyId))
+        )
+      )
+
+      const plants = await db
+        .select({ id: schema.plants.id })
+        .from(schema.plants)
+        .where(inArray(schema.plants.id, [fern.id, alexsFern.id]))
+      expect(plants).toEqual([{ id: alexsFern.id }])
+      expect(
+        await db
+          .select()
+          .from(schema.rooms)
+          .where(eq(schema.rooms.name, 'Kitchen'))
+      ).toEqual([])
+      expect(await db.select().from(schema.canopies)).toEqual([])
+    })
+
+    it('dissolves exactly once when the last two members leave at the same time', async () => {
+      await join(alexId, 'owner', '2024-01-01')
+      await join(lilyId, 'member', '2024-02-01')
+      const fern = await insertPlant({ canopyId, createdByUserId: alexId })
+
+      const outcomes = await Promise.all([
+        run(leaveCanopy(alexId)),
+        run(leaveCanopy(lilyId)),
+      ])
+
+      expect(Array.map(outcomes, (o) => o._tag).sort()).toEqual([
+        'Dissolved',
+        'Left',
+      ])
+      const [plant] = await db
+        .select()
+        .from(schema.plants)
+        .where(eq(schema.plants.id, fern.id))
+      const dissolvedBy = outcomes[0]?._tag === 'Dissolved' ? alexId : lilyId
+      expect(plant).toMatchObject({ canopyId: null, userId: dissolvedBy })
+      expect(await db.select().from(schema.canopies)).toEqual([])
+      expect(await db.select().from(schema.canopyMembers)).toEqual([])
+    })
+
+    it('admits one of two users racing for the last seat', async () => {
+      await join(alexId, 'owner', '2024-01-01')
+      const fillers = await db
+        .insert(schema.users)
+        .values(
+          Array.map(Array.range(1, CANOPY_MAX_MEMBERS - 1), (n) => ({
+            email: `fill-${n}-${Date.now()}@example.com`,
+            emailVerified: true,
+          }))
+        )
+        .returning({ id: schema.users.id })
+      await db.insert(schema.canopyMembers).values(
+        Array.map(Array.take(fillers, CANOPY_MAX_MEMBERS - 2), (u) => ({
+          canopyId,
+          userId: u.id,
+        }))
+      )
+      const token = 'last-seat'
+      await db.insert(schema.canopyInvites).values({
+        canopyId,
+        tokenHash: hashInviteToken(token),
+        createdByUserId: alexId,
+        expiresAt: inDays(7),
+      })
+      const accept = (userId: string) =>
+        Effect.runPromiseExit(
+          acceptCanopyInvite(token).pipe(
+            Effect.provide(
+              Layer.merge(AppLive, createMockCurrentUser({ id: userId }))
+            )
+          )
+        )
+
+      const exits = await Promise.all([accept(lilyId), accept(samId)])
+
+      expect(Array.filter(exits, Exit.isSuccess)).toHaveLength(1)
+      expect(Array.map(Array.filter(exits, Exit.isFailure), failureOf)).toEqual(
+        [new CanopyFullError({ limit: CANOPY_MAX_MEMBERS })]
+      )
+      const [members] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.canopyMembers)
+        .where(eq(schema.canopyMembers.canopyId, canopyId))
+      expect(members?.count).toBe(CANOPY_MAX_MEMBERS)
     })
   }
 )

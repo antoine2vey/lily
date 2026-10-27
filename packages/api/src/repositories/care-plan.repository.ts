@@ -15,7 +15,17 @@ import type {
   CarePlanStatus,
   CarePlanStep,
 } from '@lily/shared/care-plan'
-import { and, asc, desc, eq, exists, inArray, isNull, or } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  notInArray,
+  or,
+} from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, Order, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -166,9 +176,6 @@ export const CarePlanRepositoryLive = Layer.effect(
 
     const plantSelect = { name: plants.name, imageUrl: plants.imageUrl }
 
-    // A plan shows its plant's current name and image, so it stays readable
-    // only while its author can still reach the plant: the owner, a member of
-    // the plant's Canopy, or a caretaker the plant was ever delegated to.
     const authorReachesPlant = or(
       eq(plants.userId, carePlans.userId),
       inArray(
@@ -189,7 +196,8 @@ export const CarePlanRepositoryLive = Layer.effect(
           .where(
             and(
               eq(delegationPlants.plantId, plants.id),
-              eq(careDelegations.caretakerId, carePlans.userId)
+              eq(careDelegations.caretakerId, carePlans.userId),
+              notInArray(careDelegations.status, ['pending', 'rejected'])
             )
           )
       )

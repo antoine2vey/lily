@@ -116,11 +116,10 @@ export interface INotificationRepository {
   readonly deletePendingByPlantId: (
     plantId: string
   ) => Effect.Effect<void, SqlError>
-  /** The member's pending rows for every plant of the Canopy. */
   readonly deletePendingForMemberOnCanopy: (
     userId: string,
     canopyId: string
-  ) => Effect.Effect<void, SqlError>
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly deleteByIds: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<void, SqlError>
@@ -417,7 +416,7 @@ export const NotificationRepositoryLive = Layer.effect(
       deletePendingForMemberOnCanopy: Effect.fn(
         'NotificationRepository.deletePendingForMemberOnCanopy'
       )(function* (userId: string, canopyId: string) {
-        yield* db
+        const deleted = yield* db
           .delete(notifications)
           .where(
             and(
@@ -432,6 +431,13 @@ export const NotificationRepositoryLive = Layer.effect(
               )
             )
           )
+          .returning({ plantId: notifications.plantId })
+        return Array.dedupe(
+          Array.filter(
+            Array.map(deleted, (row) => row.plantId),
+            (id): id is string => id !== null
+          )
+        )
       }),
 
       deleteByIds: Effect.fn('NotificationRepository.deleteByIds')(function* (

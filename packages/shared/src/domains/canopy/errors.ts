@@ -54,6 +54,15 @@ export class NotCanopyOwnerError extends Schema.TaggedError<NotCanopyOwnerError>
   { httpApiStatus: 403 }
 ) {}
 
+export class CanopyPlantNotDelegableError extends Schema.TaggedError<CanopyPlantNotDelegableError>()(
+  'CanopyPlantNotDelegableError',
+  {
+    plantId: Schema.String,
+    message: message('Canopy plants cannot be delegated'),
+  },
+  { httpApiStatus: 409 }
+) {}
+
 export class PlantInDelegationError extends Schema.TaggedError<PlantInDelegationError>()(
   'PlantInDelegationError',
   {

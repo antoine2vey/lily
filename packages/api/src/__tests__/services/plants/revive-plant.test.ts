@@ -1,6 +1,12 @@
+import { createTestMembership } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import {
+  createCanopyStore,
+  createMockCanopyRepository,
+  createTestCanopyRow,
+} from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -8,6 +14,7 @@ import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
   withCanopyOwner,
@@ -84,7 +91,14 @@ const makeLayer = (options: {
       plantLimitReached: options.plantLimitReached ?? false,
       checkedOwners: options.checkedOwners,
     }),
-    createMockEventBus({ publishedEvents: options.publishedEvents ?? [] })
+    createMockEventBus({ publishedEvents: options.publishedEvents ?? [] }),
+    createMockCanopyRepository(
+      createCanopyStore({
+        canopies: [createTestCanopyRow()],
+        members: [createTestMembership({ userId: 'user-1' })],
+      })
+    ),
+    MockSqlClientLive
   )
 
 const failureTag = (exit: Exit.Exit<unknown, { _tag: string }>) =>

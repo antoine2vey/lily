@@ -204,7 +204,6 @@ export interface IPlantRepository {
     id: string,
     owner: PlantOwner
   ) => Effect.Effect<PlantRow | null, SqlError>
-  /** Hands the plant from one owner to the other and sets its room. */
   readonly moveTo: (
     id: string,
     from: PlantOwner,

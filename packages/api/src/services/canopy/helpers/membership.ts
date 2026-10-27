@@ -3,7 +3,12 @@ import {
   CanopyRepository,
   type CanopyRow,
 } from '@lily/api/repositories/canopy.repository'
+import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
 import {
   AlreadyInCanopyError,
   CanopyNotFoundError,
@@ -58,11 +63,6 @@ export interface LockedCanopy {
   readonly membership: CanopyMembership
 }
 
-/**
- * Locks the user's Canopy row, then reads the membership again under the
- * lock, so a concurrent leave, removal, or dissolve is seen before writing.
- * Only meaningful inside `SqlClient.withTransaction`.
- */
 export const lockMyCanopy = (
   userId: string
 ): Effect.Effect<
@@ -81,22 +81,30 @@ export const lockMyCanopy = (
     return { canopy, membership }
   })
 
-/**
- * Ends one membership: the row, the member's mutes on Canopy plants, and the
- * member's pending notifications for them. Ownership is the caller's concern.
- */
 export const dropMember = (
   canopyId: string,
-  userId: string
+  userId: string,
+  heirId: string
 ): Effect.Effect<
-  boolean,
+  void,
   SqlError,
-  CanopyRepository | NotificationRepository
+  | CanopyRepository
+  | NotificationRepository
+  | PlantRepository
+  | CareScheduleRepository
+  | UserRepository
+  | DelegationRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* CanopyRepository
     const notificationRepo = yield* NotificationRepository
+    const plantRepo = yield* PlantRepository
     yield* repo.deleteMemberMutes(canopyId, userId)
-    yield* notificationRepo.deletePendingForMemberOnCanopy(userId, canopyId)
-    return yield* repo.removeMember(canopyId, userId)
+    yield* repo.removeMember(canopyId, userId)
+    const orphaned = yield* notificationRepo.deletePendingForMemberOnCanopy(
+      userId,
+      canopyId
+    )
+    const plants = yield* plantRepo.findByIds(orphaned)
+    yield* Effect.forEach(plants, (plant) => rescheduleReminders(plant, heirId))
   })

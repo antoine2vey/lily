@@ -17,12 +17,6 @@ import {
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect, Option, pipe } from 'effect'
 
-/**
- * Moves a Canopy plant out to the personal plants of the member who
- * unshares it, the plant's creator or the Canopy owner. History moves with
- * it; the plant takes `roomId`, one of the member's rooms, or none, and
- * loses every member's mute.
- */
 export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
   plant: PlantWithRoom,
   request: MovePlantScopeRequest
@@ -34,9 +28,8 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
   const me: PlantOwner = { _tag: 'User', userId }
   const roomId = pipe(Option.fromNullishOr(request.roomId), Option.getOrNull)
 
-  const moved = yield* withPlantLimitLock(me)(
+  yield* withPlantLimitLock(me)(
     Effect.gen(function* () {
-      // The caller may have left since the access check.
       const { canopy } = yield* lockMyCanopy(userId)
       if (plant.owner._tag !== 'Canopy' || plant.owner.canopyId !== canopy.id) {
         return yield* new CanopyNotFoundError()
@@ -46,14 +39,13 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
         yield* limitChecker.checkPlantLimit(me)
       }
       yield* canopyRepo.deleteMutesForPlant(plant.id)
-      return yield* repo.moveTo(plant.id, plant.owner, me, roomId)
+      const moved = yield* repo.moveTo(plant.id, plant.owner, me, roomId)
+      if (moved === null) {
+        return yield* new PlantNotFoundError({ plantId: plant.id })
+      }
+      yield* rescheduleReminders(moved, userId)
     })
   )
-  if (moved === null) {
-    return yield* new PlantNotFoundError({ plantId: plant.id })
-  }
-
-  yield* rescheduleReminders(moved, userId)
 
   const fresh = yield* repo.findById(plant.id)
   if (fresh === null) {

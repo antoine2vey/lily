@@ -29,7 +29,6 @@ export interface MockCanopyPlant extends MovedPlant {
   userId: string | null
 }
 
-/** In-memory Canopy tables; tests read it back to assert writes. */
 export interface MockCanopyStore {
   canopies: CanopyRow[]
   members: MockMembership[]
@@ -129,7 +128,7 @@ export const createMockCanopyRepository = (
         remove(store.members, (m) => m.canopyId === canopyId)
         remove(store.invites, (i) => i.canopyId === canopyId)
       }),
-    findMembers: (canopyId) =>
+    findMembersByJoinDate: (canopyId) =>
       Effect.sync(() =>
         pipe(
           store.members,

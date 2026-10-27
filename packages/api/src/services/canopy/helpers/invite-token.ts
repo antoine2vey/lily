@@ -14,7 +14,6 @@ import type { SqlError } from 'effect/sql/SqlError'
 export const hashInviteToken = (token: string): string =>
   createHash('sha256').update(token).digest('hex')
 
-/** 32 random bytes in base64url; only the SHA-256 hash is stored. */
 export const newInviteToken: Effect.Effect<{
   readonly token: string
   readonly tokenHash: string
@@ -23,7 +22,6 @@ export const newInviteToken: Effect.Effect<{
   return { token, tokenHash: hashInviteToken(token) }
 })
 
-/** A revoked or unknown token is not found; a lapsed one is expired. */
 export const findLiveInvite = (
   token: string
 ): Effect.Effect<

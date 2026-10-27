@@ -74,11 +74,6 @@ export interface ICanopyRepository {
   readonly findById: (
     canopyId: string
   ) => Effect.Effect<CanopyRow | null, SqlError>
-  /**
-   * `SELECT ... FOR UPDATE` on the Canopy row. Every membership, invite and
-   * dissolve write takes it first, so they serialize per Canopy. Only
-   * meaningful inside `SqlClient.withTransaction`.
-   */
   readonly lock: (canopyId: string) => Effect.Effect<CanopyRow | null, SqlError>
   readonly create: (
     data: CreateCanopyData
@@ -88,11 +83,9 @@ export interface ICanopyRepository {
     data: UpdateCanopyData
   ) => Effect.Effect<CanopyRow | null, SqlError>
   readonly delete: (canopyId: string) => Effect.Effect<void, SqlError>
-  /** Members by `joined_at`, earliest first. */
-  readonly findMembers: (
+  readonly findMembersByJoinDate: (
     canopyId: string
   ) => Effect.Effect<ReadonlyArray<CanopyMemberRow>, SqlError>
-  /** False when the user already belongs to a Canopy. */
   readonly addMember: (
     canopyId: string,
     userId: string,
@@ -107,11 +100,9 @@ export interface ICanopyRepository {
     userId: string,
     role: CanopyMemberRole
   ) => Effect.Effect<void, SqlError>
-  /** The unrevoked invite, when it has not expired yet. */
   readonly findActiveInvite: (
     canopyId: string
   ) => Effect.Effect<{ readonly expiresAt: Date } | null, SqlError>
-  /** Revokes every unrevoked invite of the Canopy, then inserts this one. */
   readonly replaceInvite: (
     invite: NewCanopyInvite
   ) => Effect.Effect<void, SqlError>
@@ -134,10 +125,6 @@ export interface ICanopyRepository {
     canopyId: string,
     userId: string
   ) => Effect.Effect<void, SqlError>
-  /**
-   * Gives every Canopy room and plant to the user, rooms after the user's
-   * own, and deletes the mutes on those plants. Returns the moved plants.
-   */
   readonly transferToUser: (
     canopyId: string,
     userId: string
@@ -234,9 +221,9 @@ export const CanopyRepositoryLive = Layer.effect(
         yield* db.delete(canopies).where(eq(canopies.id, canopyId))
       }),
 
-      findMembers: Effect.fn('CanopyRepository.findMembers')(function* (
-        canopyId: string
-      ) {
+      findMembersByJoinDate: Effect.fn(
+        'CanopyRepository.findMembersByJoinDate'
+      )(function* (canopyId: string) {
         return yield* db
           .select({
             userId: canopyMembers.userId,

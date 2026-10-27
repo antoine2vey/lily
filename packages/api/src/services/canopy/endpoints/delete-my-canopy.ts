@@ -7,7 +7,6 @@ import {
 import { Effect } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 
-/** The owner dissolves the Canopy; every plant and room becomes theirs. */
 export const deleteMyCanopy = Effect.fn('CanopyService.deleteMyCanopy')(
   function* () {
     const { id: userId } = yield* CurrentUser

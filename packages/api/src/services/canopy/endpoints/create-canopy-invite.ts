@@ -10,10 +10,6 @@ import {
 import { DateTime, Effect } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 
-/**
- * Any member makes a link valid for 7 days. A new link revokes the previous
- * one. The token is returned once; only its hash is stored.
- */
 export const createCanopyInvite = Effect.fn('CanopyService.createCanopyInvite')(
   function* () {
     const { id: userId } = yield* CurrentUser

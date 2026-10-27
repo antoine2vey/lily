@@ -7,7 +7,6 @@ import type { CreateCanopyRequest } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 
-/** The creator owns the new Canopy, which copies their timezone and location. */
 export const createCanopy = Effect.fn('CanopyService.createCanopy')(function* (
   request: CreateCanopyRequest
 ) {
@@ -43,8 +42,6 @@ export const createCanopy = Effect.fn('CanopyService.createCanopy')(function* (
         ),
       })
 
-      // A concurrent create or join won the one-Canopy-per-user index; the
-      // failure rolls this Canopy back.
       if (!(yield* repo.addMember(canopy.id, userId, 'owner'))) {
         const winner = yield* repo.findMembershipByUser(userId)
         return yield* failAlreadyInCanopy(

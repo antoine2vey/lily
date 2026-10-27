@@ -3,7 +3,10 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { canopyView } from '@lily/api/services/canopy/helpers/canopy-view'
 import { findLiveInvite } from '@lily/api/services/canopy/helpers/invite-token'
 import { failAlreadyInCanopy } from '@lily/api/services/canopy/helpers/membership'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  notifyMemberBestEffort,
+  senderNameOf,
+} from '@lily/api/services/canopy/helpers/notify-member'
 import {
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
@@ -12,12 +15,6 @@ import {
 import { Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 
-/**
- * Joins the invite's Canopy with no approval step. Accepting a link to the
- * Canopy the user is already in returns it unchanged; any other Canopy
- * answers `AlreadyInCanopyError` with its name. Every other member gets a
- * `canopy_member_joined` push.
- */
 export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
   function* (token: string) {
     const { id: userId, name: joinerName } = yield* CurrentUser
@@ -27,22 +24,20 @@ export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
     const joined = yield* sql.withTransaction(
       Effect.gen(function* () {
         const seen = yield* findLiveInvite(token)
-        const current = yield* repo.findMembershipByUser(userId)
-        if (current !== null) {
-          if (current.canopyId !== seen.canopyId) {
-            return yield* failAlreadyInCanopy(current.canopyId)
-          }
-          return { canopyId: current.canopyId, notify: Option.none() }
-        }
-
         const canopy = yield* repo.lock(seen.canopyId)
         if (canopy === null) {
           return yield* new CanopyInviteNotFoundError()
         }
-        // Read again under the lock: a revoke or a new link may have landed.
         yield* findLiveInvite(token)
+        const current = yield* repo.findMembershipByUser(userId)
+        if (current !== null) {
+          if (current.canopyId !== canopy.id) {
+            return yield* failAlreadyInCanopy(current.canopyId)
+          }
+          return { canopyId: canopy.id, notify: Option.none() }
+        }
 
-        const members = yield* repo.findMembers(canopy.id)
+        const members = yield* repo.findMembersByJoinDate(canopy.id)
         if (members.length >= CANOPY_MAX_MEMBERS) {
           return yield* new CanopyFullError({ limit: CANOPY_MAX_MEMBERS })
         }
@@ -67,18 +62,10 @@ export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
       onNone: () => Effect.void,
       onSome: ({ canopyName, members }) =>
         Effect.forEach(members, (member) =>
-          scheduleSimpleNotification(
-            'canopy_member_joined',
-            member.userId,
-            {
-              ...Option.match(Option.fromNullishOr(joinerName), {
-                onNone: () => ({}),
-                onSome: (senderName) => ({ senderName }),
-              }),
-              canopyName,
-            },
-            member.language
-          )
+          notifyMemberBestEffort('canopy_member_joined', member, {
+            ...senderNameOf(joinerName),
+            canopyName,
+          })
         ),
     })
 

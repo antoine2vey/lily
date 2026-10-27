@@ -12,11 +12,6 @@ export interface ReschedulablePlant {
   readonly diedAt: Date | null
 }
 
-/**
- * Drops the plant's pending notifications and rebuilds a reminder for every
- * schedule that falls due in the future, for `userId`. Past due dates are
- * left to the overdue scheduler, and a dead plant gets no reminder.
- */
 export const rescheduleReminders = (
   plant: ReschedulablePlant,
   userId: string

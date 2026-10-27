@@ -1,4 +1,5 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   createCanopyStore,
@@ -12,7 +13,7 @@ import {
 } from '@lily/api/__tests__/services/canopy/canopy-world'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { leaveMyCanopy } from '@lily/api/services/canopy/endpoints/leave-my-canopy'
-import { leaveCanopy } from '@lily/api/services/canopy/helpers/leave-canopy'
+import { leaveCanopyIfMember } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { CanopyNotFoundError, NotCanopyOwnerError } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Exit } from 'effect'
@@ -30,11 +31,6 @@ const pending = (userId: string, plantId: string): Notification => ({
   createdAt: new Date(),
 })
 
-/**
- * Alex owns Home. Sam joined before Lily, so Sam is the longest-standing
- * member after Alex even though Lily is listed first. One Canopy plant and
- * one Canopy room.
- */
 const home = (): MockCanopyStore =>
   createCanopyStore({
     canopies: [createTestCanopyRow({ id: 'canopy-1', name: 'Home' })],
@@ -127,7 +123,7 @@ describe('leaveCanopy', () => {
     expect(pushesOf(notifications, 'canopy_member_left')).toEqual(['alex'])
   })
 
-  it("drops only the leaver's mutes and pending reminders on Canopy plants", async () => {
+  it("hands the leaver's Canopy reminders to the owner and drops only the leaver's mutes", async () => {
     const store = home()
     store.mutes.push(
       { userId: 'lily', plantId: 'fern' },
@@ -135,18 +131,30 @@ describe('leaveCanopy', () => {
     )
     const notifications = [
       pending('lily', 'fern'),
-      pending('sam', 'fern'),
       pending('lily', 'personal-cactus'),
     ]
+    const dueSoon = createTestSchedule({
+      plantId: 'fern',
+      nextCareAt: new Date(Date.now() + 3 * 86_400_000),
+    })
 
-    await run(store, 'lily', leaveMyCanopy(), notifications)
+    const exit = await Effect.runPromiseExit(
+      Effect.provide(
+        leaveMyCanopy(),
+        canopyWorld(store, { id: 'lily' }, notifications, [dueSoon]).layer
+      )
+    )
 
+    expect(Exit.isSuccess(exit)).toBe(true)
     expect(store.mutes).toEqual([{ userId: 'sam', plantId: 'fern' }])
     expect(
       notifications
         .filter((n) => n.type === 'watering_reminder')
-        .map((n) => n.id)
-    ).toEqual(['n-sam-fern', 'n-lily-personal-cactus'])
+        .map((n) => [n.userId, n.plantId])
+    ).toEqual([
+      ['lily', 'personal-cactus'],
+      ['alex', 'fern'],
+    ])
   })
 
   it('dissolves the Canopy into the last member, moving every plant and room', async () => {
@@ -165,16 +173,19 @@ describe('leaveCanopy', () => {
     expect(pushesOf(notifications, 'canopy_member_left')).toEqual([])
   })
 
-  it('is a no-op for a user in no Canopy', async () => {
+  it('answers not found for a user in no Canopy, and the deletion form is a no-op', async () => {
     const store = home()
-    const exit = await run(store, 'stranger', leaveCanopy('stranger'))
-    expect(exit).toEqual(
-      Exit.succeed(expect.objectContaining({ _tag: 'NotMember' }))
-    )
-    expect(store.members).toHaveLength(3)
 
     const endpoint = await run(store, 'stranger', leaveMyCanopy())
+    const deletion = await run(
+      store,
+      'stranger',
+      leaveCanopyIfMember('stranger')
+    )
+
     expect(failureOf(endpoint)).toEqual(new CanopyNotFoundError())
+    expect(Exit.isSuccess(deletion)).toBe(true)
+    expect(store.members).toHaveLength(3)
   })
 })
 

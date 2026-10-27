@@ -1,4 +1,5 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -8,6 +9,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { withPlantLimitLock } from '@lily/api/services/plants/helpers/plant-limit-lock'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
 import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
@@ -17,6 +19,7 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -39,6 +42,8 @@ export const revivePlant = (
   | LimitChecker
   | EventBus
   | CurrentUser
+  | SqlClient.SqlClient
+  | CanopyRepository
 > =>
   Effect.gen(function* () {
     if (plant.diedAt === null) {
@@ -49,17 +54,22 @@ export const revivePlant = (
     const limitChecker = yield* LimitChecker
     const eventBus = yield* EventBus
 
-    // A revived plant takes a slot again; free users at the cap are paywalled
-    // exactly like on create, so bury-then-revive is not a way around it.
-    yield* limitChecker.checkPlantLimit(plant.owner)
     const settingsUserId = yield* interimSettingsUserFor(plant.owner)
 
-    const updated = yield* repo.revive(plant.id, plant.owner)
-    if (!updated) {
-      return yield* new PlantNotFoundError({ plantId: requestedId })
-    }
-
-    yield* rescheduleReminders(updated, settingsUserId)
+    yield* withPlantLimitLock(plant.owner)(
+      Effect.gen(function* () {
+        yield* limitChecker.checkPlantLimit(plant.owner)
+        const updated = yield* repo.revive(plant.id, plant.owner)
+        if (!updated) {
+          return yield* new PlantNotFoundError({ plantId: requestedId })
+        }
+        yield* rescheduleReminders(updated, settingsUserId)
+      })
+    ).pipe(
+      Effect.catchTag('CanopyNotFoundError', () =>
+        Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
+      )
+    )
 
     yield* publishWithRetry(
       eventBus.publish({

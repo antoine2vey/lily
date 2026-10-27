@@ -11,8 +11,7 @@ import { withPlantLimitLock } from '@lily/api/services/plants/helpers/plant-limi
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { RoomNotFoundError } from '@lily/shared'
 import {
-  type CanopyId,
-  CanopyNotFoundError,
+  type CanopyNotFoundError,
   type LimitExceededError,
   luxToSliderValue,
   type PlantOwner,
@@ -49,7 +48,7 @@ export const createPlant = (
       request.owner === 'canopy'
         ? {
             _tag: 'Canopy',
-            canopyId: (yield* requireMembership(userId)).canopyId as CanopyId,
+            canopyId: (yield* requireMembership(userId)).canopyId,
           }
         : { _tag: 'User', userId }
 
@@ -58,12 +57,6 @@ export const createPlant = (
 
     const plantOrNull = yield* withPlantLimitLock(owner)(
       Effect.gen(function* () {
-        if (owner._tag === 'Canopy') {
-          const current = yield* requireMembership(userId)
-          if (current.canopyId !== owner.canopyId) {
-            return yield* new CanopyNotFoundError()
-          }
-        }
         yield* assertRoomFits(request.roomId, owner)
         yield* limitChecker.checkPlantLimit(owner)
         return yield* repo.create({

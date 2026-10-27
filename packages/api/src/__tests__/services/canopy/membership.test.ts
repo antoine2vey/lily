@@ -363,6 +363,8 @@ describe('removeCanopyMember', () => {
       },
     ]
 
+    withInvite(store, 'shared-link')
+
     const exit = await run(
       store,
       'alex',
@@ -373,6 +375,7 @@ describe('removeCanopyMember', () => {
     expect(Exit.isSuccess(exit)).toBe(true)
     expect(store.members.map((m) => m.userId)).toEqual(['alex'])
     expect(store.mutes).toEqual([])
+    expect(store.invites.map((i) => i.revokedAt !== null)).toEqual([true])
     expect(notifications.map((n) => n.type)).toEqual(['canopy_member_removed'])
     expect(pushesOf(notifications, 'canopy_member_removed')).toEqual(['lily'])
   })

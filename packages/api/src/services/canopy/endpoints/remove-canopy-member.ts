@@ -6,15 +6,11 @@ import {
   lockMyCanopy,
   requireOwner,
 } from '@lily/api/services/canopy/helpers/membership'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import { notifyMemberBestEffort } from '@lily/api/services/canopy/helpers/notify-member'
 import { CanopyMemberNotFoundError } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 
-/**
- * The owner removes another member, who loses access at once and gets a
- * `canopy_member_removed` push. The owner leaves through `leave` instead.
- */
 export const removeCanopyMember = Effect.fn('CanopyService.removeCanopyMember')(
   function* (memberUserId: string) {
     const { id: userId } = yield* CurrentUser
@@ -25,7 +21,7 @@ export const removeCanopyMember = Effect.fn('CanopyService.removeCanopyMember')(
       Effect.gen(function* () {
         const { canopy, membership } = yield* lockMyCanopy(userId)
         yield* requireOwner(membership)
-        const members = yield* repo.findMembers(canopy.id)
+        const members = yield* repo.findMembersByJoinDate(canopy.id)
         const removed = yield* Option.match(
           Array.findFirst(
             members,
@@ -36,17 +32,15 @@ export const removeCanopyMember = Effect.fn('CanopyService.removeCanopyMember')(
             onSome: Effect.succeed,
           }
         )
-        yield* dropMember(canopy.id, removed.userId)
+        yield* dropMember(canopy.id, removed.userId, userId)
+        yield* repo.revokeInvite(canopy.id)
         return { canopy, removed }
       })
     )
 
-    yield* scheduleSimpleNotification(
-      'canopy_member_removed',
-      removed.userId,
-      { canopyName: canopy.name },
-      removed.language
-    )
+    yield* notifyMemberBestEffort('canopy_member_removed', removed, {
+      canopyName: canopy.name,
+    })
 
     return yield* canopyView(canopy.id, userId)
   }

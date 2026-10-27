@@ -4,10 +4,8 @@ import { LimitExceededError, type PlantOwner } from '@lily/shared'
 import { Effect, Layer } from 'effect'
 
 interface MockLimitCheckerOptions {
-  /** A predicate decides per owner; the error names that owner's feature. */
   plantLimitReached?: boolean | ((owner: PlantOwner) => boolean) | undefined
   delegationAccessDenied?: boolean | undefined
-  /** Every owner `checkPlantLimit` was asked about, in order. */
   checkedOwners?: PlantOwner[] | undefined
 }
 

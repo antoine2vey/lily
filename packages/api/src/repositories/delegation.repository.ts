@@ -164,7 +164,6 @@ export interface IDelegationRepository {
     plantId: string
   ) => Effect.Effect<string | null, SqlError>
 
-  /** A pending, accepted, or active delegation covers the plant. */
   readonly hasOpenDelegationForPlant: (
     plantId: string
   ) => Effect.Effect<boolean, SqlError>

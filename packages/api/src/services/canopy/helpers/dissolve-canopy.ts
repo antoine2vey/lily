@@ -11,12 +11,6 @@ import { Effect } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Turns every Canopy plant and room into the heir's, then deletes the
- * Canopy with its members, invites, and mutes, in one transaction. Moved
- * plants get their pending reminders rebuilt for the heir. Nothing else is
- * deleted.
- */
 export const dissolveCanopy = (
   canopyId: string,
   heirUserId: string
@@ -35,6 +29,9 @@ export const dissolveCanopy = (
     return yield* sql.withTransaction(
       Effect.gen(function* () {
         const repo = yield* CanopyRepository
+        if ((yield* repo.lock(canopyId)) === null) {
+          return []
+        }
         const moved = yield* repo.transferToUser(canopyId, heirUserId)
         yield* repo.delete(canopyId)
         yield* Effect.forEach(moved, (plant) =>

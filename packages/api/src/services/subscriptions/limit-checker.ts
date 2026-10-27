@@ -12,11 +12,6 @@ import { Array, Context, Effect, Layer, Match, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface ILimitChecker {
-  /**
-   * A user counts their living personal plants against their tier. A Canopy
-   * is unlimited while any member has a tier without a plant cap, else it
-   * counts its living plants against the free tier's cap.
-   */
   readonly checkPlantLimit: (
     owner: PlantOwner
   ) => Effect.Effect<void, LimitExceededError | SqlError>
@@ -78,7 +73,7 @@ export const LimitCheckerLive = Layer.effect(
 
     const canopyPlantCap = (canopyId: string) =>
       Effect.gen(function* () {
-        const members = yield* canopyRepo.findMembers(canopyId)
+        const members = yield* canopyRepo.findMembersByJoinDate(canopyId)
         const subscriptions = yield* subRepo.findByUserIds(
           Array.map(members, (m) => m.userId)
         )
@@ -111,12 +106,10 @@ export const LimitCheckerLive = Layer.effect(
           Match.exhaustive
         )
 
-        // null means unlimited
         if (maxPlants === null) {
           return
         }
 
-        // Dead plants free their slot; the cemetery is not capped.
         const currentCount = yield* achievementRepo.countLivingPlants(owner)
 
         if (currentCount >= maxPlants) {
