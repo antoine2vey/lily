@@ -173,5 +173,99 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       expect(created).toHaveLength(1)
     })
+
+    // Auckland (UTC+13 in October) day of the 21st spans 20T11:00Z to 21T11:00Z.
+    // Paris (UTC+2 then) splits those two instants across the 20th and 21st.
+    it('counts a Canopy plant day in the Canopy timezone, not the acting member', async () => {
+      const [canopy] = await db
+        .insert(schema.canopies)
+        .values({ name: 'Flat', timezone: 'Pacific/Auckland' })
+        .returning()
+      if (!canopy) throw new Error('Failed to create test canopy')
+      const [member] = await db
+        .insert(schema.users)
+        .values({
+          email: `member-${Date.now()}@example.com`,
+          name: 'Paris Member',
+          emailVerified: true,
+          role: 'user',
+          status: 'active',
+          timezone: 'Europe/Paris',
+        })
+        .returning()
+      if (!member) throw new Error('Failed to create test member')
+      await db
+        .insert(schema.canopyMembers)
+        .values({ canopyId: canopy.id, userId: member.id, role: 'owner' })
+      const [shared] = await db
+        .insert(schema.plants)
+        .values({
+          canopyId: canopy.id,
+          createdByUserId: member.id,
+          name: 'Shared Fern',
+          health: 'HEALTHY',
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 1,
+          wateringRating: 3,
+        })
+        .returning()
+      if (!shared) throw new Error('Failed to create test canopy plant')
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: shared.id,
+        careType: 'watering',
+        frequencyDays: 7,
+      })
+
+      const layer = Layer.mergeAll(
+        RepositoriesLive,
+        createMockDelegationRepository({}),
+        createMockEventBus({ publishedEvents: [] }),
+        createMockCurrentUser({
+          id: member.id,
+          name: 'Paris Member',
+          firstName: null,
+          lastName: null,
+          email: member.email,
+          username: 'parismember',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          role: 'user',
+          status: 'active',
+        }),
+        createMockWeatherProvider(),
+        createMockWeatherCache(),
+        createMockWeatherRepository()
+      )
+
+      const careAt = (date: Date) =>
+        Effect.gen(function* () {
+          const plantRepo = yield* PlantRepository
+          const plant = yield* plantRepo.findById(shared.id)
+          if (!plant) throw new Error('Test canopy plant not found')
+          return yield* executePlantCare(plant, {
+            plantId: shared.id,
+            careType: 'watering',
+            date,
+          }).pipe(Effect.result)
+        }).pipe(Effect.provide(layer))
+
+      const first = await Effect.runPromise(
+        careAt(new Date('2026-10-20T20:00:00.000Z'))
+      )
+      const second = await Effect.runPromise(
+        careAt(new Date('2026-10-21T02:00:00.000Z'))
+      )
+
+      expect(Result.isSuccess(first)).toBe(true)
+      expect(
+        pipe(
+          Option.some(second),
+          Option.filter(Result.isFailure),
+          Option.map((r) => r.failure._tag),
+          Option.getOrNull
+        )
+      ).toBe('AlreadyCaredTodayError')
+    })
   }
 )
