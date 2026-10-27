@@ -69,7 +69,7 @@ const leaveInTransaction = (
       return LeaveOutcome.Dissolved()
     }
 
-    yield* dropMember(canopy.id, userId, owner.value.userId)
+    yield* dropMember(canopy.id, userId)
     yield* repo.revokeInviteCreatedBy(canopy.id, userId)
     if (owner.value.role !== 'owner') {
       yield* repo.setRole(canopy.id, owner.value.userId, 'owner')

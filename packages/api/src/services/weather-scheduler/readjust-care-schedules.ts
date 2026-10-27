@@ -1,3 +1,4 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -9,7 +10,7 @@ import {
   toIndoorPlantContext,
 } from '@lily/api/services/weather/algorithm'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import { type Orientation, roundCoord } from '@lily/shared'
+import { type Orientation, type PlantOwner, roundCoord } from '@lily/shared'
 import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -45,6 +46,7 @@ export const readjustCareSchedules = (
   | NotificationRepository
   | UserRepository
   | DelegationRepository
+  | CanopyRepository
 > =>
   Effect.gen(function* () {
     if (Array.isReadonlyArrayEmpty(weatherUsers)) {
@@ -83,6 +85,7 @@ const readjustUserPlants = (
   | NotificationRepository
   | UserRepository
   | DelegationRepository
+  | CanopyRepository
 > =>
   Effect.gen(function* () {
     const latOption = Option.fromNullishOr(user.latitude)
@@ -147,6 +150,7 @@ const readjustUserPlants = (
 const readjustPlantSchedule = (
   plant: {
     id: string
+    owner: PlantOwner
     name: string
     category: string | null
     wateringRating: number
@@ -176,6 +180,7 @@ const readjustPlantSchedule = (
   | NotificationRepository
   | UserRepository
   | DelegationRepository
+  | CanopyRepository
 > =>
   Effect.gen(function* () {
     const scheduleRepo = yield* CareScheduleRepository
@@ -296,21 +301,17 @@ const readjustPlantSchedule = (
       // Reschedule notifications
       if (wateringChanged) {
         yield* scheduleCareReminder({
-          plantId: plant.id,
-          userId: user.id,
+          plant,
           type: 'watering_reminder',
           scheduledDate: newNextWateringAt.value,
-          remindersEnabled: plant.remindersEnabled && user.careReminders,
         })
       }
 
       if (fertilizationChanged) {
         yield* scheduleCareReminder({
-          plantId: plant.id,
-          userId: user.id,
+          plant,
           type: 'fertilization_reminder',
           scheduledDate: newNextFertilizationAt.value,
-          remindersEnabled: plant.remindersEnabled && user.careReminders,
         })
       }
     }

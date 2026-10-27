@@ -277,6 +277,17 @@ export const createMockPlantRepository = (
       })
     },
 
+    findLivingByCanopy: (canopyId: string) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(
+            plantsData,
+            (p) => p.canopyId === canopyId && p.diedAt === null
+          ),
+          Array.map(toPlantWithRoom)
+        )
+      ),
+
     findByIds: (ids: readonly string[]) =>
       Effect.succeed(
         pipe(

@@ -7,6 +7,7 @@ import {
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
@@ -73,6 +74,7 @@ describe('correctCareDates', () => {
         createMockUserRepository([...mockUsers]),
         createMockCurrentUser({ id: 'user-1' }),
         createMockDelegationRepository(),
+        createMockCanopyRepository(),
         createMockCareScheduleRepository({ schedules, plants })
       ),
       schedules,

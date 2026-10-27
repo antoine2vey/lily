@@ -20,6 +20,7 @@ import {
   parisWinterForecast,
   tropicalMonsoonForecast,
 } from '@lily/api/__tests__/fixtures/weather'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -105,6 +106,7 @@ const buildLayers = ({
         rooms: [indoorRoom, outdoorRoom],
       }),
       createMockNotificationRepository(notifications),
+      createMockCanopyRepository(),
       createMockDelegationRepository(),
       createMockCareScheduleRepository({
         schedules: resolvedSchedules,
@@ -520,6 +522,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
             rooms: [indoorRoom, outdoorRoom],
           }),
           createMockNotificationRepository([]),
+          createMockCanopyRepository(),
           createMockDelegationRepository(),
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
@@ -592,6 +595,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
             rooms: [indoorRoom, outdoorRoom],
           }),
           createMockNotificationRepository([]),
+          createMockCanopyRepository(),
           createMockDelegationRepository(),
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
@@ -663,6 +667,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
             rooms: [indoorRoom, outdoorRoom],
           }),
           createMockNotificationRepository([]),
+          createMockCanopyRepository(),
           createMockDelegationRepository(),
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
@@ -760,6 +765,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           rooms: [indoorRoom, outdoorRoom, dimRoom],
         }),
         createMockNotificationRepository([]),
+        createMockCanopyRepository(),
         createMockDelegationRepository(),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
@@ -1137,6 +1143,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           rooms: [indoorRoom, outdoorRoom],
         }),
         createMockNotificationRepository([]),
+        createMockCanopyRepository(),
         createMockDelegationRepository(),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
@@ -1164,6 +1171,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           rooms: [indoorRoom, outdoorRoom],
         }),
         createMockNotificationRepository([]),
+        createMockCanopyRepository(),
         createMockDelegationRepository(),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )

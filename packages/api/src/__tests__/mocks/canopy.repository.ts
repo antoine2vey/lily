@@ -7,7 +7,7 @@ import {
   type MovedPlant,
 } from '@lily/api/repositories/canopy.repository'
 import type { CanopyId, LanguageCode } from '@lily/shared'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
 
 export interface MockMembership extends CanopyMembership {
   readonly userId: string
@@ -141,6 +141,44 @@ export const createMockCanopyRepository = (
                 | 1
           ),
           Array.map(toMemberRow)
+        )
+      ),
+    findMemberIdsByCanopyIds: (canopyIds) =>
+      Effect.sync(() =>
+        pipe(
+          store.members,
+          Array.filter((m) => Array.contains(canopyIds, m.canopyId)),
+          Array.groupBy((m) => m.canopyId),
+          Record.map(Array.map((m) => m.userId))
+        )
+      ),
+    findReminderRecipients: (canopyId, plantId) =>
+      Effect.sync(() =>
+        pipe(
+          store.members,
+          Array.filter(
+            (m) =>
+              m.canopyId === canopyId &&
+              !Array.some(
+                store.mutes,
+                (mute) => mute.userId === m.userId && mute.plantId === plantId
+              )
+          ),
+          Array.sort(
+            (a: MockMembership, b: MockMembership) =>
+              Math.sign(a.joinedAt.getTime() - b.joinedAt.getTime()) as
+                | -1
+                | 0
+                | 1
+          ),
+          Array.map((m) => m.userId)
+        )
+      ),
+    findWithLocation: () =>
+      Effect.sync(() =>
+        Array.filter(
+          store.canopies,
+          (c) => c.latitude !== null && c.longitude !== null
         )
       ),
     addMember: (canopyId, userId, role) =>

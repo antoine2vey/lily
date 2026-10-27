@@ -28,7 +28,7 @@ export interface CareTabBadge {
 export function useCareTabBadge(withCount: boolean): CareTabBadge {
   const { data } = useQuery({
     queryKey: CARE_TASKS_QUERY_KEY,
-    queryFn: () => runApiEffect('careTasks', 'getCareTasks', {}),
+    queryFn: () => runApiEffect('careTasks', 'getCareTasks', { query: {} }),
     select: (result) => {
       const count = Result.match(result, {
         onFailure: () => 0,

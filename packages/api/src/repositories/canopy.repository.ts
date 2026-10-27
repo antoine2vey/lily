@@ -10,8 +10,8 @@ import {
 } from '@lily/db/schema'
 import type { CanopyId, CanopyMemberRole, LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
-import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { and, asc, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { Array, Context, Effect, Layer, Option, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface CanopyMembership {
@@ -86,6 +86,17 @@ export interface ICanopyRepository {
   readonly findMembersByJoinDate: (
     canopyId: string
   ) => Effect.Effect<ReadonlyArray<CanopyMemberRow>, SqlError>
+  readonly findMemberIdsByCanopyIds: (
+    canopyIds: ReadonlyArray<string>
+  ) => Effect.Effect<Record<string, ReadonlyArray<string>>, SqlError>
+  readonly findReminderRecipients: (
+    canopyId: string,
+    plantId: string
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  readonly findWithLocation: () => Effect.Effect<
+    ReadonlyArray<CanopyRow>,
+    SqlError
+  >
   readonly addMember: (
     canopyId: string,
     userId: string,
@@ -242,6 +253,57 @@ export const CanopyRepositoryLive = Layer.effect(
           .where(eq(canopyMembers.canopyId, canopyId))
           .orderBy(asc(canopyMembers.joinedAt), asc(canopyMembers.id))
       }),
+
+      findMemberIdsByCanopyIds: Effect.fn(
+        'CanopyRepository.findMemberIdsByCanopyIds'
+      )(function* (canopyIds: ReadonlyArray<string>) {
+        if (Array.isReadonlyArrayEmpty(canopyIds)) return {}
+        const rows = yield* db
+          .select({
+            canopyId: canopyMembers.canopyId,
+            userId: canopyMembers.userId,
+          })
+          .from(canopyMembers)
+          .where(inArray(canopyMembers.canopyId, [...canopyIds]))
+        return pipe(
+          Array.groupBy(rows, (row) => row.canopyId),
+          Record.map(Array.map((row) => row.userId))
+        )
+      }),
+
+      findReminderRecipients: Effect.fn(
+        'CanopyRepository.findReminderRecipients'
+      )(function* (canopyId: string, plantId: string) {
+        const rows = yield* db
+          .select({ userId: canopyMembers.userId })
+          .from(canopyMembers)
+          .leftJoin(
+            canopyPlantMutes,
+            and(
+              eq(canopyPlantMutes.userId, canopyMembers.userId),
+              eq(canopyPlantMutes.plantId, plantId)
+            )
+          )
+          .where(
+            and(
+              eq(canopyMembers.canopyId, canopyId),
+              isNull(canopyPlantMutes.userId)
+            )
+          )
+          .orderBy(asc(canopyMembers.joinedAt), asc(canopyMembers.id))
+        return Array.map(rows, (row) => row.userId)
+      }),
+
+      findWithLocation: Effect.fn('CanopyRepository.findWithLocation')(
+        function* () {
+          return yield* db
+            .select()
+            .from(canopies)
+            .where(
+              and(isNotNull(canopies.latitude), isNotNull(canopies.longitude))
+            )
+        }
+      ),
 
       addMember: Effect.fn('CanopyRepository.addMember')(function* (
         canopyId: string,
