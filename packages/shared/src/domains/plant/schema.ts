@@ -95,7 +95,7 @@ const plantFields = {
   health: PlantHealthStatus,
   remindersEnabled: Schema.Boolean,
   isFavorite: Schema.Boolean,
-  userId: Schema.String,
+  userId: Schema.NullOr(Schema.String),
   potWidthCm: Schema.NullOr(Schema.Number),
   potHeightCm: Schema.NullOr(Schema.Number),
   roomId: Schema.NullOr(Schema.String),

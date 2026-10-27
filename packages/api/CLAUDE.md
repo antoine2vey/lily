@@ -19,7 +19,7 @@ export const PlantsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'plants', (handlers) =>
     handlers
       .handle('getPlant', ({ params: { id } }) =>
-        withPlantAuth(id).pipe(
+        withPlantAuth(id, 'view').pipe(
           Effect.flatMap((plant) => findPlantById(plant)),
           withInfraErrorsAsDefect,
         )
@@ -36,7 +36,7 @@ export const PlantsApiLive = (api: Api) =>
 
 ## `withPlantAuth`
 
-Returns the authorized plant. Use `Effect.flatMap` when endpoint needs the plant, `Effect.zipRight` for auth-only. **Endpoints must not re-fetch a plant received from `withPlantAuth`.**
+`withPlantAuth(id, action)` returns the plant when the caller's `PlantRole` may perform `action` per the table in `services/plants/helpers/plant-access.ts`. No role answers `PlantNotFoundError` with the same body as a missing plant; a role without the action answers `PlantNotAuthorizedError`. Use `Effect.flatMap` when the endpoint needs the plant, `Effect.zipRight` for auth-only. **Endpoints must not re-fetch a plant received from `withPlantAuth`.**
 
 ## Schedulers
 
@@ -93,9 +93,10 @@ Activity.
 - `PlantRepository.findAll`: `filter: 'dead'` lists the cemetery; every other
   filter is living-only unless the caller passes `includeDead: true` (admin).
 - Lifecycle endpoints (`markPlantDead`, `revivePlant`, `deletePlant`) are
-  owner-only via `withPlantOwnerAuth`. Bury cancels pending notifications and
+  gated by `withPlantAuth(id, 'markDead' | 'revive' | 'delete')`. Bury cancels pending notifications and
   publishes `PlantLifecycleChanged`, which the Live Activity subscriber uses to
   refresh the card. Revive re-runs `scheduleCareReminder` for future due dates
-  and enforces the plant limit through `countLivingPlants`.
+  and, for a personal plant, enforces the plant limit through
+  `countLivingPlants`; the Canopy cap lands with C3.
 - Deliberately unfiltered: achievements (`countPlants`), admin analytics, and
   care-log history/streaks (past care stays history).

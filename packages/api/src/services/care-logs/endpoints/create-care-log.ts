@@ -2,14 +2,17 @@ import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  type PlantRow,
+} from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { CareLog, CareLogCreateRequest } from '@lily/shared/care-log'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const createCareLog = (
-  plantId: string,
+  plant: PlantRow,
   request: CareLogCreateRequest
 ): Effect.Effect<
   CareLog,
@@ -26,9 +29,7 @@ export const createCareLog = (
     const notificationRepo = yield* NotificationRepository
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
-
-    // Get plant to check health status
-    const plant = yield* plantRepo.findById(plantId)
+    const plantId = plant.id
 
     const logOrNull = yield* repo.create({
       type: request.type,
@@ -63,8 +64,8 @@ export const createCareLog = (
     )
 
     // If plant needed attention, reset health to HEALTHY and emit event
-    if (plant?.health === 'NEEDS_ATTENTION') {
-      yield* plantRepo.update(plantId, { health: 'HEALTHY' })
+    if (plant.health === 'NEEDS_ATTENTION') {
+      yield* plantRepo.update(plantId, plant.owner, { health: 'HEALTHY' })
       yield* publishWithRetry(
         eventBus.publish({
           _tag: 'AttentionResponded',
@@ -92,6 +93,6 @@ export const createCareLog = (
     return log
   }).pipe(
     Effect.withSpan('CareLogsService.createCareLog', {
-      attributes: { 'plant.id': plantId, 'careLog.type': request.type },
+      attributes: { 'plant.id': plant.id, 'careLog.type': request.type },
     })
   )

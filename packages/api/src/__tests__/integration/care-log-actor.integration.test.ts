@@ -1,8 +1,12 @@
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
+import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepositoryLive,
+  type PlantRow,
+} from '@lily/api/repositories/plant.repository'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -27,11 +31,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let db: ReturnType<typeof drizzle<typeof schema>>
     let ownerId: string
     let caretakerId: string
-    let plantId: string
+    let plant: PlantRow
 
     const careAs = (userId: string) =>
       Effect.runPromise(
-        createCareLog(plantId, { type: 'watering' }).pipe(
+        createCareLog(plant, { type: 'watering' }).pipe(
           Effect.provide(
             Layer.mergeAll(
               RepositoriesLive,
@@ -78,7 +82,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ownerId = owner.id
       caretakerId = caretaker.id
 
-      const [plant] = await db
+      const [inserted] = await db
         .insert(schema.plants)
         .values({
           name: 'Monstera',
@@ -90,8 +94,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: ownerId,
         })
         .returning()
-      if (!plant) throw new Error('plant insert returned nothing')
-      plantId = plant.id
+      if (!inserted) throw new Error('plant insert returned nothing')
+      plant = withOwner(inserted)
+      const plantId = plant.id
 
       const [delegation] = await db
         .insert(schema.careDelegations)

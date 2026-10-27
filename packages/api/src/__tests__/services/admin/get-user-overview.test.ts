@@ -5,9 +5,12 @@ import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/devic
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import type { PersonalRoom } from '@lily/api/repositories/room.repository'
 import { getUserOverview } from '@lily/api/services/admin/endpoints/get-user-overview'
-import type { userAchievements, userSubscriptions } from '@lily/db/schema'
+import type {
+  rooms,
+  userAchievements,
+  userSubscriptions,
+} from '@lily/db/schema'
 import type { CareLog } from '@lily/shared/care-log'
 import type { DeviceToken } from '@lily/shared/device-token'
 import { Effect, Exit, Layer } from 'effect'
@@ -15,7 +18,7 @@ import { describe, expect, it } from 'vitest'
 
 type SubRow = typeof userSubscriptions.$inferSelect
 type AchievementRow = typeof userAchievements.$inferSelect
-type RoomRow = PersonalRoom
+type RoomRow = typeof rooms.$inferSelect
 
 const makeSubRow = (overrides: Partial<SubRow> = {}): SubRow => ({
   id: 'sub-1',

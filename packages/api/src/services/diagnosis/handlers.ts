@@ -11,7 +11,7 @@ export const DiagnosisApiLive = (api: Api) =>
     handlers.handle(
       'getDiagnoses',
       ({ params: { plantId }, query: urlParams }) =>
-        withPlantAuth(plantId).pipe(
+        withPlantAuth(plantId, 'diagnose').pipe(
           Effect.andThen(
             getDiagnoses({
               plantId,

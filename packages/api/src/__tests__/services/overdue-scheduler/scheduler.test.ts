@@ -98,7 +98,7 @@ const runProcessUser = (
     return {
       id: p.id,
       name: p.name,
-      userId: p.userId,
+      userId,
       dateAdded: p.dateAdded,
       overdueAt: wateringSched.nextCareAt as Date,
     }

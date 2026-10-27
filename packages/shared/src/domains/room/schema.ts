@@ -9,7 +9,8 @@ export const Room = Schema.Struct({
   orientation: Schema.NullOr(OrientationSchema),
   isOutdoor: Schema.Boolean,
   order: Schema.Number,
-  userId: Schema.String,
+  userId: Schema.NullOr(Schema.String),
+  canopyId: Schema.NullOr(Schema.String),
   createdAt: Schema.DateFromString,
   updatedAt: Schema.DateFromString,
 })

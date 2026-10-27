@@ -237,7 +237,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(created?.createdByUserId).toBe(alexId)
     })
 
-    it('treats a Canopy plant as absent until owner-based access lands', async () => {
+    it('reads a Canopy plant with its Canopy and creator', async () => {
       const canopyId = await createCanopy('Home')
       const [canopyPlant] = await db
         .insert(schema.plants)
@@ -252,7 +252,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }).pipe(Effect.provide(RepositoryLive))
       )
 
-      expect(found).toBeNull()
+      expect(found).toMatchObject({
+        id: canopyPlant.id,
+        owner: { _tag: 'Canopy', canopyId },
+        ownership: 'canopy',
+        canopy: { id: canopyId, name: 'Home' },
+        createdBy: { id: alexId, name: 'Alex' },
+      })
     })
   }
 )

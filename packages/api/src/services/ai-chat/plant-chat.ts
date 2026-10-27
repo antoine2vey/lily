@@ -2,7 +2,6 @@ import { openai } from '@ai-sdk/openai'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import {
@@ -17,10 +16,9 @@ import {
   type ToolContext,
 } from '@lily/api/services/ai-chat/tools'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
+import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { daysSince } from '@lily/shared'
 import type { ChatConversation } from '@lily/shared/ai-chat'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   convertToModelMessages,
   type StreamTextResult,
@@ -213,17 +211,12 @@ const buildPlantContext = (
   userId: string
 ) =>
   Effect.gen(function* () {
-    const plantRepo = yield* PlantRepository
     const careLogRepo = yield* CareLogRepository
     const scheduleRepo = yield* CareScheduleRepository
     const carePlanRepo = yield* CarePlanRepository
     const userRepo = yield* UserRepository
 
-    const plant = yield* plantRepo.findById(plantId)
-    if (!plant) {
-      return yield* new PlantNotFoundError({ plantId })
-    }
-    yield* assertCanAccessPlant(plant.userId, plant.id)
+    const plant = yield* withPlantAuth(plantId, 'chat')
 
     const schedules = yield* scheduleRepo.findByPlant(plantId)
     const careLogsResponse = yield* careLogRepo.findByPlantId({

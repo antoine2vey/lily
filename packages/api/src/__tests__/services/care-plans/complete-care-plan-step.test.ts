@@ -9,6 +9,7 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -24,6 +25,7 @@ import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-pro
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { completeCarePlanStep } from '@lily/api/services/care-plans/endpoints/complete-care-plan-step'
 import { uncompleteCarePlanStep } from '@lily/api/services/care-plans/endpoints/uncomplete-care-plan-step'
@@ -36,7 +38,7 @@ const userId = 'user-1'
 const plantId = 'plant-1'
 
 const toPlantWithRoom = (plant: TestPlant): PlantWithRoom => ({
-  ...plant,
+  ...withUserOwner(plant),
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
@@ -137,6 +139,7 @@ const buildScenario = (scenario: Scenario = {}) => {
     ),
     createMockUserRepository([user]),
     createMockDelegationRepository({}),
+    createMockCanopyRepository(),
     createMockEventBus(),
     createMockCurrentUser({
       id: userId,

@@ -7,7 +7,9 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
 import {
@@ -24,7 +26,8 @@ import type { SqlError } from 'effect/sql/SqlError'
  * back overdue rather than magically fresh.
  */
 export const revivePlant = (
-  plant: PlantWithRoom
+  plant: PlantWithRoom,
+  requestedId: string = plant.id
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantNotDeadError | LimitExceededError,
@@ -35,6 +38,7 @@ export const revivePlant = (
   | DelegationRepository
   | LimitChecker
   | EventBus
+  | CurrentUser
 > =>
   Effect.gen(function* () {
     if (plant.diedAt === null) {
@@ -48,11 +52,14 @@ export const revivePlant = (
 
     // A revived plant takes a slot again; free users at the cap are paywalled
     // exactly like on create, so bury-then-revive is not a way around it.
-    yield* limitChecker.checkPlantLimit(plant.userId)
+    if (plant.owner._tag === 'User') {
+      yield* limitChecker.checkPlantLimit(plant.owner.userId)
+    }
+    const settingsUserId = yield* interimSettingsUserFor(plant.owner)
 
-    const updated = yield* repo.revive(plant.id)
+    const updated = yield* repo.revive(plant.id, plant.owner)
     if (!updated) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
 
     const schedules = yield* scheduleRepo.findByPlant(plant.id)
@@ -68,7 +75,7 @@ export const revivePlant = (
       (schedule) =>
         scheduleCareReminder({
           plantId: plant.id,
-          userId: plant.userId,
+          userId: settingsUserId,
           type: `${schedule.careType}_reminder` as const,
           // biome-ignore lint/style/noNonNullAssertion: filtered non-null above
           scheduledDate: schedule.nextCareAt!,
@@ -79,14 +86,14 @@ export const revivePlant = (
     yield* publishWithRetry(
       eventBus.publish({
         _tag: 'PlantLifecycleChanged',
-        userId: plant.userId,
+        userId: settingsUserId,
         plantId: plant.id,
       })
     )
 
     const fresh = yield* repo.findById(plant.id)
     if (!fresh) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
     return fresh
   }).pipe(

@@ -10,6 +10,7 @@ import * as SqlClient from 'effect/sql/SqlClient'
 import { describe, expect, it } from 'vitest'
 import { mockPlants, type TestPlant } from '../../fixtures/plants'
 import { mockUser1 } from '../../fixtures/users'
+import { createMockCanopyRepository } from '../../mocks/canopy.repository'
 import { createMockCareLogRepository } from '../../mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '../../mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '../../mocks/delegation.repository'
@@ -84,6 +85,7 @@ const createTestLayer = (
       delegationPlants: overrides.delegationPlants,
       users: overrides.users,
     }),
+    createMockCanopyRepository(),
     createMockEventBus({ publishedEvents }),
     createMockCurrentUser({ id: 'user-1' }),
     createMockSqlClient()

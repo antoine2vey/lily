@@ -4,6 +4,8 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   PlantAlreadyDeadError,
   PlantNotFoundError,
@@ -19,11 +21,12 @@ import type { SqlError } from 'effect/sql/SqlError'
  */
 export const markPlantDead = (
   plant: PlantWithRoom,
-  request: PlantDeathRequest
+  request: PlantDeathRequest,
+  requestedId: string = plant.id
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
-  PlantRepository | NotificationRepository | EventBus
+  PlantRepository | NotificationRepository | EventBus | CurrentUser
 > =>
   Effect.gen(function* () {
     if (plant.diedAt !== null) {
@@ -34,13 +37,13 @@ export const markPlantDead = (
     const notificationRepo = yield* NotificationRepository
     const eventBus = yield* EventBus
 
-    const updated = yield* repo.markDead(plant.id, {
+    const updated = yield* repo.markDead(plant.id, plant.owner, {
       diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
       cause: request.cause,
       note: Option.getOrNull(Option.fromNullishOr(request.note)),
     })
     if (!updated) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
 
     yield* notificationRepo.deletePendingByPlantId(plant.id)
@@ -48,14 +51,14 @@ export const markPlantDead = (
     yield* publishWithRetry(
       eventBus.publish({
         _tag: 'PlantLifecycleChanged',
-        userId: plant.userId,
+        userId: yield* interimSettingsUserFor(plant.owner),
         plantId: plant.id,
       })
     )
 
     const fresh = yield* repo.findById(plant.id)
     if (!fresh) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
     return fresh
   }).pipe(

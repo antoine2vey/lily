@@ -1,34 +1,30 @@
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import type { PlantDeleteRequest } from '@lily/api/services/plants/utils'
+import {
+  PlantRepository,
+  type PlantWithRoom,
+} from '@lily/api/repositories/plant.repository'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import type { Plant } from '@lily/shared/plant'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const deletePlant = ({
-  id,
-}: PlantDeleteRequest): Effect.Effect<
-  Plant,
+export const deletePlant = (
+  plant: PlantWithRoom,
+  requestedId: string = plant.id
+): Effect.Effect<
+  PlantWithRoom,
   SqlError | PlantNotFoundError,
   PlantRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const plant = yield* repo.delete(id)
+    const deleted = yield* repo.delete(plant.id, plant.owner)
 
-    if (!plant) {
-      return yield* new PlantNotFoundError()
+    if (!deleted) {
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
 
-    return {
-      ...plant,
-      room: null,
-      ownership: 'owned' as const,
-      ownerName: null,
-      schedules: [],
-    }
+    return { ...plant, room: null, schedules: [] }
   }).pipe(
     Effect.withSpan('PlantsService.deletePlant', {
-      attributes: { 'plant.id': id },
+      attributes: { 'plant.id': plant.id },
     })
   )

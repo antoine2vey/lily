@@ -153,7 +153,6 @@ const readjustPlantSchedule = (
     lightingRating: number
     humidityRating: number
     remindersEnabled: boolean
-    userId: string
     room: {
       id: string
       name: string
@@ -298,8 +297,7 @@ const readjustPlantSchedule = (
       if (wateringChanged) {
         yield* scheduleCareReminder({
           plantId: plant.id,
-
-          userId: plant.userId,
+          userId: user.id,
           type: 'watering_reminder',
           scheduledDate: newNextWateringAt.value,
           remindersEnabled: plant.remindersEnabled && user.careReminders,
@@ -309,8 +307,7 @@ const readjustPlantSchedule = (
       if (fertilizationChanged) {
         yield* scheduleCareReminder({
           plantId: plant.id,
-
-          userId: plant.userId,
+          userId: user.id,
           type: 'fertilization_reminder',
           scheduledDate: newNextFertilizationAt.value,
           remindersEnabled: plant.remindersEnabled && user.careReminders,

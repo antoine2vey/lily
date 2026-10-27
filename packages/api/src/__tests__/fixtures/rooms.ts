@@ -1,6 +1,6 @@
-import type { PersonalRoom } from '@lily/api/repositories/room.repository'
+import type { rooms } from '@lily/db/schema'
 
-export type RoomRecord = PersonalRoom
+export type RoomRecord = typeof rooms.$inferSelect
 
 export const mockRooms: RoomRecord[] = [
   {

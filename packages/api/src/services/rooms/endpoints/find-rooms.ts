@@ -12,5 +12,5 @@ export const findRooms = (): Effect.Effect<
   Effect.gen(function* () {
     const repo = yield* RoomRepository
     const { id: userId } = yield* CurrentUser
-    return yield* repo.findAll(userId)
+    return yield* repo.findAll({ userId })
   }).pipe(Effect.withSpan('RoomsService.findRooms'))
