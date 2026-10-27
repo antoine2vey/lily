@@ -35,7 +35,10 @@ export const dissolveCanopy = (
         const moved = yield* repo.transferToUser(canopyId, heirUserId)
         yield* repo.delete(canopyId)
         yield* Effect.forEach(moved, (plant) =>
-          rescheduleReminders(plant, heirUserId)
+          rescheduleReminders({
+            ...plant,
+            owner: { _tag: 'User', userId: heirUserId },
+          })
         )
         return moved
       })

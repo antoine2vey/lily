@@ -1,5 +1,5 @@
 import { useEffectQuery } from '@/utils/client'
 
 export function useCareTasks() {
-  return useEffectQuery('careTasks', 'getCareTasks', {})
+  return useEffectQuery('careTasks', 'getCareTasks', { query: {} })
 }

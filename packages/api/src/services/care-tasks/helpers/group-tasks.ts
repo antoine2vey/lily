@@ -53,7 +53,11 @@ export const buildLiveActivityContentState = (
     const cutoffDt = endOfDay(now, timezone)
     const cutoffDate = DateTime.toDateUtc(cutoffDt)
 
-    const schedules = yield* scheduleRepo.findPendingByUser(userId, cutoffDate)
+    const schedules = yield* scheduleRepo.findPendingByUser(
+      userId,
+      cutoffDate,
+      true
+    )
 
     const dueSchedules = Array.filter(schedules, (s) => {
       const next = s.schedule.nextCareAt
@@ -109,7 +113,11 @@ export const buildLiveActivityContentState = (
 
     // Task-count (not plant-count) — pairs with dueSchedules.length for a
     // coherent progress-bar ratio inside the widget.
-    const completedToday = yield* careLogRepo.countTodayByUser(userId, timezone)
+    const completedToday = yield* careLogRepo.countTodayByUser(
+      userId,
+      timezone,
+      true
+    )
 
     return {
       schemaVersion: LIVE_ACTIVITY_SCHEMA_VERSION,

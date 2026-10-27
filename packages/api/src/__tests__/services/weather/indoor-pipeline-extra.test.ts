@@ -28,6 +28,7 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { buildWeatherCtx } from '@lily/api/__tests__/fixtures/weather'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -171,6 +172,7 @@ const runScheduler = async (
     createMockUserRepository([user]),
     createMockPlantRepository({ plants, rooms: allRooms }),
     createMockNotificationRepository([]),
+    createMockCanopyRepository(),
     createMockDelegationRepository(),
     createMockCareScheduleRepository({ schedules, plants })
   )
@@ -528,6 +530,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         createMockUserRepository([noLatUser]),
         createMockPlantRepository({ plants: [plant], rooms: allRooms }),
         createMockNotificationRepository([]),
+        createMockCanopyRepository(),
         createMockDelegationRepository(),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )

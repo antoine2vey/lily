@@ -5,7 +5,9 @@ import { HttpApiBuilder } from 'effect/http-api'
 
 export const CareTasksApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'careTasks', (handlers) =>
-    handlers.handle('getCareTasks', () =>
-      findCareTasks().pipe(withInfraErrorsAsDefect)
+    handlers.handle('getCareTasks', ({ query }) =>
+      findCareTasks(query.includeCanopy === 'true').pipe(
+        withInfraErrorsAsDefect
+      )
     )
   )

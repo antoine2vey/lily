@@ -178,6 +178,9 @@ export interface IPlantRepository {
   readonly findAll: (
     params: FindPlantsParams
   ) => Effect.Effect<FindPlantsResult, SqlError>
+  readonly findLivingByCanopy: (
+    canopyId: string
+  ) => Effect.Effect<Array<PlantWithRoom>, SqlError>
   readonly findByIds: (
     ids: readonly string[]
   ) => Effect.Effect<Array<PlantRow>, SqlError>
@@ -581,6 +584,29 @@ export const PlantRepositoryLive = Layer.effect(
 
         return paginate(paginated, total, page, limit)
       }),
+
+      findLivingByCanopy: Effect.fn('PlantRepository.findLivingByCanopy')(
+        function* (canopyId: string) {
+          const rows = yield* db
+            .select({
+              plant: plants,
+              room: roomSelect,
+              canopy: canopySelect,
+              creator: creatorSelect,
+            })
+            .from(plants)
+            .innerJoin(canopies, eq(plants.canopyId, canopies.id))
+            .leftJoin(rooms, eq(plants.roomId, rooms.id))
+            .leftJoin(users, eq(plants.createdByUserId, users.id))
+            .where(and(eq(plants.canopyId, canopyId), isLivingPlant()))
+          const schedules = schedulesFor(
+            yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
+          )
+          return Array.map(rows, (row) =>
+            toCanopyPlant(row, schedules(row.plant.id))
+          )
+        }
+      ),
 
       findByIds: Effect.fn('PlantRepository.findByIds')(function* (
         ids: readonly string[]

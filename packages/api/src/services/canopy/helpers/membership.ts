@@ -3,12 +3,7 @@ import {
   CanopyRepository,
   type CanopyRow,
 } from '@lily/api/repositories/canopy.repository'
-import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
 import {
   AlreadyInCanopyError,
   CanopyNotFoundError,
@@ -83,28 +78,12 @@ export const lockMyCanopy = (
 
 export const dropMember = (
   canopyId: string,
-  userId: string,
-  heirId: string
-): Effect.Effect<
-  void,
-  SqlError,
-  | CanopyRepository
-  | NotificationRepository
-  | PlantRepository
-  | CareScheduleRepository
-  | UserRepository
-  | DelegationRepository
-> =>
+  userId: string
+): Effect.Effect<void, SqlError, CanopyRepository | NotificationRepository> =>
   Effect.gen(function* () {
     const repo = yield* CanopyRepository
     const notificationRepo = yield* NotificationRepository
-    const plantRepo = yield* PlantRepository
     yield* repo.deleteMemberMutes(canopyId, userId)
     yield* repo.removeMember(canopyId, userId)
-    const orphaned = yield* notificationRepo.deletePendingForMemberOnCanopy(
-      userId,
-      canopyId
-    )
-    const plants = yield* plantRepo.findByIds(orphaned)
-    yield* Effect.forEach(plants, (plant) => rescheduleReminders(plant, heirId))
+    yield* notificationRepo.deletePendingForMemberOnCanopy(userId, canopyId)
   })

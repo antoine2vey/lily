@@ -46,7 +46,7 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
       if (moved === null) {
         return yield* new PlantNotFoundError({ plantId: requestedId })
       }
-      yield* rescheduleReminders(moved, userId)
+      yield* rescheduleReminders(moved)
     })
   )
 

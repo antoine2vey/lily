@@ -78,7 +78,7 @@ export function TodayWidgetSync(): null {
   const { data } = useEffectQuery(
     'careTasks',
     'getCareTasks',
-    {},
+    { query: {} },
     { enabled: state._tag === 'Authenticated' }
   )
   const reportedUnavailable = useRef(false)
