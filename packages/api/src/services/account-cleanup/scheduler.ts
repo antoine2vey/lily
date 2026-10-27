@@ -1,4 +1,5 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { leaveCanopy } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { daysAgoAsDate } from '@lily/shared'
 import { Array, Effect } from 'effect'
@@ -21,6 +22,9 @@ const cleanupExpiredAccounts = Effect.gen(function* () {
     expiredUsers,
     (user) =>
       Effect.gen(function* () {
+        // The deletion request already left the Canopy; this catches a
+        // membership that slipped in after it.
+        yield* leaveCanopy(user.id)
         yield* userRepo.delete(user.id)
         yield* Effect.log('Account permanently deleted', {
           userId: user.id,
