@@ -85,5 +85,5 @@ export const dropMember = (
     const notificationRepo = yield* NotificationRepository
     yield* repo.deleteMemberMutes(canopyId, userId)
     yield* repo.removeMember(canopyId, userId)
-    yield* notificationRepo.deletePendingForMemberOnCanopy(userId, canopyId)
+    yield* notificationRepo.deleteUndeliveredForMemberOnCanopy(userId, canopyId)
   })

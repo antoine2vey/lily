@@ -1,3 +1,4 @@
+import { createTestMembership } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestDeviceToken,
@@ -11,6 +12,7 @@ import {
   createMockAlerter,
   MockAlerterLive,
 } from '@lily/api/__tests__/mocks/alerter'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import {
@@ -34,7 +36,7 @@ import {
   processMessage,
   recoverStrandedDeliveries,
 } from '@lily/api/services/notification-scheduler/worker'
-import type { ActivityPushToken } from '@lily/shared'
+import type { ActivityPushToken, CanopyId } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
 import type { Notification } from '@lily/shared/notification'
 import {
@@ -64,7 +66,13 @@ const LaMocksLive = Layer.mergeAll(
   createMockActivityPushTokenRepository(),
   createMockCareScheduleRepository(),
   createMockCareLogRepository([]),
-  createMockUserRepository([])
+  createMockUserRepository([]),
+  createMockCanopyRepository([
+    createTestMembership({
+      userId: 'user-1',
+      canopyId: 'canopy-1' as CanopyId,
+    }),
+  ])
 )
 
 // Every plant id the queue-message fixtures reference, all living. The
@@ -862,7 +870,8 @@ describe('Notification Worker', () => {
         createMockUserRepository([
           createTestUser({ id: 'user-1', timezone: 'UTC' }),
         ]),
-        createMockPlantRepository({ plants: [plant] })
+        createMockPlantRepository({ plants: [plant] }),
+        createMockCanopyRepository()
       )
       const message = createTestQueueMessage({ topic: 'watering_reminder' })
       for (let i = 0; i < runs; i++) {
@@ -993,6 +1002,32 @@ describe('Notification Worker', () => {
 
       expect(sentMessages).toHaveLength(0)
       expect(notification.status).toBe('sent')
+    })
+
+    it('drops a care push for a Canopy plant whose Canopy the user has left', async () => {
+      const leftBehind = createTestPlant({
+        id: 'plant-1',
+        userId: null,
+        canopyId: 'canopy-2',
+      })
+      const { sentMessages, notification } = await runWithPlants(
+        [leftBehind],
+        ['plant-1']
+      )
+
+      expect(sentMessages).toHaveLength(0)
+      expect(notification.status).toBe('sent')
+    })
+
+    it('delivers a care push for a Canopy plant of the Canopy the user is in', async () => {
+      const shared = createTestPlant({
+        id: 'plant-1',
+        userId: null,
+        canopyId: 'canopy-1',
+      })
+      const { sentMessages } = await runWithPlants([shared], ['plant-1'])
+
+      expect(sentMessages.length).toBeGreaterThan(0)
     })
 
     it('still delivers when at least one plant is living', async () => {
@@ -1164,7 +1199,8 @@ describe('Notification Worker', () => {
         createMockUserRepository([
           createTestUser({ id: 'user-1', timezone: 'UTC' }),
         ]),
-        createMockPlantRepository({ plants: [plant] })
+        createMockPlantRepository({ plants: [plant] }),
+        createMockCanopyRepository()
       )
       const run = (id: string, notificationId: string) =>
         Effect.runPromise(
