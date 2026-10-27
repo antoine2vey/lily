@@ -26,7 +26,8 @@ import type { SqlError } from 'effect/sql/SqlError'
  * back overdue rather than magically fresh.
  */
 export const revivePlant = (
-  plant: PlantWithRoom
+  plant: PlantWithRoom,
+  requestedId: string = plant.id
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantNotDeadError | LimitExceededError,
@@ -58,7 +59,7 @@ export const revivePlant = (
 
     const updated = yield* repo.revive(plant.id, plant.owner)
     if (!updated) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
 
     const schedules = yield* scheduleRepo.findByPlant(plant.id)
@@ -92,7 +93,7 @@ export const revivePlant = (
 
     const fresh = yield* repo.findById(plant.id)
     if (!fresh) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
     return fresh
   }).pipe(

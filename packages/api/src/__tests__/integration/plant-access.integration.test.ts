@@ -166,7 +166,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const plant = await insertPlant(canopyOwner)
       const hiddenId = String.toUpperCase(plant.id)
       const missingId = String.toUpperCase(
-        '00000000-0000-4000-8000-000000000000'
+        'a0b1c2d3-e4f5-4a6b-8c7d-e8f9a0b1c2d3'
       )
       const asSam = createMockCurrentUser({ id: samId })
 

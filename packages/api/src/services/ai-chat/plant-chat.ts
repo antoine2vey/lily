@@ -2,7 +2,6 @@ import { openai } from '@ai-sdk/openai'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import {
@@ -20,7 +19,6 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { daysSince } from '@lily/shared'
 import type { ChatConversation } from '@lily/shared/ai-chat'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   convertToModelMessages,
   type StreamTextResult,

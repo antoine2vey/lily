@@ -21,7 +21,8 @@ import type { SqlError } from 'effect/sql/SqlError'
  */
 export const markPlantDead = (
   plant: PlantWithRoom,
-  request: PlantDeathRequest
+  request: PlantDeathRequest,
+  requestedId: string = plant.id
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
@@ -42,7 +43,7 @@ export const markPlantDead = (
       note: Option.getOrNull(Option.fromNullishOr(request.note)),
     })
     if (!updated) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
 
     yield* notificationRepo.deletePendingByPlantId(plant.id)
@@ -57,7 +58,7 @@ export const markPlantDead = (
 
     const fresh = yield* repo.findById(plant.id)
     if (!fresh) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
     return fresh
   }).pipe(

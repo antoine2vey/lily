@@ -7,7 +7,8 @@ import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const deletePlant = (
-  plant: PlantWithRoom
+  plant: PlantWithRoom,
+  requestedId: string = plant.id
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError,
@@ -18,7 +19,7 @@ export const deletePlant = (
     const deleted = yield* repo.delete(plant.id, plant.owner)
 
     if (!deleted) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
 
     return { ...plant, room: null, schedules: [] }

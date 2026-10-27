@@ -292,7 +292,9 @@ function buildPlantFilters(
 
 // Build the drizzle orderBy clause from sort param
 function buildPlantOrderBy(sort: FindPlantsParams['sort']) {
-  return sort === 'name' ? asc(plants.name) : desc(plants.dateAdded)
+  return sort === 'name'
+    ? [asc(plants.name), asc(plants.id)]
+    : [desc(plants.dateAdded), asc(plants.id)]
 }
 
 type RawPlant = typeof plants.$inferSelect
@@ -436,7 +438,7 @@ export const PlantRepositoryLive = Layer.effect(
         .leftJoin(rooms, eq(plants.roomId, rooms.id))
         .innerJoin(users, eq(careDelegations.ownerId, users.id))
         .where(conditions)
-        .orderBy(orderBy)
+        .orderBy(...orderBy)
 
       const schedules = schedulesFor(
         yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
@@ -479,7 +481,7 @@ export const PlantRepositoryLive = Layer.effect(
           .leftJoin(rooms, eq(plants.roomId, rooms.id))
           .leftJoin(users, eq(plants.createdByUserId, users.id))
           .where(conditions)
-          .orderBy(orderBy)
+          .orderBy(...orderBy)
 
         const schedules = schedulesFor(
           yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
@@ -518,7 +520,7 @@ export const PlantRepositoryLive = Layer.effect(
           .from(plants)
           .leftJoin(rooms, eq(plants.roomId, rooms.id))
           .where(ownedConditions)
-          .orderBy(orderBy)
+          .orderBy(...orderBy)
 
         const ownedPlantIds = Array.map(ownedRows, (r) => r.plant.id)
         const ownedSchedules = schedulesFor(

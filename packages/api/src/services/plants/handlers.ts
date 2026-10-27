@@ -81,19 +81,19 @@ export const PlantsApiLive = (api: Api) =>
       )
       .handle('deletePlant', ({ params: { id } }) =>
         withPlantAuth(id, 'delete').pipe(
-          Effect.flatMap((plant) => deletePlant(plant)),
+          Effect.flatMap((plant) => deletePlant(plant, id)),
           withInfraErrorsAsDefect
         )
       )
       .handle('markPlantDead', ({ params: { id }, payload }) =>
         withPlantAuth(id, 'markDead').pipe(
-          Effect.flatMap((plant) => markPlantDead(plant, payload)),
+          Effect.flatMap((plant) => markPlantDead(plant, payload, id)),
           withInfraErrorsAsDefect
         )
       )
       .handle('revivePlant', ({ params: { id } }) =>
         withPlantAuth(id, 'revive').pipe(
-          Effect.flatMap((plant) => revivePlant(plant)),
+          Effect.flatMap((plant) => revivePlant(plant, id)),
           withInfraErrorsAsDefect
         )
       )
