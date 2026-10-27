@@ -821,7 +821,6 @@ describe('scheduleCareReminder', () => {
         careReminders: true,
         doNotDisturb: false,
       })
-      // Due at midnight in Paris on July 15th, which is still July 14th in New York.
       const parisMidnightJul15 = new Date('2099-07-14T22:00:00.000Z')
       const pending = await runCanopy([alex, newYorker], {
         canopyTimezone: 'Europe/Paris',
