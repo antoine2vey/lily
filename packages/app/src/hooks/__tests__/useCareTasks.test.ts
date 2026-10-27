@@ -31,7 +31,7 @@ describe('useCareTasks', () => {
     expect(mockedUseEffectQuery).toHaveBeenCalledWith(
       'careTasks',
       'getCareTasks',
-      {}
+      { query: {} }
     )
   })
 

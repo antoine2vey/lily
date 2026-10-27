@@ -120,10 +120,10 @@ export interface INotificationRepository {
     userId: string,
     plantId: string
   ) => Effect.Effect<void, SqlError>
-  readonly deletePendingForMemberOnCanopy: (
+  readonly deleteUndeliveredForMemberOnCanopy: (
     userId: string,
     canopyId: string
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  ) => Effect.Effect<void, SqlError>
   readonly deleteByIds: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<void, SqlError>
@@ -431,15 +431,16 @@ export const NotificationRepositoryLive = Layer.effect(
           )
       }),
 
-      deletePendingForMemberOnCanopy: Effect.fn(
-        'NotificationRepository.deletePendingForMemberOnCanopy'
+      // Queued rows go too: the worker's claim then finds nothing and skips.
+      deleteUndeliveredForMemberOnCanopy: Effect.fn(
+        'NotificationRepository.deleteUndeliveredForMemberOnCanopy'
       )(function* (userId: string, canopyId: string) {
-        const deleted = yield* db
+        yield* db
           .delete(notifications)
           .where(
             and(
               eq(notifications.userId, userId),
-              eq(notifications.status, 'pending'),
+              inArray(notifications.status, ['pending', 'queued']),
               inArray(
                 notifications.plantId,
                 db
@@ -449,13 +450,6 @@ export const NotificationRepositoryLive = Layer.effect(
               )
             )
           )
-          .returning({ plantId: notifications.plantId })
-        return Array.dedupe(
-          Array.filter(
-            Array.map(deleted, (row) => row.plantId),
-            (id): id is string => id !== null
-          )
-        )
       }),
 
       deleteByIds: Effect.fn('NotificationRepository.deleteByIds')(function* (

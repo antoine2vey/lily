@@ -5,7 +5,7 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, pipe, Record, Result } from 'effect'
+import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
 
 // Mutable version of Notification for internal mock state
 type MutableNotification = {
@@ -265,25 +265,17 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
-    deletePendingForMemberOnCanopy: (userId: string, canopyId: string) =>
+    deleteUndeliveredForMemberOnCanopy: (userId: string, canopyId: string) =>
       Effect.sync(() => {
         const plantIds = options.canopyPlants?.[canopyId] ?? []
         const covers = (n: MutableNotification) =>
           n.userId === userId &&
-          n.status === 'pending' &&
+          (n.status === 'pending' || n.status === 'queued') &&
           n.plantId !== undefined &&
           Array.contains(plantIds, n.plantId)
-        const covered = Array.dedupe(
-          Array.filterMap(notificationsState, (n) =>
-            covers(n) && n.plantId !== undefined
-              ? Result.succeed(n.plantId)
-              : Result.failVoid
-          )
-        )
         const toKeep = Array.filter(notificationsState, (n) => !covers(n))
         notificationsState.length = 0
         notificationsState.push(...toKeep)
-        return covered
       }),
 
     deleteByIds: (ids: ReadonlyArray<string>) =>
