@@ -22,7 +22,7 @@ import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canop
 import { hashInviteToken } from '@lily/api/services/canopy/helpers/invite-token'
 import {
   leaveCanopy,
-  leaveCanopyIfMember,
+  leaveCanopyAndDelete,
 } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -326,6 +326,61 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(kept).toEqual([{ id: lilysPlan.id }])
     })
 
+    it("shows a caretaker's plan only while their delegation of the owner's plant is active", async () => {
+      await join(alexId, 'owner', '2024-01-01')
+      const fern = await insertPlant({
+        userId: alexId,
+        createdByUserId: alexId,
+      })
+      const [delegation] = await db
+        .insert(schema.careDelegations)
+        .values({
+          ownerId: alexId,
+          caretakerId: lilyId,
+          status: 'active',
+          startDate: inDays(-1),
+          endDate: inDays(5),
+          respondedAt: inDays(-2),
+        })
+        .returning({ id: schema.careDelegations.id })
+      if (!delegation) throw new Error('delegation insert returned nothing')
+      await db
+        .insert(schema.delegationPlants)
+        .values({ delegationId: delegation.id, plantId: fern.id })
+      await run(
+        Effect.flatMap(CarePlanRepository, (repo) =>
+          repo.create({
+            plantId: fern.id,
+            userId: lilyId,
+            title: 'Rescue',
+            steps: [],
+          })
+        )
+      )
+      const lilysPlans = () =>
+        run(
+          Effect.flatMap(CarePlanRepository, (repo) => repo.findByUser(lilyId))
+        )
+
+      expect(await lilysPlans()).toHaveLength(1)
+
+      await db
+        .update(schema.plants)
+        .set({ userId: null, canopyId })
+        .where(eq(schema.plants.id, fern.id))
+      expect(await lilysPlans()).toEqual([])
+
+      await db
+        .update(schema.plants)
+        .set({ userId: alexId, canopyId: null })
+        .where(eq(schema.plants.id, fern.id))
+      await db
+        .update(schema.careDelegations)
+        .set({ status: 'completed', completedAt: inDays(0) })
+        .where(eq(schema.careDelegations.id, delegation.id))
+      expect(await lilysPlans()).toEqual([])
+    })
+
     it('keeps one live invite per Canopy across replacements', async () => {
       await join(alexId, 'owner', '2024-01-01')
       const replace = (tokenHash: string) =>
@@ -378,8 +433,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.insert(schema.rooms).values({ name: 'Kitchen', canopyId })
 
       await run(
-        Effect.andThen(
-          leaveCanopyIfMember(lilyId),
+        leaveCanopyAndDelete(lilyId)(
           Effect.flatMap(UserRepository, (repo) => repo.delete(lilyId))
         )
       )

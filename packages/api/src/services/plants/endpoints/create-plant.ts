@@ -7,7 +7,7 @@ import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { requireMembership } from '@lily/api/services/canopy/helpers/membership'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
-import { withPlantLimitLock } from '@lily/api/services/plants/helpers/plant-limit-lock'
+import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { RoomNotFoundError } from '@lily/shared'
 import {
@@ -55,7 +55,7 @@ export const createPlant = (
     // Set next care dates to now (due immediately)
     const now = DateTime.toDateUtc(DateTime.nowUnsafe())
 
-    const plantOrNull = yield* withPlantLimitLock(owner)(
+    const plantOrNull = yield* withOwnerLock(owner)(
       Effect.gen(function* () {
         yield* assertRoomFits(request.roomId, owner)
         yield* limitChecker.checkPlantLimit(owner)

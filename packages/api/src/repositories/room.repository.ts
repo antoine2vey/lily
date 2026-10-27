@@ -2,6 +2,7 @@ import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
 import {
   ownedBy,
+  ownerColumns,
   type WithOwner,
   withOwner,
   withOwnerOrNull,
@@ -20,7 +21,7 @@ export interface CreateRoomData {
   orientation?: Orientation | undefined
   isOutdoor?: boolean | undefined
   order: number
-  userId: string
+  owner: PlantOwner
 }
 
 export interface UpdateRoomData {
@@ -56,7 +57,7 @@ export interface IRoomRepository {
     id: string,
     owner: PlantOwner
   ) => Effect.Effect<RoomRow | null, SqlError>
-  readonly getMaxOrder: (userId: string) => Effect.Effect<number, SqlError>
+  readonly getMaxOrder: (owner: PlantOwner) => Effect.Effect<number, SqlError>
   readonly countByUserId: (userId: string) => Effect.Effect<number, SqlError>
 }
 
@@ -115,7 +116,11 @@ export const RoomRepositoryLive = Layer.effect(
       create: Effect.fn('RoomRepository.create')(function* (
         data: CreateRoomData
       ) {
-        const [room] = yield* db.insert(rooms).values(data).returning()
+        const { owner, ...fields } = data
+        const [room] = yield* db
+          .insert(rooms)
+          .values({ ...fields, ...ownerColumns(owner) })
+          .returning()
         return withOwnerOrNull(room)
       }),
 
@@ -144,12 +149,12 @@ export const RoomRepositoryLive = Layer.effect(
       }),
 
       getMaxOrder: Effect.fn('RoomRepository.getMaxOrder')(function* (
-        userId: string
+        owner: PlantOwner
       ) {
         const rows = yield* db
           .select({ order: rooms.order })
           .from(rooms)
-          .where(eq(rooms.userId, userId))
+          .where(ownedBy(rooms, owner))
           .orderBy(asc(rooms.order))
 
         return Option.getOrElse(

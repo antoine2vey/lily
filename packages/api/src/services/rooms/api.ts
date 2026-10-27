@@ -1,5 +1,6 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
+  CanopyNotFoundError,
   Room,
   RoomCreateRequest,
   RoomListWithCountsResponse,
@@ -24,9 +25,10 @@ export const RoomsApi = HttpApiGroup.make('rooms')
     HttpApiEndpoint.post('createRoom', '/', {
       payload: RoomCreateRequest,
       success: Room.pipe(HttpApiSchema.status(201)),
-      error: Schema.Struct({ error: Schema.String }).pipe(
-        HttpApiSchema.status(401)
-      ),
+      error: [
+        CanopyNotFoundError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
     })
   )
   .add(

@@ -85,6 +85,20 @@ CREATE OR REPLACE FUNCTION "care_logs_actor_fallback"() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW."performed_by_user_id" IS NULL THEN
+    SELECT d."caretaker_id" INTO NEW."performed_by_user_id"
+    FROM "delegation_plants" dp
+    JOIN "care_delegations" d ON d."id" = dp."delegation_id"
+    WHERE dp."plant_id" = NEW."plant_id"
+      AND (
+        d."status" IN ('active', 'completed')
+        OR (d."status" = 'canceled' AND d."responded_at" IS NOT NULL)
+      )
+      AND NEW."date" >= d."start_date"
+      AND NEW."date" < LEAST(d."end_date", d."canceled_at", d."completed_at")
+    ORDER BY d."start_date" DESC, d."id"
+    LIMIT 1;
+  END IF;
+  IF NEW."performed_by_user_id" IS NULL THEN
     SELECT p."user_id" INTO NEW."performed_by_user_id"
     FROM "plants" p
     WHERE p."id" = NEW."plant_id";

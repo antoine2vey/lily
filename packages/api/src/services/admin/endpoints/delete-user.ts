@@ -5,7 +5,7 @@ import type { NotificationRepository } from '@lily/api/repositories/notification
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
-import { leaveCanopyIfMember } from '@lily/api/services/canopy/helpers/leave-canopy'
+import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { MessageQueue } from '@lily/shared/server'
@@ -38,8 +38,7 @@ export const deleteUser = (
       return yield* new CannotModifySelfError()
     }
 
-    yield* leaveCanopyIfMember(id)
-    const deleted = yield* repo.delete(id)
+    const deleted = yield* leaveCanopyAndDelete(id)(repo.delete(id))
 
     if (!deleted) {
       return yield* new UserNotFoundError()

@@ -36,6 +36,7 @@ export const RoomCreateRequest = Schema.Struct({
     Schema.withDecodingDefaultType(Effect.succeed(false)),
     Schema.withConstructorDefault(Effect.succeed(false))
   ),
+  owner: Schema.optional(Schema.Literals(['me', 'canopy'])),
 })
 
 export const RoomUpdateRequest = Schema.Struct({

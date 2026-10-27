@@ -6,7 +6,8 @@ import {
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
-import { withPlantLimitLock } from '@lily/api/services/plants/helpers/plant-limit-lock'
+import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
@@ -28,14 +29,15 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
   const me: PlantOwner = { _tag: 'User', userId }
   const roomId = pipe(Option.fromNullishOr(request.roomId), Option.getOrNull)
 
-  yield* withPlantLimitLock(me)(
+  yield* withOwnerLock(me)(
     Effect.gen(function* () {
       const { canopy } = yield* lockMyCanopy(userId)
       if (plant.owner._tag !== 'Canopy' || plant.owner.canopyId !== canopy.id) {
         return yield* new CanopyNotFoundError()
       }
+      const current = yield* reloadOwnedPlant(plant)
       yield* assertRoomFits(roomId, me)
-      if (plant.diedAt === null) {
+      if (current.diedAt === null) {
         yield* limitChecker.checkPlantLimit(me)
       }
       yield* canopyRepo.deleteMutesForPlant(plant.id)

@@ -7,9 +7,10 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { requireMembership } from '@lily/api/services/canopy/helpers/membership'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import {
-  withPlantLimitLock,
+  withOwnerLock,
   withUserLock,
-} from '@lily/api/services/plants/helpers/plant-limit-lock'
+} from '@lily/api/services/plants/helpers/owner-lock'
+import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
 import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
@@ -36,13 +37,14 @@ export const sharePlantWithCanopy = Effect.fn('PlantsService.shareWithCanopy')(
 
     const roomId = pipe(Option.fromNullishOr(request.roomId), Option.getOrNull)
     yield* withUserLock(userId)(
-      withPlantLimitLock(canopy)(
+      withOwnerLock(canopy)(
         Effect.gen(function* () {
           if (yield* delegationRepo.hasOpenDelegationForPlant(plant.id)) {
             return yield* new PlantInDelegationError({ plantId: plant.id })
           }
+          const current = yield* reloadOwnedPlant(plant)
           yield* assertRoomFits(roomId, canopy)
-          if (plant.diedAt === null) {
+          if (current.diedAt === null) {
             yield* limitChecker.checkPlantLimit(canopy)
           }
           const moved = yield* repo.moveTo(

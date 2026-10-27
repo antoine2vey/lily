@@ -250,6 +250,33 @@ describe('unsharePlant', () => {
 })
 
 describe('mutePlant', () => {
+  it('refuses a mute once the plant has left the Canopy, and writes none', async () => {
+    const store = home()
+    const stale = await Effect.runPromise(
+      withPlantAuth('lily-cactus', 'mute').pipe(
+        Effect.provide(world({ actor: 'sam', store }))
+      )
+    )
+    await Effect.runPromise(
+      withPlantAuth('lily-cactus', 'unshare').pipe(
+        Effect.flatMap((plant) => unsharePlant(plant, {})),
+        Effect.provide(world({ actor: 'lily', store }))
+      )
+    )
+    const unshared = createMockPlantRepository({
+      plants: [{ ...sharedByLily, userId: 'lily', canopyId: null }],
+    })
+
+    const exit = await Effect.runPromiseExit(
+      mutePlant(stale).pipe(
+        Effect.provide(Layer.merge(world({ actor: 'sam', store }), unshared))
+      )
+    )
+
+    expect(failureOf(exit)).toMatchObject({ _tag: 'PlantNotFoundError' })
+    expect(store.mutes).toEqual([])
+  })
+
   it('records a mute for the caller only, once', async () => {
     const store = home()
     const exit = await Effect.runPromiseExit(

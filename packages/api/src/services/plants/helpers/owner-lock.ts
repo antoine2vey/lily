@@ -6,11 +6,11 @@ import { Effect, Match } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-const PLANT_LIMIT_LOCK_KEYSPACE = 1
+const OWNER_LOCK_KEYSPACE = 1
 
 const lockUser = (sql: SqlClient.SqlClient, userId: string) =>
   Effect.asVoid(
-    sql`SELECT pg_advisory_xact_lock(${PLANT_LIMIT_LOCK_KEYSPACE}, hashtext(${userId}))`
+    sql`SELECT pg_advisory_xact_lock(${OWNER_LOCK_KEYSPACE}, hashtext(${userId}))`
   )
 
 export const withUserLock =
@@ -22,7 +22,7 @@ export const withUserLock =
       sql.withTransaction(Effect.andThen(lockUser(sql, userId), effect))
     )
 
-export const withPlantLimitLock =
+export const withOwnerLock =
   (owner: PlantOwner) =>
   <A, E, R>(
     effect: Effect.Effect<A, E, R>

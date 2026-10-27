@@ -203,6 +203,18 @@ export const createMockCanopyRepository = (
           }
         })
       }),
+    revokeInviteCreatedBy: (canopyId, userId) =>
+      Effect.sync(() => {
+        Array.forEach(store.invites, (i) => {
+          if (
+            i.canopyId === canopyId &&
+            i.createdByUserId === userId &&
+            i.revokedAt === null
+          ) {
+            i.revokedAt = new Date()
+          }
+        })
+      }),
     findInviteByTokenHash: (tokenHash) =>
       Effect.sync(() =>
         pipe(

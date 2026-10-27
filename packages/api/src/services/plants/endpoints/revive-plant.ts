@@ -9,7 +9,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { withPlantLimitLock } from '@lily/api/services/plants/helpers/plant-limit-lock'
+import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
 import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
@@ -58,7 +58,7 @@ export const revivePlant = (
 
     // A revived plant takes a slot again; free users at the cap are paywalled
     // exactly like on create, so bury-then-revive is not a way around it.
-    yield* withPlantLimitLock(plant.owner)(
+    yield* withOwnerLock(plant.owner)(
       Effect.gen(function* () {
         yield* limitChecker.checkPlantLimit(plant.owner)
         const updated = yield* repo.revive(plant.id, plant.owner)

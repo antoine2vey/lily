@@ -3,7 +3,7 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
-import { withUserLock } from '@lily/api/services/plants/helpers/plant-limit-lock'
+import { withUserLock } from '@lily/api/services/plants/helpers/owner-lock'
 import {
   caller,
   canPerform,

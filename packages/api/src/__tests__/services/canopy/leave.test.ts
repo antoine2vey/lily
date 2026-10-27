@@ -13,7 +13,7 @@ import {
 } from '@lily/api/__tests__/services/canopy/canopy-world'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { leaveMyCanopy } from '@lily/api/services/canopy/endpoints/leave-my-canopy'
-import { leaveCanopyIfMember } from '@lily/api/services/canopy/helpers/leave-canopy'
+import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { CanopyNotFoundError, NotCanopyOwnerError } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Exit } from 'effect'
@@ -180,7 +180,7 @@ describe('leaveCanopy', () => {
     const deletion = await run(
       store,
       'stranger',
-      leaveCanopyIfMember('stranger')
+      leaveCanopyAndDelete('stranger')(Effect.void)
     )
 
     expect(failureOf(endpoint)).toEqual(new CanopyNotFoundError())
@@ -207,5 +207,32 @@ describe('deleteMyCanopy', () => {
     const exit = await run(store, 'lily', deleteMyCanopy())
     expect(failureOf(exit)).toEqual(new NotCanopyOwnerError())
     expect(store.canopies).toHaveLength(1)
+  })
+})
+
+describe('leave and the invite link', () => {
+  const inviteBy = (store: MockCanopyStore, userId: string) => {
+    store.invites.push({
+      canopyId: mockCanopyId,
+      tokenHash: `hash-${userId}`,
+      createdByUserId: userId,
+      expiresAt: new Date(Date.now() + 86_400_000),
+      revokedAt: null,
+    })
+    return store
+  }
+  const live = (store: MockCanopyStore) =>
+    store.invites.filter((i) => i.revokedAt === null).map((i) => i.tokenHash)
+
+  it('revokes the link the leaver made', async () => {
+    const store = inviteBy(home(), 'lily')
+    await run(store, 'lily', leaveMyCanopy())
+    expect(live(store)).toEqual([])
+  })
+
+  it("keeps another member's link", async () => {
+    const store = inviteBy(home(), 'lily')
+    await run(store, 'sam', leaveMyCanopy())
+    expect(live(store)).toEqual(['hash-lily'])
   })
 })

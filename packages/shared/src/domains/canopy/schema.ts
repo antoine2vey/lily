@@ -104,8 +104,10 @@ export const CanopyInvitePreview = Schema.Struct({
 })
 export type CanopyInvitePreview = typeof CanopyInvitePreview.Type
 
+export const CANOPY_INVITE_TOKEN_LENGTH = 43
+
 export const CanopyInviteTokenRequest = Schema.Struct({
-  token: Schema.String,
+  token: Schema.String.check(Schema.isMaxLength(CANOPY_INVITE_TOKEN_LENGTH)),
 })
 export type CanopyInviteTokenRequest = typeof CanopyInviteTokenRequest.Type
 

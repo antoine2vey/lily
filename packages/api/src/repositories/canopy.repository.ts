@@ -107,6 +107,10 @@ export interface ICanopyRepository {
     invite: NewCanopyInvite
   ) => Effect.Effect<void, SqlError>
   readonly revokeInvite: (canopyId: string) => Effect.Effect<void, SqlError>
+  readonly revokeInviteCreatedBy: (
+    canopyId: string,
+    userId: string
+  ) => Effect.Effect<void, SqlError>
   readonly findInviteByTokenHash: (
     tokenHash: string
   ) => Effect.Effect<CanopyInviteRow | null, SqlError>
@@ -324,6 +328,21 @@ export const CanopyRepositoryLive = Layer.effect(
           .where(
             and(
               eq(canopyInvites.canopyId, canopyId),
+              isNull(canopyInvites.revokedAt)
+            )
+          )
+      }),
+
+      revokeInviteCreatedBy: Effect.fn(
+        'CanopyRepository.revokeInviteCreatedBy'
+      )(function* (canopyId: string, userId: string) {
+        yield* db
+          .update(canopyInvites)
+          .set({ revokedAt: nowAsDate() })
+          .where(
+            and(
+              eq(canopyInvites.canopyId, canopyId),
+              eq(canopyInvites.createdByUserId, userId),
               isNull(canopyInvites.revokedAt)
             )
           )

@@ -15,17 +15,7 @@ import type {
   CarePlanStatus,
   CarePlanStep,
 } from '@lily/shared/care-plan'
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  exists,
-  inArray,
-  isNull,
-  notInArray,
-  or,
-} from 'drizzle-orm'
+import { and, asc, desc, eq, exists, inArray, isNull, or } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, Order, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -197,7 +187,8 @@ export const CarePlanRepositoryLive = Layer.effect(
             and(
               eq(delegationPlants.plantId, plants.id),
               eq(careDelegations.caretakerId, carePlans.userId),
-              notInArray(careDelegations.status, ['pending', 'rejected'])
+              eq(careDelegations.ownerId, plants.userId),
+              eq(careDelegations.status, 'active')
             )
           )
       )

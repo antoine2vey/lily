@@ -1,7 +1,9 @@
 import { Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import {
+  CANOPY_INVITE_TOKEN_LENGTH,
   CANOPY_NAME_MAX_LENGTH,
+  CanopyInviteTokenRequest,
   CreateCanopyRequest,
   PlantOwner,
 } from '../domains/canopy/schema'
@@ -44,6 +46,18 @@ describe('CreateCanopyRequest', () => {
       Schema.decodeUnknownSync(CreateCanopyRequest)({
         name: 'a'.repeat(CANOPY_NAME_MAX_LENGTH + 1),
       })
+    ).toThrow()
+  })
+})
+
+describe('CanopyInviteTokenRequest', () => {
+  it('takes a token of the issued length and refuses a longer one', () => {
+    const token = 'a'.repeat(CANOPY_INVITE_TOKEN_LENGTH)
+    expect(
+      Schema.decodeUnknownSync(CanopyInviteTokenRequest)({ token })
+    ).toEqual({ token })
+    expect(() =>
+      Schema.decodeUnknownSync(CanopyInviteTokenRequest)({ token: `${token}a` })
     ).toThrow()
   })
 })
