@@ -12,7 +12,10 @@ import {
   createMockAlerter,
   MockAlerterLive,
 } from '@lily/api/__tests__/mocks/alerter'
-import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import {
+  createCanopyStore,
+  createMockCanopyRepository,
+} from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import {
@@ -30,6 +33,11 @@ import {
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import type {
+  DelegationRepository,
+  DelegationRow,
+} from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   consumeFromTopic,
@@ -953,7 +961,9 @@ describe('Notification Worker', () => {
   describe('dead plant guard', () => {
     const runWithPlants = async (
       plants: ReturnType<typeof createTestPlant>[],
-      plantIds: string[]
+      plantIds: string[],
+      canopyLayer?: Layer.Layer<CanopyRepository>,
+      delegationLayer?: Layer.Layer<DelegationRepository>
     ) => {
       const sentMessages: PushMessage[] = []
       const notification = createTestNotification({
@@ -982,8 +992,10 @@ describe('Notification Worker', () => {
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification]),
+              createMockPlantRepository({ plants }),
               LaMocksLive,
-              createMockPlantRepository({ plants })
+              canopyLayer ?? Layer.empty,
+              delegationLayer ?? Layer.empty
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -1016,6 +1028,64 @@ describe('Notification Worker', () => {
       const { sentMessages, notification } = await runWithPlants(
         [leftBehind],
         ['plant-1']
+      )
+
+      expect(sentMessages).toHaveLength(0)
+      expect(notification.status).toBe('sent')
+    })
+
+    it('drops a care push for a Canopy plant the user has muted since', async () => {
+      const shared = createTestPlant({
+        id: 'plant-1',
+        userId: null,
+        canopyId: 'canopy-1',
+      })
+      const { sentMessages, notification } = await runWithPlants(
+        [shared],
+        ['plant-1'],
+        createMockCanopyRepository(
+          createCanopyStore({
+            members: [
+              createTestMembership({
+                userId: 'user-1',
+                canopyId: 'canopy-1' as CanopyId,
+              }),
+            ],
+            mutes: [{ userId: 'user-1', plantId: 'plant-1' }],
+          })
+        )
+      )
+
+      expect(sentMessages).toHaveLength(0)
+      expect(notification.status).toBe('sent')
+    })
+
+    it('drops an owner care push once a caretaker has taken the plant over', async () => {
+      const own = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+      const delegation: DelegationRow = {
+        id: 'delegation-1',
+        ownerId: 'user-1',
+        caretakerId: 'user-2',
+        status: 'active',
+        message: null,
+        startDate: new Date(Date.now() - 86_400_000),
+        endDate: new Date(Date.now() + 86_400_000),
+        respondedAt: null,
+        canceledAt: null,
+        completedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      const { sentMessages, notification } = await runWithPlants(
+        [own],
+        ['plant-1'],
+        undefined,
+        createMockDelegationRepository({
+          delegations: [delegation],
+          delegationPlants: [
+            { delegationId: 'delegation-1', plantId: 'plant-1' },
+          ],
+        })
       )
 
       expect(sentMessages).toHaveLength(0)
