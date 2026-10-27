@@ -44,8 +44,6 @@ const zoneOf = (timezone: string | null) =>
     Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe('UTC'))
   )
 
-// The due date is a calendar day in the plant's timezone. A member in another
-// zone gets the reminder on that same calendar day, at their own hour.
 const sameCalendarDayFor = (
   scheduledDate: Date,
   contextTimezone: string,
