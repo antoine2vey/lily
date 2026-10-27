@@ -8,7 +8,8 @@ import { Array, Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const reloadOwnedPlant = (
-  plant: PlantRow
+  plant: PlantRow,
+  requestedId: string = plant.id
 ): Effect.Effect<PlantRow, PlantNotFoundError | SqlError, PlantRepository> =>
   Effect.flatMap(PlantRepository, (repo) => repo.findByIds([plant.id])).pipe(
     Effect.flatMap((rows) =>
@@ -16,7 +17,7 @@ export const reloadOwnedPlant = (
         Array.findFirst(rows, (row) => sameOwner(row.owner, plant.owner)),
         {
           onNone: () =>
-            Effect.fail(new PlantNotFoundError({ plantId: plant.id })),
+            Effect.fail(new PlantNotFoundError({ plantId: requestedId })),
           onSome: Effect.succeed,
         }
       )

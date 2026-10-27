@@ -10,6 +10,7 @@ import {
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
 import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
@@ -60,6 +61,10 @@ export const revivePlant = (
     // exactly like on create, so bury-then-revive is not a way around it.
     yield* withOwnerLock(plant.owner)(
       Effect.gen(function* () {
+        const current = yield* reloadOwnedPlant(plant, requestedId)
+        if (current.diedAt === null) {
+          return yield* new PlantNotDeadError()
+        }
         yield* limitChecker.checkPlantLimit(plant.owner)
         const updated = yield* repo.revive(plant.id, plant.owner)
         if (!updated) {

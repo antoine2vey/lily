@@ -20,7 +20,8 @@ import { Effect, Option, pipe } from 'effect'
 
 export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
   plant: PlantWithRoom,
-  request: MovePlantScopeRequest
+  request: MovePlantScopeRequest,
+  requestedId: string = plant.id
 ) {
   const { id: userId } = yield* CurrentUser
   const repo = yield* PlantRepository
@@ -35,7 +36,7 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
       if (plant.owner._tag !== 'Canopy' || plant.owner.canopyId !== canopy.id) {
         return yield* new CanopyNotFoundError()
       }
-      const current = yield* reloadOwnedPlant(plant)
+      const current = yield* reloadOwnedPlant(plant, requestedId)
       yield* assertRoomFits(roomId, me)
       if (current.diedAt === null) {
         yield* limitChecker.checkPlantLimit(me)
@@ -43,7 +44,7 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
       yield* canopyRepo.deleteMutesForPlant(plant.id)
       const moved = yield* repo.moveTo(plant.id, plant.owner, me, roomId)
       if (moved === null) {
-        return yield* new PlantNotFoundError({ plantId: plant.id })
+        return yield* new PlantNotFoundError({ plantId: requestedId })
       }
       yield* rescheduleReminders(moved, userId)
     })
@@ -51,7 +52,7 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
 
   const fresh = yield* repo.findById(plant.id)
   if (fresh === null) {
-    return yield* new PlantNotFoundError({ plantId: plant.id })
+    return yield* new PlantNotFoundError({ plantId: requestedId })
   }
   return fresh
 })

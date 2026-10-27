@@ -4,12 +4,15 @@ import {
   CanopyRepository,
 } from '@lily/api/repositories/canopy.repository'
 import {
+  CANOPY_INVITE_TOKEN_LENGTH,
   CanopyInviteExpiredError,
   CanopyInviteNotFoundError,
   isFuture,
 } from '@lily/shared'
 import { DateTime, Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
+
+const TOKEN_BYTES = (CANOPY_INVITE_TOKEN_LENGTH * 6) / 8
 
 export const hashInviteToken = (token: string): string =>
   createHash('sha256').update(token).digest('hex')
@@ -18,7 +21,7 @@ export const newInviteToken: Effect.Effect<{
   readonly token: string
   readonly tokenHash: string
 }> = Effect.sync(() => {
-  const token = randomBytes(32).toString('base64url')
+  const token = randomBytes(TOKEN_BYTES).toString('base64url')
   return { token, tokenHash: hashInviteToken(token) }
 })
 

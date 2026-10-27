@@ -5,6 +5,7 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   PlantAlreadyDeadError,
@@ -43,7 +44,10 @@ export const markPlantDead = (
       note: Option.getOrNull(Option.fromNullishOr(request.note)),
     })
     if (!updated) {
-      return yield* new PlantNotFoundError({ plantId: requestedId })
+      const current = yield* reloadOwnedPlant(plant, requestedId)
+      return yield* current.diedAt === null
+        ? new PlantNotFoundError({ plantId: requestedId })
+        : new PlantAlreadyDeadError()
     }
 
     yield* notificationRepo.deletePendingByPlantId(plant.id)

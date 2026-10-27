@@ -49,6 +49,7 @@ import {
   eq,
   inArray,
   isNotNull,
+  isNull,
   lte,
   notInArray,
   or,
@@ -678,7 +679,13 @@ export const PlantRepositoryLive = Layer.effect(
             deathCause: data.cause,
             deathNote: data.note,
           })
-          .where(and(eq(plants.id, id), ownedBy(plants, owner)))
+          .where(
+            and(
+              eq(plants.id, id),
+              ownedBy(plants, owner),
+              isNull(plants.diedAt)
+            )
+          )
           .returning()
         return withOwnerOrNull(plant)
       }),
@@ -690,7 +697,13 @@ export const PlantRepositoryLive = Layer.effect(
         const [plant] = yield* db
           .update(plants)
           .set({ diedAt: null, deathCause: null, deathNote: null })
-          .where(and(eq(plants.id, id), ownedBy(plants, owner)))
+          .where(
+            and(
+              eq(plants.id, id),
+              ownedBy(plants, owner),
+              isNotNull(plants.diedAt)
+            )
+          )
           .returning()
         return withOwnerOrNull(plant)
       }),

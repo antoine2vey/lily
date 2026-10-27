@@ -3,6 +3,7 @@ import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import {
+  index,
   pgTable,
   text,
   timestamp,
@@ -53,6 +54,7 @@ export const delegationPlants = pgTable(
       table.delegationId,
       table.plantId
     ),
+    index('delegation_plants_plant_id_idx').on(table.plantId),
   ]
 )
 

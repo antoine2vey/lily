@@ -12,9 +12,14 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 const roomIdParam = Schema.String.check(Schema.isGUID())
 
+export const RoomsQueryParams = Schema.Struct({
+  includeCanopy: Schema.optional(Schema.String),
+})
+
 export const RoomsApi = HttpApiGroup.make('rooms')
   .add(
     HttpApiEndpoint.get('getRooms', '/', {
+      query: RoomsQueryParams,
       success: RoomListWithCountsResponse,
       error: Schema.Struct({ error: Schema.String }).pipe(
         HttpApiSchema.status(401)

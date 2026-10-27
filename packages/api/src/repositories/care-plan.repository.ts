@@ -221,22 +221,25 @@ export const CarePlanRepositoryLive = Layer.effect(
         )
       })
 
-    const findOne = (planId: string, userId: string) =>
+    const findPlan = (where: ReturnType<typeof and>) =>
       Effect.gen(function* () {
         const rows = yield* db
           .select({ plan: carePlans, plant: plantSelect })
           .from(carePlans)
           .innerJoin(plants, eq(carePlans.plantId, plants.id))
-          .where(
-            and(
-              eq(carePlans.id, planId),
-              eq(carePlans.userId, userId),
-              authorReachesPlant
-            )
-          )
+          .where(where)
         const hydrated = yield* hydrate(rows)
         return pipe(Array.head(hydrated), Option.getOrNull)
       })
+
+    const findOne = (planId: string, userId: string) =>
+      findPlan(
+        and(
+          eq(carePlans.id, planId),
+          eq(carePlans.userId, userId),
+          authorReachesPlant
+        )
+      )
 
     return {
       create: Effect.fn('CarePlanRepository.create')(function* (
@@ -277,7 +280,7 @@ export const CarePlanRepositoryLive = Layer.effect(
           )
         }
 
-        const created = yield* findOne(plan.id, data.userId)
+        const created = yield* findPlan(eq(carePlans.id, plan.id))
         return pipe(Option.fromNullishOr(created), Option.getOrThrow)
       }),
 

@@ -151,19 +151,19 @@ export const PlantsApiLive = (api: Api) =>
       )
       .handle('sharePlantWithCanopy', ({ params: { id }, payload }) =>
         withPlantAuth(id, 'share').pipe(
-          Effect.flatMap((plant) => sharePlantWithCanopy(plant, payload)),
+          Effect.flatMap((plant) => sharePlantWithCanopy(plant, payload, id)),
           withInfraErrorsAsDefect
         )
       )
       .handle('unsharePlant', ({ params: { id }, payload }) =>
         withPlantAuth(id, 'unshare').pipe(
-          Effect.flatMap((plant) => unsharePlant(plant, payload)),
+          Effect.flatMap((plant) => unsharePlant(plant, payload, id)),
           withInfraErrorsAsDefect
         )
       )
       .handle('mutePlant', ({ params: { id } }) =>
         withPlantAuth(id, 'mute').pipe(
-          Effect.flatMap((plant) => mutePlant(plant)),
+          Effect.flatMap((plant) => mutePlant(plant, id)),
           withInfraErrorsAsDefect
         )
       )

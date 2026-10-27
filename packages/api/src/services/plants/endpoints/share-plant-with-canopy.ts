@@ -23,7 +23,11 @@ import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect, Option, pipe } from 'effect'
 
 export const sharePlantWithCanopy = Effect.fn('PlantsService.shareWithCanopy')(
-  function* (plant: PlantWithRoom, request: MovePlantScopeRequest) {
+  function* (
+    plant: PlantWithRoom,
+    request: MovePlantScopeRequest,
+    requestedId: string = plant.id
+  ) {
     const { id: userId } = yield* CurrentUser
     const repo = yield* PlantRepository
     const delegationRepo = yield* DelegationRepository
@@ -42,7 +46,7 @@ export const sharePlantWithCanopy = Effect.fn('PlantsService.shareWithCanopy')(
           if (yield* delegationRepo.hasOpenDelegationForPlant(plant.id)) {
             return yield* new PlantInDelegationError({ plantId: plant.id })
           }
-          const current = yield* reloadOwnedPlant(plant)
+          const current = yield* reloadOwnedPlant(plant, requestedId)
           yield* assertRoomFits(roomId, canopy)
           if (current.diedAt === null) {
             yield* limitChecker.checkPlantLimit(canopy)
@@ -54,7 +58,7 @@ export const sharePlantWithCanopy = Effect.fn('PlantsService.shareWithCanopy')(
             roomId
           )
           if (moved === null) {
-            return yield* new PlantNotFoundError({ plantId: plant.id })
+            return yield* new PlantNotFoundError({ plantId: requestedId })
           }
           yield* rescheduleReminders(
             moved,
@@ -66,7 +70,7 @@ export const sharePlantWithCanopy = Effect.fn('PlantsService.shareWithCanopy')(
 
     const fresh = yield* repo.findById(plant.id)
     if (fresh === null) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
     return fresh
   }

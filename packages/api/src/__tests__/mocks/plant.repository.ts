@@ -338,18 +338,22 @@ export const createMockPlantRepository = (
       ),
 
     markDead: (id, owner, data) =>
-      patchPlant(id, owner, {
-        diedAt: data.diedAt,
-        deathCause: data.cause,
-        deathNote: data.note,
-      }),
+      Array.some(plantsData, (p) => p.id === id && p.diedAt === null)
+        ? patchPlant(id, owner, {
+            diedAt: data.diedAt,
+            deathCause: data.cause,
+            deathNote: data.note,
+          })
+        : Effect.succeed(null),
 
     revive: (id, owner) =>
-      patchPlant(id, owner, {
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-      }),
+      Array.some(plantsData, (p) => p.id === id && p.diedAt !== null)
+        ? patchPlant(id, owner, {
+            diedAt: null,
+            deathCause: null,
+            deathNote: null,
+          })
+        : Effect.succeed(null),
 
     moveTo: (id, from, to, roomId) =>
       patchPlant(id, from, { ...ownerColumns(to), roomId }),

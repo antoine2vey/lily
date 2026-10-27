@@ -215,4 +215,15 @@ describe('revivePlant', () => {
       { _tag: 'PlantLifecycleChanged', userId: 'user-1', plantId: 'plant-1' },
     ])
   })
+
+  it('answers PlantNotDeadError, not the limit, to a second revive', async () => {
+    const alive = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+    const exit = await Effect.runPromiseExit(
+      revivePlant(asPlantWithRoom(deadPlant())).pipe(
+        Effect.provide(makeLayer({ plant: alive, plantLimitReached: true }))
+      )
+    )
+
+    expect(failureTag(exit)).toEqual(Option.some('PlantNotDeadError'))
+  })
 })

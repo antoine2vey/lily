@@ -26,7 +26,11 @@ import {
 } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CANOPY_MAX_MEMBERS, CanopyFullError } from '@lily/shared'
+import {
+  CANOPY_MAX_MEMBERS,
+  CanopyFullError,
+  UserNotFoundError,
+} from '@lily/shared'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Exit, Layer } from 'effect'
@@ -379,6 +383,59 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .set({ status: 'completed', completedAt: inDays(0) })
         .where(eq(schema.careDelegations.id, delegation.id))
       expect(await lilysPlans()).toEqual([])
+    })
+
+    it('returns a new care plan even when its author can no longer reach the plant', async () => {
+      const fern = await insertPlant({
+        userId: alexId,
+        createdByUserId: alexId,
+      })
+
+      const plan = await run(
+        Effect.flatMap(CarePlanRepository, (repo) =>
+          repo.create({
+            plantId: fern.id,
+            userId: lilyId,
+            title: 'Rescue',
+            steps: [],
+          })
+        )
+      )
+
+      expect(plan).toMatchObject({ plantId: fern.id, title: 'Rescue' })
+    })
+
+    it('rolls the Canopy exit back when the account write after it fails', async () => {
+      await join(alexId, 'owner', '2024-01-01')
+      await join(lilyId, 'member', '2024-02-01')
+      const fern = await insertPlant({ canopyId, createdByUserId: alexId })
+
+      const exit = await Effect.runPromiseExit(
+        Effect.provide(
+          leaveCanopyAndDelete(alexId)(Effect.fail(new UserNotFoundError())),
+          AppLive
+        )
+      )
+
+      expect(failureOf(exit)).toEqual(new UserNotFoundError())
+      const members = await db
+        .select({
+          userId: schema.canopyMembers.userId,
+          role: schema.canopyMembers.role,
+        })
+        .from(schema.canopyMembers)
+      expect(members).toEqual(
+        expect.arrayContaining([
+          { userId: alexId, role: 'owner' },
+          { userId: lilyId, role: 'member' },
+        ])
+      )
+      expect(members).toHaveLength(2)
+      const [plant] = await db
+        .select({ canopyId: schema.plants.canopyId })
+        .from(schema.plants)
+        .where(eq(schema.plants.id, fern.id))
+      expect(plant?.canopyId).toBe(canopyId)
     })
 
     it('keeps one live invite per Canopy across replacements', async () => {

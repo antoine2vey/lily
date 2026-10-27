@@ -17,6 +17,7 @@ BEGIN
     BEGIN
       LOCK TABLE "users" IN SHARE ROW EXCLUSIVE MODE NOWAIT;
       LOCK TABLE "care_logs", "plants" IN EXCLUSIVE MODE NOWAIT;
+      LOCK TABLE "delegation_plants" IN SHARE MODE NOWAIT;
       EXIT;
     EXCEPTION
       WHEN lock_not_available THEN
@@ -80,6 +81,8 @@ DROP TRIGGER IF EXISTS "plants_creator_fallback" ON "plants";
 CREATE TRIGGER "plants_creator_fallback"
 BEFORE INSERT ON "plants"
 FOR EACH ROW EXECUTE FUNCTION "plants_creator_fallback"();
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "delegation_plants_plant_id_idx" ON "delegation_plants" USING btree ("plant_id");
 --> statement-breakpoint
 CREATE OR REPLACE FUNCTION "care_logs_actor_fallback"() RETURNS trigger
 LANGUAGE plpgsql AS $$

@@ -22,6 +22,7 @@ import { hashInviteToken } from '@lily/api/services/canopy/helpers/invite-token'
 import type { CanopyId } from '@lily/shared'
 import {
   AlreadyInCanopyError,
+  CANOPY_INVITE_TOKEN_LENGTH,
   CANOPY_JOIN_URL_PREFIX,
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
@@ -225,6 +226,7 @@ describe('createCanopyInvite', () => {
 
     expect(first.value.url.startsWith(CANOPY_JOIN_URL_PREFIX)).toBe(true)
     expect(Buffer.from(firstToken, 'base64url')).toHaveLength(32)
+    expect(firstToken).toHaveLength(CANOPY_INVITE_TOKEN_LENGTH)
     expect(store.invites.map((i) => i.tokenHash)).not.toContain(firstToken)
     expect(
       failureOf(await run(store, 'lily', acceptCanopyInvite(firstToken)))
