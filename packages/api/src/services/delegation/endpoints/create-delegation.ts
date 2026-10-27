@@ -77,6 +77,7 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
 
     const delegation = yield* withUserLock(currentUserId)(
       Effect.gen(function* () {
+        // Verify all plants belong to the current user
         const plants = yield* plantRepo.findByIds(plantIds)
         const who = yield* caller
         const canopyPlant = yield* Effect.findFirst(

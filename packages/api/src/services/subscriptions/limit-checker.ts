@@ -106,10 +106,12 @@ export const LimitCheckerLive = Layer.effect(
           Match.exhaustive
         )
 
+        // null means unlimited
         if (maxPlants === null) {
           return
         }
 
+        // Dead plants free their slot; the cemetery is not capped.
         const currentCount = yield* achievementRepo.countLivingPlants(owner)
 
         if (currentCount >= maxPlants) {

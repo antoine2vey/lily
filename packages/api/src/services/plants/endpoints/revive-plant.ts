@@ -56,6 +56,8 @@ export const revivePlant = (
 
     const settingsUserId = yield* interimSettingsUserFor(plant.owner)
 
+    // A revived plant takes a slot again; free users at the cap are paywalled
+    // exactly like on create, so bury-then-revive is not a way around it.
     yield* withPlantLimitLock(plant.owner)(
       Effect.gen(function* () {
         yield* limitChecker.checkPlantLimit(plant.owner)
