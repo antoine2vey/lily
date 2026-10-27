@@ -1,3 +1,4 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import {
   CareScheduleRepository,
@@ -9,10 +10,9 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
-import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
@@ -99,11 +99,9 @@ const correctSingleCareDate = (
     // Schedule next reminder if we have a next care date
     if (nextCareAt) {
       yield* scheduleCareReminder({
-        plantId,
-        userId: yield* interimSettingsUserFor(plant.owner),
+        plant,
         type: `${careType}_reminder` as const,
         scheduledDate: nextCareAt,
-        remindersEnabled: plant.remindersEnabled,
       })
     }
   })
@@ -120,20 +118,11 @@ export const correctCareDates = (
   | NotificationRepository
   | UserRepository
   | DelegationRepository
-  | CurrentUser
+  | CanopyRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const userRepo = yield* UserRepository
-
-    const user = yield* userRepo.findById(
-      yield* interimSettingsUserFor(plant.owner)
-    )
-    const timezone = pipe(
-      Option.fromNullishOr(user),
-      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrElse(() => 'UTC')
-    )
+    const { timezone } = yield* careContext(plant.owner)
 
     // Correct watering date if provided
     if (request.lastWateredAt) {

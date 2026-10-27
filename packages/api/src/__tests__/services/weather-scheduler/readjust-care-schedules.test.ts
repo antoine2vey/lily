@@ -10,6 +10,7 @@ import {
   mockWeatherDataModerate,
   mockWeatherDataRainy,
 } from '@lily/api/__tests__/fixtures/weather'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -61,6 +62,7 @@ const buildLayers = ({
     createMockUserRepository([weatherUser]),
     createMockPlantRepository({ plants }),
     createMockNotificationRepository(notifications),
+    createMockCanopyRepository(),
     createMockDelegationRepository(),
     createMockCareScheduleRepository({
       schedules: schedulesFromPlants(plants),

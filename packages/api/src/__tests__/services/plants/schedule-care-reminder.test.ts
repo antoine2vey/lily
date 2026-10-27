@@ -1,12 +1,27 @@
+import {
+  createTestMembership,
+  mockCanopyId,
+} from '@lily/api/__tests__/fixtures/canopies'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import {
+  createCanopyStore,
+  createMockCanopyRepository,
+} from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { Effect, Layer, References } from 'effect'
+import type { Notification } from '@lily/shared/notification'
+import { Array, Effect, Layer, References } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const personalPlant = (ownerId: string, remindersEnabled: boolean) => ({
+  id: 'plant-1',
+  owner: { _tag: 'User' as const, userId: ownerId },
+  remindersEnabled,
+})
 
 // Helper to create a future date for scheduling
 const createFutureDate = (daysFromNow: number, hours = 12): Date => {
@@ -37,6 +52,7 @@ const runAndGetPendingNotifications = (
         Layer.mergeAll(
           createMockNotificationRepository([]),
           createMockUserRepository(allUsers),
+          createMockCanopyRepository(),
           createMockDelegationRepository({
             delegations: options?.delegations ?? [],
             delegationPlants: options?.delegationPlants ?? [],
@@ -60,12 +76,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -84,12 +97,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -107,12 +117,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, false),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: false,
         },
         user
       )
@@ -129,12 +136,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, false),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: false,
         },
         user
       )
@@ -157,12 +161,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -186,12 +187,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -214,12 +212,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -242,12 +237,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -271,12 +263,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -298,12 +287,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -323,12 +309,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -369,12 +352,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-
-          userId: owner.id,
+          plant: personalPlant(owner.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         owner
       )
@@ -406,12 +386,9 @@ describe('scheduleCareReminder', () => {
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* scheduleCareReminder({
-            plantId: 'plant-1',
-
-            userId: owner.id,
+            plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
-            remindersEnabled: true,
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -420,6 +397,7 @@ describe('scheduleCareReminder', () => {
             Layer.mergeAll(
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
+              createMockCanopyRepository(),
               createMockDelegationRepository({
                 delegations: [delegation],
                 delegationPlants: [
@@ -459,12 +437,9 @@ describe('scheduleCareReminder', () => {
       const ownerPending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* scheduleCareReminder({
-            plantId: 'plant-1',
-
-            userId: owner.id,
+            plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
-            remindersEnabled: true,
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(owner.id)
@@ -473,6 +448,7 @@ describe('scheduleCareReminder', () => {
             Layer.mergeAll(
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
+              createMockCanopyRepository(),
               createMockDelegationRepository({
                 delegations: [delegation],
                 delegationPlants: [
@@ -512,12 +488,9 @@ describe('scheduleCareReminder', () => {
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* scheduleCareReminder({
-            plantId: 'plant-1',
-
-            userId: owner.id,
+            plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
-            remindersEnabled: true,
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -526,6 +499,7 @@ describe('scheduleCareReminder', () => {
             Layer.mergeAll(
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
+              createMockCanopyRepository(),
               createMockDelegationRepository({
                 delegations: [delegation],
                 delegationPlants: [
@@ -562,12 +536,9 @@ describe('scheduleCareReminder', () => {
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* scheduleCareReminder({
-            plantId: 'plant-1',
-
-            userId: owner.id,
+            plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
-            remindersEnabled: true,
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -576,6 +547,7 @@ describe('scheduleCareReminder', () => {
             Layer.mergeAll(
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
+              createMockCanopyRepository(),
               createMockDelegationRepository({
                 delegations: [delegation],
                 delegationPlants: [
@@ -624,11 +596,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -648,11 +618,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -672,11 +640,9 @@ describe('scheduleCareReminder', () => {
 
       const pending = await runAndGetPendingNotifications(
         {
-          plantId: 'plant-1',
-          userId: user.id,
+          plant: personalPlant(user.id, true),
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
-          remindersEnabled: true,
         },
         user
       )
@@ -702,11 +668,9 @@ describe('scheduleCareReminder', () => {
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* scheduleCareReminder({
-            plantId: 'plant-1',
-            userId: owner.id,
+            plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
-            remindersEnabled: true,
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -715,6 +679,7 @@ describe('scheduleCareReminder', () => {
             Layer.mergeAll(
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
+              createMockCanopyRepository(),
               createMockDelegationRepository({
                 delegations: [delegation],
                 delegationPlants: [
@@ -746,11 +711,9 @@ describe('scheduleCareReminder', () => {
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* scheduleCareReminder({
-            plantId: 'plant-1',
-            userId: owner.id,
+            plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
-            remindersEnabled: true,
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -759,6 +722,7 @@ describe('scheduleCareReminder', () => {
             Layer.mergeAll(
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
+              createMockCanopyRepository(),
               createMockDelegationRepository({
                 delegations: [delegation],
                 delegationPlants: [
@@ -772,6 +736,105 @@ describe('scheduleCareReminder', () => {
       )
 
       expect(pending).toHaveLength(0)
+    })
+  })
+
+  describe('Canopy fan-out', () => {
+    const canopyPlant = {
+      id: 'plant-1',
+      owner: { _tag: 'Canopy' as const, canopyId: mockCanopyId },
+      remindersEnabled: true,
+    }
+    const members = [
+      createTestMembership({ userId: 'alex', role: 'owner' }),
+      createTestMembership({ userId: 'lily' }),
+    ]
+    const alex = createTestUser({
+      id: 'alex',
+      timezone: 'UTC',
+      preferredNotificationTime: '08:00',
+      careReminders: true,
+      doNotDisturb: false,
+    })
+    const lily = createTestUser({
+      id: 'lily',
+      timezone: 'UTC',
+      preferredNotificationTime: '19:00',
+      careReminders: true,
+      doNotDisturb: false,
+    })
+
+    const runCanopy = (
+      users: ReturnType<typeof createTestUser>[],
+      options: {
+        mutes?: { userId: string; plantId: string }[]
+        existing?: Notification[]
+      } = {}
+    ) => {
+      const rows: Notification[] = options.existing ?? []
+      return Effect.runPromise(
+        scheduleCareReminder({
+          plant: canopyPlant,
+          type: 'watering_reminder',
+          scheduledDate: createFutureDate(7),
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockNotificationRepository(rows),
+              createMockUserRepository(users),
+              createMockCanopyRepository(
+                createCanopyStore({ members, mutes: options.mutes ?? [] })
+              ),
+              createMockDelegationRepository()
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      ).then(() => Array.filter(rows, (n) => n.status === 'pending'))
+    }
+
+    it('creates one row per member, each at that member preferred time', async () => {
+      const pending = await runCanopy([alex, lily])
+      const hoursByUser = Object.fromEntries(
+        Array.map(pending, (n) => [n.userId, n.scheduledAt.getUTCHours()])
+      )
+      expect(hoursByUser).toEqual({ alex: 8, lily: 19 })
+    })
+
+    it('skips a member who muted the plant', async () => {
+      const pending = await runCanopy([alex, lily], {
+        mutes: [{ userId: 'lily', plantId: 'plant-1' }],
+      })
+      expect(Array.map(pending, (n) => n.userId)).toEqual(['alex'])
+    })
+
+    it('skips a member whose care reminders are off and one on vacation, and keeps the rest', async () => {
+      const off = createTestUser({
+        id: 'lily',
+        timezone: 'UTC',
+        careReminders: false,
+      })
+      const pending = await runCanopy([alex, off])
+      expect(Array.map(pending, (n) => n.userId)).toEqual(['alex'])
+    })
+
+    it('replaces every member pending row of that type, so care resolves it for everyone', async () => {
+      const stale = (userId: string): Notification => ({
+        id: `stale-${userId}`,
+        type: 'watering_reminder',
+        scheduledAt: createFutureDate(1),
+        isRead: false,
+        status: 'pending',
+        retryCount: 0,
+        userId,
+        plantId: 'plant-1',
+        createdAt: new Date(),
+      })
+      const pending = await runCanopy([alex, lily], {
+        existing: [stale('alex'), stale('lily')],
+      })
+      expect(pending).toHaveLength(2)
+      expect(Array.every(pending, (n) => !n.id.startsWith('stale-'))).toBe(true)
     })
   })
 })

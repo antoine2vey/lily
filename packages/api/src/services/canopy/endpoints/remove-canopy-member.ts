@@ -34,7 +34,7 @@ export const removeCanopyMember = Effect.fn('CanopyService.removeCanopyMember')(
           }
         )
         yield* returnSharedPlants(canopy.id, removed.userId)
-        yield* dropMember(canopy.id, removed.userId, userId)
+        yield* dropMember(canopy.id, removed.userId)
         yield* repo.revokeInvite(canopy.id)
         return { canopy, removed }
       })

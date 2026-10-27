@@ -2,8 +2,11 @@ import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
@@ -45,6 +48,9 @@ const run = (
           createMockActivityPushTokenRepository({ tokens }),
           createMockPushService({ onSendLiveActivity: (m) => sent.push(m) }),
           createMockCareScheduleRepository({ plants, schedules }),
+          createMockPlantRepository({ plants }),
+          createMockDelegationRepository(),
+          createMockCanopyRepository(),
           createMockCareLogRepository([]),
           createMockUserRepository([
             createTestUser({ id: 'user-1', timezone: 'UTC' }),

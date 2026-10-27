@@ -12,7 +12,6 @@ import {
 } from '@lily/api/services/plants/helpers/owner-lock'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
-import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
   type MovePlantScopeRequest,
@@ -60,10 +59,7 @@ export const sharePlantWithCanopy = Effect.fn('PlantsService.shareWithCanopy')(
           if (moved === null) {
             return yield* new PlantNotFoundError({ plantId: requestedId })
           }
-          yield* rescheduleReminders(
-            moved,
-            yield* interimSettingsUserFor(canopy)
-          )
+          yield* rescheduleReminders(moved)
         })
       )
     )

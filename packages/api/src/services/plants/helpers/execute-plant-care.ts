@@ -1,3 +1,4 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
@@ -7,12 +8,15 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
+import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { WeatherRepository } from '@lily/api/repositories/weather.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import {
+  type CareContext,
+  careContext,
+} from '@lily/api/services/plants/helpers/care-context'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   calculatePlantAdjustment,
   type PlantForAdjustment,
@@ -44,14 +48,8 @@ export interface ExecutePlantCareParams {
   readonly carePlanStepId?: string | undefined
 }
 
-// Apply weather adjustment to the next care date if user has weather enabled
 const applyWeatherAdjustment = (
-  user: {
-    weatherEnabled: boolean | null
-    latitude: number | null
-    longitude: number | null
-  },
-  timezone: string,
+  { weather, timezone }: CareContext,
   plant: PlantForAdjustment,
   careType: CareType,
   nextCareAt: Date | undefined,
@@ -63,12 +61,12 @@ const applyWeatherAdjustment = (
 > =>
   Effect.gen(function* () {
     if (!nextCareAt) return nextCareAt
-    if (!user.weatherEnabled || !user.latitude || !user.longitude) {
+    if (!weather.enabled || !weather.latitude || !weather.longitude) {
       return nextCareAt
     }
 
-    const rlat = roundCoord(user.latitude)
-    const rlng = roundCoord(user.longitude)
+    const rlat = roundCoord(weather.latitude)
+    const rlng = roundCoord(weather.longitude)
 
     // Attempt to get weather context — if it fails, silently return original date
     const weatherResult = yield* getWeatherContext(rlat, rlng).pipe(
@@ -86,7 +84,7 @@ const applyWeatherAdjustment = (
       currentWeather,
       recentHistory,
       forecast,
-      user.latitude
+      weather.latitude
     )
 
     // For manual care, skip flags don't apply — the user just performed the action,
@@ -130,6 +128,7 @@ export const executePlantCare = (
   | EventBus
   | CurrentUser
   | CarePlanRepository
+  | CanopyRepository
   | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
@@ -137,19 +136,11 @@ export const executePlantCare = (
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
     const notificationRepo = yield* NotificationRepository
-    const userRepo = yield* UserRepository
     const careLogRepo = yield* CareLogRepository
     const carePlanRepo = yield* CarePlanRepository
 
-    // Load user once — both timezone (for day-boundary math) and weather flags
-    // (consumed inside applyWeatherAdjustment) come from the same row.
-    const settingsUserId = yield* interimSettingsUserFor(plant.owner)
-    const user = yield* userRepo.findById(settingsUserId)
-    const timezone = pipe(
-      Option.fromNullishOr(user),
-      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrElse(() => 'UTC')
-    )
+    const context = yield* careContext(plant.owner)
+    const { timezone } = context
 
     const nowDt = DateTime.nowUnsafe()
 
@@ -261,8 +252,7 @@ export const executePlantCare = (
     const adjustedNextCareAt = isPastCare
       ? Effect.succeed(nextCareAt)
       : applyWeatherAdjustment(
-          user ?? { weatherEnabled: false, latitude: null, longitude: null },
-          timezone,
+          context,
           {
             id: plant.id,
             wateringFrequencyDays: pipe(
@@ -302,11 +292,9 @@ export const executePlantCare = (
     // Schedule next reminder if we have a next care date
     if (finalNextCareAt) {
       yield* scheduleCareReminder({
-        plantId: params.plantId,
-        userId: settingsUserId,
+        plant,
         type: `${params.careType}_reminder` as const,
         scheduledDate: finalNextCareAt,
-        remindersEnabled: plant.remindersEnabled,
       })
     }
 

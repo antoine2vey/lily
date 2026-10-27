@@ -1,3 +1,4 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -71,6 +72,7 @@ export const cancelVacation = (): Effect.Effect<
   | CareScheduleRepository
   | DelegationRepository
   | NotificationRepository
+  | CanopyRepository
   | SqlClient.SqlClient
   | CurrentUser
 > =>

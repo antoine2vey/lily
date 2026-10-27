@@ -251,6 +251,21 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
+    deletePendingByUserAndPlant: (userId: string, plantId: string) =>
+      Effect.sync(() => {
+        const toKeep = Array.filter(
+          notificationsState,
+          (n) =>
+            !(
+              n.userId === userId &&
+              n.plantId === plantId &&
+              n.status === 'pending'
+            )
+        )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
     deletePendingForMemberOnCanopy: (userId: string, canopyId: string) =>
       Effect.sync(() => {
         const plantIds = options.canopyPlants?.(canopyId) ?? []

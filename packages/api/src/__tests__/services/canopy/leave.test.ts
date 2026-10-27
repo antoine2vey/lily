@@ -123,7 +123,7 @@ describe('leaveCanopy', () => {
     expect(pushesOf(notifications, 'canopy_member_left')).toEqual(['alex'])
   })
 
-  it("hands the leaver's Canopy reminders to the owner and drops only the leaver's mutes", async () => {
+  it("drops only the leaver's Canopy reminders and mutes; other members keep theirs", async () => {
     const store = home()
     store.mutes.push(
       { userId: 'lily', plantId: 'fern' },
@@ -151,10 +151,7 @@ describe('leaveCanopy', () => {
       notifications
         .filter((n) => n.type === 'watering_reminder')
         .map((n) => [n.userId, n.plantId])
-    ).toEqual([
-      ['lily', 'personal-cactus'],
-      ['alex', 'fern'],
-    ])
+    ).toEqual([['lily', 'personal-cactus']])
   })
 
   it('dissolves the Canopy into the last member, moving every plant and room', async () => {

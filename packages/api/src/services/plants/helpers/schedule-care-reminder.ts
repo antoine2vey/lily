@@ -1,4 +1,5 @@
-import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { scheduleDeferredCareNotification } from '@lily/api/services/helpers/schedule-notification'
@@ -6,9 +7,13 @@ import {
   adjustForDoNotDisturb,
   calculateScheduledAt,
 } from '@lily/api/services/notifications/timezone-scheduler'
+import {
+  type ReminderPlant,
+  reminderRecipients,
+} from '@lily/api/services/plants/helpers/reminder-recipients'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
 import { isOnVacation, nowAsDate } from '@lily/shared'
-import { Effect, Option, pipe } from 'effect'
+import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type CareReminderType =
@@ -18,74 +23,32 @@ export type CareReminderType =
   | 'repotting_reminder'
 
 export interface ScheduleCareReminderParams {
-  plantId: string
-  userId: string
+  plant: ReminderPlant & { readonly remindersEnabled: boolean }
   type: CareReminderType
   scheduledDate: Date
-  remindersEnabled: boolean
 }
 
-/**
- * Schedule a care reminder notification for a plant.
- * This handles:
- * - Checking if reminders are enabled
- * - Fetching user's timezone preferences
- * - Calculating timezone-aware scheduled time
- * - Deleting any existing pending reminders of the same type
- * - Creating the new reminder
- *
- * @param params - The reminder scheduling parameters
- * @returns Effect that resolves when reminder is scheduled (or skipped if disabled)
- */
-export const scheduleCareReminder = (
+type ScheduleContext =
+  | NotificationRepository
+  | UserRepository
+  | DelegationRepository
+  | CanopyRepository
+
+const scheduleForRecipient = (
+  recipientId: string,
   params: ScheduleCareReminderParams
-): Effect.Effect<
-  void,
-  SqlError,
-  NotificationRepository | UserRepository | DelegationRepository
-> =>
+) =>
   Effect.gen(function* () {
-    const { plantId, userId, type, scheduledDate, remindersEnabled } = params
-
-    // Skip if reminders are disabled
-    if (!remindersEnabled) {
-      return
-    }
-
-    // Resolve the notification recipient: caretaker if delegated, owner otherwise
-    const delegationRepo = yield* DelegationRepository
-    const caretakerId =
-      yield* delegationRepo.findActiveCaretakerForPlant(plantId)
-    const recipientId = pipe(
-      Option.fromNullishOr(caretakerId),
-      Option.getOrElse(() => userId)
-    )
-
-    const notificationRepo = yield* NotificationRepository
-
-    // Get recipient's timezone settings
     const settings = yield* getUserNotificationSettings(recipientId)
-
-    // Skip if user has disabled care reminders globally
-    if (!settings.careReminders) {
+    if (!settings.careReminders || isOnVacation(settings, nowAsDate())) {
       return
     }
 
-    // Skip if the recipient is on vacation. Because this checks the
-    // *recipient* (caretaker when delegated), caretaker-routed reminders
-    // survive the owner's vacation, and a vacationing caretaker is muted.
-    if (isOnVacation(settings, nowAsDate())) {
-      return
-    }
-
-    // Calculate the scheduled time in user's timezone
     const scheduledAt = yield* calculateScheduledAt(
-      scheduledDate,
+      params.scheduledDate,
       settings.timezone,
       settings.preferredTime
     )
-
-    // Adjust for Do Not Disturb window
     const finalScheduledAt = settings.doNotDisturb
       ? yield* adjustForDoNotDisturb(
           scheduledAt,
@@ -95,33 +58,44 @@ export const scheduleCareReminder = (
         )
       : scheduledAt
 
-    // Remove any existing pending reminder for this plant and type
-    yield* notificationRepo.deletePendingByPlantAndType(plantId, type)
-
-    // Create new reminder — content is resolved by the notification-scheduler
-    // at delivery time, which groups all plants per user into a single push.
     yield* scheduleDeferredCareNotification({
-      type,
+      type: params.type,
       scheduledAt: finalScheduledAt,
       userId: recipientId,
-      plantId,
+      plantId: params.plant.id,
     })
   })
 
 /**
- * Schedule multiple care reminders in parallel.
- * Useful for batch operations like watering multiple plants.
- *
- * @param reminders - Array of reminder parameters
- * @returns Effect that resolves when all reminders are scheduled
+ * Replace the plant's pending reminder of this type with one row per
+ * recipient, each at that recipient's preferred time and under their own
+ * do-not-disturb, vacation and reminder switch. The content is built at
+ * delivery, where the notification-scheduler groups a user's plants into one
+ * push.
  */
+export const scheduleCareReminder = (
+  params: ScheduleCareReminderParams
+): Effect.Effect<void, SqlError, ScheduleContext> =>
+  Effect.gen(function* () {
+    if (!params.plant.remindersEnabled) {
+      return
+    }
+    const recipients = yield* reminderRecipients(params.plant)
+    const notificationRepo = yield* NotificationRepository
+    yield* notificationRepo.deletePendingByPlantAndType(
+      params.plant.id,
+      params.type
+    )
+    yield* Effect.forEach(
+      recipients,
+      (recipientId) => scheduleForRecipient(recipientId, params),
+      { discard: true }
+    )
+  })
+
 export const scheduleCareReminders = (
   reminders: readonly ScheduleCareReminderParams[]
-): Effect.Effect<
-  void,
-  SqlError,
-  NotificationRepository | UserRepository | DelegationRepository
-> =>
+): Effect.Effect<void, SqlError, ScheduleContext> =>
   Effect.forEach(reminders, (reminder) => scheduleCareReminder(reminder), {
     concurrency: 'unbounded',
   })

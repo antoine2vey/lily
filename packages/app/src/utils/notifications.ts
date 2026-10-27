@@ -182,7 +182,9 @@ export async function reconcileLiveActivityTokens(
     // budget, so we can't rely on it.
     let hasRemainingTasks = true
     try {
-      const tasks = await apiEffectRunner('careTasks', 'getCareTasks', {})
+      const tasks = await apiEffectRunner('careTasks', 'getCareTasks', {
+        query: {},
+      })
       hasRemainingTasks = tasks.overdue.length > 0 || tasks.today.length > 0
     } catch (err) {
       console.warn('Failed to fetch care tasks during reconcile', err)

@@ -1,3 +1,4 @@
+import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import {
@@ -40,6 +41,7 @@ const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
     UserRepositoryLive,
     CareScheduleRepositoryLive,
     DelegationRepositoryLive,
+    CanopyRepositoryLive,
     notifications
   ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 

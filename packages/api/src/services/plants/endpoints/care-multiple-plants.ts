@@ -4,11 +4,11 @@ import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.rep
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { UserRepository } from '@lily/api/repositories/user.repository'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   caller,
   canPerform,
@@ -44,19 +44,10 @@ export const careMultiplePlants = (
     const sql = yield* SqlClient.SqlClient
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
-    const userRepo = yield* UserRepository
-    const { id: currentUserId } = yield* CurrentUser
 
     if (request.plantIds.length === 0) {
       return []
     }
-
-    const currentUser = yield* userRepo.findById(currentUserId)
-    const timezone = pipe(
-      Option.fromNullishOr(currentUser),
-      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrElse(() => 'UTC')
-    )
 
     return yield* sql.withTransaction(
       Effect.gen(function* () {
@@ -92,6 +83,7 @@ export const careMultiplePlants = (
 
               // Safe: hasAccess is false when plantOption is None (onNone branch)
               const plant = Option.getOrThrow(plantOption)
+              const { timezone } = yield* careContext(plant.owner)
 
               // Get frequency from schedule
               const schedule = yield* scheduleRepo.findByPlantAndType(
@@ -135,11 +127,9 @@ export const careMultiplePlants = (
               // Schedule reminder
               if (nextCareAt) {
                 yield* scheduleCareReminder({
-                  plantId,
-                  userId: yield* interimSettingsUserFor(plant.owner),
+                  plant,
                   type: `${request.careType}_reminder` as const,
                   scheduledDate: nextCareAt,
-                  remindersEnabled: plant.remindersEnabled,
                 })
               }
 

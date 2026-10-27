@@ -28,7 +28,9 @@ const taskDueDateOrder: Order.Order<CareTask> = Order.mapInput(
 /**
  * Get care tasks grouped by overdue, today, upcoming (rolling 7-day window)
  */
-export const findCareTasks = (): Effect.Effect<
+export const findCareTasks = (
+  includeCanopy: boolean
+): Effect.Effect<
   CareTasksResponse,
   SqlError,
   | CareLogRepository
@@ -58,7 +60,11 @@ export const findCareTasks = (): Effect.Effect<
     const cutoffDate = DateTime.toDateUtc(cutoffDt)
 
     // Get pending schedules with plant info from schedule table
-    const schedules = yield* scheduleRepo.findPendingByUser(userId, cutoffDate)
+    const schedules = yield* scheduleRepo.findPendingByUser(
+      userId,
+      cutoffDate,
+      includeCanopy
+    )
 
     // Generate tasks from schedules
     const tasks = Array.filterMap(
@@ -121,7 +127,11 @@ export const findCareTasks = (): Effect.Effect<
     )
 
     // Count care actions completed today
-    const completedToday = yield* careLogRepo.countTodayByUser(userId, timezone)
+    const completedToday = yield* careLogRepo.countTodayByUser(
+      userId,
+      timezone,
+      includeCanopy
+    )
 
     // Sort each group by due date (earliest first)
     return {

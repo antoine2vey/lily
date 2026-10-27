@@ -2,6 +2,7 @@ import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -81,6 +82,7 @@ describe('vacation-scheduler', () => {
             }),
             createMockNotificationRepository(notifications),
             createMockCareScheduleRepository({}),
+            createMockCanopyRepository(),
             createMockDelegationRepository({})
           )
         )
@@ -118,6 +120,7 @@ describe('vacation-scheduler', () => {
             }),
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({ schedules, plants: [plant] }),
+            createMockCanopyRepository(),
             createMockDelegationRepository({})
           )
         )
@@ -167,6 +170,7 @@ describe('vacation-scheduler', () => {
             createMockUserRepository(users),
             createMockNotificationRepository(notifications),
             createMockCareScheduleRepository({}),
+            createMockCanopyRepository(),
             createMockDelegationRepository({})
           )
         )
@@ -208,6 +212,7 @@ describe('vacation-scheduler', () => {
               schedules,
               plants: [plant],
             }),
+            createMockCanopyRepository(),
             createMockDelegationRepository({})
           )
         )
@@ -239,6 +244,7 @@ describe('vacation-scheduler', () => {
             createMockUserRepository(users),
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({}),
+            createMockCanopyRepository(),
             createMockDelegationRepository({})
           )
         )

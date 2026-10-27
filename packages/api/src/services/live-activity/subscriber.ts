@@ -1,13 +1,15 @@
 import { type AppEvent, EventBus } from '@lily/api/events'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
+import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import type { CareType } from '@lily/shared'
 import {
   type IPushService,
   type LiveActivityPushMessage,
   PushService,
 } from '@lily/shared/server'
-import { Effect, Match, Option, Queue } from 'effect'
+import { Array, Effect, Match, Option, Queue } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Send a Live Activity push and swallow all three push-error tags with
@@ -98,18 +100,41 @@ const refreshLiveActivity = (params: {
     )
   })
 
+// Every card that lists the plant refreshes: the actor's, and each reminder
+// recipient's (the caretaker, or every unmuted Canopy member).
+const refreshCardsFor = (params: {
+  actorId: string
+  plantId: string
+  exclude?: { plantId: string; careType: CareType }
+}) =>
+  Effect.gen(function* () {
+    const plantRepo = yield* PlantRepository
+    const plant = yield* plantRepo.findById(params.plantId)
+    const recipients = plant === null ? [] : yield* reminderRecipients(plant)
+    yield* Effect.forEach(
+      Array.dedupe([params.actorId, ...recipients]),
+      (userId) =>
+        refreshLiveActivity({
+          userId,
+          ...(params.exclude ? { exclude: params.exclude } : {}),
+        }),
+      { discard: true }
+    )
+  })
+
 // CareLogCreated and PlantLifecycleChanged are load-bearing for LA; other
 // variants are no-ops.
 export const processEvent = (event: AppEvent) =>
   Match.value(event).pipe(
     Match.tag('CareLogCreated', (e) =>
-      refreshLiveActivity({
-        userId: e.userId,
+      refreshCardsFor({
+        actorId: e.userId,
+        plantId: e.plantId,
         exclude: { plantId: e.plantId, careType: e.type },
       })
     ),
     Match.tag('PlantLifecycleChanged', (e) =>
-      refreshLiveActivity({ userId: e.userId })
+      refreshCardsFor({ actorId: e.userId, plantId: e.plantId })
     ),
     Match.orElse(() => Effect.void)
   )

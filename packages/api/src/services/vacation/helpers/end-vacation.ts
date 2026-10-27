@@ -1,3 +1,4 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import {
   CareScheduleRepository,
   type OwnerScheduleRow,
@@ -46,6 +47,7 @@ export const endVacation = (
   | CareScheduleRepository
   | DelegationRepository
   | NotificationRepository
+  | CanopyRepository
   | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
@@ -101,9 +103,10 @@ const endVacationInTransaction = (params: EndVacationParams) =>
 
     const rows = yield* scheduleRepo.findByOwnerWithPlant(user.id)
 
-    // One caretaker lookup per plant, not per schedule row.
+    // One caretaker lookup per personal plant, not per schedule row.
     const plantIds = pipe(
-      Array.map(rows, (row) => row.plant.id),
+      Array.filter(rows, (row) => row.plant.owner._tag === 'User'),
+      Array.map((row) => row.plant.id),
       Array.dedupe
     )
     const caretakerEntries = yield* Effect.forEach(plantIds, (plantId) =>
@@ -123,7 +126,11 @@ const endVacationInTransaction = (params: EndVacationParams) =>
     const shifted = yield* Effect.forEach(rows, (row) =>
       Effect.gen(function* () {
         const nextCareAt = row.schedule.nextCareAt
-        if (nextCareAt === null || isDelegated(row.plant.id)) {
+        if (
+          nextCareAt === null ||
+          row.plant.owner._tag === 'Canopy' ||
+          isDelegated(row.plant.id)
+        ) {
           return row
         }
         const nextMs = DateTime.toEpochMillis(DateTime.makeUnsafe(nextCareAt))
@@ -162,12 +169,10 @@ const endVacationInTransaction = (params: EndVacationParams) =>
       ),
       (row) =>
         scheduleCareReminder({
-          plantId: row.plant.id,
-          userId: row.plant.userId,
+          plant: row.plant,
           type: `${row.schedule.careType}_reminder` as const,
           // biome-ignore lint/style/noNonNullAssertion: filtered non-null above
           scheduledDate: row.schedule.nextCareAt!,
-          remindersEnabled: row.plant.remindersEnabled,
         })
     )
     return claimed
