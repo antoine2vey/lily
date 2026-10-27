@@ -19,8 +19,6 @@ export const memberCanopyIdOf = (db: Db, userId: string) =>
       )
   )
 
-// Own plants, plus the unmuted plants of the Canopy the user is in. The
-// Canopy id is a literal so the planner can OR two indexed lookups.
 export const caredForBy = (db: Db, userId: string, canopyId: string | null) =>
   canopyId === null
     ? eq(plants.userId, userId)

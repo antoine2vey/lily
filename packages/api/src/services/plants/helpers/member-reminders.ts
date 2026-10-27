@@ -7,11 +7,20 @@ import {
 import { Array, DateTime, Effect, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Give one member their own rows for the Canopy plants they can now hear
- * about (after joining, or unmuting one plant), without touching anyone
- * else's rows. Past due dates stay with the overdue digest.
- */
+const isUpcomingCanopySchedule =
+  (nowMs: number) =>
+  <
+    R extends {
+      plant: { owner: { _tag: string } }
+      schedule: { nextCareAt: Date | null }
+    },
+  >(
+    row: R
+  ): row is R & { schedule: { nextCareAt: Date } } =>
+    row.plant.owner._tag === 'Canopy' &&
+    row.schedule.nextCareAt !== null &&
+    row.schedule.nextCareAt.getTime() > nowMs
+
 export const rebuildMemberReminders = (
   userId: string,
   plantIds?: ReadonlyArray<string>
@@ -22,12 +31,10 @@ export const rebuildMemberReminders = (
     const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
     const rows = pipe(
       yield* scheduleRepo.findByOwnerWithPlant(userId),
+      Array.filter(isUpcomingCanopySchedule(nowMs)),
       Array.filter(
-        (row): row is typeof row & { schedule: { nextCareAt: Date } } =>
-          row.plant.owner._tag === 'Canopy' &&
-          (plantIds === undefined || Array.contains(plantIds, row.plant.id)) &&
-          row.schedule.nextCareAt !== null &&
-          row.schedule.nextCareAt.getTime() > nowMs
+        (row) =>
+          plantIds === undefined || Array.contains(plantIds, row.plant.id)
       )
     )
     yield* Effect.forEach(
