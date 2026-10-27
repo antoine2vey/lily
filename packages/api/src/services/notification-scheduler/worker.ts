@@ -1,4 +1,5 @@
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -295,6 +296,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
     const deviceTokenRepo = yield* DeviceTokenRepository
     const notificationRepo = yield* NotificationRepository
     const plantRepo = yield* PlantRepository
+    const canopyRepo = yield* CanopyRepository
 
     const claimedIds = yield* notificationRepo.claimForDelivery(
       notificationIds,
@@ -315,17 +317,31 @@ export const processMessage = Effect.fn('notification-worker.process')(
     // resolved it must not be nagged about. Only the all-dead case is
     // dropped; a message that still names a living plant goes out as built
     // (its text was resolved seconds earlier and cannot be rewritten here).
+    // The same window covers a Canopy plant whose Canopy the user has since
+    // left: care paths insert rows without the Canopy lock, so membership is
+    // checked here, at delivery.
     if (
       TOPIC_CATEGORY[message.topic] === 'care' &&
       Array.isReadonlyArrayNonEmpty(message.payload.plantIds)
     ) {
       const plants = yield* plantRepo.findByIds(message.payload.plantIds)
-      const anyLiving = Array.some(plants, (p) => p.diedAt === null)
-      if (!anyLiving) {
-        yield* Effect.log('Dropping care push - every plant is dead', {
-          notificationIds: claimedIds,
-          plantIds: message.payload.plantIds,
-        })
+      const membership = yield* canopyRepo.findMembershipByUser(
+        message.payload.userId
+      )
+      const stillTheirs = Array.filter(
+        plants,
+        (p) =>
+          p.diedAt === null &&
+          (p.owner._tag === 'User' || p.owner.canopyId === membership?.canopyId)
+      )
+      if (Array.isReadonlyArrayEmpty(stillTheirs)) {
+        yield* Effect.log(
+          'Dropping care push - no plant is living and still theirs',
+          {
+            notificationIds: claimedIds,
+            plantIds: message.payload.plantIds,
+          }
+        )
         yield* notificationRepo.markManyAsSent(claimedIds)
         return
       }
