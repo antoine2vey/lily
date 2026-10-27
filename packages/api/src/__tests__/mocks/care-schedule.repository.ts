@@ -7,11 +7,11 @@ import {
   type ScheduleWithPlant,
   type UpsertScheduleData,
 } from '@lily/api/repositories/care-schedule.repository'
-import type { plants } from '@lily/db/schema'
+import type { PersonalPlant } from '@lily/api/repositories/plant.repository'
 import { earliestOverdueDate } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
-type PlantRecord = typeof plants.$inferSelect
+type PlantRecord = PersonalPlant
 
 interface MockRoom {
   id: string

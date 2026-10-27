@@ -67,6 +67,8 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       deathCause: null,
       deathNote: null,
       userId: 'user-1',
+      canopyId: null,
+      createdByUserId: 'user-1',
     },
     {
       id: 'plant-2',
@@ -97,6 +99,8 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       deathCause: null,
       deathNote: null,
       userId: 'user-1',
+      canopyId: null,
+      createdByUserId: 'user-1',
     },
     {
       id: 'plant-3',
@@ -132,6 +136,8 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       deathCause: null,
       deathNote: null,
       userId: 'user-1',
+      canopyId: null,
+      createdByUserId: 'user-1',
     },
     {
       id: 'plant-4',
@@ -162,6 +168,8 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       deathCause: null,
       deathNote: null,
       userId: 'user-1',
+      canopyId: null,
+      createdByUserId: 'user-1',
     },
     {
       id: 'plant-5',
@@ -192,6 +200,8 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       deathCause: null,
       deathNote: null,
       userId: 'user-2',
+      canopyId: null,
+      createdByUserId: 'user-2',
     },
   ]
 }
@@ -230,6 +240,8 @@ const createMockPlantsNoCare = (referenceDate: Date): TestPlant[] => {
       deathCause: null,
       deathNote: null,
       userId: 'user-1',
+      canopyId: null,
+      createdByUserId: 'user-1',
     },
   ]
 }
@@ -472,6 +484,8 @@ describe('findCareTasks', () => {
           deathCause: null,
           deathNote: null,
           userId: 'user-1',
+          canopyId: null,
+          createdByUserId: 'user-1',
         },
         {
           id: 'tz-plant-2',
@@ -502,6 +516,8 @@ describe('findCareTasks', () => {
           deathCause: null,
           deathNote: null,
           userId: 'user-1',
+          canopyId: null,
+          createdByUserId: 'user-1',
         },
         {
           id: 'tz-plant-3',
@@ -532,6 +548,8 @@ describe('findCareTasks', () => {
           deathCause: null,
           deathNote: null,
           userId: 'user-1',
+          canopyId: null,
+          createdByUserId: 'user-1',
         },
       ]
 
@@ -626,6 +644,8 @@ describe('findCareTasks', () => {
           deathCause: null,
           deathNote: null,
           userId: 'user-1',
+          canopyId: null,
+          createdByUserId: 'user-1',
         },
       ]
 
@@ -678,6 +698,8 @@ describe('findCareTasks', () => {
           deathCause: null,
           deathNote: null,
           userId: 'user-1',
+          canopyId: null,
+          createdByUserId: 'user-1',
         },
       ]
 
@@ -735,6 +757,8 @@ describe('findCareTasks', () => {
           deathCause: null,
           deathNote: null,
           userId: 'user-null-tz',
+          canopyId: null,
+          createdByUserId: 'user-null-tz',
         },
       ]
 
@@ -807,6 +831,8 @@ describe('findCareTasks', () => {
           deathCause: null,
           deathNote: null,
           userId: 'user-1',
+          canopyId: null,
+          createdByUserId: 'user-1',
         },
       ]
 
@@ -932,6 +958,8 @@ describe('findCareTasks', () => {
           deathCause: null,
           deathNote: null,
           userId: 'user-1',
+          canopyId: null,
+          createdByUserId: 'user-1',
         },
       ]
 
@@ -989,6 +1017,8 @@ describe('findCareTasks', () => {
           deathCause: null,
           deathNote: null,
           userId: 'user-paris',
+          canopyId: null,
+          createdByUserId: 'user-paris',
         },
       ]
 

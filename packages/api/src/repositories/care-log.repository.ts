@@ -23,6 +23,7 @@ export interface CreateCareLogData {
   date?: Date | undefined
   photoUrl?: string | undefined
   plantId: string
+  performedByUserId: string
 }
 
 export interface UpdateCareLogData {
@@ -210,6 +211,7 @@ export const CareLogRepositoryLive = Layer.effect(
           ),
           photoUrl: Option.getOrNull(Option.fromNullishOr(d.photoUrl)),
           plantId: d.plantId,
+          performedByUserId: d.performedByUserId,
         }))
         const rows = yield* db.insert(careLogs).values(values).returning()
         return Array.map(rows, mapToCareLog)
@@ -229,6 +231,7 @@ export const CareLogRepositoryLive = Layer.effect(
             ),
             photoUrl: Option.getOrNull(Option.fromNullishOr(data.photoUrl)),
             plantId: data.plantId,
+            performedByUserId: data.performedByUserId,
           })
           .returning()
         return row ? mapToCareLog(row) : null

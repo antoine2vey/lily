@@ -1,4 +1,5 @@
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
+import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plantCareSchedules, plants, rooms } from '@lily/db/schema'
 import {
@@ -188,7 +189,10 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .orderBy(asc(plants.userId))
 
           // Group by plant first to deduplicate (one plant can have multiple overdue schedules)
-          const byPlant = Array.groupBy(rows, (r) => r.plantId)
+          const byPlant = Array.groupBy(
+            Array.filter(rows, hasUserOwner),
+            (r) => r.plantId
+          )
 
           const mapped = Array.map(
             Array.fromRecord(byPlant),
@@ -215,18 +219,21 @@ export const CareScheduleRepositoryLive = Layer.effect(
       findByOwnerWithPlant: Effect.fn(
         'CareScheduleRepository.findByOwnerWithPlant'
       )(function* (userId: string) {
-        return yield* db
+        const rows = yield* db
           .select({
             schedule: plantCareSchedules,
             plant: {
               id: plants.id,
-              userId: plants.userId,
               remindersEnabled: plants.remindersEnabled,
             },
           })
           .from(plantCareSchedules)
           .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
           .where(and(eq(plants.userId, userId), isLivingPlant()))
+        return Array.map(rows, (row) => ({
+          schedule: row.schedule,
+          plant: { ...row.plant, userId },
+        }))
       }),
 
       upsert: Effect.fn('CareScheduleRepository.upsert')(function* (

@@ -3,6 +3,10 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import {
+  hasUserOwner,
+  userOwnedOrNull,
+} from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careDelegations,
@@ -86,7 +90,9 @@ export type PlantCareScheduleRef = {
   nextCareAt: Date | null
 }
 
-export type PlantWithRoom = typeof plants.$inferSelect & {
+export type PersonalPlant = typeof plants.$inferSelect & { userId: string }
+
+export type PlantWithRoom = PersonalPlant & {
   room: RoomRef
   ownership: PlantOwnership
   ownerName: string | null
@@ -149,27 +155,23 @@ export interface IPlantRepository {
   ) => Effect.Effect<FindPlantsResult, SqlError>
   readonly findByIds: (
     ids: readonly string[]
-  ) => Effect.Effect<Array<typeof plants.$inferSelect>, SqlError>
+  ) => Effect.Effect<Array<PersonalPlant>, SqlError>
   readonly findById: (
     id: string
   ) => Effect.Effect<PlantWithRoom | null, SqlError>
   readonly create: (
     data: CreatePlantData
-  ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
+  ) => Effect.Effect<PersonalPlant | null, SqlError>
   readonly update: (
     id: string,
     data: UpdatePlantData
-  ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
-  readonly delete: (
-    id: string
-  ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
+  ) => Effect.Effect<PersonalPlant | null, SqlError>
+  readonly delete: (id: string) => Effect.Effect<PersonalPlant | null, SqlError>
   readonly markDead: (
     id: string,
     data: MarkPlantDeadData
-  ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
-  readonly revive: (
-    id: string
-  ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
+  ) => Effect.Effect<PersonalPlant | null, SqlError>
+  readonly revive: (id: string) => Effect.Effect<PersonalPlant | null, SqlError>
   readonly findPhotos: (
     params: FindPhotosParams
   ) => Effect.Effect<FindPhotosResult, SqlError>
@@ -263,10 +265,14 @@ function buildPlantOrderBy(sort: FindPlantsParams['sort']) {
   return sort === 'name' ? asc(plants.name) : desc(plants.dateAdded)
 }
 
+const hasPersonalPlant = <R extends { plant: typeof plants.$inferSelect }>(
+  row: R
+): row is R & { plant: PersonalPlant } => hasUserOwner(row.plant)
+
 // Map a DB row to an owned PlantWithRoom
 function toOwnedPlant(
   row: {
-    plant: typeof plants.$inferSelect
+    plant: PersonalPlant
     room: RoomRef
   },
   schedules: PlantCareScheduleRef[] = []
@@ -283,7 +289,7 @@ function toOwnedPlant(
 // Map a DB row to a caretaking PlantWithRoom
 function toCaretakingPlant(
   row: {
-    plant: typeof plants.$inferSelect
+    plant: PersonalPlant
     room: RoomRef
     ownerName: string | null
   },
@@ -352,12 +358,15 @@ export const PlantRepositoryLive = Layer.effect(
           .where(ownedConditions)
         const ownedTotal = extractCount(ownedCountResult)
 
-        const ownedRows = yield* db
-          .select({ plant: plants, room: roomSelect })
-          .from(plants)
-          .leftJoin(rooms, eq(plants.roomId, rooms.id))
-          .where(ownedConditions)
-          .orderBy(orderBy)
+        const ownedRows = pipe(
+          yield* db
+            .select({ plant: plants, room: roomSelect })
+            .from(plants)
+            .leftJoin(rooms, eq(plants.roomId, rooms.id))
+            .where(ownedConditions)
+            .orderBy(orderBy),
+          Array.filter(hasPersonalPlant)
+        )
 
         const ownedPlantIds = Array.map(ownedRows, (r) => r.plant.id)
         const ownedScheduleMap = yield* fetchSchedulesForPlants(ownedPlantIds)
@@ -398,22 +407,25 @@ export const PlantRepositoryLive = Layer.effect(
           .where(caretakingConditions)
         const caretakingTotal = extractCount(caretakingCountResult)
 
-        const caretakingRows = yield* db
-          .select({
-            plant: plants,
-            room: roomSelect,
-            ownerName: users.name,
-          })
-          .from(careDelegations)
-          .innerJoin(
-            delegationPlants,
-            eq(careDelegations.id, delegationPlants.delegationId)
-          )
-          .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
-          .leftJoin(rooms, eq(plants.roomId, rooms.id))
-          .innerJoin(users, eq(careDelegations.ownerId, users.id))
-          .where(caretakingConditions)
-          .orderBy(orderBy)
+        const caretakingRows = pipe(
+          yield* db
+            .select({
+              plant: plants,
+              room: roomSelect,
+              ownerName: users.name,
+            })
+            .from(careDelegations)
+            .innerJoin(
+              delegationPlants,
+              eq(careDelegations.id, delegationPlants.delegationId)
+            )
+            .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
+            .leftJoin(rooms, eq(plants.roomId, rooms.id))
+            .innerJoin(users, eq(careDelegations.ownerId, users.id))
+            .where(caretakingConditions)
+            .orderBy(orderBy),
+          Array.filter(hasPersonalPlant)
+        )
 
         const caretakingPlantIds = Array.map(caretakingRows, (r) => r.plant.id)
         const caretakingScheduleMap =
@@ -457,7 +469,7 @@ export const PlantRepositoryLive = Layer.effect(
           .select()
           .from(plants)
           .where(inArray(plants.id, [...ids]))
-        return items
+        return Array.filter(items, hasUserOwner)
       }),
 
       findById: Effect.fn('PlantRepository.findById')(function* (id: string) {
@@ -467,7 +479,7 @@ export const PlantRepositoryLive = Layer.effect(
           .leftJoin(rooms, eq(plants.roomId, rooms.id))
           .where(eq(plants.id, id))
 
-        if (!row) return null
+        if (!row || !hasPersonalPlant(row)) return null
 
         const scheduleRows = yield* db
           .select()
@@ -489,8 +501,11 @@ export const PlantRepositoryLive = Layer.effect(
       create: Effect.fn('PlantRepository.create')(function* (
         data: CreatePlantData
       ) {
-        const [plant] = yield* db.insert(plants).values(data).returning()
-        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
+        const [plant] = yield* db
+          .insert(plants)
+          .values({ ...data, createdByUserId: data.userId })
+          .returning()
+        return userOwnedOrNull(plant)
       }),
 
       update: Effect.fn('PlantRepository.update')(function* (
@@ -502,7 +517,7 @@ export const PlantRepositoryLive = Layer.effect(
           .set({ ...data, updatedAt: nowAsDate() })
           .where(eq(plants.id, id))
           .returning()
-        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
+        return userOwnedOrNull(plant)
       }),
 
       delete: Effect.fn('PlantRepository.delete')(function* (id: string) {
@@ -510,7 +525,7 @@ export const PlantRepositoryLive = Layer.effect(
           .delete(plants)
           .where(eq(plants.id, id))
           .returning()
-        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
+        return userOwnedOrNull(plant)
       }),
 
       markDead: Effect.fn('PlantRepository.markDead')(function* (
@@ -526,7 +541,7 @@ export const PlantRepositoryLive = Layer.effect(
           })
           .where(eq(plants.id, id))
           .returning()
-        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
+        return userOwnedOrNull(plant)
       }),
 
       revive: Effect.fn('PlantRepository.revive')(function* (id: string) {
@@ -535,7 +550,7 @@ export const PlantRepositoryLive = Layer.effect(
           .set({ diedAt: null, deathCause: null, deathNote: null })
           .where(eq(plants.id, id))
           .returning()
-        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
+        return userOwnedOrNull(plant)
       }),
 
       findPhotos: Effect.fn('PlantRepository.findPhotos')(function* (

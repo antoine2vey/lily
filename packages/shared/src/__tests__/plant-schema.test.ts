@@ -100,6 +100,56 @@ describe('Plant Schemas', () => {
       expect(result.category).toBeNull()
     })
 
+    it('decodes each ownership, with its canopy only when owned by a Canopy', () => {
+      const canopy = { id: 'canopy-1', name: 'Home' }
+
+      expect(
+        Schema.decodeSync(Plant)({ ...validPlant, ownership: 'owned' })
+      ).not.toHaveProperty('canopy')
+      expect(
+        Schema.decodeSync(Plant)({ ...validPlant, ownership: 'caretaking' })
+      ).not.toHaveProperty('canopy')
+      expect(
+        Schema.decodeSync(Plant)({ ...validPlant, ownership: 'canopy', canopy })
+          .canopy
+      ).toEqual(canopy)
+    })
+
+    it('rejects a Canopy plant without its canopy', () => {
+      expect(() =>
+        Schema.decodeSync(Plant)({ ...validPlant, ownership: 'canopy' })
+      ).toThrow('a canopy plant carries its canopy')
+      expect(() =>
+        Schema.decodeSync(PlantDetail)({
+          ...validPlant,
+          ownership: 'canopy',
+          photos: [],
+        })
+      ).toThrow('a canopy plant carries its canopy')
+    })
+
+    it('rejects a canopy on a plant that is not owned by a Canopy', () => {
+      expect(() =>
+        Schema.decodeSync(Plant)({
+          ...validPlant,
+          ownership: 'owned',
+          canopy: { id: 'canopy-1', name: 'Home' },
+        })
+      ).toThrow('a canopy plant carries its canopy')
+    })
+
+    it('decodes the creator, including a deleted one', () => {
+      const creator = { id: 'user-456', name: 'Sam' }
+
+      expect(
+        Schema.decodeSync(Plant)({ ...validPlant, createdBy: creator })
+          .createdBy
+      ).toEqual(creator)
+      expect(
+        Schema.decodeSync(Plant)({ ...validPlant, createdBy: null }).createdBy
+      ).toBeNull()
+    })
+
     it('should reject missing required fields', () => {
       const { name: _name, ...plantWithoutName } = validPlant
 

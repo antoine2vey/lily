@@ -46,6 +46,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 7,
@@ -81,6 +83,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 14,
@@ -111,6 +115,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 10,
@@ -145,6 +151,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 30,
@@ -175,6 +183,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-2',
+    canopyId: null,
+    createdByUserId: 'user-2',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 7,
@@ -209,6 +219,8 @@ export const mockPlantsNoCare: TestPlant[] = [
     deathCause: null,
     deathNote: null,
     userId: 'user-1',
+    canopyId: null,
+    createdByUserId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
         frequencyDays: 7,

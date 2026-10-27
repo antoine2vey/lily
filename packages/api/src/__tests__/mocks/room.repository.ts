@@ -1,11 +1,11 @@
 import {
   type IRoomRepository,
+  type PersonalRoom,
   RoomRepository,
 } from '@lily/api/repositories/room.repository'
-import type { rooms } from '@lily/db/schema'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
-type RoomRecord = typeof rooms.$inferSelect
+type RoomRecord = PersonalRoom
 
 export const createMockRoomRepository = (
   roomsData: RoomRecord[]
@@ -39,6 +39,7 @@ export const createMockRoomRepository = (
         isOutdoor: data.isOutdoor ?? false,
         order: data.order,
         userId: data.userId,
+        canopyId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }

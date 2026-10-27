@@ -13,6 +13,7 @@ import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 import { isLivingPlant } from './helpers/living-plant'
 import { unwrapPgRows } from './helpers/pagination'
+import { hasUserOwner } from './helpers/user-owner'
 
 export interface IAchievementRepository {
   readonly findByUserId: (
@@ -297,7 +298,11 @@ export const AchievementRepositoryLive = Layer.effect(
         const result = yield* db
           .selectDistinct({ userId: plants.userId })
           .from(plants)
-        return Array.map(result, (r) => r.userId)
+        return pipe(
+          result,
+          Array.filter(hasUserOwner),
+          Array.map((r) => r.userId)
+        )
       }),
 
       getBatchCareStreaks: Effect.fn(
