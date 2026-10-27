@@ -7,6 +7,10 @@ import {
   CareScheduleRepositoryLive,
   type OverdueRecipientPlant,
 } from '@lily/api/repositories/care-schedule.repository'
+import {
+  NotificationRepository,
+  NotificationRepositoryLive,
+} from '@lily/api/repositories/notification.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
@@ -27,11 +31,16 @@ const { Pool } = pg
 
 const RepositoriesLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
-  CanopyRepositoryLive
+  CanopyRepositoryLive,
+  NotificationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const run = <A, E>(
-  effect: Effect.Effect<A, E, CareScheduleRepository | CanopyRepository>
+  effect: Effect.Effect<
+    A,
+    E,
+    CareScheduleRepository | CanopyRepository | NotificationRepository
+  >
 ) => Effect.runPromise(effect.pipe(Effect.provide(RepositoriesLive)))
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
@@ -193,6 +202,58 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       expect(Arr.map(rows, (r) => [r.plant.id, r.plant.owner._tag])).toEqual([
         [shared, 'Canopy'],
+      ])
+    })
+
+    it('drops a leaver pending and queued rows for Canopy plants, and nothing else', async () => {
+      await db.execute(
+        sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      const row = (
+        userId: string,
+        plantId: string,
+        status: 'pending' | 'queued' | 'sent'
+      ) => ({
+        type: 'watering_reminder',
+        scheduledAt: new Date(),
+        userId,
+        plantId,
+        status,
+      })
+      await db
+        .insert(schema.notifications)
+        .values([
+          row(lily, shared, 'pending'),
+          row(lily, shared, 'queued'),
+          row(lily, shared, 'sent'),
+          row(lily, personal, 'pending'),
+          row(alex, shared, 'pending'),
+        ])
+      await run(
+        Effect.flatMap(NotificationRepository, (repo) =>
+          repo.deleteUndeliveredForMemberOnCanopy(lily, canopyId)
+        )
+      )
+      const left = await db
+        .select({
+          userId: schema.notifications.userId,
+          plantId: schema.notifications.plantId,
+          status: schema.notifications.status,
+        })
+        .from(schema.notifications)
+      expect(
+        Arr.sort(
+          Arr.map(
+            left,
+            (n) =>
+              `${n.userId === lily ? 'lily' : 'alex'}:${n.plantId === shared ? 'shared' : 'personal'}:${n.status}`
+          ),
+          Order.String
+        )
+      ).toEqual([
+        'alex:shared:pending',
+        'lily:personal:pending',
+        'lily:shared:sent',
       ])
     })
 

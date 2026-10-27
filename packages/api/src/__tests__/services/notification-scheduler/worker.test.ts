@@ -19,6 +19,7 @@ import {
   createMockDeadLetterRepository,
   createMockDeadLetterRepositoryWithCapture,
 } from '@lily/api/__tests__/mocks/dead-letter.repository'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -67,6 +68,7 @@ const LaMocksLive = Layer.mergeAll(
   createMockCareScheduleRepository(),
   createMockCareLogRepository([]),
   createMockUserRepository([]),
+  createMockDelegationRepository(),
   createMockCanopyRepository([
     createTestMembership({
       userId: 'user-1',
@@ -220,7 +222,7 @@ describe('Notification Worker', () => {
             title: 'Test notification',
             body: 'Test body',
             notificationIds: ['notification-1'],
-            plantIds: ['plant-1'],
+            plantIds: [],
           },
         }),
         {
@@ -263,7 +265,7 @@ describe('Notification Worker', () => {
             title: 'Test notification',
             body: 'Test body',
             notificationIds: ['notification-1'],
-            plantIds: ['plant-1'],
+            plantIds: [],
           },
         }),
         {
@@ -871,7 +873,8 @@ describe('Notification Worker', () => {
           createTestUser({ id: 'user-1', timezone: 'UTC' }),
         ]),
         createMockPlantRepository({ plants: [plant] }),
-        createMockCanopyRepository()
+        createMockCanopyRepository(),
+        createMockDelegationRepository()
       )
       const message = createTestQueueMessage({ topic: 'watering_reminder' })
       for (let i = 0; i < runs; i++) {
@@ -1200,7 +1203,8 @@ describe('Notification Worker', () => {
           createTestUser({ id: 'user-1', timezone: 'UTC' }),
         ]),
         createMockPlantRepository({ plants: [plant] }),
-        createMockCanopyRepository()
+        createMockCanopyRepository(),
+        createMockDelegationRepository()
       )
       const run = (id: string, notificationId: string) =>
         Effect.runPromise(

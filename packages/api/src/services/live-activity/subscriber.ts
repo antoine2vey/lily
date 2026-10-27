@@ -109,8 +109,10 @@ const refreshCardsFor = (params: {
     const plantRepo = yield* PlantRepository
     const plant = yield* plantRepo.findById(params.plantId)
     const recipients = plant === null ? [] : yield* reminderRecipients(plant)
+    const owner =
+      plant !== null && plant.owner._tag === 'User' ? [plant.owner.userId] : []
     yield* Effect.forEach(
-      Array.dedupe([params.actorId, ...recipients]),
+      Array.dedupe([params.actorId, ...owner, ...recipients]),
       (userId) =>
         refreshLiveActivity({
           userId,

@@ -1,6 +1,10 @@
-import { caredForBy } from '@lily/api/repositories/helpers/care-visibility'
+import { careScopeOf } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
-import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
+import {
+  ownerOf,
+  withCanopyOwner,
+  withUserOwner,
+} from '@lily/api/repositories/helpers/plant-owner'
 import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -11,7 +15,6 @@ import {
   rooms,
 } from '@lily/db/schema'
 import {
-  type CanopyId,
   type CareType,
   earliestOverdueDate,
   nowAsDate,
@@ -143,6 +146,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
 
       findPendingByUser: Effect.fn('CareScheduleRepository.findPendingByUser')(
         function* (userId: string, cutoff: Date, includeCanopy: boolean) {
+          const scope = yield* careScopeOf(db, userId, includeCanopy)
           const rows = yield* db
             .select({
               schedule: plantCareSchedules,
@@ -158,7 +162,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .where(
               and(
-                caredForBy(db, userId, includeCanopy),
+                scope,
                 isLivingPlant(),
                 isNotNull(plantCareSchedules.nextCareAt),
                 lte(plantCareSchedules.nextCareAt, cutoff)
@@ -224,16 +228,12 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .orderBy(asc(canopyMembers.userId))
 
           const addressed = Array.appendAll(
-            Array.map(Array.filter(personal, hasUserOwner), (r) => ({
-              ...r,
-              owner: { _tag: 'User', userId: r.userId } as PlantOwner,
-            })),
+            Array.map(Array.filter(personal, hasUserOwner), (r) =>
+              withUserOwner({ ...r, canopyId: null })
+            ),
             Array.map(shared, (r) => ({
-              ...r,
-              owner: {
-                _tag: 'Canopy',
-                canopyId: r.canopyId as CanopyId,
-              } as PlantOwner,
+              ...withCanopyOwner({ ...r, userId: null }),
+              userId: r.userId,
             }))
           )
           const byRecipientPlant = Array.groupBy(
@@ -266,6 +266,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
       findByOwnerWithPlant: Effect.fn(
         'CareScheduleRepository.findByOwnerWithPlant'
       )(function* (userId: string) {
+        const scope = yield* careScopeOf(db, userId, true)
         const rows = yield* db
           .select({
             schedule: plantCareSchedules,
@@ -278,7 +279,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
           })
           .from(plantCareSchedules)
           .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-          .where(and(caredForBy(db, userId, true), isLivingPlant()))
+          .where(and(scope, isLivingPlant()))
         return Array.map(rows, (row) => ({
           schedule: row.schedule,
           plant: {

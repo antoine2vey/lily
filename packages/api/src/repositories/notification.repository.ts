@@ -116,9 +116,12 @@ export interface INotificationRepository {
   readonly deletePendingByPlantId: (
     plantId: string
   ) => Effect.Effect<void, SqlError>
-  readonly deletePendingByUserAndPlant: (
+  readonly deleteUndeliveredByUserAndPlant: (
     userId: string,
     plantId: string
+  ) => Effect.Effect<void, SqlError>
+  readonly createPendingMany: (
+    rows: ReadonlyArray<CreateNotificationData>
   ) => Effect.Effect<void, SqlError>
   readonly deleteUndeliveredForMemberOnCanopy: (
     userId: string,
@@ -417,8 +420,8 @@ export const NotificationRepositoryLive = Layer.effect(
           )
       }),
 
-      deletePendingByUserAndPlant: Effect.fn(
-        'NotificationRepository.deletePendingByUserAndPlant'
+      deleteUndeliveredByUserAndPlant: Effect.fn(
+        'NotificationRepository.deleteUndeliveredByUserAndPlant'
       )(function* (userId: string, plantId: string) {
         yield* db
           .delete(notifications)
@@ -426,10 +429,25 @@ export const NotificationRepositoryLive = Layer.effect(
             and(
               eq(notifications.userId, userId),
               eq(notifications.plantId, plantId),
-              eq(notifications.status, 'pending')
+              inArray(notifications.status, ['pending', 'queued'])
             )
           )
       }),
+
+      createPendingMany: Effect.fn('NotificationRepository.createPendingMany')(
+        function* (rows: ReadonlyArray<CreateNotificationData>) {
+          if (Array.isReadonlyArrayEmpty(rows)) return
+          yield* db.insert(notifications).values(
+            Array.map(rows, (row) => ({
+              type: row.type,
+              scheduledAt: row.scheduledAt,
+              userId: row.userId,
+              plantId: Option.getOrNull(Option.fromNullishOr(row.plantId)),
+              status: 'pending' as const,
+            }))
+          )
+        }
+      ),
 
       deleteUndeliveredForMemberOnCanopy: Effect.fn(
         'NotificationRepository.deleteUndeliveredForMemberOnCanopy'

@@ -9,7 +9,10 @@ import {
   UserRepository,
   type VacationSnapshot,
 } from '@lily/api/repositories/user.repository'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import {
+  scheduleCareReminder,
+  scheduleReminderForRecipient,
+} from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
@@ -166,13 +169,17 @@ const endVacationInTransaction = (params: EndVacationParams) =>
           DateTime.toEpochMillis(DateTime.makeUnsafe(row.schedule.nextCareAt)) >
             nowMs
       ),
-      (row) =>
-        scheduleCareReminder({
+      (row) => {
+        const params = {
           plant: row.plant,
           type: `${row.schedule.careType}_reminder` as const,
           // biome-ignore lint/style/noNonNullAssertion: filtered non-null above
           scheduledDate: row.schedule.nextCareAt!,
-        })
+        }
+        return row.plant.owner._tag === 'Canopy'
+          ? scheduleReminderForRecipient(user.id, params)
+          : scheduleCareReminder(params)
+      }
     )
     return claimed
   })

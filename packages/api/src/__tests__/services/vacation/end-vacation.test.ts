@@ -297,7 +297,7 @@ describe('endVacation', () => {
     expect(users[0]?.vacationEnd).toEqual(extendedEnd)
   })
 
-  it('never shifts a Canopy schedule, and rebuilds only the future reminder for the member', async () => {
+  it('never shifts a Canopy schedule, and rebuilds only the member own future reminder', async () => {
     const owner = createTestUser({
       id: 'owner-1',
       timezone: 'Europe/Paris',
@@ -359,9 +359,6 @@ describe('endVacation', () => {
     expect(findNext(schedules, sharedFuture.id)).toEqual(futureDue)
     expect(
       Array.map(notifications, (n) => [n.userId, n.plantId]).sort()
-    ).toEqual([
-      [housemate.id, sharedFuture.id],
-      [owner.id, sharedFuture.id],
-    ])
+    ).toEqual([[owner.id, sharedFuture.id]])
   })
 })
