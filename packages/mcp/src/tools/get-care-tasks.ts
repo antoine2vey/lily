@@ -1,6 +1,7 @@
 import { ApiClient } from '@lily/mcp/api-client'
+import { escapeInlineMarkdown } from '@lily/mcp/tools/markdown'
 import type { CareTaskGroups, CareTaskItem } from '@lily/mcp/widgets/schemas'
-import { type CareTask, formatIsoDate } from '@lily/shared'
+import type { CareTask } from '@lily/shared'
 import { Array, Effect, Option, pipe } from 'effect'
 
 /**
@@ -8,13 +9,13 @@ import { Array, Effect, Option, pipe } from 'effect'
  * in a single pass.
  */
 const mapTask = (task: CareTask, actionable: boolean) => ({
-  line: `- **${task.plantName}** — ${task.type} (due: ${formatIsoDate(task.dueDate, '')})`,
+  line: `- **${escapeInlineMarkdown(task.plantName)}** — ${task.type} (due: ${task.localDueDate})`,
   item: {
     id: task.id,
     plantId: task.plantId,
     plantName: task.plantName,
     careType: task.type,
-    dueDate: formatIsoDate(task.dueDate, ''),
+    dueDate: task.localDueDate,
     roomName: Option.getOrNull(Option.fromNullishOr(task.roomName)),
     roomIcon: Option.getOrNull(Option.fromNullishOr(task.roomIcon)),
     actionable,

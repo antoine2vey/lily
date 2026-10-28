@@ -111,6 +111,7 @@ ${themeScript}
 
       if (p.roomName) html += '<div class="meta">' + esc(p.roomIcon || '') + ' ' + esc(p.roomName) + '</div>';
       if (p.category) html += '<div class="meta">' + esc(p.category) + '</div>';
+      if (p.ownershipLabel) html += '<div class="meta">' + esc(p.ownershipLabel) + '</div>';
 
       html += '<div class="section"><div class="section-title">Care Ratings</div>';
       html += ratingRow('Water needs', p.wateringRating, 'var(--water)');
