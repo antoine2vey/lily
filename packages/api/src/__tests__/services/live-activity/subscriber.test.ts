@@ -232,3 +232,78 @@ describe('live-activity subscriber: CareLogCreated on a Canopy plant', () => {
     expect(sent).toHaveLength(3)
   })
 })
+
+describe('live-activity subscriber: CareLogCreated by a caretaker', () => {
+  it('refreshes the owner card as well as the caretaker card on a delegated plant', async () => {
+    const sent: string[] = []
+    const fern = createTestPlant({ id: 'plant-1', userId: 'owner' })
+    const tokenFor = (userId: string): ActivityPushToken => ({
+      ...updateToken(),
+      id: `apt-${userId}`,
+      userId,
+      deviceTokenId: `token-${userId}`,
+      activityId: `activity-${userId}`,
+      token: `update-token-${userId}`,
+    })
+    await Effect.runPromise(
+      processEvent({
+        _tag: 'CareLogCreated',
+        userId: 'caretaker',
+        plantId: 'plant-1',
+        careLogId: 'log-1',
+        type: 'watering',
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockActivityPushTokenRepository({
+              tokens: [tokenFor('owner'), tokenFor('caretaker')],
+            }),
+            createMockPushService({
+              onSendLiveActivity: (m) => sent.push(m.to),
+            }),
+            createMockCareScheduleRepository({
+              plants: [fern],
+              schedules: [
+                createTestSchedule({
+                  plantId: 'plant-1',
+                  careType: 'fertilization',
+                  nextCareAt: new Date(Date.now() - 60_000),
+                }),
+              ],
+            }),
+            createMockPlantRepository({ plants: [fern] }),
+            createMockDelegationRepository({
+              delegations: [
+                {
+                  id: 'delegation-1',
+                  ownerId: 'owner',
+                  caretakerId: 'caretaker',
+                  status: 'active',
+                  message: null,
+                  startDate: new Date(Date.now() - 86_400_000),
+                  endDate: new Date(Date.now() + 86_400_000),
+                  respondedAt: null,
+                  canceledAt: null,
+                  completedAt: null,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                },
+              ],
+              delegationPlants: [
+                { delegationId: 'delegation-1', plantId: 'plant-1' },
+              ],
+            }),
+            createMockCanopyRepository(),
+            createMockCareLogRepository([]),
+            createMockUserRepository([
+              createTestUser({ id: 'owner', timezone: 'UTC' }),
+              createTestUser({ id: 'caretaker', timezone: 'UTC' }),
+            ])
+          )
+        ),
+        Effect.provideService(References.MinimumLogLevel, 'None')
+      )
+    )
+    expect(sent).toContain('update-token-owner')
+  })
+})
