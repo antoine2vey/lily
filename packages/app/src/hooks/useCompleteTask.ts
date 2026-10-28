@@ -1,6 +1,7 @@
 import type { CareTasksResponse, CareType } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Array, Effect, Result } from 'effect'
+import { CARE_TASKS_QUERY_KEY } from '@/hooks/useCareTasks'
 import { type ApiResult, apiEffectRunner } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 import { recordPositiveMoment } from '@/utils/rating-prompt'
@@ -10,12 +11,6 @@ interface CompleteTaskParams {
   plantId: string
   type: CareType
 }
-
-// Must mirror the key produced by `useEffectQuery('careTasks', 'getCareTasks', {})`
-// in useCareTasks — INCLUDING the trailing params object. setQueryData/getQueryData
-// match exactly, so an off-by-one key (e.g. dropping the `{}`) silently no-ops the
-// optimistic update and the list only catches up on the onSettled refetch.
-const CARE_TASKS_QUERY_KEY = ['careTasks', 'getCareTasks', {}] as const
 
 interface CompleteTaskContext {
   previous: ApiResult<CareTasksResponse> | undefined

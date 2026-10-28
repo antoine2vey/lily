@@ -786,6 +786,15 @@ async function handleTokenRefreshAndRetry<
   })
 }
 
+export const effectQueryKey = <
+  X extends keyof Client,
+  Y extends keyof Client[X],
+>(
+  section: X,
+  method: Y,
+  params: GetRequestParams<X, Y>
+) => [section, method, params] as const
+
 export function useEffectQuery<
   X extends keyof Client,
   Y extends keyof Client[X],
@@ -799,7 +808,7 @@ export function useEffectQuery<
   >
 ) {
   const query = useQuery({
-    queryKey: [section, method, params],
+    queryKey: effectQueryKey(section, method, params),
     queryFn: () => runApiEffect(section, method, params),
     ...useQueryParams,
   })

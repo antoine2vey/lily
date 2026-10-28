@@ -1,10 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Array, Result } from 'effect'
+import { CARE_TASKS_QUERY_KEY } from '@/hooks/useCareTasks'
 import { runApiEffect } from '@/utils/client'
-
-// Same key/fetcher as `useEffectQuery('careTasks', 'getCareTasks', {})` in
-// useCareTasks, so this observer shares that query's cache entry.
-const CARE_TASKS_QUERY_KEY = ['careTasks', 'getCareTasks', {}] as const
 
 export interface CareTabBadge {
   /** Whether to render a badge at all (overdue + due-today > 0). */
@@ -28,7 +25,8 @@ export interface CareTabBadge {
 export function useCareTabBadge(withCount: boolean): CareTabBadge {
   const { data } = useQuery({
     queryKey: CARE_TASKS_QUERY_KEY,
-    queryFn: () => runApiEffect('careTasks', 'getCareTasks', { query: {} }),
+    queryFn: () =>
+      runApiEffect('careTasks', 'getCareTasks', CARE_TASKS_QUERY_KEY[2]),
     select: (result) => {
       const count = Result.match(result, {
         onFailure: () => 0,
