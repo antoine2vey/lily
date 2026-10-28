@@ -3,7 +3,10 @@ import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.rep
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
-import type { ReminderPlant } from '@lily/api/services/plants/helpers/reminder-recipients'
+import {
+  type ReminderPlant,
+  reminderRecipients,
+} from '@lily/api/services/plants/helpers/reminder-recipients'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import { Array, DateTime, Effect } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
@@ -30,7 +33,10 @@ export const rescheduleReminders = (
     const notificationRepo = yield* NotificationRepository
     const scheduleRepo = yield* CareScheduleRepository
 
-    yield* notificationRepo.deletePendingByPlantId(plant.id)
+    yield* notificationRepo.deleteForReschedule(
+      plant.id,
+      yield* reminderRecipients(plant)
+    )
     if (plant.diedAt !== null) {
       return
     }

@@ -9,23 +9,12 @@ import {
   UserRepository,
   type VacationSnapshot,
 } from '@lily/api/repositories/user.repository'
-import {
-  scheduleCareReminder,
-  scheduleReminderForRecipient,
-} from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
+import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
-import {
-  Array,
-  DateTime,
-  Duration,
-  Effect,
-  Match,
-  Option,
-  pipe,
-  Record,
-} from 'effect'
+import { Array, DateTime, Duration, Effect, Option, pipe, Record } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -174,25 +163,19 @@ const endVacationInTransaction = (params: EndVacationParams) =>
       Array.filter(
         shifted,
         (row) =>
+          row.plant.owner._tag === 'User' &&
           row.schedule.nextCareAt !== null &&
           DateTime.toEpochMillis(DateTime.makeUnsafe(row.schedule.nextCareAt)) >
             nowMs
       ),
-      (row) => {
-        const params = {
+      (row) =>
+        scheduleCareReminder({
           plant: row.plant,
           type: `${row.schedule.careType}_reminder` as const,
           // biome-ignore lint/style/noNonNullAssertion: filtered non-null above
           scheduledDate: row.schedule.nextCareAt!,
-        }
-        return Match.value(row.plant.owner).pipe(
-          Match.tag('Canopy', () =>
-            scheduleReminderForRecipient(user.id, params)
-          ),
-          Match.tag('User', () => scheduleCareReminder(params)),
-          Match.exhaustive
-        )
-      }
+        })
     )
+    yield* rebuildMemberReminders(user.id)
     return claimed
   })

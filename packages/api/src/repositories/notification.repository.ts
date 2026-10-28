@@ -21,11 +21,13 @@ import {
   count,
   desc,
   eq,
+  gte,
   inArray,
   isNotNull,
   isNull,
   lt,
   lte,
+  notInArray,
   or,
   sql,
 } from 'drizzle-orm'
@@ -123,6 +125,26 @@ export interface INotificationRepository {
     userId: string,
     plantId: string
   ) => Effect.Effect<void, SqlError>
+  readonly lockPlantReminderInTransaction: (
+    plantId: string,
+    type: string
+  ) => Effect.Effect<void, SqlError>
+  readonly deleteUndeliveredByUserPlantAndType: (
+    userId: string,
+    plantId: string,
+    type: string
+  ) => Effect.Effect<void, SqlError>
+  readonly deleteForReschedule: (
+    plantId: string,
+    recipientIds: ReadonlyArray<string>
+  ) => Effect.Effect<void, SqlError>
+  readonly findSentSince: (
+    userId: string,
+    since: Date
+  ) => Effect.Effect<
+    ReadonlyArray<{ readonly plantId: string | null; readonly type: string }>,
+    SqlError
+  >
   readonly createPendingMany: (
     rows: ReadonlyArray<CreateNotificationData>
   ) => Effect.Effect<void, SqlError>
@@ -447,6 +469,68 @@ export const NotificationRepositoryLive = Layer.effect(
             )
           )
       }),
+
+      lockPlantReminderInTransaction: Effect.fn(
+        'NotificationRepository.lockPlantReminderInTransaction'
+      )(function* (plantId: string, type: string) {
+        yield* db.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext(${`reminder:${plantId}`}), hashtext(${type}))`
+        )
+      }),
+
+      deleteUndeliveredByUserPlantAndType: Effect.fn(
+        'NotificationRepository.deleteUndeliveredByUserPlantAndType'
+      )(function* (userId: string, plantId: string, type: string) {
+        yield* db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.plantId, plantId),
+              eq(notifications.type, type),
+              inArray(notifications.status, ['pending', 'queued'])
+            )
+          )
+      }),
+
+      deleteForReschedule: Effect.fn(
+        'NotificationRepository.deleteForReschedule'
+      )(function* (plantId: string, recipientIds: ReadonlyArray<string>) {
+        yield* db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.plantId, plantId),
+              or(
+                eq(notifications.status, 'pending'),
+                and(
+                  eq(notifications.status, 'queued'),
+                  ...(Array.isReadonlyArrayNonEmpty(recipientIds)
+                    ? [notInArray(notifications.userId, [...recipientIds])]
+                    : [])
+                )
+              )
+            )
+          )
+      }),
+
+      findSentSince: Effect.fn('NotificationRepository.findSentSince')(
+        function* (userId: string, since: Date) {
+          return yield* db
+            .select({
+              plantId: notifications.plantId,
+              type: notifications.type,
+            })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.userId, userId),
+                eq(notifications.status, 'sent'),
+                gte(notifications.sentAt, since)
+              )
+            )
+        }
+      ),
 
       createPendingMany: Effect.fn('NotificationRepository.createPendingMany')(
         function* (rows: ReadonlyArray<CreateNotificationData>) {

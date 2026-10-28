@@ -361,4 +361,52 @@ describe('endVacation', () => {
       Array.map(notifications, (n) => [n.userId, n.plantId]).sort()
     ).toEqual([[owner.id, sharedFuture.id]])
   })
+
+  it('gives the member back a Canopy reminder due earlier today', async () => {
+    const owner = createTestUser({
+      id: 'owner-1',
+      timezone: 'UTC',
+      careReminders: true,
+      vacationStatus: 'active',
+      vacationStart: VACATION_START,
+      vacationEnd: EFFECTIVE_END,
+    })
+    const members = [createTestMembership({ userId: owner.id, role: 'owner' })]
+    const dueToday = createTestPlant({
+      id: 'canopy-today',
+      userId: null,
+      canopyId: mockCanopyId,
+    })
+    const midnightToday = new Date('2026-08-17T00:00:00.000Z')
+    const schedules = [
+      createTestSchedule({
+        plantId: dueToday.id,
+        careType: 'watering',
+        nextCareAt: midnightToday,
+      }),
+    ]
+    const notifications: Notification[] = []
+    const layer = Layer.mergeAll(
+      MockSqlClientLive,
+      createMockUserRepository([owner]),
+      createMockNotificationRepository(notifications),
+      createMockCareScheduleRepository({
+        schedules,
+        plants: [dueToday],
+        memberships: members,
+      }),
+      createMockCanopyRepository(members),
+      createMockDelegationRepository({})
+    )
+
+    await run(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(
+      Array.map(notifications, (n) => [n.userId, n.plantId, n.type])
+    ).toEqual([[owner.id, dueToday.id, 'watering_reminder']])
+  })
 })

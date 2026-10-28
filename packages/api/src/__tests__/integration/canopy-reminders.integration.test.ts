@@ -26,6 +26,7 @@ import { processMessage } from '@lily/api/services/notification-scheduler/worker
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { CanopyId } from '@lily/shared'
 import type { PushMessage } from '@lily/shared/server'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -314,16 +315,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           date: new Date(),
         }))
       )
-      const [withCanopy, personalOnly] = await run(
+      const [withCanopy, personalOnly, anyPersonal] = await run(
         Effect.flatMap(CareLogRepository, (repo) =>
           Effect.all([
             repo.countTodayByUser(alex, 'UTC', canopyId),
             repo.countTodayByUser(alex, 'UTC', null),
+            repo.countTodayOnOwnPlantsByUser(alex, 'UTC'),
           ])
         )
       )
       expect(withCanopy).toBe(2)
       expect(personalOnly).toBe(1)
+      expect(anyPersonal).toBe(2)
     })
 
     it('delivers a Canopy care push only to a member who has not muted the plant', async () => {
@@ -428,6 +431,73 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.notifications)
       expect(exit._tag).toBe('Failure')
       expect(rows).toEqual([{ userId: alex }])
+    })
+
+    it('leaves one pending row per member after concurrent reschedules', async () => {
+      await db.execute(
+        sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      const reschedule = scheduleCareReminder({
+        plant: {
+          id: shared,
+          owner: { _tag: 'Canopy', canopyId: CanopyId.make(canopyId) },
+          remindersEnabled: true,
+        },
+        type: 'watering_reminder',
+        scheduledDate: new Date(Date.now() + 7 * 86_400_000),
+      })
+      await Effect.runPromise(
+        Effect.all(
+          Arr.makeBy(20, () => reschedule),
+          {
+            concurrency: 'unbounded',
+            discard: true,
+          }
+        ).pipe(
+          Effect.provide(WorkerLive),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      const rows = await db
+        .select({ userId: schema.notifications.userId })
+        .from(schema.notifications)
+        .where(sql`${schema.notifications.status} = 'pending'`)
+      expect(Arr.map(rows, (r) => r.userId).sort()).toEqual([alex, lily].sort())
+    })
+
+    it('clears every pending row and the queued rows of former recipients on reschedule', async () => {
+      await db.execute(
+        sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      await db.insert(schema.notifications).values(
+        Arr.map(
+          [
+            [alex, 'pending'],
+            [alex, 'queued'],
+            [lily, 'pending'],
+            [lily, 'queued'],
+          ] as const,
+          ([userId, status]) => ({
+            type: 'watering_reminder',
+            scheduledAt: new Date(),
+            userId,
+            plantId: shared,
+            status,
+          })
+        )
+      )
+      await run(
+        Effect.flatMap(NotificationRepository, (repo) =>
+          repo.deleteForReschedule(shared, [lily])
+        )
+      )
+      const left = await db
+        .select({
+          userId: schema.notifications.userId,
+          status: schema.notifications.status,
+        })
+        .from(schema.notifications)
+      expect(left).toEqual([{ userId: lily, status: 'queued' }])
     })
   }
 )
