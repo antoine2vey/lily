@@ -73,6 +73,15 @@ export default {
     title: 'No plants to delegate',
     description: 'Add a plant first, then hand it over to a friend.',
   },
+  canopyNone: {
+    title: 'Care for plants together',
+    description:
+      'A Canopy is a shared home for your plants. Everyone in it gets the reminders, and the first person who waters checks it off for all.',
+  },
+  canopyBringPlants: {
+    title: 'No plants to bring yet',
+    description: 'Add a plant, then share it with the Canopy from its page.',
+  },
   followers: {
     title: 'No followers yet',
     description: "When people follow this account, they'll show up here.",

@@ -5,7 +5,7 @@ import {
   getApiDateGroupLabel,
   parseApiDate,
 } from '@lily/shared'
-import { Array, Match, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe, Record } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -37,30 +37,37 @@ type SectionItem =
 
 // ─── Helpers ────────────────────────────────────────────────────
 
+const NOTIFICATION_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> =
+  {
+    watering_reminder: 'water-drop',
+    fertilization_reminder: 'eco',
+    misting_reminder: 'grain',
+    repotting_reminder: 'swap-vert',
+    overdue_reminder: 'warning',
+    photo_reminder: 'photo-camera',
+    new_follower: 'person-add',
+    nudge_to_water: 'water-drop',
+    delegation_request: 'handshake',
+    delegation_accepted: 'check-circle',
+    delegation_rejected: 'cancel',
+    delegation_canceled: 'cancel',
+    delegation_activated: 'play-arrow',
+    delegation_completed: 'task-alt',
+    canopy_member_joined: 'group-add',
+    canopy_member_removed: 'person-remove',
+    canopy_member_left: 'directions-walk',
+    daily_tip: 'lightbulb',
+    inactivity_nudge: 'notifications-active',
+    plant_parent_milestone: 'emoji-events',
+    gift_subscription: 'card-giftcard',
+  }
+
 const getNotificationIcon = (
   type: string
 ): keyof typeof MaterialIcons.glyphMap =>
   pipe(
-    Match.value(type),
-    Match.when('watering_reminder', () => 'water-drop' as const),
-    Match.when('fertilization_reminder', () => 'eco' as const),
-    Match.when('misting_reminder', () => 'grain' as const),
-    Match.when('repotting_reminder', () => 'swap-vert' as const),
-    Match.when('overdue_reminder', () => 'warning' as const),
-    Match.when('photo_reminder', () => 'photo-camera' as const),
-    Match.when('new_follower', () => 'person-add' as const),
-    Match.when('nudge_to_water', () => 'water-drop' as const),
-    Match.when('delegation_request', () => 'handshake' as const),
-    Match.when('delegation_accepted', () => 'check-circle' as const),
-    Match.when('delegation_rejected', () => 'cancel' as const),
-    Match.when('delegation_canceled', () => 'cancel' as const),
-    Match.when('delegation_activated', () => 'play-arrow' as const),
-    Match.when('delegation_completed', () => 'task-alt' as const),
-    Match.when('daily_tip', () => 'lightbulb' as const),
-    Match.when('inactivity_nudge', () => 'notifications-active' as const),
-    Match.when('plant_parent_milestone', () => 'emoji-events' as const),
-    Match.when('gift_subscription', () => 'card-giftcard' as const),
-    Match.orElse(() => 'notifications' as const)
+    Record.get(NOTIFICATION_ICONS, type),
+    Option.getOrElse(() => 'notifications' as const)
   )
 
 const getIconColor = (type: string): string =>
@@ -78,6 +85,12 @@ const getIconColor = (type: string): string =>
     Match.when('daily_tip', () => '#F59E0B'),
     Match.when('gift_subscription', () => '#FCD34D'),
     Match.whenOr('new_follower', 'delegation_request', () => '#8B5CF6'),
+    Match.when('canopy_member_joined', () => '#5B8C5A'),
+    Match.whenOr(
+      'canopy_member_removed',
+      'canopy_member_left',
+      () => '#E8997E'
+    ),
     Match.orElse(() => '#9CA3AF')
   )
 
