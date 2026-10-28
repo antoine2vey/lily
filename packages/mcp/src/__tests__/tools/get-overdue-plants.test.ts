@@ -112,4 +112,39 @@ describe('getOverduePlants MCP tool', () => {
       '- **Borrowed Pothos**: watering overdue since 2024-06-12 | Caretaking for Alex (ID: plant-delegated)'
     )
   })
+
+  it('names only the schedules that are overdue', async () => {
+    const layer = createMockApiClient({
+      listPlants: () =>
+        Effect.succeed({
+          items: [
+            {
+              ...mockOverduePlant,
+              schedules: [
+                ...mockOverduePlant.schedules,
+                {
+                  careType: 'fertilization',
+                  frequencyDays: 30,
+                  lastCareAt: null,
+                  nextCareAt: new Date('2999-01-01'),
+                },
+              ],
+            },
+          ],
+          hasMore: false,
+          total: 1,
+          page: 1,
+          limit: 100,
+        }),
+    })
+
+    const result = await Effect.runPromise(
+      getOverduePlantsEffect().pipe(
+        Effect.provide(Layer.merge(layer, JwtLayer))
+      )
+    )
+
+    expect(result.text).toContain('watering overdue since 2024-06-12')
+    expect(result.text).not.toContain('fertilization')
+  })
 })
