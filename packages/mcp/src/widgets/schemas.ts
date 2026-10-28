@@ -18,7 +18,6 @@ export interface PlantSummary {
   readonly roomName: string | null
   readonly roomIcon: string | null
   readonly ownership: PlantOwnership
-  /** "Caretaking for Alex" or "Canopy: Home"; null for the user's own plant. */
   readonly ownershipLabel: string | null
   /** Plant is in the cemetery; the health badge then reads "In memory". */
   readonly isDead: boolean

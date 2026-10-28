@@ -144,10 +144,6 @@ export const publicApiFailure = (error: ExternalServiceError): string =>
     )
   )
 
-/**
- * Every tool answers for each plant the user tends: their own, the ones
- * delegated to them, and their Canopy's.
- */
 const includeEveryPlant = {
   includeCaretaking: 'true',
   includeCanopy: 'true',

@@ -11,10 +11,6 @@ import { Match, Option, pipe } from 'effect'
 
 type PlantOwnershipFields = Pick<Plant, 'ownership' | 'ownerName' | 'canopy'>
 
-/**
- * How a plant the user does not own alone reaches them, for tool text and
- * widgets. None for the user's own plants.
- */
 export const ownershipLabel = (
   plant: PlantOwnershipFields
 ): Option.Option<string> =>
@@ -30,17 +26,19 @@ export const ownershipLabel = (
       )
     ),
     Match.when('canopy', () =>
-      Option.some(
-        pipe(
-          Option.fromNullishOr(plant.canopy),
-          Option.match({
-            onNone: () => 'Canopy plant',
-            onSome: (canopy) => `Canopy: ${canopy.name}`,
-          })
-        )
+      Option.map(
+        Option.fromNullishOr(plant.canopy),
+        (canopy) => `Canopy: ${canopy.name}`
       )
     ),
     Match.exhaustive
+  )
+
+export const ownershipSuffix = (plant: PlantOwnershipFields): string =>
+  pipe(
+    ownershipLabel(plant),
+    Option.map((label) => ` | ${label}`),
+    Option.getOrElse(() => '')
   )
 
 /**
