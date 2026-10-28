@@ -1,3 +1,4 @@
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { WeatherRepository } from '@lily/api/repositories/weather.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
@@ -6,13 +7,18 @@ import {
   getWeatherContext,
   type WeatherContext,
 } from '@lily/api/services/weather/helpers/get-weather-context'
-import { readjustCareSchedules } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
+import {
+  readjustCareSchedules,
+  weatherLocationKey,
+  weatherScopes,
+} from '@lily/api/services/weather-scheduler/readjust-care-schedules'
 import { roundCoord, WEATHER_FETCH_HOURS } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
 
 // Cleanup snapshots older than this many days (once per day)
 const CLEANUP_OLDER_THAN_DAYS = 30
 
+/** True when the wall clock in `timeZone` reads one of WEATHER_FETCH_HOURS. */
 export const isWeatherFetchHour = (
   now: DateTime.Utc,
   timeZone: string
@@ -27,15 +33,18 @@ export const isWeatherFetchHour = (
 // Fetch weather for all active locations
 const refreshWeatherData = Effect.gen(function* () {
   const userRepo = yield* UserRepository
+  const canopyRepo = yield* CanopyRepository
   const weatherRepo = yield* WeatherRepository
 
   yield* Effect.log('Running weather data refresh...')
 
-  // Get users with weather enabled (filtered at DB level)
-  const weatherUsers = yield* userRepo.findWeatherEnabled()
+  const scopes = weatherScopes(
+    yield* userRepo.findWeatherEnabled(),
+    yield* canopyRepo.findWithLocation()
+  )
 
-  if (Array.isArrayEmpty(weatherUsers)) {
-    yield* Effect.log('No users with weather enabled, skipping')
+  if (Array.isReadonlyArrayEmpty(scopes)) {
+    yield* Effect.log('No users or Canopies with a weather location, skipping')
     return
   }
 
@@ -45,26 +54,16 @@ const refreshWeatherData = Effect.gen(function* () {
 
   // Collect distinct locations (rounded to 2dp)
   const locationRecord = Array.reduce(
-    weatherUsers,
+    scopes,
     {} as globalThis.Record<
       string,
       { lat: number; lng: number; timezones: ReadonlyArray<string> }
     >,
-    (acc, user) => {
-      const lat = roundCoord(
-        pipe(
-          Option.fromNullishOr(user.latitude),
-          Option.getOrElse(() => 0)
-        )
-      )
-      const lng = roundCoord(
-        pipe(
-          Option.fromNullishOr(user.longitude),
-          Option.getOrElse(() => 0)
-        )
-      )
-      const key = `${lat}_${lng}`
-      const tz = user.timezone || 'UTC'
+    (acc, scope) => {
+      const lat = roundCoord(scope.latitude)
+      const lng = roundCoord(scope.longitude)
+      const key = weatherLocationKey(scope.latitude, scope.longitude)
+      const tz = scope.timezone
       const existing = acc[key]
       return {
         ...acc,
@@ -80,7 +79,7 @@ const refreshWeatherData = Effect.gen(function* () {
     }
   )
 
-  // Filter locations where at least one user's local hour matches a fetch hour
+  // Filter locations where at least one scope's local hour matches a fetch hour
   const locationsToFetch = pipe(
     Record.values(locationRecord),
     Array.filter((loc) =>
@@ -113,13 +112,13 @@ const refreshWeatherData = Effect.gen(function* () {
     { concurrency: 5 }
   )
 
-  // Build weather context map (one per distinct location, reused across users)
+  // Build weather context map (one per distinct location, reused across scopes)
   const weatherContextResults = yield* Effect.forEach(
     locationsToFetch,
     (loc) =>
       getWeatherContext(loc.lat, loc.lng).pipe(
         Effect.map((ctx) =>
-          Option.some([`${loc.lat}_${loc.lng}`, ctx] as const)
+          Option.some([weatherLocationKey(loc.lat, loc.lng), ctx] as const)
         ),
         Effect.catchTag('WeatherFetchError', (error) =>
           Effect.logWarning(
@@ -137,8 +136,8 @@ const refreshWeatherData = Effect.gen(function* () {
     Array.getSomes(weatherContextResults)
   )
 
-  // Readjust care schedules, passing the already-fetched users and pre-built contexts
-  yield* readjustCareSchedules(weatherUsers, weatherContextMap)
+  // Readjust care schedules, passing the already-fetched scopes and pre-built contexts
+  yield* readjustCareSchedules(scopes, weatherContextMap)
 
   // Run cleanup once per day (when UTC hour is 0)
   if (utcHour === 0) {

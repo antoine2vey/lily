@@ -28,7 +28,10 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import { readjustCareSchedules } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
+import {
+  readjustCareSchedules,
+  weatherScopes,
+} from '@lily/api/services/weather-scheduler/readjust-care-schedules'
 import type { WeatherData } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
@@ -52,6 +55,8 @@ const weatherUser = createTestUser({
   timezone: 'Europe/Paris',
   careReminders: true,
 })
+
+const userScopes = weatherScopes([weatherUser], [])
 
 const indoorRoom = {
   id: 'room-indoor',
@@ -150,7 +155,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -193,7 +198,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -233,7 +238,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -293,7 +298,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -345,7 +350,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -385,7 +390,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -429,7 +434,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -467,7 +472,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -528,7 +533,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         )
 
         await Effect.runPromise(
-          readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+          readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
             Effect.provide(layers)
           )
         )
@@ -601,7 +606,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         )
 
         await Effect.runPromise(
-          readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+          readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
             Effect.provide(layers)
           )
         )
@@ -672,7 +677,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
         await Effect.runPromise(
-          readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+          readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
             Effect.provide(layers)
           )
         )
@@ -770,7 +775,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -838,7 +843,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Should not throw
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -888,7 +893,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -931,7 +936,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -971,7 +976,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1015,7 +1020,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1083,7 +1088,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const longOriginal = toMs(longNextDate)
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1149,7 +1154,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       )
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(coldCtx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(coldCtx)).pipe(
           Effect.provide(layers1)
         )
       )
@@ -1177,7 +1182,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       )
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(hotCtx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(hotCtx)).pipe(
           Effect.provide(layers2)
         )
       )
@@ -1220,7 +1225,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1270,7 +1275,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1320,7 +1325,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1376,7 +1381,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers } = buildLayers({ plants: [plant], notifications })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1427,7 +1432,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers } = buildLayers({ plants: [plant], notifications })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1481,7 +1486,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers } = buildLayers({ plants: [plant], notifications })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1528,7 +1533,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )

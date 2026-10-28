@@ -36,7 +36,10 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import { readjustCareSchedules } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
+import {
+  readjustCareSchedules,
+  weatherScopes,
+} from '@lily/api/services/weather-scheduler/readjust-care-schedules'
 import type { WeatherData } from '@lily/shared'
 import { roundCoord } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
@@ -178,7 +181,7 @@ const runScheduler = async (
   )
   await Effect.runPromise(
     readjustCareSchedules(
-      [user],
+      weatherScopes([user], []),
       contextMapFor(user.latitude ?? 0, user.longitude ?? 0, ctx)
     ).pipe(Effect.provide(layers))
   )
@@ -541,9 +544,10 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       )
 
       await Effect.runPromise(
-        readjustCareSchedules([noLatUser], new Map([['0_0', ctx]])).pipe(
-          Effect.provide(layers)
-        )
+        readjustCareSchedules(
+          weatherScopes([noLatUser], []),
+          new Map([['0_0', ctx]])
+        ).pipe(Effect.provide(layers))
       )
 
       // Date is exactly the original mid-cycle value (no adjustment applied).

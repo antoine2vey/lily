@@ -11,6 +11,7 @@ import {
   rooms,
 } from '@lily/db/schema'
 import {
+  type CanopyId,
   type CareType,
   earliestOverdueDate,
   nowAsDate,
@@ -190,7 +191,6 @@ export const CareScheduleRepositoryLive = Layer.effect(
               plantId: plants.id,
               plantName: plants.name,
               userId: plants.userId,
-              canopyId: plants.canopyId,
               nextCareAt: plantCareSchedules.nextCareAt,
               dateAdded: plants.dateAdded,
             })
@@ -205,7 +205,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
               plantId: plants.id,
               plantName: plants.name,
               userId: canopyMembers.userId,
-              canopyId: plants.canopyId,
+              canopyId: canopyMembers.canopyId,
               nextCareAt: plantCareSchedules.nextCareAt,
               dateAdded: plants.dateAdded,
             })
@@ -225,8 +225,21 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .where(and(overdue, isNull(canopyPlantMutes.userId)))
             .orderBy(asc(canopyMembers.userId))
 
+          const addressed = Array.appendAll(
+            Array.map(Array.filter(personal, hasUserOwner), (r) => ({
+              ...r,
+              owner: { _tag: 'User', userId: r.userId } as PlantOwner,
+            })),
+            Array.map(shared, (r) => ({
+              ...r,
+              owner: {
+                _tag: 'Canopy',
+                canopyId: r.canopyId as CanopyId,
+              } as PlantOwner,
+            }))
+          )
           const byRecipientPlant = Array.groupBy(
-            Array.filter(Array.appendAll(personal, shared), hasUserOwner),
+            addressed,
             (r) => `${r.userId}:${r.plantId}`
           )
           const mapped = Array.map(
@@ -238,7 +251,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
                 id: first.plantId,
                 name: first.plantName,
                 userId: first.userId,
-                owner: ownerOf(first),
+                owner: first.owner,
                 dateAdded: first.dateAdded,
                 overdueAt: earliestOverdueDate(
                   Array.map(schedules, (s) => s.nextCareAt),
