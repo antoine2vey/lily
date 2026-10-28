@@ -23,7 +23,8 @@ export const carePlanRole =
       Match.value({
         author: plan.userId === view.viewerId,
         shared:
-          view.household && Array.contains(householdStatuses, plan.status),
+          view._tag === 'Household' &&
+          Array.contains(householdStatuses, plan.status),
       }),
       Match.when({ author: true }, () => Option.some<CarePlanRole>('Author')),
       Match.when({ shared: true }, () =>
