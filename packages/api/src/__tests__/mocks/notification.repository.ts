@@ -250,7 +250,7 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
-    deletePendingByUserAndPlant: (userId: string, plantId: string) =>
+    deleteUndeliveredByUserAndPlant: (userId: string, plantId: string) =>
       Effect.sync(() => {
         const toKeep = Array.filter(
           notificationsState,
@@ -258,11 +258,30 @@ export const createMockNotificationRepository = (
             !(
               n.userId === userId &&
               n.plantId === plantId &&
-              n.status === 'pending'
+              (n.status === 'pending' || n.status === 'queued')
             )
         )
         notificationsState.length = 0
         notificationsState.push(...toKeep)
+      }),
+
+    createPendingMany: (rows) =>
+      Effect.sync(() => {
+        Array.forEach(rows, (row) => {
+          notificationsState.push({
+            id: `notification-${crypto.randomUUID()}`,
+            type: row.type,
+            title: row.title,
+            body: row.body,
+            scheduledAt: row.scheduledAt,
+            isRead: false,
+            status: 'pending',
+            retryCount: 0,
+            userId: row.userId,
+            plantId: row.plantId,
+            createdAt: new Date(),
+          })
+        })
       }),
 
     deleteUndeliveredForMemberOnCanopy: (userId: string, canopyId: string) =>

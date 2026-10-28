@@ -7,6 +7,7 @@ import {
   notifyMemberBestEffort,
   senderNameOf,
 } from '@lily/api/services/canopy/helpers/notify-member'
+import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
 import {
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
@@ -61,11 +62,14 @@ export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
     yield* Option.match(joined.notify, {
       onNone: () => Effect.void,
       onSome: ({ canopyName, members }) =>
-        Effect.forEach(members, (member) =>
-          notifyMemberBestEffort('canopy_member_joined', member, {
-            ...senderNameOf(joinerName),
-            canopyName,
-          })
+        Effect.andThen(
+          rebuildMemberReminders(userId),
+          Effect.forEach(members, (member) =>
+            notifyMemberBestEffort('canopy_member_joined', member, {
+              ...senderNameOf(joinerName),
+              canopyName,
+            })
+          )
         ),
     })
 

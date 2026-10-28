@@ -2,6 +2,7 @@ import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import { ownerKey } from '@lily/api/repositories/helpers/plant-owner'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
@@ -20,7 +21,7 @@ import type {
   CareMultiplePlantsResponse,
 } from '@lily/shared/plant'
 import type { EventBus } from '@lily/shared/server'
-import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Duration, Effect, Option, pipe, Record } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -57,6 +58,14 @@ export const careMultiplePlants = (
         const nowDt = DateTime.nowUnsafe()
         const now = DateTime.toDateUtc(nowDt)
         const who = yield* caller
+        const owners = Record.fromEntries(
+          Array.map(foundPlants, (p) => [ownerKey(p.owner), p.owner] as const)
+        )
+        const contexts = Record.fromEntries(
+          yield* Effect.forEach(Record.toEntries(owners), ([key, owner]) =>
+            Effect.map(careContext(owner), (context) => [key, context] as const)
+          )
+        )
 
         // 2. Update each plant in parallel
         const results = yield* Effect.forEach(
@@ -83,7 +92,11 @@ export const careMultiplePlants = (
 
               // Safe: hasAccess is false when plantOption is None (onNone branch)
               const plant = Option.getOrThrow(plantOption)
-              const { timezone } = yield* careContext(plant.owner)
+              const timezone = pipe(
+                Record.get(contexts, ownerKey(plant.owner)),
+                Option.map((context) => context.timezone),
+                Option.getOrElse(() => 'UTC')
+              )
 
               // Get frequency from schedule
               const schedule = yield* scheduleRepo.findByPlantAndType(
