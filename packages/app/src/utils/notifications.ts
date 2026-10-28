@@ -337,9 +337,11 @@ const TOPIC_ROUTES = {
   delegation_activated: delegationRoute,
   delegation_completed: delegationRoute,
 
-  canopy_member_joined: () => null,
-  canopy_member_removed: () => null,
-  canopy_member_left: () => null,
+  // Canopy membership → the Canopy screen, which shows the empty state to a
+  // removed member
+  canopy_member_joined: () => '/(app)/canopy' as Href,
+  canopy_member_removed: () => '/(app)/canopy' as Href,
+  canopy_member_left: () => '/(app)/canopy' as Href,
 
   // Daily tip → tip modal with content
   daily_tip: (data) => {

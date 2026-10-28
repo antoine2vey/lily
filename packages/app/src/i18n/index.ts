@@ -39,6 +39,7 @@ i18n
       'plantDetail',
       'logCare',
       'notifications',
+      'canopy',
     ],
     interpolation: {
       escapeValue: false,

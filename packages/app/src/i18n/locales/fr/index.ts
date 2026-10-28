@@ -2,6 +2,7 @@ import about from './about'
 import achievements from './achievements'
 import addPlant from './addPlant'
 import auth from './auth'
+import canopy from './canopy'
 import care from './care'
 import cemetery from './cemetery'
 import chat from './chat'
@@ -28,6 +29,7 @@ export default {
   auth,
   home,
   plants,
+  canopy,
   care,
   cemetery,
   chat,

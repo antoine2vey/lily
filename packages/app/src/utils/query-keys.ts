@@ -124,6 +124,11 @@ export const queryKeys = {
       [...queryKeys.delegations.all, 'getDelegation', id] as const,
     tasks: () => [...queryKeys.delegations.all, 'getDelegatedTasks'] as const,
   },
+
+  canopy: {
+    all: ['canopy'] as const,
+    mine: () => [...queryKeys.canopy.all, 'getMyCanopy', {}] as const,
+  },
 } as const
 
 /**
@@ -144,4 +149,5 @@ export const invalidateKeys = {
   social: queryKeys.social.all,
   vacation: queryKeys.vacation.all,
   delegations: queryKeys.delegations.all,
+  canopy: queryKeys.canopy.all,
 } as const
