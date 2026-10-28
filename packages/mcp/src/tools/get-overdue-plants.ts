@@ -2,7 +2,7 @@ import { ApiClient } from '@lily/mcp/api-client'
 import { escapeInlineMarkdown, ownershipSuffix } from '@lily/mcp/tools/markdown'
 import { toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
-import { endOfDay, localDayKey } from '@lily/shared'
+import { endOfDay, isOverdueByDay, localDayKey } from '@lily/shared'
 import type { PlantCareSchedule } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Filter, Match, Option, pipe } from 'effect'
 
@@ -20,7 +20,7 @@ const dueLabel = (
     pipe(
       Match.value(DateTime.makeUnsafe(date)),
       Match.when(
-        (due) => DateTime.isLessThan(due, today.now),
+        (due) => isOverdueByDay(due, today.now, today.timezone),
         (due) =>
           Option.some(
             `${schedule.careType} overdue since ${localDayKey(due, today.timezone)}`

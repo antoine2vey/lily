@@ -204,6 +204,21 @@ describe('create_plant tool', () => {
     expect(Array.map(sent, (body) => body.name)).toEqual(['Fern'])
   })
 
+  it('accepts a name that trims to 100 characters', async () => {
+    const sent: EnhancedPlantCreateRequest[] = []
+
+    const result = await callCreatePlant(
+      { name: ` ${'x'.repeat(100)} `, wateringFrequencyDays: 7 },
+      (body) => {
+        sent.push(body)
+        return Effect.succeed(makePlant())
+      }
+    )
+
+    expect(result.isError).toBe(false)
+    expect(Array.map(sent, (body) => body.name)).toEqual(['x'.repeat(100)])
+  })
+
   it.each([
     ['blank', '   '],
     ['longer than 100 characters', 'x'.repeat(101)],
@@ -243,9 +258,8 @@ describe('create_plant tool', () => {
       Option.some([
         false,
         expect.objectContaining({
-          minLength: 1,
-          maxLength: 100,
-          description: expect.stringContaining('plant name'),
+          type: 'string',
+          description: expect.stringContaining('up to 100 characters'),
         }),
       ])
     )

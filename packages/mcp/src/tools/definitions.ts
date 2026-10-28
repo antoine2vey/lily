@@ -69,14 +69,16 @@ export const CreatePlant = Tool.make('create_plant', {
   description:
     'Add a plant to Lily with a watering schedule. Its first watering is due today.',
   parameters: Schema.Struct({
-    name: Schema.String.check(
-      Schema.isNonEmpty(),
-      Schema.isMaxLength(PLANT_NAME_MAX_LENGTH)
-    )
-      .annotate({
-        description: 'The plant name, e.g. "Monstera deliciosa"',
-      })
-      .pipe(Schema.decodeTo(Schema.Trim.check(Schema.isNonEmpty()))),
+    name: Schema.String.annotate({
+      description: `The plant name, up to ${PLANT_NAME_MAX_LENGTH} characters, e.g. "Monstera deliciosa"`,
+    }).pipe(
+      Schema.decodeTo(
+        Schema.Trim.check(
+          Schema.isNonEmpty(),
+          Schema.isMaxLength(PLANT_NAME_MAX_LENGTH)
+        )
+      )
+    ),
     wateringFrequencyDays: Schema.Int.check(
       Schema.isBetween({ minimum: 1, maximum: 365 })
     ).annotate({

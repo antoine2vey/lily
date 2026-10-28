@@ -7,7 +7,7 @@ import { Option, pipe, String } from 'effect'
 export const escapeInlineMarkdown = (text: string): string =>
   pipe(
     text,
-    String.replaceAll(/[\r\n]+/g, ' '),
+    String.replaceAll(/[\n\v\f\r\u0085\u2028\u2029]+/g, ' '),
     String.replaceAll(/[\\`*_[\]()#<>|~]/g, '\\$&')
   )
 
