@@ -48,7 +48,6 @@ export const scheduleTargetsFromSteps = (
     )
   )
 
-/** `{ plan, plant }` come from `withCarePlanAuth` in the handler. */
 export const acceptCarePlan = ({
   plan,
   plant,
