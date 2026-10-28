@@ -24,8 +24,6 @@ import type { SqlError } from 'effect/sql/SqlError'
  * (care log, schedule advance, reminders); if the plant was already cared for
  * today the step is simply ticked without a second log. Free-text steps are
  * ticked directly. The plan flips to `completed` once every step is done.
- *
- * `{ plan, plant, step }` come from `withCarePlanStep` in the handler.
  */
 export const completeCarePlanStep = ({
   plan,
