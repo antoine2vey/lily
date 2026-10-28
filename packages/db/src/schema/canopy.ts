@@ -5,6 +5,7 @@ import { users } from '@lily/db/schema/users'
 import { relations, sql } from 'drizzle-orm'
 import {
   doublePrecision,
+  index,
   pgTable,
   primaryKey,
   text,
@@ -45,6 +46,7 @@ export const canopyMembers = pgTable(
   },
   (table) => [
     uniqueIndex('canopy_members_user_id_unique').on(table.userId),
+    index('canopy_members_canopy_id_idx').on(table.canopyId),
     uniqueIndex('canopy_members_one_owner_unique')
       .on(table.canopyId)
       .where(sql`${table.role} = 'owner'`),
