@@ -44,7 +44,7 @@ export default {
       revokeMessage: 'Nobody else can join with it.',
       revoked: 'Invite link turned off',
       shareMessage:
-        'Join my Canopy “{name}” on Lily so we can look after our plants together: {url}',
+        'Join my Canopy "{name}" on Lily so we can look after our plants together: {url}',
       full: 'This Canopy is full. It holds up to {max} members.',
     },
     place: {
@@ -53,7 +53,7 @@ export default {
       location: 'Location',
       locationSet: 'Set',
       locationNotSet: 'Not set',
-      useDeviceTimezone: 'Use this phone’s time zone',
+      useDeviceTimezone: "Use this phone's time zone",
       useLocation: 'Use my current location',
       clearLocation: 'Clear location',
       ownerOnly:

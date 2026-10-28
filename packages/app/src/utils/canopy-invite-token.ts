@@ -31,6 +31,16 @@ export const readPendingJoin = Effect.tryPromise(() =>
   Effect.catchTag('UnknownError', () => Effect.succeed(Option.none()))
 )
 
+/** Where a signed-in user lands after the gate or onboarding: a stashed invite, else Home. */
+export const signedInRoute = readPendingJoin.pipe(
+  Effect.map(
+    Option.match({
+      onNone: () => '/(app)/(tabs)' as const,
+      onSome: joinRoute,
+    })
+  )
+)
+
 export const clearPendingJoin = Effect.tryPromise(() =>
   AsyncStorage.removeItem(PENDING_JOIN_KEY)
 ).pipe(Effect.catchTag('UnknownError', () => Effect.void))

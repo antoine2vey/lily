@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react-native'
+import { Effect } from 'effect'
 import { createTestQueryClient } from '@/__tests__/utils/query-helpers'
 import { CanopyJoinScreen } from '@/screens/canopy-join'
+import { signedInRoute } from '@/utils/canopy-invite-token'
 import Index from '../../../../app/index'
 
 const TOKEN = 'U97umPWqTRea_CZl99IrKv07PctPfxf7mjipVeP7HcM'
@@ -116,5 +118,12 @@ describe('an invite opened while signed out', () => {
       '/(app)/(tabs)'
     )
     expect(store.size).toBe(0)
+  })
+
+  it('ends onboarding on the join screen for a user who signed up through the link', async () => {
+    signOut()
+    openLink(TOKEN)
+    await waitFor(() => expect(store.size).toBe(1))
+    expect(await Effect.runPromise(signedInRoute)).toBe(`/join/${TOKEN}`)
   })
 })
