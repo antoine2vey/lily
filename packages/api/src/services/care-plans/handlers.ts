@@ -16,9 +16,6 @@ import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant
 import { Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-// Access is resolved once per request by `withCarePlanAuth` /
-// `withCarePlanStep` (same shape as `withPlantAuth`); endpoints receive the
-// loaded entities and never re-fetch them.
 export const CarePlansApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'carePlans', (handlers) =>
     handlers

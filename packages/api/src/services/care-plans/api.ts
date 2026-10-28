@@ -5,6 +5,7 @@ import {
   CarePlanListResponse,
 } from '@lily/shared/care-plan'
 import {
+  CarePlanNotAuthorizedError,
   CarePlanNotFoundError,
   CarePlanNotProposedError,
   CarePlanStepNotFoundError,
@@ -48,6 +49,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
       success: CarePlan,
       error: [
         CarePlanNotFoundError,
+        CarePlanNotAuthorizedError,
         CarePlanNotProposedError,
         PlantNotFoundError,
         PlantNotAuthorizedError,
@@ -61,6 +63,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
       success: CarePlan,
       error: [
         CarePlanNotFoundError,
+        CarePlanNotAuthorizedError,
         CarePlanNotProposedError,
         Unauthorized.pipe(HttpApiSchema.status(401)),
       ],
@@ -72,6 +75,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
       success: Schema.Struct({ message: Schema.String }),
       error: [
         CarePlanNotFoundError,
+        CarePlanNotAuthorizedError,
         Unauthorized.pipe(HttpApiSchema.status(401)),
       ],
     })
@@ -85,6 +89,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
         success: CarePlan,
         error: [
           CarePlanNotFoundError,
+          CarePlanNotAuthorizedError,
           CarePlanStepNotFoundError,
           PlantNotFoundError,
           PlantNotAuthorizedError,
@@ -102,6 +107,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
         success: CarePlan,
         error: [
           CarePlanNotFoundError,
+          CarePlanNotAuthorizedError,
           CarePlanStepNotFoundError,
           Unauthorized.pipe(HttpApiSchema.status(401)),
         ],
@@ -114,6 +120,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
       success: CarePlan,
       error: [
         CarePlanNotFoundError,
+        CarePlanNotAuthorizedError,
         CarePlanStepNotFoundError,
         Unauthorized.pipe(HttpApiSchema.status(401)),
       ],

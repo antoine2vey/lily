@@ -7,6 +7,7 @@ import {
   allows,
   authorScope,
   canopyRole,
+  KnowledgeView,
   knowledgeView,
   type PlantAction,
   PlantRole,
@@ -76,7 +77,11 @@ describe('knowledgeView', () => {
     const expected = household[role._tag]
     it(`${expected ? 'shares' : 'keeps private'} what others found for ${role._tag}`, () => {
       const view = knowledgeView(role, 'viewer')
-      expect(view).toEqual({ viewerId: 'viewer', household: expected })
+      expect(view).toEqual(
+        expected
+          ? KnowledgeView.Household({ viewerId: 'viewer' })
+          : KnowledgeView.Personal({ viewerId: 'viewer' })
+      )
       expect(authorScope(view)).toEqual(
         expected ? Option.none() : Option.some('viewer')
       )

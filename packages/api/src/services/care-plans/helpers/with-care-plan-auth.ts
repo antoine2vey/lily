@@ -13,24 +13,19 @@ import {
 } from '@lily/api/services/plants/helpers/with-plant-access'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import {
+  CarePlanNotAuthorizedError,
   CarePlanNotFoundError,
   CarePlanStepNotFoundError,
 } from '@lily/shared/errors/care-plan'
 import { Array, Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Loads a plan the caller may act on, or fails with a 404-style error, also
- * when the caller can see the plan but the action is the author's alone.
- * Composed in the handler (like `withPlantAuth`): endpoints receive the plan
- * and must not re-fetch it.
- */
 export const withCarePlanAuth = (
   planId: string,
   action: CarePlanAction
 ): Effect.Effect<
   CarePlan,
-  CarePlanNotFoundError | SqlError,
+  CarePlanNotFoundError | CarePlanNotAuthorizedError | SqlError,
   CarePlanRepository | PlantRepository | PlantAccessContext
 > =>
   Effect.gen(function* () {
@@ -45,13 +40,18 @@ export const withCarePlanAuth = (
     if (!plant) return yield* notFound
     const plantRole = yield* resolvePlantRole(plant)
 
-    const allowed = Option.exists(
+    return yield* Option.match(
       Option.flatMap(plantRole, (role) =>
         carePlanRole(knowledgeView(role, viewerId))(plan)
       ),
-      carePlanAllows(action)
+      {
+        onNone: () => notFound,
+        onSome: (role) =>
+          carePlanAllows(action)(role)
+            ? Effect.succeed(plan)
+            : new CarePlanNotAuthorizedError({ planId }),
+      }
     )
-    return allowed ? plan : yield* notFound
   }).pipe(
     Effect.withSpan('withCarePlanAuth', {
       attributes: { 'carePlan.id': planId, action },
@@ -70,7 +70,10 @@ export const withCarePlanStep = (
   action: CarePlanAction
 ): Effect.Effect<
   CarePlanStepContext,
-  CarePlanNotFoundError | CarePlanStepNotFoundError | SqlError,
+  | CarePlanNotFoundError
+  | CarePlanNotAuthorizedError
+  | CarePlanStepNotFoundError
+  | SqlError,
   CarePlanRepository | PlantRepository | PlantAccessContext
 > =>
   withCarePlanAuth(planId, action).pipe(

@@ -100,7 +100,7 @@ describe('withCarePlanAuth', () => {
       const plan = planOn(canopyPlant.id, status)
       expect(await outcome(lily, plan, 'tick')).toBe(plan.id)
       expect(await outcome(lily, plan, 'manage')).toContain(
-        'CarePlanNotFoundError'
+        'CarePlanNotAuthorizedError'
       )
     }
   )

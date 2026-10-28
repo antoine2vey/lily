@@ -2,6 +2,7 @@ import { mockDiagnoses } from '@lily/api/__tests__/fixtures/diagnoses'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { getDiagnoses } from '@lily/api/services/diagnosis/endpoints/get-diagnoses'
+import { KnowledgeView } from '@lily/api/services/plants/helpers/plant-access'
 import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -11,8 +12,8 @@ describe('getDiagnoses', () => {
       createMockDiagnosisRepository(mockDiagnoses),
       createMockGCSService()
     )
-  const own = { viewerId: 'user-1', household: false }
-  const household = { viewerId: 'user-1', household: true }
+  const own = KnowledgeView.Personal({ viewerId: 'user-1' })
+  const household = KnowledgeView.Household({ viewerId: 'user-1' })
 
   it('should return diagnoses for a plant with pagination info', async () => {
     const result = await Effect.runPromise(

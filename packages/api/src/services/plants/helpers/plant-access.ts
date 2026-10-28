@@ -66,14 +66,12 @@ export const allowedRoles: Record<PlantAction, ReadonlyArray<RoleTag>> = {
 export const allows = (action: PlantAction) => (role: PlantRole) =>
   Array.contains(allowedRoles[action], role._tag)
 
-/**
- * What a viewer reads of the diagnoses and care plans on one plant: on a
- * Canopy plant what every member found, on a personal plant only their own.
- */
-export interface KnowledgeView {
-  readonly viewerId: string
-  readonly household: boolean
-}
+export type KnowledgeView = Data.TaggedEnum<{
+  Household: { readonly viewerId: string }
+  Personal: { readonly viewerId: string }
+}>
+
+export const KnowledgeView = Data.taggedEnum<KnowledgeView>()
 
 const householdKnowledge: ReadonlyArray<RoleTag> = [
   'CanopyOwner',
@@ -84,13 +82,16 @@ const householdKnowledge: ReadonlyArray<RoleTag> = [
 export const knowledgeView = (
   role: PlantRole,
   viewerId: string
-): KnowledgeView => ({
-  viewerId,
-  household: Array.contains(householdKnowledge, role._tag),
-})
+): KnowledgeView =>
+  Array.contains(householdKnowledge, role._tag)
+    ? KnowledgeView.Household({ viewerId })
+    : KnowledgeView.Personal({ viewerId })
 
-export const authorScope = (view: KnowledgeView): Option.Option<string> =>
-  view.household ? Option.none() : Option.some(view.viewerId)
+export const authorScope: (view: KnowledgeView) => Option.Option<string> =
+  KnowledgeView.$match({
+    Household: () => Option.none(),
+    Personal: ({ viewerId }) => Option.some(viewerId),
+  })
 
 export const personalRole = (
   ownerId: string,
