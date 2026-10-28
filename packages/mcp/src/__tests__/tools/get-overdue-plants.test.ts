@@ -4,7 +4,7 @@ import { CurrentJwt } from '@lily/mcp/api-client'
 import { getOverduePlantsEffect } from '@lily/mcp/tools/get-overdue-plants'
 import type { Plant } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const JWT = 'test-jwt'
 const JwtLayer = Layer.succeed(CurrentJwt, JWT)
@@ -113,38 +113,79 @@ describe('getOverduePlants MCP tool', () => {
     )
   })
 
-  it('names only the schedules that are overdue', async () => {
-    const layer = createMockApiClient({
-      listPlants: () =>
-        Effect.succeed({
-          items: [
-            {
-              ...mockOverduePlant,
-              schedules: [
-                ...mockOverduePlant.schedules,
-                {
-                  careType: 'fertilization',
-                  frequencyDays: 30,
-                  lastCareAt: null,
-                  nextCareAt: new Date('2999-01-01'),
-                },
-              ],
-            },
-          ],
-          hasMore: false,
-          total: 1,
-          page: 1,
-          limit: 100,
-        }),
+  describe('at 10:00 UTC on 2026-10-28', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-10-28T10:00:00Z'))
     })
 
-    const result = await Effect.runPromise(
-      getOverduePlantsEffect().pipe(
-        Effect.provide(Layer.merge(layer, JwtLayer))
-      )
-    )
+    afterEach(() => {
+      vi.useRealTimers()
+    })
 
-    expect(result.text).toContain('watering overdue since 2024-06-12')
-    expect(result.text).not.toContain('fertilization')
+    const scheduledPlant = {
+      ...mockOverduePlant,
+      schedules: [
+        {
+          careType: 'fertilization' as const,
+          frequencyDays: 30,
+          lastCareAt: null,
+          nextCareAt: new Date('2026-10-27T08:00:00Z'),
+        },
+        {
+          careType: 'watering' as const,
+          frequencyDays: 7,
+          lastCareAt: null,
+          nextCareAt: new Date('2026-10-29T05:00:00Z'),
+        },
+        {
+          careType: 'misting' as const,
+          frequencyDays: 2,
+          lastCareAt: null,
+          nextCareAt: new Date('2026-10-30T12:00:00Z'),
+        },
+      ],
+    }
+
+    const overdueText = (timezone: string) =>
+      Effect.runPromise(
+        getOverduePlantsEffect().pipe(
+          Effect.provide(
+            Layer.merge(
+              createMockApiClient({
+                listPlants: () =>
+                  Effect.succeed({
+                    items: [scheduledPlant],
+                    hasMore: false,
+                    total: 1,
+                    page: 1,
+                    limit: 100,
+                  }),
+                getUserTimezone: () => Effect.succeed(timezone),
+              }),
+              JwtLayer
+            )
+          )
+        )
+      ).then((result) => result.text)
+
+    it("says due today for care due later in the user's day", async () => {
+      const text = await overdueText('America/Los_Angeles')
+
+      expect(text).toContain('## Overdue Plants (1)')
+      expect(text).toContain(
+        '- **Thirsty Fern**: fertilization overdue since 2026-10-27, watering due today (ID: plant-overdue-1)'
+      )
+      expect(text).not.toContain('misting')
+    })
+
+    it("leaves out care due on a later day in the user's timezone", async () => {
+      const text = await overdueText('UTC')
+
+      expect(text).toContain(
+        '- **Thirsty Fern**: fertilization overdue since 2026-10-27 (ID: plant-overdue-1)'
+      )
+      expect(text).not.toContain('watering')
+    })
   })
 })

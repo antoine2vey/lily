@@ -63,13 +63,20 @@ export const CarePlant = Tool.make('care_plant', {
   }),
 }).annotate(Tool.Meta, widgetMeta(WidgetUri.careFeedback))
 
+const PLANT_NAME_MAX_LENGTH = 100
+
 export const CreatePlant = Tool.make('create_plant', {
   description:
     'Add a plant to Lily with a watering schedule. Its first watering is due today.',
   parameters: Schema.Struct({
-    name: Schema.String.annotate({
-      description: 'The plant name, e.g. "Monstera deliciosa"',
-    }),
+    name: Schema.String.check(
+      Schema.isNonEmpty(),
+      Schema.isMaxLength(PLANT_NAME_MAX_LENGTH)
+    )
+      .annotate({
+        description: 'The plant name, e.g. "Monstera deliciosa"',
+      })
+      .pipe(Schema.decodeTo(Schema.Trim.check(Schema.isNonEmpty()))),
     wateringFrequencyDays: Schema.Int.check(
       Schema.isBetween({ minimum: 1, maximum: 365 })
     ).annotate({
@@ -84,7 +91,7 @@ export const CreatePlant = Tool.make('create_plant', {
         "True to add the plant to the user's Canopy, the household they share plants with, so every member gets its reminders. Defaults to false, which adds it to the user's own plants.",
     }),
   }),
-})
+}).annotate(Tool.Destructive, false)
 
 export const AskPlantQuestion = Tool.make('ask_plant_question', {
   description:

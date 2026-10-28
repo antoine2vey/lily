@@ -1,6 +1,7 @@
 import { ApiClient } from '@lily/mcp/api-client'
+import { escapeInlineMarkdown, ownershipSuffix } from '@lily/mcp/tools/markdown'
 import { deathCauseLabel, healthLabel } from '@lily/mcp/widgets/health'
-import { ownershipSuffix, toPlantSummary } from '@lily/mcp/widgets/mappers'
+import { toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
 import type { PlantFilter } from '@lily/shared'
 import { formatIsoDate } from '@lily/shared'
@@ -56,13 +57,13 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
 
       const room = pipe(
         Option.fromNullishOr(plant.room),
-        Option.map((r) => ` | ${r.icon} ${r.name}`),
+        Option.map((r) => ` | ${escapeInlineMarkdown(`${r.icon} ${r.name}`)}`),
         Option.getOrElse(() => '')
       )
 
       acc.plants.push(toPlantSummary(plant))
       acc.lines.push(
-        `- **${plant.name}** ${healthBadge}${room}${ownershipSuffix(plant)} (ID: ${plant.id})`
+        `- **${escapeInlineMarkdown(plant.name)}** ${healthBadge}${room}${ownershipSuffix(plant)} (ID: ${plant.id})`
       )
       return acc
     }
