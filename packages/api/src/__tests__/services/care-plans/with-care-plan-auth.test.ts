@@ -34,8 +34,8 @@ const canopyPlant = createTestPlant({
   createdByUserId: alex,
 })
 
-const planOn = (plantId: string, status: CarePlanStatus) =>
-  createTestCarePlan({ id: `plan-${status}`, plantId, userId: alex, status })
+const planOn = (plantId: string, status: CarePlanStatus, author = alex) =>
+  createTestCarePlan({ id: `plan-${status}`, plantId, userId: author, status })
 
 const layer = (
   viewerId: string,
@@ -71,7 +71,7 @@ const outcome = async (
       Effect.provide(layer(viewerId, plan, members))
     )
   )
-  return Exit.isSuccess(exit) ? exit.value.id : String(exit.cause)
+  return Exit.isSuccess(exit) ? exit.value.plan.id : String(exit.cause)
 }
 
 describe('withCarePlanAuth', () => {
@@ -125,6 +125,24 @@ describe('withCarePlanAuth', () => {
     const plan = planOn(canopyPlant.id, 'accepted')
     expect(await outcome(alex, plan, 'manage', [lily])).toContain(
       'CarePlanNotFoundError'
+    )
+  })
+})
+
+describe('withCarePlanAuth for a plan whose author left the Canopy', () => {
+  it('lets the Canopy owner manage it and other members only tick it', async () => {
+    const plan = planOn(canopyPlant.id, 'accepted', lily)
+    expect(await outcome(alex, plan, 'manage', [alex, sam])).toBe(plan.id)
+    expect(await outcome(sam, plan, 'manage', [alex, sam])).toContain(
+      'CarePlanNotAuthorizedError'
+    )
+    expect(await outcome(sam, plan, 'tick', [alex, sam])).toBe(plan.id)
+  })
+
+  it('keeps the Canopy owner out while the author is still a member', async () => {
+    const plan = planOn(canopyPlant.id, 'accepted', lily)
+    expect(await outcome(alex, plan, 'manage', [alex, lily])).toContain(
+      'CarePlanNotAuthorizedError'
     )
   })
 })

@@ -284,5 +284,24 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       expect(stored?.userId).toBe(lilyId)
     })
+
+    it('lets the Canopy owner manage a shared plan once its author leaves', async () => {
+      await db
+        .insert(schema.canopyMembers)
+        .values({ canopyId, userId: samId, role: 'member' })
+      const accepted = await plan(canopyPlantId, lilyId, 'accepted')
+      const proposed = await plan(canopyPlantId, lilyId, 'proposed')
+
+      expect(await planAccess(alexId, accepted, 'manage')).toBe(false)
+
+      await db
+        .delete(schema.canopyMembers)
+        .where(eq(schema.canopyMembers.userId, lilyId))
+
+      expect(await planAccess(alexId, accepted, 'manage')).toBe(true)
+      expect(await planAccess(samId, accepted, 'manage')).toBe(false)
+      expect(await planAccess(samId, accepted, 'tick')).toBe(true)
+      expect(await planAccess(alexId, proposed, 'manage')).toBe(false)
+    })
   }
 )

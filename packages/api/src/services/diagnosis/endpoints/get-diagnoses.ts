@@ -1,13 +1,14 @@
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { resolveImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import {
+  asSeenBy,
   authorScope,
   type KnowledgeView,
 } from '@lily/api/services/plants/helpers/plant-access'
 import type { DiagnosisListResponse } from '@lily/shared/diagnosis'
 import type { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
-import { Effect } from 'effect'
+import { Array, Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface GetDiagnosesParams {
@@ -35,7 +36,9 @@ export const getDiagnoses = (
     })
 
     // Resolve any raw GCS keys to signed URLs (batch, parallel)
-    const resolvedItems = yield* resolveImageUrls(result.items)
+    const resolvedItems = yield* resolveImageUrls(
+      Array.map(result.items, asSeenBy(params.view.viewerId))
+    )
 
     return { ...result, items: resolvedItems }
   }).pipe(
