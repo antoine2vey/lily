@@ -144,6 +144,12 @@ describe('getOverduePlants MCP tool', () => {
           lastCareAt: null,
           nextCareAt: new Date('2026-10-30T12:00:00Z'),
         },
+        {
+          careType: 'repotting' as const,
+          frequencyDays: 365,
+          lastCareAt: null,
+          nextCareAt: new Date('2026-10-28T08:00:00Z'),
+        },
       ],
     }
 
@@ -174,7 +180,7 @@ describe('getOverduePlants MCP tool', () => {
 
       expect(text).toContain('## Overdue Plants (1)')
       expect(text).toContain(
-        '- **Thirsty Fern**: fertilization overdue since 2026-10-27, watering due today (ID: plant-overdue-1)'
+        '- **Thirsty Fern**: fertilization overdue since 2026-10-27, watering due today, repotting due today (ID: plant-overdue-1)'
       )
       expect(text).not.toContain('misting')
     })
@@ -183,7 +189,7 @@ describe('getOverduePlants MCP tool', () => {
       const text = await overdueText('UTC')
 
       expect(text).toContain(
-        '- **Thirsty Fern**: fertilization overdue since 2026-10-27 (ID: plant-overdue-1)'
+        '- **Thirsty Fern**: fertilization overdue since 2026-10-27, repotting due today (ID: plant-overdue-1)'
       )
       expect(text).not.toContain('watering')
     })

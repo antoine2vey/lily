@@ -54,4 +54,31 @@ describe('getCareTasks MCP tool', () => {
     expect(result.text).toContain('No care tasks pending')
     expect(result.text).toContain('taken care of')
   })
+
+  it("prints the due day in the user's timezone", async () => {
+    const auckland = {
+      ...mockOverdueTask,
+      dueDate: new Date('2026-10-27T12:00:00Z'),
+      localDueDate: '2026-10-28',
+    }
+    const layer = createMockApiClient({
+      getCareTasks: () =>
+        Effect.succeed({
+          overdue: [],
+          today: [auckland],
+          upcoming: [],
+          completedToday: 0,
+          windowDays: [],
+        }),
+    })
+
+    const result = await Effect.runPromise(
+      getCareTasksEffect().pipe(Effect.provide(Layer.merge(layer, JwtLayer)))
+    )
+
+    expect(result.text).toContain('(due: 2026-10-28)')
+    expect(result.tasks.today.map((task) => task.dueDate)).toEqual([
+      '2026-10-28',
+    ])
+  })
 })
