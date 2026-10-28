@@ -1,5 +1,5 @@
 import { ApiClient } from '@lily/mcp/api-client'
-import { ownershipSuffix } from '@lily/mcp/widgets/mappers'
+import { escapeInlineMarkdown, ownershipSuffix } from '@lily/mcp/tools/markdown'
 import { LUMINOSITY_LUX_VALUES } from '@lily/shared'
 import { Effect, Match, pipe, Schema } from 'effect'
 
@@ -61,7 +61,7 @@ export const createPlantEffect = Effect.fn('MCP.createPlant')(
       )
 
     return {
-      text: `Added **${plant.name}**${ownershipSuffix(plant)} (ID: ${plant.id}). Watering every ${params.wateringFrequencyDays} days, starting today.`,
+      text: `Added **${escapeInlineMarkdown(plant.name)}**${ownershipSuffix(plant)} (ID: ${plant.id}). Watering every ${params.wateringFrequencyDays} days, starting today.`,
     }
   }
 )

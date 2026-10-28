@@ -8,6 +8,7 @@ import type {
   PlantDetail,
   PlantsListResponse,
 } from '@lily/shared/plant'
+import type { UserSettings } from '@lily/shared/user'
 import {
   Config,
   Context,
@@ -100,6 +101,12 @@ export interface IApiClient {
       readonly notes?: string | undefined
     }
   ) => Effect.Effect<Plant, ExternalServiceError, CurrentJwt>
+
+  readonly getUserTimezone: () => Effect.Effect<
+    string,
+    ExternalServiceError,
+    CurrentJwt
+  >
 
   readonly getCareTasks: () => Effect.Effect<
     CareTasksResponse,
@@ -317,6 +324,18 @@ export const ApiClientLive = Layer.unwrap(
               HttpClientRequest.bodyJsonUnsafe(body),
               authed<Plant>,
               Effect.withSpan('ApiClient.carePlant')
+            ),
+
+          getUserTimezone: () =>
+            HttpClientRequest.get(`${baseUrl}/api/users/settings`).pipe(
+              authed<UserSettings>,
+              Effect.map((settings) =>
+                pipe(
+                  Option.fromNullishOr(settings.timezone),
+                  Option.getOrElse(() => 'UTC')
+                )
+              ),
+              Effect.withSpan('ApiClient.getUserTimezone')
             ),
 
           getCareTasks: () =>

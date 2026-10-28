@@ -189,4 +189,65 @@ describe('create_plant tool', () => {
       )
     )
   })
+
+  it('trims the name it sends', async () => {
+    const sent: EnhancedPlantCreateRequest[] = []
+
+    await callCreatePlant(
+      { name: '  Fern  ', wateringFrequencyDays: 7 },
+      (body) => {
+        sent.push(body)
+        return Effect.succeed(makePlant())
+      }
+    )
+
+    expect(Array.map(sent, (body) => body.name)).toEqual(['Fern'])
+  })
+
+  it.each([
+    ['blank', '   '],
+    ['longer than 100 characters', 'x'.repeat(101)],
+  ])('refuses a %s name without calling the API', async (_, name) => {
+    const sent: EnhancedPlantCreateRequest[] = []
+
+    const result = await callCreatePlant(
+      { name, wateringFrequencyDays: 7 },
+      (body) => {
+        sent.push(body)
+        return Effect.succeed(makePlant())
+      }
+    )
+
+    expect(result.isError).toBe(true)
+    expect(sent).toEqual([])
+  })
+
+  it('tells clients that it adds without destroying', async () => {
+    const tool = await withServer(
+      () => Effect.die('unused'),
+      Effect.gen(function* () {
+        const server = yield* McpServer.McpServer
+        return Array.findFirst(
+          server.tools,
+          ({ tool }) => tool.name === 'create_plant'
+        )
+      })
+    )
+
+    expect(
+      Option.map(tool, ({ tool }) => [
+        tool.annotations?.destructiveHint,
+        tool.inputSchema.properties?.name,
+      ])
+    ).toEqual(
+      Option.some([
+        false,
+        expect.objectContaining({
+          minLength: 1,
+          maxLength: 100,
+          description: expect.stringContaining('plant name'),
+        }),
+      ])
+    )
+  })
 })

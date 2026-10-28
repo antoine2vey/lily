@@ -9,7 +9,10 @@ import { formatIsoDate } from '@lily/shared'
 import type { Plant } from '@lily/shared/plant'
 import { Match, Option, pipe } from 'effect'
 
-type PlantOwnershipFields = Pick<Plant, 'ownership' | 'ownerName' | 'canopy'>
+export type PlantOwnershipFields = Pick<
+  Plant,
+  'ownership' | 'ownerName' | 'canopy'
+>
 
 export const ownershipLabel = (
   plant: PlantOwnershipFields
@@ -32,13 +35,6 @@ export const ownershipLabel = (
       )
     ),
     Match.exhaustive
-  )
-
-export const ownershipSuffix = (plant: PlantOwnershipFields): string =>
-  pipe(
-    ownershipLabel(plant),
-    Option.map((label) => ` | ${label}`),
-    Option.getOrElse(() => '')
   )
 
 /**
