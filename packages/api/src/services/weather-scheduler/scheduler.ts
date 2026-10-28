@@ -13,6 +13,17 @@ import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
 // Cleanup snapshots older than this many days (once per day)
 const CLEANUP_OLDER_THAN_DAYS = 30
 
+export const isWeatherFetchHour = (
+  now: DateTime.Utc,
+  timeZone: string
+): boolean =>
+  pipe(
+    DateTime.zoneMakeNamed(timeZone),
+    Option.map((zone) => DateTime.toParts(DateTime.setZone(now, zone)).hour),
+    Option.getOrElse(() => DateTime.toParts(now).hour),
+    (hour) => Array.contains(WEATHER_FETCH_HOURS, hour)
+  )
+
 // Fetch weather for all active locations
 const refreshWeatherData = Effect.gen(function* () {
   const userRepo = yield* UserRepository
@@ -73,14 +84,7 @@ const refreshWeatherData = Effect.gen(function* () {
   const locationsToFetch = pipe(
     Record.values(locationRecord),
     Array.filter((loc) =>
-      Array.some(loc.timezones, (tz) => {
-        const zoned = DateTime.makeZonedUnsafe(nowDt, {
-          timeZone: tz,
-          adjustForTimeZone: true,
-        })
-        const localHour = DateTime.toParts(zoned).hour
-        return Array.contains(WEATHER_FETCH_HOURS, localHour)
-      })
+      Array.some(loc.timezones, (tz) => isWeatherFetchHour(nowDt, tz))
     )
   )
 
