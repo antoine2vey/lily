@@ -7,6 +7,7 @@ import {
   notifyMemberBestEffort,
   senderNameOf,
 } from '@lily/api/services/canopy/helpers/notify-member'
+import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
 import {
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
@@ -51,6 +52,7 @@ export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
             )
           )
         }
+        yield* rebuildMemberReminders(userId)
         return {
           canopyId: canopy.id,
           notify: Option.some({ canopyName: canopy.name, members }),

@@ -1,3 +1,7 @@
+import {
+  createTestMembership,
+  mockCanopyId,
+} from '@lily/api/__tests__/fixtures/canopies'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   fertilizationSpec,
@@ -5,6 +9,7 @@ import {
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -266,6 +271,7 @@ describe('findCareTasks', () => {
     plants = createMockPlantsForCareTasks(REFERENCE_DATE)
   ) =>
     Layer.mergeAll(
+      createMockCanopyRepository([]),
       createMockCareLogRepository([]),
       createMockPlantRepository({ plants }),
       createMockCareScheduleRepository({
@@ -278,7 +284,7 @@ describe('findCareTasks', () => {
 
   it('should return tasks grouped by overdue, today, and upcoming', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.overdue).toBeDefined()
@@ -288,7 +294,7 @@ describe('findCareTasks', () => {
 
   it('should include overdue watering tasks', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     // plant-1 has nextWateringAt = yesterday (overdue)
@@ -302,7 +308,7 @@ describe('findCareTasks', () => {
 
   it('should include today watering tasks', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     // plant-2 has nextWateringAt = today
@@ -316,7 +322,7 @@ describe('findCareTasks', () => {
 
   it('should include upcoming fertilization tasks', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     // plant-1 has nextFertilizationAt = tomorrow (upcoming)
@@ -330,7 +336,7 @@ describe('findCareTasks', () => {
 
   it('should only return tasks for the current user', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer('user-1')))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     // user-2 has plant-5 with overdue watering - should not appear
@@ -344,7 +350,7 @@ describe('findCareTasks', () => {
 
   it('should return empty arrays when no tasks are pending', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(
+      findCareTasks(false).pipe(
         Effect.provide(
           createTestLayer('user-1', createMockPlantsNoCare(REFERENCE_DATE))
         )
@@ -358,7 +364,7 @@ describe('findCareTasks', () => {
 
   it('should generate correct task IDs', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     // Check that task IDs follow the format plantId-type
@@ -370,7 +376,7 @@ describe('findCareTasks', () => {
 
   it('should include plant name and image URL in tasks', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     // plant-1 has an imageUrl
@@ -384,7 +390,7 @@ describe('findCareTasks', () => {
 
   it('should handle null imageUrl', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     // plant-2 has null imageUrl
@@ -397,7 +403,7 @@ describe('findCareTasks', () => {
 
   it('should set completed to false for all tasks', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
@@ -406,7 +412,7 @@ describe('findCareTasks', () => {
 
   it('should not include tasks beyond 7 days', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     // plant-4 has nextWateringAt = 10 days from now (beyond 7-day window)
@@ -418,7 +424,7 @@ describe('findCareTasks', () => {
 
   it('should sort tasks by due date within each group', async () => {
     const result = await Effect.runPromise(
-      findCareTasks().pipe(Effect.provide(createTestLayer()))
+      findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
     // Check upcoming is sorted by dueDate
@@ -555,6 +561,7 @@ describe('findCareTasks', () => {
 
       // Test with UTC user (user-1 has timezone: 'UTC')
       const utcLayer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants: tzPlants }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(tzPlants),
@@ -566,7 +573,7 @@ describe('findCareTasks', () => {
       )
 
       const utcResult = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(utcLayer))
+        findCareTasks(false).pipe(Effect.provide(utcLayer))
       )
 
       // In UTC at 23:30 Jan 29:
@@ -589,6 +596,7 @@ describe('findCareTasks', () => {
         userId: 'user-paris',
       }))
       const parisLayer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants: parisTzPlants }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(parisTzPlants),
@@ -600,7 +608,7 @@ describe('findCareTasks', () => {
       )
 
       const parisResult = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(parisLayer))
+        findCareTasks(false).pipe(Effect.provide(parisLayer))
       )
 
       // In Paris at 00:30 Jan 30:
@@ -650,7 +658,9 @@ describe('findCareTasks', () => {
       ]
 
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', plants)))
+        findCareTasks(false).pipe(
+          Effect.provide(createTestLayer('user-1', plants))
+        )
       )
 
       expect(result.overdue).toEqual([])
@@ -704,7 +714,9 @@ describe('findCareTasks', () => {
       ]
 
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', plants)))
+        findCareTasks(false).pipe(
+          Effect.provide(createTestLayer('user-1', plants))
+        )
       )
 
       // Both care types should appear as overdue
@@ -715,7 +727,7 @@ describe('findCareTasks', () => {
 
     it('should return empty results for user with no plants', async () => {
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', [])))
+        findCareTasks(false).pipe(Effect.provide(createTestLayer('user-1', [])))
       )
 
       expect(result.overdue).toEqual([])
@@ -768,6 +780,7 @@ describe('findCareTasks', () => {
       })
 
       const layer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(plants),
@@ -779,7 +792,7 @@ describe('findCareTasks', () => {
       )
 
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(layer))
+        findCareTasks(false).pipe(Effect.provide(layer))
       )
 
       // Should not throw — falls back to UTC
@@ -837,6 +850,7 @@ describe('findCareTasks', () => {
       ]
 
       const layer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants, rooms }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(plants),
@@ -853,7 +867,7 @@ describe('findCareTasks', () => {
       )
 
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(layer))
+        findCareTasks(false).pipe(Effect.provide(layer))
       )
 
       const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
@@ -870,7 +884,7 @@ describe('findCareTasks', () => {
 
     it('should set roomName and roomIcon to null for plants without rooms', async () => {
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(createTestLayer()))
+        findCareTasks(false).pipe(Effect.provide(createTestLayer()))
       )
 
       // plant-1 has no room
@@ -890,7 +904,7 @@ describe('findCareTasks', () => {
   describe('local-day annotations for calendar sync', () => {
     it('stamps every task with a numeric dueDayOffset and a YYYY-MM-DD localDueDate', async () => {
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(createTestLayer()))
+        findCareTasks(false).pipe(Effect.provide(createTestLayer()))
       )
 
       const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
@@ -903,7 +917,7 @@ describe('findCareTasks', () => {
 
     it('keeps offset signs consistent with the bucket (overdue<0, today=0, upcoming>=1)', async () => {
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(createTestLayer()))
+        findCareTasks(false).pipe(Effect.provide(createTestLayer()))
       )
 
       expect(Array.every(result.overdue, (t) => t.dueDayOffset < 0)).toBe(true)
@@ -916,7 +930,7 @@ describe('findCareTasks', () => {
     it('returns windowDays spanning today..+CARE_TASK_WINDOW_DAYS in the user timezone', async () => {
       // user-1 is a UTC user; system time is 2025-01-29T14:00:00Z.
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(createTestLayer()))
+        findCareTasks(false).pipe(Effect.provide(createTestLayer()))
       )
 
       expect(result.windowDays).toHaveLength(CARE_TASK_WINDOW_DAYS + 1)
@@ -964,7 +978,9 @@ describe('findCareTasks', () => {
       ]
 
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', plants)))
+        findCareTasks(false).pipe(
+          Effect.provide(createTestLayer('user-1', plants))
+        )
       )
 
       const task = Array.findFirst(
@@ -1027,6 +1043,7 @@ describe('findCareTasks', () => {
         timezone: 'Europe/Paris',
       })
       const layer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants: parisPlants }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(parisPlants),
@@ -1038,7 +1055,7 @@ describe('findCareTasks', () => {
       )
 
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(layer))
+        findCareTasks(false).pipe(Effect.provide(layer))
       )
 
       // Paris "today" is Jan 30, so the calendar axis starts there.
@@ -1066,13 +1083,98 @@ describe('findCareTasks', () => {
       )
 
       const result = await Effect.runPromise(
-        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', buried)))
+        findCareTasks(false).pipe(
+          Effect.provide(createTestLayer('user-1', buried))
+        )
       )
 
       const all = [...result.overdue, ...result.today, ...result.upcoming]
       expect(Array.some(all, (t) => t.plantId === 'plant-1')).toBe(false)
       // Other plants are unaffected
       expect(Array.some(all, (t) => t.plantId === 'plant-2')).toBe(true)
+    })
+  })
+
+  describe('Canopy plants', () => {
+    const canopyLayer = (
+      includeMute: boolean,
+      plants = createMockPlantsForCareTasks(REFERENCE_DATE)
+    ) => {
+      const yesterday = new Date(REFERENCE_DATE)
+      yesterday.setDate(yesterday.getDate() - 1)
+      const shared: TestPlant[] = [
+        {
+          ...plants[0]!,
+          id: 'canopy-plant',
+          name: 'Shared Fern',
+          userId: null,
+          canopyId: mockCanopyId,
+          scheduleSpecs: [wateringSpec({ nextCareAt: yesterday })],
+        },
+        {
+          ...plants[0]!,
+          id: 'muted-plant',
+          name: 'Muted Cactus',
+          userId: null,
+          canopyId: mockCanopyId,
+          scheduleSpecs: [wateringSpec({ nextCareAt: yesterday })],
+        },
+      ]
+      const all = [...plants, ...shared]
+      const memberships = [createTestMembership({ userId: 'user-1' })]
+      const mutes = includeMute
+        ? [{ userId: 'user-1', plantId: 'muted-plant' }]
+        : []
+      return Layer.mergeAll(
+        createMockCanopyRepository(memberships),
+        createMockCareLogRepository([]),
+        createMockPlantRepository({ plants: all, memberships }),
+        createMockCareScheduleRepository({
+          schedules: schedulesFromPlants(all),
+          plants: all,
+          memberships,
+          mutes,
+        }),
+        createMockCurrentUser({ id: 'user-1' }),
+        createMockUserRepository([...mockUsers])
+      )
+    }
+
+    const plantIdsOf = (result: {
+      overdue: ReadonlyArray<{ plantId: string }>
+      today: ReadonlyArray<{ plantId: string }>
+      upcoming: ReadonlyArray<{ plantId: string }>
+    }) =>
+      Array.map(
+        [...result.overdue, ...result.today, ...result.upcoming],
+        (t) => t.plantId
+      )
+
+    it('leaves Canopy plants out unless includeCanopy is set', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks(false).pipe(Effect.provide(canopyLayer(true)))
+      )
+      const ids = plantIdsOf(result)
+      expect(ids).not.toContain('canopy-plant')
+      expect(ids).not.toContain('muted-plant')
+      expect(ids).toContain('plant-1')
+    })
+
+    it('lists unmuted Canopy plants with includeCanopy, never a muted one', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks(true).pipe(Effect.provide(canopyLayer(true)))
+      )
+      const ids = plantIdsOf(result)
+      expect(ids).toContain('canopy-plant')
+      expect(ids).not.toContain('muted-plant')
+      expect(ids).toContain('plant-1')
+    })
+
+    it('lists a Canopy plant again once the mute is gone', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks(true).pipe(Effect.provide(canopyLayer(false)))
+      )
+      expect(plantIdsOf(result)).toContain('muted-plant')
     })
   })
 })

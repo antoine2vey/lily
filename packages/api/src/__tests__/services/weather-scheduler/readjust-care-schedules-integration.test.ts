@@ -3,6 +3,7 @@
  * with plants in different rooms (indoor, outdoor, no room) and realistic
  * weather forecasts. Checks actual date changes, not just that it runs.
  */
+
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
@@ -20,14 +21,19 @@ import {
   parisWinterForecast,
   tropicalMonsoonForecast,
 } from '@lily/api/__tests__/fixtures/weather'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import { readjustCareSchedules } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
+import {
+  readjustCareSchedules,
+  weatherScopes,
+} from '@lily/api/services/weather-scheduler/readjust-care-schedules'
 import type { WeatherData } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
@@ -51,6 +57,8 @@ const weatherUser = createTestUser({
   timezone: 'Europe/Paris',
   careReminders: true,
 })
+
+const userScopes = weatherScopes([weatherUser], [])
 
 const indoorRoom = {
   id: 'room-indoor',
@@ -99,12 +107,14 @@ const buildLayers = ({
   const resolvedSchedules = schedules ?? schedulesFromPlants(plants)
   return {
     layers: Layer.mergeAll(
+      MockSqlClientLive,
       createMockUserRepository([weatherUser]),
       createMockPlantRepository({
         plants,
         rooms: [indoorRoom, outdoorRoom],
       }),
       createMockNotificationRepository(notifications),
+      createMockCanopyRepository(),
       createMockDelegationRepository(),
       createMockCareScheduleRepository({
         schedules: resolvedSchedules,
@@ -148,7 +158,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -191,7 +201,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -231,7 +241,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -291,7 +301,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -343,7 +353,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -383,7 +393,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -427,7 +437,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -465,7 +475,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -514,18 +524,20 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           findSchedule(schedules, plant.id, 'watering')?.nextCareAt
         )
         const layers = Layer.mergeAll(
+          MockSqlClientLive,
           createMockUserRepository([weatherUser]),
           createMockPlantRepository({
             plants: [plant],
             rooms: [indoorRoom, outdoorRoom],
           }),
           createMockNotificationRepository([]),
+          createMockCanopyRepository(),
           createMockDelegationRepository(),
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
 
         await Effect.runPromise(
-          readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+          readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
             Effect.provide(layers)
           )
         )
@@ -586,18 +598,20 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           findSchedule(schedules, plant.id, 'watering')?.nextCareAt
         )
         const layers = Layer.mergeAll(
+          MockSqlClientLive,
           createMockUserRepository([weatherUser]),
           createMockPlantRepository({
             plants: [plant],
             rooms: [indoorRoom, outdoorRoom],
           }),
           createMockNotificationRepository([]),
+          createMockCanopyRepository(),
           createMockDelegationRepository(),
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
 
         await Effect.runPromise(
-          readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+          readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
             Effect.provide(layers)
           )
         )
@@ -657,17 +671,19 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       for (let i = 0; i < 5; i++) {
         const layers = Layer.mergeAll(
+          MockSqlClientLive,
           createMockUserRepository([weatherUser]),
           createMockPlantRepository({
             plants: [plant],
             rooms: [indoorRoom, outdoorRoom],
           }),
           createMockNotificationRepository([]),
+          createMockCanopyRepository(),
           createMockDelegationRepository(),
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
         await Effect.runPromise(
-          readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+          readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
             Effect.provide(layers)
           )
         )
@@ -754,17 +770,19 @@ describe('readjustCareSchedules — full pipeline integration', () => {
     ): Promise<number> => {
       const schedules = schedulesFromPlants([plant])
       const layers = Layer.mergeAll(
+        MockSqlClientLive,
         createMockUserRepository([weatherUser]),
         createMockPlantRepository({
           plants: [plant],
           rooms: [indoorRoom, outdoorRoom, dimRoom],
         }),
         createMockNotificationRepository([]),
+        createMockCanopyRepository(),
         createMockDelegationRepository(),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -832,7 +850,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Should not throw
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -882,7 +900,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -925,7 +943,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -965,7 +983,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1009,7 +1027,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1077,7 +1095,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const longOriginal = toMs(longNextDate)
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1131,18 +1149,20 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const coldCtx = buildWeatherCtx(parisWinterForecast)
       const schedules = schedulesFromPlants([plant])
       const layers1 = Layer.mergeAll(
+        MockSqlClientLive,
         createMockUserRepository([weatherUser]),
         createMockPlantRepository({
           plants: [plant],
           rooms: [indoorRoom, outdoorRoom],
         }),
         createMockNotificationRepository([]),
+        createMockCanopyRepository(),
         createMockDelegationRepository(),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(coldCtx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(coldCtx)).pipe(
           Effect.provide(layers1)
         )
       )
@@ -1158,18 +1178,20 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       // Run 2: hot weather → pulls watering forward
       const hotCtx = buildWeatherCtx(hotWeekForecast, mockHeatWaveHistory)
       const layers2 = Layer.mergeAll(
+        MockSqlClientLive,
         createMockUserRepository([weatherUser]),
         createMockPlantRepository({
           plants: [plant],
           rooms: [indoorRoom, outdoorRoom],
         }),
         createMockNotificationRepository([]),
+        createMockCanopyRepository(),
         createMockDelegationRepository(),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(hotCtx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(hotCtx)).pipe(
           Effect.provide(layers2)
         )
       )
@@ -1212,7 +1234,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1262,7 +1284,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers, schedules } = buildLayers({ plants: [plant] })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1312,7 +1334,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1368,7 +1390,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers } = buildLayers({ plants: [plant], notifications })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1419,7 +1441,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers } = buildLayers({ plants: [plant], notifications })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1473,7 +1495,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const { layers } = buildLayers({ plants: [plant], notifications })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )
@@ -1520,7 +1542,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       await Effect.runPromise(
-        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
           Effect.provide(layers)
         )
       )

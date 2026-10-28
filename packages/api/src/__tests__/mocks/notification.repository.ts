@@ -5,7 +5,7 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, pipe, Record, Result } from 'effect'
+import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
 
 // Mutable version of Notification for internal mock state
 type MutableNotification = {
@@ -59,6 +59,11 @@ export const createMockNotificationRepository = (
 
       return Effect.succeed(paginate(items, total, page, limit))
     },
+
+    findByIds: (ids: ReadonlyArray<string>) =>
+      Effect.succeed(
+        Array.filter(notificationsState, (n) => Array.contains(ids, n.id))
+      ),
 
     findById: (id: string) =>
       Effect.succeed(
@@ -250,25 +255,110 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
-    deletePendingForMemberOnCanopy: (userId: string, canopyId: string) =>
+    deleteUndeliveredByUserAndPlant: (userId: string, plantId: string) =>
+      Effect.sync(() => {
+        const toKeep = Array.filter(
+          notificationsState,
+          (n) =>
+            !(
+              n.userId === userId &&
+              n.plantId === plantId &&
+              (n.status === 'pending' || n.status === 'queued')
+            )
+        )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
+    lockPlantReminderInTransaction: () => Effect.void,
+
+    deleteUndeliveredByUserPlantAndType: (
+      userId: string,
+      plantId: string,
+      type: string
+    ) =>
+      Effect.sync(() => {
+        const toKeep = Array.filter(
+          notificationsState,
+          (n) =>
+            !(
+              n.userId === userId &&
+              n.plantId === plantId &&
+              n.type === type &&
+              (n.status === 'pending' || n.status === 'queued')
+            )
+        )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
+    deleteForReschedule: (
+      plantId: string,
+      recipientIds: ReadonlyArray<string>
+    ) =>
+      Effect.sync(() => {
+        const toKeep = Array.filter(
+          notificationsState,
+          (n) =>
+            !(
+              n.plantId === plantId &&
+              (n.status === 'pending' ||
+                (n.status === 'queued' &&
+                  !Array.contains(recipientIds, n.userId)))
+            )
+        )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
+    findSentSince: (userId: string, since: Date) =>
+      Effect.succeed(
+        pipe(
+          notificationsState,
+          Array.filter(
+            (n) =>
+              n.userId === userId &&
+              n.status === 'sent' &&
+              n.sentAt !== undefined &&
+              n.sentAt.getTime() >= since.getTime()
+          ),
+          Array.map((n) => ({
+            plantId: pipe(Option.fromNullishOr(n.plantId), Option.getOrNull),
+            type: n.type,
+          }))
+        )
+      ),
+
+    createPendingMany: (rows) =>
+      Effect.sync(() => {
+        Array.forEach(rows, (row) => {
+          notificationsState.push({
+            id: `notification-${crypto.randomUUID()}`,
+            type: row.type,
+            title: row.title,
+            body: row.body,
+            scheduledAt: row.scheduledAt,
+            isRead: false,
+            status: 'pending',
+            retryCount: 0,
+            userId: row.userId,
+            plantId: row.plantId,
+            createdAt: new Date(),
+          })
+        })
+      }),
+
+    deleteUndeliveredForMemberOnCanopy: (userId: string, canopyId: string) =>
       Effect.sync(() => {
         const plantIds = options.canopyPlants?.[canopyId] ?? []
         const covers = (n: MutableNotification) =>
           n.userId === userId &&
-          n.status === 'pending' &&
+          (n.status === 'pending' || n.status === 'queued') &&
           n.plantId !== undefined &&
           Array.contains(plantIds, n.plantId)
-        const covered = Array.dedupe(
-          Array.filterMap(notificationsState, (n) =>
-            covers(n) && n.plantId !== undefined
-              ? Result.succeed(n.plantId)
-              : Result.failVoid
-          )
-        )
         const toKeep = Array.filter(notificationsState, (n) => !covers(n))
         notificationsState.length = 0
         notificationsState.push(...toKeep)
-        return covered
       }),
 
     deleteByIds: (ids: ReadonlyArray<string>) =>

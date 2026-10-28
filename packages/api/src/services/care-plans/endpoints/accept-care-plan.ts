@@ -16,6 +16,7 @@ import type {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { Array, Effect, Filter, Option, Order, pipe, Record } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 interface DatedCareStep {
@@ -69,6 +70,7 @@ export const acceptCarePlan = (
   | NotificationRepository
   | UserRepository
   | PlantAccessContext
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const repo = yield* CarePlanRepository
@@ -80,7 +82,7 @@ export const acceptCarePlan = (
       })
     }
 
-    const { remindersEnabled } = yield* withPlantAuth(plan.plantId, 'care')
+    const plant = yield* withPlantAuth(plan.plantId, 'care')
 
     // Move each affected schedule's next date to the step's due date (either
     // direction). Plants without a schedule of that type are left alone: the
@@ -98,11 +100,9 @@ export const acceptCarePlan = (
             nextCareAt: dueDate,
           })
           yield* scheduleCareReminder({
-            plantId: plan.plantId,
-            userId: plan.userId,
+            plant,
             type: `${careType}_reminder` as const,
             scheduledDate: dueDate,
-            remindersEnabled,
           })
         }),
       { discard: true }

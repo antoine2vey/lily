@@ -1,5 +1,6 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import {
@@ -29,6 +30,7 @@ import {
   PlantInDelegationError,
   type PlantOwner,
 } from '@lily/shared'
+import type { Notification } from '@lily/shared/notification'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -82,6 +84,7 @@ const world = (options: {
   checked?: PlantOwner[]
   full?: (owner: PlantOwner) => boolean
   delegated?: boolean
+  notifications?: Notification[]
 }) => {
   const store = options.store ?? home()
   return Layer.mergeAll(
@@ -114,7 +117,7 @@ const world = (options: {
           }
         : {}
     ),
-    createMockNotificationRepository([]),
+    createMockNotificationRepository(options.notifications ?? []),
     createMockCareScheduleRepository(),
     createMockUserRepository([
       { ...mockUser1, id: options.actor, email: `${options.actor}@x.y` },
@@ -224,6 +227,28 @@ describe('unsharePlant', () => {
     expect(exit.value.owner).toEqual({ _tag: 'User', userId: 'lily' })
     expect(checked).toEqual([{ _tag: 'User', userId: 'lily' }])
     expect(store.mutes).toEqual([{ userId: 'sam', plantId: 'sam-ivy' }])
+  })
+
+  it('drops the queued rows of members who lose the plant and keeps the new owner one', async () => {
+    const queued = (userId: string) =>
+      createTestNotification({
+        id: `queued-${userId}`,
+        userId,
+        plantId: 'lily-cactus',
+        type: 'watering_reminder',
+        status: 'queued',
+      })
+    const notifications = [queued('alex'), queued('lily'), queued('sam')]
+
+    const exit = await Effect.runPromiseExit(
+      withPlantAuth('lily-cactus', 'unshare').pipe(
+        Effect.flatMap((plant) => unsharePlant(plant, {})),
+        Effect.provide(world({ actor: 'lily', notifications }))
+      )
+    )
+
+    expect(Exit.isSuccess(exit)).toBe(true)
+    expect(notifications.map((n) => n.id)).toEqual(['queued-lily'])
   })
 
   it('lets the Canopy owner take any Canopy plant', async () => {

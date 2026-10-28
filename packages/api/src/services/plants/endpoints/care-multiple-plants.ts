@@ -2,13 +2,14 @@ import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { ownerKey } from '@lily/api/repositories/helpers/plant-owner'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { UserRepository } from '@lily/api/repositories/user.repository'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { interimSettingsUserFor } from '@lily/api/services/plants/helpers/settings-user'
 import {
   caller,
   canPerform,
@@ -20,7 +21,7 @@ import type {
   CareMultiplePlantsResponse,
 } from '@lily/shared/plant'
 import type { EventBus } from '@lily/shared/server'
-import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Duration, Effect, Option, pipe, Record } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -44,19 +45,10 @@ export const careMultiplePlants = (
     const sql = yield* SqlClient.SqlClient
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
-    const userRepo = yield* UserRepository
-    const { id: currentUserId } = yield* CurrentUser
 
     if (request.plantIds.length === 0) {
       return []
     }
-
-    const currentUser = yield* userRepo.findById(currentUserId)
-    const timezone = pipe(
-      Option.fromNullishOr(currentUser),
-      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrElse(() => 'UTC')
-    )
 
     return yield* sql.withTransaction(
       Effect.gen(function* () {
@@ -66,6 +58,15 @@ export const careMultiplePlants = (
         const nowDt = DateTime.nowUnsafe()
         const now = DateTime.toDateUtc(nowDt)
         const who = yield* caller
+        const notificationRepo = yield* NotificationRepository
+        const owners = Record.fromEntries(
+          Array.map(foundPlants, (p) => [ownerKey(p.owner), p.owner] as const)
+        )
+        const contexts = Record.fromEntries(
+          yield* Effect.forEach(Record.toEntries(owners), ([key, owner]) =>
+            Effect.map(careContext(owner), (context) => [key, context] as const)
+          )
+        )
 
         // 2. Update each plant in parallel
         const results = yield* Effect.forEach(
@@ -92,6 +93,11 @@ export const careMultiplePlants = (
 
               // Safe: hasAccess is false when plantOption is None (onNone branch)
               const plant = Option.getOrThrow(plantOption)
+              const timezone = pipe(
+                Record.get(contexts, ownerKey(plant.owner)),
+                Option.map((context) => context.timezone),
+                Option.getOrElse(() => 'UTC')
+              )
 
               // Get frequency from schedule
               const schedule = yield* scheduleRepo.findByPlantAndType(
@@ -135,13 +141,15 @@ export const careMultiplePlants = (
               // Schedule reminder
               if (nextCareAt) {
                 yield* scheduleCareReminder({
-                  plantId,
-                  userId: yield* interimSettingsUserFor(plant.owner),
+                  plant,
                   type: `${request.careType}_reminder` as const,
                   scheduledDate: nextCareAt,
-                  remindersEnabled: plant.remindersEnabled,
                 })
               }
+              yield* notificationRepo.deletePendingByPlantAndType(
+                plantId,
+                'overdue_reminder'
+              )
 
               return {
                 plantId,

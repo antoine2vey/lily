@@ -1,5 +1,7 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import {
   createCanopyStore,
   createTestCanopyRow,
@@ -209,6 +211,77 @@ describe('acceptCanopyInvite', () => {
     expect(Exit.isSuccess(exit)).toBe(true)
     expect(store.members).toHaveLength(1)
     expect(notifications).toEqual([])
+  })
+})
+
+describe('acceptCanopyInvite reminders', () => {
+  const sharedFern = (store: MockCanopyStore) => {
+    store.plants.push({
+      id: 'fern',
+      canopyId: mockCanopyId,
+      userId: null,
+      remindersEnabled: true,
+      diedAt: null,
+    })
+    return [
+      createTestSchedule({
+        plantId: 'fern',
+        nextCareAt: new Date(Date.now() + 3 * day),
+      }),
+    ]
+  }
+
+  it('leaves an existing member reminders alone when they open the link again', async () => {
+    const store = withInvite(homeWithAlex(), 'tok')
+    const schedules = sharedFern(store)
+    const kept = createTestNotification({
+      id: 'kept',
+      userId: 'alex',
+      plantId: 'fern',
+      type: 'watering_reminder',
+      status: 'pending',
+    })
+    const notifications: Notification[] = [kept]
+
+    const exit = await Effect.runPromiseExit(
+      Effect.provide(
+        acceptCanopyInvite('tok'),
+        canopyWorld(
+          store,
+          { id: 'alex', name: 'alex' },
+          notifications,
+          schedules
+        ).layer
+      )
+    )
+
+    expect(Exit.isSuccess(exit)).toBe(true)
+    expect(Array.map(notifications, (n) => n.id)).toEqual(['kept'])
+  })
+
+  it('gives a new member their own reminder for the Canopy plants', async () => {
+    const store = withInvite(homeWithAlex(), 'tok')
+    const schedules = sharedFern(store)
+    const notifications: Notification[] = []
+
+    const exit = await Effect.runPromiseExit(
+      Effect.provide(
+        acceptCanopyInvite('tok'),
+        canopyWorld(
+          store,
+          { id: 'lily', name: 'lily' },
+          notifications,
+          schedules
+        ).layer
+      )
+    )
+
+    expect(Exit.isSuccess(exit)).toBe(true)
+    expect(
+      Array.filter(notifications, (n) => n.type === 'watering_reminder').map(
+        (n) => [n.userId, n.plantId]
+      )
+    ).toEqual([['lily', 'fern']])
   })
 })
 

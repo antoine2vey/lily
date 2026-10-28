@@ -1,3 +1,7 @@
+import {
+  createTestMembership,
+  mockCanopyId,
+} from '@lily/api/__tests__/fixtures/canopies'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import {
@@ -7,6 +11,12 @@ import {
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import {
+  createCanopyStore,
+  createMockCanopyRepository,
+  createTestCanopyRow,
+  type MockMembership,
+} from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -14,23 +24,26 @@ import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/noti
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import type { CanopyRow } from '@lily/api/repositories/canopy.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import {
   checkAndCreateOverdueReminders,
   processUserOverdueReminders,
 } from '@lily/api/services/overdue-scheduler/scheduler'
-import { pickNotificationTime } from '@lily/shared'
+import type { userSubscriptions } from '@lily/db/schema'
+import { type PlantOwner, pickNotificationTime } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   Array as Arr,
   Cause,
+  DateTime,
   Effect,
   Exit,
   Layer,
   Option,
   References,
 } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // Helper to make a date N days in the past
 const daysAgo = (days: number): Date =>
@@ -46,7 +59,16 @@ const runCheck = (
   } = {},
   subscriptionOptions: Parameters<
     typeof createMockSubscriptionRepository
-  >[0] = {}
+  >[0] = {},
+  {
+    memberships = [],
+    mutes = [],
+    canopies = [],
+  }: {
+    memberships?: MockMembership[]
+    mutes?: Array<{ userId: string; plantId: string }>
+    canopies?: CanopyRow[]
+  } = {}
 ) =>
   Effect.runPromise(
     checkAndCreateOverdueReminders.pipe(
@@ -55,7 +77,12 @@ const runCheck = (
           createMockCareScheduleRepository({
             schedules: schedulesFromPlants(plantsData),
             plants: plantsData,
+            memberships,
+            mutes,
           }),
+          createMockCanopyRepository(
+            createCanopyStore({ members: memberships, mutes, canopies })
+          ),
           createMockPlantRepository({ plants: plantsData }),
           createMockNotificationRepository(notifications),
           createMockUserRepository(users),
@@ -99,17 +126,19 @@ const runProcessUser = (
       id: p.id,
       name: p.name,
       userId,
+      owner: { _tag: 'User', userId } as PlantOwner,
       dateAdded: p.dateAdded,
       overdueAt: wateringSched.nextCareAt as Date,
     }
   })
 
   return Effect.runPromiseExit(
-    processUserOverdueReminders(userId, mapped, maxPlants).pipe(
+    processUserOverdueReminders(userId, mapped, () => maxPlants).pipe(
       Effect.provide(
         Layer.mergeAll(
           createMockNotificationRepository(notifications),
           createMockUserRepository(users),
+          createMockCanopyRepository(),
           createMockDelegationRepository(delegationData),
           createMockMessageQueue()
         )
@@ -1021,6 +1050,225 @@ describe('checkAndCreateOverdueReminders', () => {
         (n) => n.type === 'resubscribe_nudge'
       )
       expect(nudges.length).toBe(0)
+    })
+  })
+
+  describe('Canopy plants', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    const member1 = createTestUser({
+      id: 'user-1',
+      careReminders: true,
+      doNotDisturb: false,
+      timezone: 'UTC',
+    })
+    const member2 = createTestUser({
+      id: 'user-2',
+      careReminders: true,
+      doNotDisturb: false,
+      timezone: 'UTC',
+    })
+    const memberships = [
+      createTestMembership({ userId: 'user-1', role: 'owner' }),
+      createTestMembership({ userId: 'user-2' }),
+    ]
+
+    const premium = (
+      userId: string
+    ): typeof userSubscriptions.$inferSelect => ({
+      id: `sub-${userId}`,
+      userId,
+      tier: 'paid',
+      status: 'active',
+      trialStartsAt: null,
+      trialEndsAt: null,
+      currentPeriodStart: DateTime.toDateUtc(DateTime.nowUnsafe()),
+      currentPeriodEnd: DateTime.toDateUtc(
+        DateTime.add(DateTime.nowUnsafe(), { days: 30 })
+      ),
+      externalSubscriptionId: null,
+      externalCustomerId: null,
+      provider: 'revenuecat',
+      productId: null,
+      store: null,
+      canceledAt: null,
+      createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
+      updatedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
+    })
+
+    const canopyPlants = (count: number) =>
+      Arr.makeBy(count, (i) =>
+        createTestPlant({
+          id: `canopy-plant-${i}`,
+          userId: null,
+          canopyId: mockCanopyId,
+          dateAdded: daysAgo(100 - i * 10),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+
+    const rowsFor = (notifications: Notification[], userId: string) => ({
+      reminders: Arr.filter(
+        notifications,
+        (n) => n.type === 'overdue_reminder' && n.userId === userId
+      ),
+      nudges: Arr.filter(
+        notifications,
+        (n) => n.type === 'resubscribe_nudge' && n.userId === userId
+      ),
+    })
+
+    it('waits for the end of the Canopy day before a member west of it hears the plant is overdue', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2099-07-15T13:00:00.000Z'))
+      const newYorker = createTestUser({
+        id: 'user-2',
+        careReminders: true,
+        doNotDisturb: false,
+        timezone: 'America/New_York',
+      })
+      const parisMidnightJul15 = new Date('2099-07-14T22:00:00.000Z')
+      const notifications: Notification[] = []
+
+      await runCheck(
+        [
+          createTestPlant({
+            id: 'due-today-in-paris',
+            userId: null,
+            canopyId: mockCanopyId,
+            scheduleSpecs: [wateringSpec({ nextCareAt: parisMidnightJul15 })],
+          }),
+        ],
+        [member1, newYorker],
+        notifications,
+        {},
+        {},
+        {
+          memberships,
+          canopies: [
+            createTestCanopyRow({ id: mockCanopyId, timezone: 'Europe/Paris' }),
+          ],
+        }
+      )
+
+      expect(
+        Arr.filter(notifications, (n) => n.type === 'overdue_reminder')
+      ).toEqual([])
+    })
+
+    it('caps a free Canopy at the free tier for every member, with one nudge each', async () => {
+      const notifications: Notification[] = []
+
+      await runCheck(
+        canopyPlants(6),
+        [member1, member2],
+        notifications,
+        {},
+        {},
+        { memberships }
+      )
+
+      for (const userId of ['user-1', 'user-2']) {
+        const { reminders, nudges } = rowsFor(notifications, userId)
+        expect(reminders.length).toBe(5)
+        expect(Arr.map(reminders, (n) => n.plantId)).not.toContain(
+          'canopy-plant-5'
+        )
+        expect(
+          new Set(Arr.map(reminders, (n) => n.scheduledAt?.getTime())).size
+        ).toBe(1)
+        expect(nudges.length).toBe(1)
+      }
+    })
+
+    it('lifts the cap for every member when one member is premium', async () => {
+      const notifications: Notification[] = []
+
+      await runCheck(
+        canopyPlants(6),
+        [member1, member2],
+        notifications,
+        {},
+        { subscriptionsByUser: { 'user-2': premium('user-2') } },
+        { memberships }
+      )
+
+      for (const userId of ['user-1', 'user-2']) {
+        const { reminders, nudges } = rowsFor(notifications, userId)
+        expect(reminders.length).toBe(6)
+        expect(nudges.length).toBe(0)
+      }
+    })
+
+    it('sends no row for a plant the member muted', async () => {
+      const notifications: Notification[] = []
+
+      await runCheck(
+        canopyPlants(2),
+        [member1, member2],
+        notifications,
+        {},
+        {},
+        {
+          memberships,
+          mutes: [{ userId: 'user-2', plantId: 'canopy-plant-0' }],
+        }
+      )
+
+      const plantIdsFor = (userId: string) =>
+        Arr.map(rowsFor(notifications, userId).reminders, (n) => n.plantId)
+      expect(plantIdsFor('user-2')).toEqual(['canopy-plant-1'])
+      expect(plantIdsFor('user-1')).toHaveLength(2)
+    })
+
+    it('mutes only the vacationing member', async () => {
+      const notifications: Notification[] = []
+      const awayMember = createTestUser({
+        ...member2,
+        vacationStatus: 'active',
+      })
+
+      await runCheck(
+        canopyPlants(2),
+        [member1, awayMember],
+        notifications,
+        {},
+        {},
+        { memberships }
+      )
+
+      expect(rowsFor(notifications, 'user-2').reminders).toHaveLength(0)
+      expect(rowsFor(notifications, 'user-1').reminders).toHaveLength(2)
+    })
+
+    it('keeps the personal cap on a free member of a premium Canopy', async () => {
+      const notifications: Notification[] = []
+      const personal = Arr.makeBy(6, (i) =>
+        createTestPlant({
+          id: `personal-plant-${i}`,
+          userId: 'user-1',
+          dateAdded: daysAgo(100 - i * 10),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+
+      await runCheck(
+        [...personal, ...canopyPlants(1)],
+        [member1, member2],
+        notifications,
+        {},
+        { subscriptionsByUser: { 'user-2': premium('user-2') } },
+        { memberships }
+      )
+
+      const { reminders, nudges } = rowsFor(notifications, 'user-1')
+      const plantIds = Arr.map(reminders, (n) => n.plantId)
+      expect(plantIds).toHaveLength(6)
+      expect(plantIds).toContain('canopy-plant-0')
+      expect(plantIds).not.toContain('personal-plant-5')
+      expect(nudges.length).toBe(1)
     })
   })
 })

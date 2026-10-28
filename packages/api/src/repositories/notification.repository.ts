@@ -21,11 +21,13 @@ import {
   count,
   desc,
   eq,
+  gte,
   inArray,
   isNotNull,
   isNull,
   lt,
   lte,
+  notInArray,
   or,
   sql,
 } from 'drizzle-orm'
@@ -77,6 +79,9 @@ export interface INotificationRepository {
   readonly findById: (
     id: string
   ) => Effect.Effect<Notification | null, SqlError>
+  readonly findByIds: (
+    ids: ReadonlyArray<string>
+  ) => Effect.Effect<ReadonlyArray<Notification>, SqlError>
   readonly markAsRead: (
     id: string
   ) => Effect.Effect<Notification | null, SqlError>
@@ -116,10 +121,37 @@ export interface INotificationRepository {
   readonly deletePendingByPlantId: (
     plantId: string
   ) => Effect.Effect<void, SqlError>
-  readonly deletePendingForMemberOnCanopy: (
+  readonly deleteUndeliveredByUserAndPlant: (
+    userId: string,
+    plantId: string
+  ) => Effect.Effect<void, SqlError>
+  readonly lockPlantReminderInTransaction: (
+    plantId: string,
+    type: string
+  ) => Effect.Effect<void, SqlError>
+  readonly deleteUndeliveredByUserPlantAndType: (
+    userId: string,
+    plantId: string,
+    type: string
+  ) => Effect.Effect<void, SqlError>
+  readonly deleteForReschedule: (
+    plantId: string,
+    recipientIds: ReadonlyArray<string>
+  ) => Effect.Effect<void, SqlError>
+  readonly findSentSince: (
+    userId: string,
+    since: Date
+  ) => Effect.Effect<
+    ReadonlyArray<{ readonly plantId: string | null; readonly type: string }>,
+    SqlError
+  >
+  readonly createPendingMany: (
+    rows: ReadonlyArray<CreateNotificationData>
+  ) => Effect.Effect<void, SqlError>
+  readonly deleteUndeliveredForMemberOnCanopy: (
     userId: string,
     canopyId: string
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  ) => Effect.Effect<void, SqlError>
   readonly deleteByIds: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<void, SqlError>
@@ -211,6 +243,17 @@ export const NotificationRepositoryLive = Layer.effect(
           .from(notifications)
           .where(eq(notifications.id, id))
         return row ? mapToNotification(row) : null
+      }),
+
+      findByIds: Effect.fn('NotificationRepository.findByIds')(function* (
+        ids: ReadonlyArray<string>
+      ) {
+        if (Array.isReadonlyArrayEmpty(ids)) return []
+        const rows = yield* db
+          .select()
+          .from(notifications)
+          .where(inArray(notifications.id, [...ids]))
+        return Array.map(rows, mapToNotification)
       }),
 
       markAsRead: Effect.fn('NotificationRepository.markAsRead')(function* (
@@ -413,15 +456,106 @@ export const NotificationRepositoryLive = Layer.effect(
           )
       }),
 
-      deletePendingForMemberOnCanopy: Effect.fn(
-        'NotificationRepository.deletePendingForMemberOnCanopy'
-      )(function* (userId: string, canopyId: string) {
-        const deleted = yield* db
+      deleteUndeliveredByUserAndPlant: Effect.fn(
+        'NotificationRepository.deleteUndeliveredByUserAndPlant'
+      )(function* (userId: string, plantId: string) {
+        yield* db
           .delete(notifications)
           .where(
             and(
               eq(notifications.userId, userId),
-              eq(notifications.status, 'pending'),
+              eq(notifications.plantId, plantId),
+              inArray(notifications.status, ['pending', 'queued'])
+            )
+          )
+      }),
+
+      lockPlantReminderInTransaction: Effect.fn(
+        'NotificationRepository.lockPlantReminderInTransaction'
+      )(function* (plantId: string, type: string) {
+        yield* db.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext(${`reminder:${plantId}`}), hashtext(${type}))`
+        )
+      }),
+
+      deleteUndeliveredByUserPlantAndType: Effect.fn(
+        'NotificationRepository.deleteUndeliveredByUserPlantAndType'
+      )(function* (userId: string, plantId: string, type: string) {
+        yield* db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.plantId, plantId),
+              eq(notifications.type, type),
+              inArray(notifications.status, ['pending', 'queued'])
+            )
+          )
+      }),
+
+      deleteForReschedule: Effect.fn(
+        'NotificationRepository.deleteForReschedule'
+      )(function* (plantId: string, recipientIds: ReadonlyArray<string>) {
+        yield* db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.plantId, plantId),
+              or(
+                eq(notifications.status, 'pending'),
+                and(
+                  eq(notifications.status, 'queued'),
+                  ...(Array.isReadonlyArrayNonEmpty(recipientIds)
+                    ? [notInArray(notifications.userId, [...recipientIds])]
+                    : [])
+                )
+              )
+            )
+          )
+      }),
+
+      findSentSince: Effect.fn('NotificationRepository.findSentSince')(
+        function* (userId: string, since: Date) {
+          return yield* db
+            .select({
+              plantId: notifications.plantId,
+              type: notifications.type,
+            })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.userId, userId),
+                eq(notifications.status, 'sent'),
+                gte(notifications.sentAt, since)
+              )
+            )
+        }
+      ),
+
+      createPendingMany: Effect.fn('NotificationRepository.createPendingMany')(
+        function* (rows: ReadonlyArray<CreateNotificationData>) {
+          if (Array.isReadonlyArrayEmpty(rows)) return
+          yield* db.insert(notifications).values(
+            Array.map(rows, (row) => ({
+              type: row.type,
+              scheduledAt: row.scheduledAt,
+              userId: row.userId,
+              plantId: Option.getOrNull(Option.fromNullishOr(row.plantId)),
+              status: 'pending' as const,
+            }))
+          )
+        }
+      ),
+
+      deleteUndeliveredForMemberOnCanopy: Effect.fn(
+        'NotificationRepository.deleteUndeliveredForMemberOnCanopy'
+      )(function* (userId: string, canopyId: string) {
+        yield* db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              inArray(notifications.status, ['pending', 'queued']),
               inArray(
                 notifications.plantId,
                 db
@@ -431,13 +565,6 @@ export const NotificationRepositoryLive = Layer.effect(
               )
             )
           )
-          .returning({ plantId: notifications.plantId })
-        return Array.dedupe(
-          Array.filter(
-            Array.map(deleted, (row) => row.plantId),
-            (id): id is string => id !== null
-          )
-        )
       }),
 
       deleteByIds: Effect.fn('NotificationRepository.deleteByIds')(function* (

@@ -1,6 +1,8 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { memberCanopyId } from '@lily/api/services/care-tasks/helpers/member-canopy'
 import {
   buildLiveActivityCareTypeLabel,
   buildLiveActivityHeadline,
@@ -28,7 +30,7 @@ export const buildLiveActivityContentState = (
 ): Effect.Effect<
   LiveActivityContentState | null,
   SqlError,
-  CareLogRepository | CareScheduleRepository | UserRepository
+  CareLogRepository | CareScheduleRepository | UserRepository | CanopyRepository
 > =>
   Effect.gen(function* () {
     const scheduleRepo = yield* CareScheduleRepository
@@ -53,7 +55,12 @@ export const buildLiveActivityContentState = (
     const cutoffDt = endOfDay(now, timezone)
     const cutoffDate = DateTime.toDateUtc(cutoffDt)
 
-    const schedules = yield* scheduleRepo.findPendingByUser(userId, cutoffDate)
+    const canopyId = yield* memberCanopyId(userId)
+    const schedules = yield* scheduleRepo.findPendingByUser(
+      userId,
+      cutoffDate,
+      canopyId
+    )
 
     const dueSchedules = Array.filter(schedules, (s) => {
       const next = s.schedule.nextCareAt
@@ -109,7 +116,11 @@ export const buildLiveActivityContentState = (
 
     // Task-count (not plant-count) — pairs with dueSchedules.length for a
     // coherent progress-bar ratio inside the widget.
-    const completedToday = yield* careLogRepo.countTodayByUser(userId, timezone)
+    const completedToday = yield* careLogRepo.countTodayByUser(
+      userId,
+      timezone,
+      canopyId
+    )
 
     return {
       schemaVersion: LIVE_ACTIVITY_SCHEMA_VERSION,

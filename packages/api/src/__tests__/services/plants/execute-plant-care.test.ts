@@ -5,6 +5,7 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -130,6 +131,7 @@ describe('executePlantCare', () => {
               createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
+              createMockCanopyRepository(),
               createMockEventBus(),
               createMockCurrentUser({
                 id: userId,
@@ -215,6 +217,7 @@ describe('executePlantCare', () => {
               createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
+              createMockCanopyRepository(),
               createMockEventBus(),
               createMockCurrentUser({
                 id: userId,
@@ -292,6 +295,7 @@ describe('executePlantCare', () => {
               createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
+              createMockCanopyRepository(),
               createMockEventBus(),
               createMockCurrentUser({
                 id: userId,
@@ -398,6 +402,7 @@ describe('executePlantCare', () => {
               createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
+              createMockCanopyRepository(),
               createMockEventBus(),
               createMockCurrentUser({
                 id: userId,

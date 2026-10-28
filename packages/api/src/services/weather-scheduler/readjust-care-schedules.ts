@@ -1,3 +1,4 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -9,130 +10,159 @@ import {
   toIndoorPlantContext,
 } from '@lily/api/services/weather/algorithm'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import { type Orientation, roundCoord } from '@lily/shared'
-import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import {
+  CanopyId,
+  type Orientation,
+  type PlantOwner,
+  roundCoord,
+} from '@lily/shared'
+import {
+  Array,
+  DateTime,
+  Duration,
+  Effect,
+  Match,
+  Option,
+  pipe,
+  String as Str,
+} from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-interface WeatherEnabledUser {
+export interface WeatherScope {
+  readonly owner: PlantOwner
+  readonly latitude: number
+  readonly longitude: number
+  readonly timezone: string
+}
+
+interface LocatedRow {
   readonly id: string
   readonly latitude: number | null
   readonly longitude: number | null
   readonly timezone: string | null
-  readonly careReminders: boolean
 }
 
-/**
- * Readjust care schedules for the given weather-enabled users based on
- * pre-built weather contexts (one per distinct location).
- *
- * Uses the forecast-averaged delta model: instead of recalculating
- * nextWateringAt from scratch, we compute a stable delta (in days) and
- * apply it. Re-running with the same weather produces delta = 0.
- *
- * The caller (scheduler) is responsible for:
- * 1. Fetching the user list (avoids a duplicate DB query)
- * 2. Building the weather context map keyed by "lat_lng" (avoids
- *    redundant DB/cache hits when multiple users share a location)
- */
-export const readjustCareSchedules = (
-  weatherUsers: ReadonlyArray<WeatherEnabledUser>,
-  weatherContextMap: ReadonlyMap<string, WeatherContext>
-): Effect.Effect<
-  void,
-  never,
+const toWeatherScope = (
+  row: LocatedRow,
+  owner: PlantOwner
+): Option.Option<WeatherScope> =>
+  Option.map(
+    Option.all({
+      latitude: Option.fromNullishOr(row.latitude),
+      longitude: Option.fromNullishOr(row.longitude),
+    }),
+    ({ latitude, longitude }) => ({
+      owner,
+      latitude,
+      longitude,
+      timezone: pipe(
+        Option.fromNullishOr(row.timezone),
+        Option.filter(Str.isNonEmpty),
+        Option.getOrElse(() => 'UTC')
+      ),
+    })
+  )
+
+export const weatherScopes = (
+  users: ReadonlyArray<LocatedRow>,
+  canopies: ReadonlyArray<LocatedRow>
+): ReadonlyArray<WeatherScope> =>
+  Array.getSomes([
+    ...Array.map(users, (user) =>
+      toWeatherScope(user, { _tag: 'User', userId: user.id })
+    ),
+    ...Array.map(canopies, (canopy) =>
+      toWeatherScope(canopy, {
+        _tag: 'Canopy',
+        canopyId: CanopyId.make(canopy.id),
+      })
+    ),
+  ])
+
+export const weatherLocationKey = (latitude: number, longitude: number) =>
+  `${roundCoord(latitude)}_${roundCoord(longitude)}`
+
+type ReadjustContext =
   | PlantRepository
   | CareScheduleRepository
   | NotificationRepository
   | UserRepository
   | DelegationRepository
-> =>
+  | CanopyRepository
+  | SqlClient.SqlClient
+
+export const readjustCareSchedules = (
+  scopes: ReadonlyArray<WeatherScope>,
+  weatherContextMap: ReadonlyMap<string, WeatherContext>
+): Effect.Effect<void, never, ReadjustContext> =>
   Effect.gen(function* () {
-    if (Array.isReadonlyArrayEmpty(weatherUsers)) {
+    if (Array.isReadonlyArrayEmpty(scopes)) {
       return
     }
 
     yield* Effect.log(
-      `[Readjust] Processing ${weatherUsers.length} weather-enabled users with ${weatherContextMap.size} location contexts`
+      `[Readjust] Processing ${scopes.length} weather scopes with ${weatherContextMap.size} location contexts`
     )
 
     yield* Effect.forEach(
-      weatherUsers,
-      (user) =>
-        readjustUserPlants(user, weatherContextMap).pipe(
-          Effect.catchTag('SqlError', (error) =>
-            Effect.logWarning(
-              `[weather-scheduler] Care readjustment failed for user ${user.id}`,
-              { error: String(error) }
-            )
-          )
-        ),
+      scopes,
+      (scope) => readjustScopePlants(scope, weatherContextMap),
       { concurrency: 5 }
     )
 
     yield* Effect.log('[Readjust] Care schedule readjustment complete')
   })
 
-const readjustUserPlants = (
-  user: WeatherEnabledUser,
+const readjustScopePlants = (
+  scope: WeatherScope,
   weatherContextMap: ReadonlyMap<string, WeatherContext>
-): Effect.Effect<
-  void,
-  SqlError,
-  | PlantRepository
-  | CareScheduleRepository
-  | NotificationRepository
-  | UserRepository
-  | DelegationRepository
-> =>
-  Effect.gen(function* () {
-    const latOption = Option.fromNullishOr(user.latitude)
-    const lngOption = Option.fromNullishOr(user.longitude)
+): Effect.Effect<void, never, ReadjustContext> => {
+  const { label, listPlants } = pipe(
+    Match.value(scope.owner),
+    Match.tag('User', ({ userId }) => ({
+      label: `user ${userId}`,
+      listPlants: Effect.flatMap(PlantRepository, (plantRepo) =>
+        plantRepo.findAll({
+          userId,
+          timezone: scope.timezone,
+          page: 1,
+          limit: 1000,
+        })
+      ).pipe(Effect.map((result) => result.items)),
+    })),
+    Match.tag('Canopy', ({ canopyId }) => ({
+      label: `canopy ${canopyId}`,
+      listPlants: Effect.flatMap(PlantRepository, (plantRepo) =>
+        plantRepo.findLivingByCanopy(canopyId)
+      ),
+    })),
+    Match.exhaustive
+  )
 
-    if (Option.isNone(latOption) || Option.isNone(lngOption)) {
-      yield* Effect.log(`[Readjust] Skipping user ${user.id} — missing lat/lng`)
-      return
-    }
-
-    const locationKey = `${roundCoord(latOption.value)}_${roundCoord(lngOption.value)}`
+  return Effect.gen(function* () {
+    const locationKey = weatherLocationKey(scope.latitude, scope.longitude)
     const weatherCtx = weatherContextMap.get(locationKey)
 
     if (!weatherCtx) {
       yield* Effect.log(
-        `[Readjust] Skipping user ${user.id} — no weather context for ${locationKey}`
+        `[Readjust] Skipping ${label} — no weather context for ${locationKey}`
       )
       return
     }
 
     yield* Effect.log(
-      `[Readjust] Processing user ${user.id} at ${locationKey} (tz=${pipe(
-        Option.fromNullishOr(user.timezone),
-        Option.getOrElse(() => 'UTC')
-      )})`
+      `[Readjust] Processing ${label} at ${locationKey} (tz=${scope.timezone})`
     )
 
-    const timezone = pipe(
-      Option.fromNullishOr(user.timezone),
-      Option.getOrElse(() => 'UTC')
-    )
+    const plants = yield* listPlants
 
-    const plantRepo = yield* PlantRepository
-
-    // Get all user plants
-    const plantsResult = yield* plantRepo.findAll({
-      userId: user.id,
-      timezone,
-      page: 1,
-      limit: 1000,
-    })
-
-    yield* Effect.log(
-      `[Readjust] User ${user.id} has ${plantsResult.items.length} plants`
-    )
+    yield* Effect.log(`[Readjust] ${label} has ${plants.length} plants`)
 
     yield* Effect.forEach(
-      plantsResult.items,
+      plants,
       (plant) =>
-        readjustPlantSchedule(plant, user, weatherCtx).pipe(
+        readjustPlantSchedule(plant, scope.latitude, weatherCtx).pipe(
           Effect.catchTag('SqlError', (error) =>
             Effect.logWarning(
               `[weather-scheduler] Readjustment failed for plant ${plant.id}`,
@@ -142,11 +172,20 @@ const readjustUserPlants = (
         ),
       { concurrency: 10 }
     )
-  })
+  }).pipe(
+    Effect.catchTag('SqlError', (error) =>
+      Effect.logWarning(
+        `[weather-scheduler] Care readjustment failed for ${label}`,
+        { error: String(error) }
+      )
+    )
+  )
+}
 
 const readjustPlantSchedule = (
   plant: {
     id: string
+    owner: PlantOwner
     name: string
     category: string | null
     wateringRating: number
@@ -162,21 +201,9 @@ const readjustPlantSchedule = (
       isOutdoor: boolean
     } | null
   },
-  user: {
-    id: string
-    careReminders: boolean
-    latitude: number | null
-  },
+  latitude: number,
   weatherCtx: WeatherContext
-): Effect.Effect<
-  void,
-  SqlError,
-  | PlantRepository
-  | CareScheduleRepository
-  | NotificationRepository
-  | UserRepository
-  | DelegationRepository
-> =>
+): Effect.Effect<void, SqlError, ReadjustContext> =>
   Effect.gen(function* () {
     const scheduleRepo = yield* CareScheduleRepository
 
@@ -234,7 +261,7 @@ const readjustPlantSchedule = (
       },
       weatherCtx,
       nowMs,
-      user.latitude
+      latitude
     )
 
     yield* Effect.log(
@@ -296,21 +323,17 @@ const readjustPlantSchedule = (
       // Reschedule notifications
       if (wateringChanged) {
         yield* scheduleCareReminder({
-          plantId: plant.id,
-          userId: user.id,
+          plant,
           type: 'watering_reminder',
           scheduledDate: newNextWateringAt.value,
-          remindersEnabled: plant.remindersEnabled && user.careReminders,
         })
       }
 
       if (fertilizationChanged) {
         yield* scheduleCareReminder({
-          plantId: plant.id,
-          userId: user.id,
+          plant,
           type: 'fertilization_reminder',
           scheduledDate: newNextFertilizationAt.value,
-          remindersEnabled: plant.remindersEnabled && user.careReminders,
         })
       }
     }

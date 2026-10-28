@@ -7,12 +7,14 @@ import {
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
@@ -67,12 +69,14 @@ describe('correctCareDates', () => {
     const schedules = schedulesFromPlants(plants)
     return {
       layer: Layer.mergeAll(
+        MockSqlClientLive,
         createMockPlantRepository({ plants }),
         createMockCareLogRepository(careLogs),
         createMockNotificationRepository([]),
         createMockUserRepository([...mockUsers]),
         createMockCurrentUser({ id: 'user-1' }),
         createMockDelegationRepository(),
+        createMockCanopyRepository(),
         createMockCareScheduleRepository({ schedules, plants })
       ),
       schedules,

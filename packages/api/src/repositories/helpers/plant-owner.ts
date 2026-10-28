@@ -82,6 +82,9 @@ export const ownerColumns = (
     ? { userId: owner.userId, canopyId: null }
     : { userId: null, canopyId: owner.canopyId }
 
+export const ownerKey = (owner: PlantOwner): string =>
+  owner._tag === 'User' ? `user:${owner.userId}` : `canopy:${owner.canopyId}`
+
 export const sameOwner = (a: PlantOwner, b: PlantOwner): boolean =>
   a._tag === 'User'
     ? b._tag === 'User' && a.userId === b.userId

@@ -1,3 +1,5 @@
+import { caredForBy } from '@lily/api/repositories/helpers/care-visibility'
+import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
   getPaginationParams,
@@ -99,6 +101,11 @@ export interface ICareLogRepository {
     type: CareType
   ) => Effect.Effect<void, SqlError>
   readonly countTodayByUser: (
+    userId: string,
+    timezone: string,
+    canopyId: string | null
+  ) => Effect.Effect<number, SqlError>
+  readonly countTodayOnOwnPlantsByUser: (
     userId: string,
     timezone: string
   ) => Effect.Effect<number, SqlError>
@@ -306,18 +313,34 @@ export const CareLogRepositoryLive = Layer.effect(
       ),
 
       countTodayByUser: Effect.fn('CareLogRepository.countTodayByUser')(
-        function* (userId: string, timezone: string) {
+        function* (userId: string, timezone: string, canopyId: string | null) {
           const startOfDay = sql`date_trunc('day', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
           const result = yield* db
             .select({ value: count() })
             .from(careLogs)
             .innerJoin(plants, eq(careLogs.plantId, plants.id))
             .where(
-              and(eq(plants.userId, userId), gte(careLogs.date, startOfDay))
+              and(
+                caredForBy(db, userId, canopyId),
+                isLivingPlant(),
+                gte(careLogs.date, startOfDay)
+              )
             )
           return extractCount(result)
         }
       ),
+
+      countTodayOnOwnPlantsByUser: Effect.fn(
+        'CareLogRepository.countTodayOnOwnPlantsByUser'
+      )(function* (userId: string, timezone: string) {
+        const startOfDay = sql`date_trunc('day', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
+        const result = yield* db
+          .select({ value: count() })
+          .from(careLogs)
+          .innerJoin(plants, eq(careLogs.plantId, plants.id))
+          .where(and(eq(plants.userId, userId), gte(careLogs.date, startOfDay)))
+        return extractCount(result)
+      }),
 
       countByUser: Effect.fn('CareLogRepository.countByUser')(function* (
         userId: string

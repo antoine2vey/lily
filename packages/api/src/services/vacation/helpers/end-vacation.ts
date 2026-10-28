@@ -1,3 +1,4 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import {
   CareScheduleRepository,
   type OwnerScheduleRow,
@@ -8,6 +9,7 @@ import {
   UserRepository,
   type VacationSnapshot,
 } from '@lily/api/repositories/user.repository'
+import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
@@ -46,6 +48,7 @@ export const endVacation = (
   | CareScheduleRepository
   | DelegationRepository
   | NotificationRepository
+  | CanopyRepository
   | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
@@ -101,9 +104,9 @@ const endVacationInTransaction = (params: EndVacationParams) =>
 
     const rows = yield* scheduleRepo.findByOwnerWithPlant(user.id)
 
-    // One caretaker lookup per plant, not per schedule row.
     const plantIds = pipe(
-      Array.map(rows, (row) => row.plant.id),
+      Array.filter(rows, (row) => row.plant.owner._tag === 'User'),
+      Array.map((row) => row.plant.id),
       Array.dedupe
     )
     const caretakerEntries = yield* Effect.forEach(plantIds, (plantId) =>
@@ -123,7 +126,11 @@ const endVacationInTransaction = (params: EndVacationParams) =>
     const shifted = yield* Effect.forEach(rows, (row) =>
       Effect.gen(function* () {
         const nextCareAt = row.schedule.nextCareAt
-        if (nextCareAt === null || isDelegated(row.plant.id)) {
+        if (
+          nextCareAt === null ||
+          row.plant.owner._tag === 'Canopy' ||
+          isDelegated(row.plant.id)
+        ) {
           return row
         }
         const nextMs = DateTime.toEpochMillis(DateTime.makeUnsafe(nextCareAt))
@@ -156,19 +163,19 @@ const endVacationInTransaction = (params: EndVacationParams) =>
       Array.filter(
         shifted,
         (row) =>
+          row.plant.owner._tag === 'User' &&
           row.schedule.nextCareAt !== null &&
           DateTime.toEpochMillis(DateTime.makeUnsafe(row.schedule.nextCareAt)) >
             nowMs
       ),
       (row) =>
         scheduleCareReminder({
-          plantId: row.plant.id,
-          userId: row.plant.userId,
+          plant: row.plant,
           type: `${row.schedule.careType}_reminder` as const,
           // biome-ignore lint/style/noNonNullAssertion: filtered non-null above
           scheduledDate: row.schedule.nextCareAt!,
-          remindersEnabled: row.plant.remindersEnabled,
         })
     )
+    yield* rebuildMemberReminders(user.id)
     return claimed
   })
