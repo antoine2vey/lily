@@ -1,6 +1,9 @@
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { resolveImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import {
+  authorScope,
+  type KnowledgeView,
+} from '@lily/api/services/plants/helpers/plant-access'
 import type { DiagnosisListResponse } from '@lily/shared/diagnosis'
 import type { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
@@ -9,6 +12,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 export interface GetDiagnosesParams {
   plantId: string
+  view: KnowledgeView
   page?: number
   limit?: number
 }
@@ -18,15 +22,14 @@ export const getDiagnoses = (
 ): Effect.Effect<
   DiagnosisListResponse,
   SqlError | GCSUploadError,
-  DiagnosisRepository | CurrentUser | GCSService
+  DiagnosisRepository | GCSService
 > =>
   Effect.gen(function* () {
     const repo = yield* DiagnosisRepository
-    const { id: userId } = yield* CurrentUser
 
     const result = yield* repo.findByPlantId({
       plantId: params.plantId,
-      userId,
+      author: authorScope(params.view),
       ...(params.page !== undefined && { page: params.page }),
       ...(params.limit !== undefined && { limit: params.limit }),
     })

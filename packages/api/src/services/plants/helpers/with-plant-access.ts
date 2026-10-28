@@ -12,6 +12,8 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
   allows,
   canopyRole,
+  type KnowledgeView,
+  knowledgeView,
   type PlantAction,
   type PlantRole,
   personalRole,
@@ -90,6 +92,30 @@ export const resolvePlantRole = (
  * id exactly as the caller sent it. A role that exists but lacks the action
  * gets 403: that caller can already see the plant.
  */
+const authorizedRole = (
+  requestedId: string,
+  plant: PlantRow,
+  action: PlantAction
+): Effect.Effect<
+  PlantRole,
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantAccessContext
+> =>
+  Effect.flatMap(
+    resolvePlantRole(plant),
+    (
+      role
+    ): Effect.Effect<PlantRole, PlantNotFoundError | PlantNotAuthorizedError> =>
+      Option.match(role, {
+        onNone: () =>
+          Effect.fail(new PlantNotFoundError({ plantId: requestedId })),
+        onSome: (role) =>
+          allows(action)(role)
+            ? Effect.succeed(role)
+            : Effect.fail(new PlantNotAuthorizedError()),
+      })
+  )
+
 export const assertPlantAction = (
   requestedId: string,
   plant: PlantRow,
@@ -98,19 +124,7 @@ export const assertPlantAction = (
   void,
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantAccessContext
-> =>
-  Effect.flatMap(
-    resolvePlantRole(plant),
-    (role): Effect.Effect<void, PlantNotFoundError | PlantNotAuthorizedError> =>
-      Option.match(role, {
-        onNone: () =>
-          Effect.fail(new PlantNotFoundError({ plantId: requestedId })),
-        onSome: (role) =>
-          allows(action)(role)
-            ? Effect.void
-            : Effect.fail(new PlantNotAuthorizedError()),
-      })
-  )
+> => Effect.asVoid(authorizedRole(requestedId, plant, action))
 
 export const canPerform = (
   who: Caller,
@@ -127,6 +141,28 @@ export const canPerform = (
  * `Effect.zipRight` or `Effect.andThen` for endpoints that only need the
  * check. Endpoints must not re-fetch a plant received from here.
  */
+export const withPlantKnowledge = (
+  plantId: string,
+  action: PlantAction
+): Effect.Effect<
+  { readonly plant: PlantWithRoom; readonly view: KnowledgeView },
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantRepository | PlantAccessContext
+> =>
+  Effect.gen(function* () {
+    const repo = yield* PlantRepository
+    const { id: viewerId } = yield* CurrentUser
+    const plant = yield* repo.findById(plantId)
+
+    if (!plant) {
+      return yield* new PlantNotFoundError({ plantId })
+    }
+
+    const role = yield* authorizedRole(plantId, plant, action)
+
+    return { plant, view: knowledgeView(role, viewerId) }
+  }).pipe(Effect.withSpan('withPlantAuth', { attributes: { action } }))
+
 export const withPlantAuth = (
   plantId: string,
   action: PlantAction
@@ -134,16 +170,4 @@ export const withPlantAuth = (
   PlantWithRoom,
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
-> =>
-  Effect.gen(function* () {
-    const repo = yield* PlantRepository
-    const plant = yield* repo.findById(plantId)
-
-    if (!plant) {
-      return yield* new PlantNotFoundError({ plantId })
-    }
-
-    yield* assertPlantAction(plantId, plant, action)
-
-    return plant
-  }).pipe(Effect.withSpan('withPlantAuth', { attributes: { action } }))
+> => Effect.map(withPlantKnowledge(plantId, action), ({ plant }) => plant)

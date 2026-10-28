@@ -5,7 +5,9 @@ import {
 import {
   allowedRoles,
   allows,
+  authorScope,
   canopyRole,
+  knowledgeView,
   type PlantAction,
   PlantRole,
   personalRole,
@@ -58,6 +60,27 @@ describe('plant permission table', () => {
         expect(allows(action)(role)).toBe(Array.contains(allowed, role._tag))
       })
     }
+  }
+})
+
+describe('knowledgeView', () => {
+  const household: { readonly [Tag in PlantRole['_tag']]: boolean } = {
+    Owner: false,
+    Caretaker: false,
+    CanopyOwner: true,
+    CanopyCreator: true,
+    CanopyMember: true,
+  }
+
+  for (const role of roles) {
+    const expected = household[role._tag]
+    it(`${expected ? 'shares' : 'keeps private'} what others found for ${role._tag}`, () => {
+      const view = knowledgeView(role, 'viewer')
+      expect(view).toEqual({ viewerId: 'viewer', household: expected })
+      expect(authorScope(view)).toEqual(
+        expected ? Option.none() : Option.some('viewer')
+      )
+    })
   }
 })
 

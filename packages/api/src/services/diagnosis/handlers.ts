@@ -1,7 +1,7 @@
 import type { Api } from '@lily/api/api'
 import { getDiagnoses } from '@lily/api/services/diagnosis/endpoints/get-diagnoses'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
@@ -11,10 +11,11 @@ export const DiagnosisApiLive = (api: Api) =>
     handlers.handle(
       'getDiagnoses',
       ({ params: { plantId }, query: urlParams }) =>
-        withPlantAuth(plantId, 'diagnose').pipe(
-          Effect.andThen(
+        withPlantKnowledge(plantId, 'diagnose').pipe(
+          Effect.flatMap(({ view }) =>
             getDiagnoses({
               plantId,
+              view,
               ...parsePaginationParams(urlParams),
             })
           ),
