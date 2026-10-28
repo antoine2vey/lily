@@ -143,7 +143,7 @@ export const createMockAchievementRepository = (
         )
       ),
 
-    findUserIdsWithPlants: () => {
+    findUserIdsWithProgress: () => {
       const userIds = pipe(
         data.achievements,
         Array.map((a) => a.userId),

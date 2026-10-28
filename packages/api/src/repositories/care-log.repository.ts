@@ -326,8 +326,7 @@ export const CareLogRepositoryLive = Layer.effect(
         const result = yield* db
           .select({ value: count() })
           .from(careLogs)
-          .innerJoin(plants, eq(careLogs.plantId, plants.id))
-          .where(eq(plants.userId, userId))
+          .where(eq(careLogs.performedByUserId, userId))
         return extractCount(result)
       }),
     }

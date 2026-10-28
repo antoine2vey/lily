@@ -4,7 +4,13 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { plants, userFollows, userNudges, users } from '@lily/db/schema'
+import {
+  canopyMembers,
+  plants,
+  userFollows,
+  userNudges,
+  users,
+} from '@lily/db/schema'
 import {
   and,
   count,
@@ -14,6 +20,7 @@ import {
   inArray,
   isNull,
   ne,
+  or,
   sql,
 } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
@@ -140,7 +147,7 @@ const isFollowingSubquery = (currentUserId: string) =>
 
 // Public counts only include living plants; the cemetery is private.
 const plantCountSubquery = () =>
-  sql<number>`(SELECT count(*)::int FROM plants WHERE plants.user_id = ${users.id} AND plants.died_at IS NULL)`
+  sql<number>`(SELECT count(*)::int FROM plants WHERE plants.created_by_user_id = ${users.id} AND plants.died_at IS NULL)`
 
 export const FollowRepositoryLive = Layer.effect(
   FollowRepository,
@@ -391,7 +398,7 @@ export const FollowRepositoryLive = Layer.effect(
               bio: users.bio,
               plantCount: sql<number>`(
                 SELECT count(*)::int FROM plants
-                WHERE plants.user_id = ${params.targetUserId}
+                WHERE plants.created_by_user_id = ${params.targetUserId}
                 AND plants.died_at IS NULL
               )`,
               followerCount: sql<number>`(
@@ -423,7 +430,22 @@ export const FollowRepositoryLive = Layer.effect(
               imageUrl: plants.imageUrl,
             })
             .from(plants)
-            .where(and(eq(plants.userId, params.targetUserId), isLivingPlant()))
+            .where(
+              and(
+                eq(plants.createdByUserId, params.targetUserId),
+                or(
+                  eq(plants.userId, params.targetUserId),
+                  inArray(
+                    plants.canopyId,
+                    db
+                      .select({ canopyId: canopyMembers.canopyId })
+                      .from(canopyMembers)
+                      .where(eq(canopyMembers.userId, params.targetUserId))
+                  )
+                ),
+                isLivingPlant()
+              )
+            )
             .orderBy(desc(plants.dateAdded))
             .limit(9)
 
