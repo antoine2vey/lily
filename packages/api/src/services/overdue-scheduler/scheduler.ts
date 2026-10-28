@@ -4,6 +4,7 @@ import {
   type OverdueRecipientPlant,
 } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import { ownerKey } from '@lily/api/repositories/helpers/plant-owner'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
@@ -35,13 +36,6 @@ import {
   Random,
   Record,
 } from 'effect'
-
-const ownerKey = (owner: PlantOwner): string =>
-  Match.value(owner).pipe(
-    Match.tag('User', ({ userId }) => `user:${userId}`),
-    Match.tag('Canopy', ({ canopyId }) => `canopy:${canopyId}`),
-    Match.exhaustive
-  )
 
 export const processUserOverdueReminders = (
   userId: string,

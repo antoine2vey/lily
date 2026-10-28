@@ -1,5 +1,4 @@
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
-import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -8,6 +7,7 @@ import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
+import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import {
   type InterruptionLevel,
   type LiveActivityAlert,
@@ -296,7 +296,6 @@ export const processMessage = Effect.fn('notification-worker.process')(
     const deviceTokenRepo = yield* DeviceTokenRepository
     const notificationRepo = yield* NotificationRepository
     const plantRepo = yield* PlantRepository
-    const canopyRepo = yield* CanopyRepository
 
     const claimedIds = yield* notificationRepo.claimForDelivery(
       notificationIds,
@@ -322,14 +321,12 @@ export const processMessage = Effect.fn('notification-worker.process')(
       Array.isReadonlyArrayNonEmpty(message.payload.plantIds)
     ) {
       const plants = yield* plantRepo.findByIds(message.payload.plantIds)
-      const membership = yield* canopyRepo.findMembershipByUser(
-        message.payload.userId
-      )
-      const stillTheirs = Array.filter(
-        plants,
+      const stillTheirs = yield* Effect.filter(
+        Array.filter(plants, (p) => p.diedAt === null),
         (p) =>
-          p.diedAt === null &&
-          (p.owner._tag === 'User' || p.owner.canopyId === membership?.canopyId)
+          Effect.map(reminderRecipients(p), (recipients) =>
+            Array.contains(recipients, message.payload.userId)
+          )
       )
       if (Array.isReadonlyArrayEmpty(stillTheirs)) {
         yield* Effect.log(

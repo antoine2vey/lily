@@ -2,6 +2,7 @@ import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
 import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
@@ -19,7 +20,7 @@ export const mutePlant = Effect.fn('PlantsService.mutePlant')(function* (
       reloadOwnedPlant(plant, requestedId),
       Effect.andThen(
         repo.mute(userId, plant.id),
-        notificationRepo.deletePendingByUserAndPlant(userId, plant.id)
+        notificationRepo.deleteUndeliveredByUserAndPlant(userId, plant.id)
       )
     )
   ).pipe(
@@ -35,4 +36,5 @@ export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(function* (
   const { id: userId } = yield* CurrentUser
   const repo = yield* CanopyRepository
   yield* repo.unmute(userId, plant.id)
+  yield* rebuildMemberReminders(userId, [plant.id])
 })

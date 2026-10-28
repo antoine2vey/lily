@@ -183,7 +183,7 @@ export async function reconcileLiveActivityTokens(
     let hasRemainingTasks = true
     try {
       const tasks = await apiEffectRunner('careTasks', 'getCareTasks', {
-        query: {},
+        query: { includeCanopy: 'true' },
       })
       hasRemainingTasks = tasks.overdue.length > 0 || tasks.today.length > 0
     } catch (err) {

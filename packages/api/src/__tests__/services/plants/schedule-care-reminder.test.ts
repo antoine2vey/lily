@@ -6,6 +6,7 @@ import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
   createMockCanopyRepository,
+  createTestCanopyRow,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -14,7 +15,7 @@ import type { DelegationRow } from '@lily/api/repositories/delegation.repository
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, References } from 'effect'
+import { Array, Effect, Layer, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const personalPlant = (ownerId: string, remindersEnabled: boolean) => ({
@@ -769,6 +770,8 @@ describe('scheduleCareReminder', () => {
       options: {
         mutes?: { userId: string; plantId: string }[]
         existing?: Notification[]
+        canopyTimezone?: string
+        scheduledDate?: Date
       } = {}
     ) => {
       const rows: Notification[] = options.existing ?? []
@@ -776,14 +779,23 @@ describe('scheduleCareReminder', () => {
         scheduleCareReminder({
           plant: canopyPlant,
           type: 'watering_reminder',
-          scheduledDate: createFutureDate(7),
+          scheduledDate: options.scheduledDate ?? createFutureDate(7),
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               createMockNotificationRepository(rows),
               createMockUserRepository(users),
               createMockCanopyRepository(
-                createCanopyStore({ members, mutes: options.mutes ?? [] })
+                createCanopyStore({
+                  canopies: [
+                    createTestCanopyRow({
+                      id: mockCanopyId,
+                      timezone: options.canopyTimezone ?? 'UTC',
+                    }),
+                  ],
+                  members,
+                  mutes: options.mutes ?? [],
+                })
               ),
               createMockDelegationRepository()
             )
@@ -799,6 +811,28 @@ describe('scheduleCareReminder', () => {
         Array.map(pending, (n) => [n.userId, n.scheduledAt.getUTCHours()])
       )
       expect(hoursByUser).toEqual({ alex: 8, lily: 19 })
+    })
+
+    it('reminds a member west of the Canopy on the same calendar day, not the day before', async () => {
+      const newYorker = createTestUser({
+        id: 'lily',
+        timezone: 'America/New_York',
+        preferredNotificationTime: '09:00',
+        careReminders: true,
+        doNotDisturb: false,
+      })
+      // Due at midnight in Paris on July 15th, which is still July 14th in New York.
+      const parisMidnightJul15 = new Date('2099-07-14T22:00:00.000Z')
+      const pending = await runCanopy([alex, newYorker], {
+        canopyTimezone: 'Europe/Paris',
+        scheduledDate: parisMidnightJul15,
+      })
+      const lilyRow = Array.findFirst(pending, (n) => n.userId === 'lily')
+      expect(
+        Option.map(lilyRow, (n) => n.scheduledAt.toISOString()).pipe(
+          Option.getOrNull
+        )
+      ).toBe('2099-07-15T13:00:00.000Z')
     })
 
     it('skips a member who muted the plant', async () => {

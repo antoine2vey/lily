@@ -1,4 +1,4 @@
-import { caredForBy } from '@lily/api/repositories/helpers/care-visibility'
+import { careScopeOf } from '@lily/api/repositories/helpers/care-visibility'
 import {
   extractCount,
   getPaginationParams,
@@ -310,16 +310,12 @@ export const CareLogRepositoryLive = Layer.effect(
       countTodayByUser: Effect.fn('CareLogRepository.countTodayByUser')(
         function* (userId: string, timezone: string, includeCanopy: boolean) {
           const startOfDay = sql`date_trunc('day', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
+          const scope = yield* careScopeOf(db, userId, includeCanopy)
           const result = yield* db
             .select({ value: count() })
             .from(careLogs)
             .innerJoin(plants, eq(careLogs.plantId, plants.id))
-            .where(
-              and(
-                caredForBy(db, userId, includeCanopy),
-                gte(careLogs.date, startOfDay)
-              )
-            )
+            .where(and(scope, gte(careLogs.date, startOfDay)))
           return extractCount(result)
         }
       ),
