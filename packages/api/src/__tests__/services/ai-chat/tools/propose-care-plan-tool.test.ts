@@ -50,7 +50,7 @@ describe('proposeCarePlanTool', () => {
     const stored = await managedRuntime.runPromise(
       Effect.gen(function* () {
         const repo = yield* CarePlanRepository
-        return yield* repo.findById(result.carePlanId, 'user-1')
+        return yield* repo.findById(result.carePlanId)
       })
     )
     expect(stored?.status).toBe('proposed')

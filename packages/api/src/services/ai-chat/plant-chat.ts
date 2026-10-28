@@ -16,7 +16,8 @@ import {
   type ToolContext,
 } from '@lily/api/services/ai-chat/tools'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import { seesCarePlan } from '@lily/api/services/care-plans/helpers/care-plan-access'
+import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import { daysSince } from '@lily/shared'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import {
@@ -216,7 +217,7 @@ const buildPlantContext = (
     const carePlanRepo = yield* CarePlanRepository
     const userRepo = yield* UserRepository
 
-    const plant = yield* withPlantAuth(plantId, 'chat')
+    const { plant, view } = yield* withPlantKnowledge(plantId, 'chat')
 
     const schedules = yield* scheduleRepo.findByPlant(plantId)
     const careLogsResponse = yield* careLogRepo.findByPlantId({
@@ -226,9 +227,10 @@ const buildPlantContext = (
     const careHistoryText = formatCareHistoryText(careLogsResponse.items)
     const daysSinceAdded = daysSince(plant.dateAdded)
 
-    // Plans belong to the owner; a caretaker chatting about a delegated
-    // plant simply gets no plan context (owner-only feature).
-    const carePlans = yield* carePlanRepo.findByPlant(plantId, userId)
+    const carePlans = Array.filter(
+      yield* carePlanRepo.findByPlant(plantId),
+      seesCarePlan(view)
+    )
     const carePlansText = formatCarePlansText(carePlans)
 
     const user = yield* userRepo.findById(userId)

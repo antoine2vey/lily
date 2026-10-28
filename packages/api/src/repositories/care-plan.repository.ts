@@ -107,18 +107,13 @@ export interface ICarePlanRepository {
   readonly create: (
     data: CreateCarePlanData
   ) => Effect.Effect<CarePlan, SqlError>
-  /** Owner-scoped lookup: returns null when the plan belongs to someone else. */
-  readonly findById: (
-    id: string,
-    userId: string
-  ) => Effect.Effect<CarePlan | null, SqlError>
+  readonly findById: (id: string) => Effect.Effect<CarePlan | null, SqlError>
   readonly findByUser: (
     userId: string,
     status?: CarePlanStatus
   ) => Effect.Effect<ReadonlyArray<CarePlan>, SqlError>
   readonly findByPlant: (
-    plantId: string,
-    userId: string
+    plantId: string
   ) => Effect.Effect<ReadonlyArray<CarePlan>, SqlError>
   readonly updateStatus: (
     id: string,
@@ -232,15 +227,6 @@ export const CarePlanRepositoryLive = Layer.effect(
         return pipe(Array.head(hydrated), Option.getOrNull)
       })
 
-    const findOne = (planId: string, userId: string) =>
-      findPlan(
-        and(
-          eq(carePlans.id, planId),
-          eq(carePlans.userId, userId),
-          authorReachesPlant
-        )
-      )
-
     return {
       create: Effect.fn('CarePlanRepository.create')(function* (
         data: CreateCarePlanData
@@ -285,10 +271,9 @@ export const CarePlanRepositoryLive = Layer.effect(
       }),
 
       findById: Effect.fn('CarePlanRepository.findById')(function* (
-        id: string,
-        userId: string
+        id: string
       ) {
-        return yield* findOne(id, userId)
+        return yield* findPlan(eq(carePlans.id, id))
       }),
 
       findByUser: Effect.fn('CarePlanRepository.findByUser')(function* (
@@ -318,20 +303,13 @@ export const CarePlanRepositoryLive = Layer.effect(
       }),
 
       findByPlant: Effect.fn('CarePlanRepository.findByPlant')(function* (
-        plantId: string,
-        userId: string
+        plantId: string
       ) {
         const rows = yield* db
           .select({ plan: carePlans, plant: plantSelect })
           .from(carePlans)
           .innerJoin(plants, eq(carePlans.plantId, plants.id))
-          .where(
-            and(
-              eq(carePlans.plantId, plantId),
-              eq(carePlans.userId, userId),
-              authorReachesPlant
-            )
-          )
+          .where(eq(carePlans.plantId, plantId))
           .orderBy(desc(carePlans.createdAt))
         return yield* hydrate(rows)
       }),
@@ -353,7 +331,7 @@ export const CarePlanRepositoryLive = Layer.effect(
               : {}),
           })
           .where(and(eq(carePlans.id, id), eq(carePlans.userId, userId)))
-        return yield* findOne(id, userId)
+        return yield* findPlan(eq(carePlans.id, id))
       }),
 
       linkChatMessage: Effect.fn('CarePlanRepository.linkChatMessage')(
@@ -480,7 +458,7 @@ export const CarePlanRepositoryLive = Layer.effect(
               .where(eq(carePlans.id, planId))
           }
 
-          return yield* findOne(planId, current.plan.userId)
+          return yield* findPlan(eq(carePlans.id, planId))
         }
       ),
     }

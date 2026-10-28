@@ -22,8 +22,6 @@ const plantIdParam = Schema.String.check(Schema.isGUID())
 
 const Unauthorized = Schema.Struct({ error: Schema.String })
 
-// All routes are owner-scoped: the repository filters by the current user, so
-// a caretaker of a delegated plant never sees its plans (v1 decision).
 export const CarePlansApi = HttpApiGroup.make('carePlans')
   .add(
     // GET /care-plans?status=accepted — plans for the Care tab
@@ -34,11 +32,14 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
     })
   )
   .add(
-    // GET /care-plans/plant/:plantId — every plan for one plant (any status)
     HttpApiEndpoint.get('getPlantCarePlans', '/plant/:plantId', {
       params: { plantId: plantIdParam },
       success: CarePlanListResponse,
-      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Unauthorized.pipe(HttpApiSchema.status(401)),
+      ],
     })
   )
   .add(

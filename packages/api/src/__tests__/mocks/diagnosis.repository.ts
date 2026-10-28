@@ -67,7 +67,12 @@ export const createMockDiagnosisRepository = (
 
       const filtered = Array.filter(
         diagnosesData,
-        (d) => d.plantId === params.plantId && d.userId === params.userId
+        (d) =>
+          d.plantId === params.plantId &&
+          Option.match(params.author, {
+            onNone: () => true,
+            onSome: (userId) => d.userId === userId,
+          })
       )
 
       const sorted = [...filtered].sort(
