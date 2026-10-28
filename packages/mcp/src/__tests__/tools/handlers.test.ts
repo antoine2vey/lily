@@ -42,6 +42,7 @@ describe('ToolsLayer', () => {
       get_care_tasks: widgetMeta('ui://widget/care-tasks'),
       get_overdue_plants: widgetMeta('ui://widget/care-tasks'),
       care_plant: widgetMeta('ui://widget/care-feedback'),
+      create_plant: undefined,
       ask_plant_question: undefined,
     })
   })

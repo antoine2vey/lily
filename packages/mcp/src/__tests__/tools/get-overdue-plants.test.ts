@@ -1,4 +1,5 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
+import { canopyPlant, delegatedPlant } from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { getOverduePlantsEffect } from '@lily/mcp/tools/get-overdue-plants'
 import type { Plant } from '@lily/shared/plant'
@@ -79,5 +80,36 @@ describe('getOverduePlants MCP tool', () => {
 
     expect(result.text).toContain('No overdue plants')
     expect(result.text).toContain('on schedule')
+  })
+
+  it('lists an overdue Canopy plant and an overdue delegated plant', async () => {
+    const overdueWatering = mockOverduePlant.schedules
+    const layer = createMockApiClient({
+      listPlants: () =>
+        Effect.succeed({
+          items: [
+            { ...canopyPlant, schedules: overdueWatering },
+            { ...delegatedPlant, schedules: overdueWatering },
+          ],
+          hasMore: false,
+          total: 2,
+          page: 1,
+          limit: 100,
+        }),
+    })
+
+    const result = await Effect.runPromise(
+      getOverduePlantsEffect().pipe(
+        Effect.provide(Layer.merge(layer, JwtLayer))
+      )
+    )
+
+    expect(result.text).toContain('## Overdue Plants (2)')
+    expect(result.text).toContain(
+      '- **Shared Fern**: watering overdue since 2024-06-12 | Canopy: Maple House (ID: plant-canopy)'
+    )
+    expect(result.text).toContain(
+      '- **Borrowed Pothos**: watering overdue since 2024-06-12 | Caretaking for Alex (ID: plant-delegated)'
+    )
   })
 })

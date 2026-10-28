@@ -1,4 +1,5 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
+import { canopyPlant, delegatedPlant } from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { listPlantsEffect } from '@lily/mcp/tools/list-plants'
 import type { Plant } from '@lily/shared/plant'
@@ -71,5 +72,35 @@ describe('listPlants MCP tool', () => {
     )
 
     expect(result.text).toContain('no plants yet')
+  })
+
+  it('marks Canopy and delegated plants with whose they are', async () => {
+    const layer = createMockApiClient({
+      listPlants: () =>
+        Effect.succeed({
+          items: [mockPlant, canopyPlant, delegatedPlant],
+          hasMore: false,
+          total: 3,
+          page: 1,
+          limit: 100,
+        }),
+    })
+
+    const result = await Effect.runPromise(
+      listPlantsEffect({}).pipe(Effect.provide(Layer.merge(layer, JwtLayer)))
+    )
+
+    expect(result.text).toContain(
+      '- **Shared Fern** [Healthy] | Canopy: Maple House (ID: plant-canopy)'
+    )
+    expect(result.text).toContain('| Caretaking for Alex (ID: plant-delegated)')
+    expect(result.text).toContain('- **Monstera** [Healthy] (ID: plant-1)')
+    expect(
+      result.plants.map((plant) => [plant.ownership, plant.ownershipLabel])
+    ).toEqual([
+      ['owned', null],
+      ['canopy', 'Canopy: Maple House'],
+      ['caretaking', 'Caretaking for Alex'],
+    ])
   })
 })

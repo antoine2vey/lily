@@ -1,6 +1,7 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { getPlantDetailsEffect } from '@lily/mcp/tools/get-plant-details'
+import type { CanopyId } from '@lily/shared'
 import type { CareLogHistoryItem } from '@lily/shared/care-log'
 import type { PlantDetail } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
@@ -124,5 +125,36 @@ describe('getPlantDetails MCP tool', () => {
     expect(result.plant.name).toBe('Monstera Deliciosa')
     expect(result.plant.healthLabel).toBe('Healthy')
     expect(result.plant.wateringRating).toBe(3)
+  })
+
+  it('names the Canopy of a Canopy plant', async () => {
+    const layer = createMockApiClient({
+      getPlant: () =>
+        Effect.succeed({
+          ...mockPlantDetail,
+          ownership: 'canopy',
+          canopy: { id: 'canopy-1' as CanopyId, name: 'Maple House' },
+        }),
+    })
+
+    const result = await Effect.runPromise(
+      getPlantDetailsEffect({ plantId: 'plant-1' }).pipe(
+        Effect.provide(Layer.merge(layer, JwtLayer))
+      )
+    )
+
+    expect(result.text).toContain('- Canopy: Maple House')
+    expect(result.plant.ownershipLabel).toBe('Canopy: Maple House')
+  })
+
+  it('shows no ownership line for a plant the user owns', async () => {
+    const result = await Effect.runPromise(
+      getPlantDetailsEffect({ plantId: 'plant-1' }).pipe(
+        Effect.provide(Layer.merge(createLayer(), JwtLayer))
+      )
+    )
+
+    expect(result.text).not.toMatch(/Canopy|Caretaking/)
+    expect(result.plant.ownershipLabel).toBeNull()
   })
 })
