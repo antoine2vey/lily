@@ -1,6 +1,6 @@
 import { ApiClient } from '@lily/mcp/api-client'
 import { deathCauseLabel, healthLabel } from '@lily/mcp/widgets/health'
-import { ownershipLabel, toPlantSummary } from '@lily/mcp/widgets/mappers'
+import { ownershipSuffix, toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
 import type { PlantFilter } from '@lily/shared'
 import { formatIsoDate } from '@lily/shared'
@@ -60,15 +60,9 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
         Option.getOrElse(() => '')
       )
 
-      const ownership = pipe(
-        ownershipLabel(plant),
-        Option.map((label) => ` | ${label}`),
-        Option.getOrElse(() => '')
-      )
-
       acc.plants.push(toPlantSummary(plant))
       acc.lines.push(
-        `- **${plant.name}** ${healthBadge}${room}${ownership} (ID: ${plant.id})`
+        `- **${plant.name}** ${healthBadge}${room}${ownershipSuffix(plant)} (ID: ${plant.id})`
       )
       return acc
     }

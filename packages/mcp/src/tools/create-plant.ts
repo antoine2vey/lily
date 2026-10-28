@@ -1,17 +1,16 @@
 import { ApiClient } from '@lily/mcp/api-client'
-import { ownershipLabel } from '@lily/mcp/widgets/mappers'
+import { ownershipSuffix } from '@lily/mcp/widgets/mappers'
 import { LUMINOSITY_LUX_VALUES } from '@lily/shared'
-import { Effect, Match, Option, pipe, Schema } from 'effect'
+import { Effect, Match, pipe, Schema } from 'effect'
 
 export class CreatePlantRefusedError extends Schema.TaggedError<CreatePlantRefusedError>()(
   'CreatePlantRefusedError',
   { message: Schema.String }
 ) {}
 
-/**
- * Adds a plant the way the app's manual entry does when the user keeps its
- * defaults: bright indirect light, not marked pet safe, watering due now.
- */
+const BRIGHT_INDIRECT_LUX = LUMINOSITY_LUX_VALUES[3]
+const PET_TOXICITY_RATING = { petSafe: 0, notMarkedSafe: 100 } as const
+
 export const createPlantEffect = Effect.fn('MCP.createPlant')(
   function* (params: {
     name: string
@@ -26,16 +25,17 @@ export const createPlantEffect = Effect.fn('MCP.createPlant')(
       .createPlant({
         name: params.name,
         wateringFrequencyDays: params.wateringFrequencyDays,
-        luxNeeded: LUMINOSITY_LUX_VALUES[3],
-        petToxicityRating: params.petSafe === true ? 0 : 100,
+        luxNeeded: BRIGHT_INDIRECT_LUX,
+        petToxicityRating:
+          params.petSafe === true
+            ? PET_TOXICITY_RATING.petSafe
+            : PET_TOXICITY_RATING.notMarkedSafe,
         owner: canopy ? 'canopy' : 'me',
       })
       .pipe(
         Effect.catchTag('ExternalServiceError', (error) =>
           pipe(
             Match.value(error.statusCode),
-            // POST /plants answers 404 only for a missing room or Canopy, and
-            // this tool sends no room.
             Match.when(
               (status) => status === 404 && canopy,
               () =>
@@ -60,14 +60,8 @@ export const createPlantEffect = Effect.fn('MCP.createPlant')(
         )
       )
 
-    const ownership = pipe(
-      ownershipLabel(plant),
-      Option.map((label) => ` | ${label}`),
-      Option.getOrElse(() => '')
-    )
-
     return {
-      text: `Added **${plant.name}**${ownership} (ID: ${plant.id}). Watering every ${params.wateringFrequencyDays} days, starting today.`,
+      text: `Added **${plant.name}**${ownershipSuffix(plant)} (ID: ${plant.id}). Watering every ${params.wateringFrequencyDays} days, starting today.`,
     }
   }
 )
