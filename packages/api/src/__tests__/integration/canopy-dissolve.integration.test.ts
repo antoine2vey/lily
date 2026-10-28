@@ -17,6 +17,7 @@ import {
   UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
 import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canopy'
 import { hashInviteToken } from '@lily/api/services/canopy/helpers/invite-token'
@@ -24,6 +25,9 @@ import {
   leaveCanopy,
   leaveCanopyAndDelete,
 } from '@lily/api/services/canopy/helpers/leave-canopy'
+import { listPlantCarePlans } from '@lily/api/services/care-plans/endpoints/list-plant-care-plans'
+import { withCarePlanAuth } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
+import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import {
@@ -31,6 +35,8 @@ import {
   CanopyFullError,
   UserNotFoundError,
 } from '@lily/shared'
+import { CarePlanNotFoundError } from '@lily/shared/errors/care-plan'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Exit, Layer } from 'effect'
@@ -289,13 +295,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await join(alexId, 'owner', '2024-01-01')
       await join(lilyId, 'member', '2024-02-01')
       const fern = await insertPlant({ canopyId, createdByUserId: alexId })
-      const plansOf = (userId: string) =>
-        run(
-          Effect.flatMap(CarePlanRepository, (repo) =>
-            Effect.all({
-              byUser: repo.findByUser(userId),
-              byPlant: repo.findByPlant(fern.id, userId),
-            })
+      const asLily = <A, E>(
+        effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | CurrentUser>
+      ) =>
+        Effect.runPromiseExit(
+          Effect.provide(
+            effect,
+            Layer.merge(AppLive, createMockCurrentUser({ id: lilyId }))
           )
         )
       const lilysPlan = await run(
@@ -308,22 +314,29 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
         )
       )
-      const findLilysPlan = () =>
-        run(
-          Effect.flatMap(CarePlanRepository, (repo) =>
-            repo.findById(lilysPlan.id, lilyId)
+      const plansOnFern = () =>
+        asLily(
+          withPlantKnowledge(fern.id, 'view').pipe(
+            Effect.flatMap(({ view }) => listPlantCarePlans(fern.id, view)),
+            Effect.map(({ items }) => Array.map(items, (p) => p.id))
           )
         )
+      const lilysPlans = () =>
+        run(
+          Effect.flatMap(CarePlanRepository, (repo) => repo.findByUser(lilyId))
+        )
 
-      const before = await plansOf(lilyId)
-      expect(before.byUser).toHaveLength(1)
-      expect(before.byPlant).toHaveLength(1)
+      const before = await plansOnFern()
+      expect(Exit.isSuccess(before) && before.value).toEqual([lilysPlan.id])
+      expect(await lilysPlans()).toHaveLength(1)
 
       await run(leaveCanopy(lilyId))
 
-      const after = await plansOf(lilyId)
-      expect(after).toEqual({ byUser: [], byPlant: [] })
-      expect(await findLilysPlan()).toBeNull()
+      expect(failureOf(await plansOnFern())).toBeInstanceOf(PlantNotFoundError)
+      expect(await lilysPlans()).toEqual([])
+      expect(
+        failureOf(await asLily(withCarePlanAuth(lilysPlan.id, 'manage')))
+      ).toBeInstanceOf(CarePlanNotFoundError)
       const kept = await db
         .select({ id: schema.carePlans.id })
         .from(schema.carePlans)

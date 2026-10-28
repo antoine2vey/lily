@@ -146,9 +146,13 @@ export const createMockCarePlanRepository = (
       return Effect.succeed(toPlan(plan))
     },
 
-    findById: (id: string, userId: string) =>
+    findById: (id: string) =>
       Effect.succeed(
-        pipe(findRow(id, userId), Option.map(toPlan), Option.getOrNull)
+        pipe(
+          Array.findFirst(plans, (p) => p.id === id),
+          Option.map(toPlan),
+          Option.getOrNull
+        )
       ),
 
     findByUser: (userId: string, status?: CarePlanStatus) =>
@@ -171,11 +175,11 @@ export const createMockCarePlanRepository = (
         )
       ),
 
-    findByPlant: (plantId: string, userId: string) =>
+    findByPlant: (plantId: string) =>
       Effect.succeed(
         pipe(
           plans,
-          Array.filter((p) => p.plantId === plantId && p.userId === userId),
+          Array.filter((p) => p.plantId === plantId),
           Array.sort(createdAtDesc),
           Array.map(toPlan)
         )
