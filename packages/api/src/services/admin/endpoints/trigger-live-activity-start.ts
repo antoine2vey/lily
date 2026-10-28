@@ -1,4 +1,5 @@
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
@@ -28,6 +29,7 @@ export const triggerLiveActivityStart = (
   | PushService
   | CareLogRepository
   | CareScheduleRepository
+  | CanopyRepository
 > =>
   Effect.gen(function* () {
     const userRepo = yield* UserRepository

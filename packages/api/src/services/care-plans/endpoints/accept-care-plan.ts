@@ -16,6 +16,7 @@ import type {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { Array, Effect, Filter, Option, Order, pipe, Record } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 interface DatedCareStep {
@@ -69,6 +70,7 @@ export const acceptCarePlan = (
   | NotificationRepository
   | UserRepository
   | PlantAccessContext
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const repo = yield* CarePlanRepository

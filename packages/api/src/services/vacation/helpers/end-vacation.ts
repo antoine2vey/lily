@@ -16,7 +16,16 @@ import {
 import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
-import { Array, DateTime, Duration, Effect, Option, pipe, Record } from 'effect'
+import {
+  Array,
+  DateTime,
+  Duration,
+  Effect,
+  Match,
+  Option,
+  pipe,
+  Record,
+} from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -176,9 +185,13 @@ const endVacationInTransaction = (params: EndVacationParams) =>
           // biome-ignore lint/style/noNonNullAssertion: filtered non-null above
           scheduledDate: row.schedule.nextCareAt!,
         }
-        return row.plant.owner._tag === 'Canopy'
-          ? scheduleReminderForRecipient(user.id, params)
-          : scheduleCareReminder(params)
+        return Match.value(row.plant.owner).pipe(
+          Match.tag('Canopy', () =>
+            scheduleReminderForRecipient(user.id, params)
+          ),
+          Match.tag('User', () => scheduleCareReminder(params)),
+          Match.exhaustive
+        )
       }
     )
     return claimed

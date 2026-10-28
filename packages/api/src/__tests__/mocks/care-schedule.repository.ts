@@ -51,19 +51,17 @@ export const createMockCareScheduleRepository = (
   const isMuted = (userId: string, plantId: string) =>
     Array.some(mutes, (m) => m.userId === userId && m.plantId === plantId)
 
-  const caredForBy = (userId: string, includeCanopy: boolean) => {
-    const canopyIds = pipe(
-      memberships,
-      Array.filter((m) => m.userId === userId),
-      Array.map((m): string => m.canopyId)
-    )
-    return (p: PlantRecord) =>
+  const caredForBy =
+    (userId: string, canopyId: string | null) => (p: PlantRecord) =>
       p.userId === userId ||
-      (includeCanopy &&
-        p.canopyId !== null &&
-        Array.contains(canopyIds, p.canopyId) &&
-        !isMuted(userId, p.id))
-  }
+      (canopyId !== null && p.canopyId === canopyId && !isMuted(userId, p.id))
+
+  const memberCanopyOf = (userId: string) =>
+    pipe(
+      Array.findFirst(memberships, (m) => m.userId === userId),
+      Option.map((m): string => m.canopyId),
+      Option.getOrNull
+    )
 
   const recipientsOf = (p: PlantRecord): ReadonlyArray<string> =>
     p.userId !== null
@@ -100,8 +98,8 @@ export const createMockCareScheduleRepository = (
 
     // Mirrors the live repository: plants in the cemetery never surface in
     // care tasks, overdue sweeps, or vacation rebuilds.
-    findPendingByUser: (userId: string, cutoff: Date, includeCanopy) => {
-      const visible = caredForBy(userId, includeCanopy)
+    findPendingByUser: (userId: string, cutoff: Date, canopyId) => {
+      const visible = caredForBy(userId, canopyId)
       const userPlantIds = pipe(
         Array.filter(plantsData, (p) => visible(p) && p.diedAt === null),
         Array.map((p) => p.id)
@@ -187,7 +185,8 @@ export const createMockCareScheduleRepository = (
         pipe(
           Array.filter(
             plantsData,
-            (p) => caredForBy(userId, true)(p) && p.diedAt === null
+            (p) =>
+              caredForBy(userId, memberCanopyOf(userId))(p) && p.diedAt === null
           ),
           Array.flatMap((plant) =>
             pipe(

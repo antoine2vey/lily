@@ -14,6 +14,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
@@ -68,6 +69,7 @@ describe('correctCareDates', () => {
     const schedules = schedulesFromPlants(plants)
     return {
       layer: Layer.mergeAll(
+        MockSqlClientLive,
         createMockPlantRepository({ plants }),
         createMockCareLogRepository(careLogs),
         createMockNotificationRepository([]),

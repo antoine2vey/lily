@@ -1,18 +1,32 @@
+import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import {
   CanopyRepository,
   CanopyRepositoryLive,
 } from '@lily/api/repositories/canopy.repository'
 import {
+  CareLogRepository,
+  CareLogRepositoryLive,
+} from '@lily/api/repositories/care-log.repository'
+import {
   CareScheduleRepository,
   CareScheduleRepositoryLive,
   type OverdueRecipientPlant,
 } from '@lily/api/repositories/care-schedule.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
+import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { processMessage } from '@lily/api/services/notification-scheduler/worker'
+import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import type { PushMessage } from '@lily/shared/server'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -23,6 +37,7 @@ import {
   Order,
   pipe,
   Record,
+  References,
 } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -32,16 +47,32 @@ const { Pool } = pg
 const RepositoriesLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CanopyRepositoryLive,
-  NotificationRepositoryLive
+  NotificationRepositoryLive,
+  CareLogRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const run = <A, E>(
   effect: Effect.Effect<
     A,
     E,
-    CareScheduleRepository | CanopyRepository | NotificationRepository
+    | CareScheduleRepository
+    | CanopyRepository
+    | NotificationRepository
+    | CareLogRepository
   >
 ) => Effect.runPromise(effect.pipe(Effect.provide(RepositoriesLive)))
+
+const WorkerLive = Layer.mergeAll(
+  CareScheduleRepositoryLive,
+  CanopyRepositoryLive,
+  NotificationRepositoryLive,
+  CareLogRepositoryLive,
+  PlantRepositoryLive,
+  UserRepositoryLive,
+  DeviceTokenRepositoryLive,
+  ActivityPushTokenRepositoryLive,
+  DelegationRepositoryLive
+).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
   'Canopy reminder queries - Integration',
@@ -185,8 +216,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const [without, withCanopy] = await run(
         Effect.flatMap(CareScheduleRepository, (repo) =>
           Effect.all([
-            repo.findPendingByUser(lily, cutoff, false),
-            repo.findPendingByUser(lily, cutoff, true),
+            repo.findPendingByUser(lily, cutoff, null),
+            repo.findPendingByUser(lily, cutoff, canopyId),
           ])
         )
       )
@@ -268,6 +299,135 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       expect([...forShared].sort()).toEqual([alex, lily].sort())
       expect(forMuted).toEqual([alex])
+    })
+    it('counts care done today on living plants only, in both scopes', async () => {
+      const dead = await plant({ canopyId }, 'Buried Canopy Palm')
+      const deadOwn = await plant({ userId: alex }, 'Buried Alex Ivy')
+      await db
+        .update(schema.plants)
+        .set({ diedAt: new Date() })
+        .where(sql`${schema.plants.id} in (${dead}, ${deadOwn})`)
+      await db.insert(schema.careLogs).values(
+        Arr.map([shared, dead, personal, deadOwn], (plantId) => ({
+          plantId,
+          type: 'watering' as const,
+          date: new Date(),
+        }))
+      )
+      const [withCanopy, personalOnly] = await run(
+        Effect.flatMap(CareLogRepository, (repo) =>
+          Effect.all([
+            repo.countTodayByUser(alex, 'UTC', canopyId),
+            repo.countTodayByUser(alex, 'UTC', null),
+          ])
+        )
+      )
+      expect(withCanopy).toBe(2)
+      expect(personalOnly).toBe(1)
+    })
+
+    it('delivers a Canopy care push only to a member who has not muted the plant', async () => {
+      await db.execute(
+        sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      await db.insert(schema.deviceTokens).values(
+        Arr.map([alex, lily, sam], (userId) => ({
+          token: `ExponentPushToken[delivery-${userId}]`,
+          platform: 'ios' as const,
+          userId,
+        }))
+      )
+      const deliver = async (userId: string, plantId: string) => {
+        const [row] = await db
+          .insert(schema.notifications)
+          .values({
+            type: 'watering_reminder',
+            scheduledAt: new Date(),
+            userId,
+            plantId,
+            status: 'queued',
+          })
+          .returning()
+        if (!row) throw new Error('Failed to create notification')
+        const sent: PushMessage[] = []
+        await Effect.runPromise(
+          processMessage({
+            id: `msg-${row.id}`,
+            topic: 'watering_reminder',
+            payload: {
+              userId,
+              title: 'Water time',
+              body: 'Your plants are thirsty',
+              notificationIds: [row.id],
+              plantIds: [plantId],
+            },
+            retryCount: 0,
+            createdAt: new Date(),
+            scheduledAt: new Date(),
+          }).pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                WorkerLive,
+                MockAlerterLive,
+                createMockPushService({
+                  onSendBatch: (msgs) => sent.push(...msgs),
+                })
+              )
+            ),
+            Effect.provideService(References.MinimumLogLevel, 'None')
+          )
+        )
+        const [after] = await db
+          .select({ status: schema.notifications.status })
+          .from(schema.notifications)
+          .where(sql`${schema.notifications.id} = ${row.id}`)
+        return { pushed: sent.length, status: after?.status }
+      }
+
+      expect(await deliver(lily, shared)).toEqual({ pushed: 1, status: 'sent' })
+      expect(await deliver(lily, mutedPlant)).toEqual({
+        pushed: 0,
+        status: 'sent',
+      })
+      expect(await deliver(sam, shared)).toEqual({ pushed: 0, status: 'sent' })
+      expect(await deliver(alex, personal)).toEqual({
+        pushed: 1,
+        status: 'sent',
+      })
+    })
+    it('keeps the old reminder rows when writing the new ones fails', async () => {
+      await db.execute(
+        sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      await db.insert(schema.notifications).values({
+        type: 'watering_reminder',
+        scheduledAt: new Date(Date.now() + 86_400_000),
+        userId: alex,
+        plantId: personal,
+        status: 'pending',
+      })
+      const exit = await Effect.runPromiseExit(
+        scheduleCareReminder({
+          plant: {
+            id: personal,
+            owner: {
+              _tag: 'User',
+              userId: '00000000-0000-4000-8000-000000000000',
+            },
+            remindersEnabled: true,
+          },
+          type: 'watering_reminder',
+          scheduledDate: new Date(Date.now() + 7 * 86_400_000),
+        }).pipe(
+          Effect.provide(WorkerLive),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      const rows = await db
+        .select({ userId: schema.notifications.userId })
+        .from(schema.notifications)
+      expect(exit._tag).toBe('Failure')
+      expect(rows).toEqual([{ userId: alex }])
     })
   }
 )

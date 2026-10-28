@@ -1,8 +1,10 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
+import { memberCanopyId } from '@lily/api/services/care-tasks/helpers/member-canopy'
 import {
   CARE_TASK_WINDOW_DAYS,
   type CareTask,
@@ -33,6 +35,7 @@ export const findCareTasks = (
 ): Effect.Effect<
   CareTasksResponse,
   SqlError,
+  | CanopyRepository
   | CareLogRepository
   | CareScheduleRepository
   | PlantRepository
@@ -60,10 +63,11 @@ export const findCareTasks = (
     const cutoffDate = DateTime.toDateUtc(cutoffDt)
 
     // Get pending schedules with plant info from schedule table
+    const canopyId = includeCanopy ? yield* memberCanopyId(userId) : null
     const schedules = yield* scheduleRepo.findPendingByUser(
       userId,
       cutoffDate,
-      includeCanopy
+      canopyId
     )
 
     // Generate tasks from schedules
@@ -130,7 +134,7 @@ export const findCareTasks = (
     const completedToday = yield* careLogRepo.countTodayByUser(
       userId,
       timezone,
-      includeCanopy
+      canopyId
     )
 
     // Sort each group by due date (earliest first)

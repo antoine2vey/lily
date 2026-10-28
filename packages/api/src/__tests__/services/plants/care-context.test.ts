@@ -6,7 +6,10 @@ import {
   createTestCanopyRow,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { careContext } from '@lily/api/services/plants/helpers/care-context'
+import {
+  actorDayTimezone,
+  careContext,
+} from '@lily/api/services/plants/helpers/care-context'
 import type { PlantOwner } from '@lily/shared'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -89,5 +92,41 @@ describe('careContext', () => {
       timezone: 'UTC',
       weather: { enabled: false, latitude: null, longitude: null },
     })
+  })
+})
+
+describe('actorDayTimezone', () => {
+  const newYorker = createTestUser({ id: 'lily', timezone: 'America/New_York' })
+  const runFor = (owner: PlantOwner) =>
+    Effect.runPromise(
+      actorDayTimezone(owner, 'lily').pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockUserRepository([newYorker]),
+            createMockCanopyRepository(
+              createCanopyStore({
+                canopies: [
+                  createTestCanopyRow({
+                    id: mockCanopyId,
+                    timezone: 'Europe/Paris',
+                  }),
+                ],
+              })
+            )
+          )
+        )
+      )
+    )
+
+  it('uses the Canopy zone for a Canopy plant, whoever acts', async () => {
+    expect(await runFor({ _tag: 'Canopy', canopyId: mockCanopyId })).toBe(
+      'Europe/Paris'
+    )
+  })
+
+  it('uses the acting user zone for a personal plant, as before Canopies', async () => {
+    expect(await runFor({ _tag: 'User', userId: 'alex' })).toBe(
+      'America/New_York'
+    )
   })
 })

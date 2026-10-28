@@ -11,6 +11,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import {
@@ -72,6 +73,7 @@ const buildLayer = (
   const user = createTestUser({ id: userId, timezone: 'UTC' })
 
   return Layer.mergeAll(
+    MockSqlClientLive,
     createMockCarePlanRepository({
       plans: [plan],
       steps,

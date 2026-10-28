@@ -70,3 +70,15 @@ export const careContext = (
     ),
     Match.exhaustive
   )
+
+export const actorDayTimezone = (
+  owner: PlantOwner,
+  actorId: string
+): Effect.Effect<string, SqlError, UserRepository | CanopyRepository> =>
+  pipe(
+    Match.value(owner),
+    Match.tag('User', () => careContext({ _tag: 'User', userId: actorId })),
+    Match.tag('Canopy', (canopyOwner) => careContext(canopyOwner)),
+    Match.exhaustive,
+    Effect.map((context) => context.timezone)
+  )

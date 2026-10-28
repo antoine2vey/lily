@@ -13,18 +13,20 @@ import {
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, References } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)
 
 const run = (
   userId: string,
   plantIds?: ReadonlyArray<string>,
-  existing: Notification[] = []
+  existing: Notification[] = [],
+  options: { dueToday?: Date } = {}
 ) => {
   const members = [
     createTestMembership({ userId: 'alex', role: 'owner' }),
@@ -45,8 +47,13 @@ const run = (
     userId: null,
     canopyId: mockCanopyId,
   })
+  const dueToday = createTestPlant({
+    id: 'due-today',
+    userId: null,
+    canopyId: mockCanopyId,
+  })
   const personal = createTestPlant({ id: 'personal', userId: 'lily' })
-  const plants = [fern, cactus, overdue, personal]
+  const plants = [fern, cactus, overdue, dueToday, personal]
   const schedules = [
     createTestSchedule({ plantId: 'fern', nextCareAt: inDays(3) }),
     createTestSchedule({
@@ -56,12 +63,21 @@ const run = (
     }),
     createTestSchedule({ plantId: 'cactus', nextCareAt: inDays(5) }),
     createTestSchedule({ plantId: 'overdue', nextCareAt: inDays(-1) }),
+    ...(options.dueToday === undefined
+      ? []
+      : [
+          createTestSchedule({
+            plantId: 'due-today',
+            nextCareAt: options.dueToday,
+          }),
+        ]),
     createTestSchedule({ plantId: 'personal', nextCareAt: inDays(2) }),
   ]
   return Effect.runPromise(
     rebuildMemberReminders(userId, plantIds).pipe(
       Effect.provide(
         Layer.mergeAll(
+          MockSqlClientLive,
           createMockNotificationRepository(existing),
           createMockUserRepository([
             createTestUser({
@@ -97,6 +113,20 @@ const run = (
 }
 
 describe('rebuildMemberReminders', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('gives a joiner a row for a Canopy schedule due earlier today in the Canopy zone', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2099-06-15T10:00:00.000Z'))
+    const parisMidnightJun15 = new Date('2099-06-14T22:00:00.000Z')
+    const rows = await run('lily', ['due-today', 'overdue'], [], {
+      dueToday: parisMidnightJun15,
+    })
+    expect(rows).toEqual([['lily', 'due-today', 'watering_reminder']])
+  })
+
   it('gives a joiner a row for every future Canopy schedule, and nobody else', async () => {
     const rows = await run('lily')
     expect(rows.sort()).toEqual([

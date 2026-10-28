@@ -60,6 +60,11 @@ export const createMockNotificationRepository = (
       return Effect.succeed(paginate(items, total, page, limit))
     },
 
+    findByIds: (ids: ReadonlyArray<string>) =>
+      Effect.succeed(
+        Array.filter(notificationsState, (n) => Array.contains(ids, n.id))
+      ),
+
     findById: (id: string) =>
       Effect.succeed(
         pipe(

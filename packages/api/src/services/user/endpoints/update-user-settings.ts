@@ -1,9 +1,12 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
+import { reminderDayFor } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import type { RateLimiterService } from '@lily/api/services/rate-limiter/service'
 import {
@@ -19,7 +22,7 @@ import {
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { CARE_TOPICS, ENGAGEMENT_TOPICS } from '@lily/shared/server'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
-import { Array, Effect, Match, Option, pipe } from 'effect'
+import { Array, Effect, Filter, Match, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Update user settings (profile + notification preferences)
@@ -34,6 +37,8 @@ export const updateUserSettings = (
   | NotificationRepository
   | CareScheduleRepository
   | CareLogRepository
+  | PlantRepository
+  | CanopyRepository
 > =>
   Effect.gen(function* () {
     const { id } = yield* CurrentUser
@@ -120,6 +125,22 @@ export const updateUserSettings = (
     if (timezoneChanged || timeChanged) {
       const pendingNotifications =
         yield* notificationRepo.findPendingByUserId(id)
+      const plantRepo = yield* PlantRepository
+      const owners = new Map(
+        Array.map(
+          yield* plantRepo.findByIds(
+            Array.dedupe(
+              Array.filterMap(
+                pendingNotifications,
+                Filter.fromPredicateOption((n) =>
+                  Option.fromNullishOr(n.plantId)
+                )
+              )
+            )
+          ),
+          (p) => [p.id, p.owner] as const
+        )
+      )
 
       yield* Effect.forEach(
         pendingNotifications,
@@ -161,9 +182,11 @@ export const updateUserSettings = (
             )
 
             // If we have a base date, recalculate the scheduled time
-            if (Option.isSome(baseDate)) {
+            const owner = owners.get(plantId)
+            if (Option.isSome(baseDate) && owner !== undefined) {
+              const reminderDay = yield* reminderDayFor(owner, baseDate.value)
               const newScheduledAt = yield* calculateScheduledAt(
-                baseDate.value,
+                reminderDay(user.timezone),
                 user.timezone,
                 user.preferredNotificationTime
               )

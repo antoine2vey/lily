@@ -3,7 +3,7 @@ import type { CareLogRepository } from '@lily/api/repositories/care-log.reposito
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { ownerKey } from '@lily/api/repositories/helpers/plant-owner'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -58,6 +58,7 @@ export const careMultiplePlants = (
         const nowDt = DateTime.nowUnsafe()
         const now = DateTime.toDateUtc(nowDt)
         const who = yield* caller
+        const notificationRepo = yield* NotificationRepository
         const owners = Record.fromEntries(
           Array.map(foundPlants, (p) => [ownerKey(p.owner), p.owner] as const)
         )
@@ -145,6 +146,10 @@ export const careMultiplePlants = (
                   scheduledDate: nextCareAt,
                 })
               }
+              yield* notificationRepo.deletePendingByPlantAndType(
+                plantId,
+                'overdue_reminder'
+              )
 
               return {
                 plantId,
