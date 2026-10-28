@@ -6,6 +6,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
+  asSteward,
   type CarePlanAction,
   carePlanAllows,
   carePlanRole,
@@ -25,7 +26,7 @@ import {
   CarePlanNotFoundError,
   CarePlanStepNotFoundError,
 } from '@lily/shared/errors/care-plan'
-import { Array, Effect, Option } from 'effect'
+import { Array, Effect, identity, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface CarePlanContext {
@@ -86,7 +87,10 @@ export const withCarePlanAuth = (
       onNone: () => Effect.succeed(Option.none()),
       onSome: (role) =>
         Effect.map(isSteward(role, plan, plant, viewerId), (steward) =>
-          carePlanRole(knowledgeView(role, viewerId), steward)(plan)
+          Option.map(
+            carePlanRole(knowledgeView(role, viewerId))(plan),
+            steward ? asSteward : identity
+          )
         ),
     })
 

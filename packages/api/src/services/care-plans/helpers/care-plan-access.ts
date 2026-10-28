@@ -16,12 +16,8 @@ const allowedRoles: Record<CarePlanAction, ReadonlyArray<CarePlanRole>> = {
   tick: ['Author', 'Steward', 'Household'],
 }
 
-/**
- * `steward` marks the Canopy owner reading a plan whose author has left the
- * Canopy, so a shared plan never outlives everyone who may remove it.
- */
 export const carePlanRole =
-  (view: KnowledgeView, steward = false) =>
+  (view: KnowledgeView) =>
   (plan: Pick<CarePlan, 'userId' | 'status'>): Option.Option<CarePlanRole> =>
     pipe(
       Match.value({
@@ -32,10 +28,13 @@ export const carePlanRole =
       }),
       Match.when({ author: true }, () => Option.some<CarePlanRole>('Author')),
       Match.when({ shared: true }, () =>
-        Option.some<CarePlanRole>(steward ? 'Steward' : 'Household')
+        Option.some<CarePlanRole>('Household')
       ),
       Match.orElse(() => Option.none())
     )
+
+export const asSteward = (role: CarePlanRole): CarePlanRole =>
+  role === 'Household' ? 'Steward' : role
 
 export const seesCarePlan =
   (view: KnowledgeView) =>
