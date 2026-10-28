@@ -30,7 +30,6 @@ export const CareLogUpdateRequest = Schema.Struct({
   photoUrl: Schema.optional(Schema.String),
 })
 
-// `null` once the member's account is deleted or awaiting deletion.
 export const CareLogPerformer = Schema.Struct({
   id: Schema.String,
   name: Schema.NullOr(Schema.String),
