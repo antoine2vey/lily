@@ -139,29 +139,31 @@ export const scheduleCareReminder = (
     const notificationRepo = yield* NotificationRepository
     const sql = yield* SqlClient.SqlClient
     yield* sql.withTransaction(
-      Effect.andThen(
-        notificationRepo.deletePendingByPlantAndType(
+      Effect.gen(function* () {
+        yield* notificationRepo.lockPlantReminderInTransaction(
           params.plant.id,
           params.type
-        ),
-        notificationRepo.createPendingMany(rows)
-      )
+        )
+        yield* notificationRepo.deletePendingByPlantAndType(
+          params.plant.id,
+          params.type
+        )
+        yield* notificationRepo.createPendingMany(rows)
+      })
     )
   })
 
-export const scheduleReminderForRecipient = (
+export const reminderRowForRecipient = (
   recipientId: string,
   params: ScheduleCareReminderParams
-): Effect.Effect<void, SqlError, ScheduleContext> =>
-  Effect.gen(function* () {
-    if (!params.plant.remindersEnabled) {
-      return
-    }
-    const reminderDay = yield* reminderDayFor(
-      params.plant.owner,
-      params.scheduledDate
-    )
-    const row = yield* reminderRowFor(recipientId, params, reminderDay)
-    const notificationRepo = yield* NotificationRepository
-    yield* notificationRepo.createPendingMany(Array.fromOption(row))
-  })
+): Effect.Effect<
+  Option.Option<CreateNotificationData>,
+  SqlError,
+  UserRepository | CanopyRepository
+> =>
+  params.plant.remindersEnabled
+    ? Effect.flatMap(
+        reminderDayFor(params.plant.owner, params.scheduledDate),
+        (reminderDay) => reminderRowFor(recipientId, params, reminderDay)
+      )
+    : Effect.succeed(Option.none())

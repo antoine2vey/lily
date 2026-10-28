@@ -299,10 +299,9 @@ export const processStreakAtRisk = Effect.fn(
           return yield* new SkipUserError({ reason: 'already_sent' })
         }
 
-        const todayCount = yield* careLogRepo.countTodayByUser(
+        const todayCount = yield* careLogRepo.countTodayOnOwnPlantsByUser(
           user.id,
-          timezone,
-          null
+          timezone
         )
         if (todayCount > 0) {
           return yield* new SkipUserError({ reason: 'care_done_today' })

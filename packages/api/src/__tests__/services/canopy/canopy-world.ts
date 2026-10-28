@@ -54,7 +54,11 @@ export const canopyWorld = (
       createMockCanopyRepository(store),
       createMockNotificationRepository(notifications, { canopyPlants }),
       createMockMessageQueue(),
-      createMockCareScheduleRepository({ schedules }),
+      createMockCareScheduleRepository({
+        schedules,
+        plants,
+        memberships: store.members,
+      }),
       createMockPlantRepository({ plants }),
       createMockUserRepository(memberUsers(store)),
       createMockDelegationRepository(),

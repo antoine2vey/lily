@@ -270,6 +270,65 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
+    lockPlantReminderInTransaction: () => Effect.void,
+
+    deleteUndeliveredByUserPlantAndType: (
+      userId: string,
+      plantId: string,
+      type: string
+    ) =>
+      Effect.sync(() => {
+        const toKeep = Array.filter(
+          notificationsState,
+          (n) =>
+            !(
+              n.userId === userId &&
+              n.plantId === plantId &&
+              n.type === type &&
+              (n.status === 'pending' || n.status === 'queued')
+            )
+        )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
+    deleteForReschedule: (
+      plantId: string,
+      recipientIds: ReadonlyArray<string>
+    ) =>
+      Effect.sync(() => {
+        const toKeep = Array.filter(
+          notificationsState,
+          (n) =>
+            !(
+              n.plantId === plantId &&
+              (n.status === 'pending' ||
+                (n.status === 'queued' &&
+                  !Array.contains(recipientIds, n.userId)))
+            )
+        )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
+    findSentSince: (userId: string, since: Date) =>
+      Effect.succeed(
+        pipe(
+          notificationsState,
+          Array.filter(
+            (n) =>
+              n.userId === userId &&
+              n.status === 'sent' &&
+              n.sentAt !== undefined &&
+              n.sentAt.getTime() >= since.getTime()
+          ),
+          Array.map((n) => ({
+            plantId: pipe(Option.fromNullishOr(n.plantId), Option.getOrNull),
+            type: n.type,
+          }))
+        )
+      ),
+
     createPendingMany: (rows) =>
       Effect.sync(() => {
         Array.forEach(rows, (row) => {

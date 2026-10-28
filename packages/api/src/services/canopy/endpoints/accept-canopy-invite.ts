@@ -52,6 +52,7 @@ export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
             )
           )
         }
+        yield* rebuildMemberReminders(userId)
         return {
           canopyId: canopy.id,
           notify: Option.some({ canopyName: canopy.name, members }),
@@ -59,7 +60,6 @@ export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
       })
     )
 
-    yield* rebuildMemberReminders(userId)
     yield* Option.match(joined.notify, {
       onNone: () => Effect.void,
       onSome: ({ canopyName, members }) =>

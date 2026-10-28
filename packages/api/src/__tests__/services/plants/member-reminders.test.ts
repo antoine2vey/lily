@@ -136,6 +136,48 @@ describe('rebuildMemberReminders', () => {
     ])
   })
 
+  it('sends no second reminder today for a plant the member already heard about today', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2099-06-15T10:00:00.000Z'))
+    const sentThisMorning: Notification = {
+      id: 'sent-today',
+      type: 'watering_reminder',
+      scheduledAt: new Date('2099-06-15T06:00:00.000Z'),
+      sentAt: new Date('2099-06-15T06:00:05.000Z'),
+      isRead: false,
+      status: 'sent',
+      retryCount: 0,
+      userId: 'lily',
+      plantId: 'due-today',
+      createdAt: new Date('2099-06-14T12:00:00.000Z'),
+    }
+    const existing = [sentThisMorning]
+    await run('lily', ['due-today'], existing, {
+      dueToday: new Date('2099-06-14T22:00:00.000Z'),
+    })
+    expect(Array.map(existing, (n) => n.id)).toEqual(['sent-today'])
+  })
+
+  it('keeps the member overdue rows for the plant', async () => {
+    const overdue: Notification = {
+      id: 'overdue-row',
+      type: 'overdue_reminder',
+      scheduledAt: inDays(0.1),
+      isRead: false,
+      status: 'pending',
+      retryCount: 0,
+      userId: 'lily',
+      plantId: 'fern',
+      createdAt: new Date(),
+    }
+    const rows = await run('lily', ['fern'], [overdue])
+    expect(rows.sort()).toEqual([
+      ['lily', 'fern', 'fertilization_reminder'],
+      ['lily', 'fern', 'overdue_reminder'],
+      ['lily', 'fern', 'watering_reminder'],
+    ])
+  })
+
   it('limits an unmute to that plant and replaces the rows it already had', async () => {
     const stale: Notification = {
       id: 'stale',

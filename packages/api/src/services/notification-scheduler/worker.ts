@@ -350,7 +350,7 @@ const narrowToPlantsStillTheirs = (
       })
     )
     return Array.match(items, {
-      onEmpty: () => Option.some(message),
+      onEmpty: () => Option.none(),
       onNonEmpty: (nonEmpty) =>
         Option.some({
           ...message,

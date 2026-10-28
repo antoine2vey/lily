@@ -95,6 +95,31 @@ describe('processStreakAtRisk', () => {
     expect(notifications).toHaveLength(0)
   })
 
+  it('counts care on a plant buried since, like the streak does', async () => {
+    const eveningTz = findEveningTimezone()
+    if (!eveningTz) return
+
+    const user = makeUserWithSettings({ id: 'user-1', timezone: eveningTz })
+    const notifications: Notification[] = []
+
+    const layer = Layer.mergeAll(
+      createMockEngagementRepository({
+        plantNames: { 'user-1': ['Monstera'] },
+      }),
+      createMockNotificationRepository(notifications),
+      createMockCareLogRepository([], {
+        todayCountByUser: { 'user-1': 0 },
+        ownPlantsTodayCountByUser: { 'user-1': 1 },
+      })
+    )
+
+    await Effect.runPromise(
+      processStreakAtRisk([user], streakMap).pipe(Effect.provide(layer))
+    )
+
+    expect(notifications).toHaveLength(0)
+  })
+
   it('skips user before 6 PM local time', async () => {
     // Pick a timezone where local time is guaranteed < 18:00
     // We check dynamically to avoid time-of-day flakiness
