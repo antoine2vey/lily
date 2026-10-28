@@ -17,6 +17,7 @@ import { startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
 import { DateTime, Duration, Effect, Option, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const correctSingleCareDate = (
@@ -119,6 +120,7 @@ export const correctCareDates = (
   | UserRepository
   | DelegationRepository
   | CanopyRepository
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository

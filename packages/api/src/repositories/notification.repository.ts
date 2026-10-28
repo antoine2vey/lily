@@ -77,6 +77,9 @@ export interface INotificationRepository {
   readonly findById: (
     id: string
   ) => Effect.Effect<Notification | null, SqlError>
+  readonly findByIds: (
+    ids: ReadonlyArray<string>
+  ) => Effect.Effect<ReadonlyArray<Notification>, SqlError>
   readonly markAsRead: (
     id: string
   ) => Effect.Effect<Notification | null, SqlError>
@@ -218,6 +221,17 @@ export const NotificationRepositoryLive = Layer.effect(
           .from(notifications)
           .where(eq(notifications.id, id))
         return row ? mapToNotification(row) : null
+      }),
+
+      findByIds: Effect.fn('NotificationRepository.findByIds')(function* (
+        ids: ReadonlyArray<string>
+      ) {
+        if (Array.isReadonlyArrayEmpty(ids)) return []
+        const rows = yield* db
+          .select()
+          .from(notifications)
+          .where(inArray(notifications.id, [...ids]))
+        return Array.map(rows, mapToNotification)
       }),
 
       markAsRead: Effect.fn('NotificationRepository.markAsRead')(function* (

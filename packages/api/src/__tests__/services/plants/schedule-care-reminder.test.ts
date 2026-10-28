@@ -10,6 +10,7 @@ import {
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -51,6 +52,7 @@ const runAndGetPendingNotifications = (
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
+          MockSqlClientLive,
           createMockNotificationRepository([]),
           createMockUserRepository(allUsers),
           createMockCanopyRepository(),
@@ -396,6 +398,7 @@ describe('scheduleCareReminder', () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockSqlClientLive,
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
@@ -413,6 +416,45 @@ describe('scheduleCareReminder', () => {
 
       expect(pending).toHaveLength(1)
       expect(pending[0]?.userId).toBe(caretaker.id)
+    })
+
+    it('reminds a caretaker west of the owner on the due date in the caretaker zone, as before Canopies', async () => {
+      const owner = createTestUser({
+        id: 'owner-1',
+        careReminders: true,
+        timezone: 'Europe/Paris',
+        preferredNotificationTime: '09:00',
+        doNotDisturb: false,
+      })
+      const caretaker = createTestUser({
+        id: 'caretaker-1',
+        careReminders: true,
+        timezone: 'America/New_York',
+        preferredNotificationTime: '19:00',
+        doNotDisturb: false,
+      })
+      const delegation = createActiveDelegation(owner.id, caretaker.id)
+      const halfPastMidnightNov4Paris = new Date('2099-11-03T23:30:00.000Z')
+
+      const pending = await runAndGetPendingNotifications(
+        {
+          plant: personalPlant(owner.id, true),
+          type: 'watering_reminder',
+          scheduledDate: halfPastMidnightNov4Paris,
+        },
+        caretaker,
+        {
+          delegations: [delegation],
+          delegationPlants: [
+            { delegationId: delegation.id, plantId: 'plant-1' },
+          ],
+          extraUsers: [owner],
+        }
+      )
+
+      expect(Array.map(pending, (n) => n.scheduledAt.toISOString())).toEqual([
+        '2099-11-04T00:00:00.000Z',
+      ])
     })
 
     it('should not send notification to owner when active delegation exists', async () => {
@@ -447,6 +489,7 @@ describe('scheduleCareReminder', () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockSqlClientLive,
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
@@ -498,6 +541,7 @@ describe('scheduleCareReminder', () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockSqlClientLive,
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
@@ -546,6 +590,7 @@ describe('scheduleCareReminder', () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockSqlClientLive,
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
@@ -678,6 +723,7 @@ describe('scheduleCareReminder', () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockSqlClientLive,
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
@@ -721,6 +767,7 @@ describe('scheduleCareReminder', () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockSqlClientLive,
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
@@ -783,6 +830,7 @@ describe('scheduleCareReminder', () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockSqlClientLive,
               createMockNotificationRepository(rows),
               createMockUserRepository(users),
               createMockCanopyRepository(

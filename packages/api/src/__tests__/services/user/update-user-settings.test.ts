@@ -2,6 +2,7 @@ import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -17,6 +18,7 @@ import { describe, expect, it } from 'vitest'
 describe('updateUserSettings', () => {
   const createTestLayer = (userId: string) =>
     Layer.mergeAll(
+      createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([...mockUsers]),
       createMockCurrentUser({ id: userId }),
@@ -138,6 +140,7 @@ describe('updateUserSettings', () => {
       due({ id: 'in-flight', type: 'watering_reminder', status: 'queued' }),
     ]
     const layer = Layer.mergeAll(
+      createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([...mockUsers]),
       createMockCurrentUser({ id: 'user-1' }),

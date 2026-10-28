@@ -39,10 +39,3 @@ export const caredForBy = (db: Db, userId: string, canopyId: string | null) =>
           )
         )
       )
-
-export const careScopeOf = (db: Db, userId: string, includeCanopy: boolean) =>
-  includeCanopy
-    ? Effect.map(memberCanopyIdOf(db, userId), (canopyId) =>
-        caredForBy(db, userId, canopyId)
-      )
-    : Effect.succeed(caredForBy(db, userId, null))

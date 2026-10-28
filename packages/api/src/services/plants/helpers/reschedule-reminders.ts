@@ -6,6 +6,7 @@ import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { ReminderPlant } from '@lily/api/services/plants/helpers/reminder-recipients'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import { Array, DateTime, Effect } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface ReschedulablePlant extends ReminderPlant {
@@ -23,6 +24,7 @@ export const rescheduleReminders = (
   | UserRepository
   | DelegationRepository
   | CanopyRepository
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const notificationRepo = yield* NotificationRepository

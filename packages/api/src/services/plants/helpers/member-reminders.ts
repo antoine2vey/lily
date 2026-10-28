@@ -1,25 +1,26 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import {
   type ScheduleContext,
   scheduleReminderForRecipient,
 } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { Array, DateTime, Effect, pipe } from 'effect'
+import { startOfDay } from '@lily/shared'
+import { Array, DateTime, Effect, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-const isUpcomingCanopySchedule =
-  (nowMs: number) =>
-  <
-    R extends {
-      plant: { owner: { _tag: string } }
-      schedule: { nextCareAt: Date | null }
-    },
-  >(
+const isDueFrom =
+  (dayStart: DateTime.DateTime) =>
+  <R extends { schedule: { nextCareAt: Date | null } }>(
     row: R
   ): row is R & { schedule: { nextCareAt: Date } } =>
-    row.plant.owner._tag === 'Canopy' &&
-    row.schedule.nextCareAt !== null &&
-    row.schedule.nextCareAt.getTime() > nowMs
+    pipe(
+      Option.fromNullishOr(row.schedule.nextCareAt),
+      Option.exists((next) =>
+        DateTime.isGreaterThanOrEqualTo(DateTime.makeUnsafe(next), dayStart)
+      )
+    )
 
 export const rebuildMemberReminders = (
   userId: string,
@@ -28,30 +29,39 @@ export const rebuildMemberReminders = (
   Effect.gen(function* () {
     const scheduleRepo = yield* CareScheduleRepository
     const notificationRepo = yield* NotificationRepository
-    const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
-    const rows = pipe(
+    const sql = yield* SqlClient.SqlClient
+    const canopyRows = Array.filter(
       yield* scheduleRepo.findByOwnerWithPlant(userId),
-      Array.filter(isUpcomingCanopySchedule(nowMs)),
-      Array.filter(
-        (row) =>
-          plantIds === undefined || Array.contains(plantIds, row.plant.id)
-      )
-    )
-    yield* Effect.forEach(
-      Array.dedupe(Array.map(rows, (row) => row.plant.id)),
-      (plantId) =>
-        notificationRepo.deleteUndeliveredByUserAndPlant(userId, plantId),
-      { discard: true }
-    )
-    yield* Effect.forEach(
-      rows,
       (row) =>
-        scheduleReminderForRecipient(userId, {
-          plant: row.plant,
-          type: `${row.schedule.careType}_reminder` as const,
-          scheduledDate: row.schedule.nextCareAt,
-        }),
-      { discard: true }
+        row.plant.owner._tag === 'Canopy' &&
+        (plantIds === undefined || Array.contains(plantIds, row.plant.id))
+    )
+    const first = Array.head(canopyRows)
+    if (Option.isNone(first)) return
+    const { timezone } = yield* careContext(first.value.plant.owner)
+    const rows = Array.filter(
+      canopyRows,
+      isDueFrom(startOfDay(DateTime.nowUnsafe(), timezone))
+    )
+    yield* sql.withTransaction(
+      Effect.gen(function* () {
+        yield* Effect.forEach(
+          Array.dedupe(Array.map(rows, (row) => row.plant.id)),
+          (plantId) =>
+            notificationRepo.deleteUndeliveredByUserAndPlant(userId, plantId),
+          { discard: true }
+        )
+        yield* Effect.forEach(
+          rows,
+          (row) =>
+            scheduleReminderForRecipient(userId, {
+              plant: row.plant,
+              type: `${row.schedule.careType}_reminder` as const,
+              scheduledDate: row.schedule.nextCareAt,
+            }),
+          { discard: true }
+        )
+      })
     )
   }).pipe(
     Effect.withSpan('rebuildMemberReminders', {

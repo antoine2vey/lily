@@ -21,6 +21,7 @@
  * are deterministic regardless of when the suite runs. Assertions are
  * directional (compare two runs) since exact day counts are tuning-sensitive.
  */
+
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
@@ -33,6 +34,7 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
@@ -172,6 +174,7 @@ const runScheduler = async (
 ): Promise<CareScheduleRow[]> => {
   const schedules = schedulesFromPlants(plants)
   const layers = Layer.mergeAll(
+    MockSqlClientLive,
     createMockUserRepository([user]),
     createMockPlantRepository({ plants, rooms: allRooms }),
     createMockNotificationRepository([]),
@@ -530,6 +533,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       const plant = indoorPlant('no-lat-indoor', noLatUser.id, 'room-indoor')
       const schedules = schedulesFromPlants([plant])
       const layers = Layer.mergeAll(
+        MockSqlClientLive,
         createMockUserRepository([noLatUser]),
         createMockPlantRepository({ plants: [plant], rooms: allRooms }),
         createMockNotificationRepository([]),

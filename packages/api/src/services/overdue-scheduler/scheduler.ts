@@ -12,6 +12,7 @@ import {
   scheduleDeferredCareNotification,
   scheduleSimpleNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
 import { canopyPlantCapFrom } from '@lily/api/services/subscriptions/canopy-plant-cap'
 import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
@@ -27,6 +28,7 @@ import {
 } from '@lily/shared'
 import {
   Array,
+  DateTime,
   Effect,
   Filter,
   Match,
@@ -36,6 +38,40 @@ import {
   Random,
   Record,
 } from 'effect'
+
+const dueBeforeTheirOwnersDay = (
+  plants: readonly OverdueRecipientPlant[],
+  userTimezone: string
+) =>
+  Effect.gen(function* () {
+    const canopyDayStarts = Record.fromEntries(
+      yield* Effect.forEach(
+        pipe(
+          plants,
+          Array.filter((p) => p.owner._tag === 'Canopy'),
+          Array.dedupeWith((a, b) => ownerKey(a.owner) === ownerKey(b.owner))
+        ),
+        (p) =>
+          Effect.map(
+            careContext(p.owner),
+            (context) =>
+              [ownerKey(p.owner), startOfTodayAsDate(context.timezone)] as const
+          )
+      )
+    )
+    const userDayStart = startOfTodayAsDate(userTimezone)
+    return Array.filter(plants, (p) =>
+      DateTime.isLessThan(
+        DateTime.makeUnsafe(p.overdueAt),
+        DateTime.makeUnsafe(
+          pipe(
+            Record.get(canopyDayStarts, ownerKey(p.owner)),
+            Option.getOrElse(() => userDayStart)
+          )
+        )
+      )
+    )
+  })
 
 export const processUserOverdueReminders = (
   userId: string,
@@ -72,12 +108,7 @@ export const processUserOverdueReminders = (
       return yield* new AlreadySentTodayError({ userId })
     }
 
-    // Precision filter: only keep plants strictly overdue (before start of today in user's tz)
-    const todayStart = startOfTodayAsDate(timezone)
-    const strictlyOverdue = Array.filter(
-      plants,
-      (p) => p.overdueAt.getTime() < todayStart.getTime()
-    )
+    const strictlyOverdue = yield* dueBeforeTheirOwnersDay(plants, timezone)
 
     if (Array.isReadonlyArrayEmpty(strictlyOverdue)) return 0
 

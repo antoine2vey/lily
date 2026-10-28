@@ -963,7 +963,8 @@ describe('Notification Worker', () => {
       plants: ReturnType<typeof createTestPlant>[],
       plantIds: string[],
       canopyLayer?: Layer.Layer<CanopyRepository>,
-      delegationLayer?: Layer.Layer<DelegationRepository>
+      delegationLayer?: Layer.Layer<DelegationRepository>,
+      rows?: Notification[]
     ) => {
       const sentMessages: PushMessage[] = []
       const notification = createTestNotification({
@@ -971,6 +972,7 @@ describe('Notification Worker', () => {
         userId: 'user-1',
         status: 'queued',
       })
+      const notifications = rows ?? [notification]
       await Effect.runPromise(
         processMessage(
           createTestQueueMessage({
@@ -979,7 +981,7 @@ describe('Notification Worker', () => {
               userId: 'user-1',
               title: 'Water time',
               body: 'Your plants are thirsty',
-              notificationIds: ['notification-1'],
+              notificationIds: Array.map(notifications, (n) => n.id),
               plantIds,
             },
           })
@@ -991,7 +993,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification]),
+              createMockNotificationRepository(notifications),
               createMockPlantRepository({ plants }),
               LaMocksLive,
               canopyLayer ?? Layer.empty,
@@ -1060,36 +1062,102 @@ describe('Notification Worker', () => {
       expect(notification.status).toBe('sent')
     })
 
-    it('drops an owner care push once a caretaker has taken the plant over', async () => {
+    const activeDelegation = (
+      ownerId: string,
+      caretakerId: string,
+      status: DelegationRow['status']
+    ): DelegationRow => ({
+      id: 'delegation-1',
+      ownerId,
+      caretakerId,
+      status,
+      message: null,
+      startDate: new Date(Date.now() - 86_400_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      respondedAt: null,
+      canceledAt: null,
+      completedAt: status === 'completed' ? new Date() : null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    it('delivers an owner care push for a plant delegated after its row was written', async () => {
       const own = createTestPlant({ id: 'plant-1', userId: 'user-1' })
-      const delegation: DelegationRow = {
-        id: 'delegation-1',
-        ownerId: 'user-1',
-        caretakerId: 'user-2',
-        status: 'active',
-        message: null,
-        startDate: new Date(Date.now() - 86_400_000),
-        endDate: new Date(Date.now() + 86_400_000),
-        respondedAt: null,
-        canceledAt: null,
-        completedAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
       const { sentMessages, notification } = await runWithPlants(
         [own],
         ['plant-1'],
         undefined,
         createMockDelegationRepository({
-          delegations: [delegation],
+          delegations: [activeDelegation('user-1', 'user-2', 'active')],
           delegationPlants: [
             { delegationId: 'delegation-1', plantId: 'plant-1' },
           ],
         })
       )
 
-      expect(sentMessages).toHaveLength(0)
+      expect(sentMessages.length).toBeGreaterThan(0)
       expect(notification.status).toBe('sent')
+    })
+
+    it('delivers a caretaker care push after the delegation completed', async () => {
+      const theirs = createTestPlant({ id: 'plant-1', userId: 'user-2' })
+      const { sentMessages } = await runWithPlants(
+        [theirs],
+        ['plant-1'],
+        undefined,
+        createMockDelegationRepository({
+          delegations: [activeDelegation('user-2', 'user-1', 'completed')],
+          delegationPlants: [
+            { delegationId: 'delegation-1', plantId: 'plant-1' },
+          ],
+        })
+      )
+
+      expect(sentMessages.length).toBeGreaterThan(0)
+    })
+
+    it('names only the plants still theirs when the guard drops some', async () => {
+      const leftBehind = createTestPlant({
+        id: 'plant-1',
+        name: 'Left Behind',
+        userId: null,
+        canopyId: 'canopy-2',
+      })
+      const fern = createTestPlant({
+        id: 'plant-2',
+        name: 'Fern',
+        userId: 'user-1',
+      })
+      const rows = [
+        createTestNotification({
+          id: 'notification-1',
+          userId: 'user-1',
+          plantId: 'plant-1',
+          type: 'watering_reminder',
+          status: 'queued',
+        }),
+        createTestNotification({
+          id: 'notification-2',
+          userId: 'user-1',
+          plantId: 'plant-2',
+          type: 'watering_reminder',
+          status: 'queued',
+        }),
+      ]
+      const { sentMessages } = await runWithPlants(
+        [leftBehind, fern],
+        ['plant-1', 'plant-2'],
+        undefined,
+        undefined,
+        rows
+      )
+
+      const push = sentMessages[0]
+      expect(push).toBeDefined()
+      expect(`${push?.title} ${push?.body}`).toContain('Fern')
+      expect(`${push?.title} ${push?.body}`).not.toContain('Left Behind')
+      expect(push?.data?.plantIds).toBe('plant-2')
+      expect(Array.map(rows, (n) => n.status)).toEqual(['sent', 'sent'])
     })
 
     it('delivers a care push for a Canopy plant of the Canopy the user is in', async () => {
@@ -1103,19 +1171,42 @@ describe('Notification Worker', () => {
       expect(sentMessages.length).toBeGreaterThan(0)
     })
 
-    it('still delivers when at least one plant is living', async () => {
+    it('still delivers when at least one plant is living, naming only that one', async () => {
       const dead = createTestPlant({
         id: 'plant-1',
+        name: 'Buried',
         userId: 'user-1',
         diedAt: new Date(),
       })
-      const alive = createTestPlant({ id: 'plant-2', userId: 'user-1' })
+      const alive = createTestPlant({
+        id: 'plant-2',
+        name: 'Fern',
+        userId: 'user-1',
+      })
       const { sentMessages } = await runWithPlants(
         [dead, alive],
-        ['plant-1', 'plant-2']
+        ['plant-1', 'plant-2'],
+        undefined,
+        undefined,
+        [
+          createTestNotification({
+            id: 'notification-1',
+            userId: 'user-1',
+            plantId: 'plant-1',
+            status: 'queued',
+          }),
+          createTestNotification({
+            id: 'notification-2',
+            userId: 'user-1',
+            plantId: 'plant-2',
+            status: 'queued',
+          }),
+        ]
       )
 
       expect(sentMessages.length).toBeGreaterThan(0)
+      expect(sentMessages[0]?.body).not.toContain('Buried')
+      expect(sentMessages[0]?.data?.plantIds).toBe('plant-2')
     })
   })
 

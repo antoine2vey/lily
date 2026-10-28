@@ -1,4 +1,7 @@
-import { careScopeOf } from '@lily/api/repositories/helpers/care-visibility'
+import {
+  caredForBy,
+  memberCanopyIdOf,
+} from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   ownerOf,
@@ -72,7 +75,7 @@ export interface ICareScheduleRepository {
   readonly findPendingByUser: (
     userId: string,
     cutoff: Date,
-    includeCanopy: boolean
+    canopyId: string | null
   ) => Effect.Effect<Array<ScheduleWithPlant>, SqlError>
   readonly findOverdueByUser: () => Effect.Effect<
     Record<string, Array<OverdueRecipientPlant>>,
@@ -145,8 +148,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
       }),
 
       findPendingByUser: Effect.fn('CareScheduleRepository.findPendingByUser')(
-        function* (userId: string, cutoff: Date, includeCanopy: boolean) {
-          const scope = yield* careScopeOf(db, userId, includeCanopy)
+        function* (userId: string, cutoff: Date, canopyId: string | null) {
           const rows = yield* db
             .select({
               schedule: plantCareSchedules,
@@ -162,7 +164,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .where(
               and(
-                scope,
+                caredForBy(db, userId, canopyId),
                 isLivingPlant(),
                 isNotNull(plantCareSchedules.nextCareAt),
                 lte(plantCareSchedules.nextCareAt, cutoff)
@@ -266,7 +268,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
       findByOwnerWithPlant: Effect.fn(
         'CareScheduleRepository.findByOwnerWithPlant'
       )(function* (userId: string) {
-        const scope = yield* careScopeOf(db, userId, true)
+        const canopyId = yield* memberCanopyIdOf(db, userId)
         const rows = yield* db
           .select({
             schedule: plantCareSchedules,
@@ -279,7 +281,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
           })
           .from(plantCareSchedules)
           .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-          .where(and(scope, isLivingPlant()))
+          .where(and(caredForBy(db, userId, canopyId), isLivingPlant()))
         return Array.map(rows, (row) => ({
           schedule: row.schedule,
           plant: {

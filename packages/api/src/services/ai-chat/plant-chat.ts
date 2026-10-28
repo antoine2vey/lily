@@ -2,7 +2,6 @@ import { openai } from '@ai-sdk/openai'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import {
   buildGeneralSystemPrompt,
@@ -16,6 +15,7 @@ import {
   type ToolContext,
 } from '@lily/api/services/ai-chat/tools'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { actorDayTimezone } from '@lily/api/services/plants/helpers/care-context'
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { daysSince } from '@lily/shared'
 import type { ChatConversation } from '@lily/shared/ai-chat'
@@ -214,7 +214,6 @@ const buildPlantContext = (
     const careLogRepo = yield* CareLogRepository
     const scheduleRepo = yield* CareScheduleRepository
     const carePlanRepo = yield* CarePlanRepository
-    const userRepo = yield* UserRepository
 
     const plant = yield* withPlantAuth(plantId, 'chat')
 
@@ -231,12 +230,7 @@ const buildPlantContext = (
     const carePlans = yield* carePlanRepo.findByPlant(plantId, userId)
     const carePlansText = formatCarePlansText(carePlans)
 
-    const user = yield* userRepo.findById(userId)
-    const timezone = pipe(
-      Option.fromNullishOr(user),
-      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrElse(() => 'UTC')
-    )
+    const timezone = yield* actorDayTimezone(plant.owner, userId)
 
     const systemPrompt = buildPlantSystemPrompt({
       plant: { ...plant, schedules },

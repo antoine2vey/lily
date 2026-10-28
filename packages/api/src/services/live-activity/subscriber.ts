@@ -107,8 +107,13 @@ const refreshCardsFor = (params: {
 }) =>
   Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
-    const plant = yield* plantRepo.findById(params.plantId)
-    const recipients = plant === null ? [] : yield* reminderRecipients(plant)
+    const plant = Option.fromNullishOr(
+      yield* plantRepo.findById(params.plantId)
+    )
+    const recipients = yield* Option.match(plant, {
+      onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
+      onSome: reminderRecipients,
+    })
     yield* Effect.forEach(
       Array.dedupe([params.actorId, ...recipients]),
       (userId) =>

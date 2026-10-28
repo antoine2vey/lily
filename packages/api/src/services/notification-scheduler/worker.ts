@@ -1,4 +1,5 @@
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -7,8 +8,10 @@ import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
+import { mapNotificationTypeToTopic } from '@lily/api/services/notification-scheduler/scheduler'
+import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
 import {
+  type DeferredCareType,
   type InterruptionLevel,
   type LiveActivityAlert,
   type LiveActivityContentState,
@@ -24,6 +27,7 @@ import {
   DateTime,
   Duration,
   Effect,
+  Filter,
   Match,
   Option,
   pipe,
@@ -90,6 +94,7 @@ const sendLiveActivityForCare = (
   | import('@lily/api/repositories/care-log.repository').CareLogRepository
   | import('@lily/api/repositories/care-schedule.repository').CareScheduleRepository
   | import('@lily/api/repositories/user.repository').UserRepository
+  | CanopyRepository
 > =>
   Effect.gen(function* () {
     const pushService = yield* PushService
@@ -287,6 +292,83 @@ const completeDelivery = (
     )
   ) satisfies Effect.Effect<void, never, unknown>
 
+const isCareTopic = (topic: NotificationTopic): topic is DeferredCareType =>
+  TOPIC_CATEGORY[topic] === 'care'
+
+const narrowToPlantsStillTheirs = (
+  message: QueueMessage,
+  claimedIds: ReadonlyArray<string>
+) =>
+  Effect.gen(function* () {
+    if (
+      TOPIC_CATEGORY[message.topic] !== 'care' ||
+      Array.isReadonlyArrayEmpty(message.payload.plantIds)
+    ) {
+      return Option.some(message)
+    }
+    const plantRepo = yield* PlantRepository
+    const canopyRepo = yield* CanopyRepository
+    const living = Array.filter(
+      yield* plantRepo.findByIds(message.payload.plantIds),
+      (p) => p.diedAt === null
+    )
+    const canopyPlants = Array.filterMap(living, (p) =>
+      p.owner._tag === 'Canopy'
+        ? Result.succeed({ id: p.id, canopyId: p.owner.canopyId })
+        : Result.failVoid
+    )
+    const audible = Array.isReadonlyArrayEmpty(canopyPlants)
+      ? []
+      : yield* canopyRepo.findAudiblePlantIds(
+          message.payload.userId,
+          canopyPlants
+        )
+    const kept = Array.filter(
+      living,
+      (p) => p.owner._tag === 'User' || Array.contains(audible, p.id)
+    )
+    if (Array.isReadonlyArrayEmpty(kept)) return Option.none()
+    if (kept.length === Array.dedupe(message.payload.plantIds).length) {
+      return Option.some(message)
+    }
+    const notificationRepo = yield* NotificationRepository
+    const rows = yield* notificationRepo.findByIds(claimedIds)
+    const careTypesOf = (plantId: string) =>
+      Array.filterMap(
+        rows,
+        Filter.fromPredicateOption((row) =>
+          row.plantId === plantId
+            ? Option.filter(mapNotificationTypeToTopic(row.type), isCareTopic)
+            : Option.none()
+        )
+      )
+    const items = Array.filterMap(kept, (plant) =>
+      Array.match(careTypesOf(plant.id), {
+        onEmpty: () => Result.failVoid,
+        onNonEmpty: (careTypes) =>
+          Result.succeed({ plantName: plant.name, careTypes }),
+      })
+    )
+    return Array.match(items, {
+      onEmpty: () => Option.some(message),
+      onNonEmpty: (nonEmpty) =>
+        Option.some({
+          ...message,
+          payload: {
+            ...message.payload,
+            ...buildCareDigestContent(
+              nonEmpty,
+              Option.getOrElse(
+                Option.fromNullishOr(message.payload.language),
+                () => 'en' as const
+              )
+            ),
+            plantIds: Array.map(kept, (p) => p.id),
+          },
+        }),
+    })
+  })
+
 export const processMessage = Effect.fn('notification-worker.process')(
   function* (message: QueueMessage) {
     const { notificationIds } = message.payload
@@ -295,7 +377,6 @@ export const processMessage = Effect.fn('notification-worker.process')(
     const pushService = yield* PushService
     const deviceTokenRepo = yield* DeviceTokenRepository
     const notificationRepo = yield* NotificationRepository
-    const plantRepo = yield* PlantRepository
 
     const claimedIds = yield* notificationRepo.claimForDelivery(
       notificationIds,
@@ -312,34 +393,19 @@ export const processMessage = Effect.fn('notification-worker.process')(
       return
     }
 
-    // Guard the enqueue→deliver window: a plant buried after the scheduler
-    // resolved it must not be nagged about. Only the all-dead case is
-    // dropped; a message that still names a living plant goes out as built
-    // (its text was resolved seconds earlier and cannot be rewritten here).
-    if (
-      TOPIC_CATEGORY[message.topic] === 'care' &&
-      Array.isReadonlyArrayNonEmpty(message.payload.plantIds)
-    ) {
-      const plants = yield* plantRepo.findByIds(message.payload.plantIds)
-      const stillTheirs = yield* Effect.filter(
-        Array.filter(plants, (p) => p.diedAt === null),
-        (p) =>
-          Effect.map(reminderRecipients(p), (recipients) =>
-            Array.contains(recipients, message.payload.userId)
-          )
+    const delivery = yield* narrowToPlantsStillTheirs(message, claimedIds)
+    if (Option.isNone(delivery)) {
+      yield* Effect.log(
+        'Dropping care push - no plant is living and still theirs',
+        {
+          notificationIds: claimedIds,
+          plantIds: message.payload.plantIds,
+        }
       )
-      if (Array.isReadonlyArrayEmpty(stillTheirs)) {
-        yield* Effect.log(
-          'Dropping care push - no plant is living and still theirs',
-          {
-            notificationIds: claimedIds,
-            plantIds: message.payload.plantIds,
-          }
-        )
-        yield* notificationRepo.markManyAsSent(claimedIds)
-        return
-      }
+      yield* notificationRepo.markManyAsSent(claimedIds)
+      return
     }
+    const { payload } = delivery.value
 
     // Get user's active device tokens
     const tokens = yield* deviceTokenRepo.findByUserId(message.payload.userId)
@@ -356,7 +422,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
     }
 
     // Build data payload for deep linking
-    const plantIds = Array.match(message.payload.plantIds, {
+    const plantIds = Array.match(payload.plantIds, {
       onEmpty: () => Option.none<string>(),
       onNonEmpty: (ids) => Option.some(Array.join(ids, ',')),
     })
@@ -364,8 +430,8 @@ export const processMessage = Effect.fn('notification-worker.process')(
     const data: Record<string, unknown> = Record.filter(
       {
         topic: message.topic,
-        title: message.payload.title,
-        body: message.payload.body,
+        title: payload.title,
+        body: payload.body,
         plantIds: Option.getOrUndefined(plantIds),
         ...Record.map(message.payload.metadata ?? {}, (v) => v),
       } as Record<string, unknown>,
@@ -377,8 +443,8 @@ export const processMessage = Effect.fn('notification-worker.process')(
     // Send to all active devices
     const pushMessages = Array.map(activeTokens, (token) => ({
       to: token.token,
-      title: message.payload.title,
-      body: message.payload.body,
+      title: payload.title,
+      body: payload.body,
       sound: 'default' as const,
       data,
       ...(interruptionLevel ? { interruptionLevel } : {}),
@@ -386,7 +452,12 @@ export const processMessage = Effect.fn('notification-worker.process')(
 
     const results = yield* pushService.sendBatch(pushMessages)
 
-    yield* completeDelivery(message, claimedIds, results, activeTokens.length)
+    yield* completeDelivery(
+      delivery.value,
+      claimedIds,
+      results,
+      activeTokens.length
+    )
   }
 )
 

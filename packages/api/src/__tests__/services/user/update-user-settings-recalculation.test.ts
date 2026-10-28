@@ -1,9 +1,15 @@
+import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
+import {
+  createCanopyStore,
+  createMockCanopyRepository,
+  createTestCanopyRow,
+} from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -75,6 +81,7 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
@@ -137,6 +144,7 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
@@ -159,6 +167,62 @@ describe('updateUserSettings - notification recalculation', () => {
     expect(capturedScheduledAt).not.toBeNull()
     // 09:00 in America/New_York during summer (EDT = UTC-4) = 13:00 UTC
     expect(capturedScheduledAt!.getUTCHours()).toBe(13)
+  })
+
+  it('keeps a Canopy plant reminder on the Canopy calendar day when the member moves west', async () => {
+    const canopyPlant = createTestPlant({
+      id: 'plant-canopy',
+      userId: null,
+      canopyId: mockCanopyId,
+      scheduleSpecs: [
+        wateringSpec({ nextCareAt: new Date('2030-07-14T22:00:00.000Z') }),
+      ],
+    })
+    const pending: Notification = {
+      id: 'notif-canopy',
+      type: 'watering_reminder',
+      scheduledAt: new Date('2030-07-15T09:00:00.000Z'),
+      isRead: false,
+      status: 'pending',
+      retryCount: 0,
+      userId: 'user-1',
+      plantId: 'plant-canopy',
+      createdAt: new Date(),
+    }
+    const notifications = [pending]
+
+    await Effect.runPromise(
+      updateUserSettings({ timezone: 'America/New_York' }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockRateLimiterService(),
+            createMockUserRepository([testUser]),
+            createMockCurrentUser({ id: 'user-1' }),
+            createMockNotificationRepository(notifications),
+            createMockPlantRepository({ plants: [canopyPlant] }),
+            createMockCanopyRepository(
+              createCanopyStore({
+                canopies: [
+                  createTestCanopyRow({
+                    id: mockCanopyId,
+                    timezone: 'Europe/Paris',
+                  }),
+                ],
+              })
+            ),
+            createMockCareLogRepository([]),
+            createMockCareScheduleRepository({
+              schedules: schedulesFromPlants([canopyPlant]),
+              plants: [canopyPlant],
+            })
+          )
+        )
+      )
+    )
+
+    expect(notifications[0]?.scheduledAt.toISOString()).toBe(
+      '2030-07-15T13:00:00.000Z'
+    )
   })
 
   it('should NOT recalculate when preferredNotificationTime stays the same', async () => {
@@ -199,6 +263,7 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
@@ -259,6 +324,7 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),

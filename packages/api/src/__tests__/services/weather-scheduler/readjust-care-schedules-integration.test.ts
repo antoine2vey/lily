@@ -3,6 +3,7 @@
  * with plants in different rooms (indoor, outdoor, no room) and realistic
  * weather forecasts. Checks actual date changes, not just that it runs.
  */
+
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
@@ -25,6 +26,7 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
@@ -105,6 +107,7 @@ const buildLayers = ({
   const resolvedSchedules = schedules ?? schedulesFromPlants(plants)
   return {
     layers: Layer.mergeAll(
+      MockSqlClientLive,
       createMockUserRepository([weatherUser]),
       createMockPlantRepository({
         plants,
@@ -521,6 +524,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           findSchedule(schedules, plant.id, 'watering')?.nextCareAt
         )
         const layers = Layer.mergeAll(
+          MockSqlClientLive,
           createMockUserRepository([weatherUser]),
           createMockPlantRepository({
             plants: [plant],
@@ -594,6 +598,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           findSchedule(schedules, plant.id, 'watering')?.nextCareAt
         )
         const layers = Layer.mergeAll(
+          MockSqlClientLive,
           createMockUserRepository([weatherUser]),
           createMockPlantRepository({
             plants: [plant],
@@ -666,6 +671,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       for (let i = 0; i < 5; i++) {
         const layers = Layer.mergeAll(
+          MockSqlClientLive,
           createMockUserRepository([weatherUser]),
           createMockPlantRepository({
             plants: [plant],
@@ -764,6 +770,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
     ): Promise<number> => {
       const schedules = schedulesFromPlants([plant])
       const layers = Layer.mergeAll(
+        MockSqlClientLive,
         createMockUserRepository([weatherUser]),
         createMockPlantRepository({
           plants: [plant],
@@ -1142,6 +1149,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const coldCtx = buildWeatherCtx(parisWinterForecast)
       const schedules = schedulesFromPlants([plant])
       const layers1 = Layer.mergeAll(
+        MockSqlClientLive,
         createMockUserRepository([weatherUser]),
         createMockPlantRepository({
           plants: [plant],
@@ -1170,6 +1178,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       // Run 2: hot weather → pulls watering forward
       const hotCtx = buildWeatherCtx(hotWeekForecast, mockHeatWaveHistory)
       const layers2 = Layer.mergeAll(
+        MockSqlClientLive,
         createMockUserRepository([weatherUser]),
         createMockPlantRepository({
           plants: [plant],

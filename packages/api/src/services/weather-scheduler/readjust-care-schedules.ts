@@ -11,7 +11,7 @@ import {
 } from '@lily/api/services/weather/algorithm'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import {
-  type CanopyId,
+  CanopyId,
   type Orientation,
   type PlantOwner,
   roundCoord,
@@ -26,6 +26,7 @@ import {
   pipe,
   String as Str,
 } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface WeatherScope {
@@ -74,7 +75,7 @@ export const weatherScopes = (
     ...Array.map(canopies, (canopy) =>
       toWeatherScope(canopy, {
         _tag: 'Canopy',
-        canopyId: canopy.id as CanopyId,
+        canopyId: CanopyId.make(canopy.id),
       })
     ),
   ])
@@ -89,6 +90,7 @@ type ReadjustContext =
   | UserRepository
   | DelegationRepository
   | CanopyRepository
+  | SqlClient.SqlClient
 
 export const readjustCareSchedules = (
   scopes: ReadonlyArray<WeatherScope>,

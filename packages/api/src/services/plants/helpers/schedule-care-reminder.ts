@@ -15,8 +15,9 @@ import {
   reminderRecipients,
 } from '@lily/api/services/plants/helpers/reminder-recipients'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
-import { isOnVacation, nowAsDate } from '@lily/shared'
-import { Array, DateTime, Effect, Option, pipe } from 'effect'
+import { isOnVacation, nowAsDate, type PlantOwner } from '@lily/shared'
+import { Array, DateTime, Effect, Match, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type CareReminderType =
@@ -36,6 +37,7 @@ export type ScheduleContext =
   | UserRepository
   | DelegationRepository
   | CanopyRepository
+  | SqlClient.SqlClient
 
 const zoneOf = (timezone: string | null) =>
   pipe(
@@ -63,10 +65,30 @@ const sameCalendarDayFor = (
   )
 }
 
+export type ReminderDay = (memberTimezone: string | null) => Date
+
+export const reminderDayFor = (
+  owner: PlantOwner,
+  scheduledDate: Date
+): Effect.Effect<ReminderDay, SqlError, UserRepository | CanopyRepository> =>
+  pipe(
+    Match.value(owner),
+    Match.tag('User', () => Effect.succeed<ReminderDay>(() => scheduledDate)),
+    Match.tag('Canopy', (canopyOwner) =>
+      Effect.map(
+        careContext(canopyOwner),
+        (context): ReminderDay =>
+          (memberTimezone) =>
+            sameCalendarDayFor(scheduledDate, context.timezone, memberTimezone)
+      )
+    ),
+    Match.exhaustive
+  )
+
 const reminderRowFor = (
   recipientId: string,
   params: ScheduleCareReminderParams,
-  contextTimezone: string
+  reminderDay: ReminderDay
 ): Effect.Effect<
   Option.Option<CreateNotificationData>,
   SqlError,
@@ -78,11 +100,7 @@ const reminderRowFor = (
       return Option.none()
     }
     const scheduledAt = yield* calculateScheduledAt(
-      sameCalendarDayFor(
-        params.scheduledDate,
-        contextTimezone,
-        settings.timezone
-      ),
+      reminderDay(settings.timezone),
       settings.timezone,
       settings.preferredTime
     )
@@ -109,21 +127,26 @@ export const scheduleCareReminder = (
     if (!params.plant.remindersEnabled) {
       return
     }
-    const [recipients, context] = yield* Effect.all([
+    const [recipients, reminderDay] = yield* Effect.all([
       reminderRecipients(params.plant),
-      careContext(params.plant.owner),
+      reminderDayFor(params.plant.owner, params.scheduledDate),
     ])
     const rows = Array.getSomes(
       yield* Effect.forEach(recipients, (recipientId) =>
-        reminderRowFor(recipientId, params, context.timezone)
+        reminderRowFor(recipientId, params, reminderDay)
       )
     )
     const notificationRepo = yield* NotificationRepository
-    yield* notificationRepo.deletePendingByPlantAndType(
-      params.plant.id,
-      params.type
+    const sql = yield* SqlClient.SqlClient
+    yield* sql.withTransaction(
+      Effect.andThen(
+        notificationRepo.deletePendingByPlantAndType(
+          params.plant.id,
+          params.type
+        ),
+        notificationRepo.createPendingMany(rows)
+      )
     )
-    yield* notificationRepo.createPendingMany(rows)
   })
 
 export const scheduleReminderForRecipient = (
@@ -134,8 +157,11 @@ export const scheduleReminderForRecipient = (
     if (!params.plant.remindersEnabled) {
       return
     }
-    const context = yield* careContext(params.plant.owner)
-    const row = yield* reminderRowFor(recipientId, params, context.timezone)
+    const reminderDay = yield* reminderDayFor(
+      params.plant.owner,
+      params.scheduledDate
+    )
+    const row = yield* reminderRowFor(recipientId, params, reminderDay)
     const notificationRepo = yield* NotificationRepository
     yield* notificationRepo.createPendingMany(Array.fromOption(row))
   })

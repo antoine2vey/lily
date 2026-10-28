@@ -9,6 +9,7 @@ import {
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -270,6 +271,7 @@ describe('findCareTasks', () => {
     plants = createMockPlantsForCareTasks(REFERENCE_DATE)
   ) =>
     Layer.mergeAll(
+      createMockCanopyRepository([]),
       createMockCareLogRepository([]),
       createMockPlantRepository({ plants }),
       createMockCareScheduleRepository({
@@ -559,6 +561,7 @@ describe('findCareTasks', () => {
 
       // Test with UTC user (user-1 has timezone: 'UTC')
       const utcLayer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants: tzPlants }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(tzPlants),
@@ -593,6 +596,7 @@ describe('findCareTasks', () => {
         userId: 'user-paris',
       }))
       const parisLayer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants: parisTzPlants }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(parisTzPlants),
@@ -776,6 +780,7 @@ describe('findCareTasks', () => {
       })
 
       const layer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(plants),
@@ -845,6 +850,7 @@ describe('findCareTasks', () => {
       ]
 
       const layer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants, rooms }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(plants),
@@ -1037,6 +1043,7 @@ describe('findCareTasks', () => {
         timezone: 'Europe/Paris',
       })
       const layer = Layer.mergeAll(
+        createMockCanopyRepository([]),
         createMockPlantRepository({ plants: parisPlants }),
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(parisPlants),
@@ -1119,6 +1126,7 @@ describe('findCareTasks', () => {
         ? [{ userId: 'user-1', plantId: 'muted-plant' }]
         : []
       return Layer.mergeAll(
+        createMockCanopyRepository(memberships),
         createMockCareLogRepository([]),
         createMockPlantRepository({ plants: all, memberships }),
         createMockCareScheduleRepository({

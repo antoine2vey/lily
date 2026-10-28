@@ -14,6 +14,7 @@ import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
   createMockCanopyRepository,
+  createTestCanopyRow,
   type MockMembership,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -23,6 +24,7 @@ import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/noti
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import type { CanopyRow } from '@lily/api/repositories/canopy.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import {
   checkAndCreateOverdueReminders,
@@ -41,7 +43,7 @@ import {
   Option,
   References,
 } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // Helper to make a date N days in the past
 const daysAgo = (days: number): Date =>
@@ -61,9 +63,11 @@ const runCheck = (
   {
     memberships = [],
     mutes = [],
+    canopies = [],
   }: {
     memberships?: MockMembership[]
     mutes?: Array<{ userId: string; plantId: string }>
+    canopies?: CanopyRow[]
   } = {}
 ) =>
   Effect.runPromise(
@@ -77,7 +81,7 @@ const runCheck = (
             mutes,
           }),
           createMockCanopyRepository(
-            createCanopyStore({ members: memberships, mutes })
+            createCanopyStore({ members: memberships, mutes, canopies })
           ),
           createMockPlantRepository({ plants: plantsData }),
           createMockNotificationRepository(notifications),
@@ -134,6 +138,7 @@ const runProcessUser = (
         Layer.mergeAll(
           createMockNotificationRepository(notifications),
           createMockUserRepository(users),
+          createMockCanopyRepository(),
           createMockDelegationRepository(delegationData),
           createMockMessageQueue()
         )
@@ -1049,6 +1054,10 @@ describe('checkAndCreateOverdueReminders', () => {
   })
 
   describe('Canopy plants', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
     const member1 = createTestUser({
       id: 'user-1',
       careReminders: true,
@@ -1109,6 +1118,44 @@ describe('checkAndCreateOverdueReminders', () => {
         notifications,
         (n) => n.type === 'resubscribe_nudge' && n.userId === userId
       ),
+    })
+
+    it('waits for the end of the Canopy day before a member west of it hears the plant is overdue', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2099-07-15T13:00:00.000Z'))
+      const newYorker = createTestUser({
+        id: 'user-2',
+        careReminders: true,
+        doNotDisturb: false,
+        timezone: 'America/New_York',
+      })
+      const parisMidnightJul15 = new Date('2099-07-14T22:00:00.000Z')
+      const notifications: Notification[] = []
+
+      await runCheck(
+        [
+          createTestPlant({
+            id: 'due-today-in-paris',
+            userId: null,
+            canopyId: mockCanopyId,
+            scheduleSpecs: [wateringSpec({ nextCareAt: parisMidnightJul15 })],
+          }),
+        ],
+        [member1, newYorker],
+        notifications,
+        {},
+        {},
+        {
+          memberships,
+          canopies: [
+            createTestCanopyRow({ id: mockCanopyId, timezone: 'Europe/Paris' }),
+          ],
+        }
+      )
+
+      expect(
+        Arr.filter(notifications, (n) => n.type === 'overdue_reminder')
+      ).toEqual([])
     })
 
     it('caps a free Canopy at the free tier for every member, with one nudge each', async () => {
