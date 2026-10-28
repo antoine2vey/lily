@@ -30,8 +30,19 @@ export const CareLogUpdateRequest = Schema.Struct({
   photoUrl: Schema.optional(Schema.String),
 })
 
+// `null` once the member's account is deleted or awaiting deletion.
+export const CareLogPerformer = Schema.Struct({
+  id: Schema.String,
+  name: Schema.NullOr(Schema.String),
+})
+
+export const CareLogHistoryItem = Schema.Struct({
+  ...CareLog.fields,
+  performedBy: Schema.NullOr(CareLogPerformer),
+})
+
 // Care logs list response - uses standard pagination format
-export const CareLogsListResponse = PaginatedResponse(CareLog)
+export const CareLogsListResponse = PaginatedResponse(CareLogHistoryItem)
 export type CareLogsListResponse = typeof CareLogsListResponse.Type
 
 // Recent activity schema - includes plant info for display
@@ -53,6 +64,8 @@ export type RecentActivitiesListResponse =
 
 // Type exports
 export type CareLog = typeof CareLog.Type
+export type CareLogPerformer = typeof CareLogPerformer.Type
+export type CareLogHistoryItem = typeof CareLogHistoryItem.Type
 export type CareLogCreateRequest = typeof CareLogCreateRequest.Type
 export type CareLogUpdateRequest = typeof CareLogUpdateRequest.Type
 export type RecentActivity = typeof RecentActivity.Type

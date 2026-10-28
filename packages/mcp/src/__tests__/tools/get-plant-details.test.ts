@@ -1,7 +1,7 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { getPlantDetailsEffect } from '@lily/mcp/tools/get-plant-details'
-import type { CareLog } from '@lily/shared/care-log'
+import type { CareLogHistoryItem } from '@lily/shared/care-log'
 import type { PlantDetail } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -45,7 +45,7 @@ const mockPlantDetail: PlantDetail = {
   photos: [],
 }
 
-const mockCareLogs: CareLog[] = [
+const mockCareLogs: CareLogHistoryItem[] = [
   {
     id: 'log-1',
     type: 'watering',
@@ -55,6 +55,7 @@ const mockCareLogs: CareLog[] = [
     plantId: 'plant-1',
     createdAt: new Date('2024-01-05'),
     updatedAt: new Date('2024-01-05'),
+    performedBy: null,
   },
 ]
 
