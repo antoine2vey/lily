@@ -204,7 +204,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).toBe(1)
     })
 
-    it('counts care for the weekly recap, the profile and the inactivity check by actor', async () => {
+    it('counts care for the weekly recap and the profile by actor', async () => {
       await careBy(lilyId, alexsCanopyPlant, [0])
       await careBy(lilyId, lilysCanopyPlant, [0])
       await careBy(samId, alexsPersonalPlant, [0])
@@ -219,8 +219,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             samWeek: yield* engagement.getCareLogsCountForWeek(samId, 'UTC'),
             lilyTotal: yield* careLogs.countByUser(lilyId),
             alexTotal: yield* careLogs.countByUser(alexId),
-            lilyLast: yield* engagement.getLastCareDate(lilyId),
-            alexLast: yield* engagement.getLastCareDate(alexId),
           }
         })
       )
@@ -231,9 +229,40 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         samWeek: 1,
         lilyTotal: 2,
         alexTotal: 0,
-        alexLast: null,
       })
-      expect(counts.lilyLast).toBeInstanceOf(Date)
+    })
+
+    it('dates the inactivity check from care on plants the user holds or did', async () => {
+      const [rae] = await db
+        .insert(schema.users)
+        .values({ email: `rae-${Date.now()}@example.com`, emailVerified: true })
+        .returning({ id: schema.users.id })
+      if (!rae) throw new Error('user insert returned nothing')
+      await careBy(samId, alexsPersonalPlant, [2])
+      await careBy(alexId, lilysCanopyPlant, [3])
+
+      const last = await run(
+        Effect.gen(function* () {
+          const engagement = yield* EngagementRepository
+          return {
+            alex: yield* engagement.getLastCareDate(alexId),
+            lily: yield* engagement.getLastCareDate(lilyId),
+            sam: yield* engagement.getLastCareDate(samId),
+            rae: yield* engagement.getLastCareDate(rae.id),
+          }
+        })
+      )
+      const day = (date: Date | null) =>
+        date === null
+          ? null
+          : Math.round((Date.now() - date.getTime()) / 86_400_000)
+
+      expect({
+        alex: day(last.alex),
+        lily: day(last.lily),
+        sam: day(last.sam),
+        rae: day(last.rae),
+      }).toEqual({ alex: 2, lily: 3, sam: 2, rae: null })
     })
 
     it('counts plants by creator for achievements and the public profile', async () => {
@@ -273,6 +302,25 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).toEqual([lilysCanopyPlant])
     })
 
+    it('counts only the created plants a profile can show', async () => {
+      await db
+        .update(schema.plants)
+        .set({ canopyId: null, userId: alexId })
+        .where(eq(schema.plants.id, lilysCanopyPlant))
+
+      const profile = await run(
+        Effect.flatMap(FollowRepository, (follow) =>
+          follow.getPublicProfile({
+            targetUserId: lilyId,
+            currentUserId: samId,
+          })
+        )
+      )
+
+      expect(profile?.plantCount).toBe(0)
+      expect(profile?.recentPlants).toEqual([])
+    })
+
     it('keeps a plant out of the creator’s profile list once they leave its Canopy', async () => {
       await db
         .delete(schema.canopyMembers)
@@ -287,18 +335,46 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
-      expect(profile?.plantCount).toBe(1)
+      expect(profile?.plantCount).toBe(0)
       expect(profile?.recentPlants).toEqual([])
     })
 
-    it('reconciles every plant creator and every care actor', async () => {
-      await careBy(samId, alexsPersonalPlant, [0])
+    it('reconciles every plant creator, plant owner and care actor', async () => {
+      const [rae] = await db
+        .insert(schema.users)
+        .values({ email: `rae-${Date.now()}@example.com`, emailVerified: true })
+        .returning({ id: schema.users.id })
+      if (!rae) throw new Error('user insert returned nothing')
+      await db
+        .insert(schema.plants)
+        .values({ ...plantValues, userId: samId, createdByUserId: alexId })
+      await careBy(rae.id, alexsPersonalPlant, [0])
 
       const ids = await run(
         Effect.flatMap(achievements, (repo) => repo.findUserIdsWithProgress())
       )
 
-      expect([...ids].sort()).toEqual([alexId, lilyId, samId].sort())
+      expect([...ids].sort()).toEqual([alexId, lilyId, samId, rae.id].sort())
+    })
+
+    it('counts a member’s healthy Canopy plants in their weekly recap', async () => {
+      await db
+        .update(schema.plants)
+        .set({ health: 'NEEDS_ATTENTION' })
+        .where(eq(schema.plants.id, alexsCanopyPlant))
+
+      const healthy = await run(
+        Effect.gen(function* () {
+          const engagement = yield* EngagementRepository
+          return {
+            alex: yield* engagement.getHealthyPlantCountForUser(alexId),
+            lily: yield* engagement.getHealthyPlantCountForUser(lilyId),
+            sam: yield* engagement.getHealthyPlantCountForUser(samId),
+          }
+        })
+      )
+
+      expect(healthy).toEqual({ alex: 4, lily: 3, sam: 0 })
     })
 
     it('names who did each care in the history, and no one once they are gone', async () => {
