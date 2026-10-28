@@ -8,16 +8,15 @@ import { listCarePlans } from '@lily/api/services/care-plans/endpoints/list-care
 import { listPlantCarePlans } from '@lily/api/services/care-plans/endpoints/list-plant-care-plans'
 import { uncompleteCarePlanStep } from '@lily/api/services/care-plans/endpoints/uncomplete-care-plan-step'
 import {
+  seenByCaller,
   withCarePlanAuth,
   withCarePlanStep,
 } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
+import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import { Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-// Ownership is resolved once per request by `withCarePlanAuth` /
-// `withCarePlanStep` (same shape as `withPlantAuth`); endpoints receive the
-// loaded entities and never re-fetch them.
 export const CarePlansApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'carePlans', (handlers) =>
     handlers
@@ -25,40 +24,47 @@ export const CarePlansApiLive = (api: Api) =>
         listCarePlans(urlParams.status).pipe(withInfraErrorsAsDefect)
       )
       .handle('getPlantCarePlans', ({ params: { plantId } }) =>
-        listPlantCarePlans(plantId).pipe(withInfraErrorsAsDefect)
+        withPlantKnowledge(plantId, 'view').pipe(
+          Effect.flatMap(({ view }) => listPlantCarePlans(plantId, view)),
+          withInfraErrorsAsDefect
+        )
       )
       .handle('acceptCarePlan', ({ params: { planId } }) =>
-        withCarePlanAuth(planId).pipe(
+        withCarePlanAuth(planId, 'manage').pipe(
           Effect.flatMap(acceptCarePlan),
+          Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )
       .handle('dismissCarePlan', ({ params: { planId } }) =>
-        withCarePlanAuth(planId).pipe(
-          Effect.flatMap(dismissCarePlan),
+        withCarePlanAuth(planId, 'manage').pipe(
+          Effect.flatMap(({ plan }) => dismissCarePlan(plan)),
+          Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )
       .handle('deleteCarePlan', ({ params: { planId } }) =>
-        withCarePlanAuth(planId).pipe(
-          Effect.flatMap(deleteCarePlan),
+        withCarePlanAuth(planId, 'manage').pipe(
+          Effect.flatMap(({ plan }) => deleteCarePlan(plan)),
           withInfraErrorsAsDefect
         )
       )
       .handle('completeCarePlanStep', ({ params: { planId, stepId } }) =>
-        withCarePlanStep(planId, stepId).pipe(
+        withCarePlanStep(planId, stepId, 'tick').pipe(
           Effect.flatMap(completeCarePlanStep),
+          Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )
       .handle('uncompleteCarePlanStep', ({ params: { planId, stepId } }) =>
-        withCarePlanStep(planId, stepId).pipe(
+        withCarePlanStep(planId, stepId, 'tick').pipe(
           Effect.flatMap(uncompleteCarePlanStep),
+          Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )
       .handle('deleteCarePlanStep', ({ params: { planId, stepId } }) =>
-        withCarePlanStep(planId, stepId).pipe(
+        withCarePlanStep(planId, stepId, 'manage').pipe(
           Effect.flatMap(deleteCarePlanStep),
           withInfraErrorsAsDefect
         )

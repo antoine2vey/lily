@@ -14,7 +14,6 @@ import type { SqlError } from 'effect/sql/SqlError'
 import { isLivingPlant } from './helpers/living-plant'
 import { unwrapPgRows } from './helpers/pagination'
 import { ownedBy } from './helpers/plant-owner'
-import { hasUserOwner } from './helpers/user-owner'
 
 export interface IAchievementRepository {
   readonly findByUserId: (
@@ -63,7 +62,7 @@ export interface IAchievementRepository {
     userId: string
   ) => Effect.Effect<number, SqlError>
 
-  readonly findUserIdsWithPlants: () => Effect.Effect<string[], SqlError>
+  readonly findUserIdsWithProgress: () => Effect.Effect<string[], SqlError>
 
   readonly getBatchCareStreaks: (
     userIds: readonly string[]
@@ -141,8 +140,9 @@ export const AchievementRepositoryLive = Layer.effect(
         const [result] = yield* db
           .select({ count: count() })
           .from(careLogs)
-          .innerJoin(plants, eq(careLogs.plantId, plants.id))
-          .where(and(eq(plants.userId, userId), eq(careLogs.type, type)))
+          .where(
+            and(eq(careLogs.performedByUserId, userId), eq(careLogs.type, type))
+          )
         return pipe(
           Option.fromNullishOr(result),
           Option.flatMap((r) => Option.fromNullishOr(r.count)),
@@ -156,7 +156,7 @@ export const AchievementRepositoryLive = Layer.effect(
         const [result] = yield* db
           .select({ count: count() })
           .from(plants)
-          .where(eq(plants.userId, userId))
+          .where(eq(plants.createdByUserId, userId))
         return pipe(
           Option.fromNullishOr(result),
           Option.flatMap((r) => Option.fromNullishOr(r.count)),
@@ -203,8 +203,7 @@ export const AchievementRepositoryLive = Layer.effect(
             WITH daily_care AS (
               SELECT DISTINCT DATE(cl.date) as care_date
               FROM care_logs cl
-              INNER JOIN plants p ON cl.plant_id = p.id
-              WHERE p.user_id = ${userId}
+              WHERE cl.performed_by_user_id = ${userId}
             ),
             streak AS (
               SELECT care_date,
@@ -293,16 +292,22 @@ export const AchievementRepositoryLive = Layer.effect(
         )
       }),
 
-      findUserIdsWithPlants: Effect.fn(
-        'AchievementRepository.findUserIdsWithPlants'
+      findUserIdsWithProgress: Effect.fn(
+        'AchievementRepository.findUserIdsWithProgress'
       )(function* () {
-        const result = yield* db
-          .selectDistinct({ userId: plants.userId })
-          .from(plants)
-        return pipe(
-          result,
-          Array.filter(hasUserOwner),
-          Array.map((r) => r.userId)
+        const result = yield* db.execute(sql`
+          SELECT created_by_user_id AS user_id FROM plants
+          WHERE created_by_user_id IS NOT NULL
+          UNION
+          SELECT user_id FROM plants
+          WHERE user_id IS NOT NULL
+          UNION
+          SELECT performed_by_user_id FROM care_logs
+          WHERE performed_by_user_id IS NOT NULL
+        `)
+        return Array.map(
+          unwrapPgRows<{ user_id: string }>(result),
+          (r) => r.user_id
         )
       }),
 
@@ -313,10 +318,9 @@ export const AchievementRepositoryLive = Layer.effect(
 
         const result = yield* db.execute(sql`
           WITH daily_care AS (
-            SELECT DISTINCT p.user_id, DATE(cl.date) AS care_date
+            SELECT DISTINCT cl.performed_by_user_id AS user_id, DATE(cl.date) AS care_date
             FROM care_logs cl
-            INNER JOIN plants p ON cl.plant_id = p.id
-            WHERE p.user_id IN (${sql.join(
+            WHERE cl.performed_by_user_id IN (${sql.join(
               userIds.map((id) => sql`${id}`),
               sql`, `
             )})

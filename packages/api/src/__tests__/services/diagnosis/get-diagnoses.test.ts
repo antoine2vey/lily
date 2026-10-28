@@ -1,22 +1,23 @@
 import { mockDiagnoses } from '@lily/api/__tests__/fixtures/diagnoses'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
-import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getDiagnoses } from '@lily/api/services/diagnosis/endpoints/get-diagnoses'
+import { KnowledgeView } from '@lily/api/services/plants/helpers/plant-access'
 import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getDiagnoses', () => {
-  const createTestLayer = (userId = 'user-1') =>
+  const createTestLayer = () =>
     Layer.mergeAll(
       createMockDiagnosisRepository(mockDiagnoses),
-      createMockCurrentUser({ id: userId }),
       createMockGCSService()
     )
+  const own = KnowledgeView.Personal({ viewerId: 'user-1' })
+  const household = KnowledgeView.Household({ viewerId: 'user-1' })
 
   it('should return diagnoses for a plant with pagination info', async () => {
     const result = await Effect.runPromise(
-      getDiagnoses({ plantId: 'plant-1' }).pipe(
+      getDiagnoses({ plantId: 'plant-1', view: own }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -31,7 +32,7 @@ describe('getDiagnoses', () => {
 
   it('should return empty array when no diagnoses exist for plant', async () => {
     const result = await Effect.runPromise(
-      getDiagnoses({ plantId: 'non-existent-plant' }).pipe(
+      getDiagnoses({ plantId: 'non-existent-plant', view: own }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -41,21 +42,59 @@ describe('getDiagnoses', () => {
     expect(result.hasMore).toBe(false)
   })
 
-  it('should only return diagnoses for the authenticated user', async () => {
+  it('returns only the viewer’s diagnoses on a personal plant', async () => {
     const result = await Effect.runPromise(
-      getDiagnoses({ plantId: 'plant-3' }).pipe(
-        Effect.provide(createTestLayer('user-1'))
+      getDiagnoses({ plantId: 'plant-3', view: own }).pipe(
+        Effect.provide(createTestLayer())
       )
     )
 
-    // plant-3 belongs to user-2, so user-1 should see nothing
     expect(result.items).toEqual([])
     expect(result.total).toBe(0)
   })
 
+  it('hides the chat link of another member’s diagnosis', async () => {
+    const linked = Array.map(mockDiagnoses, (d) => ({
+      ...d,
+      chatMessageId: `msg-${d.id}`,
+    }))
+    const read = (view: KnowledgeView) =>
+      Effect.runPromise(
+        getDiagnoses({ plantId: 'plant-3', view }).pipe(
+          Effect.provide(
+            Layer.merge(
+              createMockDiagnosisRepository(linked),
+              createMockGCSService()
+            )
+          )
+        )
+      )
+
+    const asMember = await read(household)
+    const asAuthor = await read(KnowledgeView.Personal({ viewerId: 'user-2' }))
+
+    expect(Array.map(asMember.items, (d) => d.chatMessageId)).toEqual([
+      undefined,
+    ])
+    expect(Array.map(asAuthor.items, (d) => d.chatMessageId)).toEqual([
+      'msg-diagnosis-4',
+    ])
+  })
+
+  it('returns every member’s diagnoses on a Canopy plant', async () => {
+    const result = await Effect.runPromise(
+      getDiagnoses({ plantId: 'plant-3', view: household }).pipe(
+        Effect.provide(createTestLayer())
+      )
+    )
+
+    expect(Array.map(result.items, (d) => d.id)).toEqual(['diagnosis-4'])
+    expect(result.total).toBe(1)
+  })
+
   it('should return diagnoses sorted by date descending', async () => {
     const result = await Effect.runPromise(
-      getDiagnoses({ plantId: 'plant-1' }).pipe(
+      getDiagnoses({ plantId: 'plant-1', view: own }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -73,7 +112,7 @@ describe('getDiagnoses', () => {
 
   it('should respect page and limit parameters', async () => {
     const result = await Effect.runPromise(
-      getDiagnoses({ plantId: 'plant-1', page: 1, limit: 1 }).pipe(
+      getDiagnoses({ plantId: 'plant-1', view: own, page: 1, limit: 1 }).pipe(
         Effect.provide(createTestLayer())
       )
     )

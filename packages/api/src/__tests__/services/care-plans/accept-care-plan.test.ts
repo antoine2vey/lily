@@ -98,7 +98,7 @@ const buildLayer = (
 describe('acceptCarePlan', () => {
   it('flips a proposed plan to accepted', async () => {
     const result = await Effect.runPromise(
-      withCarePlanAuth('plan-1')
+      withCarePlanAuth('plan-1', 'manage')
         .pipe(Effect.flatMap(acceptCarePlan))
         .pipe(Effect.provide(buildLayer()))
     )
@@ -110,7 +110,9 @@ describe('acceptCarePlan', () => {
   it('moves an existing schedule to the dated care-typed step', async () => {
     const schedule = await Effect.runPromise(
       Effect.gen(function* () {
-        yield* withCarePlanAuth('plan-1').pipe(Effect.flatMap(acceptCarePlan))
+        yield* withCarePlanAuth('plan-1', 'manage').pipe(
+          Effect.flatMap(acceptCarePlan)
+        )
         const repo = yield* CareScheduleRepository
         return yield* repo.findByPlantAndType(plantId, 'watering')
       }).pipe(Effect.provide(buildLayer()))
@@ -121,7 +123,9 @@ describe('acceptCarePlan', () => {
   it('does not create a schedule for a care type the plant does not track', async () => {
     const schedule = await Effect.runPromise(
       Effect.gen(function* () {
-        yield* withCarePlanAuth('plan-1').pipe(Effect.flatMap(acceptCarePlan))
+        yield* withCarePlanAuth('plan-1', 'manage').pipe(
+          Effect.flatMap(acceptCarePlan)
+        )
         const repo = yield* CareScheduleRepository
         return yield* repo.findByPlantAndType(plantId, 'misting')
       }).pipe(Effect.provide(buildLayer()))
@@ -131,7 +135,7 @@ describe('acceptCarePlan', () => {
 
   it('rejects a plan that is not proposed', async () => {
     const exit = await Effect.runPromiseExit(
-      withCarePlanAuth('plan-1')
+      withCarePlanAuth('plan-1', 'manage')
         .pipe(Effect.flatMap(acceptCarePlan))
         .pipe(Effect.provide(buildLayer({ status: 'accepted' })))
     )
@@ -143,7 +147,7 @@ describe('acceptCarePlan', () => {
 
   it('is invisible to another user', async () => {
     const exit = await Effect.runPromiseExit(
-      withCarePlanAuth('plan-1')
+      withCarePlanAuth('plan-1', 'manage')
         .pipe(Effect.flatMap(acceptCarePlan))
         .pipe(Effect.provide(buildLayer({}, 'user-2')))
     )

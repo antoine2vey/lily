@@ -5,16 +5,17 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { careLogs, plants } from '@lily/db/schema'
+import { careLogs, plants, users } from '@lily/db/schema'
 import type { CareType } from '@lily/shared'
 import { nowAsDate, paginate } from '@lily/shared'
 import type {
   CareLog,
+  CareLogHistoryItem,
   CareLogsListResponse,
   RecentActivitiesListResponse,
   RecentActivity,
 } from '@lily/shared/care-log'
-import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -141,14 +142,36 @@ export const CareLogRepositoryLive = Layer.effect(
         const total = extractCount(countResult)
 
         const rows = yield* db
-          .select()
+          .select({
+            log: careLogs,
+            performerId: users.id,
+            performerName: users.name,
+          })
           .from(careLogs)
+          .leftJoin(
+            users,
+            and(
+              eq(users.id, careLogs.performedByUserId),
+              isNull(users.deletedAt)
+            )
+          )
           .where(filterConditions)
           .offset(offset)
           .limit(limit)
           .orderBy(desc(careLogs.date))
 
-        return paginate(Array.map(rows, mapToCareLog), total, page, limit)
+        const items = Array.map(
+          rows,
+          (row): CareLogHistoryItem => ({
+            ...mapToCareLog(row.log),
+            performedBy: pipe(
+              Option.fromNullishOr(row.performerId),
+              Option.map((id) => ({ id, name: row.performerName })),
+              Option.getOrNull
+            ),
+          })
+        )
+        return paginate(items, total, page, limit)
       }),
 
       findById: Effect.fn('CareLogRepository.findById')(function* (
@@ -332,8 +355,7 @@ export const CareLogRepositoryLive = Layer.effect(
         const result = yield* db
           .select({ value: count() })
           .from(careLogs)
-          .innerJoin(plants, eq(careLogs.plantId, plants.id))
-          .where(eq(plants.userId, userId))
+          .where(eq(careLogs.performedByUserId, userId))
         return extractCount(result)
       }),
     }

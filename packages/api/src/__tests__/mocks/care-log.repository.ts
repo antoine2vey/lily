@@ -43,7 +43,12 @@ export const createMockCareLogRepository = (
       const sorted = Array.sort(filtered, byDateDesc)
 
       const total = Array.length(sorted)
-      const items = pipe(sorted, Array.drop(offset), Array.take(limit))
+      const items = pipe(
+        sorted,
+        Array.drop(offset),
+        Array.take(limit),
+        Array.map((log) => ({ ...log, performedBy: null }))
+      )
 
       return Effect.succeed(paginate(items, total, page, limit))
     },
