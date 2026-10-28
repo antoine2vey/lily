@@ -85,7 +85,7 @@ export const reconcileAchievements = Effect.gen(function* () {
 
   yield* Effect.log('Running achievement reconciliation...')
 
-  const userIds = yield* repo.findUserIdsWithPlants()
+  const userIds = yield* repo.findUserIdsWithProgress()
 
   const results = yield* Effect.forEach(
     userIds,

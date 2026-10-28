@@ -147,8 +147,7 @@ export const EngagementRepositoryLive = Layer.effect(
           const rows = yield* db
             .select({ date: careLogs.date })
             .from(careLogs)
-            .innerJoin(plants, eq(careLogs.plantId, plants.id))
-            .where(eq(plants.userId, userId))
+            .where(eq(careLogs.performedByUserId, userId))
             .orderBy(desc(careLogs.date))
             .limit(1)
 
@@ -370,10 +369,9 @@ export const EngagementRepositoryLive = Layer.effect(
         const result = yield* db
           .select({ value: count() })
           .from(careLogs)
-          .innerJoin(plants, eq(careLogs.plantId, plants.id))
           .where(
             and(
-              eq(plants.userId, userId),
+              eq(careLogs.performedByUserId, userId),
               sql`${careLogs.date} >= ${startOfWeek}`
             )
           )
