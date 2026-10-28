@@ -1,10 +1,9 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Array as Arr, Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
-import { Avatar } from '@/components/Avatar'
 import { EmptyState } from '@/components/EmptyState'
+import { SelectablePlantRow } from '@/components/SelectablePlantRow'
 import { PlantSelectorSkeleton } from '@/components/skeletons'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { usePlants } from '@/hooks/usePlants'
@@ -76,48 +75,14 @@ export function PlantSelector({
         <EmptyState kind="delegationPickPlants" variant="inline" />
       ) : (
         <Animated.View entering={FadeIn.duration(300)} className="gap-2">
-          {Arr.map(plants, (plant) => {
-            const isSelected = Arr.contains(selectedPlantIds, plant.id)
-
-            return (
-              <Pressable
-                key={plant.id}
-                onPress={() => onTogglePlant(plant.id)}
-                className={`flex-row items-center p-3 rounded-xl border-2 ${
-                  isSelected
-                    ? 'border-primary/50 bg-primary-tint dark:bg-primary/10'
-                    : 'border-transparent bg-surface dark:bg-surface-dark'
-                }`}
-              >
-                <Avatar
-                  source={pipe(
-                    Option.fromNullishOr(plant.imageUrl),
-                    Option.map((uri) => ({ uri })),
-                    Option.getOrUndefined
-                  )}
-                  name={plant.name}
-                  size="sm"
-                />
-                <Text
-                  className="flex-1 ml-3 text-sm font-medium text-text-primary dark:text-white"
-                  numberOfLines={1}
-                >
-                  {plant.name}
-                </Text>
-                <View
-                  className={`w-6 h-6 rounded-md items-center justify-center ${
-                    isSelected
-                      ? 'bg-primary'
-                      : 'border-2 border-border dark:border-slate-600'
-                  }`}
-                >
-                  {isSelected && (
-                    <MaterialIcons name="check" size={16} color="white" />
-                  )}
-                </View>
-              </Pressable>
-            )
-          })}
+          {Arr.map(plants, (plant) => (
+            <SelectablePlantRow
+              key={plant.id}
+              plant={plant}
+              selected={Arr.contains(selectedPlantIds, plant.id)}
+              onToggle={onTogglePlant}
+            />
+          ))}
         </Animated.View>
       )}
     </View>

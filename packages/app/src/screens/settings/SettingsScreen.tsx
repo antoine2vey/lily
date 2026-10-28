@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useLocalization } from '@/hooks/useLocalization'
+import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { useTheme } from '@/hooks/useTheme'
 import { useUser } from '@/hooks/useUser'
 import { useVacation } from '@/hooks/useVacation'
@@ -46,6 +47,7 @@ export function SettingsScreen() {
   const { theme, setTheme } = useTheme()
   const { t, language, supportedLanguages } = useLocalization()
   const { data: vacation } = useVacation()
+  const { data: myCanopy } = useMyCanopy()
   const [showThemeModal, setShowThemeModal] = useState(false)
   const [showLanguageModal, setShowLanguageModal] = useState(false)
   const [showTempUnitModal, setShowTempUnitModal] = useState(false)
@@ -207,6 +209,27 @@ export function SettingsScreen() {
               title={t('settings:appearance.temperatureUnit')}
               value={getTempUnitLabel()}
               onPress={() => setShowTempUnitModal(true)}
+            />
+          </View>
+        </View>
+
+        <View className="mb-6">
+          <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
+            {t('canopy:title')}
+          </Text>
+          <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
+            <SettingsMenuItem
+              testID="settings-canopy-row"
+              icon={
+                <MaterialIcons
+                  name="diversity-3"
+                  size={22}
+                  color={iconColors.primary}
+                />
+              }
+              title={t('canopy:row')}
+              {...(myCanopy?.canopy ? { value: myCanopy.canopy.name } : {})}
+              onPress={() => router.push('/canopy')}
             />
           </View>
         </View>

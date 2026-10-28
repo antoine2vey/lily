@@ -24,6 +24,10 @@ jest.mock('@/hooks/useVacation', () => ({
   })),
 }))
 
+jest.mock('@/hooks/useMyCanopy', () => ({
+  useMyCanopy: jest.fn(() => ({ data: { canopy: null } })),
+}))
+
 jest.mock('@/hooks/useUser', () => ({
   useUser: jest.fn(),
 }))
