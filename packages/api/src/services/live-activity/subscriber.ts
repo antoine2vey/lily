@@ -9,7 +9,7 @@ import {
   type LiveActivityPushMessage,
   PushService,
 } from '@lily/shared/server'
-import { Array, Effect, Match, Option, Queue } from 'effect'
+import { Array, Effect, Match, Option, pipe, Queue } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Send a Live Activity push and swallow all three push-error tags with
@@ -114,8 +114,18 @@ const refreshCardsFor = (params: {
       onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
       onSome: reminderRecipients,
     })
+    const owner = pipe(
+      plant,
+      Option.flatMap((p) =>
+        Match.value(p.owner).pipe(
+          Match.tag('User', ({ userId }) => Option.some(userId)),
+          Match.orElse(() => Option.none())
+        )
+      ),
+      Option.toArray
+    )
     yield* Effect.forEach(
-      Array.dedupe([params.actorId, ...recipients]),
+      Array.dedupe([params.actorId, ...owner, ...recipients]),
       (userId) =>
         refreshLiveActivity({
           userId,
