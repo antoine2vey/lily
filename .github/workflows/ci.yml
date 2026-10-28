@@ -49,6 +49,17 @@ jobs:
       - name: Check bundle sizes
         run: bash scripts/check-bundle-sizes.sh
 
+  universal-links:
+    name: Universal-link files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: 'false'
+      - name: Check the AASA and assetlinks.json
+        run: bun packages/web/scripts/check-well-known.ts
+
   integration:
     name: Integration tests
     needs: changes
@@ -83,16 +94,21 @@ jobs:
   summary:
     name: CI summary
     if: always()
-    needs: [checks, integration]
+    needs: [checks, universal-links, integration]
     runs-on: ubuntu-latest
     steps:
       - name: Verify required jobs
         run: |
           checks='${{ needs.checks.result }}'
+          universal_links='${{ needs.universal-links.result }}'
           integration='${{ needs.integration.result }}'
-          echo "checks=$checks integration=$integration"
+          echo "checks=$checks universal-links=$universal_links integration=$integration"
           if [ "$checks" != 'success' ]; then
             echo '::error::checks job did not succeed'
+            exit 1
+          fi
+          if [ "$universal_links" != 'success' ]; then
+            echo '::error::universal-links job did not succeed'
             exit 1
           fi
           if [ "$integration" != 'success' ] && [ "$integration" != 'skipped' ]; then

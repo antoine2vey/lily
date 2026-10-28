@@ -263,5 +263,25 @@
     "linkTerms": "Terms of Service",
     "linkBlog": "Plant Care Blog",
     "metaDescription": "Get help with Lily. Contact support, find answers to common questions about subscriptions, account deletion, data export, and plant care features."
+  },
+  "Join": {
+    "metaTitle": "Join a Canopy on Lily",
+    "metaDescription": "You're invited to a Canopy, a shared home on Lily where members care for the same plants together. Open the invite in the Lily app to join.",
+    "invitedBy": "{inviter} invited you to join",
+    "invited": "You're invited to join",
+    "canopyHint": "A Canopy is a shared home on Lily. Members care for the same plants and everyone gets the reminders.",
+    "openInLily": "Open in Lily",
+    "getTheApp": "Don't have Lily yet?",
+    "tapAgain": "After installing, tap this link again to join.",
+    "expiredTitle": "This invite has expired",
+    "expiredBody": "Invite links last 7 days. Ask a member of the Canopy to send you a new one.",
+    "invalidTitle": "This invite link is not valid",
+    "invalidBody": "The link may be incomplete, or a newer invite has replaced it. Ask a member of the Canopy to send you a new one.",
+    "unavailableTitle": "We couldn't load this invite",
+    "unavailableBody": "Check your connection and try again in a moment.",
+    "retry": "Try again",
+    "loading": "Loading the invite",
+    "appStore": "App Store",
+    "googlePlay": "Google Play"
   }
 }

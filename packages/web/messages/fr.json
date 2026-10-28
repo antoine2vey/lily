@@ -263,5 +263,25 @@
     "linkTerms": "Conditions d'utilisation",
     "linkBlog": "Blog soins des plantes",
     "metaDescription": "Obtenez de l'aide avec Lily. Contactez l'assistance et trouvez les réponses aux questions sur les abonnements, la suppression de compte, l'export de données et les fonctionnalités."
+  },
+  "Join": {
+    "metaTitle": "Rejoindre une Canopy sur Lily",
+    "metaDescription": "Vous êtes invité dans une Canopy, un foyer partagé sur Lily où les membres prennent soin des mêmes plantes. Ouvrez l'invitation dans Lily pour rejoindre.",
+    "invitedBy": "{inviter} vous invite à rejoindre",
+    "invited": "Vous êtes invité à rejoindre",
+    "canopyHint": "Une Canopy est un foyer partagé sur Lily. Les membres prennent soin des mêmes plantes et chacun reçoit les rappels.",
+    "openInLily": "Ouvrir dans Lily",
+    "getTheApp": "Vous n'avez pas encore Lily ?",
+    "tapAgain": "Après l'installation, touchez de nouveau ce lien pour rejoindre.",
+    "expiredTitle": "Cette invitation a expiré",
+    "expiredBody": "Les liens d'invitation sont valables 7 jours. Demandez un nouveau lien à un membre de la Canopy.",
+    "invalidTitle": "Ce lien d'invitation n'est pas valide",
+    "invalidBody": "Le lien est peut-être incomplet, ou une invitation plus récente l'a remplacé. Demandez un nouveau lien à un membre de la Canopy.",
+    "unavailableTitle": "Impossible de charger l'invitation",
+    "unavailableBody": "Vérifiez votre connexion et réessayez dans un instant.",
+    "retry": "Réessayer",
+    "loading": "Chargement de l'invitation",
+    "appStore": "App Store",
+    "googlePlay": "Google Play"
   }
 }

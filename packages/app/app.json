@@ -13,6 +13,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.lilyapp.app",
       "appleTeamId": "K7Y594Y8M3",
+      "associatedDomains": ["applinks:withlily.app"],
       "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true,
@@ -30,6 +31,20 @@
         "backgroundColor": "#f7f7f6"
       },
       "package": "com.lilyapp.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "withlily.app",
+              "pathPrefix": "/join/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
