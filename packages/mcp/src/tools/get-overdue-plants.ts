@@ -1,5 +1,5 @@
 import { ApiClient } from '@lily/mcp/api-client'
-import { toPlantSummary } from '@lily/mcp/widgets/mappers'
+import { ownershipLabel, toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
 import { formatIsoDate } from '@lily/shared'
 import { Array, Effect, Filter, Option, pipe } from 'effect'
@@ -49,9 +49,15 @@ export const getOverduePlantsEffect = Effect.fn('MCP.getOverduePlants')(
           Array.join(', ')
         )
 
+        const ownership = pipe(
+          ownershipLabel(plant),
+          Option.map((label) => ` | ${label}`),
+          Option.getOrElse(() => '')
+        )
+
         acc.plants.push(toPlantSummary(plant))
         acc.lines.push(
-          `- **${plant.name}**${room}: ${scheduleInfo} (ID: ${plant.id})`
+          `- **${plant.name}**${room}: ${scheduleInfo}${ownership} (ID: ${plant.id})`
         )
         return acc
       }

@@ -6,6 +6,7 @@ import {
   MEMORIAL_COLOR,
   MEMORIAL_LABEL,
 } from '@lily/mcp/widgets/health'
+import { ownershipLabel } from '@lily/mcp/widgets/mappers'
 import type { PlantDetail } from '@lily/mcp/widgets/schemas'
 import { formatIsoDate, isOverdue, isToday } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
@@ -54,6 +55,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       })
     )
     const roomOpt = Option.fromNullishOr(plant.room)
+    const ownershipOpt = ownershipLabel(plant)
 
     const room = pipe(
       roomOpt,
@@ -106,6 +108,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       '',
       `- **Health**: ${health}`,
       ...memorialLines,
+      ...Option.toArray(Option.map(ownershipOpt, (label) => `- ${label}`)),
       `- **Room**: ${room}`,
       `- **Category**: ${category}`,
       `- **Added**: ${formatIsoDate(plant.dateAdded)}`,
@@ -154,6 +157,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       category: Option.getOrNull(Option.fromNullishOr(plant.category)),
       roomName: Option.getOrNull(Option.map(roomOpt, (r) => r.name)),
       roomIcon: Option.getOrNull(Option.map(roomOpt, (r) => r.icon)),
+      ownershipLabel: Option.getOrNull(ownershipOpt),
       dateAdded: formatIsoDate(plant.dateAdded),
       wateringRating: plant.wateringRating,
       lightingRating: plant.lightingRating,

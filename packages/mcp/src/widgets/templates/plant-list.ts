@@ -105,8 +105,8 @@ ${themeScript}
         if (p.roomName) {
           html += '<div class="room">' + esc(p.roomIcon || '') + ' ' + esc(p.roomName) + '</div>';
         }
-        if (p.ownership === 'caretaking') {
-          html += '<div class="ownership">Caretaking for ' + esc(p.ownerName || 'someone') + '</div>';
+        if (p.ownershipLabel) {
+          html += '<div class="ownership">' + esc(p.ownershipLabel) + '</div>';
         }
         html += '<div class="card-actions">';
         html += '<button class="btn" data-action="details" data-plant-id="' + esc(p.id) + '" data-plant-name="' + esc(p.name) + '">View Details</button>';
