@@ -53,6 +53,34 @@ describe('getDiagnoses', () => {
     expect(result.total).toBe(0)
   })
 
+  it('hides the chat link of another member’s diagnosis', async () => {
+    const linked = Array.map(mockDiagnoses, (d) => ({
+      ...d,
+      chatMessageId: `msg-${d.id}`,
+    }))
+    const read = (view: KnowledgeView) =>
+      Effect.runPromise(
+        getDiagnoses({ plantId: 'plant-3', view }).pipe(
+          Effect.provide(
+            Layer.merge(
+              createMockDiagnosisRepository(linked),
+              createMockGCSService()
+            )
+          )
+        )
+      )
+
+    const asMember = await read(household)
+    const asAuthor = await read(KnowledgeView.Personal({ viewerId: 'user-2' }))
+
+    expect(Array.map(asMember.items, (d) => d.chatMessageId)).toEqual([
+      undefined,
+    ])
+    expect(Array.map(asAuthor.items, (d) => d.chatMessageId)).toEqual([
+      'msg-diagnosis-4',
+    ])
+  })
+
   it('returns every member’s diagnoses on a Canopy plant', async () => {
     const result = await Effect.runPromise(
       getDiagnoses({ plantId: 'plant-3', view: household }).pipe(

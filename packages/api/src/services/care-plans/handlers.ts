@@ -8,6 +8,7 @@ import { listCarePlans } from '@lily/api/services/care-plans/endpoints/list-care
 import { listPlantCarePlans } from '@lily/api/services/care-plans/endpoints/list-plant-care-plans'
 import { uncompleteCarePlanStep } from '@lily/api/services/care-plans/endpoints/uncomplete-care-plan-step'
 import {
+  seenByCaller,
   withCarePlanAuth,
   withCarePlanStep,
 } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
@@ -31,30 +32,34 @@ export const CarePlansApiLive = (api: Api) =>
       .handle('acceptCarePlan', ({ params: { planId } }) =>
         withCarePlanAuth(planId, 'manage').pipe(
           Effect.flatMap(acceptCarePlan),
+          Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )
       .handle('dismissCarePlan', ({ params: { planId } }) =>
         withCarePlanAuth(planId, 'manage').pipe(
-          Effect.flatMap(dismissCarePlan),
+          Effect.flatMap(({ plan }) => dismissCarePlan(plan)),
+          Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )
       .handle('deleteCarePlan', ({ params: { planId } }) =>
         withCarePlanAuth(planId, 'manage').pipe(
-          Effect.flatMap(deleteCarePlan),
+          Effect.flatMap(({ plan }) => deleteCarePlan(plan)),
           withInfraErrorsAsDefect
         )
       )
       .handle('completeCarePlanStep', ({ params: { planId, stepId } }) =>
         withCarePlanStep(planId, stepId, 'tick').pipe(
           Effect.flatMap(completeCarePlanStep),
+          Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )
       .handle('uncompleteCarePlanStep', ({ params: { planId, stepId } }) =>
         withCarePlanStep(planId, stepId, 'tick').pipe(
           Effect.flatMap(uncompleteCarePlanStep),
+          Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )
