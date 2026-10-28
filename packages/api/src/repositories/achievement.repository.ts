@@ -299,6 +299,9 @@ export const AchievementRepositoryLive = Layer.effect(
           SELECT created_by_user_id AS user_id FROM plants
           WHERE created_by_user_id IS NOT NULL
           UNION
+          SELECT user_id FROM plants
+          WHERE user_id IS NOT NULL
+          UNION
           SELECT performed_by_user_id FROM care_logs
           WHERE performed_by_user_id IS NOT NULL
         `)

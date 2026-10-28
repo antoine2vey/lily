@@ -1,6 +1,6 @@
 import type * as PgDrizzle from '@lily/db/effect-drizzle'
 import { canopyMembers, canopyPlantMutes, plants } from '@lily/db/schema'
-import { and, eq, notExists, or } from 'drizzle-orm'
+import { and, eq, notExists, or, type SQLWrapper, sql } from 'drizzle-orm'
 import { Array, Effect, Option, pipe } from 'effect'
 
 type Db = PgDrizzle.PgDrizzle['Service']
@@ -39,6 +39,9 @@ export const caredForBy = (db: Db, userId: string, canopyId: string | null) =>
           )
         )
       )
+
+export const heldBy = (userId: SQLWrapper | string) =>
+  sql`(${plants.userId} = ${userId} OR ${plants.canopyId} IN (SELECT ${canopyMembers.canopyId} FROM ${canopyMembers} WHERE ${canopyMembers.userId} = ${userId}))`
 
 export const careScopeOf = (db: Db, userId: string, includeCanopy: boolean) =>
   includeCanopy

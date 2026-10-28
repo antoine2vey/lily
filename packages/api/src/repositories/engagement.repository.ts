@@ -1,3 +1,4 @@
+import { heldBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
 import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
@@ -11,7 +12,7 @@ import {
   users,
 } from '@lily/db/schema'
 import type { LanguageCode, VacationStatus } from '@lily/shared'
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -147,7 +148,8 @@ export const EngagementRepositoryLive = Layer.effect(
           const rows = yield* db
             .select({ date: careLogs.date })
             .from(careLogs)
-            .where(eq(careLogs.performedByUserId, userId))
+            .innerJoin(plants, eq(careLogs.plantId, plants.id))
+            .where(or(eq(careLogs.performedByUserId, userId), heldBy(userId)))
             .orderBy(desc(careLogs.date))
             .limit(1)
 
@@ -354,7 +356,7 @@ export const EngagementRepositoryLive = Layer.effect(
           .from(plants)
           .where(
             and(
-              eq(plants.userId, userId),
+              heldBy(userId),
               isLivingPlant(),
               inArray(plants.health, ['THRIVING', 'HEALTHY'])
             )
