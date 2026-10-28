@@ -1,3 +1,7 @@
+import {
+  createTestMembership,
+  mockCanopyId,
+} from '@lily/api/__tests__/fixtures/canopies'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   fertilizationSpec,
@@ -1081,6 +1085,88 @@ describe('findCareTasks', () => {
       expect(Array.some(all, (t) => t.plantId === 'plant-1')).toBe(false)
       // Other plants are unaffected
       expect(Array.some(all, (t) => t.plantId === 'plant-2')).toBe(true)
+    })
+  })
+
+  describe('Canopy plants', () => {
+    const canopyLayer = (
+      includeMute: boolean,
+      plants = createMockPlantsForCareTasks(REFERENCE_DATE)
+    ) => {
+      const yesterday = new Date(REFERENCE_DATE)
+      yesterday.setDate(yesterday.getDate() - 1)
+      const shared: TestPlant[] = [
+        {
+          ...plants[0]!,
+          id: 'canopy-plant',
+          name: 'Shared Fern',
+          userId: null,
+          canopyId: mockCanopyId,
+          scheduleSpecs: [wateringSpec({ nextCareAt: yesterday })],
+        },
+        {
+          ...plants[0]!,
+          id: 'muted-plant',
+          name: 'Muted Cactus',
+          userId: null,
+          canopyId: mockCanopyId,
+          scheduleSpecs: [wateringSpec({ nextCareAt: yesterday })],
+        },
+      ]
+      const all = [...plants, ...shared]
+      const memberships = [createTestMembership({ userId: 'user-1' })]
+      const mutes = includeMute
+        ? [{ userId: 'user-1', plantId: 'muted-plant' }]
+        : []
+      return Layer.mergeAll(
+        createMockCareLogRepository([]),
+        createMockPlantRepository({ plants: all, memberships }),
+        createMockCareScheduleRepository({
+          schedules: schedulesFromPlants(all),
+          plants: all,
+          memberships,
+          mutes,
+        }),
+        createMockCurrentUser({ id: 'user-1' }),
+        createMockUserRepository([...mockUsers])
+      )
+    }
+
+    const plantIdsOf = (result: {
+      overdue: ReadonlyArray<{ plantId: string }>
+      today: ReadonlyArray<{ plantId: string }>
+      upcoming: ReadonlyArray<{ plantId: string }>
+    }) =>
+      Array.map(
+        [...result.overdue, ...result.today, ...result.upcoming],
+        (t) => t.plantId
+      )
+
+    it('leaves Canopy plants out unless includeCanopy is set', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks(false).pipe(Effect.provide(canopyLayer(true)))
+      )
+      const ids = plantIdsOf(result)
+      expect(ids).not.toContain('canopy-plant')
+      expect(ids).not.toContain('muted-plant')
+      expect(ids).toContain('plant-1')
+    })
+
+    it('lists unmuted Canopy plants with includeCanopy, never a muted one', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks(true).pipe(Effect.provide(canopyLayer(true)))
+      )
+      const ids = plantIdsOf(result)
+      expect(ids).toContain('canopy-plant')
+      expect(ids).not.toContain('muted-plant')
+      expect(ids).toContain('plant-1')
+    })
+
+    it('lists a Canopy plant again once the mute is gone', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks(true).pipe(Effect.provide(canopyLayer(false)))
+      )
+      expect(plantIdsOf(result)).toContain('muted-plant')
     })
   })
 })

@@ -1,4 +1,8 @@
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import {
+  CareScheduleRepository,
+  type OverdueRecipientPlant,
+} from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
@@ -15,7 +19,7 @@ import {
   DEFAULT_TIMEZONE,
   isOnVacation,
   nowAsDate,
-  type OverduePlant,
+  type PlantOwner,
   pickNotificationTime,
   startOfTodayAsDate,
 } from '@lily/shared'
@@ -23,6 +27,7 @@ import {
   Array,
   Effect,
   Filter,
+  Match,
   Option,
   Order,
   pipe,
@@ -30,12 +35,20 @@ import {
   Record,
 } from 'effect'
 
-// Process a single user's overdue plants — fails with skip errors when the
-// user should not receive a notification.
+const ownerKey = (owner: PlantOwner): string =>
+  Match.value(owner).pipe(
+    Match.tag('User', ({ userId }) => `user:${userId}`),
+    Match.tag('Canopy', ({ canopyId }) => `canopy:${canopyId}`),
+    Match.exhaustive
+  )
+
+// Process a single recipient's overdue plants — fails with skip errors when
+// the recipient should not receive a notification. Canopy plants reach each
+// member under their own userId; the free cap applies per owner scope.
 export const processUserOverdueReminders = (
   userId: string,
-  plants: readonly OverduePlant[],
-  maxPlants: number | null
+  plants: readonly OverdueRecipientPlant[],
+  maxPlantsFor: (owner: PlantOwner) => number | null
 ) =>
   Effect.gen(function* () {
     const notificationRepo = yield* NotificationRepository
@@ -48,9 +61,9 @@ export const processUserOverdueReminders = (
       return yield* new CareRemindersDisabledError({ userId })
     }
 
-    // Owner on vacation: only reminders routed to a (non-vacationing)
-    // caretaker may go out; everything owner-bound is muted below.
-    const ownerOnVacation = isOnVacation(settings, nowAsDate())
+    // Recipient on vacation: only reminders routed to a (non-vacationing)
+    // caretaker may go out; everything recipient-bound is muted below.
+    const recipientOnVacation = isOnVacation(settings, nowAsDate())
 
     const timezone = pipe(
       Option.fromNullishOr(settings.timezone),
@@ -78,12 +91,25 @@ export const processUserOverdueReminders = (
 
     if (Array.isReadonlyArrayEmpty(strictlyOverdue)) return 0
 
-    // Sort by dateAdded ascending (oldest first), cap when tier has a plant limit
+    // Oldest first, then each owner scope keeps up to its own cap
     const sorted = Array.sort(
       strictlyOverdue,
-      Order.mapInput(Order.Date, (p: OverduePlant) => p.dateAdded)
+      Order.mapInput(Order.Date, (p: OverdueRecipientPlant) => p.dateAdded)
     )
-    const eligible = maxPlants === null ? sorted : Array.take(sorted, maxPlants)
+    const eligible = pipe(
+      sorted,
+      Array.groupBy((p) => ownerKey(p.owner)),
+      Record.values,
+      Array.flatMap((scope) =>
+        pipe(
+          Option.fromNullishOr(maxPlantsFor(scope[0].owner)),
+          Option.match({
+            onNone: () => scope,
+            onSome: (cap) => Array.take(scope, cap),
+          })
+        )
+      )
+    )
     const overflowCount = Array.length(sorted) - Array.length(eligible)
 
     // Pick the earliest available window (morning-first) for overdue reminders
@@ -98,11 +124,16 @@ export const processUserOverdueReminders = (
       randomValue * 0.5 // clamp to [0, 0.5) to always prefer morning window
     )
 
-    // Resolve delegation routing per plant (caretaker when delegated)
+    // Resolve delegation routing per plant; Canopy plants cannot be delegated
     const routed = yield* Effect.forEach(eligible, (plant) =>
-      delegationRepo
-        .findActiveCaretakerForPlant(plant.id)
-        .pipe(Effect.map((caretakerId) => ({ plant, caretakerId })))
+      Match.value(plant.owner).pipe(
+        Match.tag('Canopy', () => Effect.succeed(null)),
+        Match.tag('User', () =>
+          delegationRepo.findActiveCaretakerForPlant(plant.id)
+        ),
+        Match.exhaustive,
+        Effect.map((caretakerId) => ({ plant, caretakerId }))
+      )
     )
 
     // One settings fetch per distinct caretaker to check their vacation
@@ -129,13 +160,13 @@ export const processUserOverdueReminders = (
       )
     )
 
-    // Mute owner-bound reminders while the owner is on vacation, and
+    // Mute recipient-bound reminders while the recipient is on vacation, and
     // caretaker-bound reminders while that caretaker is on vacation.
     const deliverable = Array.filter(routed, ({ caretakerId }) =>
       pipe(
         Option.fromNullishOr(caretakerId),
         Option.match({
-          onNone: () => !ownerOnVacation,
+          onNone: () => !recipientOnVacation,
           onSome: (id) =>
             pipe(
               Record.get(caretakerOnVacation, id),
@@ -160,8 +191,8 @@ export const processUserOverdueReminders = (
     )
 
     // Send a daily nudge when free-tier plants overflow the cap — but not
-    // while the owner is on vacation (engagement topics are muted).
-    if (overflowCount > 0 && !ownerOnVacation) {
+    // while the recipient is on vacation (engagement topics are muted).
+    if (overflowCount > 0 && !recipientOnVacation) {
       const alreadySentNudge =
         yield* notificationRepo.hasNotificationOfTypeTodayForUser(
           userId,
@@ -186,17 +217,38 @@ export const processUserOverdueReminders = (
 // Core effect: check for overdue plants and create reminder notifications
 export const checkAndCreateOverdueReminders = Effect.gen(function* () {
   const scheduleRepo = yield* CareScheduleRepository
+  const canopyRepo = yield* CanopyRepository
   const subRepo = yield* SubscriptionRepository
 
   yield* Effect.log('Running overdue reminder check...')
 
-  // Single query: fetch plants overdue for any care type, grouped by userId
+  // Single query: fetch plants overdue for any care type, grouped by recipient
   const grouped = yield* scheduleRepo.findOverdueByUser()
 
   if (Record.isEmptyRecord(grouped)) return
 
-  // Batch-fetch subscriptions and tier configs (3 queries total)
-  const userIds = Record.keys(grouped)
+  // A Canopy's cap depends on every member's tier, not only the recipients'
+  const canopyIds = pipe(
+    Record.values(grouped),
+    Array.flatten,
+    Array.filterMap(
+      Filter.fromPredicateOption((p) =>
+        p.owner._tag === 'Canopy'
+          ? Option.some(p.owner.canopyId)
+          : Option.none()
+      )
+    ),
+    Array.dedupe
+  )
+  const membersByCanopy = yield* canopyRepo.findMemberIdsByCanopyIds(canopyIds)
+
+  // Batch-fetch subscriptions and tier configs (4 queries total)
+  const userIds = pipe(
+    Record.values(membersByCanopy),
+    Array.flatten,
+    Array.appendAll(Record.keys(grouped)),
+    Array.dedupe
+  )
   const [subscriptions, allTiers] = yield* Effect.all([
     subRepo.findByUserIds(userIds),
     subRepo.getAllTiers(),
@@ -214,7 +266,7 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
   )
   const freeTierMaxPlants = tierByName.free?.maxPlants ?? 5
 
-  const resolveMaxPlants = (userId: string): number | null =>
+  const maxPlantsOfUser = (userId: string): number | null =>
     pipe(
       Record.get(subByUserId, userId),
       Option.flatten,
@@ -225,15 +277,31 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
       })
     )
 
+  // Same rule as LimitChecker.canopyPlantCap: one unlimited member lifts the
+  // Canopy's cap, otherwise the Canopy shares the free cap.
+  const maxPlantsOfCanopy = Record.map(membersByCanopy, (members) =>
+    Array.some(members, (memberId) => maxPlantsOfUser(memberId) === null)
+      ? null
+      : freeTierMaxPlants
+  )
+
+  const maxPlantsFor = (owner: PlantOwner): number | null =>
+    Match.value(owner).pipe(
+      Match.tag('User', ({ userId }) => maxPlantsOfUser(userId)),
+      Match.tag('Canopy', ({ canopyId }) =>
+        pipe(
+          Record.get(maxPlantsOfCanopy, canopyId),
+          Option.getOrElse(() => freeTierMaxPlants)
+        )
+      ),
+      Match.exhaustive
+    )
+
   // Process each user group, handling skip errors via catchTags
   const results = yield* Effect.forEach(
     Record.toEntries(grouped),
     ([userId, plants]) =>
-      processUserOverdueReminders(
-        userId,
-        plants,
-        resolveMaxPlants(userId)
-      ).pipe(
+      processUserOverdueReminders(userId, plants, maxPlantsFor).pipe(
         Effect.catchTags({
           CareRemindersDisabledError: (e) =>
             Effect.log('[overdue-scheduler] Skipped — reminders disabled', {
