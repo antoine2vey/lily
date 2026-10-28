@@ -1,5 +1,5 @@
 import type { CanopyMembership } from '@lily/api/repositories/canopy.repository'
-import { Array, Data, Match, Option, pipe } from 'effect'
+import { Array, Data, Match, Option, pipe, Struct } from 'effect'
 
 export type PlantRole = Data.TaggedEnum<{
   Owner: {}
@@ -86,6 +86,18 @@ export const knowledgeView = (
   Array.contains(householdKnowledge, role._tag)
     ? KnowledgeView.Household({ viewerId })
     : KnowledgeView.Personal({ viewerId })
+
+export const asSeenBy =
+  (viewerId: string) =>
+  <
+    A extends {
+      readonly userId: string
+      readonly chatMessageId?: string | undefined
+    },
+  >(
+    row: A
+  ): A | Omit<A, 'chatMessageId'> =>
+    row.userId === viewerId ? row : Struct.omit(row, ['chatMessageId'])
 
 export const authorScope: (view: KnowledgeView) => Option.Option<string> =
   KnowledgeView.$match({

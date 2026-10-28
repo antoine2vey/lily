@@ -3,18 +3,12 @@ import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.rep
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
+import type { CarePlanContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import {
-  type PlantAccessContext,
-  withPlantAuth,
-} from '@lily/api/services/plants/helpers/with-plant-access'
+import type { PlantAccessContext } from '@lily/api/services/plants/helpers/with-plant-access'
 import { type CareType, nowAsDate } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import { CarePlanNotProposedError } from '@lily/shared/errors/care-plan'
-import type {
-  PlantNotAuthorizedError,
-  PlantNotFoundError,
-} from '@lily/shared/errors/plant'
 import { Array, Effect, Filter, Option, Order, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -54,15 +48,13 @@ export const scheduleTargetsFromSteps = (
     )
   )
 
-/** `plan` comes from `withCarePlanAuth` in the handler. */
-export const acceptCarePlan = (
-  plan: CarePlan
-): Effect.Effect<
+/** `{ plan, plant }` come from `withCarePlanAuth` in the handler. */
+export const acceptCarePlan = ({
+  plan,
+  plant,
+}: CarePlanContext): Effect.Effect<
   CarePlan,
-  | CarePlanNotProposedError
-  | PlantNotFoundError
-  | PlantNotAuthorizedError
-  | SqlError,
+  CarePlanNotProposedError | SqlError,
   | CarePlanRepository
   | CareScheduleRepository
   | PlantRepository
@@ -79,8 +71,6 @@ export const acceptCarePlan = (
         status: plan.status,
       })
     }
-
-    const plant = yield* withPlantAuth(plan.plantId, 'care')
 
     // Move each affected schedule's next date to the step's due date (either
     // direction). Plants without a schedule of that type are left alone: the
