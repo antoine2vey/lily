@@ -2,7 +2,12 @@ import type { CareTasksResponse, CareType, LanguageCode } from '@lily/shared'
 import { ExternalServiceError } from '@lily/shared'
 import type { AuthResponse, RefreshTokenResponse } from '@lily/shared/auth'
 import type { CareLogsListResponse } from '@lily/shared/care-log'
-import type { Plant, PlantDetail, PlantsListResponse } from '@lily/shared/plant'
+import type {
+  EnhancedPlantCreateRequest,
+  Plant,
+  PlantDetail,
+  PlantsListResponse,
+} from '@lily/shared/plant'
 import {
   Config,
   Context,
@@ -70,7 +75,6 @@ export interface IApiClient {
     params?:
       | {
           readonly filter?: string | undefined
-          readonly includeCaretaking?: string | undefined
           readonly limit?: string | undefined
         }
       | undefined
@@ -79,6 +83,10 @@ export interface IApiClient {
   readonly getPlant: (
     plantId: string
   ) => Effect.Effect<PlantDetail, ExternalServiceError, CurrentJwt>
+
+  readonly createPlant: (
+    body: EnhancedPlantCreateRequest
+  ) => Effect.Effect<Plant, ExternalServiceError, CurrentJwt>
 
   readonly getCareLogs: (
     plantId: string,
@@ -135,6 +143,15 @@ export const publicApiFailure = (error: ExternalServiceError): string =>
       () => 'The Lily service could not complete this request. Try again later.'
     )
   )
+
+/**
+ * Every tool answers for each plant the user tends: their own, the ones
+ * delegated to them, and their Canopy's.
+ */
+const includeEveryPlant = {
+  includeCaretaking: 'true',
+  includeCanopy: 'true',
+} as const
 
 // ── Context Tag ────────────────────────────────────────────────────────
 
@@ -263,15 +280,10 @@ export const ApiClientLive = Layer.unwrap(
           // ── Authenticated ─────────────────────────────────────
 
           listPlants: (params) => {
-            const query = new URLSearchParams()
+            const query = new URLSearchParams(includeEveryPlant)
             if (params?.filter) query.set('filter', params.filter)
-            if (params?.includeCaretaking)
-              query.set('includeCaretaking', params.includeCaretaking)
             if (params?.limit) query.set('limit', params.limit)
-            const qs = query.toString()
-            return HttpClientRequest.get(
-              `${baseUrl}/api/plants${qs ? `?${qs}` : ''}`
-            ).pipe(
+            return HttpClientRequest.get(`${baseUrl}/api/plants?${query}`).pipe(
               authed<PlantsListResponse>,
               Effect.withSpan('ApiClient.listPlants')
             )
@@ -281,6 +293,13 @@ export const ApiClientLive = Layer.unwrap(
             HttpClientRequest.get(`${baseUrl}/api/plants/${plantId}`).pipe(
               authed<PlantDetail>,
               Effect.withSpan('ApiClient.getPlant')
+            ),
+
+          createPlant: (body) =>
+            HttpClientRequest.post(`${baseUrl}/api/plants`).pipe(
+              HttpClientRequest.bodyJsonUnsafe(body),
+              authed<Plant>,
+              Effect.withSpan('ApiClient.createPlant')
             ),
 
           getCareLogs: (plantId, params) => {
@@ -305,7 +324,9 @@ export const ApiClientLive = Layer.unwrap(
             ),
 
           getCareTasks: () =>
-            HttpClientRequest.get(`${baseUrl}/api/care-tasks`).pipe(
+            HttpClientRequest.get(
+              `${baseUrl}/api/care-tasks?includeCanopy=true`
+            ).pipe(
               authed<CareTasksResponse>,
               Effect.withSpan('ApiClient.getCareTasks')
             ),

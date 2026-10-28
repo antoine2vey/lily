@@ -6,6 +6,8 @@
  * Non-widget clients ignore structuredContent and use markdown fallback.
  */
 
+import type { PlantOwnership } from '@lily/shared/plant'
+
 // ── Plant Summary (list_plants, get_overdue_plants) ─────────────────
 
 export interface PlantSummary {
@@ -15,8 +17,9 @@ export interface PlantSummary {
   readonly healthColor: string
   readonly roomName: string | null
   readonly roomIcon: string | null
-  readonly ownership: string
-  readonly ownerName: string | null
+  readonly ownership: PlantOwnership
+  /** "Caretaking for Alex" or "Canopy: Home"; null for the user's own plant. */
+  readonly ownershipLabel: string | null
   /** Plant is in the cemetery; the health badge then reads "In memory". */
   readonly isDead: boolean
   readonly diedAt: string | null
@@ -46,6 +49,7 @@ export interface PlantDetail {
   readonly category: string | null
   readonly roomName: string | null
   readonly roomIcon: string | null
+  readonly ownershipLabel: string | null
   readonly dateAdded: string
   readonly wateringRating: number
   readonly lightingRating: number

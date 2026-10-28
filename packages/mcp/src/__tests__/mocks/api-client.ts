@@ -17,6 +17,7 @@ export const createMockApiClient = (
     issueServiceToken: () => Effect.die(new Error('Not mocked')),
     listPlants: () => Effect.succeed(emptyPaginated),
     getPlant: () => Effect.die(new Error('Not mocked')),
+    createPlant: () => Effect.die(new Error('Not mocked')),
     getCareLogs: () => Effect.succeed(emptyPaginated),
     carePlant: () => Effect.die(new Error('Not mocked')),
     getCareTasks: () =>
