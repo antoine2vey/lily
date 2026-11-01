@@ -215,7 +215,7 @@ export function SettingsScreen() {
 
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
-            {t('canopy:title')}
+            {t('canopy:section')}
           </Text>
           <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
             <SettingsMenuItem

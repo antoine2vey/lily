@@ -1,6 +1,7 @@
 export default {
   title: 'Canopy',
   row: 'Canopy',
+  section: 'Household',
   none: {
     create: 'Create a Canopy',
     joinHint: 'Got an invite link? Open it on this phone to join.',

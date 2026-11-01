@@ -1,6 +1,7 @@
 export default {
   title: 'Canopy',
   row: 'Canopy',
+  section: 'Foyer',
   none: {
     create: 'Créer une Canopy',
     joinHint:
