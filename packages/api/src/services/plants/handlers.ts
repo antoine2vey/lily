@@ -16,6 +16,7 @@ import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-de
 import {
   mutePlant,
   unmutePlant,
+  withMuteState,
 } from '@lily/api/services/plants/endpoints/mute-plant'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { scanCard } from '@lily/api/services/plants/endpoints/scan-card'
@@ -76,6 +77,7 @@ export const PlantsApiLive = (api: Api) =>
       .handle('getPlant', ({ params: { id } }) =>
         withPlantAuth(id, 'view').pipe(
           Effect.flatMap((plant) => findPlantById(plant)),
+          Effect.flatMap(withMuteState),
           withInfraErrorsAsDefect
         )
       )

@@ -140,6 +140,10 @@ export interface ICanopyRepository {
     userId: string,
     plantId: string
   ) => Effect.Effect<void, SqlError>
+  readonly isMuted: (
+    userId: string,
+    plantId: string
+  ) => Effect.Effect<boolean, SqlError>
   readonly deleteMutesForPlant: (
     plantId: string
   ) => Effect.Effect<void, SqlError>
@@ -510,6 +514,22 @@ export const CanopyRepositoryLive = Layer.effect(
               eq(canopyPlantMutes.plantId, plantId)
             )
           )
+      }),
+
+      isMuted: Effect.fn('CanopyRepository.isMuted')(function* (
+        userId: string,
+        plantId: string
+      ) {
+        const rows = yield* db
+          .select({ plantId: canopyPlantMutes.plantId })
+          .from(canopyPlantMutes)
+          .where(
+            and(
+              eq(canopyPlantMutes.userId, userId),
+              eq(canopyPlantMutes.plantId, plantId)
+            )
+          )
+        return Array.isReadonlyArrayNonEmpty(rows)
       }),
 
       deleteMutesForPlant: Effect.fn('CanopyRepository.deleteMutesForPlant')(

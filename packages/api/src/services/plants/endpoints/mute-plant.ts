@@ -11,6 +11,7 @@ import {
 } from '@lily/api/services/plants/helpers/reminder-keys'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const mutePlant = Effect.fn('PlantsService.mutePlant')(function* (
   plant: PlantWithRoom,
@@ -48,3 +49,19 @@ export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(function* (
     )
   )
 })
+
+// Muting is per member, so only the caller's own state is reported, and only
+// on Canopy plants.
+export const withMuteState = <P extends PlantWithRoom>(
+  plant: P
+): Effect.Effect<
+  P & { readonly muted?: boolean },
+  SqlError,
+  CurrentUser | CanopyRepository
+> =>
+  Effect.gen(function* () {
+    if (plant.ownership !== 'canopy') return plant
+    const { id: userId } = yield* CurrentUser
+    const repo = yield* CanopyRepository
+    return { ...plant, muted: yield* repo.isMuted(userId, plant.id) }
+  }).pipe(Effect.withSpan('PlantsService.withMuteState'))

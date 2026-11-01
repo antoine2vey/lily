@@ -218,6 +218,8 @@ export const PlantPhotoUploadResponse = Schema.Struct({
 export const PlantDetail = Schema.Struct({
   ...plantFields,
   photos: Schema.Array(PlantPhoto),
+  // Set on Canopy plants only: whether the caller muted this plant's reminders.
+  muted: Schema.optionalKey(Schema.Boolean),
 }).check(plantOwnershipMatchesCanopy)
 
 // Generic care request (for POST /plants/:id/care)

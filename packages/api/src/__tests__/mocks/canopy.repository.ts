@@ -325,6 +325,13 @@ export const createMockCanopyRepository = (
       Effect.sync(() => {
         remove(store.mutes, (m) => m.userId === userId && m.plantId === plantId)
       }),
+    isMuted: (userId, plantId) =>
+      Effect.sync(() =>
+        Array.some(
+          store.mutes,
+          (m) => m.userId === userId && m.plantId === plantId
+        )
+      ),
     deleteMutesForPlant: (plantId) =>
       Effect.sync(() => {
         remove(store.mutes, (m) => m.plantId === plantId)
