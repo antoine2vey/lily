@@ -41,7 +41,7 @@ export default {
       description:
         "Toute personne qui a le lien peut rejoindre pendant 7 jours. Partager à nouveau crée un nouveau lien et désactive l'ancien.",
       share: "Partager le lien d'invitation",
-      activeUntil: "Le lien actuel fonctionne jusqu'au {date}.",
+      activeUntil: "Le lien actuel fonctionne jusqu'au {date}",
       revoke: 'Désactiver le lien',
       revokeTitle: "Désactiver le lien d'invitation ?",
       revokeMessage: 'Plus personne ne pourra rejoindre avec ce lien.',
