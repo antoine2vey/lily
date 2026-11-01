@@ -85,4 +85,52 @@ describe('CareEventCard', () => {
 
     expect(mockOnPress).toHaveBeenCalledTimes(1)
   })
+
+  describe('on a Canopy plant', () => {
+    const watered = {
+      id: 'event-1',
+      type: 'watering' as const,
+      createdAt: '2024-01-15T10:30:00Z',
+    }
+
+    it('names the member who did it', () => {
+      render(
+        <CareEventCard
+          event={{ ...watered, actor: { _tag: 'member', name: 'Lily' } }}
+          onPress={mockOnPress}
+        />
+      )
+
+      expect(screen.getByText('Watered by Lily')).toBeTruthy()
+    })
+
+    it('says you when the viewer did it', () => {
+      render(
+        <CareEventCard
+          event={{ ...watered, actor: { _tag: 'you' } }}
+          onPress={mockOnPress}
+        />
+      )
+
+      expect(screen.getByText('Watered by you')).toBeTruthy()
+    })
+
+    it('falls back for a member without a name and a deleted account', () => {
+      const { rerender } = render(
+        <CareEventCard
+          event={{ ...watered, actor: { _tag: 'unnamed' } }}
+          onPress={mockOnPress}
+        />
+      )
+      expect(screen.getByText('Watered by a member')).toBeTruthy()
+
+      rerender(
+        <CareEventCard
+          event={{ ...watered, actor: { _tag: 'former' } }}
+          onPress={mockOnPress}
+        />
+      )
+      expect(screen.getByText('Watered by a former member')).toBeTruthy()
+    })
+  })
 })

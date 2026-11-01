@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 import { type AuthState, useAuth } from '@/contexts/AuthContext'
 import { useLocalizationContext } from '@/contexts/LocalizationContext'
+import { CARE_TASKS_PARAMS } from '@/hooks/useCareTasks'
 import i18n from '@/i18n'
 import { useEffectQuery } from '@/utils/client'
 import {
@@ -78,7 +79,7 @@ export function TodayWidgetSync(): null {
   const { data } = useEffectQuery(
     'careTasks',
     'getCareTasks',
-    { query: {} },
+    CARE_TASKS_PARAMS,
     { enabled: state._tag === 'Authenticated' }
   )
   const reportedUnavailable = useRef(false)

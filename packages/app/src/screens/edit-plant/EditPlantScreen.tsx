@@ -387,6 +387,7 @@ export function EditPlantScreen() {
               label={t('plantDetail:edit.roomLabel')}
               value={selectedRoomId}
               onSelect={setSelectedRoomId}
+              owner={plant?.ownership === 'canopy' ? 'canopy' : 'me'}
             />
           </View>
 

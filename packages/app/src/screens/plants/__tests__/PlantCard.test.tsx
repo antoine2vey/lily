@@ -271,4 +271,26 @@ describe('PlantCard', () => {
 
     expect(screen.queryByTestId('favorite-indicator')).toBeNull()
   })
+
+  it('badges a Canopy plant with the Canopy name', () => {
+    render(
+      <PlantCard
+        plant={{ ...basePlant, ownership: 'canopy', canopyName: 'Home' }}
+        onPress={mockOnPress}
+      />
+    )
+
+    expect(screen.getByTestId('canopy-badge')).toHaveTextContent('Home')
+  })
+
+  it('does not badge a personal plant', () => {
+    render(
+      <PlantCard
+        plant={{ ...basePlant, ownership: 'owned', canopyName: 'Home' }}
+        onPress={mockOnPress}
+      />
+    )
+
+    expect(screen.queryByTestId('canopy-badge')).toBeNull()
+  })
 })

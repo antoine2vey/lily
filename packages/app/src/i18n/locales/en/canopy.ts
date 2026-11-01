@@ -139,4 +139,44 @@ export default {
     delegated: 'Plants in a care delegation stayed personal.',
     failed: 'Some plants could not move. Try again from each plant.',
   },
+  scope: {
+    all: 'All',
+    mine: 'Mine',
+    canopy: 'Canopy',
+  },
+  add: {
+    label: 'Who looks after it',
+    personal: 'Just me',
+  },
+  badge: 'Canopy plant',
+  actions: {
+    share: 'Share with {name}',
+    shareTitle: 'Share with {name}?',
+    shareMessage:
+      'Everyone in {name} sees this plant and gets its reminders. Its room is cleared.',
+    shared: 'Shared with {name}',
+    unshare: 'Make personal',
+    unshareTitle: 'Make this plant personal?',
+    unshareMessage:
+      'It leaves {name} and becomes yours. Other members lose access to it.',
+    unshared: 'The plant is yours now',
+    mute: 'Mute reminders',
+    unmute: 'Unmute reminders',
+    muted: 'You will not get reminders for this plant',
+    unmuted: 'Reminders are back on',
+    failed: 'Something went wrong. Try again.',
+  },
+  history: {
+    you: '{action} by you',
+    member: '{action} by {name}',
+    unnamed: '{action} by a member',
+    former: '{action} by a former member',
+  },
+  paywall: {
+    title: 'This Canopy is full',
+    message:
+      'A free Canopy holds {limit} plants. When any member goes Premium, the limit is lifted for everyone in it.',
+    upgrade: 'See Premium',
+    notNow: 'Not now',
+  },
 } as const

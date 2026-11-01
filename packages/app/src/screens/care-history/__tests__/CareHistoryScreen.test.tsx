@@ -11,6 +11,12 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(() => ({ plantId: 'plant-1' })),
 }))
 
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    state: { _tag: 'Authenticated', user: { id: 'user-1' }, accessToken: 't' },
+  }),
+}))
+
 jest.mock('@/hooks/usePlant', () => ({
   usePlant: jest.fn(),
 }))

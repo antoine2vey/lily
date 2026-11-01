@@ -5,7 +5,7 @@ export function useRooms() {
   return useEffectQuery(
     'rooms',
     'getRooms',
-    { query: {} },
+    { query: { includeCanopy: 'true' } },
     { staleTime: StaleTime.default }
   )
 }

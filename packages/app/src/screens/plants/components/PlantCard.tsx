@@ -30,6 +30,7 @@ interface PlantCardProps {
     roomIcon?: string | undefined
     ownership?: PlantOwnership | undefined
     ownerName?: string | undefined
+    canopyName?: string | undefined
   }
   onPress: (plantId: string) => void
 }
@@ -253,6 +254,14 @@ export const PlantCard = memo(function PlantCard({
             />
             <Text className="text-xs text-text-muted dark:text-slate-400">
               {plant.ownerName}
+            </Text>
+          </View>
+        )}
+        {plant.ownership === 'canopy' && plant.canopyName && (
+          <View testID="canopy-badge" className="flex-row items-center gap-1">
+            <MaterialIcons name="groups" size={12} color={iconColors.primary} />
+            <Text className="text-xs font-medium text-primary">
+              {plant.canopyName}
             </Text>
           </View>
         )}

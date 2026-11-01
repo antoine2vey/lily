@@ -22,7 +22,10 @@ export function PlantSelector({
   onDeselectAll,
 }: PlantSelectorProps) {
   const { t } = useTranslation('delegations')
-  const { data: plantsData, isLoading } = usePlants({ limit: '100' })
+  const { data: plantsData, isLoading } = usePlants({
+    limit: '100',
+    includeCanopy: 'false',
+  })
 
   const isInitialLoading = isLoading && !plantsData
   const showSkeleton = useDelayedLoading(isInitialLoading)

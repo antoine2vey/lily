@@ -4,7 +4,7 @@ import {
   StaleTime,
   toIsoString,
 } from '@lily/shared'
-import type { CareLog } from '@lily/shared/care-log'
+import type { CareLogHistoryItem } from '@lily/shared/care-log'
 import {
   Array,
   DateTime,
@@ -14,6 +14,7 @@ import {
   Record,
   String as Str,
 } from 'effect'
+import { type CareActor, careActorFor } from '@/utils/canopy-plants'
 import { useEffectQuery } from '@/utils/client'
 
 interface CareEvent {
@@ -23,6 +24,8 @@ interface CareEvent {
   notes?: string | undefined
   photoUrl?: string | undefined
   createdAt: string
+  /** Set on Canopy plants only: who did it. */
+  actor?: CareActor | undefined
 }
 
 interface CareHistoryGroup {
@@ -50,7 +53,10 @@ const eventCreatedAtOrder: Order.Order<CareEvent> = Order.mapInput(
 /**
  * Group care logs by date for display
  */
-function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
+function groupByDate(
+  logs: readonly CareLogHistoryItem[],
+  canopyViewerId: Option.Option<string>
+): CareHistoryGroup[] {
   // Group logs by date key
   const grouped = pipe(
     logs,
@@ -68,6 +74,9 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
         notes: log.notes,
         photoUrl: log.photoUrl,
         createdAt: createdAtIso,
+        actor: Option.getOrUndefined(
+          Option.map(canopyViewerId, (me) => careActorFor(log.performedBy, me))
+        ),
       }
 
       if (!acc[dateKey]) {
@@ -124,6 +133,9 @@ interface UseCareHistoryParams {
   limit?: number
   /** When set, a synthetic "said goodbye" entry heads the timeline. */
   diedAt?: Date | null | undefined
+  /** The viewer's id, given only for a Canopy plant, whose entries name who
+   * did them. */
+  canopyViewerId?: string | undefined
 }
 
 // The death is not a care log; it is rendered from the plant row so the
@@ -159,6 +171,7 @@ export function useCareHistory({
   page = 1,
   limit = 50,
   diedAt,
+  canopyViewerId,
 }: UseCareHistoryParams) {
   const query = useEffectQuery(
     'careLogs',
@@ -180,7 +193,9 @@ export function useCareHistory({
   // Transform data to grouped format
   const groupedData = pipe(
     Option.fromNullishOr(query.data),
-    Option.map((d) => groupByDate(d.items)),
+    Option.map((d) =>
+      groupByDate(d.items, Option.fromNullishOr(canopyViewerId))
+    ),
     Option.map((groups) =>
       pipe(
         Option.fromNullishOr(diedAt),

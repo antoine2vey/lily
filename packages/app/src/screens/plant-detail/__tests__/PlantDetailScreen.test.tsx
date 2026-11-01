@@ -19,6 +19,22 @@ jest.mock('expo-router', () => ({
   })),
 }))
 
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    state: { _tag: 'Authenticated', user: { id: 'user-1' }, accessToken: 't' },
+  }),
+}))
+
+jest.mock('@/hooks/useMyCanopy', () => ({
+  useMyCanopy: () => ({ data: { canopy: null } }),
+}))
+
+jest.mock('@/hooks/usePlantCanopyActions', () => ({
+  useSharePlantWithCanopy: () => ({ mutate: jest.fn() }),
+  useUnsharePlant: () => ({ mutate: jest.fn() }),
+  useSetPlantMuted: () => ({ mutate: jest.fn() }),
+}))
+
 jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
   useEffectMutation: jest.fn(() => ({

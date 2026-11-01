@@ -32,7 +32,7 @@ describe('useCareTasks', () => {
     expect(mockedUseEffectQuery).toHaveBeenCalledWith(
       'careTasks',
       'getCareTasks',
-      { query: {} }
+      { query: { includeCanopy: 'true' } }
     )
   })
 

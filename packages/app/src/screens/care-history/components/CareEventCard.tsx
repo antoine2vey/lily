@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
+import { type CareActor, withCareActor } from '@/utils/canopy-plants'
 
 type CareEventType =
   | 'watering'
@@ -22,6 +23,7 @@ interface CareEvent {
   notes?: string | undefined
   createdAt: string
   photoUrl?: string | undefined
+  actor?: CareActor | undefined
 }
 
 interface CareEventCardProps {
@@ -112,7 +114,7 @@ export function CareEventCard({ event, onPress }: CareEventCardProps) {
       {/* Header row with title and time */}
       <View className="flex-row justify-between items-baseline mb-2">
         <Text className="text-lg font-bold text-text-primary dark:text-white">
-          {getEventLabel(config.labelKey, t)}
+          {withCareActor(getEventLabel(config.labelKey, t), event.actor, t)}
         </Text>
         <Text className="text-sm font-medium text-text-muted dark:text-slate-400">
           {formatApiTime(event.createdAt)}

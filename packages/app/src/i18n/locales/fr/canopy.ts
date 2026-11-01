@@ -143,4 +143,44 @@ export default {
     failed:
       "Certaines plantes n'ont pas pu être partagées. Réessayez depuis chaque plante.",
   },
+  scope: {
+    all: 'Toutes',
+    mine: 'Les miennes',
+    canopy: 'Canopy',
+  },
+  add: {
+    label: "Qui s'en occupe",
+    personal: 'Moi seul',
+  },
+  badge: 'Plante de la Canopy',
+  actions: {
+    share: 'Partager avec {name}',
+    shareTitle: 'Partager avec {name} ?',
+    shareMessage:
+      'Tous les membres de {name} voient cette plante et reçoivent ses rappels. Sa pièce est retirée.',
+    shared: 'Partagée avec {name}',
+    unshare: 'Rendre personnelle',
+    unshareTitle: 'Rendre cette plante personnelle ?',
+    unshareMessage:
+      "Elle quitte {name} et devient la vôtre. Les autres membres n'y ont plus accès.",
+    unshared: 'La plante est à vous',
+    mute: 'Couper les rappels',
+    unmute: 'Réactiver les rappels',
+    muted: 'Vous ne recevrez plus de rappels pour cette plante',
+    unmuted: 'Les rappels sont réactivés',
+    failed: "Une erreur s'est produite. Réessayez.",
+  },
+  history: {
+    you: '{action} par vous',
+    member: '{action} par {name}',
+    unnamed: '{action} par un membre',
+    former: '{action} par un ancien membre',
+  },
+  paywall: {
+    title: 'Cette Canopy est pleine',
+    message:
+      "Une Canopy gratuite accueille {limit} plantes. Dès qu'un membre passe Premium, la limite est levée pour tous.",
+    upgrade: 'Voir Premium',
+    notNow: 'Plus tard',
+  },
 } as const

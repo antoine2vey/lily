@@ -30,7 +30,10 @@ export function BringPlantsScreen({ canopyName }: { canopyName: string }) {
   const { t } = useTranslation('canopy')
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
-  const { data, isLoading } = usePlants({ limit: '100' })
+  const { data, isLoading } = usePlants({
+    limit: '100',
+    includeCanopy: 'false',
+  })
   const [selected, setSelected] = useState<ReadonlyArray<string>>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 

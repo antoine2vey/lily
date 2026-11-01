@@ -27,6 +27,7 @@ import { PlantCardSkeleton } from '@/components/skeletons'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
+import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { useRooms } from '@/hooks/useRooms'
 import { PlantCard } from '@/screens/plants/components/PlantCard'
 import {
@@ -38,6 +39,11 @@ import {
   type SortOption,
   SortOptionsSheet,
 } from '@/screens/plants/components/SortOptionsSheet'
+import {
+  filterByScope,
+  PLANT_SCOPES,
+  type PlantScope,
+} from '@/utils/canopy-plants'
 import { useEffectQuery } from '@/utils/client'
 import { useGlass } from '@/utils/glass'
 import {
@@ -66,6 +72,7 @@ interface PlantCardData {
   roomIcon?: string | undefined
   ownership: PlantOwnership
   ownerName?: string | undefined
+  canopyName?: string | undefined
 }
 
 const getDaysUntil = (date: DateInput): Option.Option<number> =>
@@ -168,13 +175,17 @@ function RoomPill({
   isSelected,
   onPress,
   children,
+  testID,
 }: {
   isSelected: boolean
   onPress: () => void
   children: React.ReactNode
+  testID?: string
 }) {
   const pressable = (
     <Pressable
+      testID={testID}
+      accessibilityState={{ selected: isSelected }}
       onPress={onPress}
       className={`h-8 px-3 rounded-full flex-row items-center gap-1 ${
         isSelected ? 'bg-primary' : ''
@@ -212,7 +223,7 @@ function PlantsListSkeleton() {
 }
 
 export function PlantsScreen() {
-  const { t } = useTranslation('plants')
+  const { t } = useTranslation(['plants', 'canopy'])
   const router = useRouter()
   const iconColors = useIconColors()
   const tabBarInset = useTabBarInset()
@@ -227,8 +238,14 @@ export function PlantsScreen() {
   const [showSortSheet, setShowSortSheet] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
+  const [selectedScope, setSelectedScope] = useState<PlantScope>('all')
 
   const { data: roomsData } = useRooms()
+  const { data: canopyData } = useMyCanopy()
+  // Someone who leaves the Canopy loses the pills, so the scope must not
+  // keep hiding their list.
+  const inCanopy = canopyData?.canopy != null
+  const scope: PlantScope = inCanopy ? selectedScope : 'all'
 
   const insets = useSafeAreaInsets()
 
@@ -244,6 +261,7 @@ export function PlantsScreen() {
       filter: 'all',
       sort: 'added',
       includeCaretaking: 'true',
+      includeCanopy: 'true',
     },
   })
 
@@ -299,12 +317,47 @@ export function PlantsScreen() {
           () => 'owned' as const
         ),
         ownerName: Option.getOrUndefined(Option.fromNullishOr(plant.ownerName)),
+        canopyName: Option.getOrUndefined(
+          Option.fromNullishOr(plant.canopy?.name)
+        ),
       }
     })
   }, [plantsData])
 
+  const scopedPlants = useMemo(
+    () => filterByScope(plants, scope),
+    [plants, scope]
+  )
+
+  const scopedRooms = useMemo(
+    () =>
+      pipe(
+        Option.fromNullishOr(roomsData),
+        Option.map((rooms) =>
+          pipe(
+            Match.value(scope),
+            Match.when('all', () => rooms),
+            Match.when('mine', () =>
+              Array.filter(rooms, (room) => room.canopyId === null)
+            ),
+            Match.when('canopy', () =>
+              Array.filter(rooms, (room) => room.canopyId !== null)
+            ),
+            Match.exhaustive
+          )
+        ),
+        Option.getOrElse(() => [] as NonNullable<typeof roomsData>)
+      ),
+    [roomsData, scope]
+  )
+
+  const handleScopeChange = useCallback((next: PlantScope) => {
+    setSelectedScope(next)
+    setSelectedRoomId(null)
+  }, [])
+
   const filteredPlants = useMemo(() => {
-    let result = plants
+    let result = scopedPlants
 
     if (!String.isEmpty(searchQuery)) {
       const query = String.toLowerCase(searchQuery)
@@ -345,22 +398,22 @@ export function PlantsScreen() {
     )
 
     return result
-  }, [plants, searchQuery, selectedFilter, selectedRoomId, sortOption])
+  }, [scopedPlants, searchQuery, selectedFilter, selectedRoomId, sortOption])
 
   const counts = useMemo(
     () => ({
-      all: Array.length(plants),
+      all: Array.length(scopedPlants),
       watering: Array.length(
-        Array.filter(plants, (p) => p.watering.daysUntil === 0)
+        Array.filter(scopedPlants, (p) => p.watering.daysUntil === 0)
       ),
       fertilizing: Array.length(
-        Array.filter(plants, (p) => p.fertilization.daysUntil === 0)
+        Array.filter(scopedPlants, (p) => p.fertilization.daysUntil === 0)
       ),
       needsAttention: Array.length(
-        Array.filter(plants, (p) => isUnhealthy(p.health))
+        Array.filter(scopedPlants, (p) => isUnhealthy(p.health))
       ),
     }),
-    [plants]
+    [scopedPlants]
   )
 
   const handlePlantPress = useCallback(
@@ -418,6 +471,35 @@ export function PlantsScreen() {
           </View>
         )}
 
+        {inCanopy && (
+          <View
+            testID="plant-scope-filter"
+            className="flex-row gap-2 px-6 pb-2"
+          >
+            {Array.map(PLANT_SCOPES, (option) => {
+              const isSelected = scope === option
+              return (
+                <RoomPill
+                  key={option}
+                  testID={`plant-scope-${option}`}
+                  isSelected={isSelected}
+                  onPress={() => handleScopeChange(option)}
+                >
+                  <Text
+                    className={`text-xs font-medium ${
+                      isSelected
+                        ? 'text-white'
+                        : 'text-text-primary dark:text-white'
+                    }`}
+                  >
+                    {t(`canopy:scope.${option}`)}
+                  </Text>
+                </RoomPill>
+              )
+            })}
+          </View>
+        )}
+
         <PlantFilters
           selectedFilter={selectedFilter}
           onFilterChange={setSelectedFilter}
@@ -425,7 +507,7 @@ export function PlantsScreen() {
         />
 
         {/* Room Filter */}
-        {roomsData && !Array.isReadonlyArrayEmpty(roomsData) && (
+        {!Array.isReadonlyArrayEmpty(scopedRooms) && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -451,7 +533,7 @@ export function PlantsScreen() {
                 {t('list.filterAll')}
               </Text>
             </RoomPill>
-            {Array.map(roomsData, (room) => {
+            {Array.map(scopedRooms, (room) => {
               const isSelected = selectedRoomId === room.id
               return (
                 <RoomPill

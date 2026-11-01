@@ -296,6 +296,7 @@ export function HomeScreen() {
       filter: 'all',
       sort: 'added',
       includeCaretaking: 'false',
+      includeCanopy: 'true',
     },
   })
 
@@ -315,6 +316,7 @@ export function HomeScreen() {
       filter: 'needsAttention',
       sort: 'added',
       includeCaretaking: 'false',
+      includeCanopy: 'true',
     },
   })
   const unhealthyCount = Option.getOrElse(

@@ -1,6 +1,6 @@
 import { effectQueryKey, useEffectQuery } from '@/utils/client'
 
-const CARE_TASKS_PARAMS = { query: {} }
+export const CARE_TASKS_PARAMS = { query: { includeCanopy: 'true' } }
 
 export const CARE_TASKS_QUERY_KEY = effectQueryKey(
   'careTasks',

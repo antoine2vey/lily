@@ -15,6 +15,11 @@ jest.mock('@/hooks/useRooms', () => ({
   useRooms: () => ({ data: undefined, isLoading: false }),
 }))
 
+const mockCanopy: { current: unknown } = { current: null }
+jest.mock('@/hooks/useMyCanopy', () => ({
+  useMyCanopy: () => ({ data: { canopy: mockCanopy.current } }),
+}))
+
 import { useEffectQuery } from '@/utils/client'
 import { PlantsScreen } from '../PlantsScreen'
 
@@ -23,6 +28,7 @@ const mockedUseEffectQuery = useEffectQuery as jest.Mock
 describe('PlantsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockCanopy.current = null
   })
 
   it('shows skeleton when loading', () => {
@@ -247,5 +253,51 @@ describe('PlantsScreen', () => {
     fireEvent.changeText(screen.getByTestId('plant-search-bar'), 'nonexistent')
 
     expect(screen.getByText('No plants found')).toBeTruthy()
+  })
+
+  describe('Canopy scope filter', () => {
+    const plant = (id: string, name: string, ownership: string) => ({
+      ...mockPlants[0],
+      id,
+      name,
+      ownership,
+      canopy: ownership === 'canopy' ? { id: 'canopy-1', name: 'Home' } : null,
+    })
+    const plants = [
+      plant('p-mine', 'Fern', 'owned'),
+      plant('p-shared', 'Pothos', 'canopy'),
+    ]
+
+    beforeEach(() => {
+      mockedUseEffectQuery.mockReturnValue({
+        data: { items: plants, total: plants.length },
+        isLoading: false,
+      })
+    })
+
+    it('does not show the filter to a user outside a Canopy', () => {
+      render(<PlantsScreen />)
+
+      expect(screen.queryByTestId('plant-scope-filter')).toBeNull()
+      expect(screen.getByText('Fern')).toBeTruthy()
+      expect(screen.getByText('Pothos')).toBeTruthy()
+    })
+
+    it('narrows the list to Mine or Canopy for a member', () => {
+      mockCanopy.current = { id: 'canopy-1', name: 'Home', role: 'member' }
+      render(<PlantsScreen />)
+
+      fireEvent.press(screen.getByTestId('plant-scope-mine'))
+      expect(screen.getByText('Fern')).toBeTruthy()
+      expect(screen.queryByText('Pothos')).toBeNull()
+
+      fireEvent.press(screen.getByTestId('plant-scope-canopy'))
+      expect(screen.queryByText('Fern')).toBeNull()
+      expect(screen.getByText('Pothos')).toBeTruthy()
+
+      fireEvent.press(screen.getByTestId('plant-scope-all'))
+      expect(screen.getByText('Fern')).toBeTruthy()
+      expect(screen.getByText('Pothos')).toBeTruthy()
+    })
   })
 })

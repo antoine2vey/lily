@@ -32,7 +32,10 @@ export function DelegationCreateScreen() {
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
   const { mutate: createDelegation, isPending } = useCreateDelegation()
-  const { data: plantsData } = usePlants({ limit: '100' })
+  const { data: plantsData } = usePlants({
+    limit: '100',
+    includeCanopy: 'false',
+  })
 
   const [selectedCaretaker, setSelectedCaretaker] =
     useState<SelectedUser | null>(null)
