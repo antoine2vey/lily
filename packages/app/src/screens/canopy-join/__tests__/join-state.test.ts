@@ -12,6 +12,7 @@ import {
   type JoinAttempt,
   type JoinInputs,
   joinScreen,
+  mayLeaveToJoin,
 } from '@/screens/canopy-join/join-state'
 import { type InviteToken, parseInviteToken } from '@/utils/canopy-invite-token'
 
@@ -132,5 +133,69 @@ describe('joinScreen', () => {
         inputs({ attempt: { _tag: 'Joined', canopyName: 'Our Flat' } })
       )
     ).toEqual({ _tag: 'PickPlants', canopyName: 'Our Flat' })
+  })
+})
+
+describe('a Canopy the preview counts as full', () => {
+  const full: CanopyInvitePreview = { ...preview, memberCount: 10 }
+  const fullInputs = (overrides: Partial<JoinInputs>) =>
+    inputs({ preview: Result.succeed(full), ...overrides })
+
+  it('shows Full to a user in no Canopy', () => {
+    expect(joinScreen(fullInputs({}))).toEqual({
+      _tag: 'Full',
+      preview: full,
+      limit: 10,
+    })
+  })
+
+  it('shows Full instead of offering to leave another Canopy', () => {
+    expect(
+      joinScreen(
+        fullInputs({ mine: Result.succeed({ canopy: canopyNamed('Loft') }) })
+      )
+    ).toEqual({ _tag: 'Full', preview: full, limit: 10 })
+  })
+
+  it('shows Full when the accept answers AlreadyInCanopy', () => {
+    const attempt: JoinAttempt = {
+      _tag: 'Refused',
+      error: new AlreadyInCanopyError({ canopyName: 'Loft' }),
+    }
+    expect(joinScreen(fullInputs({ attempt }))).toEqual({
+      _tag: 'Full',
+      preview: full,
+      limit: 10,
+    })
+  })
+
+  it('still lets a member open the Canopy they are in, which never leaves', () => {
+    expect(
+      joinScreen(
+        fullInputs({
+          mine: Result.succeed({ canopy: canopyNamed('Our Flat') }),
+        })
+      )._tag
+    ).toBe('AlreadyHere')
+  })
+})
+
+describe('mayLeaveToJoin, checked on a fresh preview before leaving', () => {
+  const inLoft = Result.succeed({ canopy: canopyNamed('Loft') })
+  const check = (fresh: JoinInputs['preview']) =>
+    mayLeaveToJoin({ token: Option.some(token), preview: fresh, mine: inLoft })
+
+  it('allows the switch while the invite is still valid and has room', () => {
+    expect(check(Result.succeed(preview))).toBe(true)
+  })
+
+  it('refuses when the invite was revoked, expired or filled since the screen loaded', () => {
+    expect(check(Result.fail(new CanopyInviteNotFoundError()))).toBe(false)
+    expect(check(Result.fail(new CanopyInviteExpiredError()))).toBe(false)
+    expect(check(Result.succeed({ ...preview, memberCount: 10 }))).toBe(false)
+  })
+
+  it('refuses when the fresh preview did not arrive', () => {
+    expect(check(undefined)).toBe(false)
   })
 })

@@ -15,10 +15,11 @@ import {
 import { queryKeys } from '@/utils/query-keys'
 
 // apiEffectRunner rejects with the tagged API error, so onError receives an
-// ApiFailure and callers branch on its tag.
+// ApiFailure and callers branch on its tag. A tagged failure is the API's
+// answer, not a transient fault, so one tap sends one request.
 const useCanopyMutation = <A, V = void>(
   options: UseMutationOptions<A, ApiFailure, V>
-) => useMutation(options)
+) => useMutation({ ...options, retry: false })
 
 const setMyCanopy = (queryClient: QueryClient, canopy: Canopy | null) =>
   queryClient.setQueryData<ApiResult<CanopyResponse>>(

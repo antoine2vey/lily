@@ -1,4 +1,8 @@
-import type { CanopyInvitePreview, CanopyResponse } from '@lily/shared'
+import {
+  CANOPY_MAX_MEMBERS,
+  type CanopyInvitePreview,
+  type CanopyResponse,
+} from '@lily/shared'
 import { Match, Option, pipe, Result } from 'effect'
 import type { InviteToken } from '@/utils/canopy-invite-token'
 import type { ApiFailure, ApiResult } from '@/utils/client'
@@ -66,6 +70,19 @@ const fromPreviewError = (error: ApiFailure): JoinScreen =>
     Match.orElse((): JoinScreen => ({ _tag: 'Unavailable' }))
   )
 
+/**
+ * Leaving first is safe only if the accept can still succeed, so a Canopy the
+ * preview already counts as full never offers the switch.
+ */
+const switchOrFull = (
+  preview: CanopyInvitePreview,
+  currentName: string,
+  busy: boolean
+): JoinScreen =>
+  preview.memberCount >= CANOPY_MAX_MEMBERS
+    ? { _tag: 'Full', preview, limit: CANOPY_MAX_MEMBERS }
+    : { _tag: 'InAnotherCanopy', preview, currentName, busy }
+
 const fromAcceptError = (
   error: ApiFailure,
   preview: CanopyInvitePreview
@@ -83,12 +100,7 @@ const fromAcceptError = (
     ),
     Match.tag(
       'AlreadyInCanopyError',
-      ({ canopyName }): JoinScreen => ({
-        _tag: 'InAnotherCanopy',
-        preview,
-        currentName: canopyName,
-        busy: false,
-      })
+      ({ canopyName }): JoinScreen => switchOrFull(preview, canopyName, false)
     ),
     Match.tag(
       'CanopyFullError',
@@ -114,23 +126,25 @@ const fromMembership = (
     Result.getSuccess(mine),
     Option.flatMap(({ canopy }) => Option.fromNullishOr(canopy)),
     Option.match({
-      onNone: (): JoinScreen => ({
-        _tag: 'Ready',
-        preview,
-        busy,
-        failed: false,
-      }),
+      onNone: (): JoinScreen =>
+        preview.memberCount >= CANOPY_MAX_MEMBERS
+          ? { _tag: 'Full', preview, limit: CANOPY_MAX_MEMBERS }
+          : { _tag: 'Ready', preview, busy, failed: false },
       onSome: (current): JoinScreen =>
         current.name === preview.canopyName
           ? { _tag: 'AlreadyHere', preview, busy }
-          : {
-              _tag: 'InAnotherCanopy',
-              preview,
-              currentName: current.name,
-              busy,
-            },
+          : switchOrFull(preview, current.name, busy),
     })
   )
+
+/**
+ * Checked against a freshly fetched preview just before leaving, so an invite
+ * that was revoked, expired or filled up since the screen loaded never costs
+ * the user their current Canopy.
+ */
+export const mayLeaveToJoin = (inputs: Omit<JoinInputs, 'attempt'>): boolean =>
+  joinScreen({ ...inputs, attempt: { _tag: 'Idle' } })._tag ===
+  'InAnotherCanopy'
 
 export const joinScreen = ({
   token,

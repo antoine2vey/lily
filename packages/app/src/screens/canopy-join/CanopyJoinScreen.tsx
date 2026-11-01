@@ -17,7 +17,11 @@ import {
 } from '@/hooks/useCanopyMutations'
 import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { BringPlantsScreen } from '@/screens/canopy-join/BringPlantsScreen'
-import { type JoinAttempt, joinScreen } from '@/screens/canopy-join/join-state'
+import {
+  type JoinAttempt,
+  joinScreen,
+  mayLeaveToJoin,
+} from '@/screens/canopy-join/join-state'
 import {
   clearPendingJoin,
   type InviteToken,
@@ -133,9 +137,13 @@ function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
             style: 'destructive',
             onPress: () => {
               setAttempt({ _tag: 'Working' })
-              leave
-                .mutateAsync()
-                .then(() => join(validToken))
+              preview
+                .refetch()
+                .then(({ data: fresh }) =>
+                  mayLeaveToJoin({ token, preview: fresh, mine: mine.result })
+                    ? leave.mutateAsync().then(() => join(validToken))
+                    : setAttempt({ _tag: 'Idle' })
+                )
                 .catch(refuse)
             },
           },
