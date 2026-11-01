@@ -25,11 +25,13 @@ import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import {
+  CanopyId,
   CanopyNotFoundError,
   PlantInDelegationError,
   type PlantOwner,
 } from '@lily/shared'
-import { Effect, Exit, Layer } from 'effect'
+import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
+import { Array, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const alexPlant = createTestPlant({
@@ -49,6 +51,19 @@ const sharedBySam = createTestPlant({
   userId: null,
   canopyId: mockCanopyId,
   createdByUserId: 'sam',
+})
+
+const sharedByAlex = createTestPlant({
+  id: 'alex-monstera',
+  userId: null,
+  canopyId: mockCanopyId,
+  createdByUserId: 'alex',
+})
+const sharerDeleted = createTestPlant({
+  id: 'gone-pothos',
+  userId: null,
+  canopyId: mockCanopyId,
+  createdByUserId: null,
 })
 
 const home = (): MockCanopyStore =>
@@ -76,6 +91,19 @@ const home = (): MockCanopyStore =>
     ],
   })
 
+type Member = MockCanopyStore['members'][number]
+
+const withSam = (
+  store: MockCanopyStore,
+  edit: (sam: Member) => Member[]
+): MockCanopyStore => {
+  const members = Array.flatMap(store.members, (m) =>
+    m.userId === 'sam' ? edit(m) : [m]
+  )
+  store.members.splice(0, store.members.length, ...members)
+  return store
+}
+
 const world = (options: {
   actor: string
   store?: MockCanopyStore
@@ -86,7 +114,13 @@ const world = (options: {
   const store = options.store ?? home()
   return Layer.mergeAll(
     createMockPlantRepository({
-      plants: [alexPlant, sharedByLily, sharedBySam].map((p) => ({ ...p })),
+      plants: [
+        alexPlant,
+        sharedByLily,
+        sharedBySam,
+        sharedByAlex,
+        sharerDeleted,
+      ].map((p) => ({ ...p })),
       memberships: store.members.map((m) => ({ ...m, canopyName: 'Home' })),
     }),
     createMockCanopyRepository(store),
@@ -226,9 +260,66 @@ describe('unsharePlant', () => {
     expect(store.mutes).toEqual([{ userId: 'sam', plantId: 'sam-ivy' }])
   })
 
-  it('lets the Canopy owner take any Canopy plant', async () => {
+  it('refuses the Canopy owner a plant its sharer still shares, and leaves it shared', async () => {
+    const exit = await Effect.runPromiseExit(
+      Effect.gen(function* () {
+        const plant = yield* withPlantAuth('sam-ivy', 'unshare')
+        const result = yield* Effect.exit(unsharePlant(plant, {}))
+        return { result, owner: yield* ownerAfter('sam-ivy') }
+      }).pipe(Effect.provide(world({ actor: 'alex' })))
+    )
+
+    if (!Exit.isSuccess(exit)) throw new Error('setup failed')
+    expect(failureOf(exit.value.result)).toEqual(new PlantNotAuthorizedError())
+    expect(exit.value.owner).toEqual({ _tag: 'Canopy', canopyId: 'canopy-1' })
+  })
+
+  it('gives the Canopy owner a plant whose sharer left the Canopy', async () => {
+    const store = withSam(home(), () => [])
     const exit = await Effect.runPromiseExit(
       withPlantAuth('sam-ivy', 'unshare').pipe(
+        Effect.flatMap((plant) => unsharePlant(plant, {})),
+        Effect.provide(world({ actor: 'alex', store }))
+      )
+    )
+    expect(Exit.isSuccess(exit) && exit.value.owner).toEqual({
+      _tag: 'User',
+      userId: 'alex',
+    })
+  })
+
+  it('gives the Canopy owner a plant whose sharer moved to another Canopy', async () => {
+    const store = withSam(home(), (sam) => [
+      { ...sam, canopyId: CanopyId.make('canopy-2') },
+    ])
+    const exit = await Effect.runPromiseExit(
+      withPlantAuth('sam-ivy', 'unshare').pipe(
+        Effect.flatMap((plant) => unsharePlant(plant, {})),
+        Effect.provide(world({ actor: 'alex', store }))
+      )
+    )
+    expect(Exit.isSuccess(exit) && exit.value.owner).toEqual({
+      _tag: 'User',
+      userId: 'alex',
+    })
+  })
+
+  it("gives the Canopy owner a plant whose sharer's account is gone", async () => {
+    const exit = await Effect.runPromiseExit(
+      withPlantAuth('gone-pothos', 'unshare').pipe(
+        Effect.flatMap((plant) => unsharePlant(plant, {})),
+        Effect.provide(world({ actor: 'alex' }))
+      )
+    )
+    expect(Exit.isSuccess(exit) && exit.value.owner).toEqual({
+      _tag: 'User',
+      userId: 'alex',
+    })
+  })
+
+  it('lets the Canopy owner make a plant they shared themselves personal', async () => {
+    const exit = await Effect.runPromiseExit(
+      withPlantAuth('alex-monstera', 'unshare').pipe(
         Effect.flatMap((plant) => unsharePlant(plant, {})),
         Effect.provide(world({ actor: 'alex' }))
       )

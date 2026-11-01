@@ -5,6 +5,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
+import { assertMayUnshare } from '@lily/api/services/plants/helpers/assert-may-unshare'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
@@ -32,10 +33,12 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
 
   yield* withOwnerLock(me)(
     Effect.gen(function* () {
-      const { canopy } = yield* lockMyCanopy(userId)
+      const locked = yield* lockMyCanopy(userId)
+      const { canopy } = locked
       if (plant.owner._tag !== 'Canopy' || plant.owner.canopyId !== canopy.id) {
         return yield* new CanopyNotFoundError()
       }
+      yield* assertMayUnshare(plant, locked, userId)
       const current = yield* reloadOwnedPlant(plant, requestedId)
       yield* assertRoomFits(roomId, me)
       if (current.diedAt === null) {

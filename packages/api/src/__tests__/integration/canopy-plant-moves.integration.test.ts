@@ -200,5 +200,58 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
       expect(await livingIn(eq(schema.plants.userId, lilyId))).toBe(5)
     })
+
+    const ownerUnshares = (plantId: string) =>
+      Effect.runPromiseExit(
+        withPlantAuth(plantId, 'unshare').pipe(
+          Effect.flatMap((plant) => unsharePlant(plant, {})),
+          Effect.provide(appAs(alexId))
+        )
+      )
+
+    const ownerOf = async (plantId: string) => {
+      const [row] = await db
+        .select({
+          userId: schema.plants.userId,
+          canopyId: schema.plants.canopyId,
+        })
+        .from(schema.plants)
+        .where(eq(schema.plants.id, plantId))
+      return row
+    }
+
+    it('refuses the Canopy owner a plant its sharer still shares', async () => {
+      const [plant] = await insertPlants(1, {
+        canopyId,
+        createdByUserId: lilyId,
+      })
+      if (!plant) throw new Error('plant insert returned nothing')
+
+      const exit = await ownerUnshares(plant.id)
+
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'PlantNotAuthorizedError',
+      })
+      expect(await ownerOf(plant.id)).toEqual({ userId: null, canopyId })
+    })
+
+    it('gives the Canopy owner a plant once its sharer left', async () => {
+      const [plant] = await insertPlants(1, {
+        canopyId,
+        createdByUserId: lilyId,
+      })
+      if (!plant) throw new Error('plant insert returned nothing')
+      await db
+        .delete(schema.canopyMembers)
+        .where(eq(schema.canopyMembers.userId, lilyId))
+
+      const exit = await ownerUnshares(plant.id)
+
+      expect(exit._tag).toBe('Success')
+      expect(await ownerOf(plant.id)).toEqual({
+        userId: alexId,
+        canopyId: null,
+      })
+    })
   }
 )
