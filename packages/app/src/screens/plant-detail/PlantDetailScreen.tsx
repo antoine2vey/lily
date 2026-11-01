@@ -69,11 +69,7 @@ import {
   type SayGoodbyePayload,
   SayGoodbyeSheet,
 } from '@/screens/plant-detail/components/SayGoodbyeSheet'
-import {
-  careActorFor,
-  plantActionsFor,
-  plantRoleFor,
-} from '@/utils/canopy-plants'
+import { actionsOnPlant, careActorFor } from '@/utils/canopy-plants'
 import { useEffectQuery } from '@/utils/client'
 import { useGlass } from '@/utils/glass'
 import { mapApiHealthToCardHealth } from '@/utils/health'
@@ -687,12 +683,7 @@ export function PlantDetailScreen() {
     })
   )
 
-  const role = plantRoleFor(
-    plant,
-    me,
-    Option.getOrNull(Option.map(myCanopy, (c) => c.role))
-  )
-  const actions = plantActionsFor(role, Option.isSome(myCanopy))
+  const actions = actionsOnPlant(plant, me, myCanopy)
   const isCanopyPlant = plant.ownership === 'canopy'
 
   const historyEvents = pipe(

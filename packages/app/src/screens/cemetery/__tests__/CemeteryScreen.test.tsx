@@ -28,7 +28,12 @@ const mockCanopyRole = { current: 'member' as 'member' | 'owner' }
 jest.mock('@/hooks/useMyCanopy', () => ({
   useMyCanopy: () => ({
     data: {
-      canopy: { id: 'canopy-1', name: 'Home', role: mockCanopyRole.current },
+      canopy: {
+        id: 'canopy-1',
+        name: 'Home',
+        role: mockCanopyRole.current,
+        members: [],
+      },
     },
   }),
 }))

@@ -33,8 +33,9 @@ jest.mock('@/contexts/AuthContext', () => ({
   }),
 }))
 
+const mockCanopy: { current: unknown } = { current: null }
 jest.mock('@/hooks/useMyCanopy', () => ({
-  useMyCanopy: () => ({ data: { canopy: null } }),
+  useMyCanopy: () => ({ data: { canopy: mockCanopy.current } }),
 }))
 
 jest.mock('@/hooks/usePlantCanopyActions', () => ({
@@ -157,6 +158,7 @@ describe('PlantDetailScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockCanopy.current = null
   })
 
   it('shows loading skeleton when loading', () => {
@@ -395,6 +397,44 @@ describe('PlantDetailScreen', () => {
       expect(toast.error).toHaveBeenCalledWith('Failed to delete plant')
     )
     expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  describe('Make personal for the Canopy owner', () => {
+    const openCanopyPlantSharedBy = (sharerId: string) => {
+      mockCanopy.current = {
+        id: 'canopy-1',
+        name: 'Home',
+        role: 'owner',
+        members: [{ userId: 'user-1' }, { userId: 'user-2' }],
+      }
+      mockedUseEffectQuery.mockReturnValue({
+        data: {
+          ...mockPlant,
+          ownership: 'canopy',
+          userId: null,
+          canopy: { id: 'canopy-1', name: 'Home' },
+          createdBy: { id: sharerId, name: 'Lily' },
+        },
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+      })
+      render(<PlantDetailScreen />)
+      fireEvent.press(screen.getByTestId('more-options-button'))
+    }
+
+    it("hides it on a plant shared by a member who's still in the Canopy", () => {
+      openCanopyPlantSharedBy('user-2')
+
+      expect(screen.queryByTestId('option-unshare')).toBeNull()
+      expect(screen.getByTestId('option-mute')).toBeTruthy()
+    })
+
+    it('offers it on a plant whose sharer left the Canopy', () => {
+      openCanopyPlantSharedBy('user-gone')
+
+      expect(screen.getByTestId('option-unshare')).toBeTruthy()
+    })
   })
 
   it('calls refetch when retry is pressed on error', () => {

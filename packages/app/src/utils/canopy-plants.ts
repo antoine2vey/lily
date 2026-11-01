@@ -4,6 +4,10 @@ import type { TFunction } from 'i18next'
 
 // Mirrors the role table in packages/api/src/services/plants/helpers/plant-access.ts.
 // The API stays the authority; this only decides which actions the app offers.
+// One rule lives outside the table: the table lets the Canopy owner unshare,
+// then packages/api/src/services/plants/endpoints/unshare-plant.ts refuses a
+// plant whose sharer is still a member. PlantSharer carries that condition.
+// An owner who shared the plant is a canopyOwner whose sharer is 'you'.
 export type PlantRole =
   | 'owner'
   | 'caretaker'
@@ -43,6 +47,35 @@ export const plantRoleFor = (
     Match.exhaustive
   )
 
+// Who shared a Canopy plant, seen from the caller. 'gone' is a sharer who
+// left or was removed, or whose account no longer exists.
+export type PlantSharer = 'you' | 'member' | 'gone'
+
+const plantSharerFor = (
+  plant: Pick<RoleInput, 'createdBy'>,
+  me: string,
+  members: ReadonlyArray<{ readonly userId: string }>
+): PlantSharer =>
+  pipe(
+    Option.fromNullishOr(plant.createdBy),
+    Option.match({
+      onNone: () => 'gone' as const,
+      onSome: ({ id }) =>
+        pipe(
+          Match.value(id),
+          Match.when(
+            (sharer) => sharer === me,
+            () => 'you' as const
+          ),
+          Match.when(
+            (sharer) => Array.some(members, (m) => m.userId === sharer),
+            () => 'member' as const
+          ),
+          Match.orElse(() => 'gone' as const)
+        ),
+    })
+  )
+
 export interface PlantActions {
   readonly shareToCanopy: boolean
   readonly unshare: boolean
@@ -52,12 +85,18 @@ export interface PlantActions {
   readonly endLife: boolean
 }
 
+export interface PlantContext {
+  readonly inCanopy: boolean
+  readonly sharer: PlantSharer
+}
+
 export const plantActionsFor = (
   role: PlantRole,
-  inCanopy: boolean
+  { inCanopy, sharer }: PlantContext
 ): PlantActions => ({
   shareToCanopy: role === 'owner' && inCanopy,
-  unshare: role === 'canopyOwner' || role === 'canopyCreator',
+  unshare:
+    role === 'canopyCreator' || (role === 'canopyOwner' && sharer !== 'member'),
   mute:
     role === 'canopyOwner' ||
     role === 'canopyCreator' ||
@@ -66,6 +105,33 @@ export const plantActionsFor = (
     role === 'owner' || role === 'canopyOwner' || role === 'canopyCreator',
   endLife: role !== 'caretaker',
 })
+
+interface CallerCanopy {
+  readonly role: CanopyMemberRole
+  readonly members: ReadonlyArray<{ readonly userId: string }>
+}
+
+// The actions a screen offers on a plant, given the caller's Canopy.
+export const actionsOnPlant = (
+  plant: RoleInput,
+  me: string,
+  canopy: Option.Option<CallerCanopy>
+): PlantActions =>
+  plantActionsFor(
+    plantRoleFor(
+      plant,
+      me,
+      Option.getOrNull(Option.map(canopy, (c) => c.role))
+    ),
+    {
+      inCanopy: Option.isSome(canopy),
+      sharer: plantSharerFor(
+        plant,
+        me,
+        Option.match(canopy, { onNone: () => [], onSome: (c) => c.members })
+      ),
+    }
+  )
 
 export type PlantScope = 'all' | 'mine' | 'canopy'
 

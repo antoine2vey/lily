@@ -31,7 +31,7 @@ describe('PlantOptionsSheet', () => {
     onDelete: mockOnDelete,
     isDead: false,
     canopyName: 'Home',
-    actions: plantActionsFor('owner', false),
+    actions: plantActionsFor('owner', { inCanopy: false, sharer: 'you' }),
     muted: false,
     canEndLife: true,
     onShareToCanopy: mockOnShareToCanopy,
@@ -144,7 +144,7 @@ describe('PlantOptionsSheet', () => {
       render(
         <PlantOptionsSheet
           {...defaultProps}
-          actions={plantActionsFor('owner', true)}
+          actions={plantActionsFor('owner', { inCanopy: true, sharer: 'you' })}
         />
       )
 
@@ -160,7 +160,10 @@ describe('PlantOptionsSheet', () => {
         <PlantOptionsSheet
           {...defaultProps}
           isDead
-          actions={plantActionsFor('canopyCreator', true)}
+          actions={plantActionsFor('canopyCreator', {
+            inCanopy: true,
+            sharer: 'you',
+          })}
         />
       )
 
@@ -175,7 +178,10 @@ describe('PlantOptionsSheet', () => {
         <PlantOptionsSheet
           {...defaultProps}
           isDead
-          actions={plantActionsFor('canopyMember', true)}
+          actions={plantActionsFor('canopyMember', {
+            inCanopy: true,
+            sharer: 'member',
+          })}
         />
       )
 
@@ -190,7 +196,10 @@ describe('PlantOptionsSheet', () => {
         <PlantOptionsSheet
           {...defaultProps}
           muted
-          actions={plantActionsFor('canopyMember', true)}
+          actions={plantActionsFor('canopyMember', {
+            inCanopy: true,
+            sharer: 'member',
+          })}
         />
       )
 
@@ -204,7 +213,10 @@ describe('PlantOptionsSheet', () => {
       render(
         <PlantOptionsSheet
           {...defaultProps}
-          actions={plantActionsFor('caretaker', false)}
+          actions={plantActionsFor('caretaker', {
+            inCanopy: false,
+            sharer: 'member',
+          })}
           canEndLife={false}
         />
       )

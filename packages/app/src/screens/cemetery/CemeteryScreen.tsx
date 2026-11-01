@@ -18,7 +18,7 @@ import { useIconColors } from '@/hooks/useIconColors'
 import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { useRevivePlant } from '@/hooks/useRevivePlant'
 import { CemeteryPlantCard } from '@/screens/cemetery/components/CemeteryPlantCard'
-import { plantActionsFor, plantRoleFor } from '@/utils/canopy-plants'
+import { actionsOnPlant } from '@/utils/canopy-plants'
 import { showPlantLimitAlert } from '@/utils/plant-limit-alert'
 
 export function CemeteryScreen() {
@@ -35,10 +35,7 @@ export function CemeteryScreen() {
   const { state: authState } = useAuth()
   const me = authState._tag === 'Authenticated' ? authState.user.id : ''
   const { data: canopyData } = useMyCanopy()
-  const canopyRole = Option.getOrNull(
-    Option.map(Option.fromNullishOr(canopyData?.canopy), (c) => c.role)
-  )
-  const inCanopy = canopyRole !== null
+  const canopy = Option.fromNullishOr(canopyData?.canopy)
 
   const handlePress = useCallback(
     (plantId: string) => router.push(`/plant/${plantId}`),
@@ -114,10 +111,7 @@ export function CemeteryScreen() {
               paddingBottom: insets.bottom + 24,
             }}
             renderItem={({ item }) => {
-              const actions = plantActionsFor(
-                plantRoleFor(item, me, canopyRole),
-                inCanopy
-              )
+              const actions = actionsOnPlant(item, me, canopy)
               return (
                 <CemeteryPlantCard
                   plant={item}
