@@ -1,4 +1,12 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native'
+import { Result } from 'effect'
+import { toast } from 'sonner-native'
 import { mockPlants } from '@/__tests__/fixtures/plants'
 import { mockIsoStringFuture } from '@/__tests__/utils/dates'
 
@@ -58,10 +66,15 @@ jest.mock('@/hooks/useCarePlant', () => ({
   }),
 }))
 
+// useEffectMutation resolves an API failure as Result.fail, so React Query
+// sees a successful mutation: onSuccess runs and onError never does.
+const mockDeleteResult: { current: unknown } = { current: undefined }
 jest.mock('@/hooks/useDeletePlant', () => ({
   useDeletePlant: () => ({
-    mutate: jest.fn(),
     isPending: false,
+    mutate: (_vars: unknown, opts?: { onSuccess?: (r: unknown) => void }) =>
+      opts?.onSuccess?.(mockDeleteResult.current),
+    mutateAsync: () => Promise.resolve(mockDeleteResult.current),
   }),
 }))
 
@@ -353,6 +366,35 @@ describe('PlantDetailScreen', () => {
     fireEvent.press(screen.getByText('Delete permanently'))
 
     expect(screen.getByText(`Delete ${mockPlant.name}?`)).toBeTruthy()
+  })
+
+  it('shows the error toast, not success, when the API refuses the delete', async () => {
+    mockDeleteResult.current = Result.fail({
+      _tag: 'PlantNotAuthorizedError',
+      message: 'Forbidden',
+    })
+    mockedUseEffectQuery.mockReturnValue({
+      data: {
+        ...mockPlant,
+        diedAt: new Date('2026-02-01'),
+        deathCause: 'overwatering',
+        deathNote: null,
+      },
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    })
+
+    render(<PlantDetailScreen />)
+
+    fireEvent.press(screen.getByTestId('more-options-button'))
+    fireEvent.press(screen.getByText('Delete permanently'))
+    fireEvent.press(screen.getByText('Delete Plant'))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('Failed to delete plant')
+    )
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it('calls refetch when retry is pressed on error', () => {

@@ -534,13 +534,16 @@ export function PlantDetailScreen() {
               onSuccess: () =>
                 toast.success(tCanopy('actions.shared', { name })),
               onError: (error) =>
-                error._tag === 'LimitExceededError'
-                  ? showPlantLimitAlert(
-                      error,
-                      tCemetery('limit.title'),
-                      tCanopy
-                    )
-                  : toast.error(tCanopy('actions.failed')),
+                pipe(
+                  Match.value(error),
+                  Match.tag('LimitExceededError', (e) =>
+                    showPlantLimitAlert(e, tCemetery('limit.title'), tCanopy)
+                  ),
+                  Match.tag('PlantInDelegationError', () =>
+                    toast.error(tCanopy('actions.shareDelegated', { name }))
+                  ),
+                  Match.orElse(() => toast.error(tCanopy('actions.failed')))
+                ),
             }),
         },
       ]
@@ -587,22 +590,19 @@ export function PlantDetailScreen() {
     )
   }, [plantId, plant?.muted, setPlantMuted, tCanopy])
 
-  const handleConfirmDelete = useCallback(() => {
+  // useEffectMutation resolves an API failure as Result.fail, so onSuccess
+  // runs for a refused delete too: the toast must follow the Result.
+  const handleConfirmDelete = useCallback(async () => {
     if (!plantId) return
-    deletePlant.mutate(
-      { params: { id: plantId } },
-      {
-        onSuccess: () => {
-          setShowDeleteConfirm(false)
-          toast.success(t('detail.toast.deleted', { name: plant?.name }))
-          router.back()
-        },
-        onError: () => {
-          setShowDeleteConfirm(false)
-          toast.error(t('detail.toast.deleteFailed'))
-        },
-      }
-    )
+    const result = await deletePlant.mutateAsync({ params: { id: plantId } })
+    setShowDeleteConfirm(false)
+    Result.match(result, {
+      onFailure: () => toast.error(t('detail.toast.deleteFailed')),
+      onSuccess: () => {
+        toast.success(t('detail.toast.deleted', { name: plant?.name }))
+        router.back()
+      },
+    })
   }, [plantId, plant?.name, deletePlant, router, t])
 
   // Extract schedule data — memoized since this screen re-renders on scroll
@@ -929,7 +929,7 @@ export function PlantDetailScreen() {
         })}
         actions={actions}
         muted={plant.muted === true}
-        canEndLife={role !== 'caretaker'}
+        canEndLife={actions.endLife}
         onShareToCanopy={handleShareToCanopy}
         onUnshare={handleUnshare}
         onToggleMute={handleToggleMute}

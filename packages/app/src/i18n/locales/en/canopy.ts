@@ -155,6 +155,8 @@ export default {
     shareMessage:
       'Everyone in {name} sees this plant and gets its reminders. Its room is cleared.',
     shared: 'Shared with {name}',
+    shareDelegated:
+      'This plant is in a care delegation. End it before sharing with {name}.',
     unshare: 'Make personal',
     unshareTitle: 'Make this plant personal?',
     unshareMessage:

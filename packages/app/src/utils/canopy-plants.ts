@@ -48,6 +48,8 @@ export interface PlantActions {
   readonly unshare: boolean
   readonly mute: boolean
   readonly delete: boolean
+  // Say goodbye and Bring back.
+  readonly endLife: boolean
 }
 
 export const plantActionsFor = (
@@ -62,6 +64,7 @@ export const plantActionsFor = (
     role === 'canopyMember',
   delete:
     role === 'owner' || role === 'canopyOwner' || role === 'canopyCreator',
+  endLife: role !== 'caretaker',
 })
 
 export type PlantScope = 'all' | 'mine' | 'canopy'

@@ -159,6 +159,8 @@ export default {
     shareMessage:
       'Tous les membres de {name} voient cette plante et reçoivent ses rappels. Sa pièce est retirée.',
     shared: 'Partagée avec {name}',
+    shareDelegated:
+      'Cette plante est en délégation de soin. Terminez-la avant de la partager avec {name}.',
     unshare: 'Rendre personnelle',
     unshareTitle: 'Rendre cette plante personnelle ?',
     unshareMessage:

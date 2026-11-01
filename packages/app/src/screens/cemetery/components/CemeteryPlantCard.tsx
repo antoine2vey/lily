@@ -11,6 +11,8 @@ import { buildLivedWithYouLabel } from '@/screens/plant-detail/plantAge'
 interface CemeteryPlantCardProps {
   plant: Plant
   isReviving?: boolean | undefined
+  canBringBack: boolean
+  canDelete: boolean
   onPress: (plantId: string) => void
   onBringBack: (plant: Plant) => void
   onDelete: (plant: Plant) => void
@@ -19,6 +21,8 @@ interface CemeteryPlantCardProps {
 export function CemeteryPlantCard({
   plant,
   isReviving = false,
+  canBringBack,
+  canDelete,
   onPress,
   onBringBack,
   onDelete,
@@ -100,33 +104,37 @@ export function CemeteryPlantCard({
           <View />
         )}
         <View className="flex-row gap-2">
-          <Pressable
-            onPress={() => onBringBack(plant)}
-            disabled={isReviving}
-            className="flex-row items-center gap-1 px-3 py-2 rounded-full bg-primary-tint dark:bg-primary/20 active:opacity-80"
-            testID={`cemetery-bring-back-${plant.id}`}
-          >
-            <MaterialIcons
-              name="restore"
-              size={16}
-              color={iconColors.primary}
-            />
-            <Text className="text-sm font-semibold text-primary dark:text-primary-light">
-              {t('actions.bringBack')}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => onDelete(plant)}
-            className="w-9 h-9 rounded-full items-center justify-center bg-surface-tinted dark:bg-slate-800 active:opacity-80"
-            accessibilityLabel={t('actions.deletePermanently')}
-            testID={`cemetery-delete-${plant.id}`}
-          >
-            <MaterialIcons
-              name="delete-outline"
-              size={18}
-              color={iconColors.coral}
-            />
-          </Pressable>
+          {canBringBack && (
+            <Pressable
+              onPress={() => onBringBack(plant)}
+              disabled={isReviving}
+              className="flex-row items-center gap-1 px-3 py-2 rounded-full bg-primary-tint dark:bg-primary/20 active:opacity-80"
+              testID={`cemetery-bring-back-${plant.id}`}
+            >
+              <MaterialIcons
+                name="restore"
+                size={16}
+                color={iconColors.primary}
+              />
+              <Text className="text-sm font-semibold text-primary dark:text-primary-light">
+                {t('actions.bringBack')}
+              </Text>
+            </Pressable>
+          )}
+          {canDelete && (
+            <Pressable
+              onPress={() => onDelete(plant)}
+              className="w-9 h-9 rounded-full items-center justify-center bg-surface-tinted dark:bg-slate-800 active:opacity-80"
+              accessibilityLabel={t('actions.deletePermanently')}
+              testID={`cemetery-delete-${plant.id}`}
+            >
+              <MaterialIcons
+                name="delete-outline"
+                size={18}
+                color={iconColors.coral}
+              />
+            </Pressable>
+          )}
         </View>
       </View>
     </Pressable>

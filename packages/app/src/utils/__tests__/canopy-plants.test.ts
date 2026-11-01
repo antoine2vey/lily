@@ -56,16 +56,18 @@ describe('plantActionsFor', () => {
         unshare: true,
         mute: true,
         delete: true,
+        endLife: true,
       })
     }
   })
 
-  it('lets any other member only mute', () => {
+  it('lets any other member mute, say goodbye and bring back, not delete', () => {
     expect(plantActionsFor('canopyMember', true)).toEqual({
       shareToCanopy: false,
       unshare: false,
       mute: true,
       delete: false,
+      endLife: true,
     })
   })
 
@@ -75,6 +77,7 @@ describe('plantActionsFor', () => {
       unshare: false,
       mute: false,
       delete: false,
+      endLife: false,
     })
   })
 })
