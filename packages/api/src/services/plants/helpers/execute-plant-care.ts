@@ -16,7 +16,7 @@ import {
   type CareContext,
   careContext,
 } from '@lily/api/services/plants/helpers/care-context'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   calculatePlantAdjustment,
   type PlantForAdjustment,
@@ -291,11 +291,10 @@ export const executePlantCare = (
 
     // Schedule next reminder if we have a next care date
     if (finalNextCareAt) {
-      yield* scheduleCareReminder({
-        plant,
-        type: `${params.careType}_reminder` as const,
-        scheduledDate: finalNextCareAt,
-      })
+      yield* reconcileCareReminder(
+        plant.id,
+        `${params.careType}_reminder` as const
+      )
     }
 
     // Clear any pending overdue reminders — the user just performed care

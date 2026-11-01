@@ -1,4 +1,5 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import type { users } from '@lily/db/schema'
 import type { LanguageCode, VacationStatus } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -16,84 +17,87 @@ export interface UserNotificationSettings {
   vacationEnd: Date | null
 }
 
-/**
- * Get user timezone and notification settings for scheduling care reminders
- */
+type UserRow = typeof users.$inferSelect
+
+export const notificationSettingsOf = (
+  user: UserRow | null | undefined
+): UserNotificationSettings => {
+  const userOption = Option.fromNullishOr(user)
+
+  const timezone = pipe(
+    userOption,
+    Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
+    Option.getOrNull
+  )
+  const preferredTime = pipe(
+    userOption,
+    Option.flatMap((u) => Option.fromNullishOr(u.preferredNotificationTime)),
+    Option.getOrNull
+  )
+  const careReminders = pipe(
+    userOption,
+    Option.map((u) => u.careReminders),
+    Option.getOrElse(() => true)
+  )
+  const doNotDisturb = pipe(
+    userOption,
+    Option.map((u) => u.doNotDisturb),
+    Option.getOrElse(() => false)
+  )
+  const doNotDisturbStart = pipe(
+    userOption,
+    Option.flatMap((u) => Option.fromNullishOr(u.doNotDisturbStart)),
+    Option.getOrNull
+  )
+  const doNotDisturbEnd = pipe(
+    userOption,
+    Option.flatMap((u) => Option.fromNullishOr(u.doNotDisturbEnd)),
+    Option.getOrNull
+  )
+
+  const language = pipe(
+    userOption,
+    Option.flatMap((u) => Option.fromNullishOr(u.language)),
+    Option.getOrElse(() => 'en' as const)
+  )
+
+  const vacationStatus = pipe(
+    userOption,
+    Option.map((u) => u.vacationStatus),
+    Option.getOrElse(() => 'none' as const)
+  )
+  const vacationStart = pipe(
+    userOption,
+    Option.flatMap((u) => Option.fromNullishOr(u.vacationStart)),
+    Option.getOrNull
+  )
+  const vacationEnd = pipe(
+    userOption,
+    Option.flatMap((u) => Option.fromNullishOr(u.vacationEnd)),
+    Option.getOrNull
+  )
+
+  return {
+    timezone,
+    preferredTime,
+    careReminders,
+    doNotDisturb,
+    doNotDisturbStart,
+    doNotDisturbEnd,
+    language,
+    vacationStatus,
+    vacationStart,
+    vacationEnd,
+  }
+}
+
 export const getUserNotificationSettings = (
   userId: string
 ): Effect.Effect<UserNotificationSettings, SqlError, UserRepository> =>
-  Effect.gen(function* () {
-    const userRepo = yield* UserRepository
-    const user = yield* userRepo.findById(userId)
-
-    const userOption = Option.fromNullishOr(user)
-
-    const timezone = pipe(
-      userOption,
-      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrNull
-    )
-    const preferredTime = pipe(
-      userOption,
-      Option.flatMap((u) => Option.fromNullishOr(u.preferredNotificationTime)),
-      Option.getOrNull
-    )
-    const careReminders = pipe(
-      userOption,
-      Option.map((u) => u.careReminders),
-      Option.getOrElse(() => true)
-    )
-    const doNotDisturb = pipe(
-      userOption,
-      Option.map((u) => u.doNotDisturb),
-      Option.getOrElse(() => false)
-    )
-    const doNotDisturbStart = pipe(
-      userOption,
-      Option.flatMap((u) => Option.fromNullishOr(u.doNotDisturbStart)),
-      Option.getOrNull
-    )
-    const doNotDisturbEnd = pipe(
-      userOption,
-      Option.flatMap((u) => Option.fromNullishOr(u.doNotDisturbEnd)),
-      Option.getOrNull
-    )
-
-    const language = pipe(
-      userOption,
-      Option.flatMap((u) => Option.fromNullishOr(u.language)),
-      Option.getOrElse(() => 'en' as const)
-    )
-
-    const vacationStatus = pipe(
-      userOption,
-      Option.map((u) => u.vacationStatus),
-      Option.getOrElse(() => 'none' as const)
-    )
-    const vacationStart = pipe(
-      userOption,
-      Option.flatMap((u) => Option.fromNullishOr(u.vacationStart)),
-      Option.getOrNull
-    )
-    const vacationEnd = pipe(
-      userOption,
-      Option.flatMap((u) => Option.fromNullishOr(u.vacationEnd)),
-      Option.getOrNull
-    )
-
-    return {
-      timezone,
-      preferredTime,
-      careReminders,
-      doNotDisturb,
-      doNotDisturbStart,
-      doNotDisturbEnd,
-      language,
-      vacationStatus,
-      vacationStart,
-      vacationEnd,
-    }
-  })
+  Effect.map(
+    Effect.flatMap(UserRepository, (repo) => repo.findById(userId)),
+    notificationSettingsOf
+  )
 
 /**
  * Get user timezone with a default fallback

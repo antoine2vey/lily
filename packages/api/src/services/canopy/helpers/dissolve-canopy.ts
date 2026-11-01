@@ -2,12 +2,15 @@ import {
   CanopyRepository,
   type MovedPlant,
 } from '@lily/api/repositories/canopy.repository'
-import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-shared-plants'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
+import {
+  type ReminderContext,
+  rescheduleReminders,
+} from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import { Array, Effect } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -15,16 +18,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 export const dissolveCanopy = (
   canopyId: string,
   heirUserId: string
-): Effect.Effect<
-  ReadonlyArray<MovedPlant>,
-  SqlError,
-  | SqlClient.SqlClient
-  | CanopyRepository
-  | CareScheduleRepository
-  | NotificationRepository
-  | UserRepository
-  | DelegationRepository
-> =>
+): Effect.Effect<ReadonlyArray<MovedPlant>, SqlError, ReminderContext> =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
     return yield* sql.withTransaction(
@@ -33,21 +27,21 @@ export const dissolveCanopy = (
         if ((yield* repo.lock(canopyId)) === null) {
           return []
         }
-        const members = yield* repo.findMembersByJoinDate(canopyId)
-        yield* Effect.forEach(
-          Array.filter(members, (m) => m.userId !== heirUserId),
-          (m) => returnSharedPlants(canopyId, m.userId),
-          { discard: true }
-        )
-        const moved = yield* repo.transferToUser(canopyId, heirUserId)
-        yield* repo.delete(canopyId)
-        yield* Effect.forEach(moved, (plant) =>
-          rescheduleReminders({
-            ...plant,
-            owner: { _tag: 'User', userId: heirUserId },
+        const plantIds = yield* repo.findPlantIdsOfCanopy(canopyId)
+        return yield* withReminderKeys(reminderKeysFor(plantIds))(
+          Effect.gen(function* () {
+            const members = yield* repo.findMembersByJoinDate(canopyId)
+            yield* Effect.forEach(
+              Array.filter(members, (m) => m.userId !== heirUserId),
+              (m) => returnSharedPlants(canopyId, m.userId),
+              { discard: true }
+            )
+            const moved = yield* repo.transferToUser(canopyId, heirUserId)
+            yield* repo.delete(canopyId)
+            yield* rescheduleReminders(Array.map(moved, (plant) => plant.id))
+            return moved
           })
         )
-        return moved
       })
     )
   }).pipe(

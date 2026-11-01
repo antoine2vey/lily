@@ -2,9 +2,13 @@ import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
 import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
 
@@ -16,11 +20,13 @@ export const mutePlant = Effect.fn('PlantsService.mutePlant')(function* (
   const repo = yield* CanopyRepository
   const notificationRepo = yield* NotificationRepository
   yield* withOwnerLock(plant.owner)(
-    Effect.andThen(
-      reloadOwnedPlant(plant, requestedId),
+    withReminderKeys(reminderKeysFor([plant.id]))(
       Effect.andThen(
-        repo.mute(userId, plant.id),
-        notificationRepo.deleteUndeliveredByUserAndPlant(userId, plant.id)
+        reloadOwnedPlant(plant, requestedId),
+        Effect.andThen(
+          repo.mute(userId, plant.id),
+          notificationRepo.deleteUndeliveredByUserAndPlant(userId, plant.id)
+        )
       )
     )
   ).pipe(
@@ -35,6 +41,10 @@ export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(function* (
 ) {
   const { id: userId } = yield* CurrentUser
   const repo = yield* CanopyRepository
-  yield* repo.unmute(userId, plant.id)
-  yield* rebuildMemberReminders(userId, [plant.id])
+  yield* withReminderKeys(reminderKeysFor([plant.id]))(
+    Effect.andThen(
+      repo.unmute(userId, plant.id),
+      rebuildMemberReminders(userId, [plant.id])
+    )
+  )
 })

@@ -7,11 +7,16 @@ import {
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
+import {
   PlantAlreadyDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { PlantDeathRequest } from '@lily/shared/plant'
 import { DateTime, Effect, Option } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -26,7 +31,11 @@ export const markPlantDead = (
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
-  PlantRepository | NotificationRepository | EventBus | CurrentUser
+  | PlantRepository
+  | NotificationRepository
+  | EventBus
+  | CurrentUser
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     if (plant.diedAt !== null) {
@@ -38,19 +47,22 @@ export const markPlantDead = (
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
 
-    const updated = yield* repo.markDead(plant.id, plant.owner, {
-      diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
-      cause: request.cause,
-      note: Option.getOrNull(Option.fromNullishOr(request.note)),
-    })
-    if (!updated) {
-      const current = yield* reloadOwnedPlant(plant, requestedId)
-      return yield* current.diedAt === null
-        ? new PlantNotFoundError({ plantId: requestedId })
-        : new PlantAlreadyDeadError()
-    }
-
-    yield* notificationRepo.deletePendingByPlantId(plant.id)
+    yield* withReminderKeys(reminderKeysFor([plant.id]))(
+      Effect.gen(function* () {
+        const updated = yield* repo.markDead(plant.id, plant.owner, {
+          diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
+          cause: request.cause,
+          note: Option.getOrNull(Option.fromNullishOr(request.note)),
+        })
+        if (!updated) {
+          const current = yield* reloadOwnedPlant(plant, requestedId)
+          return yield* current.diedAt === null
+            ? new PlantNotFoundError({ plantId: requestedId })
+            : new PlantAlreadyDeadError()
+        }
+        yield* notificationRepo.deletePendingByPlantId(plant.id)
+      })
+    )
 
     yield* publishWithRetry(
       eventBus.publish({

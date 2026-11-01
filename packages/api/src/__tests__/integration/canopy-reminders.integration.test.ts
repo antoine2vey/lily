@@ -23,10 +23,14 @@ import {
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  CARE_REMINDER_TYPES,
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CanopyId } from '@lily/shared'
 import type { PushMessage } from '@lily/shared/server'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -410,18 +414,30 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         status: 'pending',
       })
       const exit = await Effect.runPromiseExit(
-        scheduleCareReminder({
-          plant: {
-            id: personal,
-            owner: {
-              _tag: 'User',
-              userId: '00000000-0000-4000-8000-000000000000',
-            },
-            remindersEnabled: true,
-          },
-          type: 'watering_reminder',
-          scheduledDate: new Date(Date.now() + 7 * 86_400_000),
-        }).pipe(
+        withReminderKeys(reminderKeysFor([personal], ['watering_reminder']))(
+          Effect.flatMap(NotificationRepository, (repo) =>
+            repo.replaceReminders({
+              onlyUserId: null,
+              plants: [
+                {
+                  plantId: personal,
+                  types: ['watering_reminder'],
+                  recipientIds: [alex],
+                  plantWide: false,
+                },
+              ],
+              rows: [
+                {
+                  type: 'watering_reminder',
+                  scheduledAt: new Date(Date.now() + 7 * 86_400_000),
+                  userId: '00000000-0000-4000-8000-000000000000',
+                  plantId: personal,
+                  remindedSince: null,
+                },
+              ],
+            })
+          )
+        ).pipe(
           Effect.provide(WorkerLive),
           Effect.provideService(References.MinimumLogLevel, 'None')
         )
@@ -437,15 +453,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
       )
-      const reschedule = scheduleCareReminder({
-        plant: {
-          id: shared,
-          owner: { _tag: 'Canopy', canopyId: CanopyId.make(canopyId) },
-          remindersEnabled: true,
-        },
-        type: 'watering_reminder',
-        scheduledDate: new Date(Date.now() + 7 * 86_400_000),
-      })
+      await db.execute(
+        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days' WHERE plant_id = ${shared}`
+      )
+      const reschedule = reconcileCareReminder(shared, 'watering_reminder')
       await Effect.runPromise(
         Effect.all(
           Arr.makeBy(20, () => reschedule),
@@ -488,7 +499,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       await run(
         Effect.flatMap(NotificationRepository, (repo) =>
-          repo.deleteForReschedule(shared, [lily])
+          repo.replaceReminders({
+            onlyUserId: null,
+            plants: [
+              {
+                plantId: shared,
+                types: CARE_REMINDER_TYPES,
+                recipientIds: [lily],
+                plantWide: true,
+              },
+            ],
+            rows: [],
+          })
         )
       )
       const left = await db

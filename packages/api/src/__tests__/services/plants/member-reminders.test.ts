@@ -13,9 +13,10 @@ import {
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
+import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, References } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -95,6 +96,13 @@ const run = (
             createCanopyStore({
               canopies: [createTestCanopyRow({ id: mockCanopyId })],
               members,
+              plants: plants.map((p) => ({
+                id: p.id,
+                canopyId: p.canopyId,
+                userId: p.userId,
+                remindersEnabled: p.remindersEnabled,
+                diedAt: p.diedAt,
+              })),
             })
           ),
           createMockCareScheduleRepository({
@@ -102,6 +110,7 @@ const run = (
             schedules,
             memberships: members,
           }),
+          createMockPlantRepository({ plants }),
           createMockDelegationRepository()
         )
       ),
@@ -184,7 +193,7 @@ describe('rebuildMemberReminders', () => {
       type: 'watering_reminder',
       scheduledAt: inDays(1),
       isRead: false,
-      status: 'queued',
+      status: 'pending',
       retryCount: 0,
       userId: 'lily',
       plantId: 'fern',

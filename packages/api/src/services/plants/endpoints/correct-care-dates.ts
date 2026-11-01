@@ -12,7 +12,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
@@ -99,11 +99,7 @@ const correctSingleCareDate = (
 
     // Schedule next reminder if we have a next care date
     if (nextCareAt) {
-      yield* scheduleCareReminder({
-        plant,
-        type: `${careType}_reminder` as const,
-        scheduledDate: nextCareAt,
-      })
+      yield* reconcileCareReminder(plant.id, `${careType}_reminder` as const)
     }
   })
 

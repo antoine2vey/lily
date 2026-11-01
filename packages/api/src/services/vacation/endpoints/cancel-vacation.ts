@@ -2,6 +2,7 @@ import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
@@ -73,6 +74,7 @@ export const cancelVacation = (): Effect.Effect<
   | DelegationRepository
   | NotificationRepository
   | CanopyRepository
+  | PlantRepository
   | SqlClient.SqlClient
   | CurrentUser
 > =>

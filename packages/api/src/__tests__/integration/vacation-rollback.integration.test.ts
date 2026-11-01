@@ -5,6 +5,7 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
@@ -38,6 +39,7 @@ const SweepAlwaysFails = Layer.effect(
 
 const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
   Layer.mergeAll(
+    PlantRepositoryLive,
     UserRepositoryLive,
     CareScheduleRepositoryLive,
     DelegationRepositoryLive,

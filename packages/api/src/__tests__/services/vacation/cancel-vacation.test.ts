@@ -5,6 +5,7 @@ import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.rep
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -40,6 +41,7 @@ const createLayer = (
     createMockUserRepository(users),
     createMockNotificationRepository([]),
     createMockCareScheduleRepository({ schedules, plants }),
+    createMockPlantRepository({ plants: plants }),
     createMockDelegationRepository({}),
     createMockCanopyRepository(),
     createMockCurrentUser({ id: 'user-1' })
@@ -164,6 +166,7 @@ describe('cancelVacation', () => {
             racingActivation,
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({ schedules, plants: [plant] }),
+            createMockPlantRepository({ plants: [plant] }),
             createMockDelegationRepository({}),
             createMockCanopyRepository(),
             createMockCurrentUser({ id: 'user-1' })
@@ -203,6 +206,7 @@ describe('cancelVacation', () => {
             alwaysLosing,
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({}),
+            createMockPlantRepository({ plants: [] }),
             createMockDelegationRepository({}),
             createMockCanopyRepository(),
             createMockCurrentUser({ id: 'user-1' })

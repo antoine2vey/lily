@@ -10,8 +10,12 @@ import {
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
 import {
@@ -58,18 +62,20 @@ export const revivePlant = (
     // A revived plant takes a slot again; free users at the cap are paywalled
     // exactly like on create, so bury-then-revive is not a way around it.
     yield* withOwnerLock(plant.owner)(
-      Effect.gen(function* () {
-        const current = yield* reloadOwnedPlant(plant, requestedId)
-        if (current.diedAt === null) {
-          return yield* new PlantNotDeadError()
-        }
-        yield* limitChecker.checkPlantLimit(plant.owner)
-        const updated = yield* repo.revive(plant.id, plant.owner)
-        if (!updated) {
-          return yield* new PlantNotFoundError({ plantId: requestedId })
-        }
-        yield* rescheduleReminders(updated)
-      })
+      withReminderKeys(reminderKeysFor([plant.id]))(
+        Effect.gen(function* () {
+          const current = yield* reloadOwnedPlant(plant, requestedId)
+          if (current.diedAt === null) {
+            return yield* new PlantNotDeadError()
+          }
+          yield* limitChecker.checkPlantLimit(plant.owner)
+          const updated = yield* repo.revive(plant.id, plant.owner)
+          if (!updated) {
+            return yield* new PlantNotFoundError({ plantId: requestedId })
+          }
+          yield* rescheduleReminders([updated.id])
+        })
+      )
     ).pipe(
       Effect.catchTag('CanopyNotFoundError', () =>
         Effect.fail(new PlantNotFoundError({ plantId: requestedId }))

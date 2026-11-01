@@ -5,6 +5,11 @@ import {
   lockMyCanopy,
   requireOwner,
 } from '@lily/api/services/canopy/helpers/membership'
+import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { UpdateCanopyRequest } from '@lily/shared'
 import { Array, Effect } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
@@ -26,7 +31,15 @@ export const updateMyCanopy = Effect.fn('CanopyService.updateMyCanopy')(
         if (changesSettings) {
           yield* requireOwner(membership)
         }
-        if (changesSettings || name !== undefined) {
+        if (timezone !== undefined && timezone !== canopy.timezone) {
+          const plantIds = yield* repo.findPlantIdsOfCanopy(canopy.id)
+          yield* withReminderKeys(reminderKeysFor(plantIds))(
+            Effect.andThen(
+              repo.update(canopy.id, request),
+              rescheduleReminders(plantIds)
+            )
+          )
+        } else if (changesSettings || name !== undefined) {
           yield* repo.update(canopy.id, request)
         }
         return canopy.id

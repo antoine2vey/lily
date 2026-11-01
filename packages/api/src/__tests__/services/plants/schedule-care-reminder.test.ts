@@ -2,19 +2,25 @@ import {
   createTestMembership,
   mockCanopyId,
 } from '@lily/api/__tests__/fixtures/canopies'
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
+import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
   createMockCanopyRepository,
   createTestCanopyRow,
 } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import type { CareReminderType } from '@lily/api/services/plants/helpers/reminder-keys'
+import type { CareType, PlantOwner } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -24,6 +30,45 @@ const personalPlant = (ownerId: string, remindersEnabled: boolean) => ({
   owner: { _tag: 'User' as const, userId: ownerId },
   remindersEnabled,
 })
+
+// The plant and its schedule as the database holds them when the reminder
+// for that schedule is reconciled.
+const scheduleCareReminder = (params: {
+  plant: { id: string; owner: PlantOwner; remindersEnabled: boolean }
+  type: CareReminderType
+  scheduledDate: Date
+}) =>
+  reconcileCareReminder(params.plant.id, params.type).pipe(
+    Effect.provide(
+      Layer.mergeAll(
+        createMockPlantRepository({
+          plants: [
+            createTestPlant({
+              id: params.plant.id,
+              userId:
+                params.plant.owner._tag === 'User'
+                  ? params.plant.owner.userId
+                  : null,
+              canopyId:
+                params.plant.owner._tag === 'Canopy'
+                  ? params.plant.owner.canopyId
+                  : null,
+              remindersEnabled: params.plant.remindersEnabled,
+            }),
+          ],
+        }),
+        createMockCareScheduleRepository({
+          schedules: [
+            createTestSchedule({
+              plantId: params.plant.id,
+              careType: params.type.replace('_reminder', '') as CareType,
+              nextCareAt: params.scheduledDate,
+            }),
+          ],
+        })
+      )
+    )
+  )
 
 // Helper to create a future date for scheduling
 const createFutureDate = (daysFromNow: number, hours = 12): Date => {

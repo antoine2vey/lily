@@ -4,7 +4,7 @@ import type { DelegationRepository } from '@lily/api/repositories/delegation.rep
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   calculateScheduleDelta,
   toIndoorPlantContext,
@@ -322,19 +322,11 @@ const readjustPlantSchedule = (
 
       // Reschedule notifications
       if (wateringChanged) {
-        yield* scheduleCareReminder({
-          plant,
-          type: 'watering_reminder',
-          scheduledDate: newNextWateringAt.value,
-        })
+        yield* reconcileCareReminder(plant.id, 'watering_reminder')
       }
 
       if (fertilizationChanged) {
-        yield* scheduleCareReminder({
-          plant,
-          type: 'fertilization_reminder',
-          scheduledDate: newNextFertilizationAt.value,
-        })
+        yield* reconcileCareReminder(plant.id, 'fertilization_reminder')
       }
     }
   })

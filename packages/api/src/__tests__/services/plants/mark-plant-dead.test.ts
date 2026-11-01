@@ -5,6 +5,7 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import {
   withCanopyOwner,
   withUserOwner,
@@ -34,6 +35,7 @@ describe('markPlantDead', () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
             createMockEventBus(),
@@ -54,6 +56,7 @@ describe('markPlantDead', () => {
       markPlantDead(asPlantWithRoom(plant), { cause: 'unknown' }).pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
             createMockEventBus(),
@@ -77,6 +80,7 @@ describe('markPlantDead', () => {
       markPlantDead(asPlantWithRoom(plant), { cause: 'unknown' }).pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
             createMockEventBus(),
@@ -120,6 +124,7 @@ describe('markPlantDead', () => {
       markPlantDead(asPlantWithRoom(plant), { cause: 'cold' }).pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository(notifications),
             createMockEventBus(),
@@ -143,6 +148,7 @@ describe('markPlantDead', () => {
       markPlantDead(asPlantWithRoom(plant), { cause: 'heat' }).pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
             createMockEventBus({ publishedEvents: published }),
@@ -181,6 +187,7 @@ describe('markPlantDead', () => {
       ).pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
             createMockEventBus({ publishedEvents: published }),
@@ -230,6 +237,7 @@ describe('markPlantDead', () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             repoLayer,
             createMockNotificationRepository([]),
             createMockEventBus(),

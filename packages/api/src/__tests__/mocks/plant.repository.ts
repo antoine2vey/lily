@@ -296,6 +296,30 @@ export const createMockPlantRepository = (
         )
       ),
 
+    findByIdsForKeyShare: (ids: readonly string[]) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(plantsData, (p) => Array.contains(ids, p.id)),
+          Array.map(withOwner)
+        )
+      ),
+
+    findIdsOwnedBy: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(plantsData, (p) => p.userId === userId),
+          Array.map((p) => p.id)
+        )
+      ),
+
+    findPersonalReminderPlantIds: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(plantsData, (p) => p.userId === userId),
+          Array.map((p) => p.id)
+        )
+      ),
+
     findById: (id: string) =>
       Effect.succeed(
         pipe(

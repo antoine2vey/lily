@@ -5,10 +5,15 @@ import {
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
-import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import {
+  createCanopyStore,
+  createMockCanopyRepository,
+  createTestCanopyRow,
+} from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
@@ -113,6 +118,15 @@ const buildScenario = () => {
     createMockNotificationRepository(notifications),
     createMockCareScheduleRepository({
       schedules,
+      plants: [
+        plantOverdue,
+        plantMid,
+        plantFuture,
+        plantDelegated,
+        plantDelegatedFuture,
+      ],
+    }),
+    createMockPlantRepository({
       plants: [
         plantOverdue,
         plantMid,
@@ -345,7 +359,20 @@ describe('endVacation', () => {
         plants: [sharedMid, sharedFuture],
         memberships: members,
       }),
-      createMockCanopyRepository(members),
+      createMockPlantRepository({ plants: [sharedMid, sharedFuture] }),
+      createMockCanopyRepository(
+        createCanopyStore({
+          canopies: [createTestCanopyRow({ id: mockCanopyId })],
+          members,
+          plants: Array.map([sharedMid, sharedFuture], (p) => ({
+            id: p.id,
+            canopyId: mockCanopyId,
+            userId: null,
+            remindersEnabled: true,
+            diedAt: null,
+          })),
+        })
+      ),
       createMockDelegationRepository({})
     )
 
@@ -395,7 +422,24 @@ describe('endVacation', () => {
         plants: [dueToday],
         memberships: members,
       }),
-      createMockCanopyRepository(members),
+      createMockPlantRepository({ plants: [dueToday] }),
+      createMockCanopyRepository(
+        createCanopyStore({
+          canopies: [
+            createTestCanopyRow({ id: mockCanopyId, timezone: 'UTC' }),
+          ],
+          members,
+          plants: [
+            {
+              id: dueToday.id,
+              canopyId: mockCanopyId,
+              userId: null,
+              remindersEnabled: true,
+              diedAt: null,
+            },
+          ],
+        })
+      ),
       createMockDelegationRepository({})
     )
 

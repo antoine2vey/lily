@@ -24,7 +24,17 @@ import {
   type OverduePlant,
   type PlantOwner,
 } from '@lily/shared'
-import { and, asc, eq, isNotNull, isNull, lte } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  sql,
+} from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -72,6 +82,15 @@ export interface ICareScheduleRepository {
   readonly findByPlant: (
     plantId: string
   ) => Effect.Effect<Array<CareScheduleRow>, SqlError>
+  readonly findByPlantIds: (
+    plantIds: ReadonlyArray<string>
+  ) => Effect.Effect<ReadonlyArray<CareScheduleRow>, SqlError>
+  readonly shiftDueBefore: (params: {
+    readonly plantIds: ReadonlyArray<string>
+    readonly before: Date
+    readonly shiftMs: number
+    readonly floor: Date
+  }) => Effect.Effect<void, SqlError>
   readonly findPendingByUser: (
     userId: string,
     cutoff: Date,
@@ -146,6 +165,39 @@ export const CareScheduleRepositoryLive = Layer.effect(
           .where(eq(plantCareSchedules.plantId, plantId))
         return rows
       }),
+
+      findByPlantIds: Effect.fn('CareScheduleRepository.findByPlantIds')(
+        function* (plantIds: ReadonlyArray<string>) {
+          if (Array.isReadonlyArrayEmpty(plantIds)) return []
+          return yield* db
+            .select()
+            .from(plantCareSchedules)
+            .where(inArray(plantCareSchedules.plantId, [...plantIds]))
+            .orderBy(asc(plantCareSchedules.id))
+        }
+      ),
+
+      shiftDueBefore: Effect.fn('CareScheduleRepository.shiftDueBefore')(
+        function* (params: {
+          readonly plantIds: ReadonlyArray<string>
+          readonly before: Date
+          readonly shiftMs: number
+          readonly floor: Date
+        }) {
+          if (Array.isReadonlyArrayEmpty(params.plantIds)) return
+          yield* db
+            .update(plantCareSchedules)
+            .set({
+              nextCareAt: sql`GREATEST(${plantCareSchedules.nextCareAt} + make_interval(secs => ${params.shiftMs / 1000}), ${params.floor.toISOString()}::timestamptz)`,
+            })
+            .where(
+              and(
+                inArray(plantCareSchedules.plantId, [...params.plantIds]),
+                lt(plantCareSchedules.nextCareAt, params.before)
+              )
+            )
+        }
+      ),
 
       findPendingByUser: Effect.fn('CareScheduleRepository.findPendingByUser')(
         function* (userId: string, cutoff: Date, canopyId: string | null) {

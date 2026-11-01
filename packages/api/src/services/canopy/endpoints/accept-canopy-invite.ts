@@ -7,7 +7,11 @@ import {
   notifyMemberBestEffort,
   senderNameOf,
 } from '@lily/api/services/canopy/helpers/notify-member'
-import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
+import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
@@ -42,17 +46,22 @@ export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
         if (members.length >= CANOPY_MAX_MEMBERS) {
           return yield* new CanopyFullError({ limit: CANOPY_MAX_MEMBERS })
         }
-        if (!(yield* repo.addMember(canopy.id, userId, 'member'))) {
-          const winner = yield* repo.findMembershipByUser(userId)
-          return yield* failAlreadyInCanopy(
-            pipe(
-              Option.fromNullishOr(winner),
-              Option.map((m) => m.canopyId),
-              Option.getOrElse(() => canopy.id)
-            )
-          )
-        }
-        yield* rebuildMemberReminders(userId)
+        const plantIds = yield* repo.findPlantIdsOfCanopy(canopy.id)
+        yield* withReminderKeys(reminderKeysFor(plantIds))(
+          Effect.gen(function* () {
+            if (!(yield* repo.addMember(canopy.id, userId, 'member'))) {
+              const winner = yield* repo.findMembershipByUser(userId)
+              return yield* failAlreadyInCanopy(
+                pipe(
+                  Option.fromNullishOr(winner),
+                  Option.map((m) => m.canopyId),
+                  Option.getOrElse(() => canopy.id)
+                )
+              )
+            }
+            yield* rebuildMemberReminders(userId, plantIds)
+          })
+        )
         return {
           canopyId: canopy.id,
           notify: Option.some({ canopyName: canopy.name, members }),

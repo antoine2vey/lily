@@ -4,12 +4,19 @@ import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.rep
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { ownerKey } from '@lily/api/repositories/helpers/plant-owner'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  type PlantRow,
+} from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   caller,
   canPerform,
@@ -21,8 +28,17 @@ import type {
   CareMultiplePlantsResponse,
 } from '@lily/shared/plant'
 import type { EventBus } from '@lily/shared/server'
-import { Array, DateTime, Duration, Effect, Option, pipe, Record } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import {
+  Array,
+  DateTime,
+  Duration,
+  Effect,
+  Option,
+  Order,
+  pipe,
+  Record,
+} from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const careMultiplePlants = (
@@ -42,7 +58,6 @@ export const careMultiplePlants = (
   | EventBus
 > =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
 
@@ -50,121 +65,91 @@ export const careMultiplePlants = (
       return []
     }
 
-    return yield* sql.withTransaction(
+    const foundPlants = yield* repo.findByIds(request.plantIds)
+    const who = yield* caller
+    const accessible = Array.sort(
+      yield* Effect.filter(foundPlants, (plant) =>
+        canPerform(who, plant, 'care')
+      ),
+      Order.mapInput(Order.String, (plant: PlantRow) => plant.id)
+    )
+    const owners = Record.fromEntries(
+      Array.map(accessible, (p) => [ownerKey(p.owner), p.owner] as const)
+    )
+    const contexts = Record.fromEntries(
+      yield* Effect.forEach(Record.toEntries(owners), ([key, owner]) =>
+        Effect.map(careContext(owner), (context) => [key, context] as const)
+      )
+    )
+    const nowDt = DateTime.nowUnsafe()
+    const now = DateTime.toDateUtc(nowDt)
+    const reminderType = `${request.careType}_reminder` as const
+
+    const careFor = (plant: PlantRow) =>
       Effect.gen(function* () {
-        // 1. Batch fetch all plants
-        const foundPlants = yield* repo.findByIds(request.plantIds)
-
-        const nowDt = DateTime.nowUnsafe()
-        const now = DateTime.toDateUtc(nowDt)
-        const who = yield* caller
         const notificationRepo = yield* NotificationRepository
-        const owners = Record.fromEntries(
-          Array.map(foundPlants, (p) => [ownerKey(p.owner), p.owner] as const)
+        const timezone = pipe(
+          Record.get(contexts, ownerKey(plant.owner)),
+          Option.map((context) => context.timezone),
+          Option.getOrElse(() => 'UTC')
         )
-        const contexts = Record.fromEntries(
-          yield* Effect.forEach(Record.toEntries(owners), ([key, owner]) =>
-            Effect.map(careContext(owner), (context) => [key, context] as const)
-          )
+        const schedule = yield* scheduleRepo.findByPlantAndType(
+          plant.id,
+          request.careType
         )
-
-        // 2. Update each plant in parallel
-        const results = yield* Effect.forEach(
-          request.plantIds,
-          (plantId) =>
-            Effect.gen(function* () {
-              const plantOption = Array.findFirst(
-                foundPlants,
-                (p) => p.id === plantId
-              )
-
-              const hasAccess = yield* Option.match(plantOption, {
-                onNone: () => Effect.succeed(false),
-                onSome: (plant) => canPerform(who, plant, 'care'),
-              })
-
-              if (!hasAccess) {
-                return {
-                  plantId,
-                  success: false,
-                  plant: undefined,
-                }
-              }
-
-              // Safe: hasAccess is false when plantOption is None (onNone branch)
-              const plant = Option.getOrThrow(plantOption)
-              const timezone = pipe(
-                Record.get(contexts, ownerKey(plant.owner)),
-                Option.map((context) => context.timezone),
-                Option.getOrElse(() => 'UTC')
-              )
-
-              // Get frequency from schedule
-              const schedule = yield* scheduleRepo.findByPlantAndType(
-                plantId,
-                request.careType
-              )
-              const frequency = pipe(
-                Option.fromNullishOr(schedule),
-                Option.map((s) => s.frequencyDays),
-                Option.getOrUndefined
-              )
-
-              const nowDayStart = startOfDay(nowDt, timezone)
-              const nextCareAt = frequency
-                ? DateTime.toDateUtc(
-                    DateTime.addDuration(nowDayStart, Duration.days(frequency))
-                  )
-                : undefined
-
-              // Create care log + publish events
-              yield* createCareLog(plant, {
-                type: request.careType,
-                date: now,
-              })
-
-              // Update schedule table
-              if (schedule && nextCareAt) {
-                yield* scheduleRepo.updateByPlantAndType(
-                  plantId,
-                  request.careType,
-                  {
-                    lastCareAt: now,
-                    nextCareAt,
-                  }
-                )
-              }
-
-              // Re-fetch to include room data
-              const updatedPlant = yield* repo.findById(plantId)
-
-              // Schedule reminder
-              if (nextCareAt) {
-                yield* scheduleCareReminder({
-                  plant,
-                  type: `${request.careType}_reminder` as const,
-                  scheduledDate: nextCareAt,
-                })
-              }
-              yield* notificationRepo.deletePendingByPlantAndType(
-                plantId,
-                'overdue_reminder'
-              )
-
-              return {
-                plantId,
-                success: true,
-                plant: pipe(
-                  Option.fromNullishOr(updatedPlant),
-                  Option.getOrUndefined
-                ),
-              }
-            }),
-          { concurrency: 10 }
+        const frequency = pipe(
+          Option.fromNullishOr(schedule),
+          Option.map((s) => s.frequencyDays),
+          Option.getOrUndefined
         )
+        const nowDayStart = startOfDay(nowDt, timezone)
+        const nextCareAt = frequency
+          ? DateTime.toDateUtc(
+              DateTime.addDuration(nowDayStart, Duration.days(frequency))
+            )
+          : undefined
 
-        return results
+        yield* createCareLog(plant, {
+          type: request.careType,
+          date: now,
+        })
+        if (schedule && nextCareAt) {
+          yield* scheduleRepo.updateByPlantAndType(plant.id, request.careType, {
+            lastCareAt: now,
+            nextCareAt,
+          })
+        }
+        const updatedPlant = yield* repo.findById(plant.id)
+        if (nextCareAt) {
+          yield* reconcileCareReminder(plant.id, reminderType)
+        }
+        yield* notificationRepo.deletePendingByPlantAndType(
+          plant.id,
+          'overdue_reminder'
+        )
+        return [
+          plant.id,
+          pipe(Option.fromNullishOr(updatedPlant), Option.getOrUndefined),
+        ] as const
       })
+
+    const cared = Record.fromEntries(
+      yield* withReminderKeys(
+        reminderKeysFor(
+          Array.map(accessible, (plant) => plant.id),
+          [reminderType]
+        )
+      )(Effect.forEach(accessible, careFor))
+    )
+
+    return Array.map(request.plantIds, (plantId) =>
+      pipe(
+        Record.get(cared, plantId),
+        Option.match({
+          onNone: () => ({ plantId, success: false, plant: undefined }),
+          onSome: (plant) => ({ plantId, success: true, plant }),
+        })
+      )
     )
   }).pipe(
     Effect.withSpan('PlantsService.careMultiplePlants', {

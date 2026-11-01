@@ -1,4 +1,7 @@
-import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
+import {
+  createTestMembership,
+  mockCanopyId,
+} from '@lily/api/__tests__/fixtures/canopies'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
@@ -12,10 +15,12 @@ import {
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
@@ -81,6 +86,8 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockDelegationRepository(),
+      MockSqlClientLive,
       createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([testUser]),
@@ -144,6 +151,8 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockDelegationRepository(),
+      MockSqlClientLive,
       createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([testUser]),
@@ -195,6 +204,8 @@ describe('updateUserSettings - notification recalculation', () => {
       updateUserSettings({ timezone: 'America/New_York' }).pipe(
         Effect.provide(
           Layer.mergeAll(
+            createMockDelegationRepository(),
+            MockSqlClientLive,
             createMockRateLimiterService(),
             createMockUserRepository([testUser]),
             createMockCurrentUser({ id: 'user-1' }),
@@ -208,6 +219,16 @@ describe('updateUserSettings - notification recalculation', () => {
                     timezone: 'Europe/Paris',
                   }),
                 ],
+                members: [createTestMembership({ userId: 'user-1' })],
+                plants: [
+                  {
+                    id: 'plant-canopy',
+                    canopyId: mockCanopyId,
+                    userId: null,
+                    remindersEnabled: true,
+                    diedAt: null,
+                  },
+                ],
               })
             ),
             createMockCareLogRepository([]),
@@ -220,9 +241,11 @@ describe('updateUserSettings - notification recalculation', () => {
       )
     )
 
-    expect(notifications[0]?.scheduledAt.toISOString()).toBe(
-      '2030-07-15T13:00:00.000Z'
-    )
+    expect(
+      notifications
+        .filter((n) => n.status === 'pending')
+        .map((n) => n.scheduledAt.toISOString())
+    ).toEqual(['2030-07-15T13:00:00.000Z'])
   })
 
   it('should NOT recalculate when preferredNotificationTime stays the same', async () => {
@@ -263,6 +286,8 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockDelegationRepository(),
+      MockSqlClientLive,
       createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([testUser]),
@@ -324,6 +349,8 @@ describe('updateUserSettings - notification recalculation', () => {
     )
 
     const layer = Layer.mergeAll(
+      createMockDelegationRepository(),
+      MockSqlClientLive,
       createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([testUser]),

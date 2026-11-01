@@ -328,7 +328,10 @@ const narrowToPlantsStillTheirs = (
       (p) => p.owner._tag === 'User' || Array.contains(audible, p.id)
     )
     if (Array.isReadonlyArrayEmpty(kept)) return Option.none()
-    if (kept.length === Array.dedupe(message.payload.plantIds).length) {
+    if (
+      kept.length === Array.dedupe(message.payload.plantIds).length &&
+      claimedIds.length === Array.dedupe(message.payload.notificationIds).length
+    ) {
       return Option.some(message)
     }
     const notificationRepo = yield* NotificationRepository

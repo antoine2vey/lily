@@ -3,7 +3,7 @@ import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.rep
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   type PlantAccessContext,
   withPlantAuth,
@@ -99,11 +99,10 @@ export const acceptCarePlan = (
           yield* scheduleRepo.updateByPlantAndType(plan.plantId, careType, {
             nextCareAt: dueDate,
           })
-          yield* scheduleCareReminder({
-            plant,
-            type: `${careType}_reminder` as const,
-            scheduledDate: dueDate,
-          })
+          yield* reconcileCareReminder(
+            plant.id,
+            `${careType}_reminder` as const
+          )
         }),
       { discard: true }
     )

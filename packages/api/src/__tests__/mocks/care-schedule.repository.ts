@@ -96,6 +96,29 @@ export const createMockCareScheduleRepository = (
     findByPlant: (plantId: string) =>
       Effect.succeed(Array.filter(schedulesData, (s) => s.plantId === plantId)),
 
+    findByPlantIds: (plantIds: ReadonlyArray<string>) =>
+      Effect.succeed(
+        Array.filter(schedulesData, (s) => Array.contains(plantIds, s.plantId))
+      ),
+
+    shiftDueBefore: ({ plantIds, before, shiftMs, floor }) =>
+      Effect.sync(() => {
+        Array.forEach(schedulesData, (s, i) => {
+          if (
+            Array.contains(plantIds, s.plantId) &&
+            s.nextCareAt !== null &&
+            s.nextCareAt.getTime() < before.getTime()
+          ) {
+            schedulesData[i] = {
+              ...s,
+              nextCareAt: new Date(
+                Math.max(s.nextCareAt.getTime() + shiftMs, floor.getTime())
+              ),
+            }
+          }
+        })
+      }),
+
     // Mirrors the live repository: plants in the cemetery never surface in
     // care tasks, overdue sweeps, or vacation rebuilds.
     findPendingByUser: (userId: string, cutoff: Date, canopyId) => {

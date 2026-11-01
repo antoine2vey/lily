@@ -271,73 +271,47 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
-    lockPlantReminderInTransaction: () => Effect.void,
+    lockReminderKeys: () => Effect.void,
 
-    deleteUndeliveredByUserPlantAndType: (
-      userId: string,
-      plantId: string,
-      type: string
-    ) =>
+    replaceReminders: (replacement) =>
       Effect.sync(() => {
-        const toKeep = Array.filter(
-          notificationsState,
-          (n) =>
-            !(
-              n.userId === userId &&
-              n.plantId === plantId &&
-              n.type === type &&
-              (n.status === 'pending' || n.status === 'queued')
-            )
-        )
+        const stale = (n: MutableNotification) =>
+          !deliveryClaims.has(n.id) &&
+          (replacement.onlyUserId === null ||
+            n.userId === replacement.onlyUserId) &&
+          Array.some(
+            replacement.plants,
+            (plant) =>
+              n.plantId === plant.plantId &&
+              ((n.status === 'pending' &&
+                Array.contains(plant.types, n.type)) ||
+                ((n.status === 'pending' || n.status === 'queued') &&
+                  (plant.plantWide || Array.contains(plant.types, n.type)) &&
+                  !Array.contains(plant.recipientIds, n.userId)))
+          )
+        const toKeep = Array.filter(notificationsState, (n) => !stale(n))
         notificationsState.length = 0
         notificationsState.push(...toKeep)
-      }),
-
-    deleteForReschedule: (
-      plantId: string,
-      recipientIds: ReadonlyArray<string>
-    ) =>
-      Effect.sync(() => {
-        const toKeep = Array.filter(
-          notificationsState,
-          (n) =>
-            !(
-              n.plantId === plantId &&
-              (n.status === 'pending' ||
-                (n.status === 'queued' &&
-                  !Array.contains(recipientIds, n.userId)))
+        Array.forEach(replacement.rows, (row) => {
+          const since = row.remindedSince
+          const reminded =
+            since !== null &&
+            Array.some(
+              notificationsState,
+              (n) =>
+                n.userId === row.userId &&
+                n.plantId === row.plantId &&
+                n.type === row.type &&
+                (n.status === 'queued' ||
+                  deliveryClaims.has(n.id) ||
+                  (n.status === 'sent' &&
+                    n.sentAt !== undefined &&
+                    n.sentAt.getTime() >= since.getTime()))
             )
-        )
-        notificationsState.length = 0
-        notificationsState.push(...toKeep)
-      }),
-
-    findSentSince: (userId: string, since: Date) =>
-      Effect.succeed(
-        pipe(
-          notificationsState,
-          Array.filter(
-            (n) =>
-              n.userId === userId &&
-              n.status === 'sent' &&
-              n.sentAt !== undefined &&
-              n.sentAt.getTime() >= since.getTime()
-          ),
-          Array.map((n) => ({
-            plantId: pipe(Option.fromNullishOr(n.plantId), Option.getOrNull),
-            type: n.type,
-          }))
-        )
-      ),
-
-    createPendingMany: (rows) =>
-      Effect.sync(() => {
-        Array.forEach(rows, (row) => {
+          if (reminded) return
           notificationsState.push({
             id: `notification-${crypto.randomUUID()}`,
             type: row.type,
-            title: row.title,
-            body: row.body,
             scheduledAt: row.scheduledAt,
             isRead: false,
             status: 'pending',

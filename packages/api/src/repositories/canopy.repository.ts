@@ -93,6 +93,9 @@ export interface ICanopyRepository {
     canopyId: string,
     plantId: string
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  readonly findPlantIdsOfCanopy: (
+    canopyId: string
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly findAudiblePlantIds: (
     userId: string,
     plants: ReadonlyArray<{ readonly id: string; readonly canopyId: string }>
@@ -301,6 +304,16 @@ export const CanopyRepositoryLive = Layer.effect(
           .orderBy(asc(canopyMembers.joinedAt), asc(canopyMembers.id))
         return Array.map(rows, (row) => row.userId)
       }),
+
+      findPlantIdsOfCanopy: Effect.fn('CanopyRepository.findPlantIdsOfCanopy')(
+        function* (canopyId: string) {
+          const rows = yield* db
+            .select({ id: plants.id })
+            .from(plants)
+            .where(eq(plants.canopyId, canopyId))
+          return Array.map(rows, (row) => row.id)
+        }
+      ),
 
       findAudiblePlantIds: Effect.fn('CanopyRepository.findAudiblePlantIds')(
         function* (

@@ -1,12 +1,14 @@
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
-import { reminderDayFor } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import type { RateLimiterService } from '@lily/api/services/rate-limiter/service'
 import {
@@ -23,6 +25,7 @@ import { UserNotFoundError } from '@lily/shared/errors/user'
 import { CARE_TOPICS, ENGAGEMENT_TOPICS } from '@lily/shared/server'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Array, Effect, Filter, Match, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Update user settings (profile + notification preferences)
@@ -39,6 +42,8 @@ export const updateUserSettings = (
   | CareLogRepository
   | PlantRepository
   | CanopyRepository
+  | DelegationRepository
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const { id } = yield* CurrentUser
@@ -182,11 +187,12 @@ export const updateUserSettings = (
             )
 
             // If we have a base date, recalculate the scheduled time
-            const owner = owners.get(plantId)
-            if (Option.isSome(baseDate) && owner !== undefined) {
-              const reminderDay = yield* reminderDayFor(owner, baseDate.value)
+            if (
+              Option.isSome(baseDate) &&
+              owners.get(plantId)?._tag === 'User'
+            ) {
               const newScheduledAt = yield* calculateScheduledAt(
-                reminderDay(user.timezone),
+                baseDate.value,
                 user.timezone,
                 user.preferredNotificationTime
               )
@@ -197,6 +203,13 @@ export const updateUserSettings = (
             }
           }),
         { concurrency: 10 }
+      )
+      const sql = yield* SqlClient.SqlClient
+      yield* sql.withTransaction(
+        lockMyCanopy(id).pipe(
+          Effect.andThen(rebuildMemberReminders(id)),
+          Effect.catchTag('CanopyNotFoundError', () => Effect.void)
+        )
       )
     }
 

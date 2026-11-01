@@ -5,7 +5,7 @@ import {
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import type { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canopy'
 import {
@@ -17,6 +17,11 @@ import {
   senderNameOf,
 } from '@lily/api/services/canopy/helpers/notify-member'
 import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-shared-plants'
+import { canopyPlantIdsOf } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { CanopyNotFoundError } from '@lily/shared'
 import type { MessageQueue } from '@lily/shared/server'
 import { Array, Data, Effect, Option, pipe } from 'effect'
@@ -113,16 +118,30 @@ export const leaveCanopyAndDelete =
   ): Effect.Effect<A, E | SqlError, R | LeaveContext> =>
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient
+      const plantRepo = yield* PlantRepository
       const [outcome, result] = yield* sql.withTransaction(
-        Effect.all([
-          leaveInTransaction(userId, 'stay').pipe(
-            Effect.map(Option.some),
-            Effect.catchTag('CanopyNotFoundError', () =>
-              Effect.succeed(Option.none<LeaveOutcome>())
-            )
-          ),
-          deletion,
-        ])
+        Effect.gen(function* () {
+          const inCanopy = yield* lockMyCanopy(userId).pipe(
+            Effect.as(true),
+            Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
+          )
+          const canopyPlants = inCanopy ? yield* canopyPlantIdsOf(userId) : []
+          const personalPlants =
+            yield* plantRepo.findPersonalReminderPlantIds(userId)
+          return yield* withReminderKeys(
+            reminderKeysFor(Array.dedupe([...canopyPlants, ...personalPlants]))
+          )(
+            Effect.all([
+              leaveInTransaction(userId, 'stay').pipe(
+                Effect.map(Option.some),
+                Effect.catchTag('CanopyNotFoundError', () =>
+                  Effect.succeed(Option.none<LeaveOutcome>())
+                )
+              ),
+              deletion,
+            ])
+          )
+        })
       )
       yield* Option.match(outcome, {
         onNone: () => Effect.void,

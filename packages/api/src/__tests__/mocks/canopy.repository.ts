@@ -176,6 +176,13 @@ export const createMockCanopyRepository = (
           Array.map((m) => m.userId)
         )
       ),
+    findPlantIdsOfCanopy: (canopyId) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(store.plants, (p) => p.canopyId === canopyId),
+          Array.map((p) => p.id)
+        )
+      ),
     findAudiblePlantIds: (userId, candidates) =>
       Effect.sync(() =>
         pipe(

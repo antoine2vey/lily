@@ -1,20 +1,25 @@
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import {
-  CareScheduleRepository,
-  type OwnerScheduleRow,
-} from '@lily/api/repositories/care-schedule.repository'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import {
   UserRepository,
   type VacationSnapshot,
 } from '@lily/api/repositories/user.repository'
-import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/member-reminders'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
+import {
+  type ReminderContext,
+  rebuildMemberReminders,
+  rescheduleReminders,
+} from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
-import { Array, DateTime, Duration, Effect, Option, pipe, Record } from 'effect'
+import { DateTime, Duration, Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -41,26 +46,32 @@ export interface EndVacationParams {
  */
 export const endVacation = (
   params: EndVacationParams
-): Effect.Effect<
-  typeof users.$inferSelect | null,
-  SqlError,
-  | UserRepository
-  | CareScheduleRepository
-  | DelegationRepository
-  | NotificationRepository
-  | CanopyRepository
-  | SqlClient.SqlClient
-> =>
+): Effect.Effect<typeof users.$inferSelect | null, SqlError, ReminderContext> =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
-    return yield* sql.withTransaction(endVacationInTransaction(params))
+    const plantRepo = yield* PlantRepository
+    const ownPlantIds = yield* plantRepo.findIdsOwnedBy(params.user.id)
+    const claimed = yield* withReminderKeys(reminderKeysFor(ownPlantIds))(
+      endVacationForOwnPlants(params, ownPlantIds)
+    )
+    if (claimed === null) return null
+    yield* sql.withTransaction(
+      lockMyCanopy(params.user.id).pipe(
+        Effect.andThen(rebuildMemberReminders(params.user.id)),
+        Effect.catchTag('CanopyNotFoundError', () => Effect.void)
+      )
+    )
+    return claimed
   }).pipe(
     Effect.withSpan('VacationService.endVacation', {
       attributes: { 'user.id': params.user.id },
     })
   )
 
-const endVacationInTransaction = (params: EndVacationParams) =>
+const endVacationForOwnPlants = (
+  params: EndVacationParams,
+  ownPlantIds: ReadonlyArray<string>
+) =>
   Effect.gen(function* () {
     const { user, effectiveEnd } = params
     const userRepo = yield* UserRepository
@@ -94,63 +105,25 @@ const endVacationInTransaction = (params: EndVacationParams) =>
         startOfDay(effectiveEndDt, timezone)
       )
     )
-    const floorMs = DateTime.toEpochMillis(
+    const floor = DateTime.toDateUtc(
       DateTime.addDuration(
         startOfDay(effectiveEndDt, timezone),
         Duration.days(1)
       )
     )
-    const effectiveEndMs = DateTime.toEpochMillis(effectiveEndDt)
 
-    const rows = yield* scheduleRepo.findByOwnerWithPlant(user.id)
-
-    const plantIds = pipe(
-      Array.filter(rows, (row) => row.plant.owner._tag === 'User'),
-      Array.map((row) => row.plant.id),
-      Array.dedupe
-    )
-    const caretakerEntries = yield* Effect.forEach(plantIds, (plantId) =>
-      delegationRepo
-        .findActiveCaretakerForPlant(plantId)
-        .pipe(Effect.map((caretakerId) => [plantId, caretakerId] as const))
-    )
-    const caretakerByPlant = Record.fromEntries(caretakerEntries)
-
-    const isDelegated = (plantId: string): boolean =>
-      pipe(
-        Record.get(caretakerByPlant, plantId),
-        Option.flatMap(Option.fromNullishOr),
-        Option.isSome
+    const undelegated = yield* Effect.filter(ownPlantIds, (plantId) =>
+      Effect.map(
+        delegationRepo.findActiveCaretakerForPlant(plantId),
+        (caretakerId) => caretakerId === null
       )
-
-    const shifted = yield* Effect.forEach(rows, (row) =>
-      Effect.gen(function* () {
-        const nextCareAt = row.schedule.nextCareAt
-        if (
-          nextCareAt === null ||
-          row.plant.owner._tag === 'Canopy' ||
-          isDelegated(row.plant.id)
-        ) {
-          return row
-        }
-        const nextMs = DateTime.toEpochMillis(DateTime.makeUnsafe(nextCareAt))
-        if (nextMs >= effectiveEndMs) {
-          return row
-        }
-        const newNextCareAt = DateTime.toDateUtc(
-          DateTime.makeUnsafe(Math.max(nextMs + deltaMs, floorMs))
-        )
-        yield* scheduleRepo.updateByPlantAndType(
-          row.plant.id,
-          row.schedule.careType,
-          { nextCareAt: newNextCareAt }
-        )
-        return {
-          ...row,
-          schedule: { ...row.schedule, nextCareAt: newNextCareAt },
-        } satisfies OwnerScheduleRow
-      })
     )
+    yield* scheduleRepo.shiftDueBefore({
+      plantIds: undelegated,
+      before: effectiveEnd,
+      shiftMs: deltaMs,
+      floor,
+    })
 
     const notificationRepo = yield* NotificationRepository
     yield* notificationRepo.deletePendingByUserIdAndTypes(
@@ -158,24 +131,6 @@ const endVacationInTransaction = (params: EndVacationParams) =>
       VACATION_MUTED_TOPICS
     )
 
-    const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
-    yield* Effect.forEach(
-      Array.filter(
-        shifted,
-        (row) =>
-          row.plant.owner._tag === 'User' &&
-          row.schedule.nextCareAt !== null &&
-          DateTime.toEpochMillis(DateTime.makeUnsafe(row.schedule.nextCareAt)) >
-            nowMs
-      ),
-      (row) =>
-        scheduleCareReminder({
-          plant: row.plant,
-          type: `${row.schedule.careType}_reminder` as const,
-          // biome-ignore lint/style/noNonNullAssertion: filtered non-null above
-          scheduledDate: row.schedule.nextCareAt!,
-        })
-    )
-    yield* rebuildMemberReminders(user.id)
+    yield* rescheduleReminders(ownPlantIds)
     return claimed
   })

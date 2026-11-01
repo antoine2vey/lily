@@ -184,6 +184,15 @@ export interface IPlantRepository {
   readonly findByIds: (
     ids: readonly string[]
   ) => Effect.Effect<Array<PlantRow>, SqlError>
+  readonly findByIdsForKeyShare: (
+    ids: readonly string[]
+  ) => Effect.Effect<Array<PlantRow>, SqlError>
+  readonly findPersonalReminderPlantIds: (
+    userId: string
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  readonly findIdsOwnedBy: (
+    userId: string
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly findById: (
     id: string
   ) => Effect.Effect<PlantWithRoom | null, SqlError>
@@ -617,6 +626,52 @@ export const PlantRepositoryLive = Layer.effect(
           .from(plants)
           .where(inArray(plants.id, [...ids]))
         return Array.map(items, withOwner)
+      }),
+
+      findByIdsForKeyShare: Effect.fn('PlantRepository.findByIdsForKeyShare')(
+        function* (ids: readonly string[]) {
+          if (Array.isReadonlyArrayEmpty(ids)) return []
+          const items = yield* db
+            .select()
+            .from(plants)
+            .where(inArray(plants.id, [...ids]))
+            .orderBy(asc(plants.id))
+            .for('key share')
+          return Array.map(items, withOwner)
+        }
+      ),
+
+      findIdsOwnedBy: Effect.fn('PlantRepository.findIdsOwnedBy')(function* (
+        userId: string
+      ) {
+        const rows = yield* db
+          .select({ id: plants.id })
+          .from(plants)
+          .where(eq(plants.userId, userId))
+        return Array.map(rows, (row) => row.id)
+      }),
+
+      findPersonalReminderPlantIds: Effect.fn(
+        'PlantRepository.findPersonalReminderPlantIds'
+      )(function* (userId: string) {
+        const owned = yield* db
+          .select({ id: plants.id })
+          .from(plants)
+          .where(eq(plants.userId, userId))
+        const caredFor = yield* db
+          .select({ id: delegationPlants.plantId })
+          .from(delegationPlants)
+          .innerJoin(
+            careDelegations,
+            eq(delegationPlants.delegationId, careDelegations.id)
+          )
+          .where(
+            and(
+              eq(careDelegations.caretakerId, userId),
+              eq(careDelegations.status, 'active')
+            )
+          )
+        return Array.dedupe(Array.map([...owned, ...caredFor], (row) => row.id))
       }),
 
       findById: Effect.fn('PlantRepository.findById')(function* (id: string) {

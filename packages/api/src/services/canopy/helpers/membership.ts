@@ -5,11 +5,16 @@ import {
 } from '@lily/api/repositories/canopy.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
+import {
   AlreadyInCanopyError,
   CanopyNotFoundError,
   NotCanopyOwnerError,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const requireMembership = (
@@ -79,11 +84,23 @@ export const lockMyCanopy = (
 export const dropMember = (
   canopyId: string,
   userId: string
-): Effect.Effect<void, SqlError, CanopyRepository | NotificationRepository> =>
+): Effect.Effect<
+  void,
+  SqlError,
+  CanopyRepository | NotificationRepository | SqlClient.SqlClient
+> =>
   Effect.gen(function* () {
     const repo = yield* CanopyRepository
     const notificationRepo = yield* NotificationRepository
-    yield* repo.deleteMemberMutes(canopyId, userId)
-    yield* repo.removeMember(canopyId, userId)
-    yield* notificationRepo.deleteUndeliveredForMemberOnCanopy(userId, canopyId)
+    const plantIds = yield* repo.findPlantIdsOfCanopy(canopyId)
+    yield* withReminderKeys(reminderKeysFor(plantIds))(
+      Effect.gen(function* () {
+        yield* repo.deleteMemberMutes(canopyId, userId)
+        yield* repo.removeMember(canopyId, userId)
+        yield* notificationRepo.deleteUndeliveredForMemberOnCanopy(
+          userId,
+          canopyId
+        )
+      })
+    )
   })
