@@ -66,6 +66,7 @@ export const CarePlansApiLive = (api: Api) =>
       .handle('deleteCarePlanStep', ({ params: { planId, stepId } }) =>
         withCarePlanStep(planId, stepId, 'manage').pipe(
           Effect.flatMap(deleteCarePlanStep),
+          Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )

@@ -51,6 +51,29 @@ const step = createTestCarePlanStep(shared.id, {
   id: crypto.randomUUID(),
   title: 'Check the leaves',
 })
+const authorStep = createTestCarePlanStep(shared.id, {
+  id: crypto.randomUUID(),
+  position: 1,
+  title: 'Mist the stems',
+})
+
+const leftPlant = createTestPlant({
+  id: crypto.randomUUID(),
+  userId: null,
+  canopyId: 'canopy-1',
+  createdByUserId: 'user-gone',
+})
+const leftBehind = createTestCarePlan({
+  id: crypto.randomUUID(),
+  plantId: leftPlant.id,
+  userId: 'user-gone',
+  status: 'accepted',
+  chatMessageId: crypto.randomUUID(),
+})
+const leftStep = createTestCarePlanStep(leftBehind.id, {
+  id: crypto.randomUUID(),
+  title: 'Repot',
+})
 
 const TestApi = HttpApi.make('carePlanAccess').add(CarePlansApi)
 
@@ -67,11 +90,14 @@ const AuthLive = Layer.succeed(
 
 const RepositoriesLive = Layer.mergeAll(
   createMockCarePlanRepository({
-    plans: [shared],
-    steps: [step],
-    plants: [{ id: plant.id, name: plant.name, imageUrl: null }],
+    plans: [shared, leftBehind],
+    steps: [step, authorStep, leftStep],
+    plants: [
+      { id: plant.id, name: plant.name, imageUrl: null },
+      { id: leftPlant.id, name: leftPlant.name, imageUrl: null },
+    ],
   }),
-  createMockPlantRepository({ plants: [plant] }),
+  createMockPlantRepository({ plants: [plant, leftPlant] }),
   createMockCanopyRepository([
     createTestMembership({ userId: alex, role: 'owner' }),
     createTestMembership({ userId: lily }),
@@ -158,5 +184,25 @@ describe('care plan access over HTTP', () => {
   it('shows the author their own chat link', async () => {
     const res = await call('GET', `/care-plans/plant/${plant.id}`, alex)
     expect(res.body.items[0].chatMessageId).toBe(shared.chatMessageId)
+  })
+
+  it('keeps the chat link out of a delete-step response for a Steward', async () => {
+    const res = await call(
+      'DELETE',
+      `/care-plans/${leftBehind.id}/steps/${leftStep.id}`,
+      alex
+    )
+    expect(res.status).toBe(200)
+    expect(res.body).not.toHaveProperty('chatMessageId')
+  })
+
+  it('shows the author their chat link after deleting a step', async () => {
+    const res = await call(
+      'DELETE',
+      `/care-plans/${shared.id}/steps/${authorStep.id}`,
+      alex
+    )
+    expect(res.status).toBe(200)
+    expect(res.body.chatMessageId).toBe(shared.chatMessageId)
   })
 })
