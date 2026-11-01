@@ -106,7 +106,7 @@ export interface ICareLogRepository {
     timezone: string,
     canopyId: string | null
   ) => Effect.Effect<number, SqlError>
-  readonly countTodayOnOwnPlantsByUser: (
+  readonly countTodayPerformedByUser: (
     userId: string,
     timezone: string
   ) => Effect.Effect<number, SqlError>
@@ -353,15 +353,19 @@ export const CareLogRepositoryLive = Layer.effect(
         }
       ),
 
-      countTodayOnOwnPlantsByUser: Effect.fn(
-        'CareLogRepository.countTodayOnOwnPlantsByUser'
+      countTodayPerformedByUser: Effect.fn(
+        'CareLogRepository.countTodayPerformedByUser'
       )(function* (userId: string, timezone: string) {
         const startOfDay = sql`date_trunc('day', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
         const result = yield* db
           .select({ value: count() })
           .from(careLogs)
-          .innerJoin(plants, eq(careLogs.plantId, plants.id))
-          .where(and(eq(plants.userId, userId), gte(careLogs.date, startOfDay)))
+          .where(
+            and(
+              eq(careLogs.performedByUserId, userId),
+              gte(careLogs.date, startOfDay)
+            )
+          )
         return extractCount(result)
       }),
 

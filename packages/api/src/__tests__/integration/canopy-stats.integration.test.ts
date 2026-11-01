@@ -1,3 +1,4 @@
+import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import {
   AchievementRepository,
   AchievementRepositoryLive,
@@ -14,11 +15,13 @@ import {
   FollowRepository,
   FollowRepositoryLive,
 } from '@lily/api/repositories/follow.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { processEvent } from '@lily/api/services/achievements/checker'
 import { AchievementNotifier } from '@lily/api/services/achievements/notifier'
+import { processStreakAtRisk } from '@lily/api/services/engagement-scheduler/scheduler'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer } from 'effect'
 import pg from 'pg'
@@ -31,6 +34,7 @@ const AppLive = Layer.mergeAll(
   CareLogRepositoryLive,
   EngagementRepositoryLive,
   FollowRepositoryLive,
+  NotificationRepositoryLive,
   Layer.succeed(AchievementNotifier, {
     notify: () => Effect.void,
     subscribe: Effect.die('subscribe is not used here'),
@@ -52,6 +56,14 @@ const plantValues = {
 }
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000)
+
+const eveningZone = () => {
+  const ahead = (20 - new Date().getUTCHours() + 24) % 24
+  const offset = ahead > 12 ? ahead - 24 : ahead
+  return offset === 0
+    ? 'Etc/GMT'
+    : `Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`
+}
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
   'Canopy stats credit the actor - Integration',
@@ -202,6 +214,37 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         )
       ).toBe(1)
+    })
+
+    const streakWarnings = async (userId: string) => {
+      await run(
+        processStreakAtRisk(
+          [makeUserWithSettings({ id: userId, timezone: eveningZone() })],
+          new Map([[userId, 5]])
+        )
+      )
+      const sent = await db
+        .select({ id: schema.notifications.id })
+        .from(schema.notifications)
+        .where(
+          and(
+            eq(schema.notifications.userId, userId),
+            eq(schema.notifications.type, 'streak_at_risk')
+          )
+        )
+      return sent.length
+    }
+
+    it('spares a member who cared only for a Canopy plant today the streak warning', async () => {
+      await careBy(lilyId, alexsCanopyPlant, [0])
+
+      expect(await streakWarnings(lilyId)).toBe(0)
+    })
+
+    it('warns an owner whose own plant only someone else cared for today', async () => {
+      await careBy(samId, alexsPersonalPlant, [0])
+
+      expect(await streakWarnings(alexId)).toBe(1)
     })
 
     it('counts care for the weekly recap and the profile by actor', async () => {

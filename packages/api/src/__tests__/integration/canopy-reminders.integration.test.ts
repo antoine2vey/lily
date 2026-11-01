@@ -319,18 +319,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           date: new Date(),
         }))
       )
-      const [withCanopy, personalOnly, anyPersonal] = await run(
+      const [withCanopy, personalOnly] = await run(
         Effect.flatMap(CareLogRepository, (repo) =>
           Effect.all([
             repo.countTodayByUser(alex, 'UTC', canopyId),
             repo.countTodayByUser(alex, 'UTC', null),
-            repo.countTodayOnOwnPlantsByUser(alex, 'UTC'),
           ])
         )
       )
       expect(withCanopy).toBe(2)
       expect(personalOnly).toBe(1)
-      expect(anyPersonal).toBe(2)
     })
 
     it('delivers a Canopy care push only to a member who has not muted the plant', async () => {

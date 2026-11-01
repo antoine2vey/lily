@@ -109,7 +109,7 @@ describe('processStreakAtRisk', () => {
       createMockNotificationRepository(notifications),
       createMockCareLogRepository([], {
         todayCountByUser: { 'user-1': 0 },
-        ownPlantsTodayCountByUser: { 'user-1': 1 },
+        performedTodayCountByUser: { 'user-1': 1 },
       })
     )
 

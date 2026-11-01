@@ -12,7 +12,7 @@ export const createMockCareLogRepository = (
   careLogs: CareLog[],
   options?: {
     todayCountByUser?: Record<string, number>
-    ownPlantsTodayCountByUser?: Record<string, number>
+    performedTodayCountByUser?: Record<string, number>
     countByUser?: Record<string, number>
   }
 ): Layer.Layer<CareLogRepository> => {
@@ -158,10 +158,10 @@ export const createMockCareLogRepository = (
         )
       ),
 
-    countTodayOnOwnPlantsByUser: (userId: string) =>
+    countTodayPerformedByUser: (userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullishOr(options?.ownPlantsTodayCountByUser),
+          Option.fromNullishOr(options?.performedTodayCountByUser),
           Option.orElse(() => Option.fromNullishOr(options?.todayCountByUser)),
           Option.flatMap((counts) => Option.fromNullishOr(counts[userId])),
           Option.getOrElse(() => 0)
