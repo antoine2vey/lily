@@ -1,5 +1,5 @@
-import { clientIp } from '@lily/mcp/auth/client-ip'
 import { describe, expect, it } from 'vitest'
+import { clientIp } from '../services/http/client-ip'
 
 describe('clientIp', () => {
   it('takes the visitor from cf-connecting-ip when Cloudflare connected', () => {

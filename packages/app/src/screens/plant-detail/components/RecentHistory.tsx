@@ -6,6 +6,7 @@ import { Text, View } from 'react-native'
 import { EmptyState } from '@/components/EmptyState'
 import { SectionHeader } from '@/components/SectionHeader'
 import { useIconColors } from '@/hooks/useIconColors'
+import { type CareActor, withCareActor } from '@/utils/canopy-plants'
 
 type EventType = 'watered' | 'fertilized' | 'misted' | 'pruned' | 'repotted'
 
@@ -14,6 +15,8 @@ interface HistoryEvent {
   type: EventType
   date: DateInput
   notes?: string
+  /** Set on Canopy plants only: who did it. */
+  actor?: CareActor | undefined
 }
 
 interface RecentHistoryProps {
@@ -124,7 +127,7 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
                 />
                 <View className="flex-1">
                   <Text className="text-base font-medium text-text-primary dark:text-white">
-                    {config.label}
+                    {withCareActor(config.label, event.actor, t)}
                   </Text>
                   {event.notes && (
                     <Text

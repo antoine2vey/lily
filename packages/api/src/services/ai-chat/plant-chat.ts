@@ -2,8 +2,6 @@ import { openai } from '@ai-sdk/openai'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import {
   buildGeneralSystemPrompt,
@@ -17,10 +15,11 @@ import {
   type ToolContext,
 } from '@lily/api/services/ai-chat/tools'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
+import { seesCarePlan } from '@lily/api/services/care-plans/helpers/care-plan-access'
+import { actorDayTimezone } from '@lily/api/services/plants/helpers/care-context'
+import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import { daysSince } from '@lily/shared'
 import type { ChatConversation } from '@lily/shared/ai-chat'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   convertToModelMessages,
   type StreamTextResult,
@@ -213,17 +212,11 @@ const buildPlantContext = (
   userId: string
 ) =>
   Effect.gen(function* () {
-    const plantRepo = yield* PlantRepository
     const careLogRepo = yield* CareLogRepository
     const scheduleRepo = yield* CareScheduleRepository
     const carePlanRepo = yield* CarePlanRepository
-    const userRepo = yield* UserRepository
 
-    const plant = yield* plantRepo.findById(plantId)
-    if (!plant) {
-      return yield* new PlantNotFoundError({ plantId })
-    }
-    yield* assertCanAccessPlant(plant.userId, plant.id)
+    const { plant, view } = yield* withPlantKnowledge(plantId, 'chat')
 
     const schedules = yield* scheduleRepo.findByPlant(plantId)
     const careLogsResponse = yield* careLogRepo.findByPlantId({
@@ -233,17 +226,13 @@ const buildPlantContext = (
     const careHistoryText = formatCareHistoryText(careLogsResponse.items)
     const daysSinceAdded = daysSince(plant.dateAdded)
 
-    // Plans belong to the owner; a caretaker chatting about a delegated
-    // plant simply gets no plan context (owner-only feature).
-    const carePlans = yield* carePlanRepo.findByPlant(plantId, userId)
+    const carePlans = Array.filter(
+      yield* carePlanRepo.findByPlant(plantId),
+      seesCarePlan(view)
+    )
     const carePlansText = formatCarePlansText(carePlans)
 
-    const user = yield* userRepo.findById(userId)
-    const timezone = pipe(
-      Option.fromNullishOr(user),
-      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrElse(() => 'UTC')
-    )
+    const timezone = yield* actorDayTimezone(plant.owner, userId)
 
     const systemPrompt = buildPlantSystemPrompt({
       plant: { ...plant, schedules },

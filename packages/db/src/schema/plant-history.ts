@@ -32,6 +32,9 @@ export const careLogs = pgTable(
     plantId: uuid('plant_id')
       .notNull()
       .references(() => plants.id, { onDelete: 'cascade' }),
+    performedByUserId: uuid('performed_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -39,13 +42,20 @@ export const careLogs = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index('care_logs_plant_id_idx').on(table.plantId)]
+  (table) => [
+    index('care_logs_plant_id_idx').on(table.plantId),
+    index('care_logs_performed_by_user_id_idx').on(table.performedByUserId),
+  ]
 )
 
 export const careLogsRelations = relations(careLogs, ({ one }) => ({
   plant: one(plants, {
     fields: [careLogs.plantId],
     references: [plants.id],
+  }),
+  performedBy: one(users, {
+    fields: [careLogs.performedByUserId],
+    references: [users.id],
   }),
 }))
 

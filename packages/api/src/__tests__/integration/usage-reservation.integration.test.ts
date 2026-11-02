@@ -1,6 +1,7 @@
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
+import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { GiftCodeRepositoryLive } from '@lily/api/repositories/gift-code.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
@@ -74,7 +75,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         CareScheduleRepositoryLive,
         AchievementRepositoryLive,
         RateLimiterServiceLive,
-        RoomRepositoryLive
+        RoomRepositoryLive,
+        CanopyRepositoryLive
       ).pipe(Layer.provideMerge(DbLive))
       return Layer.mergeAll(
         LimitCheckerLive,

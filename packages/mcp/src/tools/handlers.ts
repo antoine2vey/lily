@@ -11,6 +11,7 @@ import type { Scope } from '@lily/mcp/auth/scopes'
 import {
   askPlantQuestionEffect,
   carePlantEffect,
+  createPlantEffect,
   getCareTasksEffect,
   getOverduePlantsEffect,
   getPlantDetailsEffect,
@@ -19,6 +20,7 @@ import {
 import {
   AskPlantQuestion,
   CarePlant,
+  CreatePlant,
   GetCareTasks,
   GetOverduePlants,
   GetPlantDetails,
@@ -173,6 +175,7 @@ export const ToolsLayer = Layer.effectDiscard(
       getOverduePlantsEffect()
     )
     yield* register(CarePlant, 'plants:write', carePlantEffect)
+    yield* register(CreatePlant, 'plants:write', createPlantEffect)
     yield* register(AskPlantQuestion, 'knowledge:read', (params) =>
       Effect.map(askPlantQuestionEffect(params), (text) => ({ text }))
     )

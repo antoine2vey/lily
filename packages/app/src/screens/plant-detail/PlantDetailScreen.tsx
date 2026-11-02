@@ -32,6 +32,7 @@ import { toast } from 'sonner-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { GlassIconButton } from '@/components/GlassIconButton'
+import { useAuth } from '@/contexts/AuthContext'
 import { useCarePlant } from '@/hooks/useCarePlant'
 import { useConversationByPlant } from '@/hooks/useConversationByPlant'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
@@ -39,7 +40,13 @@ import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useDeletePlant } from '@/hooks/useDeletePlant'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useMarkPlantDead } from '@/hooks/useMarkPlantDead'
+import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { usePlant } from '@/hooks/usePlant'
+import {
+  useSetPlantMuted,
+  useSharePlantWithCanopy,
+  useUnsharePlant,
+} from '@/hooks/usePlantCanopyActions'
 import { useRevivePlant } from '@/hooks/useRevivePlant'
 import { useSharePlant } from '@/hooks/useSharePlant'
 import { useTheme } from '@/hooks/useTheme'
@@ -62,9 +69,11 @@ import {
   type SayGoodbyePayload,
   SayGoodbyeSheet,
 } from '@/screens/plant-detail/components/SayGoodbyeSheet'
+import { actionsOnPlant, careActorFor } from '@/utils/canopy-plants'
 import { useEffectQuery } from '@/utils/client'
 import { useGlass } from '@/utils/glass'
 import { mapApiHealthToCardHealth } from '@/utils/health'
+import { showPlantLimitAlert } from '@/utils/plant-limit-alert'
 
 const CARE_TOAST_KEYS: Readonly<
   globalThis.Record<CareType, { success: string; error: string }>
@@ -202,6 +211,7 @@ function PlantHeroImage({ imageUrl }: PlantHeroImageProps) {
 export function PlantDetailScreen() {
   const { t } = useTranslation('plants')
   const { t: tCemetery } = useTranslation('cemetery')
+  const { t: tCanopy } = useTranslation('canopy')
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -262,6 +272,13 @@ export function PlantDetailScreen() {
   const deletePlant = useDeletePlant()
   const markPlantDead = useMarkPlantDead()
   const revivePlant = useRevivePlant()
+  const sharePlantWithCanopy = useSharePlantWithCanopy()
+  const unsharePlant = useUnsharePlant()
+  const setPlantMuted = useSetPlantMuted()
+  const { state: authState } = useAuth()
+  const me = authState._tag === 'Authenticated' ? authState.user.id : ''
+  const { data: canopyData } = useMyCanopy()
+  const myCanopy = Option.fromNullishOr(canopyData?.canopy)
   const createConversation = useCreateConversation()
   const { findExisting: findExistingPlantChat } =
     useConversationByPlant(plantId)
@@ -488,7 +505,7 @@ export function PlantDetailScreen() {
           pipe(
             Match.value(error),
             Match.when({ _tag: 'LimitExceededError' }, (e) =>
-              Alert.alert(tCemetery('limit.title'), e.message)
+              showPlantLimitAlert(e, tCemetery('limit.title'), tCemetery)
             ),
             Match.orElse(() => toast.error(tCemetery('toast.bringBackFailed')))
           ),
@@ -498,22 +515,90 @@ export function PlantDetailScreen() {
     )
   }, [plantId, plant, revivePlant, tCemetery])
 
-  const handleConfirmDelete = useCallback(() => {
+  const handleShareToCanopy = useCallback(() => {
+    if (!plantId || Option.isNone(myCanopy)) return
+    const name = myCanopy.value.name
+    Alert.alert(
+      tCanopy('actions.shareTitle', { name }),
+      tCanopy('actions.shareMessage', { name }),
+      [
+        { text: t('common:buttons.cancel'), style: 'cancel' },
+        {
+          text: tCanopy('actions.share', { name }),
+          onPress: () =>
+            sharePlantWithCanopy.mutate(plantId, {
+              onSuccess: () =>
+                toast.success(tCanopy('actions.shared', { name })),
+              onError: (error) =>
+                pipe(
+                  Match.value(error),
+                  Match.tag('LimitExceededError', (e) =>
+                    showPlantLimitAlert(e, tCemetery('limit.title'), tCanopy)
+                  ),
+                  Match.tag('PlantInDelegationError', () =>
+                    toast.error(tCanopy('actions.shareDelegated', { name }))
+                  ),
+                  Match.orElse(() => toast.error(tCanopy('actions.failed')))
+                ),
+            }),
+        },
+      ]
+    )
+  }, [plantId, myCanopy, sharePlantWithCanopy, t, tCanopy, tCemetery])
+
+  const handleUnshare = useCallback(() => {
+    if (!plantId || !plant?.canopy) return
+    const name = plant.canopy.name
+    Alert.alert(
+      tCanopy('actions.unshareTitle'),
+      tCanopy('actions.unshareMessage', { name }),
+      [
+        { text: t('common:buttons.cancel'), style: 'cancel' },
+        {
+          text: tCanopy('actions.unshare'),
+          onPress: () =>
+            unsharePlant.mutate(plantId, {
+              onSuccess: () => toast.success(tCanopy('actions.unshared')),
+              onError: (error) =>
+                error._tag === 'LimitExceededError'
+                  ? showPlantLimitAlert(
+                      error,
+                      tCemetery('limit.title'),
+                      tCanopy
+                    )
+                  : toast.error(tCanopy('actions.failed')),
+            }),
+        },
+      ]
+    )
+  }, [plantId, plant?.canopy, unsharePlant, t, tCanopy, tCemetery])
+
+  const handleToggleMute = useCallback(() => {
     if (!plantId) return
-    deletePlant.mutate(
-      { params: { id: plantId } },
+    const muted = !plant?.muted
+    setPlantMuted.mutate(
+      { plantId, muted },
       {
-        onSuccess: () => {
-          setShowDeleteConfirm(false)
-          toast.success(t('detail.toast.deleted', { name: plant?.name }))
-          router.back()
-        },
-        onError: () => {
-          setShowDeleteConfirm(false)
-          toast.error(t('detail.toast.deleteFailed'))
-        },
+        onSuccess: () =>
+          toast.success(tCanopy(muted ? 'actions.muted' : 'actions.unmuted')),
+        onError: () => toast.error(tCanopy('actions.failed')),
       }
     )
+  }, [plantId, plant?.muted, setPlantMuted, tCanopy])
+
+  // useEffectMutation resolves an API failure as Result.fail, so onSuccess
+  // runs for a refused delete too: the toast must follow the Result.
+  const handleConfirmDelete = useCallback(async () => {
+    if (!plantId) return
+    const result = await deletePlant.mutateAsync({ params: { id: plantId } })
+    setShowDeleteConfirm(false)
+    Result.match(result, {
+      onFailure: () => toast.error(t('detail.toast.deleteFailed')),
+      onSuccess: () => {
+        toast.success(t('detail.toast.deleted', { name: plant?.name }))
+        router.back()
+      },
+    })
   }, [plantId, plant?.name, deletePlant, router, t])
 
   // Extract schedule data — memoized since this screen re-renders on scroll
@@ -598,10 +683,14 @@ export function PlantDetailScreen() {
     })
   )
 
+  const actions = actionsOnPlant(plant, me, myCanopy)
+  const isCanopyPlant = plant.ownership === 'canopy'
+
   const historyEvents = pipe(
     Option.fromNullishOr(careLogs?.items),
     Option.map(
       Array.map((log) => ({
+        actor: isCanopyPlant ? careActorFor(log.performedBy, me) : undefined,
         id: log.id,
         type: pipe(
           Match.value(log.type),
@@ -621,6 +710,7 @@ export function PlantDetailScreen() {
           type: 'watered' | 'fertilized' | 'misted' | 'repotted'
           date: Date
           notes?: string
+          actor?: ReturnType<typeof careActorFor> | undefined
         }[]
     )
   )
@@ -824,6 +914,16 @@ export function PlantDetailScreen() {
         onBringBack={handleBringBack}
         onDelete={handleDelete}
         isDead={isDead}
+        canopyName={Option.match(myCanopy, {
+          onNone: () => '',
+          onSome: (c) => c.name,
+        })}
+        actions={actions}
+        muted={plant.muted === true}
+        canEndLife={actions.endLife}
+        onShareToCanopy={handleShareToCanopy}
+        onUnshare={handleUnshare}
+        onToggleMute={handleToggleMute}
       />
 
       {/* Say Goodbye Sheet */}

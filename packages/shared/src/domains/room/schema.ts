@@ -9,7 +9,8 @@ export const Room = Schema.Struct({
   orientation: Schema.NullOr(OrientationSchema),
   isOutdoor: Schema.Boolean,
   order: Schema.Number,
-  userId: Schema.String,
+  userId: Schema.NullOr(Schema.String),
+  canopyId: Schema.NullOr(Schema.String),
   createdAt: Schema.DateFromString,
   updatedAt: Schema.DateFromString,
 })
@@ -35,6 +36,7 @@ export const RoomCreateRequest = Schema.Struct({
     Schema.withDecodingDefaultType(Effect.succeed(false)),
     Schema.withConstructorDefault(Effect.succeed(false))
   ),
+  owner: Schema.optional(Schema.Literals(['me', 'canopy'])),
 })
 
 export const RoomUpdateRequest = Schema.Struct({

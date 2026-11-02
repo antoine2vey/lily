@@ -84,7 +84,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const plant = await Effect.runPromise(
         Effect.gen(function* () {
           const repo = yield* PlantRepository
-          return yield* repo.update(plantId, {})
+          return yield* repo.update(plantId, { _tag: 'User', userId }, {})
         }).pipe(Effect.provide(ReposLive))
       )
 

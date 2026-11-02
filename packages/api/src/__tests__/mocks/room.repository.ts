@@ -1,4 +1,9 @@
 import {
+  ownerColumns,
+  sameOwner,
+  withOwner,
+} from '@lily/api/repositories/helpers/plant-owner'
+import {
   type IRoomRepository,
   RoomRepository,
 } from '@lily/api/repositories/room.repository'
@@ -11,13 +16,13 @@ export const createMockRoomRepository = (
   roomsData: RoomRecord[]
 ): Layer.Layer<RoomRepository> => {
   const repo: IRoomRepository = {
-    findAll: (userId: string) => {
+    findAll: ({ userId }) => {
       const filtered = Array.filter(roomsData, (r) => r.userId === userId)
       const sorted = [...filtered].sort((a, b) =>
         a.order !== b.order ? a.order - b.order : a.name.localeCompare(b.name)
       )
       return Effect.succeed(
-        Array.map(sorted, (room) => ({ ...room, plantCount: 0 }))
+        Array.map(sorted, (room) => ({ ...withOwner(room), plantCount: 0 }))
       )
     },
 
@@ -25,6 +30,7 @@ export const createMockRoomRepository = (
       Effect.succeed(
         pipe(
           Array.findFirst(roomsData, (r) => r.id === id),
+          Option.map(withOwner),
           Option.getOrNull
         )
       ),
@@ -38,15 +44,18 @@ export const createMockRoomRepository = (
         orientation: data.orientation ?? null,
         isOutdoor: data.isOutdoor ?? false,
         order: data.order,
-        userId: data.userId,
+        ...ownerColumns(data.owner),
         createdAt: new Date(),
         updatedAt: new Date(),
       }
-      return Effect.succeed(newRoom)
+      return Effect.succeed(withOwner(newRoom))
     },
 
-    update: (id, data) => {
-      const roomOption = Array.findFirst(roomsData, (r) => r.id === id)
+    update: (id, owner, data) => {
+      const roomOption = Array.findFirst(
+        roomsData,
+        (r) => r.id === id && sameOwner(withOwner(r).owner, owner)
+      )
       return Option.match(roomOption, {
         onNone: () => Effect.succeed(null),
         onSome: (room) => {
@@ -60,21 +69,27 @@ export const createMockRoomRepository = (
               ? { luminosity: data.luminosity }
               : {}),
           }
-          return Effect.succeed(updated)
+          return Effect.succeed(withOwner(updated))
         },
       })
     },
 
-    delete: (id) =>
+    delete: (id, owner) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(roomsData, (r) => r.id === id),
+          Array.findFirst(
+            roomsData,
+            (r) => r.id === id && sameOwner(withOwner(r).owner, owner)
+          ),
+          Option.map(withOwner),
           Option.getOrNull
         )
       ),
 
-    getMaxOrder: (userId: string) => {
-      const filtered = Array.filter(roomsData, (r) => r.userId === userId)
+    getMaxOrder: (owner) => {
+      const filtered = Array.filter(roomsData, (r) =>
+        sameOwner(withOwner(r).owner, owner)
+      )
       return Effect.succeed(
         Option.getOrElse(
           Option.map(

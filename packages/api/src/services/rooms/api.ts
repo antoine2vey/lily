@@ -1,5 +1,6 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
+  CanopyNotFoundError,
   Room,
   RoomCreateRequest,
   RoomListWithCountsResponse,
@@ -11,9 +12,14 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 const roomIdParam = Schema.String.check(Schema.isGUID())
 
+export const RoomsQueryParams = Schema.Struct({
+  includeCanopy: Schema.optional(Schema.String),
+})
+
 export const RoomsApi = HttpApiGroup.make('rooms')
   .add(
     HttpApiEndpoint.get('getRooms', '/', {
+      query: RoomsQueryParams,
       success: RoomListWithCountsResponse,
       error: Schema.Struct({ error: Schema.String }).pipe(
         HttpApiSchema.status(401)
@@ -24,9 +30,10 @@ export const RoomsApi = HttpApiGroup.make('rooms')
     HttpApiEndpoint.post('createRoom', '/', {
       payload: RoomCreateRequest,
       success: Room.pipe(HttpApiSchema.status(201)),
-      error: Schema.Struct({ error: Schema.String }).pipe(
-        HttpApiSchema.status(401)
-      ),
+      error: [
+        CanopyNotFoundError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
     })
   )
   .add(

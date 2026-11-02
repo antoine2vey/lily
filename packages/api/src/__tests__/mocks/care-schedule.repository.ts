@@ -1,12 +1,15 @@
+import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
 import {
   CareScheduleRepository,
   type CareScheduleRow,
   type CareType,
   type ICareScheduleRepository,
+  type OverdueRecipientPlant,
   type OwnerScheduleRow,
   type ScheduleWithPlant,
   type UpsertScheduleData,
 } from '@lily/api/repositories/care-schedule.repository'
+import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
 import type { plants } from '@lily/db/schema'
 import { earliestOverdueDate } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
@@ -23,6 +26,8 @@ export interface MockCareScheduleData {
   schedules?: CareScheduleRow[]
   plants?: PlantRecord[]
   rooms?: MockRoom[]
+  memberships?: MockMembership[]
+  mutes?: Array<{ userId: string; plantId: string }>
 }
 
 export const createMockCareScheduleRepository = (
@@ -40,6 +45,34 @@ export const createMockCareScheduleRepository = (
     Option.fromNullishOr(data.rooms),
     Option.getOrElse(() => [] as MockRoom[])
   )
+  const memberships = data.memberships ?? []
+  const mutes = data.mutes ?? []
+
+  const isMuted = (userId: string, plantId: string) =>
+    Array.some(mutes, (m) => m.userId === userId && m.plantId === plantId)
+
+  const caredForBy =
+    (userId: string, canopyId: string | null) => (p: PlantRecord) =>
+      p.userId === userId ||
+      (canopyId !== null && p.canopyId === canopyId && !isMuted(userId, p.id))
+
+  const memberCanopyOf = (userId: string) =>
+    pipe(
+      Array.findFirst(memberships, (m) => m.userId === userId),
+      Option.map((m): string => m.canopyId),
+      Option.getOrNull
+    )
+
+  const recipientsOf = (p: PlantRecord): ReadonlyArray<string> =>
+    p.userId !== null
+      ? [p.userId]
+      : pipe(
+          memberships,
+          Array.filter(
+            (m) => m.canopyId === p.canopyId && !isMuted(m.userId, p.id)
+          ),
+          Array.map((m) => m.userId)
+        )
 
   const resolveRoom = (roomId: string | null) =>
     pipe(
@@ -63,14 +96,35 @@ export const createMockCareScheduleRepository = (
     findByPlant: (plantId: string) =>
       Effect.succeed(Array.filter(schedulesData, (s) => s.plantId === plantId)),
 
+    findByPlantIds: (plantIds: ReadonlyArray<string>) =>
+      Effect.succeed(
+        Array.filter(schedulesData, (s) => Array.contains(plantIds, s.plantId))
+      ),
+
+    shiftDueBefore: ({ plantIds, before, shiftMs, floor }) =>
+      Effect.sync(() => {
+        Array.forEach(schedulesData, (s, i) => {
+          if (
+            Array.contains(plantIds, s.plantId) &&
+            s.nextCareAt !== null &&
+            s.nextCareAt.getTime() < before.getTime()
+          ) {
+            schedulesData[i] = {
+              ...s,
+              nextCareAt: new Date(
+                Math.max(s.nextCareAt.getTime() + shiftMs, floor.getTime())
+              ),
+            }
+          }
+        })
+      }),
+
     // Mirrors the live repository: plants in the cemetery never surface in
     // care tasks, overdue sweeps, or vacation rebuilds.
-    findPendingByUser: (userId: string, cutoff: Date) => {
+    findPendingByUser: (userId: string, cutoff: Date, canopyId) => {
+      const visible = caredForBy(userId, canopyId)
       const userPlantIds = pipe(
-        Array.filter(
-          plantsData,
-          (p) => p.userId === userId && p.diedAt === null
-        ),
+        Array.filter(plantsData, (p) => visible(p) && p.diedAt === null),
         Array.map((p) => p.id)
       )
 
@@ -118,33 +172,32 @@ export const createMockCareScheduleRepository = (
           s.nextCareAt.getTime() <= now.getTime()
       )
 
-      // Group by plant, then by user
       const byPlant = Array.groupBy(overdue, (s) => s.plantId)
 
       const mapped = pipe(
         Array.fromRecord(byPlant),
-        Array.map(([, schedules]) => {
-          const first = Array.head(schedules)
-          return pipe(
-            first,
-            Option.flatMap((s) =>
-              pipe(
-                Array.findFirst(plantsData, (p) => p.id === s.plantId),
-                Option.map((plant) => ({
+        Array.flatMap(([plantId, schedules]) =>
+          pipe(
+            Array.findFirst(plantsData, (p) => p.id === plantId),
+            Option.map((plant) =>
+              Array.map(
+                recipientsOf(plant),
+                (userId): OverdueRecipientPlant => ({
                   id: plant.id,
                   name: plant.name,
-                  userId: plant.userId,
+                  userId,
+                  owner: ownerOf(plant),
                   dateAdded: plant.dateAdded,
                   overdueAt: earliestOverdueDate(
                     Array.map(schedules, (sc) => sc.nextCareAt),
                     now
                   ),
-                }))
+                })
               )
-            )
+            ),
+            Option.getOrElse((): OverdueRecipientPlant[] => [])
           )
-        }),
-        Array.getSomes
+        )
       )
 
       return Effect.succeed(Array.groupBy(mapped, (p) => p.userId))
@@ -155,7 +208,8 @@ export const createMockCareScheduleRepository = (
         pipe(
           Array.filter(
             plantsData,
-            (p) => p.userId === userId && p.diedAt === null
+            (p) =>
+              caredForBy(userId, memberCanopyOf(userId))(p) && p.diedAt === null
           ),
           Array.flatMap((plant) =>
             pipe(
@@ -165,7 +219,7 @@ export const createMockCareScheduleRepository = (
                   schedule,
                   plant: {
                     id: plant.id,
-                    userId: plant.userId,
+                    owner: ownerOf(plant),
                     remindersEnabled: plant.remindersEnabled,
                   },
                 })

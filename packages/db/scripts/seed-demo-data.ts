@@ -533,6 +533,13 @@ const LILY_PLANTS: DemoPlantData[] = [
 
 const seedDemoData = Effect.gen(function* () {
   const db = yield* PgDrizzle.PgDrizzle
+  const insertCareLogs = (
+    performedByUserId: string,
+    logs: ReadonlyArray<Omit<typeof careLogs.$inferInsert, 'performedByUserId'>>
+  ) =>
+    db
+      .insert(careLogs)
+      .values(A.map(logs, (log) => ({ ...log, performedByUserId })))
 
   yield* Console.log('Seeding demo data for visual testing...')
 
@@ -617,6 +624,7 @@ const seedDemoData = Effect.gen(function* () {
       .values({
         ...plantFields,
         userId: user.id,
+        createdByUserId: user.id,
         dateAdded: Option.getOrElse(
           Option.fromNullishOr(plantData.dateAdded),
           () => new Date()
@@ -733,7 +741,7 @@ const seedDemoData = Effect.gen(function* () {
   )
   if (Option.isSome(snakePlantOption)) {
     const snakePlant = snakePlantOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Light watering',
@@ -790,7 +798,7 @@ const seedDemoData = Effect.gen(function* () {
   const pothosOption = A.findFirst(createdPlants, (p) => p.name === 'Pothos')
   if (Option.isSome(pothosOption)) {
     const pothos = pothosOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Regular watering',
@@ -835,7 +843,7 @@ const seedDemoData = Effect.gen(function* () {
   const fernOption = A.findFirst(createdPlants, (p) => p.name === 'Fern')
   if (Option.isSome(fernOption)) {
     const fern = fernOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Misted and watered',
@@ -907,7 +915,7 @@ const seedDemoData = Effect.gen(function* () {
   )
   if (Option.isSome(fiddleLeafFigOption)) {
     const fiddleLeafFig = fiddleLeafFigOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'misting',
         notes: 'Misted leaves',
@@ -958,7 +966,7 @@ const seedDemoData = Effect.gen(function* () {
   const cactusOption = A.findFirst(createdPlants, (p) => p.name === 'Cactus')
   if (Option.isSome(cactusOption)) {
     const cactus = cactusOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Initial watering after potting',
@@ -976,7 +984,7 @@ const seedDemoData = Effect.gen(function* () {
   )
   if (Option.isSome(aloeVeraOption)) {
     const aloeVera = aloeVeraOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Light watering',
@@ -1072,7 +1080,7 @@ const seedDemoData = Effect.gen(function* () {
   )
   if (Option.isSome(monsteraOption)) {
     const monstera = monsteraOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Regular watering',
@@ -1144,7 +1152,7 @@ const seedDemoData = Effect.gen(function* () {
   )
   if (Option.isSome(peaceLilyOption)) {
     const peaceLily = peaceLilyOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Regular watering',
@@ -1210,7 +1218,7 @@ const seedDemoData = Effect.gen(function* () {
   )
   if (Option.isSome(spiderPlantOption)) {
     const spiderPlant = spiderPlantOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Regular watering',
@@ -1252,7 +1260,7 @@ const seedDemoData = Effect.gen(function* () {
   )
   if (Option.isSome(rubberPlantOption)) {
     const rubberPlant = rubberPlantOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Thorough watering',
@@ -1291,7 +1299,7 @@ const seedDemoData = Effect.gen(function* () {
   const orchidOption = A.findFirst(createdPlants, (p) => p.name === 'Orchid')
   if (Option.isSome(orchidOption)) {
     const orchid = orchidOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Ice cube method',
@@ -1359,7 +1367,7 @@ const seedDemoData = Effect.gen(function* () {
   )
   if (Option.isSome(calatheaOption)) {
     const calathea = calatheaOption.value
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(user.id, [
       {
         type: 'watering',
         notes: 'Distilled water',
@@ -1478,7 +1486,12 @@ const seedDemoData = Effect.gen(function* () {
     const { schedules, ...plantFields } = plantData
     const result = yield* db
       .insert(plants)
-      .values({ ...plantFields, userId: lily.id, dateAdded: new Date() })
+      .values({
+        ...plantFields,
+        userId: lily.id,
+        createdByUserId: lily.id,
+        dateAdded: new Date(),
+      })
       .returning({ id: plants.id, name: plants.name })
     const plant = getFirst(result)
     lilyCreatedPlants.push(plant)
@@ -1503,7 +1516,7 @@ const seedDemoData = Effect.gen(function* () {
   const daysAgoL = (d: number) => new Date(Date.now() - d * 24 * 60 * 60 * 1000)
 
   for (const plant of lilyCreatedPlants) {
-    yield* db.insert(careLogs).values([
+    yield* insertCareLogs(lily.id, [
       { type: 'watering', plantId: plant.id, date: daysAgoL(3) },
       { type: 'watering', plantId: plant.id, date: daysAgoL(13) },
       { type: 'watering', plantId: plant.id, date: daysAgoL(23) },

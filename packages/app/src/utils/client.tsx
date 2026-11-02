@@ -1,5 +1,11 @@
 import { Api } from '@lily/api/api'
 import {
+  type AlreadyInCanopyError,
+  type CanopyFullError,
+  type CanopyInviteExpiredError,
+  type CanopyInviteNotFoundError,
+  type CanopyMemberNotFoundError,
+  type CanopyNotFoundError,
   type CareLogNotFoundError,
   type DeviceTokenNotFoundError,
   type GiftCodeAlreadyRedeemedError,
@@ -9,9 +15,11 @@ import {
   type GiftCodeNotFoundError,
   type InvalidSubscriptionStatusError,
   type LimitExceededError,
+  type NotCanopyOwnerError,
   type NotificationNotFoundError,
   type PaymentProviderError,
   type PlantAlreadyDeadError,
+  type PlantInDelegationError,
   type PlantNotDeadError,
   type PlantNotFoundError,
   type RoomNotFoundError,
@@ -114,6 +122,14 @@ export type ApiFailure =
   | GiftCodeExpiredError
   | GiftCodeExhaustedError
   | GiftCodeAlreadyRedeemedError
+  | CanopyNotFoundError
+  | AlreadyInCanopyError
+  | CanopyFullError
+  | CanopyMemberNotFoundError
+  | CanopyInviteNotFoundError
+  | CanopyInviteExpiredError
+  | NotCanopyOwnerError
+  | PlantInDelegationError
   | { readonly _tag: 'NetworkError'; readonly message: string }
   | { readonly _tag: 'UnknownError'; readonly message: string }
 
@@ -140,6 +156,14 @@ const KNOWN_ERROR_TAGS = [
   'GiftCodeExpiredError',
   'GiftCodeExhaustedError',
   'GiftCodeAlreadyRedeemedError',
+  'CanopyNotFoundError',
+  'AlreadyInCanopyError',
+  'CanopyFullError',
+  'CanopyMemberNotFoundError',
+  'CanopyInviteNotFoundError',
+  'CanopyInviteExpiredError',
+  'NotCanopyOwnerError',
+  'PlantInDelegationError',
 ] as const
 
 type KnownErrorTag = (typeof KNOWN_ERROR_TAGS)[number]
@@ -786,6 +810,15 @@ async function handleTokenRefreshAndRetry<
   })
 }
 
+export const effectQueryKey = <
+  X extends keyof Client,
+  Y extends keyof Client[X],
+>(
+  section: X,
+  method: Y,
+  params: GetRequestParams<X, Y>
+) => [section, method, params] as const
+
 export function useEffectQuery<
   X extends keyof Client,
   Y extends keyof Client[X],
@@ -799,7 +832,7 @@ export function useEffectQuery<
   >
 ) {
   const query = useQuery({
-    queryKey: [section, method, params],
+    queryKey: effectQueryKey(section, method, params),
     queryFn: () => runApiEffect(section, method, params),
     ...useQueryParams,
   })

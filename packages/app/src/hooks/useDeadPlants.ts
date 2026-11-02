@@ -27,6 +27,7 @@ export function useDeadPlants() {
         filter: 'dead',
         sort: 'added',
         includeCaretaking: 'false',
+        includeCanopy: 'true',
       },
     },
     { staleTime: StaleTime.default }

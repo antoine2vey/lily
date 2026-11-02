@@ -12,6 +12,7 @@ export const createMockCareLogRepository = (
   careLogs: CareLog[],
   options?: {
     todayCountByUser?: Record<string, number>
+    performedTodayCountByUser?: Record<string, number>
     countByUser?: Record<string, number>
   }
 ): Layer.Layer<CareLogRepository> => {
@@ -43,7 +44,12 @@ export const createMockCareLogRepository = (
       const sorted = Array.sort(filtered, byDateDesc)
 
       const total = Array.length(sorted)
-      const items = pipe(sorted, Array.drop(offset), Array.take(limit))
+      const items = pipe(
+        sorted,
+        Array.drop(offset),
+        Array.take(limit),
+        Array.map((log) => ({ ...log, performedBy: null }))
+      )
 
       return Effect.succeed(paginate(items, total, page, limit))
     },
@@ -147,6 +153,16 @@ export const createMockCareLogRepository = (
       Effect.succeed(
         pipe(
           Option.fromNullishOr(options?.todayCountByUser),
+          Option.flatMap((counts) => Option.fromNullishOr(counts[userId])),
+          Option.getOrElse(() => 0)
+        )
+      ),
+
+    countTodayPerformedByUser: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullishOr(options?.performedTodayCountByUser),
+          Option.orElse(() => Option.fromNullishOr(options?.todayCountByUser)),
           Option.flatMap((counts) => Option.fromNullishOr(counts[userId])),
           Option.getOrElse(() => 0)
         )

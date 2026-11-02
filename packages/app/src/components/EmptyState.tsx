@@ -27,6 +27,8 @@ const clips = {
   delegationsCaretaker: 'sendEnvelope',
   delegationPlants: 'lookAround',
   delegationPickPlants: 'jump',
+  canopyNone: 'hello',
+  canopyBringPlants: 'jump',
   followers: 'hello',
   following: 'lookAround',
   usersNoResults: 'lookAround',

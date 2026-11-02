@@ -1,3 +1,4 @@
+import { heldBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
@@ -14,6 +15,7 @@ import {
   inArray,
   isNull,
   ne,
+  type SQLWrapper,
   sql,
 } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
@@ -139,8 +141,11 @@ const isFollowingSubquery = (currentUserId: string) =>
   )`
 
 // Public counts only include living plants; the cemetery is private.
-const plantCountSubquery = () =>
-  sql<number>`(SELECT count(*)::int FROM plants WHERE plants.user_id = ${users.id} AND plants.died_at IS NULL)`
+const shownPlants = (userId: SQLWrapper | string) =>
+  and(eq(plants.createdByUserId, userId), heldBy(userId), isLivingPlant())
+
+const plantCountFor = (userId: SQLWrapper | string) =>
+  sql<number>`(SELECT count(*)::int FROM ${plants} WHERE ${shownPlants(userId)})`
 
 export const FollowRepositoryLive = Layer.effect(
   FollowRepository,
@@ -206,7 +211,7 @@ export const FollowRepositoryLive = Layer.effect(
               id: users.id,
               name: users.name,
               image: users.image,
-              plantCount: plantCountSubquery(),
+              plantCount: plantCountFor(users.id),
               isFollowing: isFollowingSubquery(params.currentUserId),
             })
             .from(userFollows)
@@ -246,7 +251,7 @@ export const FollowRepositoryLive = Layer.effect(
               id: users.id,
               name: users.name,
               image: users.image,
-              plantCount: plantCountSubquery(),
+              plantCount: plantCountFor(users.id),
               isFollowing: isFollowingSubquery(params.currentUserId),
             })
             .from(userFollows)
@@ -327,7 +332,7 @@ export const FollowRepositoryLive = Layer.effect(
               id: users.id,
               name: users.name,
               image: users.image,
-              plantCount: plantCountSubquery(),
+              plantCount: plantCountFor(users.id),
               isFollowing: isFollowingSubquery(params.currentUserId),
             })
             .from(users)
@@ -354,7 +359,7 @@ export const FollowRepositoryLive = Layer.effect(
               id: users.id,
               name: users.name,
               image: users.image,
-              plantCount: plantCountSubquery(),
+              plantCount: plantCountFor(users.id),
               isFollowing: sql<boolean>`false`,
             })
             .from(users)
@@ -389,11 +394,7 @@ export const FollowRepositoryLive = Layer.effect(
               name: users.name,
               image: users.image,
               bio: users.bio,
-              plantCount: sql<number>`(
-                SELECT count(*)::int FROM plants
-                WHERE plants.user_id = ${params.targetUserId}
-                AND plants.died_at IS NULL
-              )`,
+              plantCount: plantCountFor(params.targetUserId),
               followerCount: sql<number>`(
                 SELECT count(*)::int FROM user_follows
                 WHERE following_id = ${params.targetUserId}
@@ -423,7 +424,7 @@ export const FollowRepositoryLive = Layer.effect(
               imageUrl: plants.imageUrl,
             })
             .from(plants)
-            .where(and(eq(plants.userId, params.targetUserId), isLivingPlant()))
+            .where(shownPlants(params.targetUserId))
             .orderBy(desc(plants.dateAdded))
             .limit(9)
 

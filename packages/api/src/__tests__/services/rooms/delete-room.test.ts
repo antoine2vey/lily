@@ -1,4 +1,5 @@
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { deleteRoom } from '@lily/api/services/rooms/endpoints/delete-room'
@@ -8,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 const createTestLayer = (userId = 'user-1') =>
   Layer.mergeAll(
     createMockRoomRepository(mockRooms),
+    createMockCanopyRepository(),
     createMockCurrentUser({ id: userId })
   )
 

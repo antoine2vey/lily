@@ -9,9 +9,12 @@ import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/noti
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
+import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const plant1 = withOwner(createTestPlant({ id: 'plant-1', userId: 'user-1' }))
 
 describe('createCareLog', () => {
   const createTestLayer = () =>
@@ -25,7 +28,7 @@ describe('createCareLog', () => {
 
   it('should create a new care log', async () => {
     const result = await Effect.runPromise(
-      createCareLog('plant-1', { type: 'watering' }).pipe(
+      createCareLog(plant1, { type: 'watering' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -37,7 +40,7 @@ describe('createCareLog', () => {
 
   it('should return the created log with an id', async () => {
     const result = await Effect.runPromise(
-      createCareLog('plant-1', { type: 'fertilization' }).pipe(
+      createCareLog(plant1, { type: 'fertilization' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -48,7 +51,7 @@ describe('createCareLog', () => {
 
   it('should set notes when provided', async () => {
     const result = await Effect.runPromise(
-      createCareLog('plant-1', {
+      createCareLog(plant1, {
         type: 'watering',
         notes: 'Test notes',
       }).pipe(Effect.provide(createTestLayer()))
@@ -59,7 +62,7 @@ describe('createCareLog', () => {
 
   it('should set photoUrl when provided', async () => {
     const result = await Effect.runPromise(
-      createCareLog('plant-1', {
+      createCareLog(plant1, {
         type: 'fertilization',
         photoUrl: 'https://example.com/photo.jpg',
       }).pipe(Effect.provide(createTestLayer()))
@@ -71,7 +74,7 @@ describe('createCareLog', () => {
   it('should use current date when date not provided', async () => {
     const before = new Date()
     const result = await Effect.runPromise(
-      createCareLog('plant-1', { type: 'watering' }).pipe(
+      createCareLog(plant1, { type: 'watering' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -84,7 +87,7 @@ describe('createCareLog', () => {
   it('should use provided date when specified', async () => {
     const customDate = new Date('2024-06-15')
     const result = await Effect.runPromise(
-      createCareLog('plant-1', {
+      createCareLog(plant1, {
         type: 'watering',
         date: customDate,
       }).pipe(Effect.provide(createTestLayer()))
@@ -98,7 +101,7 @@ describe('createCareLog', () => {
     const eventBusMock = createMockEventBus({ publishedEvents })
 
     const result = await Effect.runPromise(
-      createCareLog('plant-1', { type: 'watering' }).pipe(
+      createCareLog(plant1, { type: 'watering' }).pipe(
         Effect.provide(
           Layer.mergeAll(
             createMockCareLogRepository(mockCareLogs),
@@ -125,16 +128,15 @@ describe('createCareLog', () => {
     const publishedEvents: AppEvent[] = []
     const eventBusMock = createMockEventBus({ publishedEvents })
     // Create a plant that NEEDS_ATTENTION
-    const plantsWithAttention = [
-      createTestPlant({
-        id: 'attention-plant',
-        health: 'NEEDS_ATTENTION',
-        userId: 'user-1',
-      }),
-    ]
+    const attentionPlant = createTestPlant({
+      id: 'attention-plant',
+      health: 'NEEDS_ATTENTION',
+      userId: 'user-1',
+    })
+    const plantsWithAttention = [attentionPlant]
 
     await Effect.runPromise(
-      createCareLog('attention-plant', { type: 'watering' }).pipe(
+      createCareLog(withOwner(attentionPlant), { type: 'watering' }).pipe(
         Effect.provide(
           Layer.mergeAll(
             createMockCareLogRepository(mockCareLogs),

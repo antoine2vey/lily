@@ -182,7 +182,9 @@ export async function reconcileLiveActivityTokens(
     // budget, so we can't rely on it.
     let hasRemainingTasks = true
     try {
-      const tasks = await apiEffectRunner('careTasks', 'getCareTasks', {})
+      const tasks = await apiEffectRunner('careTasks', 'getCareTasks', {
+        query: { includeCanopy: 'true' },
+      })
       hasRemainingTasks = tasks.overdue.length > 0 || tasks.today.length > 0
     } catch (err) {
       console.warn('Failed to fetch care tasks during reconcile', err)
@@ -334,6 +336,12 @@ const TOPIC_ROUTES = {
   delegation_canceled: delegationRoute,
   delegation_activated: delegationRoute,
   delegation_completed: delegationRoute,
+
+  // Canopy membership → the Canopy screen, which shows the empty state to a
+  // removed member
+  canopy_member_joined: () => '/(app)/canopy' as Href,
+  canopy_member_removed: () => '/(app)/canopy' as Href,
+  canopy_member_left: () => '/(app)/canopy' as Href,
 
   // Daily tip → tip modal with content
   daily_tip: (data) => {

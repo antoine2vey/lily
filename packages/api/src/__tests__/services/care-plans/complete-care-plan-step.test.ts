@@ -9,6 +9,7 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -24,6 +25,7 @@ import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-pro
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { completeCarePlanStep } from '@lily/api/services/care-plans/endpoints/complete-care-plan-step'
 import { uncompleteCarePlanStep } from '@lily/api/services/care-plans/endpoints/uncomplete-care-plan-step'
@@ -36,7 +38,7 @@ const userId = 'user-1'
 const plantId = 'plant-1'
 
 const toPlantWithRoom = (plant: TestPlant): PlantWithRoom => ({
-  ...plant,
+  ...withUserOwner(plant),
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
@@ -137,6 +139,7 @@ const buildScenario = (scenario: Scenario = {}) => {
     ),
     createMockUserRepository([user]),
     createMockDelegationRepository({}),
+    createMockCanopyRepository(),
     createMockEventBus(),
     createMockCurrentUser({
       id: userId,
@@ -168,7 +171,7 @@ describe('completeCarePlanStep', () => {
   it('ticks a free-text step without touching care logs', async () => {
     const { layer } = buildScenario()
     const result = await run(
-      withCarePlanStep('plan-1', 'step-check')
+      withCarePlanStep('plan-1', 'step-check', 'tick')
         .pipe(Effect.flatMap(completeCarePlanStep))
         .pipe(Effect.provide(layer))
     )
@@ -185,9 +188,11 @@ describe('completeCarePlanStep', () => {
     const { layer } = buildScenario()
     const { plan, schedule } = await run(
       Effect.gen(function* () {
-        const plan = yield* withCarePlanStep('plan-1', 'step-water-1').pipe(
-          Effect.flatMap(completeCarePlanStep)
-        )
+        const plan = yield* withCarePlanStep(
+          'plan-1',
+          'step-water-1',
+          'tick'
+        ).pipe(Effect.flatMap(completeCarePlanStep))
         const scheduleRepo = yield* CareScheduleRepository
         const schedule = yield* scheduleRepo.findByPlantAndType(
           plantId,
@@ -219,7 +224,7 @@ describe('completeCarePlanStep', () => {
     // The care flow raises AlreadyCaredTodayError; the step must still be
     // ticked, without a second care log.
     const plan = await run(
-      withCarePlanStep('plan-1', 'step-water-2')
+      withCarePlanStep('plan-1', 'step-water-2', 'tick')
         .pipe(Effect.flatMap(completeCarePlanStep))
         .pipe(Effect.provide(layer))
     )
@@ -236,19 +241,22 @@ describe('completeCarePlanStep', () => {
     const { layer } = buildScenario()
     const { completed, reopened } = await run(
       Effect.gen(function* () {
-        yield* withCarePlanStep('plan-1', 'step-check').pipe(
+        yield* withCarePlanStep('plan-1', 'step-check', 'tick').pipe(
           Effect.flatMap(completeCarePlanStep)
         )
-        yield* withCarePlanStep('plan-1', 'step-water-1').pipe(
+        yield* withCarePlanStep('plan-1', 'step-water-1', 'tick').pipe(
           Effect.flatMap(completeCarePlanStep)
         )
         const completed = yield* withCarePlanStep(
           'plan-1',
-          'step-water-2'
+          'step-water-2',
+          'tick'
         ).pipe(Effect.flatMap(completeCarePlanStep))
-        const reopened = yield* withCarePlanStep('plan-1', 'step-check').pipe(
-          Effect.flatMap(uncompleteCarePlanStep)
-        )
+        const reopened = yield* withCarePlanStep(
+          'plan-1',
+          'step-check',
+          'tick'
+        ).pipe(Effect.flatMap(uncompleteCarePlanStep))
         return { completed, reopened }
       }).pipe(Effect.provide(layer))
     )
@@ -262,10 +270,10 @@ describe('completeCarePlanStep', () => {
     const { layer } = buildScenario()
     const plan = await run(
       Effect.gen(function* () {
-        yield* withCarePlanStep('plan-1', 'step-check').pipe(
+        yield* withCarePlanStep('plan-1', 'step-check', 'tick').pipe(
           Effect.flatMap(completeCarePlanStep)
         )
-        return yield* withCarePlanStep('plan-1', 'step-check').pipe(
+        return yield* withCarePlanStep('plan-1', 'step-check', 'tick').pipe(
           Effect.flatMap(completeCarePlanStep)
         )
       }).pipe(Effect.provide(layer))
@@ -281,7 +289,7 @@ describe('executePlantCare cross-completion', () => {
       Effect.gen(function* () {
         yield* executePlantCare(plant, { plantId, careType: 'watering' })
         const repo = yield* CarePlanRepository
-        return yield* repo.findById('plan-1', userId)
+        return yield* repo.findById('plan-1')
       }).pipe(Effect.provide(layer))
     )
     const first = Array.findFirst(
@@ -307,7 +315,7 @@ describe('executePlantCare cross-completion', () => {
       Effect.gen(function* () {
         yield* executePlantCare(plant, { plantId, careType: 'watering' })
         const repo = yield* CarePlanRepository
-        return yield* repo.findById('plan-1', userId)
+        return yield* repo.findById('plan-1')
       }).pipe(Effect.provide(layer))
     )
     expect(

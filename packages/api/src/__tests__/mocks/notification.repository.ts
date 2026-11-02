@@ -15,6 +15,8 @@ type MutableNotification = {
 export interface MockNotificationRepositoryOptions {
   queuedAt?: Record<string, Date>
   deliveryClaims?: Record<string, string>
+  /** The ids of a Canopy's plants at call time, like the real subquery. */
+  canopyPlants?: (canopyId: string) => ReadonlyArray<string>
 }
 
 export const createMockNotificationRepository = (
@@ -58,6 +60,11 @@ export const createMockNotificationRepository = (
 
       return Effect.succeed(paginate(items, total, page, limit))
     },
+
+    findByIds: (ids: ReadonlyArray<string>) =>
+      Effect.succeed(
+        Array.filter(notificationsState, (n) => Array.contains(ids, n.id))
+      ),
 
     findById: (id: string) =>
       Effect.succeed(
@@ -245,6 +252,86 @@ export const createMockNotificationRepository = (
           notificationsState,
           (n) => !(n.plantId === plantId && n.status === 'pending')
         )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
+    deleteUndeliveredByUserAndPlant: (userId: string, plantId: string) =>
+      Effect.sync(() => {
+        const toKeep = Array.filter(
+          notificationsState,
+          (n) =>
+            !(
+              n.userId === userId &&
+              n.plantId === plantId &&
+              (n.status === 'pending' || n.status === 'queued')
+            )
+        )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
+    lockReminderKeys: () => Effect.void,
+
+    replaceReminders: (replacement) =>
+      Effect.sync(() => {
+        const stale = (n: MutableNotification) =>
+          !deliveryClaims.has(n.id) &&
+          (replacement.onlyUserId === null ||
+            n.userId === replacement.onlyUserId) &&
+          Array.some(
+            replacement.plants,
+            (plant) =>
+              n.plantId === plant.plantId &&
+              ((n.status === 'pending' &&
+                Array.contains(plant.types, n.type)) ||
+                ((n.status === 'pending' || n.status === 'queued') &&
+                  (plant.plantWide || Array.contains(plant.types, n.type)) &&
+                  !Array.contains(plant.recipientIds, n.userId)))
+          )
+        const toKeep = Array.filter(notificationsState, (n) => !stale(n))
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+        Array.forEach(replacement.rows, (row) => {
+          const since = row.remindedSince
+          const reminded =
+            since !== null &&
+            Array.some(
+              notificationsState,
+              (n) =>
+                n.userId === row.userId &&
+                n.plantId === row.plantId &&
+                n.type === row.type &&
+                (n.status === 'queued' ||
+                  deliveryClaims.has(n.id) ||
+                  (n.status === 'sent' &&
+                    n.sentAt !== undefined &&
+                    n.sentAt.getTime() >= since.getTime()))
+            )
+          if (reminded) return
+          notificationsState.push({
+            id: `notification-${crypto.randomUUID()}`,
+            type: row.type,
+            scheduledAt: row.scheduledAt,
+            isRead: false,
+            status: 'pending',
+            retryCount: 0,
+            userId: row.userId,
+            plantId: row.plantId,
+            createdAt: new Date(),
+          })
+        })
+      }),
+
+    deleteUndeliveredForMemberOnCanopy: (userId: string, canopyId: string) =>
+      Effect.sync(() => {
+        const plantIds = options.canopyPlants?.(canopyId) ?? []
+        const covers = (n: MutableNotification) =>
+          n.userId === userId &&
+          (n.status === 'pending' || n.status === 'queued') &&
+          n.plantId !== undefined &&
+          Array.contains(plantIds, n.plantId)
+        const toKeep = Array.filter(notificationsState, (n) => !covers(n))
         notificationsState.length = 0
         notificationsState.push(...toKeep)
       }),

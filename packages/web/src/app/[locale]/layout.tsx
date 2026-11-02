@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { Space_Grotesk } from 'next/font/google'
 import { notFound } from 'next/navigation'
 import Script from 'next/script'
 import { NextIntlClientProvider } from 'next-intl'
@@ -11,16 +10,9 @@ import {
 import { JsonLd } from '@/components/JsonLd'
 import { StickyMobileCTA } from '@/components/StickyMobileCTA'
 import { routing } from '@/i18n/routing'
+import { spaceGrotesk } from '../fonts'
 import { Providers } from '../providers'
 import '../globals.css'
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-space-grotesk',
-  display: 'swap',
-  preload: true,
-  adjustFontFallback: true,
-})
 
 interface Props {
   children: React.ReactNode

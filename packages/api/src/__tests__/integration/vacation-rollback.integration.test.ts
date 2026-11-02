@@ -1,9 +1,11 @@
+import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
@@ -37,9 +39,11 @@ const SweepAlwaysFails = Layer.effect(
 
 const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
   Layer.mergeAll(
+    PlantRepositoryLive,
     UserRepositoryLive,
     CareScheduleRepositoryLive,
     DelegationRepositoryLive,
+    CanopyRepositoryLive,
     notifications
   ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 

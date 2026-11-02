@@ -43,7 +43,7 @@ const isCloudflare = (ip: string) =>
 /**
  * The caller's IP for rate limiting. Railway's edge overwrites `x-real-ip`
  * with whoever connected to it: a Cloudflare edge for proxied traffic, the
- * caller for a direct hit on the `*.up.railway.app` origin. `cf-connecting-ip`
+ * caller for a direct hit on the origin. `cf-connecting-ip`
  * is only believed when that peer really is Cloudflare, so a direct caller
  * can't pick their own rate-limit key.
  */

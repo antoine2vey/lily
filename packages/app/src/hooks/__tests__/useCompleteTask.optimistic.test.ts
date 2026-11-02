@@ -29,7 +29,11 @@ jest.mock('@/utils/rating-prompt', () => ({
 
 import { useCompleteTask } from '../useCompleteTask'
 
-const CARE_TASKS_QUERY_KEY = ['careTasks', 'getCareTasks', {}]
+const CARE_TASKS_QUERY_KEY = [
+  'careTasks',
+  'getCareTasks',
+  { query: { includeCanopy: 'true' } },
+]
 
 const task = (id: string) => ({
   id,

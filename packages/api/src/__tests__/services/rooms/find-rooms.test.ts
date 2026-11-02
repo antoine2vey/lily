@@ -14,7 +14,9 @@ const createTestLayer = (userId = 'user-1') =>
 describe('findRooms', () => {
   it('should return rooms for the current user', async () => {
     const result = await Effect.runPromise(
-      findRooms().pipe(Effect.provide(createTestLayer()))
+      findRooms({ includeCanopy: false }).pipe(
+        Effect.provide(createTestLayer())
+      )
     )
 
     expect(result.length).toBe(2)
@@ -23,7 +25,9 @@ describe('findRooms', () => {
 
   it('should return rooms ordered by order then name', async () => {
     const result = await Effect.runPromise(
-      findRooms().pipe(Effect.provide(createTestLayer()))
+      findRooms({ includeCanopy: false }).pipe(
+        Effect.provide(createTestLayer())
+      )
     )
 
     expect(result[0]?.name).toBe('Living Room')
@@ -32,7 +36,9 @@ describe('findRooms', () => {
 
   it('should include plant count', async () => {
     const result = await Effect.runPromise(
-      findRooms().pipe(Effect.provide(createTestLayer()))
+      findRooms({ includeCanopy: false }).pipe(
+        Effect.provide(createTestLayer())
+      )
     )
 
     expect(result[0]).toHaveProperty('plantCount')
@@ -41,7 +47,9 @@ describe('findRooms', () => {
 
   it('should return empty array when user has no rooms', async () => {
     const result = await Effect.runPromise(
-      findRooms().pipe(Effect.provide(createTestLayer('non-existent-user')))
+      findRooms({ includeCanopy: false }).pipe(
+        Effect.provide(createTestLayer('non-existent-user'))
+      )
     )
 
     expect(result).toEqual([])
@@ -49,7 +57,9 @@ describe('findRooms', () => {
 
   it('should isolate rooms by user', async () => {
     const result = await Effect.runPromise(
-      findRooms().pipe(Effect.provide(createTestLayer('user-2')))
+      findRooms({ includeCanopy: false }).pipe(
+        Effect.provide(createTestLayer('user-2'))
+      )
     )
 
     expect(result.length).toBe(1)

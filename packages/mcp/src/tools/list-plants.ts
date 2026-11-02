@@ -1,10 +1,11 @@
 import { ApiClient } from '@lily/mcp/api-client'
+import { escapeInlineMarkdown, ownershipSuffix } from '@lily/mcp/tools/markdown'
 import { deathCauseLabel, healthLabel } from '@lily/mcp/widgets/health'
 import { toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
 import type { PlantFilter } from '@lily/shared'
 import { formatIsoDate } from '@lily/shared'
-import { Array, Effect, Match, Option, pipe } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 
 /**
  * Lists all plants for the authenticated user via the API.
@@ -22,7 +23,6 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
 
   const result = yield* apiClient.listPlants({
     filter,
-    includeCaretaking: 'true',
     limit: '100',
   })
 
@@ -57,26 +57,13 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
 
       const room = pipe(
         Option.fromNullishOr(plant.room),
-        Option.map((r) => ` | ${r.icon} ${r.name}`),
+        Option.map((r) => ` | ${escapeInlineMarkdown(`${r.icon} ${r.name}`)}`),
         Option.getOrElse(() => '')
-      )
-
-      const ownership = pipe(
-        Match.value(plant.ownership),
-        Match.when(
-          'caretaking',
-          () =>
-            ` | Caretaking for ${pipe(
-              Option.fromNullishOr(plant.ownerName),
-              Option.getOrElse(() => 'someone')
-            )}`
-        ),
-        Match.orElse(() => '')
       )
 
       acc.plants.push(toPlantSummary(plant))
       acc.lines.push(
-        `- **${plant.name}** ${healthBadge}${room}${ownership} (ID: ${plant.id})`
+        `- **${escapeInlineMarkdown(plant.name)}** ${healthBadge}${room}${ownershipSuffix(plant)} (ID: ${plant.id})`
       )
       return acc
     }

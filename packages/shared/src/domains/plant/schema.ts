@@ -1,4 +1,5 @@
 import { Effect, Schema } from 'effect'
+import { CanopyRef } from '../canopy/schema'
 import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
@@ -12,7 +13,7 @@ export const PlantHealthStatus = Schema.Literals([
 ])
 export type PlantHealthStatus = typeof PlantHealthStatus.Type
 
-export const PlantOwnership = Schema.Literals(['owned', 'caretaking'])
+export const PlantOwnership = Schema.Literals(['owned', 'caretaking', 'canopy'])
 export type PlantOwnership = typeof PlantOwnership.Type
 
 // `dead` lists the cemetery; every other value implies living plants only.
@@ -63,7 +64,23 @@ export const PlantCareSchedule = Schema.Struct({
 
 export type PlantCareSchedule = typeof PlantCareSchedule.Type
 
-export const Plant = Schema.Struct({
+export const PlantCreator = Schema.Struct({
+  id: Schema.String,
+  name: Schema.NullOr(Schema.String),
+})
+export type PlantCreator = typeof PlantCreator.Type
+
+const plantOwnershipMatchesCanopy = Schema.makeFilter<{
+  readonly ownership: PlantOwnership
+  readonly canopy?: CanopyRef | undefined
+}>(
+  (plant) =>
+    (plant.ownership === 'canopy') === (plant.canopy !== undefined) ||
+    'a canopy plant carries its canopy, and only a canopy plant does',
+  { identifier: 'PlantOwnershipMatchesCanopy' }
+)
+
+const plantFields = {
   id: Schema.String,
   name: Schema.String,
   description: Schema.NullOr(Schema.String),
@@ -78,7 +95,7 @@ export const Plant = Schema.Struct({
   health: PlantHealthStatus,
   remindersEnabled: Schema.Boolean,
   isFavorite: Schema.Boolean,
-  userId: Schema.String,
+  userId: Schema.NullOr(Schema.String),
   potWidthCm: Schema.NullOr(Schema.Number),
   potHeightCm: Schema.NullOr(Schema.Number),
   roomId: Schema.NullOr(Schema.String),
@@ -94,8 +111,14 @@ export const Plant = Schema.Struct({
     Schema.withDecodingDefaultType(Effect.succeed(null)),
     Schema.withConstructorDefault(Effect.succeed(null))
   ),
+  canopy: Schema.optionalKey(CanopyRef),
+  createdBy: Schema.optionalKey(Schema.NullOr(PlantCreator)),
   schedules: Schema.Array(PlantCareSchedule),
-})
+}
+
+export const Plant = Schema.Struct(plantFields).check(
+  plantOwnershipMatchesCanopy
+)
 
 export const PlantUpdateRequest = Schema.Struct({
   name: Schema.optional(Schema.String),
@@ -136,6 +159,7 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   potWidthCm: Schema.optional(Schema.NullOr(Schema.Number)),
   potHeightCm: Schema.optional(Schema.NullOr(Schema.Number)),
   roomId: Schema.optional(Schema.String),
+  owner: Schema.optional(Schema.Literals(['me', 'canopy'])),
 })
 
 // AI identify response (shared by both AI identify and nursery card scan)
@@ -192,9 +216,11 @@ export const PlantPhotoUploadResponse = Schema.Struct({
 
 // Plant detail with photos (for single plant endpoint)
 export const PlantDetail = Schema.Struct({
-  ...Plant.fields,
+  ...plantFields,
   photos: Schema.Array(PlantPhoto),
-})
+  // Set on Canopy plants only: whether the caller muted this plant's reminders.
+  muted: Schema.optionalKey(Schema.Boolean),
+}).check(plantOwnershipMatchesCanopy)
 
 // Generic care request (for POST /plants/:id/care)
 export const PlantCareRequest = Schema.Struct({

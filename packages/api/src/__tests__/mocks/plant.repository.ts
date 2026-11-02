@@ -1,4 +1,12 @@
+import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import {
+  ownerColumns,
+  sameOwner,
+  withCanopyOwner,
+  withOwner,
+  withUserOwner,
+} from '@lily/api/repositories/helpers/plant-owner'
 import {
   type FindPhotosParams,
   type FindPlantsParams,
@@ -7,7 +15,12 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db/schema'
-import { endOfDay, type Orientation, paginate } from '@lily/shared'
+import {
+  endOfDay,
+  type Orientation,
+  type PlantOwner,
+  paginate,
+} from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
@@ -32,6 +45,7 @@ interface MockPlantRepositoryData {
   photos?: PlantPhoto[]
   rooms?: MockRoom[]
   caretakingPlants?: MockCaretakingPlant[]
+  memberships?: MockMembership[]
   schedules?: CareScheduleRow[]
 }
 
@@ -58,6 +72,39 @@ export const createMockPlantRepository = (
     Option.fromNullishOr(data.schedules),
     () => [] as CareScheduleRow[]
   )
+  const memberships = Option.getOrElse(
+    Option.fromNullishOr(data.memberships),
+    () => [] as MockMembership[]
+  )
+
+  const canopyNameFor = (canopyId: string) =>
+    pipe(
+      Array.findFirst(memberships, (m) => m.canopyId === canopyId),
+      Option.flatMap((m) => Option.fromNullishOr(m.canopyName)),
+      Option.getOrElse(() => 'Canopy')
+    )
+
+  const toPlantWithRoom = (p: PlantRecord): PlantWithRoom => {
+    if (p.canopyId === null) {
+      return {
+        ...withUserOwner(p),
+        room: resolveRoom(p.roomId),
+        ownership: 'owned' as const,
+        ownerName: null,
+        schedules: [],
+      }
+    }
+    const plant = withCanopyOwner(p)
+    return {
+      ...plant,
+      room: resolveRoom(p.roomId),
+      ownership: 'canopy' as const,
+      ownerName: null,
+      canopy: { id: plant.owner.canopyId, name: canopyNameFor(p.canopyId) },
+      createdBy: null,
+      schedules: [],
+    }
+  }
 
   const resolveRoom = (roomId: string | null) =>
     pipe(
@@ -108,13 +155,24 @@ export const createMockPlantRepository = (
 
   // Shared by update/markDead/revive: mutates the working copy and mirrors
   // the change onto the caller's original array so tests can observe it.
-  const patchPlant = (id: string, patch: Partial<PlantRecord>) => {
-    const idxOption = Array.findFirstIndex(plantsData, (p) => p.id === id)
+  const patchPlant = (
+    id: string,
+    owner: PlantOwner,
+    patch: Partial<PlantRecord>
+  ) => {
+    const idxOption = Array.findFirstIndex(
+      plantsData,
+      (p) => p.id === id && sameOwner(withOwner(p).owner, owner)
+    )
     if (Option.isNone(idxOption)) return Effect.succeed(null)
     const idx = idxOption.value
     const existing = plantsData[idx]
     if (!existing) return Effect.succeed(null)
-    const updated = { ...existing, ...patch, updatedAt: new Date() }
+    const updated: PlantRecord = {
+      ...existing,
+      ...patch,
+      updatedAt: new Date(),
+    }
     plantsData[idx] = updated
     const origIdxOption = Array.findFirstIndex(
       originalPlantsData,
@@ -126,7 +184,7 @@ export const createMockPlantRepository = (
         Object.assign(origPlant, patch)
       }
     }
-    return Effect.succeed(updated)
+    return Effect.succeed(withOwner(updated))
   }
 
   const repo: IPlantRepository = {
@@ -149,13 +207,7 @@ export const createMockPlantRepository = (
 
       filtered = applyFilters(filtered, params)
 
-      const ownedItems: PlantWithRoom[] = Array.map(filtered, (p) => ({
-        ...p,
-        room: resolveRoom(p.roomId),
-        ownership: 'owned' as const,
-        ownerName: null,
-        schedules: [],
-      }))
+      const ownedItems: PlantWithRoom[] = Array.map(filtered, toPlantWithRoom)
 
       // Add caretaking plants when requested
       const caretakingItems: PlantWithRoom[] =
@@ -165,7 +217,7 @@ export const createMockPlantRepository = (
               Array.map(caretakingPlants, (cp) => cp.plant),
               (plants) => applyFilters(plants, params),
               Array.map((p) => ({
-                ...p,
+                ...withUserOwner(p),
                 room: resolveRoom(p.roomId),
                 ownership: 'caretaking' as const,
                 ownerName: pipe(
@@ -181,7 +233,29 @@ export const createMockPlantRepository = (
             )
           : []
 
-      const allItems = Array.appendAll(ownedItems, caretakingItems)
+      const memberCanopyIds = pipe(
+        memberships,
+        Array.filter((m) => m.userId === params.userId),
+        Array.map((m) => m.canopyId)
+      )
+      const canopyItems: PlantWithRoom[] = params.includeCanopy
+        ? pipe(
+            plantsData,
+            Array.filter(
+              (p) =>
+                p.canopyId !== null &&
+                Array.contains(memberCanopyIds, p.canopyId)
+            ),
+            (plants) => applyFilters(plants, params),
+            Array.map(toPlantWithRoom)
+          )
+        : []
+
+      const allItems = pipe(
+        ownedItems,
+        Array.appendAll(caretakingItems),
+        Array.appendAll(canopyItems)
+      )
 
       const sortOrder =
         params.sort === 'name'
@@ -203,22 +277,54 @@ export const createMockPlantRepository = (
       })
     },
 
+    findLivingByCanopy: (canopyId: string) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(
+            plantsData,
+            (p) => p.canopyId === canopyId && p.diedAt === null
+          ),
+          Array.map(toPlantWithRoom)
+        )
+      ),
+
     findByIds: (ids: readonly string[]) =>
       Effect.succeed(
-        Array.filter(plantsData, (p) => Array.contains(ids, p.id))
+        pipe(
+          Array.filter(plantsData, (p) => Array.contains(ids, p.id)),
+          Array.map(withOwner)
+        )
+      ),
+
+    findByIdsForKeyShare: (ids: readonly string[]) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(plantsData, (p) => Array.contains(ids, p.id)),
+          Array.map(withOwner)
+        )
+      ),
+
+    findIdsOwnedBy: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(plantsData, (p) => p.userId === userId),
+          Array.map((p) => p.id)
+        )
+      ),
+
+    findPersonalReminderPlantIds: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(plantsData, (p) => p.userId === userId),
+          Array.map((p) => p.id)
+        )
       ),
 
     findById: (id: string) =>
       Effect.succeed(
         pipe(
           Array.findFirst(plantsData, (p) => p.id === id),
-          Option.map((p) => ({
-            ...p,
-            room: resolveRoom(p.roomId),
-            ownership: 'owned' as const,
-            ownerName: null,
-            schedules: [],
-          })),
+          Option.map(toPlantWithRoom),
           Option.getOrNull
         )
       ),
@@ -245,31 +351,47 @@ export const createMockPlantRepository = (
         diedAt: null,
         deathCause: null,
         deathNote: null,
-        userId: createData.userId,
+        ...ownerColumns(createData.owner),
+        createdByUserId: createData.createdByUserId,
       }
       plantsData.push(newPlant)
-      return Effect.succeed(newPlant)
+      return Effect.succeed(withOwner(newPlant))
     },
 
-    update: (id, updateData) => patchPlant(id, updateData),
+    update: (id, owner, updateData) => patchPlant(id, owner, updateData),
 
-    delete: (id) =>
+    delete: (id, owner) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(plantsData, (p) => p.id === id),
+          Array.findFirst(
+            plantsData,
+            (p) => p.id === id && sameOwner(withOwner(p).owner, owner)
+          ),
+          Option.map(withOwner),
           Option.getOrNull
         )
       ),
 
-    markDead: (id, data) =>
-      patchPlant(id, {
-        diedAt: data.diedAt,
-        deathCause: data.cause,
-        deathNote: data.note,
-      }),
+    markDead: (id, owner, data) =>
+      Array.some(plantsData, (p) => p.id === id && p.diedAt === null)
+        ? patchPlant(id, owner, {
+            diedAt: data.diedAt,
+            deathCause: data.cause,
+            deathNote: data.note,
+          })
+        : Effect.succeed(null),
 
-    revive: (id) =>
-      patchPlant(id, { diedAt: null, deathCause: null, deathNote: null }),
+    revive: (id, owner) =>
+      Array.some(plantsData, (p) => p.id === id && p.diedAt !== null)
+        ? patchPlant(id, owner, {
+            diedAt: null,
+            deathCause: null,
+            deathNote: null,
+          })
+        : Effect.succeed(null),
+
+    moveTo: (id, from, to, roomId) =>
+      patchPlant(id, from, { ...ownerColumns(to), roomId }),
 
     findPhotos: (params: FindPhotosParams) => {
       const page = pipe(

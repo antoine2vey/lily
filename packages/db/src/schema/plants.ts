@@ -1,3 +1,4 @@
+import { canopies } from '@lily/db/schema/canopy'
 import { plantCareSchedules } from '@lily/db/schema/care-schedules'
 import { delegationPlants } from '@lily/db/schema/delegation'
 import { diagnoses } from '@lily/db/schema/diagnoses'
@@ -9,6 +10,7 @@ import { users } from '@lily/db/schema/users'
 import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
+  check,
   doublePrecision,
   index,
   integer,
@@ -40,9 +42,15 @@ export const plants = pgTable(
     health: plantHealthEnum('health').notNull().default('HEALTHY'),
     remindersEnabled: boolean('reminders_enabled').notNull().default(true),
     isFavorite: boolean('is_favorite').notNull().default(false),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').references(() => users.id, {
+      onDelete: 'cascade',
+    }),
+    canopyId: uuid('canopy_id').references(() => canopies.id, {
+      onDelete: 'restrict',
+    }),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     potWidthCm: doublePrecision('pot_width_cm'),
     potHeightCm: doublePrecision('pot_height_cm'),
     roomId: uuid('room_id').references(() => rooms.id, {
@@ -61,11 +69,23 @@ export const plants = pgTable(
     index('plants_user_id_living_idx')
       .on(table.userId)
       .where(sql`${table.diedAt} IS NULL`),
+    index('plants_canopy_id_living_idx')
+      .on(table.canopyId)
+      .where(sql`${table.diedAt} IS NULL`),
+    index('plants_created_by_user_id_idx').on(table.createdByUserId),
+    check(
+      'plants_one_owner',
+      sql`num_nonnulls(${table.userId}, ${table.canopyId}) = 1`
+    ),
   ]
 )
 
 export const plantsRelations = relations(plants, ({ one, many }) => ({
   user: one(users, { fields: [plants.userId], references: [users.id] }),
+  canopy: one(canopies, {
+    fields: [plants.canopyId],
+    references: [canopies.id],
+  }),
   room: one(rooms, { fields: [plants.roomId], references: [rooms.id] }),
   notifications: many(notifications),
   careLogs: many(careLogs),

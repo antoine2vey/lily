@@ -27,7 +27,7 @@ export const uncompleteCarePlanStep = ({
             status: 'accepted',
             completedAt: null,
           })
-        : yield* repo.findById(plan.id, plan.userId)
+        : yield* repo.findById(plan.id)
 
     return pipe(
       Option.fromNullishOr(reopened),

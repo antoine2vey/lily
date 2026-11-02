@@ -4,7 +4,7 @@
 
 ## Overview
 
-`@lily/mcp` lets AI clients act on a user's Lily account: list plants, look up a plant's details and care history, record care, fetch the care schedule, and ask the RAG-backed knowledge base questions. It implements the MCP HTTP transport on Bun (`@effect/platform-bun`, default port 3001, `/mcp` endpoint), authenticates clients with OAuth 2.1 bearer tokens, and returns rich HTML widgets so ChatGPT can render plant cards and task lists. It is **decoupled from the backend** — every operation is an HTTP call to [`@lily/api`](../api); the only direct workspace dependency is [`@lily/db`](../db) for its own OAuth tables.
+`@lily/mcp` lets AI clients act on a user's Lily account: list and add plants, look up a plant's details and care history, record care, fetch the care schedule, and ask the RAG-backed knowledge base questions. It implements the MCP HTTP transport on Bun (`@effect/platform-bun`, default port 3001, `/mcp` endpoint), authenticates clients with OAuth 2.1 bearer tokens, and returns rich HTML widgets so ChatGPT can render plant cards and task lists. It is **decoupled from the backend** — every operation is an HTTP call to [`@lily/api`](../api); the only direct workspace dependency is [`@lily/db`](../db) for its own OAuth tables.
 
 ## Architecture
 
@@ -44,9 +44,10 @@ src/
 
 | Tool | Description |
 | --- | --- |
-| `list_plants` | List the user's plants (filter: all / needsAttention / overdue). Widget. |
+| `list_plants` | List the user's plants, the plants delegated to them, and their Canopy's plants (filter: all / needsAttention / overdue / dead). Widget. |
 | `get_plant_details` | A plant's details plus recent care logs. Widget. |
 | `care_plant` | Record a care action (watering / fertilization / misting / repotting). Widget. |
+| `create_plant` | Add a plant with a watering schedule, to the user's Canopy when `canopy` is true. Text-only. |
 | `get_care_tasks` | Pending tasks grouped overdue / today / upcoming. Widget. |
 | `get_overdue_plants` | Overdue-only plants. Widget. |
 | `ask_plant_question` | RAG knowledge-base query. Text-only. |

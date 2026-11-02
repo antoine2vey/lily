@@ -4,12 +4,14 @@ import {
 } from '@lily/api/__tests__/fixtures/care-plans'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import {
@@ -71,6 +73,7 @@ const buildLayer = (
   const user = createTestUser({ id: userId, timezone: 'UTC' })
 
   return Layer.mergeAll(
+    MockSqlClientLive,
     createMockCarePlanRepository({
       plans: [plan],
       steps,
@@ -87,6 +90,7 @@ const buildLayer = (
     createMockNotificationRepository([]),
     createMockUserRepository([user]),
     createMockDelegationRepository({}),
+    createMockCanopyRepository(),
     createMockCurrentUser({ id: currentUserId })
   )
 }
@@ -94,7 +98,7 @@ const buildLayer = (
 describe('acceptCarePlan', () => {
   it('flips a proposed plan to accepted', async () => {
     const result = await Effect.runPromise(
-      withCarePlanAuth('plan-1')
+      withCarePlanAuth('plan-1', 'manage')
         .pipe(Effect.flatMap(acceptCarePlan))
         .pipe(Effect.provide(buildLayer()))
     )
@@ -106,7 +110,9 @@ describe('acceptCarePlan', () => {
   it('moves an existing schedule to the dated care-typed step', async () => {
     const schedule = await Effect.runPromise(
       Effect.gen(function* () {
-        yield* withCarePlanAuth('plan-1').pipe(Effect.flatMap(acceptCarePlan))
+        yield* withCarePlanAuth('plan-1', 'manage').pipe(
+          Effect.flatMap(acceptCarePlan)
+        )
         const repo = yield* CareScheduleRepository
         return yield* repo.findByPlantAndType(plantId, 'watering')
       }).pipe(Effect.provide(buildLayer()))
@@ -117,7 +123,9 @@ describe('acceptCarePlan', () => {
   it('does not create a schedule for a care type the plant does not track', async () => {
     const schedule = await Effect.runPromise(
       Effect.gen(function* () {
-        yield* withCarePlanAuth('plan-1').pipe(Effect.flatMap(acceptCarePlan))
+        yield* withCarePlanAuth('plan-1', 'manage').pipe(
+          Effect.flatMap(acceptCarePlan)
+        )
         const repo = yield* CareScheduleRepository
         return yield* repo.findByPlantAndType(plantId, 'misting')
       }).pipe(Effect.provide(buildLayer()))
@@ -127,7 +135,7 @@ describe('acceptCarePlan', () => {
 
   it('rejects a plan that is not proposed', async () => {
     const exit = await Effect.runPromiseExit(
-      withCarePlanAuth('plan-1')
+      withCarePlanAuth('plan-1', 'manage')
         .pipe(Effect.flatMap(acceptCarePlan))
         .pipe(Effect.provide(buildLayer({ status: 'accepted' })))
     )
@@ -139,7 +147,7 @@ describe('acceptCarePlan', () => {
 
   it('is invisible to another user', async () => {
     const exit = await Effect.runPromiseExit(
-      withCarePlanAuth('plan-1')
+      withCarePlanAuth('plan-1', 'manage')
         .pipe(Effect.flatMap(acceptCarePlan))
         .pipe(Effect.provide(buildLayer({}, 'user-2')))
     )

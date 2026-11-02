@@ -1,6 +1,13 @@
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { carePlanSteps, carePlans, plants } from '@lily/db/schema'
+import {
+  canopyMembers,
+  careDelegations,
+  carePlanSteps,
+  carePlans,
+  delegationPlants,
+  plants,
+} from '@lily/db/schema'
 import { type CareType, nowAsDate } from '@lily/shared'
 import type {
   CarePlan,
@@ -8,7 +15,7 @@ import type {
   CarePlanStatus,
   CarePlanStep,
 } from '@lily/shared/care-plan'
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, exists, inArray, isNull, or } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, Order, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -100,18 +107,13 @@ export interface ICarePlanRepository {
   readonly create: (
     data: CreateCarePlanData
   ) => Effect.Effect<CarePlan, SqlError>
-  /** Owner-scoped lookup: returns null when the plan belongs to someone else. */
-  readonly findById: (
-    id: string,
-    userId: string
-  ) => Effect.Effect<CarePlan | null, SqlError>
+  readonly findById: (id: string) => Effect.Effect<CarePlan | null, SqlError>
   readonly findByUser: (
     userId: string,
     status?: CarePlanStatus
   ) => Effect.Effect<ReadonlyArray<CarePlan>, SqlError>
   readonly findByPlant: (
-    plantId: string,
-    userId: string
+    plantId: string
   ) => Effect.Effect<ReadonlyArray<CarePlan>, SqlError>
   readonly updateStatus: (
     id: string,
@@ -159,6 +161,34 @@ export const CarePlanRepositoryLive = Layer.effect(
 
     const plantSelect = { name: plants.name, imageUrl: plants.imageUrl }
 
+    const authorReachesPlant = or(
+      eq(plants.userId, carePlans.userId),
+      inArray(
+        plants.canopyId,
+        db
+          .select({ canopyId: canopyMembers.canopyId })
+          .from(canopyMembers)
+          .where(eq(canopyMembers.userId, carePlans.userId))
+      ),
+      exists(
+        db
+          .select({ id: delegationPlants.plantId })
+          .from(delegationPlants)
+          .innerJoin(
+            careDelegations,
+            eq(careDelegations.id, delegationPlants.delegationId)
+          )
+          .where(
+            and(
+              eq(delegationPlants.plantId, plants.id),
+              eq(careDelegations.caretakerId, carePlans.userId),
+              eq(careDelegations.ownerId, plants.userId),
+              eq(careDelegations.status, 'active')
+            )
+          )
+      )
+    )
+
     const stepsForPlans = (planIds: ReadonlyArray<string>) =>
       Array.isReadonlyArrayEmpty(planIds)
         ? Effect.succeed([] as CarePlanStepRow[])
@@ -186,13 +216,13 @@ export const CarePlanRepositoryLive = Layer.effect(
         )
       })
 
-    const findOne = (planId: string, userId: string) =>
+    const findPlan = (where: ReturnType<typeof and>) =>
       Effect.gen(function* () {
         const rows = yield* db
           .select({ plan: carePlans, plant: plantSelect })
           .from(carePlans)
           .innerJoin(plants, eq(carePlans.plantId, plants.id))
-          .where(and(eq(carePlans.id, planId), eq(carePlans.userId, userId)))
+          .where(where)
         const hydrated = yield* hydrate(rows)
         return pipe(Array.head(hydrated), Option.getOrNull)
       })
@@ -236,15 +266,14 @@ export const CarePlanRepositoryLive = Layer.effect(
           )
         }
 
-        const created = yield* findOne(plan.id, data.userId)
+        const created = yield* findPlan(eq(carePlans.id, plan.id))
         return pipe(Option.fromNullishOr(created), Option.getOrThrow)
       }),
 
       findById: Effect.fn('CarePlanRepository.findById')(function* (
-        id: string,
-        userId: string
+        id: string
       ) {
-        return yield* findOne(id, userId)
+        return yield* findPlan(eq(carePlans.id, id))
       }),
 
       findByUser: Effect.fn('CarePlanRepository.findByUser')(function* (
@@ -261,6 +290,7 @@ export const CarePlanRepositoryLive = Layer.effect(
             and(
               eq(carePlans.userId, userId),
               isLivingPlant(),
+              authorReachesPlant,
               ...pipe(
                 Option.fromNullishOr(status),
                 Option.map((s) => [eq(carePlans.status, s)]),
@@ -273,16 +303,13 @@ export const CarePlanRepositoryLive = Layer.effect(
       }),
 
       findByPlant: Effect.fn('CarePlanRepository.findByPlant')(function* (
-        plantId: string,
-        userId: string
+        plantId: string
       ) {
         const rows = yield* db
           .select({ plan: carePlans, plant: plantSelect })
           .from(carePlans)
           .innerJoin(plants, eq(carePlans.plantId, plants.id))
-          .where(
-            and(eq(carePlans.plantId, plantId), eq(carePlans.userId, userId))
-          )
+          .where(eq(carePlans.plantId, plantId))
           .orderBy(desc(carePlans.createdAt))
         return yield* hydrate(rows)
       }),
@@ -304,7 +331,7 @@ export const CarePlanRepositoryLive = Layer.effect(
               : {}),
           })
           .where(and(eq(carePlans.id, id), eq(carePlans.userId, userId)))
-        return yield* findOne(id, userId)
+        return yield* findPlan(eq(carePlans.id, id))
       }),
 
       linkChatMessage: Effect.fn('CarePlanRepository.linkChatMessage')(
@@ -431,7 +458,7 @@ export const CarePlanRepositoryLive = Layer.effect(
               .where(eq(carePlans.id, planId))
           }
 
-          return yield* findOne(planId, current.plan.userId)
+          return yield* findPlan(eq(carePlans.id, planId))
         }
       ),
     }

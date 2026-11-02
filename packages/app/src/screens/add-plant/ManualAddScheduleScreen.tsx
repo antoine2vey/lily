@@ -19,10 +19,16 @@ import { FormTextArea } from '@/components'
 import { Button } from '@/components/ui/Button'
 import { useCreatePlant } from '@/hooks/useCreatePlant'
 import { useIconColors } from '@/hooks/useIconColors'
+import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { plantDetailKey, useUpdatePlant } from '@/hooks/useUpdatePlant'
 import { FrequencyPicker } from '@/screens/add-plant/components/FrequencyPicker'
 import { WizardHeader } from '@/screens/add-plant/components/WizardHeader'
+import {
+  type Owner,
+  OwnerToggle,
+} from '@/screens/canopy/components/OwnerToggle'
 import { RoomPicker } from '@/screens/rooms/components/RoomPicker'
+import { showPlantLimitAlert } from '@/utils/plant-limit-alert'
 import { isLocalFileUri } from '@/utils/upload'
 
 type BasicInfo = {
@@ -118,6 +124,20 @@ export function ManualAddScheduleScreen() {
   )
 
   const [roomId, setRoomId] = useState<string | null>(null)
+  const { data: canopyData } = useMyCanopy()
+  const canopy = Option.fromNullishOr(canopyData?.canopy)
+  // A member adds to the Canopy unless they pick otherwise. The default
+  // follows the Canopy query, which may land after the first render.
+  const [ownerChoice, setOwnerChoice] = useState<Option.Option<Owner>>(
+    Option.none()
+  )
+  const owner: Owner = Option.getOrElse(ownerChoice, () =>
+    Option.isSome(canopy) ? 'canopy' : 'me'
+  )
+  const handleOwnerChange = (next: Owner) => {
+    setOwnerChoice(Option.some(next))
+    setRoomId(null)
+  }
   const [wateringDays, setWateringDays] = useState(
     pipe(
       Option.fromNullishOr(prefill),
@@ -201,6 +221,7 @@ export function ManualAddScheduleScreen() {
         wateringRating: careNeeds.watering,
         remindersEnabled: careReminders,
         roomId: roomId || undefined,
+        ...(Option.isSome(canopy) ? { owner } : {}),
       },
     })
 
@@ -208,7 +229,7 @@ export function ManualAddScheduleScreen() {
       pipe(
         Match.value(apiResult.failure),
         Match.when({ _tag: 'LimitExceededError' }, (e) =>
-          Alert.alert(t('addPlant:scanner.plantLimitReached'), e.message)
+          showPlantLimitAlert(e, t('addPlant:scanner.plantLimitReached'), t)
         ),
         Match.orElse(() =>
           Alert.alert(
@@ -417,11 +438,20 @@ export function ManualAddScheduleScreen() {
             />
           </View>
 
+          {Option.isSome(canopy) && (
+            <OwnerToggle
+              canopyName={canopy.value.name}
+              value={owner}
+              onChange={handleOwnerChange}
+            />
+          )}
+
           <RoomPicker
             label={t('addPlant:schedule.roomLabel')}
             value={roomId}
             onSelect={setRoomId}
             plantLuxNeeded={careNeeds.luxNeeded}
+            owner={owner}
           />
 
           {/* Notes Section */}

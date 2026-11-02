@@ -1,3 +1,7 @@
+import {
+  createTestMembership,
+  mockCanopyId,
+} from '@lily/api/__tests__/fixtures/canopies'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
@@ -6,19 +10,31 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
+  buildWeatherCtx,
   mockWeatherDataExtremeHeat,
   mockWeatherDataModerate,
   mockWeatherDataRainy,
+  parisWinterForecast,
 } from '@lily/api/__tests__/fixtures/weather'
+import {
+  createCanopyStore,
+  createMockCanopyRepository,
+  createTestCanopyRow,
+} from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import { readjustCareSchedules } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
-import { Effect, Layer } from 'effect'
-import { describe, it } from 'vitest'
+import {
+  readjustCareSchedules,
+  weatherScopes,
+} from '@lily/api/services/weather-scheduler/readjust-care-schedules'
+import type { Notification } from '@lily/shared/notification'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { describe, expect, it } from 'vitest'
 
 // Helper to create a weather-enabled user
 const weatherUser = createTestUser({
@@ -29,6 +45,8 @@ const weatherUser = createTestUser({
   timezone: 'Europe/Paris',
   careReminders: true,
 })
+
+const userScopes = weatherScopes([weatherUser], [])
 
 // Build a weather context from a daily array
 const buildWeatherContext = (
@@ -58,9 +76,11 @@ const buildLayers = ({
   notifications?: Array<never>
 } = {}) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     createMockUserRepository([weatherUser]),
     createMockPlantRepository({ plants }),
     createMockNotificationRepository(notifications),
+    createMockCanopyRepository(),
     createMockDelegationRepository(),
     createMockCareScheduleRepository({
       schedules: schedulesFromPlants(plants),
@@ -93,7 +113,7 @@ describe('readjustCareSchedules', () => {
     const layers = buildLayers({ plants: [plant] })
 
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], buildContextMap(moderateCtx)).pipe(
+      readjustCareSchedules(userScopes, buildContextMap(moderateCtx)).pipe(
         Effect.provide(layers)
       )
     )
@@ -125,7 +145,7 @@ describe('readjustCareSchedules', () => {
     const layers = buildLayers({ plants: [plant] })
 
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], buildContextMap(moderateCtx)).pipe(
+      readjustCareSchedules(userScopes, buildContextMap(moderateCtx)).pipe(
         Effect.provide(layers)
       )
     )
@@ -148,7 +168,7 @@ describe('readjustCareSchedules', () => {
     const layers = buildLayers({ plants: [plant] })
 
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], buildContextMap(moderateCtx)).pipe(
+      readjustCareSchedules(userScopes, buildContextMap(moderateCtx)).pipe(
         Effect.provide(layers)
       )
     )
@@ -171,7 +191,7 @@ describe('readjustCareSchedules', () => {
     const layers = buildLayers({ plants: [plant] })
 
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], buildContextMap(moderateCtx)).pipe(
+      readjustCareSchedules(userScopes, buildContextMap(moderateCtx)).pipe(
         Effect.provide(layers)
       )
     )
@@ -206,7 +226,7 @@ describe('readjustCareSchedules', () => {
     const layers = buildLayers({ plants: [plant] })
 
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], buildContextMap(rainyCtx)).pipe(
+      readjustCareSchedules(userScopes, buildContextMap(rainyCtx)).pipe(
         Effect.provide(layers)
       )
     )
@@ -248,7 +268,7 @@ describe('readjustCareSchedules', () => {
     const layers = buildLayers({ plants: [plant] })
 
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], buildContextMap(hotCtx)).pipe(
+      readjustCareSchedules(userScopes, buildContextMap(hotCtx)).pipe(
         Effect.provide(layers)
       )
     )
@@ -258,7 +278,7 @@ describe('readjustCareSchedules', () => {
     const layers = buildLayers({ plants: [] })
 
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], buildContextMap(moderateCtx)).pipe(
+      readjustCareSchedules(userScopes, buildContextMap(moderateCtx)).pipe(
         Effect.provide(layers)
       )
     )
@@ -282,9 +302,7 @@ describe('readjustCareSchedules', () => {
 
     // Empty context map — user's location has no weather data
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], new Map()).pipe(
-        Effect.provide(layers)
-      )
+      readjustCareSchedules(userScopes, new Map()).pipe(Effect.provide(layers))
     )
   })
 
@@ -319,7 +337,7 @@ describe('readjustCareSchedules', () => {
 
     // Should complete without error — the indoor plant won't have skipWatering=true
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], buildContextMap(rainyCtx)).pipe(
+      readjustCareSchedules(userScopes, buildContextMap(rainyCtx)).pipe(
         Effect.provide(layers)
       )
     )
@@ -373,9 +391,136 @@ describe('readjustCareSchedules', () => {
     const layers = buildLayers({ plants })
 
     await Effect.runPromise(
-      readjustCareSchedules([weatherUser], buildContextMap(moderateCtx)).pipe(
+      readjustCareSchedules(userScopes, buildContextMap(moderateCtx)).pipe(
         Effect.provide(layers)
       )
     )
+  })
+})
+
+describe('readjustCareSchedules for a Canopy', () => {
+  const oneDayMs = 24 * 60 * 60 * 1000
+  const canopy = createTestCanopyRow({
+    id: mockCanopyId,
+    timezone: 'UTC',
+    latitude: 48.86,
+    longitude: 2.35,
+  })
+  const morningMember = createTestUser({
+    id: 'member-morning',
+    timezone: 'UTC',
+    preferredNotificationTime: '08:00',
+    careReminders: true,
+  })
+  const eveningMember = createTestUser({
+    id: 'member-evening',
+    timezone: 'UTC',
+    preferredNotificationTime: '19:00',
+    careReminders: true,
+  })
+
+  const run = async (contextMap: ReadonlyMap<string, WeatherContext>) => {
+    const originalNext = new Date(Date.now() + 4 * oneDayMs)
+    const plant = createTestPlant({
+      id: 'canopy-plant',
+      name: 'Shared Fern',
+      category: 'Foliage',
+      wateringRating: 3,
+      remindersEnabled: true,
+      userId: null,
+      canopyId: mockCanopyId,
+      createdByUserId: morningMember.id,
+      roomId: 'canopy-balcony',
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: new Date(Date.now() - 3 * oneDayMs),
+          nextCareAt: new Date(originalNext),
+        }),
+      ],
+    })
+    const schedules = schedulesFromPlants([plant])
+    const notifications: Notification[] = []
+
+    await Effect.runPromise(
+      readjustCareSchedules(weatherScopes([], [canopy]), contextMap).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            MockSqlClientLive,
+            createMockUserRepository([morningMember, eveningMember]),
+            createMockPlantRepository({
+              plants: [plant],
+              rooms: [
+                {
+                  id: 'canopy-balcony',
+                  name: 'Balcony',
+                  icon: '🌿',
+                  luminosity: 40000,
+                  isOutdoor: true,
+                },
+              ],
+            }),
+            createMockNotificationRepository(notifications),
+            createMockCanopyRepository(
+              createCanopyStore({
+                canopies: [canopy],
+                members: [
+                  createTestMembership({
+                    userId: morningMember.id,
+                    role: 'owner',
+                  }),
+                  createTestMembership({ userId: eveningMember.id }),
+                ],
+              })
+            ),
+            createMockDelegationRepository(),
+            createMockCareScheduleRepository({ schedules, plants: [plant] })
+          )
+        )
+      )
+    )
+
+    const nextCareAt = pipe(
+      Array.findFirst(schedules, (s) => s.careType === 'watering'),
+      Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
+      Option.map((d) => d.getTime()),
+      Option.getOrNull
+    )
+    return { originalNext: originalNext.getTime(), nextCareAt, notifications }
+  }
+
+  it('shifts a located Canopy plant and reminds every member at their own hour', async () => {
+    const { originalNext, nextCareAt, notifications } = await run(
+      buildContextMap(buildWeatherCtx(parisWinterForecast))
+    )
+
+    expect(nextCareAt).not.toBeNull()
+    expect(nextCareAt).not.toBe(originalNext)
+
+    const reminders = Array.filter(
+      notifications,
+      (n) => n.type === 'watering_reminder' && n.plantId === 'canopy-plant'
+    )
+    expect(
+      Array.map(reminders, (n) => ({
+        userId: n.userId,
+        hour: new Date(n.scheduledAt).getUTCHours(),
+      }))
+    ).toEqual(
+      expect.arrayContaining([
+        { userId: morningMember.id, hour: 8 },
+        { userId: eveningMember.id, hour: 19 },
+      ])
+    )
+    expect(reminders).toHaveLength(2)
+  })
+
+  it('leaves a Canopy plant untouched when its location has no weather context', async () => {
+    const { originalNext, nextCareAt, notifications } = await run(
+      new Map([['40.71_-74.01', buildWeatherCtx(parisWinterForecast)]])
+    )
+
+    expect(nextCareAt).toBe(originalNext)
+    expect(notifications).toHaveLength(0)
   })
 })

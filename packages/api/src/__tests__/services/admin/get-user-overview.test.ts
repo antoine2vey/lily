@@ -58,6 +58,7 @@ const makeRoom = (id: string): RoomRow => ({
   isOutdoor: false,
   order: 0,
   userId: 'user-1',
+  canopyId: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 })

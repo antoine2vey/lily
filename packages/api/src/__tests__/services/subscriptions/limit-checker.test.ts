@@ -1,5 +1,6 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import {
   LimitChecker,
@@ -44,7 +45,8 @@ describe('LimitChecker', () => {
             onSome: (livingPlantCount) => ({ livingPlantCount }),
           })
         ),
-      })
+      }),
+      createMockCanopyRepository()
     )
   }
 
@@ -58,7 +60,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -74,7 +79,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -96,7 +104,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -132,7 +143,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -168,7 +182,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -204,7 +221,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -240,7 +260,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -276,7 +299,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -312,7 +338,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -348,7 +377,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -386,7 +418,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -435,7 +470,10 @@ describe('LimitChecker', () => {
       const plantResult = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
       expect(Exit.isSuccess(plantResult)).toBe(true)
@@ -470,7 +508,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -506,7 +547,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
@@ -579,7 +623,10 @@ describe('LimitChecker', () => {
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantLimit('user-1')
+          yield* limitChecker.checkPlantLimit({
+            _tag: 'User',
+            userId: 'user-1',
+          })
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 

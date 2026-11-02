@@ -31,6 +31,7 @@ export const RATE_LIMITS = {
   USERNAME_CHANGE: { maxRequests: 5, windowSeconds: 86_400 },
   USERNAME_CHECK: { maxRequests: 60, windowSeconds: 60 },
   USER_SEARCH: { maxRequests: 30, windowSeconds: 60 },
+  CANOPY_INVITE_PREVIEW: { maxRequests: 30, windowSeconds: 60 },
 } as const
 
 /**

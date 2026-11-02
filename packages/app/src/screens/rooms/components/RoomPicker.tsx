@@ -4,6 +4,7 @@ import { Array, String as EffectString, Match, Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useRooms } from '@/hooks/useRooms'
+import type { Owner } from '@/screens/canopy/components/OwnerToggle'
 
 interface RoomPickerProps {
   /** Rendered only alongside the picker, so a user with no rooms sees neither. */
@@ -11,6 +12,8 @@ interface RoomPickerProps {
   value: string | null
   onSelect: (roomId: string | null) => void
   plantLuxNeeded?: number
+  /** A plant only fits a room with the same owner: the user or the Canopy. */
+  owner: Owner
 }
 
 export function RoomPicker({
@@ -18,13 +21,20 @@ export function RoomPicker({
   value,
   onSelect,
   plantLuxNeeded,
+  owner,
 }: RoomPickerProps) {
   const { t } = useTranslation('rooms')
   const { data: rooms } = useRooms()
 
-  const roomsList = Option.getOrElse(
+  const roomsList = pipe(
     Option.fromNullishOr(rooms),
-    () => [] as NonNullable<typeof rooms>
+    Option.map((all) =>
+      Array.filter(
+        all,
+        (room) => (room.canopyId !== null) === (owner === 'canopy')
+      )
+    ),
+    Option.getOrElse(() => [] as NonNullable<typeof rooms>)
   )
 
   if (Array.isReadonlyArrayEmpty(roomsList)) {

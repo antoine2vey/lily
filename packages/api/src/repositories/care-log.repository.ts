@@ -1,18 +1,21 @@
+import { caredForBy } from '@lily/api/repositories/helpers/care-visibility'
+import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { careLogs, plants } from '@lily/db/schema'
+import { careLogs, plants, users } from '@lily/db/schema'
 import type { CareType } from '@lily/shared'
 import { nowAsDate, paginate } from '@lily/shared'
 import type {
   CareLog,
+  CareLogHistoryItem,
   CareLogsListResponse,
   RecentActivitiesListResponse,
   RecentActivity,
 } from '@lily/shared/care-log'
-import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -23,6 +26,7 @@ export interface CreateCareLogData {
   date?: Date | undefined
   photoUrl?: string | undefined
   plantId: string
+  performedByUserId: string
 }
 
 export interface UpdateCareLogData {
@@ -99,6 +103,11 @@ export interface ICareLogRepository {
   ) => Effect.Effect<void, SqlError>
   readonly countTodayByUser: (
     userId: string,
+    timezone: string,
+    canopyId: string | null
+  ) => Effect.Effect<number, SqlError>
+  readonly countTodayPerformedByUser: (
+    userId: string,
     timezone: string
   ) => Effect.Effect<number, SqlError>
   readonly countByUser: (userId: string) => Effect.Effect<number, SqlError>
@@ -137,14 +146,36 @@ export const CareLogRepositoryLive = Layer.effect(
         const total = extractCount(countResult)
 
         const rows = yield* db
-          .select()
+          .select({
+            log: careLogs,
+            performerId: users.id,
+            performerName: users.name,
+          })
           .from(careLogs)
+          .leftJoin(
+            users,
+            and(
+              eq(users.id, careLogs.performedByUserId),
+              isNull(users.deletedAt)
+            )
+          )
           .where(filterConditions)
           .offset(offset)
           .limit(limit)
           .orderBy(desc(careLogs.date))
 
-        return paginate(Array.map(rows, mapToCareLog), total, page, limit)
+        const items = Array.map(
+          rows,
+          (row): CareLogHistoryItem => ({
+            ...mapToCareLog(row.log),
+            performedBy: pipe(
+              Option.fromNullishOr(row.performerId),
+              Option.map((id) => ({ id, name: row.performerName })),
+              Option.getOrNull
+            ),
+          })
+        )
+        return paginate(items, total, page, limit)
       }),
 
       findById: Effect.fn('CareLogRepository.findById')(function* (
@@ -210,6 +241,7 @@ export const CareLogRepositoryLive = Layer.effect(
           ),
           photoUrl: Option.getOrNull(Option.fromNullishOr(d.photoUrl)),
           plantId: d.plantId,
+          performedByUserId: d.performedByUserId,
         }))
         const rows = yield* db.insert(careLogs).values(values).returning()
         return Array.map(rows, mapToCareLog)
@@ -229,6 +261,7 @@ export const CareLogRepositoryLive = Layer.effect(
             ),
             photoUrl: Option.getOrNull(Option.fromNullishOr(data.photoUrl)),
             plantId: data.plantId,
+            performedByUserId: data.performedByUserId,
           })
           .returning()
         return row ? mapToCareLog(row) : null
@@ -303,18 +336,38 @@ export const CareLogRepositoryLive = Layer.effect(
       ),
 
       countTodayByUser: Effect.fn('CareLogRepository.countTodayByUser')(
-        function* (userId: string, timezone: string) {
+        function* (userId: string, timezone: string, canopyId: string | null) {
           const startOfDay = sql`date_trunc('day', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
           const result = yield* db
             .select({ value: count() })
             .from(careLogs)
             .innerJoin(plants, eq(careLogs.plantId, plants.id))
             .where(
-              and(eq(plants.userId, userId), gte(careLogs.date, startOfDay))
+              and(
+                caredForBy(db, userId, canopyId),
+                isLivingPlant(),
+                gte(careLogs.date, startOfDay)
+              )
             )
           return extractCount(result)
         }
       ),
+
+      countTodayPerformedByUser: Effect.fn(
+        'CareLogRepository.countTodayPerformedByUser'
+      )(function* (userId: string, timezone: string) {
+        const startOfDay = sql`date_trunc('day', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
+        const result = yield* db
+          .select({ value: count() })
+          .from(careLogs)
+          .where(
+            and(
+              eq(careLogs.performedByUserId, userId),
+              gte(careLogs.date, startOfDay)
+            )
+          )
+        return extractCount(result)
+      }),
 
       countByUser: Effect.fn('CareLogRepository.countByUser')(function* (
         userId: string
@@ -322,8 +375,7 @@ export const CareLogRepositoryLive = Layer.effect(
         const result = yield* db
           .select({ value: count() })
           .from(careLogs)
-          .innerJoin(plants, eq(careLogs.plantId, plants.id))
-          .where(eq(plants.userId, userId))
+          .where(eq(careLogs.performedByUserId, userId))
         return extractCount(result)
       }),
     }

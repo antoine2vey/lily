@@ -1,9 +1,16 @@
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
+import {
+  ownedBy,
+  ownerColumns,
+  type WithOwner,
+  withOwner,
+  withOwnerOrNull,
+} from '@lily/api/repositories/helpers/plant-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { plants, rooms } from '@lily/db/schema'
-import { nowAsDate, type Orientation } from '@lily/shared'
-import { and, asc, count, eq } from 'drizzle-orm'
+import { canopyMembers, plants, rooms } from '@lily/db/schema'
+import { nowAsDate, type Orientation, type PlantOwner } from '@lily/shared'
+import { and, asc, count, eq, inArray, or } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -14,7 +21,7 @@ export interface CreateRoomData {
   orientation?: Orientation | undefined
   isOutdoor?: boolean | undefined
   order: number
-  userId: string
+  owner: PlantOwner
 }
 
 export interface UpdateRoomData {
@@ -26,27 +33,31 @@ export interface UpdateRoomData {
   isOutdoor?: boolean | undefined
 }
 
+export type RoomRow = WithOwner<typeof rooms.$inferSelect>
+
+export interface FindRoomsParams {
+  userId: string
+  includeCanopy?: boolean
+}
+
 export interface IRoomRepository {
   readonly findAll: (
-    userId: string
-  ) => Effect.Effect<
-    Array<typeof rooms.$inferSelect & { plantCount: number }>,
-    SqlError
-  >
-  readonly findById: (
-    id: string
-  ) => Effect.Effect<typeof rooms.$inferSelect | null, SqlError>
+    params: FindRoomsParams
+  ) => Effect.Effect<Array<RoomRow & { plantCount: number }>, SqlError>
+  readonly findById: (id: string) => Effect.Effect<RoomRow | null, SqlError>
   readonly create: (
     data: CreateRoomData
-  ) => Effect.Effect<typeof rooms.$inferSelect | null, SqlError>
+  ) => Effect.Effect<RoomRow | null, SqlError>
   readonly update: (
     id: string,
+    owner: PlantOwner,
     data: UpdateRoomData
-  ) => Effect.Effect<typeof rooms.$inferSelect | null, SqlError>
+  ) => Effect.Effect<RoomRow | null, SqlError>
   readonly delete: (
-    id: string
-  ) => Effect.Effect<typeof rooms.$inferSelect | null, SqlError>
-  readonly getMaxOrder: (userId: string) => Effect.Effect<number, SqlError>
+    id: string,
+    owner: PlantOwner
+  ) => Effect.Effect<RoomRow | null, SqlError>
+  readonly getMaxOrder: (owner: PlantOwner) => Effect.Effect<number, SqlError>
   readonly countByUserId: (userId: string) => Effect.Effect<number, SqlError>
 }
 
@@ -61,8 +72,16 @@ export const RoomRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findAll: Effect.fn('RoomRepository.findAll')(function* (userId: string) {
-        return yield* db
+      findAll: Effect.fn('RoomRepository.findAll')(function* ({
+        userId,
+        includeCanopy,
+      }: FindRoomsParams) {
+        const memberOf = db
+          .select({ canopyId: canopyMembers.canopyId })
+          .from(canopyMembers)
+          .where(eq(canopyMembers.userId, userId))
+        const owned = eq(rooms.userId, userId)
+        const rows = yield* db
           .select({
             id: rooms.id,
             name: rooms.name,
@@ -72,6 +91,7 @@ export const RoomRepositoryLive = Layer.effect(
             isOutdoor: rooms.isOutdoor,
             order: rooms.order,
             userId: rooms.userId,
+            canopyId: rooms.canopyId,
             createdAt: rooms.createdAt,
             updatedAt: rooms.updatedAt,
             plantCount: count(plants.id),
@@ -80,50 +100,61 @@ export const RoomRepositoryLive = Layer.effect(
           // Living-only lives in the join, not the WHERE: a room whose only
           // plants are in the cemetery must still be listed (with count 0).
           .leftJoin(plants, and(eq(plants.roomId, rooms.id), isLivingPlant()))
-          .where(eq(rooms.userId, userId))
+          .where(
+            includeCanopy ? or(owned, inArray(rooms.canopyId, memberOf)) : owned
+          )
           .groupBy(rooms.id)
           .orderBy(asc(rooms.order), asc(rooms.name))
+        return Array.map(rows, withOwner)
       }),
 
       findById: Effect.fn('RoomRepository.findById')(function* (id: string) {
         const [room] = yield* db.select().from(rooms).where(eq(rooms.id, id))
-        return Option.getOrNull(Option.fromNullishOr(room))
+        return withOwnerOrNull(room)
       }),
 
       create: Effect.fn('RoomRepository.create')(function* (
         data: CreateRoomData
       ) {
-        const [room] = yield* db.insert(rooms).values(data).returning()
-        return Option.getOrNull(Option.fromNullishOr(room))
+        const { owner, ...fields } = data
+        const [room] = yield* db
+          .insert(rooms)
+          .values({ ...fields, ...ownerColumns(owner) })
+          .returning()
+        return withOwnerOrNull(room)
       }),
 
       update: Effect.fn('RoomRepository.update')(function* (
         id: string,
+        owner: PlantOwner,
         data: UpdateRoomData
       ) {
         const [room] = yield* db
           .update(rooms)
           .set({ ...data, updatedAt: nowAsDate() })
-          .where(eq(rooms.id, id))
+          .where(and(eq(rooms.id, id), ownedBy(rooms, owner)))
           .returning()
-        return Option.getOrNull(Option.fromNullishOr(room))
+        return withOwnerOrNull(room)
       }),
 
-      delete: Effect.fn('RoomRepository.delete')(function* (id: string) {
+      delete: Effect.fn('RoomRepository.delete')(function* (
+        id: string,
+        owner: PlantOwner
+      ) {
         const [room] = yield* db
           .delete(rooms)
-          .where(eq(rooms.id, id))
+          .where(and(eq(rooms.id, id), ownedBy(rooms, owner)))
           .returning()
-        return Option.getOrNull(Option.fromNullishOr(room))
+        return withOwnerOrNull(room)
       }),
 
       getMaxOrder: Effect.fn('RoomRepository.getMaxOrder')(function* (
-        userId: string
+        owner: PlantOwner
       ) {
         const rows = yield* db
           .select({ order: rooms.order })
           .from(rooms)
-          .where(eq(rooms.userId, userId))
+          .where(ownedBy(rooms, owner))
           .orderBy(asc(rooms.order))
 
         return Option.getOrElse(

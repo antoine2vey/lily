@@ -32,6 +32,8 @@ const createTestPlant = (
   deathCause: null,
   deathNote: null,
   userId: 'user-1',
+  canopyId: null,
+  createdByUserId: 'user-1',
   ...overrides,
 })
 

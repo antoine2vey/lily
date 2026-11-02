@@ -1,4 +1,5 @@
 import { ApiClient } from '@lily/mcp/api-client'
+import { escapeInlineMarkdown } from '@lily/mcp/tools/markdown'
 import type { CareFeedback } from '@lily/mcp/widgets/schemas'
 import type { CareType } from '@lily/shared'
 import { Array, Effect, Match, Option, pipe } from 'effect'
@@ -43,7 +44,7 @@ export const carePlantEffect = Effect.fn('MCP.carePlant')(function* (params: {
   }
 
   return {
-    text: `${careLabel} **${plant.name}** successfully! Next ${params.type} in ~${nextCare}.`,
+    text: `${careLabel} **${escapeInlineMarkdown(plant.name)}** successfully! Next ${params.type} in ~${nextCare}.`,
     feedback,
   }
 })

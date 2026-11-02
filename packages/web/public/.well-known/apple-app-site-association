@@ -1,0 +1,10 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["K7Y594Y8M3.com.lilyapp.app"],
+        "components": [{ "/": "/join/*" }]
+      }
+    ]
+  }
+}

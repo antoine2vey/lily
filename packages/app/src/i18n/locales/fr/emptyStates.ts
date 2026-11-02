@@ -80,6 +80,16 @@ export default {
     title: 'Aucune plante à déléguer',
     description: "Ajoutez d'abord une plante, puis confiez-la à un ami.",
   },
+  canopyNone: {
+    title: 'Prenez soin des plantes ensemble',
+    description:
+      'Une Canopy est un foyer partagé pour vos plantes. Chaque membre reçoit les rappels, et le premier qui arrose le coche pour tous.',
+  },
+  canopyBringPlants: {
+    title: 'Pas encore de plante à partager',
+    description:
+      'Ajoutez une plante, puis partagez-la avec la Canopy depuis sa page.',
+  },
   followers: {
     title: "Pas encore d'abonnés",
     description: 'Les personnes qui suivent ce compte apparaîtront ici.',

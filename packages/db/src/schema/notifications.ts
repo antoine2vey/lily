@@ -4,7 +4,7 @@ import {
 } from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
   index,
@@ -66,6 +66,9 @@ export const notifications = pgTable(
       table.status,
       table.scheduledAt
     ),
+    index('notifications_pending_plant_type_idx')
+      .on(table.plantId, table.type)
+      .where(sql`${table.status} = 'pending'`),
   ]
 )
 

@@ -1,4 +1,4 @@
-import { Array as Arr, Match, Option, pipe, Record } from 'effect'
+import { Array as Arr, Effect, Match, Option, pipe, Record } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
@@ -8,6 +8,7 @@ import { MeshBackground } from '@/components'
 import type { OnboardingData, TimeOfDay } from '@/hooks/useOnboardingFlow'
 import { useOnboardingFlow } from '@/hooks/useOnboardingFlow'
 import { usePlants } from '@/hooks/usePlants'
+import { signedInRoute } from '@/utils/canopy-invite-token'
 import { apiEffectRunner } from '@/utils/client'
 import { AddPlantStep } from './steps/AddPlantStep'
 import { CompletionStep } from './steps/CompletionStep'
@@ -83,6 +84,10 @@ function StepProgress({
   )
 }
 
+// A user who opened an invite before signing up finishes on the join screen.
+const leaveOnboarding = () =>
+  Effect.runPromise(signedInRoute).then((route) => router.replace(route))
+
 export function OnboardingFlowScreen() {
   const { step: devStep } = useLocalSearchParams<{ step?: string }>()
   const insets = useSafeAreaInsets()
@@ -113,19 +118,19 @@ export function OnboardingFlowScreen() {
     if (__DEV__ || hasSkippedRef.current || isLoading) return
     if (plantsData && !Arr.isReadonlyArrayEmpty(plantsData.items)) {
       hasSkippedRef.current = true
-      skipOnboarding().then(() => router.replace('/(app)/(tabs)'))
+      skipOnboarding().then(leaveOnboarding)
     }
   }, [plantsData, isLoading, skipOnboarding])
 
   const handleComplete = useCallback(async () => {
     const collectedData = await complete(data)
     await savePreferences(collectedData)
-    router.replace('/(app)/(tabs)')
+    await leaveOnboarding()
   }, [complete, data])
 
   const handleSkipOnboarding = useCallback(async () => {
     await skipOnboarding()
-    router.replace('/(app)/(tabs)')
+    await leaveOnboarding()
   }, [skipOnboarding])
 
   const handleScan = useCallback(() => {

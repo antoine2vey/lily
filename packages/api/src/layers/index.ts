@@ -26,6 +26,7 @@ import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.re
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { AnalyticsRepositoryLive } from '@lily/api/repositories/analytics.repository'
 import { BlogPostRepositoryLive } from '@lily/api/repositories/blog-post.repository'
+import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -122,6 +123,7 @@ const RepositoriesGroup1 = Layer.mergeAll(
   ChatRepositoryLive,
   DailyTipRepositoryLive,
   DeadLetterRepositoryLive,
+  CanopyRepositoryLive,
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   DiagnosisRepositoryLive,
@@ -253,7 +255,8 @@ const RedisFullLive = Layer.mergeAll(
 ).pipe(Layer.provideMerge(RedisClientLive))
 
 // Repo-dependent infra: these need specific repositories to be available.
-// LimitCheckerLive needs SubscriptionRepository + AchievementRepository.
+// LimitCheckerLive needs SubscriptionRepository + AchievementRepository +
+// CanopyRepository.
 // UsageTrackerLive needs SubscriptionRepository.
 // The push provider needs DeviceTokenRepository, PendingPushReceipts (Redis)
 // and ExpoPushClient.

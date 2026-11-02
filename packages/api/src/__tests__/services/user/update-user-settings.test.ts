@@ -2,12 +2,15 @@ import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import type { Notification } from '@lily/shared/notification'
@@ -17,6 +20,9 @@ import { describe, expect, it } from 'vitest'
 describe('updateUserSettings', () => {
   const createTestLayer = (userId: string) =>
     Layer.mergeAll(
+      createMockDelegationRepository(),
+      MockSqlClientLive,
+      createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([...mockUsers]),
       createMockCurrentUser({ id: userId }),
@@ -138,6 +144,9 @@ describe('updateUserSettings', () => {
       due({ id: 'in-flight', type: 'watering_reminder', status: 'queued' }),
     ]
     const layer = Layer.mergeAll(
+      createMockDelegationRepository(),
+      MockSqlClientLive,
+      createMockCanopyRepository(),
       createMockRateLimiterService(),
       createMockUserRepository([...mockUsers]),
       createMockCurrentUser({ id: 'user-1' }),

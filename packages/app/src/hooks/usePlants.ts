@@ -8,6 +8,7 @@ interface PlantsParams {
   filter?: string
   sort?: string
   includeCaretaking?: string
+  includeCanopy?: string
 }
 
 export function usePlants(params?: PlantsParams) {
@@ -35,6 +36,10 @@ export function usePlants(params?: PlantsParams) {
         includeCaretaking: pipe(
           Option.fromNullishOr(params?.includeCaretaking),
           Option.getOrElse(() => 'false')
+        ),
+        includeCanopy: pipe(
+          Option.fromNullishOr(params?.includeCanopy),
+          Option.getOrElse(() => 'true')
         ),
       },
     },

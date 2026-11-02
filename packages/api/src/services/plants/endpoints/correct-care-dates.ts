@@ -1,3 +1,4 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import {
   CareScheduleRepository,
@@ -9,13 +10,14 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
-import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { careContext } from '@lily/api/services/plants/helpers/care-context'
+import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
 import { DateTime, Duration, Effect, Option, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const correctSingleCareDate = (
@@ -97,13 +99,7 @@ const correctSingleCareDate = (
 
     // Schedule next reminder if we have a next care date
     if (nextCareAt) {
-      yield* scheduleCareReminder({
-        plantId,
-        userId: plant.userId,
-        type: `${careType}_reminder` as const,
-        scheduledDate: nextCareAt,
-        remindersEnabled: plant.remindersEnabled,
-      })
+      yield* reconcileCareReminder(plant.id, `${careType}_reminder` as const)
     }
   })
 
@@ -119,18 +115,12 @@ export const correctCareDates = (
   | NotificationRepository
   | UserRepository
   | DelegationRepository
-  | CurrentUser
+  | CanopyRepository
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const userRepo = yield* UserRepository
-
-    const user = yield* userRepo.findById(plant.userId)
-    const timezone = pipe(
-      Option.fromNullishOr(user),
-      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrElse(() => 'UTC')
-    )
+    const { timezone } = yield* careContext(plant.owner)
 
     // Correct watering date if provided
     if (request.lastWateredAt) {

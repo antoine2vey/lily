@@ -77,6 +77,11 @@ export const delegationStatusEnum = pgEnum('delegation_status', [
   'canceled',
 ])
 
+export const canopyMemberRoleEnum = pgEnum('canopy_member_role', [
+  'owner',
+  'member',
+])
+
 export const languageCodeEnum = pgEnum('language_code', ['en', 'fr'])
 
 // Vacation mode lifecycle: 'scheduled' between set-up and vacation_start,

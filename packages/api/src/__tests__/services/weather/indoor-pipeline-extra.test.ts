@@ -21,6 +21,7 @@
  * are deterministic regardless of when the suite runs. Assertions are
  * directional (compare two runs) since exact day counts are tuning-sensitive.
  */
+
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
@@ -28,14 +29,19 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { buildWeatherCtx } from '@lily/api/__tests__/fixtures/weather'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import { readjustCareSchedules } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
+import {
+  readjustCareSchedules,
+  weatherScopes,
+} from '@lily/api/services/weather-scheduler/readjust-care-schedules'
 import type { WeatherData } from '@lily/shared'
 import { roundCoord } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
@@ -168,15 +174,17 @@ const runScheduler = async (
 ): Promise<CareScheduleRow[]> => {
   const schedules = schedulesFromPlants(plants)
   const layers = Layer.mergeAll(
+    MockSqlClientLive,
     createMockUserRepository([user]),
     createMockPlantRepository({ plants, rooms: allRooms }),
     createMockNotificationRepository([]),
+    createMockCanopyRepository(),
     createMockDelegationRepository(),
     createMockCareScheduleRepository({ schedules, plants })
   )
   await Effect.runPromise(
     readjustCareSchedules(
-      [user],
+      weatherScopes([user], []),
       contextMapFor(user.latitude ?? 0, user.longitude ?? 0, ctx)
     ).pipe(Effect.provide(layers))
   )
@@ -525,9 +533,11 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       const plant = indoorPlant('no-lat-indoor', noLatUser.id, 'room-indoor')
       const schedules = schedulesFromPlants([plant])
       const layers = Layer.mergeAll(
+        MockSqlClientLive,
         createMockUserRepository([noLatUser]),
         createMockPlantRepository({ plants: [plant], rooms: allRooms }),
         createMockNotificationRepository([]),
+        createMockCanopyRepository(),
         createMockDelegationRepository(),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
@@ -538,9 +548,10 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       )
 
       await Effect.runPromise(
-        readjustCareSchedules([noLatUser], new Map([['0_0', ctx]])).pipe(
-          Effect.provide(layers)
-        )
+        readjustCareSchedules(
+          weatherScopes([noLatUser], []),
+          new Map([['0_0', ctx]])
+        ).pipe(Effect.provide(layers))
       )
 
       // Date is exactly the original mid-cycle value (no adjustment applied).

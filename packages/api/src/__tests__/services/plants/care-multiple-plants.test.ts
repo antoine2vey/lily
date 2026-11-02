@@ -10,6 +10,7 @@ import * as SqlClient from 'effect/sql/SqlClient'
 import { describe, expect, it } from 'vitest'
 import { mockPlants, type TestPlant } from '../../fixtures/plants'
 import { mockUser1 } from '../../fixtures/users'
+import { createMockCanopyRepository } from '../../mocks/canopy.repository'
 import { createMockCareLogRepository } from '../../mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '../../mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '../../mocks/delegation.repository'
@@ -84,6 +85,7 @@ const createTestLayer = (
       delegationPlants: overrides.delegationPlants,
       users: overrides.users,
     }),
+    createMockCanopyRepository(),
     createMockEventBus({ publishedEvents }),
     createMockCurrentUser({ id: 'user-1' }),
     createMockSqlClient()
@@ -114,6 +116,41 @@ describe('careMultiplePlants', () => {
     expect(result[0]?.plantId).toBe('plant-1')
     expect(result[0]?.success).toBe(true)
     expect(result[0]?.plant).toBeDefined()
+  })
+
+  it('clears the overdue rows of every recipient for each plant it cares for', async () => {
+    const overdue = (
+      id: string,
+      userId: string,
+      plantId: string
+    ): Notification => ({
+      id,
+      type: 'overdue_reminder',
+      scheduledAt: new Date(Date.now() + 3_600_000),
+      isRead: false,
+      status: 'pending',
+      retryCount: 0,
+      userId,
+      plantId,
+      createdAt: new Date(),
+    })
+    const notifications = [
+      overdue('o-1', 'user-1', 'plant-1'),
+      overdue('o-2', 'user-9', 'plant-1'),
+      overdue('o-3', 'user-1', 'plant-2'),
+    ]
+    await Effect.runPromise(
+      careMultiplePlants({
+        plantIds: ['plant-1'],
+        careType: 'watering',
+      }).pipe(Effect.provide(createTestLayer({ notifications })))
+    )
+
+    expect(
+      notifications
+        .filter((n) => n.status === 'pending' && n.type === 'overdue_reminder')
+        .map((n) => n.id)
+    ).toEqual(['o-3'])
   })
 
   it('should care for multiple plants in batch', async () => {

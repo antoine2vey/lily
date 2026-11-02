@@ -19,6 +19,8 @@ const mockPlant = {
   category: 'Foliage',
   wateringRating: 3,
   userId: 'user-1',
+  canopyId: null,
+  createdByUserId: 'user-1',
   description: null,
   imageUrl: null,
   humidityRating: 3,

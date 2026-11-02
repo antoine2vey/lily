@@ -1,5 +1,6 @@
 import { StreamTransformError } from '@lily/api/errors/defects'
 import type { EventBus } from '@lily/api/events'
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
@@ -146,6 +147,7 @@ export const streamChatMessage = (
   | CarePlanRepository
   | UserRepository
   | DelegationRepository
+  | CanopyRepository
   | UsageTracker
   | GCSService
   | RagService

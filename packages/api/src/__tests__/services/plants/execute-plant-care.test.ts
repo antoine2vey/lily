@@ -5,6 +5,7 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -18,6 +19,7 @@ import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.r
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
@@ -28,7 +30,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const userId = 'user-1'
 
 const toPlantWithRoom = (plant: TestPlant): PlantWithRoom => ({
-  ...plant,
+  ...withUserOwner(plant),
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
@@ -129,6 +131,7 @@ describe('executePlantCare', () => {
               createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
+              createMockCanopyRepository(),
               createMockEventBus(),
               createMockCurrentUser({
                 id: userId,
@@ -214,6 +217,7 @@ describe('executePlantCare', () => {
               createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
+              createMockCanopyRepository(),
               createMockEventBus(),
               createMockCurrentUser({
                 id: userId,
@@ -291,6 +295,7 @@ describe('executePlantCare', () => {
               createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
+              createMockCanopyRepository(),
               createMockEventBus(),
               createMockCurrentUser({
                 id: userId,
@@ -397,6 +402,7 @@ describe('executePlantCare', () => {
               createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
+              createMockCanopyRepository(),
               createMockEventBus(),
               createMockCurrentUser({
                 id: userId,

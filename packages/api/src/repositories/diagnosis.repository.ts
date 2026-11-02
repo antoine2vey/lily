@@ -12,7 +12,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 export interface FindDiagnosesParams {
   plantId: string
-  userId: string
+  author: Option.Option<string>
   page?: number
   limit?: number
 }
@@ -110,7 +110,10 @@ export const DiagnosisRepositoryLive = Layer.effect(
 
         const filterConditions = and(
           eq(diagnoses.plantId, params.plantId),
-          eq(diagnoses.userId, params.userId)
+          ...Option.match(params.author, {
+            onNone: () => [],
+            onSome: (userId) => [eq(diagnoses.userId, userId)],
+          })
         )
 
         const countResult = yield* db

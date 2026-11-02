@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { plantActionsFor } from '@/utils/canopy-plants'
 import { PlantOptionsSheet } from '../PlantOptionsSheet'
 
 describe('PlantOptionsSheet', () => {
@@ -9,6 +10,9 @@ describe('PlantOptionsSheet', () => {
   const mockOnDelete = jest.fn()
   const mockOnSayGoodbye = jest.fn()
   const mockOnBringBack = jest.fn()
+  const mockOnShareToCanopy = jest.fn()
+  const mockOnUnshare = jest.fn()
+  const mockOnToggleMute = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -26,6 +30,13 @@ describe('PlantOptionsSheet', () => {
     onBringBack: mockOnBringBack,
     onDelete: mockOnDelete,
     isDead: false,
+    canopyName: 'Home',
+    actions: plantActionsFor('owner', { inCanopy: false, sharer: 'you' }),
+    muted: false,
+    canEndLife: true,
+    onShareToCanopy: mockOnShareToCanopy,
+    onUnshare: mockOnUnshare,
+    onToggleMute: mockOnToggleMute,
   }
 
   it('displays plant name', () => {
@@ -118,5 +129,100 @@ describe('PlantOptionsSheet', () => {
 
     expect(mockOnDelete).toHaveBeenCalled()
     expect(mockOnClose).toHaveBeenCalled()
+  })
+
+  describe('Canopy rows', () => {
+    it('shows none of them on a personal plant outside a Canopy', () => {
+      render(<PlantOptionsSheet {...defaultProps} />)
+
+      expect(screen.queryByTestId('option-share-canopy')).toBeNull()
+      expect(screen.queryByTestId('option-unshare')).toBeNull()
+      expect(screen.queryByTestId('option-mute')).toBeNull()
+    })
+
+    it('offers the owner of a personal plant to share it with the Canopy', () => {
+      render(
+        <PlantOptionsSheet
+          {...defaultProps}
+          actions={plantActionsFor('owner', { inCanopy: true, sharer: 'you' })}
+        />
+      )
+
+      fireEvent.press(screen.getByText('Share with Home'))
+
+      expect(mockOnShareToCanopy).toHaveBeenCalled()
+      expect(screen.queryByTestId('option-unshare')).toBeNull()
+      expect(screen.queryByTestId('option-mute')).toBeNull()
+    })
+
+    it('lets the member who added a Canopy plant unshare, mute and delete it', () => {
+      render(
+        <PlantOptionsSheet
+          {...defaultProps}
+          isDead
+          actions={plantActionsFor('canopyCreator', {
+            inCanopy: true,
+            sharer: 'you',
+          })}
+        />
+      )
+
+      expect(screen.getByTestId('option-unshare')).toBeTruthy()
+      expect(screen.getByTestId('option-mute')).toBeTruthy()
+      expect(screen.getByTestId('option-delete')).toBeTruthy()
+      expect(screen.queryByTestId('option-share-canopy')).toBeNull()
+    })
+
+    it('lets another member mute a Canopy plant but not unshare or delete it', () => {
+      render(
+        <PlantOptionsSheet
+          {...defaultProps}
+          isDead
+          actions={plantActionsFor('canopyMember', {
+            inCanopy: true,
+            sharer: 'member',
+          })}
+        />
+      )
+
+      expect(screen.getByTestId('option-mute')).toBeTruthy()
+      expect(screen.queryByTestId('option-unshare')).toBeNull()
+      expect(screen.queryByTestId('option-delete')).toBeNull()
+      expect(screen.getByText('Bring back')).toBeTruthy()
+    })
+
+    it('labels the mute row by the current state', () => {
+      render(
+        <PlantOptionsSheet
+          {...defaultProps}
+          muted
+          actions={plantActionsFor('canopyMember', {
+            inCanopy: true,
+            sharer: 'member',
+          })}
+        />
+      )
+
+      fireEvent.press(screen.getByTestId('option-mute'))
+
+      expect(screen.getByText('Unmute reminders')).toBeTruthy()
+      expect(mockOnToggleMute).toHaveBeenCalled()
+    })
+
+    it('hides goodbye and bring back from a caretaker', () => {
+      render(
+        <PlantOptionsSheet
+          {...defaultProps}
+          actions={plantActionsFor('caretaker', {
+            inCanopy: false,
+            sharer: 'member',
+          })}
+          canEndLife={false}
+        />
+      )
+
+      expect(screen.queryByText('Say goodbye')).toBeNull()
+      expect(screen.queryByText('Bring back')).toBeNull()
+    })
   })
 })

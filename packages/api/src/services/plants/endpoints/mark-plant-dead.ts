@@ -4,12 +4,19 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   PlantAlreadyDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { PlantDeathRequest } from '@lily/shared/plant'
 import { DateTime, Effect, Option } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -19,11 +26,16 @@ import type { SqlError } from 'effect/sql/SqlError'
  */
 export const markPlantDead = (
   plant: PlantWithRoom,
-  request: PlantDeathRequest
+  request: PlantDeathRequest,
+  requestedId: string = plant.id
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
-  PlantRepository | NotificationRepository | EventBus
+  | PlantRepository
+  | NotificationRepository
+  | EventBus
+  | CurrentUser
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     if (plant.diedAt !== null) {
@@ -33,29 +45,36 @@ export const markPlantDead = (
     const repo = yield* PlantRepository
     const notificationRepo = yield* NotificationRepository
     const eventBus = yield* EventBus
+    const { id: userId } = yield* CurrentUser
 
-    const updated = yield* repo.markDead(plant.id, {
-      diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
-      cause: request.cause,
-      note: Option.getOrNull(Option.fromNullishOr(request.note)),
-    })
-    if (!updated) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
-    }
-
-    yield* notificationRepo.deletePendingByPlantId(plant.id)
+    yield* withReminderKeys(reminderKeysFor([plant.id]))(
+      Effect.gen(function* () {
+        const updated = yield* repo.markDead(plant.id, plant.owner, {
+          diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
+          cause: request.cause,
+          note: Option.getOrNull(Option.fromNullishOr(request.note)),
+        })
+        if (!updated) {
+          const current = yield* reloadOwnedPlant(plant, requestedId)
+          return yield* current.diedAt === null
+            ? new PlantNotFoundError({ plantId: requestedId })
+            : new PlantAlreadyDeadError()
+        }
+        yield* notificationRepo.deletePendingByPlantId(plant.id)
+      })
+    )
 
     yield* publishWithRetry(
       eventBus.publish({
         _tag: 'PlantLifecycleChanged',
-        userId: plant.userId,
+        userId,
         plantId: plant.id,
       })
     )
 
     const fresh = yield* repo.findById(plant.id)
     if (!fresh) {
-      return yield* new PlantNotFoundError({ plantId: plant.id })
+      return yield* new PlantNotFoundError({ plantId: requestedId })
     }
     return fresh
   }).pipe(

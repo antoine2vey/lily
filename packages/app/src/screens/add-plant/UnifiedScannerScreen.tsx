@@ -42,7 +42,9 @@ import { useCreatePlant } from '@/hooks/useCreatePlant'
 import type { DetectPlantResult } from '@/hooks/useDetectPlant'
 import { useDetectPlant } from '@/hooks/useDetectPlant'
 import { useIconColors } from '@/hooks/useIconColors'
+import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { AndroidScannerCamera } from '@/screens/add-plant/components/AndroidScannerCamera'
+import { showPlantLimitAlert } from '@/utils/plant-limit-alert'
 import { UploadError } from '@/utils/upload'
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -72,6 +74,7 @@ type ScanPhase = 'idle' | 'capturing' | 'uploading' | 'analyzing' | 'result'
 export function UnifiedScannerScreen() {
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
+  const inCanopy = useMyCanopy().data?.canopy != null
   const insets = useSafeAreaInsets()
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>()
 
@@ -311,6 +314,9 @@ export function UnifiedScannerScreen() {
           potWidthCm: confirmedPot?.widthCm,
           potHeightCm: confirmedPot?.heightCm,
           remindersEnabled: true,
+          // The quick add has no owner toggle: a member's plant goes to the
+          // Canopy, as on the schedule screen, and "Make personal" undoes it.
+          ...(inCanopy ? { owner: 'canopy' as const } : {}),
         },
       },
       {
@@ -322,7 +328,7 @@ export function UnifiedScannerScreen() {
                 pipe(
                   Match.value(error),
                   Match.when({ _tag: 'LimitExceededError' }, (e) =>
-                    Alert.alert(t('scanner.plantLimitReached'), e.message)
+                    showPlantLimitAlert(e, t('scanner.plantLimitReached'), t)
                   ),
                   Match.orElse(() =>
                     Alert.alert(t('scanner.error'), t('errors.createFailed'))
@@ -347,7 +353,7 @@ export function UnifiedScannerScreen() {
         },
       }
     )
-  }, [result, createPlant, confirmedPot, t, returnTo])
+  }, [result, createPlant, confirmedPot, t, returnTo, inCanopy])
 
   // MARK: - Animated Styles
 

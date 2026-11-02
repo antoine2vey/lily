@@ -236,6 +236,18 @@ export function ProfileScreen() {
               <ProfileMenuItem
                 icon={
                   <MaterialIcons
+                    name="diversity-3"
+                    size={20}
+                    color={iconColors.primary}
+                  />
+                }
+                title={t('canopy:row')}
+                onPress={() => router.push('/canopy')}
+              />
+
+              <ProfileMenuItem
+                icon={
+                  <MaterialIcons
                     name="local-florist"
                     size={20}
                     color={iconColors.primary}

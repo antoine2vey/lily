@@ -1,4 +1,5 @@
 import { ApiClient } from '@lily/mcp/api-client'
+import { escapeInlineMarkdown } from '@lily/mcp/tools/markdown'
 import {
   deathCauseLabel,
   healthColor,
@@ -6,6 +7,7 @@ import {
   MEMORIAL_COLOR,
   MEMORIAL_LABEL,
 } from '@lily/mcp/widgets/health'
+import { ownershipLabel } from '@lily/mcp/widgets/mappers'
 import type { PlantDetail } from '@lily/mcp/widgets/schemas'
 import { formatIsoDate, isOverdue, isToday } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
@@ -47,22 +49,24 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
             Option.fromNullishOr(plant.deathNote),
             Option.match({
               onNone: () => [] as string[],
-              onSome: (note) => [`- **Note**: ${note}`],
+              onSome: (note) => [`- **Note**: ${escapeInlineMarkdown(note)}`],
             })
           ),
         ],
       })
     )
     const roomOpt = Option.fromNullishOr(plant.room)
+    const ownershipOpt = ownershipLabel(plant)
 
     const room = pipe(
       roomOpt,
-      Option.map((r) => `${r.icon} ${r.name}`),
+      Option.map((r) => escapeInlineMarkdown(`${r.icon} ${r.name}`)),
       Option.getOrElse(() => 'No room assigned')
     )
 
     const category = pipe(
       Option.fromNullishOr(plant.category),
+      Option.map(escapeInlineMarkdown),
       Option.getOrElse(() => 'Unknown')
     )
 
@@ -88,7 +92,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       const date = formatIsoDate(log.date)
       const notes = pipe(
         Option.fromNullishOr(log.notes),
-        Option.map((n) => ` — ${n}`),
+        Option.map((n) => ` — ${escapeInlineMarkdown(n)}`),
         Option.getOrElse(() => '')
       )
       return {
@@ -102,10 +106,13 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
     })
 
     const sections = [
-      `## ${plant.name}`,
+      `## ${escapeInlineMarkdown(plant.name)}`,
       '',
       `- **Health**: ${health}`,
       ...memorialLines,
+      ...Option.toArray(
+        Option.map(ownershipOpt, (label) => `- ${escapeInlineMarkdown(label)}`)
+      ),
       `- **Room**: ${room}`,
       `- **Category**: ${category}`,
       `- **Added**: ${formatIsoDate(plant.dateAdded)}`,
@@ -154,6 +161,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       category: Option.getOrNull(Option.fromNullishOr(plant.category)),
       roomName: Option.getOrNull(Option.map(roomOpt, (r) => r.name)),
       roomIcon: Option.getOrNull(Option.map(roomOpt, (r) => r.icon)),
+      ownershipLabel: Option.getOrNull(ownershipOpt),
       dateAdded: formatIsoDate(plant.dateAdded),
       wateringRating: plant.wateringRating,
       lightingRating: plant.lightingRating,

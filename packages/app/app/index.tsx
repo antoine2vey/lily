@@ -1,10 +1,11 @@
-import { Match, pipe } from 'effect'
+import { Match, Option, pipe } from 'effect'
 import { Redirect } from 'expo-router'
 import { View } from 'react-native'
 import { MeshBackground } from '@/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { useOnboardingComplete } from '@/hooks/useOnboardingComplete'
 import { signedOutRoute, useWelcomeSeen } from '@/hooks/useWelcomeSeen'
+import { joinRoute, usePendingJoin } from '@/utils/canopy-invite-token'
 
 // Shown for a moment while auth and onboarding state load. Login, welcome and
 // onboarding all sit on the mesh, so the gate does too: a plain background
@@ -23,12 +24,15 @@ export default function Index() {
     useOnboardingComplete()
   const { hasSeen: hasSeenWelcome, isLoading: isLoadingWelcome } =
     useWelcomeSeen()
+  const pendingJoin = usePendingJoin()
 
-  // Show loading while checking auth or onboarding status
-  const isAuthenticatedAndLoadingOnboarding =
-    state._tag === 'Authenticated' && isLoadingOnboarding
+  // Show loading while checking auth, onboarding status, or an invite
+  // stashed before sign-in
+  const isAuthenticatedAndLoadingGate =
+    state._tag === 'Authenticated' &&
+    (isLoadingOnboarding || pendingJoin._tag === 'Loading')
 
-  if (isAuthenticatedAndLoadingOnboarding) {
+  if (isAuthenticatedAndLoadingGate) {
     return <GateLoading />
   }
 
@@ -39,7 +43,13 @@ export default function Index() {
       if (!hasCompletedOnboarding) {
         return <Redirect href="/(auth)/onboarding" />
       }
-      return <Redirect href="/(app)/(tabs)" />
+      return pipe(
+        pendingJoin._tag === 'Loaded' ? pendingJoin.token : Option.none(),
+        Option.match({
+          onNone: () => <Redirect href="/(app)/(tabs)" />,
+          onSome: (token) => <Redirect href={joinRoute(token)} />,
+        })
+      )
     }),
     Match.when({ _tag: 'NeedsUsername' }, () => (
       <Redirect href="/(auth)/username" />

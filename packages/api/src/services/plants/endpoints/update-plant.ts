@@ -4,8 +4,9 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
-import { assertRoomBelongsTo } from '@lily/api/services/plants/helpers/assert-room-belongs-to'
+import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import type { CareType, RoomNotFoundError } from '@lily/shared'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { PlantUpdateRequest } from '@lily/shared/plant'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type {
@@ -59,6 +60,7 @@ export const updatePlant = (
   | GCSUploadError
   | InvalidImageError
   | RoomNotFoundError
+  | PlantNotFoundError
   | GCSConfigError
   | PlatformError,
   | PlantRepository
@@ -71,7 +73,7 @@ export const updatePlant = (
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
-    yield* assertRoomBelongsTo(request.roomId, plant.userId)
+    yield* assertRoomFits(request.roomId, plant.owner)
 
     const now = DateTime.toDateUtc(DateTime.nowUnsafe())
 
@@ -103,7 +105,10 @@ export const updatePlant = (
     ) as Record<string, unknown>
 
     // Update non-care plant fields
-    yield* repo.update(request.id, data)
+    const written = yield* repo.update(request.id, plant.owner, data)
+    if (!written) {
+      return yield* new PlantNotFoundError({ plantId: request.id })
+    }
 
     // Fetch all existing schedules in a single query
     const existingSchedules = yield* scheduleRepo.findByPlant(request.id)

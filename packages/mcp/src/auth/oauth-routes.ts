@@ -1,9 +1,9 @@
-import { clientIp } from '@lily/mcp/auth/client-ip'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { refreshApiJwtIfNeeded } from '@lily/mcp/auth/resolve-user'
 import { SCOPES_SUPPORTED } from '@lily/mcp/auth/scopes'
 import { McpServerUrl } from '@lily/mcp/config'
+import { clientIp } from '@lily/shared/services/http/client-ip'
 import { Array, Effect, Layer, Option, Schema } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 

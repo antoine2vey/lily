@@ -6,6 +6,7 @@ import {
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -109,7 +110,8 @@ describe('streamChatMessage', () => {
       })
     ).pipe(
       Layer.merge(createMockGCSService()),
-      Layer.merge(emptyDelegationMock)
+      Layer.merge(emptyDelegationMock),
+      Layer.merge(createMockCanopyRepository())
     )
 
   it('should return a streaming response', async () => {

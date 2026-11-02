@@ -1,5 +1,6 @@
 export { askPlantQuestionEffect } from '@lily/mcp/tools/ask-plant-question'
 export { carePlantEffect } from '@lily/mcp/tools/care-plant'
+export { createPlantEffect } from '@lily/mcp/tools/create-plant'
 export { getCareTasksEffect } from '@lily/mcp/tools/get-care-tasks'
 export { getOverduePlantsEffect } from '@lily/mcp/tools/get-overdue-plants'
 export { getPlantDetailsEffect } from '@lily/mcp/tools/get-plant-details'

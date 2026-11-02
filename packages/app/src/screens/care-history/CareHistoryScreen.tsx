@@ -11,6 +11,7 @@ import { BottomSheet } from '@/components/BottomSheet'
 import { Chip } from '@/components/Chip'
 import { EmptyState } from '@/components/EmptyState'
 import { GlassBackButton } from '@/components/GlassBackButton'
+import { useAuth } from '@/contexts/AuthContext'
 import { useCareHistory } from '@/hooks/useCareHistory'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -37,6 +38,7 @@ export function CareHistoryScreen() {
   const insets = useSafeAreaInsets()
 
   const { data: plant } = usePlant(plantId)
+  const { state: authState } = useAuth()
   const {
     data: history,
     isLoading,
@@ -44,6 +46,10 @@ export function CareHistoryScreen() {
   } = useCareHistory({
     plantId,
     diedAt: plant?.diedAt,
+    canopyViewerId:
+      plant?.ownership === 'canopy' && authState._tag === 'Authenticated'
+        ? authState.user.id
+        : undefined,
   })
 
   const [showFilterSheet, setShowFilterSheet] = useState(false)

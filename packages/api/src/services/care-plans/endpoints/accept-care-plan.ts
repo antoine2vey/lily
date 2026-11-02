@@ -1,15 +1,16 @@
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
-import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import type { CarePlanContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
+import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import type { PlantAccessContext } from '@lily/api/services/plants/helpers/with-plant-access'
 import { type CareType, nowAsDate } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import { CarePlanNotProposedError } from '@lily/shared/errors/care-plan'
 import { Array, Effect, Filter, Option, Order, pipe, Record } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 interface DatedCareStep {
@@ -48,10 +49,10 @@ export const scheduleTargetsFromSteps = (
     )
   )
 
-/** `plan` comes from `withCarePlanAuth` in the handler. */
-export const acceptCarePlan = (
-  plan: CarePlan
-): Effect.Effect<
+export const acceptCarePlan = ({
+  plan,
+  plant,
+}: CarePlanContext): Effect.Effect<
   CarePlan,
   CarePlanNotProposedError | SqlError,
   | CarePlanRepository
@@ -59,27 +60,18 @@ export const acceptCarePlan = (
   | PlantRepository
   | NotificationRepository
   | UserRepository
-  | DelegationRepository
-  | CurrentUser
+  | PlantAccessContext
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const repo = yield* CarePlanRepository
     const scheduleRepo = yield* CareScheduleRepository
-    const plantRepo = yield* PlantRepository
-
     if (plan.status !== 'proposed') {
       return yield* new CarePlanNotProposedError({
         planId: plan.id,
         status: plan.status,
       })
     }
-
-    const plant = yield* plantRepo.findById(plan.plantId)
-    const remindersEnabled = pipe(
-      Option.fromNullishOr(plant),
-      Option.map((p) => p.remindersEnabled),
-      Option.getOrElse(() => false)
-    )
 
     // Move each affected schedule's next date to the step's due date (either
     // direction). Plants without a schedule of that type are left alone: the
@@ -96,13 +88,10 @@ export const acceptCarePlan = (
           yield* scheduleRepo.updateByPlantAndType(plan.plantId, careType, {
             nextCareAt: dueDate,
           })
-          yield* scheduleCareReminder({
-            plantId: plan.plantId,
-            userId: plan.userId,
-            type: `${careType}_reminder` as const,
-            scheduledDate: dueDate,
-            remindersEnabled,
-          })
+          yield* reconcileCareReminder(
+            plant.id,
+            `${careType}_reminder` as const
+          )
         }),
       { discard: true }
     )

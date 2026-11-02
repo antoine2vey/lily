@@ -13,6 +13,7 @@ interface ListRowProps {
   showChevron?: boolean
   destructive?: boolean
   disabled?: boolean
+  testID?: string
 }
 
 export function ListRow({
@@ -24,6 +25,7 @@ export function ListRow({
   showChevron = false,
   destructive = false,
   disabled = false,
+  testID,
 }: ListRowProps) {
   const iconColors = useIconColors()
   const titleColorClass = pipe(
@@ -64,6 +66,7 @@ export function ListRow({
   if (onPress && !disabled) {
     return (
       <Pressable
+        testID={testID}
         onPress={onPress}
         className="active:opacity-70 active:bg-black/5 dark:active:bg-white/5"
       >
@@ -72,5 +75,5 @@ export function ListRow({
     )
   }
 
-  return content
+  return <View testID={testID}>{content}</View>
 }

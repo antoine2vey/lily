@@ -22,7 +22,11 @@ jest.mock('@/utils/client', () => {
 
 import { useCareTabBadge } from '../useCareTabBadge'
 
-const CARE_TASKS_QUERY_KEY = ['careTasks', 'getCareTasks', {}]
+const CARE_TASKS_QUERY_KEY = [
+  'careTasks',
+  'getCareTasks',
+  { query: { includeCanopy: 'true' } },
+]
 
 const task = (id: string) => ({ id })
 
