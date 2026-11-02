@@ -115,6 +115,7 @@ function JoinFlow({ source }: { source: Option.Option<JoinSource> }) {
     attempt,
   })
   const isInvitation = Option.exists(source, (s) => s._tag === 'Invitation')
+  const locked = attempt._tag === 'Working' || decline.isPending
 
   const refuse = (error: ApiFailure) => {
     if (error._tag === 'AlreadyInCanopyError') {
@@ -192,7 +193,7 @@ function JoinFlow({ source }: { source: Option.Option<JoinSource> }) {
           pill
           variant="glass"
           loading={decline.isPending}
-          disabled={decline.isPending}
+          disabled={locked}
           onPress={() => onDecline(invitationId)}
           testID="canopy-decline-button"
         >
@@ -317,7 +318,7 @@ function JoinFlow({ source }: { source: Option.Option<JoinSource> }) {
         <Button
           pill
           loading={busy}
-          disabled={busy}
+          disabled={locked}
           onPress={onJoin}
           testID="canopy-join-button"
         >
@@ -332,7 +333,7 @@ function JoinFlow({ source }: { source: Option.Option<JoinSource> }) {
         <Button
           pill
           loading={busy}
-          disabled={busy}
+          disabled={locked}
           onPress={onOpenCurrent}
           testID="canopy-open-button"
         >
@@ -347,7 +348,7 @@ function JoinFlow({ source }: { source: Option.Option<JoinSource> }) {
           pill
           variant="destructive"
           loading={busy}
-          disabled={busy}
+          disabled={locked}
           onPress={() => onLeaveAndJoin(currentName, p.canopyName)}
           testID="canopy-leave-and-join-button"
         >

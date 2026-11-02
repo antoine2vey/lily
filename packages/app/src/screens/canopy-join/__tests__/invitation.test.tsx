@@ -56,6 +56,7 @@ const mockRefetch = jest.fn(async () => {
 })
 const mockAccept = jest.fn(async () => ({ name: 'Our Flat' }))
 const mockDecline = jest.fn(async () => undefined)
+let mockDeclinePending = false
 const mockLeave = jest.fn(async () => undefined)
 
 jest.mock('@/contexts/AuthContext', () => ({
@@ -79,7 +80,10 @@ jest.mock('@/hooks/useMyCanopy', () => ({
 jest.mock('@/hooks/useCanopyMutations', () => ({
   useAcceptCanopyInvite: () => ({ mutateAsync: jest.fn() }),
   useAcceptCanopyInvitation: () => ({ mutateAsync: mockAccept }),
-  useDeclineCanopyInvitation: () => ({ mutateAsync: mockDecline }),
+  useDeclineCanopyInvitation: () => ({
+    mutateAsync: mockDecline,
+    isPending: mockDeclinePending,
+  }),
   useLeaveCanopy: () => ({ mutateAsync: mockLeave }),
 }))
 
@@ -101,6 +105,7 @@ beforeEach(() => {
   mockMine = Result.succeed({ canopy: null })
   mockInvitation = Result.succeed(view('pending'))
   mockNextInvitation = mockInvitation
+  mockDeclinePending = false
 })
 
 const renderInvitation = () =>
@@ -124,6 +129,22 @@ describe('answering a direct invitation', () => {
     expect(toast.success).toHaveBeenCalledWith('Invitation declined')
     expect(router.replace).toHaveBeenCalledWith('/(app)/(tabs)')
     expect(mockAccept).not.toHaveBeenCalled()
+  })
+
+  it('cannot join while a decline is in flight', async () => {
+    mockDeclinePending = true
+    renderInvitation()
+    fireEvent.press(await screen.findByTestId('canopy-join-button'))
+    expect(mockAccept).not.toHaveBeenCalled()
+  })
+
+  it('cannot decline while a join is in flight', async () => {
+    mockAccept.mockImplementationOnce(() => new Promise(() => {}))
+    renderInvitation()
+    fireEvent.press(await screen.findByTestId('canopy-join-button'))
+    await waitFor(() => expect(mockAccept).toHaveBeenCalled())
+    fireEvent.press(screen.getByTestId('canopy-decline-button'))
+    expect(mockDecline).not.toHaveBeenCalled()
   })
 
   it('shows a closed invitation without a way to join or decline', async () => {
