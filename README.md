@@ -86,7 +86,7 @@ bun run dev
 | `bun run build` | Build all packages |
 | `bun run test` | Run unit tests across all packages (Vitest in `api`/`shared`/`mcp`) |
 | `bun run test:integration` | Run `api` integration tests against a real Postgres (loads `.env.test.local`) |
-| `bun run db:setup-test` | Provision the test database (push to `DATABASE_URL_TEST` + setup script) |
+| `bun run db:setup-test` | Provision the test database (apply the SQL migrations to `DATABASE_URL_TEST` + seed tiers) |
 | `bun run lint` | Biome lint/check across all packages |
 | `bun run lint:fix` | Biome lint + autofix across all packages |
 | `bun run tsc` | TypeScript typecheck (`tsc --noEmit`) — CI + pre-push gate |

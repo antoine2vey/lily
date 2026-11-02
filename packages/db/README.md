@@ -200,7 +200,7 @@ Seeds free and paid tier configurations. **Run once per database**.
 ```bash
 bun run db:setup-test
 ```
-Pushes schema to test database and seeds initial data.
+Applies the SQL migrations in `drizzle/` to the test database with `scripts/migrate.ts`, the runner prod uses, then seeds the subscription tiers.
 
 ## Development Workflows
 
@@ -251,6 +251,16 @@ bun run db:setup-test
 ```bash
 DATABASE_URL_TEST=postgresql://lily:lily123@localhost:5433/lily_test
 ```
+
+The test database is built from the SQL migrations, not from `drizzle-kit push`, so every trigger and index prod has exists in tests. The runner records each applied file in `public.__drizzle_migrations` and skips it on later runs, so `db:setup-test` is safe to rerun. A test database created by an older `db:push`-based setup has no such table and fails on the first migration; drop and recreate it once:
+```bash
+docker exec lily-postgres-test psql -U lily -d postgres -c 'DROP DATABASE lily_test' -c 'CREATE DATABASE lily_test'
+bun run db:setup-test
+```
+
+### Migration numbering
+
+The runner identifies an applied migration by its file name without `.sql` (the `hash` column), so renaming a file that prod has applied makes Railway re-run it on the next deploy. Files run in lexicographic order, which is why the duplicate `0025_` prefix and the missing `0059_` are harmless and must stay as they are. Give a new file the next unused number; never renumber an existing one.
 
 ### Schema Changes
 
