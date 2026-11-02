@@ -32,7 +32,7 @@ export default {
     remove: 'Remove',
     removeTitle: 'Remove {name}?',
     removeMessage:
-      '{name} loses access to the Canopy plants right away. The plants stay in the Canopy.',
+      '{name} loses access to the Canopy plants right away. The plants they shared go back to them.',
     removed: '{name} removed',
     invite: {
       title: 'Invite people',
@@ -65,16 +65,16 @@ export default {
     leave: 'Leave Canopy',
     leaveTitle: 'Leave {name}?',
     leaveMessageMember:
-      'You lose access to the Canopy plants. They stay with the Canopy.',
+      'The plants you shared come back to you. You lose access to the rest.',
     leaveMessageOwner:
-      '{heir} becomes the owner. You lose access to the Canopy plants.',
+      '{heir} becomes the owner. The plants you shared come back to you, and you lose access to the rest.',
     leaveMessageLast:
       'You are the last member. The Canopy closes and its plants and rooms become yours.',
     left: 'You left the Canopy',
     delete: 'Delete Canopy',
     deleteTitle: 'Delete {name}?',
     deleteMessage:
-      'Every Canopy plant and room becomes yours, and members lose access right away. No plant is deleted.',
+      'Each plant goes back to the member who shared it. You keep the rest and the rooms, and members lose access right away. No plant is deleted.',
     deleted: 'Canopy deleted',
     failed: 'Something went wrong. Try again.',
     notOwner: 'Only the owner can do this.',
@@ -95,11 +95,11 @@ export default {
     another: {
       title: 'You are in {current}',
       description:
-        'Leave {current} first to join {name}. Its plants stay with {current}.',
+        'Leave {current} first to join {name}. The plants you shared there come back to you.',
       leave: 'Leave {current} and join',
       confirmTitle: 'Leave {current}?',
       confirmMessage:
-        'You lose access to the plants in {current}, then join {name}.',
+        'The plants you shared come back to you and you lose access to the rest of {current}, then you join {name}.',
     },
     full: {
       title: '{name} is full',

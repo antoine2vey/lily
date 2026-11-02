@@ -34,7 +34,7 @@ export default {
     remove: 'Retirer',
     removeTitle: 'Retirer {name} ?',
     removeMessage:
-      "{name} perd tout de suite l'accès aux plantes de la Canopy. Les plantes restent dans la Canopy.",
+      "{name} perd tout de suite l'accès aux plantes de la Canopy. Ses plantes partagées lui reviennent.",
     removed: '{name} a été retiré',
     invite: {
       title: 'Inviter des personnes',
@@ -68,16 +68,16 @@ export default {
     leave: 'Quitter la Canopy',
     leaveTitle: 'Quitter {name} ?',
     leaveMessageMember:
-      "Vous perdez l'accès aux plantes de la Canopy. Elles restent dans la Canopy.",
+      "Les plantes que vous avez partagées redeviennent les vôtres. Vous perdez l'accès aux autres.",
     leaveMessageOwner:
-      "{heir} devient propriétaire. Vous perdez l'accès aux plantes de la Canopy.",
+      "{heir} devient propriétaire. Les plantes que vous avez partagées redeviennent les vôtres, et vous perdez l'accès aux autres.",
     leaveMessageLast:
       'Vous êtes le dernier membre. La Canopy se ferme et ses plantes et pièces deviennent les vôtres.',
     left: 'Vous avez quitté la Canopy',
     delete: 'Supprimer la Canopy',
     deleteTitle: 'Supprimer {name} ?',
     deleteMessage:
-      "Chaque plante et pièce de la Canopy devient la vôtre, et les membres perdent l'accès tout de suite. Aucune plante n'est supprimée.",
+      "Chaque plante revient au membre qui l'a partagée. Vous gardez les autres et les pièces, et les membres perdent l'accès tout de suite. Aucune plante n'est supprimée.",
     deleted: 'Canopy supprimée',
     failed: 'Un problème est survenu. Réessayez.',
     notOwner: 'Seul le propriétaire peut faire cela.',
@@ -98,11 +98,11 @@ export default {
     another: {
       title: 'Vous êtes dans {current}',
       description:
-        "Quittez d'abord {current} pour rejoindre {name}. Ses plantes restent dans {current}.",
+        "Quittez d'abord {current} pour rejoindre {name}. Les plantes que vous y avez partagées redeviennent les vôtres.",
       leave: 'Quitter {current} et rejoindre',
       confirmTitle: 'Quitter {current} ?',
       confirmMessage:
-        "Vous perdez l'accès aux plantes de {current}, puis vous rejoignez {name}.",
+        "Les plantes que vous avez partagées redeviennent les vôtres et vous perdez l'accès au reste de {current}, puis vous rejoignez {name}.",
     },
     full: {
       title: '{name} est complète',

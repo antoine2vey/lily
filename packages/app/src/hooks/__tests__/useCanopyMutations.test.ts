@@ -10,7 +10,13 @@ jest.mock('@/utils/client', () => ({
 }))
 
 import { apiEffectRunner } from '@/utils/client'
-import { useAcceptCanopyInvite } from '../useCanopyMutations'
+import { queryKeys } from '@/utils/query-keys'
+import {
+  useAcceptCanopyInvite,
+  useDeleteCanopy,
+  useLeaveCanopy,
+  useRemoveCanopyMember,
+} from '../useCanopyMutations'
 
 const token = Option.getOrThrow(
   parseInviteToken('U97umPWqTRea_CZl99IrKv07PctPfxf7mjipVeP7HcM')
@@ -44,4 +50,60 @@ describe('Canopy mutations', () => {
     expect(apiEffectRunner).toHaveBeenCalledTimes(1)
     client.clear()
   })
+
+  // Leaving, removal and dissolving hand shared plants back to whoever shared
+  // them; leave-and-join runs leave then accept.
+  const withRun = (mutation: { isSuccess: boolean }, run: () => void) => ({
+    isSuccess: mutation.isSuccess,
+    run,
+  })
+  it.each([
+    [
+      'leave',
+      () => {
+        const m = useLeaveCanopy()
+        return withRun(m, () => m.mutate())
+      },
+    ],
+    [
+      'delete',
+      () => {
+        const m = useDeleteCanopy()
+        return withRun(m, () => m.mutate())
+      },
+    ],
+    [
+      'remove a member',
+      () => {
+        const m = useRemoveCanopyMember()
+        return withRun(m, () => m.mutate('user-2'))
+      },
+    ],
+    [
+      'accept an invite',
+      () => {
+        const m = useAcceptCanopyInvite()
+        return withRun(m, () => m.mutate(token))
+      },
+    ],
+  ] as const)(
+    'refreshes plants, the cemetery and rooms after %s',
+    async (_, useCase) => {
+      jest.mocked(apiEffectRunner).mockResolvedValue({ canopy: null })
+      const client = appLikeClient()
+      const invalidate = jest.spyOn(client, 'invalidateQueries')
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client }, children)
+
+      const { result } = renderHook(useCase, { wrapper })
+      act(() => result.current.run())
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+      expect(invalidate).toHaveBeenCalledWith({
+        queryKey: queryKeys.plants.all,
+      })
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.rooms.all })
+      client.clear()
+    }
+  )
 })

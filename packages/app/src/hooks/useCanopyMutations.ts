@@ -27,7 +27,8 @@ const setMyCanopy = (queryClient: QueryClient, canopy: Canopy | null) =>
     Result.succeed({ canopy })
   )
 
-// Joining, leaving and dissolving move plants and rooms between owners.
+// Joining, leaving, removing a member and dissolving move plants and rooms
+// between owners.
 export const refreshOwnedData = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.plants.all })
   queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all })
@@ -57,7 +58,10 @@ export function useRemoveCanopyMember() {
   return useCanopyMutation({
     mutationFn: (userId: string) =>
       apiEffectRunner('canopy', 'removeCanopyMember', { params: { userId } }),
-    onSuccess: (canopy) => setMyCanopy(queryClient, canopy),
+    onSuccess: (canopy) => {
+      setMyCanopy(queryClient, canopy)
+      refreshOwnedData(queryClient)
+    },
   })
 }
 
