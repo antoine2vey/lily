@@ -92,6 +92,13 @@ export const createMockDeviceTokenRepository = (
       return Effect.succeed(removed ?? null)
     },
 
+    deleteByUserId: (userId) =>
+      Effect.sync(() => {
+        for (let idx = store.length - 1; idx >= 0; idx -= 1) {
+          if (store[idx]?.userId === userId) store.splice(idx, 1)
+        }
+      }),
+
     countActiveByUserId: (userId: string) =>
       Effect.succeed(
         Array.length(

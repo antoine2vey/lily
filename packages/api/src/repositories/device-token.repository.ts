@@ -51,6 +51,7 @@ export interface IDeviceTokenRepository {
     data: UpdateDeviceTokenData
   ) => Effect.Effect<DeviceToken | null, SqlError>
   readonly delete: (id: string) => Effect.Effect<DeviceToken | null, SqlError>
+  readonly deleteByUserId: (userId: string) => Effect.Effect<void, SqlError>
   readonly countActiveByUserId: (
     userId: string
   ) => Effect.Effect<number, SqlError>
@@ -171,6 +172,12 @@ export const DeviceTokenRepositoryLive = Layer.effect(
           .returning()
         return row ? mapToDeviceToken(row) : null
       }),
+
+      deleteByUserId: Effect.fn('DeviceTokenRepository.deleteByUserId')(
+        function* (userId: string) {
+          yield* db.delete(deviceTokens).where(eq(deviceTokens.userId, userId))
+        }
+      ),
 
       countActiveByUserId: Effect.fn(
         'DeviceTokenRepository.countActiveByUserId'

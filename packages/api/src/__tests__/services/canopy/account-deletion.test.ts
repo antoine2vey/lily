@@ -6,6 +6,7 @@ import {
   createTestCanopyRow,
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockRefreshTokenRepository } from '@lily/api/__tests__/mocks/refresh-token.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
@@ -126,7 +127,11 @@ describe('account deletion', () => {
     const exit = await Effect.runPromiseExit(
       deleteAccount().pipe(
         Effect.provide(
-          Layer.merge(world.layer, createMockRefreshTokenRepository())
+          Layer.mergeAll(
+            world.layer,
+            createMockRefreshTokenRepository(),
+            createMockDeviceTokenRepository([])
+          )
         )
       )
     )
@@ -180,6 +185,7 @@ describe('account deletion', () => {
           Layer.mergeAll(
             canopyWorld(store, { id: 'alex' }).layer,
             createMockRefreshTokenRepository(),
+            createMockDeviceTokenRepository([]),
             canopyFailingFor(store, 'alex'),
             recordingUsers(users, writes)
           )
