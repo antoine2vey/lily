@@ -1,3 +1,4 @@
+import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -10,11 +11,13 @@ export const deleteAccount = Effect.fn('UserService.deleteAccount')(
     const user = yield* CurrentUser
     const userRepo = yield* UserRepository
     const refreshTokenRepo = yield* RefreshTokenRepository
+    const deviceTokenRepo = yield* DeviceTokenRepository
 
     const [deleted] = yield* leaveCanopyAndDelete(user.id)(
       Effect.all([
         userRepo.softDelete(user.id),
         refreshTokenRepo.revokeAllForUser(user.id),
+        deviceTokenRepo.deleteByUserId(user.id),
       ])
     )
 
