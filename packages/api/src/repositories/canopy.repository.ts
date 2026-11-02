@@ -133,6 +133,10 @@ export interface ICanopyRepository {
     canopyId: string,
     userId: string
   ) => Effect.Effect<ReadonlyArray<MovedPlant>, SqlError>
+  readonly returnToSharer: (
+    canopyId: string,
+    sharerId: string
+  ) => Effect.Effect<ReadonlyArray<MovedPlant>, SqlError>
 }
 
 export class CanopyRepository extends Context.Service<
@@ -443,6 +447,38 @@ export const CanopyRepositoryLive = Layer.effect(
           .update(plants)
           .set({ userId, canopyId: null, updatedAt: nowAsDate() })
           .where(eq(plants.canopyId, canopyId))
+          .returning({
+            id: plants.id,
+            remindersEnabled: plants.remindersEnabled,
+            diedAt: plants.diedAt,
+          })
+      }),
+
+      returnToSharer: Effect.fn('CanopyRepository.returnToSharer')(function* (
+        canopyId: string,
+        sharerId: string
+      ) {
+        const shared = and(
+          eq(plants.canopyId, canopyId),
+          eq(plants.createdByUserId, sharerId)
+        )
+        yield* db
+          .delete(canopyPlantMutes)
+          .where(
+            inArray(
+              canopyPlantMutes.plantId,
+              db.select({ id: plants.id }).from(plants).where(shared)
+            )
+          )
+        return yield* db
+          .update(plants)
+          .set({
+            userId: sharerId,
+            canopyId: null,
+            roomId: null,
+            updatedAt: nowAsDate(),
+          })
+          .where(shared)
           .returning({
             id: plants.id,
             remindersEnabled: plants.remindersEnabled,

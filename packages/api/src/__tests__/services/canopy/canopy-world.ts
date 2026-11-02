@@ -16,7 +16,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Layer, pipe, Record } from 'effect'
+import { Array, Layer, pipe } from 'effect'
 
 export const memberUsers = (store: MockCanopyStore): User[] =>
   Array.map(store.members, (m) => ({
@@ -41,13 +41,12 @@ export const canopyWorld = (
       diedAt: p.diedAt,
     })
   )
-  const canopyPlants = pipe(
-    Array.groupBy(
-      Array.filter(store.plants, (p) => p.canopyId !== null),
-      (p) => p.canopyId ?? ''
-    ),
-    Record.map((plants) => Array.map(plants, (p) => p.id))
-  )
+  const canopyPlants = (canopyId: string) =>
+    pipe(
+      store.plants,
+      Array.filter((p) => p.canopyId === canopyId),
+      Array.map((p) => p.id)
+    )
   return {
     notifications,
     layer: Layer.mergeAll(

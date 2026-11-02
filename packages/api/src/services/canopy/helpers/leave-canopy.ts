@@ -16,6 +16,7 @@ import {
   notifyMemberBestEffort,
   senderNameOf,
 } from '@lily/api/services/canopy/helpers/notify-member'
+import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-shared-plants'
 import type { CanopyNotFoundError } from '@lily/shared'
 import type { MessageQueue } from '@lily/shared/server'
 import { Array, Data, Effect, Option, pipe } from 'effect'
@@ -44,7 +45,8 @@ type LeaveContext =
   | MessageQueue
 
 const leaveInTransaction = (
-  userId: string
+  userId: string,
+  sharedPlants: 'return' | 'stay'
 ): Effect.Effect<LeaveOutcome, CanopyNotFoundError | SqlError, LeaveContext> =>
   Effect.gen(function* () {
     const repo = yield* CanopyRepository
@@ -69,6 +71,9 @@ const leaveInTransaction = (
       return LeaveOutcome.Dissolved()
     }
 
+    if (sharedPlants === 'return') {
+      yield* returnSharedPlants(canopy.id, userId)
+    }
     yield* dropMember(canopy.id, userId, owner.value.userId)
     yield* repo.revokeInviteCreatedBy(canopy.id, userId)
     if (owner.value.role !== 'owner') {
@@ -94,7 +99,9 @@ export const leaveCanopy = (
 ): Effect.Effect<LeaveOutcome, CanopyNotFoundError | SqlError, LeaveContext> =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
-    const outcome = yield* sql.withTransaction(leaveInTransaction(userId))
+    const outcome = yield* sql.withTransaction(
+      leaveInTransaction(userId, 'return')
+    )
     yield* notifyLeave(outcome)
     return outcome
   }).pipe(Effect.withSpan('leaveCanopy', { attributes: { 'user.id': userId } }))
@@ -108,7 +115,7 @@ export const leaveCanopyAndDelete =
       const sql = yield* SqlClient.SqlClient
       const [outcome, result] = yield* sql.withTransaction(
         Effect.all([
-          leaveInTransaction(userId).pipe(
+          leaveInTransaction(userId, 'stay').pipe(
             Effect.map(Option.some),
             Effect.catchTag('CanopyNotFoundError', () =>
               Effect.succeed(Option.none<LeaveOutcome>())

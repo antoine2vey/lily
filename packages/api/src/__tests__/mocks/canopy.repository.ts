@@ -27,6 +27,8 @@ export interface MockCanopyInvite {
 export interface MockCanopyPlant extends MovedPlant {
   canopyId: string | null
   userId: string | null
+  createdByUserId?: string | null
+  roomId?: string | null
 }
 
 export interface MockCanopyStore {
@@ -292,6 +294,25 @@ export const createMockCanopyRepository = (
           }
         })
         return Array.map(moved, ({ id, remindersEnabled, diedAt }) => ({
+          id,
+          remindersEnabled,
+          diedAt,
+        }))
+      }),
+    returnToSharer: (canopyId, sharerId) =>
+      Effect.sync(() => {
+        const returned = Array.filter(
+          store.plants,
+          (p) => p.canopyId === canopyId && p.createdByUserId === sharerId
+        )
+        const returnedIds = Array.map(returned, (p) => p.id)
+        remove(store.mutes, (m) => Array.contains(returnedIds, m.plantId))
+        Array.forEach(returned, (p) => {
+          p.canopyId = null
+          p.userId = sharerId
+          p.roomId = null
+        })
+        return Array.map(returned, ({ id, remindersEnabled, diedAt }) => ({
           id,
           remindersEnabled,
           diedAt,

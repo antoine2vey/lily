@@ -6,8 +6,9 @@ import type { CareScheduleRepository } from '@lily/api/repositories/care-schedul
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-shared-plants'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reschedule-reminders'
-import { Effect } from 'effect'
+import { Array, Effect } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -32,6 +33,12 @@ export const dissolveCanopy = (
         if ((yield* repo.lock(canopyId)) === null) {
           return []
         }
+        const members = yield* repo.findMembersByJoinDate(canopyId)
+        yield* Effect.forEach(
+          Array.filter(members, (m) => m.userId !== heirUserId),
+          (m) => returnSharedPlants(canopyId, m.userId),
+          { discard: true }
+        )
         const moved = yield* repo.transferToUser(canopyId, heirUserId)
         yield* repo.delete(canopyId)
         yield* Effect.forEach(moved, (plant) =>

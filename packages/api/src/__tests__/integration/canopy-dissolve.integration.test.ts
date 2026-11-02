@@ -142,7 +142,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .returning()
       const living = await insertPlant({
         canopyId,
-        createdByUserId: lilyId,
+        createdByUserId: null,
         roomId: canopyRoom?.id ?? null,
       })
       const dead = await insertPlant({
@@ -512,7 +512,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('dissolves exactly once when the last two members leave at the same time', async () => {
       await join(alexId, 'owner', '2024-01-01')
       await join(lilyId, 'member', '2024-02-01')
-      const fern = await insertPlant({ canopyId, createdByUserId: alexId })
+      const fern = await insertPlant({ canopyId, createdByUserId: null })
 
       const outcomes = await Promise.all([
         run(leaveCanopy(alexId)),
