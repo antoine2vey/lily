@@ -230,6 +230,25 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(Arr.map(withCanopy, (s) => s.plant.id)).toEqual([shared])
     })
 
+    it('names the sharer of a Canopy plant in findPendingByUser, and nobody for a personal plant', async () => {
+      const cutoff = new Date(Date.now() + 86_400_000)
+      const rows = await run(
+        Effect.flatMap(CareScheduleRepository, (repo) =>
+          repo.findPendingByUser(alex, cutoff, canopyId)
+        )
+      )
+      const sharerOf = (id: string) =>
+        pipe(
+          rows,
+          Arr.findFirst((s) => s.plant.id === id),
+          Option.flatMap((s) => Option.fromNullishOr(s.plant.sharedBy)),
+          Option.map((s) => s.id),
+          Option.getOrNull
+        )
+      expect(sharerOf(shared)).toBe(alex)
+      expect(sharerOf(personal)).toBeNull()
+    })
+
     it('includes unmuted Canopy schedules with the Canopy owner in findByOwnerWithPlant', async () => {
       const rows = await run(
         Effect.flatMap(CareScheduleRepository, (repo) =>

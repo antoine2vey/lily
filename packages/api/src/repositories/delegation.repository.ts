@@ -81,6 +81,7 @@ export interface DelegatedTaskRow {
   plantName: string
   plantImage: string | null
   ownerName: string | null
+  ownerImage: string | null
   schedules: PlantCareSchedule[]
   health: string
 }
@@ -437,6 +438,7 @@ export const DelegationRepositoryLive = Layer.effect(
             plantName: plants.name,
             plantImage: plants.imageUrl,
             ownerName: users.name,
+            ownerImage: users.image,
             health: plants.health,
             ...scheduleColumns,
           })
@@ -468,6 +470,7 @@ export const DelegationRepositoryLive = Layer.effect(
             plantName: r.plantName,
             plantImage: r.plantImage,
             ownerName: r.ownerName,
+            ownerImage: r.ownerImage,
             health: r.health,
             schedules: [],
           })

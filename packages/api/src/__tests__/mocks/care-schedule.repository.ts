@@ -149,6 +149,7 @@ export const createMockCareScheduleRepository = (
                     name: plant.name,
                     imageUrl: plant.imageUrl,
                     room: resolveRoom(plant.roomId),
+                    sharedBy: null,
                   },
                 })
               )

@@ -2,11 +2,11 @@ import { Array, Match, Option, pipe, String } from 'effect'
 import { Text, View } from 'react-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
 
-type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
+type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
 interface AvatarProps {
   source?: { uri: string } | number | undefined
-  name?: string | undefined
+  name?: string | null | undefined
   size?: AvatarSize | undefined
 }
 
@@ -18,6 +18,7 @@ interface SizeStyles {
 const getSizeStyles = (size: AvatarSize): SizeStyles =>
   pipe(
     Match.value(size),
+    Match.when('xs', () => ({ dimension: 20, textClass: 'text-[9px]' })),
     Match.when('sm', () => ({ dimension: 32, textClass: 'text-xs' })),
     Match.when('md', () => ({ dimension: 40, textClass: 'text-sm' })),
     Match.when('lg', () => ({ dimension: 56, textClass: 'text-xl' })),

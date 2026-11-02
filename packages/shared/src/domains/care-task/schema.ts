@@ -1,6 +1,12 @@
 import { Schema } from 'effect'
 import { CareType } from '../care/types'
 
+export const PlantSharer = Schema.Struct({
+  id: Schema.String,
+  name: Schema.NullOr(Schema.String),
+  image: Schema.NullOr(Schema.String),
+})
+
 export const CareTask = Schema.Struct({
   id: Schema.String,
   plantId: Schema.String,
@@ -18,6 +24,7 @@ export const CareTask = Schema.Struct({
   dueDayOffset: Schema.Number,
   localDueDate: Schema.String,
   completed: Schema.Boolean,
+  sharedBy: Schema.optionalKey(Schema.NullOr(PlantSharer)),
 })
 
 export const CareTasksResponse = Schema.Struct({
@@ -32,5 +39,6 @@ export const CareTasksResponse = Schema.Struct({
 })
 
 // Type exports
+export type PlantSharer = typeof PlantSharer.Type
 export type CareTask = typeof CareTask.Type
 export type CareTasksResponse = typeof CareTasksResponse.Type

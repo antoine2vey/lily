@@ -101,6 +101,7 @@ export const findCareTasks = (
               dueDayOffset: localDayOffset(dueDt, now, timezone),
               localDueDate: localDayKey(dueDt, timezone),
               completed: false,
+              sharedBy: s.plant.sharedBy,
             } satisfies CareTask
           })
         )

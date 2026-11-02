@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import type { CareType } from '@lily/shared'
+import type { CareType, PlantSharer } from '@lily/shared'
 import { Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
@@ -11,6 +11,7 @@ import {
   type CareTypeConfig,
   getCareTypeConfig,
 } from '@/screens/care/components/care-type-config'
+import { OwnerBadge } from '@/screens/care/components/OwnerBadge'
 import { UndoButton } from '@/screens/care/components/UndoButton'
 
 interface CareTaskCardProps {
@@ -24,6 +25,7 @@ interface CareTaskCardProps {
     dueDate: Date
     roomName?: string | null
     roomIcon?: string | null
+    sharedBy?: PlantSharer | null
   }
   onCardPress: () => void
   onPlantPhotoPress: () => void
@@ -107,6 +109,9 @@ export function CareTaskCard({
           className={`${compact ? 'w-10 h-10' : 'w-12 h-12'} bg-border`}
           rounded
         />
+        {task.sharedBy && (
+          <OwnerBadge name={task.sharedBy.name} image={task.sharedBy.image} />
+        )}
       </Pressable>
       <View className="flex-1 ml-3">
         <View className="flex-row items-center gap-1.5">

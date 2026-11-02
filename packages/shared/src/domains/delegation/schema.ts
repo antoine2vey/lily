@@ -78,6 +78,7 @@ export const DelegatedCareTask = Schema.Struct({
   plantName: Schema.String,
   plantImage: Schema.NullOr(Schema.String),
   ownerName: Schema.NullOr(Schema.String),
+  ownerImage: Schema.optionalKey(Schema.NullOr(Schema.String)),
   schedules: Schema.Array(PlantCareSchedule),
   health: Schema.String,
 })

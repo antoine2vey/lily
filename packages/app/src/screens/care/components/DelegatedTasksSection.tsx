@@ -13,6 +13,7 @@ import { Avatar } from '@/components/Avatar'
 import { SectionHeader } from '@/components/SectionHeader'
 import { useDelegatedTasks } from '@/hooks/useDelegatedTasks'
 import { useIconColors } from '@/hooks/useIconColors'
+import { OwnerBadge } from '@/screens/care/components/OwnerBadge'
 
 export function DelegatedTasksSection() {
   const iconColors = useIconColors()
@@ -29,6 +30,7 @@ export function DelegatedTasksSection() {
             plantName: string
             plantImage: string | null
             ownerName: string | null
+            ownerImage?: string | null
             schedules: readonly PlantCareSchedule[]
             health: string
           }>
@@ -72,15 +74,18 @@ export function DelegatedTasksSection() {
               onPress={() => router.push(`/plant/${task.plantId}`)}
               className="flex-row items-center p-3 rounded-xl bg-surface dark:bg-surface-dark active:bg-surface-tinted dark:active:bg-slate-700"
             >
-              <Avatar
-                source={pipe(
-                  Option.fromNullishOr(task.plantImage),
-                  Option.map((uri) => ({ uri })),
-                  Option.getOrUndefined
-                )}
-                name={task.plantName}
-                size="md"
-              />
+              <View>
+                <Avatar
+                  source={pipe(
+                    Option.fromNullishOr(task.plantImage),
+                    Option.map((uri) => ({ uri })),
+                    Option.getOrUndefined
+                  )}
+                  name={task.plantName}
+                  size="md"
+                />
+                <OwnerBadge name={task.ownerName} image={task.ownerImage} />
+              </View>
               <View className="flex-1 ml-3">
                 <Text
                   className="text-sm font-medium text-text-primary dark:text-white"

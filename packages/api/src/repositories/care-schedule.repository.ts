@@ -16,6 +16,7 @@ import {
   plantCareSchedules,
   plants,
   rooms,
+  users,
 } from '@lily/db/schema'
 import {
   type CareType,
@@ -23,6 +24,7 @@ import {
   nowAsDate,
   type OverduePlant,
   type PlantOwner,
+  type PlantSharer,
 } from '@lily/shared'
 import {
   and,
@@ -53,6 +55,7 @@ export interface ScheduleWithPlant {
       name: string
       icon: string
     } | null
+    sharedBy: PlantSharer | null
   }
 }
 
@@ -210,10 +213,18 @@ export const CareScheduleRepositoryLive = Layer.effect(
                 imageUrl: plants.imageUrl,
               },
               room: roomSelect,
+              sharedBy: { id: users.id, name: users.name, image: users.image },
             })
             .from(plantCareSchedules)
             .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
             .leftJoin(rooms, eq(plants.roomId, rooms.id))
+            .leftJoin(
+              users,
+              and(
+                eq(plants.createdByUserId, users.id),
+                isNotNull(plants.canopyId)
+              )
+            )
             .where(
               and(
                 caredForBy(db, userId, canopyId),
@@ -230,6 +241,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
               name: row.plant.name,
               imageUrl: row.plant.imageUrl,
               room: row.room,
+              sharedBy: row.sharedBy,
             },
           }))
         }

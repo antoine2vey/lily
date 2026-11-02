@@ -218,6 +218,7 @@ export const createMockDelegationRepository = (
                       plantName: p.name,
                       plantImage: p.imageUrl,
                       ownerName: owner?.name ?? null,
+                      ownerImage: owner?.image ?? null,
                       schedules: p.schedules,
                       health: p.health,
                     })
