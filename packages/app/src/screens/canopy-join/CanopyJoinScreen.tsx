@@ -18,6 +18,7 @@ import {
 import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { BringPlantsScreen } from '@/screens/canopy-join/BringPlantsScreen'
 import {
+  invitationIdOf,
   invitationSource,
   type JoinAttempt,
   type JoinSource,
@@ -114,7 +115,8 @@ function JoinFlow({ source }: { source: Option.Option<JoinSource> }) {
     mine: mine.result,
     attempt,
   })
-  const isInvitation = Option.exists(source, (s) => s._tag === 'Invitation')
+  const invitationId = invitationIdOf(source)
+  const isInvitation = Option.isSome(invitationId)
   const locked = attempt._tag === 'Working' || decline.isPending
 
   const refuse = (error: ApiFailure) => {
@@ -182,26 +184,21 @@ function JoinFlow({ source }: { source: Option.Option<JoinSource> }) {
       })
       .catch(() => toast.error(t('detail.failed')))
 
-  const declineButton = pipe(
-    Option.flatMap(source, (s) =>
-      s._tag === 'Invitation' ? Option.some(s.id) : Option.none()
+  const declineButton = Option.match(invitationId, {
+    onNone: () => null,
+    onSome: (id) => (
+      <Button
+        pill
+        variant="glass"
+        loading={decline.isPending}
+        disabled={locked}
+        onPress={() => onDecline(id)}
+        testID="canopy-decline-button"
+      >
+        {t('join.decline')}
+      </Button>
     ),
-    Option.match({
-      onNone: () => null,
-      onSome: (invitationId) => (
-        <Button
-          pill
-          variant="glass"
-          loading={decline.isPending}
-          disabled={locked}
-          onPress={() => onDecline(invitationId)}
-          testID="canopy-decline-button"
-        >
-          {t('join.decline')}
-        </Button>
-      ),
-    })
-  )
+  })
 
   if (screen._tag === 'PickPlants') {
     return <BringPlantsScreen canopyName={screen.canopyName} />

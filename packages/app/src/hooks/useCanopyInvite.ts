@@ -21,16 +21,13 @@ export function useCanopyInvite(
   )
 }
 
-export function useCanopyInvitation(
-  invitationId: Option.Option<string>,
-  options?: { enabled?: boolean }
-) {
+export function useCanopyInvitation(invitationId: Option.Option<string>) {
   return useEffectQuery(
     'canopy',
     'getCanopyInvitation',
     { params: { invitationId: Option.getOrElse(invitationId, () => '') } },
     {
-      enabled: Option.isSome(invitationId) && (options?.enabled ?? true),
+      enabled: Option.isSome(invitationId),
       retry: false,
     }
   )

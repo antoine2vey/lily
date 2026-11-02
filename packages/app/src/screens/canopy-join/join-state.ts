@@ -24,6 +24,11 @@ export const invitationSource = (rawId: string | undefined) =>
     (id): JoinSource => ({ _tag: 'Invitation', id })
   )
 
+export const invitationIdOf = (source: Option.Option<JoinSource>) =>
+  Option.flatMap(source, (s) =>
+    s._tag === 'Invitation' ? Option.some(s.id) : Option.none()
+  )
+
 export type JoinOffer =
   | { readonly _tag: 'Link'; readonly preview: CanopyInvitePreview }
   | { readonly _tag: 'Invitation'; readonly preview: CanopyInvitationView }

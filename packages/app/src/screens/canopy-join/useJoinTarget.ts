@@ -9,17 +9,16 @@ import {
   useAcceptCanopyInvitation,
   useAcceptCanopyInvite,
 } from '@/hooks/useCanopyMutations'
-import type { JoinOffer, JoinSource } from '@/screens/canopy-join/join-state'
+import {
+  invitationIdOf,
+  type JoinOffer,
+  type JoinSource,
+} from '@/screens/canopy-join/join-state'
 import type { ApiResult } from '@/utils/client'
 
 const tokenOf = (source: Option.Option<JoinSource>) =>
   Option.flatMap(source, (s) =>
     s._tag === 'Link' ? Option.some(s.token) : Option.none()
-  )
-
-const invitationIdOf = (source: Option.Option<JoinSource>) =>
-  Option.flatMap(source, (s) =>
-    s._tag === 'Invitation' ? Option.some(s.id) : Option.none()
   )
 
 const linkOffer = (result: ApiResult<CanopyInvitePreview> | undefined) =>

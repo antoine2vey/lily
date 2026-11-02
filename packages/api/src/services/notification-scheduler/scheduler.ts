@@ -191,7 +191,10 @@ export const pollAndEnqueue = Effect.gen(function* () {
   // Phase 2: Group by user. Care reminders merge across care types (and
   // plants) into one push per user per batch — a plant due for watering AND
   // misting must not produce two banners, and the Live Activity refresh that
-  // follows each care push is per-user anyway.
+  // follows each care push is per-user anyway. Everything else keeps the
+  // (userId, type) key, except a notification carrying metadata: the message
+  // carries one row's metadata (an invitation id, say), so it goes out alone
+  // rather than pointing a merged push at the first row.
   const batchKey = ({ notification, topic }: ValidNotification) => {
     if (isCareReminderType(topic)) return `${notification.userId}::care`
     if (notification.metadata !== undefined) {
@@ -228,7 +231,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
         const first = Array.head(group)
         if (Option.isNone(first)) return
 
-        const userId = first.value.notification.userId
+        const { userId, metadata } = first.value.notification
 
         // Deduped: a plant due for two care types contributes one id, so the
         // app's single-plant deep link still resolves.
@@ -352,9 +355,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
               notificationIds,
               plantIds,
               language,
-              ...(first.value.notification.metadata
-                ? { metadata: first.value.notification.metadata }
-                : {}),
+              ...(metadata !== undefined ? { metadata } : {}),
             },
             retryCount: 0,
             createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
