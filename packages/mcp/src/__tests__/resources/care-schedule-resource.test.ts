@@ -1,9 +1,10 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
-import { CurrentJwt } from '@lily/mcp/api-client'
+import { ApiClientLive, CurrentJwt } from '@lily/mcp/api-client'
 import { readCareScheduleResource } from '@lily/mcp/resources/care-schedule'
 import type { CareTask } from '@lily/shared'
-import { Effect, Layer } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { ConfigProvider, Effect, Layer } from 'effect'
+import { FetchHttpClient } from 'effect/http'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const JWT = 'test-jwt'
 const JwtLayer = Layer.succeed(CurrentJwt, JWT)
@@ -74,5 +75,73 @@ describe('readCareScheduleResource', () => {
     expect(parsed.overdue[0].plantId).toBe('plant-overdue')
     expect(parsed.overdue[0].type).toBe('watering')
     expect(parsed.overdue[0].dueDate).toBeDefined()
+  })
+})
+
+describe('readCareScheduleResource over the live API client', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('reads the JSON body GET /api/care-tasks sends, where dueDate is a string', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            overdue: [
+              {
+                id: 'plant-1-watering',
+                plantId: 'plant-1',
+                plantName: 'Monstera',
+                plantImageUrl: null,
+                roomName: 'Living room',
+                roomIcon: 'sofa',
+                type: 'watering',
+                dueDate: '2026-10-30T08:00:00.000Z',
+                dueDayOffset: -3,
+                localDueDate: '2026-10-30',
+                completed: false,
+                sharedBy: null,
+              },
+            ],
+            today: [],
+            upcoming: [],
+            completedToday: 1,
+            windowDays: ['2026-11-02', '2026-11-03'],
+          })
+        )
+      )
+    )
+
+    const result = await Effect.runPromise(
+      readCareScheduleResource().pipe(
+        Effect.provide(
+          ApiClientLive.pipe(
+            Layer.provide(FetchHttpClient.layer),
+            Layer.provide(
+              ConfigProvider.layer(
+                ConfigProvider.fromUnknown({
+                  API_BASE_URL: 'http://api.test',
+                  SERVICE_TOKEN_SECRET: 'secret',
+                })
+              )
+            )
+          )
+        ),
+        Effect.provideService(CurrentJwt, JWT)
+      )
+    )
+
+    expect(JSON.parse(result).overdue).toEqual([
+      {
+        id: 'plant-1-watering',
+        plantId: 'plant-1',
+        plantName: 'Monstera',
+        type: 'watering',
+        dueDate: '2026-10-30T08:00:00.000Z',
+        completed: false,
+      },
+    ])
   })
 })
