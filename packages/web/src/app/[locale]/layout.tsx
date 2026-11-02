@@ -114,7 +114,7 @@ const organizationSchema = {
   logo: 'https://withlily.app/apple-touch-icon.png',
   sameAs: [
     'https://apps.apple.com/app/with-lily/id6758399014',
-    'https://play.google.com/store/apps/details?id=com.lilyapp.plants',
+    'https://play.google.com/store/apps/details?id=com.lilyapp.app',
   ],
 }
 
