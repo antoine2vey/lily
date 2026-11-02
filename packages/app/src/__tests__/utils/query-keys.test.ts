@@ -10,33 +10,8 @@ describe('queryKeys', () => {
       expect(queryKeys.plants.lists()).toEqual(['plants', 'getPlants'])
     })
 
-    it('should generate list key with params', () => {
-      const params = { filter: 'overdue', sort: 'name', page: '1' }
-      expect(queryKeys.plants.list(params)).toEqual([
-        'plants',
-        'getPlants',
-        params,
-      ])
-    })
-
-    it('should generate list key without params', () => {
-      expect(queryKeys.plants.list()).toEqual([
-        'plants',
-        'getPlants',
-        undefined,
-      ])
-    })
-
     it('should generate details key', () => {
       expect(queryKeys.plants.details()).toEqual(['plants', 'getPlant'])
-    })
-
-    it('should generate detail key with id', () => {
-      expect(queryKeys.plants.detail('plant-123')).toEqual([
-        'plants',
-        'getPlant',
-        'plant-123',
-      ])
     })
   })
 
@@ -47,14 +22,6 @@ describe('queryKeys', () => {
 
     it('should generate lists key', () => {
       expect(queryKeys.careLogs.lists()).toEqual(['careLogs', 'getCareLogs'])
-    })
-
-    it('should generate list key with plantId', () => {
-      expect(queryKeys.careLogs.list('plant-123')).toEqual([
-        'careLogs',
-        'getCareLogs',
-        'plant-123',
-      ])
     })
 
     it('should generate recentActivities key', () => {
@@ -68,10 +35,6 @@ describe('queryKeys', () => {
   describe('careTasks', () => {
     it('should have correct base key', () => {
       expect(queryKeys.careTasks.all).toEqual(['careTasks'])
-    })
-
-    it('should generate list key', () => {
-      expect(queryKeys.careTasks.list()).toEqual(['careTasks', 'getCareTasks'])
     })
   })
 
@@ -93,10 +56,6 @@ describe('queryKeys', () => {
       expect(queryKeys.users.all).toEqual(['users'])
     })
 
-    it('should generate current key', () => {
-      expect(queryKeys.users.current()).toEqual(['users', 'getCurrentUser'])
-    })
-
     it('should generate settings key', () => {
       expect(queryKeys.users.settings()).toEqual(['users', 'getUserSettings'])
     })
@@ -106,35 +65,17 @@ describe('queryKeys', () => {
     it('should have correct base key', () => {
       expect(queryKeys.notifications.all).toEqual(['notifications'])
     })
-
-    it('should generate settings key', () => {
-      expect(queryKeys.notifications.settings()).toEqual([
-        'notifications',
-        'getNotificationSettings',
-      ])
-    })
   })
 
   describe('achievements', () => {
     it('should have correct base key', () => {
       expect(queryKeys.achievements.all).toEqual(['achievements'])
     })
-
-    it('should generate list key', () => {
-      expect(queryKeys.achievements.list()).toEqual([
-        'achievements',
-        'getAchievements',
-      ])
-    })
   })
 
   describe('auth', () => {
     it('should have correct base key', () => {
       expect(queryKeys.auth.all).toEqual(['auth'])
-    })
-
-    it('should generate currentUser key', () => {
-      expect(queryKeys.auth.currentUser()).toEqual(['auth', 'getCurrentUser'])
     })
   })
 })

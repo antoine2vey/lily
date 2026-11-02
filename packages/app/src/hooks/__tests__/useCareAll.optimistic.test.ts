@@ -3,7 +3,6 @@ import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { Result } from 'effect'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 
-// Never resolves, so the test observes the cache while the request is in flight.
 jest.mock('@/utils/client', () => {
   const actual = jest.requireActual('@/utils/client')
   const rq = jest.requireActual('@tanstack/react-query')

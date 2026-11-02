@@ -1,7 +1,8 @@
 import type { CareTasksResponse } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import { Array } from 'effect'
-import { useEffectMutation } from '@/utils/client'
+import { Array, Result } from 'effect'
+import { CARE_TASKS_QUERY_KEY } from '@/hooks/useCareTasks'
+import { type ApiResult, useEffectMutation } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 
 function optimisticRemoveTasks(
@@ -9,25 +10,24 @@ function optimisticRemoveTasks(
   plantIds: readonly string[],
   careType: string
 ) {
-  const previous = queryClient.getQueryData<CareTasksResponse>(
-    queryKeys.careTasks.list()
-  )
-  if (!previous) return
-
   const ids = new Set(plantIds)
   const isMatch = (t: { type: string; plantId: string }) =>
     t.type === careType && ids.has(t.plantId)
 
-  const removedCount =
-    Array.length(Array.filter(previous.overdue, isMatch)) +
-    Array.length(Array.filter(previous.today, isMatch))
-
-  queryClient.setQueryData<CareTasksResponse>(queryKeys.careTasks.list(), {
-    ...previous,
-    overdue: Array.filter(previous.overdue, (t) => !isMatch(t)),
-    today: Array.filter(previous.today, (t) => !isMatch(t)),
-    completedToday: previous.completedToday + removedCount,
-  })
+  queryClient.setQueryData<ApiResult<CareTasksResponse>>(
+    CARE_TASKS_QUERY_KEY,
+    (old) =>
+      old &&
+      Result.map(old, (tasks) => ({
+        ...tasks,
+        overdue: Array.filter(tasks.overdue, (t) => !isMatch(t)),
+        today: Array.filter(tasks.today, (t) => !isMatch(t)),
+        completedToday:
+          tasks.completedToday +
+          Array.length(Array.filter(tasks.overdue, isMatch)) +
+          Array.length(Array.filter(tasks.today, isMatch)),
+      }))
+  )
 }
 
 export function useCareAll() {
