@@ -3,10 +3,6 @@
 /**
  * Setup script to initialize the test database schema
  * Usage: DATABASE_URL_TEST=... bun run db:setup-test
- *
- * This script:
- * 1. Pushes the schema to the test database
- * 2. Seeds the subscription tiers
  */
 
 import { PgClient } from '@effect/sql-pg'

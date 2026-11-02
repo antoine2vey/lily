@@ -198,6 +198,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
+      await db.execute(
+        sql`DROP TRIGGER IF EXISTS care_logs_actor_fallback ON care_logs`
+      )
+      await db.execute(
+        sql`DROP TRIGGER IF EXISTS plants_creator_fallback ON plants`
+      )
 
       const stamp = Date.now()
       const people = await db
@@ -270,12 +276,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     afterAll(async () => {
-      await db.execute(
-        sql`DROP TRIGGER IF EXISTS care_logs_actor_fallback ON care_logs`
-      )
-      await db.execute(
-        sql`DROP TRIGGER IF EXISTS plants_creator_fallback ON plants`
-      )
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
       await pool.end()
     })
