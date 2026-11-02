@@ -191,13 +191,15 @@ export const pollAndEnqueue = Effect.gen(function* () {
   // Phase 2: Group by user. Care reminders merge across care types (and
   // plants) into one push per user per batch — a plant due for watering AND
   // misting must not produce two banners, and the Live Activity refresh that
-  // follows each care push is per-user anyway. Everything else keeps the
-  // (userId, type) key.
-  const grouped = Array.groupBy(validNotifications, (n) =>
-    isCareReminderType(n.topic)
-      ? `${n.notification.userId}::care`
-      : `${n.notification.userId}::${n.notification.type}`
-  )
+  // follows each care push is per-user anyway.
+  const batchKey = ({ notification, topic }: ValidNotification) => {
+    if (isCareReminderType(topic)) return `${notification.userId}::care`
+    if (notification.metadata !== undefined) {
+      return `${notification.userId}::${notification.id}`
+    }
+    return `${notification.userId}::${notification.type}`
+  }
+  const grouped = Array.groupBy(validNotifications, batchKey)
 
   // Phase 3: Resolve plant names (from the batch fetched before Phase 1)
   const plantNameMap = new Map(
@@ -350,6 +352,9 @@ export const pollAndEnqueue = Effect.gen(function* () {
               notificationIds,
               plantIds,
               language,
+              ...(first.value.notification.metadata
+                ? { metadata: first.value.notification.metadata }
+                : {}),
             },
             retryCount: 0,
             createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),

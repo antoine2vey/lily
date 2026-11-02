@@ -13,6 +13,9 @@ export const NotificationStatus = Schema.Literals([
 ])
 export type NotificationStatus = typeof NotificationStatus.Type
 
+export const NotificationMetadata = Schema.Record(Schema.String, Schema.String)
+export type NotificationMetadata = typeof NotificationMetadata.Type
+
 // Notification schemas
 export const Notification = Schema.Struct({
   id: Schema.String,
@@ -27,6 +30,7 @@ export const Notification = Schema.Struct({
   lastError: Schema.optional(Schema.String),
   userId: Schema.String,
   plantId: Schema.optional(Schema.String),
+  metadata: Schema.optional(NotificationMetadata),
   createdAt: Schema.DateFromString,
 })
 

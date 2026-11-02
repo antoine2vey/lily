@@ -7,6 +7,7 @@ import type {
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import type { LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
+import type { NotificationMetadata } from '@lily/shared/notification'
 import { type DeferredCareType, MessageQueue } from '@lily/shared/server'
 import { Effect, Option, pipe } from 'effect'
 
@@ -48,7 +49,7 @@ export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
   userId: string,
   params: NotificationParamsMap[T],
   language: LanguageCode,
-  metadata?: Record<string, string>
+  metadata?: NotificationMetadata
 ) =>
   Effect.gen(function* () {
     const notificationRepo = yield* NotificationRepository
@@ -62,6 +63,7 @@ export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
       body,
       scheduledAt: nowAsDate(),
       status: 'queued',
+      ...(metadata ? { metadata } : {}),
     })
 
     yield* pipe(

@@ -99,6 +99,7 @@ export const createMockNotificationRepository = (
         retryCount: 0,
         userId: data.userId,
         plantId: data.plantId,
+        metadata: data.metadata,
         createdAt: new Date(),
       }
       if (status === 'queued') queuedAt.set(newNotification.id, new Date())

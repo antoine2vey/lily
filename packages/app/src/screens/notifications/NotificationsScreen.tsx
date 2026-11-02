@@ -249,6 +249,7 @@ export function NotificationsScreen() {
         plantIds: item.plantId ?? '',
         title: item.title ?? '',
         body: item.body ?? '',
+        ...item.metadata,
       })
       if (route) {
         router.push(route)

@@ -60,4 +60,34 @@ describe('scheduleSimpleNotification', () => {
 
     expect(Arr.map(notifications, (n) => n.status)).toEqual(['pending'])
   })
+
+  it('stores the metadata on the row the scheduler would resend', async () => {
+    const notifications: Notification[] = []
+
+    await Effect.runPromise(
+      scheduleSimpleNotification(
+        'delegation_request',
+        'user-1',
+        { senderName: 'Ada' },
+        'en',
+        { delegationId: 'delegation-a' }
+      ).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockNotificationRepository(notifications),
+            createMockMessageQueue({
+              enqueueFailure: new QueueConnectionError({
+                message: 'redis down',
+              }),
+            })
+          )
+        ),
+        Effect.provideService(References.MinimumLogLevel, 'None')
+      )
+    )
+
+    expect(Arr.map(notifications, (n) => n.metadata)).toEqual([
+      { delegationId: 'delegation-a' },
+    ])
+  })
 })

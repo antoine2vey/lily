@@ -165,6 +165,38 @@ describe('Notification Scheduler', () => {
       expect(enqueuedMessages[0]?.message.payload.title).toBe('🤝 Care request')
     })
 
+    it('sends each notification with metadata on its own, metadata kept', async () => {
+      const enqueued: QueueMessage[] = []
+      const request = (id: string, delegationId: string) =>
+        createTestNotification({
+          id,
+          type: 'delegation_request',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          metadata: { delegationId },
+        })
+
+      await runPollAndEnqueue(
+        [
+          request('deleg-req-1', 'delegation-a'),
+          request('deleg-req-2', 'delegation-b'),
+        ],
+        [defaultUser],
+        (_, message) => enqueued.push(message)
+      )
+
+      expect(
+        Arr.map(enqueued, (m) => [
+          m.payload.notificationIds,
+          m.payload.metadata,
+        ])
+      ).toEqual([
+        [['deleg-req-1'], { delegationId: 'delegation-a' }],
+        [['deleg-req-2'], { delegationId: 'delegation-b' }],
+      ])
+    })
+
     it('should enqueue nudge_to_water notifications', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic

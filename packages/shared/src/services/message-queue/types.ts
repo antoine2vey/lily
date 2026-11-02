@@ -1,4 +1,5 @@
 import { Array, Data, pipe, Record, Schema } from 'effect'
+import { NotificationMetadata } from '../../domains/notification/schema'
 
 // Notification topics - extensible for new notification types
 // Add new topics here - the worker will fail at compile/runtime if not handled
@@ -115,7 +116,7 @@ export const QueueMessagePayload = Schema.Struct({
   // Optional so queue messages enqueued before this field existed don't fail
   // Schema validation on dequeue. Worker defaults to 'en' when absent.
   language: Schema.optional(Schema.Literals(['en', 'fr'])),
-  metadata: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+  metadata: Schema.optional(NotificationMetadata),
 })
 export type QueueMessagePayload = typeof QueueMessagePayload.Type
 

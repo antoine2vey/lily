@@ -12,6 +12,7 @@ import {
 } from '@lily/shared'
 import type {
   Notification,
+  NotificationMetadata,
   NotificationStatus,
   NotificationsListResponse,
 } from '@lily/shared/notification'
@@ -51,6 +52,7 @@ export interface CreateNotificationData {
   userId: string
   plantId?: string
   status?: Extract<NotificationStatus, 'pending' | 'queued'>
+  metadata?: NotificationMetadata
 }
 
 // Helper to map database row to API Notification type
@@ -69,6 +71,7 @@ const mapToNotification = (
   lastError: Option.getOrUndefined(Option.fromNullishOr(row.lastError)),
   userId: row.userId,
   plantId: Option.getOrUndefined(Option.fromNullishOr(row.plantId)),
+  metadata: Option.getOrUndefined(Option.fromNullishOr(row.metadata)),
   createdAt: row.createdAt,
 })
 
@@ -298,6 +301,7 @@ export const NotificationRepositoryLive = Layer.effect(
             plantId: Option.getOrNull(Option.fromNullishOr(data.plantId)),
             status,
             queuedAt: status === 'queued' ? nowAsDate() : null,
+            metadata: Option.getOrNull(Option.fromNullishOr(data.metadata)),
           })
           .returning()
         return row ? mapToNotification(row) : null

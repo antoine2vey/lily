@@ -9,6 +9,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -59,6 +60,7 @@ export const notifications = pgTable(
     plantId: uuid('plant_id').references(() => plants.id, {
       onDelete: 'cascade',
     }),
+    metadata: jsonb('metadata').$type<Record<string, string>>(),
   },
   (table) => [
     index('notifications_user_id_idx').on(table.userId),
