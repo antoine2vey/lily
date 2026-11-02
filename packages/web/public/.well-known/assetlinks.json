@@ -4,7 +4,9 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.lilyapp.app",
-      "sha256_cert_fingerprints": ["PLACEHOLDER_PLAY_APP_SIGNING_SHA256"]
+      "sha256_cert_fingerprints": [
+        "D5:F7:B6:E6:BE:83:B9:22:AC:6C:41:9B:1B:DA:BA:B8:18:36:1F:B6:2D:54:78:9F:24:D8:61:BE:F9:12:27:29"
+      ]
     }
   }
 ]
