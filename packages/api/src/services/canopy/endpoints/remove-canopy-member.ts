@@ -7,7 +7,6 @@ import {
   requireOwner,
 } from '@lily/api/services/canopy/helpers/membership'
 import { notifyMemberBestEffort } from '@lily/api/services/canopy/helpers/notify-member'
-import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-shared-plants'
 import { CanopyMemberNotFoundError } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
@@ -33,8 +32,7 @@ export const removeCanopyMember = Effect.fn('CanopyService.removeCanopyMember')(
             onSome: Effect.succeed,
           }
         )
-        yield* returnSharedPlants(canopy.id, removed.userId)
-        yield* dropMember(canopy.id, removed.userId)
+        yield* dropMember(canopy.id, removed.userId, 'return')
         yield* repo.revokeInvite(canopy.id)
         return { canopy, removed }
       })

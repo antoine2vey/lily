@@ -16,7 +16,6 @@ import {
   notifyMemberBestEffort,
   senderNameOf,
 } from '@lily/api/services/canopy/helpers/notify-member'
-import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-shared-plants'
 import { canopyPlantIdsOf } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   reminderKeysFor,
@@ -76,10 +75,7 @@ const leaveInTransaction = (
       return LeaveOutcome.Dissolved()
     }
 
-    if (sharedPlants === 'return') {
-      yield* returnSharedPlants(canopy.id, userId)
-    }
-    yield* dropMember(canopy.id, userId)
+    yield* dropMember(canopy.id, userId, sharedPlants)
     yield* repo.revokeInviteCreatedBy(canopy.id, userId)
     if (owner.value.role !== 'owner') {
       yield* repo.setRole(canopy.id, owner.value.userId, 'owner')

@@ -14,9 +14,11 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Layer, pipe } from 'effect'
+import { Array, Effect, Layer, pipe } from 'effect'
 
 export const memberUsers = (store: MockCanopyStore): User[] =>
   Array.map(store.members, (m) => ({
@@ -32,15 +34,32 @@ export const canopyWorld = (
   notifications: Notification[] = [],
   schedules: CareScheduleRow[] = []
 ) => {
-  const plants = Array.map(store.plants, (p) =>
-    createTestPlant({
-      id: p.id,
-      userId: p.userId,
-      canopyId: p.canopyId,
-      remindersEnabled: p.remindersEnabled,
-      diedAt: p.diedAt,
-    })
-  )
+  const plantsNow = () =>
+    Array.map(store.plants, (p) =>
+      createTestPlant({
+        id: p.id,
+        userId: p.userId,
+        canopyId: p.canopyId,
+        remindersEnabled: p.remindersEnabled,
+        diedAt: p.diedAt,
+      })
+    )
+  const plants = plantsNow()
+  // Reminders read each plant's owner when they are rebuilt, after a move.
+  const plantRepository = Layer.effect(
+    PlantRepository,
+    Effect.map(PlantRepository, (repo) => ({
+      ...repo,
+      findByIdsForKeyShare: (ids: ReadonlyArray<string>) =>
+        Effect.succeed(
+          pipe(
+            plantsNow(),
+            Array.filter((p) => Array.contains(ids, p.id)),
+            Array.map(withOwner)
+          )
+        ),
+    }))
+  ).pipe(Layer.provide(createMockPlantRepository({ plants })))
   const canopyPlants = (canopyId: string) =>
     pipe(
       store.plants,
@@ -58,7 +77,7 @@ export const canopyWorld = (
         plants,
         memberships: store.members,
       }),
-      createMockPlantRepository({ plants }),
+      plantRepository,
       createMockUserRepository(memberUsers(store)),
       createMockDelegationRepository(),
       createMockRateLimiterService(),

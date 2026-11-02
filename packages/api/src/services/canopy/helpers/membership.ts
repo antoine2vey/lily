@@ -4,6 +4,8 @@ import {
   type CanopyRow,
 } from '@lily/api/repositories/canopy.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-shared-plants'
+import type { ReminderContext } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   reminderKeysFor,
   withReminderKeys,
@@ -81,20 +83,24 @@ export const lockMyCanopy = (
     return { canopy, membership }
   })
 
+/**
+ * Ends a membership. With `'return'`, the member's shared plants go back to
+ * them first, under the same reminder locks as the rest of the change.
+ */
 export const dropMember = (
   canopyId: string,
-  userId: string
-): Effect.Effect<
-  void,
-  SqlError,
-  CanopyRepository | NotificationRepository | SqlClient.SqlClient
-> =>
+  userId: string,
+  sharedPlants: 'return' | 'stay'
+): Effect.Effect<void, SqlError, ReminderContext> =>
   Effect.gen(function* () {
     const repo = yield* CanopyRepository
     const notificationRepo = yield* NotificationRepository
     const plantIds = yield* repo.findPlantIdsOfCanopy(canopyId)
     yield* withReminderKeys(reminderKeysFor(plantIds))(
       Effect.gen(function* () {
+        if (sharedPlants === 'return') {
+          yield* returnSharedPlants(canopyId, userId)
+        }
         yield* repo.deleteMemberMutes(canopyId, userId)
         yield* repo.removeMember(canopyId, userId)
         yield* notificationRepo.deleteUndeliveredForMemberOnCanopy(
