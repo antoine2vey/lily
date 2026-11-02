@@ -1,5 +1,6 @@
 import type { LanguageCode } from '@lily/shared'
 import type { OAuthSignInRequest, UserProfile } from '@lily/shared/auth'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Array as Arr,
   Duration,
@@ -246,6 +247,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const router = useRouter()
   const segments = useSegments() as string[]
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    if (state._tag === 'Unauthenticated') queryClient.clear()
+  }, [state._tag, queryClient])
 
   // Register auth failure callback for token refresh failures
   useEffect(() => {
