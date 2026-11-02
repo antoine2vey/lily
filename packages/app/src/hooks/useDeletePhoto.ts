@@ -1,10 +1,6 @@
 import type { PlantDetail, PlantPhotosListResponse } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  type ApiResult,
-  isApiResultError,
-  useEffectMutation,
-} from '@/utils/client'
+import { type ApiResult, useEffectMutation } from '@/utils/client'
 import {
   plantDetailKey,
   plantPhotosKey,
@@ -21,11 +17,6 @@ interface DeletePhotoContext {
 /**
  * Delete a plant photo. Optimistic: the photo disappears instantly from both
  * the plant detail and Growth Journal caches, and is restored on failure.
- *
- * Note on rollback: useEffectMutation's mutationFn resolves with an Either and
- * never rejects, so a typed API failure surfaces as a `Left` in onSuccess (not
- * onError). We therefore roll back from BOTH paths — onError for thrown/network
- * defects, and onSuccess when the resolved result is a Left.
  */
 export function useDeletePhoto() {
   const queryClient = useQueryClient()
@@ -70,12 +61,6 @@ export function useDeletePhoto() {
       )
 
       return { prevDetail, prevPhotos, plantId } satisfies DeletePhotoContext
-    },
-    onSuccess: (result, _vars, context) => {
-      // A typed API failure resolves as a Left here, not via onError.
-      if (isApiResultError(result)) {
-        rollback(context as DeletePhotoContext | undefined)
-      }
     },
     onError: (_err, _vars, context) => {
       rollback(context as DeletePhotoContext | undefined)

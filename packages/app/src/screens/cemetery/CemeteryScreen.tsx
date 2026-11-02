@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { Plant } from '@lily/shared'
-import { Array, Match, Option, pipe, Result } from 'effect'
+import { Array, Match, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -43,40 +43,38 @@ export function CemeteryScreen() {
   )
 
   const handleBringBack = useCallback(
-    async (plant: Plant) => {
-      const result = await revivePlant.mutateAsync({ params: { id: plant.id } })
-      pipe(
-        result,
-        Result.match({
-          onFailure: (error) =>
+    (plant: Plant) => {
+      revivePlant.mutate(
+        { params: { id: plant.id } },
+        {
+          onSuccess: () =>
+            toast.success(t('toast.broughtBack', { name: plant.name })),
+          onError: (error) =>
             pipe(
               Match.value(error),
-              Match.when({ _tag: 'LimitExceededError' }, (e) =>
+              Match.tag('LimitExceededError', (e) =>
                 showPlantLimitAlert(e, t('limit.title'), t)
               ),
               Match.orElse(() => toast.error(t('toast.bringBackFailed')))
             ),
-          onSuccess: () =>
-            toast.success(t('toast.broughtBack', { name: plant.name })),
-        })
+        }
       )
     },
     [revivePlant, t]
   )
 
-  // useEffectMutation resolves an API failure as Result.fail, so onSuccess
-  // runs for a refused delete too: the toast must follow the Result.
-  const handleConfirmDelete = useCallback(async () => {
+  const handleConfirmDelete = useCallback(() => {
     if (!deleting) return
     const name = deleting.name
-    const result = await deletePlant.mutateAsync({
-      params: { id: deleting.id },
-    })
-    setDeleting(null)
-    Result.match(result, {
-      onFailure: () => toast.error(tPlants('detail.toast.deleteFailed')),
-      onSuccess: () => toast.success(tPlants('detail.toast.deleted', { name })),
-    })
+    deletePlant.mutate(
+      { params: { id: deleting.id } },
+      {
+        onSuccess: () =>
+          toast.success(tPlants('detail.toast.deleted', { name })),
+        onError: () => toast.error(tPlants('detail.toast.deleteFailed')),
+        onSettled: () => setDeleting(null),
+      }
+    )
   }, [deleting, deletePlant, tPlants])
 
   return (

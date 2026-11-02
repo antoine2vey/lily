@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { CatalogPlant } from '@lily/shared'
 import { keepPreviousData } from '@tanstack/react-query'
-import { Array as Arr, Option, pipe, Result } from 'effect'
+import { Array as Arr, Option, pipe } from 'effect'
 import { memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -111,7 +111,7 @@ export function AddPlantStep({
     async (plant: CatalogPlant) => {
       setAddingPlantId(plant.id)
       try {
-        const result = await createPlant({
+        await createPlant({
           payload: {
             name: plant.name,
             description: plant.description ?? undefined,
@@ -127,12 +127,10 @@ export function AddPlantStep({
             remindersEnabled: true,
           },
         })
-        if (Result.isSuccess(result)) {
-          onPlantAdded({
-            plantName: plant.name,
-            plantDays: plant.wateringFrequencyDays,
-          })
-        }
+        onPlantAdded({
+          plantName: plant.name,
+          plantDays: plant.wateringFrequencyDays,
+        })
       } catch {
         // Fall through
       } finally {

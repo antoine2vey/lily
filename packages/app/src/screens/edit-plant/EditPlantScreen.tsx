@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { getFrequencyDays } from '@lily/shared'
-import { Option, Result } from 'effect'
+import { Option } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -234,11 +234,9 @@ export function EditPlantScreen() {
     markPlantDead.mutate(
       { params: { id: plantId }, payload },
       {
-        onSuccess: (result) => {
-          if (Result.isSuccess(result)) {
-            setShowGoodbyeSheet(false)
-            router.replace('/(app)/(tabs)/plants')
-          }
+        onSuccess: () => {
+          setShowGoodbyeSheet(false)
+          router.replace('/(app)/(tabs)/plants')
         },
       }
     )

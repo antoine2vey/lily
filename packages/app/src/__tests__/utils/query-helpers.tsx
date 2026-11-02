@@ -3,6 +3,7 @@ import {
   type RenderHookOptions,
   renderHook,
 } from '@testing-library/react-native'
+import { Result } from 'effect'
 import type { ReactNode } from 'react'
 import { mockEpochMillis } from './dates'
 
@@ -193,9 +194,6 @@ export function mockMutationSuccess<TData = unknown, TVariables = unknown>() {
   return {
     context: undefined,
     data: undefined as TData | undefined,
-    result: undefined,
-    apiError: undefined,
-    isApiError: false as const,
     error: null,
     failureCount: 0,
     failureReason: null,
@@ -213,86 +211,19 @@ export function mockMutationSuccess<TData = unknown, TVariables = unknown>() {
   }
 }
 
-/**
- * Mock a loading mutation state - returns type compatible with useEffectMutation
- */
-export function mockMutationLoading<TData = unknown, TVariables = unknown>() {
-  return {
-    context: undefined,
-    data: undefined as TData | undefined,
-    result: undefined,
-    apiError: undefined,
-    isApiError: false as const,
-    error: null,
-    failureCount: 0,
-    failureReason: null,
-    isError: false as const,
-    isIdle: false as const,
-    isPaused: false as const,
-    isPending: true as const,
-    isSuccess: false as const,
-    mutate: jest.fn(),
-    mutateAsync: jest.fn(),
-    reset: jest.fn(),
-    status: 'pending' as const,
-    submittedAt: mockEpochMillis(),
-    variables: undefined as TVariables | undefined,
-  }
+export type MockMutateOptions = {
+  onSuccess?: (data: unknown) => void
+  onError?: (error: unknown) => void
+  onSettled?: () => void
 }
 
-/**
- * Mock an error mutation state - returns type compatible with useEffectMutation
- * With typed errors, API errors are returned via apiError field
- */
-export function mockMutationError<TData = unknown, TVariables = unknown>(
-  error: Error = new Error('Mutation failed')
+export function mockSettle(
+  outcome: Result.Result<unknown, unknown>,
+  opts?: MockMutateOptions
 ) {
-  return {
-    context: undefined,
-    data: undefined as TData | undefined,
-    result: undefined,
-    apiError: { _tag: 'UnknownError' as const, message: error.message },
-    isApiError: true as const,
-    error: null,
-    failureCount: 1,
-    failureReason: error,
-    isError: false as const,
-    isIdle: false as const,
-    isPaused: false as const,
-    isPending: false as const,
-    isSuccess: true as const,
-    mutate: jest.fn(),
-    mutateAsync: jest.fn().mockResolvedValue(undefined),
-    reset: jest.fn(),
-    status: 'success' as const,
-    submittedAt: mockEpochMillis(),
-    variables: undefined as TVariables | undefined,
-  }
-}
-
-/**
- * Mock an idle mutation state - returns type compatible with useEffectMutation
- */
-export function mockMutationIdle<TData = unknown, TVariables = unknown>() {
-  return {
-    context: undefined,
-    data: undefined as TData | undefined,
-    result: undefined,
-    apiError: undefined,
-    isApiError: false as const,
-    error: null,
-    failureCount: 0,
-    failureReason: null,
-    isError: false as const,
-    isIdle: true as const,
-    isPaused: false as const,
-    isPending: false as const,
-    isSuccess: false as const,
-    mutate: jest.fn(),
-    mutateAsync: jest.fn(),
-    reset: jest.fn(),
-    status: 'idle' as const,
-    submittedAt: 0,
-    variables: undefined as TVariables | undefined,
-  }
+  Result.match(outcome, {
+    onSuccess: (data) => opts?.onSuccess?.(data),
+    onFailure: (error) => opts?.onError?.(error),
+  })
+  opts?.onSettled?.()
 }

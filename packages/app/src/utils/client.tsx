@@ -1,12 +1,16 @@
 import { Api } from '@lily/api/api'
 import {
+  type AlreadyCaredTodayError,
   type AlreadyInCanopyError,
+  type CannotDelegateSelfError,
   type CanopyFullError,
   type CanopyInviteExpiredError,
   type CanopyInviteNotFoundError,
   type CanopyMemberNotFoundError,
   type CanopyNotFoundError,
   type CareLogNotFoundError,
+  type DelegationDateError,
+  type DelegationOverlapError,
   type DeviceTokenNotFoundError,
   type GiftCodeAlreadyRedeemedError,
   type GiftCodeExhaustedError,
@@ -30,6 +34,7 @@ import {
 } from '@lily/shared'
 import {
   type UseMutationOptions,
+  type UseMutationResult,
   type UseQueryOptions,
   useMutation,
   useQuery,
@@ -130,6 +135,10 @@ export type ApiFailure =
   | CanopyInviteExpiredError
   | NotCanopyOwnerError
   | PlantInDelegationError
+  | AlreadyCaredTodayError
+  | DelegationOverlapError
+  | DelegationDateError
+  | CannotDelegateSelfError
   | { readonly _tag: 'NetworkError'; readonly message: string }
   | { readonly _tag: 'UnknownError'; readonly message: string }
 
@@ -164,6 +173,10 @@ const KNOWN_ERROR_TAGS = [
   'CanopyInviteExpiredError',
   'NotCanopyOwnerError',
   'PlantInDelegationError',
+  'AlreadyCaredTodayError',
+  'DelegationOverlapError',
+  'DelegationDateError',
+  'CannotDelegateSelfError',
 ] as const
 
 type KnownErrorTag = (typeof KNOWN_ERROR_TAGS)[number]
@@ -694,15 +707,6 @@ export function getApiResultError(
 }
 
 /**
- * Check if an ApiResult is a success (Right)
- */
-export function isApiResultSuccess<T>(
-  result: ApiResult<T> | undefined
-): result is Result.Success<T, ApiFailure> {
-  return result !== undefined && Result.isSuccess(result)
-}
-
-/**
  * Check if an ApiResult is an error (Left)
  */
 export function isApiResultError<T>(
@@ -712,8 +716,7 @@ export function isApiResultError<T>(
 }
 
 /**
- * Run an API effect and throw on error (for use in AuthContext and other places
- * that need Promise-based API calls with throwing)
+ * Run an API effect: resolves the success value, throws the typed ApiFailure.
  */
 export async function apiEffectRunner<
   X extends keyof Client,
@@ -862,32 +865,20 @@ export function useEffectMutation<
   method: Y,
   useMutationParams?: Omit<
     UseMutationOptions<
-      ApiResult<GetCleanSuccessType<X, Y>>,
-      never,
+      GetCleanSuccessType<X, Y>,
+      ApiFailure,
       GetRequestParams<X, Y>
     >,
     'mutationFn'
   >
-) {
-  const mutation = useMutation({
+): UseMutationResult<
+  GetCleanSuccessType<X, Y>,
+  ApiFailure,
+  GetRequestParams<X, Y>
+> {
+  return useMutation({
     mutationFn: (params: GetRequestParams<X, Y>) =>
-      runApiEffect(section, method, params),
+      apiEffectRunner(section, method, params),
     ...useMutationParams,
   })
-
-  // Unwrap the Either for convenience
-  const unwrappedData = getApiResultData(mutation.data)
-  const apiError = getApiResultError(mutation.data)
-
-  return {
-    ...mutation,
-    // Override data with unwrapped value for backwards compatibility
-    data: unwrappedData,
-    // Expose the raw Either result for typed error handling
-    result: mutation.data,
-    // Expose any API error from the Either
-    apiError,
-    // Whether the result is an API error (Left)
-    isApiError: isApiResultError(mutation.data),
-  }
 }

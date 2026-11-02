@@ -8,7 +8,12 @@ import {
 import { Result } from 'effect'
 import { toast } from 'sonner-native'
 import { mockPlants } from '@/__tests__/fixtures/plants'
-import { mockIsoStringFuture } from '@/__tests__/utils/dates'
+import { mockIsoStringAgo, mockIsoStringFuture } from '@/__tests__/utils/dates'
+import {
+  createQueryWrapper,
+  type MockMutateOptions,
+  mockSettle,
+} from '@/__tests__/utils/query-helpers'
 
 // Mock dependencies
 jest.mock('sonner-native', () => ({
@@ -20,7 +25,9 @@ jest.mock('sonner-native', () => ({
 }))
 
 jest.mock('expo-router', () => ({
-  useLocalSearchParams: jest.fn(() => ({ plantId: 'plant-1' })),
+  useLocalSearchParams: jest.fn(() => ({
+    plantId: '6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b',
+  })),
   useRouter: jest.fn(() => ({
     back: jest.fn(),
     push: jest.fn(),
@@ -44,13 +51,14 @@ jest.mock('@/hooks/usePlantCanopyActions', () => ({
   useSetPlantMuted: () => ({ mutate: jest.fn() }),
 }))
 
+const mockLiveMutations = { current: false }
 jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
-  useEffectMutation: jest.fn(() => ({
-    mutate: jest.fn(),
-    mutateAsync: jest.fn(),
-    isPending: false,
-  })),
+  useEffectMutation: jest.fn((...args: unknown[]) =>
+    mockLiveMutations.current
+      ? jest.requireActual('@/utils/client').useEffectMutation(...args)
+      : { mutate: jest.fn(), isPending: false }
+  ),
 }))
 
 jest.mock('@/hooks/useUploadPhoto', () => ({
@@ -61,21 +69,20 @@ jest.mock('@/hooks/useUploadPhoto', () => ({
 }))
 
 jest.mock('@/hooks/useCarePlant', () => ({
-  useCarePlant: () => ({
-    mutate: jest.fn(),
-    isPending: false,
-  }),
+  useCarePlant: () =>
+    mockLiveMutations.current
+      ? jest.requireActual('@/hooks/useCarePlant').useCarePlant()
+      : { mutate: jest.fn(), isPending: false },
 }))
 
-// useEffectMutation resolves an API failure as Result.fail, so React Query
-// sees a successful mutation: onSuccess runs and onError never does.
-const mockDeleteResult: { current: unknown } = { current: undefined }
+const mockDeleteResult = {
+  current: Result.succeed({}) as Result.Result<unknown, unknown>,
+}
 jest.mock('@/hooks/useDeletePlant', () => ({
   useDeletePlant: () => ({
     isPending: false,
-    mutate: (_vars: unknown, opts?: { onSuccess?: (r: unknown) => void }) =>
-      opts?.onSuccess?.(mockDeleteResult.current),
-    mutateAsync: () => Promise.resolve(mockDeleteResult.current),
+    mutate: (_vars: unknown, opts?: MockMutateOptions) =>
+      mockSettle(mockDeleteResult.current, opts),
   }),
 }))
 
@@ -94,7 +101,6 @@ jest.mock('@/hooks/useCarePlanStepActions', () => ({
 jest.mock('@/hooks/useMarkPlantDead', () => ({
   useMarkPlantDead: () => ({
     mutate: jest.fn(),
-    mutateAsync: jest.fn(),
     isPending: false,
   }),
 }))
@@ -102,7 +108,6 @@ jest.mock('@/hooks/useMarkPlantDead', () => ({
 jest.mock('@/hooks/useRevivePlant', () => ({
   useRevivePlant: () => ({
     mutate: jest.fn(),
-    mutateAsync: jest.fn(),
     isPending: false,
   }),
 }))
@@ -159,6 +164,8 @@ describe('PlantDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockCanopy.current = null
+    mockLiveMutations.current = false
+    mockDeleteResult.current = Result.succeed({})
   })
 
   it('shows loading skeleton when loading', () => {
@@ -397,6 +404,61 @@ describe('PlantDetailScreen', () => {
       expect(toast.error).toHaveBeenCalledWith('Failed to delete plant')
     )
     expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  describe('Care now', () => {
+    const originalFetch = global.fetch
+
+    beforeEach(() => {
+      mockLiveMutations.current = true
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              _tag: 'AlreadyCaredTodayError',
+              careType: 'watering',
+              message: 'This care action was already logged today',
+            }),
+            { status: 409, headers: { 'content-type': 'application/json' } }
+          )
+      ) as unknown as typeof fetch
+    })
+
+    afterEach(() => {
+      global.fetch = originalFetch
+    })
+
+    it('shows already logged today, not watered, when the API answers AlreadyCaredTodayError', async () => {
+      mockedUseEffectQuery.mockReturnValue({
+        data: {
+          ...mockPlant,
+          schedules: [
+            {
+              careType: 'watering' as const,
+              frequencyDays: 7,
+              lastCareAt: new Date(mockIsoStringAgo(8, 'days')),
+              nextCareAt: new Date(mockIsoStringAgo(1, 'days')),
+            },
+          ],
+        },
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+      })
+
+      render(<PlantDetailScreen />, { wrapper: createQueryWrapper() })
+
+      fireEvent.press(screen.getByTestId('care-card-watering-do-now'))
+
+      await waitFor(() =>
+        expect(
+          jest.mocked(toast.success).mock.calls.length +
+            jest.mocked(toast.error).mock.calls.length
+        ).toBe(1)
+      )
+      expect(toast.success).not.toHaveBeenCalled()
+      expect(toast.error).toHaveBeenCalledWith('Already logged today')
+    })
   })
 
   describe('Make personal for the Canopy owner', () => {

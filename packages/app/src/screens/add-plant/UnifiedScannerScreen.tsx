@@ -8,7 +8,7 @@ import {
   type PhotoCapturedEvent,
 } from '@lily/plant-scanner'
 import { LUMINOSITY_LEVELS, luxToLuminosityLevel } from '@lily/shared'
-import { Effect, Match, Option, pipe, Result } from 'effect'
+import { Effect, Match, Option, pipe } from 'effect'
 import { Image } from 'expo-image'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
@@ -320,37 +320,30 @@ export function UnifiedScannerScreen() {
         },
       },
       {
-        onSuccess: (apiResult) => {
-          pipe(
-            apiResult,
-            Result.match({
-              onFailure: (error) =>
-                pipe(
-                  Match.value(error),
-                  Match.when({ _tag: 'LimitExceededError' }, (e) =>
-                    showPlantLimitAlert(e, t('scanner.plantLimitReached'), t)
-                  ),
-                  Match.orElse(() =>
-                    Alert.alert(t('scanner.error'), t('errors.createFailed'))
-                  )
-                ),
-              onSuccess: async (plant) => {
-                router.dismissAll()
-                if (returnTo === 'onboarding') {
-                  await Effect.runPromise(
-                    advanceFromExternal(2, {
-                      plantName: result?.name ?? plant.name,
-                      plantDays: result?.wateringFrequencyDays ?? 7,
-                    })
-                  )
-                  router.replace('/(auth)/onboarding')
-                } else {
-                  router.push(`/plant/${plant.id}`)
-                }
-              },
-            })
-          )
+        onSuccess: async (plant) => {
+          router.dismissAll()
+          if (returnTo === 'onboarding') {
+            await Effect.runPromise(
+              advanceFromExternal(2, {
+                plantName: result?.name ?? plant.name,
+                plantDays: result?.wateringFrequencyDays ?? 7,
+              })
+            )
+            router.replace('/(auth)/onboarding')
+          } else {
+            router.push(`/plant/${plant.id}`)
+          }
         },
+        onError: (error) =>
+          pipe(
+            Match.value(error),
+            Match.tag('LimitExceededError', (e) =>
+              showPlantLimitAlert(e, t('scanner.plantLimitReached'), t)
+            ),
+            Match.orElse(() =>
+              Alert.alert(t('scanner.error'), t('errors.createFailed'))
+            )
+          ),
       }
     )
   }, [result, createPlant, confirmedPot, t, returnTo, inCanopy])

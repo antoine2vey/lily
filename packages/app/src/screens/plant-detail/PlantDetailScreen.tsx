@@ -7,7 +7,7 @@ import {
   getLastCareAt,
   getNextCareAt,
 } from '@lily/shared'
-import { Array, Match, Option, pipe, Result } from 'effect'
+import { Array, Match, Option, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import {
@@ -298,13 +298,10 @@ export function PlantDetailScreen() {
       router.push(`/chat/${existing.value}` as never)
       return
     }
-    const result = await createConversation.mutateAsync({
-      payload: { kind: 'plant', plantId },
-    })
-    Result.match(result, {
-      onFailure: () => undefined,
-      onSuccess: (created) => router.push(`/chat/${created.id}` as never),
-    })
+    createConversation.mutate(
+      { payload: { kind: 'plant', plantId } },
+      { onSuccess: (created) => router.push(`/chat/${created.id}` as never) }
+    )
   }, [plantId, router, createConversation, findExistingPlantChat])
 
   const handleCareNow = useCallback(
@@ -317,14 +314,14 @@ export function PlantDetailScreen() {
         {
           onSuccess: () =>
             toast.success(t(keys.success, { name: plant?.name })),
-          onError: (error) => {
-            const tag = (error as { _tag?: string })._tag
-            if (tag === 'AlreadyCaredTodayError') {
-              toast.error(t('detail.toast.alreadyCaredToday'))
-              return
-            }
-            toast.error(t(keys.error))
-          },
+          onError: (error) =>
+            pipe(
+              Match.value(error),
+              Match.tag('AlreadyCaredTodayError', () =>
+                toast.error(t('detail.toast.alreadyCaredToday'))
+              ),
+              Match.orElse(() => toast.error(t(keys.error)))
+            ),
         }
       )
     },
@@ -374,14 +371,14 @@ export function PlantDetailScreen() {
         {
           onSuccess: () =>
             toast.success(t(keys.success, { name: plant?.name })),
-          onError: (error) => {
-            const tag = (error as { _tag?: string })._tag
-            if (tag === 'AlreadyCaredTodayError') {
-              toast.error(t('detail.toast.alreadyCaredToday'))
-              return
-            }
-            toast.error(t(keys.error))
-          },
+          onError: (error) =>
+            pipe(
+              Match.value(error),
+              Match.tag('AlreadyCaredTodayError', () =>
+                toast.error(t('detail.toast.alreadyCaredToday'))
+              ),
+              Match.orElse(() => toast.error(t(keys.error)))
+            ),
         }
       )
     },
@@ -472,22 +469,18 @@ export function PlantDetailScreen() {
   }, [])
 
   const handleConfirmGoodbye = useCallback(
-    async (payload: SayGoodbyePayload) => {
+    (payload: SayGoodbyePayload) => {
       if (!plantId || !plant) return
-      const result = await markPlantDead.mutateAsync({
-        params: { id: plantId },
-        payload,
-      })
-      pipe(
-        result,
-        Result.match({
-          onFailure: () => toast.error(tCemetery('toast.goodbyeFailed')),
+      markPlantDead.mutate(
+        { params: { id: plantId }, payload },
+        {
           onSuccess: () => {
             setShowGoodbyeSheet(false)
             toast.success(tCemetery('toast.goodbye', { name: plant.name }))
             router.back()
           },
-        })
+          onError: () => toast.error(tCemetery('toast.goodbyeFailed')),
+        }
       )
     },
     [plantId, plant, markPlantDead, router, tCemetery]
@@ -495,23 +488,22 @@ export function PlantDetailScreen() {
 
   // The API enforces the free-tier plant limit on revive, exactly like on
   // create, so the paywall alert mirrors the add-plant flow.
-  const handleBringBack = useCallback(async () => {
+  const handleBringBack = useCallback(() => {
     if (!plantId || !plant) return
-    const result = await revivePlant.mutateAsync({ params: { id: plantId } })
-    pipe(
-      result,
-      Result.match({
-        onFailure: (error) =>
+    revivePlant.mutate(
+      { params: { id: plantId } },
+      {
+        onSuccess: () =>
+          toast.success(tCemetery('toast.broughtBack', { name: plant.name })),
+        onError: (error) =>
           pipe(
             Match.value(error),
-            Match.when({ _tag: 'LimitExceededError' }, (e) =>
+            Match.tag('LimitExceededError', (e) =>
               showPlantLimitAlert(e, tCemetery('limit.title'), tCemetery)
             ),
             Match.orElse(() => toast.error(tCemetery('toast.bringBackFailed')))
           ),
-        onSuccess: () =>
-          toast.success(tCemetery('toast.broughtBack', { name: plant.name })),
-      })
+      }
     )
   }, [plantId, plant, revivePlant, tCemetery])
 
@@ -586,19 +578,19 @@ export function PlantDetailScreen() {
     )
   }, [plantId, plant?.muted, setPlantMuted, tCanopy])
 
-  // useEffectMutation resolves an API failure as Result.fail, so onSuccess
-  // runs for a refused delete too: the toast must follow the Result.
-  const handleConfirmDelete = useCallback(async () => {
+  const handleConfirmDelete = useCallback(() => {
     if (!plantId) return
-    const result = await deletePlant.mutateAsync({ params: { id: plantId } })
-    setShowDeleteConfirm(false)
-    Result.match(result, {
-      onFailure: () => toast.error(t('detail.toast.deleteFailed')),
-      onSuccess: () => {
-        toast.success(t('detail.toast.deleted', { name: plant?.name }))
-        router.back()
-      },
-    })
+    deletePlant.mutate(
+      { params: { id: plantId } },
+      {
+        onSuccess: () => {
+          toast.success(t('detail.toast.deleted', { name: plant?.name }))
+          router.back()
+        },
+        onError: () => toast.error(t('detail.toast.deleteFailed')),
+        onSettled: () => setShowDeleteConfirm(false),
+      }
+    )
   }, [plantId, plant?.name, deletePlant, router, t])
 
   // Extract schedule data — memoized since this screen re-renders on scroll

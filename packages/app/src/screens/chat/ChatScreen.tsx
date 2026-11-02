@@ -1,7 +1,7 @@
 import { nowAsIsoString } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { isToolUIPart, type UIMessage } from 'ai'
-import { Array, Option, Predicate, pipe, Result } from 'effect'
+import { Array, Option, Predicate, pipe } from 'effect'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -249,16 +249,15 @@ export function ChatScreen() {
       }
       // No conversation yet — create one lazily, then queue the message to be
       // sent once the chat hooks have re-initialized with the new id.
-      const result = await createConversation.mutateAsync({
-        payload: { kind: 'general' },
-      })
-      Result.match(result, {
-        onFailure: () => undefined,
-        onSuccess: (created) => {
-          setActiveConversationId(created.id)
-          setPendingMessage({ content, imageUri })
-        },
-      })
+      createConversation.mutate(
+        { payload: { kind: 'general' } },
+        {
+          onSuccess: (created) => {
+            setActiveConversationId(created.id)
+            setPendingMessage({ content, imageUri })
+          },
+        }
+      )
     },
     [activeConversationId, sendInternal, createConversation]
   )
