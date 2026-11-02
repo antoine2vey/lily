@@ -1,5 +1,5 @@
 import { CanopyFullError } from '@lily/shared'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { Option } from 'effect'
 import { createElement, type ReactNode } from 'react'
@@ -10,6 +10,7 @@ jest.mock('@/utils/client', () => ({
 }))
 
 import { apiEffectRunner } from '@/utils/client'
+import { createQueryClient } from '@/utils/query-client'
 import { queryKeys } from '@/utils/query-keys'
 import {
   useAcceptCanopyInvite,
@@ -22,23 +23,12 @@ const token = Option.getOrThrow(
   parseInviteToken('U97umPWqTRea_CZl99IrKv07PctPfxf7mjipVeP7HcM')
 )
 
-// The root layout retries every mutation that is not a 401 up to 3 times.
-const appLikeClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      mutations: {
-        retry: (failureCount) => failureCount < 3,
-        retryDelay: 0,
-      },
-    },
-  })
-
 describe('Canopy mutations', () => {
   it('sends one request per tap when the API answers with a tagged error', async () => {
     jest
       .mocked(apiEffectRunner)
       .mockRejectedValue(new CanopyFullError({ limit: 10 }))
-    const client = appLikeClient()
+    const client = createQueryClient()
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client }, children)
 
@@ -90,7 +80,7 @@ describe('Canopy mutations', () => {
     'refreshes plants, the cemetery and rooms after %s',
     async (_, useCase) => {
       jest.mocked(apiEffectRunner).mockResolvedValue({ canopy: null })
-      const client = appLikeClient()
+      const client = createQueryClient()
       const invalidate = jest.spyOn(client, 'invalidateQueries')
       const wrapper = ({ children }: { children: ReactNode }) =>
         createElement(QueryClientProvider, { client }, children)

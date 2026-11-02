@@ -51,6 +51,5 @@ export function useDetectPlant() {
         { locale: i18n.language }
       )
     },
-    retry: 1,
   })
 }
