@@ -1,14 +1,14 @@
-import type { CareTasksResponse, CareType, LanguageCode } from '@lily/shared'
-import { ExternalServiceError } from '@lily/shared'
-import type { AuthResponse, RefreshTokenResponse } from '@lily/shared/auth'
-import type { CareLogsListResponse } from '@lily/shared/care-log'
-import type {
-  EnhancedPlantCreateRequest,
+import type { CareType, LanguageCode } from '@lily/shared'
+import { CareTasksResponse, ExternalServiceError } from '@lily/shared'
+import { AuthResponse, RefreshTokenResponse } from '@lily/shared/auth'
+import { CareLogsListResponse } from '@lily/shared/care-log'
+import {
+  type EnhancedPlantCreateRequest,
   Plant,
   PlantDetail,
   PlantsListResponse,
 } from '@lily/shared/plant'
-import type { UserSettings } from '@lily/shared/user'
+import { UserSettings } from '@lily/shared/user'
 import {
   Config,
   Context,
@@ -19,6 +19,7 @@ import {
   Option,
   pipe,
   Redacted,
+  Schema,
 } from 'effect'
 import {
   HttpClient,
@@ -46,16 +47,19 @@ export class CurrentUserId extends Context.Service<CurrentUserId, string>()(
   'CurrentUserId'
 ) {}
 
-// ── Response types for knowledge query ─────────────────────────────────
+const KnowledgeQueryResult = Schema.Struct({
+  answer: Schema.String,
+  sources: Schema.Array(
+    Schema.Struct({
+      title: Schema.String,
+      content: Schema.String,
+      similarity: Schema.Finite,
+    })
+  ),
+})
+export type KnowledgeQueryResult = typeof KnowledgeQueryResult.Type
 
-export interface KnowledgeQueryResult {
-  readonly answer: string
-  readonly sources: readonly {
-    readonly title: string
-    readonly content: string
-    readonly similarity: number
-  }[]
-}
+const MagicLinkSent = Schema.Struct({ message: Schema.String })
 
 // ── Interface ──────────────────────────────────────────────────────────
 
@@ -65,7 +69,7 @@ export interface IApiClient {
     readonly email: string
     readonly callbackUrl: string
     readonly language?: LanguageCode | undefined
-  }) => Effect.Effect<{ message: string }, ExternalServiceError>
+  }) => Effect.Effect<typeof MagicLinkSent.Type, ExternalServiceError>
 
   readonly issueServiceToken: (params: {
     magicLinkCode: string
@@ -164,15 +168,6 @@ export class ApiClient extends Context.Service<ApiClient, IApiClient>()(
 
 // ── Live Layer ─────────────────────────────────────────────────────────
 
-/**
- * Live implementation of ApiClient.
- *
- * Two HttpClient interceptors handle auth + response parsing:
- * - internal: service-secret header → execute → parse JSON
- * - authed: JWT from CurrentJwt → execute → parse JSON
- *
- * Methods just build requests and pipe through the right client.
- */
 export const ApiClientLive = Layer.unwrap(
   Effect.gen(function* () {
     const baseUrl = yield* Config.String('API_BASE_URL')
@@ -219,11 +214,6 @@ export const ApiClientLive = Layer.unwrap(
             message: err.message,
           })
 
-        /**
-         * Builds a pipe operator: request → execute via `client` → JSON,
-         * failing with ExternalServiceError when the API answers non-2xx or
-         * not at all within `timeout` (the request is aborted then).
-         */
         const send =
           <R>(
             client: HttpClient.HttpClient.With<
@@ -231,17 +221,29 @@ export const ApiClientLive = Layer.unwrap(
               R
             >
           ) =>
-          <T>(
+          <S extends Schema.Decoder<unknown>>(schema: S) =>
+          (
             request: HttpClientRequest.HttpClientRequest,
             timeout: Duration.Duration = API_TIMEOUT
-          ) =>
+          ): Effect.Effect<S['Type'], ExternalServiceError, R> =>
             pipe(
               request,
               client.execute,
               Effect.flatMap(HttpClientResponse.filterStatusOk),
-              Effect.flatMap((res) => res.json),
+              Effect.flatMap(HttpClientResponse.schemaBodyJson(schema)),
               Effect.scoped,
-              Effect.mapError(wrapHttpError),
+              Effect.catchTags({
+                HttpClientError: (err) => Effect.fail(wrapHttpError(err)),
+                SchemaError: (err) =>
+                  Effect.fail(
+                    new ExternalServiceError({
+                      service: 'lily-api',
+                      method: request.method,
+                      url: request.url,
+                      message: `Unexpected response body: ${err.message}`,
+                    })
+                  ),
+              }),
               Effect.timeoutOrElse({
                 duration: timeout,
                 orElse: () =>
@@ -254,7 +256,7 @@ export const ApiClientLive = Layer.unwrap(
                     })
                   ),
               })
-            ) as Effect.Effect<T, ExternalServiceError, R>
+            )
 
         // X-Service-Secret auth
         const internal = send(internalClient)
@@ -269,14 +271,14 @@ export const ApiClientLive = Layer.unwrap(
           sendMagicLink: (params) =>
             HttpClientRequest.post(`${baseUrl}/internal/magic-link`).pipe(
               HttpClientRequest.bodyJsonUnsafe(params),
-              internal<{ message: string }>,
+              internal(MagicLinkSent),
               Effect.withSpan('ApiClient.sendMagicLink')
             ),
 
           issueServiceToken: (params) =>
             HttpClientRequest.post(`${baseUrl}/internal/service-token`).pipe(
               HttpClientRequest.bodyJsonUnsafe(params),
-              internal<AuthResponse>,
+              internal(AuthResponse),
               Effect.withSpan('ApiClient.issueServiceToken')
             ),
 
@@ -287,21 +289,21 @@ export const ApiClientLive = Layer.unwrap(
             if (params?.filter) query.set('filter', params.filter)
             if (params?.limit) query.set('limit', params.limit)
             return HttpClientRequest.get(`${baseUrl}/api/plants?${query}`).pipe(
-              authed<PlantsListResponse>,
+              authed(PlantsListResponse),
               Effect.withSpan('ApiClient.listPlants')
             )
           },
 
           getPlant: (plantId) =>
             HttpClientRequest.get(`${baseUrl}/api/plants/${plantId}`).pipe(
-              authed<PlantDetail>,
+              authed(PlantDetail),
               Effect.withSpan('ApiClient.getPlant')
             ),
 
           createPlant: (body) =>
             HttpClientRequest.post(`${baseUrl}/api/plants`).pipe(
               HttpClientRequest.bodyJsonUnsafe(body),
-              authed<Plant>,
+              authed(Plant),
               Effect.withSpan('ApiClient.createPlant')
             ),
 
@@ -312,7 +314,7 @@ export const ApiClientLive = Layer.unwrap(
             return HttpClientRequest.get(
               `${baseUrl}/api/plants/${plantId}/logs${qs ? `?${qs}` : ''}`
             ).pipe(
-              authed<CareLogsListResponse>,
+              authed(CareLogsListResponse),
               Effect.withSpan('ApiClient.getCareLogs')
             )
           },
@@ -322,13 +324,13 @@ export const ApiClientLive = Layer.unwrap(
               `${baseUrl}/api/plants/${plantId}/care`
             ).pipe(
               HttpClientRequest.bodyJsonUnsafe(body),
-              authed<Plant>,
+              authed(Plant),
               Effect.withSpan('ApiClient.carePlant')
             ),
 
           getUserTimezone: () =>
             HttpClientRequest.get(`${baseUrl}/api/users/settings`).pipe(
-              authed<UserSettings>,
+              authed(UserSettings),
               Effect.map((settings) =>
                 pipe(
                   Option.fromNullishOr(settings.timezone),
@@ -342,7 +344,7 @@ export const ApiClientLive = Layer.unwrap(
             HttpClientRequest.get(
               `${baseUrl}/api/care-tasks?includeCanopy=true`
             ).pipe(
-              authed<CareTasksResponse>,
+              authed(CareTasksResponse),
               Effect.withSpan('ApiClient.getCareTasks')
             ),
 
@@ -359,7 +361,7 @@ export const ApiClientLive = Layer.unwrap(
             ).pipe(
               HttpClientRequest.bodyJsonUnsafe(body),
               (request) =>
-                authed<KnowledgeQueryResult>(request, KNOWLEDGE_QUERY_TIMEOUT),
+                authed(KnowledgeQueryResult)(request, KNOWLEDGE_QUERY_TIMEOUT),
               Effect.withSpan('ApiClient.queryKnowledge')
             )
           },
@@ -369,7 +371,7 @@ export const ApiClientLive = Layer.unwrap(
               HttpClientRequest.bodyJsonUnsafe({
                 refreshToken: refreshTokenValue,
               }),
-              unauthenticated<RefreshTokenResponse>,
+              unauthenticated(RefreshTokenResponse),
               Effect.withSpan('ApiClient.refreshToken')
             ),
         }
