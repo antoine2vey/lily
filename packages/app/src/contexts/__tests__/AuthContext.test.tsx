@@ -1,4 +1,5 @@
-import { renderHook, waitFor } from '@testing-library/react-native'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, renderHook, waitFor } from '@testing-library/react-native'
 import type React from 'react'
 import { AuthProvider, useAuth } from '../AuthContext'
 
@@ -72,9 +73,21 @@ jest.mock('@/utils/notifications', () => ({
   registerLiveActivityTokens: jest.fn().mockResolvedValue(() => {}),
 }))
 
-const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
-)
+const makeQueryClient = () =>
+  new QueryClient({
+    defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+  })
+
+const wrapperWith =
+  (queryClient: QueryClient) =>
+  ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>{children}</AuthProvider>
+    </QueryClientProvider>
+  )
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  wrapperWith(makeQueryClient())({ children })
 
 describe('AuthContext', () => {
   describe('useAuth hook', () => {
@@ -336,6 +349,82 @@ describe('AuthContext', () => {
 
       expect(storage.removeStoredAccessToken).toHaveBeenCalled()
       expect(apiEffectRunner).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('signing out', () => {
+    const signedInUser = {
+      id: 'user-a',
+      email: 'a@example.com',
+      name: null,
+      firstName: null,
+      lastName: null,
+      username: 'usera',
+      createdAt: new Date('2025-01-01'),
+      updatedAt: new Date('2025-01-01'),
+      role: 'user',
+      status: 'active',
+    }
+    const plantsKey = ['plants', 'getPlants', { query: { page: '1' } }]
+
+    const signIn = async () => {
+      const { Effect, Option } = require('effect')
+      const storage = require('@/utils/storage')
+      const { apiEffectRunner } = require('@/utils/client')
+      storage.getStoredAccessToken.mockReturnValue(
+        Effect.succeed(Option.some('token-a'))
+      )
+      storage.getStoredUserProfile.mockReturnValue(
+        Effect.succeed(Option.some(signedInUser))
+      )
+      apiEffectRunner.mockImplementation((_group: string, endpoint: string) =>
+        Promise.resolve(endpoint === 'getCurrentUser' ? signedInUser : {})
+      )
+
+      const queryClient = makeQueryClient()
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: wrapperWith(queryClient),
+      })
+      await waitFor(() => {
+        expect(result.current.state._tag).toBe('Authenticated')
+      })
+      queryClient.setQueryData(plantsKey, { items: ['plant of user A'] })
+      return { queryClient, result }
+    }
+
+    afterEach(() => {
+      const { Effect, Option } = require('effect')
+      const storage = require('@/utils/storage')
+      const client = require('@/utils/client')
+      storage.getStoredAccessToken.mockReturnValue(
+        Effect.succeed(Option.none())
+      )
+      storage.getStoredUserProfile.mockReturnValue(
+        Effect.succeed(Option.none())
+      )
+      client.apiEffectRunner.mockReset()
+    })
+
+    it('drops the signed-out user cached data on logout', async () => {
+      const { queryClient, result } = await signIn()
+
+      await act(() => result.current.logout())
+
+      expect(result.current.state._tag).toBe('Unauthenticated')
+      expect(queryClient.getQueryData(plantsKey)).toBeUndefined()
+    })
+
+    it('drops the signed-out user cached data when the session expires', async () => {
+      const { setOnAuthFailure } = require('@/utils/client')
+      const { queryClient, result } = await signIn()
+      const onAuthFailure = setOnAuthFailure.mock.calls.findLast(
+        ([callback]: [unknown]) => callback !== null
+      )[0]
+
+      await act(() => onAuthFailure())
+
+      expect(result.current.state._tag).toBe('Unauthenticated')
+      expect(queryClient.getQueryData(plantsKey)).toBeUndefined()
     })
   })
 
