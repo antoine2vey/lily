@@ -1,128 +1,97 @@
-/**
- * Centralized query key factory for React Query.
- * Provides type-safe, consistent query keys for all API endpoints.
- *
- * Usage:
- *   queryClient.invalidateQueries({ queryKey: queryKeys.plants.lists() })
- *   queryClient.invalidateQueries({ queryKey: queryKeys.plants.detail(id) })
- */
+import type { Api } from '@lily/api/api'
+import type { HttpApiClient } from 'effect/http-api'
+
+type Client = HttpApiClient.ForApi<typeof Api>
+
+const endpoint = <S extends keyof Client, M extends keyof Client[S] & string>(
+  section: S,
+  method: M
+) => [section, method] as const
 
 export const queryKeys = {
   // Plants domain
   plants: {
     all: ['plants'] as const,
-    lists: () => [...queryKeys.plants.all, 'getPlants'] as const,
-    list: (params?: { filter?: string; sort?: string; page?: string }) =>
-      [...queryKeys.plants.lists(), params] as const,
-    details: () => [...queryKeys.plants.all, 'getPlant'] as const,
-    detail: (id: string) => [...queryKeys.plants.details(), id] as const,
+    lists: () => endpoint('plants', 'getPlants'),
+    details: () => endpoint('plants', 'getPlant'),
   },
 
   // Care logs domain
   careLogs: {
     all: ['careLogs'] as const,
-    lists: () => [...queryKeys.careLogs.all, 'getCareLogs'] as const,
-    list: (plantId: string) =>
-      [...queryKeys.careLogs.lists(), plantId] as const,
-    recentActivities: () =>
-      [...queryKeys.careLogs.all, 'getRecentActivities'] as const,
+    lists: () => endpoint('careLogs', 'getCareLogs'),
+    recentActivities: () => endpoint('careLogs', 'getRecentActivities'),
   },
 
   // Care tasks domain
   careTasks: {
     all: ['careTasks'] as const,
-    list: () => [...queryKeys.careTasks.all, 'getCareTasks'] as const,
   },
 
   // Care plans domain (AI-proposed checklists)
   carePlans: {
     all: ['carePlans'] as const,
-    list: () => [...queryKeys.carePlans.all, 'getCarePlans'] as const,
-    byPlant: (plantId: string) =>
-      [...queryKeys.carePlans.all, 'getPlantCarePlans', plantId] as const,
+    list: () => endpoint('carePlans', 'getCarePlans'),
   },
 
   // Subscriptions domain
   subscriptions: {
     all: ['subscriptions'] as const,
-    current: () =>
-      [...queryKeys.subscriptions.all, 'getCurrentSubscription'] as const,
+    current: () => endpoint('subscriptions', 'getCurrentSubscription'),
   },
 
   // Users domain
   users: {
     all: ['users'] as const,
-    current: () => [...queryKeys.users.all, 'getCurrentUser'] as const,
-    settings: () => [...queryKeys.users.all, 'getUserSettings'] as const,
+    settings: () => endpoint('users', 'getUserSettings'),
   },
 
   // Notifications domain
   notifications: {
     all: ['notifications'] as const,
-    lists: () => [...queryKeys.notifications.all, 'getNotifications'] as const,
-    list: (params?: Record<string, unknown>) =>
-      [...queryKeys.notifications.lists(), params] as const,
-    unreadCount: () =>
-      [...queryKeys.notifications.all, 'getUnreadCount'] as const,
-    settings: () =>
-      [...queryKeys.notifications.all, 'getNotificationSettings'] as const,
+    lists: () => endpoint('notifications', 'getNotifications'),
+    unreadCount: () => endpoint('notifications', 'getUnreadCount'),
   },
 
   // Achievements domain
   achievements: {
     all: ['achievements'] as const,
-    list: () => [...queryKeys.achievements.all, 'getAchievements'] as const,
   },
 
   // Rooms domain
   rooms: {
     all: ['rooms'] as const,
-    list: () => [...queryKeys.rooms.all, 'getRooms'] as const,
+    list: () => endpoint('rooms', 'getRooms'),
   },
 
   // Auth domain
   auth: {
     all: ['auth'] as const,
-    currentUser: () => [...queryKeys.auth.all, 'getCurrentUser'] as const,
   },
 
   // Weather domain
   weather: {
     all: ['weather'] as const,
-    current: () => [...queryKeys.weather.all, 'current'] as const,
-    adjustments: () => [...queryKeys.weather.all, 'adjustments'] as const,
   },
 
   // Social domain
   social: {
     all: ['social'] as const,
-    search: (query: string) =>
-      [...queryKeys.social.all, 'searchUsers', query] as const,
-    profiles: () => [...queryKeys.social.all, 'getPublicProfile'] as const,
-    profile: (userId: string) =>
-      [...queryKeys.social.profiles(), userId] as const,
-    followers: (userId?: string) =>
-      [...queryKeys.social.all, 'getFollowers', userId] as const,
-    following: (userId?: string) =>
-      [...queryKeys.social.all, 'getFollowing', userId] as const,
-    suggested: () => [...queryKeys.social.all, 'getSuggestedUsers'] as const,
+    profiles: () => endpoint('social', 'getPublicProfile'),
+    suggested: () => endpoint('social', 'getSuggestedUsers'),
   },
 
   // Vacation domain
   vacation: {
     all: ['vacation'] as const,
-    state: () => [...queryKeys.vacation.all, 'getVacation'] as const,
+    state: () => endpoint('vacation', 'getVacation'),
   },
 
   // Delegations domain
   delegations: {
     all: ['delegations'] as const,
-    lists: () => [...queryKeys.delegations.all, 'getMyDelegations'] as const,
-    list: (params?: { role?: string; status?: string }) =>
-      [...queryKeys.delegations.lists(), params] as const,
-    detail: (id: string) =>
-      [...queryKeys.delegations.all, 'getDelegation', id] as const,
-    tasks: () => [...queryKeys.delegations.all, 'getDelegatedTasks'] as const,
+    lists: () => endpoint('delegations', 'getMyDelegations'),
+    tasks: () => endpoint('delegations', 'getDelegatedTasks'),
   },
 
   canopy: {
