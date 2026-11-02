@@ -4,7 +4,7 @@ import { AppleIcon, GooglePlayIcon } from '@/components/BrandIcons'
 
 const APP_STORE_URL = 'https://apps.apple.com/app/with-lily/id6758399014'
 const GOOGLE_PLAY_URL =
-  'https://play.google.com/store/apps/details?id=com.lilyapp.plants'
+  'https://play.google.com/store/apps/details?id=com.lilyapp.app'
 
 export async function Hero() {
   const t = await getTranslations('Hero')
