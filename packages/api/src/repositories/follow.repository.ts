@@ -15,6 +15,7 @@ import {
   inArray,
   isNull,
   ne,
+  or,
   type SQLWrapper,
   sql,
 } from 'drizzle-orm'
@@ -313,12 +314,16 @@ export const FollowRepositoryLive = Layer.effect(
           const escaped = params.query.replace(/[\\%_]/g, '\\$&')
           const searchPattern = `%${escaped}%`
 
-          const whereClause = and(
+          const publicNameMatch = and(
             eq(users.publicProfile, true),
+            ilike(users.name, searchPattern)
+          )
+          const exactHandleMatch = ilike(users.name, escaped)
+          const whereClause = and(
             eq(users.status, 'active'),
             isNull(users.deletedAt),
             ne(users.id, params.currentUserId),
-            ilike(users.name, searchPattern)
+            or(publicNameMatch, exactHandleMatch)
           )
 
           const countResult = yield* db
@@ -332,7 +337,7 @@ export const FollowRepositoryLive = Layer.effect(
               id: users.id,
               name: users.name,
               image: users.image,
-              plantCount: plantCountFor(users.id),
+              plantCount: sql<number>`CASE WHEN ${users.publicProfile} THEN ${plantCountFor(users.id)} ELSE 0 END`,
               isFollowing: isFollowingSubquery(params.currentUserId),
             })
             .from(users)

@@ -54,6 +54,26 @@ describe('searchUsers', () => {
     expect(result.items).toHaveLength(0)
   })
 
+  it('finds a private profile by its exact handle, without its plant count', async () => {
+    const result = await Effect.runPromise(
+      searchUsers({ query: 'private pete', page: '1', limit: '20' }).pipe(
+        Effect.provide(buildLayer())
+      )
+    )
+    expect(Array.map(result.items, (i) => [i.name, i.plantCount])).toEqual([
+      ['Private Pete', 0],
+    ])
+  })
+
+  it('strips the leading @ of a handle', async () => {
+    const result = await Effect.runPromise(
+      searchUsers({ query: '@Alice', page: '1', limit: '20' }).pipe(
+        Effect.provide(buildLayer())
+      )
+    )
+    expect(Array.map(result.items, (i) => i.name)).toEqual(['Alice'])
+  })
+
   it('should not return current user in results', async () => {
     const result = await Effect.runPromise(
       searchUsers({ query: 'li', page: '1', limit: '20' }).pipe(

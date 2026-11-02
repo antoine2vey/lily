@@ -5,7 +5,7 @@ import {
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import { parsePaginationParams, type UserSearchParams } from '@lily/shared'
-import { Effect, String } from 'effect'
+import { Effect, pipe, String } from 'effect'
 
 // Searching for one letter (or nothing) would list every public user
 const MIN_QUERY_LENGTH = 2
@@ -18,7 +18,7 @@ export const searchUsers = Effect.fn('SocialService.searchUsers')(function* (
   const followRepo = yield* FollowRepository
   const rateLimiter = yield* RateLimiterService
   const { page, limit } = parsePaginationParams(params, MAX_SEARCH_PAGE_SIZE)
-  const query = String.trim(params.query)
+  const query = pipe(params.query, String.trim, String.replace(/^@/, ''))
 
   if (query.length < MIN_QUERY_LENGTH) {
     return { items: [], total: 0, page, limit, hasMore: false }

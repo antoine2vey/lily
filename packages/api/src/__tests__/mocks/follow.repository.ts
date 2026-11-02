@@ -156,12 +156,16 @@ export const createMockFollowRepository = (
           mockUsers,
           Array.filter(
             (u) =>
-              u.publicProfile &&
               u.id !== params.currentUserId &&
               u.name !== null &&
-              u.name.toLowerCase().includes(params.query.toLowerCase())
+              (u.publicProfile
+                ? u.name.toLowerCase().includes(params.query.toLowerCase())
+                : u.name.toLowerCase() === params.query.toLowerCase())
           ),
-          Array.map((u) => toUserCard(u, params.currentUserId)),
+          Array.map((u) => ({
+            ...toUserCard(u, params.currentUserId),
+            plantCount: u.publicProfile ? u.plantCount : 0,
+          })),
           (items) => ({
             items,
             total: items.length,

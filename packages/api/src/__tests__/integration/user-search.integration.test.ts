@@ -19,6 +19,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let db: ReturnType<typeof drizzle>
     const run = Date.now().toString(36)
     const ids: string[] = []
+    let privateId = ''
 
     const RepoLive = FollowRepositoryLive.pipe(
       Layer.provide(DrizzleLive),
@@ -40,7 +41,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             currentUserId: '00000000-0000-0000-0000-000000000000',
             limit: 50,
           })
-          return Array.map(items, (item) => item.name)
+          return Array.map(items, (item) => [item.name, item.plantCount])
         }).pipe(Effect.provide(RepoLive))
       )
 
@@ -53,10 +54,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           { name: `s${run}xaxbx` },
           { name: `s${run}_banned`, status: 'banned' as const },
           { name: `s${run}_deleted`, deletedAt: new Date() },
+          { name: `S${run}_Private`, publicProfile: false },
         ],
         (user, i) => ({
-          ...user,
           publicProfile: true,
+          ...user,
           email: `search-${run}-${i}@example.com`,
           emailVerified: true,
         })
@@ -64,8 +66,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const rows = await db
         .insert(schema.users)
         .values([...users])
-        .returning({ id: schema.users.id })
+        .returning({
+          id: schema.users.id,
+          publicProfile: schema.users.publicProfile,
+        })
       ids.push(...Array.map(rows, (row) => row.id))
+      privateId = rows.find((row) => !row.publicProfile)?.id ?? ''
     })
 
     afterAll(async () => {
@@ -74,11 +80,28 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('matches `_` literally instead of as a wildcard', async () => {
-      expect(await search(`s${run}_a_b`)).toEqual([`s${run}_a_b`])
+      expect(await search(`s${run}_a_b`)).toEqual([[`s${run}_a_b`, 0]])
     })
 
-    it('leaves out banned and deleted users', async () => {
-      expect(await search(`s${run}`)).toEqual([`s${run}_a_b`, `s${run}xaxbx`])
+    it('leaves out banned, deleted and private users', async () => {
+      expect(await search(`s${run}`)).toEqual([
+        [`s${run}_a_b`, 0],
+        [`s${run}xaxbx`, 0],
+      ])
+    })
+
+    it('finds a private user by the exact handle, any case, with no plant count', async () => {
+      await db.insert(schema.plants).values({
+        name: 'Fern',
+        humidityRating: 3,
+        lightingRating: 3,
+        petToxicityRating: 1,
+        wateringRating: 3,
+        userId: privateId,
+        createdByUserId: privateId,
+      })
+
+      expect(await search(`s${run}_private`)).toEqual([[`S${run}_Private`, 0]])
     })
   }
 )
