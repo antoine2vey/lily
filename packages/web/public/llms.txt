@@ -27,8 +27,8 @@ Lily is a mobile app for iOS and Android that helps plant owners keep their plan
 ## Pricing
 
 - 7-day free trial, no credit card required upfront
-- Monthly: $4.99/month
-- Annual: $29.99/year (~$2.50/month, save 50%)
+- Monthly: $2.99/month
+- Annual: $24.99/year (~$2.08/month)
 - All features included in every plan
 - Cancel anytime from App Store or Play Store settings
 
@@ -48,8 +48,8 @@ The AI is trained on thousands of plant diseases, pests, and care issues. It als
 
 ## Download
 
-- App Store: https://apps.apple.com/app/lily-plant-care/id6504462690
-- Google Play: https://play.google.com/store/apps/details?id=com.lilyapp.plants
+- App Store: https://apps.apple.com/app/with-lily/id6758399014
+- Google Play: https://play.google.com/store/apps/details?id=com.lilyapp.app
 
 ## Contact
 
