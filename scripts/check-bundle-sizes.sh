@@ -32,7 +32,8 @@ for row in "${BUDGETS[@]}"; do
   read -r label dir glob budget <<< "$row"
 
   if [[ ! -d "$dir" ]]; then
-    printf '%-12s %-12s %-12s %s\n' "$label" '—' "$(fmt_bytes "$budget")" 'SKIP (dir missing)'
+    printf '%-12s %-12s %-12s %s\n' "$label" '—' "$(fmt_bytes "$budget")" 'FAIL (not built)'
+    failed=1
     continue
   fi
 
@@ -53,7 +54,8 @@ done
 
 if (( failed )); then
   echo ''
-  echo 'Bundle size budget exceeded. Either:'
+  echo 'Bundle size check failed. Either:'
+  echo '  - build the missing bundle (turbo must restore it from cache as a task output)'
   echo '  - find the regression and trim it'
   echo '  - intentionally raise the budget in scripts/check-bundle-sizes.sh'
   exit 1
