@@ -36,6 +36,7 @@ const canopyNamed = (name: string): Canopy => ({
   role: 'owner',
   members: [],
   invite: null,
+  invitations: [],
   createdAt: new Date('2026-10-01T00:00:00Z'),
   updatedAt: new Date('2026-10-01T00:00:00Z'),
 })

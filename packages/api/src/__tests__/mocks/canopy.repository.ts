@@ -1,4 +1,5 @@
 import {
+  type CanopyInvitationRow,
   type CanopyMemberRow,
   type CanopyMembership,
   CanopyRepository,
@@ -35,6 +36,7 @@ export interface MockCanopyStore {
   canopies: CanopyRow[]
   members: MockMembership[]
   invites: MockCanopyInvite[]
+  invitations: CanopyInvitationRow[]
   mutes: Array<{ userId: string; plantId: string }>
   plants: MockCanopyPlant[]
   rooms: Array<{ id: string; canopyId: string | null; userId: string | null }>
@@ -46,6 +48,7 @@ export const createCanopyStore = (
   canopies: [...(init.canopies ?? [])],
   members: [...(init.members ?? [])],
   invites: [...(init.invites ?? [])],
+  invitations: [...(init.invitations ?? [])],
   mutes: [...(init.mutes ?? [])],
   plants: [...(init.plants ?? [])],
   rooms: [...(init.rooms ?? [])],
@@ -93,6 +96,19 @@ export const createMockCanopyRepository = (
       Option.getOrNull
     )
 
+  const findInvitation = (id: string) =>
+    pipe(
+      Array.findFirst(store.invitations, (i) => i.id === id),
+      Option.getOrNull
+    )
+
+  const nameOf = (userId: string) =>
+    pipe(
+      Array.findFirst(store.members, (m) => m.userId === userId),
+      Option.flatMap((m) => Option.fromNullishOr(m.name)),
+      Option.getOrNull
+    )
+
   const repo: ICanopyRepository = {
     findMembershipByUser: (userId) =>
       Effect.succeed(
@@ -129,6 +145,7 @@ export const createMockCanopyRepository = (
         remove(store.canopies, (c) => c.id === canopyId)
         remove(store.members, (m) => m.canopyId === canopyId)
         remove(store.invites, (i) => i.canopyId === canopyId)
+        remove(store.invitations, (i) => i.canopyId === canopyId)
       }),
     findMembersByJoinDate: (canopyId) =>
       Effect.sync(() =>
@@ -310,6 +327,97 @@ export const createMockCanopyRepository = (
           Option.getOrNull
         )
       ),
+    findInvitation: (id) => Effect.sync(() => findInvitation(id)),
+    lockInvitation: (id) => Effect.sync(() => findInvitation(id)),
+    findInvitationPreview: (id) =>
+      Effect.sync(() =>
+        pipe(
+          Option.fromNullishOr(findInvitation(id)),
+          Option.flatMap((invitation) =>
+            pipe(
+              Option.fromNullishOr(findCanopy(invitation.canopyId)),
+              Option.map((canopy) => ({
+                ...invitation,
+                canopyName: canopy.name,
+                inviterName: nameOf(invitation.invitedByUserId),
+                memberCount: Array.filter(
+                  store.members,
+                  (m) => m.canopyId === invitation.canopyId
+                ).length,
+              }))
+            )
+          ),
+          Option.getOrNull
+        )
+      ),
+    findInvitationByPair: (canopyId, inviteeUserId) =>
+      Effect.sync(() =>
+        pipe(
+          Array.findFirst(
+            store.invitations,
+            (i) => i.canopyId === canopyId && i.inviteeUserId === inviteeUserId
+          ),
+          Option.getOrNull
+        )
+      ),
+    upsertInvitation: (invitation) =>
+      Effect.sync(() => {
+        const fresh = {
+          invitedByUserId: invitation.invitedByUserId,
+          status: 'pending' as const,
+          expiresAt: invitation.expiresAt,
+          resolvedAt: null,
+          createdAt: new Date(),
+        }
+        const existing = Array.findFirst(
+          store.invitations,
+          (i) =>
+            i.canopyId === invitation.canopyId &&
+            i.inviteeUserId === invitation.inviteeUserId
+        )
+        if (Option.isSome(existing)) {
+          return Object.assign(existing.value, fresh)
+        }
+        const row = { ...invitation, ...fresh, id: crypto.randomUUID() }
+        store.invitations.push(row)
+        return row
+      }),
+    transitionInvitation: (id, from, to) =>
+      Effect.sync(() => {
+        const invitation = findInvitation(id)
+        if (invitation === null || invitation.status !== from) return null
+        return Object.assign(invitation, { status: to, resolvedAt: new Date() })
+      }),
+    findPendingInvitations: (canopyId) =>
+      Effect.sync(() =>
+        pipe(
+          store.invitations,
+          Array.filter(
+            (i) =>
+              i.canopyId === canopyId &&
+              i.status === 'pending' &&
+              i.expiresAt.getTime() > Date.now()
+          ),
+          Array.map((i) => ({
+            id: i.id,
+            invitee: { userId: i.inviteeUserId, name: null, image: null },
+            invitedByUserId: i.invitedByUserId,
+            expiresAt: i.expiresAt,
+          }))
+        )
+      ),
+    withdrawInvitationsSentBy: (canopyId, userId) =>
+      Effect.sync(() => {
+        Array.forEach(store.invitations, (i) => {
+          if (
+            i.canopyId === canopyId &&
+            i.invitedByUserId === userId &&
+            i.status === 'pending'
+          ) {
+            Object.assign(i, { status: 'withdrawn', resolvedAt: new Date() })
+          }
+        })
+      }),
     mute: (userId, plantId) =>
       Effect.sync(() => {
         if (

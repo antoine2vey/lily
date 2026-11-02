@@ -103,6 +103,7 @@ export const dropMember = (
         }
         yield* repo.deleteMemberMutes(canopyId, userId)
         yield* repo.removeMember(canopyId, userId)
+        yield* repo.withdrawInvitationsSentBy(canopyId, userId)
         yield* notificationRepo.deleteUndeliveredForMemberOnCanopy(
           userId,
           canopyId

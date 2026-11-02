@@ -48,6 +48,12 @@ export class CanopyInviteExpiredError extends Schema.TaggedError<CanopyInviteExp
   { httpApiStatus: 410 }
 ) {}
 
+export class CanopyInviteeAlreadyMemberError extends Schema.TaggedError<CanopyInviteeAlreadyMemberError>()(
+  'CanopyInviteeAlreadyMemberError',
+  { message: message('Already in your Canopy') },
+  { httpApiStatus: 409 }
+) {}
+
 export class NotCanopyOwnerError extends Schema.TaggedError<NotCanopyOwnerError>()(
   'NotCanopyOwnerError',
   { message: message('Only the Canopy owner can do this') },

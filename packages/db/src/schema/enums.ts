@@ -82,6 +82,11 @@ export const canopyMemberRoleEnum = pgEnum('canopy_member_role', [
   'member',
 ])
 
+export const canopyDirectInviteStatusEnum = pgEnum(
+  'canopy_direct_invite_status',
+  ['pending', 'accepted', 'declined', 'withdrawn']
+)
+
 export const languageCodeEnum = pgEnum('language_code', ['en', 'fr'])
 
 // Vacation mode lifecycle: 'scheduled' between set-up and vacation_start,

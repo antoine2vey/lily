@@ -55,6 +55,7 @@ export type SimpleNotificationType =
   | 'canopy_member_joined'
   | 'canopy_member_removed'
   | 'canopy_member_left'
+  | 'canopy_invitation'
   | 'daily_tip'
   | 'inactivity_nudge'
   | 'photo_reminder'
@@ -85,6 +86,10 @@ export type NotificationParamsMap = {
   }
   readonly canopy_member_removed: { readonly canopyName: string }
   readonly canopy_member_left: {
+    readonly senderName?: string
+    readonly canopyName: string
+  }
+  readonly canopy_invitation: {
     readonly senderName?: string
     readonly canopyName: string
   }
@@ -216,6 +221,11 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '🏡 Canopy update',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} left ${p.canopyName}`,
+    },
+    canopy_invitation: {
+      title: () => '🏡 Canopy invitation',
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} invited you to join ${p.canopyName}`,
     },
     inactivity_nudge: {
       title: () => '🌿 Your plants miss you!',
@@ -496,6 +506,11 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '🏡 Du nouveau dans ta Canopy',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} a quitté ${p.canopyName}`,
+    },
+    canopy_invitation: {
+      title: () => '🏡 Invitation dans une Canopy',
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} t'invite à rejoindre ${p.canopyName}`,
     },
     inactivity_nudge: {
       title: () => "🌿 Tes plantes t'attendent !",

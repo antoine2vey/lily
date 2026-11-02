@@ -1,12 +1,19 @@
-import type { CanopyMemberRow } from '@lily/api/repositories/canopy.repository'
 import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import type { NotificationParamsMap } from '@lily/api/services/notification-scheduler/translations'
+import type { LanguageCode } from '@lily/shared'
+import type { NotificationMetadata } from '@lily/shared/notification'
 import { Effect, Option } from 'effect'
 
 type CanopyPush =
   | 'canopy_member_joined'
   | 'canopy_member_removed'
   | 'canopy_member_left'
+  | 'canopy_invitation'
+
+export interface Recipient {
+  readonly userId: string
+  readonly language: LanguageCode
+}
 
 export const senderNameOf = (
   name: string | null | undefined
@@ -18,10 +25,17 @@ export const senderNameOf = (
 
 export const notifyMemberBestEffort = <T extends CanopyPush>(
   type: T,
-  to: CanopyMemberRow,
-  params: NotificationParamsMap[T]
+  to: Recipient,
+  params: NotificationParamsMap[T],
+  metadata?: NotificationMetadata
 ) =>
-  scheduleSimpleNotification(type, to.userId, params, to.language).pipe(
+  scheduleSimpleNotification(
+    type,
+    to.userId,
+    params,
+    to.language,
+    metadata
+  ).pipe(
     Effect.catchTag('SqlError', (error) =>
       Effect.logWarning('Canopy push not recorded', {
         type,

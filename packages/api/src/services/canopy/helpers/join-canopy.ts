@@ -20,11 +20,13 @@ import * as SqlClient from 'effect/sql/SqlClient'
 
 export interface JoinTarget {
   readonly canopyId: string
+  readonly readmitsOnly?: boolean
 }
 
 export interface JoinSource<E, R> {
   readonly findBeforeLock: Effect.Effect<JoinTarget, E, R>
   readonly findUnderLock: Effect.Effect<JoinTarget, E, R>
+  readonly markUsed: Effect.Effect<void, E, R>
 }
 
 export interface Joiner {
@@ -44,13 +46,17 @@ export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
         if (canopy === null) {
           return yield* new CanopyInviteNotFoundError()
         }
-        yield* source.findUnderLock
+        const target = yield* source.findUnderLock
         const current = yield* repo.findMembershipByUser(joiner.id)
         if (current !== null) {
           if (current.canopyId !== canopy.id) {
             return yield* failAlreadyInCanopy(current.canopyId)
           }
+          if (!target.readmitsOnly) yield* source.markUsed
           return { canopyId: canopy.id, notify: Option.none() }
+        }
+        if (target.readmitsOnly) {
+          return yield* new CanopyInviteNotFoundError()
         }
 
         const members = yield* repo.findMembersByJoinDate(canopy.id)
@@ -73,6 +79,7 @@ export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
             yield* rebuildMemberReminders(joiner.id, plantIds)
           })
         )
+        yield* source.markUsed
         return {
           canopyId: canopy.id,
           notify: Option.some({ canopyName: canopy.name, members }),

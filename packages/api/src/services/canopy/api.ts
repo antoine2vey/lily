@@ -4,8 +4,10 @@ import {
   AlreadyInCanopyError,
   Canopy,
   CanopyFullError,
+  CanopyInvitationView,
   CanopyInvite,
   CanopyInviteExpiredError,
+  CanopyInviteeAlreadyMemberError,
   CanopyInviteNotFoundError,
   CanopyInvitePreview,
   CanopyInviteTokenRequest,
@@ -14,12 +16,14 @@ import {
   CanopyResponse,
   CreateCanopyRequest,
   NotCanopyOwnerError,
+  SendCanopyInvitationRequest,
   UpdateCanopyRequest,
+  UserNotFoundError,
 } from '@lily/shared'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const userIdParam = Schema.String.check(Schema.isGUID())
+const guidParam = Schema.String.check(Schema.isGUID())
 
 export const CanopyApi = HttpApiGroup.make('canopy')
   .add(
@@ -58,7 +62,7 @@ export const CanopyApi = HttpApiGroup.make('canopy')
       'removeCanopyMember',
       '/canopies/me/members/:userId',
       {
-        params: { userId: userIdParam },
+        params: { userId: guidParam },
         success: Canopy,
         error: [
           CanopyNotFoundError,
@@ -92,6 +96,69 @@ export const CanopyApi = HttpApiGroup.make('canopy')
         CanopyNotFoundError,
       ],
     })
+  )
+  .add(
+    HttpApiEndpoint.post('sendCanopyInvitation', '/canopies/me/invitations', {
+      payload: SendCanopyInvitationRequest,
+      success: Canopy,
+      error: [
+        CanopyNotFoundError,
+        UserNotFoundError,
+        CanopyInviteeAlreadyMemberError,
+        CanopyFullError,
+        RateLimitExceededError,
+      ],
+    })
+  )
+  .add(
+    HttpApiEndpoint.delete(
+      'withdrawCanopyInvitation',
+      '/canopies/me/invitations/:invitationId',
+      {
+        params: { invitationId: guidParam },
+        success: Canopy,
+        error: [CanopyNotFoundError, CanopyInviteNotFoundError],
+      }
+    )
+  )
+  .add(
+    HttpApiEndpoint.get(
+      'getCanopyInvitation',
+      '/canopy-invitations/:invitationId',
+      {
+        params: { invitationId: guidParam },
+        success: CanopyInvitationView,
+        error: CanopyInviteNotFoundError,
+      }
+    )
+  )
+  .add(
+    HttpApiEndpoint.post(
+      'acceptCanopyInvitation',
+      '/canopy-invitations/:invitationId/accept',
+      {
+        params: { invitationId: guidParam },
+        success: Canopy,
+        error: [
+          CanopyInviteNotFoundError,
+          CanopyInviteExpiredError,
+          AlreadyInCanopyError,
+          CanopyFullError,
+          CanopyNotFoundError,
+        ],
+      }
+    )
+  )
+  .add(
+    HttpApiEndpoint.post(
+      'declineCanopyInvitation',
+      '/canopy-invitations/:invitationId/decline',
+      {
+        params: { invitationId: guidParam },
+        success: Schema.Void,
+        error: CanopyInviteNotFoundError,
+      }
+    )
   )
   .middleware(Authentication)
 

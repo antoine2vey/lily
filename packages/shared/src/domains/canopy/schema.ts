@@ -42,6 +42,26 @@ export const CanopyActiveInvite = Schema.Struct({
 })
 export type CanopyActiveInvite = typeof CanopyActiveInvite.Type
 
+export const CanopyInvitationStatus = Schema.Literals([
+  'pending',
+  'accepted',
+  'declined',
+  'withdrawn',
+])
+export type CanopyInvitationStatus = typeof CanopyInvitationStatus.Type
+
+export const CanopyPendingInvitation = Schema.Struct({
+  id: Schema.String,
+  invitee: Schema.Struct({
+    userId: Schema.String,
+    name: Schema.NullOr(Schema.String),
+    image: Schema.NullOr(Schema.String),
+  }),
+  invitedByUserId: Schema.String,
+  expiresAt: Schema.DateFromString,
+})
+export type CanopyPendingInvitation = typeof CanopyPendingInvitation.Type
+
 export const Canopy = Schema.Struct({
   id: CanopyId,
   name: Schema.String,
@@ -51,6 +71,7 @@ export const Canopy = Schema.Struct({
   role: CanopyMemberRole,
   members: Schema.Array(CanopyMember),
   invite: Schema.NullOr(CanopyActiveInvite),
+  invitations: Schema.Array(CanopyPendingInvitation),
   createdAt: Schema.DateFromString,
   updatedAt: Schema.DateFromString,
 })
@@ -103,6 +124,24 @@ export const CanopyInvitePreview = Schema.Struct({
   expiresAt: Schema.DateFromString,
 })
 export type CanopyInvitePreview = typeof CanopyInvitePreview.Type
+
+export const SendCanopyInvitationRequest = Schema.Struct({
+  inviteeId: Schema.String.check(Schema.isGUID()),
+})
+export type SendCanopyInvitationRequest =
+  typeof SendCanopyInvitationRequest.Type
+
+/** An invitation as its invitee sees it. A pending one past its date reads `expired`. */
+export const CanopyInvitationView = Schema.Struct({
+  id: Schema.String,
+  canopyId: CanopyId,
+  canopyName: Schema.String,
+  inviterName: Schema.NullOr(Schema.String),
+  memberCount: Schema.Number,
+  status: Schema.Literals([...CanopyInvitationStatus.literals, 'expired']),
+  expiresAt: Schema.DateFromString,
+})
+export type CanopyInvitationView = typeof CanopyInvitationView.Type
 
 export const CANOPY_INVITE_TOKEN_LENGTH = 43
 

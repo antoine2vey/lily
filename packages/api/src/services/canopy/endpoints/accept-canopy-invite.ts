@@ -11,6 +11,7 @@ export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
       {
         findBeforeLock: findLiveInvite(token),
         findUnderLock: findLiveInvite(token),
+        markUsed: Effect.void,
       }
     )
   }

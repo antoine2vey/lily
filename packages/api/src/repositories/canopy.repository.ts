@@ -1,6 +1,7 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   canopies,
+  canopyDirectInvites,
   canopyInvites,
   canopyMembers,
   canopyPlantMutes,
@@ -8,9 +9,25 @@ import {
   rooms,
   users,
 } from '@lily/db/schema'
-import type { CanopyId, CanopyMemberRole, LanguageCode } from '@lily/shared'
+import type {
+  CanopyId,
+  CanopyInvitationStatus,
+  CanopyMemberRole,
+  CanopyPendingInvitation,
+  LanguageCode,
+} from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
-import { and, asc, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  eq,
+  getTableColumns,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  sql,
+} from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -58,6 +75,21 @@ export interface NewCanopyInvite {
   readonly canopyId: string
   readonly tokenHash: string
   readonly createdByUserId: string
+  readonly expiresAt: Date
+}
+
+export type CanopyInvitationRow = typeof canopyDirectInvites.$inferSelect
+
+export interface CanopyInvitationPreviewRow extends CanopyInvitationRow {
+  readonly canopyName: string
+  readonly inviterName: string | null
+  readonly memberCount: number
+}
+
+export interface NewCanopyInvitation {
+  readonly canopyId: string
+  readonly inviteeUserId: string
+  readonly invitedByUserId: string
   readonly expiresAt: Date
 }
 
@@ -132,6 +164,36 @@ export interface ICanopyRepository {
   readonly findInviteByTokenHash: (
     tokenHash: string
   ) => Effect.Effect<CanopyInviteRow | null, SqlError>
+  readonly findInvitation: (
+    id: string
+  ) => Effect.Effect<CanopyInvitationRow | null, SqlError>
+  readonly lockInvitation: (
+    id: string
+  ) => Effect.Effect<CanopyInvitationRow | null, SqlError>
+  readonly findInvitationPreview: (
+    id: string
+  ) => Effect.Effect<CanopyInvitationPreviewRow | null, SqlError>
+  readonly findInvitationByPair: (
+    canopyId: string,
+    inviteeUserId: string
+  ) => Effect.Effect<CanopyInvitationRow | null, SqlError>
+  /** Opens a fresh pending invitation, reusing the pair's row if it has one. */
+  readonly upsertInvitation: (
+    invitation: NewCanopyInvitation
+  ) => Effect.Effect<CanopyInvitationRow, SqlError>
+  /** Moves `from` to `to`, or returns null when the row is not in `from`. */
+  readonly transitionInvitation: (
+    id: string,
+    from: CanopyInvitationStatus,
+    to: Exclude<CanopyInvitationStatus, 'pending'>
+  ) => Effect.Effect<CanopyInvitationRow | null, SqlError>
+  readonly findPendingInvitations: (
+    canopyId: string
+  ) => Effect.Effect<ReadonlyArray<CanopyPendingInvitation>, SqlError>
+  readonly withdrawInvitationsSentBy: (
+    canopyId: string,
+    userId: string
+  ) => Effect.Effect<void, SqlError>
   readonly mute: (
     userId: string,
     plantId: string
@@ -490,6 +552,152 @@ export const CanopyRepositoryLive = Layer.effect(
           .leftJoin(users, eq(users.id, canopyInvites.createdByUserId))
           .where(eq(canopyInvites.tokenHash, tokenHash))
         return first(rows)
+      }),
+
+      findInvitation: Effect.fn('CanopyRepository.findInvitation')(function* (
+        id: string
+      ) {
+        return first(
+          yield* db
+            .select()
+            .from(canopyDirectInvites)
+            .where(eq(canopyDirectInvites.id, id))
+        )
+      }),
+
+      lockInvitation: Effect.fn('CanopyRepository.lockInvitation')(function* (
+        id: string
+      ) {
+        return first(
+          yield* db
+            .select()
+            .from(canopyDirectInvites)
+            .where(eq(canopyDirectInvites.id, id))
+            .for('update')
+        )
+      }),
+
+      findInvitationPreview: Effect.fn(
+        'CanopyRepository.findInvitationPreview'
+      )(function* (id: string) {
+        const rows = yield* db
+          .select({
+            ...getTableColumns(canopyDirectInvites),
+            canopyName: canopies.name,
+            inviterName: users.name,
+            memberCount: sql<number>`(SELECT count(*)::int FROM ${canopyMembers} WHERE ${canopyMembers.canopyId} = ${canopyDirectInvites.canopyId})`,
+          })
+          .from(canopyDirectInvites)
+          .innerJoin(canopies, eq(canopies.id, canopyDirectInvites.canopyId))
+          .innerJoin(users, eq(users.id, canopyDirectInvites.invitedByUserId))
+          .where(eq(canopyDirectInvites.id, id))
+        return first(rows)
+      }),
+
+      findInvitationByPair: Effect.fn('CanopyRepository.findInvitationByPair')(
+        function* (canopyId: string, inviteeUserId: string) {
+          return first(
+            yield* db
+              .select()
+              .from(canopyDirectInvites)
+              .where(
+                and(
+                  eq(canopyDirectInvites.canopyId, canopyId),
+                  eq(canopyDirectInvites.inviteeUserId, inviteeUserId)
+                )
+              )
+          )
+        }
+      ),
+
+      upsertInvitation: Effect.fn('CanopyRepository.upsertInvitation')(
+        function* (invitation: NewCanopyInvitation) {
+          const fresh = {
+            invitedByUserId: invitation.invitedByUserId,
+            status: 'pending' as const,
+            expiresAt: invitation.expiresAt,
+            resolvedAt: null,
+            createdAt: nowAsDate(),
+          }
+          const rows = yield* db
+            .insert(canopyDirectInvites)
+            .values({ ...invitation, ...fresh })
+            .onConflictDoUpdate({
+              target: [
+                canopyDirectInvites.canopyId,
+                canopyDirectInvites.inviteeUserId,
+              ],
+              set: fresh,
+            })
+            .returning()
+          return yield* Option.match(Array.head(rows), {
+            onNone: () =>
+              Effect.die(new Error('invitation upsert returned no row')),
+            onSome: Effect.succeed,
+          })
+        }
+      ),
+
+      transitionInvitation: Effect.fn('CanopyRepository.transitionInvitation')(
+        function* (
+          id: string,
+          from: CanopyInvitationStatus,
+          to: Exclude<CanopyInvitationStatus, 'pending'>
+        ) {
+          return first(
+            yield* db
+              .update(canopyDirectInvites)
+              .set({ status: to, resolvedAt: nowAsDate() })
+              .where(
+                and(
+                  eq(canopyDirectInvites.id, id),
+                  eq(canopyDirectInvites.status, from)
+                )
+              )
+              .returning()
+          )
+        }
+      ),
+
+      findPendingInvitations: Effect.fn(
+        'CanopyRepository.findPendingInvitations'
+      )(function* (canopyId: string) {
+        return yield* db
+          .select({
+            id: canopyDirectInvites.id,
+            invitee: {
+              userId: users.id,
+              name: users.name,
+              image: users.image,
+            },
+            invitedByUserId: canopyDirectInvites.invitedByUserId,
+            expiresAt: canopyDirectInvites.expiresAt,
+          })
+          .from(canopyDirectInvites)
+          .innerJoin(users, eq(users.id, canopyDirectInvites.inviteeUserId))
+          .where(
+            and(
+              eq(canopyDirectInvites.canopyId, canopyId),
+              eq(canopyDirectInvites.status, 'pending'),
+              gt(canopyDirectInvites.expiresAt, nowAsDate())
+            )
+          )
+          .orderBy(asc(canopyDirectInvites.createdAt))
+      }),
+
+      withdrawInvitationsSentBy: Effect.fn(
+        'CanopyRepository.withdrawInvitationsSentBy'
+      )(function* (canopyId: string, userId: string) {
+        yield* db
+          .update(canopyDirectInvites)
+          .set({ status: 'withdrawn', resolvedAt: nowAsDate() })
+          .where(
+            and(
+              eq(canopyDirectInvites.canopyId, canopyId),
+              eq(canopyDirectInvites.invitedByUserId, userId),
+              eq(canopyDirectInvites.status, 'pending')
+            )
+          )
       }),
 
       mute: Effect.fn('CanopyRepository.mute')(function* (

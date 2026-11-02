@@ -8,6 +8,7 @@ import {
   type CanopyId,
   type CanopyMemberRole,
   CanopyNotFoundError,
+  type CanopyPendingInvitation,
 } from '@lily/shared'
 import { Array, Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -16,7 +17,8 @@ export const toCanopy = (
   canopy: CanopyRow,
   members: ReadonlyArray<CanopyMemberRow>,
   role: CanopyMemberRole,
-  invite: { readonly expiresAt: Date } | null
+  invite: { readonly expiresAt: Date } | null,
+  invitations: ReadonlyArray<CanopyPendingInvitation>
 ): Canopy => ({
   id: canopy.id as CanopyId,
   name: canopy.name,
@@ -32,6 +34,7 @@ export const toCanopy = (
     joinedAt,
   })),
   invite,
+  invitations,
   createdAt: canopy.createdAt,
   updatedAt: canopy.updatedAt,
 })
@@ -55,5 +58,6 @@ export const canopyView = (
       })
     )
     const invite = yield* repo.findActiveInvite(canopyId)
-    return toCanopy(canopy, members, viewer.role, invite)
+    const invitations = yield* repo.findPendingInvitations(canopyId)
+    return toCanopy(canopy, members, viewer.role, invite, invitations)
   })

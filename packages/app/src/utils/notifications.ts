@@ -343,6 +343,11 @@ const TOPIC_ROUTES = {
   canopy_member_removed: () => '/(app)/canopy' as Href,
   canopy_member_left: () => '/(app)/canopy' as Href,
 
+  canopy_invitation: (data) =>
+    typeof data.invitationId === 'string'
+      ? (`/(app)/canopy-invitation/${data.invitationId}` as Href)
+      : null,
+
   // Daily tip → tip modal with content
   daily_tip: (data) => {
     const title =

@@ -1,4 +1,7 @@
-import { canopyMemberRoleEnum } from '@lily/db/schema/enums'
+import {
+  canopyDirectInviteStatusEnum,
+  canopyMemberRoleEnum,
+} from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
 import { rooms } from '@lily/db/schema/rooms'
 import { users } from '@lily/db/schema/users'
@@ -74,6 +77,35 @@ export const canopyInvites = pgTable(
     uniqueIndex('canopy_invites_one_live_unique')
       .on(table.canopyId)
       .where(sql`${table.revokedAt} IS NULL`),
+  ]
+)
+
+export const canopyDirectInvites = pgTable(
+  'canopy_direct_invites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    canopyId: uuid('canopy_id')
+      .notNull()
+      .references(() => canopies.id, { onDelete: 'cascade' }),
+    inviteeUserId: uuid('invitee_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    invitedByUserId: uuid('invited_by_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: canopyDirectInviteStatusEnum('status').notNull().default('pending'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('canopy_direct_invites_pair_unique').on(
+      table.canopyId,
+      table.inviteeUserId
+    ),
+    index('canopy_direct_invites_invitee_idx').on(table.inviteeUserId),
   ]
 )
 
