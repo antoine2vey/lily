@@ -551,7 +551,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 executePlantCare(plant, {
                   plantId: p4,
                   careType: 'watering',
-                  date: backDated(2.5),
+                  date: backDated(4),
                 })
               )
             ),
@@ -561,7 +561,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 executePlantCare(plant, {
                   plantId: p3,
                   careType: 'watering',
-                  date: backDated(1.5),
+                  date: backDated(1),
                 })
               )
             ),
