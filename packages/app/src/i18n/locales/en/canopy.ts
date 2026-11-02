@@ -47,6 +47,13 @@ export default {
       shareMessage:
         'Join my Canopy "{name}" on Lily so we can look after our plants together: {url}',
       full: 'This Canopy is full. It holds up to {max} members.',
+      member: 'Invite a member',
+      pending: 'Waiting for an answer',
+      pendingUntil: 'Invited until {date}',
+      withdraw: 'Withdraw',
+      withdrawTitle: 'Withdraw the invitation to {name}?',
+      withdrawMessage: 'They can no longer join with it.',
+      withdrawn: 'Invitation withdrawn',
     },
     place: {
       title: 'Time and place',
@@ -106,6 +113,18 @@ export default {
       description:
         'A Canopy holds up to {max} members. Ask someone in it to make room.',
     },
+    decline: 'Decline',
+    declined: 'Invitation declined',
+    closed: {
+      title: 'This invitation is closed',
+      description:
+        'It was withdrawn or already answered. Ask a member of the Canopy to invite you again.',
+    },
+    invitationExpired: {
+      title: 'This invitation has expired',
+      description:
+        'Invitations last 7 days. Ask a member of the Canopy to invite you again.',
+    },
     expired: {
       title: 'This invite has expired',
       description:
@@ -121,6 +140,18 @@ export default {
       description: 'Check your connection and try again.',
       retry: 'Try again',
     },
+  },
+  inviteMember: {
+    title: 'Invite a member',
+    label: 'Person',
+    placeholder: 'Search by name or @handle',
+    description:
+      'They get a notification and can join {name} for 7 days. Your link stays as it is.',
+    submit: 'Send invitation',
+    sent: 'Invitation sent to {name}',
+    alreadyMember: '{name} is already in this Canopy',
+    full: 'This Canopy is full',
+    failed: 'Could not send the invitation. Try again.',
   },
   bring: {
     title: 'Bring plants into the Canopy',

@@ -30,6 +30,7 @@ jest.mock('@/hooks/useWelcomeSeen', () => ({
 
 jest.mock('@/hooks/useCanopyInvite', () => ({
   useCanopyInvite: () => ({ result: undefined, refetch: jest.fn() }),
+  useCanopyInvitation: () => ({ result: undefined, refetch: jest.fn() }),
 }))
 
 jest.mock('@/hooks/useMyCanopy', () => ({
@@ -38,7 +39,13 @@ jest.mock('@/hooks/useMyCanopy', () => ({
 
 jest.mock('@/hooks/useCanopyMutations', () => ({
   useAcceptCanopyInvite: () => ({ mutateAsync: jest.fn() }),
+  useAcceptCanopyInvitation: () => ({ mutateAsync: jest.fn() }),
+  useDeclineCanopyInvitation: () => ({ mutateAsync: jest.fn() }),
   useLeaveCanopy: () => ({ mutateAsync: jest.fn() }),
+}))
+
+jest.mock('sonner-native', () => ({
+  toast: { success: jest.fn(), error: jest.fn() },
 }))
 
 jest.mock('@/screens/canopy-join/BringPlantsScreen', () => ({

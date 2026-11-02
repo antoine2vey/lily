@@ -20,3 +20,18 @@ export function useCanopyInvite(
     }
   )
 }
+
+export function useCanopyInvitation(
+  invitationId: Option.Option<string>,
+  options?: { enabled?: boolean }
+) {
+  return useEffectQuery(
+    'canopy',
+    'getCanopyInvitation',
+    { params: { invitationId: Option.getOrElse(invitationId, () => '') } },
+    {
+      enabled: Option.isSome(invitationId) && (options?.enabled ?? true),
+      retry: false,
+    }
+  )
+}

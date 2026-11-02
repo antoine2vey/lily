@@ -70,8 +70,6 @@ export default {
   caretakerPicker: {
     label: 'Aidant',
     placeholder: 'Rechercher un aidant...',
-    suggested: 'Suggestions',
-    unknown: 'Inconnu',
   },
   dateRange: {
     label: 'Période',

@@ -6,22 +6,25 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { toast } from 'sonner-native'
 import type { MascotAnimation } from '@/assets/mascot'
 import { GlassCard, MascotHero, MeshBackground } from '@/components'
 import { Button } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
-import { useCanopyInvite } from '@/hooks/useCanopyInvite'
 import {
-  useAcceptCanopyInvite,
+  useDeclineCanopyInvitation,
   useLeaveCanopy,
 } from '@/hooks/useCanopyMutations'
 import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { BringPlantsScreen } from '@/screens/canopy-join/BringPlantsScreen'
 import {
+  invitationSource,
   type JoinAttempt,
+  type JoinSource,
   joinScreen,
   mayLeaveToJoin,
 } from '@/screens/canopy-join/join-state'
+import { useJoinTarget } from '@/screens/canopy-join/useJoinTarget'
 import {
   clearPendingJoin,
   type InviteToken,
@@ -46,10 +49,25 @@ export function CanopyJoinScreen({ rawToken }: CanopyJoinScreenProps) {
 
   return pipe(
     Match.value(state),
-    Match.tag('Authenticated', () => <JoinFlow token={token} />),
+    Match.tag('Authenticated', () => (
+      <JoinFlow
+        source={Option.map(
+          token,
+          (valid): JoinSource => ({ _tag: 'Link', token: valid })
+        )}
+      />
+    )),
     Match.tag('Loading', () => <BlankMesh />),
     Match.orElse(() => <StashForLater token={token} />)
   )
+}
+
+export function CanopyInvitationScreen({
+  rawId,
+}: {
+  rawId: string | undefined
+}) {
+  return <JoinFlow source={invitationSource(rawId)} />
 }
 
 function StashForLater({ token }: { token: Option.Option<InviteToken> }) {
@@ -76,14 +94,14 @@ interface Hero {
   subtitle?: string
 }
 
-function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
+function JoinFlow({ source }: { source: Option.Option<JoinSource> }) {
   const { t } = useTranslation('canopy')
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
-  const preview = useCanopyInvite(token)
+  const target = useJoinTarget(source)
   const mine = useMyCanopy()
-  const accept = useAcceptCanopyInvite()
   const leave = useLeaveCanopy()
+  const decline = useDeclineCanopyInvitation()
   const [attempt, setAttempt] = useState<JoinAttempt>({ _tag: 'Idle' })
 
   useEffect(() => {
@@ -91,11 +109,12 @@ function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
   }, [])
 
   const screen = joinScreen({
-    token,
-    preview: preview.result,
+    source,
+    offer: target.offer,
     mine: mine.result,
     attempt,
   })
+  const isInvitation = Option.exists(source, (s) => s._tag === 'Invitation')
 
   const refuse = (error: ApiFailure) => {
     if (error._tag === 'AlreadyInCanopyError') {
@@ -104,32 +123,32 @@ function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
     setAttempt({ _tag: 'Refused', error })
   }
 
-  const join = (validToken: InviteToken) =>
-    accept
-      .mutateAsync(validToken)
+  const join = (valid: JoinSource) =>
+    target
+      .accept(valid)
       .then((canopy) => setAttempt({ _tag: 'Joined', canopyName: canopy.name }))
       .catch(refuse)
 
   const onJoin = () =>
-    Option.map(token, (validToken) => {
+    Option.map(source, (valid) => {
       setAttempt({ _tag: 'Working' })
-      join(validToken)
+      join(valid)
     })
 
   const onOpenCurrent = () =>
-    Option.map(token, (validToken) => {
+    Option.map(source, (valid) => {
       setAttempt({ _tag: 'Working' })
-      accept
-        .mutateAsync(validToken)
+      target
+        .accept(valid)
         .then(() => router.replace('/canopy'))
         .catch(refuse)
     })
 
-  const onLeaveAndJoin = (current: string, target: string) =>
-    Option.map(token, (validToken) =>
+  const onLeaveAndJoin = (current: string, name: string) =>
+    Option.map(source, (valid) =>
       Alert.alert(
         t('join.another.confirmTitle', { current }),
-        t('join.another.confirmMessage', { current, name: target }),
+        t('join.another.confirmMessage', { current, name }),
         [
           { text: t('join.notNow'), style: 'cancel' },
           {
@@ -137,11 +156,11 @@ function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
             style: 'destructive',
             onPress: () => {
               setAttempt({ _tag: 'Working' })
-              preview
+              target
                 .refetch()
-                .then(({ data: fresh }) =>
-                  mayLeaveToJoin({ token, preview: fresh, mine: mine.result })
-                    ? leave.mutateAsync().then(() => join(validToken))
+                .then((fresh) =>
+                  mayLeaveToJoin({ source, offer: fresh, mine: mine.result })
+                    ? leave.mutateAsync().then(() => join(valid))
                     : setAttempt({ _tag: 'Idle' })
                 )
                 .catch(refuse)
@@ -152,6 +171,36 @@ function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
     )
 
   const close = () => router.replace('/(app)/(tabs)')
+
+  const onDecline = (invitationId: string) =>
+    decline
+      .mutateAsync(invitationId)
+      .then(() => {
+        toast.success(t('join.declined'))
+        close()
+      })
+      .catch(() => toast.error(t('detail.failed')))
+
+  const declineButton = pipe(
+    Option.flatMap(source, (s) =>
+      s._tag === 'Invitation' ? Option.some(s.id) : Option.none()
+    ),
+    Option.match({
+      onNone: () => null,
+      onSome: (invitationId) => (
+        <Button
+          pill
+          variant="glass"
+          loading={decline.isPending}
+          disabled={decline.isPending}
+          onPress={() => onDecline(invitationId)}
+          testID="canopy-decline-button"
+        >
+          {t('join.decline')}
+        </Button>
+      ),
+    })
+  )
 
   if (screen._tag === 'PickPlants') {
     return <BringPlantsScreen canopyName={screen.canopyName} />
@@ -176,12 +225,20 @@ function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
         subtitle: t('join.invalid.description'),
       })
     ),
+    Match.tag('Expired', (): Hero => {
+      const key = isInvitation ? 'join.invitationExpired' : 'join.expired'
+      return {
+        animation: 'rainy',
+        title: t(`${key}.title`),
+        subtitle: t(`${key}.description`),
+      }
+    }),
     Match.tag(
-      'Expired',
+      'Closed',
       (): Hero => ({
         animation: 'rainy',
-        title: t('join.expired.title'),
-        subtitle: t('join.expired.description'),
+        title: t('join.closed.title'),
+        subtitle: t('join.closed.description'),
       })
     ),
     Match.tag(
@@ -234,10 +291,16 @@ function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
     Match.tag('Loading', () => null),
     Match.tag('Invalid', () => <CloseButton onPress={close} />),
     Match.tag('Expired', () => <CloseButton onPress={close} />),
-    Match.tag('Full', () => <CloseButton onPress={close} />),
+    Match.tag('Closed', () => <CloseButton onPress={close} />),
+    Match.tag('Full', () => (
+      <>
+        {declineButton}
+        <CloseButton onPress={close} />
+      </>
+    )),
     Match.tag('Unavailable', () => (
       <>
-        <Button pill onPress={() => preview.refetch()}>
+        <Button pill onPress={() => target.refetch()}>
           {t('join.unavailable.retry')}
         </Button>
         <CloseButton onPress={close} />
@@ -260,6 +323,7 @@ function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
         >
           {t('join.join')}
         </Button>
+        {declineButton}
         <CloseButton onPress={close} />
       </>
     )),
@@ -289,6 +353,7 @@ function JoinFlow({ token }: { token: Option.Option<InviteToken> }) {
         >
           {t('join.another.leave', { current: currentName })}
         </Button>
+        {declineButton}
         <CloseButton onPress={close} />
       </>
     )),

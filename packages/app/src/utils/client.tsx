@@ -5,6 +5,7 @@ import {
   type CannotDelegateSelfError,
   type CanopyFullError,
   type CanopyInviteExpiredError,
+  type CanopyInviteeAlreadyMemberError,
   type CanopyInviteNotFoundError,
   type CanopyMemberNotFoundError,
   type CanopyNotFoundError,
@@ -133,6 +134,7 @@ export type ApiFailure =
   | CanopyMemberNotFoundError
   | CanopyInviteNotFoundError
   | CanopyInviteExpiredError
+  | CanopyInviteeAlreadyMemberError
   | NotCanopyOwnerError
   | PlantInDelegationError
   | AlreadyCaredTodayError

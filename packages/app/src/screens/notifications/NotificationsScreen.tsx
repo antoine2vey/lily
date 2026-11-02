@@ -56,6 +56,7 @@ const NOTIFICATION_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> =
     canopy_member_joined: 'group-add',
     canopy_member_removed: 'person-remove',
     canopy_member_left: 'directions-walk',
+    canopy_invitation: 'home',
     daily_tip: 'lightbulb',
     inactivity_nudge: 'notifications-active',
     plant_parent_milestone: 'emoji-events',
@@ -85,7 +86,7 @@ const getIconColor = (type: string): string =>
     Match.when('daily_tip', () => '#F59E0B'),
     Match.when('gift_subscription', () => '#FCD34D'),
     Match.whenOr('new_follower', 'delegation_request', () => '#8B5CF6'),
-    Match.when('canopy_member_joined', () => '#5B8C5A'),
+    Match.whenOr('canopy_member_joined', 'canopy_invitation', () => '#5B8C5A'),
     Match.whenOr(
       'canopy_member_removed',
       'canopy_member_left',

@@ -59,6 +59,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 jest.mock('@/hooks/useCanopyInvite', () => ({
   useCanopyInvite: () => ({ result: mockPreview, refetch: mockRefetch }),
+  useCanopyInvitation: () => ({ result: undefined, refetch: jest.fn() }),
 }))
 
 jest.mock('@/hooks/useMyCanopy', () => ({
@@ -67,7 +68,13 @@ jest.mock('@/hooks/useMyCanopy', () => ({
 
 jest.mock('@/hooks/useCanopyMutations', () => ({
   useAcceptCanopyInvite: () => ({ mutateAsync: mockAccept }),
+  useAcceptCanopyInvitation: () => ({ mutateAsync: jest.fn() }),
+  useDeclineCanopyInvitation: () => ({ mutateAsync: jest.fn() }),
   useLeaveCanopy: () => ({ mutateAsync: mockLeave }),
+}))
+
+jest.mock('sonner-native', () => ({
+  toast: { success: jest.fn(), error: jest.fn() },
 }))
 
 jest.mock('@/screens/canopy-join/BringPlantsScreen', () => ({
@@ -97,6 +104,20 @@ const confirmLeaveAndJoin = async () => {
   const buttons = alert.mock.calls[0]?.[2] as AlertButton[]
   buttons.find((b) => b.style === 'destructive')?.onPress?.()
 }
+
+describe('a share link', () => {
+  it('offers no decline', async () => {
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <CanopyJoinScreen rawToken={TOKEN} />
+      </QueryClientProvider>
+    )
+    expect(
+      await screen.findByTestId('canopy-leave-and-join-button')
+    ).toBeTruthy()
+    expect(screen.queryByTestId('canopy-decline-button')).toBeNull()
+  })
+})
 
 describe('leaving one Canopy to join another', () => {
   it('leaves and then accepts while the invite is still valid', async () => {

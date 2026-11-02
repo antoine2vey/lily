@@ -1,1 +1,4 @@
-export { CanopyJoinScreen } from './CanopyJoinScreen'
+export {
+  CanopyInvitationScreen,
+  CanopyJoinScreen,
+} from './CanopyJoinScreen'

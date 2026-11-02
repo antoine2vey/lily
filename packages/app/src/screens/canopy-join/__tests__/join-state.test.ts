@@ -3,14 +3,18 @@ import {
   type Canopy,
   CanopyFullError,
   type CanopyId,
+  type CanopyInvitationView,
   CanopyInviteExpiredError,
   CanopyInviteNotFoundError,
   type CanopyInvitePreview,
 } from '@lily/shared'
 import { Option, Result } from 'effect'
 import {
+  invitationSource,
   type JoinAttempt,
   type JoinInputs,
+  type JoinOffer,
+  type JoinSource,
   joinScreen,
   mayLeaveToJoin,
 } from '@/screens/canopy-join/join-state'
@@ -27,8 +31,13 @@ const preview: CanopyInvitePreview = {
   expiresAt: new Date('2026-11-04T00:00:00Z'),
 }
 
-const canopyNamed = (name: string): Canopy => ({
-  id: 'canopy-1' as CanopyId,
+const linkOf = (p: CanopyInvitePreview): JoinOffer => ({
+  _tag: 'Link',
+  preview: p,
+})
+
+const canopyNamed = (name: string, id = 'canopy-1'): Canopy => ({
+  id: id as CanopyId,
   name,
   timezone: 'Europe/Paris',
   latitude: null,
@@ -44,8 +53,8 @@ const canopyNamed = (name: string): Canopy => ({
 const idle: JoinAttempt = { _tag: 'Idle' }
 
 const inputs = (overrides: Partial<JoinInputs>): JoinInputs => ({
-  token: Option.some(token),
-  preview: Result.succeed(preview),
+  source: Option.some({ _tag: 'Link', token }),
+  offer: Result.succeed(linkOf(preview)),
   mine: Result.succeed({ canopy: null }),
   attempt: idle,
   ...overrides,
@@ -97,13 +106,11 @@ describe('joinScreen', () => {
 
   it('names the expired and invalid states from the preview', () => {
     expect(
-      joinScreen(
-        inputs({ preview: Result.fail(new CanopyInviteExpiredError()) })
-      )
+      joinScreen(inputs({ offer: Result.fail(new CanopyInviteExpiredError()) }))
     ).toEqual({ _tag: 'Expired' })
     expect(
       joinScreen(
-        inputs({ preview: Result.fail(new CanopyInviteNotFoundError()) })
+        inputs({ offer: Result.fail(new CanopyInviteNotFoundError()) })
       )
     ).toEqual({ _tag: 'Invalid' })
   })
@@ -111,7 +118,7 @@ describe('joinScreen', () => {
   it('calls a malformed token invalid without waiting for the API', () => {
     expect(
       joinScreen(
-        inputs({ token: Option.none(), preview: undefined, mine: undefined })
+        inputs({ source: Option.none(), offer: undefined, mine: undefined })
       )
     ).toEqual({ _tag: 'Invalid' })
   })
@@ -140,7 +147,7 @@ describe('joinScreen', () => {
 describe('a Canopy the preview counts as full', () => {
   const full: CanopyInvitePreview = { ...preview, memberCount: 10 }
   const fullInputs = (overrides: Partial<JoinInputs>) =>
-    inputs({ preview: Result.succeed(full), ...overrides })
+    inputs({ offer: Result.succeed(linkOf(full)), ...overrides })
 
   it('shows Full to a user in no Canopy', () => {
     expect(joinScreen(fullInputs({}))).toEqual({
@@ -183,20 +190,123 @@ describe('a Canopy the preview counts as full', () => {
 
 describe('mayLeaveToJoin, checked on a fresh preview before leaving', () => {
   const inLoft = Result.succeed({ canopy: canopyNamed('Loft') })
-  const check = (fresh: JoinInputs['preview']) =>
-    mayLeaveToJoin({ token: Option.some(token), preview: fresh, mine: inLoft })
+  const check = (fresh: JoinInputs['offer']) =>
+    mayLeaveToJoin({
+      source: Option.some({ _tag: 'Link', token }),
+      offer: fresh,
+      mine: inLoft,
+    })
 
   it('allows the switch while the invite is still valid and has room', () => {
-    expect(check(Result.succeed(preview))).toBe(true)
+    expect(check(Result.succeed(linkOf(preview)))).toBe(true)
   })
 
   it('refuses when the invite was revoked, expired or filled since the screen loaded', () => {
     expect(check(Result.fail(new CanopyInviteNotFoundError()))).toBe(false)
     expect(check(Result.fail(new CanopyInviteExpiredError()))).toBe(false)
-    expect(check(Result.succeed({ ...preview, memberCount: 10 }))).toBe(false)
+    expect(check(Result.succeed(linkOf({ ...preview, memberCount: 10 })))).toBe(
+      false
+    )
   })
 
   it('refuses when the fresh preview did not arrive', () => {
     expect(check(undefined)).toBe(false)
+  })
+})
+
+describe('a direct invitation', () => {
+  const INVITATION_ID = '0b9f7a52-3c1e-4d7a-9a51-6f2b8c4e1d30'
+  const source: JoinSource = { _tag: 'Invitation', id: INVITATION_ID }
+  const view = (
+    status: CanopyInvitationView['status']
+  ): CanopyInvitationView => ({
+    ...preview,
+    id: INVITATION_ID,
+    canopyId: 'canopy-flat' as CanopyId,
+    status,
+  })
+  const invited = (
+    status: CanopyInvitationView['status'],
+    overrides: Partial<JoinInputs> = {}
+  ) =>
+    joinScreen(
+      inputs({
+        source: Option.some(source),
+        offer: Result.succeed({ _tag: 'Invitation', preview: view(status) }),
+        ...overrides,
+      })
+    )
+
+  it('offers to join while it is pending', () => {
+    expect(invited('pending')).toEqual({
+      _tag: 'Ready',
+      preview: view('pending'),
+      busy: false,
+      failed: false,
+    })
+  })
+
+  it.each(['withdrawn', 'declined'] as const)('is closed once %s', (status) => {
+    expect(invited(status)).toEqual({ _tag: 'Closed' })
+  })
+
+  it('is expired once its date passed', () => {
+    expect(invited('expired')).toEqual({ _tag: 'Expired' })
+  })
+
+  it('opens the Canopy for an invitee who accepted and stayed', () => {
+    const inFlat = Result.succeed({
+      canopy: canopyNamed('Renamed Flat', 'canopy-flat'),
+    })
+    expect(invited('accepted', { mine: inFlat })._tag).toBe('AlreadyHere')
+  })
+
+  it('is closed for an invitee who accepted and left', () => {
+    expect(invited('accepted')).toEqual({ _tag: 'Closed' })
+  })
+
+  it('tells Canopies apart by id, not by name', () => {
+    const namesake = Result.succeed({ canopy: canopyNamed('Our Flat') })
+    expect(invited('pending', { mine: namesake })).toEqual({
+      _tag: 'InAnotherCanopy',
+      preview: view('pending'),
+      currentName: 'Our Flat',
+      busy: false,
+    })
+  })
+
+  it('is closed when the API no longer finds it, where a link reads invalid', () => {
+    expect(
+      joinScreen(
+        inputs({
+          source: Option.some(source),
+          offer: Result.fail(new CanopyInviteNotFoundError()),
+        })
+      )
+    ).toEqual({ _tag: 'Closed' })
+    expect(
+      invited('pending', {
+        attempt: { _tag: 'Refused', error: new CanopyInviteNotFoundError() },
+      })
+    ).toEqual({ _tag: 'Closed' })
+  })
+
+  it('does not leave another Canopy for an invitation withdrawn since the screen loaded', () => {
+    expect(
+      mayLeaveToJoin({
+        source: Option.some(source),
+        offer: Result.succeed({
+          _tag: 'Invitation',
+          preview: view('withdrawn'),
+        }),
+        mine: Result.succeed({ canopy: canopyNamed('Loft') }),
+      })
+    ).toBe(false)
+  })
+
+  it('reads only a uuid route parameter as an invitation', () => {
+    expect(invitationSource(INVITATION_ID)).toEqual(Option.some(source))
+    expect(invitationSource('not-an-id')).toEqual(Option.none())
+    expect(invitationSource(undefined)).toEqual(Option.none())
   })
 })

@@ -113,3 +113,51 @@ export function useAcceptCanopyInvite() {
     },
   })
 }
+
+export function useInviteToCanopy() {
+  const queryClient = useQueryClient()
+  return useCanopyMutation({
+    mutationFn: (inviteeId: string) =>
+      apiEffectRunner('canopy', 'sendCanopyInvitation', {
+        payload: { inviteeId },
+      }),
+    onSuccess: (canopy) => setMyCanopy(queryClient, canopy),
+  })
+}
+
+export function useWithdrawCanopyInvitation() {
+  const queryClient = useQueryClient()
+  return useCanopyMutation({
+    mutationFn: (invitationId: string) =>
+      apiEffectRunner('canopy', 'withdrawCanopyInvitation', {
+        params: { invitationId },
+      }),
+    onSuccess: (canopy) => setMyCanopy(queryClient, canopy),
+  })
+}
+
+export function useAcceptCanopyInvitation() {
+  const queryClient = useQueryClient()
+  return useCanopyMutation({
+    mutationFn: (invitationId: string) =>
+      apiEffectRunner('canopy', 'acceptCanopyInvitation', {
+        params: { invitationId },
+      }),
+    onSuccess: (canopy) => {
+      setMyCanopy(queryClient, canopy)
+      refreshOwnedData(queryClient)
+    },
+  })
+}
+
+export function useDeclineCanopyInvitation() {
+  const queryClient = useQueryClient()
+  return useCanopyMutation({
+    mutationFn: (invitationId: string) =>
+      apiEffectRunner('canopy', 'declineCanopyInvitation', {
+        params: { invitationId },
+      }),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.canopy.all }),
+  })
+}

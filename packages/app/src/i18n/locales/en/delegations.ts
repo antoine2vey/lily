@@ -70,8 +70,6 @@ export default {
   caretakerPicker: {
     label: 'Caretaker',
     placeholder: 'Search for a caretaker...',
-    suggested: 'Suggested',
-    unknown: 'Unknown',
   },
   dateRange: {
     label: 'Date Range',

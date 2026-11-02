@@ -49,6 +49,13 @@ export default {
       shareMessage:
         'Rejoins ma Canopy « {name} » sur Lily pour prendre soin de nos plantes ensemble : {url}',
       full: "Cette Canopy est complète. Elle accueille jusqu'à {max} membres.",
+      member: 'Inviter un membre',
+      pending: 'En attente de réponse',
+      pendingUntil: "Invité jusqu'au {date}",
+      withdraw: 'Retirer',
+      withdrawTitle: "Retirer l'invitation de {name} ?",
+      withdrawMessage: 'Cette personne ne pourra plus rejoindre avec.',
+      withdrawn: 'Invitation retirée',
     },
     place: {
       title: 'Heure et lieu',
@@ -109,6 +116,18 @@ export default {
       description:
         "Une Canopy accueille jusqu'à {max} membres. Demandez à un membre de faire de la place.",
     },
+    decline: 'Refuser',
+    declined: 'Invitation refusée',
+    closed: {
+      title: "Cette invitation n'est plus ouverte",
+      description:
+        'Elle a été retirée ou a déjà reçu une réponse. Demandez à un membre de la Canopy de vous inviter à nouveau.',
+    },
+    invitationExpired: {
+      title: 'Cette invitation a expiré',
+      description:
+        'Les invitations sont valables 7 jours. Demandez à un membre de la Canopy de vous inviter à nouveau.',
+    },
     expired: {
       title: 'Cette invitation a expiré',
       description:
@@ -124,6 +143,18 @@ export default {
       description: 'Vérifiez votre connexion et réessayez.',
       retry: 'Réessayer',
     },
+  },
+  inviteMember: {
+    title: 'Inviter un membre',
+    label: 'Personne',
+    placeholder: 'Rechercher par nom ou @pseudo',
+    description:
+      'Cette personne reçoit une notification et peut rejoindre {name} pendant 7 jours. Votre lien reste inchangé.',
+    submit: "Envoyer l'invitation",
+    sent: 'Invitation envoyée à {name}',
+    alreadyMember: '{name} est déjà dans cette Canopy',
+    full: 'Cette Canopy est complète',
+    failed: "Impossible d'envoyer l'invitation. Réessayez.",
   },
   bring: {
     title: 'Partager des plantes avec la Canopy',

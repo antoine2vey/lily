@@ -198,7 +198,7 @@ function CanopyDetail({ canopy }: { canopy: Canopy }) {
     >
       <CanopyNameCard key={canopy.name} name={canopy.name} />
       <CanopyMembersCard canopy={canopy} myUserId={myUserId} />
-      <CanopyInviteCard canopy={canopy} />
+      <CanopyInviteCard canopy={canopy} myUserId={myUserId} />
       <CanopyPlaceCard canopy={canopy} />
       <View className="gap-3">
         <Button

@@ -17,13 +17,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 import { FormTextArea } from '@/components/FormTextArea'
 import { GlassBackButton } from '@/components/GlassBackButton'
+import { type SelectedUser, UserPicker } from '@/components/UserPicker'
 import { useCreateDelegation } from '@/hooks/useCreateDelegation'
 import { useIconColors } from '@/hooks/useIconColors'
 import { usePlants } from '@/hooks/usePlants'
-import { CaretakerPicker } from '@/screens/delegation-create/components/CaretakerPicker'
 import { DateRangePicker } from '@/screens/delegation-create/components/DateRangePicker'
 import { PlantSelector } from '@/screens/delegation-create/components/PlantSelector'
-import type { SelectedUser } from '@/screens/delegation-create/types'
 
 type FormError = string | null
 
@@ -145,8 +144,9 @@ export function DelegationCreateScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View className="gap-6 mt-2">
-            {/* Caretaker Picker */}
-            <CaretakerPicker
+            <UserPicker
+              label={t('caretakerPicker.label')}
+              placeholder={t('caretakerPicker.placeholder')}
               selectedUser={selectedCaretaker}
               onSelect={setSelectedCaretaker}
               onClear={() => setSelectedCaretaker(null)}

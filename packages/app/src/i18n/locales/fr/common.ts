@@ -58,6 +58,9 @@ export default {
     reload: 'Mettre à jour',
   },
   unknown: 'Inconnu',
+  userPicker: {
+    suggested: 'Suggestions',
+  },
   time: {
     now: 'Maintenant',
     justNow: "À l'instant",

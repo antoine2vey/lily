@@ -1,11 +1,32 @@
 import {
   CANOPY_MAX_MEMBERS,
+  type Canopy,
+  type CanopyId,
+  type CanopyInvitationView,
   type CanopyInvitePreview,
   type CanopyResponse,
 } from '@lily/shared'
-import { Match, Option, pipe, Result } from 'effect'
+import { Match, Option, pipe, Result, Schema } from 'effect'
 import type { InviteToken } from '@/utils/canopy-invite-token'
 import type { ApiFailure, ApiResult } from '@/utils/client'
+
+export type JoinSource =
+  | { readonly _tag: 'Link'; readonly token: InviteToken }
+  | { readonly _tag: 'Invitation'; readonly id: string }
+
+const parseInvitationId = Schema.decodeUnknownOption(
+  Schema.String.check(Schema.isGUID())
+)
+
+export const invitationSource = (rawId: string | undefined) =>
+  Option.map(
+    parseInvitationId(rawId),
+    (id): JoinSource => ({ _tag: 'Invitation', id })
+  )
+
+export type JoinOffer =
+  | { readonly _tag: 'Link'; readonly preview: CanopyInvitePreview }
+  | { readonly _tag: 'Invitation'; readonly preview: CanopyInvitationView }
 
 /** What the user last asked the join screen to do, and how it ended. */
 export type JoinAttempt =
@@ -18,6 +39,7 @@ export type JoinScreen =
   | { readonly _tag: 'Loading' }
   | { readonly _tag: 'Invalid' }
   | { readonly _tag: 'Expired' }
+  | { readonly _tag: 'Closed' }
   | { readonly _tag: 'Unavailable' }
   | {
       readonly _tag: 'Ready'
@@ -44,23 +66,21 @@ export type JoinScreen =
   | { readonly _tag: 'PickPlants'; readonly canopyName: string }
 
 export interface JoinInputs {
-  readonly token: Option.Option<InviteToken>
+  readonly source: Option.Option<JoinSource>
   /** `undefined` while the preview loads. */
-  readonly preview: ApiResult<CanopyInvitePreview> | undefined
+  readonly offer: ApiResult<JoinOffer> | undefined
   /** `undefined` while the caller's own Canopy loads. */
   readonly mine: ApiResult<CanopyResponse> | undefined
   readonly attempt: JoinAttempt
 }
 
-const fromPreviewError = (error: ApiFailure): JoinScreen =>
+const notFound = (source: JoinSource): JoinScreen =>
+  source._tag === 'Invitation' ? { _tag: 'Closed' } : { _tag: 'Invalid' }
+
+const fromPreviewError = (error: ApiFailure, source: JoinSource): JoinScreen =>
   pipe(
     Match.value(error._tag),
-    Match.when(
-      'CanopyInviteNotFoundError',
-      (): JoinScreen => ({
-        _tag: 'Invalid',
-      })
-    ),
+    Match.when('CanopyInviteNotFoundError', () => notFound(source)),
     Match.when(
       'CanopyInviteExpiredError',
       (): JoinScreen => ({
@@ -85,14 +105,13 @@ const switchOrFull = (
 
 const fromAcceptError = (
   error: ApiFailure,
-  preview: CanopyInvitePreview
+  preview: CanopyInvitePreview,
+  source: JoinSource
 ): JoinScreen =>
   pipe(
     Match.value(error),
-    Match.tag(
-      'CanopyInviteNotFoundError',
-      'CanopyNotFoundError',
-      (): JoinScreen => ({ _tag: 'Invalid' })
+    Match.tag('CanopyInviteNotFoundError', 'CanopyNotFoundError', () =>
+      notFound(source)
     ),
     Match.tag(
       'CanopyInviteExpiredError',
@@ -112,29 +131,76 @@ const fromAcceptError = (
   )
 
 /**
- * The preview names the Canopy but not its id, so a member whose Canopy has
+ * A link preview names the Canopy but not its id, so a member whose Canopy has
  * the invite's name is treated as already in it. Their only action re-sends
  * the accept, which the API answers with `AlreadyInCanopyError` when the
  * Canopy is a different one, so a name clash never joins or leaves anything.
  */
+const isOffered = (offer: JoinOffer, current: Canopy): boolean =>
+  pipe(
+    Match.value(offer),
+    Match.tag('Link', ({ preview }) => current.name === preview.canopyName),
+    Match.tag('Invitation', ({ preview }) => current.id === preview.canopyId),
+    Match.exhaustive
+  )
+
+const currentCanopy = (mine: ApiResult<CanopyResponse>) =>
+  pipe(
+    Result.getSuccess(mine),
+    Option.flatMap(({ canopy }) => Option.fromNullishOr(canopy))
+  )
+
 const fromMembership = (
-  preview: CanopyInvitePreview,
+  offer: JoinOffer,
+  mine: ApiResult<CanopyResponse>,
+  busy: boolean
+): JoinScreen => {
+  const { preview } = offer
+  return Option.match(currentCanopy(mine), {
+    onNone: (): JoinScreen =>
+      preview.memberCount >= CANOPY_MAX_MEMBERS
+        ? { _tag: 'Full', preview, limit: CANOPY_MAX_MEMBERS }
+        : { _tag: 'Ready', preview, busy, failed: false },
+    onSome: (current): JoinScreen =>
+      isOffered(offer, current)
+        ? { _tag: 'AlreadyHere', preview, busy }
+        : switchOrFull(preview, current.name, busy),
+  })
+}
+
+const isMemberOf = (canopyId: CanopyId, mine: ApiResult<CanopyResponse>) =>
+  Option.exists(currentCanopy(mine), (current) => current.id === canopyId)
+
+/** An accepted invitation still opens the Canopy for someone who stayed in it. */
+const fromStatus = (
+  offer: JoinOffer,
   mine: ApiResult<CanopyResponse>,
   busy: boolean
 ): JoinScreen =>
   pipe(
-    Result.getSuccess(mine),
-    Option.flatMap(({ canopy }) => Option.fromNullishOr(canopy)),
-    Option.match({
-      onNone: (): JoinScreen =>
-        preview.memberCount >= CANOPY_MAX_MEMBERS
-          ? { _tag: 'Full', preview, limit: CANOPY_MAX_MEMBERS }
-          : { _tag: 'Ready', preview, busy, failed: false },
-      onSome: (current): JoinScreen =>
-        current.name === preview.canopyName
-          ? { _tag: 'AlreadyHere', preview, busy }
-          : switchOrFull(preview, current.name, busy),
-    })
+    Match.value(offer),
+    Match.tag('Link', () => fromMembership(offer, mine, busy)),
+    Match.tag('Invitation', ({ preview }) =>
+      pipe(
+        Match.value(preview.status),
+        Match.when('pending', () => fromMembership(offer, mine, busy)),
+        Match.when(
+          'accepted',
+          (): JoinScreen =>
+            isMemberOf(preview.canopyId, mine)
+              ? { _tag: 'AlreadyHere', preview, busy }
+              : { _tag: 'Closed' }
+        ),
+        Match.when('expired', (): JoinScreen => ({ _tag: 'Expired' })),
+        Match.whenOr(
+          'declined',
+          'withdrawn',
+          (): JoinScreen => ({ _tag: 'Closed' })
+        ),
+        Match.exhaustive
+      )
+    ),
+    Match.exhaustive
   )
 
 /**
@@ -147,22 +213,22 @@ export const mayLeaveToJoin = (inputs: Omit<JoinInputs, 'attempt'>): boolean =>
   'InAnotherCanopy'
 
 export const joinScreen = ({
-  token,
-  preview,
+  source,
+  offer,
   mine,
   attempt,
 }: JoinInputs): JoinScreen => {
-  if (Option.isNone(token)) return { _tag: 'Invalid' }
+  if (Option.isNone(source)) return { _tag: 'Invalid' }
   if (attempt._tag === 'Joined') {
     return { _tag: 'PickPlants', canopyName: attempt.canopyName }
   }
-  if (preview === undefined || mine === undefined) return { _tag: 'Loading' }
+  if (offer === undefined || mine === undefined) return { _tag: 'Loading' }
 
-  return Result.match(preview, {
-    onFailure: fromPreviewError,
+  return Result.match(offer, {
+    onFailure: (error) => fromPreviewError(error, source.value),
     onSuccess: (loaded) =>
       attempt._tag === 'Refused'
-        ? fromAcceptError(attempt.error, loaded)
-        : fromMembership(loaded, mine, attempt._tag === 'Working'),
+        ? fromAcceptError(attempt.error, loaded.preview, source.value)
+        : fromStatus(loaded, mine, attempt._tag === 'Working'),
   })
 }
