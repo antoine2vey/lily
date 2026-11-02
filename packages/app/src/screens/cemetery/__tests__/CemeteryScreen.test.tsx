@@ -8,6 +8,10 @@ import { Result } from 'effect'
 import { Alert } from 'react-native'
 import { toast } from 'sonner-native'
 import { mockPlants } from '@/__tests__/fixtures/plants'
+import {
+  type MockMutateOptions,
+  mockSettle,
+} from '@/__tests__/utils/query-helpers'
 
 jest.mock('sonner-native', () => ({
   toast: { success: jest.fn(), error: jest.fn(), dismiss: jest.fn() },
@@ -43,26 +47,25 @@ jest.mock('@/hooks/useDeadPlants', () => ({
   useDeadPlants: () => ({ plants: mockDeadPlants.current, isLoading: false }),
 }))
 
-// useEffectMutation resolves an API failure as Result.fail, so React Query
-// sees a successful mutation: onSuccess runs and onError never does. The
-// mocks reproduce that.
-const mockDeleteResult = { current: Result.succeed({}) as unknown }
+const mockDeleteResult = {
+  current: Result.succeed({}) as Result.Result<unknown, unknown>,
+}
 jest.mock('@/hooks/useDeletePlant', () => ({
   useDeletePlant: () => ({
     isPending: false,
-    mutate: (_vars: unknown, opts?: { onSuccess?: (r: unknown) => void }) =>
-      opts?.onSuccess?.(mockDeleteResult.current),
-    mutateAsync: () => Promise.resolve(mockDeleteResult.current),
+    mutate: (_vars: unknown, opts?: MockMutateOptions) =>
+      mockSettle(mockDeleteResult.current, opts),
   }),
 }))
 
-const mockReviveResult = { current: Result.succeed({}) as unknown }
+const mockReviveResult = {
+  current: Result.succeed({}) as Result.Result<unknown, unknown>,
+}
 jest.mock('@/hooks/useRevivePlant', () => ({
   useRevivePlant: () => ({
     isPending: false,
-    mutate: (_vars: unknown, opts?: { onSuccess?: (r: unknown) => void }) =>
-      opts?.onSuccess?.(mockReviveResult.current),
-    mutateAsync: () => Promise.resolve(mockReviveResult.current),
+    mutate: (_vars: unknown, opts?: MockMutateOptions) =>
+      mockSettle(mockReviveResult.current, opts),
   }),
 }))
 

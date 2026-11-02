@@ -6,9 +6,6 @@ export function useVacation() {
   return useEffectQuery('vacation', 'getVacation', {})
 }
 
-// Both mutations use apiEffectRunner (throws on API failure) so callers'
-// onError callbacks actually fire — useEffectMutation resolves with an
-// Either and would report failures through onSuccess.
 export function useSetVacation() {
   const queryClient = useQueryClient()
 

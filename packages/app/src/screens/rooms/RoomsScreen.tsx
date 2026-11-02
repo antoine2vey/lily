@@ -6,7 +6,7 @@ import {
   type Plant,
 } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import { Array, Option, pipe, Result, String } from 'effect'
+import { Array, Option, pipe, String } from 'effect'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -221,16 +221,11 @@ export function RoomsScreen() {
         },
       },
       {
-        onSuccess: (result) => {
+        onSuccess: (room) => {
           setShowCreateSheet(false)
           setForm(DEFAULT_FORM)
           toast.success(t('toast.created', { name: form.name }))
-          Result.match(result, {
-            onFailure: () => {},
-            onSuccess: (room) => {
-              updatePlantRoomAssignments(room.id, new Set())
-            },
-          })
+          updatePlantRoomAssignments(room.id, new Set())
         },
         onError: () => toast.error(t('toast.createFailed')),
       }

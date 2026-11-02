@@ -9,7 +9,11 @@ import { Result } from 'effect'
 import { toast } from 'sonner-native'
 import { mockPlants } from '@/__tests__/fixtures/plants'
 import { mockIsoStringAgo, mockIsoStringFuture } from '@/__tests__/utils/dates'
-import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
+import {
+  createQueryWrapper,
+  type MockMutateOptions,
+  mockSettle,
+} from '@/__tests__/utils/query-helpers'
 
 // Mock dependencies
 jest.mock('sonner-native', () => ({
@@ -47,15 +51,13 @@ jest.mock('@/hooks/usePlantCanopyActions', () => ({
   useSetPlantMuted: () => ({ mutate: jest.fn() }),
 }))
 
-// Set by tests that run the real useCarePlant and useEffectMutation against a
-// stubbed fetch, so the API's answer travels the whole path to the toast.
 const mockLiveMutations = { current: false }
 jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
   useEffectMutation: jest.fn((...args: unknown[]) =>
     mockLiveMutations.current
       ? jest.requireActual('@/utils/client').useEffectMutation(...args)
-      : { mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false }
+      : { mutate: jest.fn(), isPending: false }
   ),
 }))
 
@@ -73,15 +75,14 @@ jest.mock('@/hooks/useCarePlant', () => ({
       : { mutate: jest.fn(), isPending: false },
 }))
 
-// useEffectMutation resolves an API failure as Result.fail, so React Query
-// sees a successful mutation: onSuccess runs and onError never does.
-const mockDeleteResult: { current: unknown } = { current: undefined }
+const mockDeleteResult = {
+  current: Result.succeed({}) as Result.Result<unknown, unknown>,
+}
 jest.mock('@/hooks/useDeletePlant', () => ({
   useDeletePlant: () => ({
     isPending: false,
-    mutate: (_vars: unknown, opts?: { onSuccess?: (r: unknown) => void }) =>
-      opts?.onSuccess?.(mockDeleteResult.current),
-    mutateAsync: () => Promise.resolve(mockDeleteResult.current),
+    mutate: (_vars: unknown, opts?: MockMutateOptions) =>
+      mockSettle(mockDeleteResult.current, opts),
   }),
 }))
 
@@ -100,7 +101,6 @@ jest.mock('@/hooks/useCarePlanStepActions', () => ({
 jest.mock('@/hooks/useMarkPlantDead', () => ({
   useMarkPlantDead: () => ({
     mutate: jest.fn(),
-    mutateAsync: jest.fn(),
     isPending: false,
   }),
 }))
@@ -108,7 +108,6 @@ jest.mock('@/hooks/useMarkPlantDead', () => ({
 jest.mock('@/hooks/useRevivePlant', () => ({
   useRevivePlant: () => ({
     mutate: jest.fn(),
-    mutateAsync: jest.fn(),
     isPending: false,
   }),
 }))
@@ -166,6 +165,7 @@ describe('PlantDetailScreen', () => {
     jest.clearAllMocks()
     mockCanopy.current = null
     mockLiveMutations.current = false
+    mockDeleteResult.current = Result.succeed({})
   })
 
   it('shows loading skeleton when loading', () => {

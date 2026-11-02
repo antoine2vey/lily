@@ -102,30 +102,19 @@ export function DelegationCreateScreen() {
         toast.success(t('toast.created'))
         router.back()
       },
-      onError: (error: unknown) => {
-        const err = error as { _tag?: string; message?: string }
-        const errorMessage = pipe(
-          Match.value(
-            pipe(
-              Option.fromNullishOr(err._tag),
-              Option.getOrElse(() => 'Unknown')
-            )
-          ),
-          Match.when('LimitExceededError', () => t('errors.limitExceeded')),
-          Match.when('DelegationOverlapError', () => t('errors.overlap')),
-          Match.when('DelegationDateError', () =>
-            pipe(
-              Option.fromNullishOr(err.message),
-              Option.getOrElse(() => t('errors.invalidDate'))
-            )
-          ),
-          Match.when('CannotDelegateSelfError', () =>
-            t('errors.cannotDelegateSelf')
-          ),
-          Match.orElse(() => t('errors.createFailed'))
-        )
-        setFormError(errorMessage)
-      },
+      onError: (error) =>
+        setFormError(
+          pipe(
+            Match.value(error),
+            Match.tag('LimitExceededError', () => t('errors.limitExceeded')),
+            Match.tag('DelegationOverlapError', () => t('errors.overlap')),
+            Match.tag('DelegationDateError', (e) => e.message),
+            Match.tag('CannotDelegateSelfError', () =>
+              t('errors.cannotDelegateSelf')
+            ),
+            Match.orElse(() => t('errors.createFailed'))
+          )
+        ),
     })
   }
 

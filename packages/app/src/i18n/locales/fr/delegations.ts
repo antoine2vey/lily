@@ -101,7 +101,6 @@ export default {
       'Vous avez atteint la limite de délégations pour votre forfait. Passez à un forfait supérieur.',
     overlap:
       'Certaines plantes ont déjà une délégation active pour cette période.',
-    invalidDate: 'Plage de dates invalide.',
     cannotDelegateSelf: 'Vous ne pouvez pas déléguer vos plantes à vous-même.',
     createFailed: 'Échec de la création de la délégation. Veuillez réessayer.',
   },

@@ -199,74 +199,78 @@ export function ManualAddScheduleScreen() {
   )
 
   const queryClient = useQueryClient()
-  const { mutateAsync: createPlantAsync, isPending } = useCreatePlant()
+  const { mutate: createPlant, isPending } = useCreatePlant()
   const { mutate: updatePlant } = useUpdatePlant()
 
-  const handleFinish = async () => {
-    const apiResult = await createPlantAsync({
-      payload: {
-        name: basicInfo.name,
-        category: basicInfo.category || undefined,
-        description: notes || undefined,
-        wateringFrequencyDays: wateringDays,
-        fertilizationFrequencyDays: fertilizingEnabled
-          ? fertilizingDays
-          : undefined,
-        mistingFrequencyDays: mistingEnabled ? mistingDays : undefined,
-        repottingFrequencyDays: repottingEnabled ? repottingDays : undefined,
-        luxNeeded: careNeeds.luxNeeded,
-        lightingRating: careNeeds.light,
-        humidityRating: careNeeds.humidity,
-        petToxicityRating: careNeeds.petSafe ? 0 : 100,
-        wateringRating: careNeeds.watering,
-        remindersEnabled: careReminders,
-        roomId: roomId || undefined,
-        ...(Option.isSome(canopy) ? { owner } : {}),
-      },
-    })
-
-    if (Result.isFailure(apiResult)) {
-      pipe(
-        Match.value(apiResult.failure),
-        Match.when({ _tag: 'LimitExceededError' }, (e) =>
-          showPlantLimitAlert(e, t('addPlant:scanner.plantLimitReached'), t)
-        ),
-        Match.orElse(() =>
-          Alert.alert(
-            t('common:errors.generic'),
-            t('addPlant:errors.createFailed')
-          )
-        )
-      )
-      return
-    }
-
-    const plant = apiResult.success
-
-    if (isLocalFileUri(basicInfo.photo)) {
-      // Seed the detail cache so the local file:// photo renders instantly on
-      // the next screen; the background upload's onSettled will refetch and
-      // swap in the GCS URL without the user noticing.
-      queryClient.setQueryData(
-        plantDetailKey(plant.id),
-        Result.succeed({ ...plant, imageUrl: basicInfo.photo, photos: [] })
-      )
-      updatePlant(
-        {
-          path: { id: plant.id },
-          payload: { imageUrl: basicInfo.photo },
+  const handleFinish = () => {
+    createPlant(
+      {
+        payload: {
+          name: basicInfo.name,
+          category: basicInfo.category || undefined,
+          description: notes || undefined,
+          wateringFrequencyDays: wateringDays,
+          fertilizationFrequencyDays: fertilizingEnabled
+            ? fertilizingDays
+            : undefined,
+          mistingFrequencyDays: mistingEnabled ? mistingDays : undefined,
+          repottingFrequencyDays: repottingEnabled ? repottingDays : undefined,
+          luxNeeded: careNeeds.luxNeeded,
+          lightingRating: careNeeds.light,
+          humidityRating: careNeeds.humidity,
+          petToxicityRating: careNeeds.petSafe ? 0 : 100,
+          wateringRating: careNeeds.watering,
+          remindersEnabled: careReminders,
+          roomId: roomId || undefined,
+          ...(Option.isSome(canopy) ? { owner } : {}),
         },
-        {
-          onError: (err) => {
-            console.error('[ManualAddSchedule] photo upload failed', err)
-            toast.error(t('addPlant:errors.photoUploadFailed'))
-          },
-        }
-      )
-    }
+      },
+      {
+        onSuccess: (plant) => {
+          if (isLocalFileUri(basicInfo.photo)) {
+            // Seed the detail cache so the local file:// photo renders
+            // instantly on the next screen; the background upload's onSettled
+            // will refetch and swap in the GCS URL without the user noticing.
+            queryClient.setQueryData(
+              plantDetailKey(plant.id),
+              Result.succeed({
+                ...plant,
+                imageUrl: basicInfo.photo,
+                photos: [],
+              })
+            )
+            updatePlant(
+              {
+                path: { id: plant.id },
+                payload: { imageUrl: basicInfo.photo },
+              },
+              {
+                onError: (err) => {
+                  console.error('[ManualAddSchedule] photo upload failed', err)
+                  toast.error(t('addPlant:errors.photoUploadFailed'))
+                },
+              }
+            )
+          }
 
-    router.dismissAll()
-    router.push(`/plant/${plant.id}`)
+          router.dismissAll()
+          router.push(`/plant/${plant.id}`)
+        },
+        onError: (error) =>
+          pipe(
+            Match.value(error),
+            Match.tag('LimitExceededError', (e) =>
+              showPlantLimitAlert(e, t('addPlant:scanner.plantLimitReached'), t)
+            ),
+            Match.orElse(() =>
+              Alert.alert(
+                t('common:errors.generic'),
+                t('addPlant:errors.createFailed')
+              )
+            )
+          ),
+      }
+    )
   }
 
   return (

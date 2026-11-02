@@ -4,22 +4,19 @@ import { Result } from 'effect'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 import { plantDetailKey, plantPhotosKey } from '@/utils/plant-cache'
 
-// Controls the Either the (mocked) delete mutation resolves with. Must be
-// `mock`-prefixed to be referenceable inside the hoisted jest.mock factory.
-let mockResult: unknown = Result.succeed(undefined)
+// `mock`-prefixed so the hoisted jest.mock factory may reference it.
+let mockResult: Result.Result<unknown, unknown> = Result.succeed(undefined)
 
-// Delegate useEffectMutation to a REAL useMutation whose mutationFn resolves
-// our controllable Either — so the hook's onMutate/onSuccess/onError/onSettled
-// run for real. This mirrors the production client, whose mutationFn resolves
-// (never rejects) with an Either.
 jest.mock('@/utils/client', () => {
   const actual = jest.requireActual('@/utils/client')
   const rq = jest.requireActual('@tanstack/react-query')
+  const { Result } = jest.requireActual('effect')
   return {
     ...actual,
     useEffectMutation: (_section: string, _method: string, options: object) =>
       rq.useMutation({
-        mutationFn: async () => mockResult,
+        mutationFn: async () =>
+          Result.getOrThrowWith(mockResult, (failure: unknown) => failure),
         ...options,
       }),
   }
@@ -102,9 +99,7 @@ describe('useDeletePhoto optimistic lifecycle', () => {
     expect(listIds(client)).toEqual(['b'])
   })
 
-  it('rolls back both caches when the API resolves a typed Left failure', async () => {
-    // A typed failure resolves as Either.left — it does NOT throw, so the fix
-    // must roll back from onSuccess (not onError).
+  it('rolls back both caches when the API refuses the delete', async () => {
     mockResult = Result.fail({ _tag: 'PlantNotFoundError' })
     const client = makeClient()
     seed(client)
@@ -114,12 +109,11 @@ describe('useDeletePhoto optimistic lifecycle', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({
-        params: { id: PLANT_ID, photoId: 'a' },
-      })
+      await expect(
+        result.current.mutateAsync({ params: { id: PLANT_ID, photoId: 'a' } })
+      ).rejects.toMatchObject({ _tag: 'PlantNotFoundError' })
     })
 
-    // Optimistically removed in onMutate, then restored once the Left resolves.
     expect(detailIds(client)).toEqual(['a', 'b'])
     expect(listIds(client)).toEqual(['a', 'b'])
   })

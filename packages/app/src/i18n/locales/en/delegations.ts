@@ -100,7 +100,6 @@ export default {
     limitExceeded:
       'You have reached the delegation limit for your plan. Upgrade to create more.',
     overlap: 'Some plants already have an active delegation for this period.',
-    invalidDate: 'Invalid date range.',
     cannotDelegateSelf: 'You cannot delegate plants to yourself.',
     createFailed: 'Failed to create delegation. Please try again.',
   },
