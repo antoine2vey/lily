@@ -19,7 +19,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/space-grotesk'
 import * as Sentry from '@sentry/react-native'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
 import {
   DarkTheme,
@@ -49,6 +49,7 @@ import { useOTAUpdates } from '@/hooks/useOTAUpdates'
 import '@/i18n'
 import * as RevenueCatService from '@/services/revenuecat'
 import { setupNotificationListeners } from '@/utils/notifications'
+import { createQueryClient } from '@/utils/query-client'
 import { TodayWidgetSync } from '@/widgets/today/TodayWidgetSync'
 
 // RevenueCat service is now initialized lazily in RevenueCatProvider
@@ -58,30 +59,7 @@ SplashScreen.preventAutoHideAsync()
 
 // Note: RevenueCat SDK initialization moved to RevenueCatProvider to avoid double initialization
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: (failureCount, error) => {
-        // Don't retry on 401 errors - let apiEffectRunner handle token refresh
-        const msg = error instanceof Error ? error.message : String(error)
-        if (msg.includes('401') || msg.includes('Unauthorized')) {
-          return false
-        }
-        return failureCount < 3
-      },
-    },
-    mutations: {
-      retry: (failureCount, error) => {
-        // Don't retry on 401 errors for mutations either
-        const msg = error instanceof Error ? error.message : String(error)
-        if (msg.includes('401') || msg.includes('Unauthorized')) {
-          return false
-        }
-        return failureCount < 3
-      },
-    },
-  },
-})
+const queryClient = createQueryClient()
 
 interface RootLayoutNavProps {
   fontsLoaded: boolean
