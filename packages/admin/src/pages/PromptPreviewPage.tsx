@@ -269,22 +269,7 @@ const PlantSection = ({ data }: { readonly data: PromptPreviewResponse }) => (
         <RatingBar label="Pet toxicity" value={data.plant.petToxicityRating} />
       </div>
       <div className="space-y-2 text-xs text-gray-600">
-        <p className="font-medium text-gray-700">Schedule</p>
-        <p>Watering: Every {data.plant.wateringFrequencyDays} days</p>
-        {pipe(
-          Option.fromNullishOr(data.plant.lastWateredAt),
-          Option.match({
-            onNone: () => <p>Last watered: Not recorded</p>,
-            onSome: (d) => <p>Last watered: {d}</p>,
-          })
-        )}
-        {pipe(
-          Option.fromNullishOr(data.plant.fertilizationFrequencyDays),
-          Option.match({
-            onNone: () => <p>Fertilization: Not set</p>,
-            onSome: (days) => <p>Fertilization: Every {days} days</p>,
-          })
-        )}
+        <p className="font-medium text-gray-700">Collection</p>
         <p>In collection: {data.plant.daysSinceAdded} days</p>
       </div>
     </div>
