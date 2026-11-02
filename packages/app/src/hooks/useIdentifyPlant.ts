@@ -48,7 +48,6 @@ export function useIdentifyPlant() {
         { locale: i18n.language }
       )
     },
-    retry: 1,
   })
 }
 

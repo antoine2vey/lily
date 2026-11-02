@@ -29,7 +29,6 @@ export function useScanCard() {
         { locale: i18n.language }
       )
     },
-    retry: 1,
   })
 }
 
@@ -58,6 +57,5 @@ export function useScanCardMultiple() {
         { locale: i18n.language }
       )
     },
-    retry: 1,
   })
 }
