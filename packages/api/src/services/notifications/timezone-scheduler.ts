@@ -3,6 +3,7 @@ import {
   DEFAULT_TIMEZONE,
   isInDndWindow,
   parseTime,
+  TimeString,
   timeToMinutes,
   validateTimezone,
 } from '@lily/shared'
@@ -13,6 +14,7 @@ import {
   String as EffectString,
   Option,
   pipe,
+  Schema,
 } from 'effect'
 
 /**
@@ -138,6 +140,13 @@ export interface NotificationScheduleUpdate {
 const DEFAULT_DND_START = '22:00'
 const DEFAULT_DND_END = '07:00'
 
+const dndBound = (time: string | null, fallback: string): string =>
+  pipe(
+    Option.fromNullishOr(time),
+    Option.filter(Schema.is(TimeString)),
+    Option.getOrElse(() => fallback)
+  )
+
 /**
  * Adjusts a scheduled notification time if it falls within the user's
  * Do Not Disturb window. Delays the notification to the DND end time.
@@ -159,14 +168,8 @@ export const adjustForDoNotDisturb = (
       Option.fromNullishOr(timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
-    const start = pipe(
-      Option.fromNullishOr(dndStart),
-      Option.getOrElse(() => DEFAULT_DND_START)
-    )
-    const end = pipe(
-      Option.fromNullishOr(dndEnd),
-      Option.getOrElse(() => DEFAULT_DND_END)
-    )
+    const start = dndBound(dndStart, DEFAULT_DND_START)
+    const end = dndBound(dndEnd, DEFAULT_DND_END)
 
     // Validate timezone, fallback to UTC
     const validTimezone = yield* pipe(
@@ -218,7 +221,7 @@ export const adjustForDoNotDisturb = (
       startMinutes > endMinutes && scheduledMinutes >= startMinutes
 
     const finalDateTime = needsNextDay
-      ? DateTime.addDuration(adjusted, '1 day')
+      ? DateTime.add(adjusted, { days: 1 })
       : adjusted
 
     return DateTime.toDateUtc(finalDateTime)
@@ -239,14 +242,8 @@ export const isInDoNotDisturbWindow = (
       Option.fromNullishOr(timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
-    const start = pipe(
-      Option.fromNullishOr(dndStart),
-      Option.getOrElse(() => DEFAULT_DND_START)
-    )
-    const end = pipe(
-      Option.fromNullishOr(dndEnd),
-      Option.getOrElse(() => DEFAULT_DND_END)
-    )
+    const start = dndBound(dndStart, DEFAULT_DND_START)
+    const end = dndBound(dndEnd, DEFAULT_DND_END)
 
     const validTimezone = yield* pipe(
       validateTimezone(tz),

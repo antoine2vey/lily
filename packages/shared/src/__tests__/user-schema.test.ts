@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Exit, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import {
   User,
@@ -399,6 +399,19 @@ describe('User Schemas', () => {
 
       expect(result.timezone).toBe('Europe/London')
       expect(result.preferredNotificationTime).toBe('10:00')
+    })
+
+    it('should reject a DND time outside HH:mm', () => {
+      const decode = Schema.decodeUnknownExit(UserSettingsUpdateRequest)
+
+      expect(
+        Exit.isFailure(
+          decode({ notifications: { doNotDisturbEnd: '9999999999:00' } })
+        )
+      ).toBe(true)
+      expect(
+        Exit.isFailure(decode({ notifications: { doNotDisturbStart: '7:00' } }))
+      ).toBe(true)
     })
 
     it('should decode full update', () => {

@@ -1,5 +1,6 @@
 import { Schema } from 'effect'
 
+import { TimeString } from '../notification/timezone'
 import { VacationStatus } from '../vacation/schema'
 
 // Role, status, and language literals
@@ -121,8 +122,8 @@ export const UserSettingsUpdateRequest = Schema.Struct({
       productUpdates: Schema.optional(Schema.Boolean),
       ads: Schema.optional(Schema.Boolean),
       doNotDisturb: Schema.optional(Schema.Boolean),
-      doNotDisturbStart: Schema.optional(Schema.String),
-      doNotDisturbEnd: Schema.optional(Schema.String),
+      doNotDisturbStart: Schema.optional(TimeString),
+      doNotDisturbEnd: Schema.optional(TimeString),
     })
   ),
   privacy: Schema.optional(

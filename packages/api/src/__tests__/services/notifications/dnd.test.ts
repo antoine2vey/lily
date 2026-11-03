@@ -215,6 +215,32 @@ describe('adjustForDoNotDisturb', () => {
     })
   })
 
+  describe('daylight saving nights', () => {
+    it('should land on 07:00 local when the clocks go forward overnight', async () => {
+      // Pacific/Auckland moves from NZST (UTC+12) to NZDT (UTC+13) at
+      // 02:00 on 2026-09-27, so the night is 23 hours long
+      const scheduledAt = new Date('2026-09-26T11:30:00Z')
+
+      const result = await Effect.runPromise(
+        adjustForDoNotDisturb(scheduledAt, 'Pacific/Auckland', '22:00', '07:00')
+      )
+
+      expect(result.toISOString()).toBe('2026-09-26T18:00:00.000Z')
+    })
+
+    it('should land on 07:00 local when the clocks go back overnight', async () => {
+      // Pacific/Auckland moves from NZDT (UTC+13) to NZST (UTC+12) at
+      // 03:00 on 2027-04-04, so the night is 25 hours long
+      const scheduledAt = new Date('2027-04-03T10:30:00Z')
+
+      const result = await Effect.runPromise(
+        adjustForDoNotDisturb(scheduledAt, 'Pacific/Auckland', '22:00', '07:00')
+      )
+
+      expect(result.toISOString()).toBe('2027-04-03T19:00:00.000Z')
+    })
+  })
+
   describe('edge cases', () => {
     it('should not adjust when DND start equals end (no window)', async () => {
       const scheduledAt = new Date('2025-06-15T12:00:00Z')
@@ -248,6 +274,26 @@ describe('adjustForDoNotDisturb', () => {
 
       expect(result.getUTCHours()).toBe(7)
       expect(result.getUTCDate()).toBe(16)
+    })
+
+    it('should fall back to the default end for an unparseable stored end', async () => {
+      const scheduledAt = new Date('2025-06-15T23:00:00Z')
+
+      const result = await Effect.runPromise(
+        adjustForDoNotDisturb(scheduledAt, 'UTC', '22:00', '9999999999:00')
+      )
+
+      expect(result.toISOString()).toBe('2025-06-16T07:00:00.000Z')
+    })
+
+    it('should fall back to the default start for an unparseable stored start', async () => {
+      const scheduledAt = new Date('2025-06-15T23:00:00Z')
+
+      const result = await Effect.runPromise(
+        adjustForDoNotDisturb(scheduledAt, 'UTC', 'abc', '07:00')
+      )
+
+      expect(result.toISOString()).toBe('2025-06-16T07:00:00.000Z')
     })
 
     it('should handle null timezone by falling back to UTC', async () => {
@@ -300,6 +346,16 @@ describe('isInDoNotDisturbWindow', () => {
 
     const result = await Effect.runPromise(
       isInDoNotDisturbWindow(currentTime, 'America/New_York', '22:00', '07:00')
+    )
+
+    expect(result).toBe(true)
+  })
+
+  it('should read an unparseable stored end as the default end', async () => {
+    const currentTime = new Date('2025-06-15T03:00:00Z')
+
+    const result = await Effect.runPromise(
+      isInDoNotDisturbWindow(currentTime, 'UTC', '22:00', '9999999999:00')
     )
 
     expect(result).toBe(true)
