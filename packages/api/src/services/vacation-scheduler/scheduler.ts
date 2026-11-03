@@ -3,9 +3,7 @@ import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { nowAsDate } from '@lily/shared'
-import { type Duration, Effect, Number, Option, pipe } from 'effect'
-
-export const VACATION_SCHEDULER_INTERVAL: Duration.Input = '5 minutes'
+import { Effect, Number, Option, pipe } from 'effect'
 
 const transitionUser = <R>(
   transition: Effect.Effect<unknown, unknown, R>,
@@ -76,7 +74,7 @@ export const pollAndTransitionVacations = Effect.gen(function* () {
 
 export const startVacationScheduler = createScheduler({
   name: 'vacation-scheduler',
-  interval: VACATION_SCHEDULER_INTERVAL,
+  interval: '5 minutes',
   runOnStartup: true,
   task: pollAndTransitionVacations,
 })

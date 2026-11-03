@@ -15,7 +15,6 @@ import {
   adjustForDoNotDisturb,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
-import { VACATION_SCHEDULER_INTERVAL } from '@lily/api/services/vacation-scheduler/scheduler'
 import { isOnVacation, type VacationFields } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
@@ -27,7 +26,9 @@ import {
 import { Array, DateTime, Effect, Filter, Option, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-const BATCH_SIZE = 100
+export const BATCH_SIZE = 100
+
+const OVERDUE_VACATION_RETRY = '5 minutes'
 
 const isCareReminderType = (
   type: NotificationTopic
@@ -44,9 +45,7 @@ const vacationResumeAt = (user: VacationFields, now: Date): Date => {
       DateTime.isGreaterThan(DateTime.makeUnsafe(end), nowDt)
     ),
     Option.getOrElse(() =>
-      DateTime.toDateUtc(
-        DateTime.addDuration(nowDt, VACATION_SCHEDULER_INTERVAL)
-      )
+      DateTime.toDateUtc(DateTime.addDuration(nowDt, OVERDUE_VACATION_RETRY))
     )
   )
 }

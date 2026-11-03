@@ -16,7 +16,10 @@ import {
   type UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
-import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
+import {
+  BATCH_SIZE,
+  pollAndEnqueue,
+} from '@lily/api/services/notification-scheduler/scheduler'
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { NotificationTopic, QueueMessage } from '@lily/shared/server'
@@ -39,7 +42,21 @@ const { Pool } = pg
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000)
 
-const utcClock = (date: Date) => date.toISOString().slice(11, 16)
+const KOLKATA_OFFSET_MINUTES = 330
+
+const kolkataClock = (date: Date) =>
+  new Date(date.getTime() + KOLKATA_OFFSET_MINUTES * 60_000)
+    .toISOString()
+    .slice(11, 16)
+
+const etcZoneWithLocalHour = (localHour: number, now: Date) => {
+  const offset = ((localHour - now.getUTCHours() + 36) % 24) - 12
+  if (offset === 0) return 'UTC'
+  return offset > 0 ? `Etc/GMT-${offset}` : `Etc/GMT+${-offset}`
+}
+
+const floorToHour = (date: Date) =>
+  new Date(Math.floor(date.getTime() / 3_600_000) * 3_600_000)
 
 const floorToMinute = (date: Date) =>
   new Date(Math.floor(date.getTime() / 60_000) * 60_000)
@@ -394,16 +411,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const now = new Date()
         const dndUserId = await insertUser('dnd_user', {
           doNotDisturb: true,
-          timezone: 'UTC',
-          doNotDisturbStart: utcClock(new Date(now.getTime() - 60 * 60_000)),
-          doNotDisturbEnd: utcClock(new Date(now.getTime() + 60 * 60_000)),
+          timezone: 'Asia/Kolkata',
+          doNotDisturbStart: kolkataClock(
+            new Date(now.getTime() - 60 * 60_000)
+          ),
+          doNotDisturbEnd: kolkataClock(new Date(now.getTime() + 60 * 60_000)),
         })
         const dndEnd = floorToMinute(new Date(now.getTime() + 60 * 60_000))
         const deferredIds = await insertDue(
           dndUserId,
           'watering_reminder',
           minutesAgo(10),
-          150
+          BATCH_SIZE + 50
         )
         const [dueId] = await insertDue(
           userId,
@@ -420,7 +439,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           [dueId]
         )
         const deferred = await rowsOf(deferredIds)
-        expect(deferred).toHaveLength(150)
+        expect(deferred).toHaveLength(BATCH_SIZE + 50)
         expect(
           new Set(
             Arr.map(
@@ -459,6 +478,80 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         expect(await rowsOf([careId])).toEqual([
           { status: 'pending', scheduledAt: vacationEnd },
+        ])
+      })
+
+      it('retries a care row on the vacation interval when the active vacation has no future end', async () => {
+        const vacationRow = async (name: string, vacationEnd: Date | null) => {
+          const owner = await insertUser(name, {
+            vacationStatus: 'active',
+            vacationStart: minutesAgo(24 * 60),
+            vacationEnd,
+          })
+          const [id = ''] = await insertDue(
+            owner,
+            'watering_reminder',
+            minutesAgo(5),
+            1
+          )
+          return id
+        }
+        const ids = [
+          await vacationRow('open_vacation_user', null),
+          await vacationRow('overdue_vacation_user', minutesAgo(1)),
+        ]
+
+        const before = Date.now()
+        const enqueued: QueueMessage[] = []
+        await poll(enqueued)
+        const after = Date.now()
+
+        expect(enqueued).toEqual([])
+        const rows = await rowsOf(ids)
+        expect(rows).toHaveLength(2)
+        for (const row of rows) {
+          expect(row.status).toBe('pending')
+          expect(row.scheduledAt.getTime()).toBeGreaterThanOrEqual(
+            before + 5 * 60_000
+          )
+          expect(row.scheduledAt.getTime()).toBeLessThanOrEqual(
+            after + 5 * 60_000
+          )
+        }
+      })
+
+      it('reads an unparseable stored DND end as the default end and still sends the rest of the batch', async () => {
+        const now = new Date()
+        const garbageUserId = await insertUser('garbage_dnd_user', {
+          doNotDisturb: true,
+          timezone: etcZoneWithLocalHour(23, now),
+          doNotDisturbStart: '22:00',
+          doNotDisturbEnd: '9999999999:00',
+        })
+        const [garbageId = ''] = await insertDue(
+          garbageUserId,
+          'watering_reminder',
+          minutesAgo(10),
+          1
+        )
+        const dueIds = await insertDue(
+          userId,
+          'watering_reminder',
+          minutesAgo(1),
+          3
+        )
+
+        const enqueued: QueueMessage[] = []
+        await poll(enqueued)
+
+        const sent = Arr.flatMap(enqueued, (m) => m.payload.notificationIds)
+        expect(sent).toHaveLength(dueIds.length)
+        expect(new Set(sent)).toEqual(new Set(dueIds))
+        expect(await rowsOf([garbageId])).toEqual([
+          {
+            status: 'pending',
+            scheduledAt: new Date(floorToHour(now).getTime() + 8 * 3_600_000),
+          },
         ])
       })
     })
