@@ -124,6 +124,27 @@ const applyWeatherAdjustment = (
   )
 }
 
+const publishEventsAfterCommit = <A, E, R>(
+  transaction: Effect.Effect<A, E, R>
+) =>
+  Effect.gen(function* () {
+    const eventBus = yield* EventBus
+    const events = yield* Ref.make<ReadonlyArray<AppEvent>>([])
+    const buffered: IEventBus = {
+      publish: (event) => Ref.update(events, Array.append(event)),
+      subscribe: eventBus.subscribe,
+    }
+    const result = yield* transaction.pipe(
+      Effect.provideService(EventBus, buffered)
+    )
+    yield* Effect.forEach(
+      yield* Ref.get(events),
+      (event) => publishWithRetry(eventBus.publish(event)),
+      { discard: true }
+    )
+    return result
+  })
+
 export const executePlantCare = (
   plant: PlantWithRoom,
   params: ExecutePlantCareParams
@@ -147,7 +168,6 @@ export const executePlantCare = (
 > =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
-    const eventBus = yield* EventBus
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
     const notificationRepo = yield* NotificationRepository
@@ -179,8 +199,6 @@ export const executePlantCare = (
     const careDate = DateTime.toDateUtc(careDt)
     const isPastCare = Option.isSome(Option.fromNullishOr(params.date))
 
-    // Skip weather adjustment for past dates (no historical weather data available).
-    // Fetched before the transaction so no lock waits on the weather provider.
     const weatherContext = isPastCare
       ? Option.none<WeatherContext>()
       : yield* weatherAt(context)
@@ -189,8 +207,6 @@ export const executePlantCare = (
     const dayEnd = DateTime.addDuration(dayStart, Duration.days(1))
     const reminderType = `${params.careType}_reminder` as const
     const writeCare = Effect.gen(function* () {
-      // Create care log + queue events (CareLogCreated, AttentionResponded, ReminderResponded)
-      // Called before plant update so createCareLog sees the original health state
       const careLog = yield* createCareLog(plant, {
         type: params.careType,
         notes: params.notes,
@@ -296,24 +312,7 @@ export const executePlantCare = (
       )
     })
 
-    // The care log, plan step, schedule, reminders and overdue cleanup commit
-    // together, so a failure leaves nothing behind and the client retry is not
-    // turned away by AlreadyCaredTodayError. Events wait for the commit.
-    const events = yield* Ref.make<ReadonlyArray<AppEvent>>([])
-    const afterCommit: IEventBus = {
-      publish: (event) => Ref.update(events, Array.append(event)),
-      subscribe: eventBus.subscribe,
-    }
-
-    // Idempotency: at most one care log per plant + careType per user-local day.
-    // Compare against the day containing careDt (so backdating to a day that
-    // already has a log is also blocked), in the user's timezone.
-    // The check and the insert run under a per-(plant, type) advisory lock so
-    // that two concurrent requests (double tap, client retry) cannot both pass
-    // the check. The second one waits for the first to commit, then sees its
-    // row and fails with AlreadyCaredTodayError, so only one CareLogCreated
-    // event is ever published for the pair.
-    const updatedPlant = yield* sql
+    return yield* sql
       .withTransaction(
         Effect.gen(function* () {
           yield* careLogRepo.lockPlantCareType(params.plantId, params.careType)
@@ -333,13 +332,5 @@ export const executePlantCare = (
           )(writeCare)
         })
       )
-      .pipe(Effect.provideService(EventBus, afterCommit))
-
-    yield* Effect.forEach(
-      yield* Ref.get(events),
-      (event) => publishWithRetry(eventBus.publish(event)),
-      { discard: true }
-    )
-
-    return updatedPlant
+      .pipe(publishEventsAfterCommit)
   })
