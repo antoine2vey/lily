@@ -12,6 +12,7 @@ import {
   users,
 } from '@lily/db/schema'
 import type { LanguageCode, VacationStatus } from '@lily/shared'
+import type { NotificationTopic } from '@lily/shared/server'
 import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -76,12 +77,12 @@ export interface IEngagementRepository {
   ) => Effect.Effect<ReadonlyArray<PlantWithoutRecentPhoto>, SqlError>
   readonly hasNotificationInPeriod: (
     userId: string,
-    type: string,
+    type: NotificationTopic,
     sinceDate: Date
   ) => Effect.Effect<boolean, SqlError>
   readonly hasNotificationForPlantInPeriod: (
     userId: string,
-    type: string,
+    type: NotificationTopic,
     plantId: string,
     sinceDate: Date
   ) => Effect.Effect<boolean, SqlError>
@@ -215,7 +216,7 @@ export const EngagementRepositoryLive = Layer.effect(
 
       hasNotificationInPeriod: Effect.fn(
         'EngagementRepository.hasNotificationInPeriod'
-      )(function* (userId: string, type: string, sinceDate: Date) {
+      )(function* (userId: string, type: NotificationTopic, sinceDate: Date) {
         const [result] = yield* db
           .select({
             value: sql<boolean>`EXISTS (
@@ -239,7 +240,7 @@ export const EngagementRepositoryLive = Layer.effect(
         'EngagementRepository.hasNotificationForPlantInPeriod'
       )(function* (
         userId: string,
-        type: string,
+        type: NotificationTopic,
         plantId: string,
         sinceDate: Date
       ) {

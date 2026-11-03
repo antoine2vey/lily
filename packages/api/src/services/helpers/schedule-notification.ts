@@ -1,5 +1,4 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { mapNotificationTypeToTopic } from '@lily/api/services/notification-scheduler/scheduler'
 import type {
   NotificationParamsMap,
   SimpleNotificationType,
@@ -76,7 +75,6 @@ export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
             { type, userId }
           ),
         onSome: (notification) => {
-          const topic = Option.getOrThrow(mapNotificationTypeToTopic(type))
           const release = (error: unknown) =>
             Effect.logWarning(
               'Failed to enqueue notification, left for the scheduler',
@@ -87,9 +85,9 @@ export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
               )
             )
           return queue
-            .enqueue(topic, {
+            .enqueue(type, {
               id: crypto.randomUUID(),
-              topic,
+              topic: type,
               payload: {
                 userId,
                 title,

@@ -17,9 +17,9 @@ export const mockNotifications: Notification[] = [
   },
   {
     id: 'notification-2',
-    type: 'soil_alert',
-    title: 'Low soil moisture detected',
-    body: 'Your Pothos has low soil moisture levels.',
+    type: 'fertilization_reminder',
+    title: 'Fertilize your Pothos',
+    body: 'Your Pothos is due for fertilization.',
     scheduledAt: new Date('2024-01-16T09:00:00Z'),
     sentAt: new Date('2024-01-16T09:00:00Z'),
     isRead: true,

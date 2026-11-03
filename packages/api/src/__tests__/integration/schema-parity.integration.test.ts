@@ -1,5 +1,6 @@
 import { readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { NOTIFICATION_TOPICS } from '@lily/shared/server'
 import { Array, Order, pipe, String } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -45,6 +46,24 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         { tgname: 'care_logs_actor_fallback', table: 'care_logs' },
         { tgname: 'plants_creator_fallback', table: 'plants' },
       ])
+    })
+
+    it('builds notification_type from NOTIFICATION_TOPICS, in order', async () => {
+      const result = await pool.query<{ label: string }>(
+        'SELECT unnest(enum_range(NULL::notification_type))::text AS label'
+      )
+      expect(Array.map(result.rows, (r) => r.label)).toEqual([
+        ...NOTIFICATION_TOPICS,
+      ])
+    })
+
+    it('rejects a notification whose type is not a topic', async () => {
+      await expect(
+        pool.query(
+          `INSERT INTO notifications (type, scheduled_at, user_id)
+           VALUES ('bogus', now(), gen_random_uuid())`
+        )
+      ).rejects.toThrow('invalid input value for enum notification_type')
     })
   }
 )

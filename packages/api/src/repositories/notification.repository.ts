@@ -203,19 +203,19 @@ export class NotificationRepository extends Context.Service<
 // Live implementation using PgDrizzle
 export interface ReminderKey {
   readonly plantId: string
-  readonly type: string
+  readonly type: NotificationTopic
 }
 
 export interface ReminderReplacement {
   readonly onlyUserId: string | null
   readonly plants: ReadonlyArray<{
     readonly plantId: string
-    readonly types: ReadonlyArray<string>
+    readonly types: ReadonlyArray<NotificationTopic>
     readonly recipientIds: ReadonlyArray<string>
     readonly plantWide: boolean
   }>
   readonly rows: ReadonlyArray<{
-    readonly type: string
+    readonly type: NotificationTopic
     readonly scheduledAt: Date
     readonly userId: string
     readonly plantId: string
@@ -617,7 +617,7 @@ export const NotificationRepositoryLive = Layer.effect(
             Array.map(
               replacement.rows,
               (row) =>
-                sql`(${row.type}::text, ${row.scheduledAt.toISOString()}::timestamptz, ${row.userId}::uuid, ${row.plantId}::uuid, ${pipe(
+                sql`(${row.type}::notification_type, ${row.scheduledAt.toISOString()}::timestamptz, ${row.userId}::uuid, ${row.plantId}::uuid, ${pipe(
                   Option.fromNullishOr(row.remindedSince),
                   Option.map((since) => since.toISOString()),
                   Option.getOrNull

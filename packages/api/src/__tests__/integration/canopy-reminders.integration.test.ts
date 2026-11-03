@@ -269,7 +269,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         plantId: string,
         status: 'pending' | 'queued' | 'sent'
       ) => ({
-        type: 'watering_reminder',
+        type: 'watering_reminder' as const,
         scheduledAt: new Date(),
         userId,
         plantId,
@@ -510,7 +510,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             [lily, 'queued'],
           ] as const,
           ([userId, status]) => ({
-            type: 'watering_reminder',
+            type: 'watering_reminder' as const,
             scheduledAt: new Date(),
             userId,
             plantId: shared,

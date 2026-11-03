@@ -169,7 +169,7 @@ describe('processStreakAtRisk', () => {
     const user = makeUserWithSettings({ id: 'user-1' })
     const existingNotification = {
       id: 'existing-1',
-      type: 'streak_at_risk',
+      type: 'streak_at_risk' as const,
       userId: 'user-1',
       status: 'sent' as const,
       isRead: false,

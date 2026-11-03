@@ -1,3 +1,4 @@
+import { NOTIFICATION_TOPICS } from '@lily/shared/services/message-queue/types'
 import { pgEnum } from 'drizzle-orm/pg-core'
 
 export const careLogTypeEnum = pgEnum('care_log_type', [
@@ -13,6 +14,11 @@ export const notificationStatusEnum = pgEnum('notification_status', [
   'sent',
   'failed',
 ])
+
+export const notificationTypeEnum = pgEnum(
+  'notification_type',
+  NOTIFICATION_TOPICS
+)
 
 export const plantHealthEnum = pgEnum('plant_health', [
   'THRIVING',

@@ -102,7 +102,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .insert(schema.notifications)
         .values(
           Arr.map(rows, (row) => ({
-            type: 'watering_reminder',
+            type: 'watering_reminder' as const,
             title: 'Water',
             body: 'Water your plant',
             userId,

@@ -550,29 +550,6 @@ describe('Notification Scheduler', () => {
       expect(enqueuedMessages[0]?.topic).toBe('new_follower')
     })
 
-    it('should skip notifications with unknown types', async () => {
-      const enqueuedMessages: {
-        topic: NotificationTopic
-        message: QueueMessage
-      }[] = []
-
-      const pendingNotification = createTestNotification({
-        id: 'pending-3',
-        type: 'unknown_type',
-        status: 'pending',
-        scheduledAt: new Date(Date.now() - 60000),
-        userId: 'user-1',
-      })
-
-      await runPollAndEnqueue(
-        [pendingNotification],
-        [defaultUser],
-        (topic, message) => enqueuedMessages.push({ topic, message })
-      )
-
-      expect(enqueuedMessages).toHaveLength(0)
-    })
-
     it('should do nothing when no pending notifications exist', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
@@ -2141,11 +2118,6 @@ describe('Notification Scheduler', () => {
         dueNotification({
           id: 'tips-off',
           type: 'daily_tip',
-          plantId: undefined,
-        }),
-        dueNotification({
-          id: 'unknown',
-          type: 'unknown_type',
           plantId: undefined,
         }),
       ]
