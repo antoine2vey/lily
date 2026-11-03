@@ -4,7 +4,7 @@ import {
   DeadLetterRepository,
   type IDeadLetterRepository,
 } from '@lily/api/repositories/dead-letter.repository'
-import { Array, Effect, Layer, Option } from 'effect'
+import { Effect, Layer, Option } from 'effect'
 
 export interface MockDeadLetterRepositoryOptions {
   onCreate?: (data: CreateDeadLetterData) => void
@@ -13,8 +13,6 @@ export interface MockDeadLetterRepositoryOptions {
 export const createMockDeadLetterRepository = (
   options: MockDeadLetterRepositoryOptions = {}
 ): Layer.Layer<DeadLetterRepository> => {
-  const messages: DeadLetterMessage[] = []
-
   const repo: IDeadLetterRepository = {
     create: (data) =>
       Effect.sync(() => {
@@ -30,24 +28,11 @@ export const createMockDeadLetterRepository = (
           userId: Option.getOrNull(Option.fromNullishOr(data.userId)),
           plantId: Option.getOrNull(Option.fromNullishOr(data.plantId)),
         }
-        messages.push(message)
         if (options.onCreate) {
           options.onCreate(data)
         }
         return message
       }),
-
-    findByTopic: (topic) =>
-      Effect.succeed(Array.filter(messages, (m) => m.topic === topic)),
-
-    findAll: (limit = 100) => Effect.succeed(messages.slice(0, limit)),
-
-    delete: (id) => {
-      const idx = messages.findIndex((m) => m.id === id)
-      if (idx === -1) return Effect.succeed(null)
-      const [removed] = messages.splice(idx, 1)
-      return Effect.succeed(Option.getOrNull(Option.fromNullishOr(removed)))
-    },
   }
 
   return Layer.succeed(DeadLetterRepository, repo)

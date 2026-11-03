@@ -14,7 +14,6 @@ export interface MockMessageQueueOptions {
     topic: NotificationTopic
   ) => { message: QueueMessage; rawData: string } | null
   onAck?: (topic: NotificationTopic, rawData: string) => void
-  onNack?: (topic: NotificationTopic, rawData: string) => void
   onRequeueStale?: (topic: NotificationTopic) => number
   enqueueFailure?: QueueOperationError | QueueConnectionError
 }
@@ -62,11 +61,6 @@ export const createMockMessageQueue = (
         options.onAck?.(topic, rawData)
       }),
 
-    nack: (topic, rawData) =>
-      Effect.sync(() => {
-        options.onNack?.(topic, rawData)
-      }),
-
     requeueStale: (topic) =>
       Effect.sync(() => options.onRequeueStale?.(topic) ?? 0),
   }
@@ -103,8 +97,6 @@ export const createMockMessageQueueWithMessages = (
       }),
 
     ack: (_topic, _rawData) => Effect.void,
-
-    nack: (_topic, _rawData) => Effect.void,
 
     requeueStale: (_topic, _olderThan) => Effect.succeed(0),
   }

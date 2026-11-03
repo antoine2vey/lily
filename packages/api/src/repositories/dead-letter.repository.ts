@@ -1,7 +1,6 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { deadLetterMessages } from '@lily/db/schema'
-import { desc, eq } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option } from 'effect'
+import { Context, Effect, Layer, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Types for repository methods
@@ -50,15 +49,6 @@ export interface IDeadLetterRepository {
   readonly create: (
     data: CreateDeadLetterData
   ) => Effect.Effect<DeadLetterMessage | null, SqlError>
-  readonly findByTopic: (
-    topic: string
-  ) => Effect.Effect<DeadLetterMessage[], SqlError>
-  readonly findAll: (
-    limit?: number
-  ) => Effect.Effect<DeadLetterMessage[], SqlError>
-  readonly delete: (
-    id: string
-  ) => Effect.Effect<DeadLetterMessage | null, SqlError>
 }
 
 // Tag for dependency injection
@@ -88,36 +78,6 @@ export const DeadLetterRepositoryLive = Layer.effect(
             userId: Option.getOrNull(Option.fromNullishOr(data.userId)),
             plantId: Option.getOrNull(Option.fromNullishOr(data.plantId)),
           })
-          .returning()
-        return row ? mapToDeadLetterMessage(row) : null
-      }),
-
-      findByTopic: Effect.fn('DeadLetterRepository.findByTopic')(function* (
-        topic: string
-      ) {
-        const rows = yield* db
-          .select()
-          .from(deadLetterMessages)
-          .where(eq(deadLetterMessages.topic, topic))
-          .orderBy(desc(deadLetterMessages.failedAt))
-        return Array.map(rows, mapToDeadLetterMessage)
-      }),
-
-      findAll: Effect.fn('DeadLetterRepository.findAll')(function* (
-        limit = 100
-      ) {
-        const rows = yield* db
-          .select()
-          .from(deadLetterMessages)
-          .orderBy(desc(deadLetterMessages.failedAt))
-          .limit(limit)
-        return Array.map(rows, mapToDeadLetterMessage)
-      }),
-
-      delete: Effect.fn('DeadLetterRepository.delete')(function* (id: string) {
-        const [row] = yield* db
-          .delete(deadLetterMessages)
-          .where(eq(deadLetterMessages.id, id))
           .returning()
         return row ? mapToDeadLetterMessage(row) : null
       }),

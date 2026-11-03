@@ -2,7 +2,7 @@ import { Array, Data, pipe, Record, Schema } from 'effect'
 import { NotificationMetadata } from '../../domains/notification/schema'
 
 // Notification topics - extensible for new notification types
-// Add new topics here - the worker will fail at compile/runtime if not handled
+// Add new topics here; tsc fails until TOPIC_CATEGORY classifies them
 export const NOTIFICATION_TOPICS = [
   'watering_reminder',
   'fertilization_reminder',

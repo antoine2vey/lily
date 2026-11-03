@@ -28,7 +28,6 @@ import {
   Duration,
   Effect,
   Filter,
-  Match,
   Option,
   pipe,
   Record,
@@ -565,57 +564,6 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
     return true
   })
 
-// Exhaustive topic validation using Effect Match
-// Fails at compile time if a topic is not handled, throws at runtime
-// Uses whenOr to batch related topics and stay within pipe's 20-argument limit
-const validateTopic = Match.type<NotificationTopic>().pipe(
-  Match.whenOr(
-    'watering_reminder',
-    'fertilization_reminder',
-    'misting_reminder',
-    'repotting_reminder',
-    'overdue_reminder',
-    () => true
-  ),
-  Match.whenOr(
-    'new_follower',
-    'nudge_to_water',
-    'delegation_request',
-    'delegation_accepted',
-    'delegation_rejected',
-    'delegation_canceled',
-    'delegation_activated',
-    'delegation_completed',
-    'gift_subscription',
-    () => true
-  ),
-  Match.whenOr(
-    'canopy_member_joined',
-    'canopy_member_removed',
-    'canopy_member_left',
-    'canopy_invitation',
-    () => true
-  ),
-  Match.whenOr(
-    'daily_tip',
-    'inactivity_nudge',
-    'photo_reminder',
-    'plant_parent_milestone',
-    'resubscribe_nudge',
-    () => true
-  ),
-  Match.whenOr(
-    'streak_at_risk',
-    'streak_milestone',
-    'weekly_recap',
-    'trial_ending',
-    'approaching_limit',
-    'plant_anniversary',
-    () => true
-  ),
-  Match.exhaustive
-)
-
 export const recoverStrandedDeliveries = Effect.gen(function* () {
   const queue = yield* MessageQueue
   const notificationRepo = yield* NotificationRepository
@@ -648,9 +596,6 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
 
 // Start workers for all topics
 export const startNotificationWorker = Effect.gen(function* () {
-  // Validate all topics are handled at startup (compile + runtime check)
-  Array.forEach(NOTIFICATION_TOPICS, validateTopic)
-
   yield* createScheduler({
     name: 'notification-recovery',
     interval: '5 minutes',
