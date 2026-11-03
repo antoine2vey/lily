@@ -1487,49 +1487,58 @@ describe('Notification Worker', () => {
         Effect.runPromise
       )
 
-    it('delivers the next message on a topic after one dies', async () => {
-      const valid = createTestQueueMessage({ id: 'msg-valid' })
-      const missingPlantIds = {
-        ...createTestQueueMessage({ id: 'msg-missing-plant-ids' }),
-        payload: Struct.omit(
-          {
-            ...valid.payload,
-            notificationIds: ['notification-missing-plant-ids'],
-          },
-          ['plantIds']
-        ),
-      } as unknown as QueueMessage
-      const rows = [
-        queuedRow('notification-missing-plant-ids'),
-        queuedRow('notification-1'),
-      ]
-      const batches: PushMessage[][] = []
-      const acked: string[] = []
-      const alerter = createMockAlerter()
+    const valid = createTestQueueMessage({ id: 'msg-valid' })
+    const missingPlantIds = {
+      ...createTestQueueMessage({ id: 'msg-missing-plant-ids' }),
+      payload: Struct.omit(
+        { ...valid.payload, notificationIds: ['notification-poison'] },
+        ['plantIds']
+      ),
+    } as unknown as QueueMessage
+    const missingPayload = {
+      topic: 'bogus_topic',
+      messageId: 'x',
+      notificationIds: ['notification-poison'],
+    } as unknown as QueueMessage
 
-      await runWorkers(
-        workerLayer({
-          queue: wateringQueue([missingPlantIds, valid], acked),
-          push: createMockPushService({
-            onSendBatch: (msgs) => batches.push(msgs),
+    it.each([
+      ['without plantIds', missingPlantIds],
+      ['without a payload', missingPayload],
+    ])(
+      'delivers the next message on a topic after one %s dies',
+      async (_, poison) => {
+        const rows = [
+          queuedRow('notification-poison'),
+          queuedRow('notification-1'),
+        ]
+        const batches: PushMessage[][] = []
+        const acked: string[] = []
+        const alerter = createMockAlerter()
+
+        await runWorkers(
+          workerLayer({
+            queue: wateringQueue([poison, valid], acked),
+            push: createMockPushService({
+              onSendBatch: (msgs) => batches.push(msgs),
+            }),
+            rows,
+            alerter: alerter.layer,
           }),
-          rows,
-          alerter: alerter.layer,
-        }),
-        '10 seconds'
-      )
-
-      expect(batches).toHaveLength(1)
-      expect(rows[1]?.status).toBe('sent')
-      expect(acked).toEqual([JSON.stringify(valid)])
-      expect(
-        Array.filter(
-          alerter.events,
-          (e) =>
-            e._tag === 'UnhandledDefect' && e.source === 'notification-worker'
+          '10 seconds'
         )
-      ).toHaveLength(1)
-    })
+
+        expect(batches).toHaveLength(1)
+        expect(rows[1]?.status).toBe('sent')
+        expect(acked).toEqual([JSON.stringify(valid)])
+        expect(
+          Array.filter(
+            alerter.events,
+            (e) =>
+              e._tag === 'UnhandledDefect' && e.source === 'notification-worker'
+          )
+        ).toHaveLength(1)
+      }
+    )
 
     it('finishes the in-flight send and its bookkeeping on shutdown', async () => {
       const row = queuedRow('notification-1')
