@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import type { NotificationTopic } from '../../services/message-queue/types'
 import { PaginatedResponse } from '../common/pagination'
 
 // Re-export errors for convenient imports
@@ -13,8 +14,58 @@ export const NotificationStatus = Schema.Literals([
 ])
 export type NotificationStatus = typeof NotificationStatus.Type
 
-export const NotificationMetadata = Schema.Record(Schema.String, Schema.String)
-export type NotificationMetadata = typeof NotificationMetadata.Type
+const NoMetadata = Schema.Struct({})
+const DelegationMetadata = Schema.Struct({ delegationId: Schema.String })
+const SenderMetadata = Schema.Struct({ senderId: Schema.String })
+const InvitationMetadata = Schema.Struct({ invitationId: Schema.String })
+
+// What a topic's push needs to deep-link, stored on the row and spread into
+// the push data. Decoding strips unknown keys, so push data (which also
+// carries topic, title and body) decodes with the same schema.
+export const NOTIFICATION_METADATA = {
+  watering_reminder: NoMetadata,
+  fertilization_reminder: NoMetadata,
+  misting_reminder: NoMetadata,
+  repotting_reminder: NoMetadata,
+  overdue_reminder: NoMetadata,
+  new_follower: SenderMetadata,
+  nudge_to_water: SenderMetadata,
+  delegation_request: DelegationMetadata,
+  delegation_accepted: DelegationMetadata,
+  delegation_rejected: DelegationMetadata,
+  delegation_canceled: DelegationMetadata,
+  delegation_activated: DelegationMetadata,
+  delegation_completed: DelegationMetadata,
+  canopy_member_joined: NoMetadata,
+  canopy_member_removed: NoMetadata,
+  canopy_member_left: NoMetadata,
+  canopy_invitation: InvitationMetadata,
+  daily_tip: NoMetadata,
+  inactivity_nudge: NoMetadata,
+  photo_reminder: NoMetadata,
+  plant_parent_milestone: NoMetadata,
+  gift_subscription: NoMetadata,
+  resubscribe_nudge: NoMetadata,
+  streak_at_risk: NoMetadata,
+  streak_milestone: NoMetadata,
+  weekly_recap: NoMetadata,
+  trial_ending: NoMetadata,
+  approaching_limit: NoMetadata,
+  plant_anniversary: NoMetadata,
+} as const satisfies Record<NotificationTopic, Schema.Top>
+
+export type MetadataOf<T extends NotificationTopic> =
+  (typeof NOTIFICATION_METADATA)[T]['Type']
+
+// Any topic's metadata, for the row and the queue payload, where the topic is
+// not known statically. NoMetadata accepts any object, so it goes last.
+export const NotificationMetadata = Schema.Union([
+  DelegationMetadata,
+  SenderMetadata,
+  InvitationMetadata,
+  NoMetadata,
+])
+export type NotificationMetadata = MetadataOf<NotificationTopic>
 
 // Notification schemas
 export const Notification = Schema.Struct({
