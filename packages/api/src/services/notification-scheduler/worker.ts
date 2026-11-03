@@ -1,5 +1,4 @@
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import {
   type CreateDeadLetterData,
   DeadLetterRepository,
@@ -29,6 +28,7 @@ import {
   loadRecipients,
 } from '@lily/api/services/notification-scheduler/dispatch-gate'
 import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
+import type { ActivityPushToken } from '@lily/shared'
 import {
   type DeferredCareType,
   type InterruptionLevel,
@@ -96,7 +96,7 @@ const resolveInterruptionLevel = (
 ): InterruptionLevel | undefined =>
   TOPIC_CATEGORY[topic] === 'care' ? 'time-sensitive' : undefined
 
-// Refresh the Live Activity card alongside a care reminder.
+// Refresh every Live Activity card the user has alongside a care reminder.
 //
 // The scheduler merges all of a user's due care reminders into one queue
 // message, so this runs once per user per delivery batch. The start guard
@@ -110,154 +110,161 @@ const resolveInterruptionLevel = (
 // start path see two banners back-to-back (regular Expo + LA-start);
 // consolidating to one is a separate UX change.
 //
+// Each device is decided on its own:
 //   - Active update token → send an `update`.
 //   - Else push-to-start token (iOS 17.2+) with no unresolved earlier start
-//     → send a `start`.
+//     → send a `start`. A device whose update token comes back invalidated
+//     lands here too.
 //   - Else silently skip.
-const sendLiveActivityForCare = (
+const sendLiveActivityForCare = Effect.fn('sendLiveActivityForCare')(function* (
   userId: string,
   startAlert: LiveActivityAlert
-): Effect.Effect<
-  void,
-  SqlError,
-  | PushService
-  | ActivityPushTokenRepository
-  | DeviceTokenRepository
-  | import('@lily/api/repositories/care-log.repository').CareLogRepository
-  | import('@lily/api/repositories/care-schedule.repository').CareScheduleRepository
-  | UserRepository
-  | CanopyRepository
-> =>
-  Effect.gen(function* () {
-    const pushService = yield* PushService
-    const activityRepo = yield* ActivityPushTokenRepository
+) {
+  const pushService = yield* PushService
+  const activityRepo = yield* ActivityPushTokenRepository
 
-    const contentState: LiveActivityContentState | null =
-      yield* buildLiveActivityContentState(userId)
-    if (!contentState) return
+  const contentState: LiveActivityContentState | null =
+    yield* buildLiveActivityContentState(userId)
+  if (!contentState) return
 
-    const activeActivity =
-      yield* activityRepo.findActiveActivityByUserId(userId)
+  const [activities, allStartTokens] = yield* Effect.all(
+    [
+      activityRepo.findActiveActivitiesByUserId(userId),
+      activityRepo.findStartTokensByUserId(userId),
+    ],
+    { concurrency: 'unbounded' }
+  )
 
-    if (activeActivity) {
-      const updateResult = yield* pushService
-        .sendLiveActivity({
-          _tag: 'LiveActivityUpdate',
-          to: activeActivity.token,
-          contentState,
+  // A transient failure keeps the card: the activity is presumably still
+  // on the device, and starting another would show two.
+  const keepsCard = (activity: ActivityPushToken) =>
+    pushService
+      .sendLiveActivity({
+        _tag: 'LiveActivityUpdate',
+        to: activity.token,
+        contentState,
+      })
+      .pipe(
+        Effect.as(true),
+        Effect.catchTags({
+          PushSendError: (e) =>
+            Effect.logWarning('[worker] LA update failed', {
+              deviceTokenId: activity.deviceTokenId,
+              error: String(e),
+            }).pipe(Effect.as(true)),
+          PushConfigError: (e) =>
+            Effect.logWarning('[worker] LA update config error', {
+              deviceTokenId: activity.deviceTokenId,
+              error: String(e),
+            }).pipe(Effect.as(true)),
+          PushTokenInvalidatedError: (e) =>
+            Effect.gen(function* () {
+              yield* Effect.logInfo(
+                '[worker] LA update token invalidated — retrying as start',
+                { deviceTokenId: activity.deviceTokenId, reason: e.reason }
+              )
+              if (activity.activityId) {
+                yield* activityRepo.markEnded(activity.activityId)
+              }
+              return false
+            }),
         })
-        .pipe(
-          Effect.map(() => 'ok' as const),
-          Effect.catchTags({
-            PushSendError: (e) =>
-              Effect.logWarning('[worker] LA update failed', {
-                error: String(e),
-              }).pipe(Effect.as('transient-fail' as const)),
-            PushConfigError: (e) =>
-              Effect.logWarning('[worker] LA update config error', {
-                error: String(e),
-              }).pipe(Effect.as('transient-fail' as const)),
-            // Update token is dead — mark row as ended and fall through to
-            // the start-token branch below so a fresh activity is created.
-            PushTokenInvalidatedError: (e) =>
-              Effect.gen(function* () {
-                yield* Effect.logInfo(
-                  '[worker] LA update token invalidated — retrying as start',
-                  { reason: e.reason }
-                )
-                if (activeActivity.activityId) {
-                  yield* activityRepo.markEnded(activeActivity.activityId)
-                }
-                return 'token-invalidated' as const
-              }),
-          })
-        )
-      if (updateResult !== 'token-invalidated') return
-      // else: fall through to start-token path
-    }
+      )
 
-    const allStartTokens = yield* activityRepo.findStartTokensByUserId(userId)
-    if (Array.isReadonlyArrayEmpty(allStartTokens)) {
+  const devicesWithCard = Array.map(
+    yield* Effect.filter(activities, keepsCard, {
+      concurrency: 'unbounded',
+    }),
+    (activity) => activity.deviceTokenId
+  )
+
+  const startCandidates = Array.filter(
+    allStartTokens,
+    (tok) => !Array.contains(devicesWithCard, tok.deviceTokenId)
+  )
+  if (Array.isReadonlyArrayEmpty(startCandidates)) {
+    if (Array.isReadonlyArrayEmpty(devicesWithCard)) {
       yield* Effect.logInfo('[worker] LA start skipped — no start tokens', {
         userId,
       })
-      return
     }
+    return
+  }
 
-    const cutoff = DateTime.toDateUtc(
-      DateTime.subtractDuration(DateTime.nowUnsafe(), LA_START_COOLDOWN)
+  const cutoff = DateTime.toDateUtc(
+    DateTime.subtractDuration(DateTime.nowUnsafe(), LA_START_COOLDOWN)
+  )
+  const claimedDeviceIds = yield* activityRepo.claimStartTokens(
+    userId,
+    Array.map(startCandidates, (tok) => tok.deviceTokenId),
+    cutoff
+  )
+  const startTokens = Array.filter(startCandidates, (tok) =>
+    Array.contains(claimedDeviceIds, tok.deviceTokenId)
+  )
+  const unresolved = startCandidates.length - startTokens.length
+  if (unresolved > 0) {
+    yield* Effect.logInfo(
+      '[worker] LA start skipped — earlier start still unconfirmed',
+      { userId, skippedCount: unresolved }
     )
-    const claimedDeviceIds = yield* activityRepo.claimStartTokens(
-      userId,
-      Array.map(allStartTokens, (tok) => tok.deviceTokenId),
-      cutoff
-    )
-    const startTokens = Array.filter(allStartTokens, (tok) =>
-      Array.contains(claimedDeviceIds, tok.deviceTokenId)
-    )
-    const unresolved = allStartTokens.length - startTokens.length
-    if (unresolved > 0) {
-      yield* Effect.logInfo(
-        '[worker] LA start skipped — earlier start still unconfirmed',
-        { userId, skippedCount: unresolved }
-      )
-    }
-    if (Array.isReadonlyArrayEmpty(startTokens)) return
+  }
+  if (Array.isReadonlyArrayEmpty(startTokens)) return
 
-    const activityId = crypto.randomUUID()
-    yield* Effect.logInfo('[worker] LA start dispatching', {
-      userId,
-      activityId,
-      startTokenCount: startTokens.length,
-    })
-    yield* Effect.forEach(
-      startTokens,
-      (tok) => {
-        const logCtx = {
-          userId,
-          activityId,
-          deviceTokenId: tok.deviceTokenId,
-        }
-        return pushService
-          .sendLiveActivity({
-            _tag: 'LiveActivityStart',
-            to: tok.token,
-            attributes: { userId, activityId },
-            contentState,
-            alert: startAlert,
-          })
-          .pipe(
-            Effect.tap((ticket) =>
-              Effect.logInfo('[worker] LA start accepted by APNs', {
-                ...logCtx,
-                apnsId: ticket.id,
-              })
-            ),
-            Effect.catchTags({
-              PushSendError: (e) =>
-                Effect.logWarning('[worker] LA start failed', {
-                  ...logCtx,
-                  error: String(e),
-                }),
-              PushConfigError: (e) =>
-                Effect.logWarning('[worker] LA start config error', {
-                  ...logCtx,
-                  error: String(e),
-                }),
-              PushTokenInvalidatedError: (e) =>
-                Effect.logWarning(
-                  '[worker] LA start-to-push token invalidated',
-                  { ...logCtx, reason: e.reason }
-                ).pipe(
-                  Effect.andThen(retireStartTokenForDevice(tok.deviceTokenId))
-                ),
-            }),
-            Effect.ignore
-          )
-      },
-      { concurrency: 'unbounded' }
-    )
+  const activityId = crypto.randomUUID()
+  yield* Effect.logInfo('[worker] LA start dispatching', {
+    userId,
+    activityId,
+    startTokenCount: startTokens.length,
   })
+  yield* Effect.forEach(
+    startTokens,
+    (tok) => {
+      const logCtx = {
+        userId,
+        activityId,
+        deviceTokenId: tok.deviceTokenId,
+      }
+      return pushService
+        .sendLiveActivity({
+          _tag: 'LiveActivityStart',
+          to: tok.token,
+          attributes: { userId, activityId },
+          contentState,
+          alert: startAlert,
+        })
+        .pipe(
+          Effect.tap((ticket) =>
+            Effect.logInfo('[worker] LA start accepted by APNs', {
+              ...logCtx,
+              apnsId: ticket.id,
+            })
+          ),
+          Effect.catchTags({
+            PushSendError: (e) =>
+              Effect.logWarning('[worker] LA start failed', {
+                ...logCtx,
+                error: String(e),
+              }),
+            PushConfigError: (e) =>
+              Effect.logWarning('[worker] LA start config error', {
+                ...logCtx,
+                error: String(e),
+              }),
+            PushTokenInvalidatedError: (e) =>
+              Effect.logWarning('[worker] LA start-to-push token invalidated', {
+                ...logCtx,
+                reason: e.reason,
+              }).pipe(
+                Effect.andThen(retireStartTokenForDevice(tok.deviceTokenId))
+              ),
+          }),
+          Effect.ignore
+        )
+    },
+    { concurrency: 'unbounded' }
+  )
+})
 
 // Exponential backoff: 1s -> 2s -> 4s
 export const workerRetryPolicy = Schedule.max([

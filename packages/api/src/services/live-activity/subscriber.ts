@@ -55,8 +55,10 @@ const refreshLiveActivity = (params: {
   Effect.gen(function* () {
     const activityRepo = yield* ActivityPushTokenRepository
     const pushService = yield* PushService
-    const active = yield* activityRepo.findActiveActivityByUserId(params.userId)
-    if (!active) return
+    const activities = yield* activityRepo.findActiveActivitiesByUserId(
+      params.userId
+    )
+    if (Array.isReadonlyArrayEmpty(activities)) return
 
     // CareLogCreated excludes the just-completed (plantId, careType) pair.
     // Care publishes after its transaction commits, so the schedule row
@@ -70,34 +72,44 @@ const refreshLiveActivity = (params: {
       params.exclude
     )
 
-    const activityIdOpt = Option.fromNullishOr(active.activityId)
-    const markEnded = Option.match(activityIdOpt, {
-      onNone: () => Effect.void,
-      onSome: (id) => Effect.asVoid(activityRepo.markEnded(id)),
-    })
+    yield* Effect.forEach(
+      activities,
+      (active) => {
+        const markEnded = Option.match(
+          Option.fromNullishOr(active.activityId),
+          {
+            onNone: () => Effect.void,
+            onSome: (id) => Effect.asVoid(activityRepo.markEnded(id)),
+          }
+        )
 
-    if (!contentState) {
-      yield* markEnded
-      yield* sendWithLogging(pushService, 'end', {
-        _tag: 'LiveActivityEnd',
-        to: active.token,
-        dismissalPolicy: 'immediate',
-      })
-      return
-    }
+        if (!contentState) {
+          return markEnded.pipe(
+            Effect.andThen(
+              sendWithLogging(pushService, 'end', {
+                _tag: 'LiveActivityEnd',
+                to: active.token,
+                dismissalPolicy: 'immediate',
+              })
+            )
+          )
+        }
 
-    // Still remaining → update. If the update token is dead, mark the row
-    // ended so the next care cycle takes the start path instead of trying
-    // to update a dead activity.
-    yield* sendWithLogging(
-      pushService,
-      'update',
-      {
-        _tag: 'LiveActivityUpdate',
-        to: active.token,
-        contentState,
+        // Still remaining → update. If the update token is dead, mark the row
+        // ended so the next care cycle takes the start path instead of trying
+        // to update a dead activity.
+        return sendWithLogging(
+          pushService,
+          'update',
+          {
+            _tag: 'LiveActivityUpdate',
+            to: active.token,
+            contentState,
+          },
+          () => markEnded
+        )
       },
-      () => markEnded
+      { concurrency: 'unbounded', discard: true }
     )
   })
 
