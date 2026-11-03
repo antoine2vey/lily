@@ -1464,7 +1464,6 @@ describe('Notification Worker', () => {
         LivingPlantsLive
       )
 
-    // Closing the scope is what SIGTERM does to the scheduler layer.
     const runWorkers = (
       layer: ReturnType<typeof workerLayer>,
       stopAt: Duration.Input
@@ -1490,17 +1489,18 @@ describe('Notification Worker', () => {
 
     it('delivers the next message on a topic after one dies', async () => {
       const valid = createTestQueueMessage({ id: 'msg-valid' })
-      // A payload without `plantIds` throws in the care guard, a defect the
-      // retry policy and the tagged handlers do not cover.
-      const defective = {
-        ...createTestQueueMessage({ id: 'msg-defective' }),
+      const missingPlantIds = {
+        ...createTestQueueMessage({ id: 'msg-missing-plant-ids' }),
         payload: Struct.omit(
-          { ...valid.payload, notificationIds: ['notification-defective'] },
+          {
+            ...valid.payload,
+            notificationIds: ['notification-missing-plant-ids'],
+          },
           ['plantIds']
         ),
       } as unknown as QueueMessage
       const rows = [
-        queuedRow('notification-defective'),
+        queuedRow('notification-missing-plant-ids'),
         queuedRow('notification-1'),
       ]
       const batches: PushMessage[][] = []
@@ -1509,7 +1509,7 @@ describe('Notification Worker', () => {
 
       await runWorkers(
         workerLayer({
-          queue: wateringQueue([defective, valid], acked),
+          queue: wateringQueue([missingPlantIds, valid], acked),
           push: createMockPushService({
             onSendBatch: (msgs) => batches.push(msgs),
           }),

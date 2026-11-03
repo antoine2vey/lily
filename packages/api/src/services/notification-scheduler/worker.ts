@@ -598,8 +598,6 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
   }
 }).pipe(Effect.withSpan('notification-recovery.sweep'))
 
-// The defective message stays in `:processing`. The recovery sweep requeues
-// it, and once its claimed rows age past DELIVERY_TIMEOUT it is skipped.
 const alertDefect = (topic: NotificationTopic, defect: unknown) =>
   Effect.gen(function* () {
     const alerter = yield* Alerter
@@ -610,7 +608,6 @@ const alertDefect = (topic: NotificationTopic, defect: unknown) =>
       source: 'notification-worker',
       message,
     })
-    return false
   })
 
 // Start workers for all topics
@@ -644,7 +641,9 @@ export const startNotificationWorker = Effect.gen(function* () {
                 error: String(e),
               }).pipe(Effect.as(false)),
           }),
-          Effect.catchDefect((defect) => alertDefect(topic, defect)),
+          Effect.catchDefect((defect) =>
+            alertDefect(topic, defect).pipe(Effect.as(false))
+          ),
           drainOnInterrupt('notification-worker'),
           // Only sleep when the queue was empty — drain fast under load
           Effect.flatMap((hadMessage) =>
