@@ -16,6 +16,7 @@ import {
   type UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
+import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   BATCH_SIZE,
   pollAndEnqueue,
@@ -449,6 +450,60 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         ).toEqual(new Set([`pending@${dndEnd.toISOString()}`]))
       })
+
+      it('claims the row behind a fully deferred batch on the drain cooldown, not the interval', async () => {
+        const now = new Date()
+        const dndUserId = await insertUser('drain_dnd_user', {
+          doNotDisturb: true,
+          timezone: 'Asia/Kolkata',
+          doNotDisturbStart: kolkataClock(
+            new Date(now.getTime() - 60 * 60_000)
+          ),
+          doNotDisturbEnd: kolkataClock(new Date(now.getTime() + 60 * 60_000)),
+        })
+        await insertDue(
+          dndUserId,
+          'watering_reminder',
+          minutesAgo(10),
+          BATCH_SIZE
+        )
+        const [dueId] = await insertDue(
+          userId,
+          'watering_reminder',
+          minutesAgo(1),
+          1
+        )
+
+        const firstEnqueue = Promise.withResolvers<QueueMessage>()
+        const message = await Effect.runPromise(
+          Effect.scoped(
+            Effect.gen(function* () {
+              yield* createDrainableScheduler({
+                name: 'drain-test',
+                interval: '1 hour',
+                runOnStartup: false,
+                task: pollAndEnqueue,
+              })
+              return yield* Effect.promise(() => firstEnqueue.promise).pipe(
+                Effect.timeout('10 seconds')
+              )
+            })
+          ).pipe(
+            Effect.provide(
+              Layer.merge(
+                RepositoriesLive,
+                createMockMessageQueue({
+                  onEnqueue: (_topic: NotificationTopic, queued) =>
+                    firstEnqueue.resolve(queued),
+                })
+              )
+            ),
+            Effect.provideService(References.MinimumLogLevel, 'None')
+          )
+        )
+
+        expect(message.payload.notificationIds).toEqual([dueId])
+      }, 20_000)
 
       it('moves a vacation care row to the vacation end and sends a social row at once', async () => {
         const vacationEnd = new Date(Date.now() + 2 * 24 * 60 * 60_000)

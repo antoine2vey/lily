@@ -74,6 +74,8 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
   if (pendingNotifications.length === 0) return false
 
+  const filledBatch = pendingNotifications.length >= BATCH_SIZE
+
   yield* Effect.log('Claimed due notifications', {
     count: pendingNotifications.length,
   })
@@ -216,7 +218,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   yield* notificationRepo.deleteByIds(dropIds)
   yield* notificationRepo.deferUntil(deferred)
 
-  if (validNotifications.length === 0) return false
+  if (validNotifications.length === 0) return filledBatch
 
   // Phase 2: Group by user. Care reminders merge across care types (and
   // plants) into one push per user per batch — a plant due for watering AND
@@ -412,7 +414,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   )
 
   // Signal whether there are likely more rows waiting
-  return pendingNotifications.length >= BATCH_SIZE
+  return filledBatch
 }).pipe(Effect.withSpan('notification-scheduler.poll'))
 
 export const startNotificationScheduler = createDrainableScheduler({
