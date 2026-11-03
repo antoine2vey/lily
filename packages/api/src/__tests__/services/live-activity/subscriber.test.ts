@@ -120,6 +120,53 @@ describe('live-activity subscriber: PlantLifecycleChanged', () => {
     expect(sent[0]?._tag).toBe('LiveActivityUpdate')
   })
 
+  const secondDevice = (): ActivityPushToken => ({
+    ...updateToken(),
+    id: 'apt-2',
+    deviceTokenId: 'token-2',
+    activityId: 'activity-2',
+    token: 'update-token-2',
+  })
+
+  it('refreshes the card on every device', async () => {
+    const dead = createTestPlant({
+      id: 'plant-1',
+      userId: 'user-1',
+      diedAt: new Date(),
+    })
+    const alive = createTestPlant({ id: 'plant-2', userId: 'user-1' })
+    const sent = await run(
+      [dead, alive],
+      [
+        createTestSchedule({
+          plantId: 'plant-2',
+          careType: 'watering',
+          nextCareAt: new Date(Date.now() - 60_000),
+        }),
+      ],
+      [updateToken(), secondDevice()]
+    )
+
+    expect(sent.map((m) => `${m._tag} ${m.to}`).sort()).toEqual([
+      'LiveActivityUpdate update-token-1',
+      'LiveActivityUpdate update-token-2',
+    ])
+  })
+
+  it('ends the card on every device when nothing is left due', async () => {
+    const plant = createTestPlant({
+      id: 'plant-1',
+      userId: 'user-1',
+      diedAt: new Date(),
+    })
+    const sent = await run([plant], [], [updateToken(), secondDevice()])
+
+    expect(sent.map((m) => `${m._tag} ${m.to}`).sort()).toEqual([
+      'LiveActivityEnd update-token-1',
+      'LiveActivityEnd update-token-2',
+    ])
+  })
+
   it('does nothing without an active activity', async () => {
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
     const sent = await run([plant], [], [])

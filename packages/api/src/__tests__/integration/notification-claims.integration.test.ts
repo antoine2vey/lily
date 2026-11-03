@@ -937,6 +937,70 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     })
 
+    describe('findActiveActivitiesByUserId', () => {
+      const insertDevice = async () => {
+        const [device] = await db
+          .insert(schema.deviceTokens)
+          .values({
+            token: `expo-${crypto.randomUUID()}`,
+            platform: 'ios',
+            userId,
+          })
+          .returning()
+        if (!device) throw new Error('Failed to create device token')
+        return device.id
+      }
+
+      it('returns the running activity of every device', async () => {
+        const secondDevice = await insertDevice()
+        const endedDevice = await insertDevice()
+        await db.insert(schema.activityPushTokens).values([
+          {
+            userId,
+            deviceTokenId,
+            kind: 'update',
+            activityId: 'activity-phone',
+            token: 'update-phone',
+            status: 'active',
+          },
+          {
+            userId,
+            deviceTokenId: secondDevice,
+            kind: 'update',
+            activityId: 'activity-second-phone',
+            token: 'update-second-phone',
+            status: 'active',
+          },
+          {
+            userId,
+            deviceTokenId: endedDevice,
+            kind: 'update',
+            activityId: 'activity-ended',
+            token: 'update-ended',
+            status: 'ended',
+          },
+          {
+            userId,
+            deviceTokenId,
+            kind: 'start',
+            token: 'start-phone',
+            status: 'active',
+          },
+        ])
+
+        const activities = await run(
+          Effect.flatMap(ActivityPushTokenRepository, (repo) =>
+            repo.findActiveActivitiesByUserId(userId)
+          )
+        )
+
+        expect(Arr.map(activities, (a) => a.token).sort()).toEqual([
+          'update-phone',
+          'update-second-phone',
+        ])
+      })
+    })
+
     describe('claimStartTokens', () => {
       const insertStartToken = async () => {
         await db.insert(schema.activityPushTokens).values({

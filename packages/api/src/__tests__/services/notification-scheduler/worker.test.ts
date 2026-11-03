@@ -73,9 +73,11 @@ import {
   MessageQueue,
   type NotificationTopic,
   type PushMessage,
+  PushSendError,
   PushService,
   type PushTicket,
   type PushTicketErrorCode,
+  PushTokenInvalidatedError,
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
@@ -1573,6 +1575,78 @@ describe('Notification Worker', () => {
     })
   })
 
+  // One plant due for watering today so buildLiveActivityContentState
+  // yields a card.
+  const runWithDeviceTokens = async (
+    tokens: ActivityPushToken[],
+    runs: number,
+    failLiveActivity?: MockPushServiceOptions['failLiveActivity']
+  ): Promise<LiveActivityPushMessage[]> => {
+    const laMessages: LiveActivityPushMessage[] = []
+    const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+    const layer = Layer.mergeAll(
+      MockAlerterLive,
+      createMockPushService({
+        onSendLiveActivity: (m) => laMessages.push(m),
+        ...(failLiveActivity ? { failLiveActivity } : {}),
+      }),
+      createMockDeviceTokenRepository(mockDeviceTokens),
+      createMockNotificationRepository([
+        createTestNotification({
+          id: 'notification-1',
+          userId: 'user-1',
+          status: 'queued',
+        }),
+      ]),
+      createMockActivityPushTokenRepository({ tokens }),
+      createMockCareScheduleRepository({
+        plants: [plant],
+        schedules: [
+          createTestSchedule({
+            plantId: 'plant-1',
+            careType: 'watering',
+            nextCareAt: new Date(Date.now() - 60_000),
+          }),
+        ],
+      }),
+      createMockCareLogRepository([]),
+      createMockUserRepository([
+        createTestUser({ id: 'user-1', timezone: 'UTC' }),
+      ]),
+      createMockPlantRepository({ plants: [plant] }),
+      createMockCanopyRepository(),
+      createMockDelegationRepository(),
+      createMockDeadLetterRepository(),
+      MockSqlClientLive
+    )
+    const message = createTestQueueMessage({ topic: 'watering_reminder' })
+    const acked: string[] = []
+    for (let i = 0; i < runs; i++) {
+      const inbox = [message]
+      await Effect.runPromise(
+        consumeNext.pipe(
+          Effect.provide(
+            Layer.merge(
+              layer,
+              createMockMessageQueue({
+                onDequeue: () => {
+                  const msg = inbox.shift()
+                  return msg
+                    ? { message: msg, rawData: JSON.stringify(msg) }
+                    : null
+                },
+                onAck: (rawData) => acked.push(rawData),
+              })
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+    }
+    expect(acked).toHaveLength(runs)
+    return laMessages
+  }
+
   describe('Live Activity start guard', () => {
     const startToken = (
       overrides: Partial<ActivityPushToken> = {}
@@ -1593,58 +1667,10 @@ describe('Notification Worker', () => {
       ...overrides,
     })
 
-    // One plant due for watering today so buildLiveActivityContentState
-    // yields a card, plus a single push-to-start token and no active update
-    // row — the pure "start" path.
-    const runWithStartToken = async (
-      token: ActivityPushToken,
-      runs: number
-    ): Promise<LiveActivityPushMessage[]> => {
-      const laMessages: LiveActivityPushMessage[] = []
-      const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
-      const layer = Layer.mergeAll(
-        MockAlerterLive,
-        createMockPushService({
-          onSendLiveActivity: (m) => laMessages.push(m),
-        }),
-        createMockDeviceTokenRepository(mockDeviceTokens),
-        createMockNotificationRepository([
-          createTestNotification({
-            id: 'notification-1',
-            userId: 'user-1',
-            status: 'queued',
-          }),
-        ]),
-        createMockActivityPushTokenRepository({ tokens: [token] }),
-        createMockCareScheduleRepository({
-          plants: [plant],
-          schedules: [
-            createTestSchedule({
-              plantId: 'plant-1',
-              careType: 'watering',
-              nextCareAt: new Date(Date.now() - 60_000),
-            }),
-          ],
-        }),
-        createMockCareLogRepository([]),
-        createMockUserRepository([
-          createTestUser({ id: 'user-1', timezone: 'UTC' }),
-        ]),
-        createMockPlantRepository({ plants: [plant] }),
-        createMockCanopyRepository(),
-        createMockDelegationRepository()
-      )
-      const message = createTestQueueMessage({ topic: 'watering_reminder' })
-      for (let i = 0; i < runs; i++) {
-        await Effect.runPromise(
-          processMessage(message).pipe(
-            Effect.provide(layer),
-            Effect.provideService(References.MinimumLogLevel, 'None')
-          )
-        )
-      }
-      return laMessages
-    }
+    // A single push-to-start token and no active update row: the pure
+    // "start" path.
+    const runWithStartToken = (token: ActivityPushToken, runs: number) =>
+      runWithDeviceTokens([token], runs)
 
     it('starts exactly one activity when the same user is processed twice', async () => {
       const laMessages = await runWithStartToken(startToken(), 2)
@@ -1706,6 +1732,120 @@ describe('Notification Worker', () => {
       )
       const starts = laMessages.filter((m) => m._tag === 'LiveActivityStart')
       expect(starts).toHaveLength(1)
+    })
+  })
+  describe('Live Activity on every device', () => {
+    const row = (
+      kind: ActivityPushToken['kind'],
+      device: number,
+      overrides: Partial<ActivityPushToken> = {}
+    ): ActivityPushToken => ({
+      id: `apt-${kind}-${device}`,
+      userId: 'user-1',
+      deviceTokenId: `token-${device}`,
+      kind,
+      activityId: kind === 'update' ? `activity-${device}` : null,
+      token: `${kind}-token-${device}`,
+      status: 'active',
+      startedAt: new Date(),
+      endsAt: null,
+      lastConfirmedAt: null,
+      lastFailedAt: null,
+      lastStartSentAt: null,
+      updatedAt: new Date(),
+      ...overrides,
+    })
+
+    const sentTo = (
+      messages: LiveActivityPushMessage[],
+      tag: LiveActivityPushMessage['_tag']
+    ) =>
+      Array.map(
+        Array.filter(messages, (m) => m._tag === tag),
+        (m) => m.to
+      ).sort()
+
+    const runWithTokens = (
+      tokens: ActivityPushToken[],
+      failLiveActivity?: MockPushServiceOptions['failLiveActivity']
+    ) => runWithDeviceTokens(tokens, 1, failLiveActivity)
+
+    it('updates both cards when the user has two active activities', async () => {
+      const sent = await runWithTokens([
+        row('update', 1),
+        row('update', 2),
+        row('start', 1),
+        row('start', 2),
+      ])
+      expect(sentTo(sent, 'LiveActivityUpdate')).toEqual([
+        'update-token-1',
+        'update-token-2',
+      ])
+      expect(sentTo(sent, 'LiveActivityStart')).toEqual([])
+    })
+
+    it('updates the running card and starts one on the device without a card', async () => {
+      const sent = await runWithTokens([
+        row('update', 1),
+        row('start', 1),
+        row('start', 2),
+      ])
+      expect(sentTo(sent, 'LiveActivityUpdate')).toEqual(['update-token-1'])
+      expect(sentTo(sent, 'LiveActivityStart')).toEqual(['start-token-2'])
+    })
+
+    it('skips the start on a device whose earlier start is still unconfirmed', async () => {
+      const sent = await runWithTokens([
+        row('update', 1),
+        row('start', 2, { lastStartSentAt: new Date(Date.now() - 5 * 60_000) }),
+      ])
+      expect(sentTo(sent, 'LiveActivityUpdate')).toEqual(['update-token-1'])
+      expect(sentTo(sent, 'LiveActivityStart')).toEqual([])
+    })
+
+    it('still updates the other device when one update fails', async () => {
+      const sent = await runWithTokens(
+        [row('update', 1), row('update', 2), row('start', 1)],
+        (m) =>
+          m.to === 'update-token-1'
+            ? Option.some(new PushSendError({ message: 'APNs 500' }))
+            : Option.none()
+      )
+      expect(sentTo(sent, 'LiveActivityUpdate')).toEqual([
+        'update-token-1',
+        'update-token-2',
+      ])
+      expect(sentTo(sent, 'LiveActivityStart')).toEqual([])
+    })
+
+    it('starts a fresh card only on the device whose update token died', async () => {
+      const sent = await runWithTokens(
+        [row('update', 1), row('update', 2), row('start', 1), row('start', 2)],
+        (m) =>
+          m.to === 'update-token-1'
+            ? Option.some(
+                new PushTokenInvalidatedError({
+                  message: 'gone',
+                  reason: 'Unregistered',
+                })
+              )
+            : Option.none()
+      )
+      expect(sentTo(sent, 'LiveActivityUpdate')).toEqual([
+        'update-token-1',
+        'update-token-2',
+      ])
+      expect(sentTo(sent, 'LiveActivityStart')).toEqual(['start-token-1'])
+    })
+
+    it('leaves another user’s cards alone', async () => {
+      const sent = await runWithTokens([
+        row('update', 1),
+        row('update', 2, { userId: 'user-2' }),
+        row('start', 3, { userId: 'user-2' }),
+      ])
+      expect(sentTo(sent, 'LiveActivityUpdate')).toEqual(['update-token-1'])
+      expect(sentTo(sent, 'LiveActivityStart')).toEqual([])
     })
   })
   describe('dead plant guard', () => {
