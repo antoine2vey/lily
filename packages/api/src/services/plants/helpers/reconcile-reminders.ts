@@ -149,7 +149,7 @@ const rowFor = (
             settings.timezone,
             settings.doNotDisturbStart,
             settings.doNotDisturbEnd
-          )
+          ).pipe(Effect.annotateLogs({ userId: recipientId }))
         : scheduledAt,
       userId: recipientId,
       plantId: plant.id,

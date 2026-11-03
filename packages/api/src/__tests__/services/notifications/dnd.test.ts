@@ -239,6 +239,30 @@ describe('adjustForDoNotDisturb', () => {
 
       expect(result.toISOString()).toBe('2027-04-03T19:00:00.000Z')
     })
+
+    it('should land on the next day end when today has no such local time', async () => {
+      // America/New_York skips 02:00-03:00 on 2026-03-08. At 23:00 EDT that
+      // evening, the 02:30 end is on 2026-03-09, which has an 02:30
+      const scheduledAt = new Date('2026-03-09T03:00:00Z')
+
+      const result = await Effect.runPromise(
+        adjustForDoNotDisturb(scheduledAt, 'America/New_York', '22:00', '02:30')
+      )
+
+      expect(result.toISOString()).toBe('2026-03-09T06:30:00.000Z')
+    })
+
+    it('should land 30 min after the DND end when the end is in the skipped hour', async () => {
+      // 23:00 EST on 2026-03-07: the 02:30 end does not exist on 2026-03-08,
+      // so it resolves forward to 03:30 EDT, while DND really ends at 03:00 EDT
+      const scheduledAt = new Date('2026-03-08T04:00:00Z')
+
+      const result = await Effect.runPromise(
+        adjustForDoNotDisturb(scheduledAt, 'America/New_York', '22:00', '02:30')
+      )
+
+      expect(result.toISOString()).toBe('2026-03-08T07:30:00.000Z')
+    })
   })
 
   describe('edge cases', () => {

@@ -609,6 +609,57 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           },
         ])
       })
+
+      it('moves only queued rows that no delivery claimed', async () => {
+        const original = minutesAgo(5)
+        const until = new Date(Date.now() + 24 * 60 * 60_000)
+        const insertRow = async (
+          status: 'pending' | 'queued' | 'sent',
+          deliveryMessageId: string | null
+        ) => {
+          const [row] = await db
+            .insert(schema.notifications)
+            .values({
+              type: 'watering_reminder',
+              title: 'Water',
+              body: 'Water your plant',
+              userId,
+              scheduledAt: original,
+              status,
+              queuedAt: status === 'pending' ? null : minutesAgo(1),
+              deliveryMessageId,
+            })
+            .returning({ id: schema.notifications.id })
+          if (!row) throw new Error(`Failed to insert a ${status} row`)
+          return row.id
+        }
+        const sentId = await insertRow('sent', 'msg-sent')
+        const claimedId = await insertRow('queued', 'msg-claimed')
+        const pendingId = await insertRow('pending', null)
+        const queuedId = await insertRow('queued', null)
+
+        await withRepo((repo) =>
+          repo.deferUntil(
+            Arr.map([sentId, claimedId, pendingId, queuedId], (id) => ({
+              id,
+              until,
+            }))
+          )
+        )
+
+        expect(await rowsOf([sentId])).toEqual([
+          { status: 'sent', scheduledAt: original },
+        ])
+        expect(await rowsOf([claimedId])).toEqual([
+          { status: 'queued', scheduledAt: original },
+        ])
+        expect(await rowsOf([pendingId])).toEqual([
+          { status: 'pending', scheduledAt: original },
+        ])
+        expect(await rowsOf([queuedId])).toEqual([
+          { status: 'pending', scheduledAt: until },
+        ])
+      })
     })
 
     describe('claimStartTokens', () => {

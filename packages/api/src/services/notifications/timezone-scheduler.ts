@@ -140,11 +140,25 @@ export interface NotificationScheduleUpdate {
 const DEFAULT_DND_START = '22:00'
 const DEFAULT_DND_END = '07:00'
 
-const dndBound = (time: string | null, fallback: string): string =>
+const dndBound = (
+  time: string | null,
+  fallback: string
+): Effect.Effect<string> =>
   pipe(
     Option.fromNullishOr(time),
-    Option.filter(Schema.is(TimeString)),
-    Option.getOrElse(() => fallback)
+    Option.match({
+      onNone: () => Effect.succeed(fallback),
+      onSome: (value) =>
+        Schema.is(TimeString)(value)
+          ? Effect.succeed(value)
+          : Effect.as(
+              Effect.logWarning('Invalid DND bound, using the default', {
+                rejected: value,
+                fallback,
+              }),
+              fallback
+            ),
+    })
   )
 
 /**
@@ -168,8 +182,8 @@ export const adjustForDoNotDisturb = (
       Option.fromNullishOr(timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
-    const start = dndBound(dndStart, DEFAULT_DND_START)
-    const end = dndBound(dndEnd, DEFAULT_DND_END)
+    const start = yield* dndBound(dndStart, DEFAULT_DND_START)
+    const end = yield* dndBound(dndEnd, DEFAULT_DND_END)
 
     // Validate timezone, fallback to UTC
     const validTimezone = yield* pipe(
@@ -205,8 +219,17 @@ export const adjustForDoNotDisturb = (
     const endHours = Math.floor(endMinutes / 60)
     const endMins = endMinutes % 60
 
+    // If the DND wraps around midnight and the scheduled time is in the
+    // evening portion (>= start), the end time is on the next day
+    const needsNextDay =
+      startMinutes > endMinutes && scheduledMinutes >= startMinutes
+
+    const endDay = needsNextDay
+      ? DateTime.add(scheduledDateTime, { days: 1 })
+      : scheduledDateTime
+
     const adjusted = pipe(
-      scheduledDateTime,
+      endDay,
       DateTime.setParts({
         hour: endHours,
         minute: endMins,
@@ -215,16 +238,7 @@ export const adjustForDoNotDisturb = (
       })
     )
 
-    // If the DND wraps around midnight and the scheduled time is in the
-    // evening portion (>= start), the end time is on the next day
-    const needsNextDay =
-      startMinutes > endMinutes && scheduledMinutes >= startMinutes
-
-    const finalDateTime = needsNextDay
-      ? DateTime.add(adjusted, { days: 1 })
-      : adjusted
-
-    return DateTime.toDateUtc(finalDateTime)
+    return DateTime.toDateUtc(adjusted)
   })
 
 /**
@@ -242,8 +256,8 @@ export const isInDoNotDisturbWindow = (
       Option.fromNullishOr(timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
-    const start = dndBound(dndStart, DEFAULT_DND_START)
-    const end = dndBound(dndEnd, DEFAULT_DND_END)
+    const start = yield* dndBound(dndStart, DEFAULT_DND_START)
+    const end = yield* dndBound(dndEnd, DEFAULT_DND_END)
 
     const validTimezone = yield* pipe(
       validateTimezone(tz),

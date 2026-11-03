@@ -17,7 +17,7 @@ import {
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
-import { Array as Arr, Effect, Layer, References } from 'effect'
+import { Array as Arr, Effect, Layer, Logger, References } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
 // Default user with all notifications enabled and DND off
@@ -1374,6 +1374,63 @@ describe('Notification Scheduler', () => {
       expect(notification.status).toBe('pending')
       expect(notification.scheduledAt).toEqual(
         new Date('2026-11-01T06:20:00.000Z')
+      )
+    })
+
+    it('warns with the userId and the rejected value for an invalid stored DND bound', async () => {
+      const warnings: { message: unknown; userId: unknown }[] = []
+      const capture = Logger.make(({ logLevel, message, fiber }) => {
+        if (logLevel === 'Warn') {
+          warnings.push({
+            message,
+            userId: fiber.getRef(References.CurrentLogAnnotations).userId,
+          })
+        }
+      })
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-06-15T23:00:00.000Z'))
+      const user = createTestUser({
+        id: 'user-1',
+        doNotDisturb: true,
+        careReminders: true,
+        timezone: 'UTC',
+        doNotDisturbStart: '22:00',
+        doNotDisturbEnd: '25:99',
+      })
+      const notification = createTestNotification({
+        type: 'watering_reminder',
+        status: 'pending',
+        scheduledAt: new Date('2026-06-15T22:30:00.000Z'),
+        userId: 'user-1',
+      })
+
+      try {
+        await Effect.runPromise(
+          pollAndEnqueue.pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                createMockNotificationRepository([notification]),
+                createMockMessageQueue({}),
+                createMockUserRepository([user]),
+                createMockPlantRepository({ plants: [] }),
+                Logger.layer([capture])
+              )
+            )
+          )
+        )
+      } finally {
+        vi.useRealTimers()
+      }
+
+      expect(warnings).toContainEqual({
+        message: [
+          'Invalid DND bound, using the default',
+          { rejected: '25:99', fallback: '07:00' },
+        ],
+        userId: 'user-1',
+      })
+      expect(notification.scheduledAt).toEqual(
+        new Date('2026-06-16T07:00:00.000Z')
       )
     })
   })

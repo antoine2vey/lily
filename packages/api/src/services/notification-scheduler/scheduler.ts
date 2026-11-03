@@ -196,7 +196,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
         user.timezone,
         user.doNotDisturbStart,
         user.doNotDisturbEnd
-      )
+      ).pipe(Effect.annotateLogs({ userId: user.id }))
 
       if (inDnd) {
         const until = yield* adjustForDoNotDisturb(
@@ -204,7 +204,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
           user.timezone,
           user.doNotDisturbStart,
           user.doNotDisturbEnd
-        )
+        ).pipe(Effect.annotateLogs({ userId: user.id }))
         yield* defer(
           notification,
           'Deferring notification - user in DND',
