@@ -17,14 +17,27 @@ import {
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
 import { isOnVacation } from '@lily/shared'
-import type { Notification } from '@lily/shared/notification'
+import {
+  NOTIFICATION_METADATA,
+  type Notification,
+  type NotificationMetadata,
+} from '@lily/shared/notification'
 import {
   type DeferredCareType,
   MessageQueue,
   type NotificationTopic,
   TOPIC_CATEGORY,
 } from '@lily/shared/server'
-import { Array, DateTime, Effect, Filter, Option, pipe, Record } from 'effect'
+import {
+  Array,
+  DateTime,
+  Effect,
+  Filter,
+  Option,
+  pipe,
+  Record,
+  Schema,
+} from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const BATCH_SIZE = 100
@@ -49,6 +62,15 @@ export const mapNotificationTypeToTopic = (
   type in TOPIC_CATEGORY
     ? Option.some(type as NotificationTopic)
     : Option.none()
+
+const decodeMetadata = (
+  topic: NotificationTopic,
+  metadata: unknown
+): Option.Option<NotificationMetadata> =>
+  Option.match(Option.fromNullishOr(metadata), {
+    onNone: () => Option.some({}),
+    onSome: Schema.decodeUnknownOption(NOTIFICATION_METADATA[topic]),
+  })
 
 // Returns true when a full batch was found (more rows likely waiting).
 export const pollAndEnqueue = Effect.gen(function* () {
@@ -135,6 +157,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   type ValidNotification = {
     notification: Notification
     topic: NotificationTopic
+    metadata: NotificationMetadata
   }
   const validNotifications: ValidNotification[] = []
   const dropIds: string[] = []
@@ -178,6 +201,16 @@ export const pollAndEnqueue = Effect.gen(function* () {
     }
 
     const topic = topicOption.value
+    const metadata = decodeMetadata(topic, notification.metadata)
+
+    if (Option.isNone(metadata)) {
+      yield* Effect.logWarning('Dropping notification - malformed metadata', {
+        type: topic,
+        id: notification.id,
+      })
+      dropIds.push(notification.id)
+      continue
+    }
 
     const user = Option.getOrNull(
       Option.fromNullishOr(userSettingsMap.get(notification.userId))
@@ -230,7 +263,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
       continue
     }
 
-    validNotifications.push({ notification, topic })
+    validNotifications.push({ notification, topic, metadata: metadata.value })
   }
 
   yield* notificationRepo.deleteByIds(dropIds)
@@ -238,19 +271,12 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
   if (validNotifications.length === 0) return filledBatch
 
-  // Phase 2: Group by user. Care reminders merge across care types (and
-  // plants) into one push per user per batch — a plant due for watering AND
-  // misting must not produce two banners, and the Live Activity refresh that
-  // follows each care push is per-user anyway. Everything else keeps the
-  // (userId, type) key, except a notification carrying metadata: the message
-  // carries one row's metadata (an invitation id, say), so it goes out alone
-  // rather than pointing a merged push at the first row.
   const batchKey = ({ notification, topic }: ValidNotification) => {
     if (isCareReminderType(topic)) return `${notification.userId}::care`
-    if (notification.metadata !== undefined) {
-      return `${notification.userId}::${notification.id}`
+    if (topic === 'plant_anniversary') {
+      return `${notification.userId}::plant_anniversary`
     }
-    return `${notification.userId}::${notification.type}`
+    return `${notification.userId}::${notification.id}`
   }
   const grouped = Array.groupBy(validNotifications, batchKey)
 
@@ -281,7 +307,8 @@ export const pollAndEnqueue = Effect.gen(function* () {
         const first = Array.head(group)
         if (Option.isNone(first)) return
 
-        const { userId, metadata } = first.value.notification
+        const { metadata } = first.value
+        const { userId } = first.value.notification
 
         // Deduped: a plant due for two care types contributes one id, so the
         // app's single-plant deep link still resolves.
@@ -405,7 +432,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
               notificationIds,
               plantIds,
               language,
-              ...(metadata !== undefined ? { metadata } : {}),
+              metadata,
             },
             retryCount: 0,
             createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),

@@ -251,6 +251,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             scheduledAt: new Date(),
             userId,
             status: 'queued',
+            metadata: { senderId: 'ada' },
           })
         )
         const claimed = await withRepo((repo) =>

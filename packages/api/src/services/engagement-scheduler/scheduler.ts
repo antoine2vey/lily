@@ -117,6 +117,7 @@ export const processInactivityNudges = Effect.fn(
           body,
           scheduledAt,
           userId: user.id,
+          metadata: {},
         })
       }),
   })
@@ -190,6 +191,7 @@ export const processPhotoReminders = Effect.fn(
               scheduledAt,
               userId: user.id,
               plantId: plant.plantId,
+              metadata: {},
             })
           })
         )
@@ -252,6 +254,7 @@ export const processPlantParentMilestones = Effect.fn(
           body,
           scheduledAt,
           userId: user.id,
+          metadata: {},
         })
       }),
   })
@@ -339,6 +342,7 @@ export const processStreakAtRisk = Effect.fn(
           body,
           scheduledAt,
           userId: user.id,
+          metadata: {},
         })
       }),
   })
@@ -405,6 +409,7 @@ export const processStreakMilestones = Effect.fn(
           body,
           scheduledAt,
           userId: user.id,
+          metadata: {},
         })
       }),
   })
@@ -458,6 +463,7 @@ const processTrialEndingForThreshold = (
             body,
             scheduledAt,
             userId: user.id,
+            metadata: {},
           })
         }),
     })
@@ -575,6 +581,7 @@ export const processPlantAnniversaries = Effect.fn(
               scheduledAt,
               userId: user.id,
               plantId: plant.plantId,
+              metadata: {},
             })
 
             yield* Ref.update(createdForUser, (n) => n + 1)

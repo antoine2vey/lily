@@ -19,9 +19,6 @@ const DelegationMetadata = Schema.Struct({ delegationId: Schema.String })
 const SenderMetadata = Schema.Struct({ senderId: Schema.String })
 const InvitationMetadata = Schema.Struct({ invitationId: Schema.String })
 
-// What a topic's push needs to deep-link, stored on the row and spread into
-// the push data. Decoding strips unknown keys, so push data (which also
-// carries topic, title and body) decodes with the same schema.
 export const NOTIFICATION_METADATA = {
   watering_reminder: NoMetadata,
   fertilization_reminder: NoMetadata,
@@ -57,8 +54,6 @@ export const NOTIFICATION_METADATA = {
 export type MetadataOf<T extends NotificationTopic> =
   (typeof NOTIFICATION_METADATA)[T]['Type']
 
-// Any topic's metadata, for the row and the queue payload, where the topic is
-// not known statically. NoMetadata accepts any object, so it goes last.
 export const NotificationMetadata = Schema.Union([
   DelegationMetadata,
   SenderMetadata,

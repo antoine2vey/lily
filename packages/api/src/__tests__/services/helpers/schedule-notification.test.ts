@@ -15,7 +15,8 @@ const schedule = (
       'new_follower',
       'user-1',
       { senderName: 'Ada' },
-      'en'
+      'en',
+      { senderId: 'ada' }
     ).pipe(
       Effect.provide(
         Layer.mergeAll(createMockNotificationRepository(notifications), queue)

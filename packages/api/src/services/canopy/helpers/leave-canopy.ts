@@ -89,10 +89,15 @@ const leaveInTransaction = (
 
 const notifyLeave = (outcome: LeaveOutcome) =>
   outcome._tag === 'Left'
-    ? notifyMemberBestEffort('canopy_member_left', outcome.owner, {
-        ...senderNameOf(outcome.leaver.name),
-        canopyName: outcome.canopyName,
-      })
+    ? notifyMemberBestEffort(
+        'canopy_member_left',
+        outcome.owner,
+        {
+          ...senderNameOf(outcome.leaver.name),
+          canopyName: outcome.canopyName,
+        },
+        {}
+      )
     : Effect.void
 
 export const leaveCanopy = (

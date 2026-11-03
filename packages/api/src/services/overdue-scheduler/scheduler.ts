@@ -219,7 +219,8 @@ export const processUserOverdueReminders = (
           'resubscribe_nudge',
           userId,
           { plantCount: overflowCount },
-          settings.language
+          settings.language,
+          {}
         )
       }
     }

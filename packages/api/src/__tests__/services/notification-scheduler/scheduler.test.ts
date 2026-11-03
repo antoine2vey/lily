@@ -8,12 +8,14 @@ import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   type NotificationTopic,
+  QueueConnectionError,
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
@@ -194,6 +196,136 @@ describe('Notification Scheduler', () => {
       ).toEqual([
         [['deleg-req-1'], { delegationId: 'delegation-a' }],
         [['deleg-req-2'], { delegationId: 'delegation-b' }],
+      ])
+    })
+
+    it('resends a delegation request whose fast-path enqueue failed with its delegationId', async () => {
+      const notifications: Notification[] = []
+      const enqueued: QueueMessage[] = []
+
+      await Effect.runPromise(
+        scheduleSimpleNotification(
+          'delegation_request',
+          'user-1',
+          { senderName: 'Bob' },
+          'en',
+          { delegationId: 'delegation-a' }
+        ).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockNotificationRepository(notifications),
+              createMockMessageQueue({
+                enqueueFailure: new QueueConnectionError({
+                  message: 'redis down',
+                }),
+              })
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.metadata)).toEqual([
+        { delegationId: 'delegation-a' },
+      ])
+    })
+
+    const follow = (id: string, metadata?: Notification['metadata']) =>
+      createTestNotification({
+        id,
+        type: 'new_follower',
+        status: 'pending',
+        title: 'New follower',
+        body: 'Someone follows you',
+        scheduledAt: new Date(Date.now() - 60000),
+        userId: 'user-1',
+        ...(metadata ? { metadata } : {}),
+      })
+
+    it('sends two follows for one user as two pushes, each with its sender', async () => {
+      const enqueued: QueueMessage[] = []
+
+      await runPollAndEnqueue(
+        [
+          follow('follow-1', { senderId: 'ada' }),
+          follow('follow-2', { senderId: 'bob' }),
+        ],
+        [defaultUser],
+        (_, message) => enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.metadata)).toEqual([
+        { senderId: 'ada' },
+        { senderId: 'bob' },
+      ])
+    })
+
+    it('sends a follow stored without metadata apart from one with a sender', async () => {
+      const enqueued: QueueMessage[] = []
+
+      await runPollAndEnqueue(
+        [follow('follow-legacy'), follow('follow-2', { senderId: 'bob' })],
+        [defaultUser],
+        (_, message) => enqueued.push(message)
+      )
+
+      expect(
+        Arr.map(enqueued, (m) => [
+          m.payload.notificationIds,
+          m.payload.metadata,
+        ])
+      ).toEqual([
+        [['follow-legacy'], {}],
+        [['follow-2'], { senderId: 'bob' }],
+      ])
+    })
+
+    it('drops a row whose metadata does not match its topic', async () => {
+      const enqueued: QueueMessage[] = []
+      const notifications = [
+        createTestNotification({
+          id: 'deleg-bad',
+          type: 'delegation_request',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          metadata: JSON.parse('{"delegationId":5}'),
+        }),
+      ]
+
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(enqueued).toEqual([])
+      expect(notifications).toEqual([])
+    })
+
+    it('sends two daily tips for one user as two pushes', async () => {
+      const enqueued: QueueMessage[] = []
+      const tip = (id: string, title: string) =>
+        createTestNotification({
+          id,
+          type: 'daily_tip',
+          status: 'pending',
+          title,
+          body: 'Tip body',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+        })
+
+      await runPollAndEnqueue(
+        [tip('tip-1', 'Mist ferns'), tip('tip-2', 'Rotate pots')],
+        [defaultUser],
+        (_, message) => enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.title)).toEqual([
+        'Mist ferns',
+        'Rotate pots',
       ])
     })
 

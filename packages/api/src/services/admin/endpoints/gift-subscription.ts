@@ -69,7 +69,8 @@ export const giftSubscription = (
               Option.getOrElse(() => duration)
             ),
           },
-          user.language
+          user.language,
+          {}
         ),
       ],
       { concurrency: 'unbounded' }

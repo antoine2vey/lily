@@ -3,10 +3,19 @@ import {
   MessageQueue,
   type NotificationTopic,
   QueueConnectionError,
-  type QueueMessage,
+  QueueMessage,
+  QueueMessageDecodeError,
   QueueOperationError,
 } from '@lily/shared/server'
-import { Config, Context, Duration, Effect, Layer } from 'effect'
+import {
+  Config,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Schema,
+} from 'effect'
 import Redis from 'ioredis'
 
 // Redis client service tag
@@ -64,6 +73,20 @@ end
 return moved
 `
 
+const decodeQueueMessage = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(QueueMessage)
+)
+
+export const decodeQueueEntry = (topic: NotificationTopic, rawData: string) =>
+  decodeQueueMessage(rawData).pipe(
+    Effect.map((message) => ({ message, rawData })),
+    Effect.catchTag('SchemaError', (error) =>
+      Effect.fail(
+        new QueueMessageDecodeError({ topic, rawData, message: error.message })
+      )
+    )
+  )
+
 export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
   enqueue: (topic, message) =>
     Effect.tryPromise({
@@ -87,25 +110,23 @@ export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
   // is actually dequeued).
   dequeue: (topic) =>
     Effect.tryPromise({
-      try: async () => {
-        const rawData = (await evalTopicScript(
-          redis,
-          DEQUEUE_SCRIPT,
-          topic,
-          Date.now()
-        )) as string | null
-        if (!rawData) return null
-        return {
-          message: JSON.parse(rawData) as QueueMessage,
-          rawData,
-        }
-      },
+      try: () =>
+        evalTopicScript(redis, DEQUEUE_SCRIPT, topic, Date.now()) as Promise<
+          string | null
+        >,
       catch: (error) =>
         new QueueOperationError({
           message: `Failed to dequeue message from ${topic}`,
           cause: error,
         }),
-    }),
+    }).pipe(
+      Effect.flatMap((raw) =>
+        Option.match(Option.fromNullishOr(raw), {
+          onNone: () => Effect.succeed(null),
+          onSome: (rawData) => decodeQueueEntry(topic, rawData),
+        })
+      )
+    ),
 
   ack: (topic, rawData) =>
     Effect.tryPromise({

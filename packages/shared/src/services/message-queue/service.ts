@@ -2,6 +2,7 @@ import type {
   NotificationTopic,
   QueueConnectionError,
   QueueMessage,
+  QueueMessageDecodeError,
   QueueOperationError,
 } from '@lily/shared/services/message-queue/types'
 import { Context, type Duration, type Effect } from 'effect'
@@ -17,7 +18,7 @@ export interface IMessageQueue {
     topic: NotificationTopic
   ) => Effect.Effect<
     { message: QueueMessage; rawData: string } | null,
-    QueueOperationError | QueueConnectionError
+    QueueOperationError | QueueConnectionError | QueueMessageDecodeError
   >
 
   readonly ack: (

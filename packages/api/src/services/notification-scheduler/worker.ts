@@ -23,6 +23,7 @@ import {
   type NotificationTopic,
   PushService,
   type QueueMessage,
+  type QueueMessageDecodeError,
   TOPIC_CATEGORY,
 } from '@lily/shared/server'
 import {
@@ -504,6 +505,9 @@ export const handleFailedMessage = Effect.fn('notification-worker.deadLetter')(
   }
 )
 
+const readEntry = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Unknown)
+)
 const readId = Schema.decodeUnknownOption(Schema.Struct({ id: Schema.String }))
 const readForeignId = Schema.decodeUnknownOption(
   Schema.Struct({ messageId: Schema.String })
@@ -517,71 +521,88 @@ const readNotificationIds = Schema.decodeUnknownOption(
   })
 )
 
-const readMessageId = (message: QueueMessage) =>
-  pipe(
-    readId(message),
-    Option.map((m) => m.id),
-    Option.orElse(() => Option.map(readForeignId(message), (m) => m.messageId))
-  )
+interface PoisonIds {
+  readonly messageId: Option.Option<string>
+  readonly notificationIds: ReadonlyArray<string>
+  readonly retryCount: number
+}
 
-const readableIds = (message: QueueMessage) => ({
-  ...Option.match(readMessageId(message), {
-    onNone: () => ({}),
-    onSome: (messageId) => ({ messageId }),
-  }),
-  ...Option.getOrElse(readRetryCount(message), () => ({})),
+const readPoisonIds = (entry: Option.Option<unknown>): PoisonIds => ({
+  messageId: Option.flatMap(entry, (e) =>
+    pipe(
+      readId(e),
+      Option.map((m) => m.id),
+      Option.orElse(() => Option.map(readForeignId(e), (m) => m.messageId))
+    )
+  ),
+  notificationIds: pipe(
+    Option.flatMap(entry, readNotificationIds),
+    Option.map((m) => m.payload.notificationIds),
+    Option.getOrElse((): ReadonlyArray<string> => [])
+  ),
+  retryCount: pipe(
+    Option.flatMap(entry, readRetryCount),
+    Option.map((m) => m.retryCount),
+    Option.getOrElse(() => 0)
+  ),
 })
 
 const discardPoisonMessage = (
   topic: NotificationTopic,
-  message: QueueMessage,
-  defect: unknown
+  ids: PoisonIds,
+  payload: unknown,
+  error: string
 ) =>
   Effect.gen(function* () {
     const alerter = yield* Alerter
     const deadLetterRepo = yield* DeadLetterRepository
     const notificationRepo = yield* NotificationRepository
 
-    const messageId = readMessageId(message)
-    const notificationIds = pipe(
-      readNotificationIds(message),
-      Option.map((m) => m.payload.notificationIds),
-      Option.getOrElse((): ReadonlyArray<string> => [])
-    )
-    const error = Cause.pretty(Cause.die(defect))
     const headline = pipe(error, Str.split('\n'), Array.headNonEmpty)
 
-    yield* Effect.logError('[notification-worker] defect, discarding message', {
+    yield* Effect.logError('[notification-worker] discarding message', {
       topic,
-      ...readableIds(message),
+      messageId: Option.getOrUndefined(ids.messageId),
+      retryCount: ids.retryCount,
       error,
     })
 
-    const claimedIds = yield* Option.match(messageId, {
+    const claimedIds = yield* Option.match(ids.messageId, {
       onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
-      onSome: (id) => notificationRepo.claimForDelivery(notificationIds, id),
+      onSome: (id) =>
+        notificationRepo.claimForDelivery(ids.notificationIds, id),
     })
     yield* deadLetterRepo.create({
-      originalMessageId: Option.getOrElse(messageId, () => 'unknown'),
+      originalMessageId: Option.getOrElse(ids.messageId, () => 'unknown'),
       topic,
-      payload: message,
+      payload,
       error,
-      retryCount: pipe(
-        readRetryCount(message),
-        Option.map((m) => m.retryCount),
-        Option.getOrElse(() => 0)
-      ),
+      retryCount: ids.retryCount,
     })
     yield* notificationRepo.markManyAsFailed(claimedIds, headline)
     yield* alerter.alert({
       _tag: 'UnhandledDefect',
       source: 'notification-worker',
       message: `${topic}: ${headline}`,
-      stack: Option.match(messageId, {
+      stack: Option.match(ids.messageId, {
         onNone: () => error,
         onSome: (id) => `message ${id}\n${error}`,
       }),
     })
+  })
+
+const discardUndecodable = (error: QueueMessageDecodeError) =>
+  Effect.gen(function* () {
+    const queue = yield* MessageQueue
+    const entry = readEntry(error.rawData)
+
+    yield* discardPoisonMessage(
+      error.topic,
+      readPoisonIds(entry),
+      Option.getOrElse(entry, () => error.rawData),
+      Str.replace(/\n\s*/g, ' ')(error.message)
+    )
+    yield* queue.ack(error.topic, error.rawData)
   })
 
 // Consume and process messages from a single topic.
@@ -605,7 +626,8 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
     const processDequeued = Effect.gen(function* () {
       yield* Effect.log('Processing notification', {
         topic,
-        ...readableIds(message),
+        messageId: message.id,
+        retryCount: message.retryCount,
       })
 
       yield* Effect.result(
@@ -637,7 +659,16 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
           })
         ),
         Effect.catchDefect((defect) =>
-          discardPoisonMessage(topic, message, defect)
+          discardPoisonMessage(
+            topic,
+            {
+              messageId: Option.some(message.id),
+              notificationIds: message.payload.notificationIds,
+              retryCount: message.retryCount,
+            },
+            message,
+            Cause.pretty(Cause.die(defect))
+          )
         )
       )
 
@@ -651,7 +682,11 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
     )
 
     return true
-  })
+  }).pipe(
+    Effect.catchTag('QueueMessageDecodeError', (error) =>
+      Effect.as(discardUndecodable(error), true)
+    )
+  )
 
 export const recoverStrandedDeliveries = Effect.gen(function* () {
   const queue = yield* MessageQueue

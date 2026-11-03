@@ -145,3 +145,11 @@ export class QueueOperationError extends Data.TaggedError(
   message: string
   cause?: unknown
 }> {}
+
+export class QueueMessageDecodeError extends Data.TaggedError(
+  'QueueMessageDecodeError'
+)<{
+  topic: NotificationTopic
+  rawData: string
+  message: string
+}> {}

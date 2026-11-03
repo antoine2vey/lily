@@ -168,6 +168,7 @@ export const UsageTrackerLive = Layer.effect(
           body,
           scheduledAt,
           userId,
+          metadata: {},
         })
       }).pipe(
         Effect.catchTags({
