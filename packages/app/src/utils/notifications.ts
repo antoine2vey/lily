@@ -1,4 +1,8 @@
-import type { LanguageCode } from '@lily/shared'
+import {
+  type LanguageCode,
+  type MetadataOf,
+  NOTIFICATION_METADATA,
+} from '@lily/shared'
 // Type-only import — erased at compile time, so no server code is bundled
 import type { NotificationTopic } from '@lily/shared/server'
 import {
@@ -7,6 +11,7 @@ import {
   Option,
   pipe,
   Record as Rec,
+  Schema,
   String as Str,
 } from 'effect'
 import * as Device from 'expo-device'
@@ -259,59 +264,68 @@ export async function registerLiveActivityTokens(
   }
 }
 
-/**
- * Parse plantIds from the push data payload.
- * The worker sends them as a comma-separated string.
- */
-const parsePlantIds = (raw: unknown): string[] => {
-  if (typeof raw !== 'string' || raw === '') return []
-  return pipe(Str.split(raw, ','), Arr.filter(Str.isNonEmpty))
+// The worker flattens these keys and the row's metadata into one push `data`
+// object, so the metadata is whatever remains once they are removed.
+const ENVELOPE_KEYS = ['topic', 'title', 'body', 'plantIds']
+
+interface PushData<M = MetadataOf<NotificationTopic>> {
+  readonly plantIds: ReadonlyArray<string>
+  readonly title: string
+  readonly body: string
+  readonly metadata: Option.Option<M>
 }
+
+const decodeTopic = Schema.decodeUnknownOption(
+  Schema.Literals(Rec.keys(NOTIFICATION_METADATA))
+)
+
+const decodeStringOption = Schema.decodeUnknownOption(Schema.String)
+
+const decodeString = (raw: unknown): string =>
+  Option.getOrElse(decodeStringOption(raw), () => '')
 
 /**
  * Route to a plant screen (single plant) or care tab (multiple/none).
  */
-const plantRoute = (data: Record<string, unknown>): Href => {
-  const plantIds = parsePlantIds(data.plantIds)
-  return plantIds.length === 1
+const plantRoute = ({ plantIds }: PushData): Href =>
+  plantIds.length === 1
     ? (`/(app)/plant/${plantIds[0]}` as Href)
     : ('/(app)/(tabs)/care' as Href)
-}
 
 /**
  * Route to a plant screen (single plant) or plants tab (multiple/none).
  * For topics that are about plants but not about pending care tasks.
  */
-const plantOrPlantsTabRoute = (data: Record<string, unknown>): Href => {
-  const plantIds = parsePlantIds(data.plantIds)
-  return plantIds.length === 1
+const plantOrPlantsTabRoute = ({ plantIds }: PushData): Href =>
+  plantIds.length === 1
     ? (`/(app)/plant/${plantIds[0]}` as Href)
     : ('/(app)/(tabs)/plants' as Href)
-}
 
 /**
  * Route to a delegation detail screen, or the delegations list as fallback.
  */
-const delegationRoute = (data: Record<string, unknown>): Href => {
-  const delegationId =
-    typeof data.delegationId === 'string' ? data.delegationId : null
-  return delegationId
-    ? (`/(app)/delegation/${delegationId}` as Href)
-    : ('/(app)/delegations' as Href)
-}
-
-type NotificationRouteResolver = (data: Record<string, unknown>) => Href | null
+const delegationRoute = ({
+  metadata,
+}: PushData<MetadataOf<'delegation_request'>>): Href =>
+  Option.match(metadata, {
+    onNone: () => '/(app)/delegations' as Href,
+    onSome: ({ delegationId }) => `/(app)/delegation/${delegationId}` as Href,
+  })
 
 /**
- * Deep-link destination per notification topic. `satisfies Record<
- * NotificationTopic, ...>` makes this exhaustive at compile time — adding a
- * topic to NOTIFICATION_TOPICS in @lily/shared without mapping a route here
- * fails `bun run tsc` (same pattern as TOPIC_CATEGORY in shared).
+ * Deep-link destination per notification topic. The mapped type makes this
+ * exhaustive at compile time — adding a topic to NOTIFICATION_TOPICS in
+ * @lily/shared without mapping a route here fails `bun run tsc` — and hands
+ * each resolver its topic's decoded metadata.
  *
  * A resolver may still return null when the payload lacks the data needed
  * to navigate (e.g. new_follower without a senderId).
  */
-const TOPIC_ROUTES = {
+const TOPIC_ROUTES: {
+  readonly [T in NotificationTopic]: (
+    push: PushData<MetadataOf<T>>
+  ) => Href | null
+} = {
   // Care reminders — single plant → plant screen, multiple/none → care tab
   watering_reminder: plantRoute,
   fertilization_reminder: plantRoute,
@@ -321,10 +335,11 @@ const TOPIC_ROUTES = {
   photo_reminder: plantRoute,
 
   // Social — new follower → profile of the person who followed
-  new_follower: (data) => {
-    const senderId = typeof data.senderId === 'string' ? data.senderId : null
-    return senderId ? (`/(app)/public-profile/${senderId}` as Href) : null
-  },
+  new_follower: ({ metadata }) =>
+    Option.match(metadata, {
+      onNone: () => null,
+      onSome: ({ senderId }) => `/(app)/public-profile/${senderId}` as Href,
+    }),
 
   // Social — nudge → care tab
   nudge_to_water: () => '/(app)/(tabs)/care' as Href,
@@ -343,19 +358,16 @@ const TOPIC_ROUTES = {
   canopy_member_removed: () => '/(app)/canopy' as Href,
   canopy_member_left: () => '/(app)/canopy' as Href,
 
-  canopy_invitation: (data) =>
-    typeof data.invitationId === 'string'
-      ? (`/(app)/canopy-invitation/${data.invitationId}` as Href)
-      : null,
+  canopy_invitation: ({ metadata }) =>
+    Option.match(metadata, {
+      onNone: () => null,
+      onSome: ({ invitationId }) =>
+        `/(app)/canopy-invitation/${invitationId}` as Href,
+    }),
 
   // Daily tip → tip modal with content
-  daily_tip: (data) => {
-    const title =
-      typeof data.title === 'string' ? encodeURIComponent(data.title) : ''
-    const body =
-      typeof data.body === 'string' ? encodeURIComponent(data.body) : ''
-    return `/(app)/tip?title=${title}&body=${body}` as Href
-  },
+  daily_tip: ({ title, body }) =>
+    `/(app)/tip?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}` as Href,
 
   // Engagement — inactivity → plants tab
   inactivity_nudge: () => '/(app)/(tabs)/plants' as Href,
@@ -385,7 +397,24 @@ const TOPIC_ROUTES = {
   // Anniversary — single plant → plant screen, otherwise plants tab
   // (not the care tab: an anniversary has no pending care task)
   plant_anniversary: plantOrPlantsTabRoute,
-} as const satisfies Record<NotificationTopic, NotificationRouteResolver>
+}
+
+const routeTopic = <T extends NotificationTopic>(
+  topic: T,
+  data: Record<string, unknown>
+): Href | null =>
+  TOPIC_ROUTES[topic]({
+    plantIds: pipe(
+      decodeString(data.plantIds),
+      Str.split(','),
+      Arr.filter(Str.isNonEmpty)
+    ),
+    title: decodeString(data.title),
+    body: decodeString(data.body),
+    metadata: Schema.decodeUnknownOption(NOTIFICATION_METADATA[topic])(
+      Rec.filter(data, (_, key) => !Arr.contains(ENVELOPE_KEYS, key))
+    ),
+  })
 
 /**
  * Resolve the deep-link route for a notification based on its topic and data.
@@ -393,18 +422,14 @@ const TOPIC_ROUTES = {
  */
 export const resolveNotificationRoute = (
   data: Record<string, unknown>
-): Href | null => {
-  const topic = typeof data.topic === 'string' ? data.topic : null
-  if (!topic) return null
-
-  return pipe(
-    Rec.get(TOPIC_ROUTES as Record<string, NotificationRouteResolver>, topic),
+): Href | null =>
+  pipe(
+    decodeTopic(data.topic),
     Option.match({
       onNone: () => null,
-      onSome: (resolve) => resolve(data),
+      onSome: (topic) => routeTopic(topic, data),
     })
   )
-}
 
 // Whether the cold-start notification response has been consumed this JS
 // session. setupNotificationListeners re-runs on auth-state changes; only
