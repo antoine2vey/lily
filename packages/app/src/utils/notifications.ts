@@ -264,8 +264,6 @@ export async function registerLiveActivityTokens(
   }
 }
 
-// The worker flattens these keys and the row's metadata into one push `data`
-// object, so the metadata is whatever remains once they are removed.
 const ENVELOPE_KEYS = ['topic', 'title', 'body', 'plantIds']
 
 interface PushData<M = MetadataOf<NotificationTopic>> {
@@ -312,15 +310,6 @@ const delegationRoute = ({
     onSome: ({ delegationId }) => `/(app)/delegation/${delegationId}` as Href,
   })
 
-/**
- * Deep-link destination per notification topic. The mapped type makes this
- * exhaustive at compile time — adding a topic to NOTIFICATION_TOPICS in
- * @lily/shared without mapping a route here fails `bun run tsc` — and hands
- * each resolver its topic's decoded metadata.
- *
- * A resolver may still return null when the payload lacks the data needed
- * to navigate (e.g. new_follower without a senderId).
- */
 const TOPIC_ROUTES: {
   readonly [T in NotificationTopic]: (
     push: PushData<MetadataOf<T>>
