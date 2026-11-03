@@ -39,6 +39,7 @@ import {
   Schedule,
   Schema,
   Scope,
+  String as Str,
   Struct,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -516,6 +517,21 @@ const readNotificationIds = Schema.decodeUnknownOption(
   })
 )
 
+const readMessageId = (message: QueueMessage) =>
+  pipe(
+    readId(message),
+    Option.map((m) => m.id),
+    Option.orElse(() => Option.map(readForeignId(message), (m) => m.messageId))
+  )
+
+const readableIds = (message: QueueMessage) => ({
+  ...Option.match(readMessageId(message), {
+    onNone: () => ({}),
+    onSome: (messageId) => ({ messageId }),
+  }),
+  ...Option.getOrElse(readRetryCount(message), () => ({})),
+})
+
 const discardPoisonMessage = (
   topic: NotificationTopic,
   message: QueueMessage,
@@ -526,43 +542,25 @@ const discardPoisonMessage = (
     const deadLetterRepo = yield* DeadLetterRepository
     const notificationRepo = yield* NotificationRepository
 
-    const messageId = pipe(
-      readId(message),
-      Option.map((m) => m.id),
-      Option.orElse(() =>
-        Option.map(readForeignId(message), (m) => m.messageId)
-      )
-    )
+    const messageId = readMessageId(message)
     const notificationIds = pipe(
       readNotificationIds(message),
       Option.map((m) => m.payload.notificationIds),
       Option.getOrElse((): ReadonlyArray<string> => [])
     )
     const error = Cause.pretty(Cause.die(defect))
-    const label = Option.match(messageId, {
-      onNone: () => topic,
-      onSome: (id) => `${topic} message ${id}`,
-    })
+    const headline = pipe(error, Str.split('\n'), Array.headNonEmpty)
 
     yield* Effect.logError('[notification-worker] defect, discarding message', {
       topic,
-      ...Option.match(messageId, {
-        onNone: () => ({}),
-        onSome: (id) => ({ messageId: id }),
-      }),
+      ...readableIds(message),
       error,
-    })
-    yield* alerter.alert({
-      _tag: 'UnhandledDefect',
-      source: 'notification-worker',
-      message: `${label}: ${error}`,
     })
 
     const claimedIds = yield* Option.match(messageId, {
       onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
       onSome: (id) => notificationRepo.claimForDelivery(notificationIds, id),
     })
-    yield* notificationRepo.markManyAsFailed(claimedIds, error)
     yield* deadLetterRepo.create({
       originalMessageId: Option.getOrElse(messageId, () => 'unknown'),
       topic,
@@ -573,6 +571,16 @@ const discardPoisonMessage = (
         Option.map((m) => m.retryCount),
         Option.getOrElse(() => 0)
       ),
+    })
+    yield* notificationRepo.markManyAsFailed(claimedIds, headline)
+    yield* alerter.alert({
+      _tag: 'UnhandledDefect',
+      source: 'notification-worker',
+      message: `${topic}: ${headline}`,
+      stack: Option.match(messageId, {
+        onNone: () => error,
+        onSome: (id) => `message ${id}\n${error}`,
+      }),
     })
   })
 
@@ -596,9 +604,8 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
 
     const processDequeued = Effect.gen(function* () {
       yield* Effect.log('Processing notification', {
-        messageId: message.id,
         topic,
-        retryCount: message.retryCount,
+        ...readableIds(message),
       })
 
       yield* Effect.result(

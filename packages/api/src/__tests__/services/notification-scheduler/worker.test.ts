@@ -34,13 +34,20 @@ import {
 } from '@lily/api/__tests__/mocks/push.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import type { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
+import {
+  type CreateDeadLetterData,
+  DeadLetterRepository,
+} from '@lily/api/repositories/dead-letter.repository'
 import type {
   DelegationRepository,
   DelegationRow,
 } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import type { Alerter } from '@lily/api/services/alerting'
+import { Alerter } from '@lily/api/services/alerting'
+import {
+  type AlertEvent,
+  makeAlerter,
+} from '@lily/api/services/alerting/service'
 import {
   consumeFromTopic,
   handleFailedMessage,
@@ -53,7 +60,7 @@ import type { DeviceToken } from '@lily/shared/device-token'
 import type { Notification } from '@lily/shared/notification'
 import {
   type LiveActivityPushMessage,
-  type MessageQueue,
+  MessageQueue,
   NOTIFICATION_TOPICS,
   type NotificationTopic,
   type PushMessage,
@@ -1543,7 +1550,7 @@ describe('Notification Worker', () => {
         )
       )
 
-    const pastOneRecoverySweep = '6 minutes'
+    const pastTheFirstPolls = '1 minute'
     const valid = createTestQueueMessage({ id: 'msg-valid' })
     const poisonMessages = {
       noPayload: {
@@ -1578,6 +1585,7 @@ describe('Notification Worker', () => {
         },
       },
     }
+    const asQueueMessage = (poison: object) => poison as unknown as QueueMessage
 
     it('discards each message that dies and delivers the next one at once', async () => {
       const rows = {
@@ -1587,7 +1595,8 @@ describe('Notification Worker', () => {
         other: queuedRow('notification-other'),
         valid: queuedRow('notification-1'),
       }
-      const poisons = Record.values(poisonMessages) as unknown as QueueMessage[]
+      const unclaimed = { d1: { ...rows.d1 }, other: { ...rows.other } }
+      const poisons = Array.map(Record.values(poisonMessages), asQueueMessage)
       const sentAt: number[] = []
       const acked: string[] = []
       const alerter = createMockAlerter()
@@ -1613,7 +1622,7 @@ describe('Notification Worker', () => {
           deadLetters: deadLetters.layer,
           deliveryClaims: { 'notification-other': 'msg-other' },
         }),
-        pastOneRecoverySweep
+        pastTheFirstPolls
       )
 
       expect(sentAt).toEqual([1])
@@ -1625,19 +1634,155 @@ describe('Notification Worker', () => {
       expect(
         Array.map(deadLetters.capturedMessages, (d) => d.originalMessageId)
       ).toEqual(ids)
-      expect(
-        Array.map(alerter.events, (e) =>
-          e._tag === 'UnhandledDefect' ? e.message : e._tag
-        )
-      ).toEqual(
+      expect(alerter.events).toEqual(
         Array.map(ids, (id) =>
-          expect.stringMatching(`^watering_reminder message ${id}: `)
+          expect.objectContaining({
+            _tag: 'UnhandledDefect',
+            message: expect.stringMatching(/^watering_reminder: \w/),
+            stack: expect.stringMatching(`^message ${id}\n`),
+          })
         )
       )
       expect(rows.d4.lastError).toContain('TypeError')
       expect(rows.d5.lastError).toContain('TypeError')
-      expect(rows.d1.lastError).not.toContain('TypeError')
-      expect(rows.other.lastError).not.toContain('TypeError')
+      expect(rows.d1).toEqual(unclaimed.d1)
+      expect(rows.other).toEqual(unclaimed.other)
+    })
+
+    it('sends one alert for messages that die of the same defect', async () => {
+      const sent: AlertEvent[] = []
+      const alerter = Layer.effect(
+        Alerter,
+        makeAlerter((event) => Effect.sync(() => sent.push(event)), {
+          environment: 'test',
+          dedupeWindow: Duration.minutes(5),
+          warningDedupeWindow: Duration.minutes(15),
+        })
+      )
+      const deadLetters = createMockDeadLetterRepositoryWithCapture()
+      const twins = Array.map(['a', 'b'], (id) =>
+        asQueueMessage({
+          ...poisonMessages.nullPlantIds,
+          id: `msg-${id}`,
+          payload: {
+            ...poisonMessages.nullPlantIds.payload,
+            notificationIds: [`notification-${id}`],
+          },
+        })
+      )
+
+      await runWorkersAndTimeDrain(
+        workerLayer({
+          queue: redisQueue({ watering_reminder: twins }, []),
+          push: createMockPushService(),
+          rows: [queuedRow('notification-a'), queuedRow('notification-b')],
+          alerter,
+          deadLetters: deadLetters.layer,
+        }),
+        pastTheFirstPolls
+      )
+
+      expect(
+        Array.map(deadLetters.capturedMessages, (d) => d.originalMessageId)
+      ).toEqual(['msg-a', 'msg-b'])
+      expect(sent).toEqual([
+        expect.objectContaining({
+          stack: expect.stringMatching(/^message msg-a\n/),
+        }),
+      ])
+    })
+
+    it('alerts once for a message whose dead-letter write fails the first time', async () => {
+      const rows = [queuedRow('notification-d5'), queuedRow('notification-1')]
+      const poison = asQueueMessage(poisonMessages.nullPlantIds)
+      const acked: string[] = []
+      const alerter = createMockAlerter()
+      const deadLetters = createMockDeadLetterRepositoryWithCapture()
+      const writeFailures = [
+        new SqlError({
+          reason: new UnknownError({ cause: 'db down', message: 'db down' }),
+        }),
+      ]
+      const failsOnce = Layer.effect(
+        DeadLetterRepository,
+        Effect.map(DeadLetterRepository, (repo) => ({
+          create: (data: CreateDeadLetterData) =>
+            Effect.suspend(() =>
+              Option.match(Option.fromNullishOr(writeFailures.shift()), {
+                onNone: () => repo.create(data),
+                onSome: Effect.fail,
+              })
+            ),
+        }))
+      ).pipe(Layer.provide(deadLetters.layer))
+      const redelivery = poison
+
+      await runWorkersAndTimeDrain(
+        workerLayer({
+          queue: redisQueue(
+            { watering_reminder: [poison, redelivery, valid] },
+            acked
+          ),
+          push: createMockPushService(),
+          rows,
+          alerter: alerter.layer,
+          deadLetters: failsOnce,
+        }),
+        pastTheFirstPolls
+      )
+
+      expect(
+        Array.map(deadLetters.capturedMessages, (d) => d.originalMessageId)
+      ).toEqual(['msg-d5'])
+      expect(alerter.events).toHaveLength(1)
+      expect(acked).toEqual([JSON.stringify(poison), JSON.stringify(valid)])
+      expect(Array.map(rows, (r) => r.status)).toEqual(['failed', 'sent'])
+    })
+
+    it('keeps polling a topic after an ack dies', async () => {
+      const rows = [queuedRow('notification-1'), queuedRow('notification-2')]
+      const first = createTestQueueMessage({ id: 'msg-1' })
+      const second = createTestQueueMessage({
+        id: 'msg-2',
+        payload: { ...valid.payload, notificationIds: ['notification-2'] },
+      })
+      const acked: string[] = []
+      const alerter = createMockAlerter()
+      const ackDefects = [new Error('ack broke')]
+      const ackDiesOnce = Layer.effect(
+        MessageQueue,
+        Effect.map(MessageQueue, (queue) => ({
+          ...queue,
+          ack: (topic: NotificationTopic, rawData: string) =>
+            Effect.suspend(() =>
+              Option.match(Option.fromNullishOr(ackDefects.shift()), {
+                onNone: () => queue.ack(topic, rawData),
+                onSome: Effect.die,
+              })
+            ),
+        }))
+      ).pipe(
+        Layer.provide(redisQueue({ watering_reminder: [first, second] }, acked))
+      )
+
+      await runWorkersAndTimeDrain(
+        workerLayer({
+          queue: ackDiesOnce,
+          push: createMockPushService(),
+          rows,
+          alerter: alerter.layer,
+        }),
+        pastTheFirstPolls
+      )
+
+      expect(Array.map(rows, (r) => r.status)).toEqual(['sent', 'sent'])
+      expect(acked).toEqual([JSON.stringify(second)])
+      expect(alerter.events).toEqual([
+        expect.objectContaining({
+          _tag: 'UnhandledDefect',
+          message: expect.stringContaining('ack broke'),
+        }),
+      ])
     })
 
     it('finishes every in-flight send and its bookkeeping on shutdown, within one step', async () => {
