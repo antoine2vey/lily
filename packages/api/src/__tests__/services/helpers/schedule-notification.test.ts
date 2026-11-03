@@ -64,6 +64,36 @@ describe('scheduleSimpleNotification', () => {
     ])
   })
 
+  it('enqueues the row on its own topic', async () => {
+    const notifications: Notification[] = []
+    const enqueued: Array<{
+      queue: string
+      topic: string
+      notificationIds: ReadonlyArray<string>
+    }> = []
+
+    await schedule(
+      notifications,
+      createMockMessageQueue({
+        onEnqueue: (queue, message: QueueMessage) =>
+          enqueued.push({
+            queue,
+            topic: message.topic,
+            notificationIds: message.payload.notificationIds,
+          }),
+      })
+    )
+
+    expect(notifications).toHaveLength(1)
+    expect(enqueued).toEqual([
+      {
+        queue: 'new_follower',
+        topic: 'new_follower',
+        notificationIds: Arr.map(notifications, (n) => n.id),
+      },
+    ])
+  })
+
   it('hands the row to the scheduler when the queue is unavailable', async () => {
     const notifications: Notification[] = []
 

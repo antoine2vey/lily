@@ -1491,6 +1491,39 @@ describe('Notification Worker', () => {
       expect(sentMessages).toHaveLength(0)
     })
 
+    it('sends nothing when the living plant has only a non-care row', async () => {
+      const dead = createTestPlant({
+        id: 'plant-1',
+        userId: 'user-1',
+        diedAt: new Date(),
+      })
+      const alive = createTestPlant({ id: 'plant-2', userId: 'user-1' })
+      const { sentMessages } = await runWithPlants(
+        [dead, alive],
+        ['plant-1', 'plant-2'],
+        undefined,
+        undefined,
+        [
+          createTestNotification({
+            id: 'notification-1',
+            userId: 'user-1',
+            plantId: 'plant-1',
+            type: 'watering_reminder',
+            status: 'queued',
+          }),
+          createTestNotification({
+            id: 'notification-2',
+            userId: 'user-1',
+            plantId: 'plant-2',
+            type: 'photo_reminder',
+            status: 'queued',
+          }),
+        ]
+      )
+
+      expect(sentMessages).toHaveLength(0)
+    })
+
     it('still delivers when at least one plant is living, naming only that one', async () => {
       const dead = createTestPlant({
         id: 'plant-1',

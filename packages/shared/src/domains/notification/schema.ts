@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { NotificationTopic } from '../../services/message-queue/types'
+import type { NotificationTopic } from '../../services/message-queue/types'
 import { PaginatedResponse } from '../common/pagination'
 
 // Re-export errors for convenient imports
@@ -63,7 +63,7 @@ export type NotificationMetadata = MetadataOf<NotificationTopic>
 // Notification schemas
 export const Notification = Schema.Struct({
   id: Schema.String,
-  type: NotificationTopic,
+  type: Schema.String,
   title: Schema.optional(Schema.String),
   body: Schema.optional(Schema.String),
   scheduledAt: Schema.DateFromString,

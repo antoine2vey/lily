@@ -15,6 +15,7 @@ export const notificationStatusEnum = pgEnum('notification_status', [
   'failed',
 ])
 
+// A new topic needs a migration that appends it with ALTER TYPE ... ADD VALUE, in NOTIFICATION_TOPICS order. schema-parity enforces this.
 export const notificationTypeEnum = pgEnum(
   'notification_type',
   NOTIFICATION_TOPICS

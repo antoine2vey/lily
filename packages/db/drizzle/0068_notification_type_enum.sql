@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '5s';
+--> statement-breakpoint
 DO $$
 BEGIN
   CREATE TYPE "notification_type" AS ENUM (
@@ -35,8 +37,10 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 --> statement-breakpoint
+UPDATE "notifications" SET "type" = 'daily_tip' WHERE "type"::text = 'plant_tip';
+--> statement-breakpoint
 DELETE FROM "notifications"
-WHERE "type"::text <> ALL (enum_range(NULL::"notification_type")::text[]);
+WHERE "type"::text NOT IN (SELECT unnest(enum_range(NULL::"notification_type"))::text);
 --> statement-breakpoint
 ALTER TABLE "notifications"
   ALTER COLUMN "type" SET DATA TYPE "notification_type"

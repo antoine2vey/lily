@@ -67,10 +67,14 @@ export type CreateNotificationData<
   }
 }[T]
 
+export type NotificationRow = Notification & {
+  readonly type: NotificationTopic
+}
+
 // Helper to map database row to API Notification type
 const mapToNotification = (
   row: typeof notifications.$inferSelect
-): Notification => ({
+): NotificationRow => ({
   id: row.id,
   type: row.type,
   title: Option.getOrUndefined(Option.fromNullishOr(row.title)),
@@ -94,21 +98,23 @@ export interface INotificationRepository {
   ) => Effect.Effect<NotificationsListResponse, SqlError>
   readonly findById: (
     id: string
-  ) => Effect.Effect<Notification | null, SqlError>
+  ) => Effect.Effect<NotificationRow | null, SqlError>
   readonly findByIds: (
     ids: ReadonlyArray<string>
-  ) => Effect.Effect<ReadonlyArray<Notification>, SqlError>
+  ) => Effect.Effect<ReadonlyArray<NotificationRow>, SqlError>
   readonly markAsRead: (
     id: string
-  ) => Effect.Effect<Notification | null, SqlError>
+  ) => Effect.Effect<NotificationRow | null, SqlError>
   readonly create: <T extends NotificationTopic>(
     data: CreateNotificationData<T>
-  ) => Effect.Effect<Notification | null, SqlError>
-  readonly delete: (id: string) => Effect.Effect<Notification | null, SqlError>
+  ) => Effect.Effect<NotificationRow | null, SqlError>
+  readonly delete: (
+    id: string
+  ) => Effect.Effect<NotificationRow | null, SqlError>
   // Scheduler methods
   readonly claimPendingToSchedule: (
     limit: number
-  ) => Effect.Effect<Notification[], SqlError>
+  ) => Effect.Effect<NotificationRow[], SqlError>
   readonly releaseUnclaimed: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<void, SqlError>
@@ -128,7 +134,7 @@ export interface INotificationRepository {
   ) => Effect.Effect<number, SqlError>
   readonly incrementRetryCount: (
     id: string
-  ) => Effect.Effect<Notification | null, SqlError>
+  ) => Effect.Effect<NotificationRow | null, SqlError>
   readonly deletePendingByPlantAndType: (
     plantId: string,
     type: NotificationTopic
@@ -163,11 +169,11 @@ export interface INotificationRepository {
   ) => Effect.Effect<boolean, SqlError>
   readonly findPendingByUserId: (
     userId: string
-  ) => Effect.Effect<Notification[], SqlError>
+  ) => Effect.Effect<NotificationRow[], SqlError>
   readonly updateScheduledAt: (
     id: string,
     scheduledAt: Date
-  ) => Effect.Effect<Notification | null, SqlError>
+  ) => Effect.Effect<NotificationRow | null, SqlError>
   // Batch scheduler methods
   readonly markManyAsSent: (
     ids: readonly string[]
