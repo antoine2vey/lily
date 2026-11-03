@@ -146,6 +146,23 @@ export const createMockNotificationRepository = (
         })
       }),
 
+    deferUntil: (rows) =>
+      Effect.sync(() => {
+        Array.forEach(rows, ({ id, until }) => {
+          const n = Array.findFirst(notificationsState, (row) => row.id === id)
+          if (
+            Option.isNone(n) ||
+            n.value.status !== 'queued' ||
+            deliveryClaims.has(id)
+          ) {
+            return
+          }
+          n.value.status = 'pending'
+          n.value.scheduledAt = until
+          queuedAt.delete(id)
+        })
+      }),
+
     claimForDelivery: (ids, messageId) =>
       Effect.sync(() => {
         const claimed: string[] = []

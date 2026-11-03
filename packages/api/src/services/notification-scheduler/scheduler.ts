@@ -1,4 +1,7 @@
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import {
+  type DeferredNotification,
+  NotificationRepository,
+} from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
@@ -8,8 +11,11 @@ import {
   type CareDigestItem,
   pickDominantCareTopic,
 } from '@lily/api/services/notification-scheduler/translations'
-import { isInDoNotDisturbWindow } from '@lily/api/services/notifications/timezone-scheduler'
-import { isOnVacation } from '@lily/shared'
+import {
+  adjustForDoNotDisturb,
+  isInDoNotDisturbWindow,
+} from '@lily/api/services/notifications/timezone-scheduler'
+import { isOnVacation, type VacationFields } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   type DeferredCareType,
@@ -17,7 +23,16 @@ import {
   type NotificationTopic,
   TOPIC_CATEGORY,
 } from '@lily/shared/server'
-import { Array, DateTime, Effect, Filter, Option, pipe, Record } from 'effect'
+import {
+  Array,
+  DateTime,
+  Duration,
+  Effect,
+  Filter,
+  Option,
+  pipe,
+  Record,
+} from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const BATCH_SIZE = 100
@@ -28,6 +43,25 @@ const isCareReminderType = (
 
 const isEngagementType = (type: NotificationTopic): boolean =>
   TOPIC_CATEGORY[type] === 'engagement'
+
+// An active vacation past its end waits for the vacation scheduler's end
+// routine, which runs every 5 minutes and deletes the muted rows.
+const VACATION_END_PENDING_RETRY = Duration.minutes(5)
+
+const vacationResumeAt = (user: VacationFields, now: Date): Date => {
+  const nowDt = DateTime.makeUnsafe(now)
+  return pipe(
+    Option.fromNullishOr(user.vacationEnd),
+    Option.filter((end) =>
+      DateTime.isGreaterThan(DateTime.makeUnsafe(end), nowDt)
+    ),
+    Option.getOrElse(() =>
+      DateTime.toDateUtc(
+        DateTime.addDuration(nowDt, VACATION_END_PENDING_RETRY)
+      )
+    )
+  )
+}
 
 // Map notification type string from DB to a typed NotificationTopic.
 // Returns Option.none() for unknown strings (DB column is untyped text).
@@ -98,7 +132,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   }
   const validNotifications: ValidNotification[] = []
   const dropIds: string[] = []
-  const deferIds: string[] = []
+  const deferred: DeferredNotification[] = []
 
   for (const notification of pendingNotifications) {
     const plantIdOpt = Option.fromNullishOr(notification.plantId)
@@ -154,11 +188,13 @@ export const pollAndEnqueue = Effect.gen(function* () {
       TOPIC_CATEGORY[topic] !== 'social' &&
       isOnVacation(user, currentTime)
     ) {
+      const until = vacationResumeAt(user, currentTime)
       yield* Effect.log('Deferring notification - user on vacation', {
         id: notification.id,
         userId: notification.userId,
+        until,
       })
-      deferIds.push(notification.id)
+      deferred.push({ id: notification.id, until })
       continue
     }
 
@@ -171,11 +207,18 @@ export const pollAndEnqueue = Effect.gen(function* () {
       )
 
       if (inDnd) {
+        const until = yield* adjustForDoNotDisturb(
+          currentTime,
+          user.timezone,
+          user.doNotDisturbStart,
+          user.doNotDisturbEnd
+        )
         yield* Effect.log('Deferring notification - user in DND', {
           id: notification.id,
           userId: notification.userId,
+          until,
         })
-        deferIds.push(notification.id)
+        deferred.push({ id: notification.id, until })
         continue
       }
     }
@@ -184,7 +227,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   }
 
   yield* notificationRepo.deleteByIds(dropIds)
-  yield* notificationRepo.releaseUnclaimed(deferIds)
+  yield* notificationRepo.deferUntil(deferred)
 
   if (validNotifications.length === 0) return false
 

@@ -55,6 +55,11 @@ export interface CreateNotificationData {
   metadata?: NotificationMetadata
 }
 
+export interface DeferredNotification {
+  readonly id: string
+  readonly until: Date
+}
+
 // Helper to map database row to API Notification type
 const mapToNotification = (
   row: typeof notifications.$inferSelect
@@ -99,6 +104,9 @@ export interface INotificationRepository {
   ) => Effect.Effect<Notification[], SqlError>
   readonly releaseUnclaimed: (
     ids: ReadonlyArray<string>
+  ) => Effect.Effect<void, SqlError>
+  readonly deferUntil: (
+    rows: ReadonlyArray<DeferredNotification>
   ) => Effect.Effect<void, SqlError>
   readonly claimForDelivery: (
     ids: ReadonlyArray<string>,
@@ -357,6 +365,33 @@ export const NotificationRepositoryLive = Layer.effect(
             )
         }
       ),
+
+      deferUntil: Effect.fn('NotificationRepository.deferUntil')(function* (
+        rows: ReadonlyArray<DeferredNotification>
+      ) {
+        if (Array.isReadonlyArrayEmpty(rows)) return
+        const scheduledAt = sql`CASE ${notifications.id} ${sql.join(
+          Array.map(
+            rows,
+            (row) =>
+              sql`WHEN ${row.id} THEN ${row.until.toISOString()}::timestamptz`
+          ),
+          sql` `
+        )} END`
+        yield* db
+          .update(notifications)
+          .set({ status: 'pending', queuedAt: null, scheduledAt })
+          .where(
+            and(
+              inArray(
+                notifications.id,
+                Array.map(rows, (row) => row.id)
+              ),
+              eq(notifications.status, 'queued'),
+              isNull(notifications.deliveryMessageId)
+            )
+          )
+      }),
 
       claimForDelivery: Effect.fn('NotificationRepository.claimForDelivery')(
         function* (ids: ReadonlyArray<string>, messageId: string) {
