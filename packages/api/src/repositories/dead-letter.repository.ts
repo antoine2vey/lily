@@ -3,7 +3,6 @@ import { deadLetterMessages } from '@lily/db/schema'
 import { Context, Effect, Layer, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Types for repository methods
 export interface CreateDeadLetterData {
   originalMessageId: string
   topic: string
@@ -51,7 +50,6 @@ export interface IDeadLetterRepository {
   ) => Effect.Effect<DeadLetterMessage | null, SqlError>
 }
 
-// Tag for dependency injection
 export class DeadLetterRepository extends Context.Service<
   DeadLetterRepository,
   IDeadLetterRepository
