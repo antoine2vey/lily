@@ -2,30 +2,30 @@ import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { Array as Arr, Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const validEntry = JSON.stringify({
+const validMessage = {
   id: 'msg-1',
   topic: 'delegation_request',
   payload: {
     userId: 'user-1',
     title: 'Care request',
     body: 'Bob wants you to care for their plants',
-    notificationIds: ['notification-1'],
+    notificationIds: ['5b0f3c1e-8a4d-4e2b-9c7a-1d2e3f4a5b6c'],
     plantIds: [],
     metadata: { delegationId: 'delegation-a' },
   },
   retryCount: 0,
   createdAt: '2026-11-03T10:00:00.000Z',
   scheduledAt: '2026-11-03T10:00:00.000Z',
-})
-
-const withMetadata = (topic: string, metadata: unknown) => {
-  const entry = JSON.parse(validEntry)
-  return JSON.stringify({
-    ...entry,
-    topic,
-    payload: { ...entry.payload, metadata },
-  })
 }
+
+const validEntry = JSON.stringify(validMessage)
+
+const withMetadata = (topic: string, metadata: unknown) =>
+  JSON.stringify({
+    ...validMessage,
+    topic,
+    payload: { ...validMessage.payload, metadata },
+  })
 
 describe('makeRedisMessageQueue dequeue', () => {
   it('decodes an entry into a QueueMessage with dates and metadata', async () => {
@@ -67,14 +67,35 @@ describe('makeRedisMessageQueue dequeue', () => {
     ['JSON that is not a message', JSON.stringify({ id: 'msg-1' })],
     [
       'a message whose topic is not a notification topic',
-      JSON.stringify({ ...JSON.parse(validEntry), topic: 'bogus_topic' }),
+      JSON.stringify({ ...validMessage, topic: 'bogus_topic' }),
     ],
     [
       'a message without a payload',
       JSON.stringify({ id: 'msg-1', topic: 'new_follower', retryCount: 0 }),
     ],
+    [
+      'an id holding a NUL',
+      JSON.stringify({ ...validMessage, id: 'm\u0000x' }),
+    ],
+    [
+      'an id holding an unpaired surrogate',
+      JSON.stringify({ ...validMessage, id: 'm\ud800' }),
+    ],
+    [
+      'notification ids that are not UUIDs',
+      JSON.stringify({
+        ...validMessage,
+        payload: { ...validMessage.payload, notificationIds: ['nope'] },
+      }),
+    ],
+    ...Arr.map([1e20, 1.5, -1], (retryCount): [string, string] => [
+      `a retry count of ${retryCount}`,
+      JSON.stringify({ ...validMessage, retryCount }),
+    ]),
     ...Arr.map(
       [
+        ['delegation_request', { delegationId: '' }],
+        ['new_follower', { senderId: '' }],
         ['delegation_request', { delegationId: 5 }],
         ['delegation_request', 'abc'],
         ['delegation_request', [1, 2]],

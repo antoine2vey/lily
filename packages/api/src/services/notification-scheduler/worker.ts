@@ -20,11 +20,15 @@ import {
   type LiveActivityContentState,
   MessageQueue,
   NOTIFICATION_TOPICS,
+  NotificationId,
   type NotificationTopic,
+  PostgresText,
   PushService,
   type QueueMessage,
   type QueueMessageDecodeError,
+  RetryCount,
   TOPIC_CATEGORY,
+  toPostgresText,
 } from '@lily/shared/server'
 import {
   Array,
@@ -509,16 +513,16 @@ export const handleFailedMessage = Effect.fn('notification-worker.deadLetter')(
 const readEntry = Schema.decodeUnknownOption(
   Schema.fromJsonString(Schema.Unknown)
 )
-const readId = Schema.decodeUnknownOption(Schema.Struct({ id: Schema.String }))
+const readId = Schema.decodeUnknownOption(Schema.Struct({ id: PostgresText }))
 const readForeignId = Schema.decodeUnknownOption(
-  Schema.Struct({ messageId: Schema.String })
+  Schema.Struct({ messageId: PostgresText })
 )
 const readRetryCount = Schema.decodeUnknownOption(
-  Schema.Struct({ retryCount: Schema.Finite })
+  Schema.Struct({ retryCount: RetryCount })
 )
 const readNotificationIds = Schema.decodeUnknownOption(
   Schema.Struct({
-    payload: Schema.Struct({ notificationIds: Schema.Array(Schema.String) }),
+    payload: Schema.Struct({ notificationIds: Schema.Array(NotificationId) }),
   })
 )
 
@@ -552,9 +556,11 @@ const discardPoisonMessage = (
   topic: NotificationTopic,
   ids: PoisonIds,
   payload: object | string,
-  error: string
+  rawData: string,
+  rawError: string
 ) =>
   Effect.gen(function* () {
+    const error = toPostgresText(rawError)
     const alerter = yield* Alerter
     const deadLetterRepo = yield* DeadLetterRepository
     const notificationRepo = yield* NotificationRepository
@@ -573,13 +579,25 @@ const discardPoisonMessage = (
       onSome: (id) =>
         notificationRepo.claimForDelivery(ids.notificationIds, id),
     })
-    yield* deadLetterRepo.create({
-      originalMessageId: Option.getOrElse(ids.messageId, () => 'unknown'),
-      topic,
-      payload,
-      error,
-      retryCount: ids.retryCount,
-    })
+    yield* deadLetterRepo
+      .create({
+        originalMessageId: Option.getOrElse(ids.messageId, () => 'unknown'),
+        topic,
+        payload,
+        error,
+        retryCount: ids.retryCount,
+      })
+      .pipe(
+        Effect.catchTag('SqlError', () =>
+          deadLetterRepo.create({
+            originalMessageId: 'unknown',
+            topic,
+            payload: toPostgresText(rawData),
+            error,
+            retryCount: 0,
+          })
+        )
+      )
     yield* notificationRepo.markManyAsFailed(claimedIds, headline)
     yield* alerter.alert({
       _tag: 'UnhandledDefect',
@@ -592,16 +610,27 @@ const discardPoisonMessage = (
     })
   })
 
-const containsNul = (value: unknown): boolean => {
-  if (Predicate.isString(value)) return Str.includes('\u0000')(value)
-  if (Array.isArray(value)) return Array.some(value, containsNul)
-  return (
-    Predicate.isObject(value) &&
-    Array.some(Array.flatten(Record.toEntries(value)), containsNul)
-  )
+const MAX_STORED_DEPTH = 64
+
+const isPostgresText = Schema.is(PostgresText)
+
+const childrenOf = (value: unknown): ReadonlyArray<unknown> => {
+  if (Array.isArray(value)) return value
+  if (Predicate.isObject(value)) return Array.flatten(Record.toEntries(value))
+  return []
 }
 
-const escapeNulForJsonb = Str.replaceAll('\u0000', '\\u0000')
+const isStorableJson = (root: unknown): boolean => {
+  const pending: Array<readonly [unknown, number]> = [[root, 0]]
+  for (let next = pending.pop(); next; next = pending.pop()) {
+    const [value, depth] = next
+    if (Predicate.isString(value) && !isPostgresText(value)) return false
+    if (Predicate.isObjectOrArray(value) && depth >= MAX_STORED_DEPTH)
+      return false
+    for (const child of childrenOf(value)) pending.push([child, depth + 1])
+  }
+  return true
+}
 
 const storablePayload = (
   entry: Option.Option<unknown>,
@@ -611,9 +640,9 @@ const storablePayload = (
     entry,
     Option.filter(
       (value): value is object =>
-        Predicate.isObjectOrArray(value) && !containsNul(value)
+        Predicate.isObjectOrArray(value) && isStorableJson(value)
     ),
-    Option.getOrElse(() => escapeNulForJsonb(rawData))
+    Option.getOrElse(() => toPostgresText(rawData))
   )
 
 const discardUndecodable = (error: QueueMessageDecodeError) =>
@@ -625,6 +654,7 @@ const discardUndecodable = (error: QueueMessageDecodeError) =>
       error.topic,
       readPoisonIds(entry),
       storablePayload(entry, error.rawData),
+      error.rawData,
       Str.replace(/\n\s*/g, ' ')(error.message)
     )
     yield* queue.ack(error.topic, error.rawData)
@@ -692,6 +722,7 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
               retryCount: message.retryCount,
             },
             message,
+            rawData,
             Cause.pretty(Cause.die(defect))
           )
         )

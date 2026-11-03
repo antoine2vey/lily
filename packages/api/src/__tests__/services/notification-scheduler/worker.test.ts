@@ -117,6 +117,10 @@ const LivingPlantsLive = createMockPlantRepository({
   ],
 })
 
+// The queue boundary only accepts UUID notification ids.
+const rowId = (label: string) =>
+  `00000000-0000-4000-8000-${Buffer.from(label).toString('hex').padStart(12, '0')}`
+
 // Helper to create a test queue message
 const createTestQueueMessage = (
   overrides: Partial<QueueMessage> = {}
@@ -838,7 +842,7 @@ describe('Notification Worker', () => {
       expect(sentMessages).toHaveLength(0)
     })
 
-    it('dead-letters and acks an undecodable entry so the loop moves on', async () => {
+    it('dead-letters and acks an undecodable entry without an id as unknown so the loop moves on', async () => {
       const { layer: dlqLayer, capturedMessages } =
         createMockDeadLetterRepositoryWithCapture()
       const { queue, acked } = createInMemoryRedisQueue(['not json'])
@@ -865,6 +869,7 @@ describe('Notification Worker', () => {
       expect(acked).toEqual(['not json'])
       expect(capturedMessages).toEqual([
         expect.objectContaining({
+          originalMessageId: 'unknown',
           topic: 'new_follower',
           payload: 'not json',
           retryCount: 0,
@@ -881,6 +886,16 @@ describe('Notification Worker', () => {
         '{"id":"msg-nul","note":"a\\u0000b"}',
       ],
       ['text holding a NUL character', 'not json \u0000', 'not json \\u0000'],
+      [
+        'an object holding an unpaired surrogate',
+        '{"id":"m-sur","x":"\\ud800"}',
+        '{"id":"m-sur","x":"\\ud800"}',
+      ],
+      [
+        'arrays nested 2000 deep',
+        `${'['.repeat(2000)}${']'.repeat(2000)}`,
+        `${'['.repeat(2000)}${']'.repeat(2000)}`,
+      ],
     ])(
       'dead-letters %s as its raw text, acks it and alerts once',
       async (_, raw, storedPayload) => {
@@ -1669,12 +1684,18 @@ describe('Notification Worker', () => {
       )
 
     const pastTheFirstPolls = '1 minute'
-    const valid = createTestQueueMessage({ id: 'msg-valid' })
+    const valid = createTestQueueMessage({
+      id: 'msg-valid',
+      payload: {
+        ...createTestQueueMessage().payload,
+        notificationIds: [rowId('1')],
+      },
+    })
     const poisonMessages = {
       noPayload: {
         topic: 'bogus_topic',
         messageId: 'msg-d1',
-        notificationIds: ['notification-d1'],
+        notificationIds: [rowId('d1')],
       },
       nullPayload: {
         ...createTestQueueMessage({ id: 'msg-d2' }),
@@ -1689,7 +1710,7 @@ describe('Notification Worker', () => {
         payload: Struct.omit(
           {
             ...valid.payload,
-            notificationIds: ['notification-d4', 'notification-other'],
+            notificationIds: [rowId('d4'), rowId('other')],
           },
           ['plantIds']
         ),
@@ -1698,7 +1719,7 @@ describe('Notification Worker', () => {
         ...createTestQueueMessage({ id: 'msg-d5' }),
         payload: {
           ...valid.payload,
-          notificationIds: ['notification-d5'],
+          notificationIds: [rowId('d5')],
           plantIds: null,
         },
       },
@@ -1706,11 +1727,11 @@ describe('Notification Worker', () => {
 
     it('discards each message that fails to decode and delivers the next one at once', async () => {
       const rows = {
-        d1: queuedRow('notification-d1'),
-        d4: queuedRow('notification-d4'),
-        d5: queuedRow('notification-d5'),
-        other: queuedRow('notification-other'),
-        valid: queuedRow('notification-1'),
+        d1: queuedRow(rowId('d1')),
+        d4: queuedRow(rowId('d4')),
+        d5: queuedRow(rowId('d5')),
+        other: queuedRow(rowId('other')),
+        valid: queuedRow(rowId('1')),
       }
       const unclaimed = { d1: { ...rows.d1 }, other: { ...rows.other } }
       const poisons = Record.values(poisonMessages)
@@ -1737,7 +1758,7 @@ describe('Notification Worker', () => {
           rows: Record.values(rows),
           alerter: alerter.layer,
           deadLetters: deadLetters.layer,
-          deliveryClaims: { 'notification-other': 'msg-other' },
+          deliveryClaims: { [rowId('other')]: 'msg-other' },
         }),
         pastTheFirstPolls
       )
@@ -1784,7 +1805,7 @@ describe('Notification Worker', () => {
         id: `msg-${id}`,
         payload: {
           ...poisonMessages.nullPlantIds.payload,
-          notificationIds: [`notification-${id}`],
+          notificationIds: [rowId(id)],
         },
       }))
 
@@ -1792,7 +1813,7 @@ describe('Notification Worker', () => {
         workerLayer({
           queue: redisQueue({ watering_reminder: twins }, []),
           push: createMockPushService(),
-          rows: [queuedRow('notification-a'), queuedRow('notification-b')],
+          rows: [queuedRow(rowId('a')), queuedRow(rowId('b'))],
           alerter,
           deadLetters: deadLetters.layer,
         }),
@@ -1809,8 +1830,8 @@ describe('Notification Worker', () => {
       ])
     })
 
-    it('alerts once for a message whose dead-letter write fails the first time', async () => {
-      const rows = [queuedRow('notification-d5'), queuedRow('notification-1')]
+    it('stores an id-less dead letter of the raw text when the first write fails, then acks and alerts once', async () => {
+      const rows = [queuedRow(rowId('d5')), queuedRow(rowId('1'))]
       const poison = poisonMessages.nullPlantIds
       const acked: string[] = []
       const alerter = createMockAlerter()
@@ -1832,14 +1853,10 @@ describe('Notification Worker', () => {
             ),
         }))
       ).pipe(Layer.provide(deadLetters.layer))
-      const redelivery = poison
 
       await runWorkersAndTimeDrain(
         workerLayer({
-          queue: redisQueue(
-            { watering_reminder: [poison, redelivery, valid] },
-            acked
-          ),
+          queue: redisQueue({ watering_reminder: [poison, valid] }, acked),
           push: createMockPushService(),
           rows,
           alerter: alerter.layer,
@@ -1849,19 +1866,26 @@ describe('Notification Worker', () => {
       )
 
       expect(
-        Array.map(deadLetters.capturedMessages, (d) => d.originalMessageId)
-      ).toEqual(['msg-d5'])
+        Array.map(deadLetters.capturedMessages, (d) => [
+          d.originalMessageId,
+          d.retryCount,
+          d.payload,
+        ])
+      ).toEqual([['unknown', 0, JSON.stringify(poison)]])
       expect(alerter.events).toHaveLength(1)
       expect(acked).toEqual([JSON.stringify(poison), JSON.stringify(valid)])
       expect(Array.map(rows, (r) => r.status)).toEqual(['failed', 'sent'])
     })
 
     it('dead-letters a decoded message that dies under its id and delivers the next one', async () => {
-      const rows = [queuedRow('notification-1'), queuedRow('notification-2')]
-      const first = createTestQueueMessage({ id: 'msg-1' })
+      const rows = [queuedRow(rowId('1')), queuedRow(rowId('2'))]
+      const first = createTestQueueMessage({
+        id: 'msg-1',
+        payload: valid.payload,
+      })
       const second = createTestQueueMessage({
         id: 'msg-2',
-        payload: { ...valid.payload, notificationIds: ['notification-2'] },
+        payload: { ...valid.payload, notificationIds: [rowId('2')] },
       })
       const acked: string[] = []
       const alerter = createMockAlerter()
@@ -1908,11 +1932,14 @@ describe('Notification Worker', () => {
     })
 
     it('keeps polling a topic after an ack dies', async () => {
-      const rows = [queuedRow('notification-1'), queuedRow('notification-2')]
-      const first = createTestQueueMessage({ id: 'msg-1' })
+      const rows = [queuedRow(rowId('1')), queuedRow(rowId('2'))]
+      const first = createTestQueueMessage({
+        id: 'msg-1',
+        payload: valid.payload,
+      })
       const second = createTestQueueMessage({
         id: 'msg-2',
-        payload: { ...valid.payload, notificationIds: ['notification-2'] },
+        payload: { ...valid.payload, notificationIds: [rowId('2')] },
       })
       const acked: string[] = []
       const alerter = createMockAlerter()
@@ -1955,16 +1982,16 @@ describe('Notification Worker', () => {
 
     it('finishes every in-flight send and its bookkeeping on shutdown, within one step', async () => {
       const rows = [
-        queuedRow('watering-1'),
-        queuedRow('watering-2'),
-        queuedRow('misting-1'),
-        queuedRow('misting-2'),
+        queuedRow(rowId('w1')),
+        queuedRow(rowId('w2')),
+        queuedRow(rowId('m1')),
+        queuedRow(rowId('m2')),
       ]
       const message = (id: string, topic: NotificationTopic) =>
         createTestQueueMessage({
           id: `msg-${id}`,
           topic,
-          payload: { ...valid.payload, notificationIds: [id] },
+          payload: { ...valid.payload, notificationIds: [rowId(id)] },
         })
       const batches: PushMessage[][] = []
       const acked: string[] = []
@@ -1974,12 +2001,12 @@ describe('Notification Worker', () => {
           queue: redisQueue(
             {
               watering_reminder: [
-                message('watering-1', 'watering_reminder'),
-                message('watering-2', 'watering_reminder'),
+                message('w1', 'watering_reminder'),
+                message('w2', 'watering_reminder'),
               ],
               misting_reminder: [
-                message('misting-1', 'misting_reminder'),
-                message('misting-2', 'misting_reminder'),
+                message('m1', 'misting_reminder'),
+                message('m2', 'misting_reminder'),
               ],
             },
             acked

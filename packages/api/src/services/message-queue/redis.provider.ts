@@ -74,6 +74,8 @@ end
 return moved
 `
 
+const decodeDequeued = Schema.decodeUnknownEffect(Schema.NullOr(Schema.String))
+
 const decodeQueueMessage = Schema.decodeUnknownEffect(
   Schema.fromJsonString(QueueMessage)
 )
@@ -128,16 +130,24 @@ export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
   // is actually dequeued).
   dequeue: (topic) =>
     Effect.tryPromise({
-      try: () =>
-        evalTopicScript(redis, DEQUEUE_SCRIPT, topic, Date.now()) as Promise<
-          string | null
-        >,
+      try: () => evalTopicScript(redis, DEQUEUE_SCRIPT, topic, Date.now()),
       catch: (error) =>
         new QueueOperationError({
           message: `Failed to dequeue message from ${topic}`,
           cause: error,
         }),
     }).pipe(
+      Effect.flatMap((result) =>
+        decodeDequeued(result).pipe(
+          Effect.mapError(
+            (error) =>
+              new QueueOperationError({
+                message: `Unexpected dequeue result from ${topic}`,
+                cause: error,
+              })
+          )
+        )
+      ),
       Effect.flatMap((raw) =>
         Option.match(Option.fromNullishOr(raw), {
           onNone: () => Effect.succeed(null),

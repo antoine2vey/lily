@@ -49,6 +49,21 @@ describe('scheduleSimpleNotification', () => {
     expect(Arr.map(notifications, (n) => n.status)).toEqual(['queued'])
   })
 
+  it('enqueues the metadata with the message', async () => {
+    const enqueued: QueueMessage[] = []
+
+    await schedule(
+      [],
+      createMockMessageQueue({
+        onEnqueue: (_, message: QueueMessage) => enqueued.push(message),
+      })
+    )
+
+    expect(Arr.map(enqueued, (m) => m.payload.metadata)).toEqual([
+      { senderId: 'ada' },
+    ])
+  })
+
   it('hands the row to the scheduler when the queue is unavailable', async () => {
     const notifications: Notification[] = []
 

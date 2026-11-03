@@ -15,9 +15,13 @@ export const NotificationStatus = Schema.Literals([
 export type NotificationStatus = typeof NotificationStatus.Type
 
 const NoMetadata = Schema.Record(Schema.String, Schema.Never)
-const DelegationMetadata = Schema.Struct({ delegationId: Schema.String })
-const SenderMetadata = Schema.Struct({ senderId: Schema.String })
-const InvitationMetadata = Schema.Struct({ invitationId: Schema.String })
+const DelegationMetadata = Schema.Struct({
+  delegationId: Schema.NonEmptyString,
+})
+const SenderMetadata = Schema.Struct({ senderId: Schema.NonEmptyString })
+const InvitationMetadata = Schema.Struct({
+  invitationId: Schema.NonEmptyString,
+})
 
 export const NOTIFICATION_METADATA = {
   watering_reminder: NoMetadata,

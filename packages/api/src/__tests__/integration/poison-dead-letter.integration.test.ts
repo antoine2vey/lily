@@ -54,6 +54,32 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await pool.end()
     })
 
+    const consume = (raw: string) => {
+      const { queue, acked } = createInMemoryRedisQueue([raw])
+      const alerter = createMockAlerter()
+      return Effect.runPromise(
+        consumeFromTopic('new_follower').pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              RepositoriesLive,
+              alerter.layer,
+              Layer.succeed(MessageQueue, queue),
+              createSuccessPushService(),
+              createMockDeviceTokenRepository([]),
+              createMockActivityPushTokenRepository(),
+              createMockCareScheduleRepository(),
+              createMockCareLogRepository([]),
+              createMockUserRepository([]),
+              createMockDelegationRepository(),
+              createMockCanopyRepository([]),
+              createMockPlantRepository({ plants: [] })
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      ).then(() => ({ acked, alerts: alerter.events }))
+    }
+
     it.each([
       ['a JSON null', 'null', 'null'],
       [
@@ -65,37 +91,61 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     ])(
       'stores %s in the dead letter table, acks it and alerts once',
       async (_, raw, storedPayload) => {
-        const { queue, acked } = createInMemoryRedisQueue([raw])
-        const alerter = createMockAlerter()
-
-        await Effect.runPromise(
-          consumeFromTopic('new_follower').pipe(
-            Effect.provide(
-              Layer.mergeAll(
-                RepositoriesLive,
-                alerter.layer,
-                Layer.succeed(MessageQueue, queue),
-                createSuccessPushService(),
-                createMockDeviceTokenRepository([]),
-                createMockActivityPushTokenRepository(),
-                createMockCareScheduleRepository(),
-                createMockCareLogRepository([]),
-                createMockUserRepository([]),
-                createMockDelegationRepository(),
-                createMockCanopyRepository([]),
-                createMockPlantRepository({ plants: [] })
-              )
-            ),
-            Effect.provideService(References.MinimumLogLevel, 'None')
-          )
-        )
+        const { acked, alerts } = await consume(raw)
 
         const stored = await db.execute(
           sql`SELECT jsonb_typeof(payload) AS type, payload #>> '{}' AS text FROM dead_letter_messages`
         )
         expect(stored.rows).toEqual([{ type: 'string', text: storedPayload }])
         expect(acked).toEqual([raw])
-        expect(alerter.events).toHaveLength(1)
+        expect(alerts).toHaveLength(1)
+      }
+    )
+
+    it.each([
+      [
+        'an id holding a NUL',
+        '{"id":"m\\u0000x","topic":"bogus"}',
+        'unknown',
+        'string',
+      ],
+      [
+        'an unpaired surrogate',
+        '{"id":"m-sur","x":"\\ud800"}',
+        'm-sur',
+        'string',
+      ],
+      [
+        'notification ids that are not UUIDs',
+        '{"id":"m-uuid","topic":"bogus","payload":{"notificationIds":["nope"]}}',
+        'm-uuid',
+        'object',
+      ],
+      [
+        'a retry count of 1e20',
+        '{"id":"m-huge","topic":"bogus","retryCount":1e20}',
+        'm-huge',
+        'object',
+      ],
+      [
+        'arrays nested 2000 deep',
+        `${'['.repeat(2000)}${']'.repeat(2000)}`,
+        'unknown',
+        'string',
+      ],
+    ])(
+      'dead-letters an entry with %s, acks it and alerts once',
+      async (_, raw, originalMessageId, type) => {
+        const { acked, alerts } = await consume(raw)
+
+        const stored = await db.execute(
+          sql`SELECT original_message_id, retry_count, jsonb_typeof(payload) AS type FROM dead_letter_messages`
+        )
+        expect(stored.rows).toEqual([
+          { original_message_id: originalMessageId, retry_count: 0, type },
+        ])
+        expect(acked).toEqual([raw])
+        expect(alerts).toHaveLength(1)
       }
     )
   }

@@ -307,7 +307,7 @@ describe('Notification Scheduler', () => {
       ])
     })
 
-    it('sends two photo reminders for one user as two pushes', async () => {
+    it('sends two photo reminders stored without metadata for one user as two pushes', async () => {
       const enqueued: QueueMessage[] = []
       const photo = (id: string, plantId: string) =>
         createTestNotification({
@@ -319,7 +319,6 @@ describe('Notification Scheduler', () => {
           scheduledAt: new Date(Date.now() - 60000),
           userId: 'user-1',
           plantId,
-          metadata: {},
         })
 
       await runPollAndEnqueue(
@@ -359,6 +358,53 @@ describe('Notification Scheduler', () => {
 
       expect(enqueued).toEqual([])
       expect(notifications).toEqual([])
+    })
+
+    it.each([
+      ['delegation_request', { delegationId: '' }],
+      ['new_follower', { senderId: '' }],
+      ['canopy_invitation', { invitationId: '' }],
+    ] as const)('drops a %s row whose id is empty', async (type, metadata) => {
+      const enqueued: QueueMessage[] = []
+      const notifications = [
+        createTestNotification({
+          id: 'empty-id',
+          type,
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          metadata,
+        }),
+      ]
+
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(enqueued).toEqual([])
+      expect(notifications).toEqual([])
+    })
+
+    it('drops a malformed row and still sends the rows after it on the same poll', async () => {
+      const enqueued: QueueMessage[] = []
+      const notifications = [
+        follow('follow-bad', { senderId: '' }),
+        follow('follow-1', { senderId: 'ada' }),
+        follow('follow-2', { senderId: 'bob' }),
+      ]
+
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.notificationIds)).toEqual([
+        ['follow-1'],
+        ['follow-2'],
+      ])
+      expect(Arr.map(notifications, (n) => n.id)).toEqual([
+        'follow-1',
+        'follow-2',
+      ])
     })
 
     it.each([
