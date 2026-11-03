@@ -36,6 +36,14 @@ describe('makeRedisMessageQueue dequeue', () => {
   it.each([
     ['a non-JSON string', 'not json'],
     ['JSON that is not a message', JSON.stringify({ id: 'msg-1' })],
+    [
+      'a message whose topic is not a notification topic',
+      JSON.stringify({ ...JSON.parse(validEntry), topic: 'bogus_topic' }),
+    ],
+    [
+      'a message without a payload',
+      JSON.stringify({ id: 'msg-1', topic: 'new_follower', retryCount: 0 }),
+    ],
   ])(
     'fails %s with the raw text so the consumer can ack it',
     async (_, raw) => {
