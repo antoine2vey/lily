@@ -59,6 +59,14 @@ describe('resolveNotificationRoute', () => {
     expect(route).toBeNull()
   })
 
+  it('routes new_follower with an empty senderId to null', () => {
+    const route = resolveNotificationRoute({
+      topic: 'new_follower',
+      senderId: '',
+    })
+    expect(route).toBeNull()
+  })
+
   it('routes new_follower without senderId to null', () => {
     const route = resolveNotificationRoute({
       topic: 'new_follower',
@@ -100,6 +108,11 @@ describe('resolveNotificationRoute', () => {
       const route = resolveNotificationRoute({ topic })
       expect(route).toBe('/(app)/delegations')
     })
+
+    it('routes an empty delegationId to the delegations list', () => {
+      const route = resolveNotificationRoute({ topic, delegationId: '' })
+      expect(route).toBe('/(app)/delegations')
+    })
   })
 
   it('routes canopy_invitation with invitationId to the invitation', () => {
@@ -114,6 +127,14 @@ describe('resolveNotificationRoute', () => {
     const route = resolveNotificationRoute({
       topic: 'canopy_invitation',
       invitationId: 7,
+    })
+    expect(route).toBeNull()
+  })
+
+  it('routes canopy_invitation with an empty invitationId to null', () => {
+    const route = resolveNotificationRoute({
+      topic: 'canopy_invitation',
+      invitationId: '',
     })
     expect(route).toBeNull()
   })
