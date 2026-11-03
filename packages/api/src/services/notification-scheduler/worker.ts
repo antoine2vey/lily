@@ -37,6 +37,8 @@ import {
   Record,
   Result,
   Schedule,
+  Schema,
+  Scope,
   Struct,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -501,6 +503,66 @@ export const handleFailedMessage = Effect.fn('notification-worker.deadLetter')(
   }
 )
 
+const PoisonMessage = Schema.Struct({
+  id: Schema.optional(Schema.String),
+  retryCount: Schema.optional(Schema.Number),
+  payload: Schema.optional(
+    Schema.Struct({ notificationIds: Schema.Array(Schema.String) })
+  ),
+})
+const decodePoisonMessage = Schema.decodeUnknownOption(PoisonMessage)
+
+const discardPoisonMessage = (
+  topic: NotificationTopic,
+  message: QueueMessage,
+  defect: unknown
+) =>
+  Effect.gen(function* () {
+    const alerter = yield* Alerter
+    const deadLetterRepo = yield* DeadLetterRepository
+    const notificationRepo = yield* NotificationRepository
+
+    const fields = Option.getOrElse(
+      decodePoisonMessage(message),
+      (): typeof PoisonMessage.Type => ({})
+    )
+    const messageId = Option.fromNullishOr(fields.id)
+    const error = Cause.pretty(Cause.die(defect))
+    const logId = Option.getOrElse(messageId, () => 'unknown')
+
+    yield* Effect.logError('[notification-worker] defect, discarding message', {
+      topic,
+      messageId: logId,
+      error,
+    })
+    yield* alerter.alert({
+      _tag: 'UnhandledDefect',
+      source: 'notification-worker',
+      message: `${topic} message ${logId}: ${error}`,
+    })
+
+    const notificationIds = pipe(
+      Option.fromNullishOr(fields.payload),
+      Option.map((p) => p.notificationIds),
+      Option.getOrElse((): ReadonlyArray<string> => [])
+    )
+    const claimedIds = yield* Option.match(messageId, {
+      onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
+      onSome: (id) => notificationRepo.claimForDelivery(notificationIds, id),
+    })
+    yield* notificationRepo.markManyAsFailed(claimedIds, error)
+    yield* deadLetterRepo.create({
+      originalMessageId: logId,
+      topic,
+      payload: message,
+      error,
+      retryCount: Option.getOrElse(
+        Option.fromNullishOr(fields.retryCount),
+        () => 0
+      ),
+    })
+  })
+
 // Consume and process messages from a single topic.
 // Returns true when a message was processed (caller should re-poll immediately).
 //
@@ -553,6 +615,9 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
               }),
             onSuccess: () => Effect.void,
           })
+        ),
+        Effect.catchDefect((defect) =>
+          discardPoisonMessage(topic, message, defect)
         )
       )
 
@@ -612,16 +677,21 @@ const alertDefect = (topic: NotificationTopic, defect: unknown) =>
 
 // Start workers for all topics
 export const startNotificationWorker = Effect.gen(function* () {
+  // Fibers forked into one scope are interrupted one after another on close,
+  // so each would get its own drain deadline. A parallel scope gives every
+  // loop and the recovery sweep the same one.
+  const workers = yield* Scope.fork(yield* Scope.Scope, 'parallel')
+
   yield* createScheduler({
     name: 'notification-recovery',
     interval: '5 minutes',
     runOnStartup: false,
     task: recoverStrandedDeliveries,
-  })
+  }).pipe(Scope.provide(workers))
 
   // Start a worker for each topic
   yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
-    Effect.forkScoped(
+    Effect.forkIn(
       Effect.forever(
         consumeFromTopic(topic).pipe(
           Effect.catchTags({
@@ -650,7 +720,8 @@ export const startNotificationWorker = Effect.gen(function* () {
             hadMessage ? Effect.void : Effect.sleep('5 seconds')
           )
         )
-      )
+      ),
+      workers
     )
   )
 

@@ -34,6 +34,7 @@ import {
 } from '@lily/api/__tests__/mocks/push.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import type { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import type {
   DelegationRepository,
   DelegationRow,
@@ -54,13 +55,14 @@ import {
   type LiveActivityPushMessage,
   type MessageQueue,
   NOTIFICATION_TOPICS,
+  type NotificationTopic,
   type PushMessage,
   PushService,
   type QueueMessage,
 } from '@lily/shared/server'
 import {
   Array,
-  type Duration,
+  Duration,
   Effect,
   Exit,
   Fiber,
@@ -1434,24 +1436,43 @@ describe('Notification Worker', () => {
     const queuedRow = (id: string) =>
       createTestNotification({ id, userId: 'user-1', status: 'queued' })
 
-    const wateringQueue = (messages: QueueMessage[], acked: string[]) =>
-      createMockMessageQueue({
+    const redisQueue = (
+      ready: Partial<Record<NotificationTopic, QueueMessage[]>>,
+      acked: string[]
+    ) => {
+      const processing = new Map<string, NotificationTopic>()
+      return createMockMessageQueue({
         onDequeue: (topic) => {
-          if (topic !== 'watering_reminder') return null
-          const msg = pipe(
-            Option.fromNullishOr(messages.shift()),
-            Option.getOrNull
-          )
-          return msg ? { message: msg, rawData: JSON.stringify(msg) } : null
+          const message = ready[topic]?.shift()
+          if (!message) return null
+          const rawData = JSON.stringify(message)
+          processing.set(rawData, topic)
+          return { message, rawData }
         },
-        onAck: (_, rawData) => acked.push(rawData),
+        onAck: (_, rawData) => {
+          acked.push(rawData)
+          processing.delete(rawData)
+        },
+        onRequeueStale: (topic) => {
+          const stale = Array.filter(
+            Array.fromIterable(processing),
+            ([, owner]) => owner === topic
+          )
+          Array.forEach(stale, ([rawData]) => {
+            processing.delete(rawData)
+            ready[topic]?.push(JSON.parse(rawData))
+          })
+          return stale.length
+        },
       })
+    }
 
     const workerLayer = (options: {
       queue: Layer.Layer<MessageQueue>
       push: Layer.Layer<PushService>
       rows: Notification[]
       alerter: Layer.Layer<Alerter>
+      deadLetters?: Layer.Layer<DeadLetterRepository>
     }) =>
       Layer.mergeAll(
         options.alerter,
@@ -1459,12 +1480,15 @@ describe('Notification Worker', () => {
         options.push,
         createMockDeviceTokenRepository(mockDeviceTokens),
         createMockNotificationRepository(options.rows),
-        createMockDeadLetterRepository(),
+        pipe(
+          Option.fromNullishOr(options.deadLetters),
+          Option.getOrElse(() => createMockDeadLetterRepository())
+        ),
         LaMocksLive,
         LivingPlantsLive
       )
 
-    const runWorkers = (
+    const runWorkersAndTimeDrain = (
       layer: ReturnType<typeof workerLayer>,
       stopAt: Duration.Input
     ) =>
@@ -1477,9 +1501,12 @@ describe('Notification Worker', () => {
           scope
         )
         yield* TestClock.adjust(stopAt)
-        const closing = yield* Effect.forkChild(Scope.close(scope, Exit.void))
+        const closing = yield* Effect.forkChild(
+          Scope.close(scope, Exit.void).pipe(Effect.timed)
+        )
         yield* TestClock.adjust('30 seconds')
-        yield* Fiber.join(closing)
+        const [drained] = yield* Fiber.join(closing)
+        return drained
       }).pipe(
         Effect.scoped,
         Effect.provide(TestClock.layer()),
@@ -1487,6 +1514,23 @@ describe('Notification Worker', () => {
         Effect.runPromise
       )
 
+    const slowPush = (batches: PushMessage[][]) =>
+      Layer.effect(
+        PushService,
+        Effect.map(PushService, (push) => ({
+          ...push,
+          sendBatch: (msgs: PushMessage[]) =>
+            push
+              .sendBatch(msgs)
+              .pipe(Effect.tap(() => Effect.sleep('5 seconds'))),
+        }))
+      ).pipe(
+        Layer.provide(
+          createMockPushService({ onSendBatch: (msgs) => batches.push(msgs) })
+        )
+      )
+
+    const pastTwoRecoverySweeps = '11 minutes'
     const valid = createTestQueueMessage({ id: 'msg-valid' })
     const missingPlantIds = {
       ...createTestQueueMessage({ id: 'msg-missing-plant-ids' }),
@@ -1502,11 +1546,21 @@ describe('Notification Worker', () => {
     } as unknown as QueueMessage
 
     it.each([
-      ['without plantIds', missingPlantIds],
-      ['without a payload', missingPayload],
+      [
+        'without plantIds',
+        missingPlantIds,
+        'msg-missing-plant-ids',
+        expect.stringContaining('TypeError'),
+      ],
+      [
+        'without a payload',
+        missingPayload,
+        'unknown',
+        expect.not.stringContaining('TypeError'),
+      ],
     ])(
-      'delivers the next message on a topic after one %s dies',
-      async (_, poison) => {
+      'discards a message %s that dies and delivers the next one',
+      async (_, poison, deadLetterId, poisonRowError) => {
         const rows = [
           queuedRow('notification-poison'),
           queuedRow('notification-1'),
@@ -1514,22 +1568,29 @@ describe('Notification Worker', () => {
         const batches: PushMessage[][] = []
         const acked: string[] = []
         const alerter = createMockAlerter()
+        const deadLetters = createMockDeadLetterRepositoryWithCapture()
 
-        await runWorkers(
+        await runWorkersAndTimeDrain(
           workerLayer({
-            queue: wateringQueue([poison, valid], acked),
+            queue: redisQueue({ watering_reminder: [poison, valid] }, acked),
             push: createMockPushService({
               onSendBatch: (msgs) => batches.push(msgs),
             }),
             rows,
             alerter: alerter.layer,
+            deadLetters: deadLetters.layer,
           }),
-          '10 seconds'
+          pastTwoRecoverySweeps
         )
 
         expect(batches).toHaveLength(1)
         expect(rows[1]?.status).toBe('sent')
-        expect(acked).toEqual([JSON.stringify(valid)])
+        expect(rows[0]?.status).toBe('failed')
+        expect(rows[0]?.lastError).toEqual(poisonRowError)
+        expect(acked).toEqual([JSON.stringify(poison), JSON.stringify(valid)])
+        expect(
+          Array.map(deadLetters.capturedMessages, (d) => d.originalMessageId)
+        ).toEqual([deadLetterId])
         expect(
           Array.filter(
             alerter.events,
@@ -1540,36 +1601,53 @@ describe('Notification Worker', () => {
       }
     )
 
-    it('finishes the in-flight send and its bookkeeping on shutdown', async () => {
-      const row = queuedRow('notification-1')
+    it('finishes every in-flight send and its bookkeeping on shutdown, within one step', async () => {
+      const rows = [
+        queuedRow('watering-1'),
+        queuedRow('watering-2'),
+        queuedRow('misting-1'),
+        queuedRow('misting-2'),
+      ]
+      const message = (id: string, topic: NotificationTopic) =>
+        createTestQueueMessage({
+          id: `msg-${id}`,
+          topic,
+          payload: { ...valid.payload, notificationIds: [id] },
+        })
       const batches: PushMessage[][] = []
       const acked: string[] = []
-      const slowPush = Layer.effect(
-        PushService,
-        Effect.map(PushService, (push) => ({
-          ...push,
-          sendBatch: (msgs: PushMessage[]) =>
-            push.sendBatch(msgs).pipe(Effect.delay('5 seconds')),
-        }))
-      ).pipe(
-        Layer.provide(
-          createMockPushService({ onSendBatch: (msgs) => batches.push(msgs) })
-        )
-      )
 
-      await runWorkers(
+      const drained = await runWorkersAndTimeDrain(
         workerLayer({
-          queue: wateringQueue([createTestQueueMessage()], acked),
-          push: slowPush,
-          rows: [row],
+          queue: redisQueue(
+            {
+              watering_reminder: [
+                message('watering-1', 'watering_reminder'),
+                message('watering-2', 'watering_reminder'),
+              ],
+              misting_reminder: [
+                message('misting-1', 'misting_reminder'),
+                message('misting-2', 'misting_reminder'),
+              ],
+            },
+            acked
+          ),
+          push: slowPush(batches),
+          rows,
           alerter: MockAlerterLive,
         }),
         '1 second'
       )
 
-      expect(batches).toHaveLength(1)
-      expect(row.status).toBe('sent')
-      expect(acked).toHaveLength(1)
+      expect(batches).toHaveLength(2)
+      expect(Array.map(rows, (r) => r.status)).toEqual([
+        'sent',
+        'queued',
+        'sent',
+        'queued',
+      ])
+      expect(acked).toHaveLength(2)
+      expect(Duration.toMillis(drained)).toBeLessThan(5_000)
     })
   })
 
