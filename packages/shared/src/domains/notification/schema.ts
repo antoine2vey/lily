@@ -14,7 +14,7 @@ export const NotificationStatus = Schema.Literals([
 ])
 export type NotificationStatus = typeof NotificationStatus.Type
 
-const NoMetadata = Schema.Struct({})
+const NoMetadata = Schema.Record(Schema.String, Schema.Never)
 const DelegationMetadata = Schema.Struct({ delegationId: Schema.String })
 const SenderMetadata = Schema.Struct({ senderId: Schema.String })
 const InvitationMetadata = Schema.Struct({ invitationId: Schema.String })
@@ -54,12 +54,6 @@ export const NOTIFICATION_METADATA = {
 export type MetadataOf<T extends NotificationTopic> =
   (typeof NOTIFICATION_METADATA)[T]['Type']
 
-export const NotificationMetadata = Schema.Union([
-  DelegationMetadata,
-  SenderMetadata,
-  InvitationMetadata,
-  NoMetadata,
-])
 export type NotificationMetadata = MetadataOf<NotificationTopic>
 
 // Notification schemas
@@ -76,7 +70,7 @@ export const Notification = Schema.Struct({
   lastError: Schema.optional(Schema.String),
   userId: Schema.String,
   plantId: Schema.optional(Schema.String),
-  metadata: Schema.optional(NotificationMetadata),
+  metadata: Schema.optional(Schema.Record(Schema.String, Schema.String)),
   createdAt: Schema.DateFromString,
 })
 

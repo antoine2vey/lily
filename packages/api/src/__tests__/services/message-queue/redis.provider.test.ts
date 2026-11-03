@@ -1,5 +1,5 @@
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
-import { Effect } from 'effect'
+import { Array as Arr, Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const validEntry = JSON.stringify({
@@ -18,6 +18,15 @@ const validEntry = JSON.stringify({
   scheduledAt: '2026-11-03T10:00:00.000Z',
 })
 
+const withMetadata = (topic: string, metadata: unknown) => {
+  const entry = JSON.parse(validEntry)
+  return JSON.stringify({
+    ...entry,
+    topic,
+    payload: { ...entry.payload, metadata },
+  })
+}
+
 describe('makeRedisMessageQueue dequeue', () => {
   it('decodes an entry into a QueueMessage with dates and metadata', async () => {
     const { queue } = createInMemoryRedisQueue([validEntry])
@@ -34,6 +43,26 @@ describe('makeRedisMessageQueue dequeue', () => {
   })
 
   it.each([
+    ['daily_tip', {}, {}],
+    [
+      'new_follower',
+      { senderId: 'ada', delegationId: 'delegation-a' },
+      { senderId: 'ada' },
+    ],
+  ] as const)(
+    'decodes %s metadata %j to the keys its topic defines',
+    async (topic, metadata, decoded) => {
+      const { queue } = createInMemoryRedisQueue([
+        withMetadata(topic, metadata),
+      ])
+
+      const result = await Effect.runPromise(queue.dequeue(topic))
+
+      expect(result?.message.payload.metadata).toEqual(decoded)
+    }
+  )
+
+  it.each([
     ['a non-JSON string', 'not json'],
     ['JSON that is not a message', JSON.stringify({ id: 'msg-1' })],
     [
@@ -44,6 +73,20 @@ describe('makeRedisMessageQueue dequeue', () => {
       'a message without a payload',
       JSON.stringify({ id: 'msg-1', topic: 'new_follower', retryCount: 0 }),
     ],
+    ...Arr.map(
+      [
+        ['delegation_request', { delegationId: 5 }],
+        ['delegation_request', 'abc'],
+        ['delegation_request', [1, 2]],
+        ['new_follower', { delegationId: 'delegation-a' }],
+        ['daily_tip', { delegationId: 'delegation-a' }],
+        ['daily_tip', 5],
+      ] as const,
+      ([topic, metadata]): [string, string] => [
+        `a ${topic} whose metadata is ${JSON.stringify(metadata)}`,
+        withMetadata(topic, metadata),
+      ]
+    ),
   ])(
     'fails %s with the raw text so the consumer can ack it',
     async (_, raw) => {

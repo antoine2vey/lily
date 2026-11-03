@@ -1,3 +1,4 @@
+import { NOTIFICATION_METADATA } from '@lily/shared/notification'
 import {
   type IMessageQueue,
   MessageQueue,
@@ -77,8 +78,25 @@ const decodeQueueMessage = Schema.decodeUnknownEffect(
   Schema.fromJsonString(QueueMessage)
 )
 
+const decodeTopicMetadata = (message: QueueMessage) =>
+  Option.match(Option.fromNullishOr(message.payload.metadata), {
+    onNone: () => Effect.succeed(message),
+    onSome: (metadata) =>
+      Schema.decodeUnknownEffect(NOTIFICATION_METADATA[message.topic])(
+        metadata
+      ).pipe(
+        Effect.map(
+          (decoded): QueueMessage => ({
+            ...message,
+            payload: { ...message.payload, metadata: decoded },
+          })
+        )
+      ),
+  })
+
 export const decodeQueueEntry = (topic: NotificationTopic, rawData: string) =>
   decodeQueueMessage(rawData).pipe(
+    Effect.flatMap(decodeTopicMetadata),
     Effect.map((message) => ({ message, rawData })),
     Effect.catchTag('SchemaError', (error) =>
       Effect.fail(

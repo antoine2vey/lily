@@ -36,7 +36,9 @@ import {
   Option,
   pipe,
   Record,
+  Result,
   Schema,
+  String as Str,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -63,14 +65,10 @@ export const mapNotificationTypeToTopic = (
     ? Option.some(type as NotificationTopic)
     : Option.none()
 
-const decodeMetadata = (
-  topic: NotificationTopic,
-  metadata: unknown
-): Option.Option<NotificationMetadata> =>
-  Option.match(Option.fromNullishOr(metadata), {
-    onNone: () => Option.some({}),
-    onSome: Schema.decodeUnknownOption(NOTIFICATION_METADATA[topic]),
-  })
+const decodeMetadata = (topic: NotificationTopic, metadata: unknown) =>
+  Schema.decodeUnknownResult(Schema.UndefinedOr(NOTIFICATION_METADATA[topic]))(
+    metadata
+  )
 
 // Returns true when a full batch was found (more rows likely waiting).
 export const pollAndEnqueue = Effect.gen(function* () {
@@ -157,7 +155,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   type ValidNotification = {
     notification: Notification
     topic: NotificationTopic
-    metadata: NotificationMetadata
+    metadata: NotificationMetadata | undefined
   }
   const validNotifications: ValidNotification[] = []
   const dropIds: string[] = []
@@ -203,10 +201,11 @@ export const pollAndEnqueue = Effect.gen(function* () {
     const topic = topicOption.value
     const metadata = decodeMetadata(topic, notification.metadata)
 
-    if (Option.isNone(metadata)) {
+    if (Result.isFailure(metadata)) {
       yield* Effect.logWarning('Dropping notification - malformed metadata', {
         type: topic,
         id: notification.id,
+        error: Str.replace(/\n\s*/g, ' ')(metadata.failure.message),
       })
       dropIds.push(notification.id)
       continue
@@ -263,7 +262,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
       continue
     }
 
-    validNotifications.push({ notification, topic, metadata: metadata.value })
+    validNotifications.push({ notification, topic, metadata: metadata.success })
   }
 
   yield* notificationRepo.deleteByIds(dropIds)
@@ -432,7 +431,10 @@ export const pollAndEnqueue = Effect.gen(function* () {
               notificationIds,
               plantIds,
               language,
-              metadata,
+              ...Option.match(Option.fromNullishOr(metadata), {
+                onNone: () => ({}),
+                onSome: (value) => ({ metadata: value }),
+              }),
             },
             retryCount: 0,
             createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),

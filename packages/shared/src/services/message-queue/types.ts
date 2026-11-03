@@ -1,5 +1,4 @@
 import { Array, Data, pipe, Record, Schema } from 'effect'
-import { NotificationMetadata } from '../../domains/notification/schema'
 
 export const NOTIFICATION_TOPICS = [
   'watering_reminder',
@@ -116,7 +115,7 @@ export const QueueMessagePayload = Schema.Struct({
   // Optional so queue messages enqueued before this field existed don't fail
   // Schema validation on dequeue. Worker defaults to 'en' when absent.
   language: Schema.optional(Schema.Literals(['en', 'fr'])),
-  metadata: Schema.optional(NotificationMetadata),
+  metadata: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 })
 export type QueueMessagePayload = typeof QueueMessagePayload.Type
 
@@ -146,10 +145,11 @@ export class QueueOperationError extends Data.TaggedError(
   cause?: unknown
 }> {}
 
-export class QueueMessageDecodeError extends Data.TaggedError(
-  'QueueMessageDecodeError'
-)<{
-  topic: NotificationTopic
-  rawData: string
-  message: string
-}> {}
+export class QueueMessageDecodeError extends Schema.TaggedError<QueueMessageDecodeError>()(
+  'QueueMessageDecodeError',
+  {
+    topic: NotificationTopic,
+    rawData: Schema.String,
+    message: Schema.String,
+  }
+) {}

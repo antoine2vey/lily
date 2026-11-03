@@ -626,8 +626,8 @@ export const NotificationRepositoryLive = Layer.effect(
             sql`, `
           )
           yield* db.execute(
-            sql`INSERT INTO notifications (type, scheduled_at, user_id, plant_id, status)
-              SELECT v.type, v.scheduled_at, v.user_id, v.plant_id, 'pending'::notification_status
+            sql`INSERT INTO notifications (type, scheduled_at, user_id, plant_id, status, metadata)
+              SELECT v.type, v.scheduled_at, v.user_id, v.plant_id, 'pending'::notification_status, '{}'::jsonb
               FROM (VALUES ${values}) AS v(type, scheduled_at, user_id, plant_id, since)
               WHERE v.since IS NULL OR NOT EXISTS (
                 SELECT 1 FROM notifications n

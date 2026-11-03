@@ -34,6 +34,7 @@ import {
   Effect,
   Filter,
   Option,
+  Predicate,
   pipe,
   Record,
   Result,
@@ -550,7 +551,7 @@ const readPoisonIds = (entry: Option.Option<unknown>): PoisonIds => ({
 const discardPoisonMessage = (
   topic: NotificationTopic,
   ids: PoisonIds,
-  payload: unknown,
+  payload: object | string,
   error: string
 ) =>
   Effect.gen(function* () {
@@ -591,6 +592,30 @@ const discardPoisonMessage = (
     })
   })
 
+const containsNul = (value: unknown): boolean => {
+  if (Predicate.isString(value)) return Str.includes('\u0000')(value)
+  if (Array.isArray(value)) return Array.some(value, containsNul)
+  return (
+    Predicate.isObject(value) &&
+    Array.some(Array.flatten(Record.toEntries(value)), containsNul)
+  )
+}
+
+const escapeNulForJsonb = Str.replaceAll('\u0000', '\\u0000')
+
+const storablePayload = (
+  entry: Option.Option<unknown>,
+  rawData: string
+): object | string =>
+  pipe(
+    entry,
+    Option.filter(
+      (value): value is object =>
+        Predicate.isObjectOrArray(value) && !containsNul(value)
+    ),
+    Option.getOrElse(() => escapeNulForJsonb(rawData))
+  )
+
 const discardUndecodable = (error: QueueMessageDecodeError) =>
   Effect.gen(function* () {
     const queue = yield* MessageQueue
@@ -599,7 +624,7 @@ const discardUndecodable = (error: QueueMessageDecodeError) =>
     yield* discardPoisonMessage(
       error.topic,
       readPoisonIds(entry),
-      Option.getOrElse(entry, () => error.rawData),
+      storablePayload(entry, error.rawData),
       Str.replace(/\n\s*/g, ' ')(error.message)
     )
     yield* queue.ack(error.topic, error.rawData)

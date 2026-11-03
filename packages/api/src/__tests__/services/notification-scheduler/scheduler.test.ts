@@ -19,7 +19,14 @@ import {
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
-import { Array as Arr, Effect, Layer, Logger, References } from 'effect'
+import {
+  Array as Arr,
+  Effect,
+  Layer,
+  Logger,
+  Predicate,
+  References,
+} from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
 // Default user with all notifications enabled and DND off
@@ -275,11 +282,61 @@ describe('Notification Scheduler', () => {
       expect(
         Arr.map(enqueued, (m) => [
           m.payload.notificationIds,
-          m.payload.metadata,
+          Predicate.hasProperty(m.payload, 'metadata')
+            ? m.payload.metadata
+            : 'no metadata key',
         ])
       ).toEqual([
-        [['follow-legacy'], {}],
+        [['follow-legacy'], 'no metadata key'],
         [['follow-2'], { senderId: 'bob' }],
+      ])
+    })
+
+    it('sends two follows stored without metadata for one user as two pushes', async () => {
+      const enqueued: QueueMessage[] = []
+
+      await runPollAndEnqueue(
+        [follow('follow-1'), follow('follow-2')],
+        [defaultUser],
+        (_, message) => enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.notificationIds)).toEqual([
+        ['follow-1'],
+        ['follow-2'],
+      ])
+    })
+
+    it('sends two photo reminders for one user as two pushes', async () => {
+      const enqueued: QueueMessage[] = []
+      const photo = (id: string, plantId: string) =>
+        createTestNotification({
+          id,
+          type: 'photo_reminder',
+          status: 'pending',
+          title: `Photo of ${plantId}`,
+          body: 'Time for a picture',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId,
+          metadata: {},
+        })
+
+      await runPollAndEnqueue(
+        [photo('photo-1', 'plant-1'), photo('photo-2', 'plant-2')],
+        [defaultUser],
+        (_, message) => enqueued.push(message),
+        [
+          createTestPlant({ id: 'plant-1', name: 'Monstera' }),
+          createTestPlant({ id: 'plant-2', name: 'Fern' }),
+        ]
+      )
+
+      expect(
+        Arr.map(enqueued, (m) => [m.payload.notificationIds, m.payload.title])
+      ).toEqual([
+        [['photo-1'], 'Photo of plant-1'],
+        [['photo-2'], 'Photo of plant-2'],
       ])
     })
 
@@ -302,6 +359,64 @@ describe('Notification Scheduler', () => {
 
       expect(enqueued).toEqual([])
       expect(notifications).toEqual([])
+    })
+
+    it.each([
+      ['a string', '"abc"'],
+      ['a number', '5'],
+      ['an array', '[1,2]'],
+      ['an unknown key', '{"delegationId":"d-1"}'],
+    ])('drops a daily tip whose metadata is %s', async (_, metadata) => {
+      const enqueued: QueueMessage[] = []
+      const notifications = [
+        createTestNotification({
+          id: 'tip-bad',
+          type: 'daily_tip',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          metadata: JSON.parse(metadata),
+        }),
+      ]
+
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(enqueued).toEqual([])
+      expect(notifications).toEqual([])
+    })
+
+    it('logs the schema error of a dropped row on one line', async () => {
+      const warnings: unknown[] = []
+      const capture = Logger.make(({ message }) => {
+        warnings.push(message)
+      })
+
+      await Effect.runPromise(
+        pollAndEnqueue.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockNotificationRepository([
+                follow('follow-bad', JSON.parse('{"senderId":5}')),
+              ]),
+              createMockMessageQueue({}),
+              createMockUserRepository([defaultUser]),
+              createMockPlantRepository({ plants: [] }),
+              Logger.layer([capture])
+            )
+          )
+        )
+      )
+
+      expect(warnings).toContainEqual([
+        'Dropping notification - malformed metadata',
+        {
+          type: 'new_follower',
+          id: 'follow-bad',
+          error: 'Expected string at ["senderId"]',
+        },
+      ])
     })
 
     it('sends two daily tips for one user as two pushes', async () => {

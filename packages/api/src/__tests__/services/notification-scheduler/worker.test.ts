@@ -872,6 +872,78 @@ describe('Notification Worker', () => {
       ])
     })
 
+    it.each([
+      ['a JSON null', 'null', 'null'],
+      ['a JSON number', '5', '5'],
+      [
+        'an object holding an escaped NUL',
+        '{"id":"msg-nul","note":"a\\u0000b"}',
+        '{"id":"msg-nul","note":"a\\u0000b"}',
+      ],
+      ['text holding a NUL character', 'not json \u0000', 'not json \\u0000'],
+    ])(
+      'dead-letters %s as its raw text, acks it and alerts once',
+      async (_, raw, storedPayload) => {
+        const { layer: dlqLayer, capturedMessages } =
+          createMockDeadLetterRepositoryWithCapture()
+        const { queue, acked } = createInMemoryRedisQueue([raw])
+        const alerter = createMockAlerter()
+
+        await Effect.runPromise(
+          consumeFromTopic('new_follower').pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                alerter.layer,
+                Layer.succeed(MessageQueue, queue),
+                createSuccessPushService(),
+                createMockDeviceTokenRepository(mockDeviceTokens),
+                createMockNotificationRepository([]),
+                dlqLayer,
+                LaMocksLive,
+                LivingPlantsLive
+              )
+            ),
+            Effect.provideService(References.MinimumLogLevel, 'None')
+          )
+        )
+
+        expect(acked).toEqual([raw])
+        expect(alerter.events).toHaveLength(1)
+        expect(Array.map(capturedMessages, (m) => m.payload)).toEqual([
+          storedPayload,
+        ])
+      }
+    )
+
+    it('dead-letters an undecodable object entry as the parsed object', async () => {
+      const { layer: dlqLayer, capturedMessages } =
+        createMockDeadLetterRepositoryWithCapture()
+      const raw = JSON.stringify({ id: 'msg-1', topic: 'bogus_topic' })
+      const { queue } = createInMemoryRedisQueue([raw])
+
+      await Effect.runPromise(
+        consumeFromTopic('new_follower').pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              MockAlerterLive,
+              Layer.succeed(MessageQueue, queue),
+              createSuccessPushService(),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([]),
+              dlqLayer,
+              LaMocksLive,
+              LivingPlantsLive
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(Array.map(capturedMessages, (m) => m.payload)).toEqual([
+        { id: 'msg-1', topic: 'bogus_topic' },
+      ])
+    })
+
     // Note: Tests for retry/DLQ logic with consumeFromTopic are skipped because
     // the exponential backoff schedule makes them too slow. The retry and DLQ
     // logic is already tested via handleFailedMessage tests above.
