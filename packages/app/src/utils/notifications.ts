@@ -264,8 +264,6 @@ export async function registerLiveActivityTokens(
   }
 }
 
-const ENVELOPE_KEYS = ['topic', 'title', 'body', 'plantIds']
-
 interface PushData<M = MetadataOf<NotificationTopic>> {
   readonly plantIds: ReadonlyArray<string>
   readonly title: string
@@ -282,22 +280,29 @@ const decodeStringOption = Schema.decodeUnknownOption(Schema.String)
 const decodeString = (raw: unknown): string =>
   Option.getOrElse(decodeStringOption(raw), () => '')
 
+const singlePlantId = (
+  plantIds: ReadonlyArray<string>
+): Option.Option<string> =>
+  plantIds.length === 1 ? Arr.head(plantIds) : Option.none()
+
 /**
  * Route to a plant screen (single plant) or care tab (multiple/none).
  */
 const plantRoute = ({ plantIds }: PushData): Href =>
-  plantIds.length === 1
-    ? (`/(app)/plant/${plantIds[0]}` as Href)
-    : ('/(app)/(tabs)/care' as Href)
+  Option.match(singlePlantId(plantIds), {
+    onNone: () => '/(app)/(tabs)/care' as Href,
+    onSome: (plantId) => `/(app)/plant/${plantId}` as Href,
+  })
 
 /**
  * Route to a plant screen (single plant) or plants tab (multiple/none).
  * For topics that are about plants but not about pending care tasks.
  */
 const plantOrPlantsTabRoute = ({ plantIds }: PushData): Href =>
-  plantIds.length === 1
-    ? (`/(app)/plant/${plantIds[0]}` as Href)
-    : ('/(app)/(tabs)/plants' as Href)
+  Option.match(singlePlantId(plantIds), {
+    onNone: () => '/(app)/(tabs)/plants' as Href,
+    onSome: (plantId) => `/(app)/plant/${plantId}` as Href,
+  })
 
 /**
  * Route to a delegation detail screen, or the delegations list as fallback.
@@ -400,9 +405,7 @@ const routeTopic = <T extends NotificationTopic>(
     ),
     title: decodeString(data.title),
     body: decodeString(data.body),
-    metadata: Schema.decodeUnknownOption(NOTIFICATION_METADATA[topic])(
-      Rec.filter(data, (_, key) => !Arr.contains(ENVELOPE_KEYS, key))
-    ),
+    metadata: Schema.decodeUnknownOption(NOTIFICATION_METADATA[topic])(data),
   })
 
 /**

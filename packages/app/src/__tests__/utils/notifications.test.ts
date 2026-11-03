@@ -128,6 +128,17 @@ describe('resolveNotificationRoute', () => {
     expect(route).toBe('/(app)/canopy')
   })
 
+  it.each([
+    ['canopy_member_removed', '/(app)/canopy'],
+    ['canopy_member_left', '/(app)/canopy'],
+    ['gift_subscription', '/(app)/(tabs)/plants'],
+    ['resubscribe_nudge', '/(app)/subscription/upgrade'],
+  ])('routes %s with a title and body to %s', (topic, expected) => {
+    expect(
+      resolveNotificationRoute({ topic, title: 'Lily', body: 'News' })
+    ).toBe(expected)
+  })
+
   it('routes daily_tip to tip modal with encoded params', () => {
     const route = resolveNotificationRoute({
       topic: 'daily_tip',
