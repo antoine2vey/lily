@@ -6,7 +6,10 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
-import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
+import {
+  createScheduler,
+  drainOnInterrupt,
+} from '@lily/api/services/helpers/create-scheduler'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
 import { mapNotificationTypeToTopic } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
@@ -24,6 +27,7 @@ import {
 } from '@lily/shared/server'
 import {
   Array,
+  Cause,
   DateTime,
   Duration,
   Effect,
@@ -594,6 +598,21 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
   }
 }).pipe(Effect.withSpan('notification-recovery.sweep'))
 
+// The defective message stays in `:processing`. The recovery sweep requeues
+// it, and once its claimed rows age past DELIVERY_TIMEOUT it is skipped.
+const alertDefect = (topic: NotificationTopic, defect: unknown) =>
+  Effect.gen(function* () {
+    const alerter = yield* Alerter
+    const message = Cause.pretty(Cause.die(defect))
+    yield* Effect.logError('[notification-worker] defect', { topic, message })
+    yield* alerter.alert({
+      _tag: 'UnhandledDefect',
+      source: 'notification-worker',
+      message,
+    })
+    return false
+  })
+
 // Start workers for all topics
 export const startNotificationWorker = Effect.gen(function* () {
   yield* createScheduler({
@@ -625,6 +644,8 @@ export const startNotificationWorker = Effect.gen(function* () {
                 error: String(e),
               }).pipe(Effect.as(false)),
           }),
+          Effect.catchDefect((defect) => alertDefect(topic, defect)),
+          drainOnInterrupt('notification-worker'),
           // Only sleep when the queue was empty — drain fast under load
           Effect.flatMap((hadMessage) =>
             hadMessage ? Effect.void : Effect.sleep('5 seconds')

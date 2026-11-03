@@ -39,30 +39,38 @@ import type {
   DelegationRow,
 } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import type { Alerter } from '@lily/api/services/alerting'
 import {
   consumeFromTopic,
   handleFailedMessage,
   processMessage,
   recoverStrandedDeliveries,
+  startNotificationWorker,
 } from '@lily/api/services/notification-scheduler/worker'
 import type { ActivityPushToken, CanopyId } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
 import type { Notification } from '@lily/shared/notification'
 import {
   type LiveActivityPushMessage,
+  type MessageQueue,
   NOTIFICATION_TOPICS,
   type PushMessage,
+  PushService,
   type QueueMessage,
 } from '@lily/shared/server'
 import {
   Array,
+  type Duration,
   Effect,
+  Exit,
   Fiber,
   Layer,
   Option,
   pipe,
   Record,
   References,
+  Scope,
+  Struct,
 } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { TestClock } from 'effect/testing'
@@ -1419,6 +1427,140 @@ describe('Notification Worker', () => {
         (m) => m._tag === 'LiveActivityStart'
       )
       expect(starts).toHaveLength(1)
+    })
+  })
+
+  describe('startNotificationWorker', () => {
+    const queuedRow = (id: string) =>
+      createTestNotification({ id, userId: 'user-1', status: 'queued' })
+
+    const wateringQueue = (messages: QueueMessage[], acked: string[]) =>
+      createMockMessageQueue({
+        onDequeue: (topic) => {
+          if (topic !== 'watering_reminder') return null
+          const msg = pipe(
+            Option.fromNullishOr(messages.shift()),
+            Option.getOrNull
+          )
+          return msg ? { message: msg, rawData: JSON.stringify(msg) } : null
+        },
+        onAck: (_, rawData) => acked.push(rawData),
+      })
+
+    const workerLayer = (options: {
+      queue: Layer.Layer<MessageQueue>
+      push: Layer.Layer<PushService>
+      rows: Notification[]
+      alerter: Layer.Layer<Alerter>
+    }) =>
+      Layer.mergeAll(
+        options.alerter,
+        options.queue,
+        options.push,
+        createMockDeviceTokenRepository(mockDeviceTokens),
+        createMockNotificationRepository(options.rows),
+        createMockDeadLetterRepository(),
+        LaMocksLive,
+        LivingPlantsLive
+      )
+
+    // Closing the scope is what SIGTERM does to the scheduler layer.
+    const runWorkers = (
+      layer: ReturnType<typeof workerLayer>,
+      stopAt: Duration.Input
+    ) =>
+      Effect.gen(function* () {
+        const scope = yield* Scope.make()
+        yield* Layer.buildWithScope(
+          Layer.effectDiscard(startNotificationWorker).pipe(
+            Layer.provide(layer)
+          ),
+          scope
+        )
+        yield* TestClock.adjust(stopAt)
+        const closing = yield* Effect.forkChild(Scope.close(scope, Exit.void))
+        yield* TestClock.adjust('30 seconds')
+        yield* Fiber.join(closing)
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(TestClock.layer()),
+        Effect.provideService(References.MinimumLogLevel, 'None'),
+        Effect.runPromise
+      )
+
+    it('delivers the next message on a topic after one dies', async () => {
+      const valid = createTestQueueMessage({ id: 'msg-valid' })
+      // A payload without `plantIds` throws in the care guard, a defect the
+      // retry policy and the tagged handlers do not cover.
+      const defective = {
+        ...createTestQueueMessage({ id: 'msg-defective' }),
+        payload: Struct.omit(
+          { ...valid.payload, notificationIds: ['notification-defective'] },
+          ['plantIds']
+        ),
+      } as unknown as QueueMessage
+      const rows = [
+        queuedRow('notification-defective'),
+        queuedRow('notification-1'),
+      ]
+      const batches: PushMessage[][] = []
+      const acked: string[] = []
+      const alerter = createMockAlerter()
+
+      await runWorkers(
+        workerLayer({
+          queue: wateringQueue([defective, valid], acked),
+          push: createMockPushService({
+            onSendBatch: (msgs) => batches.push(msgs),
+          }),
+          rows,
+          alerter: alerter.layer,
+        }),
+        '10 seconds'
+      )
+
+      expect(batches).toHaveLength(1)
+      expect(rows[1]?.status).toBe('sent')
+      expect(acked).toEqual([JSON.stringify(valid)])
+      expect(
+        Array.filter(
+          alerter.events,
+          (e) =>
+            e._tag === 'UnhandledDefect' && e.source === 'notification-worker'
+        )
+      ).toHaveLength(1)
+    })
+
+    it('finishes the in-flight send and its bookkeeping on shutdown', async () => {
+      const row = queuedRow('notification-1')
+      const batches: PushMessage[][] = []
+      const acked: string[] = []
+      const slowPush = Layer.effect(
+        PushService,
+        Effect.map(PushService, (push) => ({
+          ...push,
+          sendBatch: (msgs: PushMessage[]) =>
+            push.sendBatch(msgs).pipe(Effect.delay('5 seconds')),
+        }))
+      ).pipe(
+        Layer.provide(
+          createMockPushService({ onSendBatch: (msgs) => batches.push(msgs) })
+        )
+      )
+
+      await runWorkers(
+        workerLayer({
+          queue: wateringQueue([createTestQueueMessage()], acked),
+          push: slowPush,
+          rows: [row],
+          alerter: MockAlerterLive,
+        }),
+        '1 second'
+      )
+
+      expect(batches).toHaveLength(1)
+      expect(row.status).toBe('sent')
+      expect(acked).toHaveLength(1)
     })
   })
 
