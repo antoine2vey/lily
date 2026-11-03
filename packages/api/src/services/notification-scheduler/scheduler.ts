@@ -182,7 +182,10 @@ export const pollAndEnqueue = Effect.gen(function* () {
       yield* defer(
         notification,
         'Deferring notification - user on vacation',
-        user.vacationEnd ?? currentTime
+        pipe(
+          Option.fromNullishOr(user.vacationEnd),
+          Option.getOrElse(() => currentTime)
+        )
       )
       continue
     }
