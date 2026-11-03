@@ -18,7 +18,7 @@ import {
   QueueOperationError,
 } from '@lily/shared/server'
 import { Array as Arr, Effect, Layer, References } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 // Default user with all notifications enabled and DND off
 const defaultUser = createTestUser({
@@ -1341,6 +1341,39 @@ describe('Notification Scheduler', () => {
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.message.payload.notificationIds).toContain(
         'notif-no-dnd'
+      )
+    })
+
+    it('keeps a deferred row out of the due set when the DND end resolves to the past', async () => {
+      // 06:15Z on 2026-11-01 is 01:15 EST, in the repeated hour. The 01:30
+      // end resolves to the EDT instance, 05:30Z, which is already past.
+      const now = new Date('2026-11-01T06:15:00.000Z')
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(now)
+      const user = createTestUser({
+        id: 'user-1',
+        doNotDisturb: true,
+        careReminders: true,
+        timezone: 'America/New_York',
+        doNotDisturbStart: '22:00',
+        doNotDisturbEnd: '01:30',
+      })
+      const notification = createTestNotification({
+        type: 'watering_reminder',
+        status: 'pending',
+        scheduledAt: new Date('2026-11-01T06:00:00.000Z'),
+        userId: 'user-1',
+      })
+
+      try {
+        await runPollAndEnqueue([notification], [user])
+      } finally {
+        vi.useRealTimers()
+      }
+
+      expect(notification.status).toBe('pending')
+      expect(notification.scheduledAt).toEqual(
+        new Date('2026-11-01T06:20:00.000Z')
       )
     })
   })

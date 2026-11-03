@@ -15,7 +15,7 @@ import {
   adjustForDoNotDisturb,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
-import { isOnVacation, type VacationFields } from '@lily/shared'
+import { isOnVacation } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   type DeferredCareType,
@@ -28,7 +28,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 export const BATCH_SIZE = 100
 
-const OVERDUE_VACATION_RETRY = '5 minutes'
+const MIN_DEFERRAL = '5 minutes'
 
 const isCareReminderType = (
   type: NotificationTopic
@@ -36,19 +36,6 @@ const isCareReminderType = (
 
 const isEngagementType = (type: NotificationTopic): boolean =>
   TOPIC_CATEGORY[type] === 'engagement'
-
-const vacationResumeAt = (user: VacationFields, now: Date): Date => {
-  const nowDt = DateTime.makeUnsafe(now)
-  return pipe(
-    Option.fromNullishOr(user.vacationEnd),
-    Option.filter((end) =>
-      DateTime.isGreaterThan(DateTime.makeUnsafe(end), nowDt)
-    ),
-    Option.getOrElse(() =>
-      DateTime.toDateUtc(DateTime.addDuration(nowDt, OVERDUE_VACATION_RETRY))
-    )
-  )
-}
 
 // Map notification type string from DB to a typed NotificationTopic.
 // Returns Option.none() for unknown strings (DB column is untyped text).
@@ -122,6 +109,21 @@ export const pollAndEnqueue = Effect.gen(function* () {
   const validNotifications: ValidNotification[] = []
   const dropIds: string[] = []
   const deferred: DeferredNotification[] = []
+  const earliestRetry = DateTime.addDuration(
+    DateTime.makeUnsafe(currentTime),
+    MIN_DEFERRAL
+  )
+  const defer = (notification: Notification, reason: string, until: Date) => {
+    const at = DateTime.toDateUtc(
+      DateTime.max(DateTime.makeUnsafe(until), earliestRetry)
+    )
+    deferred.push({ id: notification.id, until: at })
+    return Effect.log(reason, {
+      id: notification.id,
+      userId: notification.userId,
+      until: at,
+    })
+  }
 
   for (const notification of pendingNotifications) {
     const plantIdOpt = Option.fromNullishOr(notification.plantId)
@@ -177,13 +179,11 @@ export const pollAndEnqueue = Effect.gen(function* () {
       TOPIC_CATEGORY[topic] !== 'social' &&
       isOnVacation(user, currentTime)
     ) {
-      const until = vacationResumeAt(user, currentTime)
-      yield* Effect.log('Deferring notification - user on vacation', {
-        id: notification.id,
-        userId: notification.userId,
-        until,
-      })
-      deferred.push({ id: notification.id, until })
+      yield* defer(
+        notification,
+        'Deferring notification - user on vacation',
+        user.vacationEnd ?? currentTime
+      )
       continue
     }
 
@@ -202,12 +202,11 @@ export const pollAndEnqueue = Effect.gen(function* () {
           user.doNotDisturbStart,
           user.doNotDisturbEnd
         )
-        yield* Effect.log('Deferring notification - user in DND', {
-          id: notification.id,
-          userId: notification.userId,
-          until,
-        })
-        deferred.push({ id: notification.id, until })
+        yield* defer(
+          notification,
+          'Deferring notification - user in DND',
+          until
+        )
         continue
       }
     }
