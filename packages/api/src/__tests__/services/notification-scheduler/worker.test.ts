@@ -1575,8 +1575,6 @@ describe('Notification Worker', () => {
     })
   })
 
-  // One plant due for watering today so buildLiveActivityContentState
-  // yields a card.
   const runWithDeviceTokens = async (
     tokens: ActivityPushToken[],
     runs: number,
@@ -1584,6 +1582,11 @@ describe('Notification Worker', () => {
   ): Promise<LiveActivityPushMessage[]> => {
     const laMessages: LiveActivityPushMessage[] = []
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+    const wateringOverdue = createTestSchedule({
+      plantId: 'plant-1',
+      careType: 'watering',
+      nextCareAt: new Date(Date.now() - 60_000),
+    })
     const layer = Layer.mergeAll(
       MockAlerterLive,
       createMockPushService({
@@ -1601,13 +1604,7 @@ describe('Notification Worker', () => {
       createMockActivityPushTokenRepository({ tokens }),
       createMockCareScheduleRepository({
         plants: [plant],
-        schedules: [
-          createTestSchedule({
-            plantId: 'plant-1',
-            careType: 'watering',
-            nextCareAt: new Date(Date.now() - 60_000),
-          }),
-        ],
+        schedules: [wateringOverdue],
       }),
       createMockCareLogRepository([]),
       createMockUserRepository([
@@ -1667,8 +1664,6 @@ describe('Notification Worker', () => {
       ...overrides,
     })
 
-    // A single push-to-start token and no active update row: the pure
-    // "start" path.
     const runWithStartToken = (token: ActivityPushToken, runs: number) =>
       runWithDeviceTokens([token], runs)
 

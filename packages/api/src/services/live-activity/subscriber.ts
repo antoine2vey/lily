@@ -95,9 +95,6 @@ const refreshLiveActivity = (params: {
           )
         }
 
-        // Still remaining → update. If the update token is dead, mark the row
-        // ended so the next care cycle takes the start path instead of trying
-        // to update a dead activity.
         return sendWithLogging(
           pushService,
           'update',

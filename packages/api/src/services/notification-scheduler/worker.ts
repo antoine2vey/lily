@@ -96,8 +96,6 @@ const resolveInterruptionLevel = (
 ): InterruptionLevel | undefined =>
   TOPIC_CATEGORY[topic] === 'care' ? 'time-sensitive' : undefined
 
-// Refresh every Live Activity card the user has alongside a care reminder.
-//
 // The scheduler merges all of a user's due care reminders into one queue
 // message, so this runs once per user per delivery batch. The start guard
 // below covers what the merge cannot: worker retries, back-to-back polls, and
@@ -110,11 +108,9 @@ const resolveInterruptionLevel = (
 // start path see two banners back-to-back (regular Expo + LA-start);
 // consolidating to one is a separate UX change.
 //
-// Each device is decided on its own:
 //   - Active update token → send an `update`.
 //   - Else push-to-start token (iOS 17.2+) with no unresolved earlier start
-//     → send a `start`. A device whose update token comes back invalidated
-//     lands here too.
+//     → send a `start`.
 //   - Else silently skip.
 const sendLiveActivityForCare = Effect.fn('sendLiveActivityForCare')(function* (
   userId: string,
@@ -135,9 +131,14 @@ const sendLiveActivityForCare = Effect.fn('sendLiveActivityForCare')(function* (
     { concurrency: 'unbounded' }
   )
 
-  // A transient failure keeps the card: the activity is presumably still
-  // on the device, and starting another would show two.
-  const keepsCard = (activity: ActivityPushToken) =>
+  const assumeCardStillShown =
+    (activity: ActivityPushToken, warning: string) => (e: unknown) =>
+      Effect.logWarning(warning, {
+        deviceTokenId: activity.deviceTokenId,
+        error: String(e),
+      }).pipe(Effect.as(true))
+
+  const stillShowsCard = (activity: ActivityPushToken) =>
     pushService
       .sendLiveActivity({
         _tag: 'LiveActivityUpdate',
@@ -147,16 +148,14 @@ const sendLiveActivityForCare = Effect.fn('sendLiveActivityForCare')(function* (
       .pipe(
         Effect.as(true),
         Effect.catchTags({
-          PushSendError: (e) =>
-            Effect.logWarning('[worker] LA update failed', {
-              deviceTokenId: activity.deviceTokenId,
-              error: String(e),
-            }).pipe(Effect.as(true)),
-          PushConfigError: (e) =>
-            Effect.logWarning('[worker] LA update config error', {
-              deviceTokenId: activity.deviceTokenId,
-              error: String(e),
-            }).pipe(Effect.as(true)),
+          PushSendError: assumeCardStillShown(
+            activity,
+            '[worker] LA update failed'
+          ),
+          PushConfigError: assumeCardStillShown(
+            activity,
+            '[worker] LA update config error'
+          ),
           PushTokenInvalidatedError: (e) =>
             Effect.gen(function* () {
               yield* Effect.logInfo(
@@ -172,7 +171,7 @@ const sendLiveActivityForCare = Effect.fn('sendLiveActivityForCare')(function* (
       )
 
   const devicesWithCard = Array.map(
-    yield* Effect.filter(activities, keepsCard, {
+    yield* Effect.filter(activities, stillShowsCard, {
       concurrency: 'unbounded',
     }),
     (activity) => activity.deviceTokenId

@@ -129,8 +129,6 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
         return Array.map(rows, mapRow)
       }),
 
-      // One row per device with a running card (unique on device_token_id,
-      // kind), so a user with two iPhones gets two.
       findActiveActivitiesByUserId: Effect.fn(
         'ActivityPushTokenRepository.findActiveActivitiesByUserId'
       )(function* (userId: string) {
