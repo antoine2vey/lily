@@ -15,6 +15,7 @@ import {
   adjustForDoNotDisturb,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
+import { VACATION_SCHEDULER_INTERVAL } from '@lily/api/services/vacation-scheduler/scheduler'
 import { isOnVacation, type VacationFields } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
@@ -23,16 +24,7 @@ import {
   type NotificationTopic,
   TOPIC_CATEGORY,
 } from '@lily/shared/server'
-import {
-  Array,
-  DateTime,
-  Duration,
-  Effect,
-  Filter,
-  Option,
-  pipe,
-  Record,
-} from 'effect'
+import { Array, DateTime, Effect, Filter, Option, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const BATCH_SIZE = 100
@@ -44,10 +36,6 @@ const isCareReminderType = (
 const isEngagementType = (type: NotificationTopic): boolean =>
   TOPIC_CATEGORY[type] === 'engagement'
 
-// An active vacation past its end waits for the vacation scheduler's end
-// routine, which runs every 5 minutes and deletes the muted rows.
-const VACATION_END_PENDING_RETRY = Duration.minutes(5)
-
 const vacationResumeAt = (user: VacationFields, now: Date): Date => {
   const nowDt = DateTime.makeUnsafe(now)
   return pipe(
@@ -57,7 +45,7 @@ const vacationResumeAt = (user: VacationFields, now: Date): Date => {
     ),
     Option.getOrElse(() =>
       DateTime.toDateUtc(
-        DateTime.addDuration(nowDt, VACATION_END_PENDING_RETRY)
+        DateTime.addDuration(nowDt, VACATION_SCHEDULER_INTERVAL)
       )
     )
   )
