@@ -62,6 +62,7 @@ import {
 } from '@lily/shared/server'
 import {
   Array,
+  Clock,
   Duration,
   Effect,
   Exit,
@@ -1473,13 +1474,16 @@ describe('Notification Worker', () => {
       rows: Notification[]
       alerter: Layer.Layer<Alerter>
       deadLetters?: Layer.Layer<DeadLetterRepository>
+      deliveryClaims?: Record<string, string>
     }) =>
       Layer.mergeAll(
         options.alerter,
         options.queue,
         options.push,
         createMockDeviceTokenRepository(mockDeviceTokens),
-        createMockNotificationRepository(options.rows),
+        createMockNotificationRepository(options.rows, {
+          deliveryClaims: options.deliveryClaims ?? {},
+        }),
         pipe(
           Option.fromNullishOr(options.deadLetters),
           Option.getOrElse(() => createMockDeadLetterRepository())
@@ -1494,13 +1498,22 @@ describe('Notification Worker', () => {
     ) =>
       Effect.gen(function* () {
         const scope = yield* Scope.make()
-        yield* Layer.buildWithScope(
-          Layer.effectDiscard(startNotificationWorker).pipe(
-            Layer.provide(layer)
-          ),
-          scope
+        // adjust waits for work in fibers the clock wakes, not for work
+        // already running, so the workers start from a woken fiber.
+        const starting = yield* Effect.forkChild(
+          Effect.sleep('1 millis').pipe(
+            Effect.andThen(
+              Layer.buildWithScope(
+                Layer.effectDiscard(startNotificationWorker).pipe(
+                  Layer.provide(layer)
+                ),
+                scope
+              )
+            )
+          )
         )
         yield* TestClock.adjust(stopAt)
+        yield* Fiber.join(starting)
         const closing = yield* Effect.forkChild(
           Scope.close(scope, Exit.void).pipe(Effect.timed)
         )
@@ -1530,76 +1543,102 @@ describe('Notification Worker', () => {
         )
       )
 
-    const pastTwoRecoverySweeps = '11 minutes'
+    const pastOneRecoverySweep = '6 minutes'
     const valid = createTestQueueMessage({ id: 'msg-valid' })
-    const missingPlantIds = {
-      ...createTestQueueMessage({ id: 'msg-missing-plant-ids' }),
-      payload: Struct.omit(
-        { ...valid.payload, notificationIds: ['notification-poison'] },
-        ['plantIds']
-      ),
-    } as unknown as QueueMessage
-    const missingPayload = {
-      topic: 'bogus_topic',
-      messageId: 'x',
-      notificationIds: ['notification-poison'],
-    } as unknown as QueueMessage
+    const poisonMessages = {
+      noPayload: {
+        topic: 'bogus_topic',
+        messageId: 'msg-d1',
+        notificationIds: ['notification-d1'],
+      },
+      nullPayload: {
+        ...createTestQueueMessage({ id: 'msg-d2' }),
+        payload: null,
+      },
+      emptyPayload: {
+        ...createTestQueueMessage({ id: 'msg-d3' }),
+        payload: {},
+      },
+      noPlantIds: {
+        ...createTestQueueMessage({ id: 'msg-d4' }),
+        payload: Struct.omit(
+          {
+            ...valid.payload,
+            notificationIds: ['notification-d4', 'notification-other'],
+          },
+          ['plantIds']
+        ),
+      },
+      nullPlantIds: {
+        ...createTestQueueMessage({ id: 'msg-d5' }),
+        payload: {
+          ...valid.payload,
+          notificationIds: ['notification-d5'],
+          plantIds: null,
+        },
+      },
+    }
 
-    it.each([
-      [
-        'without plantIds',
-        missingPlantIds,
-        'msg-missing-plant-ids',
-        expect.stringContaining('TypeError'),
-      ],
-      [
-        'without a payload',
-        missingPayload,
-        'unknown',
-        expect.not.stringContaining('TypeError'),
-      ],
-    ])(
-      'discards a message %s that dies and delivers the next one',
-      async (_, poison, deadLetterId, poisonRowError) => {
-        const rows = [
-          queuedRow('notification-poison'),
-          queuedRow('notification-1'),
-        ]
-        const batches: PushMessage[][] = []
-        const acked: string[] = []
-        const alerter = createMockAlerter()
-        const deadLetters = createMockDeadLetterRepositoryWithCapture()
-
-        await runWorkersAndTimeDrain(
-          workerLayer({
-            queue: redisQueue({ watering_reminder: [poison, valid] }, acked),
-            push: createMockPushService({
-              onSendBatch: (msgs) => batches.push(msgs),
-            }),
-            rows,
-            alerter: alerter.layer,
-            deadLetters: deadLetters.layer,
-          }),
-          pastTwoRecoverySweeps
-        )
-
-        expect(batches).toHaveLength(1)
-        expect(rows[1]?.status).toBe('sent')
-        expect(rows[0]?.status).toBe('failed')
-        expect(rows[0]?.lastError).toEqual(poisonRowError)
-        expect(acked).toEqual([JSON.stringify(poison), JSON.stringify(valid)])
-        expect(
-          Array.map(deadLetters.capturedMessages, (d) => d.originalMessageId)
-        ).toEqual([deadLetterId])
-        expect(
-          Array.filter(
-            alerter.events,
-            (e) =>
-              e._tag === 'UnhandledDefect' && e.source === 'notification-worker'
-          )
-        ).toHaveLength(1)
+    it('discards each message that dies and delivers the next one at once', async () => {
+      const rows = {
+        d1: queuedRow('notification-d1'),
+        d4: queuedRow('notification-d4'),
+        d5: queuedRow('notification-d5'),
+        other: queuedRow('notification-other'),
+        valid: queuedRow('notification-1'),
       }
-    )
+      const poisons = Record.values(poisonMessages) as unknown as QueueMessage[]
+      const sentAt: number[] = []
+      const acked: string[] = []
+      const alerter = createMockAlerter()
+      const deadLetters = createMockDeadLetterRepositoryWithCapture()
+      const clockedPush = Layer.effect(
+        PushService,
+        Effect.map(PushService, (push) => ({
+          ...push,
+          sendBatch: (msgs: PushMessage[]) =>
+            Clock.currentTimeMillis.pipe(
+              Effect.tap((now) => Effect.sync(() => sentAt.push(now))),
+              Effect.andThen(push.sendBatch(msgs))
+            ),
+        }))
+      ).pipe(Layer.provide(createMockPushService()))
+
+      await runWorkersAndTimeDrain(
+        workerLayer({
+          queue: redisQueue({ watering_reminder: [...poisons, valid] }, acked),
+          push: clockedPush,
+          rows: Record.values(rows),
+          alerter: alerter.layer,
+          deadLetters: deadLetters.layer,
+          deliveryClaims: { 'notification-other': 'msg-other' },
+        }),
+        pastOneRecoverySweep
+      )
+
+      expect(sentAt).toEqual([1])
+      expect(rows.valid.status).toBe('sent')
+      expect(acked).toEqual(
+        Array.map([...poisons, valid], (m) => JSON.stringify(m))
+      )
+      const ids = ['msg-d1', 'msg-d2', 'msg-d3', 'msg-d4', 'msg-d5']
+      expect(
+        Array.map(deadLetters.capturedMessages, (d) => d.originalMessageId)
+      ).toEqual(ids)
+      expect(
+        Array.map(alerter.events, (e) =>
+          e._tag === 'UnhandledDefect' ? e.message : e._tag
+        )
+      ).toEqual(
+        Array.map(ids, (id) =>
+          expect.stringMatching(`^watering_reminder message ${id}: `)
+        )
+      )
+      expect(rows.d4.lastError).toContain('TypeError')
+      expect(rows.d5.lastError).toContain('TypeError')
+      expect(rows.d1.lastError).not.toContain('TypeError')
+      expect(rows.other.lastError).not.toContain('TypeError')
+    })
 
     it('finishes every in-flight send and its bookkeeping on shutdown, within one step', async () => {
       const rows = [

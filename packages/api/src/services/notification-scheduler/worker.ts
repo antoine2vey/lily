@@ -503,14 +503,18 @@ export const handleFailedMessage = Effect.fn('notification-worker.deadLetter')(
   }
 )
 
-const PoisonMessage = Schema.Struct({
-  id: Schema.optional(Schema.String),
-  retryCount: Schema.optional(Schema.Number),
-  payload: Schema.optional(
-    Schema.Struct({ notificationIds: Schema.Array(Schema.String) })
-  ),
-})
-const decodePoisonMessage = Schema.decodeUnknownOption(PoisonMessage)
+const readId = Schema.decodeUnknownOption(Schema.Struct({ id: Schema.String }))
+const readForeignId = Schema.decodeUnknownOption(
+  Schema.Struct({ messageId: Schema.String })
+)
+const readRetryCount = Schema.decodeUnknownOption(
+  Schema.Struct({ retryCount: Schema.Finite })
+)
+const readNotificationIds = Schema.decodeUnknownOption(
+  Schema.Struct({
+    payload: Schema.Struct({ notificationIds: Schema.Array(Schema.String) }),
+  })
+)
 
 const discardPoisonMessage = (
   topic: NotificationTopic,
@@ -522,43 +526,52 @@ const discardPoisonMessage = (
     const deadLetterRepo = yield* DeadLetterRepository
     const notificationRepo = yield* NotificationRepository
 
-    const fields = Option.getOrElse(
-      decodePoisonMessage(message),
-      (): typeof PoisonMessage.Type => ({})
+    const messageId = pipe(
+      readId(message),
+      Option.map((m) => m.id),
+      Option.orElse(() =>
+        Option.map(readForeignId(message), (m) => m.messageId)
+      )
     )
-    const messageId = Option.fromNullishOr(fields.id)
+    const notificationIds = pipe(
+      readNotificationIds(message),
+      Option.map((m) => m.payload.notificationIds),
+      Option.getOrElse((): ReadonlyArray<string> => [])
+    )
     const error = Cause.pretty(Cause.die(defect))
-    const logId = Option.getOrElse(messageId, () => 'unknown')
+    const label = Option.match(messageId, {
+      onNone: () => topic,
+      onSome: (id) => `${topic} message ${id}`,
+    })
 
     yield* Effect.logError('[notification-worker] defect, discarding message', {
       topic,
-      messageId: logId,
+      ...Option.match(messageId, {
+        onNone: () => ({}),
+        onSome: (id) => ({ messageId: id }),
+      }),
       error,
     })
     yield* alerter.alert({
       _tag: 'UnhandledDefect',
       source: 'notification-worker',
-      message: `${topic} message ${logId}: ${error}`,
+      message: `${label}: ${error}`,
     })
 
-    const notificationIds = pipe(
-      Option.fromNullishOr(fields.payload),
-      Option.map((p) => p.notificationIds),
-      Option.getOrElse((): ReadonlyArray<string> => [])
-    )
     const claimedIds = yield* Option.match(messageId, {
       onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
       onSome: (id) => notificationRepo.claimForDelivery(notificationIds, id),
     })
     yield* notificationRepo.markManyAsFailed(claimedIds, error)
     yield* deadLetterRepo.create({
-      originalMessageId: logId,
+      originalMessageId: Option.getOrElse(messageId, () => 'unknown'),
       topic,
       payload: message,
       error,
-      retryCount: Option.getOrElse(
-        Option.fromNullishOr(fields.retryCount),
-        () => 0
+      retryCount: pipe(
+        readRetryCount(message),
+        Option.map((m) => m.retryCount),
+        Option.getOrElse(() => 0)
       ),
     })
   })
