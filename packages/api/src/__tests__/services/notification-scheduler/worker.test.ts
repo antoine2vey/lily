@@ -1643,8 +1643,12 @@ describe('Notification Worker', () => {
           })
         )
       )
-      expect(rows.d4.lastError).toContain('TypeError')
-      expect(rows.d5.lastError).toContain('TypeError')
+      expect(rows.d4.lastError).toBe(
+        "TypeError: Cannot read properties of undefined (reading 'length')"
+      )
+      expect(rows.d5.lastError).toBe(
+        "TypeError: Cannot read properties of null (reading 'length')"
+      )
       expect(rows.d1).toEqual(unclaimed.d1)
       expect(rows.other).toEqual(unclaimed.other)
     })
