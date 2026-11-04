@@ -1002,14 +1002,11 @@ describe('Notification Worker', () => {
 
     describe('provider tickets', () => {
       const ok = (): PushTicket => ({ id: crypto.randomUUID(), status: 'ok' })
-      const rejected =
-        (code: PushTicketErrorCode) =>
-        (message: PushMessage): PushTicket => ({
-          id: crypto.randomUUID(),
-          status: 'error',
-          code,
-          message: `"${message.to}" failed with ${code}`,
-        })
+      const rejected = (code: PushTicketErrorCode): PushTicket => ({
+        id: crypto.randomUUID(),
+        status: 'error',
+        code,
+      })
       const ticketRig = (
         row: Notification,
         tickets: (msgs: PushMessage[]) => PushTicket[],
@@ -1024,7 +1021,7 @@ describe('Notification Worker', () => {
       it('retries a message whose every ticket is an error and records the ticket codes', async () => {
         const row = pendingRow('notification-1')
         const rig = ticketRig(row, (msgs) =>
-          Array.map(msgs, rejected('InvalidCredentials'))
+          Array.map(msgs, () => rejected('InvalidCredentials'))
         )
 
         await rig.attempt()
@@ -1051,8 +1048,7 @@ describe('Notification Worker', () => {
         ]
         const rig = ticketRig(
           row,
-          (msgs) =>
-            Array.map(msgs, (m, i) => rejected(codes[i] ?? 'Unknown')(m)),
+          (msgs) => Array.map(msgs, (_, i) => rejected(codes[i] ?? 'Unknown')),
           Array.map(codes, () => createTestDeviceToken({ userId: 'user-1' }))
         )
 
@@ -1063,25 +1059,11 @@ describe('Notification Worker', () => {
         )
       })
 
-      it('keeps push tokens out of the recorded error', async () => {
-        const row = pendingRow('notification-1')
-        const rig = ticketRig(row, (msgs) =>
-          Array.map(msgs, (m, i) =>
-            rejected(i === 0 ? 'DeviceNotRegistered' : 'MalformedToken')(m)
-          )
-        )
-
-        await rig.attempt()
-
-        expect(row.status).toBe('pending')
-        expect(row.lastError).not.toContain('expo-push-token')
-      })
-
       it('keeps a message sent when only a later ticket is ok', async () => {
         const row = pendingRow('notification-1')
         const rig = ticketRig(row, (msgs) =>
-          Array.map(msgs, (m, i) =>
-            i === 0 ? rejected('DeviceNotRegistered')(m) : ok()
+          Array.map(msgs, (_, i) =>
+            i === 0 ? rejected('DeviceNotRegistered') : ok()
           )
         )
 
@@ -1097,7 +1079,7 @@ describe('Notification Worker', () => {
           row,
           (msgs) => {
             Object.assign(device, { isActive: false })
-            return Array.map(msgs, rejected('DeviceNotRegistered'))
+            return Array.map(msgs, () => rejected('DeviceNotRegistered'))
           },
           [device]
         )
@@ -1121,8 +1103,8 @@ describe('Notification Worker', () => {
       it('keeps a partial success sent', async () => {
         const row = pendingRow('notification-1')
         const rig = ticketRig(row, (msgs) =>
-          Array.map(msgs, (m, i) =>
-            i === 0 ? ok() : rejected('DeviceNotRegistered')(m)
+          Array.map(msgs, (_, i) =>
+            i === 0 ? ok() : rejected('DeviceNotRegistered')
           )
         )
 
@@ -1161,7 +1143,7 @@ describe('Notification Worker', () => {
       it('dead-letters a message whose tickets all fail three times', async () => {
         const row = pendingRow('notification-1')
         const rig = ticketRig(row, (msgs) =>
-          Array.map(msgs, rejected('MessageRateExceeded'))
+          Array.map(msgs, () => rejected('MessageRateExceeded'))
         )
 
         await rig.attempt()

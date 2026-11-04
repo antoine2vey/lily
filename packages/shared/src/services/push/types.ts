@@ -24,9 +24,7 @@ export const PushMessage = Schema.Struct({
 })
 export type PushMessage = typeof PushMessage.Type
 
-// Expo's ticket error codes, plus the tokens we reject before sending and
-// errors that arrive without a code.
-export const PushTicketErrorCode = Schema.Literals([
+const ExpoPushTicketErrorCode = Schema.Literals([
   'DeveloperError',
   'DeviceNotRegistered',
   'ExpoError',
@@ -34,8 +32,11 @@ export const PushTicketErrorCode = Schema.Literals([
   'MessageRateExceeded',
   'MessageTooBig',
   'ProviderError',
-  'MalformedToken',
-  'Unknown',
+])
+
+export const PushTicketErrorCode = Schema.Union([
+  ExpoPushTicketErrorCode,
+  Schema.Literals(['MalformedToken', 'Unknown']),
 ])
 export type PushTicketErrorCode = typeof PushTicketErrorCode.Type
 
@@ -49,7 +50,6 @@ export const PushTicket = Schema.Union([
     id: Schema.String,
     status: Schema.Literal('error'),
     code: PushTicketErrorCode,
-    message: Schema.optional(Schema.String),
   }),
 ])
 export type PushTicket = typeof PushTicket.Type

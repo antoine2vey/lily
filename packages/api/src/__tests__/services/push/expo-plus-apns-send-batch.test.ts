@@ -91,7 +91,7 @@ describe('ExpoPlusApns sendBatch', () => {
     expect(await run(isActive(VALID))).toBe(true)
   })
 
-  it('carries the Expo error code on each failed ticket', async () => {
+  it('carries the Expo error code, and no push token, on each failed ticket', async () => {
     const { run } = setup({
       ticketFor: (m): ExpoPushTicket =>
         m.to === GONE
@@ -114,6 +114,9 @@ describe('ExpoPlusApns sendBatch', () => {
       'DeviceNotRegistered',
       'MalformedToken',
     ])
+    expect(JSON.stringify(tickets)).not.toMatch(
+      /valid-device|uninstalled-device|not-an-expo-token/
+    )
   })
 
   it('records each accepted ticket with its token for the receipt check', async () => {

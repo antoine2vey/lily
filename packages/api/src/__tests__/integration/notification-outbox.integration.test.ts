@@ -600,11 +600,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const enqueued = await deliverPending(
         createMockPushService({
           batchTickets: (msgs) =>
-            msgs.map((m) => ({
+            msgs.map(() => ({
               id: crypto.randomUUID(),
               status: 'error',
               code: 'DeviceNotRegistered',
-              message: `"${m.to}" is not a registered push notification recipient`,
             })),
         })
       )

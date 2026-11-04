@@ -329,8 +329,6 @@ type ErrorTicket = Extract<PushTicket, { readonly status: 'error' }>
 const isErrorTicket = (ticket: PushTicket): ticket is ErrorTicket =>
   ticket.status === 'error'
 
-// Expo's ticket messages can quote the push token, and last_error reaches the
-// client, so only the codes and their counts are kept.
 const ticketErrors = (tickets: ReadonlyArray<ErrorTicket>) =>
   pipe(
     Array.groupBy(tickets, (ticket): string => ticket.code),

@@ -167,7 +167,6 @@ const convertTicket = (ticket: ExpoPushTicket): PushTicket =>
         Option.fromNullishOr(t.details?.error),
         () => 'Unknown' as const
       ),
-      message: t.message,
     })),
     Match.when({ status: 'ok' }, (t) => ({
       id: t.id,
@@ -294,11 +293,10 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
           Array.map(tickets, convertTicket),
           Array.map(
             malformed,
-            (m): PushTicket => ({
+            (): PushTicket => ({
               id: crypto.randomUUID(),
               status: 'error',
               code: 'MalformedToken',
-              message: `Invalid Expo push token: ${m.to}`,
             })
           )
         )
