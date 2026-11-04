@@ -581,7 +581,7 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
     yield* Console.log(`Created ${chatEntries.length} chat messages`)
 
     // 9. Create sample notifications
-    const notificationEntries = [
+    const notificationEntries: (typeof notifications.$inferInsert)[] = [
       {
         userId: user.id,
         plantId: getAt(createdPlants, 2).id, // Fiddle Leaf Fig (needs attention)

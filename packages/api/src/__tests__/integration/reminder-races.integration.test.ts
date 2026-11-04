@@ -282,7 +282,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const target = plants[round % plants.length] as string
         await db.insert(schema.notifications).values(
           Arr.map([alex, lily], (userId) => ({
-            type: 'watering_reminder',
+            type: 'watering_reminder' as const,
             scheduledAt: new Date(Date.now() + day),
             userId,
             plantId: target,
@@ -408,7 +408,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .insert(schema.notifications)
         .values(
           Arr.map([mine, other], (plantId) => ({
-            type: 'watering_reminder',
+            type: 'watering_reminder' as const,
             scheduledAt: new Date(),
             userId: alex,
             plantId,

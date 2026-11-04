@@ -28,6 +28,7 @@ import {
   DauSnapshotValue,
   MrrSnapshotValue,
 } from '@lily/shared/admin/analytics'
+import type { NotificationTopic } from '@lily/shared/server'
 import { sql } from 'drizzle-orm'
 import {
   Array,
@@ -184,7 +185,7 @@ const CARE_REMINDER_TYPES = [
   'misting_reminder',
   'repotting_reminder',
   'overdue_reminder',
-] as const
+] as const satisfies ReadonlyArray<NotificationTopic>
 
 const PLANT_BUCKETS = ['0', '1', '2-5', '6-10', '11-25', '25+'] as const
 

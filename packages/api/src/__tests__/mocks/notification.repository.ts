@@ -2,6 +2,7 @@ import {
   type FindNotificationsParams,
   type INotificationRepository,
   NotificationRepository,
+  type NotificationRow,
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
@@ -9,7 +10,7 @@ import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
 
 // Mutable version of Notification for internal mock state
 type MutableNotification = {
-  -readonly [K in keyof Notification]: Notification[K]
+  -readonly [K in keyof NotificationRow]: NotificationRow[K]
 }
 
 export interface MockNotificationRepositoryOptions {

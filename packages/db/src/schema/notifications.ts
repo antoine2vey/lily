@@ -1,6 +1,7 @@
 import {
   devicePlatformEnum,
   notificationStatusEnum,
+  notificationTypeEnum,
 } from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
@@ -41,7 +42,7 @@ export const notifications = pgTable(
   'notifications',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    type: text('type').notNull(),
+    type: notificationTypeEnum('type').notNull(),
     title: text('title'),
     body: text('body'),
     scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),

@@ -53,18 +53,6 @@ const isCareReminderType = (
 const isEngagementType = (type: NotificationTopic): boolean =>
   TOPIC_CATEGORY[type] === 'engagement'
 
-// Map notification type string from DB to a typed NotificationTopic.
-// Returns Option.none() for unknown strings (DB column is untyped text).
-// Compile-time exhaustiveness is enforced by TOPIC_CATEGORY in shared,
-// not here — this is purely a runtime string→union boundary guard.
-// Uses O(1) hasOwnProperty on TOPIC_CATEGORY instead of linear array scan.
-export const mapNotificationTypeToTopic = (
-  type: string
-): Option.Option<NotificationTopic> =>
-  type in TOPIC_CATEGORY
-    ? Option.some(type as NotificationTopic)
-    : Option.none()
-
 const decodeMetadata = (topic: NotificationTopic, metadata: unknown) =>
   Schema.decodeUnknownResult(Schema.UndefinedOr(NOTIFICATION_METADATA[topic]))(
     metadata
@@ -187,18 +175,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
       continue
     }
 
-    const topicOption = mapNotificationTypeToTopic(notification.type)
-
-    if (Option.isNone(topicOption)) {
-      yield* Effect.logWarning('Dropping notification - unknown type', {
-        type: notification.type,
-        id: notification.id,
-      })
-      dropIds.push(notification.id)
-      continue
-    }
-
-    const topic = topicOption.value
+    const topic = notification.type
     const metadata = decodeMetadata(topic, notification.metadata)
 
     if (Result.isFailure(metadata)) {

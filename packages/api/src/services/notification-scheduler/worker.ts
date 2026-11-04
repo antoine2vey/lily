@@ -11,7 +11,6 @@ import {
   drainOnInterrupt,
 } from '@lily/api/services/helpers/create-scheduler'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
-import { mapNotificationTypeToTopic } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   type DeferredCareType,
@@ -353,8 +352,8 @@ const narrowToPlantsStillTheirs = (
       Array.filterMap(
         rows,
         Filter.fromPredicateOption((row) =>
-          row.plantId === plantId
-            ? Option.filter(mapNotificationTypeToTopic(row.type), isCareTopic)
+          row.plantId === plantId && isCareTopic(row.type)
+            ? Option.some(row.type)
             : Option.none()
         )
       )
