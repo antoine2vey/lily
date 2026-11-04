@@ -1,32 +1,47 @@
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
-import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
-import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  canopyPlantIdsOf,
+  rebuildMemberReminders,
+  rescheduleReminders,
+} from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import type { RateLimiterService } from '@lily/api/services/rate-limiter/service'
 import {
   claimUsername,
   usernameTakenOnConflict,
 } from '@lily/api/services/username/claim-username'
-import {
-  type AuthError,
-  type CareType,
-  compact,
-  trimAndNullify,
-} from '@lily/shared'
+import { type AuthError, compact, trimAndNullify } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { CARE_TOPICS, ENGAGEMENT_TOPICS } from '@lily/shared/server'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
-import { Array, Effect, Filter, Match, Option, pipe } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
+
+const lockReminderPlantsOf = (userId: string) =>
+  Effect.gen(function* () {
+    const plantRepo = yield* PlantRepository
+    const inCanopy = yield* lockMyCanopy(userId).pipe(
+      Effect.as(true),
+      Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
+    )
+    return {
+      personal: yield* plantRepo.findPersonalReminderPlantIds(userId),
+      canopy: inCanopy ? yield* canopyPlantIdsOf(userId) : [],
+    }
+  })
 
 // Update user settings (profile + notification preferences)
 export const updateUserSettings = (
@@ -49,7 +64,6 @@ export const updateUserSettings = (
     const { id } = yield* CurrentUser
     const repo = yield* UserRepository
     const notificationRepo = yield* NotificationRepository
-    const scheduleRepo = yield* CareScheduleRepository
     const careLogRepo = yield* CareLogRepository
 
     // Get current user settings to check if timezone/time changed
@@ -101,117 +115,55 @@ export const updateUserSettings = (
       language: data.language,
     })
 
-    const user = yield* usernameTakenOnConflict(repo.update(id, updateData))
-
-    if (!user) {
-      return yield* new UserNotFoundError()
-    }
-
-    if (data.notifications?.careReminders === false) {
-      yield* notificationRepo.deletePendingByUserIdAndTypes(id, CARE_TOPICS)
-    }
-    if (data.notifications?.tips === false) {
-      yield* notificationRepo.deletePendingByUserIdAndTypes(
-        id,
-        ENGAGEMENT_TOPICS
-      )
-    }
-
-    const careLogsCount = yield* careLogRepo.countByUser(id)
-
-    // Check if timezone or preferred time changed
     const timezoneChanged =
       data.timezone !== undefined && data.timezone !== existingUser.timezone
     const timeChanged =
       data.preferredNotificationTime !== undefined &&
       data.preferredNotificationTime !== existingUser.preferredNotificationTime
+    const careRemindersTurnedOn =
+      data.notifications?.careReminders === true && !existingUser.careReminders
+    const rebuildReminders =
+      timezoneChanged || timeChanged || careRemindersTurnedOn
 
-    // Reschedule pending notifications if timezone settings changed
-    if (timezoneChanged || timeChanged) {
-      const pendingNotifications =
-        yield* notificationRepo.findPendingByUserId(id)
-      const plantRepo = yield* PlantRepository
-      const owners = new Map(
-        Array.map(
-          yield* plantRepo.findByIds(
-            Array.dedupe(
-              Array.filterMap(
-                pendingNotifications,
-                Filter.fromPredicateOption((n) =>
-                  Option.fromNullishOr(n.plantId)
-                )
-              )
-            )
-          ),
-          (p) => [p.id, p.owner] as const
-        )
-      )
-
-      yield* Effect.forEach(
-        pendingNotifications,
-        (notification) =>
+    const sql = yield* SqlClient.SqlClient
+    const user = yield* sql.withTransaction(
+      Effect.gen(function* () {
+        const { personal, canopy } = rebuildReminders
+          ? yield* lockReminderPlantsOf(id)
+          : { personal: [], canopy: [] }
+        return yield* withReminderKeys(
+          reminderKeysFor(Array.dedupe([...personal, ...canopy]))
+        )(
           Effect.gen(function* () {
-            // Skip notifications without a plant ID
-            const plantId = notification.plantId
-            if (!plantId) return
-
-            // Fetch care schedules for the plant
-            const schedules = yield* scheduleRepo.findByPlant(plantId)
-
-            // Determine the base date based on notification type
-            const careType = pipe(
-              Match.value(notification.type),
-              Match.when('watering_reminder', () =>
-                Option.some('watering' as const)
-              ),
-              Match.when('fertilization_reminder', () =>
-                Option.some('fertilization' as const)
-              ),
-              Match.when('misting_reminder', () =>
-                Option.some('misting' as const)
-              ),
-              Match.when('repotting_reminder', () =>
-                Option.some('repotting' as const)
-              ),
-              Match.orElse(() => Option.none<CareType>())
+            const updated = yield* usernameTakenOnConflict(
+              repo.update(id, updateData)
             )
-
-            const baseDate = pipe(
-              careType,
-              Option.flatMap((ct) =>
-                pipe(
-                  Array.findFirst(schedules, (s) => s.careType === ct),
-                  Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
-                )
-              )
-            )
-
-            // If we have a base date, recalculate the scheduled time
-            if (
-              Option.isSome(baseDate) &&
-              owners.get(plantId)?._tag === 'User'
-            ) {
-              const newScheduledAt = yield* calculateScheduledAt(
-                baseDate.value,
-                user.timezone,
-                user.preferredNotificationTime
-              )
-              yield* notificationRepo.updateScheduledAt(
-                notification.id,
-                newScheduledAt
+            if (!updated) {
+              return yield* new UserNotFoundError()
+            }
+            if (data.notifications?.careReminders === false) {
+              yield* notificationRepo.deletePendingByUserIdAndTypes(
+                id,
+                CARE_TOPICS
               )
             }
-          }),
-        { concurrency: 10 }
-      )
-      const sql = yield* SqlClient.SqlClient
-      yield* sql.withTransaction(
-        lockMyCanopy(id).pipe(
-          Effect.andThen(rebuildMemberReminders(id)),
-          Effect.catchTag('CanopyNotFoundError', () => Effect.void)
+            if (data.notifications?.tips === false) {
+              yield* notificationRepo.deletePendingByUserIdAndTypes(
+                id,
+                ENGAGEMENT_TOPICS
+              )
+            }
+            if (rebuildReminders) {
+              yield* rescheduleReminders(personal)
+              yield* rebuildMemberReminders(id, canopy)
+            }
+            return updated
+          })
         )
-      )
-    }
+      })
+    )
+
+    const careLogsCount = yield* careLogRepo.countByUser(id)
 
     return {
       name: user.name,
