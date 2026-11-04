@@ -755,18 +755,25 @@ describe('Notification Worker', () => {
       const row = pendingRow('notification-1')
       const rig = deliveryRig([row])
 
+      const third = createTestQueueMessage({ id: 'msg-third' })
+
       await rig.attempt()
       await rig.attempt()
-      await rig.attempt()
+      await rig.attempt(third)
       await rig.attempt()
 
       expect(rig.sends).toHaveLength(3)
       expect(row).toMatchObject({ status: 'failed', retryCount: 3 })
-      expect(rig.deadLetters).toHaveLength(1)
-      expect(rig.deadLetters[0]).toMatchObject({
-        topic: 'watering_reminder',
-        retryCount: 3,
-      })
+      expect(rig.deadLetters).toEqual([
+        expect.objectContaining({
+          originalMessageId: 'msg-third',
+          topic: 'watering_reminder',
+          error: expect.stringContaining('Mock push batch failure'),
+          retryCount: 3,
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+      ])
       expect(rig.alerts).toEqual([
         expect.objectContaining({
           _tag: 'warning',
@@ -824,6 +831,78 @@ describe('Notification Worker', () => {
       expect(mine).toMatchObject({ status: 'failed', retryCount: 3 })
       expect(held).toMatchObject({ status: 'queued', retryCount: 2 })
       expect(rig.deadLetters).toHaveLength(1)
+    })
+
+    it('writes one dead letter and one alert when several rows of a message fail together', async () => {
+      const rows = [pendingRow('notification-1'), pendingRow('notification-2')]
+      const rig = deliveryRig(rows)
+
+      await rig.attempt()
+      await rig.attempt()
+      await rig.attempt()
+
+      expect(rig.sends).toHaveLength(3)
+      expect(rows.map((row) => row.status)).toEqual(['failed', 'failed'])
+      expect(rig.deadLetters).toHaveLength(1)
+      expect(rig.alerts).toEqual([
+        expect.objectContaining({
+          context: expect.objectContaining({
+            notificationIds: ['notification-1', 'notification-2'],
+          }),
+        }),
+      ])
+    })
+
+    it('puts the rows back one minute out when a read fails before the send', async () => {
+      const row = createTestNotification({
+        id: 'notification-1',
+        userId: 'user-1',
+        status: 'queued',
+      })
+      const message = createTestQueueMessage()
+      const dbDown = new SqlError({
+        reason: new UnknownError({ cause: 'db down', message: 'db down' }),
+      })
+      const readFails = Layer.effect(
+        NotificationRepository,
+        Effect.map(NotificationRepository, (repo) => ({
+          ...repo,
+          findByIds: () => Effect.fail(dbDown),
+        }))
+      ).pipe(Layer.provide(createMockNotificationRepository([row])))
+      const acked: string[] = []
+      const sends: PushMessage[][] = []
+
+      const exit = await Effect.runPromiseExit(
+        consumeFromTopic('watering_reminder').pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              MockAlerterLive,
+              createMockPushService({
+                onSendBatch: (msgs) => sends.push(msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              readFails,
+              createMockMessageQueue({
+                onDequeue: () => ({
+                  message,
+                  rawData: JSON.stringify(message),
+                }),
+                onAck: (_, rawData) => acked.push(rawData),
+              }),
+              createMockDeadLetterRepository(),
+              LaMocksLive,
+              LivingPlantsLive
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(Exit.isSuccess(exit)).toBe(true)
+      expect(sends).toEqual([])
+      expect(acked).toHaveLength(1)
+      expect(row).toMatchObject({ status: 'pending', retryCount: 1 })
     })
 
     it('leaves the message unacked when the retry write fails', async () => {

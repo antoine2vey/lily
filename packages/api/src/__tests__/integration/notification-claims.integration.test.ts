@@ -76,7 +76,7 @@ const floorToMinute = (date: Date) =>
   new Date(Math.floor(date.getTime() / 60_000) * 60_000)
 
 interface SeedRow {
-  status: 'pending' | 'queued'
+  status: 'pending' | 'queued' | 'sent' | 'failed'
   queuedAt: Date | null
   deliveryMessageId?: string
 }
@@ -889,6 +889,25 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             lastError: 'push down',
           }),
         ])
+      })
+
+      it('moves only the queued row among the rows the message holds', async () => {
+        const queuedAt = minutesAgo(1)
+        const [queued, ...left] = await insertRows([
+          { status: 'queued', queuedAt, deliveryMessageId: 'msg-mine' },
+          { status: 'sent', queuedAt, deliveryMessageId: 'msg-mine' },
+          { status: 'failed', queuedAt, deliveryMessageId: 'msg-mine' },
+          { status: 'pending', queuedAt, deliveryMessageId: 'msg-mine' },
+        ])
+        if (!queued) throw new Error('seed failed')
+        const before = await attemptsOf(left)
+
+        const attempts = await retry([queued, ...left], 'msg-mine')
+
+        expect(attempts).toEqual([
+          { id: queued, status: 'pending', retryCount: 1 },
+        ])
+        expect(await attemptsOf(left)).toEqual(before)
       })
 
       it('never fails a row another message holds', async () => {
