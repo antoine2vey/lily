@@ -30,6 +30,7 @@ const user = (
   overrides: Partial<RecipientSettings> = {}
 ): RecipientSettings => ({
   id: 'user-1',
+  status: 'active',
   careReminders: true,
   tips: true,
   doNotDisturb: false,
@@ -218,6 +219,38 @@ describe('decide', () => {
     expect(await run(row(), Option.some(inDnd), plantsOf(), NOW)).toEqual(
       Decision.Send()
     )
+  })
+
+  it('drops every category for a user pending deletion, even in DND or on vacation', async () => {
+    const dropped = Decision.Drop({ reason: 'pending-deletion' })
+    const leaving = (overrides: Partial<RecipientSettings> = {}) =>
+      Option.some(user({ status: 'pending_deletion', ...overrides }))
+    const ownerless = { plantId: undefined }
+    for (const gateRow of [
+      row(),
+      row({ type: 'overdue_reminder' }),
+      row({ type: 'resubscribe_nudge', ...ownerless }),
+      row({ type: 'new_follower', ...ownerless }),
+    ]) {
+      expect(await run(gateRow, leaving())).toEqual(dropped)
+      expect(
+        await run(
+          gateRow,
+          leaving({ doNotDisturb: true }),
+          plantsOf(),
+          DND_NIGHT
+        )
+      ).toEqual(dropped)
+      expect(await run(gateRow, leaving({ vacationStatus: 'active' }))).toEqual(
+        dropped
+      )
+    }
+    expect(
+      await run(
+        row({ type: 'new_follower', ...ownerless }),
+        Option.some(user({ status: 'suspended' }))
+      )
+    ).toEqual(Decision.Send())
   })
 
   it('drops rather than defers a row the user would never get', async () => {

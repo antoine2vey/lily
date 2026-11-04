@@ -21,6 +21,7 @@ export type GateRow = Pick<
 export type RecipientSettings = Pick<
   typeof users.$inferSelect,
   | 'id'
+  | 'status'
   | 'careReminders'
   | 'tips'
   | 'doNotDisturb'
@@ -35,6 +36,7 @@ export type RecipientSettings = Pick<
 export type GateRecipient = Pick<
   RecipientSettings,
   | 'id'
+  | 'status'
   | 'careReminders'
   | 'tips'
   | 'vacationStatus'
@@ -51,6 +53,7 @@ export interface PlantFacts {
 }
 
 export type DropReason =
+  | 'pending-deletion'
   | 'plant-gone'
   | 'not-recipient'
   | 'no-longer-overdue'
@@ -68,6 +71,7 @@ export type Decision = Data.TaggedEnum<{
 export const Decision = Data.taggedEnum<Decision>()
 
 export const DROP_MESSAGE: Record<DropReason, string> = {
+  'pending-deletion': 'Dropping notification - user pending deletion',
   'plant-gone': 'Dropping notification - plant dead or missing',
   'not-recipient': 'Dropping care reminder - user no longer the recipient',
   'no-longer-overdue': 'Dropping overdue reminder - plant no longer overdue',
@@ -114,6 +118,7 @@ const preferenceRule = (
   row: GateRow,
   user: GateRecipient
 ): Option.Option<DropReason> => {
+  if (user.status === 'pending_deletion') return Option.some('pending-deletion')
   const category = TOPIC_CATEGORY[row.type]
   if (category === 'care' && !user.careReminders) {
     return Option.some('care-reminders-off')
