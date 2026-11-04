@@ -12,7 +12,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { consumeFromTopic } from '@lily/api/services/notification-scheduler/worker'
-import { DrizzleLive } from '@lily/db'
+import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { MessageQueue } from '@lily/shared/server'
 import { sql } from 'drizzle-orm'
@@ -32,6 +32,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       DeadLetterRepositoryLive
     ).pipe(
       Layer.provide(DrizzleLive),
+      Layer.provideMerge(PgLive),
       Layer.provide(
         ConfigProvider.layer(
           ConfigProvider.fromUnknown({

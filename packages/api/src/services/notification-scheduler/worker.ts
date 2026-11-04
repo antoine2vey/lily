@@ -1,6 +1,9 @@
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
+import {
+  type CreateDeadLetterData,
+  DeadLetterRepository,
+} from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import {
   type DeferredNotification,
@@ -64,6 +67,7 @@ import {
   Scope,
   String as Str,
 } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // How long a push-to-start we dispatched is presumed to still be alive on
@@ -527,17 +531,13 @@ export const processMessage = Effect.fn('notification-worker.process')(
 
 const RETRY_DELAYS = [Duration.minutes(1), Duration.minutes(5)] as const
 
-const deadLetter = Effect.fn('notification-worker.deadLetter')(function* (
+const deadLetterFor = (
   message: QueueMessage,
   failed: Array.NonEmptyReadonlyArray<FailedAttempt>,
   error: string
-) {
-  const deadLetterRepo = yield* DeadLetterRepository
-  const alerter = yield* Alerter
-  const notificationIds = Array.map(failed, (row) => row.id)
+): CreateDeadLetterData => {
   const firstPlantId = Array.head(message.payload.plantIds)
-
-  yield* deadLetterRepo.create({
+  return {
     originalMessageId: message.id,
     topic: message.topic,
     payload: message.payload,
@@ -548,33 +548,35 @@ const deadLetter = Effect.fn('notification-worker.deadLetter')(function* (
     ),
     userId: message.payload.userId,
     ...(Option.isSome(firstPlantId) ? { plantId: firstPlantId.value } : {}),
-  })
-  yield* Effect.logError('Message moved to dead letter queue', {
-    messageId: message.id,
-    notificationIds,
-    error,
-  })
-  yield* alerter.alertWarning(
-    'notification-worker',
-    'Message moved to dead letter queue',
-    { messageId: message.id, topic: message.topic, notificationIds, error }
-  )
-})
+  }
+}
 
 const retryLater = Effect.fn('notification-worker.retryLater')(function* (
   message: QueueMessage,
   cause: SqlError | PushSendError | PushConfigError
 ) {
   const notificationRepo = yield* NotificationRepository
+  const deadLetterRepo = yield* DeadLetterRepository
+  const alerter = yield* Alerter
+  const sql = yield* SqlClient.SqlClient
   const now = yield* DateTime.now
   const error = String(cause)
-  const attempts = yield* notificationRepo.retryLater(
-    message.payload.notificationIds,
-    message.id,
-    Array.map(RETRY_DELAYS, (delay) =>
-      DateTime.toDateUtc(DateTime.addDuration(now, delay))
-    ),
-    error
+  const attempts = yield* sql.withTransaction(
+    Effect.gen(function* () {
+      const written = yield* notificationRepo.retryLater(
+        message.payload.notificationIds,
+        message.id,
+        Array.map(RETRY_DELAYS, (delay) =>
+          DateTime.toDateUtc(DateTime.addDuration(now, delay))
+        ),
+        error
+      )
+      const failed = Array.filter(written, (row) => row.status === 'failed')
+      if (Array.isReadonlyArrayNonEmpty(failed)) {
+        yield* deadLetterRepo.create(deadLetterFor(message, failed, error))
+      }
+      return written
+    })
   )
   const retried = Array.filter(attempts, (row) => row.status === 'pending')
   if (Array.isReadonlyArrayNonEmpty(retried)) {
@@ -587,7 +589,17 @@ const retryLater = Effect.fn('notification-worker.retryLater')(function* (
   }
   const failed = Array.filter(attempts, (row) => row.status === 'failed')
   if (Array.isReadonlyArrayNonEmpty(failed)) {
-    yield* deadLetter(message, failed, error)
+    const notificationIds = Array.map(failed, (row) => row.id)
+    yield* Effect.logError('Message moved to dead letter queue', {
+      messageId: message.id,
+      notificationIds,
+      error,
+    })
+    yield* alerter.alertWarning(
+      'notification-worker',
+      'Message moved to dead letter queue',
+      { messageId: message.id, topic: message.topic, notificationIds, error }
+    )
   }
 })
 

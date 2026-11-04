@@ -33,6 +33,7 @@ import {
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import {
@@ -93,6 +94,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 // these repos when TOPIC_CATEGORY[topic] === 'care'. With no tokens seeded,
 // the LA helper returns early and the care banner path is unchanged.
 const LaMocksLive = Layer.mergeAll(
+  MockSqlClientLive,
   createMockActivityPushTokenRepository(),
   createMockCareScheduleRepository(),
   createMockCareLogRepository([]),

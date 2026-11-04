@@ -5,11 +5,15 @@ import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-l
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createSuccessPushService } from '@lily/api/__tests__/mocks/push.service'
+import {
+  createFailingPushService,
+  createSuccessPushService,
+} from '@lily/api/__tests__/mocks/push.service'
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
+import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import {
@@ -91,7 +95,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.notifications)
         .where(eq(schema.notifications.userId, userId))
 
-    const deliverPending = async () => {
+    const enqueuePending = async () => {
       const enqueued: QueueMessage[] = []
       await Effect.runPromise(
         pollAndEnqueue.pipe(
@@ -106,7 +110,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
+      return enqueued
+    }
 
+    const deliverPending = async () => {
+      const enqueued = await enqueuePending()
       const { queue } = createInMemoryRedisQueue(
         enqueued.map((message) => JSON.stringify(message))
       )
@@ -128,6 +136,48 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       return enqueued
     }
+
+    const consumeWhilePushIsDown = async (message: QueueMessage) => {
+      const { queue, acked } = createInMemoryRedisQueue([
+        JSON.stringify(message),
+      ])
+      const alerter = createMockAlerter()
+      const exit = await Effect.runPromiseExit(
+        consumeFromTopic('new_follower').pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              DatabaseLive,
+              DeadLetterRepositoryLive.pipe(Layer.provide(DatabaseLive)),
+              Layer.succeed(MessageQueue, queue),
+              alerter.layer,
+              createFailingPushService('push down'),
+              createMockActivityPushTokenRepository(),
+              createMockCareLogRepository([])
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      return { exit, acked, alerts: alerter.events }
+    }
+
+    const attemptRows = () =>
+      db
+        .select({
+          status: schema.notifications.status,
+          retryCount: schema.notifications.retryCount,
+          deliveryMessageId: schema.notifications.deliveryMessageId,
+        })
+        .from(schema.notifications)
+        .where(eq(schema.notifications.userId, userId))
+
+    const deadLettersFor = (message: QueueMessage) =>
+      db
+        .select({
+          originalMessageId: schema.deadLetterMessages.originalMessageId,
+        })
+        .from(schema.deadLetterMessages)
+        .where(eq(schema.deadLetterMessages.originalMessageId, message.id))
 
     const resetDb = async () => {
       await db.execute(
@@ -247,6 +297,59 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await deliverPending()).toHaveLength(1)
       expect(await notificationRows()).toEqual([
         { status: 'sent', type: 'new_follower' },
+      ])
+    })
+
+    it('rolls the third failure back when its dead letter cannot be written, so the redelivery fails it again', async () => {
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const sqlClient = yield* SqlClient.SqlClient
+          yield* sqlClient.withTransaction(recordFollowFor(userId))
+        }).pipe(Effect.provide(DatabaseLive))
+      )
+      await db.execute(
+        sql`UPDATE notifications SET status = 'pending', queued_at = NULL, retry_count = 2 WHERE user_id = ${userId}`
+      )
+      const [message] = await enqueuePending()
+      if (!message) throw new Error('nothing was enqueued')
+      const refuseDeadLetters = sql.raw(`
+        CREATE FUNCTION refuse_dead_letter() RETURNS trigger AS $$
+        BEGIN
+          RAISE EXCEPTION 'dead letter refused';
+        END $$ LANGUAGE plpgsql;
+        CREATE TRIGGER refuse_dead_letter BEFORE INSERT ON dead_letter_messages
+          FOR EACH ROW EXECUTE FUNCTION refuse_dead_letter();
+      `)
+      const allowDeadLetters = sql.raw(`
+        DROP TRIGGER IF EXISTS refuse_dead_letter ON dead_letter_messages;
+        DROP FUNCTION IF EXISTS refuse_dead_letter();
+      `)
+      await db.execute(refuseDeadLetters)
+      onTestFinished(async () => {
+        await db.execute(allowDeadLetters)
+      })
+
+      const refused = await consumeWhilePushIsDown(message)
+
+      expect(Exit.isFailure(refused.exit)).toBe(true)
+      expect(refused.acked).toEqual([])
+      expect(refused.alerts).toEqual([])
+      expect(await attemptRows()).toEqual([
+        { status: 'queued', retryCount: 2, deliveryMessageId: message.id },
+      ])
+      expect(await deadLettersFor(message)).toEqual([])
+
+      await db.execute(allowDeadLetters)
+      const redelivered = await consumeWhilePushIsDown(message)
+
+      expect(Exit.isSuccess(redelivered.exit)).toBe(true)
+      expect(redelivered.acked).toHaveLength(1)
+      expect(redelivered.alerts).toHaveLength(1)
+      expect(await attemptRows()).toEqual([
+        { status: 'failed', retryCount: 3, deliveryMessageId: message.id },
+      ])
+      expect(await deadLettersFor(message)).toEqual([
+        { originalMessageId: message.id },
       ])
     })
 
