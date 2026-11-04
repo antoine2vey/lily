@@ -16,6 +16,7 @@ import { UserRepository } from '@lily/api/repositories/user.repository'
 import {
   adjustForDoNotDisturb,
   calculateScheduledAt,
+  decodeDndBounds,
 } from '@lily/api/services/notifications/timezone-scheduler'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import {
@@ -144,11 +145,14 @@ const rowFor = (
     return {
       type,
       scheduledAt: settings.doNotDisturb
-        ? yield* adjustForDoNotDisturb(
-            scheduledAt,
-            settings.timezone,
+        ? yield* decodeDndBounds(
             settings.doNotDisturbStart,
             settings.doNotDisturbEnd
+          ).pipe(
+            Effect.annotateLogs({ userId: recipientId }),
+            Effect.flatMap((bounds) =>
+              adjustForDoNotDisturb(scheduledAt, settings.timezone, bounds)
+            )
           )
         : scheduledAt,
       userId: recipientId,

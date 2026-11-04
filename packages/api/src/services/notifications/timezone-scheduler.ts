@@ -3,6 +3,7 @@ import {
   DEFAULT_TIMEZONE,
   isInDndWindow,
   parseTime,
+  TimeString,
   timeToMinutes,
   validateTimezone,
 } from '@lily/shared'
@@ -13,6 +14,7 @@ import {
   String as EffectString,
   Option,
   pipe,
+  Schema,
 } from 'effect'
 
 /**
@@ -138,34 +140,63 @@ export interface NotificationScheduleUpdate {
 const DEFAULT_DND_START = '22:00'
 const DEFAULT_DND_END = '07:00'
 
+const dndBound = (
+  time: string | null,
+  fallback: string
+): Effect.Effect<string> =>
+  pipe(
+    Option.fromNullishOr(time),
+    Option.match({
+      onNone: () => Effect.succeed(fallback),
+      onSome: (value) =>
+        Schema.is(TimeString)(value)
+          ? Effect.succeed(value)
+          : Effect.as(
+              Effect.logWarning('Invalid DND bound, using the default', {
+                rejected: value,
+                fallback,
+              }),
+              fallback
+            ),
+    })
+  )
+
+export interface DndBounds {
+  readonly start: string
+  readonly end: string
+}
+
+/**
+ * Reads a user's stored DND bounds. A null bound reads as the default, and
+ * so does one that is not HH:mm, which also logs a warning.
+ */
+export const decodeDndBounds = (
+  dndStart: string | null,
+  dndEnd: string | null
+): Effect.Effect<DndBounds> =>
+  Effect.all({
+    start: dndBound(dndStart, DEFAULT_DND_START),
+    end: dndBound(dndEnd, DEFAULT_DND_END),
+  })
+
 /**
  * Adjusts a scheduled notification time if it falls within the user's
  * Do Not Disturb window. Delays the notification to the DND end time.
  *
  * @param scheduledAt - The originally calculated UTC Date
  * @param timezone - User's IANA timezone string
- * @param dndStart - DND start time in HH:mm format (e.g., "22:00")
- * @param dndEnd - DND end time in HH:mm format (e.g., "07:00")
+ * @param bounds - DND start and end, from decodeDndBounds
  * @returns Adjusted UTC Date (unchanged if outside DND window)
  */
 export const adjustForDoNotDisturb = (
   scheduledAt: Date,
   timezone: string | null,
-  dndStart: string | null,
-  dndEnd: string | null
+  { start, end }: DndBounds
 ): Effect.Effect<Date, never> =>
   Effect.gen(function* () {
     const tz = pipe(
       Option.fromNullishOr(timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
-    )
-    const start = pipe(
-      Option.fromNullishOr(dndStart),
-      Option.getOrElse(() => DEFAULT_DND_START)
-    )
-    const end = pipe(
-      Option.fromNullishOr(dndEnd),
-      Option.getOrElse(() => DEFAULT_DND_END)
     )
 
     // Validate timezone, fallback to UTC
@@ -202,8 +233,17 @@ export const adjustForDoNotDisturb = (
     const endHours = Math.floor(endMinutes / 60)
     const endMins = endMinutes % 60
 
+    // If the DND wraps around midnight and the scheduled time is in the
+    // evening portion (>= start), the end time is on the next day
+    const needsNextDay =
+      startMinutes > endMinutes && scheduledMinutes >= startMinutes
+
+    const endDay = needsNextDay
+      ? DateTime.add(scheduledDateTime, { days: 1 })
+      : scheduledDateTime
+
     const adjusted = pipe(
-      scheduledDateTime,
+      endDay,
       DateTime.setParts({
         hour: endHours,
         minute: endMins,
@@ -212,16 +252,7 @@ export const adjustForDoNotDisturb = (
       })
     )
 
-    // If the DND wraps around midnight and the scheduled time is in the
-    // evening portion (>= start), the end time is on the next day
-    const needsNextDay =
-      startMinutes > endMinutes && scheduledMinutes >= startMinutes
-
-    const finalDateTime = needsNextDay
-      ? DateTime.addDuration(adjusted, '1 day')
-      : adjusted
-
-    return DateTime.toDateUtc(finalDateTime)
+    return DateTime.toDateUtc(adjusted)
   })
 
 /**
@@ -231,21 +262,12 @@ export const adjustForDoNotDisturb = (
 export const isInDoNotDisturbWindow = (
   currentTime: Date,
   timezone: string | null,
-  dndStart: string | null,
-  dndEnd: string | null
+  { start, end }: DndBounds
 ): Effect.Effect<boolean, never> =>
   Effect.gen(function* () {
     const tz = pipe(
       Option.fromNullishOr(timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
-    )
-    const start = pipe(
-      Option.fromNullishOr(dndStart),
-      Option.getOrElse(() => DEFAULT_DND_START)
-    )
-    const end = pipe(
-      Option.fromNullishOr(dndEnd),
-      Option.getOrElse(() => DEFAULT_DND_END)
     )
 
     const validTimezone = yield* pipe(

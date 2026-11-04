@@ -1,4 +1,7 @@
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import {
+  type DeferredNotification,
+  NotificationRepository,
+} from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
@@ -8,7 +11,11 @@ import {
   type CareDigestItem,
   pickDominantCareTopic,
 } from '@lily/api/services/notification-scheduler/translations'
-import { isInDoNotDisturbWindow } from '@lily/api/services/notifications/timezone-scheduler'
+import {
+  adjustForDoNotDisturb,
+  decodeDndBounds,
+  isInDoNotDisturbWindow,
+} from '@lily/api/services/notifications/timezone-scheduler'
 import { isOnVacation } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
@@ -20,7 +27,9 @@ import {
 import { Array, DateTime, Effect, Filter, Option, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-const BATCH_SIZE = 100
+export const BATCH_SIZE = 100
+
+const MIN_DEFERRAL = '5 minutes'
 
 const isCareReminderType = (
   type: NotificationTopic
@@ -53,6 +62,8 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
   if (pendingNotifications.length === 0) return false
 
+  const filledBatch = pendingNotifications.length >= BATCH_SIZE
+
   yield* Effect.log('Claimed due notifications', {
     count: pendingNotifications.length,
   })
@@ -70,6 +81,35 @@ export const pollAndEnqueue = Effect.gen(function* () {
   )
 
   const currentTime = DateTime.toDateUtc(DateTime.nowUnsafe())
+
+  // One DND decision per user, not per row: when each user in their window
+  // gets out of it.
+  const dndEndByUser = new Map(
+    Array.getSomes(
+      yield* Effect.forEach(
+        Array.filter(fetchedUsers, (u) => u.doNotDisturb),
+        (user) =>
+          Effect.gen(function* () {
+            const bounds = yield* decodeDndBounds(
+              user.doNotDisturbStart,
+              user.doNotDisturbEnd
+            ).pipe(Effect.annotateLogs({ userId: user.id }))
+            const inDnd = yield* isInDoNotDisturbWindow(
+              currentTime,
+              user.timezone,
+              bounds
+            )
+            if (!inDnd) return Option.none()
+            const end = yield* adjustForDoNotDisturb(
+              currentTime,
+              user.timezone,
+              bounds
+            )
+            return Option.some([user.id, end] as const)
+          })
+      )
+    )
+  )
 
   // Batch-fetch every referenced plant up front: Phase 1 needs it to drop
   // reminders for plants that died since the row was scheduled, and Phase 3
@@ -98,7 +138,22 @@ export const pollAndEnqueue = Effect.gen(function* () {
   }
   const validNotifications: ValidNotification[] = []
   const dropIds: string[] = []
-  const deferIds: string[] = []
+  const deferred: DeferredNotification[] = []
+  const earliestRetry = DateTime.addDuration(
+    DateTime.makeUnsafe(currentTime),
+    MIN_DEFERRAL
+  )
+  const defer = (notification: Notification, reason: string, until: Date) => {
+    const at = DateTime.toDateUtc(
+      DateTime.max(DateTime.makeUnsafe(until), earliestRetry)
+    )
+    deferred.push({ id: notification.id, until: at })
+    return Effect.log(reason, {
+      id: notification.id,
+      userId: notification.userId,
+      until: at,
+    })
+  }
 
   for (const notification of pendingNotifications) {
     const plantIdOpt = Option.fromNullishOr(notification.plantId)
@@ -154,39 +209,34 @@ export const pollAndEnqueue = Effect.gen(function* () {
       TOPIC_CATEGORY[topic] !== 'social' &&
       isOnVacation(user, currentTime)
     ) {
-      yield* Effect.log('Deferring notification - user on vacation', {
-        id: notification.id,
-        userId: notification.userId,
-      })
-      deferIds.push(notification.id)
+      yield* defer(
+        notification,
+        'Deferring notification - user on vacation',
+        pipe(
+          Option.fromNullishOr(user.vacationEnd),
+          Option.getOrElse(() => currentTime)
+        )
+      )
       continue
     }
 
-    if (user?.doNotDisturb) {
-      const inDnd = yield* isInDoNotDisturbWindow(
-        currentTime,
-        user.timezone,
-        user.doNotDisturbStart,
-        user.doNotDisturbEnd
+    const dndEnd = Option.fromNullishOr(dndEndByUser.get(notification.userId))
+    if (Option.isSome(dndEnd)) {
+      yield* defer(
+        notification,
+        'Deferring notification - user in DND',
+        dndEnd.value
       )
-
-      if (inDnd) {
-        yield* Effect.log('Deferring notification - user in DND', {
-          id: notification.id,
-          userId: notification.userId,
-        })
-        deferIds.push(notification.id)
-        continue
-      }
+      continue
     }
 
     validNotifications.push({ notification, topic })
   }
 
   yield* notificationRepo.deleteByIds(dropIds)
-  yield* notificationRepo.releaseUnclaimed(deferIds)
+  yield* notificationRepo.deferUntil(deferred)
 
-  if (validNotifications.length === 0) return false
+  if (validNotifications.length === 0) return filledBatch
 
   // Phase 2: Group by user. Care reminders merge across care types (and
   // plants) into one push per user per batch — a plant due for watering AND
@@ -382,7 +432,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   )
 
   // Signal whether there are likely more rows waiting
-  return pendingNotifications.length >= BATCH_SIZE
+  return filledBatch
 }).pipe(Effect.withSpan('notification-scheduler.poll'))
 
 export const startNotificationScheduler = createDrainableScheduler({

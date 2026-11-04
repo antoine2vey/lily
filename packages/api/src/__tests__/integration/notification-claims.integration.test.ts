@@ -1,3 +1,4 @@
+import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import {
   ActivityPushTokenRepository,
   ActivityPushTokenRepositoryLive,
@@ -7,8 +8,22 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import {
+  type PlantRepository,
+  PlantRepositoryLive,
+} from '@lily/api/repositories/plant.repository'
+import {
+  type UserRepository,
+  UserRepositoryLive,
+} from '@lily/api/repositories/user.repository'
+import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
+import {
+  BATCH_SIZE,
+  pollAndEnqueue,
+} from '@lily/api/services/notification-scheduler/scheduler'
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import type { NotificationTopic, QueueMessage } from '@lily/shared/server'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -18,6 +33,7 @@ import {
   Effect,
   Layer,
   Option,
+  References,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 import pg from 'pg'
@@ -26,6 +42,25 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 const { Pool } = pg
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000)
+
+const KOLKATA_OFFSET_MINUTES = 330
+
+const kolkataClock = (date: Date) =>
+  new Date(date.getTime() + KOLKATA_OFFSET_MINUTES * 60_000)
+    .toISOString()
+    .slice(11, 16)
+
+const etcZoneWithLocalHour = (localHour: number, now: Date) => {
+  const offset = ((localHour - now.getUTCHours() + 36) % 24) - 12
+  if (offset === 0) return 'UTC'
+  return offset > 0 ? `Etc/GMT-${offset}` : `Etc/GMT+${-offset}`
+}
+
+const floorToHour = (date: Date) =>
+  new Date(Math.floor(date.getTime() / 3_600_000) * 3_600_000)
+
+const floorToMinute = (date: Date) =>
+  new Date(Math.floor(date.getTime() / 60_000) * 60_000)
 
 interface SeedRow {
   status: 'pending' | 'queued'
@@ -43,7 +78,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let userId: string
     let deviceTokenId: string
     let RepositoriesLive: Layer.Layer<
-      NotificationRepository | ActivityPushTokenRepository,
+      | NotificationRepository
+      | ActivityPushTokenRepository
+      | UserRepository
+      | PlantRepository,
       Config.ConfigError | SqlError
     >
 
@@ -108,7 +146,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       db = drizzle(pool, { schema })
       RepositoriesLive = Layer.mergeAll(
         NotificationRepositoryLive,
-        ActivityPushTokenRepositoryLive
+        ActivityPushTokenRepositoryLive,
+        UserRepositoryLive,
+        PlantRepositoryLive
       ).pipe(
         Layer.provide(DrizzleLive),
         Layer.provide(
@@ -300,6 +340,324 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'failed',
           'failed',
           'queued',
+        ])
+      })
+    })
+
+    describe('deferred rows', () => {
+      const poll = (enqueued: QueueMessage[]) =>
+        Effect.runPromise(
+          pollAndEnqueue.pipe(
+            Effect.provide(
+              Layer.merge(
+                RepositoriesLive,
+                createMockMessageQueue({
+                  onEnqueue: (_topic: NotificationTopic, message) =>
+                    enqueued.push(message),
+                })
+              )
+            ),
+            Effect.provideService(References.MinimumLogLevel, 'None')
+          )
+        )
+
+      const insertUser = async (
+        name: string,
+        settings: Partial<typeof schema.users.$inferInsert>
+      ) => {
+        const [user] = await db
+          .insert(schema.users)
+          .values({
+            email: `${name}-${Date.now()}@example.com`,
+            name,
+            emailVerified: true,
+            ...settings,
+          })
+          .returning({ id: schema.users.id })
+        if (!user) throw new Error(`Failed to create ${name}`)
+        return user.id
+      }
+
+      const insertDue = async (
+        owner: string,
+        type: NotificationTopic,
+        scheduledAt: Date,
+        count: number
+      ) => {
+        const inserted = await db
+          .insert(schema.notifications)
+          .values(
+            Arr.makeBy(count, () => ({
+              type,
+              title: 'Title',
+              body: 'Body',
+              userId: owner,
+              scheduledAt,
+            }))
+          )
+          .returning({ id: schema.notifications.id })
+        return Arr.map(inserted, (row) => row.id)
+      }
+
+      const rowsOf = (ids: ReadonlyArray<string>) =>
+        db
+          .select({
+            status: schema.notifications.status,
+            scheduledAt: schema.notifications.scheduledAt,
+          })
+          .from(schema.notifications)
+          .where(inArray(schema.notifications.id, [...ids]))
+
+      it('moves DND rows to the DND end so the due row behind them is claimed on the second poll', async () => {
+        const now = new Date()
+        const dndUserId = await insertUser('dnd_user', {
+          doNotDisturb: true,
+          timezone: 'Asia/Kolkata',
+          doNotDisturbStart: kolkataClock(
+            new Date(now.getTime() - 60 * 60_000)
+          ),
+          doNotDisturbEnd: kolkataClock(new Date(now.getTime() + 60 * 60_000)),
+        })
+        const dndEnd = floorToMinute(new Date(now.getTime() + 60 * 60_000))
+        const deferredIds = await insertDue(
+          dndUserId,
+          'watering_reminder',
+          minutesAgo(10),
+          BATCH_SIZE + 50
+        )
+        const [dueId] = await insertDue(
+          userId,
+          'watering_reminder',
+          minutesAgo(1),
+          1
+        )
+
+        const enqueued: QueueMessage[] = []
+        await poll(enqueued)
+        await poll(enqueued)
+
+        expect(Arr.flatMap(enqueued, (m) => m.payload.notificationIds)).toEqual(
+          [dueId]
+        )
+        const deferred = await rowsOf(deferredIds)
+        expect(deferred).toHaveLength(BATCH_SIZE + 50)
+        expect(
+          new Set(
+            Arr.map(
+              deferred,
+              (row) => `${row.status}@${row.scheduledAt.toISOString()}`
+            )
+          )
+        ).toEqual(new Set([`pending@${dndEnd.toISOString()}`]))
+      })
+
+      it('claims the row behind a fully deferred batch on the drain cooldown, not the interval', async () => {
+        const now = new Date()
+        const dndUserId = await insertUser('drain_dnd_user', {
+          doNotDisturb: true,
+          timezone: 'Asia/Kolkata',
+          doNotDisturbStart: kolkataClock(
+            new Date(now.getTime() - 60 * 60_000)
+          ),
+          doNotDisturbEnd: kolkataClock(new Date(now.getTime() + 60 * 60_000)),
+        })
+        await insertDue(
+          dndUserId,
+          'watering_reminder',
+          minutesAgo(10),
+          BATCH_SIZE
+        )
+        const [dueId] = await insertDue(
+          userId,
+          'watering_reminder',
+          minutesAgo(1),
+          1
+        )
+
+        const firstEnqueue = Promise.withResolvers<QueueMessage>()
+        const message = await Effect.runPromise(
+          Effect.scoped(
+            Effect.gen(function* () {
+              yield* createDrainableScheduler({
+                name: 'drain-test',
+                interval: '1 hour',
+                runOnStartup: false,
+                task: pollAndEnqueue,
+              })
+              return yield* Effect.promise(() => firstEnqueue.promise).pipe(
+                Effect.timeout('10 seconds')
+              )
+            })
+          ).pipe(
+            Effect.provide(
+              Layer.merge(
+                RepositoriesLive,
+                createMockMessageQueue({
+                  onEnqueue: (_topic: NotificationTopic, queued) =>
+                    firstEnqueue.resolve(queued),
+                })
+              )
+            ),
+            Effect.provideService(References.MinimumLogLevel, 'None')
+          )
+        )
+
+        expect(message.payload.notificationIds).toEqual([dueId])
+      }, 20_000)
+
+      it('moves a vacation care row to the vacation end and sends a social row at once', async () => {
+        const vacationEnd = new Date(Date.now() + 2 * 24 * 60 * 60_000)
+        const vacationUserId = await insertUser('vacation_user', {
+          vacationStatus: 'active',
+          vacationStart: minutesAgo(24 * 60),
+          vacationEnd,
+        })
+        const [careId = ''] = await insertDue(
+          vacationUserId,
+          'watering_reminder',
+          minutesAgo(5),
+          1
+        )
+        const [socialId] = await insertDue(
+          vacationUserId,
+          'new_follower',
+          minutesAgo(5),
+          1
+        )
+
+        const enqueued: QueueMessage[] = []
+        await poll(enqueued)
+
+        expect(Arr.flatMap(enqueued, (m) => m.payload.notificationIds)).toEqual(
+          [socialId]
+        )
+        expect(await rowsOf([careId])).toEqual([
+          { status: 'pending', scheduledAt: vacationEnd },
+        ])
+      })
+
+      it('retries a care row on the vacation interval when the active vacation has no future end', async () => {
+        const vacationRow = async (name: string, vacationEnd: Date | null) => {
+          const owner = await insertUser(name, {
+            vacationStatus: 'active',
+            vacationStart: minutesAgo(24 * 60),
+            vacationEnd,
+          })
+          const [id = ''] = await insertDue(
+            owner,
+            'watering_reminder',
+            minutesAgo(5),
+            1
+          )
+          return id
+        }
+        const ids = [
+          await vacationRow('open_vacation_user', null),
+          await vacationRow('overdue_vacation_user', minutesAgo(1)),
+        ]
+
+        const before = Date.now()
+        const enqueued: QueueMessage[] = []
+        await poll(enqueued)
+        const after = Date.now()
+
+        expect(enqueued).toEqual([])
+        const rows = await rowsOf(ids)
+        expect(rows).toHaveLength(2)
+        for (const row of rows) {
+          expect(row.status).toBe('pending')
+          expect(row.scheduledAt.getTime()).toBeGreaterThanOrEqual(
+            before + 5 * 60_000
+          )
+          expect(row.scheduledAt.getTime()).toBeLessThanOrEqual(
+            after + 5 * 60_000
+          )
+        }
+      })
+
+      it('reads an unparseable stored DND end as the default end and still sends the rest of the batch', async () => {
+        const now = new Date()
+        const garbageUserId = await insertUser('garbage_dnd_user', {
+          doNotDisturb: true,
+          timezone: etcZoneWithLocalHour(23, now),
+          doNotDisturbStart: '22:00',
+          doNotDisturbEnd: '9999999999:00',
+        })
+        const [garbageId = ''] = await insertDue(
+          garbageUserId,
+          'watering_reminder',
+          minutesAgo(10),
+          1
+        )
+        const dueIds = await insertDue(
+          userId,
+          'watering_reminder',
+          minutesAgo(1),
+          3
+        )
+
+        const enqueued: QueueMessage[] = []
+        await poll(enqueued)
+
+        const sent = Arr.flatMap(enqueued, (m) => m.payload.notificationIds)
+        expect(sent).toHaveLength(dueIds.length)
+        expect(new Set(sent)).toEqual(new Set(dueIds))
+        expect(await rowsOf([garbageId])).toEqual([
+          {
+            status: 'pending',
+            scheduledAt: new Date(floorToHour(now).getTime() + 8 * 3_600_000),
+          },
+        ])
+      })
+
+      it('moves only queued rows that no delivery claimed', async () => {
+        const original = minutesAgo(5)
+        const until = new Date(Date.now() + 24 * 60 * 60_000)
+        const insertRow = async (
+          status: 'pending' | 'queued' | 'sent',
+          deliveryMessageId: string | null
+        ) => {
+          const [row] = await db
+            .insert(schema.notifications)
+            .values({
+              type: 'watering_reminder',
+              title: 'Water',
+              body: 'Water your plant',
+              userId,
+              scheduledAt: original,
+              status,
+              queuedAt: status === 'pending' ? null : minutesAgo(1),
+              deliveryMessageId,
+            })
+            .returning({ id: schema.notifications.id })
+          if (!row) throw new Error(`Failed to insert a ${status} row`)
+          return row.id
+        }
+        const sentId = await insertRow('sent', 'msg-sent')
+        const claimedId = await insertRow('queued', 'msg-claimed')
+        const pendingId = await insertRow('pending', null)
+        const queuedId = await insertRow('queued', null)
+
+        await withRepo((repo) =>
+          repo.deferUntil(
+            Arr.map([sentId, claimedId, pendingId, queuedId], (id) => ({
+              id,
+              until,
+            }))
+          )
+        )
+
+        expect(await rowsOf([sentId])).toEqual([
+          { status: 'sent', scheduledAt: original },
+        ])
+        expect(await rowsOf([claimedId])).toEqual([
+          { status: 'queued', scheduledAt: original },
+        ])
+        expect(await rowsOf([pendingId])).toEqual([
+          { status: 'pending', scheduledAt: original },
+        ])
+        expect(await rowsOf([queuedId])).toEqual([
+          { status: 'pending', scheduledAt: until },
         ])
       })
     })
