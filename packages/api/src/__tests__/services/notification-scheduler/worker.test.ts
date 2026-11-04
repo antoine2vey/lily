@@ -78,6 +78,7 @@ import {
   Exit,
   Fiber,
   Layer,
+  Logger,
   Option,
   pipe,
   Record,
@@ -87,7 +88,7 @@ import {
 } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { TestClock } from 'effect/testing'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // Empty mocks for the Live Activity path — worker unconditionally reads
 // these repos when TOPIC_CATEGORY[topic] === 'care'. With no tokens seeded,
@@ -1601,7 +1602,8 @@ describe('Notification Worker', () => {
       userOverrides: Partial<Parameters<typeof createTestUser>[0]>,
       plants: ReturnType<typeof createTestPlant>[] = [
         createTestPlant({ id: 'plant-1', userId: 'user-1' }),
-      ]
+      ],
+      logger: Layer.Layer<never> = Logger.layer([])
     ) => {
       const sentMessages: PushMessage[] = []
       await Effect.runPromise(
@@ -1618,14 +1620,27 @@ describe('Notification Worker', () => {
               LaMocksLive,
               createMockUserRepository([
                 createTestUser({ id: 'user-1', ...userOverrides }),
-              ])
+              ]),
+              logger
             )
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
+          )
         )
       )
       return sentMessages
     }
+
+    const NIGHT = new Date('2026-06-15T23:00:00.000Z')
+    const DND_END = new Date('2026-06-16T07:00:00.000Z')
+    const nightDnd = (doNotDisturbEnd: string) => ({
+      doNotDisturb: true,
+      doNotDisturbStart: '22:00',
+      doNotDisturbEnd,
+      timezone: 'UTC',
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
 
     it('moves a row claimed during DND back to pending at the end of DND', async () => {
       const rows = [
@@ -1635,11 +1650,65 @@ describe('Notification Worker', () => {
           status: 'queued',
         }),
       ]
-      const sent = await deliver(createTestQueueMessage(), rows, quietNow)
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(NIGHT)
+      const sent = await deliver(
+        createTestQueueMessage(),
+        rows,
+        nightDnd('07:00')
+      )
 
       expect(sent).toHaveLength(0)
-      expect(rows[0]?.status).toBe('pending')
-      expect(rows[0]?.scheduledAt.getTime()).toBeGreaterThan(Date.now())
+      expect(rows.map((n) => [n.status, n.scheduledAt])).toEqual([
+        ['pending', DND_END],
+      ])
+    })
+
+    it("reads a user's DND bounds once however many of their rows the message claims", async () => {
+      const ids = ['notification-1', 'notification-2', 'notification-3']
+      const rows = Array.map(ids, (id) =>
+        createTestNotification({ id, plantId: 'plant-1', status: 'queued' })
+      )
+      const warnings: unknown[] = []
+      const capture = Logger.make(({ logLevel, message, fiber }) => {
+        if (logLevel === 'Warn') {
+          warnings.push({
+            message,
+            userId: fiber.getRef(References.CurrentLogAnnotations).userId,
+          })
+        }
+      })
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(NIGHT)
+      const sent = await deliver(
+        createTestQueueMessage({
+          payload: {
+            userId: 'user-1',
+            title: 'Water time',
+            body: 'Your plants are thirsty',
+            notificationIds: ids,
+            plantIds: ['plant-1'],
+          },
+        }),
+        rows,
+        nightDnd('25:99'),
+        undefined,
+        Logger.layer([capture])
+      )
+
+      expect(sent).toHaveLength(0)
+      expect(warnings).toEqual([
+        {
+          message: [
+            'Invalid DND bound, using the default',
+            { rejected: '25:99', fallback: '07:00' },
+          ],
+          userId: 'user-1',
+        },
+      ])
+      expect(rows.map((n) => [n.id, n.status, n.scheduledAt])).toEqual(
+        Array.map(ids, (id) => [id, 'pending', DND_END])
+      )
     })
 
     it('deletes an engagement row sent straight from the caller when tips are off', async () => {

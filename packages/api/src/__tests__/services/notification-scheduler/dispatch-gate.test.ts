@@ -91,6 +91,12 @@ describe('decide', () => {
       Decision.Drop({ reason: 'plant-gone' })
     )
     expect(
+      await run(row({ type: 'plant_anniversary' }), undefined, dead)
+    ).toEqual(Decision.Drop({ reason: 'plant-gone' }))
+    expect(await run(row({ type: 'nudge_to_water' }), undefined, dead)).toEqual(
+      Decision.Drop({ reason: 'plant-gone' })
+    )
+    expect(
       await run(row({ type: 'plant_anniversary' }), undefined, new Map())
     ).toEqual(Decision.Drop({ reason: 'plant-gone' }))
     expect(
@@ -160,6 +166,15 @@ describe('decide', () => {
     expect(
       await run(row({ type: 'new_follower', plantId: undefined }), off)
     ).toEqual(Decision.Send())
+    expect(
+      await run(
+        row({ type: 'resubscribe_nudge', plantId: undefined }),
+        Option.some(user({ careReminders: false }))
+      )
+    ).toEqual(Decision.Send())
+    expect(await run(row(), Option.some(user({ tips: false })))).toEqual(
+      Decision.Send()
+    )
   })
 
   it('defers care and engagement rows to the vacation end and sends social rows', async () => {
@@ -179,6 +194,14 @@ describe('decide', () => {
     expect(
       await run(row({ type: 'new_follower', plantId: undefined }), away)
     ).toEqual(Decision.Send())
+    const booked = (vacationStart: Date) =>
+      Option.some(
+        user({ vacationStatus: 'scheduled', vacationStart, vacationEnd })
+      )
+    expect(await run(row(), booked(NOW))).toEqual(deferred)
+    expect(await run(row(), booked(new Date(NOW.getTime() + HOUR)))).toEqual(
+      Decision.Send()
+    )
   })
 
   it('defers every category to the end of DND', async () => {

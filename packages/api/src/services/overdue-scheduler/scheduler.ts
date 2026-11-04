@@ -208,7 +208,7 @@ export const processUserOverdueReminders = (
       })
     )
 
-    if (overflowCount > 0 && !recipientOnVacation) {
+    if (overflowCount > 0 && !recipientOnVacation && settings.tips) {
       const alreadySentNudge =
         yield* notificationRepo.hasNotificationOfTypeTodayForUser(
           userId,

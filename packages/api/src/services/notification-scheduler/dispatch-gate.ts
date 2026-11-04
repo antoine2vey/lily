@@ -60,7 +60,7 @@ export type DropReason =
 export type DeferReason = 'vacation' | 'dnd'
 
 export type Decision = Data.TaggedEnum<{
-  Send: {}
+  Send: Record<never, never>
   Drop: { readonly reason: DropReason }
   Defer: { readonly reason: DeferReason; readonly until: Date }
 }>

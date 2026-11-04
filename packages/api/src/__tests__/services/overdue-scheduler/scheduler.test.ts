@@ -998,6 +998,38 @@ describe('checkAndCreateOverdueReminders', () => {
       ])
     })
 
+    it('records no resubscribe_nudge for a free-tier user with tips off', async () => {
+      const notifications: Notification[] = []
+      const plants = Arr.makeBy(8, (i) =>
+        createTestPlant({
+          id: `plant-${i}`,
+          userId: 'user-1',
+          dateAdded: daysAgo(100 - i),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+
+      const enqueued: QueueMessage[] = []
+      await runProcessUser(
+        'user-1',
+        plants,
+        [createTestUser({ ...defaultUser, tips: false })],
+        notifications,
+        {},
+        5,
+        createMockMessageQueue({
+          onEnqueue: (_, message) => enqueued.push(message),
+        })
+      )
+
+      expect(Arr.map(notifications, (n) => n.type)).toEqual(
+        Arr.makeBy(5, () => 'overdue_reminder')
+      )
+      expect(Arr.map(enqueued, (m) => m.topic)).not.toContain(
+        'resubscribe_nudge'
+      )
+    })
+
     it('should NOT send resubscribe_nudge when nudge already sent today', async () => {
       const existingNudge = createTestNotification({
         id: 'nudge-existing',
