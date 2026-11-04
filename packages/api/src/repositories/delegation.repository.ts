@@ -176,6 +176,8 @@ export interface IDelegationRepository {
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
 
+  readonly lockOpenForUser: (userId: string) => Effect.Effect<void, SqlError>
+
   readonly cancelOpenForUser: (
     userId: string,
     canceledAt: Date
@@ -191,6 +193,15 @@ export class DelegationRepository extends Context.Service<
 >()('DelegationRepository') {}
 
 const OPEN_STATUSES: DelegationStatus[] = ['pending', 'accepted', 'active']
+
+const openFor = (userId: string) =>
+  and(
+    or(
+      eq(careDelegations.ownerId, userId),
+      eq(careDelegations.caretakerId, userId)
+    ),
+    inArray(careDelegations.status, OPEN_STATUSES)
+  )
 
 const ownerAlias = sql`owner_user`
 const caretakerAlias = sql`caretaker_user`
@@ -604,20 +615,23 @@ export const DelegationRepositoryLive = Layer.effect(
         return groupPlantRows(rows)
       }),
 
+      lockOpenForUser: Effect.fn('DelegationRepository.lockOpenForUser')(
+        function* (userId: string) {
+          yield* db
+            .select({ id: careDelegations.id })
+            .from(careDelegations)
+            .where(openFor(userId))
+            .orderBy(careDelegations.id)
+            .for('update')
+        }
+      ),
+
       cancelOpenForUser: Effect.fn('DelegationRepository.cancelOpenForUser')(
         function* (userId: string, canceledAt: Date) {
           const open = yield* db
             .select({ id: careDelegations.id, status: careDelegations.status })
             .from(careDelegations)
-            .where(
-              and(
-                or(
-                  eq(careDelegations.ownerId, userId),
-                  eq(careDelegations.caretakerId, userId)
-                ),
-                inArray(careDelegations.status, OPEN_STATUSES)
-              )
-            )
+            .where(openFor(userId))
             .orderBy(careDelegations.id)
             .for('update')
           if (!Array.isArrayNonEmpty(open)) return { reassignedPlantIds: [] }
@@ -731,10 +745,12 @@ export const DelegationRepositoryLive = Layer.effect(
             delegationPlants,
             eq(careDelegations.id, delegationPlants.delegationId)
           )
+          .innerJoin(users, eq(users.id, careDelegations.caretakerId))
           .where(
             and(
               inArray(delegationPlants.plantId, [...plantIds]),
-              eq(careDelegations.status, 'active')
+              eq(careDelegations.status, 'active'),
+              ne(users.status, 'pending_deletion')
             )
           )
       }),

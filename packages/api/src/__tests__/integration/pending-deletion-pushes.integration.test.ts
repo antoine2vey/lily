@@ -23,7 +23,10 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
-import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import {
+  UserRepository,
+  UserRepositoryLive,
+} from '@lily/api/repositories/user.repository'
 import { dispatchNow } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
@@ -231,6 +234,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return { run, deliver, enqueued, pushes, liveActivities }
     }
 
+    const markPendingDeletion = (
+      run: ReturnType<typeof pipeline>['run'],
+      userId: string
+    ) =>
+      run(
+        Effect.flatMap(UserRepository, (repo) =>
+          repo.updateStatus(userId, 'pending_deletion')
+        )
+      )
+
     it('deletes the pending rows and push tokens of the account, and sends nothing', async () => {
       const user = await insertUser('deleted')
       const device = await insertDevice(user.id)
@@ -242,6 +255,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
       const plant = await insertPlant(user.id, new Date(Date.now() - DAY))
       await insertReminder(user.id, plant.id, new Date(Date.now() - 60_000))
+      await db.insert(schema.notifications).values({
+        type: 'daily_tip',
+        scheduledAt: new Date(Date.now() + DAY),
+        userId: user.id,
+      })
       const { run, deliver, enqueued, pushes, liveActivities } = pipeline(user)
 
       await run(deleteAccount())
@@ -354,6 +372,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
+    it('sends an overdue reminder to the owner, not a caretaker an admin marked pending deletion', async () => {
+      const owner = await insertUser('overdue-owner')
+      const caretaker = await insertUser('overdue-caretaker')
+      const plant = await insertPlant(owner.id, new Date(Date.now() - 2 * DAY))
+      await delegate(owner.id, caretaker.id, plant.id)
+      const { run } = pipeline(owner)
+
+      await markPendingDeletion(run, caretaker.id)
+      await run(checkAndCreateOverdueReminders)
+
+      expect(await rowsOf(caretaker.id)).toEqual([])
+      expect(await rowsOf(owner.id)).toMatchObject([
+        { type: 'overdue_reminder', plantId: plant.id },
+      ])
+    })
+
     it('names the owner, not a caretaker pending deletion, as the reminder recipient', async () => {
       const owner = await insertUser('owner')
       const caretaker = await insertUser('caretaker')
@@ -403,13 +437,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
       )
 
-    it('sends no new follower push to an account pending deletion', async () => {
+    it('sends no new follower push to an account an admin marked pending deletion', async () => {
       const follower = await insertUser('follower')
       const followed = await insertUser('followed')
       await insertDevice(followed.id)
       const { run, deliver, pushes } = pipeline(followed)
 
-      await run(deleteAccount())
+      await markPendingDeletion(run, followed.id)
       await follow(run, follower.id, followed.id)
       await deliver()
 
@@ -433,7 +467,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
-    it('leaves accounts pending deletion out of every engagement audience', async () => {
+    it('leaves an account an admin marked pending deletion out of every engagement audience', async () => {
       const active = await insertUser('active')
       const leaving = await insertUser('leaving')
       const now = Date.now()
@@ -451,11 +485,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         await insertPlant(user.id, new Date(now + DAY), monthAgo)
       }
-      await db
-        .update(schema.users)
-        .set({ status: 'pending_deletion', deletedAt: new Date() })
-        .where(eq(schema.users.id, leaving.id))
       const { run } = pipeline(active)
+      await markPendingDeletion(run, leaving.id)
 
       const audiences = await run(
         Effect.gen(function* () {
