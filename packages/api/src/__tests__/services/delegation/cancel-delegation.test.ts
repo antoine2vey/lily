@@ -106,6 +106,25 @@ describe('cancelDelegation', () => {
     expect(result.status).toBe('canceled')
   })
 
+  it('records one queued delegation_canceled for the caretaker', async () => {
+    notifications.length = 0
+    const layer = createLayer(ownerCurrentUser, [
+      { ...mockDelegation1, status: 'accepted' as const },
+    ])
+
+    await Effect.runPromise(
+      cancelDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
+    )
+
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0]).toMatchObject({
+      userId: mockDelegation1.caretakerId,
+      type: 'delegation_canceled',
+      status: 'queued',
+      metadata: { delegationId: mockDelegation1.id },
+    })
+  })
+
   it('should set canceledAt timestamp', async () => {
     const layer = createLayer(ownerCurrentUser, [
       { ...mockDelegation1, status: 'pending' as const },
