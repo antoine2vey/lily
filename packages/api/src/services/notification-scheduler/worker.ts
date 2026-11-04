@@ -552,6 +552,9 @@ const readPoisonIds = (entry: Option.Option<unknown>): PoisonIds => ({
   ),
 })
 
+// Postgres binds at most 65535 parameters in one statement.
+const MAX_IDS_PER_STATEMENT = 10_000
+
 const discardPoisonMessage = (
   topic: NotificationTopic,
   ids: PoisonIds,
@@ -577,28 +580,33 @@ const discardPoisonMessage = (
     const claimedIds = yield* Option.match(ids.messageId, {
       onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
       onSome: (id) =>
-        notificationRepo.claimForDelivery(ids.notificationIds, id),
+        Effect.map(
+          Effect.forEach(
+            Array.chunksOf(ids.notificationIds, MAX_IDS_PER_STATEMENT),
+            (chunk) => notificationRepo.claimForDelivery(chunk, id)
+          ),
+          Array.flatten
+        ),
     })
-    yield* deadLetterRepo
-      .create({
-        originalMessageId: Option.getOrElse(ids.messageId, () => 'unknown'),
-        topic,
-        payload,
-        error,
-        retryCount: ids.retryCount,
-      })
-      .pipe(
-        Effect.catchTag('SqlError', () =>
-          deadLetterRepo.create({
-            originalMessageId: 'unknown',
-            topic,
-            payload: toPostgresText(rawData),
-            error,
-            retryCount: 0,
-          })
-        )
+    const deadLetter = {
+      originalMessageId: Option.getOrElse(ids.messageId, () => 'unknown'),
+      topic,
+      error,
+      retryCount: ids.retryCount,
+    }
+    yield* deadLetterRepo.create({ ...deadLetter, payload }).pipe(
+      Effect.catchTag('SqlError', () =>
+        deadLetterRepo.create({
+          ...deadLetter,
+          payload: toPostgresText(rawData),
+        })
       )
-    yield* notificationRepo.markManyAsFailed(claimedIds, headline)
+    )
+    yield* Effect.forEach(
+      Array.chunksOf(claimedIds, MAX_IDS_PER_STATEMENT),
+      (chunk) => notificationRepo.markManyAsFailed(chunk, headline),
+      { discard: true }
+    )
     yield* alerter.alert({
       _tag: 'UnhandledDefect',
       source: 'notification-worker',

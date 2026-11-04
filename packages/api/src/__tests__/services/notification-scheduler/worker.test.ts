@@ -959,6 +959,107 @@ describe('Notification Worker', () => {
       ])
     })
 
+    const dbDown = () =>
+      new SqlError({
+        reason: new UnknownError({ cause: 'db down', message: 'db down' }),
+      })
+
+    it('dead-letters, acks and alerts once an undecodable entry with more ids than Postgres can bind', async () => {
+      const first = crypto.randomUUID()
+      const last = crypto.randomUUID()
+      const ids = [
+        first,
+        ...Array.makeBy(69_998, () => crypto.randomUUID()),
+        last,
+      ]
+      const rows = [
+        createTestNotification({ id: first, status: 'queued' }),
+        createTestNotification({ id: last, status: 'queued' }),
+      ]
+      // Postgres rejects a statement with more than 65535 parameters.
+      const bindLimited = Layer.effect(
+        NotificationRepository,
+        Effect.map(NotificationRepository, (repo) => ({
+          ...repo,
+          claimForDelivery: (
+            chunk: ReadonlyArray<string>,
+            messageId: string
+          ) =>
+            chunk.length > 65_535
+              ? Effect.fail(dbDown())
+              : repo.claimForDelivery(chunk, messageId),
+          markManyAsFailed: (chunk: readonly string[], error: string) =>
+            chunk.length > 65_535
+              ? Effect.fail(dbDown())
+              : repo.markManyAsFailed(chunk, error),
+        }))
+      ).pipe(Layer.provide(createMockNotificationRepository(rows)))
+      const raw = JSON.stringify({
+        id: 'msg-big',
+        topic: 'new_follower',
+        payload: { notificationIds: ids },
+      })
+      const { layer: dlqLayer, capturedMessages } =
+        createMockDeadLetterRepositoryWithCapture()
+      const { queue, acked } = createInMemoryRedisQueue([raw])
+      const alerter = createMockAlerter()
+
+      await Effect.runPromise(
+        consumeFromTopic('new_follower').pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              alerter.layer,
+              Layer.succeed(MessageQueue, queue),
+              createSuccessPushService(),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              bindLimited,
+              dlqLayer,
+              LaMocksLive,
+              LivingPlantsLive
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(acked).toEqual([raw])
+      expect(alerter.events).toHaveLength(1)
+      expect(Array.map(capturedMessages, (m) => m.originalMessageId)).toEqual([
+        'msg-big',
+      ])
+      expect(Array.map(rows, (r) => r.status)).toEqual(['failed', 'failed'])
+    })
+
+    it('leaves an undecodable entry unacked when no dead letter can be written', async () => {
+      const failingDeadLetters = Layer.succeed(DeadLetterRepository, {
+        create: () => Effect.fail(dbDown()),
+      })
+      const { queue, acked } = createInMemoryRedisQueue(['not json'])
+      const alerter = createMockAlerter()
+
+      const exit = await Effect.runPromiseExit(
+        consumeFromTopic('new_follower').pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              alerter.layer,
+              Layer.succeed(MessageQueue, queue),
+              createSuccessPushService(),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([]),
+              failingDeadLetters,
+              LaMocksLive,
+              LivingPlantsLive
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(acked).toEqual([])
+      expect(alerter.events).toEqual([])
+    })
+
     // Note: Tests for retry/DLQ logic with consumeFromTopic are skipped because
     // the exponential backoff schedule makes them too slow. The retry and DLQ
     // logic is already tested via handleFailedMessage tests above.
@@ -1830,9 +1931,9 @@ describe('Notification Worker', () => {
       ])
     })
 
-    it('stores an id-less dead letter of the raw text when the first write fails, then acks and alerts once', async () => {
+    it('stores the raw text under its id when the first write fails, then acks and alerts once', async () => {
       const rows = [queuedRow(rowId('d5')), queuedRow(rowId('1'))]
-      const poison = poisonMessages.nullPlantIds
+      const poison = { ...poisonMessages.nullPlantIds, retryCount: 2 }
       const acked: string[] = []
       const alerter = createMockAlerter()
       const deadLetters = createMockDeadLetterRepositoryWithCapture()
@@ -1871,7 +1972,7 @@ describe('Notification Worker', () => {
           d.retryCount,
           d.payload,
         ])
-      ).toEqual([['unknown', 0, JSON.stringify(poison)]])
+      ).toEqual([['msg-d5', 2, JSON.stringify(poison)]])
       expect(alerter.events).toHaveLength(1)
       expect(acked).toEqual([JSON.stringify(poison), JSON.stringify(valid)])
       expect(Array.map(rows, (r) => r.status)).toEqual(['failed', 'sent'])
