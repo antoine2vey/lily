@@ -257,6 +257,28 @@ export const NotificationRepositoryLive = Layer.effect(
         .where(where)
         .orderBy(asc(notifications.id))
         .for('update')
+    const lockHoldersOfUndeliveredReminders = (
+      plantIds: ReadonlyArray<string>
+    ) =>
+      db
+        .select({ id: users.id })
+        .from(users)
+        .where(
+          inArray(
+            users.id,
+            db
+              .select({ userId: notifications.userId })
+              .from(notifications)
+              .where(
+                and(
+                  inArray(notifications.plantId, [...plantIds]),
+                  inArray(notifications.status, ['pending', 'queued'])
+                )
+              )
+          )
+        )
+        .orderBy(asc(users.id))
+        .for('share')
 
     return {
       findByUserId: Effect.fn('NotificationRepository.findByUserId')(function* (
@@ -647,28 +669,9 @@ export const NotificationRepositoryLive = Layer.effect(
           yield* db.execute(
             sql`SELECT pg_advisory_xact_lock(k1, k2) FROM (SELECT DISTINCT hashtext('reminder:' || v.plant_id) AS k1, hashtext(v.type) AS k2 FROM (VALUES ${values}) AS v(plant_id, type) ORDER BY 1, 2) AS keys`
           )
-          yield* db
-            .select({ id: users.id })
-            .from(users)
-            .where(
-              inArray(
-                users.id,
-                db
-                  .select({ userId: notifications.userId })
-                  .from(notifications)
-                  .where(
-                    and(
-                      inArray(
-                        notifications.plantId,
-                        Array.dedupe(Array.map(keys, (key) => key.plantId))
-                      ),
-                      inArray(notifications.status, ['pending', 'queued'])
-                    )
-                  )
-              )
-            )
-            .orderBy(asc(users.id))
-            .for('share')
+          yield* lockHoldersOfUndeliveredReminders(
+            Array.dedupe(Array.map(keys, (key) => key.plantId))
+          )
         }
       ),
 
