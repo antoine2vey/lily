@@ -84,6 +84,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 const LA_START_COOLDOWN = Duration.hours(10)
 
 const VISIBILITY_TIMEOUT = Duration.minutes(10)
+const CLAIM_REFRESH_INTERVAL = Duration.minutes(1)
 const DELIVERY_TIMEOUT = Duration.hours(1)
 
 // Care reminders are the "do it today or it slips" cluster — we want them to
@@ -637,35 +638,61 @@ const readTopic = Schema.decodeUnknownOption(
 )
 const readNotificationIds = Schema.decodeUnknownOption(
   Schema.Struct({
-    payload: Schema.Struct({ notificationIds: Schema.Array(NotificationId) }),
+    payload: Schema.Struct({ notificationIds: Schema.Array(Schema.Unknown) }),
   })
 )
+const isNotificationId = Schema.is(NotificationId)
 
 interface PoisonIds {
   readonly messageId: Option.Option<string>
   readonly notificationIds: ReadonlyArray<string>
+  readonly malformedIds: ReadonlyArray<unknown>
   readonly retryCount: number
 }
 
-const readPoisonIds = (entry: Option.Option<unknown>): PoisonIds => ({
-  messageId: Option.flatMap(entry, (e) =>
-    pipe(
-      readId(e),
-      Option.map((m) => m.id),
-      Option.orElse(() => Option.map(readForeignId(e), (m) => m.messageId))
-    )
-  ),
-  notificationIds: pipe(
+const readPoisonIds = (entry: Option.Option<unknown>): PoisonIds => {
+  const ids = pipe(
     Option.flatMap(entry, readNotificationIds),
     Option.map((m) => m.payload.notificationIds),
-    Option.getOrElse((): ReadonlyArray<string> => [])
-  ),
-  retryCount: pipe(
-    Option.flatMap(entry, readRetryCount),
-    Option.map((m) => m.retryCount),
-    Option.getOrElse(() => 0)
-  ),
-})
+    Option.getOrElse((): ReadonlyArray<unknown> => [])
+  )
+  return {
+    messageId: Option.flatMap(entry, (e) =>
+      pipe(
+        readId(e),
+        Option.map((m) => m.id),
+        Option.orElse(() => Option.map(readForeignId(e), (m) => m.messageId))
+      )
+    ),
+    notificationIds: Array.filter(ids, isNotificationId),
+    malformedIds: Array.filter(ids, Predicate.not(isNotificationId)),
+    retryCount: pipe(
+      Option.flatMap(entry, readRetryCount),
+      Option.map((m) => m.retryCount),
+      Option.getOrElse(() => 0)
+    ),
+  }
+}
+
+const readLegacyIds = (rawData: string) => {
+  const ids = readPoisonIds(readEntry(rawData))
+  const lost =
+    Array.isReadonlyArrayEmpty(ids.notificationIds) ||
+    Array.isReadonlyArrayNonEmpty(ids.malformedIds)
+  return lost
+    ? Effect.as(
+        Effect.logWarning(
+          '[notification-recovery] Legacy entry has unreadable notification ids',
+          {
+            messageId: Option.getOrUndefined(ids.messageId),
+            malformedIds: ids.malformedIds,
+            entry: Str.slice(0, 200)(rawData),
+          }
+        ),
+        ids.notificationIds
+      )
+    : Effect.succeed(ids.notificationIds)
+}
 
 const discardPoisonMessage = (
   topic: string,
@@ -780,7 +807,7 @@ const discardUndecodable = (error: QueueMessageDecodeError) =>
       error.rawData,
       Str.replace(/\n\s*/g, ' ')(error.message)
     )
-    yield* queue.ack(error.rawData)
+    yield* queue.ack(error.claim)
   })
 
 export const consumeNext = Effect.gen(function* () {
@@ -790,7 +817,7 @@ export const consumeNext = Effect.gen(function* () {
 
   if (!result) return false
 
-  const { message, rawData } = result
+  const { message, rawData, claim } = result
   const { topic } = message
 
   const processDequeued = Effect.gen(function* () {
@@ -811,6 +838,7 @@ export const consumeNext = Effect.gen(function* () {
           {
             messageId: Option.some(message.id),
             notificationIds: message.payload.notificationIds,
+            malformedIds: [],
             retryCount: message.retryCount,
           },
           message,
@@ -820,10 +848,22 @@ export const consumeNext = Effect.gen(function* () {
       )
     )
 
-    yield* queue.ack(rawData)
+    yield* queue.ack(claim)
   })
 
+  const keepClaim = queue.refreshClaim(claim).pipe(
+    Effect.catchTag('QueueOperationError', (error) =>
+      Effect.logWarning('[notification-worker] Failed to refresh claim', {
+        messageId: message.id,
+        error: String(error),
+      })
+    ),
+    Effect.delay(CLAIM_REFRESH_INTERVAL),
+    Effect.forever
+  )
+
   yield* processDequeued.pipe(
+    Effect.raceFirst(keepClaim),
     Effect.withSpan('notification-worker.consume', {
       attributes: { topic },
     })
@@ -852,20 +892,15 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
     'delivery not confirmed'
   )
 
+  const requeued = yield* queue.requeueStale(VISIBILITY_TIMEOUT)
+
   const legacyEntries = yield* queue.drainLegacyTopicLists
+  const legacyIds = yield* Effect.forEach(legacyEntries, readLegacyIds)
   yield* Effect.forEach(
-    Array.chunksOf(
-      Array.flatMap(
-        legacyEntries,
-        (rawData) => readPoisonIds(readEntry(rawData)).notificationIds
-      ),
-      MAX_NOTIFICATION_IDS
-    ),
+    Array.chunksOf(Array.flatten(legacyIds), MAX_NOTIFICATION_IDS),
     notificationRepo.releaseUnclaimed,
     { discard: true }
   )
-
-  const requeued = yield* queue.requeueStale(VISIBILITY_TIMEOUT)
 
   if (requeued + released + failed + legacyEntries.length > 0) {
     yield* Effect.logWarning('[notification-recovery] Recovered deliveries', {

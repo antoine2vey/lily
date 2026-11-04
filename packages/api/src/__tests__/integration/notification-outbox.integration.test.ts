@@ -520,17 +520,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdAt: new Date().toISOString(),
           scheduledAt: new Date().toISOString(),
         })
+      const claimedEntry = legacyEntry('msg-old', claimed.id)
       const redis = createInMemoryRedis(
         {
           'lily:notifications:new_follower': [
             legacyEntry('msg-waiting', unclaimed.id),
           ],
-          'lily:notifications:new_follower:processing': [
-            legacyEntry('msg-old', claimed.id),
-          ],
+          'lily:notifications:new_follower:processing': [claimedEntry],
         },
         {
-          'lily:notifications:new_follower:processing:claimed': ['msg-old'],
+          'lily:notifications:new_follower:processing:claimed': {
+            [claimedEntry]: Date.now(),
+          },
         }
       )
 

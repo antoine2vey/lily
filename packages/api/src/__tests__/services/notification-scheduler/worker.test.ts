@@ -32,7 +32,10 @@ import {
   createMockPushService,
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
-import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
+import {
+  createInMemoryRedis,
+  createInMemoryRedisQueue,
+} from '@lily/api/__tests__/mocks/redis-queue'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
@@ -69,9 +72,11 @@ import {
   type PushMessage,
   PushService,
   type QueueMessage,
+  QueueOperationError,
 } from '@lily/shared/server'
 import {
   Array,
+  Cause,
   Clock,
   ConfigProvider,
   Duration,
@@ -1315,7 +1320,9 @@ describe('Notification Worker', () => {
       )
       const atCap = entryWithIds('msg-cap', ids.slice(1))
       expect(
-        Exit.isSuccess(await Effect.runPromiseExit(decodeQueueEntry(atCap)))
+        Exit.isSuccess(
+          await Effect.runPromiseExit(decodeQueueEntry(atCap, atCap))
+        )
       ).toBe(true)
       const raw = entryWithIds('msg-over', ids)
       const repo = bindLimitedRepo()
@@ -2355,7 +2362,7 @@ describe('Notification Worker', () => {
               onSome: (entry) => {
                 const rawData = JSON.stringify(entry)
                 processing.add(rawData)
-                return decodeQueueEntry(rawData)
+                return decodeQueueEntry(rawData, rawData)
               },
             })
           ),
@@ -2370,6 +2377,7 @@ describe('Notification Worker', () => {
       alerter: Layer.Layer<Alerter>
       deadLetters?: Layer.Layer<DeadLetterRepository>
       deliveryClaims?: Record<string, string>
+      queuedAt?: Record<string, Date>
     }) =>
       Layer.mergeAll(
         options.alerter,
@@ -2378,6 +2386,7 @@ describe('Notification Worker', () => {
         createMockDeviceTokenRepository(mockDeviceTokens),
         createMockNotificationRepository(options.rows, {
           deliveryClaims: options.deliveryClaims ?? {},
+          queuedAt: options.queuedAt ?? {},
         }),
         pipe(
           Option.fromNullishOr(options.deadLetters),
@@ -2679,7 +2688,11 @@ describe('Notification Worker', () => {
       )
 
       expect(deadLetters.capturedMessages).toEqual([
-        expect.objectContaining({ originalMessageId: 'msg-1', retryCount: 0 }),
+        expect.objectContaining({
+          originalMessageId: 'msg-1',
+          topic: 'watering_reminder',
+          retryCount: 0,
+        }),
       ])
       expect(Array.map(rows, (r) => [r.status, r.lastError])).toEqual([
         ['failed', 'Error: push broke'],
@@ -2811,6 +2824,66 @@ describe('Notification Worker', () => {
       ])
     })
 
+    it('refuses to start with zero consumers', async () => {
+      const exit = await Effect.runPromiseExit(
+        Effect.scoped(startNotificationWorker).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              workerLayer({
+                queue: createMockMessageQueue(),
+                push: createMockPushService(),
+                rows: [],
+                alerter: MockAlerterLive,
+              }),
+              ConfigProvider.layer(
+                ConfigProvider.fromUnknown({ NOTIFICATION_CONSUMERS: 0 })
+              )
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(
+        Exit.isFailure(exit) ? Cause.pretty(exit.cause) : 'started'
+      ).toContain('NOTIFICATION_CONSUMERS')
+    })
+
+    it('pushes a message once when its send outlasts the visibility timeout', async () => {
+      const rows = [queuedRow(rowId('1'))]
+      const batches: PushMessage[][] = []
+      const redis = createInMemoryRedisQueue([JSON.stringify(valid)])
+      const stalledPush = Layer.effect(
+        PushService,
+        Effect.map(PushService, (push) => ({
+          ...push,
+          sendBatch: (msgs: PushMessage[]) =>
+            push
+              .sendBatch(msgs)
+              .pipe(Effect.tap(() => Effect.sleep('20 minutes'))),
+        }))
+      ).pipe(
+        Layer.provide(
+          createMockPushService({ onSendBatch: (msgs) => batches.push(msgs) })
+        )
+      )
+
+      await runWorkersAndTimeDrain(
+        workerLayer({
+          queue: Layer.succeed(MessageQueue, redis.queue),
+          push: stalledPush,
+          rows,
+          alerter: MockAlerterLive,
+          queuedAt: { [rowId('1')]: new Date() },
+        }),
+        '21 minutes'
+      )
+
+      expect(batches).toHaveLength(1)
+      expect(redis.acked).toEqual([JSON.stringify(valid)])
+      expect(redis.liveKeys()).toEqual([])
+    })
+
     it('delivers every topic from the one queue', async () => {
       const { batches } = await pooledRun(Option.some(4))
 
@@ -2912,6 +2985,148 @@ describe('Notification Worker', () => {
       // pre-fix row must already be unclaimable or a weeks-old reminder goes out.
       expect(statusWhenRequeued).not.toHaveLength(0)
       expect(Array.every(statusWhenRequeued, (s) => s === 'failed')).toBe(true)
+    })
+
+    it('requeues stale messages when the legacy drain fails', async () => {
+      let sweeps = 0
+      const drainFails = Layer.effect(
+        MessageQueue,
+        Effect.map(MessageQueue, (queue) => ({
+          ...queue,
+          drainLegacyTopicLists: Effect.fail(
+            new QueueOperationError({ message: 'redis down', cause: null })
+          ),
+        }))
+      ).pipe(
+        Layer.provide(
+          createMockMessageQueue({
+            onRequeueStale: () => {
+              sweeps += 1
+              return 0
+            },
+          })
+        )
+      )
+
+      const exit = await Effect.runPromiseExit(
+        recoverStrandedDeliveries.pipe(
+          Effect.provide(
+            Layer.mergeAll(drainFails, createMockNotificationRepository([]))
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(sweeps).toBe(1)
+      expect(Exit.isFailure(exit)).toBe(true)
+    })
+
+    it('leaves a message in flight for one minute where it is', async () => {
+      const redis = createInMemoryRedisQueue([
+        JSON.stringify(
+          createTestQueueMessage({
+            payload: {
+              ...createTestQueueMessage().payload,
+              notificationIds: [rowId('1')],
+            },
+          })
+        ),
+      ])
+      vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000 - 60_000)
+      await Effect.runPromise(redis.queue.dequeue)
+      vi.restoreAllMocks()
+      vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000)
+
+      await Effect.runPromise(
+        recoverStrandedDeliveries.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              Layer.succeed(MessageQueue, redis.queue),
+              createMockNotificationRepository([])
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      ).finally(() => vi.restoreAllMocks())
+
+      expect(redis.liveKeys()).toEqual([
+        'lily:queue:notifications:in-flight',
+        'lily:queue:notifications:in-flight:claimed-at',
+      ])
+    })
+
+    it('hands back every readable row left on the per-topic lists and warns about each entry it cannot read', async () => {
+      const ids = [rowId('1'), rowId('2'), rowId('3'), rowId('4')]
+      const rows = Array.map(ids, (id) =>
+        createTestNotification({ id, userId: 'user-1', status: 'queued' })
+      )
+      const entry = (n: number, topic: NotificationTopic, extra = []) =>
+        JSON.stringify(
+          createTestQueueMessage({
+            id: `legacy-${n}`,
+            topic,
+            payload: {
+              ...createTestQueueMessage().payload,
+              notificationIds: [rowId(String(n + 1)), ...extra],
+            },
+          })
+        )
+      const redis = createInMemoryRedis({
+        'lily:notifications:watering_reminder': [
+          entry(0, 'watering_reminder'),
+          entry(1, 'watering_reminder'),
+        ],
+        'lily:notifications:new_follower': [
+          entry(2, 'new_follower', ['not-a-uuid'] as never),
+        ],
+        'lily:notifications:daily_tip:processing': [
+          entry(3, 'daily_tip'),
+          'not json',
+        ],
+      })
+      const warnings: unknown[] = []
+      const capture = Logger.make(({ logLevel, message }) => {
+        if (logLevel === 'Warn') warnings.push(message)
+      })
+
+      await Effect.runPromise(
+        recoverStrandedDeliveries.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              Layer.succeed(MessageQueue, redis.queue),
+              createMockNotificationRepository(rows, {
+                queuedAt: Record.fromEntries(
+                  Array.map(ids, (id) => [id, new Date(Date.now())])
+                ),
+              }),
+              Logger.layer([capture])
+            )
+          )
+        )
+      )
+
+      expect(redis.liveKeys()).toEqual([])
+      expect(Array.map(rows, (r) => r.status)).toEqual([
+        'pending',
+        'pending',
+        'pending',
+        'pending',
+      ])
+      expect(warnings).toEqual(
+        expect.arrayContaining([
+          [
+            '[notification-recovery] Legacy entry has unreadable notification ids',
+            expect.objectContaining({
+              messageId: 'legacy-2',
+              malformedIds: ['not-a-uuid'],
+            }),
+          ],
+          [
+            '[notification-recovery] Legacy entry has unreadable notification ids',
+            { messageId: undefined, malformedIds: [], entry: 'not json' },
+          ],
+        ])
+      )
     })
   })
 })

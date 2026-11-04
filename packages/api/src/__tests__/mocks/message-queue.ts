@@ -11,7 +11,7 @@ import { Effect, Layer, Option, pipe } from 'effect'
 export interface MockMessageQueueOptions {
   onEnqueue?: (topic: NotificationTopic, message: QueueMessage) => void
   onDequeue?: () => { message: QueueMessage; rawData: string } | null
-  onAck?: (rawData: string) => void
+  onAck?: (claim: string) => void
   onRequeueStale?: () => number
   legacyEntries?: ReadonlyArray<string>
   enqueueFailure?: QueueOperationError | QueueConnectionError
@@ -35,18 +35,25 @@ export const createMockMessageQueue = (
       }),
 
     dequeue: Effect.sync(() => {
-      if (options.onDequeue) {
-        return options.onDequeue()
-      }
-      const msg = pipe(Option.fromNullishOr(queue.shift()), Option.getOrNull)
-      if (!msg) return null
-      return { message: msg, rawData: JSON.stringify(msg) }
+      const dequeued = options.onDequeue
+        ? options.onDequeue()
+        : pipe(
+            Option.fromNullishOr(queue.shift()),
+            Option.map((message) => ({
+              message,
+              rawData: JSON.stringify(message),
+            })),
+            Option.getOrNull
+          )
+      return dequeued && { ...dequeued, claim: dequeued.rawData }
     }),
 
-    ack: (rawData) =>
+    ack: (claim) =>
       Effect.sync(() => {
-        options.onAck?.(rawData)
+        options.onAck?.(claim)
       }),
+
+    refreshClaim: () => Effect.void,
 
     requeueStale: () => Effect.sync(() => options.onRequeueStale?.() ?? 0),
 

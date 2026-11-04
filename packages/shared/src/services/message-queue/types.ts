@@ -179,6 +179,7 @@ export class QueueMessageDecodeError extends Schema.TaggedError<QueueMessageDeco
   'QueueMessageDecodeError',
   {
     rawData: Schema.String,
+    claim: Schema.String,
     message: Schema.String,
   }
 ) {}

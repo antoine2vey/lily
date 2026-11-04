@@ -168,11 +168,20 @@ describe('makeRedisMessageQueue one queue', () => {
     await Effect.runPromise(Effect.forEach(sent, queue.enqueue))
     expect(liveKeys()).toEqual(['lily:queue:notifications'])
 
+    // A message that comes back under another topic may no longer decode;
+    // that still counts as a wrong message, not a crash.
     const received = await Effect.runPromise(
-      Effect.forEach(sent, () => queue.dequeue)
+      Effect.forEach(sent, () =>
+        queue.dequeue.pipe(
+          Effect.map((r) => r?.message),
+          Effect.catchTag('QueueMessageDecodeError', (e) =>
+            Effect.succeed(e.rawData)
+          )
+        )
+      )
     )
 
-    expect(Arr.map(received, (r) => r?.message)).toEqual(sent)
+    expect(received).toEqual(sent)
     expect(await Effect.runPromise(queue.dequeue)).toBeNull()
   })
 })
@@ -192,13 +201,13 @@ describe('makeRedisMessageQueue drainLegacyTopicLists', () => {
       'weekly_recap-ready-2',
       'weekly_recap-ready',
     ]
-    const sets = Object.fromEntries(
+    const zsets = Object.fromEntries(
       Arr.map(NOTIFICATION_TOPICS, (topic) => [
         legacy(topic, ':processing:claimed'),
-        [`${topic}-claimed`],
+        { [`${topic}-claimed`]: 1 },
       ])
     )
-    const { queue, liveKeys } = createInMemoryRedis(lists, sets)
+    const { queue, liveKeys } = createInMemoryRedis(lists, zsets)
 
     const drained = await Effect.runPromise(queue.drainLegacyTopicLists)
 
@@ -215,18 +224,22 @@ describe('makeRedisMessageQueue drainLegacyTopicLists', () => {
   })
 
   it('leaves the one queue alone', async () => {
-    const { queue, liveKeys } = createInMemoryRedis({
-      'lily:queue:notifications': [validEntry],
-      'lily:queue:notifications:processing': [validEntry],
-      [legacy('daily_tip')]: ['old'],
-    })
+    const { queue, liveKeys } = createInMemoryRedis(
+      {
+        'lily:queue:notifications': [validEntry],
+        [legacy('daily_tip')]: ['old'],
+      },
+      { 'lily:queue:notifications:in-flight:claimed-at': { claim: 1 } },
+      { 'lily:queue:notifications:in-flight': { claim: validEntry } }
+    )
 
     expect(await Effect.runPromise(queue.drainLegacyTopicLists)).toEqual([
       'old',
     ])
     expect(liveKeys()).toEqual([
       'lily:queue:notifications',
-      'lily:queue:notifications:processing',
+      'lily:queue:notifications:in-flight',
+      'lily:queue:notifications:in-flight:claimed-at',
     ])
   })
 

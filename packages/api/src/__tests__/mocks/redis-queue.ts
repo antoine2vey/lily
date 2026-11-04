@@ -1,10 +1,15 @@
-import { makeRedisMessageQueue } from '@lily/api/services/message-queue/redis.provider'
-import { Array, Option } from 'effect'
+import {
+  DEQUEUE_SCRIPT,
+  makeRedisMessageQueue,
+  REQUEUE_STALE_SCRIPT,
+} from '@lily/api/services/message-queue/redis.provider'
+import { Array, Option, Order, Record } from 'effect'
 import type Redis from 'ioredis'
 
 export const createInMemoryRedis = (
   lists: Record<string, string[]> = {},
-  sets: Record<string, string[]> = {}
+  zsets: Record<string, Record<string, number>> = {},
+  hashes: Record<string, Record<string, string>> = {}
 ) => {
   const acked: string[] = []
   const commands: string[] = []
@@ -12,17 +17,28 @@ export const createInMemoryRedis = (
     lists[key] ??= []
     return lists[key]
   }
-  const set = (key: string) => {
-    sets[key] ??= []
-    return sets[key]
+  const zset = (key: string) => {
+    zsets[key] ??= {}
+    return zsets[key]
   }
-  const remove = (values: string[], value: string) => {
-    const index = values.indexOf(value)
-    if (index >= 0) values.splice(index, 1)
+  const hash = (key: string) => {
+    hashes[key] ??= {}
+    return hashes[key]
   }
-  const claimedAt = new Map<string, number>()
   const live = (key: string) =>
-    (lists[key]?.length ?? 0) > 0 || (sets[key]?.length ?? 0) > 0
+    (lists[key]?.length ?? 0) > 0 ||
+    Record.size(zsets[key] ?? {}) > 0 ||
+    Record.size(hashes[key] ?? {}) > 0
+  const byScore = Order.combine(
+    Order.mapInput(
+      Order.Number,
+      ([, score]: readonly [string, number]) => score
+    ),
+    Order.mapInput(
+      Order.String,
+      ([member]: readonly [string, number]) => member
+    )
+  )
   const redis = {
     lpush: (key: string, value: string) => {
       commands.push('lpush')
@@ -32,35 +48,48 @@ export const createInMemoryRedis = (
       script: string,
       _n: number,
       queueKey: string,
-      processingKey: string,
-      claimedKey: string,
-      arg: number
+      inFlightKey: string,
+      claimedAtKey: string,
+      ...args: ReadonlyArray<number | string>
     ) => {
       commands.push('eval')
-      const claimed = set(claimedKey)
-      if (script.includes('RPOPLPUSH')) {
+      if (script === DEQUEUE_SCRIPT) {
+        const [now, claim] = args
         const raw = Option.fromNullishOr(list(queueKey).pop())
         Option.map(raw, (entry) => {
-          list(processingKey).unshift(entry)
-          claimed.push(entry)
-          claimedAt.set(entry, arg)
+          hash(inFlightKey)[String(claim)] = entry
+          zset(claimedAtKey)[String(claim)] = Number(now)
         })
         return Promise.resolve(Option.getOrNull(raw))
       }
-      if (script.includes('LRANGE')) {
-        const stale = Array.filter(
-          list(processingKey),
-          (raw) => (claimedAt.get(raw) ?? Number.NEGATIVE_INFINITY) <= arg
+      if (script === REQUEUE_STALE_SCRIPT) {
+        const stale = Array.sort(
+          Array.filter(
+            Record.toEntries(zset(claimedAtKey)),
+            ([, claimedAt]) => claimedAt <= Number(args[0])
+          ),
+          byScore
         )
-        Array.forEach(stale, (raw) => {
-          remove(list(processingKey), raw)
-          remove(claimed, raw)
-          claimedAt.delete(raw)
-          list(queueKey).push(raw)
+        const entries = Array.getSomes(
+          Array.map(stale, ([claim]) =>
+            Option.fromNullishOr(hash(inFlightKey)[claim])
+          )
+        )
+        if (entries.length !== stale.length)
+          return Promise.reject(new Error('claim with no in-flight entry'))
+        list(queueKey).push(...entries)
+        Array.forEach(stale, ([claim]) => {
+          delete hash(inFlightKey)[claim]
+          delete zset(claimedAtKey)[claim]
         })
         return Promise.resolve(stale.length)
       }
       return Promise.reject(new Error('in-memory redis has no such script'))
+    },
+    zadd: (key: string, _xx: 'XX', score: number, member: string) => {
+      commands.push('zadd')
+      if (member in zset(key)) zset(key)[member] = score
+      return Promise.resolve(0)
     },
     exists: (...keys: string[]) => {
       commands.push('exists')
@@ -77,20 +106,22 @@ export const createInMemoryRedis = (
       const removed = Array.filter(keys, live).length
       Array.forEach(keys, (key) => {
         delete lists[key]
-        delete sets[key]
+        delete zsets[key]
+        delete hashes[key]
       })
       return Promise.resolve(removed)
     },
     multi: () => {
       const tx = {
-        lrem: (key: string, _count: number, raw: string) => {
-          acked.push(raw)
-          remove(list(key), raw)
+        hdel: (key: string, claim: string) => {
+          Option.map(Option.fromNullishOr(hash(key)[claim]), (raw) =>
+            acked.push(raw)
+          )
+          delete hash(key)[claim]
           return tx
         },
-        zrem: (key: string, raw: string) => {
-          remove(set(key), raw)
-          claimedAt.delete(raw)
+        zrem: (key: string, claim: string) => {
+          delete zset(key)[claim]
           return tx
         },
         exec: () => Promise.resolve([]),
@@ -99,7 +130,14 @@ export const createInMemoryRedis = (
     },
   } as unknown as Redis
   const liveKeys = () =>
-    Array.filter([...Object.keys(lists), ...Object.keys(sets)], live).sort()
+    Array.filter(
+      Array.dedupe([
+        ...Object.keys(lists),
+        ...Object.keys(zsets),
+        ...Object.keys(hashes),
+      ]),
+      live
+    ).sort()
   return { queue: makeRedisMessageQueue(redis), acked, commands, liveKeys }
 }
 

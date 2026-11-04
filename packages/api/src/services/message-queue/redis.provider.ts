@@ -10,6 +10,7 @@ import {
 } from '@lily/shared/server'
 import {
   Array,
+  Clock,
   Config,
   Context,
   Duration,
@@ -26,11 +27,14 @@ export class RedisClient extends Context.Service<RedisClient, Redis>()(
 ) {}
 
 const QUEUE_KEY = 'lily:queue:notifications'
-const PROCESSING_KEY = `${QUEUE_KEY}:processing`
-const CLAIMED_KEY = `${QUEUE_KEY}:processing:claimed`
+const IN_FLIGHT_KEY = `${QUEUE_KEY}:in-flight`
+const CLAIMED_AT_KEY = `${QUEUE_KEY}:in-flight:claimed-at`
 
-const evalQueueScript = (redis: Redis, script: string, arg: number) =>
-  redis.eval(script, 3, QUEUE_KEY, PROCESSING_KEY, CLAIMED_KEY, arg)
+const evalQueueScript = (
+  redis: Redis,
+  script: string,
+  ...args: ReadonlyArray<number | string>
+) => redis.eval(script, 3, QUEUE_KEY, IN_FLIGHT_KEY, CLAIMED_AT_KEY, ...args)
 
 const LEGACY_PREFIX = 'lily:notifications:'
 const LEGACY_LIST_KEYS = Array.flatMap(NOTIFICATION_TOPICS, (topic) => [
@@ -42,27 +46,23 @@ const LEGACY_CLAIMED_KEYS = Array.map(
   (topic) => `${LEGACY_PREFIX}${topic}:processing:claimed`
 )
 
-const DEQUEUE_SCRIPT = `
-local raw = redis.call('RPOPLPUSH', KEYS[1], KEYS[2])
+export const DEQUEUE_SCRIPT = `
+local raw = redis.call('RPOP', KEYS[1])
 if raw then
-  redis.call('ZADD', KEYS[3], ARGV[1], raw)
+  redis.call('HSET', KEYS[2], ARGV[2], raw)
+  redis.call('ZADD', KEYS[3], ARGV[1], ARGV[2])
 end
 return raw
 `
 
-const REQUEUE_STALE_SCRIPT = `
-local moved = 0
-local entries = redis.call('LRANGE', KEYS[2], 0, -1)
-for _, raw in ipairs(entries) do
-  local claimedAt = redis.call('ZSCORE', KEYS[3], raw)
-  if (not claimedAt) or tonumber(claimedAt) <= tonumber(ARGV[1]) then
-    redis.call('LREM', KEYS[2], 1, raw)
-    redis.call('ZREM', KEYS[3], raw)
-    redis.call('RPUSH', KEYS[1], raw)
-    moved = moved + 1
-  end
+export const REQUEUE_STALE_SCRIPT = `
+local claims = redis.call('ZRANGEBYSCORE', KEYS[3], '-inf', ARGV[1])
+for _, claim in ipairs(claims) do
+  redis.call('RPUSH', KEYS[1], redis.call('HGET', KEYS[2], claim))
+  redis.call('HDEL', KEYS[2], claim)
+  redis.call('ZREM', KEYS[3], claim)
 end
-return moved
+return #claims
 `
 
 const decodeDequeued = Schema.decodeUnknownEffect(Schema.NullOr(Schema.String))
@@ -87,13 +87,13 @@ const decodeTopicMetadata = (message: QueueMessage) =>
       ),
   })
 
-export const decodeQueueEntry = (rawData: string) =>
+export const decodeQueueEntry = (rawData: string, claim: string) =>
   decodeQueueMessage(rawData).pipe(
     Effect.flatMap(decodeTopicMetadata),
-    Effect.map((message) => ({ message, rawData })),
+    Effect.map((message) => ({ message, rawData, claim })),
     Effect.catchTag('SchemaError', (error) =>
       Effect.fail(
-        new QueueMessageDecodeError({ rawData, message: error.message })
+        new QueueMessageDecodeError({ rawData, claim, message: error.message })
       )
     )
   )
@@ -134,44 +134,52 @@ export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
   // no-op spans/week. The hit path is instrumented in the worker's
   // `notification-worker.consume` span instead (only opened when a message
   // is actually dequeued).
-  dequeue: queueOperation('Failed to dequeue message', () =>
-    evalQueueScript(redis, DEQUEUE_SCRIPT, Date.now())
-  ).pipe(
-    Effect.flatMap((result) =>
-      decodeDequeued(result).pipe(
-        Effect.mapError(
-          (error) =>
-            new QueueOperationError({
-              message: 'Unexpected dequeue result',
-              cause: error,
-            })
-        )
-      )
-    ),
-    Effect.flatMap((raw) =>
-      Option.match(Option.fromNullishOr(raw), {
-        onNone: () => Effect.succeed(null),
-        onSome: decodeQueueEntry,
-      })
+  dequeue: Effect.gen(function* () {
+    const now = yield* Clock.currentTimeMillis
+    const claim = crypto.randomUUID()
+    const result = yield* queueOperation('Failed to dequeue message', () =>
+      evalQueueScript(redis, DEQUEUE_SCRIPT, now, claim)
     )
-  ),
+    const raw = yield* decodeDequeued(result).pipe(
+      Effect.mapError(
+        (error) =>
+          new QueueOperationError({
+            message: 'Unexpected dequeue result',
+            cause: error,
+          })
+      )
+    )
+    return yield* Option.match(Option.fromNullishOr(raw), {
+      onNone: () => Effect.succeed(null),
+      onSome: (entry) => decodeQueueEntry(entry, claim),
+    })
+  }),
 
-  ack: (rawData) =>
+  ack: (claim) =>
     queueOperation('Failed to ack message', () =>
       redis
         .multi()
-        .lrem(PROCESSING_KEY, 1, rawData)
-        .zrem(CLAIMED_KEY, rawData)
+        .hdel(IN_FLIGHT_KEY, claim)
+        .zrem(CLAIMED_AT_KEY, claim)
         .exec()
     ).pipe(Effect.asVoid, Effect.withSpan('Redis.ack')),
 
+  refreshClaim: (claim) =>
+    Effect.flatMap(Clock.currentTimeMillis, (now) =>
+      queueOperation('Failed to refresh claim', () =>
+        redis.zadd(CLAIMED_AT_KEY, 'XX', now, claim)
+      )
+    ).pipe(Effect.asVoid, Effect.withSpan('Redis.refreshClaim')),
+
   requeueStale: (olderThan) =>
-    queueOperation('Failed to requeue stale messages', async () =>
-      Number(
-        await evalQueueScript(
-          redis,
-          REQUEUE_STALE_SCRIPT,
-          Date.now() - Duration.toMillis(olderThan)
+    Effect.flatMap(Clock.currentTimeMillis, (now) =>
+      queueOperation('Failed to requeue stale messages', async () =>
+        Number(
+          await evalQueueScript(
+            redis,
+            REQUEUE_STALE_SCRIPT,
+            now - Duration.toMillis(olderThan)
+          )
         )
       )
     ).pipe(Effect.withSpan('Redis.requeueStale')),
