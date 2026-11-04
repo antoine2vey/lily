@@ -53,7 +53,7 @@ import {
 import { decodeQueueEntry } from '@lily/api/services/message-queue/redis.provider'
 import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
 import {
-  consumeFromTopic,
+  consumeNext,
   processMessage,
   recoverStrandedDeliveries,
   startNotificationWorker,
@@ -65,7 +65,6 @@ import {
   type LiveActivityPushMessage,
   MAX_NOTIFICATION_IDS,
   MessageQueue,
-  NOTIFICATION_TOPICS,
   type NotificationTopic,
   type PushMessage,
   PushService,
@@ -74,6 +73,7 @@ import {
 import {
   Array,
   Clock,
+  ConfigProvider,
   Duration,
   Effect,
   Exit,
@@ -656,7 +656,7 @@ describe('Notification Worker', () => {
             return msg ? { message: msg, rawData: JSON.stringify(msg) } : null
           },
           onEnqueue: (_, message) => requeued.push(message),
-          onAck: (_, rawData) => acked.push(rawData),
+          onAck: (rawData) => acked.push(rawData),
         }),
         deadLetters.layer,
         LaMocksLive,
@@ -697,7 +697,7 @@ describe('Notification Worker', () => {
         const relayed = await underTestClock(relay)
         if (Exit.isFailure(relayed)) throw new Error('relay failed')
         inbox.push(message ?? relayed.value)
-        return underTestClock(consumeFromTopic('watering_reminder'))
+        return underTestClock(consumeNext)
       }
       return {
         sends,
@@ -953,7 +953,7 @@ describe('Notification Worker', () => {
       const sends: PushMessage[][] = []
 
       const exit = await Effect.runPromiseExit(
-        consumeFromTopic('watering_reminder').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -967,7 +967,7 @@ describe('Notification Worker', () => {
                   message,
                   rawData: JSON.stringify(message),
                 }),
-                onAck: (_, rawData) => acked.push(rawData),
+                onAck: (rawData) => acked.push(rawData),
               }),
               createMockDeadLetterRepository(),
               LaMocksLive,
@@ -1005,7 +1005,7 @@ describe('Notification Worker', () => {
       const sends: PushMessage[][] = []
 
       const exit = await Effect.runPromiseExit(
-        consumeFromTopic('watering_reminder').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -1020,7 +1020,7 @@ describe('Notification Worker', () => {
                   message,
                   rawData: JSON.stringify(message),
                 }),
-                onAck: (_, rawData) => acked.push(rawData),
+                onAck: (rawData) => acked.push(rawData),
               }),
               createMockDeadLetterRepository(),
               LaMocksLive,
@@ -1038,7 +1038,7 @@ describe('Notification Worker', () => {
     })
   })
 
-  describe('consumeFromTopic', () => {
+  describe('consumeNext', () => {
     it('should process message from queue', async () => {
       const sentMessages: PushMessage[] = []
       const ackedMessages: string[] = []
@@ -1056,7 +1056,7 @@ describe('Notification Worker', () => {
       const queueMessages: QueueMessage[] = [queueMessage]
 
       await Effect.runPromise(
-        consumeFromTopic('watering_reminder').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -1069,7 +1069,7 @@ describe('Notification Worker', () => {
                   if (!msg) return null
                   return { message: msg, rawData: JSON.stringify(msg) }
                 },
-                onAck: (_, rawData) => ackedMessages.push(rawData),
+                onAck: (rawData) => ackedMessages.push(rawData),
               }),
               createMockPushService({
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
@@ -1094,7 +1094,7 @@ describe('Notification Worker', () => {
       const sentMessages: PushMessage[] = []
 
       await Effect.runPromise(
-        consumeFromTopic('watering_reminder').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -1120,7 +1120,7 @@ describe('Notification Worker', () => {
       const { queue, acked } = createInMemoryRedisQueue(['not json'])
 
       const handled = await Effect.runPromise(
-        consumeFromTopic('new_follower').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -1142,7 +1142,7 @@ describe('Notification Worker', () => {
       expect(capturedMessages).toEqual([
         expect.objectContaining({
           originalMessageId: 'unknown',
-          topic: 'new_follower',
+          topic: 'unknown',
           payload: 'not json',
           retryCount: 0,
         }),
@@ -1177,7 +1177,7 @@ describe('Notification Worker', () => {
         const alerter = createMockAlerter()
 
         await Effect.runPromise(
-          consumeFromTopic('new_follower').pipe(
+          consumeNext.pipe(
             Effect.provide(
               Layer.mergeAll(
                 alerter.layer,
@@ -1209,7 +1209,7 @@ describe('Notification Worker', () => {
       const { queue } = createInMemoryRedisQueue([raw])
 
       await Effect.runPromise(
-        consumeFromTopic('new_follower').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -1290,7 +1290,7 @@ describe('Notification Worker', () => {
       const { queue, acked } = createInMemoryRedisQueue([raw])
       const alerter = createMockAlerter()
       await Effect.runPromise(
-        consumeFromTopic('new_follower').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               alerter.layer,
@@ -1315,9 +1315,7 @@ describe('Notification Worker', () => {
       )
       const atCap = entryWithIds('msg-cap', ids.slice(1))
       expect(
-        Exit.isSuccess(
-          await Effect.runPromiseExit(decodeQueueEntry('new_follower', atCap))
-        )
+        Exit.isSuccess(await Effect.runPromiseExit(decodeQueueEntry(atCap)))
       ).toBe(true)
       const raw = entryWithIds('msg-over', ids)
       const repo = bindLimitedRepo()
@@ -1362,7 +1360,7 @@ describe('Notification Worker', () => {
       const alerter = createMockAlerter()
 
       const exit = await Effect.runPromiseExit(
-        consumeFromTopic('new_follower').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               alerter.layer,
@@ -2213,7 +2211,7 @@ describe('Notification Worker', () => {
             return msg ? { message: msg, rawData: JSON.stringify(msg) } : null
           },
           onEnqueue: (_, message) => requeued.push(message),
-          onAck: (_, rawData) => acked.push(rawData),
+          onAck: (rawData) => acked.push(rawData),
         }),
         createMockDeadLetterRepository(),
         LaMocksLive,
@@ -2223,7 +2221,7 @@ describe('Notification Worker', () => {
       await Effect.runPromise(
         Effect.gen(function* () {
           const fiber = yield* Effect.forkChild(
-            consumeFromTopic('watering_reminder').pipe(Effect.provide(layer))
+            consumeNext.pipe(Effect.provide(layer))
           )
           yield* Effect.forEach(Array.range(1, 30), () =>
             TestClock.adjust('1 second')
@@ -2333,25 +2331,17 @@ describe('Notification Worker', () => {
     const queuedRow = (id: string) =>
       createTestNotification({ id, userId: 'user-1', status: 'queued' })
 
-    const redisQueue = (
-      ready: Partial<Record<NotificationTopic, unknown[]>>,
-      acked: string[]
-    ) => {
-      const processing = new Map<string, NotificationTopic>()
+    const redisQueue = (ready: unknown[], acked: string[]) => {
+      const processing = new Set<string>()
       const mock = createMockMessageQueue({
-        onAck: (_, rawData) => {
+        onAck: (rawData) => {
           acked.push(rawData)
           processing.delete(rawData)
         },
-        onRequeueStale: (topic) => {
-          const stale = Array.filter(
-            Array.fromIterable(processing),
-            ([, owner]) => owner === topic
-          )
-          Array.forEach(stale, ([rawData]) => {
-            processing.delete(rawData)
-            ready[topic]?.push(JSON.parse(rawData))
-          })
+        onRequeueStale: () => {
+          const stale = Array.fromIterable(processing)
+          processing.clear()
+          Array.forEach(stale, (rawData) => ready.push(JSON.parse(rawData)))
           return stale.length
         },
       })
@@ -2359,17 +2349,16 @@ describe('Notification Worker', () => {
         MessageQueue,
         Effect.map(MessageQueue, (queue) => ({
           ...queue,
-          dequeue: (topic: NotificationTopic) =>
-            Effect.suspend(() =>
-              Option.match(Option.fromNullishOr(ready[topic]?.shift()), {
-                onNone: () => Effect.succeed(null),
-                onSome: (entry) => {
-                  const rawData = JSON.stringify(entry)
-                  processing.set(rawData, topic)
-                  return decodeQueueEntry(topic, rawData)
-                },
-              })
-            ),
+          dequeue: Effect.suspend(() =>
+            Option.match(Option.fromNullishOr(ready.shift()), {
+              onNone: () => Effect.succeed(null),
+              onSome: (entry) => {
+                const rawData = JSON.stringify(entry)
+                processing.add(rawData)
+                return decodeQueueEntry(rawData)
+              },
+            })
+          ),
         }))
       ).pipe(Layer.provide(mock))
     }
@@ -2519,7 +2508,7 @@ describe('Notification Worker', () => {
 
       await runWorkersAndTimeDrain(
         workerLayer({
-          queue: redisQueue({ watering_reminder: [...poisons, valid] }, acked),
+          queue: redisQueue([...poisons, valid], acked),
           push: clockedPush,
           rows: Record.values(rows),
           alerter: alerter.layer,
@@ -2538,11 +2527,18 @@ describe('Notification Worker', () => {
       expect(
         Array.map(deadLetters.capturedMessages, (d) => d.originalMessageId)
       ).toEqual(ids)
+      expect(Array.map(deadLetters.capturedMessages, (d) => d.topic)).toEqual([
+        'bogus_topic',
+        'watering_reminder',
+        'watering_reminder',
+        'watering_reminder',
+        'watering_reminder',
+      ])
       expect(alerter.events).toEqual(
         Array.map(ids, (id) =>
           expect.objectContaining({
             _tag: 'UnhandledDefect',
-            message: expect.stringMatching(/^watering_reminder: \w/),
+            message: expect.stringMatching(/^\w+: \w/),
             stack: expect.stringMatching(`^message ${id}\n`),
           })
         )
@@ -2577,7 +2573,7 @@ describe('Notification Worker', () => {
 
       await runWorkersAndTimeDrain(
         workerLayer({
-          queue: redisQueue({ watering_reminder: twins }, []),
+          queue: redisQueue(twins, []),
           push: createMockPushService(),
           rows: [queuedRow(rowId('a')), queuedRow(rowId('b'))],
           alerter,
@@ -2622,7 +2618,7 @@ describe('Notification Worker', () => {
 
       await runWorkersAndTimeDrain(
         workerLayer({
-          queue: redisQueue({ watering_reminder: [poison, valid] }, acked),
+          queue: redisQueue([poison, valid], acked),
           push: createMockPushService(),
           rows,
           alerter: alerter.layer,
@@ -2673,7 +2669,7 @@ describe('Notification Worker', () => {
 
       await runWorkersAndTimeDrain(
         workerLayer({
-          queue: redisQueue({ watering_reminder: [first, second] }, acked),
+          queue: redisQueue([first, second], acked),
           push: pushDiesOnce,
           rows,
           alerter: alerter.layer,
@@ -2697,7 +2693,7 @@ describe('Notification Worker', () => {
       ])
     })
 
-    it('keeps polling a topic after an ack dies', async () => {
+    it('keeps polling after an ack dies', async () => {
       const rows = [queuedRow(rowId('1')), queuedRow(rowId('2'))]
       const first = createTestQueueMessage({
         id: 'msg-1',
@@ -2714,17 +2710,15 @@ describe('Notification Worker', () => {
         MessageQueue,
         Effect.map(MessageQueue, (queue) => ({
           ...queue,
-          ack: (topic: NotificationTopic, rawData: string) =>
+          ack: (rawData: string) =>
             Effect.suspend(() =>
               Option.match(Option.fromNullishOr(ackDefects.shift()), {
-                onNone: () => queue.ack(topic, rawData),
+                onNone: () => queue.ack(rawData),
                 onSome: Effect.die,
               })
             ),
         }))
-      ).pipe(
-        Layer.provide(redisQueue({ watering_reminder: [first, second] }, acked))
-      )
+      ).pipe(Layer.provide(redisQueue([first, second], acked)))
 
       await runWorkersAndTimeDrain(
         workerLayer({
@@ -2746,53 +2740,100 @@ describe('Notification Worker', () => {
       ])
     })
 
-    it('finishes every in-flight send and its bookkeeping on shutdown, within one step', async () => {
-      const rows = [
-        queuedRow(rowId('w1')),
-        queuedRow(rowId('w2')),
-        queuedRow(rowId('m1')),
-        queuedRow(rowId('m2')),
-      ]
-      const message = (id: string, topic: NotificationTopic) =>
+    const pooledRun = (consumers: Option.Option<number>) => {
+      const plan = [
+        ['1', 'watering_reminder'],
+        ['2', 'new_follower'],
+        ['3', 'daily_tip'],
+        ['4', 'watering_reminder'],
+        ['5', 'new_follower'],
+        ['6', 'daily_tip'],
+      ] as const
+      const rows = Array.map(plan, ([id]) => queuedRow(rowId(id)))
+      const batches: PushMessage[][] = []
+      const acked: string[] = []
+      const messages = Array.map(plan, ([id, topic]) =>
         createTestQueueMessage({
           id: `msg-${id}`,
           topic,
           payload: { ...valid.payload, notificationIds: [rowId(id)] },
         })
-      const batches: PushMessage[][] = []
-      const acked: string[] = []
-
-      const drained = await runWorkersAndTimeDrain(
-        workerLayer({
-          queue: redisQueue(
-            {
-              watering_reminder: [
-                message('w1', 'watering_reminder'),
-                message('w2', 'watering_reminder'),
-              ],
-              misting_reminder: [
-                message('m1', 'misting_reminder'),
-                message('m2', 'misting_reminder'),
-              ],
-            },
-            acked
-          ),
-          push: slowPush(batches),
-          rows,
-          alerter: MockAlerterLive,
-        }),
-        '1 second'
       )
+      const config = ConfigProvider.layer(
+        ConfigProvider.fromUnknown(
+          Option.match(consumers, {
+            onNone: () => ({}),
+            onSome: (n) => ({ NOTIFICATION_CONSUMERS: n }),
+          })
+        )
+      )
+      return runWorkersAndTimeDrain(
+        Layer.mergeAll(
+          workerLayer({
+            queue: redisQueue(messages, acked),
+            push: slowPush(batches),
+            rows,
+            alerter: MockAlerterLive,
+          }),
+          config
+        ),
+        '1 second'
+      ).then((drained) => ({ rows, batches, acked, drained }))
+    }
+
+    it('runs four consumers by default and finishes each in-flight send on shutdown, within one step', async () => {
+      const { rows, batches, acked, drained } = await pooledRun(Option.none())
+
+      expect(batches).toHaveLength(4)
+      expect(Array.map(rows, (r) => r.status)).toEqual([
+        'sent',
+        'sent',
+        'sent',
+        'sent',
+        'queued',
+        'queued',
+      ])
+      expect(acked).toHaveLength(4)
+      expect(Duration.toMillis(drained)).toBeLessThan(5_000)
+    })
+
+    it('runs as many consumers as NOTIFICATION_CONSUMERS asks for', async () => {
+      const { rows, batches } = await pooledRun(Option.some(2))
 
       expect(batches).toHaveLength(2)
       expect(Array.map(rows, (r) => r.status)).toEqual([
         'sent',
-        'queued',
         'sent',
         'queued',
+        'queued',
+        'queued',
+        'queued',
       ])
-      expect(acked).toHaveLength(2)
-      expect(Duration.toMillis(drained)).toBeLessThan(5_000)
+    })
+
+    it('delivers every topic from the one queue', async () => {
+      const { batches } = await pooledRun(Option.some(4))
+
+      const delivered = Array.flatMap(batches, (batch) =>
+        Array.map(batch, (m) => [m.data?.topic, m.interruptionLevel])
+      )
+      expect(
+        Array.dedupe(Array.map(delivered, ([topic]) => topic)).sort()
+      ).toEqual(['daily_tip', 'new_follower', 'watering_reminder'])
+      expect(delivered).toEqual(
+        expect.arrayContaining([
+          ['watering_reminder', 'time-sensitive'],
+          ['new_follower', undefined],
+          ['daily_tip', undefined],
+        ])
+      )
+      expect(
+        Array.filter(
+          delivered,
+          ([topic, level]) =>
+            (topic === 'watering_reminder') !== (level === 'time-sensitive')
+        )
+      ).toEqual([])
     })
   })
 
@@ -2809,15 +2850,15 @@ describe('Notification Worker', () => {
         abandoned: row('abandoned'),
         legacy: row('legacy'),
       }
-      const sweptTopics: string[] = []
+      let sweeps = 0
 
       await Effect.runPromise(
         recoverStrandedDeliveries.pipe(
           Effect.provide(
             Layer.mergeAll(
               createMockMessageQueue({
-                onRequeueStale: (topic) => {
-                  sweptTopics.push(topic)
+                onRequeueStale: () => {
+                  sweeps += 1
                   return 0
                 },
               }),
@@ -2835,7 +2876,7 @@ describe('Notification Worker', () => {
         )
       )
 
-      expect(sweptTopics).toEqual([...NOTIFICATION_TOPICS])
+      expect(sweeps).toBe(1)
       expect(rows.lost.status).toBe('pending')
       expect(rows.slow.status).toBe('queued')
       expect(rows.abandoned.status).toBe('failed')

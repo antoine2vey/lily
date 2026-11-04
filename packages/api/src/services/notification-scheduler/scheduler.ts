@@ -212,7 +212,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
         // Care groups span several topics; route the merged message on the
         // most urgent one (overdue > watering > ...). All care topics share
         // the same app deep link and interruption level, so the choice only
-        // affects which queue partition carries it.
+        // sets the topic the message is logged and dead-lettered under.
         const careTopics = Array.filterMap(
           group,
           Filter.fromPredicateOption((n) =>
@@ -309,7 +309,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
           )
 
         const enqueued = yield* queue
-          .enqueue(topic, {
+          .enqueue({
             id: crypto.randomUUID(),
             topic,
             payload: {

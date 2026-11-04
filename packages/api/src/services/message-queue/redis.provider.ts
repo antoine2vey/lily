@@ -2,13 +2,14 @@ import { NOTIFICATION_METADATA } from '@lily/shared/notification'
 import {
   type IMessageQueue,
   MessageQueue,
-  type NotificationTopic,
+  NOTIFICATION_TOPICS,
   QueueConnectionError,
   QueueMessage,
   QueueMessageDecodeError,
   QueueOperationError,
 } from '@lily/shared/server'
 import {
+  Array,
   Config,
   Context,
   Duration,
@@ -24,32 +25,24 @@ export class RedisClient extends Context.Service<RedisClient, Redis>()(
   'RedisClient'
 ) {}
 
-// Key prefix for notification queues
-const QUEUE_PREFIX = 'lily:notifications:'
-const PROCESSING_SUFFIX = ':processing'
-const CLAIMED_SUFFIX = ':processing:claimed'
+const QUEUE_KEY = 'lily:queue:notifications'
+const PROCESSING_KEY = `${QUEUE_KEY}:processing`
+const CLAIMED_KEY = `${QUEUE_KEY}:processing:claimed`
 
-// Get queue key for a topic
-const getQueueKey = (topic: NotificationTopic) => `${QUEUE_PREFIX}${topic}`
-const getProcessingKey = (topic: NotificationTopic) =>
-  `${QUEUE_PREFIX}${topic}${PROCESSING_SUFFIX}`
-const getClaimedKey = (topic: NotificationTopic) =>
-  `${QUEUE_PREFIX}${topic}${CLAIMED_SUFFIX}`
+const evalQueueScript = (redis: Redis, script: string, arg: number) =>
+  redis.eval(script, 3, QUEUE_KEY, PROCESSING_KEY, CLAIMED_KEY, arg)
 
-const evalTopicScript = (
-  redis: Redis,
-  script: string,
-  topic: NotificationTopic,
-  arg: number
-) =>
-  redis.eval(
-    script,
-    3,
-    getQueueKey(topic),
-    getProcessingKey(topic),
-    getClaimedKey(topic),
-    arg
-  )
+// The layout before one queue: a ready list, a processing list and a claimed
+// set per topic.
+const LEGACY_PREFIX = 'lily:notifications:'
+const LEGACY_LIST_KEYS = Array.flatMap(NOTIFICATION_TOPICS, (topic) => [
+  `${LEGACY_PREFIX}${topic}`,
+  `${LEGACY_PREFIX}${topic}:processing`,
+])
+const LEGACY_CLAIMED_KEYS = Array.map(
+  NOTIFICATION_TOPICS,
+  (topic) => `${LEGACY_PREFIX}${topic}:processing:claimed`
+)
 
 const DEQUEUE_SCRIPT = `
 local raw = redis.call('RPOPLPUSH', KEYS[1], KEYS[2])
@@ -96,30 +89,45 @@ const decodeTopicMetadata = (message: QueueMessage) =>
       ),
   })
 
-export const decodeQueueEntry = (topic: NotificationTopic, rawData: string) =>
+export const decodeQueueEntry = (rawData: string) =>
   decodeQueueMessage(rawData).pipe(
     Effect.flatMap(decodeTopicMetadata),
     Effect.map((message) => ({ message, rawData })),
     Effect.catchTag('SchemaError', (error) =>
       Effect.fail(
-        new QueueMessageDecodeError({ topic, rawData, message: error.message })
+        new QueueMessageDecodeError({ rawData, message: error.message })
       )
     )
   )
 
+const queueOperation = <A>(message: string, operation: () => Promise<A>) =>
+  Effect.tryPromise({
+    try: operation,
+    catch: (cause) => new QueueOperationError({ message, cause }),
+  })
+
+const popEach = (
+  redis: Redis,
+  key: string
+): Effect.Effect<ReadonlyArray<string>, QueueOperationError> =>
+  queueOperation(`Failed to drain ${key}`, () => redis.lpop(key)).pipe(
+    Effect.flatMap((raw) =>
+      Option.match(Option.fromNullishOr(raw), {
+        onNone: () => Effect.succeed([]),
+        onSome: (entry) =>
+          Effect.map(popEach(redis, key), (rest) => [entry, ...rest]),
+      })
+    )
+  )
+
 export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
-  enqueue: (topic, message) =>
-    Effect.tryPromise({
-      try: () => redis.lpush(getQueueKey(topic), JSON.stringify(message)),
-      catch: (error) =>
-        new QueueOperationError({
-          message: `Failed to enqueue message to ${topic}`,
-          cause: error,
-        }),
-    }).pipe(
+  enqueue: (message) =>
+    queueOperation(`Failed to enqueue ${message.topic} message`, () =>
+      redis.lpush(QUEUE_KEY, JSON.stringify(message))
+    ).pipe(
       Effect.asVoid,
       Effect.withSpan('Redis.enqueue', {
-        attributes: { 'queue.topic': topic },
+        attributes: { 'queue.topic': message.topic },
       })
     ),
 
@@ -128,75 +136,65 @@ export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
   // no-op spans/week. The hit path is instrumented in the worker's
   // `notification-worker.consume` span instead (only opened when a message
   // is actually dequeued).
-  dequeue: (topic) =>
-    Effect.tryPromise({
-      try: () => evalTopicScript(redis, DEQUEUE_SCRIPT, topic, Date.now()),
-      catch: (error) =>
-        new QueueOperationError({
-          message: `Failed to dequeue message from ${topic}`,
-          cause: error,
-        }),
-    }).pipe(
-      Effect.flatMap((result) =>
-        decodeDequeued(result).pipe(
-          Effect.mapError(
-            (error) =>
-              new QueueOperationError({
-                message: `Unexpected dequeue result from ${topic}`,
-                cause: error,
-              })
-          )
+  dequeue: queueOperation('Failed to dequeue message', () =>
+    evalQueueScript(redis, DEQUEUE_SCRIPT, Date.now())
+  ).pipe(
+    Effect.flatMap((result) =>
+      decodeDequeued(result).pipe(
+        Effect.mapError(
+          (error) =>
+            new QueueOperationError({
+              message: 'Unexpected dequeue result',
+              cause: error,
+            })
         )
-      ),
-      Effect.flatMap((raw) =>
-        Option.match(Option.fromNullishOr(raw), {
-          onNone: () => Effect.succeed(null),
-          onSome: (rawData) => decodeQueueEntry(topic, rawData),
-        })
       )
     ),
-
-  ack: (topic, rawData) =>
-    Effect.tryPromise({
-      try: () =>
-        redis
-          .multi()
-          .lrem(getProcessingKey(topic), 1, rawData)
-          .zrem(getClaimedKey(topic), rawData)
-          .exec(),
-      catch: (error) =>
-        new QueueOperationError({
-          message: 'Failed to ack message',
-          cause: error,
-        }),
-    }).pipe(
-      Effect.asVoid,
-      Effect.withSpan('Redis.ack', {
-        attributes: { 'queue.topic': topic },
+    Effect.flatMap((raw) =>
+      Option.match(Option.fromNullishOr(raw), {
+        onNone: () => Effect.succeed(null),
+        onSome: decodeQueueEntry,
       })
-    ),
+    )
+  ),
 
-  requeueStale: (topic, olderThan) =>
-    Effect.tryPromise({
-      try: async () =>
-        Number(
-          await evalTopicScript(
-            redis,
-            REQUEUE_STALE_SCRIPT,
-            topic,
-            Date.now() - Duration.toMillis(olderThan)
+  ack: (rawData) =>
+    queueOperation('Failed to ack message', () =>
+      redis
+        .multi()
+        .lrem(PROCESSING_KEY, 1, rawData)
+        .zrem(CLAIMED_KEY, rawData)
+        .exec()
+    ).pipe(Effect.asVoid, Effect.withSpan('Redis.ack')),
+
+  requeueStale: (olderThan) =>
+    queueOperation('Failed to requeue stale messages', async () =>
+      Number(
+        await evalQueueScript(
+          redis,
+          REQUEUE_STALE_SCRIPT,
+          Date.now() - Duration.toMillis(olderThan)
+        )
+      )
+    ).pipe(Effect.withSpan('Redis.requeueStale')),
+
+  drainLegacyTopicLists: queueOperation('Failed to check legacy lists', () =>
+    redis.exists(...LEGACY_LIST_KEYS, ...LEGACY_CLAIMED_KEYS)
+  ).pipe(
+    Effect.flatMap((existing) =>
+      existing === 0
+        ? Effect.succeed([])
+        : Effect.forEach(LEGACY_LIST_KEYS, (key) => popEach(redis, key)).pipe(
+            Effect.map(Array.flatten),
+            Effect.tap(() =>
+              queueOperation('Failed to delete legacy claimed sets', () =>
+                redis.del(...LEGACY_CLAIMED_KEYS)
+              )
+            )
           )
-        ),
-      catch: (error) =>
-        new QueueOperationError({
-          message: `Failed to requeue stale messages for ${topic}`,
-          cause: error,
-        }),
-    }).pipe(
-      Effect.withSpan('Redis.requeueStale', {
-        attributes: { 'queue.topic': topic },
-      })
     ),
+    Effect.withSpan('Redis.drainLegacyTopicLists')
+  ),
 })
 
 // Redis implementation of IMessageQueue

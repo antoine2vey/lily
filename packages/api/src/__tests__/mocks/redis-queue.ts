@@ -2,11 +2,50 @@ import { makeRedisMessageQueue } from '@lily/api/services/message-queue/redis.pr
 import { Array, Option } from 'effect'
 import type Redis from 'ioredis'
 
-export const createInMemoryRedisQueue = (entries: string[]) => {
+// Lists keep their head (the LPUSH end) at index 0. eval serves the dequeue
+// script only: RPOPLPUSH from KEYS[1] to KEYS[2].
+export const createInMemoryRedis = (
+  lists: Record<string, string[]> = {},
+  sets: Record<string, string[]> = {}
+) => {
   const acked: string[] = []
+  const commands: string[] = []
+  const list = (key: string) => {
+    lists[key] ??= []
+    return lists[key]
+  }
+  const live = (key: string) =>
+    (lists[key]?.length ?? 0) > 0 || (sets[key]?.length ?? 0) > 0
   const redis = {
-    eval: () =>
-      Promise.resolve(Option.getOrNull(Array.head(entries.splice(0, 1)))),
+    lpush: (key: string, value: string) => {
+      commands.push('lpush')
+      return Promise.resolve(list(key).unshift(value))
+    },
+    eval: (_script: string, _n: number, from: string, to: string) => {
+      commands.push('eval')
+      const raw = Option.fromNullishOr(list(from).pop())
+      Option.map(raw, (entry) => list(to).unshift(entry))
+      return Promise.resolve(Option.getOrNull(raw))
+    },
+    exists: (...keys: string[]) => {
+      commands.push('exists')
+      return Promise.resolve(Array.filter(keys, live).length)
+    },
+    lpop: (key: string) => {
+      commands.push('lpop')
+      return Promise.resolve(
+        Option.getOrNull(Option.fromNullishOr(list(key).shift()))
+      )
+    },
+    del: (...keys: string[]) => {
+      commands.push('del')
+      const removed = Array.filter(keys, live).length
+      Array.forEach(keys, (key) => {
+        delete lists[key]
+        delete sets[key]
+      })
+      return Promise.resolve(removed)
+    },
     multi: () => {
       const tx = {
         lrem: (_key: string, _count: number, raw: string) => {
@@ -19,5 +58,12 @@ export const createInMemoryRedisQueue = (entries: string[]) => {
       return tx
     },
   } as unknown as Redis
-  return { queue: makeRedisMessageQueue(redis), acked }
+  const liveKeys = () =>
+    Array.filter([...Object.keys(lists), ...Object.keys(sets)], live).sort()
+  return { queue: makeRedisMessageQueue(redis), acked, commands, liveKeys }
 }
+
+export const createInMemoryRedisQueue = (entries: string[]) =>
+  createInMemoryRedis({
+    'lily:queue:notifications': Array.reverse(entries),
+  })

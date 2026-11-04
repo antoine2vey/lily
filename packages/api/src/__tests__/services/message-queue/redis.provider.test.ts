@@ -1,6 +1,13 @@
-import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
-import { MAX_NOTIFICATION_IDS } from '@lily/shared/server'
-import { Array as Arr, Effect } from 'effect'
+import {
+  createInMemoryRedis,
+  createInMemoryRedisQueue,
+} from '@lily/api/__tests__/mocks/redis-queue'
+import {
+  MAX_NOTIFICATION_IDS,
+  NOTIFICATION_TOPICS,
+  QueueMessage,
+} from '@lily/shared/server'
+import { Array as Arr, Effect, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const validMessage = {
@@ -32,7 +39,7 @@ describe('makeRedisMessageQueue dequeue', () => {
   it('decodes an entry into a QueueMessage with dates and metadata', async () => {
     const { queue } = createInMemoryRedisQueue([validEntry])
 
-    const result = await Effect.runPromise(queue.dequeue('delegation_request'))
+    const result = await Effect.runPromise(queue.dequeue)
 
     expect(result?.rawData).toBe(validEntry)
     expect(result?.message.createdAt).toEqual(
@@ -57,7 +64,7 @@ describe('makeRedisMessageQueue dequeue', () => {
         withMetadata(topic, metadata),
       ])
 
-      const result = await Effect.runPromise(queue.dequeue(topic))
+      const result = await Effect.runPromise(queue.dequeue)
 
       expect(result?.message.payload.metadata).toEqual(decoded)
     }
@@ -126,21 +133,107 @@ describe('makeRedisMessageQueue dequeue', () => {
     async (_, raw) => {
       const { queue } = createInMemoryRedisQueue([raw])
 
-      const error = await Effect.runPromise(
-        Effect.flip(queue.dequeue('new_follower'))
-      )
+      const error = await Effect.runPromise(Effect.flip(queue.dequeue))
 
       expect(error).toMatchObject({
         _tag: 'QueueMessageDecodeError',
-        topic: 'new_follower',
         rawData: raw,
       })
     }
   )
 
-  it('returns null for an empty topic', async () => {
+  it('returns null for an empty queue', async () => {
     const { queue } = createInMemoryRedisQueue([])
 
-    expect(await Effect.runPromise(queue.dequeue('new_follower'))).toBeNull()
+    expect(await Effect.runPromise(queue.dequeue)).toBeNull()
+  })
+})
+
+const decodeMessage = Schema.decodeUnknownSync(
+  Schema.fromJsonString(QueueMessage)
+)
+
+describe('makeRedisMessageQueue one queue', () => {
+  it('carries every topic through one key and hands each message back with its own topic', async () => {
+    const { queue, liveKeys } = createInMemoryRedis()
+    const sent = Arr.map(
+      [
+        ['watering_reminder', {}],
+        ['new_follower', { senderId: 'ada' }],
+        ['daily_tip', {}],
+      ] as const,
+      ([topic, metadata]) => decodeMessage(withMetadata(topic, metadata))
+    )
+
+    await Effect.runPromise(Effect.forEach(sent, queue.enqueue))
+    expect(liveKeys()).toEqual(['lily:queue:notifications'])
+
+    const received = await Effect.runPromise(
+      Effect.forEach(sent, () => queue.dequeue)
+    )
+
+    expect(Arr.map(received, (r) => r?.message)).toEqual(sent)
+    expect(await Effect.runPromise(queue.dequeue)).toBeNull()
+  })
+})
+
+describe('makeRedisMessageQueue drainLegacyTopicLists', () => {
+  const legacy = (topic: string, suffix = '') =>
+    `lily:notifications:${topic}${suffix}`
+
+  it('empties every per-topic list and claimed set and returns each entry', async () => {
+    const lists = Object.fromEntries(
+      Arr.flatMap(NOTIFICATION_TOPICS, (topic) => [
+        [legacy(topic), [`${topic}-ready`]],
+        [legacy(topic, ':processing'), [`${topic}-claimed`]],
+      ])
+    )
+    lists[legacy('weekly_recap')] = [
+      'weekly_recap-ready-2',
+      'weekly_recap-ready',
+    ]
+    const sets = Object.fromEntries(
+      Arr.map(NOTIFICATION_TOPICS, (topic) => [
+        legacy(topic, ':processing:claimed'),
+        [`${topic}-claimed`],
+      ])
+    )
+    const { queue, liveKeys } = createInMemoryRedis(lists, sets)
+
+    const drained = await Effect.runPromise(queue.drainLegacyTopicLists)
+
+    expect(liveKeys()).toEqual([])
+    expect([...drained].sort()).toEqual(
+      [
+        'weekly_recap-ready-2',
+        ...Arr.flatMap(NOTIFICATION_TOPICS, (topic) => [
+          `${topic}-ready`,
+          `${topic}-claimed`,
+        ]),
+      ].sort()
+    )
+  })
+
+  it('leaves the one queue alone', async () => {
+    const { queue, liveKeys } = createInMemoryRedis({
+      'lily:queue:notifications': [validEntry],
+      'lily:queue:notifications:processing': [validEntry],
+      [legacy('daily_tip')]: ['old'],
+    })
+
+    expect(await Effect.runPromise(queue.drainLegacyTopicLists)).toEqual([
+      'old',
+    ])
+    expect(liveKeys()).toEqual([
+      'lily:queue:notifications',
+      'lily:queue:notifications:processing',
+    ])
+  })
+
+  it('costs one command when nothing is left to drain', async () => {
+    const { queue, commands } = createInMemoryRedis()
+
+    expect(await Effect.runPromise(queue.drainLegacyTopicLists)).toEqual([])
+    expect(commands).toEqual(['exists'])
   })
 })

@@ -9,7 +9,10 @@ import {
   createFailingPushService,
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
-import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
+import {
+  createInMemoryRedis,
+  createInMemoryRedisQueue,
+} from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -35,7 +38,7 @@ import {
 } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import {
-  consumeFromTopic,
+  consumeNext,
   recoverStrandedDeliveries,
 } from '@lily/api/services/notification-scheduler/worker'
 import { followUser } from '@lily/api/services/social/endpoints/follow-user'
@@ -124,7 +127,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         enqueued.map((message) => JSON.stringify(message))
       )
       await Effect.runPromise(
-        consumeFromTopic('new_follower').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               DatabaseLive,
@@ -157,7 +160,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         if (logLevel === 'Warn') warnings.push(logged)
       })
       const exit = await Effect.runPromiseExit(
-        consumeFromTopic('new_follower').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               DatabaseLive,
@@ -486,6 +489,97 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ['pending', 1],
       ])
       expect(await deadLettersFor(message)).toHaveLength(1)
+    })
+
+    it('hands rows of entries left on the per-topic lists back to the scheduler and never resends a claimed one', async () => {
+      const [unclaimed, claimed] = await Effect.runPromise(
+        Effect.gen(function* () {
+          const sqlClient = yield* SqlClient.SqlClient
+          return yield* sqlClient.withTransaction(
+            Effect.all([recordFollowFor(userId), recordFollowFor(userId)])
+          )
+        }).pipe(Effect.provide(DatabaseLive))
+      )
+      await db
+        .update(schema.notifications)
+        .set({ deliveryMessageId: 'msg-old' })
+        .where(eq(schema.notifications.id, claimed.id))
+      const legacyEntry = (messageId: string, notificationId: string) =>
+        JSON.stringify({
+          id: messageId,
+          topic: 'new_follower',
+          payload: {
+            userId,
+            title: 'New follower',
+            body: 'Ada followed you',
+            notificationIds: [notificationId],
+            plantIds: [],
+            metadata: { senderId: 'ada' },
+          },
+          retryCount: 0,
+          createdAt: new Date().toISOString(),
+          scheduledAt: new Date().toISOString(),
+        })
+      const redis = createInMemoryRedis(
+        {
+          'lily:notifications:new_follower': [
+            legacyEntry('msg-waiting', unclaimed.id),
+          ],
+          'lily:notifications:new_follower:processing': [
+            legacyEntry('msg-old', claimed.id),
+          ],
+        },
+        {
+          'lily:notifications:new_follower:processing:claimed': ['msg-old'],
+        }
+      )
+
+      await Effect.runPromise(
+        recoverStrandedDeliveries.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              DatabaseLive,
+              Layer.succeed(MessageQueue, redis.queue)
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      const rowsById = async () =>
+        Object.fromEntries(
+          (
+            await db
+              .select({
+                id: schema.notifications.id,
+                status: schema.notifications.status,
+                deliveryMessageId: schema.notifications.deliveryMessageId,
+              })
+              .from(schema.notifications)
+              .where(eq(schema.notifications.userId, userId))
+          ).map((row) => [row.id, row])
+        )
+      expect(redis.liveKeys()).toEqual([])
+      expect(await rowsById()).toEqual({
+        [unclaimed.id]: {
+          id: unclaimed.id,
+          status: 'pending',
+          deliveryMessageId: null,
+        },
+        [claimed.id]: {
+          id: claimed.id,
+          status: 'queued',
+          deliveryMessageId: 'msg-old',
+        },
+      })
+
+      const enqueued = await deliverPending()
+
+      expect(enqueued.map((m) => m.payload.notificationIds)).toEqual([
+        [unclaimed.id],
+      ])
+      expect((await rowsById())[unclaimed.id]?.status).toBe('sent')
+      expect((await rowsById())[claimed.id]?.status).toBe('queued')
     })
 
     const followLayer = (enqueued: QueueMessage[]) =>

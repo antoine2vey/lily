@@ -11,7 +11,7 @@ import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import { consumeFromTopic } from '@lily/api/services/notification-scheduler/worker'
+import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { MessageQueue } from '@lily/shared/server'
@@ -59,7 +59,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const { queue, acked } = createInMemoryRedisQueue([raw])
       const alerter = createMockAlerter()
       return Effect.runPromise(
-        consumeFromTopic('new_follower').pipe(
+        consumeNext.pipe(
           Effect.provide(
             Layer.mergeAll(
               RepositoriesLive,

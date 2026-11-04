@@ -36,7 +36,6 @@ import {
   type LiveActivityContentState,
   MAX_NOTIFICATION_IDS,
   MessageQueue,
-  NOTIFICATION_TOPICS,
   NotificationId,
   type NotificationTopic,
   PostgresText,
@@ -52,6 +51,7 @@ import {
 import {
   Array,
   Cause,
+  Config,
   DateTime,
   Duration,
   Effect,
@@ -632,6 +632,9 @@ const readForeignId = Schema.decodeUnknownOption(
 const readRetryCount = Schema.decodeUnknownOption(
   Schema.Struct({ retryCount: RetryCount })
 )
+const readTopic = Schema.decodeUnknownOption(
+  Schema.Struct({ topic: PostgresText })
+)
 const readNotificationIds = Schema.decodeUnknownOption(
   Schema.Struct({
     payload: Schema.Struct({ notificationIds: Schema.Array(NotificationId) }),
@@ -665,7 +668,7 @@ const readPoisonIds = (entry: Option.Option<unknown>): PoisonIds => ({
 })
 
 const discardPoisonMessage = (
-  topic: NotificationTopic,
+  topic: string,
   ids: PoisonIds,
   payload: object | string,
   rawData: string,
@@ -768,74 +771,77 @@ const discardUndecodable = (error: QueueMessageDecodeError) =>
     const entry = readEntry(error.rawData)
 
     yield* discardPoisonMessage(
-      error.topic,
+      pipe(
+        Option.flatMap(entry, readTopic),
+        Option.match({ onNone: () => 'unknown', onSome: (m) => m.topic })
+      ),
       readPoisonIds(entry),
       storablePayload(entry, error.rawData),
       error.rawData,
       Str.replace(/\n\s*/g, ' ')(error.message)
     )
-    yield* queue.ack(error.topic, error.rawData)
+    yield* queue.ack(error.rawData)
   })
 
-// Consume and process messages from a single topic.
+// Consume and process the next message on the queue.
 // Returns true when a message was processed (caller should re-poll immediately).
 //
 // The dequeue poll runs continuously and finds an empty queue most of the time;
 // to avoid emitting a span on every idle tick (millions of no-op spans/week),
 // the `notification-worker.consume` span is opened only once a message is
 // actually dequeued, wrapping the processing work on the hit path.
-export const consumeFromTopic = (topic: NotificationTopic) =>
-  Effect.gen(function* () {
-    const queue = yield* MessageQueue
+export const consumeNext = Effect.gen(function* () {
+  const queue = yield* MessageQueue
 
-    const result = yield* queue.dequeue(topic)
+  const result = yield* queue.dequeue
 
-    if (!result) return false
+  if (!result) return false
 
-    const { message, rawData } = result
+  const { message, rawData } = result
+  const { topic } = message
 
-    const processDequeued = Effect.gen(function* () {
-      yield* Effect.log('Processing notification', {
-        topic,
-        messageId: message.id,
-        retryCount: message.retryCount,
-      })
-
-      yield* processMessage(message).pipe(
-        Effect.catchTag(
-          ['SqlError', 'PushSendError', 'PushConfigError'],
-          (error) => retryLater(message, error)
-        ),
-        Effect.catchDefect((defect) =>
-          discardPoisonMessage(
-            topic,
-            {
-              messageId: Option.some(message.id),
-              notificationIds: message.payload.notificationIds,
-              retryCount: message.retryCount,
-            },
-            message,
-            rawData,
-            Cause.pretty(Cause.die(defect))
-          )
-        )
-      )
-
-      yield* queue.ack(topic, rawData)
+  const processDequeued = Effect.gen(function* () {
+    yield* Effect.log('Processing notification', {
+      topic,
+      messageId: message.id,
+      retryCount: message.retryCount,
     })
 
-    yield* processDequeued.pipe(
-      Effect.withSpan('notification-worker.consume', {
-        attributes: { topic },
-      })
+    yield* processMessage(message).pipe(
+      Effect.catchTag(
+        ['SqlError', 'PushSendError', 'PushConfigError'],
+        (error) => retryLater(message, error)
+      ),
+      Effect.catchDefect((defect) =>
+        discardPoisonMessage(
+          topic,
+          {
+            messageId: Option.some(message.id),
+            notificationIds: message.payload.notificationIds,
+            retryCount: message.retryCount,
+          },
+          message,
+          rawData,
+          Cause.pretty(Cause.die(defect))
+        )
+      )
     )
 
-    return true
-  }).pipe(
-    Effect.catchTag('QueueMessageDecodeError', (error) =>
-      Effect.as(discardUndecodable(error), true)
-    )
+    yield* queue.ack(rawData)
+  })
+
+  yield* processDequeued.pipe(
+    Effect.withSpan('notification-worker.consume', {
+      attributes: { topic },
+    })
   )
+
+  return true
+}).pipe(
+  Effect.catchTag('QueueMessageDecodeError', (error) =>
+    Effect.as(discardUndecodable(error), true)
+  )
+)
 
 export const recoverStrandedDeliveries = Effect.gen(function* () {
   const queue = yield* MessageQueue
@@ -853,13 +859,26 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
     'delivery not confirmed'
   )
 
-  const requeuedPerTopic = yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
-    queue.requeueStale(topic, VISIBILITY_TIMEOUT)
+  // Rows of a legacy entry go back to pending for the scheduler to enqueue on
+  // the one queue. Rows a delivery already claimed stay with that delivery.
+  const legacyEntries = yield* queue.drainLegacyTopicLists
+  yield* Effect.forEach(
+    Array.chunksOf(
+      Array.flatMap(
+        legacyEntries,
+        (rawData) => readPoisonIds(readEntry(rawData)).notificationIds
+      ),
+      MAX_NOTIFICATION_IDS
+    ),
+    notificationRepo.releaseUnclaimed,
+    { discard: true }
   )
-  const requeued = Array.reduce(requeuedPerTopic, 0, (sum, n) => sum + n)
 
-  if (requeued + released + failed > 0) {
+  const requeued = yield* queue.requeueStale(VISIBILITY_TIMEOUT)
+
+  if (requeued + released + failed + legacyEntries.length > 0) {
     yield* Effect.logWarning('[notification-recovery] Recovered deliveries', {
+      drainedLegacyMessages: legacyEntries.length,
       requeuedMessages: requeued,
       releasedRows: released,
       failedRows: failed,
@@ -867,11 +886,14 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
   }
 }).pipe(Effect.withSpan('notification-recovery.sweep'))
 
-const alertDefect = (topic: NotificationTopic, defect: unknown) =>
+const alertDefect = (consumer: number, defect: unknown) =>
   Effect.gen(function* () {
     const alerter = yield* Alerter
     const message = Cause.pretty(Cause.die(defect))
-    yield* Effect.logError('[notification-worker] defect', { topic, message })
+    yield* Effect.logError('[notification-worker] defect', {
+      consumer,
+      message,
+    })
     yield* alerter.alert({
       _tag: 'UnhandledDefect',
       source: 'notification-worker',
@@ -879,8 +901,14 @@ const alertDefect = (topic: NotificationTopic, defect: unknown) =>
     })
   })
 
-// Start workers for all topics
+const NotificationConsumers = Config.schema(
+  Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 64 })),
+  'NOTIFICATION_CONSUMERS'
+).pipe(Config.withDefault(4))
+
 export const startNotificationWorker = Effect.gen(function* () {
+  const consumers = yield* NotificationConsumers
+
   // Fibers forked into one scope are interrupted one after another on close,
   // so each would get its own drain deadline. A parallel scope gives every
   // loop and the recovery sweep the same one.
@@ -893,30 +921,29 @@ export const startNotificationWorker = Effect.gen(function* () {
     task: recoverStrandedDeliveries,
   }).pipe(Scope.provide(workers))
 
-  // Start a worker for each topic
-  yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
+  yield* Effect.forEach(Array.range(1, consumers), (consumer) =>
     Effect.forkIn(
       Effect.forever(
-        consumeFromTopic(topic).pipe(
+        consumeNext.pipe(
           Effect.catchTags({
             SqlError: (e: SqlError) =>
               Effect.logError('[notification-worker] SQL error', {
-                topic,
+                consumer,
                 error: String(e),
               }).pipe(Effect.as(false)),
             QueueOperationError: (e) =>
               Effect.logError('[notification-worker] Queue operation error', {
-                topic,
+                consumer,
                 error: String(e),
               }).pipe(Effect.as(false)),
             QueueConnectionError: (e) =>
               Effect.logError('[notification-worker] Queue connection error', {
-                topic,
+                consumer,
                 error: String(e),
               }).pipe(Effect.as(false)),
           }),
           Effect.catchDefect((defect) =>
-            alertDefect(topic, defect).pipe(Effect.as(false))
+            alertDefect(consumer, defect).pipe(Effect.as(false))
           ),
           drainOnInterrupt('notification-worker'),
           // Only sleep when the queue was empty — drain fast under load
@@ -929,7 +956,5 @@ export const startNotificationWorker = Effect.gen(function* () {
     )
   )
 
-  yield* Effect.log('Notification workers started', {
-    topics: NOTIFICATION_TOPICS,
-  })
+  yield* Effect.log('Notification workers started', { consumers })
 })
