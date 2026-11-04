@@ -2,7 +2,7 @@ import {
   NotificationRepository,
   type ReminderKey,
 } from '@lily/api/repositories/notification.repository'
-import { Array, Context, Data, Effect, pipe } from 'effect'
+import { Array, Context, Data, Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -35,7 +35,10 @@ export class ReminderKeyNotHeld extends Data.TaggedError('ReminderKeyNotHeld')<{
 }> {}
 
 export const withReminderKeys =
-  (keys: ReadonlyArray<ReminderKey>) =>
+  (
+    keys: ReadonlyArray<ReminderKey>,
+    updatingUserId: Option.Option<string> = Option.none()
+  ) =>
   <A, E, R>(
     effect: Effect.Effect<A, E, R>
   ): Effect.Effect<
@@ -58,7 +61,7 @@ export const withReminderKeys =
       const notificationRepo = yield* NotificationRepository
       return yield* sql.withTransaction(
         Effect.andThen(
-          notificationRepo.lockReminderKeys(keys),
+          notificationRepo.lockReminderKeys(keys, updatingUserId),
           Effect.provideService(
             effect,
             HeldReminderKeys,

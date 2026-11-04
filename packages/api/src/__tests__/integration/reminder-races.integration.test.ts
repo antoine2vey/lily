@@ -3,6 +3,7 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
@@ -39,6 +40,7 @@ import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -117,6 +119,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               createMockWeatherProvider(),
               createMockWeatherCache(),
               createMockWeatherRepository(),
+              createMockRateLimiterService(),
               MockAlerterLive
             )
           ),
@@ -870,5 +873,103 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Arr.filter(await pendingRows(), (row) => row.userId === vacationer)
       ).toEqual([])
     }, 60_000)
+
+    const userRow = async (userId: string) => {
+      const row = await runtime.runPromise(
+        Effect.flatMap(UserRepository, (repo) => repo.findById(userId))
+      )
+      if (!row) throw new Error(`no user ${userId}`)
+      return row
+    }
+
+    const crossWriters = {
+      'two timezone changes': async (round: number) => {
+        const u = await user(`Tz${round}`)
+        const v = await user(`OtherTz${round}`)
+        const pu = await personalPlant(u)
+        const pv = await personalPlant(v)
+        await pendingWatering(v, pu)
+        await pendingWatering(u, pv)
+        return {
+          u,
+          first: updateUserSettings({ timezone: 'Europe/Paris' }),
+          second: () => as(v, updateUserSettings({ timezone: 'Asia/Tokyo' })),
+        }
+      },
+      'a timezone change and a vacation end': async (round: number) => {
+        const u = await user(`Traveler${round}`)
+        const v = await user(`Vacationer${round}`)
+        await db
+          .update(schema.users)
+          .set({
+            vacationStatus: 'active',
+            vacationStart: new Date(Date.now() - 2 * day),
+            vacationEnd: new Date(Date.now() + 2 * day),
+          })
+          .where(sql`${schema.users.id} = ${v}`)
+        const pu = await personalPlant(u)
+        const pv = await personalPlant(v)
+        const inFlight = (userId: string, plantId: string) =>
+          db.insert(schema.notifications).values({
+            type: 'watering_reminder',
+            scheduledAt: new Date(Date.now() + day),
+            userId,
+            plantId,
+            status: 'queued',
+            queuedAt: new Date(),
+            deliveryMessageId: `in-flight-${userId}`,
+          })
+        await inFlight(v, pu)
+        await inFlight(u, pv)
+        const vacationer = await userRow(v)
+        return {
+          u,
+          first: updateUserSettings({ timezone: 'Europe/Paris' }),
+          second: () =>
+            as(v, endVacation({ user: vacationer, effectiveEnd: new Date() })),
+        }
+      },
+    }
+
+    it.each(Object.keys(crossWriters) as Array<keyof typeof crossWriters>)(
+      "%s by two users who each hold a reminder on the other's plant never deadlock",
+      async (shape) => {
+        const before = await deadlocks()
+        const failures: string[] = []
+        for (const round of Arr.range(1, 10)) {
+          const reached = Deferred.makeUnsafe<void>()
+          const release = Deferred.makeUnsafe<void>()
+          const PausedAfterKeys = Layer.effect(
+            NotificationRepository,
+            Effect.map(NotificationRepository, (repo) => ({
+              ...repo,
+              lockReminderKeys: (keys, updatingUserId) =>
+                repo
+                  .lockReminderKeys(keys, updatingUserId)
+                  .pipe(
+                    Effect.andThen(Deferred.succeed(reached, undefined)),
+                    Effect.andThen(Deferred.await(release))
+                  ),
+            }))
+          )
+          const { u, first, second } = await crossWriters[shape](round)
+          const firstRun = as(u, first.pipe(Effect.provide(PausedAfterKeys)))
+          await Effect.runPromise(Deferred.await(reached))
+          const secondRun = second()
+          await untilBlockedOrSettled(secondRun)
+          Deferred.doneUnsafe(release, Exit.void)
+          const [a, b]: readonly [
+            Exit.Exit<unknown, unknown>,
+            Exit.Exit<unknown, unknown>,
+          ] = await Promise.all([firstRun, secondRun])
+          if (Exit.isFailure(a) || Exit.isFailure(b)) {
+            failures.push(`round ${round}: ${outcome(a)}, ${outcome(b)}`)
+          }
+        }
+        expect(failures).toEqual([])
+        expect((await deadlocks()) - before).toBe(0)
+      },
+      120_000
+    )
   }
 )

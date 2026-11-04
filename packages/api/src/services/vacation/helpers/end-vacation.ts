@@ -54,7 +54,8 @@ export const endVacation = (
     const ownedOrCaredForPlantIds =
       yield* plantRepo.findPersonalReminderPlantIds(params.user.id)
     const claimed = yield* withReminderKeys(
-      reminderKeysFor(ownedOrCaredForPlantIds)
+      reminderKeysFor(ownedOrCaredForPlantIds),
+      Option.some(params.user.id)
     )(
       endVacationForOwnedOrCaredForPlants(
         params,

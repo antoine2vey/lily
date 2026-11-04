@@ -154,21 +154,28 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
   }
 )
 
-const RebuildAlwaysFails = Layer.effect(
-  NotificationRepository,
-  Effect.map(NotificationRepository, (repo) => ({
-    ...repo,
-    replaceReminders: () =>
-      Effect.fail(
-        new SqlError({
-          reason: new UnknownError({
-            cause: new Error('injected'),
-            message: 'injected rebuild failure',
-          }),
-        })
-      ),
-  }))
-)
+const rebuildFailsWhen = (
+  fails: (plantIds: ReadonlyArray<string>) => boolean
+) =>
+  Layer.effect(
+    NotificationRepository,
+    Effect.map(NotificationRepository, (repo) => ({
+      ...repo,
+      replaceReminders: (replacement) =>
+        fails(Arr.map(replacement.plants, (p) => p.plantId))
+          ? Effect.fail(
+              new SqlError({
+                reason: new UnknownError({
+                  cause: new Error('injected'),
+                  message: 'injected rebuild failure',
+                }),
+              })
+            )
+          : repo.replaceReminders(replacement),
+    }))
+  )
+
+const RebuildAlwaysFails = rebuildFailsWhen(() => true)
 
 const ReminderServicesLive = Layer.mergeAll(
   PlantRepositoryLive,
@@ -192,6 +199,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let owner: string
     let toAnn: string
     let toBen: string
+    let ivy: string
 
     const as = <A, E, R>(userId: string, effect: Effect.Effect<A, E, R>) =>
       runtime.runPromise(
@@ -320,7 +328,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const ann = await user('ann')
       const ben = await user('ben')
       const fern = await plant('fern', owner)
-      const ivy = await plant('ivy', owner)
+      ivy = await plant('ivy', owner)
       toAnn = await delegate(fern, ann)
       toBen = await delegate(ivy, ben)
       await as(owner, rescheduleReminders([fern, ivy]))
@@ -376,6 +384,27 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(await statuses()).toEqual(['accepted', 'accepted'])
       expect(await pendingReminders()).toEqual(before)
+    })
+
+    it('starts the other delegations of a tick when one of them cannot rebuild its reminders', async () => {
+      const rose = await plant('rose', owner)
+      await delegate(rose, await user('cat'))
+      await as(owner, rescheduleReminders([rose]))
+
+      await as(
+        owner,
+        Effect.provide(
+          pollAndTransition,
+          rebuildFailsWhen((plantIds) => plantIds.includes(ivy))
+        )
+      )
+
+      expect(await statuses()).toEqual(['active', 'accepted', 'active'])
+      expect(await holders()).toEqual([
+        'fern -> ann',
+        'ivy -> owner',
+        'rose -> cat',
+      ])
     })
 
     it('keeps a delegation active and its reminders on the caretaker when completing it cannot rebuild them', async () => {

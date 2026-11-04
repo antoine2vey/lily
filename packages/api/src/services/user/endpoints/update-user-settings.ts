@@ -150,7 +150,8 @@ export const updateUserSettings = (
           Effect.gen(function* () {
             const { personal, canopy } = yield* lockReminderPlantsOf(id)
             return yield* withReminderKeys(
-              reminderKeysFor(Array.dedupe([...personal, ...canopy]))
+              reminderKeysFor(Array.dedupe([...personal, ...canopy])),
+              Option.some(id)
             )(
               applyUpdate.pipe(
                 Effect.tap(() =>

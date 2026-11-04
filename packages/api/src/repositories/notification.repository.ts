@@ -23,6 +23,7 @@ import {
   count,
   desc,
   eq,
+  gt,
   inArray,
   isNotNull,
   isNull,
@@ -161,7 +162,8 @@ export interface INotificationRepository {
     plantId: string
   ) => Effect.Effect<void, SqlError>
   readonly lockReminderKeys: (
-    keys: ReadonlyArray<ReminderKey>
+    keys: ReadonlyArray<ReminderKey>,
+    updatingUserId: Option.Option<string>
   ) => Effect.Effect<void, SqlError>
   readonly replaceReminders: (
     replacement: ReminderReplacement
@@ -258,23 +260,27 @@ export const NotificationRepositoryLive = Layer.effect(
         .orderBy(asc(notifications.id))
         .for('update')
     const lockHoldersOfUndeliveredReminders = (
-      plantIds: ReadonlyArray<string>
+      plantIds: ReadonlyArray<string>,
+      idRange: SQL | undefined
     ) =>
       db
         .select({ id: users.id })
         .from(users)
         .where(
-          inArray(
-            users.id,
-            db
-              .select({ userId: notifications.userId })
-              .from(notifications)
-              .where(
-                and(
-                  inArray(notifications.plantId, [...plantIds]),
-                  inArray(notifications.status, ['pending', 'queued'])
+          and(
+            inArray(
+              users.id,
+              db
+                .select({ userId: notifications.userId })
+                .from(notifications)
+                .where(
+                  and(
+                    inArray(notifications.plantId, [...plantIds]),
+                    inArray(notifications.status, ['pending', 'queued'])
+                  )
                 )
-              )
+            ),
+            idRange
           )
         )
         .orderBy(asc(users.id))
@@ -657,7 +663,10 @@ export const NotificationRepositoryLive = Layer.effect(
       }),
 
       lockReminderKeys: Effect.fn('NotificationRepository.lockReminderKeys')(
-        function* (keys: ReadonlyArray<ReminderKey>) {
+        function* (
+          keys: ReadonlyArray<ReminderKey>,
+          updatingUserId: Option.Option<string>
+        ) {
           if (Array.isReadonlyArrayEmpty(keys)) return
           const values = sql.join(
             Array.map(
@@ -669,8 +678,24 @@ export const NotificationRepositoryLive = Layer.effect(
           yield* db.execute(
             sql`SELECT pg_advisory_xact_lock(k1, k2) FROM (SELECT DISTINCT hashtext('reminder:' || v.plant_id) AS k1, hashtext(v.type) AS k2 FROM (VALUES ${values}) AS v(plant_id, type) ORDER BY 1, 2) AS keys`
           )
+          const plantIds = Array.dedupe(Array.map(keys, (key) => key.plantId))
+          if (Option.isNone(updatingUserId)) {
+            yield* lockHoldersOfUndeliveredReminders(plantIds, undefined)
+            return
+          }
+          const userId = updatingUserId.value
           yield* lockHoldersOfUndeliveredReminders(
-            Array.dedupe(Array.map(keys, (key) => key.plantId))
+            plantIds,
+            lt(users.id, userId)
+          )
+          yield* db
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.id, userId))
+            .for('no key update')
+          yield* lockHoldersOfUndeliveredReminders(
+            plantIds,
+            gt(users.id, userId)
           )
         }
       ),
