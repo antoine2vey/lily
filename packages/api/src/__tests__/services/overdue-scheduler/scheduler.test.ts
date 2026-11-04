@@ -22,14 +22,16 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CanopyRow } from '@lily/api/repositories/canopy.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import {
   checkAndCreateOverdueReminders,
-  processUserOverdueReminders,
+  remindRecipient,
 } from '@lily/api/services/overdue-scheduler/scheduler'
+import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
 import type { userSubscriptions } from '@lily/db/schema'
 import { type PlantOwner, pickNotificationTime } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
@@ -42,6 +44,7 @@ import {
   Exit,
   Layer,
   Option,
+  pipe,
   References,
 } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -50,7 +53,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const daysAgo = (days: number): Date =>
   new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
-const runCheck = (
+const activeCaretakers = ({
+  delegations = [],
+  delegationPlants = [],
+}: {
+  delegations?: DelegationRow[]
+  delegationPlants?: Array<{ delegationId: string; plantId: string }>
+}) =>
+  Arr.flatMap(delegationPlants, ({ delegationId, plantId }) =>
+    pipe(
+      Arr.findFirst(
+        delegations,
+        (d) => d.id === delegationId && d.status === 'active'
+      ),
+      Option.map((d) => ({ plantId, caretakerId: d.caretakerId })),
+      Option.toArray
+    )
+  )
+
+const check = (
   plantsData: TestPlant[],
   users: ReturnType<typeof createTestUser>[],
   notifications: Notification[] = [],
@@ -65,90 +86,101 @@ const runCheck = (
     memberships = [],
     mutes = [],
     canopies = [],
+    queue = createMockMessageQueue(),
   }: {
     memberships?: MockMembership[]
     mutes?: Array<{ userId: string; plantId: string }>
     canopies?: CanopyRow[]
+    queue?: ReturnType<typeof createMockMessageQueue>
   } = {}
 ) =>
-  Effect.runPromise(
-    checkAndCreateOverdueReminders.pipe(
+  checkAndCreateOverdueReminders.pipe(
+    Effect.provide(
+      Layer.mergeAll(
+        createMockCareScheduleRepository({
+          schedules: schedulesFromPlants(plantsData),
+          plants: plantsData,
+          memberships,
+          mutes,
+          caretakers: activeCaretakers(delegationData),
+        }),
+        createMockCanopyRepository(
+          createCanopyStore({ members: memberships, mutes, canopies })
+        ),
+        createMockPlantRepository({ plants: plantsData }),
+        createMockNotificationRepository(notifications),
+        createMockUserRepository(users),
+        createMockDelegationRepository(delegationData),
+        createMockSubscriptionRepository(subscriptionOptions),
+        queue,
+        MockSqlClientLive
+      )
+    ),
+    Effect.provideService(References.MinimumLogLevel, 'None')
+  )
+
+const runCheck = (...args: Parameters<typeof check>) =>
+  Effect.runPromise(check(...args))
+
+const runCheckExit = (...args: Parameters<typeof check>) =>
+  Effect.runPromiseExit(check(...args))
+
+const runRemind = (
+  userId: string,
+  plantsData: TestPlant[],
+  users: ReturnType<typeof createTestUser>[],
+  notifications: Notification[] = []
+) => {
+  const plants = Arr.map(plantsData, (p) => ({
+    id: p.id,
+    name: p.name,
+    userId,
+    recipientId: userId,
+    owner: { _tag: 'User', userId } as PlantOwner,
+    dateAdded: p.dateAdded,
+    overdueAt: daysAgo(2),
+  }))
+
+  return Effect.runPromiseExit(
+    getUserNotificationSettings(userId).pipe(
+      Effect.flatMap((settings) => remindRecipient(userId, settings, plants)),
       Effect.provide(
         Layer.mergeAll(
           createMockCareScheduleRepository({
             schedules: schedulesFromPlants(plantsData),
             plants: plantsData,
-            memberships,
-            mutes,
           }),
-          createMockCanopyRepository(
-            createCanopyStore({ members: memberships, mutes, canopies })
-          ),
-          createMockPlantRepository({ plants: plantsData }),
           createMockNotificationRepository(notifications),
           createMockUserRepository(users),
-          createMockDelegationRepository(delegationData),
-          createMockSubscriptionRepository(subscriptionOptions),
-          createMockMessageQueue()
-        )
-      ),
-      Effect.provideService(References.MinimumLogLevel, 'None')
-    )
-  )
-
-// Run processUserOverdueReminders directly to assert on tagged error exits
-const runProcessUser = (
-  userId: string,
-  plantsData: TestPlant[],
-  users: ReturnType<typeof createTestUser>[],
-  notifications: Notification[] = [],
-  delegationData: {
-    delegations?: DelegationRow[]
-    delegationPlants?: Array<{ delegationId: string; plantId: string }>
-  } = {},
-  maxPlants: number | null = 5,
-  queue = createMockMessageQueue()
-) => {
-  const overdue = Arr.filter(plantsData, (p) => {
-    const wateringSched = Arr.findFirst(
-      p.scheduleSpecs,
-      (s) => s.careType === 'watering'
-    )
-    return (
-      Option.isSome(wateringSched) &&
-      wateringSched.value.nextCareAt !== null &&
-      wateringSched.value.nextCareAt.getTime() <= Date.now()
-    )
-  })
-  const mapped = Arr.map(overdue, (p) => {
-    const wateringSched = Option.getOrThrow(
-      Arr.findFirst(p.scheduleSpecs, (s) => s.careType === 'watering')
-    )
-    return {
-      id: p.id,
-      name: p.name,
-      userId,
-      owner: { _tag: 'User', userId } as PlantOwner,
-      dateAdded: p.dateAdded,
-      overdueAt: wateringSched.nextCareAt as Date,
-    }
-  })
-
-  return Effect.runPromiseExit(
-    processUserOverdueReminders(userId, mapped, () => maxPlants).pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          createMockNotificationRepository(notifications),
-          createMockUserRepository(users),
-          createMockCanopyRepository(),
-          createMockDelegationRepository(delegationData),
-          queue
+          createMockMessageQueue(),
+          MockSqlClientLive
         )
       ),
       Effect.provideService(References.MinimumLogLevel, 'None')
     )
   )
 }
+
+const premium = (userId: string): typeof userSubscriptions.$inferSelect => ({
+  id: `sub-${userId}`,
+  userId,
+  tier: 'paid',
+  status: 'active',
+  trialStartsAt: null,
+  trialEndsAt: null,
+  currentPeriodStart: DateTime.toDateUtc(DateTime.nowUnsafe()),
+  currentPeriodEnd: DateTime.toDateUtc(
+    DateTime.add(DateTime.nowUnsafe(), { days: 30 })
+  ),
+  externalSubscriptionId: null,
+  externalCustomerId: null,
+  provider: 'revenuecat',
+  productId: null,
+  store: null,
+  canceledAt: null,
+  createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
+  updatedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
+})
 
 // ─────────────────────────────────────────────────
 // A. pickNotificationTime — pure function tests
@@ -434,7 +466,7 @@ describe('checkAndCreateOverdueReminders', () => {
         scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
-      const exit = await runProcessUser(
+      const exit = await runRemind(
         'user-1',
         [plant],
         [defaultUser],
@@ -491,7 +523,7 @@ describe('checkAndCreateOverdueReminders', () => {
         scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
-      const exit = await runProcessUser('user-1', [plant], [userWithCareOff])
+      const exit = await runRemind('user-1', [plant], [userWithCareOff])
 
       expect(Exit.isFailure(exit)).toBe(true)
       if (Exit.isFailure(exit)) {
@@ -541,7 +573,7 @@ describe('checkAndCreateOverdueReminders', () => {
         scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
-      const exit = await runProcessUser('user-1', [plant], [userWithFullDnd])
+      const exit = await runRemind('user-1', [plant], [userWithFullDnd])
 
       expect(Exit.isFailure(exit)).toBe(true)
       if (Exit.isFailure(exit)) {
@@ -595,6 +627,146 @@ describe('checkAndCreateOverdueReminders', () => {
       expect(overdueNotifs.length).toBeGreaterThanOrEqual(1)
       // Should be routed to the caretaker, not the owner
       expect(overdueNotifs[0]?.userId).toBe('user-caretaker')
+    })
+  })
+
+  describe('delegated plants', () => {
+    const owner = createTestUser({
+      id: 'user-owner',
+      careReminders: true,
+      doNotDisturb: false,
+      timezone: 'UTC',
+    })
+    const caretaker = createTestUser({
+      id: 'user-caretaker',
+      careReminders: true,
+      doNotDisturb: false,
+      timezone: 'UTC',
+    })
+    const delegationOf = (plantIds: ReadonlyArray<string>) => ({
+      delegations: [
+        {
+          id: 'deleg-1',
+          ownerId: 'user-owner',
+          caretakerId: 'user-caretaker',
+          status: 'active' as const,
+          message: null,
+          startDate: daysAgo(5),
+          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          respondedAt: null,
+          canceledAt: null,
+          completedAt: null,
+          createdAt: daysAgo(5),
+          updatedAt: daysAgo(5),
+        },
+      ],
+      delegationPlants: Arr.map(plantIds, (plantId) => ({
+        delegationId: 'deleg-1',
+        plantId,
+      })),
+    })
+    const ownedBy = (userId: string, ids: ReadonlyArray<string>) =>
+      Arr.map(ids, (id, i) =>
+        createTestPlant({
+          id,
+          userId,
+          dateAdded: daysAgo(100 - i),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+    const remindedPlants = (notifications: Notification[], userId: string) =>
+      Arr.map(
+        Arr.filter(
+          notifications,
+          (n) => n.type === 'overdue_reminder' && n.userId === userId
+        ),
+        (n) => n.plantId
+      )
+
+    it('reminds the caretaker of three delegated plants once a day and the owner never', async () => {
+      const notifications: Notification[] = []
+      const plants = ownedBy('user-owner', ['d-1', 'd-2', 'd-3'])
+      const delegation = delegationOf(['d-1', 'd-2', 'd-3'])
+
+      await runCheck(plants, [owner, caretaker], notifications, delegation)
+      await runCheck(plants, [owner, caretaker], notifications, delegation)
+
+      expect(remindedPlants(notifications, 'user-caretaker')).toEqual([
+        'd-1',
+        'd-2',
+        'd-3',
+      ])
+      expect(remindedPlants(notifications, 'user-owner')).toEqual([])
+    })
+
+    it('reminds a caretaker of their own and their delegated plants in the same run', async () => {
+      const notifications: Notification[] = []
+      const plants = [
+        ...ownedBy('user-owner', ['d-1']),
+        ...ownedBy('user-caretaker', ['own-1']),
+      ]
+
+      await runCheck(
+        plants,
+        [owner, caretaker],
+        notifications,
+        delegationOf(['d-1'])
+      )
+
+      const reminded = remindedPlants(notifications, 'user-caretaker')
+      expect(reminded).toHaveLength(2)
+      expect(reminded).toEqual(expect.arrayContaining(['d-1', 'own-1']))
+    })
+
+    it('reminds the caretaker even when the owner turned care reminders off', async () => {
+      const notifications: Notification[] = []
+
+      await runCheck(
+        ownedBy('user-owner', ['d-1']),
+        [createTestUser({ ...owner, careReminders: false }), caretaker],
+        notifications,
+        delegationOf(['d-1'])
+      )
+
+      expect(remindedPlants(notifications, 'user-caretaker')).toEqual(['d-1'])
+    })
+
+    it('sends nothing for a delegated plant while the caretaker is away', async () => {
+      const notifications: Notification[] = []
+
+      await runCheck(
+        ownedBy('user-owner', ['d-1']),
+        [owner, createTestUser({ ...caretaker, vacationStatus: 'active' })],
+        notifications,
+        delegationOf(['d-1'])
+      )
+
+      expect(
+        Arr.filter(notifications, (n) => n.type === 'overdue_reminder')
+      ).toEqual([])
+    })
+  })
+
+  describe('plants with reminders off', () => {
+    it('sends no overdue row for a plant whose reminders are off', async () => {
+      const notifications: Notification[] = []
+
+      await runCheck(
+        [
+          createTestPlant({
+            id: 'quiet',
+            userId: 'user-1',
+            remindersEnabled: false,
+            scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(3) })],
+          }),
+        ],
+        [defaultUser],
+        notifications
+      )
+
+      expect(
+        Arr.filter(notifications, (n) => n.type === 'overdue_reminder')
+      ).toEqual([])
     })
   })
 
@@ -891,16 +1063,15 @@ describe('checkAndCreateOverdueReminders', () => {
         })
       )
 
-      const exit = await runProcessUser(
-        'user-1',
+      await runCheck(
         plants,
         [defaultUser],
         notifications,
         {},
-        null // null = unlimited (premium)
+        {
+          subscriptionsByUser: { 'user-1': premium('user-1') },
+        }
       )
-
-      expect(Exit.isSuccess(exit)).toBe(true)
       const overdueNotifs = Arr.filter(
         notifications,
         (n) => n.type === 'overdue_reminder'
@@ -928,16 +1099,7 @@ describe('checkAndCreateOverdueReminders', () => {
         })
       )
 
-      const exit = await runProcessUser(
-        'user-1',
-        plants,
-        [defaultUser],
-        notifications,
-        {},
-        5 // free tier: 5 plant cap
-      )
-
-      expect(Exit.isSuccess(exit)).toBe(true)
+      await runCheck(plants, [defaultUser], notifications)
 
       const overdueNotifs = Arr.filter(
         notifications,
@@ -969,16 +1131,17 @@ describe('checkAndCreateOverdueReminders', () => {
       )
 
       const enqueued: QueueMessage[] = []
-      const exit = await runProcessUser(
-        'user-1',
+      const exit = await runCheckExit(
         plants,
         [defaultUser],
         notifications,
         {},
-        5,
-        createMockMessageQueue({
-          onEnqueue: (_, message) => enqueued.push(message),
-        })
+        {},
+        {
+          queue: createMockMessageQueue({
+            onEnqueue: (_, message) => enqueued.push(message),
+          }),
+        }
       )
 
       expect(Exit.isSuccess(exit)).toBe(true)
@@ -1011,16 +1174,17 @@ describe('checkAndCreateOverdueReminders', () => {
       )
 
       const enqueued: QueueMessage[] = []
-      const exit = await runProcessUser(
-        'user-1',
+      const exit = await runCheckExit(
         plants,
         [createTestUser({ ...defaultUser, tips: false })],
         notifications,
         {},
-        5,
-        createMockMessageQueue({
-          onEnqueue: (_, message) => enqueued.push(message),
-        })
+        {},
+        {
+          queue: createMockMessageQueue({
+            onEnqueue: (_, message) => enqueued.push(message),
+          }),
+        }
       )
 
       expect(Exit.isSuccess(exit)).toBe(true)
@@ -1050,14 +1214,7 @@ describe('checkAndCreateOverdueReminders', () => {
         })
       )
 
-      await runProcessUser(
-        'user-1',
-        plants,
-        [defaultUser],
-        notifications,
-        {},
-        5
-      )
+      await runCheck(plants, [defaultUser], notifications)
 
       // Should still have only the one existing nudge, not a second
       const nudges = Arr.filter(
@@ -1079,14 +1236,7 @@ describe('checkAndCreateOverdueReminders', () => {
         })
       )
 
-      await runProcessUser(
-        'user-1',
-        plants,
-        [defaultUser],
-        notifications,
-        {},
-        5
-      )
+      await runCheck(plants, [defaultUser], notifications)
 
       const overdueNotifs = Arr.filter(
         notifications,
@@ -1123,29 +1273,6 @@ describe('checkAndCreateOverdueReminders', () => {
       createTestMembership({ userId: 'user-1', role: 'owner' }),
       createTestMembership({ userId: 'user-2' }),
     ]
-
-    const premium = (
-      userId: string
-    ): typeof userSubscriptions.$inferSelect => ({
-      id: `sub-${userId}`,
-      userId,
-      tier: 'paid',
-      status: 'active',
-      trialStartsAt: null,
-      trialEndsAt: null,
-      currentPeriodStart: DateTime.toDateUtc(DateTime.nowUnsafe()),
-      currentPeriodEnd: DateTime.toDateUtc(
-        DateTime.add(DateTime.nowUnsafe(), { days: 30 })
-      ),
-      externalSubscriptionId: null,
-      externalCustomerId: null,
-      provider: 'revenuecat',
-      productId: null,
-      store: null,
-      canceledAt: null,
-      createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
-      updatedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
-    })
 
     const canopyPlants = (count: number) =>
       Arr.makeBy(count, (i) =>
