@@ -176,14 +176,13 @@ export interface IDelegationRepository {
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
 
-  /**
-   * Cancels every open delegation the user is owner or caretaker of, and
-   * returns the plants of those that were active, whose reminders move.
-   */
   readonly cancelOpenForUser: (
     userId: string,
     canceledAt: Date
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  ) => Effect.Effect<
+    { readonly reassignedPlantIds: ReadonlyArray<string> },
+    SqlError
+  >
 }
 
 export class DelegationRepository extends Context.Service<
@@ -621,7 +620,7 @@ export const DelegationRepositoryLive = Layer.effect(
             )
             .orderBy(careDelegations.id)
             .for('update')
-          if (!Array.isArrayNonEmpty(open)) return []
+          if (!Array.isArrayNonEmpty(open)) return { reassignedPlantIds: [] }
           yield* db
             .update(careDelegations)
             .set({ status: 'canceled', canceledAt })
@@ -632,7 +631,9 @@ export const DelegationRepositoryLive = Layer.effect(
               )
             )
           const active = Array.filter(open, (d) => d.status === 'active')
-          if (!Array.isArrayNonEmpty(active)) return []
+          if (!Array.isArrayNonEmpty(active)) {
+            return { reassignedPlantIds: [] }
+          }
           const linked = yield* db
             .selectDistinct({ plantId: delegationPlants.plantId })
             .from(delegationPlants)
@@ -642,7 +643,7 @@ export const DelegationRepositoryLive = Layer.effect(
                 Array.map(active, (d) => d.id)
               )
             )
-          return Array.map(linked, (l) => l.plantId)
+          return { reassignedPlantIds: Array.map(linked, (l) => l.plantId) }
         }
       ),
 

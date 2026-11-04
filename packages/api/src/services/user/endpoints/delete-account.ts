@@ -24,11 +24,11 @@ export const deleteAccount = Effect.fn('UserService.deleteAccount')(
         const softDeleted = yield* userRepo.softDelete(user.id)
         yield* refreshTokenRepo.revokeAllForUser(user.id)
         yield* deviceTokenRepo.deleteByUserId(user.id)
-        const delegatedPlantIds = yield* delegationRepo.cancelOpenForUser(
+        const { reassignedPlantIds } = yield* delegationRepo.cancelOpenForUser(
           user.id,
           nowAsDate()
         )
-        yield* rescheduleReminders(delegatedPlantIds)
+        yield* rescheduleReminders(reassignedPlantIds)
         yield* notificationRepo.deletePendingByUserIdAndTypes(
           user.id,
           NOTIFICATION_TOPICS

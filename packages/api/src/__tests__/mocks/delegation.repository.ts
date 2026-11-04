@@ -389,14 +389,16 @@ export const createMockDelegationRepository = (
               : d
           )
         )
-        return Array.dedupe(
-          Array.map(
-            Array.filter(dpLinks, (link) =>
-              Array.contains(activeIds, link.delegationId)
-            ),
-            (link) => link.plantId
-          )
-        )
+        return {
+          reassignedPlantIds: Array.dedupe(
+            Array.map(
+              Array.filter(dpLinks, (link) =>
+                Array.contains(activeIds, link.delegationId)
+              ),
+              (link) => link.plantId
+            )
+          ),
+        }
       }),
   }
 
