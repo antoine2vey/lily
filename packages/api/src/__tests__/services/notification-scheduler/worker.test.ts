@@ -78,6 +78,7 @@ import {
   Exit,
   Fiber,
   Layer,
+  Logger,
   Option,
   pipe,
   Record,
@@ -87,7 +88,7 @@ import {
 } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { TestClock } from 'effect/testing'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // Empty mocks for the Live Activity path — worker unconditionally reads
 // these repos when TOPIC_CATEGORY[topic] === 'care'. With no tokens seeded,
@@ -1265,6 +1266,7 @@ describe('Notification Worker', () => {
       const notification = createTestNotification({
         id: 'notification-1',
         userId: 'user-1',
+        plantId: 'plant-1',
         status: 'queued',
       })
       const notifications = rows ?? [notification]
@@ -1298,22 +1300,22 @@ describe('Notification Worker', () => {
           Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
-      return { sentMessages, notification }
+      return { sentMessages, notification, notifications }
     }
 
-    it('drops a care push whose every plant is dead and marks it sent', async () => {
+    it('deletes a care row whose plant is dead and sends nothing', async () => {
       const dead = createTestPlant({
         id: 'plant-1',
         userId: 'user-1',
         diedAt: new Date(),
       })
-      const { sentMessages, notification } = await runWithPlants(
+      const { sentMessages, notifications } = await runWithPlants(
         [dead],
         ['plant-1']
       )
 
       expect(sentMessages).toHaveLength(0)
-      expect(notification.status).toBe('sent')
+      expect(notifications).toEqual([])
     })
 
     it('drops a care push for a Canopy plant whose Canopy the user has left', async () => {
@@ -1322,13 +1324,13 @@ describe('Notification Worker', () => {
         userId: null,
         canopyId: 'canopy-2',
       })
-      const { sentMessages, notification } = await runWithPlants(
+      const { sentMessages, notifications } = await runWithPlants(
         [leftBehind],
         ['plant-1']
       )
 
       expect(sentMessages).toHaveLength(0)
-      expect(notification.status).toBe('sent')
+      expect(notifications).toEqual([])
     })
 
     it('drops a care push for a Canopy plant the user has muted since', async () => {
@@ -1337,7 +1339,7 @@ describe('Notification Worker', () => {
         userId: null,
         canopyId: 'canopy-1',
       })
-      const { sentMessages, notification } = await runWithPlants(
+      const { sentMessages, notifications } = await runWithPlants(
         [shared],
         ['plant-1'],
         createMockCanopyRepository(
@@ -1354,7 +1356,7 @@ describe('Notification Worker', () => {
       )
 
       expect(sentMessages).toHaveLength(0)
-      expect(notification.status).toBe('sent')
+      expect(notifications).toEqual([])
     })
 
     const activeDelegation = (
@@ -1394,9 +1396,9 @@ describe('Notification Worker', () => {
       expect(notification.status).toBe('sent')
     })
 
-    it('delivers a caretaker care push after the delegation completed', async () => {
+    it('deletes a caretaker care row after the delegation completed', async () => {
       const theirs = createTestPlant({ id: 'plant-1', userId: 'user-2' })
-      const { sentMessages } = await runWithPlants(
+      const { sentMessages, notifications } = await runWithPlants(
         [theirs],
         ['plant-1'],
         undefined,
@@ -1408,7 +1410,26 @@ describe('Notification Worker', () => {
         })
       )
 
+      expect(sentMessages).toHaveLength(0)
+      expect(notifications).toEqual([])
+    })
+
+    it('delivers a caretaker care push while the delegation is active', async () => {
+      const theirs = createTestPlant({ id: 'plant-1', userId: 'user-2' })
+      const { sentMessages, notification } = await runWithPlants(
+        [theirs],
+        ['plant-1'],
+        undefined,
+        createMockDelegationRepository({
+          delegations: [activeDelegation('user-2', 'user-1', 'active')],
+          delegationPlants: [
+            { delegationId: 'delegation-1', plantId: 'plant-1' },
+          ],
+        })
+      )
+
       expect(sentMessages.length).toBeGreaterThan(0)
+      expect(notification.status).toBe('sent')
     })
 
     it('names only the plants still theirs when the guard drops some', async () => {
@@ -1452,7 +1473,9 @@ describe('Notification Worker', () => {
       expect(`${push?.title} ${push?.body}`).toContain('Fern')
       expect(`${push?.title} ${push?.body}`).not.toContain('Left Behind')
       expect(push?.data?.plantIds).toBe('plant-2')
-      expect(Array.map(rows, (n) => n.status)).toEqual(['sent', 'sent'])
+      expect(Array.map(rows, (n) => [n.id, n.status])).toEqual([
+        ['notification-2', 'sent'],
+      ])
     })
 
     it('delivers a care push for a Canopy plant of the Canopy the user is in', async () => {
@@ -1560,6 +1583,222 @@ describe('Notification Worker', () => {
       expect(sentMessages.length).toBeGreaterThan(0)
       expect(sentMessages[0]?.body).not.toContain('Buried')
       expect(sentMessages[0]?.data?.plantIds).toBe('plant-2')
+    })
+  })
+
+  describe('dispatch gate at delivery', () => {
+    const hhmm = (offsetMs: number) =>
+      new Date(Date.now() + offsetMs).toISOString().slice(11, 16)
+    const quietNow = {
+      doNotDisturb: true,
+      doNotDisturbStart: hhmm(-3_600_000),
+      doNotDisturbEnd: hhmm(3_600_000),
+      timezone: 'UTC',
+    }
+
+    const deliver = async (
+      message: QueueMessage,
+      rows: Notification[],
+      userOverrides: Partial<Parameters<typeof createTestUser>[0]>,
+      plants: ReturnType<typeof createTestPlant>[] = [
+        createTestPlant({ id: 'plant-1', userId: 'user-1' }),
+      ],
+      logger: Layer.Layer<never> = Logger.layer([])
+    ) => {
+      const sentMessages: PushMessage[] = []
+      await Effect.runPromise(
+        processMessage(message).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              MockAlerterLive,
+              createMockPushService({
+                onSendBatch: (msgs) => sentMessages.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository(rows),
+              createMockPlantRepository({ plants }),
+              LaMocksLive,
+              createMockUserRepository([
+                createTestUser({ id: 'user-1', ...userOverrides }),
+              ]),
+              logger
+            )
+          )
+        )
+      )
+      return sentMessages
+    }
+
+    const NIGHT = new Date('2026-06-15T23:00:00.000Z')
+    const DND_END = new Date('2026-06-16T07:00:00.000Z')
+    const nightDnd = (doNotDisturbEnd: string) => ({
+      doNotDisturb: true,
+      doNotDisturbStart: '22:00',
+      doNotDisturbEnd,
+      timezone: 'UTC',
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('moves a row claimed during DND back to pending at the end of DND', async () => {
+      const rows = [
+        createTestNotification({
+          id: 'notification-1',
+          plantId: 'plant-1',
+          status: 'queued',
+        }),
+      ]
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(NIGHT)
+      const sent = await deliver(
+        createTestQueueMessage(),
+        rows,
+        nightDnd('07:00')
+      )
+
+      expect(sent).toHaveLength(0)
+      expect(rows.map((n) => [n.status, n.scheduledAt])).toEqual([
+        ['pending', DND_END],
+      ])
+    })
+
+    it("reads a user's DND bounds once however many of their rows the message claims", async () => {
+      const ids = ['notification-1', 'notification-2', 'notification-3']
+      const rows = Array.map(ids, (id) =>
+        createTestNotification({ id, plantId: 'plant-1', status: 'queued' })
+      )
+      const warnings: unknown[] = []
+      const capture = Logger.make(({ logLevel, message, fiber }) => {
+        if (logLevel === 'Warn') {
+          warnings.push({
+            message,
+            userId: fiber.getRef(References.CurrentLogAnnotations).userId,
+          })
+        }
+      })
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(NIGHT)
+      const sent = await deliver(
+        createTestQueueMessage({
+          payload: {
+            userId: 'user-1',
+            title: 'Water time',
+            body: 'Your plants are thirsty',
+            notificationIds: ids,
+            plantIds: ['plant-1'],
+          },
+        }),
+        rows,
+        nightDnd('25:99'),
+        undefined,
+        Logger.layer([capture])
+      )
+
+      expect(sent).toHaveLength(0)
+      expect(warnings).toEqual([
+        {
+          message: [
+            'Invalid DND bound, using the default',
+            { rejected: '25:99', fallback: '07:00' },
+          ],
+          userId: 'user-1',
+        },
+      ])
+      expect(rows.map((n) => [n.id, n.status, n.scheduledAt])).toEqual(
+        Array.map(ids, (id) => [id, 'pending', DND_END])
+      )
+    })
+
+    it('deletes an engagement row sent straight from the caller when tips are off', async () => {
+      const rows = [
+        createTestNotification({
+          id: 'notification-1',
+          type: 'resubscribe_nudge',
+          status: 'queued',
+        }),
+      ]
+      const sent = await deliver(
+        createTestQueueMessage({
+          topic: 'resubscribe_nudge',
+          payload: {
+            userId: 'user-1',
+            title: 'Come back',
+            body: 'Your plants miss you',
+            notificationIds: ['notification-1'],
+            plantIds: [],
+          },
+        }),
+        rows,
+        { ...quietNow, tips: false }
+      )
+
+      expect(sent).toHaveLength(0)
+      expect(rows).toEqual([])
+    })
+
+    it('gates a care row by its own plant when the message names no plant', async () => {
+      const rows = [
+        createTestNotification({
+          id: 'notification-1',
+          plantId: 'plant-1',
+          status: 'queued',
+        }),
+      ]
+      const sent = await deliver(
+        createTestQueueMessage({
+          payload: {
+            userId: 'user-1',
+            title: 'Water time',
+            body: 'Your plants are thirsty',
+            notificationIds: ['notification-1'],
+            plantIds: [],
+          },
+        }),
+        rows,
+        {},
+        [
+          createTestPlant({
+            id: 'plant-1',
+            userId: 'user-1',
+            diedAt: new Date(),
+          }),
+        ]
+      )
+
+      expect(sent).toHaveLength(0)
+      expect(rows).toEqual([])
+    })
+
+    it('sends a social row during a vacation', async () => {
+      const rows = [
+        createTestNotification({
+          id: 'notification-1',
+          type: 'new_follower',
+          status: 'queued',
+        }),
+      ]
+      const sent = await deliver(
+        createTestQueueMessage({
+          topic: 'new_follower',
+          payload: {
+            userId: 'user-1',
+            title: 'New follower',
+            body: 'Sam follows you',
+            notificationIds: ['notification-1'],
+            plantIds: [],
+          },
+        }),
+        rows,
+        {
+          vacationStatus: 'active',
+          vacationEnd: new Date(Date.now() + 86_400_000),
+        }
+      )
+
+      expect(sent.length).toBeGreaterThan(0)
+      expect(rows[0]?.status).toBe('sent')
     })
   })
 

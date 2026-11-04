@@ -8,6 +8,7 @@ export interface UserNotificationSettings {
   timezone: string | null
   preferredTime: string | null
   careReminders: boolean
+  tips: boolean
   doNotDisturb: boolean
   doNotDisturbStart: string | null
   doNotDisturbEnd: string | null
@@ -37,6 +38,11 @@ export const notificationSettingsOf = (
   const careReminders = pipe(
     userOption,
     Option.map((u) => u.careReminders),
+    Option.getOrElse(() => true)
+  )
+  const tips = pipe(
+    userOption,
+    Option.map((u) => u.tips),
     Option.getOrElse(() => true)
   )
   const doNotDisturb = pipe(
@@ -81,6 +87,7 @@ export const notificationSettingsOf = (
     timezone,
     preferredTime,
     careReminders,
+    tips,
     doNotDisturb,
     doNotDisturbStart,
     doNotDisturbEnd,

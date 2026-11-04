@@ -969,7 +969,7 @@ describe('checkAndCreateOverdueReminders', () => {
       )
 
       const enqueued: QueueMessage[] = []
-      await runProcessUser(
+      const exit = await runProcessUser(
         'user-1',
         plants,
         [defaultUser],
@@ -981,6 +981,7 @@ describe('checkAndCreateOverdueReminders', () => {
         })
       )
 
+      expect(Exit.isSuccess(exit)).toBe(true)
       const nudges = Arr.filter(
         notifications,
         (n) => n.type === 'resubscribe_nudge'
@@ -996,6 +997,39 @@ describe('checkAndCreateOverdueReminders', () => {
       ).toMatchObject([
         { payload: { userId: 'user-1', notificationIds: [nudges[0]?.id] } },
       ])
+    })
+
+    it('records no resubscribe_nudge for a free-tier user with tips off', async () => {
+      const notifications: Notification[] = []
+      const plants = Arr.makeBy(8, (i) =>
+        createTestPlant({
+          id: `plant-${i}`,
+          userId: 'user-1',
+          dateAdded: daysAgo(100 - i),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+
+      const enqueued: QueueMessage[] = []
+      const exit = await runProcessUser(
+        'user-1',
+        plants,
+        [createTestUser({ ...defaultUser, tips: false })],
+        notifications,
+        {},
+        5,
+        createMockMessageQueue({
+          onEnqueue: (_, message) => enqueued.push(message),
+        })
+      )
+
+      expect(Exit.isSuccess(exit)).toBe(true)
+      expect(Arr.map(notifications, (n) => n.type)).toEqual(
+        Arr.makeBy(5, () => 'overdue_reminder')
+      )
+      expect(Arr.map(enqueued, (m) => m.topic)).not.toContain(
+        'resubscribe_nudge'
+      )
     })
 
     it('should NOT send resubscribe_nudge when nudge already sent today', async () => {

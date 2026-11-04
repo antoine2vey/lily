@@ -1,9 +1,14 @@
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
-import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import {
+  type DeferredNotification,
+  NotificationRepository,
+  type NotificationRow,
+} from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import {
@@ -11,6 +16,14 @@ import {
   drainOnInterrupt,
 } from '@lily/api/services/helpers/create-scheduler'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
+import {
+  DEFER_MESSAGE,
+  Decision,
+  DROP_MESSAGE,
+  decide,
+  loadPlantFacts,
+  loadRecipients,
+} from '@lily/api/services/notification-scheduler/dispatch-gate'
 import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   type DeferredCareType,
@@ -105,7 +118,7 @@ const sendLiveActivityForCare = (
   | DeviceTokenRepository
   | import('@lily/api/repositories/care-log.repository').CareLogRepository
   | import('@lily/api/repositories/care-schedule.repository').CareScheduleRepository
-  | import('@lily/api/repositories/user.repository').UserRepository
+  | UserRepository
   | CanopyRepository
 > =>
   Effect.gen(function* () {
@@ -307,82 +320,110 @@ const completeDelivery = (
 const isCareTopic = (topic: NotificationTopic): topic is DeferredCareType =>
   TOPIC_CATEGORY[topic] === 'care'
 
-const narrowToPlantsStillTheirs = (
+const gateClaimedRows = (
   message: QueueMessage,
   claimedIds: ReadonlyArray<string>
 ) =>
   Effect.gen(function* () {
-    if (
-      TOPIC_CATEGORY[message.topic] !== 'care' ||
-      Array.isReadonlyArrayEmpty(message.payload.plantIds)
-    ) {
-      return Option.some(message)
-    }
-    const plantRepo = yield* PlantRepository
-    const canopyRepo = yield* CanopyRepository
-    const living = Array.filter(
-      yield* plantRepo.findByIds(message.payload.plantIds),
-      (p) => p.diedAt === null
-    )
-    const canopyPlants = Array.filterMap(living, (p) =>
-      p.owner._tag === 'Canopy'
-        ? Result.succeed({ id: p.id, canopyId: p.owner.canopyId })
-        : Result.failVoid
-    )
-    const audible = Array.isReadonlyArrayEmpty(canopyPlants)
-      ? []
-      : yield* canopyRepo.findAudiblePlantIds(
-          message.payload.userId,
-          canopyPlants
-        )
-    const kept = Array.filter(
-      living,
-      (p) => p.owner._tag === 'User' || Array.contains(audible, p.id)
-    )
-    if (Array.isReadonlyArrayEmpty(kept)) return Option.none()
-    if (
-      kept.length === Array.dedupe(message.payload.plantIds).length &&
-      claimedIds.length === Array.dedupe(message.payload.notificationIds).length
-    ) {
-      return Option.some(message)
-    }
     const notificationRepo = yield* NotificationRepository
+    const plantRepo = yield* PlantRepository
+    const userRepo = yield* UserRepository
     const rows = yield* notificationRepo.findByIds(claimedIds)
-    const careTypesOf = (plantId: string) =>
+    const plants = yield* plantRepo.findByIds(
+      pipe(
+        Array.filterMap(
+          rows,
+          Filter.fromPredicateOption((row) => Option.fromNullishOr(row.plantId))
+        ),
+        Array.dedupe
+      )
+    )
+    const now = DateTime.toDateUtc(yield* DateTime.now)
+    const [recipients, plantFacts] = yield* Effect.all([
+      Effect.flatMap(
+        userRepo.findByIds(Array.dedupe(Array.map(rows, (row) => row.userId))),
+        (users) => loadRecipients(users, now)
+      ),
+      loadPlantFacts(plants),
+    ])
+    const decided = Array.map(rows, (row) => ({
+      row,
+      decision: decide(
+        row,
+        Option.fromNullishOr(recipients.get(row.userId)),
+        plantFacts,
+        now
+      ),
+    }))
+
+    const dropIds: string[] = []
+    const deferred: DeferredNotification[] = []
+    const sendRows: NotificationRow[] = []
+    yield* Effect.forEach(decided, ({ row, decision }) => {
+      const logged = { id: row.id, userId: row.userId, messageId: message.id }
+      return Decision.$match(decision, {
+        Send: () => Effect.sync(() => sendRows.push(row)),
+        Drop: ({ reason }) => {
+          dropIds.push(row.id)
+          return Effect.log(DROP_MESSAGE[reason], logged)
+        },
+        Defer: ({ reason, until }) => {
+          deferred.push({ id: row.id, until })
+          return Effect.log(DEFER_MESSAGE[reason], { ...logged, until })
+        },
+      })
+    })
+    yield* notificationRepo.deleteByIds(dropIds)
+    yield* notificationRepo.deferUntil(deferred, Option.some(message.id))
+
+    return { sendRows, plants }
+  })
+
+const careDigestFor = (
+  message: QueueMessage,
+  sendRows: ReadonlyArray<NotificationRow>,
+  plants: ReadonlyArray<{ readonly id: string; readonly name: string }>
+): Option.Option<QueueMessage> => {
+  const kept = Array.filter(plants, (plant) =>
+    Array.some(sendRows, (row) => row.plantId === plant.id)
+  )
+  const items = Array.filterMap(kept, (plant) =>
+    Array.match(
       Array.filterMap(
-        rows,
+        sendRows,
         Filter.fromPredicateOption((row) =>
-          row.plantId === plantId && isCareTopic(row.type)
+          row.plantId === plant.id && isCareTopic(row.type)
             ? Option.some(row.type)
             : Option.none()
         )
-      )
-    const items = Array.filterMap(kept, (plant) =>
-      Array.match(careTypesOf(plant.id), {
+      ),
+      {
         onEmpty: () => Result.failVoid,
         onNonEmpty: (careTypes) =>
           Result.succeed({ plantName: plant.name, careTypes }),
-      })
+      }
     )
-    return Array.match(items, {
-      onEmpty: () => Option.none(),
-      onNonEmpty: (nonEmpty) =>
-        Option.some({
-          ...message,
-          payload: {
-            ...message.payload,
-            ...buildCareDigestContent(
-              nonEmpty,
-              Option.getOrElse(
-                Option.fromNullishOr(message.payload.language),
-                () => 'en' as const
-              )
-            ),
-            plantIds: Array.map(kept, (p) => p.id),
-          },
-        }),
-    })
+  )
+  return Array.match(items, {
+    onEmpty: () => Option.none(),
+    onNonEmpty: (nonEmpty) =>
+      Option.some({
+        ...message,
+        payload: {
+          ...message.payload,
+          ...buildCareDigestContent(
+            nonEmpty,
+            Option.getOrElse(
+              Option.fromNullishOr(message.payload.language),
+              () => 'en' as const
+            )
+          ),
+          notificationIds: Array.map(sendRows, (row) => row.id),
+          plantIds: Array.map(kept, (plant) => plant.id),
+        },
+      }),
   })
+}
 
 export const processMessage = Effect.fn('notification-worker.process')(
   function* (message: QueueMessage) {
@@ -408,19 +449,31 @@ export const processMessage = Effect.fn('notification-worker.process')(
       return
     }
 
-    const delivery = yield* narrowToPlantsStillTheirs(message, claimedIds)
-    if (Option.isNone(delivery)) {
-      yield* Effect.log(
-        'Dropping care push - no plant is living and still theirs',
-        {
-          notificationIds: claimedIds,
-          plantIds: message.payload.plantIds,
-        }
-      )
-      yield* notificationRepo.markManyAsSent(claimedIds)
+    const { sendRows, plants } = yield* gateClaimedRows(message, claimedIds)
+    if (Array.isReadonlyArrayEmpty(sendRows)) {
+      yield* Effect.log('Skipping message - the gate kept no row', {
+        messageId: message.id,
+        notificationIds: claimedIds,
+      })
       return
     }
-    const { payload } = delivery.value
+    const sendIds = Array.map(sendRows, (row) => row.id)
+    const unchanged =
+      sendIds.length === Array.dedupe(message.payload.notificationIds).length
+    const narrowed =
+      unchanged || !isCareTopic(message.topic)
+        ? Option.some(message)
+        : careDigestFor(message, sendRows, plants)
+    if (Option.isNone(narrowed)) {
+      yield* Effect.log('Dropping care push - no care row left to name', {
+        messageId: message.id,
+        notificationIds: sendIds,
+      })
+      yield* notificationRepo.markManyAsSent(sendIds)
+      return
+    }
+    const delivery = narrowed.value
+    const { payload } = delivery
 
     // Get user's active device tokens
     const tokens = yield* deviceTokenRepo.findByUserId(message.payload.userId)
@@ -429,10 +482,10 @@ export const processMessage = Effect.fn('notification-worker.process')(
     if (activeTokens.length === 0) {
       yield* Effect.logWarning('No active device tokens for user', {
         userId: message.payload.userId,
-        notificationIds: claimedIds,
+        notificationIds: sendIds,
       })
       // Still mark as sent since there's no device to send to
-      yield* notificationRepo.markManyAsSent(claimedIds)
+      yield* notificationRepo.markManyAsSent(sendIds)
       return
     }
 
@@ -467,12 +520,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
 
     const results = yield* pushService.sendBatch(pushMessages)
 
-    yield* completeDelivery(
-      delivery.value,
-      claimedIds,
-      results,
-      activeTokens.length
-    )
+    yield* completeDelivery(delivery, sendIds, results, activeTokens.length)
   }
 )
 

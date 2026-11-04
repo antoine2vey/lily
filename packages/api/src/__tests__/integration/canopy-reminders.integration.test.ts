@@ -411,9 +411,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await deliver(lily, shared)).toEqual({ pushed: 1, status: 'sent' })
       expect(await deliver(lily, mutedPlant)).toEqual({
         pushed: 0,
-        status: 'sent',
+        status: undefined,
       })
-      expect(await deliver(sam, shared)).toEqual({ pushed: 0, status: 'sent' })
+      expect(await deliver(sam, shared)).toEqual({
+        pushed: 0,
+        status: undefined,
+      })
       expect(await deliver(alex, personal)).toEqual({
         pushed: 1,
         status: 'sent',

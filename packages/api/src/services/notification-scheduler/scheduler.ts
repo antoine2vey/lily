@@ -6,17 +6,19 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
+  DEFER_MESSAGE,
+  Decision,
+  DROP_MESSAGE,
+  decide,
+  loadPlantFacts,
+  loadRecipients,
+} from '@lily/api/services/notification-scheduler/dispatch-gate'
+import {
   buildCareDigestContent,
   buildGroupedPlantAnniversaryContent,
   type CareDigestItem,
   pickDominantCareTopic,
 } from '@lily/api/services/notification-scheduler/translations'
-import {
-  adjustForDoNotDisturb,
-  decodeDndBounds,
-  isInDoNotDisturbWindow,
-} from '@lily/api/services/notifications/timezone-scheduler'
-import { isOnVacation } from '@lily/shared'
 import {
   NOTIFICATION_METADATA,
   type Notification,
@@ -44,14 +46,9 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 export const BATCH_SIZE = 100
 
-const MIN_DEFERRAL = '5 minutes'
-
 const isCareReminderType = (
   type: NotificationTopic
 ): type is DeferredCareType => TOPIC_CATEGORY[type] === 'care'
-
-const isEngagementType = (type: NotificationTopic): boolean =>
-  TOPIC_CATEGORY[type] === 'engagement'
 
 const decodeMetadata = (topic: NotificationTopic, metadata: unknown) =>
   Schema.decodeUnknownResult(Schema.UndefinedOr(NOTIFICATION_METADATA[topic]))(
@@ -90,34 +87,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
   const currentTime = DateTime.toDateUtc(DateTime.nowUnsafe())
 
-  // One DND decision per user, not per row: when each user in their window
-  // gets out of it.
-  const dndEndByUser = new Map(
-    Array.getSomes(
-      yield* Effect.forEach(
-        Array.filter(fetchedUsers, (u) => u.doNotDisturb),
-        (user) =>
-          Effect.gen(function* () {
-            const bounds = yield* decodeDndBounds(
-              user.doNotDisturbStart,
-              user.doNotDisturbEnd
-            ).pipe(Effect.annotateLogs({ userId: user.id }))
-            const inDnd = yield* isInDoNotDisturbWindow(
-              currentTime,
-              user.timezone,
-              bounds
-            )
-            if (!inDnd) return Option.none()
-            const end = yield* adjustForDoNotDisturb(
-              currentTime,
-              user.timezone,
-              bounds
-            )
-            return Option.some([user.id, end] as const)
-          })
-      )
-    )
-  )
+  const recipients = yield* loadRecipients(fetchedUsers, currentTime)
 
   // Batch-fetch every referenced plant up front: Phase 1 needs it to drop
   // reminders for plants that died since the row was scheduled, and Phase 3
@@ -130,14 +100,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
     Array.dedupe
   )
   const plants = yield* plantRepo.findByIds(allPlantIds)
-  const livingPlantIds = new Set(
-    Array.filterMap(
-      plants,
-      Filter.fromPredicateOption((p) =>
-        p.diedAt === null ? Option.some(p.id) : Option.none()
-      )
-    )
-  )
+  const plantFacts = yield* loadPlantFacts(plants)
 
   // Phase 1: Filter valid notifications and resolve topics
   type ValidNotification = {
@@ -148,33 +111,8 @@ export const pollAndEnqueue = Effect.gen(function* () {
   const validNotifications: ValidNotification[] = []
   const dropIds: string[] = []
   const deferred: DeferredNotification[] = []
-  const earliestRetry = DateTime.addDuration(
-    DateTime.makeUnsafe(currentTime),
-    MIN_DEFERRAL
-  )
-  const defer = (notification: Notification, reason: string, until: Date) => {
-    const at = DateTime.toDateUtc(
-      DateTime.max(DateTime.makeUnsafe(until), earliestRetry)
-    )
-    deferred.push({ id: notification.id, until: at })
-    return Effect.log(reason, {
-      id: notification.id,
-      userId: notification.userId,
-      until: at,
-    })
-  }
 
   for (const notification of pendingNotifications) {
-    const plantIdOpt = Option.fromNullishOr(notification.plantId)
-    if (Option.isSome(plantIdOpt) && !livingPlantIds.has(plantIdOpt.value)) {
-      yield* Effect.log('Dropping notification - plant dead or missing', {
-        id: notification.id,
-        plantId: notification.plantId,
-      })
-      dropIds.push(notification.id)
-      continue
-    }
-
     const topic = notification.type
     const metadata = decodeMetadata(topic, notification.metadata)
 
@@ -188,62 +126,35 @@ export const pollAndEnqueue = Effect.gen(function* () {
       continue
     }
 
-    const user = Option.getOrNull(
-      Option.fromNullishOr(userSettingsMap.get(notification.userId))
+    const decision = decide(
+      notification,
+      Option.fromNullishOr(recipients.get(notification.userId)),
+      plantFacts,
+      currentTime
     )
-
-    if (isCareReminderType(topic) && user && !user.careReminders) {
-      yield* Effect.log('Dropping care reminder - user disabled', {
-        id: notification.id,
-        userId: notification.userId,
-      })
-      dropIds.push(notification.id)
-      continue
-    }
-
-    if (isEngagementType(topic) && user && !user.tips) {
-      yield* Effect.log(
-        'Dropping engagement notification - user disabled tips',
-        {
-          id: notification.id,
-          userId: notification.userId,
-        }
-      )
-      dropIds.push(notification.id)
-      continue
-    }
-
-    if (
-      user &&
-      TOPIC_CATEGORY[topic] !== 'social' &&
-      isOnVacation(user, currentTime)
-    ) {
-      yield* defer(
-        notification,
-        'Deferring notification - user on vacation',
-        pipe(
-          Option.fromNullishOr(user.vacationEnd),
-          Option.getOrElse(() => currentTime)
-        )
-      )
-      continue
-    }
-
-    const dndEnd = Option.fromNullishOr(dndEndByUser.get(notification.userId))
-    if (Option.isSome(dndEnd)) {
-      yield* defer(
-        notification,
-        'Deferring notification - user in DND',
-        dndEnd.value
-      )
-      continue
-    }
-
-    validNotifications.push({ notification, topic, metadata: metadata.success })
+    const logged = { id: notification.id, userId: notification.userId }
+    yield* Decision.$match(decision, {
+      Send: () =>
+        Effect.sync(() =>
+          validNotifications.push({
+            notification,
+            topic,
+            metadata: metadata.success,
+          })
+        ),
+      Drop: ({ reason }) => {
+        dropIds.push(notification.id)
+        return Effect.log(DROP_MESSAGE[reason], logged)
+      },
+      Defer: ({ reason, until }) => {
+        deferred.push({ id: notification.id, until })
+        return Effect.log(DEFER_MESSAGE[reason], { ...logged, until })
+      },
+    })
   }
 
   yield* notificationRepo.deleteByIds(dropIds)
-  yield* notificationRepo.deferUntil(deferred)
+  yield* notificationRepo.deferUntil(deferred, Option.none())
 
   if (validNotifications.length === 0) return filledBatch
 
