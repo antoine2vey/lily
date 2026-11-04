@@ -574,22 +574,20 @@ export const NotificationRepositoryLive = Layer.effect(
         'NotificationRepository.deletePendingByUserIdAndTypes'
       )(function* (userId: string, types: ReadonlyArray<NotificationTopic>) {
         if (types.length === 0) return
-        yield* db.delete(notifications).where(
-          inArray(
-            notifications.id,
-            db
-              .select({ id: notifications.id })
-              .from(notifications)
-              .where(
+        yield* db
+          .delete(notifications)
+          .where(
+            inArray(
+              notifications.id,
+              lockedInIdOrder(
                 and(
                   eq(notifications.userId, userId),
                   inArray(notifications.type, [...types]),
                   eq(notifications.status, 'pending')
                 )
               )
-              .for('update', { skipLocked: true })
+            )
           )
-        )
       }),
 
       deletePendingByPlantId: Effect.fn(
