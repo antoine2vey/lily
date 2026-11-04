@@ -178,15 +178,14 @@ export const remindRecipient = (
       return yield* new AlreadySentTodayError({ userId: recipientId })
     }
 
-    // Morning-first: clamp to [0, 0.5) so the first window wins
-    const randomValue = yield* Random.next
+    const morningWindowRoll = yield* Random.nextBetween(0, 0.5)
     const scheduledAt = yield* pickNotificationTime(
       recipientId,
       timezone,
       settings.doNotDisturb,
       settings.doNotDisturbStart,
       settings.doNotDisturbEnd,
-      randomValue * 0.5
+      morningWindowRoll
     )
 
     const plantIds = Array.map(plants, (p) => p.id)
