@@ -6,9 +6,12 @@ import type {
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import type { LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
-import type { MetadataOf } from '@lily/shared/notification'
+import type {
+  MetadataOf,
+  NotificationMetadata,
+} from '@lily/shared/notification'
 import { type DeferredCareType, MessageQueue } from '@lily/shared/server'
-import { Effect, Option, pipe } from 'effect'
+import { Effect, Option } from 'effect'
 
 interface DeferredCareNotificationParams {
   type: DeferredCareType
@@ -29,8 +32,8 @@ export const scheduleDeferredCareNotification = (
   params: DeferredCareNotificationParams
 ) =>
   Effect.gen(function* () {
-    const notificationRepo = yield* NotificationRepository
-    yield* notificationRepo.create({
+    const notifications = yield* NotificationRepository
+    yield* notifications.create({
       type: params.type,
       scheduledAt: params.scheduledAt,
       userId: params.userId,
@@ -39,74 +42,130 @@ export const scheduleDeferredCareNotification = (
     })
   })
 
+export interface RecordedNotification {
+  readonly id: string
+  readonly type: SimpleNotificationType
+  readonly userId: string
+  readonly title: string
+  readonly body: string
+  readonly metadata: NotificationMetadata
+}
+
+const insertSimpleNotification = <T extends SimpleNotificationType>(
+  type: T,
+  userId: string,
+  params: NotificationParamsMap[T],
+  language: LanguageCode,
+  metadata: MetadataOf<T>,
+  delivery: {
+    readonly status: 'pending' | 'queued'
+    readonly scheduledAt: Date
+    readonly plantId?: string
+  }
+) =>
+  Effect.gen(function* () {
+    const notifications = yield* NotificationRepository
+    const { title, body } = buildSimpleContent(type, params, language)
+    const row = yield* notifications.create({
+      userId,
+      type,
+      title,
+      body,
+      metadata,
+      ...delivery,
+    })
+    return yield* Option.match(Option.fromNullishOr(row), {
+      onNone: () =>
+        Effect.die(new Error(`Notification insert returned no row: ${type}`)),
+      onSome: ({ id }) =>
+        Effect.succeed<RecordedNotification>({
+          id,
+          type,
+          userId,
+          title,
+          body,
+          metadata,
+        }),
+    })
+  })
+
 /**
- * Build translated content, create a notification record, and immediately
- * enqueue it for delivery. Uses the recipient's current language so that
- * notifications arrive in the correct locale regardless of when they are sent.
+ * Insert a notification already queued for immediate delivery. Run it inside
+ * the caller's transaction, so the row commits or rolls back with the write
+ * that caused it, and hand the result to `dispatchNow` after the commit.
  */
-export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
+export const recordNotification = <T extends SimpleNotificationType>(
   type: T,
   userId: string,
   params: NotificationParamsMap[T],
   language: LanguageCode,
   metadata: MetadataOf<T>
 ) =>
-  Effect.gen(function* () {
-    const notificationRepo = yield* NotificationRepository
-    const queue = yield* MessageQueue
-    const { title, body } = buildSimpleContent(type, params, language)
-
-    const maybeNotification = yield* notificationRepo.create({
-      userId,
-      type,
-      title,
-      body,
-      scheduledAt: nowAsDate(),
-      status: 'queued',
-      metadata,
-    })
-
-    yield* pipe(
-      Option.fromNullishOr(maybeNotification),
-      Option.match({
-        onNone: () =>
-          Effect.logWarning(
-            'Notification insert returned no row, skipping enqueue',
-            { type, userId }
-          ),
-        onSome: (notification) => {
-          const release = (error: unknown) =>
-            Effect.logWarning(
-              'Failed to enqueue notification, left for the scheduler',
-              { type, userId, error }
-            ).pipe(
-              Effect.andThen(
-                notificationRepo.releaseUnclaimed([notification.id])
-              )
-            )
-          return queue
-            .enqueue(type, {
-              id: crypto.randomUUID(),
-              topic: type,
-              payload: {
-                userId,
-                title,
-                body,
-                notificationIds: [notification.id],
-                plantIds: [],
-                metadata,
-              },
-              retryCount: 0,
-              createdAt: nowAsDate(),
-              scheduledAt: nowAsDate(),
-            })
-            .pipe(
-              Effect.catchTags({
-                QueueOperationError: release,
-                QueueConnectionError: release,
-              })
-            )
-        },
-      })
-    )
+  insertSimpleNotification(type, userId, params, language, metadata, {
+    status: 'queued',
+    scheduledAt: nowAsDate(),
   })
+
+export const recordNotificationAt = <T extends SimpleNotificationType>(
+  type: T,
+  userId: string,
+  params: NotificationParamsMap[T],
+  language: LanguageCode,
+  metadata: MetadataOf<T>,
+  at: { readonly scheduledAt: Date; readonly plantId?: string }
+) =>
+  insertSimpleNotification(type, userId, params, language, metadata, {
+    status: 'pending',
+    ...at,
+  }).pipe(Effect.asVoid)
+
+/**
+ * Enqueue a committed notification. A queue failure hands the row back to
+ * the scheduler, and a failed hand-back leaves it to the recovery sweep, so
+ * neither fails the caller.
+ */
+export const dispatchNow = (notification: RecordedNotification) =>
+  Effect.gen(function* () {
+    const queue = yield* MessageQueue
+    const notifications = yield* NotificationRepository
+    const { id, type, userId, title, body, metadata } = notification
+    const release = (error: unknown) =>
+      Effect.logWarning(
+        'Failed to enqueue notification, left for the scheduler',
+        { type, userId, error }
+      ).pipe(
+        Effect.andThen(notifications.releaseUnclaimed([id])),
+        Effect.catchTag('SqlError', (releaseError) =>
+          Effect.logWarning(
+            'Failed to release notification, left for the recovery sweep',
+            { type, userId, error: releaseError }
+          )
+        )
+      )
+    yield* queue
+      .enqueue(type, {
+        id: crypto.randomUUID(),
+        topic: type,
+        payload: {
+          userId,
+          title,
+          body,
+          notificationIds: [id],
+          plantIds: [],
+          metadata,
+        },
+        retryCount: 0,
+        createdAt: nowAsDate(),
+        scheduledAt: nowAsDate(),
+      })
+      .pipe(
+        Effect.catchTags({
+          QueueOperationError: release,
+          QueueConnectionError: release,
+        })
+      )
+  })
+
+export const dispatchAll = (
+  notifications: ReadonlyArray<RecordedNotification>
+) => Effect.forEach(notifications, dispatchNow, { discard: true })

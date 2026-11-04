@@ -7,6 +7,7 @@ import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
   DelegationRepository,
@@ -59,6 +60,7 @@ const createLayer = (
   delegations: DelegationRow[] = [pendingDelegation]
 ) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     currentUser,
     createMockNotificationRepository(notifications),
     createMockMessageQueue(),
@@ -148,6 +150,7 @@ describe('respondToDelegation', () => {
       respondToDelegation(mockDelegation1.id, { accept: true }).pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             racingCancel,
             caretakerCurrentUser,
             createMockNotificationRepository(notifications),

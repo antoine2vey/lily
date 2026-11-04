@@ -6,7 +6,10 @@ import {
   lockMyCanopy,
   requireOwner,
 } from '@lily/api/services/canopy/helpers/membership'
-import { notifyMemberBestEffort } from '@lily/api/services/canopy/helpers/notify-member'
+import {
+  dispatchNow,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import { CanopyMemberNotFoundError } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
@@ -17,7 +20,7 @@ export const removeCanopyMember = Effect.fn('CanopyService.removeCanopyMember')(
     const repo = yield* CanopyRepository
     const sql = yield* SqlClient.SqlClient
 
-    const { canopy, removed } = yield* sql.withTransaction(
+    const { canopy, notification } = yield* sql.withTransaction(
       Effect.gen(function* () {
         const { canopy, membership } = yield* lockMyCanopy(userId)
         yield* requireOwner(membership)
@@ -34,16 +37,18 @@ export const removeCanopyMember = Effect.fn('CanopyService.removeCanopyMember')(
         )
         yield* dropMember(canopy.id, removed.userId, 'return')
         yield* repo.revokeInvite(canopy.id)
-        return { canopy, removed }
+        const notification = yield* recordNotification(
+          'canopy_member_removed',
+          removed.userId,
+          { canopyName: canopy.name },
+          removed.language,
+          {}
+        )
+        return { canopy, notification }
       })
     )
 
-    yield* notifyMemberBestEffort(
-      'canopy_member_removed',
-      removed,
-      { canopyName: canopy.name },
-      {}
-    )
+    yield* dispatchNow(notification)
 
     return yield* canopyView(canopy.id, userId)
   }

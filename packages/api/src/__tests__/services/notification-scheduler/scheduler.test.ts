@@ -8,7 +8,10 @@ import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  dispatchNow,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
 import type { User } from '@lily/shared'
@@ -211,13 +214,14 @@ describe('Notification Scheduler', () => {
       const enqueued: QueueMessage[] = []
 
       await Effect.runPromise(
-        scheduleSimpleNotification(
+        recordNotification(
           'delegation_request',
           'user-1',
           { senderName: 'Bob' },
           'en',
           { delegationId: 'delegation-a' }
         ).pipe(
+          Effect.flatMap(dispatchNow),
           Effect.provide(
             Layer.mergeAll(
               createMockNotificationRepository(notifications),

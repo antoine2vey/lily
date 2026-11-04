@@ -2,7 +2,10 @@ import { EventBus, publishWithRetry } from '@lily/api/events'
 import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  dispatchNow,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import {
   AlreadyFollowingError,
   CannotFollowSelfError,
@@ -10,6 +13,7 @@ import {
   UserNotPublicError,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 
 export const followUser = Effect.fn('SocialService.followUser')(function* (
   targetUserId: string
@@ -44,9 +48,28 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
     return yield* new AlreadyFollowingError({ targetUserId })
   }
 
-  yield* followRepo.follow(currentUserId, targetUserId)
+  const followerName = pipe(
+    Option.fromNullishOr(currentUserName),
+    Option.getOrElse(() => 'Someone')
+  )
 
-  // Publish UserFollowed event
+  const sql = yield* SqlClient.SqlClient
+  const notification = yield* sql.withTransaction(
+    followRepo
+      .follow(currentUserId, targetUserId)
+      .pipe(
+        Effect.andThen(
+          recordNotification(
+            'new_follower',
+            targetUserId,
+            { senderName: followerName },
+            targetUser.language,
+            { senderId: currentUserId }
+          )
+        )
+      )
+  )
+
   yield* publishWithRetry(
     eventBus.publish({
       _tag: 'UserFollowed',
@@ -55,19 +78,7 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
     })
   )
 
-  // Create push notification for the followed user
-  const followerName = pipe(
-    Option.fromNullishOr(currentUserName),
-    Option.getOrElse(() => 'Someone')
-  )
-
-  yield* scheduleSimpleNotification(
-    'new_follower',
-    targetUserId,
-    { senderName: followerName },
-    targetUser.language,
-    { senderId: currentUserId }
-  )
+  yield* dispatchNow(notification)
 
   return { success: true as const }
 })

@@ -4,6 +4,7 @@ import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.rep
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { followUser } from '@lily/api/services/social/endpoints/follow-user'
 import type { Notification } from '@lily/shared/notification'
@@ -56,6 +57,7 @@ const buildLayer = (
   notifications: Notification[] = []
 ) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     createMockCurrentUser({ id: currentUserId }),
     createMockFollowRepository({
       follows,

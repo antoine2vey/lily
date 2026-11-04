@@ -1,7 +1,10 @@
 import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  dispatchNow,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import type { NudgeRequest } from '@lily/shared'
 import {
   NudgeNotAllowedError,
@@ -9,6 +12,7 @@ import {
   UserNotFoundError,
 } from '@lily/shared'
 import { DateTime, Effect, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 
 export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
   params: NudgeRequest
@@ -48,22 +52,29 @@ export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
     }
   }
 
-  // Record the nudge
-  yield* followRepo.recordNudge(currentUserId, targetUserId)
-
-  // Create push notification for target
   const nudgerName = pipe(
     Option.fromNullishOr(currentUserName),
     Option.getOrElse(() => 'A friend')
   )
 
-  yield* scheduleSimpleNotification(
-    'nudge_to_water',
-    targetUserId,
-    { senderName: nudgerName },
-    targetUser.language,
-    { senderId: currentUserId }
+  const sql = yield* SqlClient.SqlClient
+  const notification = yield* sql.withTransaction(
+    followRepo
+      .recordNudge(currentUserId, targetUserId)
+      .pipe(
+        Effect.andThen(
+          recordNotification(
+            'nudge_to_water',
+            targetUserId,
+            { senderName: nudgerName },
+            targetUser.language,
+            { senderId: currentUserId }
+          )
+        )
+      )
   )
+
+  yield* dispatchNow(notification)
 
   return { success: true }
 })

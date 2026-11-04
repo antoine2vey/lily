@@ -12,10 +12,12 @@ import {
   dropMember,
   lockMyCanopy,
 } from '@lily/api/services/canopy/helpers/membership'
+import { senderNameOf } from '@lily/api/services/canopy/helpers/notify-member'
 import {
-  notifyMemberBestEffort,
-  senderNameOf,
-} from '@lily/api/services/canopy/helpers/notify-member'
+  dispatchNow,
+  type RecordedNotification,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import { canopyPlantIdsOf } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   reminderKeysFor,
@@ -32,6 +34,7 @@ export type LeaveOutcome = Data.TaggedEnum<{
     readonly canopyName: string
     readonly leaver: CanopyMemberRow
     readonly owner: CanopyMemberRow
+    readonly notification: RecordedNotification
   }
   Dissolved: {}
 }>
@@ -80,25 +83,23 @@ const leaveInTransaction = (
     if (owner.value.role !== 'owner') {
       yield* repo.setRole(canopy.id, owner.value.userId, 'owner')
     }
+    const notification = yield* recordNotification(
+      'canopy_member_left',
+      owner.value.userId,
+      { ...senderNameOf(leaver.name), canopyName: canopy.name },
+      owner.value.language,
+      {}
+    )
     return LeaveOutcome.Left({
       canopyName: canopy.name,
       leaver,
       owner: { ...owner.value, role: 'owner' },
+      notification,
     })
   })
 
 const notifyLeave = (outcome: LeaveOutcome) =>
-  outcome._tag === 'Left'
-    ? notifyMemberBestEffort(
-        'canopy_member_left',
-        outcome.owner,
-        {
-          ...senderNameOf(outcome.leaver.name),
-          canopyName: outcome.canopyName,
-        },
-        {}
-      )
-    : Effect.void
+  outcome._tag === 'Left' ? dispatchNow(outcome.notification) : Effect.void
 
 export const leaveCanopy = (
   userId: string

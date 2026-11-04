@@ -5,7 +5,10 @@ import { assertNotStorePayer } from '@lily/api/services/admin/helpers/assert-not
 import { withAdminTarget } from '@lily/api/services/admin/helpers/with-admin-target'
 import type { AdminUser } from '@lily/api/services/admin/middleware.types'
 import { computePeriodEnd } from '@lily/api/services/helpers/gift-duration'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  dispatchNow,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import {
   type AdminGiftSubscriptionResponse,
   GIFT_DURATION_LABELS,
@@ -18,6 +21,7 @@ import type {
 import type { UserNotFoundError } from '@lily/shared/errors/user'
 import type { MessageQueue } from '@lily/shared/server'
 import { DateTime, Effect, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const giftSubscription = (
@@ -34,6 +38,7 @@ export const giftSubscription = (
   | AdminUser
   | NotificationRepository
   | MessageQueue
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const { user, currentAdmin } = yield* withAdminTarget(userId)
@@ -44,8 +49,9 @@ export const giftSubscription = (
     const periodStart = DateTime.toDate(DateTime.nowUnsafe())
     const periodEnd = computePeriodEnd(duration)
 
-    yield* Effect.all(
-      [
+    const sql = yield* SqlClient.SqlClient
+    const [, , notification] = yield* sql.withTransaction(
+      Effect.all([
         subRepo.create({
           userId,
           tier: 'paid',
@@ -57,7 +63,7 @@ export const giftSubscription = (
           giftedBy: currentAdmin.id,
           duration,
         }),
-        scheduleSimpleNotification(
+        recordNotification(
           'gift_subscription',
           userId,
           {
@@ -72,9 +78,10 @@ export const giftSubscription = (
           user.language,
           {}
         ),
-      ],
-      { concurrency: 'unbounded' }
+      ])
     )
+
+    yield* dispatchNow(notification)
 
     return {
       message: `Gifted ${duration} paid subscription to ${user.name ?? user.email}`,

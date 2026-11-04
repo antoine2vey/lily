@@ -2,7 +2,10 @@ import { DelegationRepository } from '@lily/api/repositories/delegation.reposito
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { transitionDelegation } from '@lily/api/services/delegation/helpers/transition-delegation'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  dispatchNow,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import {
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
@@ -10,6 +13,7 @@ import {
   nowAsDate,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 
 const CANCELABLE_STATUSES: readonly DelegationStatus[] = [
   'pending',
@@ -34,15 +38,6 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
       })
     }
 
-    yield* transitionDelegation({
-      delegationId,
-      from: CANCELABLE_STATUSES,
-      to: 'canceled',
-      expectedStatus: 'pending, accepted, or active',
-      message: 'This delegation cannot be canceled in its current state',
-      timestamps: { canceledAt: nowAsDate() },
-    })
-
     const ownerName = pipe(
       Option.fromNullishOr(delegation.ownerName),
       Option.getOrElse(() => 'Someone')
@@ -54,13 +49,29 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
       () => 'en' as const
     )
 
-    yield* scheduleSimpleNotification(
-      'delegation_canceled',
-      delegation.caretakerId,
-      { senderName: ownerName },
-      caretakerLanguage,
-      { delegationId }
+    const sql = yield* SqlClient.SqlClient
+    const notification = yield* sql.withTransaction(
+      transitionDelegation({
+        delegationId,
+        from: CANCELABLE_STATUSES,
+        to: 'canceled',
+        expectedStatus: 'pending, accepted, or active',
+        message: 'This delegation cannot be canceled in its current state',
+        timestamps: { canceledAt: nowAsDate() },
+      }).pipe(
+        Effect.andThen(
+          recordNotification(
+            'delegation_canceled',
+            delegation.caretakerId,
+            { senderName: ownerName },
+            caretakerLanguage,
+            { delegationId }
+          )
+        )
+      )
     )
+
+    yield* dispatchNow(notification)
 
     const updated = yield* delegationRepo.findById(delegationId)
     if (!updated) {

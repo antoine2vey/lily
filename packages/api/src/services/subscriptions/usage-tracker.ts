@@ -2,7 +2,7 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
-import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
 import { resolveTierConfig } from '@lily/api/services/subscriptions/effective-tier'
 import { limitsDisabled } from '@lily/api/services/subscriptions/limits-config'
 import type { LanguageCode } from '@lily/shared'
@@ -152,24 +152,14 @@ export const UsageTrackerLive = Layer.effect(
           () => Effect.succeed(new Date())
         )
 
-        const { title, body } = buildSimpleContent(
+        yield* recordNotificationAt(
           'approaching_limit',
-          {
-            usageCount: current,
-            usageMax: max,
-            featureName,
-          },
-          language
-        )
-
-        yield* notificationRepo.create({
-          type: 'approaching_limit',
-          title,
-          body,
-          scheduledAt,
           userId,
-          metadata: {},
-        })
+          { usageCount: current, usageMax: max, featureName },
+          language,
+          {},
+          { scheduledAt }
+        ).pipe(Effect.provideService(NotificationRepository, notificationRepo))
       }).pipe(
         Effect.catchTags({
           SqlError: (e) =>

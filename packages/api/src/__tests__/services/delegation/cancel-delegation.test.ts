@@ -7,6 +7,7 @@ import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -53,6 +54,7 @@ const createLayer = (
   ]
 ) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     currentUser,
     createMockNotificationRepository(notifications),
     createMockMessageQueue(),
