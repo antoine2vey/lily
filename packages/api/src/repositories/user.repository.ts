@@ -95,10 +95,6 @@ export interface IUserRepository {
   readonly findByIds: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
-  /**
-   * Holds the rows until commit, so a concurrent settings or vacation
-   * write waits for whoever built rows from the values read here.
-   */
   readonly findByIdsForShare: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>

@@ -38,7 +38,7 @@ export const completeDelegation = Effect.fn(
       expectedStatus: 'active',
       message: 'Only active delegations can be completed early',
       timestamps: { completedAt: nowAsDate() },
-    }).pipe(Effect.andThen(rebuildDelegationReminders(delegationId)))
+    }).pipe(Effect.andThen(rebuildDelegationReminders))
   )
 
   const updated = yield* delegationRepo.findById(delegationId)

@@ -93,10 +93,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.provide(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId }),
-              createMockRateLimiterService()
+              createMockRateLimiterService(),
+              layer
             )
           ),
-          Effect.provide(layer),
           Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )

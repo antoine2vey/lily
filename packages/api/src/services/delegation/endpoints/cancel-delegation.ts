@@ -62,7 +62,7 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
         message: 'This delegation cannot be canceled in its current state',
         timestamps: { canceledAt: nowAsDate() },
       }).pipe(
-        Effect.andThen(rebuildDelegationReminders(delegationId)),
+        Effect.andThen(rebuildDelegationReminders),
         Effect.andThen(
           recordNotification(
             'delegation_canceled',

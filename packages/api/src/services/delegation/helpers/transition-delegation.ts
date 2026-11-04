@@ -58,15 +58,10 @@ export const transitionDelegation = (params: {
     )
   })
 
-/**
- * An active delegation hands its plants' reminders to the caretaker, so any
- * transition into or out of `active` rebuilds them. Call it inside the
- * transition's transaction, after the status change.
- */
-export const rebuildDelegationReminders = (delegationId: string) =>
+export const rebuildDelegationReminders = (transitioned: DelegationRow) =>
   Effect.gen(function* () {
     const delegationRepo = yield* DelegationRepository
-    const plants = yield* delegationRepo.getPlantsByDelegation(delegationId)
+    const plants = yield* delegationRepo.getPlantsByDelegation(transitioned.id)
     yield* rescheduleReminders(Array.map(plants, (plant) => plant.id))
     return plants
   })

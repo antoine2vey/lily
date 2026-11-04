@@ -59,7 +59,7 @@ const processDelegationBatch = (
               )
               return []
             }
-            const plants = yield* rebuildDelegationReminders(d.id)
+            const plants = yield* rebuildDelegationReminders(transitioned)
             const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
             const caretakerLang = yield* getUserLanguage(
               userRepo,
