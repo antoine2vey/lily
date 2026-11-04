@@ -853,6 +853,84 @@ describe('Notification Worker', () => {
       ])
     })
 
+    it('dead-letters and alerts only the rows that failed when the rest of the message retries', async () => {
+      const spent = createTestNotification({
+        id: 'notification-1',
+        userId: 'user-1',
+        plantId: 'plant-1',
+        status: 'queued',
+        retryCount: 2,
+      })
+      const fresh = createTestNotification({
+        id: 'notification-2',
+        userId: 'user-1',
+        plantId: 'plant-2',
+        status: 'queued',
+        retryCount: 0,
+      })
+      const rig = deliveryRig([spent, fresh])
+
+      await rig.attempt(
+        createTestQueueMessage({
+          payload: {
+            userId: 'user-1',
+            title: 'Test notification',
+            body: 'Test body',
+            notificationIds: ['notification-1', 'notification-2'],
+            plantIds: ['plant-1', 'plant-2'],
+          },
+        })
+      )
+
+      expect(spent).toMatchObject({ status: 'failed', retryCount: 3 })
+      expect(fresh).toMatchObject({ status: 'pending', retryCount: 1 })
+      expect(rig.deadLetters).toEqual([
+        expect.objectContaining({ retryCount: 3 }),
+      ])
+      expect(rig.alerts).toEqual([
+        expect.objectContaining({
+          context: expect.objectContaining({
+            notificationIds: ['notification-1'],
+          }),
+        }),
+      ])
+    })
+
+    it('records the highest retry count among the failed rows on the dead letter', async () => {
+      const rows = [
+        createTestNotification({
+          id: 'notification-1',
+          userId: 'user-1',
+          status: 'queued',
+          retryCount: 2,
+        }),
+        createTestNotification({
+          id: 'notification-2',
+          userId: 'user-1',
+          status: 'queued',
+          retryCount: 4,
+        }),
+      ]
+      const rig = deliveryRig(rows)
+
+      await rig.attempt(
+        createTestQueueMessage({
+          payload: {
+            userId: 'user-1',
+            title: 'Test notification',
+            body: 'Test body',
+            notificationIds: ['notification-1', 'notification-2'],
+            plantIds: ['plant-1'],
+          },
+        })
+      )
+
+      expect(rows.map((row) => row.retryCount)).toEqual([3, 5])
+      expect(rig.deadLetters).toEqual([
+        expect.objectContaining({ retryCount: 5 }),
+      ])
+    })
+
     it('puts the rows back one minute out when a read fails before the send', async () => {
       const row = createTestNotification({
         id: 'notification-1',

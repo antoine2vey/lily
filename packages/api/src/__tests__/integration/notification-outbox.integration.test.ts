@@ -43,7 +43,7 @@ import {
 } from '@lily/shared/server'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Data, Effect, Exit, Layer, References } from 'effect'
+import { Data, Effect, Exit, Layer, Logger, References } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import pg from 'pg'
 import {
@@ -142,6 +142,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         JSON.stringify(message),
       ])
       const alerter = createMockAlerter()
+      const warnings: unknown[] = []
+      const captureWarnings = Logger.make(({ logLevel, message: logged }) => {
+        if (logLevel === 'Warn') warnings.push(logged)
+      })
       const exit = await Effect.runPromiseExit(
         consumeFromTopic('new_follower').pipe(
           Effect.provide(
@@ -152,13 +156,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               alerter.layer,
               createFailingPushService('push down'),
               createMockActivityPushTokenRepository(),
-              createMockCareLogRepository([])
+              createMockCareLogRepository([]),
+              Logger.layer([captureWarnings])
             )
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
+          )
         )
       )
-      return { exit, acked, alerts: alerter.events }
+      return {
+        exit,
+        acked,
+        alerts: alerter.events,
+        warnings: JSON.stringify(warnings),
+      }
     }
 
     const attemptRows = () =>
@@ -351,6 +360,80 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await deadLettersFor(message)).toEqual([
         { originalMessageId: message.id },
       ])
+    })
+
+    it('reports neither the retry nor the dead letter when the commit that records them is refused', async () => {
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const sqlClient = yield* SqlClient.SqlClient
+          yield* sqlClient.withTransaction(recordFollowFor(userId))
+          yield* sqlClient.withTransaction(recordFollowFor(userId))
+        }).pipe(Effect.provide(DatabaseLive))
+      )
+      await db.execute(
+        sql`UPDATE notifications SET status = 'pending', queued_at = NULL, retry_count = 0 WHERE user_id = ${userId}`
+      )
+      await db.execute(
+        sql`UPDATE notifications SET retry_count = 2 WHERE id = (SELECT id FROM notifications WHERE user_id = ${userId} ORDER BY id LIMIT 1)`
+      )
+      const [spent, fresh] = await enqueuePending()
+      if (!spent || !fresh) throw new Error('expected two messages')
+      const message: QueueMessage = {
+        ...spent,
+        payload: {
+          ...spent.payload,
+          notificationIds: [
+            ...spent.payload.notificationIds,
+            ...fresh.payload.notificationIds,
+          ],
+        },
+      }
+      const refuseAtCommit = sql.raw(`
+        CREATE FUNCTION refuse_at_commit() RETURNS trigger AS $$
+        BEGIN
+          RAISE EXCEPTION 'commit refused';
+        END $$ LANGUAGE plpgsql;
+        CREATE CONSTRAINT TRIGGER refuse_at_commit AFTER INSERT ON dead_letter_messages
+          DEFERRABLE INITIALLY DEFERRED
+          FOR EACH ROW EXECUTE FUNCTION refuse_at_commit();
+      `)
+      const allowCommit = sql.raw(`
+        DROP TRIGGER IF EXISTS refuse_at_commit ON dead_letter_messages;
+        DROP FUNCTION IF EXISTS refuse_at_commit();
+      `)
+      await db.execute(refuseAtCommit)
+      onTestFinished(async () => {
+        await db.execute(allowCommit)
+      })
+
+      const refused = await consumeWhilePushIsDown(message)
+
+      expect(Exit.isFailure(refused.exit)).toBe(true)
+      expect(refused.acked).toEqual([])
+      expect(refused.alerts).toEqual([])
+      expect(refused.warnings).not.toContain('Retrying notification')
+      expect(
+        (await attemptRows()).map((row) => [row.status, row.retryCount]).sort()
+      ).toEqual([
+        ['queued', 0],
+        ['queued', 2],
+      ])
+      expect(await deadLettersFor(message)).toEqual([])
+
+      await db.execute(allowCommit)
+      const redelivered = await consumeWhilePushIsDown(message)
+
+      expect(Exit.isSuccess(redelivered.exit)).toBe(true)
+      expect(redelivered.acked).toHaveLength(1)
+      expect(redelivered.alerts).toHaveLength(1)
+      expect(redelivered.warnings).toContain('Retrying notification')
+      expect(
+        (await attemptRows()).map((row) => [row.status, row.retryCount]).sort()
+      ).toEqual([
+        ['failed', 3],
+        ['pending', 1],
+      ])
+      expect(await deadLettersFor(message)).toHaveLength(1)
     })
 
     const followLayer = (enqueued: QueueMessage[]) =>
