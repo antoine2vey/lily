@@ -6,7 +6,10 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
-import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
+import {
+  createScheduler,
+  drainOnInterrupt,
+} from '@lily/api/services/helpers/create-scheduler'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
 import { mapNotificationTypeToTopic } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
@@ -24,6 +27,7 @@ import {
 } from '@lily/shared/server'
 import {
   Array,
+  Cause,
   DateTime,
   Duration,
   Effect,
@@ -33,6 +37,9 @@ import {
   Record,
   Result,
   Schedule,
+  Schema,
+  Scope,
+  String as Str,
   Struct,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -497,6 +504,86 @@ export const handleFailedMessage = Effect.fn('notification-worker.deadLetter')(
   }
 )
 
+const readId = Schema.decodeUnknownOption(Schema.Struct({ id: Schema.String }))
+const readForeignId = Schema.decodeUnknownOption(
+  Schema.Struct({ messageId: Schema.String })
+)
+const readRetryCount = Schema.decodeUnknownOption(
+  Schema.Struct({ retryCount: Schema.Finite })
+)
+const readNotificationIds = Schema.decodeUnknownOption(
+  Schema.Struct({
+    payload: Schema.Struct({ notificationIds: Schema.Array(Schema.String) }),
+  })
+)
+
+const readMessageId = (message: QueueMessage) =>
+  pipe(
+    readId(message),
+    Option.map((m) => m.id),
+    Option.orElse(() => Option.map(readForeignId(message), (m) => m.messageId))
+  )
+
+const readableIds = (message: QueueMessage) => ({
+  ...Option.match(readMessageId(message), {
+    onNone: () => ({}),
+    onSome: (messageId) => ({ messageId }),
+  }),
+  ...Option.getOrElse(readRetryCount(message), () => ({})),
+})
+
+const discardPoisonMessage = (
+  topic: NotificationTopic,
+  message: QueueMessage,
+  defect: unknown
+) =>
+  Effect.gen(function* () {
+    const alerter = yield* Alerter
+    const deadLetterRepo = yield* DeadLetterRepository
+    const notificationRepo = yield* NotificationRepository
+
+    const messageId = readMessageId(message)
+    const notificationIds = pipe(
+      readNotificationIds(message),
+      Option.map((m) => m.payload.notificationIds),
+      Option.getOrElse((): ReadonlyArray<string> => [])
+    )
+    const error = Cause.pretty(Cause.die(defect))
+    const headline = pipe(error, Str.split('\n'), Array.headNonEmpty)
+
+    yield* Effect.logError('[notification-worker] defect, discarding message', {
+      topic,
+      ...readableIds(message),
+      error,
+    })
+
+    const claimedIds = yield* Option.match(messageId, {
+      onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
+      onSome: (id) => notificationRepo.claimForDelivery(notificationIds, id),
+    })
+    yield* deadLetterRepo.create({
+      originalMessageId: Option.getOrElse(messageId, () => 'unknown'),
+      topic,
+      payload: message,
+      error,
+      retryCount: pipe(
+        readRetryCount(message),
+        Option.map((m) => m.retryCount),
+        Option.getOrElse(() => 0)
+      ),
+    })
+    yield* notificationRepo.markManyAsFailed(claimedIds, headline)
+    yield* alerter.alert({
+      _tag: 'UnhandledDefect',
+      source: 'notification-worker',
+      message: `${topic}: ${headline}`,
+      stack: Option.match(messageId, {
+        onNone: () => error,
+        onSome: (id) => `message ${id}\n${error}`,
+      }),
+    })
+  })
+
 // Consume and process messages from a single topic.
 // Returns true when a message was processed (caller should re-poll immediately).
 //
@@ -517,9 +604,8 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
 
     const processDequeued = Effect.gen(function* () {
       yield* Effect.log('Processing notification', {
-        messageId: message.id,
         topic,
-        retryCount: message.retryCount,
+        ...readableIds(message),
       })
 
       yield* Effect.result(
@@ -549,6 +635,9 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
               }),
             onSuccess: () => Effect.void,
           })
+        ),
+        Effect.catchDefect((defect) =>
+          discardPoisonMessage(topic, message, defect)
         )
       )
 
@@ -594,18 +683,35 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
   }
 }).pipe(Effect.withSpan('notification-recovery.sweep'))
 
+const alertDefect = (topic: NotificationTopic, defect: unknown) =>
+  Effect.gen(function* () {
+    const alerter = yield* Alerter
+    const message = Cause.pretty(Cause.die(defect))
+    yield* Effect.logError('[notification-worker] defect', { topic, message })
+    yield* alerter.alert({
+      _tag: 'UnhandledDefect',
+      source: 'notification-worker',
+      message,
+    })
+  })
+
 // Start workers for all topics
 export const startNotificationWorker = Effect.gen(function* () {
+  // Fibers forked into one scope are interrupted one after another on close,
+  // so each would get its own drain deadline. A parallel scope gives every
+  // loop and the recovery sweep the same one.
+  const workers = yield* Scope.fork(yield* Scope.Scope, 'parallel')
+
   yield* createScheduler({
     name: 'notification-recovery',
     interval: '5 minutes',
     runOnStartup: false,
     task: recoverStrandedDeliveries,
-  })
+  }).pipe(Scope.provide(workers))
 
   // Start a worker for each topic
   yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
-    Effect.forkScoped(
+    Effect.forkIn(
       Effect.forever(
         consumeFromTopic(topic).pipe(
           Effect.catchTags({
@@ -625,12 +731,17 @@ export const startNotificationWorker = Effect.gen(function* () {
                 error: String(e),
               }).pipe(Effect.as(false)),
           }),
+          Effect.catchDefect((defect) =>
+            alertDefect(topic, defect).pipe(Effect.as(false))
+          ),
+          drainOnInterrupt('notification-worker'),
           // Only sleep when the queue was empty — drain fast under load
           Effect.flatMap((hadMessage) =>
             hadMessage ? Effect.void : Effect.sleep('5 seconds')
           )
         )
-      )
+      ),
+      workers
     )
   )
 
