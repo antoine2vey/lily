@@ -551,6 +551,10 @@ const deadLetterFor = (
   }
 }
 
+const readSqlState = Schema.decodeUnknownOption(
+  Schema.Struct({ code: Schema.String })
+)
+
 const retryLater = Effect.fn('notification-worker.retryLater')(function* (
   message: QueueMessage,
   cause: SqlError | PushSendError | PushConfigError
@@ -561,7 +565,7 @@ const retryLater = Effect.fn('notification-worker.retryLater')(function* (
   const sql = yield* SqlClient.SqlClient
   const now = yield* DateTime.now
   const error = String(cause)
-  const attempts = yield* sql.withTransaction(
+  const recorded = sql.withTransaction(
     Effect.gen(function* () {
       const written = yield* notificationRepo.retryLater(
         message.payload.notificationIds,
@@ -577,6 +581,21 @@ const retryLater = Effect.fn('notification-worker.retryLater')(function* (
       }
       return written
     })
+  )
+  const attempts = yield* Effect.tapErrorTag(recorded, 'SqlError', (sqlError) =>
+    alerter.alertWarning(
+      'notification-worker',
+      'Failed push could not be recorded',
+      {
+        messageId: message.id,
+        topic: message.topic,
+        notificationIds: message.payload.notificationIds,
+        reason: sqlError.reason._tag,
+        sqlState: Option.getOrNull(
+          Option.map(readSqlState(sqlError.reason.cause), ({ code }) => code)
+        ),
+      }
+    )
   )
   const retried = Array.filter(attempts, (row) => row.status === 'pending')
   if (Array.isReadonlyArrayNonEmpty(retried)) {

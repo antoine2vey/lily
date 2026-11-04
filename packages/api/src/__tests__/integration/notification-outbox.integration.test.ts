@@ -23,6 +23,11 @@ import {
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { Alerter } from '@lily/api/services/alerting'
+import {
+  type AlertEvent,
+  makeAlerter,
+} from '@lily/api/services/alerting/service'
 import { createDelegation } from '@lily/api/services/delegation/endpoints/create-delegation'
 import {
   dispatchNow,
@@ -43,7 +48,7 @@ import {
 } from '@lily/shared/server'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Data, Effect, Exit, Layer, Logger, References } from 'effect'
+import { Data, Duration, Effect, Exit, Layer, Logger, References } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import pg from 'pg'
 import {
@@ -137,11 +142,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return enqueued
     }
 
-    const consumeWhilePushIsDown = async (message: QueueMessage) => {
+    const consumeWhilePushIsDown = async (
+      message: QueueMessage,
+      alerter: {
+        readonly layer: Layer.Layer<Alerter>
+        readonly events: ReadonlyArray<unknown>
+      } = createMockAlerter()
+    ) => {
       const { queue, acked } = createInMemoryRedisQueue([
         JSON.stringify(message),
       ])
-      const alerter = createMockAlerter()
       const warnings: unknown[] = []
       const captureWarnings = Logger.make(({ logLevel, message: logged }) => {
         if (logLevel === 'Warn') warnings.push(logged)
@@ -309,7 +319,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
-    it('rolls the third failure back when its dead letter cannot be written, so the redelivery fails it again', async () => {
+    it('rolls the third failure back and alerts once while its dead letter cannot be written, so a later redelivery fails it', async () => {
       await Effect.runPromise(
         Effect.gen(function* () {
           const sqlClient = yield* SqlClient.SqlClient
@@ -338,22 +348,56 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await db.execute(allowDeadLetters)
       })
 
-      const refused = await consumeWhilePushIsDown(message)
+      const sent: AlertEvent[] = []
+      const alerter = {
+        layer: Layer.succeed(
+          Alerter,
+          Effect.runSync(
+            makeAlerter((event) => Effect.sync(() => sent.push(event)), {
+              environment: 'test',
+              dedupeWindow: Duration.minutes(5),
+              warningDedupeWindow: Duration.minutes(15),
+            })
+          )
+        ),
+        events: sent,
+      }
+
+      const refused = await consumeWhilePushIsDown(message, alerter)
+      const refusedAgain = await consumeWhilePushIsDown(message, alerter)
 
       expect(Exit.isFailure(refused.exit)).toBe(true)
-      expect(refused.acked).toEqual([])
-      expect(refused.alerts).toEqual([])
+      expect(Exit.isFailure(refusedAgain.exit)).toBe(true)
+      expect([...refused.acked, ...refusedAgain.acked]).toEqual([])
       expect(await attemptRows()).toEqual([
         { status: 'queued', retryCount: 2, deliveryMessageId: message.id },
       ])
       expect(await deadLettersFor(message)).toEqual([])
+      expect(sent).toEqual([
+        {
+          _tag: 'OperationalWarning',
+          source: 'notification-worker',
+          summary: 'Failed push could not be recorded',
+          context: {
+            messageId: message.id,
+            topic: 'new_follower',
+            notificationIds: message.payload.notificationIds,
+            reason: 'UnknownError',
+            sqlState: 'P0001',
+          },
+        },
+      ])
 
       await db.execute(allowDeadLetters)
       const redelivered = await consumeWhilePushIsDown(message)
 
       expect(Exit.isSuccess(redelivered.exit)).toBe(true)
       expect(redelivered.acked).toHaveLength(1)
-      expect(redelivered.alerts).toHaveLength(1)
+      expect(redelivered.alerts).toEqual([
+        expect.objectContaining({
+          summary: 'Message moved to dead letter queue',
+        }),
+      ])
       expect(await attemptRows()).toEqual([
         { status: 'failed', retryCount: 3, deliveryMessageId: message.id },
       ])
@@ -410,7 +454,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(Exit.isFailure(refused.exit)).toBe(true)
       expect(refused.acked).toEqual([])
-      expect(refused.alerts).toEqual([])
+      expect(refused.alerts).toEqual([
+        expect.objectContaining({
+          summary: 'Failed push could not be recorded',
+        }),
+      ])
       expect(refused.warnings).not.toContain('Retrying notification')
       expect(
         (await attemptRows()).map((row) => [row.status, row.retryCount]).sort()
@@ -425,7 +473,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(Exit.isSuccess(redelivered.exit)).toBe(true)
       expect(redelivered.acked).toHaveLength(1)
-      expect(redelivered.alerts).toHaveLength(1)
+      expect(redelivered.alerts).toEqual([
+        expect.objectContaining({
+          summary: 'Message moved to dead letter queue',
+        }),
+      ])
       expect(redelivered.warnings).toContain('Retrying notification')
       expect(
         (await attemptRows()).map((row) => [row.status, row.retryCount]).sort()
