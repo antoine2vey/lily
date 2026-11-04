@@ -146,8 +146,8 @@ export interface INotificationRepository {
     retryAtAfterFailures: Array.NonEmptyReadonlyArray<Date>,
     error: string
   ) => Effect.Effect<ReadonlyArray<FailedAttempt>, SqlError>
-  readonly deletePendingByPlantAndType: (
-    plantId: string,
+  readonly deletePendingByPlantsAndType: (
+    plantIds: ReadonlyArray<string>,
     type: NotificationTopic
   ) => Effect.Effect<void, SqlError>
   readonly deletePendingByUserIdAndTypes: (
@@ -276,7 +276,10 @@ export const NotificationRepositoryLive = Layer.effect(
                 .where(
                   and(
                     inArray(notifications.plantId, [...plantIds]),
-                    inArray(notifications.status, ['pending', 'queued'])
+                    or(
+                      eq(notifications.status, 'pending'),
+                      eq(notifications.status, 'queued')
+                    )
                   )
                 )
             ),
@@ -586,9 +589,10 @@ export const NotificationRepositoryLive = Layer.effect(
         )
       }),
 
-      deletePendingByPlantAndType: Effect.fn(
-        'NotificationRepository.deletePendingByPlantAndType'
-      )(function* (plantId: string, type: NotificationTopic) {
+      deletePendingByPlantsAndType: Effect.fn(
+        'NotificationRepository.deletePendingByPlantsAndType'
+      )(function* (plantIds: ReadonlyArray<string>, type: NotificationTopic) {
+        if (Array.isReadonlyArrayEmpty(plantIds)) return
         yield* db
           .delete(notifications)
           .where(
@@ -596,7 +600,7 @@ export const NotificationRepositoryLive = Layer.effect(
               notifications.id,
               lockedInIdOrder(
                 and(
-                  eq(notifications.plantId, plantId),
+                  inArray(notifications.plantId, [...plantIds]),
                   eq(notifications.type, type),
                   eq(notifications.status, 'pending')
                 )

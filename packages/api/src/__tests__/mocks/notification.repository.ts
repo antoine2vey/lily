@@ -261,13 +261,16 @@ export const createMockNotificationRepository = (
         })
       ),
 
-    deletePendingByPlantAndType: (plantId: string, type: string) =>
+    deletePendingByPlantsAndType: (
+      plantIds: ReadonlyArray<string>,
+      type: string
+    ) =>
       Effect.sync(() => {
         const toKeep = Array.filter(
           notificationsState,
           (n) =>
             !(
-              n.plantId === plantId &&
+              Array.contains(plantIds, n.plantId) &&
               n.type === type &&
               n.status === 'pending'
             )

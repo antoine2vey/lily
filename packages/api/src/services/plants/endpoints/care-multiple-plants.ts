@@ -60,6 +60,7 @@ export const careMultiplePlants = (
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
+    const notificationRepo = yield* NotificationRepository
 
     if (request.plantIds.length === 0) {
       return []
@@ -87,7 +88,6 @@ export const careMultiplePlants = (
 
     const careFor = (plant: PlantRow) =>
       Effect.gen(function* () {
-        const notificationRepo = yield* NotificationRepository
         const timezone = pipe(
           Record.get(contexts, ownerKey(plant.owner)),
           Option.map((context) => context.timezone),
@@ -123,23 +123,24 @@ export const careMultiplePlants = (
         if (nextCareAt) {
           yield* reconcileCareReminder(plant.id, reminderType)
         }
-        yield* notificationRepo.deletePendingByPlantAndType(
-          plant.id,
-          'overdue_reminder'
-        )
         return [
           plant.id,
           pipe(Option.fromNullishOr(updatedPlant), Option.getOrUndefined),
         ] as const
       })
 
+    const accessibleIds = Array.map(accessible, (plant) => plant.id)
     const cared = Record.fromEntries(
-      yield* withReminderKeys(
-        reminderKeysFor(
-          Array.map(accessible, (plant) => plant.id),
-          [reminderType]
+      yield* withReminderKeys(reminderKeysFor(accessibleIds, [reminderType]))(
+        Effect.forEach(accessible, careFor).pipe(
+          Effect.tap(() =>
+            notificationRepo.deletePendingByPlantsAndType(
+              accessibleIds,
+              'overdue_reminder'
+            )
+          )
         )
-      )(Effect.forEach(accessible, careFor))
+      )
     )
 
     return Array.map(request.plantIds, (plantId) =>
