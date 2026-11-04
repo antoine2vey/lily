@@ -1,29 +1,24 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { users } from '@lily/db/schema'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
+import type { NotificationRow } from '@lily/api/repositories/notification.repository'
 import {
   adjustForDoNotDisturb,
   decodeDndBounds,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
+import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
+import type { users } from '@lily/db/schema'
 import { isOnVacation, type PlantOwner } from '@lily/shared'
-import type { Notification } from '@lily/shared/notification'
 import { TOPIC_CATEGORY } from '@lily/shared/server'
-import {
-  Array,
-  Data,
-  DateTime,
-  Effect,
-  Filter,
-  Option,
-  pipe,
-} from 'effect'
+import { Array, Data, DateTime, Effect, Filter, Option, pipe } from 'effect'
 
 const MIN_DEFERRAL = '5 minutes'
 
-export type GateRow = Pick<Notification, 'id' | 'type' | 'userId' | 'plantId'>
+export type GateRow = Pick<
+  NotificationRow,
+  'id' | 'type' | 'userId' | 'plantId'
+>
 
-export type GateRecipient = Pick<
+export type RecipientSettings = Pick<
   typeof users.$inferSelect,
   | 'id'
   | 'careReminders'
@@ -36,6 +31,18 @@ export type GateRecipient = Pick<
   | 'vacationStart'
   | 'vacationEnd'
 >
+
+export type GateRecipient = Pick<
+  RecipientSettings,
+  | 'id'
+  | 'careReminders'
+  | 'tips'
+  | 'vacationStatus'
+  | 'vacationStart'
+  | 'vacationEnd'
+> & {
+  readonly dndEnd: Option.Option<Date>
+}
 
 export interface PlantFacts {
   readonly diedAt: Date | null
@@ -115,30 +122,22 @@ const preferenceRule = (
   return Option.none()
 }
 
-const deferRule = (row: GateRow, user: GateRecipient, now: Date) =>
-  Effect.gen(function* () {
-    if (TOPIC_CATEGORY[row.type] !== 'social' && isOnVacation(user, now)) {
-      return Option.some({
-        reason: 'vacation' as const,
-        until: pipe(
-          Option.fromNullishOr(user.vacationEnd),
-          Option.getOrElse(() => now)
-        ),
-      })
-    }
-    if (!user.doNotDisturb) return Option.none()
-    const bounds = yield* decodeDndBounds(
-      user.doNotDisturbStart,
-      user.doNotDisturbEnd
-    ).pipe(Effect.annotateLogs({ userId: user.id }))
-    if (!(yield* isInDoNotDisturbWindow(now, user.timezone, bounds))) {
-      return Option.none()
-    }
+const deferRule = (
+  row: GateRow,
+  user: GateRecipient,
+  now: Date
+): Option.Option<{ readonly reason: DeferReason; readonly until: Date }> => {
+  if (TOPIC_CATEGORY[row.type] !== 'social' && isOnVacation(user, now)) {
     return Option.some({
-      reason: 'dnd' as const,
-      until: yield* adjustForDoNotDisturb(now, user.timezone, bounds),
+      reason: 'vacation',
+      until: pipe(
+        Option.fromNullishOr(user.vacationEnd),
+        Option.getOrElse(() => now)
+      ),
     })
-  })
+  }
+  return Option.map(user.dndEnd, (until) => ({ reason: 'dnd', until }))
+}
 
 const atLeastMinDeferral = (until: Date, now: Date) =>
   DateTime.toDateUtc(
@@ -148,29 +147,63 @@ const atLeastMinDeferral = (until: Date, now: Date) =>
     )
   )
 
-// A drop outranks a defer: a row the user would never get is deleted now
-// rather than held until DND or vacation ends.
 export const decide = (
   row: GateRow,
   recipient: Option.Option<GateRecipient>,
   plants: ReadonlyMap<string, PlantFacts>,
   now: Date
-): Effect.Effect<Decision> =>
-  Effect.gen(function* () {
-    const dropped = Option.orElse(plantRule(row, plants, now), () =>
-      Option.flatMap(recipient, (user) => preferenceRule(row, user))
-    )
-    if (Option.isSome(dropped)) return Decision.Drop({ reason: dropped.value })
-    if (Option.isNone(recipient)) return Decision.Send()
-    const deferred = yield* deferRule(row, recipient.value, now)
-    return Option.match(deferred, {
+): Decision => {
+  const dropped = Option.orElse(plantRule(row, plants, now), () =>
+    Option.flatMap(recipient, (user) => preferenceRule(row, user))
+  )
+  if (Option.isSome(dropped)) return Decision.Drop({ reason: dropped.value })
+  return pipe(
+    Option.flatMap(recipient, (user) => deferRule(row, user, now)),
+    Option.match({
       onNone: () => Decision.Send(),
       onSome: ({ reason, until }) =>
         Decision.Defer({ reason, until: atLeastMinDeferral(until, now) }),
     })
+  )
+}
+
+// One DND decision per user, not per row: a user with a bad stored bound
+// warns once per batch however many of their rows it holds.
+const dndEnd = (
+  user: RecipientSettings,
+  now: Date
+): Effect.Effect<Option.Option<Date>> =>
+  Effect.gen(function* () {
+    if (!user.doNotDisturb) return Option.none()
+    const bounds = yield* decodeDndBounds(
+      user.doNotDisturbStart,
+      user.doNotDisturbEnd
+    ).pipe(Effect.annotateLogs({ userId: user.id }))
+    if (!(yield* isInDoNotDisturbWindow(now, user.timezone, bounds))) {
+      return Option.none()
+    }
+    return Option.some(yield* adjustForDoNotDisturb(now, user.timezone, bounds))
   })
 
+export const loadRecipients = (
+  users: ReadonlyArray<RecipientSettings>,
+  now: Date
+): Effect.Effect<ReadonlyMap<string, GateRecipient>> =>
+  Effect.map(
+    Effect.forEach(users, (user) =>
+      Effect.map(dndEnd(user, now), (end): readonly [string, GateRecipient] => [
+        user.id,
+        { ...user, dndEnd: end },
+      ])
+    ),
+    (entries) => new Map(entries)
+  )
+
 const PLANT_FACT_CONCURRENCY = 10
+
+const ownerKeepsQueuedRowsWhileDelegated = (
+  owner: PlantOwner
+): ReadonlyArray<string> => (owner._tag === 'User' ? [owner.userId] : [])
 
 export const loadPlantFacts = (
   plants: ReadonlyArray<{
@@ -191,7 +224,12 @@ export const loadPlantFacts = (
       (plant) =>
         Effect.map(
           plant.diedAt === null
-            ? reminderRecipients(plant)
+            ? Effect.map(reminderRecipients(plant), (recipients) =>
+                Array.union(
+                  recipients,
+                  ownerKeepsQueuedRowsWhileDelegated(plant.owner)
+                )
+              )
             : Effect.succeed<ReadonlyArray<string>>([]),
           (recipients) =>
             [

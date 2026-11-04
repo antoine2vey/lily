@@ -4,6 +4,18 @@ import {
   ActivityPushTokenRepositoryLive,
 } from '@lily/api/repositories/activity-push-token.repository'
 import {
+  type CanopyRepository,
+  CanopyRepositoryLive,
+} from '@lily/api/repositories/canopy.repository'
+import {
+  type CareScheduleRepository,
+  CareScheduleRepositoryLive,
+} from '@lily/api/repositories/care-schedule.repository'
+import {
+  type DelegationRepository,
+  DelegationRepositoryLive,
+} from '@lily/api/repositories/delegation.repository'
+import {
   type INotificationRepository,
   NotificationRepository,
   NotificationRepositoryLive,
@@ -81,7 +93,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       | NotificationRepository
       | ActivityPushTokenRepository
       | UserRepository
-      | PlantRepository,
+      | PlantRepository
+      | CanopyRepository
+      | CareScheduleRepository
+      | DelegationRepository,
       Config.ConfigError | SqlError
     >
 
@@ -148,7 +163,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         NotificationRepositoryLive,
         ActivityPushTokenRepositoryLive,
         UserRepositoryLive,
-        PlantRepositoryLive
+        PlantRepositoryLive,
+        CanopyRepositoryLive,
+        CareScheduleRepositoryLive,
+        DelegationRepositoryLive
       ).pipe(
         Layer.provide(DrizzleLive),
         Layer.provide(
@@ -644,7 +662,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             Arr.map([sentId, claimedId, pendingId, queuedId], (id) => ({
               id,
               until,
-            }))
+            })),
+            Option.none()
           )
         )
 
@@ -659,6 +678,60 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ])
         expect(await rowsOf([queuedId])).toEqual([
           { status: 'pending', scheduledAt: until },
+        ])
+      })
+      it('moves rows held by the given message and releases their claim', async () => {
+        const original = minutesAgo(5)
+        const until = new Date(Date.now() + 60 * 60_000)
+        const insertQueued = async (deliveryMessageId: string | null) => {
+          const [row] = await db
+            .insert(schema.notifications)
+            .values({
+              type: 'resubscribe_nudge',
+              title: 'Come back',
+              body: 'Your plants miss you',
+              userId,
+              scheduledAt: original,
+              status: 'queued',
+              queuedAt: minutesAgo(1),
+              deliveryMessageId,
+            })
+            .returning({ id: schema.notifications.id })
+          if (!row) throw new Error('Failed to insert a queued row')
+          return row.id
+        }
+        const heldId = await insertQueued('msg-mine')
+        const otherId = await insertQueued('msg-other')
+        const unclaimedId = await insertQueued(null)
+
+        await withRepo((repo) =>
+          repo.deferUntil(
+            Arr.map([heldId, otherId, unclaimedId], (id) => ({ id, until })),
+            Option.some('msg-mine')
+          )
+        )
+
+        const claimsOf = (ids: ReadonlyArray<string>) =>
+          db
+            .select({
+              status: schema.notifications.status,
+              scheduledAt: schema.notifications.scheduledAt,
+              deliveryMessageId: schema.notifications.deliveryMessageId,
+            })
+            .from(schema.notifications)
+            .where(inArray(schema.notifications.id, [...ids]))
+        expect(await claimsOf([heldId])).toEqual([
+          { status: 'pending', scheduledAt: until, deliveryMessageId: null },
+        ])
+        expect(await claimsOf([otherId])).toEqual([
+          {
+            status: 'queued',
+            scheduledAt: original,
+            deliveryMessageId: 'msg-other',
+          },
+        ])
+        expect(await claimsOf([unclaimedId])).toEqual([
+          { status: 'queued', scheduledAt: original, deliveryMessageId: null },
         ])
       })
     })

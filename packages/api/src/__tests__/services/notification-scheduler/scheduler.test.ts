@@ -1,13 +1,18 @@
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import {
   createTestPlant,
   type PlantRecord,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
   dispatchNow,
   recordNotification,
@@ -32,6 +37,18 @@ import {
 } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
+const gateMocks = (schedules: CareScheduleRow[] = []) =>
+  Layer.mergeAll(
+    createMockCareScheduleRepository({ schedules }),
+    createMockDelegationRepository(),
+    createMockCanopyRepository([])
+  )
+
+const GateMocksLive = gateMocks()
+
+const overdueSchedule = (plantId: string) =>
+  createTestSchedule({ plantId, nextCareAt: new Date(Date.now() - 86_400_000) })
+
 // Default user with all notifications enabled and DND off
 const defaultUser = createTestUser({
   id: 'user-1',
@@ -44,7 +61,8 @@ const runPollAndEnqueue = (
   notifications: ReturnType<typeof createTestNotification>[],
   users: User[],
   onEnqueue?: (topic: NotificationTopic, message: QueueMessage) => void,
-  plantsData: PlantRecord[] = []
+  plantsData: PlantRecord[] = [],
+  schedules: CareScheduleRow[] = []
 ) =>
   Effect.runPromise(
     pollAndEnqueue.pipe(
@@ -52,6 +70,7 @@ const runPollAndEnqueue = (
         Layer.mergeAll(
           createMockNotificationRepository(notifications),
           createMockMessageQueue(onEnqueue ? { onEnqueue } : {}),
+          gateMocks(schedules),
           createMockUserRepository(users),
           createMockPlantRepository({ plants: plantsData })
         )
@@ -451,6 +470,7 @@ describe('Notification Scheduler', () => {
                 follow('follow-bad', JSON.parse('{"senderId":5}')),
               ]),
               createMockMessageQueue({}),
+              GateMocksLive,
               createMockUserRepository([defaultUser]),
               createMockPlantRepository({ plants: [] }),
               Logger.layer([capture])
@@ -805,7 +825,8 @@ describe('Notification Scheduler', () => {
         notifications,
         [defaultUser],
         (topic, message) => enqueuedMessages.push({ topic, message }),
-        [plant1, plant2]
+        [plant1, plant2],
+        [overdueSchedule('plant-1')]
       )
 
       expect(enqueuedMessages).toHaveLength(1)
@@ -1329,7 +1350,8 @@ describe('Notification Scheduler', () => {
         notifications,
         [defaultUser],
         (topic, message) => enqueuedMessages.push({ topic, message }),
-        [plant1, plant2]
+        [plant1, plant2],
+        [overdueSchedule('plant-1'), overdueSchedule('plant-2')]
       )
 
       expect(enqueuedMessages).toHaveLength(1)
@@ -1366,7 +1388,8 @@ describe('Notification Scheduler', () => {
         notifications,
         [defaultUser],
         (topic, message) => enqueuedMessages.push({ topic, message }),
-        [plant1]
+        [plant1],
+        [overdueSchedule('plant-1')]
       )
 
       expect(enqueuedMessages).toHaveLength(1)
@@ -1692,6 +1715,7 @@ describe('Notification Scheduler', () => {
               Layer.mergeAll(
                 createMockNotificationRepository([notification]),
                 createMockMessageQueue({}),
+                GateMocksLive,
                 createMockUserRepository([user]),
                 createMockPlantRepository({ plants: [] }),
                 Logger.layer([capture])
@@ -1756,6 +1780,7 @@ describe('Notification Scheduler', () => {
               Layer.mergeAll(
                 createMockNotificationRepository(notifications),
                 createMockMessageQueue({}),
+                GateMocksLive,
                 createMockUserRepository([user]),
                 createMockPlantRepository({ plants: [] }),
                 Logger.layer([capture])
@@ -2181,6 +2206,7 @@ describe('Notification Scheduler', () => {
                   message: 'redis down',
                 }),
               }),
+              GateMocksLive,
               createMockUserRepository([defaultUser]),
               createMockPlantRepository({ plants: [plant] })
             )

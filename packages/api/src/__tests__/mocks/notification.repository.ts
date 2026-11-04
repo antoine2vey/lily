@@ -6,7 +6,7 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
+import { Array, Effect, Equal, Layer, Option, pipe, Record } from 'effect'
 
 // Mutable version of Notification for internal mock state
 type MutableNotification = {
@@ -149,20 +149,22 @@ export const createMockNotificationRepository = (
         })
       }),
 
-    deferUntil: (rows) =>
+    deferUntil: (rows, heldBy) =>
       Effect.sync(() => {
         Array.forEach(rows, ({ id, until }) => {
           const n = Array.findFirst(notificationsState, (row) => row.id === id)
+          const holder = Option.fromNullishOr(deliveryClaims.get(id))
           if (
             Option.isNone(n) ||
             n.value.status !== 'queued' ||
-            deliveryClaims.has(id)
+            !Equal.equals(holder, heldBy)
           ) {
             return
           }
           n.value.status = 'pending'
           n.value.scheduledAt = until
           queuedAt.delete(id)
+          deliveryClaims.delete(id)
         })
       }),
 

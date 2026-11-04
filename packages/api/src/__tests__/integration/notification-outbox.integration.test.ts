@@ -1,10 +1,7 @@
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { createMockAlerter } from '@lily/api/__tests__/mocks/alerter'
-import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -12,6 +9,7 @@ import { createSuccessPushService } from '@lily/api/__tests__/mocks/push.service
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import {
@@ -62,7 +60,10 @@ const DatabaseLive = Layer.mergeAll(
   NotificationRepositoryLive,
   UserRepositoryLive,
   PlantRepositoryLive,
-  DeviceTokenRepositoryLive
+  DeviceTokenRepositoryLive,
+  CanopyRepositoryLive,
+  CareScheduleRepositoryLive,
+  DelegationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
@@ -118,11 +119,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               createMockAlerter().layer,
               createSuccessPushService(),
               createMockActivityPushTokenRepository(),
-              createMockCareScheduleRepository(),
               createMockCareLogRepository([]),
-              createMockDelegationRepository(),
-              createMockDeadLetterRepository(),
-              createMockCanopyRepository([])
+              createMockDeadLetterRepository()
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')

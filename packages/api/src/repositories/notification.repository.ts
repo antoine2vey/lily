@@ -119,7 +119,8 @@ export interface INotificationRepository {
     ids: ReadonlyArray<string>
   ) => Effect.Effect<void, SqlError>
   readonly deferUntil: (
-    rows: ReadonlyArray<DeferredNotification>
+    rows: ReadonlyArray<DeferredNotification>,
+    heldBy: Option.Option<string>
   ) => Effect.Effect<void, SqlError>
   readonly claimForDelivery: (
     ids: ReadonlyArray<string>,
@@ -380,7 +381,8 @@ export const NotificationRepositoryLive = Layer.effect(
       ),
 
       deferUntil: Effect.fn('NotificationRepository.deferUntil')(function* (
-        rows: ReadonlyArray<DeferredNotification>
+        rows: ReadonlyArray<DeferredNotification>,
+        heldBy: Option.Option<string>
       ) {
         if (Array.isReadonlyArrayEmpty(rows)) return
         const scheduledAt = sql`CASE ${notifications.id} ${sql.join(
@@ -393,7 +395,12 @@ export const NotificationRepositoryLive = Layer.effect(
         )} END`
         yield* db
           .update(notifications)
-          .set({ status: 'pending', queuedAt: null, scheduledAt })
+          .set({
+            status: 'pending',
+            queuedAt: null,
+            deliveryMessageId: null,
+            scheduledAt,
+          })
           .where(
             and(
               inArray(
@@ -401,7 +408,11 @@ export const NotificationRepositoryLive = Layer.effect(
                 Array.map(rows, (row) => row.id)
               ),
               eq(notifications.status, 'queued'),
-              isNull(notifications.deliveryMessageId)
+              Option.match(heldBy, {
+                onNone: () => isNull(notifications.deliveryMessageId),
+                onSome: (messageId) =>
+                  eq(notifications.deliveryMessageId, messageId),
+              })
             )
           )
       }),
