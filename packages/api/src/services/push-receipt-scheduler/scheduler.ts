@@ -1,3 +1,4 @@
+import { Alerter } from '@lily/api/services/alerting'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   ExpoPushClient,
@@ -5,13 +6,62 @@ import {
 } from '@lily/api/services/push/expo-push-client'
 import { PendingPushReceipts } from '@lily/api/services/push/pending-push-receipts'
 import { retireExpoTokens } from '@lily/api/services/push/retire-expo-tokens'
-import { Array, DateTime, Duration, Effect, Option, Record } from 'effect'
+import {
+  Array,
+  DateTime,
+  Duration,
+  Effect,
+  HashSet,
+  Option,
+  Record,
+} from 'effect'
+import type { ExpoPushErrorReceipt } from 'expo-server-sdk'
 
 // Expo asks callers to wait before reading receipts and keeps them about a
 // day. A ticket still unanswered after RECEIPT_TTL never will be.
 const RECEIPT_DELAY = Duration.minutes(15)
 const RECEIPT_TTL = Duration.hours(24)
 const MAX_TICKETS_PER_RUN = 3000
+
+// Receipt errors that fail every push until someone fixes the app's push
+// credentials or payload. The other codes are per device or transient.
+const ALERTING_CODES = HashSet.make('InvalidCredentials', 'MessageTooBig')
+
+const codeOf = (receipt: ExpoPushErrorReceipt) =>
+  Option.getOrElse(
+    Option.fromNullishOr(receipt.details?.error),
+    () => 'Unknown'
+  )
+
+const reportErrorReceipts = Effect.fn('push-receipts.reportErrorReceipts')(
+  function* (errors: ReadonlyArray<ExpoPushErrorReceipt>) {
+    const alerter = yield* Alerter
+    const byCode = Array.groupBy(errors, codeOf)
+    yield* Effect.forEach(
+      Record.toEntries(byCode),
+      ([code, receipts]) =>
+        Effect.gen(function* () {
+          const count = Array.length(receipts)
+          const message = Array.headNonEmpty(receipts).message
+          yield* Effect.logWarning('Expo push receipt error', {
+            code,
+            count,
+            message,
+          })
+          if (HashSet.has(ALERTING_CODES, code)) {
+            yield* alerter.alert({
+              _tag: 'ProviderError',
+              provider: 'expo-push',
+              errorTag: code,
+              message: `${count} push receipts failed with ${code}: ${message}`,
+            })
+          }
+        }),
+      { discard: true }
+    )
+    return Record.map(byCode, Array.length)
+  }
+)
 
 export const checkPushReceipts = Effect.gen(function* () {
   const pending = yield* PendingPushReceipts
@@ -27,6 +77,13 @@ export const checkPushReceipts = Effect.gen(function* () {
   const receipts = yield* expo.getReceipts(Array.map(due, (r) => r.ticketId))
   const receiptOf = (ticketId: string) => Record.get(receipts, ticketId)
   const expiredBefore = DateTime.subtractDuration(now, RECEIPT_TTL)
+
+  const errorsByCode = yield* reportErrorReceipts(
+    Array.filter(
+      Array.getSomes(Array.map(due, (r) => receiptOf(r.ticketId))),
+      (receipt): receipt is ExpoPushErrorReceipt => receipt.status === 'error'
+    )
+  )
 
   const unregistered = Array.filter(due, (r) =>
     Option.exists(receiptOf(r.ticketId), isDeviceNotRegistered)
@@ -45,6 +102,7 @@ export const checkPushReceipts = Effect.gen(function* () {
     checked: Array.length(due),
     settled: Array.length(settled),
     unregistered: Array.length(unregistered),
+    errorsByCode,
   })
 }).pipe(Effect.withSpan('push-receipts.checkPushReceipts'))
 
