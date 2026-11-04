@@ -1608,6 +1608,109 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await runOverdue()
         expect(await plantIdsOf(sam)).toEqual(Arr.sort(delegated, Order.String))
       }, 60_000)
+
+      it('leaves no overdue row for a plant cared for while the run holds its reminder lock', async () => {
+        const [cared, ...rest] = delegated as [string, ...string[]]
+
+        let care: Promise<Exit.Exit<unknown, unknown>> | undefined
+        const exit = await as(
+          sam,
+          checkAndCreateOverdueReminders.pipe(
+            Effect.provide(
+              Layer.effect(
+                CareScheduleRepository,
+                Effect.map(CareScheduleRepository, (repo) => ({
+                  ...repo,
+                  findOverduePlantIds: (plantIds: ReadonlyArray<string>) =>
+                    Effect.tap(repo.findOverduePlantIds(plantIds), () =>
+                      Effect.promise(async () => {
+                        care = as(
+                          alex,
+                          Effect.flatMap(plantNamed(cared), (plant) =>
+                            executePlantCare(plant, {
+                              plantId: cared,
+                              careType: 'watering',
+                              date: new Date(),
+                            })
+                          )
+                        )
+                        await Promise.race([
+                          care,
+                          new Promise((resolve) => setTimeout(resolve, 1500)),
+                        ])
+                      })
+                    ),
+                }))
+              )
+            )
+          )
+        )
+        const careExit = await care
+
+        expect(careExit && Exit.isSuccess(careExit)).toBe(true)
+        expect(Exit.isSuccess(exit)).toBe(true)
+        expect(await plantIdsOf(sam)).toEqual(Arr.sort(rest, Order.String))
+      }, 60_000)
+
+      it('gives a plant with reminders off no row and no free-tier cap slot', async () => {
+        const fern = await user('Fern')
+        const own: string[] = []
+        for (const i of Arr.range(0, 5)) {
+          const [row] = await db
+            .insert(schema.plants)
+            .values({
+              userId: fern,
+              createdByUserId: fern,
+              name: `Own ${i}`,
+              health: 'HEALTHY',
+              humidityRating: 3,
+              lightingRating: 3,
+              petToxicityRating: 1,
+              wateringRating: 3,
+              remindersEnabled: i !== 0,
+              dateAdded: new Date(Date.now() - (100 - i) * day),
+            })
+            .returning()
+          if (!row) throw new Error('Failed to create plant')
+          own.push(row.id)
+          await db.insert(schema.plantCareSchedules).values({
+            plantId: row.id,
+            careType: 'watering',
+            frequencyDays: 7,
+            nextCareAt: new Date(Date.now() - 3 * day),
+          })
+        }
+
+        await runOverdue()
+
+        expect(await plantIdsOf(fern)).toEqual(
+          Arr.sort(own.slice(1), Order.String)
+        )
+        const nudges = await db
+          .select({ id: schema.notifications.id })
+          .from(schema.notifications)
+          .where(
+            sql`${schema.notifications.type} = 'resubscribe_nudge' AND ${schema.notifications.userId} = ${fern}`
+          )
+        expect(nudges).toEqual([])
+      }, 60_000)
+
+      it('reminds the owner, not the former caretaker, once the delegation has ended', async () => {
+        await db.execute(
+          sql`UPDATE care_delegations SET status = 'completed' WHERE caretaker_id = ${sam}`
+        )
+        try {
+          await runOverdue()
+          expect(await plantIdsOf(sam)).toEqual([])
+          expect(await plantIdsOf(alex)).toEqual(
+            Arr.sort(delegated, Order.String)
+          )
+        } finally {
+          await db.execute(
+            sql`UPDATE care_delegations SET status = 'active' WHERE caretaker_id = ${sam}`
+          )
+        }
+      }, 60_000)
     })
   }
 )
