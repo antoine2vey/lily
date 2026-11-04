@@ -143,7 +143,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ownerId: string,
       caretakerId: string,
       plantId: string,
-      status: 'accepted' | 'active' = 'active'
+      status: 'pending' | 'accepted' | 'active' | 'completed' = 'active'
     ) => {
       const now = Date.now()
       const [delegation] = await db
@@ -369,6 +369,55 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await rowsOf(owner.id)).toEqual([])
     })
 
+    it('cancels a pending delegation and leaves a completed one alone when the owner deletes their account', async () => {
+      const owner = await insertUser('owner')
+      const caretaker = await insertUser('caretaker')
+      const plant = await insertPlant(owner.id, new Date(Date.now() + DAY))
+      const pending = await delegate(
+        owner.id,
+        caretaker.id,
+        plant.id,
+        'pending'
+      )
+      const completed = await delegate(
+        owner.id,
+        caretaker.id,
+        plant.id,
+        'completed'
+      )
+      const { run } = pipeline(owner)
+
+      await run(deleteAccount())
+
+      expect(await delegationStatus(pending.id)).toBe('canceled')
+      expect(await delegationStatus(completed.id)).toBe('completed')
+    })
+
+    it('lets a caretaker whose only delegation is accepted delete their account, leaving the owner reminders as they were', async () => {
+      const owner = await insertUser('owner')
+      const caretaker = await insertUser('caretaker')
+      const plant = await insertPlant(owner.id, new Date(Date.now() + DAY))
+      const accepted = await delegate(
+        owner.id,
+        caretaker.id,
+        plant.id,
+        'accepted'
+      )
+      await insertReminder(owner.id, plant.id, new Date(Date.now() + DAY))
+      const before = await rowsOf(owner.id)
+      const { run } = pipeline(caretaker)
+
+      const outcome = await run(deleteAccount()).then(
+        () => 'deleted',
+        (error: unknown) => String(error)
+      )
+
+      expect(outcome).toBe('deleted')
+
+      expect(await delegationStatus(accepted.id)).toBe('canceled')
+      expect(await rowsOf(owner.id)).toEqual(before)
+    })
+
     it('writes no overdue reminder for an account pending deletion', async () => {
       const deleted = await insertUser('overdue-deleted')
       const active = await insertUser('overdue-active')
@@ -385,6 +434,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await rowsOf(deleted.id)).toEqual([])
       expect(await rowsOf(active.id)).toMatchObject([
         { type: 'overdue_reminder', plantId: activePlant.id },
+      ])
+    })
+
+    it('reminds the owner of an overdue plant whose creator is gone', async () => {
+      const owner = await insertUser('overdue-orphan')
+      const plant = await insertPlant(owner.id, new Date(Date.now() - 2 * DAY))
+      await db
+        .update(schema.plants)
+        .set({ createdByUserId: null })
+        .where(eq(schema.plants.id, plant.id))
+      const { run } = pipeline(owner)
+
+      await run(checkAndCreateOverdueReminders)
+
+      expect(await rowsOf(owner.id)).toMatchObject([
+        { type: 'overdue_reminder', plantId: plant.id },
       ])
     })
 

@@ -7,7 +7,10 @@ import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
-import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
+import {
+  DelegationRepository,
+  DelegationRepositoryLive,
+} from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import {
   NotificationRepository,
@@ -278,6 +281,47 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           .from(schema.deviceTokens)
           .where(eq(schema.deviceTokens.userId, caretaker))
       ).toHaveLength(1)
+    })
+
+    it('waits for a cancel that already holds the delegation row before taking any reminder lock', async () => {
+      const { owner, delegationId } = await seed('active')
+      const reached = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const canceling = as(
+        owner,
+        Effect.gen(function* () {
+          const repo = yield* DelegationRepository
+          return yield* cancelDelegation(delegationId).pipe(
+            Effect.provideService(DelegationRepository, {
+              ...repo,
+              transitionStatus: (...args) =>
+                repo
+                  .transitionStatus(...args)
+                  .pipe(
+                    Effect.tap(() =>
+                      Deferred.succeed(reached, undefined).pipe(
+                        Effect.andThen(Deferred.await(release))
+                      )
+                    )
+                  ),
+            })
+          )
+        })
+      )
+      await Effect.runPromise(Deferred.await(reached))
+      const deleting = as(owner, deleteAccount())
+      await settledOrWaitingOnLock(deleting)
+      Deferred.doneUnsafe(release, Exit.void)
+
+      expect({
+        canceled: outcome(await canceling),
+        deleted: outcome(await deleting),
+      }).toEqual({ canceled: 'ok', deleted: 'ok' })
+      expect(await state(delegationId, owner)).toEqual({
+        delegation: 'canceled',
+        user: 'pending_deletion',
+        rows: [],
+      })
     })
 
     it('lets a caretaker delete their account while the owner cancels the delegation, without a deadlock', async () => {
