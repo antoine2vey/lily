@@ -10,7 +10,12 @@ import type {
   MetadataOf,
   NotificationMetadata,
 } from '@lily/shared/notification'
-import { type DeferredCareType, MessageQueue } from '@lily/shared/server'
+import {
+  type DeferredCareType,
+  MessageQueue,
+  type QueueConnectionError,
+  type QueueOperationError,
+} from '@lily/shared/server'
 import { Effect, Option } from 'effect'
 
 interface DeferredCareNotificationParams {
@@ -119,7 +124,7 @@ export const dispatchNow = (notification: RecordedNotification) =>
     const queue = yield* MessageQueue
     const notifications = yield* NotificationRepository
     const { id, type, userId, title, body, metadata } = notification
-    const release = (error: unknown) =>
+    const release = (error: QueueOperationError | QueueConnectionError) =>
       Effect.logWarning(
         'Failed to enqueue notification, left for the scheduler',
         { type, userId, error }

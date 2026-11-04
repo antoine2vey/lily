@@ -1,7 +1,4 @@
-import {
-  type CanopyMemberRow,
-  CanopyRepository,
-} from '@lily/api/repositories/canopy.repository'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -30,12 +27,7 @@ import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type LeaveOutcome = Data.TaggedEnum<{
-  Left: {
-    readonly canopyName: string
-    readonly leaver: CanopyMemberRow
-    readonly owner: CanopyMemberRow
-    readonly notification: RecordedNotification
-  }
+  Left: { readonly notification: RecordedNotification }
   Dissolved: {}
 }>
 
@@ -90,12 +82,7 @@ const leaveInTransaction = (
       owner.value.language,
       {}
     )
-    return LeaveOutcome.Left({
-      canopyName: canopy.name,
-      leaver,
-      owner: { ...owner.value, role: 'owner' },
-      notification,
-    })
+    return LeaveOutcome.Left({ notification })
   })
 
 const notifyLeave = (outcome: LeaveOutcome) =>

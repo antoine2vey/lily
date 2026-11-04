@@ -50,20 +50,20 @@ export const giftSubscription = (
     const periodEnd = computePeriodEnd(duration)
 
     const sql = yield* SqlClient.SqlClient
-    const [, , notification] = yield* sql.withTransaction(
-      Effect.all([
-        subRepo.create({
+    const notification = yield* sql.withTransaction(
+      Effect.gen(function* () {
+        yield* subRepo.create({
           userId,
           tier: 'paid',
           status: 'active',
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
-        }),
-        subRepo.logEvent(userId, 'subscription_gifted', {
+        })
+        yield* subRepo.logEvent(userId, 'subscription_gifted', {
           giftedBy: currentAdmin.id,
           duration,
-        }),
-        recordNotification(
+        })
+        return yield* recordNotification(
           'gift_subscription',
           userId,
           {
@@ -77,8 +77,8 @@ export const giftSubscription = (
           },
           user.language,
           {}
-        ),
-      ])
+        )
+      })
     )
 
     yield* dispatchNow(notification)

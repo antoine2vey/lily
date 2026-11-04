@@ -70,6 +70,8 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
       )
   )
 
+  yield* dispatchNow(notification)
+
   yield* publishWithRetry(
     eventBus.publish({
       _tag: 'UserFollowed',
@@ -77,8 +79,6 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
       followingId: targetUserId,
     })
   )
-
-  yield* dispatchNow(notification)
 
   return { success: true as const }
 })
