@@ -12,6 +12,15 @@ export const createInMemoryRedis = (
     lists[key] ??= []
     return lists[key]
   }
+  const set = (key: string) => {
+    sets[key] ??= []
+    return sets[key]
+  }
+  const remove = (values: string[], value: string) => {
+    const index = values.indexOf(value)
+    if (index >= 0) values.splice(index, 1)
+  }
+  const claimedAt = new Map<string, number>()
   const live = (key: string) =>
     (lists[key]?.length ?? 0) > 0 || (sets[key]?.length ?? 0) > 0
   const redis = {
@@ -19,14 +28,39 @@ export const createInMemoryRedis = (
       commands.push('lpush')
       return Promise.resolve(list(key).unshift(value))
     },
-    eval: (script: string, _n: number, from: string, to: string) => {
+    eval: (
+      script: string,
+      _n: number,
+      queueKey: string,
+      processingKey: string,
+      claimedKey: string,
+      arg: number
+    ) => {
       commands.push('eval')
-      if (!script.includes('RPOPLPUSH')) {
-        return Promise.reject(new Error('in-memory redis only runs dequeue'))
+      const claimed = set(claimedKey)
+      if (script.includes('RPOPLPUSH')) {
+        const raw = Option.fromNullishOr(list(queueKey).pop())
+        Option.map(raw, (entry) => {
+          list(processingKey).unshift(entry)
+          claimed.push(entry)
+          claimedAt.set(entry, arg)
+        })
+        return Promise.resolve(Option.getOrNull(raw))
       }
-      const raw = Option.fromNullishOr(list(from).pop())
-      Option.map(raw, (entry) => list(to).unshift(entry))
-      return Promise.resolve(Option.getOrNull(raw))
+      if (script.includes('LRANGE')) {
+        const stale = Array.filter(
+          list(processingKey),
+          (raw) => (claimedAt.get(raw) ?? Number.NEGATIVE_INFINITY) <= arg
+        )
+        Array.forEach(stale, (raw) => {
+          remove(list(processingKey), raw)
+          remove(claimed, raw)
+          claimedAt.delete(raw)
+          list(queueKey).push(raw)
+        })
+        return Promise.resolve(stale.length)
+      }
+      return Promise.reject(new Error('in-memory redis has no such script'))
     },
     exists: (...keys: string[]) => {
       commands.push('exists')
@@ -49,11 +83,16 @@ export const createInMemoryRedis = (
     },
     multi: () => {
       const tx = {
-        lrem: (_key: string, _count: number, raw: string) => {
+        lrem: (key: string, _count: number, raw: string) => {
           acked.push(raw)
+          remove(list(key), raw)
           return tx
         },
-        zrem: () => tx,
+        zrem: (key: string, raw: string) => {
+          remove(set(key), raw)
+          claimedAt.delete(raw)
+          return tx
+        },
         exec: () => Promise.resolve([]),
       }
       return tx
