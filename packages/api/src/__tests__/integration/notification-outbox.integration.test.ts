@@ -3,6 +3,7 @@ import { createMockAlerter } from '@lily/api/__tests__/mocks/alerter'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
+import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createSuccessPushService } from '@lily/api/__tests__/mocks/push.service'
@@ -16,7 +17,10 @@ import {
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
-import { consumeFromTopic } from '@lily/api/services/notification-scheduler/worker'
+import {
+  consumeFromTopic,
+  recoverStrandedDeliveries,
+} from '@lily/api/services/notification-scheduler/worker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import {
@@ -66,6 +70,47 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .from(schema.notifications)
         .where(eq(schema.notifications.userId, userId))
+
+    const deliverPending = async () => {
+      const enqueued: QueueMessage[] = []
+      await Effect.runPromise(
+        pollAndEnqueue.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              DatabaseLive,
+              createMockMessageQueue({
+                onEnqueue: (_, message) => enqueued.push(message),
+              })
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      const { queue } = createInMemoryRedisQueue(
+        enqueued.map((message) => JSON.stringify(message))
+      )
+      await Effect.runPromise(
+        consumeFromTopic('new_follower').pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              DatabaseLive,
+              Layer.succeed(MessageQueue, queue),
+              createMockAlerter().layer,
+              createSuccessPushService(),
+              createMockActivityPushTokenRepository(),
+              createMockCareScheduleRepository(),
+              createMockCareLogRepository([]),
+              createMockDelegationRepository(),
+              createMockDeadLetterRepository(),
+              createMockCanopyRepository([])
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      return enqueued
+    }
 
     const resetDb = async () => {
       await db.execute(
@@ -149,44 +194,40 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         { status: 'pending', type: 'new_follower' },
       ])
 
-      const enqueued: QueueMessage[] = []
-      await Effect.runPromise(
-        pollAndEnqueue.pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              DatabaseLive,
-              createMockMessageQueue({
-                onEnqueue: (_, message) => enqueued.push(message),
-              })
-            )
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
-        )
-      )
-
-      const { queue } = createInMemoryRedisQueue(
-        enqueued.map((message) => JSON.stringify(message))
-      )
-      await Effect.runPromise(
-        consumeFromTopic('new_follower').pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              DatabaseLive,
-              Layer.succeed(MessageQueue, queue),
-              createMockAlerter().layer,
-              createSuccessPushService(),
-              createMockActivityPushTokenRepository(),
-              createMockCareScheduleRepository(),
-              createMockCareLogRepository([]),
-              createMockDelegationRepository(),
-              createMockCanopyRepository([])
-            )
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
-        )
-      )
+      const enqueued = await deliverPending()
 
       expect(enqueued).toHaveLength(1)
+      expect(await notificationRows()).toEqual([
+        { status: 'sent', type: 'new_follower' },
+      ])
+    })
+
+    it('delivers a committed notification left queued once the recovery sweep releases it', async () => {
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const sqlClient = yield* SqlClient.SqlClient
+          yield* sqlClient.withTransaction(recordFollowFor(userId))
+        }).pipe(Effect.provide(DatabaseLive))
+      )
+      await db.execute(
+        sql`UPDATE notifications SET queued_at = now() - interval '11 minutes' WHERE user_id = ${userId}`
+      )
+
+      expect(await deliverPending()).toEqual([])
+      expect(await notificationRows()).toEqual([
+        { status: 'queued', type: 'new_follower' },
+      ])
+
+      await Effect.runPromise(
+        recoverStrandedDeliveries.pipe(
+          Effect.provide(
+            Layer.mergeAll(DatabaseLive, createMockMessageQueue())
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(await deliverPending()).toHaveLength(1)
       expect(await notificationRows()).toEqual([
         { status: 'sent', type: 'new_follower' },
       ])

@@ -92,7 +92,10 @@ export const pushesOf = (
   type: string
 ) =>
   pipe(
-    Array.filter(notifications, (n) => n.type === type),
+    Array.filter(
+      notifications,
+      (n) => n.type === type && n.status === 'queued'
+    ),
     Array.map((n) => n.userId)
   )
 

@@ -224,11 +224,15 @@ describe('DelegationScheduler', () => {
         userId: delegation.ownerId,
         type: 'delegation_activated',
         title: '🌱 Plant-sitting has begun',
+        status: 'queued',
+        metadata: { delegationId: delegation.id },
       })
       expect(notifications[1]).toMatchObject({
         userId: delegation.caretakerId,
         type: 'delegation_activated',
         title: '🌱 Plant-sitting has begun',
+        status: 'queued',
+        metadata: { delegationId: delegation.id },
       })
     })
 
@@ -250,11 +254,15 @@ describe('DelegationScheduler', () => {
         userId: delegation.ownerId,
         type: 'delegation_completed',
         title: '🎉 Plant-sitting complete',
+        status: 'queued',
+        metadata: { delegationId: delegation.id },
       })
       expect(notifications[1]).toMatchObject({
         userId: delegation.caretakerId,
         type: 'delegation_completed',
         title: '🎉 Plant-sitting complete',
+        status: 'queued',
+        metadata: { delegationId: delegation.id },
       })
     })
     describe('error isolation', () => {

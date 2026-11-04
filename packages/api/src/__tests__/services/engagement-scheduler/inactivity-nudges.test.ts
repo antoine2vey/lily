@@ -44,6 +44,7 @@ describe('processInactivityNudges', () => {
 
     expect(notifications).toHaveLength(1)
     expect(notifications[0]?.type).toBe('inactivity_nudge')
+    expect(notifications[0]?.status).toBe('pending')
     expect(notifications[0]?.userId).toBe('user-1')
   })
 

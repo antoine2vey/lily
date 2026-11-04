@@ -162,8 +162,12 @@ describe('sendNudge', () => {
       sendNudge({ targetUserId: targetUser.id }).pipe(Effect.provide(layer))
     )
     expect(notifications).toHaveLength(1)
-    expect(notifications[0]?.type).toBe('nudge_to_water')
-    expect(notifications[0]?.userId).toBe(targetUser.id)
+    expect(notifications[0]).toMatchObject({
+      userId: targetUser.id,
+      type: 'nudge_to_water',
+      status: 'queued',
+      metadata: { senderId: currentUserId },
+    })
   })
 
   it('should include nudger name in notification body', async () => {
