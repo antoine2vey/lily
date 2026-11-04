@@ -8,6 +8,7 @@ import {
   withCanopyOwner,
   withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
+import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
 import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -37,7 +38,6 @@ import {
   isNull,
   lt,
   lte,
-  ne,
   sql,
 } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
@@ -279,12 +279,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
               eq(careDelegations.id, delegationPlants.delegationId)
             )
             .innerJoin(users, eq(users.id, careDelegations.caretakerId))
-            .where(
-              and(
-                eq(careDelegations.status, 'active'),
-                ne(users.status, 'pending_deletion')
-              )
-            )
+            .where(and(eq(careDelegations.status, 'active'), isReachableUser()))
             .as('active_caretakers')
           const personal = yield* db
             .select({
@@ -299,7 +294,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
             .innerJoin(users, eq(users.id, plants.userId))
             .leftJoin(activeCaretakers, eq(activeCaretakers.plantId, plants.id))
-            .where(and(overdue, ne(users.status, 'pending_deletion')))
+            .where(and(overdue, isReachableUser()))
             .orderBy(asc(plants.userId))
 
           const shared = yield* db
@@ -317,6 +312,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
               canopyMembers,
               eq(plants.canopyId, canopyMembers.canopyId)
             )
+            .innerJoin(users, eq(users.id, canopyMembers.userId))
             .leftJoin(
               canopyPlantMutes,
               and(
@@ -324,7 +320,9 @@ export const CareScheduleRepositoryLive = Layer.effect(
                 eq(canopyPlantMutes.plantId, plants.id)
               )
             )
-            .where(and(overdue, isNull(canopyPlantMutes.userId)))
+            .where(
+              and(overdue, isReachableUser(), isNull(canopyPlantMutes.userId))
+            )
             .orderBy(asc(canopyMembers.userId))
 
           const addressed = Array.appendAll(

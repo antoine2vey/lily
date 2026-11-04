@@ -234,13 +234,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return { run, deliver, enqueued, pushes, liveActivities }
     }
 
-    const markPendingDeletion = (
+    const markStatus = (
       run: ReturnType<typeof pipeline>['run'],
-      userId: string
+      userId: string,
+      status: 'pending_deletion' | 'suspended' | 'banned'
     ) =>
       run(
         Effect.flatMap(UserRepository, (repo) =>
-          repo.updateStatus(userId, 'pending_deletion')
+          repo.updateStatus(userId, status)
         )
       )
 
@@ -306,7 +307,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
       const { run, enqueued } = pipeline(user)
 
-      await markPendingDeletion(run, user.id)
+      await markStatus(run, user.id, 'pending_deletion')
       await run(pollAndEnqueue)
 
       expect(enqueued).toEqual([])
@@ -460,7 +461,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await delegate(owner.id, caretaker.id, plant.id)
       const { run } = pipeline(owner)
 
-      await markPendingDeletion(run, caretaker.id)
+      await markStatus(run, caretaker.id, 'pending_deletion')
       await run(checkAndCreateOverdueReminders)
 
       expect(await rowsOf(caretaker.id)).toEqual([])
@@ -524,7 +525,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await insertDevice(followed.id)
       const { run, deliver, pushes } = pipeline(followed)
 
-      await markPendingDeletion(run, followed.id)
+      await markStatus(run, followed.id, 'pending_deletion')
       await follow(run, follower.id, followed.id)
       await deliver()
 
@@ -548,56 +549,222 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
-    it('leaves an account an admin marked pending deletion out of every engagement audience', async () => {
-      const active = await insertUser('active')
-      const leaving = await insertUser('leaving')
-      const now = Date.now()
-      const monthAgo = new Date(now)
-      monthAgo.setUTCMonth(monthAgo.getUTCMonth() - 1)
-      for (const user of [active, leaving]) {
-        await db.insert(schema.userSubscriptions).values({
-          userId: user.id,
-          tier: 'paid',
-          status: 'trialing',
-          trialStartsAt: new Date(now - 6 * DAY),
-          trialEndsAt: new Date(now + DAY),
-          currentPeriodStart: new Date(now - 6 * DAY),
-          currentPeriodEnd: new Date(now + DAY),
-        })
-        await insertPlant(user.id, new Date(now + DAY), monthAgo)
-      }
-      const { run } = pipeline(active)
-      await markPendingDeletion(run, leaving.id)
+    it.each(['pending_deletion', 'suspended', 'banned'] as const)(
+      'leaves a %s account out of every engagement audience',
+      async (status) => {
+        const active = await insertUser('active')
+        const leaving = await insertUser(status)
+        const now = Date.now()
+        const monthAgo = new Date(now)
+        monthAgo.setUTCMonth(monthAgo.getUTCMonth() - 1)
+        for (const user of [active, leaving]) {
+          await db.insert(schema.userSubscriptions).values({
+            userId: user.id,
+            tier: 'paid',
+            status: 'trialing',
+            trialStartsAt: new Date(now - 6 * DAY),
+            trialEndsAt: new Date(now + DAY),
+            currentPeriodStart: new Date(now - 6 * DAY),
+            currentPeriodEnd: new Date(now + DAY),
+          })
+          await insertPlant(user.id, new Date(now + DAY), monthAgo)
+        }
+        const { run } = pipeline(active)
+        await markStatus(run, leaving.id, status)
 
-      const audiences = await run(
-        Effect.gen(function* () {
-          const repo = yield* EngagementRepository
-          const ids = (rows: ReadonlyArray<{ readonly id: string }>) =>
-            rows.map((r) => r.id)
-          return {
-            tips: ids(yield* repo.getUsersWithTipsEnabled()),
-            careReminders: ids(yield* repo.getUsersWithCareRemindersEnabled()),
-            weeklyDigest: ids(yield* repo.getUsersWithWeeklyDigestEnabled()),
-            trialEnding: ids(
-              yield* repo.getTrialingUsersWithTrialEndingSoon(1)
-            ),
-            anniversaries: (yield* repo.getPlantsWithAnniversary([1])).map(
-              (p) => p.userId
-            ),
-          }
-        })
-      )
+        const audiences = await run(
+          Effect.gen(function* () {
+            const repo = yield* EngagementRepository
+            const ids = (rows: ReadonlyArray<{ readonly id: string }>) =>
+              rows.map((r) => r.id)
+            return {
+              tips: ids(yield* repo.getUsersWithTipsEnabled()),
+              careReminders: ids(
+                yield* repo.getUsersWithCareRemindersEnabled()
+              ),
+              weeklyDigest: ids(yield* repo.getUsersWithWeeklyDigestEnabled()),
+              trialEnding: ids(
+                yield* repo.getTrialingUsersWithTrialEndingSoon(1)
+              ),
+              anniversaries: (yield* repo.getPlantsWithAnniversary([1])).map(
+                (p) => p.userId
+              ),
+            }
+          })
+        )
 
-      for (const [audience, ids] of Object.entries(audiences)) {
-        expect({ audience, active: ids.includes(active.id) }).toEqual({
-          audience,
-          active: true,
-        })
-        expect({ audience, leaving: ids.includes(leaving.id) }).toEqual({
-          audience,
-          leaving: false,
-        })
+        for (const [audience, ids] of Object.entries(audiences)) {
+          expect({ audience, active: ids.includes(active.id) }).toEqual({
+            audience,
+            active: true,
+          })
+          expect({ audience, leaving: ids.includes(leaving.id) }).toEqual({
+            audience,
+            leaving: false,
+          })
+        }
       }
-    })
+    )
+
+    const LOCKED = ['suspended', 'banned'] as const
+
+    it.each(LOCKED)(
+      'drops at relay a reminder due for a %s account and pushes nothing',
+      async (status) => {
+        const user = await insertUser(`relay-${status}`)
+        const device = await insertDevice(user.id)
+        const plant = await insertPlant(user.id, new Date(Date.now() - DAY))
+        await insertReminder(user.id, plant.id, new Date(Date.now() - 60_000))
+        const { run, deliver, enqueued, pushes } = pipeline(user)
+
+        await markStatus(run, user.id, status)
+        await run(pollAndEnqueue)
+        expect(enqueued.filter((m) => m.payload.userId === user.id)).toEqual([])
+        await deliver()
+
+        expect(pushes.filter((p) => p.to === device.token)).toEqual([])
+        expect(await rowsOf(user.id)).toEqual([])
+      }
+    )
+
+    it.each(LOCKED)(
+      'drops at delivery a reminder queued before the account was %s',
+      async (status) => {
+        const user = await insertUser(`delivery-${status}`)
+        await insertDevice(user.id)
+        const plant = await insertPlant(user.id, new Date(Date.now() - DAY))
+        await insertReminder(user.id, plant.id, new Date(Date.now() - 60_000))
+        const { run, deliver, enqueued, pushes } = pipeline(user)
+
+        await run(pollAndEnqueue)
+        expect(enqueued).toHaveLength(1)
+        await markStatus(run, user.id, status)
+        await deliver()
+
+        expect(pushes).toEqual([])
+        expect(await rowsOf(user.id)).toEqual([])
+      }
+    )
+
+    it.each(LOCKED)(
+      'names the owner, not a %s caretaker, as the reminder recipient and keeps the delegation',
+      async (status) => {
+        const owner = await insertUser('owner')
+        const caretaker = await insertUser(`caretaker-${status}`)
+        const plant = await insertPlant(owner.id, new Date(Date.now() + DAY))
+        const delegation = await delegate(owner.id, caretaker.id, plant.id)
+        await insertReminder(caretaker.id, plant.id, new Date(Date.now() + DAY))
+        const { run } = pipeline(owner)
+        const recipients = () =>
+          run(
+            Effect.flatMap(PlantRepository, (repo) =>
+              repo.findById(plant.id)
+            ).pipe(
+              Effect.flatMap((row) =>
+                row ? reminderRecipients(row) : Effect.die('plant missing')
+              )
+            )
+          )
+
+        expect(await recipients()).toEqual([caretaker.id])
+        await markStatus(run, caretaker.id, status)
+
+        expect(await recipients()).toEqual([owner.id])
+        expect(await delegationStatus(delegation.id)).toBe('active')
+        expect(await rowsOf(caretaker.id)).toMatchObject([
+          { type: 'watering_reminder', status: 'pending', plantId: plant.id },
+        ])
+      }
+    )
+
+    it.each(LOCKED)(
+      'sends an overdue reminder to the owner, not a %s caretaker',
+      async (status) => {
+        const owner = await insertUser('overdue-owner')
+        const caretaker = await insertUser(`overdue-caretaker-${status}`)
+        const plant = await insertPlant(
+          owner.id,
+          new Date(Date.now() - 2 * DAY)
+        )
+        await delegate(owner.id, caretaker.id, plant.id)
+        const { run } = pipeline(owner)
+
+        await markStatus(run, caretaker.id, status)
+        await run(checkAndCreateOverdueReminders)
+
+        expect(await rowsOf(caretaker.id)).toEqual([])
+        expect(await rowsOf(owner.id)).toMatchObject([
+          { type: 'overdue_reminder', plantId: plant.id },
+        ])
+      }
+    )
+
+    it.each(LOCKED)(
+      'writes no overdue reminder for a %s owner',
+      async (status) => {
+        const locked = await insertUser(`overdue-${status}`)
+        const active = await insertUser('overdue-active')
+        await insertPlant(locked.id, new Date(Date.now() - 2 * DAY))
+        const activePlant = await insertPlant(
+          active.id,
+          new Date(Date.now() - 2 * DAY)
+        )
+        const { run } = pipeline(active)
+
+        await markStatus(run, locked.id, status)
+        await run(checkAndCreateOverdueReminders)
+
+        expect(await rowsOf(locked.id)).toEqual([])
+        expect(await rowsOf(active.id)).toMatchObject([
+          { type: 'overdue_reminder', plantId: activePlant.id },
+        ])
+      }
+    )
+
+    it.each(LOCKED)(
+      'writes no overdue reminder for a %s Canopy member',
+      async (status) => {
+        const active = await insertUser('canopy-active')
+        const locked = await insertUser(`canopy-${status}`)
+        const [canopy] = await db
+          .insert(schema.canopies)
+          .values({ name: 'Flat', timezone: 'UTC' })
+          .returning()
+        if (!canopy) throw new Error('canopy insert returned nothing')
+        await db.insert(schema.canopyMembers).values([
+          { canopyId: canopy.id, userId: active.id, role: 'owner' },
+          { canopyId: canopy.id, userId: locked.id, role: 'member' },
+        ])
+        const [plant] = await db
+          .insert(schema.plants)
+          .values({
+            canopyId: canopy.id,
+            createdByUserId: active.id,
+            name: 'Shared Fern',
+            health: 'HEALTHY',
+            humidityRating: 3,
+            lightingRating: 3,
+            petToxicityRating: 1,
+            wateringRating: 3,
+          })
+          .returning()
+        if (!plant) throw new Error('plant insert returned nothing')
+        await db.insert(schema.plantCareSchedules).values({
+          plantId: plant.id,
+          careType: 'watering',
+          frequencyDays: 7,
+          nextCareAt: new Date(Date.now() - 2 * DAY),
+        })
+        const { run } = pipeline(active)
+
+        await markStatus(run, locked.id, status)
+        await run(checkAndCreateOverdueReminders)
+
+        expect(await rowsOf(locked.id)).toEqual([])
+        expect(await rowsOf(active.id)).toMatchObject([
+          { type: 'overdue_reminder', plantId: plant.id },
+        ])
+      }
+    )
   }
 )

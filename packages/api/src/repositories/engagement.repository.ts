@@ -1,6 +1,7 @@
 import { heldBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
+import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
 import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -13,7 +14,7 @@ import {
 } from '@lily/db/schema'
 import type { LanguageCode, VacationStatus } from '@lily/shared'
 import type { NotificationTopic } from '@lily/shared/server'
-import { and, count, desc, eq, inArray, ne, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -119,7 +120,7 @@ export const EngagementRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
-    const reachable = ne(users.status, 'pending_deletion')
+    const reachable = isReachableUser()
 
     const userSettingsSelection = {
       id: users.id,

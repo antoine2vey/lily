@@ -54,6 +54,8 @@ export interface PlantFacts {
 
 export type DropReason =
   | 'pending-deletion'
+  | 'suspended'
+  | 'banned'
   | 'plant-gone'
   | 'not-recipient'
   | 'no-longer-overdue'
@@ -72,6 +74,8 @@ export const Decision = Data.taggedEnum<Decision>()
 
 export const DROP_MESSAGE: Record<DropReason, string> = {
   'pending-deletion': 'Dropping notification - user pending deletion',
+  suspended: 'Dropping notification - user suspended',
+  banned: 'Dropping notification - user banned',
   'plant-gone': 'Dropping notification - plant dead or missing',
   'not-recipient': 'Dropping care reminder - user no longer the recipient',
   'no-longer-overdue': 'Dropping overdue reminder - plant no longer overdue',
@@ -114,11 +118,19 @@ const plantRule = (
     )
   )
 
+const LOCKED: Record<GateRecipient['status'], Option.Option<DropReason>> = {
+  active: Option.none(),
+  suspended: Option.some('suspended'),
+  banned: Option.some('banned'),
+  pending_deletion: Option.some('pending-deletion'),
+}
+
 const preferenceRule = (
   row: GateRow,
   user: GateRecipient
 ): Option.Option<DropReason> => {
-  if (user.status === 'pending_deletion') return Option.some('pending-deletion')
+  const locked = LOCKED[user.status]
+  if (Option.isSome(locked)) return locked
   const category = TOPIC_CATEGORY[row.type]
   if (category === 'care' && !user.careReminders) {
     return Option.some('care-reminders-off')

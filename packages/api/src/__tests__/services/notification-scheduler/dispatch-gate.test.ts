@@ -221,36 +221,49 @@ describe('decide', () => {
     )
   })
 
-  it('drops every category for a user pending deletion, even in DND or on vacation', async () => {
-    const dropped = Decision.Drop({ reason: 'pending-deletion' })
-    const leaving = (overrides: Partial<RecipientSettings> = {}) =>
-      Option.some(user({ status: 'pending_deletion', ...overrides }))
-    const ownerless = { plantId: undefined }
+  it.each([
+    ['pending_deletion', 'pending-deletion'],
+    ['suspended', 'suspended'],
+    ['banned', 'banned'],
+  ] as const)(
+    'drops every category for a %s user, even in DND or on vacation',
+    async (status, reason) => {
+      const dropped = Decision.Drop({ reason })
+      const locked = (overrides: Partial<RecipientSettings> = {}) =>
+        Option.some(user({ status, ...overrides }))
+      for (const gateRow of [
+        row(),
+        row({ type: 'overdue_reminder' }),
+        row({ type: 'resubscribe_nudge', plantId: undefined }),
+        row({ type: 'new_follower', plantId: undefined }),
+      ]) {
+        expect(await run(gateRow, locked())).toEqual(dropped)
+        expect(
+          await run(
+            gateRow,
+            locked({ doNotDisturb: true }),
+            plantsOf(),
+            DND_NIGHT
+          )
+        ).toEqual(dropped)
+        expect(
+          await run(gateRow, locked({ vacationStatus: 'active' }))
+        ).toEqual(dropped)
+      }
+    }
+  )
+
+  it('sends every category to an active user', async () => {
     for (const gateRow of [
       row(),
       row({ type: 'overdue_reminder' }),
-      row({ type: 'resubscribe_nudge', ...ownerless }),
-      row({ type: 'new_follower', ...ownerless }),
+      row({ type: 'resubscribe_nudge', plantId: undefined }),
+      row({ type: 'new_follower', plantId: undefined }),
     ]) {
-      expect(await run(gateRow, leaving())).toEqual(dropped)
       expect(
-        await run(
-          gateRow,
-          leaving({ doNotDisturb: true }),
-          plantsOf(),
-          DND_NIGHT
-        )
-      ).toEqual(dropped)
-      expect(await run(gateRow, leaving({ vacationStatus: 'active' }))).toEqual(
-        dropped
-      )
+        await run(gateRow, Option.some(user({ status: 'active' })))
+      ).toEqual(Decision.Send())
     }
-    expect(
-      await run(
-        row({ type: 'new_follower', ...ownerless }),
-        Option.some(user({ status: 'suspended' }))
-      )
-    ).toEqual(Decision.Send())
   })
 
   it('drops rather than defers a row the user would never get', async () => {
