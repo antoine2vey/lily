@@ -13,7 +13,7 @@ import {
 } from '@lily/db/schema'
 import type { LanguageCode, VacationStatus } from '@lily/shared'
 import type { NotificationTopic } from '@lily/shared/server'
-import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, ne, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -119,6 +119,8 @@ export const EngagementRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
+    const reachable = ne(users.status, 'pending_deletion')
+
     const userSettingsSelection = {
       id: users.id,
       tips: users.tips,
@@ -141,7 +143,7 @@ export const EngagementRepositoryLive = Layer.effect(
         return yield* db
           .select(userSettingsSelection)
           .from(users)
-          .where(eq(users.tips, true))
+          .where(and(eq(users.tips, true), reachable))
       }),
 
       getLastCareDate: Effect.fn('EngagementRepository.getLastCareDate')(
@@ -270,7 +272,7 @@ export const EngagementRepositoryLive = Layer.effect(
         return yield* db
           .select(userSettingsSelection)
           .from(users)
-          .where(eq(users.careReminders, true))
+          .where(and(eq(users.careReminders, true), reachable))
       }),
 
       getUsersWithWeeklyDigestEnabled: Effect.fn(
@@ -279,7 +281,7 @@ export const EngagementRepositoryLive = Layer.effect(
         return yield* db
           .select(userSettingsSelection)
           .from(users)
-          .where(eq(users.weeklyDigest, true))
+          .where(and(eq(users.weeklyDigest, true), reachable))
       }),
 
       getTrialingUsersWithTrialEndingSoon: Effect.fn(
@@ -300,6 +302,7 @@ export const EngagementRepositoryLive = Layer.effect(
           .where(
             and(
               eq(userSubscriptions.status, 'trialing'),
+              reachable,
               sql`${userSubscriptions.trialEndsAt} >= NOW() + INTERVAL '${sql.raw(String(daysLeft - 1))} days' + INTERVAL '12 hours'`,
               sql`${userSubscriptions.trialEndsAt} < NOW() + INTERVAL '${sql.raw(String(daysLeft))} days' + INTERVAL '12 hours'`
             )
@@ -342,8 +345,13 @@ export const EngagementRepositoryLive = Layer.effect(
             dateAdded: plants.dateAdded,
           })
           .from(plants)
+          .innerJoin(users, eq(users.id, plants.userId))
           .where(
-            and(isLivingPlant(), sql`(${sql.join(conditions, sql` OR `)})`)
+            and(
+              isLivingPlant(),
+              reachable,
+              sql`(${sql.join(conditions, sql` OR `)})`
+            )
           )
 
         return Array.filter(rows, hasUserOwner)
