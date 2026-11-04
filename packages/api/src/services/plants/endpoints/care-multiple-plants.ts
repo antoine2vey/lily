@@ -12,6 +12,7 @@ import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
+import { publishEventsAfterCommit } from '@lily/api/services/plants/helpers/execute-plant-care'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   reminderKeysFor,
@@ -140,7 +141,7 @@ export const careMultiplePlants = (
             )
           )
         )
-      )
+      ).pipe(publishEventsAfterCommit)
     )
 
     return Array.map(request.plantIds, (plantId) =>

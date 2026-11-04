@@ -124,7 +124,7 @@ const applyWeatherAdjustment = (
   )
 }
 
-const publishEventsAfterCommit = <A, E, R>(
+export const publishEventsAfterCommit = <A, E, R>(
   transaction: Effect.Effect<A, E, R>
 ) =>
   Effect.gen(function* () {
