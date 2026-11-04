@@ -969,7 +969,7 @@ describe('checkAndCreateOverdueReminders', () => {
       )
 
       const enqueued: QueueMessage[] = []
-      await runProcessUser(
+      const exit = await runProcessUser(
         'user-1',
         plants,
         [defaultUser],
@@ -981,6 +981,7 @@ describe('checkAndCreateOverdueReminders', () => {
         })
       )
 
+      expect(Exit.isSuccess(exit)).toBe(true)
       const nudges = Arr.filter(
         notifications,
         (n) => n.type === 'resubscribe_nudge'
@@ -1010,7 +1011,7 @@ describe('checkAndCreateOverdueReminders', () => {
       )
 
       const enqueued: QueueMessage[] = []
-      await runProcessUser(
+      const exit = await runProcessUser(
         'user-1',
         plants,
         [createTestUser({ ...defaultUser, tips: false })],
@@ -1022,6 +1023,7 @@ describe('checkAndCreateOverdueReminders', () => {
         })
       )
 
+      expect(Exit.isSuccess(exit)).toBe(true)
       expect(Arr.map(notifications, (n) => n.type)).toEqual(
         Arr.makeBy(5, () => 'overdue_reminder')
       )
