@@ -46,8 +46,6 @@ const processDelegationBatch = (
       sql
         .withTransaction(
           Effect.gen(function* () {
-            // Compare-and-swap: a user cancel (or another scheduler process)
-            // that landed since the read wins, and nobody is notified twice.
             const transitioned = yield* delegationRepo.transitionStatus(
               d.id,
               [transition.from],

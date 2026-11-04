@@ -89,11 +89,6 @@ const insertSimpleNotification = <T extends SimpleNotificationType>(
     })
   })
 
-/**
- * Insert a notification already queued for immediate delivery. Run it inside
- * the caller's transaction, so the row commits or rolls back with the write
- * that caused it, and hand the result to `dispatchNow` after the commit.
- */
 export const recordNotification = <T extends SimpleNotificationType>(
   type: T,
   userId: string,
@@ -119,11 +114,6 @@ export const recordNotificationAt = <T extends SimpleNotificationType>(
     ...at,
   }).pipe(Effect.asVoid)
 
-/**
- * Enqueue a committed notification. A queue failure hands the row back to
- * the scheduler, and a failed hand-back leaves it to the recovery sweep, so
- * neither fails the caller.
- */
 export const dispatchNow = (notification: RecordedNotification) =>
   Effect.gen(function* () {
     const queue = yield* MessageQueue
