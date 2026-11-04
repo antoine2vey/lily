@@ -169,21 +169,27 @@ describe('checkPushReceipts', () => {
   describe('error receipts', () => {
     type ErrorCode = NonNullable<ExpoPushErrorReceipt['details']>['error']
 
-    const receiptOf = (code: ErrorCode | 'ok'): ExpoPushReceipt =>
+    const tokenOf = (i: number) => `ExponentPushToken[device-${i}]`
+
+    // Expo's receipt text can name the device token.
+    const receiptOf = (
+      code: ErrorCode | 'ok',
+      token: string
+    ): ExpoPushReceipt =>
       code === 'ok'
         ? { status: 'ok' }
         : {
             status: 'error',
-            message: `failed with ${code}`,
+            message: `"${token}" failed with ${code}`,
             ...(code === undefined ? {} : { details: { error: code } }),
           }
 
     const receiptsOf = (codes: ReadonlyArray<ErrorCode | 'ok'>) => ({
       pending: Array.map(codes, (_, i) =>
-        pendingReceipt(`t-${i}`, `ExponentPushToken[${i}]`, minutesAgo(30))
+        pendingReceipt(`t-${i}`, tokenOf(i), minutesAgo(30))
       ),
       receipts: Record.fromEntries(
-        Array.map(codes, (code, i) => [`t-${i}`, receiptOf(code)])
+        Array.map(codes, (code, i) => [`t-${i}`, receiptOf(code, tokenOf(i))])
       ),
     })
 
@@ -204,35 +210,26 @@ describe('checkPushReceipts', () => {
         expect.arrayContaining([
           [
             'Expo push receipt error',
-            {
-              code: 'MessageRateExceeded',
-              count: 2,
-              message: 'failed with MessageRateExceeded',
-            },
+            { code: 'MessageRateExceeded', count: 2 },
           ],
           [
             'Expo push receipt error',
-            {
-              code: 'DeviceNotRegistered',
-              count: 1,
-              message: 'failed with DeviceNotRegistered',
-            },
+            { code: 'DeviceNotRegistered', count: 1 },
           ],
-          [
-            'Expo push receipt error',
-            {
-              code: 'ProviderError',
-              count: 1,
-              message: 'failed with ProviderError',
-            },
-          ],
-          [
-            'Expo push receipt error',
-            { code: 'Unknown', count: 1, message: 'failed with undefined' },
-          ],
+          ['Expo push receipt error', { code: 'ProviderError', count: 1 }],
+          ['Expo push receipt error', { code: 'Unknown', count: 1 }],
         ])
       )
       expect(warnings).toHaveLength(4)
+    })
+
+    it('logs no push token for a receipt whose Expo text names it', async () => {
+      const { pending, receipts } = receiptsOf(['DeviceNotRegistered'])
+      const { run, warnings } = setup([], pending, receipts)
+
+      await run(checkPushReceipts)
+
+      expect(JSON.stringify(warnings)).not.toContain('device-0')
     })
 
     it('alerts once per tick on InvalidCredentials and on MessageTooBig', async () => {
@@ -250,19 +247,30 @@ describe('checkPushReceipts', () => {
           _tag: 'ProviderError',
           provider: 'expo-push',
           errorTag: 'InvalidCredentials',
-          message:
-            '2 push receipts failed with InvalidCredentials: failed with InvalidCredentials',
+          message: '2 push receipts failed with InvalidCredentials',
           dedupeWindow: Duration.hours(1),
         },
         {
           _tag: 'ProviderError',
           provider: 'expo-push',
           errorTag: 'MessageTooBig',
-          message:
-            '1 push receipt failed with MessageTooBig: failed with MessageTooBig',
+          message: '1 push receipt failed with MessageTooBig',
           dedupeWindow: Duration.hours(1),
         },
       ])
+    })
+
+    it('alerts without the push token that Expo names in its receipt text', async () => {
+      const { pending, receipts } = receiptsOf([
+        'InvalidCredentials',
+        'MessageTooBig',
+      ])
+      const { run, alerts } = setup([], pending, receipts)
+
+      await run(checkPushReceipts)
+
+      expect(Array.length(alerts)).toBe(2)
+      expect(JSON.stringify(alerts)).not.toMatch(/device-0|device-1/)
     })
 
     it('alerts on a code that keeps failing at most once an hour across ticks', async () => {

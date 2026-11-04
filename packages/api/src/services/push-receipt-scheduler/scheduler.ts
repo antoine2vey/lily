@@ -41,18 +41,13 @@ const reportErrorReceipts = Effect.fn('push-receipts.reportErrorReceipts')(
       ([code, receipts]) =>
         Effect.gen(function* () {
           const count = Array.length(receipts)
-          const message = Array.headNonEmpty(receipts).message
-          yield* Effect.logWarning('Expo push receipt error', {
-            code,
-            count,
-            message,
-          })
+          yield* Effect.logWarning('Expo push receipt error', { code, count })
           if (HashSet.has(APP_FAULT_CODES, code)) {
             yield* alerter.alert({
               _tag: 'ProviderError',
               provider: 'expo-push',
               errorTag: code,
-              message: `${count} push ${count === 1 ? 'receipt' : 'receipts'} failed with ${code}: ${message}`,
+              message: `${count} push ${count === 1 ? 'receipt' : 'receipts'} failed with ${code}`,
               dedupeWindow: APP_FAULT_ALERT_WINDOW,
             })
           }
