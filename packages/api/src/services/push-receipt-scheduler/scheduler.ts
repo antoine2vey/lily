@@ -23,9 +23,7 @@ const RECEIPT_DELAY = Duration.minutes(15)
 const RECEIPT_TTL = Duration.hours(24)
 const MAX_TICKETS_PER_RUN = 3000
 
-// Receipt errors that fail every push until someone fixes the app's push
-// credentials or payload. The other codes are per device or transient.
-const ALERTING_CODES = HashSet.make('InvalidCredentials', 'MessageTooBig')
+const APP_FAULT_CODES = HashSet.make('InvalidCredentials', 'MessageTooBig')
 
 const codeOf = (receipt: ExpoPushErrorReceipt) =>
   Option.getOrElse(
@@ -48,7 +46,7 @@ const reportErrorReceipts = Effect.fn('push-receipts.reportErrorReceipts')(
             count,
             message,
           })
-          if (HashSet.has(ALERTING_CODES, code)) {
+          if (HashSet.has(APP_FAULT_CODES, code)) {
             yield* alerter.alert({
               _tag: 'ProviderError',
               provider: 'expo-push',
