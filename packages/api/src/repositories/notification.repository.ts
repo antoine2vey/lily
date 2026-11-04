@@ -3,7 +3,7 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { notifications, plants } from '@lily/db/schema'
+import { notifications, plants, users } from '@lily/db/schema'
 import {
   nowAsDate,
   paginate,
@@ -33,7 +33,7 @@ import {
   type SQL,
   sql,
 } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Context, Data, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Types for repository methods
@@ -235,9 +235,16 @@ export interface ReminderReplacement {
     readonly scheduledAt: Date
     readonly userId: string
     readonly plantId: string
-    readonly remindedSince: Date | null
+    readonly guard: ReminderGuard
   }>
 }
+
+export type ReminderGuard = Data.TaggedEnum<{
+  Always: {}
+  NotRemindedSince: { readonly since: Date }
+  ReplacesUndelivered: {}
+}>
+export const ReminderGuard = Data.taggedEnum<ReminderGuard>()
 
 export const NotificationRepositoryLive = Layer.effect(
   NotificationRepository,
@@ -640,6 +647,28 @@ export const NotificationRepositoryLive = Layer.effect(
           yield* db.execute(
             sql`SELECT pg_advisory_xact_lock(k1, k2) FROM (SELECT DISTINCT hashtext('reminder:' || v.plant_id) AS k1, hashtext(v.type) AS k2 FROM (VALUES ${values}) AS v(plant_id, type) ORDER BY 1, 2) AS keys`
           )
+          yield* db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              inArray(
+                users.id,
+                db
+                  .select({ userId: notifications.userId })
+                  .from(notifications)
+                  .where(
+                    and(
+                      inArray(
+                        notifications.plantId,
+                        Array.dedupe(Array.map(keys, (key) => key.plantId))
+                      ),
+                      inArray(notifications.status, ['pending', 'queued'])
+                    )
+                  )
+              )
+            )
+            .orderBy(asc(users.id))
+            .for('share')
         }
       ),
 
@@ -665,33 +694,49 @@ export const NotificationRepositoryLive = Layer.effect(
               )
             )
           )
-          if (Array.isReadonlyArrayNonEmpty(stale)) {
-            yield* db
-              .delete(notifications)
-              .where(
-                inArray(
-                  notifications.id,
-                  lockedInIdOrder(
-                    and(
-                      isNull(notifications.deliveryMessageId),
-                      replacement.onlyUserId === null
-                        ? undefined
-                        : eq(notifications.userId, replacement.onlyUserId),
-                      or(...stale)
+          const replaced = Array.isReadonlyArrayNonEmpty(stale)
+            ? yield* db
+                .delete(notifications)
+                .where(
+                  inArray(
+                    notifications.id,
+                    lockedInIdOrder(
+                      and(
+                        isNull(notifications.deliveryMessageId),
+                        replacement.onlyUserId === null
+                          ? undefined
+                          : eq(notifications.userId, replacement.onlyUserId),
+                        or(...stale)
+                      )
                     )
                   )
                 )
+                .returning({
+                  plantId: notifications.plantId,
+                  type: notifications.type,
+                })
+            : []
+          const rows = Array.filter(
+            replacement.rows,
+            (row) =>
+              !ReminderGuard.$is('ReplacesUndelivered')(row.guard) ||
+              Array.some(
+                replaced,
+                (r) => r.plantId === row.plantId && r.type === row.type
               )
-          }
-          if (Array.isReadonlyArrayEmpty(replacement.rows)) return
+          )
+          if (Array.isReadonlyArrayEmpty(rows)) return
           const values = sql.join(
             Array.map(
-              replacement.rows,
+              rows,
               (row) =>
-                sql`(${row.type}::notification_type, ${row.scheduledAt.toISOString()}::timestamptz, ${row.userId}::uuid, ${row.plantId}::uuid, ${pipe(
-                  Option.fromNullishOr(row.remindedSince),
-                  Option.map((since) => since.toISOString()),
-                  Option.getOrNull
+                sql`(${row.type}::notification_type, ${row.scheduledAt.toISOString()}::timestamptz, ${row.userId}::uuid, ${row.plantId}::uuid, ${ReminderGuard.$match(
+                  row.guard,
+                  {
+                    Always: () => null,
+                    NotRemindedSince: ({ since }) => since.toISOString(),
+                    ReplacesUndelivered: () => null,
+                  }
                 )}::timestamptz)`
             ),
             sql`, `

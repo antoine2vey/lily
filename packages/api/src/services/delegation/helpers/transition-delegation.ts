@@ -58,10 +58,23 @@ export const transitionDelegation = (params: {
     )
   })
 
-export const rebuildDelegationReminders = (transitioned: DelegationRow) =>
+export const rebuildDelegationReminders = (
+  transitioned: ReadonlyArray<DelegationRow>
+) =>
   Effect.gen(function* () {
     const delegationRepo = yield* DelegationRepository
-    const plants = yield* delegationRepo.getPlantsByDelegation(transitioned.id)
-    yield* rescheduleReminders(Array.map(plants, (plant) => plant.id))
-    return plants
+    const handedOver = yield* Effect.forEach(transitioned, (delegation) =>
+      Effect.map(
+        delegationRepo.getPlantsByDelegation(delegation.id),
+        (plants) => [delegation, plants] as const
+      )
+    )
+    yield* rescheduleReminders(
+      Array.dedupe(
+        Array.flatMap(handedOver, ([, plants]) =>
+          Array.map(plants, (plant) => plant.id)
+        )
+      )
+    )
+    return handedOver
   })

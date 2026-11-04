@@ -3,6 +3,7 @@ import {
   type INotificationRepository,
   NotificationRepository,
   type NotificationRow,
+  ReminderGuard,
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
@@ -336,13 +337,12 @@ export const createMockNotificationRepository = (
                   (plant.plantWide || Array.contains(plant.types, n.type)) &&
                   !Array.contains(plant.recipientIds, n.userId)))
           )
+        const replaced = Array.filter(notificationsState, stale)
         const toKeep = Array.filter(notificationsState, (n) => !stale(n))
         notificationsState.length = 0
         notificationsState.push(...toKeep)
         Array.forEach(replacement.rows, (row) => {
-          const since = row.remindedSince
-          const reminded =
-            since !== null &&
+          const remindedSince = (since: Date) =>
             Array.some(
               notificationsState,
               (n) =>
@@ -355,7 +355,16 @@ export const createMockNotificationRepository = (
                     n.sentAt !== undefined &&
                     n.sentAt.getTime() >= since.getTime()))
             )
-          if (reminded) return
+          const skip = ReminderGuard.$match(row.guard, {
+            Always: () => false,
+            NotRemindedSince: ({ since }) => remindedSince(since),
+            ReplacesUndelivered: () =>
+              !Array.some(
+                replaced,
+                (n) => n.plantId === row.plantId && n.type === row.type
+              ),
+          })
+          if (skip) return
           notificationsState.push({
             id: `notification-${crypto.randomUUID()}`,
             type: row.type,

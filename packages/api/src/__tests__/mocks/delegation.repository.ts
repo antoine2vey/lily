@@ -351,6 +351,23 @@ export const createMockDelegationRepository = (
           Option.getOrNull
         )
       ),
+
+    findActiveCaretakersForPlants: (plantIds) =>
+      Effect.succeed(
+        Array.flatMap(
+          Array.filter(dpLinks, (link) =>
+            Array.contains(plantIds, link.plantId)
+          ),
+          (link: (typeof dpLinks)[number]) =>
+            Array.map(
+              Array.filter(
+                delegations,
+                (d) => d.id === link.delegationId && d.status === 'active'
+              ),
+              (d) => ({ plantId: link.plantId, caretakerId: d.caretakerId })
+            )
+        )
+      ),
   }
 
   return Layer.succeed(DelegationRepository, repo)

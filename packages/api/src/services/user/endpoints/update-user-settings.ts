@@ -125,43 +125,44 @@ export const updateUserSettings = (
     const rebuildReminders =
       timezoneChanged || timeChanged || careRemindersTurnedOn
 
+    const applyUpdate = Effect.gen(function* () {
+      const updated = yield* usernameTakenOnConflict(
+        repo.update(id, updateData)
+      )
+      if (!updated) {
+        return yield* new UserNotFoundError()
+      }
+      if (data.notifications?.careReminders === false) {
+        yield* notificationRepo.deletePendingByUserIdAndTypes(id, CARE_TOPICS)
+      }
+      if (data.notifications?.tips === false) {
+        yield* notificationRepo.deletePendingByUserIdAndTypes(
+          id,
+          ENGAGEMENT_TOPICS
+        )
+      }
+      return updated
+    })
+
     const sql = yield* SqlClient.SqlClient
-    const user = yield* sql.withTransaction(
-      Effect.gen(function* () {
-        const { personal, canopy } = rebuildReminders
-          ? yield* lockReminderPlantsOf(id)
-          : { personal: [], canopy: [] }
-        return yield* withReminderKeys(
-          reminderKeysFor(Array.dedupe([...personal, ...canopy]))
-        )(
+    const user = rebuildReminders
+      ? yield* sql.withTransaction(
           Effect.gen(function* () {
-            const updated = yield* usernameTakenOnConflict(
-              repo.update(id, updateData)
+            const { personal, canopy } = yield* lockReminderPlantsOf(id)
+            return yield* withReminderKeys(
+              reminderKeysFor(Array.dedupe([...personal, ...canopy]))
+            )(
+              applyUpdate.pipe(
+                Effect.tap(() =>
+                  rescheduleReminders(personal).pipe(
+                    Effect.andThen(rebuildMemberReminders(id, canopy))
+                  )
+                )
+              )
             )
-            if (!updated) {
-              return yield* new UserNotFoundError()
-            }
-            if (data.notifications?.careReminders === false) {
-              yield* notificationRepo.deletePendingByUserIdAndTypes(
-                id,
-                CARE_TOPICS
-              )
-            }
-            if (data.notifications?.tips === false) {
-              yield* notificationRepo.deletePendingByUserIdAndTypes(
-                id,
-                ENGAGEMENT_TOPICS
-              )
-            }
-            if (rebuildReminders) {
-              yield* rescheduleReminders(personal)
-              yield* rebuildMemberReminders(id, canopy)
-            }
-            return updated
           })
         )
-      })
-    )
+      : yield* applyUpdate
 
     const careLogsCount = yield* careLogRepo.countByUser(id)
 

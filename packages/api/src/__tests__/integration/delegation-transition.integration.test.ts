@@ -6,7 +6,10 @@ import {
   DelegationRepository,
   DelegationRepositoryLive,
 } from '@lily/api/repositories/delegation.repository'
-import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import {
+  NotificationRepository,
+  NotificationRepositoryLive,
+} from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
@@ -18,6 +21,7 @@ import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array as Arr, Effect, Layer, ManagedRuntime, References } from 'effect'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -150,6 +154,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
   }
 )
 
+const RebuildAlwaysFails = Layer.effect(
+  NotificationRepository,
+  Effect.map(NotificationRepository, (repo) => ({
+    ...repo,
+    replaceReminders: () =>
+      Effect.fail(
+        new SqlError({
+          reason: new UnknownError({
+            cause: new Error('injected'),
+            message: 'injected rebuild failure',
+          }),
+        })
+      ),
+  }))
+)
+
 const ReminderServicesLive = Layer.mergeAll(
   PlantRepositoryLive,
   CareScheduleRepositoryLive,
@@ -268,6 +288,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const holders = async () =>
       Arr.map(await pendingReminders(), (row) => row.split(' at ')[0])
 
+    const statuses = async () =>
+      Arr.map(
+        await db
+          .select({ status: schema.careDelegations.status })
+          .from(schema.careDelegations)
+          .orderBy(schema.careDelegations.createdAt),
+        (row) => row.status
+      )
+
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
@@ -337,6 +366,39 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       await as(owner, cancelDelegation(toAnn))
 
+      expect(await pendingReminders()).toEqual(before)
+    })
+
+    it('leaves delegations accepted and reminders on the owner when the scheduler cannot rebuild them', async () => {
+      const before = await pendingReminders()
+
+      await as(owner, Effect.provide(pollAndTransition, RebuildAlwaysFails))
+
+      expect(await statuses()).toEqual(['accepted', 'accepted'])
+      expect(await pendingReminders()).toEqual(before)
+    })
+
+    it('keeps a delegation active and its reminders on the caretaker when completing it cannot rebuild them', async () => {
+      await as(owner, pollAndTransition)
+      const before = await pendingReminders()
+
+      await expect(
+        as(owner, Effect.provide(completeDelegation(toAnn), RebuildAlwaysFails))
+      ).rejects.toThrow()
+
+      expect(await statuses()).toEqual(['active', 'active'])
+      expect(await pendingReminders()).toEqual(before)
+    })
+
+    it('keeps a delegation active and its reminders on the caretaker when canceling it cannot rebuild them', async () => {
+      await as(owner, pollAndTransition)
+      const before = await pendingReminders()
+
+      await expect(
+        as(owner, Effect.provide(cancelDelegation(toBen), RebuildAlwaysFails))
+      ).rejects.toThrow()
+
+      expect(await statuses()).toEqual(['active', 'active'])
       expect(await pendingReminders()).toEqual(before)
     })
   }

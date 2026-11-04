@@ -28,56 +28,70 @@ const getUserLanguage = (
     )
   })
 
-const processDelegationBatch = (
-  delegations: ReadonlyArray<{
-    id: string
-    ownerId: string
-    caretakerId: string
-  }>,
-  transition: { from: DelegationStatus; to: DelegationStatus },
-  notificationType: 'delegation_activated' | 'delegation_completed',
-  timestamps: Record<string, Date> | undefined
+interface Transition {
+  readonly from: DelegationStatus
+  readonly to: DelegationStatus
+  readonly notificationType: 'delegation_activated' | 'delegation_completed'
+  readonly timestamps: Record<string, Date> | undefined
+}
+
+const transitionTogether = (
+  delegations: ReadonlyArray<{ readonly id: string }>,
+  transition: Transition
 ) =>
   Effect.gen(function* () {
     const delegationRepo = yield* DelegationRepository
     const userRepo = yield* UserRepository
     const sql = yield* SqlClient.SqlClient
 
-    const results = yield* Effect.forEach(delegations, (d) =>
-      sql
-        .withTransaction(
-          Effect.gen(function* () {
-            const transitioned = yield* delegationRepo.transitionStatus(
+    const recorded = yield* sql.withTransaction(
+      Effect.gen(function* () {
+        const transitioned = yield* Effect.forEach(delegations, (d) =>
+          Effect.map(
+            delegationRepo.transitionStatus(
               d.id,
               [transition.from],
               transition.to,
-              timestamps
+              transition.timestamps
+            ),
+            Option.fromNullishOr
+          ).pipe(
+            Effect.tap(
+              Option.match({
+                onNone: () =>
+                  Effect.log(
+                    `[delegation-scheduler] Skipped ${d.id}: no longer ${transition.from}`
+                  ),
+                onSome: () => Effect.void,
+              })
             )
-            if (!transitioned) {
-              yield* Effect.log(
-                `[delegation-scheduler] Skipped ${d.id}: no longer ${transition.from}`
-              )
-              return []
-            }
-            const plants = yield* rebuildDelegationReminders(transitioned)
-            const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
+          )
+        )
+        const handedOver = yield* rebuildDelegationReminders(
+          Array.getSomes(transitioned)
+        )
+        return yield* Effect.forEach(handedOver, ([delegation, plants]) =>
+          Effect.gen(function* () {
+            const ownerLang = yield* getUserLanguage(
+              userRepo,
+              delegation.ownerId
+            )
             const caretakerLang = yield* getUserLanguage(
               userRepo,
-              d.caretakerId
+              delegation.caretakerId
             )
-            const metadata = { delegationId: d.id }
-
+            const metadata = { delegationId: delegation.id }
             return yield* Effect.all([
               recordNotification(
-                notificationType,
-                d.ownerId,
+                transition.notificationType,
+                delegation.ownerId,
                 { plantCount: plants.length },
                 ownerLang,
                 metadata
               ),
               recordNotification(
-                notificationType,
-                d.caretakerId,
+                transition.notificationType,
+                delegation.caretakerId,
                 { plantCount: plants.length },
                 caretakerLang,
                 metadata
@@ -85,21 +99,41 @@ const processDelegationBatch = (
             ])
           })
         )
-        .pipe(
-          Effect.tap(dispatchAll),
-          Effect.map((recorded) => (Array.isArrayNonEmpty(recorded) ? 1 : 0)),
-          Effect.catchTags({
-            SqlError: (e) =>
-              Effect.logWarning(
-                '[delegation-scheduler] Failed to process delegation',
-                { delegationId: d.id, error: String(e) }
-              ).pipe(Effect.as(0)),
-          })
-        )
+      })
     )
+    yield* dispatchAll(Array.flatten(recorded))
+    return recorded.length
+  })
 
-    const succeeded = Array.reduce(results, 0, (acc, n) => acc + n)
-    if (delegations.length > 0 && succeeded < delegations.length) {
+const processDelegationBatch = (
+  delegations: ReadonlyArray<{ readonly id: string }>,
+  transition: Transition
+) =>
+  Effect.gen(function* () {
+    if (Array.isReadonlyArrayEmpty(delegations)) return 0
+    const succeeded = yield* transitionTogether(delegations, transition).pipe(
+      Effect.catchTag('SqlError', (error) =>
+        Effect.logWarning(
+          '[delegation-scheduler] Batch failed, retrying each delegation alone',
+          { error: String(error) }
+        ).pipe(
+          Effect.andThen(
+            Effect.forEach(delegations, (d) =>
+              transitionTogether([d], transition).pipe(
+                Effect.catchTag('SqlError', (e) =>
+                  Effect.logWarning(
+                    '[delegation-scheduler] Failed to process delegation',
+                    { delegationId: d.id, error: String(e) }
+                  ).pipe(Effect.as(0))
+                )
+              )
+            )
+          ),
+          Effect.map(Array.reduce(0, (acc, n) => acc + n))
+        )
+      )
+    )
+    if (succeeded < delegations.length) {
       yield* Effect.logWarning(
         `[delegation-scheduler] Processed ${succeeded}/${delegations.length} delegations`
       )
@@ -112,24 +146,24 @@ export const pollAndTransition = Effect.gen(function* () {
   const now = nowAsDate()
 
   const toActivate = yield* delegationRepo.findAcceptedReadyToActivate(now)
-  const activated = yield* processDelegationBatch(
-    toActivate,
-    { from: 'accepted', to: 'active' },
-    'delegation_activated',
-    undefined
-  )
+  const activated = yield* processDelegationBatch(toActivate, {
+    from: 'accepted',
+    to: 'active',
+    notificationType: 'delegation_activated',
+    timestamps: undefined,
+  })
 
   if (activated > 0) {
     yield* Effect.log(`Activated ${activated} delegations`)
   }
 
   const toComplete = yield* delegationRepo.findActiveReadyToComplete(now)
-  const completed = yield* processDelegationBatch(
-    toComplete,
-    { from: 'active', to: 'completed' },
-    'delegation_completed',
-    { completedAt: now }
-  )
+  const completed = yield* processDelegationBatch(toComplete, {
+    from: 'active',
+    to: 'completed',
+    notificationType: 'delegation_completed',
+    timestamps: { completedAt: now },
+  })
 
   if (completed > 0) {
     yield* Effect.log(`Completed ${completed} delegations`)

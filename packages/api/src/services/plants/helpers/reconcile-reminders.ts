@@ -6,6 +6,7 @@ import {
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
   NotificationRepository,
+  ReminderGuard,
   type ReminderReplacement,
 } from '@lily/api/repositories/notification.repository'
 import {
@@ -25,7 +26,7 @@ import {
   reminderKeysFor,
   withReminderKeys,
 } from '@lily/api/services/plants/helpers/reminder-keys'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
+import { reminderRecipientsOf } from '@lily/api/services/plants/helpers/reminder-recipients'
 import {
   notificationSettingsOf,
   type UserNotificationSettings,
@@ -90,7 +91,7 @@ const sameCalendarDayFor = (
 
 interface Due {
   readonly day: (memberTimezone: string | null) => Date
-  readonly remindedSince: Date | null
+  readonly guard: ReminderGuard
 }
 
 const dueOf = (
@@ -101,10 +102,17 @@ const dueOf = (
 ): Option.Option<Due> =>
   Match.value(plant.owner).pipe(
     Match.tag('User', () =>
-      policy.personalWindow === 'any' ||
-      DateTime.isGreaterThan(DateTime.makeUnsafe(next), DateTime.nowUnsafe())
-        ? Option.some({ day: () => next, remindedSince: null })
-        : Option.none()
+      Option.some({
+        day: () => next,
+        guard:
+          policy.personalWindow === 'any' ||
+          DateTime.isGreaterThan(
+            DateTime.makeUnsafe(next),
+            DateTime.nowUnsafe()
+          )
+            ? ReminderGuard.Always()
+            : ReminderGuard.ReplacesUndelivered(),
+      })
     ),
     Match.tag('Canopy', ({ canopyId }) => {
       const zone = pipe(
@@ -118,12 +126,11 @@ const dueOf = (
         : Option.some({
             day: (memberTimezone: string | null) =>
               sameCalendarDayFor(next, zone, memberTimezone),
-            remindedSince: DateTime.isLessThan(
-              due,
-              DateTime.add(dayStart, { days: 1 })
-            )
-              ? DateTime.toDateUtc(dayStart)
-              : null,
+            guard: DateTime.isLessThan(due, DateTime.add(dayStart, { days: 1 }))
+              ? ReminderGuard.NotRemindedSince({
+                  since: DateTime.toDateUtc(dayStart),
+                })
+              : ReminderGuard.Always(),
           })
     }),
     Match.exhaustive
@@ -157,7 +164,7 @@ const rowFor = (
         : scheduledAt,
       userId: recipientId,
       plantId: plant.id,
-      remindedSince: due.remindedSince,
+      guard: due.guard,
     }
   })
 
@@ -176,13 +183,7 @@ const nextCareOf = (
 
 const recipientsOf = (plants: ReadonlyArray<PlantRow>, scope: Scope) =>
   Scope.$match(scope, {
-    AllRecipients: () =>
-      Effect.forEach(plants, (plant) =>
-        Effect.map(
-          reminderRecipients(plant),
-          (recipients) => [plant, recipients] as const
-        )
-      ),
+    AllRecipients: () => reminderRecipientsOf(plants),
     OnlyMember: ({ userId }) =>
       Effect.gen(function* () {
         const canopyPlants = Array.filterMap(

@@ -165,6 +165,13 @@ export interface IDelegationRepository {
     plantId: string
   ) => Effect.Effect<string | null, SqlError>
 
+  readonly findActiveCaretakersForPlants: (
+    plantIds: ReadonlyArray<string>
+  ) => Effect.Effect<
+    ReadonlyArray<{ readonly plantId: string; readonly caretakerId: string }>,
+    SqlError
+  >
+
   readonly hasOpenDelegationForPlant: (
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
@@ -653,6 +660,28 @@ export const DelegationRepositoryLive = Layer.effect(
           Option.map((r) => r.caretakerId),
           Option.getOrNull
         )
+      }),
+
+      findActiveCaretakersForPlants: Effect.fn(
+        'DelegationRepository.findActiveCaretakersForPlants'
+      )(function* (plantIds) {
+        if (Array.isReadonlyArrayEmpty(plantIds)) return []
+        return yield* db
+          .select({
+            plantId: delegationPlants.plantId,
+            caretakerId: careDelegations.caretakerId,
+          })
+          .from(careDelegations)
+          .innerJoin(
+            delegationPlants,
+            eq(careDelegations.id, delegationPlants.delegationId)
+          )
+          .where(
+            and(
+              inArray(delegationPlants.plantId, [...plantIds]),
+              eq(careDelegations.status, 'active')
+            )
+          )
       }),
     }
   })
