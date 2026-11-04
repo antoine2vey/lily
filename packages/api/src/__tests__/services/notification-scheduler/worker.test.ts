@@ -31,6 +31,7 @@ import {
   createFailingPushService,
   createMockPushService,
   createSuccessPushService,
+  type MockPushServiceOptions,
 } from '@lily/api/__tests__/mocks/push.service'
 import {
   createInMemoryRedis,
@@ -73,6 +74,7 @@ import {
   type NotificationTopic,
   type PushMessage,
   PushService,
+  type PushTicket,
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
@@ -645,7 +647,7 @@ describe('Notification Worker', () => {
       const requeued: QueueMessage[] = []
       const acked: string[] = []
       const inbox: QueueMessage[] = []
-      const push = {
+      const push: MockPushServiceOptions = {
         shouldFail: true,
         onSendBatch: (msgs: PushMessage[]) => sends.push(msgs),
       }
@@ -989,6 +991,101 @@ describe('Notification Worker', () => {
       expect(sends).toEqual([])
       expect(acked).toHaveLength(1)
       expect(row).toMatchObject({ status: 'pending', retryCount: 1 })
+    })
+
+    describe('provider tickets', () => {
+      const ok = (): PushTicket => ({ id: crypto.randomUUID(), status: 'ok' })
+      const rejected = (message: string): PushTicket => ({
+        id: crypto.randomUUID(),
+        status: 'error',
+        message,
+      })
+      const ticketRig = (
+        row: Notification,
+        tickets: (msgs: PushMessage[]) => PushTicket[]
+      ) => {
+        const rig = deliveryRig([row])
+        rig.push.shouldFail = false
+        rig.push.batchTickets = tickets
+        return rig
+      }
+
+      it('retries a message whose every ticket is an error and records the ticket error', async () => {
+        const row = pendingRow('notification-1')
+        const rig = ticketRig(row, (msgs) =>
+          Array.map(msgs, () => rejected('InvalidCredentials'))
+        )
+
+        await rig.attempt()
+
+        expect(rig.sends).toHaveLength(1)
+        expect(rig.sends[0]).toHaveLength(2)
+        expect(row).toMatchObject({
+          status: 'pending',
+          retryCount: 1,
+          scheduledAt: minutesAfterEpoch(1),
+        })
+        expect(row.lastError).toContain(
+          'Every push ticket failed: InvalidCredentials'
+        )
+        expect(rig.acked).toHaveLength(1)
+        expect(rig.alerts).toEqual([])
+      })
+
+      it('keeps a partial success sent', async () => {
+        const row = pendingRow('notification-1')
+        const rig = ticketRig(row, () => [
+          ok(),
+          rejected('DeviceNotRegistered'),
+        ])
+
+        await rig.attempt()
+
+        expect(row).toMatchObject({ status: 'sent', retryCount: 0 })
+        expect(rig.deadLetters).toEqual([])
+        expect(rig.alerts).toEqual([
+          expect.objectContaining({
+            _tag: 'warning',
+            summary: 'Some push notifications failed',
+            context: { total: 2, failed: 1 },
+          }),
+        ])
+      })
+
+      it('marks a message sent when every ticket is ok', async () => {
+        const row = pendingRow('notification-1')
+        const rig = ticketRig(row, (msgs) => Array.map(msgs, ok))
+
+        await rig.attempt()
+
+        expect(row).toMatchObject({ status: 'sent', retryCount: 0 })
+        expect(rig.alerts).toEqual([])
+      })
+
+      it('marks a message sent when the provider returns no ticket', async () => {
+        const row = pendingRow('notification-1')
+        const rig = ticketRig(row, () => [])
+
+        await rig.attempt()
+
+        expect(row).toMatchObject({ status: 'sent', retryCount: 0 })
+      })
+
+      it('dead-letters a message whose tickets all fail three times', async () => {
+        const row = pendingRow('notification-1')
+        const rig = ticketRig(row, (msgs) =>
+          Array.map(msgs, () => rejected('MessageRateExceeded'))
+        )
+
+        await rig.attempt()
+        await rig.attempt()
+        await rig.attempt()
+
+        expect(rig.sends).toHaveLength(3)
+        expect(row).toMatchObject({ status: 'failed', retryCount: 3 })
+        expect(rig.deadLetters).toHaveLength(1)
+        expect(rig.deadLetters[0]?.error).toContain('MessageRateExceeded')
+      })
     })
 
     it('leaves the message unacked when the retry write fails', async () => {

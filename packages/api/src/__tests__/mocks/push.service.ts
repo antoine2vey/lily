@@ -14,6 +14,7 @@ export interface MockPushServiceOptions {
   onSendLiveActivity?: (message: LiveActivityPushMessage) => void
   shouldFail?: boolean
   failureMessage?: string
+  batchTickets?: (messages: PushMessage[]) => PushTicket[]
 }
 
 export const createMockPushService = (
@@ -54,6 +55,10 @@ export const createMockPushService = (
               Option.getOrElse(() => 'Mock push batch failure')
             ),
           })
+        }
+
+        if (options.batchTickets) {
+          return options.batchTickets(messages)
         }
 
         return Array.map(messages, () => ({
