@@ -37,6 +37,7 @@ import {
   isNull,
   lt,
   lte,
+  ne,
   sql,
 } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
@@ -277,7 +278,13 @@ export const CareScheduleRepositoryLive = Layer.effect(
               careDelegations,
               eq(careDelegations.id, delegationPlants.delegationId)
             )
-            .where(eq(careDelegations.status, 'active'))
+            .innerJoin(users, eq(users.id, careDelegations.caretakerId))
+            .where(
+              and(
+                eq(careDelegations.status, 'active'),
+                ne(users.status, 'pending_deletion')
+              )
+            )
             .as('active_caretakers')
           const personal = yield* db
             .select({
@@ -290,8 +297,9 @@ export const CareScheduleRepositoryLive = Layer.effect(
             })
             .from(plantCareSchedules)
             .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
+            .innerJoin(users, eq(users.id, plants.userId))
             .leftJoin(activeCaretakers, eq(activeCaretakers.plantId, plants.id))
-            .where(and(overdue, isNotNull(plants.userId)))
+            .where(and(overdue, ne(users.status, 'pending_deletion')))
             .orderBy(asc(plants.userId))
 
           const shared = yield* db

@@ -22,10 +22,12 @@ import {
   PlantRepositoryLive,
 } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
+import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { dispatchNow } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
+import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -57,6 +59,7 @@ const RepositoriesLive = Layer.mergeAll(
   NotificationRepositoryLive,
   PlantRepositoryLive,
   RefreshTokenRepositoryLive,
+  SubscriptionRepositoryLive,
   UserRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
@@ -330,6 +333,25 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await delegationStatus(nextWeek.id)).toBe('canceled')
       expect(await rowsOf(caretaker.id)).toEqual([])
       expect(await rowsOf(owner.id)).toEqual([])
+    })
+
+    it('writes no overdue reminder for an account pending deletion', async () => {
+      const deleted = await insertUser('overdue-deleted')
+      const active = await insertUser('overdue-active')
+      await insertPlant(deleted.id, new Date(Date.now() - 2 * DAY))
+      const activePlant = await insertPlant(
+        active.id,
+        new Date(Date.now() - 2 * DAY)
+      )
+      const { run } = pipeline(deleted)
+
+      await run(deleteAccount())
+      await run(checkAndCreateOverdueReminders)
+
+      expect(await rowsOf(deleted.id)).toEqual([])
+      expect(await rowsOf(active.id)).toMatchObject([
+        { type: 'overdue_reminder', plantId: activePlant.id },
+      ])
     })
 
     it('names the owner, not a caretaker pending deletion, as the reminder recipient', async () => {
