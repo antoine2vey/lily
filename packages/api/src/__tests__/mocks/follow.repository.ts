@@ -1,4 +1,5 @@
 import {
+  type FollowerNotification,
   FollowRepository,
   type IFollowRepository,
   type PublicPlantPreviewRow,
@@ -35,6 +36,11 @@ interface MockFollowRepositoryData {
   follows?: FollowRecord[]
   nudges?: NudgeRecord[]
   users?: MockUser[]
+  onFollow?: (
+    followerId: string,
+    followingId: string,
+    notification: FollowerNotification
+  ) => void
 }
 
 export const createMockFollowRepository = (
@@ -59,13 +65,15 @@ export const createMockFollowRepository = (
   })
 
   const repo: IFollowRepository = {
-    follow: (followerId, followingId) =>
+    follow: (followerId, followingId, notification) =>
       Effect.sync(() => {
         follows.push({
           followerId,
           followingId,
           createdAt: new Date(),
         })
+        data.onFollow?.(followerId, followingId, notification)
+        return `notification-${followingId}`
       }),
 
     unfollow: (followerId, followingId) =>

@@ -3,6 +3,7 @@ import { Effect, Layer, Queue } from 'effect'
 
 export interface MockEventBusData {
   publishedEvents: AppEvent[]
+  onPublish?: (event: AppEvent) => void
 }
 
 export const createMockEventBus = (
@@ -11,6 +12,7 @@ export const createMockEventBus = (
   const eventBus: IEventBus = {
     publish: (event: AppEvent) => {
       data.publishedEvents.push(event)
+      data.onPublish?.(event)
       return Effect.void
     },
     subscribe: Effect.sync(() => {

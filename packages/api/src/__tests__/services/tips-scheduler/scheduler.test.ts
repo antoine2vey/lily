@@ -1,3 +1,4 @@
+import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockDailyTipRepository } from '@lily/api/__tests__/mocks/daily-tip.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -6,7 +7,19 @@ import type { DailyTip } from '@lily/api/repositories/daily-tip.repository'
 import { checkAndGenerateTip } from '@lily/api/services/tips-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
 import { ConfigProvider, Effect, Layer } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('@lily/api/services/tips-scheduler/generator', async () => {
+  const { Effect } = await import('effect')
+  return {
+    generateDailyTip: Effect.succeed({
+      title: { en: 'Rotate your pots' },
+      body: { en: 'Turn each pot a quarter every week.' },
+      category: 'light',
+      tags: ['light'],
+    }),
+  }
+})
 
 const disabledConfig = ConfigProvider.layer(
   ConfigProvider.fromUnknown({ TIPS_GENERATION_ENABLED: 'false' })
@@ -90,5 +103,30 @@ describe('checkAndGenerateTip', () => {
     await Effect.runPromise(checkAndGenerateTip.pipe(Effect.provide(layer)))
 
     expect(notifications).toHaveLength(0)
+  })
+
+  it('records one pending daily_tip carrying the generated tip', async () => {
+    const recorded: Notification[] = []
+    const layer = Layer.mergeAll(
+      createMockNotificationRepository(recorded),
+      createMockEngagementRepository({
+        usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
+      }),
+      createMockRagService(),
+      createMockDailyTipRepository([]),
+      enabledConfig
+    )
+
+    await Effect.runPromise(checkAndGenerateTip.pipe(Effect.provide(layer)))
+
+    expect(recorded).toHaveLength(1)
+    expect(recorded[0]).toMatchObject({
+      userId: 'user-1',
+      type: 'daily_tip',
+      status: 'pending',
+      metadata: {},
+    })
+    expect(recorded[0]?.title).toContain('Rotate your pots')
+    expect(recorded[0]?.body).toBe('Turn each pot a quarter every week.')
   })
 })

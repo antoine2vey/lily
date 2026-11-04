@@ -11,7 +11,7 @@ import {
   SkipUserError,
 } from '@lily/api/services/helpers/process-users'
 import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
-import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
 import {
   daysAgoAsDate,
   daysSince,
@@ -59,7 +59,6 @@ export const processInactivityNudges = Effect.fn(
   'engagement-scheduler.inactivityNudges'
 )(function* (usersWithTips: ReadonlyArray<UserWithSettings>) {
   const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
 
   yield* processUsers({
     schedulerName: SCHEDULER_NAME,
@@ -105,20 +104,14 @@ export const processInactivityNudges = Effect.fn(
           randomValue
         )
 
-        const { title, body } = buildSimpleContent(
+        yield* recordNotificationAt(
           'inactivity_nudge',
+          user.id,
           { plantCount },
-          user.language
+          user.language,
+          {},
+          { scheduledAt }
         )
-
-        yield* notificationRepo.create({
-          type: 'inactivity_nudge',
-          title,
-          body,
-          scheduledAt,
-          userId: user.id,
-          metadata: {},
-        })
       }),
   })
 })
@@ -127,7 +120,6 @@ export const processPhotoReminders = Effect.fn(
   'engagement-scheduler.photoReminders'
 )(function* (usersWithTips: ReadonlyArray<UserWithSettings>) {
   const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
 
   yield* processUsers({
     schedulerName: SCHEDULER_NAME,
@@ -175,24 +167,17 @@ export const processPhotoReminders = Effect.fn(
               })
             )
 
-            const { title, body } = buildSimpleContent(
+            yield* recordNotificationAt(
               'photo_reminder',
+              user.id,
               {
                 plantName: plant.plantName,
                 daysSincePhoto: daysSincePhotoVal,
               },
-              user.language
+              user.language,
+              {},
+              { scheduledAt, plantId: plant.plantId }
             )
-
-            yield* notificationRepo.create({
-              type: 'photo_reminder',
-              title,
-              body,
-              scheduledAt,
-              userId: user.id,
-              plantId: plant.plantId,
-              metadata: {},
-            })
           })
         )
       }),
@@ -203,7 +188,6 @@ export const processPlantParentMilestones = Effect.fn(
   'engagement-scheduler.milestones'
 )(function* (usersWithTips: ReadonlyArray<UserWithSettings>) {
   const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
 
   yield* processUsers({
     schedulerName: SCHEDULER_NAME,
@@ -242,20 +226,14 @@ export const processPlantParentMilestones = Effect.fn(
           randomValue
         )
 
-        const { title, body } = buildSimpleContent(
+        yield* recordNotificationAt(
           'plant_parent_milestone',
+          user.id,
           { daysSinceJoin: milestone },
-          user.language
+          user.language,
+          {},
+          { scheduledAt }
         )
-
-        yield* notificationRepo.create({
-          type: 'plant_parent_milestone',
-          title,
-          body,
-          scheduledAt,
-          userId: user.id,
-          metadata: {},
-        })
       }),
   })
 })
@@ -330,20 +308,14 @@ export const processStreakAtRisk = Effect.fn(
           })
         )
 
-        const { title, body } = buildSimpleContent(
+        yield* recordNotificationAt(
           'streak_at_risk',
+          user.id,
           params,
-          user.language
+          user.language,
+          {},
+          { scheduledAt }
         )
-
-        yield* notificationRepo.create({
-          type: 'streak_at_risk',
-          title,
-          body,
-          scheduledAt,
-          userId: user.id,
-          metadata: {},
-        })
       }),
   })
 })
@@ -355,7 +327,6 @@ export const processStreakMilestones = Effect.fn(
   streakMap: ReadonlyMap<string, number>
 ) {
   const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
 
   yield* processUsers({
     schedulerName: SCHEDULER_NAME,
@@ -397,28 +368,21 @@ export const processStreakMilestones = Effect.fn(
           randomValue
         )
 
-        const { title, body } = buildSimpleContent(
+        yield* recordNotificationAt(
           'streak_milestone',
+          user.id,
           { streakCount: streak },
-          user.language
+          user.language,
+          {},
+          { scheduledAt }
         )
-
-        yield* notificationRepo.create({
-          type: 'streak_milestone',
-          title,
-          body,
-          scheduledAt,
-          userId: user.id,
-          metadata: {},
-        })
       }),
   })
 })
 
 const processTrialEndingForThreshold = (
   daysLeft: number,
-  engagementRepo: EngagementRepository['Service'],
-  notificationRepo: NotificationRepository['Service']
+  engagementRepo: EngagementRepository['Service']
 ) =>
   Effect.gen(function* () {
     const trialingUsers =
@@ -451,20 +415,14 @@ const processTrialEndingForThreshold = (
             randomValue
           )
 
-          const { title, body } = buildSimpleContent(
+          yield* recordNotificationAt(
             'trial_ending',
+            user.id,
             { trialDaysLeft: daysLeft },
-            user.language
+            user.language,
+            {},
+            { scheduledAt }
           )
-
-          yield* notificationRepo.create({
-            type: 'trial_ending',
-            title,
-            body,
-            scheduledAt,
-            userId: user.id,
-            metadata: {},
-          })
         }),
     })
   })
@@ -472,15 +430,10 @@ const processTrialEndingForThreshold = (
 export const processTrialEnding = Effect.fn('engagement-scheduler.trialEnding')(
   function* () {
     const engagementRepo = yield* EngagementRepository
-    const notificationRepo = yield* NotificationRepository
 
     yield* Effect.all(
       Array.map(TRIAL_ENDING_DAYS, (daysLeft) =>
-        processTrialEndingForThreshold(
-          daysLeft,
-          engagementRepo,
-          notificationRepo
-        )
+        processTrialEndingForThreshold(daysLeft, engagementRepo)
       )
     )
   }
@@ -490,7 +443,6 @@ export const processPlantAnniversaries = Effect.fn(
   'engagement-scheduler.plantAnniversaries'
 )(function* (usersWithCareReminders: ReadonlyArray<UserWithSettings>) {
   const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
 
   const anniversaryPlants =
     yield* engagementRepo.getPlantsWithAnniversary(ANNIVERSARY_MONTHS)
@@ -564,25 +516,18 @@ export const processPlantAnniversaries = Effect.fn(
               year: 'numeric',
             }).format(plant.dateAdded)
 
-            const { title, body } = buildSimpleContent(
+            yield* recordNotificationAt(
               'plant_anniversary',
+              user.id,
               {
                 plantName: plant.plantName,
                 anniversaryDuration,
                 dateAdded: dateAddedStr,
               },
-              user.language
+              user.language,
+              {},
+              { scheduledAt, plantId: plant.plantId }
             )
-
-            yield* notificationRepo.create({
-              type: 'plant_anniversary',
-              title,
-              body,
-              scheduledAt,
-              userId: user.id,
-              plantId: plant.plantId,
-              metadata: {},
-            })
 
             yield* Ref.update(createdForUser, (n) => n + 1)
           })

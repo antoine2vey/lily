@@ -1,6 +1,9 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
   type INotificationRepository,
   NotificationRepository,
@@ -15,8 +18,9 @@ import {
 } from '@lily/api/services/subscriptions/usage-tracker'
 import type { subscriptionUsage } from '@lily/db/schema'
 import { LimitExceededError, type UsageField } from '@lily/shared'
+import type { Notification } from '@lily/shared/notification'
 import { Effect, Exit, Layer } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const usageAt = (
   overrides: Partial<typeof subscriptionUsage.$inferSelect> = {}
@@ -82,6 +86,37 @@ describe('UsageTracker', () => {
 
       expect(reservation.usage.aiChatsCount).toBe(5)
       expect(reserved).toEqual(['aiChats'])
+    })
+
+    it('records one pending approaching_limit when usage crosses the threshold', async () => {
+      const notifications: Notification[] = []
+      const layer = UsageTrackerLive.pipe(
+        Layer.provide(
+          Layer.mergeAll(
+            MockAlerterLive,
+            createMockSubscriptionRepository({
+              usage: usageAt({ userId: mockUser1.id, plantIdentifiesCount: 2 }),
+            }),
+            createMockNotificationRepository(notifications),
+            createMockUserRepository([mockUser1])
+          )
+        )
+      )
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const tracker = yield* UsageTracker
+          return yield* tracker.reserve(mockUser1.id, 'plantIdentifies')
+        }).pipe(Effect.provide(layer))
+      )
+
+      await vi.waitFor(() => expect(notifications).toHaveLength(1))
+      expect(notifications[0]).toMatchObject({
+        userId: mockUser1.id,
+        type: 'approaching_limit',
+        status: 'pending',
+        metadata: {},
+      })
     })
 
     it('fails with LimitExceededError at the free limit and counts nothing', async () => {

@@ -9,8 +9,9 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
+  dispatchNow,
+  recordNotification,
   scheduleDeferredCareNotification,
-  scheduleSimpleNotification,
 } from '@lily/api/services/helpers/schedule-notification'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
@@ -215,13 +216,13 @@ export const processUserOverdueReminders = (
           'resubscribe_nudge'
         )
       if (!alreadySentNudge) {
-        yield* scheduleSimpleNotification(
+        yield* recordNotification(
           'resubscribe_nudge',
           userId,
           { plantCount: overflowCount },
           settings.language,
           {}
-        )
+        ).pipe(Effect.flatMap(dispatchNow))
       }
     }
 

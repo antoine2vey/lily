@@ -2,7 +2,10 @@ import { DelegationRepository } from '@lily/api/repositories/delegation.reposito
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  dispatchNow,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import { withUserLock } from '@lily/api/services/plants/helpers/owner-lock'
 import {
   caller,
@@ -75,7 +78,12 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
       })
     }
 
-    const delegation = yield* withUserLock(currentUserId)(
+    const ownerName = pipe(
+      Option.fromNullishOr(currentUserName),
+      Option.getOrElse(() => 'Someone')
+    )
+
+    const { delegation, notification } = yield* withUserLock(currentUserId)(
       Effect.gen(function* () {
         // Verify all plants belong to the current user
         const plants = yield* plantRepo.findByIds(plantIds)
@@ -118,24 +126,21 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
 
         yield* delegationRepo.addPlants(delegation.id, plantIds)
 
-        return delegation
+        const notification = yield* recordNotification(
+          'delegation_request',
+          request.caretakerId,
+          { senderName: ownerName },
+          caretaker.language,
+          { delegationId: delegation.id }
+        )
+
+        return { delegation, notification }
       })
     )
 
+    yield* dispatchNow(notification)
+
     const detail = yield* delegationRepo.findById(delegation.id)
-
-    const ownerName = pipe(
-      Option.fromNullishOr(currentUserName),
-      Option.getOrElse(() => 'Someone')
-    )
-
-    yield* scheduleSimpleNotification(
-      'delegation_request',
-      request.caretakerId,
-      { senderName: ownerName },
-      caretaker.language,
-      { delegationId: delegation.id }
-    )
 
     return yield* pipe(
       Option.fromNullishOr(detail),

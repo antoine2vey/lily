@@ -2,6 +2,7 @@ import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
 import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
+import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
 import {
   DEFAULT_TIMEZONE,
   daysAgoAsDate,
@@ -133,17 +134,17 @@ export const checkAndGenerateTip = Effect.gen(function* () {
           () => 'en' as const
         )
 
-        const title = resolveLocalized(tip.title, language)
-        const body = resolveLocalized(tip.body, language)
-
-        yield* notificationRepo.create({
-          type: 'daily_tip',
-          title,
-          body,
-          scheduledAt,
-          userId: user.id,
-          metadata: {},
-        })
+        yield* recordNotificationAt(
+          'daily_tip',
+          user.id,
+          {
+            tipTitle: resolveLocalized(tip.title, language),
+            tipBody: resolveLocalized(tip.body, language),
+          },
+          language,
+          {},
+          { scheduledAt }
+        )
       }).pipe(
         Effect.catchTags({
           DndWindowBlockedError: () =>

@@ -7,6 +7,7 @@ import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.rep
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { sendNudge } from '@lily/api/services/social/endpoints/send-nudge'
 import type { Notification } from '@lily/shared/notification'
@@ -34,6 +35,7 @@ const buildLayer = (
   notifications: Notification[] = []
 ) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     createMockCurrentUser({ id: currentUserId, name: 'Current User' }),
     createMockFollowRepository({
       follows,
@@ -160,8 +162,12 @@ describe('sendNudge', () => {
       sendNudge({ targetUserId: targetUser.id }).pipe(Effect.provide(layer))
     )
     expect(notifications).toHaveLength(1)
-    expect(notifications[0]?.type).toBe('nudge_to_water')
-    expect(notifications[0]?.userId).toBe(targetUser.id)
+    expect(notifications[0]).toMatchObject({
+      userId: targetUser.id,
+      type: 'nudge_to_water',
+      status: 'queued',
+      metadata: { senderId: currentUserId },
+    })
   })
 
   it('should include nudger name in notification body', async () => {

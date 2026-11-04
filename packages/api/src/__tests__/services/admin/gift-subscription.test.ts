@@ -1,12 +1,14 @@
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CreateSubscriptionData } from '@lily/api/repositories/subscription.repository'
 import { giftSubscription } from '@lily/api/services/admin/endpoints/gift-subscription'
 import { AdminUser } from '@lily/api/services/admin/middleware'
 import type { UserProfile } from '@lily/shared/auth'
+import type { Notification } from '@lily/shared/notification'
 import { Cause, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -26,12 +28,14 @@ const mockAdminContext: UserProfile = {
 const mockAdminLayer = Layer.succeed(AdminUser, mockAdminContext)
 
 const baseLayers = (
-  opts: Parameters<typeof createMockSubscriptionRepository>[0] = {}
+  opts: Parameters<typeof createMockSubscriptionRepository>[0] = {},
+  notifications: Notification[] = []
 ) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     createMockUserRepository([...mockUsers]),
     createMockSubscriptionRepository(opts),
-    createMockNotificationRepository([]),
+    createMockNotificationRepository(notifications),
     createMockMessageQueue(),
     mockAdminLayer
   )
@@ -63,6 +67,24 @@ describe('giftSubscription', () => {
     const diffDays = diffMs / (1000 * 60 * 60 * 24)
     expect(diffDays).toBeGreaterThan(6.9)
     expect(diffDays).toBeLessThan(7.1)
+  })
+
+  it('records one queued gift_subscription for the recipient', async () => {
+    const notifications: Notification[] = []
+
+    await Effect.runPromise(
+      giftSubscription('user-1', '7d').pipe(
+        Effect.provide(baseLayers({}, notifications))
+      )
+    )
+
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0]).toMatchObject({
+      userId: 'user-1',
+      type: 'gift_subscription',
+      status: 'queued',
+      metadata: {},
+    })
   })
 
   it('should gift an infinite subscription with 2099 end date', async () => {

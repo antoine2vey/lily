@@ -7,6 +7,7 @@ import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
   DelegationRepository,
@@ -24,6 +25,7 @@ const notifications: Notification[] = []
 
 const createLayer = (delegations: DelegationRow[]) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     createMockDelegationRepository({
       delegations,
       plants: mockDelegationPlants,
@@ -146,6 +148,7 @@ describe('DelegationScheduler', () => {
         pollAndTransition.pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockSqlClientLive,
               racingCancel,
               createMockNotificationRepository(notifications),
               createMockUserRepository([mockUser1, mockUser2]),
@@ -182,6 +185,7 @@ describe('DelegationScheduler', () => {
       }
       const delegations = [toActivate, toComplete]
       const layer = Layer.mergeAll(
+        MockSqlClientLive,
         createMockDelegationRepository({
           delegations,
           plants: mockDelegationPlants,
@@ -220,11 +224,15 @@ describe('DelegationScheduler', () => {
         userId: delegation.ownerId,
         type: 'delegation_activated',
         title: '🌱 Plant-sitting has begun',
+        status: 'queued',
+        metadata: { delegationId: delegation.id },
       })
       expect(notifications[1]).toMatchObject({
         userId: delegation.caretakerId,
         type: 'delegation_activated',
         title: '🌱 Plant-sitting has begun',
+        status: 'queued',
+        metadata: { delegationId: delegation.id },
       })
     })
 
@@ -246,11 +254,15 @@ describe('DelegationScheduler', () => {
         userId: delegation.ownerId,
         type: 'delegation_completed',
         title: '🎉 Plant-sitting complete',
+        status: 'queued',
+        metadata: { delegationId: delegation.id },
       })
       expect(notifications[1]).toMatchObject({
         userId: delegation.caretakerId,
         type: 'delegation_completed',
         title: '🎉 Plant-sitting complete',
+        status: 'queued',
+        metadata: { delegationId: delegation.id },
       })
     })
     describe('error isolation', () => {
@@ -272,6 +284,7 @@ describe('DelegationScheduler', () => {
         }
         const delegations = [d1, d2]
         const layer = Layer.mergeAll(
+          MockSqlClientLive,
           createMockDelegationRepository({
             delegations,
             plants: mockDelegationPlants,
@@ -320,6 +333,7 @@ describe('DelegationScheduler', () => {
         }
         const delegations = [delegation]
         const layer = Layer.mergeAll(
+          MockSqlClientLive,
           createMockDelegationRepository({
             delegations,
             plants: mockDelegationPlants,

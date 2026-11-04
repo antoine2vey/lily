@@ -55,6 +55,8 @@ describe('processStreakAtRisk', () => {
 
     expect(notifications).toHaveLength(1)
     expect(notifications[0]?.type).toBe('streak_at_risk')
+    expect(notifications[0]?.status).toBe('pending')
+    expect(notifications[0]?.metadata).toEqual({})
     expect(notifications[0]?.userId).toBe('user-1')
   })
 

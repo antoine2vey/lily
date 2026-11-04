@@ -18,6 +18,7 @@ export interface MockNotificationRepositoryOptions {
   deliveryClaims?: Record<string, string>
   /** The ids of a Canopy's plants at call time, like the real subquery. */
   canopyPlants?: (canopyId: string) => ReadonlyArray<string>
+  onCreate?: (notification: Notification) => void
 }
 
 export const createMockNotificationRepository = (
@@ -105,6 +106,7 @@ export const createMockNotificationRepository = (
       }
       if (status === 'queued') queuedAt.set(newNotification.id, new Date())
       notificationsState.push(newNotification)
+      options.onCreate?.(newNotification)
       return Effect.succeed(newNotification)
     },
 

@@ -3,14 +3,13 @@ import {
   EngagementRepository,
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   processUsers,
   SkipUserError,
 } from '@lily/api/services/helpers/process-users'
 import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
-import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
 import {
   daysAgoAsDate,
   isOnVacation,
@@ -28,7 +27,6 @@ export const processWeeklyRecap = Effect.fn(
 )(function* (usersWithDigest: ReadonlyArray<UserWithSettings>) {
   const achievementRepo = yield* AchievementRepository
   const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
 
   yield* processUsers({
     schedulerName: 'weekly-recap-scheduler',
@@ -73,20 +71,14 @@ export const processWeeklyRecap = Effect.fn(
           randomValue
         )
 
-        const { title, body } = buildSimpleContent(
+        yield* recordNotificationAt(
           'weekly_recap',
+          user.id,
           { tasksCompleted, streakCount: streak, healthyCount },
-          user.language
+          user.language,
+          {},
+          { scheduledAt }
         )
-
-        yield* notificationRepo.create({
-          type: 'weekly_recap',
-          title,
-          body,
-          scheduledAt,
-          userId: user.id,
-          metadata: {},
-        })
       }),
   })
 })

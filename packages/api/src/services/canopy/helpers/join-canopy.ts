@@ -1,10 +1,12 @@
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { canopyView } from '@lily/api/services/canopy/helpers/canopy-view'
 import { failAlreadyInCanopy } from '@lily/api/services/canopy/helpers/membership'
+import { senderNameOf } from '@lily/api/services/canopy/helpers/notify-member'
 import {
-  notifyMemberBestEffort,
-  senderNameOf,
-} from '@lily/api/services/canopy/helpers/notify-member'
+  dispatchAll,
+  type RecordedNotification,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   reminderKeysFor,
@@ -15,7 +17,7 @@ import {
   CanopyFullError,
   CanopyInviteNotFoundError,
 } from '@lily/shared'
-import { Effect, Option, pipe } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 
 export interface JoinTarget {
@@ -53,7 +55,10 @@ export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
             return yield* failAlreadyInCanopy(current.canopyId)
           }
           if (!target.readmitsOnly) yield* source.markUsed
-          return { canopyId: canopy.id, notify: Option.none() }
+          return {
+            canopyId: canopy.id,
+            notifications: Array.empty<RecordedNotification>(),
+          }
         }
         if (target.readmitsOnly) {
           return yield* new CanopyInviteNotFoundError()
@@ -80,25 +85,20 @@ export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
           })
         )
         yield* source.markUsed
-        return {
-          canopyId: canopy.id,
-          notify: Option.some({ canopyName: canopy.name, members }),
-        }
+        const notifications = yield* Effect.forEach(members, (member) =>
+          recordNotification(
+            'canopy_member_joined',
+            member.userId,
+            { ...senderNameOf(joiner.name), canopyName: canopy.name },
+            member.language,
+            {}
+          )
+        )
+        return { canopyId: canopy.id, notifications }
       })
     )
 
-    yield* Option.match(joined.notify, {
-      onNone: () => Effect.void,
-      onSome: ({ canopyName, members }) =>
-        Effect.forEach(members, (member) =>
-          notifyMemberBestEffort(
-            'canopy_member_joined',
-            member,
-            { ...senderNameOf(joiner.name), canopyName },
-            {}
-          )
-        ),
-    })
+    yield* dispatchAll(joined.notifications)
 
     return yield* canopyView(joined.canopyId, joiner.id)
   })

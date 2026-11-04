@@ -1,7 +1,4 @@
-import {
-  type CanopyMemberRow,
-  CanopyRepository,
-} from '@lily/api/repositories/canopy.repository'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -12,10 +9,12 @@ import {
   dropMember,
   lockMyCanopy,
 } from '@lily/api/services/canopy/helpers/membership'
+import { senderNameOf } from '@lily/api/services/canopy/helpers/notify-member'
 import {
-  notifyMemberBestEffort,
-  senderNameOf,
-} from '@lily/api/services/canopy/helpers/notify-member'
+  dispatchNow,
+  type RecordedNotification,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import { canopyPlantIdsOf } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   reminderKeysFor,
@@ -28,11 +27,7 @@ import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type LeaveOutcome = Data.TaggedEnum<{
-  Left: {
-    readonly canopyName: string
-    readonly leaver: CanopyMemberRow
-    readonly owner: CanopyMemberRow
-  }
+  Left: { readonly notification: RecordedNotification }
   Dissolved: {}
 }>
 
@@ -80,25 +75,18 @@ const leaveInTransaction = (
     if (owner.value.role !== 'owner') {
       yield* repo.setRole(canopy.id, owner.value.userId, 'owner')
     }
-    return LeaveOutcome.Left({
-      canopyName: canopy.name,
-      leaver,
-      owner: { ...owner.value, role: 'owner' },
-    })
+    const notification = yield* recordNotification(
+      'canopy_member_left',
+      owner.value.userId,
+      { ...senderNameOf(leaver.name), canopyName: canopy.name },
+      owner.value.language,
+      {}
+    )
+    return LeaveOutcome.Left({ notification })
   })
 
 const notifyLeave = (outcome: LeaveOutcome) =>
-  outcome._tag === 'Left'
-    ? notifyMemberBestEffort(
-        'canopy_member_left',
-        outcome.owner,
-        {
-          ...senderNameOf(outcome.leaver.name),
-          canopyName: outcome.canopyName,
-        },
-        {}
-      )
-    : Effect.void
+  outcome._tag === 'Left' ? dispatchNow(outcome.notification) : Effect.void
 
 export const leaveCanopy = (
   userId: string

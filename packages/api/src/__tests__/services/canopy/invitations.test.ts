@@ -6,6 +6,7 @@ import {
   createTestCanopyRow,
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
   canopyWorld,
@@ -87,13 +88,20 @@ const run = <A, E>(
   store: MockCanopyStore,
   actor: string,
   effect: Effect.Effect<A, E, WorldServices>,
-  notifications: Notification[] = []
+  notifications: Notification[] = [],
+  timeline?: ReturnType<typeof createOutboxTimeline>
 ) =>
   Effect.runPromiseExit(
     Effect.provide(
       effect,
       Layer.merge(
-        canopyWorld(store, { id: actor, name: actor }, notifications).layer,
+        canopyWorld(
+          store,
+          { id: actor, name: actor },
+          notifications,
+          [],
+          timeline
+        ).layer,
         createMockUserRepository([...memberUsers(store), ...outsiders])
       )
     )
@@ -227,12 +235,14 @@ describe('acceptCanopyInvitation', () => {
     const store = home()
     store.invitations.push(invitation())
     const notifications: Notification[] = []
+    const timeline = createOutboxTimeline()
 
     const exit = await run(
       store,
       'lily',
       acceptCanopyInvitation('invitation-1'),
-      notifications
+      notifications,
+      timeline
     )
 
     expect(Exit.isSuccess(exit)).toBe(true)
@@ -241,6 +251,22 @@ describe('acceptCanopyInvitation', () => {
     expect(pushesOf(notifications, 'canopy_member_joined').sort()).toEqual([
       'alex',
       'sam',
+    ])
+    expect(notifications).toMatchObject([
+      { type: 'canopy_member_joined', status: 'queued', metadata: {} },
+      { type: 'canopy_member_joined', status: 'queued', metadata: {} },
+    ])
+    expect(timeline.events).toEqual([
+      'begin',
+      ...Array.map(
+        notifications,
+        (n) => `insert canopy_member_joined ${n.userId}`
+      ),
+      'commit',
+      ...Array.map(
+        notifications,
+        (n) => `enqueue canopy_member_joined ${n.userId}`
+      ),
     ])
   })
 

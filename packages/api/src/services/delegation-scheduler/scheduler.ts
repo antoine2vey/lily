@@ -1,11 +1,14 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
-import type { SimpleNotificationType } from '@lily/api/services/notification-scheduler/translations'
+import {
+  dispatchAll,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import type { DelegationStatus, LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const getUserLanguage = (
@@ -31,58 +34,67 @@ const processDelegationBatch = (
     caretakerId: string
   }>,
   transition: { from: DelegationStatus; to: DelegationStatus },
-  notificationType: SimpleNotificationType,
+  notificationType: 'delegation_activated' | 'delegation_completed',
   timestamps: Record<string, Date> | undefined
 ) =>
   Effect.gen(function* () {
     const delegationRepo = yield* DelegationRepository
     const userRepo = yield* UserRepository
+    const sql = yield* SqlClient.SqlClient
 
     const results = yield* Effect.forEach(delegations, (d) =>
-      Effect.gen(function* () {
-        // Compare-and-swap: a user cancel (or another scheduler process)
-        // that landed since the read wins, and nobody is notified twice.
-        const transitioned = yield* delegationRepo.transitionStatus(
-          d.id,
-          [transition.from],
-          transition.to,
-          timestamps
-        )
-        if (!transitioned) {
-          yield* Effect.log(
-            `[delegation-scheduler] Skipped ${d.id}: no longer ${transition.from}`
-          )
-          return 0 as const
-        }
-        const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
-        const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
-        const caretakerLang = yield* getUserLanguage(userRepo, d.caretakerId)
-        const metadata = { delegationId: d.id }
+      sql
+        .withTransaction(
+          Effect.gen(function* () {
+            const transitioned = yield* delegationRepo.transitionStatus(
+              d.id,
+              [transition.from],
+              transition.to,
+              timestamps
+            )
+            if (!transitioned) {
+              yield* Effect.log(
+                `[delegation-scheduler] Skipped ${d.id}: no longer ${transition.from}`
+              )
+              return []
+            }
+            const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
+            const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
+            const caretakerLang = yield* getUserLanguage(
+              userRepo,
+              d.caretakerId
+            )
+            const metadata = { delegationId: d.id }
 
-        yield* scheduleSimpleNotification(
-          notificationType,
-          d.ownerId,
-          { plantCount: plants.length },
-          ownerLang,
-          metadata
+            return yield* Effect.all([
+              recordNotification(
+                notificationType,
+                d.ownerId,
+                { plantCount: plants.length },
+                ownerLang,
+                metadata
+              ),
+              recordNotification(
+                notificationType,
+                d.caretakerId,
+                { plantCount: plants.length },
+                caretakerLang,
+                metadata
+              ),
+            ])
+          })
         )
-        yield* scheduleSimpleNotification(
-          notificationType,
-          d.caretakerId,
-          { plantCount: plants.length },
-          caretakerLang,
-          metadata
+        .pipe(
+          Effect.tap(dispatchAll),
+          Effect.map((recorded) => (Array.isArrayNonEmpty(recorded) ? 1 : 0)),
+          Effect.catchTags({
+            SqlError: (e) =>
+              Effect.logWarning(
+                '[delegation-scheduler] Failed to process delegation',
+                { delegationId: d.id, error: String(e) }
+              ).pipe(Effect.as(0)),
+          })
         )
-        return 1 as const
-      }).pipe(
-        Effect.catchTags({
-          SqlError: (e) =>
-            Effect.logWarning(
-              '[delegation-scheduler] Failed to process delegation',
-              { delegationId: d.id, error: String(e) }
-            ).pipe(Effect.as(0 as const)),
-        })
-      )
     )
 
     const succeeded = Array.reduce(results, 0, (acc, n) => acc + n)

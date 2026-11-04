@@ -7,6 +7,7 @@ import {
   createTestCanopyRow,
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import {
   canopyWorld,
   pushesOf,
@@ -72,12 +73,19 @@ const run = <A, E>(
   store: MockCanopyStore,
   actor: string,
   effect: Effect.Effect<A, E, WorldServices>,
-  notifications: Notification[] = []
+  notifications: Notification[] = [],
+  timeline?: ReturnType<typeof createOutboxTimeline>
 ) =>
   Effect.runPromiseExit(
     Effect.provide(
       effect,
-      canopyWorld(store, { id: actor, name: actor }, notifications).layer
+      canopyWorld(
+        store,
+        { id: actor, name: actor },
+        notifications,
+        [],
+        timeline
+      ).layer
     )
   )
 
@@ -125,12 +133,14 @@ describe('acceptCanopyInvite', () => {
       joinedAt: new Date('2024-02-01'),
     })
     const notifications: Notification[] = []
+    const timeline = createOutboxTimeline()
 
     const exit = await run(
       store,
       'lily',
       acceptCanopyInvite('tok'),
-      notifications
+      notifications,
+      timeline
     )
 
     expect(Exit.isSuccess(exit)).toBe(true)
@@ -138,6 +148,22 @@ describe('acceptCanopyInvite', () => {
     expect(pushesOf(notifications, 'canopy_member_joined').sort()).toEqual([
       'alex',
       'sam',
+    ])
+    expect(notifications).toMatchObject([
+      { type: 'canopy_member_joined', status: 'queued', metadata: {} },
+      { type: 'canopy_member_joined', status: 'queued', metadata: {} },
+    ])
+    expect(timeline.events).toEqual([
+      'begin',
+      ...Array.map(
+        notifications,
+        (n) => `insert canopy_member_joined ${n.userId}`
+      ),
+      'commit',
+      ...Array.map(
+        notifications,
+        (n) => `enqueue canopy_member_joined ${n.userId}`
+      ),
     ])
   })
 
@@ -440,19 +466,33 @@ describe('removeCanopyMember', () => {
 
     withInvite(store, 'shared-link')
 
+    const timeline = createOutboxTimeline()
     const exit = await run(
       store,
       'alex',
       removeCanopyMember('lily'),
-      notifications
+      notifications,
+      timeline
     )
 
     expect(Exit.isSuccess(exit)).toBe(true)
     expect(store.members.map((m) => m.userId)).toEqual(['alex'])
     expect(store.mutes).toEqual([])
     expect(store.invites.map((i) => i.revokedAt !== null)).toEqual([true])
-    expect(notifications.map((n) => n.type)).toEqual(['canopy_member_removed'])
-    expect(pushesOf(notifications, 'canopy_member_removed')).toEqual(['lily'])
+    expect(notifications).toMatchObject([
+      {
+        userId: 'lily',
+        type: 'canopy_member_removed',
+        status: 'queued',
+        metadata: {},
+      },
+    ])
+    expect(timeline.events).toEqual([
+      'begin',
+      'insert canopy_member_removed lily',
+      'commit',
+      'enqueue canopy_member_removed lily',
+    ])
   })
 
   it('is the owner only', async () => {

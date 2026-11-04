@@ -4,10 +4,11 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { canopyView } from '@lily/api/services/canopy/helpers/canopy-view'
 import { planInvitation } from '@lily/api/services/canopy/helpers/invitation'
 import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
+import { senderNameOf } from '@lily/api/services/canopy/helpers/notify-member'
 import {
-  notifyMemberBestEffort,
-  senderNameOf,
-} from '@lily/api/services/canopy/helpers/notify-member'
+  dispatchNow,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import {
   RATE_LIMITS,
   RateLimiterService,
@@ -36,7 +37,7 @@ export const sendCanopyInvitation = Effect.fn(
     RATE_LIMITS.CANOPY_INVITATION
   )
 
-  const { canopy, push } = yield* sql.withTransaction(
+  const { canopy, notification } = yield* sql.withTransaction(
     Effect.gen(function* () {
       const { canopy } = yield* lockMyCanopy(userId)
       const invitee = yield* userRepo.findById(inviteeId)
@@ -58,7 +59,7 @@ export const sendCanopyInvitation = Effect.fn(
       const now = DateTime.nowUnsafe()
       const existing = yield* repo.findInvitationByPair(canopy.id, invitee.id)
       if (planInvitation(existing, now) !== 'send') {
-        return { canopy, push: Option.none() }
+        return { canopy, notification: Option.none() }
       }
       const invitation = yield* repo.upsertInvitation({
         canopyId: canopy.id,
@@ -68,19 +69,20 @@ export const sendCanopyInvitation = Effect.fn(
           DateTime.add(now, { days: CANOPY_INVITE_TTL_DAYS })
         ),
       })
-      return { canopy, push: Option.some({ invitation, invitee }) }
+      const notification = yield* recordNotification(
+        'canopy_invitation',
+        invitee.id,
+        { ...senderNameOf(name), canopyName: canopy.name },
+        invitee.language,
+        { invitationId: invitation.id }
+      )
+      return { canopy, notification: Option.some(notification) }
     })
   )
 
-  yield* Option.match(push, {
+  yield* Option.match(notification, {
     onNone: () => Effect.void,
-    onSome: ({ invitation, invitee }) =>
-      notifyMemberBestEffort(
-        'canopy_invitation',
-        { userId: invitee.id, language: invitee.language },
-        { ...senderNameOf(name), canopyName: canopy.name },
-        { invitationId: invitation.id }
-      ),
+    onSome: dispatchNow,
   })
 
   return yield* canopyView(canopy.id, userId)

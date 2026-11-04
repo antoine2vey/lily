@@ -2,13 +2,17 @@ import { DelegationRepository } from '@lily/api/repositories/delegation.reposito
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { transitionDelegation } from '@lily/api/services/delegation/helpers/transition-delegation'
-import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  dispatchNow,
+  recordNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import {
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
   nowAsDate,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 
 export const respondToDelegation = Effect.fn(
   'DelegationService.respondToDelegation'
@@ -28,15 +32,6 @@ export const respondToDelegation = Effect.fn(
     })
   }
 
-  yield* transitionDelegation({
-    delegationId,
-    from: ['pending'],
-    to: params.accept ? 'accepted' : 'rejected',
-    expectedStatus: 'pending',
-    message: 'This delegation has already been responded to',
-    timestamps: { respondedAt: nowAsDate() },
-  })
-
   const caretakerName = pipe(
     Option.fromNullishOr(delegation.caretakerName),
     Option.getOrElse(() => 'Someone')
@@ -52,13 +47,29 @@ export const respondToDelegation = Effect.fn(
     ? ('delegation_accepted' as const)
     : ('delegation_rejected' as const)
 
-  yield* scheduleSimpleNotification(
-    type,
-    delegation.ownerId,
-    { senderName: caretakerName },
-    ownerLanguage,
-    { delegationId }
+  const sql = yield* SqlClient.SqlClient
+  const notification = yield* sql.withTransaction(
+    transitionDelegation({
+      delegationId,
+      from: ['pending'],
+      to: params.accept ? 'accepted' : 'rejected',
+      expectedStatus: 'pending',
+      message: 'This delegation has already been responded to',
+      timestamps: { respondedAt: nowAsDate() },
+    }).pipe(
+      Effect.andThen(
+        recordNotification(
+          type,
+          delegation.ownerId,
+          { senderName: caretakerName },
+          ownerLanguage,
+          { delegationId }
+        )
+      )
+    )
   )
+
+  yield* dispatchNow(notification)
 
   const updated = yield* delegationRepo.findById(delegationId)
   return yield* pipe(
