@@ -5,13 +5,18 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createSuccessPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { createDelegation } from '@lily/api/services/delegation/endpoints/create-delegation'
 import {
   dispatchNow,
   recordNotification,
@@ -33,7 +38,15 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { Data, Effect, Exit, Layer, References } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import pg from 'pg'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+} from 'vitest'
 
 const { Pool } = pg
 
@@ -231,6 +244,75 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await notificationRows()).toEqual([
         { status: 'sent', type: 'new_follower' },
       ])
+    })
+
+    it('rolls a new delegation back when its notification insert fails', async () => {
+      const [caretaker] = await db
+        .insert(schema.users)
+        .values({
+          email: `caretaker-${Date.now()}@example.com`,
+          name: 'caretaker',
+          emailVerified: true,
+        })
+        .returning({ id: schema.users.id })
+      const [plant] = await db
+        .insert(schema.plants)
+        .values({
+          name: 'Monstera',
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 1,
+          wateringRating: 3,
+          userId,
+        })
+        .returning({ id: schema.plants.id })
+      if (!caretaker || !plant) throw new Error('Failed to seed delegation')
+      await db.execute(
+        sql.raw(`
+          CREATE FUNCTION refuse_notification_for() RETURNS trigger AS $$
+          BEGIN
+            IF NEW.user_id::text = TG_ARGV[0] THEN
+              RAISE EXCEPTION 'notification refused';
+            END IF;
+            RETURN NEW;
+          END $$ LANGUAGE plpgsql;
+          CREATE TRIGGER refuse_notification BEFORE INSERT ON notifications
+            FOR EACH ROW EXECUTE FUNCTION refuse_notification_for('${caretaker.id}');
+        `)
+      )
+      onTestFinished(async () => {
+        await db.execute(
+          sql.raw(`
+            DROP TRIGGER refuse_notification ON notifications;
+            DROP FUNCTION refuse_notification_for();
+          `)
+        )
+      })
+
+      const exit = await Effect.runPromiseExit(
+        createDelegation({
+          caretakerId: caretaker.id,
+          plantIds: [plant.id],
+          startDate: new Date(Date.now() + 86_400_000).toISOString(),
+          endDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              DatabaseLive,
+              DelegationRepositoryLive.pipe(Layer.provide(DatabaseLive)),
+              CanopyRepositoryLive.pipe(Layer.provide(DatabaseLive)),
+              createMockLimitChecker(),
+              createMockCurrentUser({ id: userId, name: 'outbox_user' }),
+              createMockMessageQueue()
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(await db.select().from(schema.careDelegations)).toEqual([])
+      expect(await db.select().from(schema.notifications)).toEqual([])
     })
   }
 )

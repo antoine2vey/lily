@@ -41,7 +41,15 @@ import { and, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Exit, Layer } from 'effect'
 import pg from 'pg'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+} from 'vitest'
 
 const { Pool } = pg
 
@@ -449,6 +457,47 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.plants)
         .where(eq(schema.plants.id, fern.id))
       expect(plant?.canopyId).toBe(canopyId)
+      expect(await db.select().from(schema.notifications)).toEqual([])
+    })
+
+    it('rolls the leave back when its notification insert fails', async () => {
+      await join(alexId, 'owner', '2024-01-01')
+      await join(lilyId, 'member', '2024-02-01')
+      await db.execute(
+        sql.raw(`
+          CREATE FUNCTION refuse_notification_for() RETURNS trigger AS $$
+          BEGIN
+            IF NEW.user_id::text = TG_ARGV[0] THEN
+              RAISE EXCEPTION 'notification refused';
+            END IF;
+            RETURN NEW;
+          END $$ LANGUAGE plpgsql;
+          CREATE TRIGGER refuse_notification BEFORE INSERT ON notifications
+            FOR EACH ROW EXECUTE FUNCTION refuse_notification_for('${alexId}');
+        `)
+      )
+      onTestFinished(async () => {
+        await db.execute(
+          sql.raw(`
+            DROP TRIGGER refuse_notification ON notifications;
+            DROP FUNCTION refuse_notification_for();
+          `)
+        )
+      })
+
+      const exit = await Effect.runPromiseExit(
+        Effect.provide(leaveCanopy(lilyId), AppLive)
+      )
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      const members = await db
+        .select({ userId: schema.canopyMembers.userId })
+        .from(schema.canopyMembers)
+      expect(members).toEqual(
+        expect.arrayContaining([{ userId: alexId }, { userId: lilyId }])
+      )
+      expect(members).toHaveLength(2)
+      expect(await db.select().from(schema.notifications)).toEqual([])
     })
 
     it('keeps one live invite per Canopy across replacements', async () => {
