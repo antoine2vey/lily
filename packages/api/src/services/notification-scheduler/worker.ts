@@ -18,6 +18,7 @@ import {
   type InterruptionLevel,
   type LiveActivityAlert,
   type LiveActivityContentState,
+  MAX_NOTIFICATION_IDS,
   MessageQueue,
   NOTIFICATION_TOPICS,
   NotificationId,
@@ -552,9 +553,6 @@ const readPoisonIds = (entry: Option.Option<unknown>): PoisonIds => ({
   ),
 })
 
-// Postgres binds at most 65535 parameters in one statement.
-const MAX_IDS_PER_STATEMENT = 10_000
-
 const discardPoisonMessage = (
   topic: NotificationTopic,
   ids: PoisonIds,
@@ -582,7 +580,7 @@ const discardPoisonMessage = (
       onSome: (id) =>
         Effect.map(
           Effect.forEach(
-            Array.chunksOf(ids.notificationIds, MAX_IDS_PER_STATEMENT),
+            Array.chunksOf(ids.notificationIds, MAX_NOTIFICATION_IDS),
             (chunk) => notificationRepo.claimForDelivery(chunk, id)
           ),
           Array.flatten
@@ -603,7 +601,7 @@ const discardPoisonMessage = (
       )
     )
     yield* Effect.forEach(
-      Array.chunksOf(claimedIds, MAX_IDS_PER_STATEMENT),
+      Array.chunksOf(claimedIds, MAX_NOTIFICATION_IDS),
       (chunk) => notificationRepo.markManyAsFailed(chunk, headline),
       { discard: true }
     )

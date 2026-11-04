@@ -126,6 +126,9 @@ export const PostgresText = Schema.String.check(
 
 export const NotificationId = Schema.String.check(Schema.isUUID())
 
+// One statement binds at most 65535 parameters. Producers send at most 100 ids.
+export const MAX_NOTIFICATION_IDS = 10_000
+
 export const RetryCount = Schema.Int.check(
   Schema.isBetween({ minimum: 0, maximum: 2_147_483_647 })
 )
@@ -135,7 +138,9 @@ export const QueueMessagePayload = Schema.Struct({
   userId: Schema.String,
   title: Schema.String,
   body: Schema.String,
-  notificationIds: Schema.Array(NotificationId),
+  notificationIds: Schema.Array(NotificationId).check(
+    Schema.isMaxLength(MAX_NOTIFICATION_IDS)
+  ),
   plantIds: Schema.Array(Schema.String),
   // Optional so queue messages enqueued before this field existed don't fail
   // Schema validation on dequeue. Worker defaults to 'en' when absent.

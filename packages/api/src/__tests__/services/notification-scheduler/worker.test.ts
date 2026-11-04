@@ -62,6 +62,7 @@ import type { DeviceToken } from '@lily/shared/device-token'
 import type { Notification } from '@lily/shared/notification'
 import {
   type LiveActivityPushMessage,
+  MAX_NOTIFICATION_IDS,
   MessageQueue,
   NOTIFICATION_TOPICS,
   type NotificationTopic,
@@ -964,46 +965,59 @@ describe('Notification Worker', () => {
         reason: new UnknownError({ cause: 'db down', message: 'db down' }),
       })
 
-    it('dead-letters, acks and alerts once an undecodable entry with more ids than Postgres can bind', async () => {
-      const first = crypto.randomUUID()
-      const last = crypto.randomUUID()
-      const ids = [
-        first,
-        ...Array.makeBy(69_998, () => crypto.randomUUID()),
-        last,
-      ]
-      const rows = [
-        createTestNotification({ id: first, status: 'queued' }),
-        createTestNotification({ id: last, status: 'queued' }),
-      ]
-      // Postgres rejects a statement with more than 65535 parameters.
-      const bindLimited = Layer.effect(
+    const entryWithIds = (id: string, notificationIds: ReadonlyArray<string>) =>
+      JSON.stringify({
+        id,
+        topic: 'new_follower',
+        payload: {
+          userId: 'user-1',
+          title: 'New follower',
+          body: 'Bob follows you',
+          notificationIds,
+          plantIds: [],
+        },
+        retryCount: 0,
+        createdAt: '2026-11-03T10:00:00.000Z',
+        scheduledAt: '2026-11-03T10:00:00.000Z',
+      })
+
+    // Claims every id it is given. Like Postgres, it rejects a statement with
+    // more than 65535 parameters, and each statement binds 3 besides the ids.
+    const bindLimitedRepo = () => {
+      const claimed: Array<number> = []
+      const marked: Array<number> = []
+      const overLimit = (chunk: ReadonlyArray<string>) =>
+        chunk.length + 3 > 65_535
+      const layer = Layer.effect(
         NotificationRepository,
         Effect.map(NotificationRepository, (repo) => ({
           ...repo,
-          claimForDelivery: (
-            chunk: ReadonlyArray<string>,
-            messageId: string
-          ) =>
-            chunk.length > 65_535
-              ? Effect.fail(dbDown())
-              : repo.claimForDelivery(chunk, messageId),
-          markManyAsFailed: (chunk: readonly string[], error: string) =>
-            chunk.length > 65_535
-              ? Effect.fail(dbDown())
-              : repo.markManyAsFailed(chunk, error),
+          claimForDelivery: (chunk: ReadonlyArray<string>) => {
+            if (overLimit(chunk)) return Effect.fail(dbDown())
+            claimed.push(chunk.length)
+            return Effect.succeed(chunk)
+          },
+          markManyAsFailed: (chunk: readonly string[]) => {
+            if (overLimit(chunk)) return Effect.fail(dbDown())
+            marked.push(chunk.length)
+            return Effect.void
+          },
         }))
-      ).pipe(Layer.provide(createMockNotificationRepository(rows)))
-      const raw = JSON.stringify({
-        id: 'msg-big',
-        topic: 'new_follower',
-        payload: { notificationIds: ids },
-      })
+      ).pipe(Layer.provide(createMockNotificationRepository([])))
+      return { layer, claimed, marked }
+    }
+
+    const total = (counts: ReadonlyArray<number>) =>
+      Array.reduce(counts, 0, (sum, n) => sum + n)
+
+    const consumeWithRepo = async (
+      raw: string,
+      repo: Layer.Layer<NotificationRepository>
+    ) => {
       const { layer: dlqLayer, capturedMessages } =
         createMockDeadLetterRepositoryWithCapture()
       const { queue, acked } = createInMemoryRedisQueue([raw])
       const alerter = createMockAlerter()
-
       await Effect.runPromise(
         consumeFromTopic('new_follower').pipe(
           Effect.provide(
@@ -1012,7 +1026,7 @@ describe('Notification Worker', () => {
               Layer.succeed(MessageQueue, queue),
               createSuccessPushService(),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              bindLimited,
+              repo,
               dlqLayer,
               LaMocksLive,
               LivingPlantsLive
@@ -1021,13 +1035,52 @@ describe('Notification Worker', () => {
           Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
+      return { acked, alerts: alerter.events, capturedMessages }
+    }
+
+    it(`dead-letters, acks and alerts once an entry with more than ${MAX_NOTIFICATION_IDS} ids`, async () => {
+      const ids = Array.makeBy(MAX_NOTIFICATION_IDS + 1, () =>
+        crypto.randomUUID()
+      )
+      const atCap = entryWithIds('msg-cap', ids.slice(1))
+      expect(
+        Exit.isSuccess(
+          await Effect.runPromiseExit(decodeQueueEntry('new_follower', atCap))
+        )
+      ).toBe(true)
+      const raw = entryWithIds('msg-over', ids)
+      const repo = bindLimitedRepo()
+
+      const { acked, alerts, capturedMessages } = await consumeWithRepo(
+        raw,
+        repo.layer
+      )
 
       expect(acked).toEqual([raw])
-      expect(alerter.events).toHaveLength(1)
+      expect(alerts).toHaveLength(1)
+      expect(Array.map(capturedMessages, (m) => m.originalMessageId)).toEqual([
+        'msg-over',
+      ])
+      expect(total(repo.marked)).toBe(MAX_NOTIFICATION_IDS + 1)
+    })
+
+    it('claims and fails an entry with more ids than Postgres can bind in chunks it can bind', async () => {
+      const ids = Array.makeBy(70_000, () => crypto.randomUUID())
+      const raw = entryWithIds('msg-big', ids)
+      const repo = bindLimitedRepo()
+
+      const { acked, alerts, capturedMessages } = await consumeWithRepo(
+        raw,
+        repo.layer
+      )
+
+      expect(acked).toEqual([raw])
+      expect(alerts).toHaveLength(1)
       expect(Array.map(capturedMessages, (m) => m.originalMessageId)).toEqual([
         'msg-big',
       ])
-      expect(Array.map(rows, (r) => r.status)).toEqual(['failed', 'failed'])
+      expect(total(repo.claimed)).toBe(70_000)
+      expect(total(repo.marked)).toBe(70_000)
     })
 
     it('leaves an undecodable entry unacked when no dead letter can be written', async () => {

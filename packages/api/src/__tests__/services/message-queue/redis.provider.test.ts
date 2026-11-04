@@ -1,4 +1,5 @@
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
+import { MAX_NOTIFICATION_IDS } from '@lily/shared/server'
 import { Array as Arr, Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -86,6 +87,18 @@ describe('makeRedisMessageQueue dequeue', () => {
       JSON.stringify({
         ...validMessage,
         payload: { ...validMessage.payload, notificationIds: ['nope'] },
+      }),
+    ],
+    [
+      `more than ${MAX_NOTIFICATION_IDS} notification ids`,
+      JSON.stringify({
+        ...validMessage,
+        payload: {
+          ...validMessage.payload,
+          notificationIds: Arr.makeBy(MAX_NOTIFICATION_IDS + 1, () =>
+            crypto.randomUUID()
+          ),
+        },
       }),
     ],
     ...Arr.map([1e20, 1.5, -1], (retryCount): [string, string] => [
