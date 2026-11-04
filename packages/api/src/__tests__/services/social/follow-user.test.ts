@@ -10,9 +10,9 @@ import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import type { FollowerNotification } from '@lily/api/repositories/follow.repository'
 import { followUser } from '@lily/api/services/social/endpoints/follow-user'
-import type { Notification } from '@lily/shared/notification'
-import type { AppEvent } from '@lily/shared/server'
+import type { AppEvent, QueueMessage } from '@lily/shared/server'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -58,23 +58,29 @@ const buildLayer = (
     createdAt: Date
   }> = [],
   eventData: MockEventBusData = { publishedEvents: [] },
-  notifications: Notification[] = [],
-  timeline?: ReturnType<typeof createOutboxTimeline>
+  options: {
+    readonly onFollow?: (
+      followerId: string,
+      followingId: string,
+      notification: FollowerNotification
+    ) => void
+    readonly onEnqueue?: (topic: string, message: QueueMessage) => void
+    readonly timeline?: ReturnType<typeof createOutboxTimeline>
+  } = {}
 ) =>
   Layer.mergeAll(
-    timeline?.sql ?? MockSqlClientLive,
+    options.timeline?.sql ?? MockSqlClientLive,
     createMockCurrentUser({ id: currentUserId }),
     createMockFollowRepository({
       follows,
       users: mockFollowUsers,
+      onFollow: options.onFollow ?? (() => {}),
     }),
     createMockUserRepository([publicUser, privateUser]),
     createMockEventBus(eventData),
-    createMockNotificationRepository(
-      notifications,
-      timeline?.notificationOptions
-    ),
-    timeline?.queue ?? createMockMessageQueue()
+    createMockNotificationRepository([], options.timeline?.notificationOptions),
+    options.timeline?.queue ??
+      createMockMessageQueue({ onEnqueue: options.onEnqueue ?? (() => {}) })
   )
 
 describe('followUser', () => {
@@ -144,23 +150,42 @@ describe('followUser', () => {
     expect(eventData.publishedEvents[0]?._tag).toBe('UserFollowed')
   })
 
-  it('should create a notification for the followed user', async () => {
-    const notifications: Notification[] = []
-    const layer = buildLayer([], { publishedEvents: [] }, notifications)
+  it('records the follower notification with the follow and pushes the recorded id', async () => {
+    const recorded: Array<{
+      followingId: string
+      notification: FollowerNotification
+    }> = []
+    const enqueued: QueueMessage[] = []
+    const layer = buildLayer([], undefined, {
+      onFollow: (_, followingId, notification) =>
+        recorded.push({ followingId, notification }),
+      onEnqueue: (_, message) => enqueued.push(message),
+    })
 
     await Effect.runPromise(
       followUser(publicUser.id).pipe(Effect.provide(layer))
     )
-    expect(notifications).toHaveLength(1)
-    expect(notifications[0]).toMatchObject({
+
+    expect(recorded).toEqual([
+      {
+        followingId: publicUser.id,
+        notification: expect.objectContaining({
+          metadata: { senderId: currentUserId },
+        }),
+      },
+    ])
+    expect(enqueued).toHaveLength(1)
+    expect(enqueued[0]?.topic).toBe('new_follower')
+    expect(enqueued[0]?.payload).toMatchObject({
       userId: publicUser.id,
-      type: 'new_follower',
-      status: 'queued',
+      title: recorded[0]?.notification.title,
+      body: recorded[0]?.notification.body,
+      notificationIds: [`notification-${publicUser.id}`],
       metadata: { senderId: currentUserId },
     })
   })
 
-  it('records the follower notification in the follow transaction and pushes it before publishing', async () => {
+  it('writes the follow and its notification in one statement, then pushes before publishing', async () => {
     const timeline = createOutboxTimeline()
     const layer = buildLayer(
       [],
@@ -168,8 +193,10 @@ describe('followUser', () => {
         publishedEvents: [],
         onPublish: (event) => timeline.record(`publish ${event._tag}`),
       },
-      [],
-      timeline
+      {
+        onFollow: (_, followingId) => timeline.record(`follow ${followingId}`),
+        timeline,
+      }
     )
 
     await Effect.runPromise(
@@ -177,9 +204,7 @@ describe('followUser', () => {
     )
 
     expect(timeline.events).toEqual([
-      'begin',
-      `insert new_follower ${publicUser.id}`,
-      'commit',
+      `follow ${publicUser.id}`,
       `enqueue new_follower ${publicUser.id}`,
       'publish UserFollowed',
     ])

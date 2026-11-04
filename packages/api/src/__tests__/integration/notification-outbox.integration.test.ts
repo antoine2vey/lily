@@ -5,6 +5,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createSuccessPushService } from '@lily/api/__tests__/mocks/push.service'
@@ -13,6 +14,10 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import {
+  FollowRepository,
+  FollowRepositoryLive,
+} from '@lily/api/repositories/follow.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
@@ -26,6 +31,7 @@ import {
   consumeFromTopic,
   recoverStrandedDeliveries,
 } from '@lily/api/services/notification-scheduler/worker'
+import { followUser } from '@lily/api/services/social/endpoints/follow-user'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import {
@@ -244,6 +250,130 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await notificationRows()).toEqual([
         { status: 'sent', type: 'new_follower' },
       ])
+    })
+
+    const followLayer = (enqueued: QueueMessage[]) =>
+      Layer.mergeAll(
+        DatabaseLive,
+        FollowRepositoryLive.pipe(Layer.provide(DatabaseLive)),
+        createMockEventBus({ publishedEvents: [] }),
+        createMockCurrentUser({ id: userId, name: 'outbox_user' }),
+        createMockMessageQueue({
+          onEnqueue: (_, message) => enqueued.push(message),
+        })
+      )
+
+    const seedFollowTarget = async () => {
+      const [target] = await db
+        .insert(schema.users)
+        .values({
+          email: `target-${Date.now()}@example.com`,
+          name: 'target',
+          emailVerified: true,
+          publicProfile: true,
+        })
+        .returning({ id: schema.users.id })
+      if (!target) throw new Error('Failed to seed follow target')
+      return target.id
+    }
+
+    it('commits a follow with its queued notification and pushes that row', async () => {
+      const targetId = await seedFollowTarget()
+      const enqueued: QueueMessage[] = []
+
+      await Effect.runPromise(
+        followUser(targetId).pipe(
+          Effect.provide(followLayer(enqueued)),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(
+        await db
+          .select({ followingId: schema.userFollows.followingId })
+          .from(schema.userFollows)
+          .where(eq(schema.userFollows.followerId, userId))
+      ).toEqual([{ followingId: targetId }])
+      const rows = await db
+        .select()
+        .from(schema.notifications)
+        .where(eq(schema.notifications.userId, targetId))
+      expect(rows).toEqual([
+        expect.objectContaining({
+          type: 'new_follower',
+          status: 'queued',
+          plantId: null,
+          metadata: { senderId: userId },
+          queuedAt: expect.any(Date),
+          scheduledAt: expect.any(Date),
+        }),
+      ])
+      expect(enqueued.map((message) => message.payload)).toEqual([
+        expect.objectContaining({
+          userId: targetId,
+          title: rows[0]?.title,
+          body: rows[0]?.body,
+          notificationIds: [rows[0]?.id],
+        }),
+      ])
+    })
+
+    it('rolls a new follow back when its notification insert fails', async () => {
+      const targetId = await seedFollowTarget()
+      await db.execute(
+        sql.raw(`
+          CREATE FUNCTION refuse_follow_notification() RETURNS trigger AS $$
+          BEGIN
+            RAISE EXCEPTION 'notification refused';
+          END $$ LANGUAGE plpgsql;
+          CREATE TRIGGER refuse_follow_notification BEFORE INSERT ON notifications
+            FOR EACH ROW EXECUTE FUNCTION refuse_follow_notification();
+        `)
+      )
+      onTestFinished(async () => {
+        await db.execute(
+          sql.raw(`
+            DROP TRIGGER refuse_follow_notification ON notifications;
+            DROP FUNCTION refuse_follow_notification();
+          `)
+        )
+      })
+      const enqueued: QueueMessage[] = []
+
+      const exit = await Effect.runPromiseExit(
+        followUser(targetId).pipe(
+          Effect.provide(followLayer(enqueued)),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(await db.select().from(schema.userFollows)).toEqual([])
+      expect(await db.select().from(schema.notifications)).toEqual([])
+      expect(enqueued).toEqual([])
+    })
+
+    it('records no notification when the follow insert fails', async () => {
+      const targetId = await seedFollowTarget()
+      await db
+        .insert(schema.userFollows)
+        .values({ followerId: userId, followingId: targetId })
+
+      const exit = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const follows = yield* FollowRepository
+          return yield* follows.follow(userId, targetId, {
+            title: 'title',
+            body: 'body',
+            metadata: { senderId: userId },
+          })
+        }).pipe(
+          Effect.provide(FollowRepositoryLive.pipe(Layer.provide(DatabaseLive)))
+        )
+      )
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(await db.select().from(schema.notifications)).toEqual([])
     })
 
     it('rolls a new delegation back when its notification insert fails', async () => {

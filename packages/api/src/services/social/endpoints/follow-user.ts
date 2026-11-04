@@ -2,10 +2,8 @@ import { EventBus, publishWithRetry } from '@lily/api/events'
 import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import {
-  dispatchNow,
-  recordNotification,
-} from '@lily/api/services/helpers/schedule-notification'
+import { dispatchNow } from '@lily/api/services/helpers/schedule-notification'
+import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   AlreadyFollowingError,
   CannotFollowSelfError,
@@ -13,7 +11,6 @@ import {
   UserNotPublicError,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 
 export const followUser = Effect.fn('SocialService.followUser')(function* (
   targetUserId: string
@@ -53,24 +50,26 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
     Option.getOrElse(() => 'Someone')
   )
 
-  const sql = yield* SqlClient.SqlClient
-  const notification = yield* sql.withTransaction(
-    followRepo
-      .follow(currentUserId, targetUserId)
-      .pipe(
-        Effect.andThen(
-          recordNotification(
-            'new_follower',
-            targetUserId,
-            { senderName: followerName },
-            targetUser.language,
-            { senderId: currentUserId }
-          )
-        )
-      )
+  const { title, body } = buildSimpleContent(
+    'new_follower',
+    { senderName: followerName },
+    targetUser.language
   )
+  const metadata = { senderId: currentUserId }
+  const id = yield* followRepo.follow(currentUserId, targetUserId, {
+    title,
+    body,
+    metadata,
+  })
 
-  yield* dispatchNow(notification)
+  yield* dispatchNow({
+    id,
+    type: 'new_follower',
+    userId: targetUserId,
+    title,
+    body,
+    metadata,
+  })
 
   yield* publishWithRetry(
     eventBus.publish({
