@@ -1,8 +1,12 @@
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
-import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import {
+  createMockEventBus,
+  type MockEventBusData,
+} from '@lily/api/__tests__/mocks/event-bus'
 import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -53,11 +57,12 @@ const buildLayer = (
     followingId: string
     createdAt: Date
   }> = [],
-  eventData: { publishedEvents: AppEvent[] } = { publishedEvents: [] },
-  notifications: Notification[] = []
+  eventData: MockEventBusData = { publishedEvents: [] },
+  notifications: Notification[] = [],
+  timeline?: ReturnType<typeof createOutboxTimeline>
 ) =>
   Layer.mergeAll(
-    MockSqlClientLive,
+    timeline?.sql ?? MockSqlClientLive,
     createMockCurrentUser({ id: currentUserId }),
     createMockFollowRepository({
       follows,
@@ -65,8 +70,11 @@ const buildLayer = (
     }),
     createMockUserRepository([publicUser, privateUser]),
     createMockEventBus(eventData),
-    createMockNotificationRepository(notifications),
-    createMockMessageQueue()
+    createMockNotificationRepository(
+      notifications,
+      timeline?.notificationOptions
+    ),
+    timeline?.queue ?? createMockMessageQueue()
   )
 
 describe('followUser', () => {
@@ -150,5 +158,30 @@ describe('followUser', () => {
       status: 'queued',
       metadata: { senderId: currentUserId },
     })
+  })
+
+  it('records the follower notification in the follow transaction and pushes it before publishing', async () => {
+    const timeline = createOutboxTimeline()
+    const layer = buildLayer(
+      [],
+      {
+        publishedEvents: [],
+        onPublish: (event) => timeline.record(`publish ${event._tag}`),
+      },
+      [],
+      timeline
+    )
+
+    await Effect.runPromise(
+      followUser(publicUser.id).pipe(Effect.provide(layer))
+    )
+
+    expect(timeline.events).toEqual([
+      'begin',
+      `insert new_follower ${publicUser.id}`,
+      'commit',
+      `enqueue new_follower ${publicUser.id}`,
+      'publish UserFollowed',
+    ])
   })
 })

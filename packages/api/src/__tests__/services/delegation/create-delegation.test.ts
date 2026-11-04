@@ -14,6 +14,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -70,6 +71,7 @@ const createLayer = (options?: {
   delegationAccessDenied?: boolean | undefined
   delegations?: DelegationRow[] | undefined
   delegationPlants?: { delegationId: string; plantId: string }[] | undefined
+  timeline?: ReturnType<typeof createOutboxTimeline> | undefined
 }) =>
   Layer.mergeAll(
     mockCurrentUser,
@@ -90,9 +92,12 @@ const createLayer = (options?: {
           ]
         : []
     ),
-    createMockNotificationRepository(notifications),
-    createMockMessageQueue(),
-    MockSqlClientLive,
+    createMockNotificationRepository(
+      notifications,
+      options?.timeline?.notificationOptions
+    ),
+    options?.timeline?.queue ?? createMockMessageQueue(),
+    options?.timeline?.sql ?? MockSqlClientLive,
     createMockDelegationRepository({
       delegations: options?.delegations ?? [],
       delegationPlants: options?.delegationPlants ?? [],
@@ -272,9 +277,10 @@ describe('createDelegation', () => {
 
   it('should create delegation_request notification for caretaker on creation', async () => {
     notifications.length = 0
-    const layer = createLayer()
+    const timeline = createOutboxTimeline()
+    const layer = createLayer({ timeline })
 
-    await Effect.runPromise(
+    const delegation = await Effect.runPromise(
       createDelegation(validRequest).pipe(Effect.provide(layer))
     )
 
@@ -282,8 +288,18 @@ describe('createDelegation', () => {
     expect(notifications[0]).toMatchObject({
       userId: mockUser2.id,
       type: 'delegation_request',
+      status: 'queued',
       title: '🤝 Plant-sitting request',
     })
+    expect(notifications[0]?.metadata).toEqual({
+      delegationId: delegation.id,
+    })
+    expect(timeline.events).toEqual([
+      'begin',
+      `insert delegation_request ${mockUser2.id}`,
+      'commit',
+      `enqueue delegation_request ${mockUser2.id}`,
+    ])
     expect(notifications[0]?.body).toContain(mockUser1.name)
   })
 

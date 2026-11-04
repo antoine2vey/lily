@@ -6,6 +6,7 @@ import {
   createTestCanopyRow,
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import {
   canopyWorld,
   pushesOf,
@@ -85,12 +86,19 @@ const run = <A, E>(
   store: MockCanopyStore,
   actor: string,
   effect: Effect.Effect<A, E, WorldServices>,
-  notifications: Notification[] = []
+  notifications: Notification[] = [],
+  timeline?: ReturnType<typeof createOutboxTimeline>
 ) =>
   Effect.runPromiseExit(
     Effect.provide(
       effect,
-      canopyWorld(store, { id: actor, name: actor }, notifications).layer
+      canopyWorld(
+        store,
+        { id: actor, name: actor },
+        notifications,
+        [],
+        timeline
+      ).layer
     )
   )
 
@@ -101,14 +109,34 @@ describe('leaveCanopy', () => {
   it('hands ownership to the longest-standing member and pushes them', async () => {
     const store = home()
     const notifications: Notification[] = []
+    const timeline = createOutboxTimeline()
 
-    const exit = await run(store, 'alex', leaveMyCanopy(), notifications)
+    const exit = await run(
+      store,
+      'alex',
+      leaveMyCanopy(),
+      notifications,
+      timeline
+    )
 
     expect(Exit.isSuccess(exit)).toBe(true)
     expect(roleOf(store, 'alex')).toBeUndefined()
     expect(roleOf(store, 'sam')).toBe('owner')
     expect(roleOf(store, 'lily')).toBe('member')
-    expect(pushesOf(notifications, 'canopy_member_left')).toEqual(['sam'])
+    expect(notifications).toMatchObject([
+      {
+        userId: 'sam',
+        type: 'canopy_member_left',
+        status: 'queued',
+        metadata: {},
+      },
+    ])
+    expect(timeline.events).toEqual([
+      'begin',
+      'insert canopy_member_left sam',
+      'commit',
+      'enqueue canopy_member_left sam',
+    ])
     expect(store.plants[0]?.canopyId).toBe('canopy-1')
   })
 
