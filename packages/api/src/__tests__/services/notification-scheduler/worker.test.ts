@@ -52,7 +52,6 @@ import {
 import { decodeQueueEntry } from '@lily/api/services/message-queue/redis.provider'
 import {
   consumeFromTopic,
-  handleFailedMessage,
   processMessage,
   recoverStrandedDeliveries,
   startNotificationWorker,
@@ -624,56 +623,246 @@ describe('Notification Worker', () => {
     })
   })
 
-  describe('handleFailedMessage', () => {
-    it('should add message to dead letter queue', async () => {
-      const { layer: dlqLayer, capturedMessages } =
-        createMockDeadLetterRepositoryWithCapture()
+  describe('retry through Postgres', () => {
+    const minutesAfterEpoch = (n: number) =>
+      new Date(Duration.toMillis(Duration.minutes(n)))
 
-      const message = createTestQueueMessage({
-        id: 'msg-1',
+    const deliveryRig = (
+      rows: Notification[],
+      options: { deliveryClaims?: Record<string, string> } = {}
+    ) => {
+      const sends: PushMessage[][] = []
+      const requeued: QueueMessage[] = []
+      const acked: string[] = []
+      const inbox: QueueMessage[] = []
+      const push = {
+        shouldFail: true,
+        onSendBatch: (msgs: PushMessage[]) => sends.push(msgs),
+      }
+      const alerter = createMockAlerter()
+      const deadLetters = createMockDeadLetterRepositoryWithCapture()
+      const notificationRepo = createMockNotificationRepository(rows, options)
+      const layer = Layer.mergeAll(
+        alerter.layer,
+        createMockPushService(push),
+        createMockDeviceTokenRepository(mockDeviceTokens),
+        notificationRepo,
+        createMockMessageQueue({
+          onDequeue: () => {
+            const msg = inbox.shift()
+            return msg ? { message: msg, rawData: JSON.stringify(msg) } : null
+          },
+          onEnqueue: (_, message) => requeued.push(message),
+          onAck: (_, rawData) => acked.push(rawData),
+        }),
+        deadLetters.layer,
+        LaMocksLive,
+        LivingPlantsLive
+      )
+      const underTestClock = <A, E>(
+        effect: Effect.Effect<A, E, Layer.Success<typeof layer>>
+      ) =>
+        Effect.runPromiseExit(
+          Effect.gen(function* () {
+            const fiber = yield* Effect.forkChild(
+              effect.pipe(Effect.provide(layer))
+            )
+            yield* Effect.forEach(Array.range(1, 30), () =>
+              TestClock.adjust('1 second')
+            )
+            return yield* Fiber.join(fiber)
+          }).pipe(
+            Effect.scoped,
+            Effect.provide(TestClock.layer()),
+            Effect.provideService(References.MinimumLogLevel, 'None')
+          )
+        )
+      const relay = Effect.gen(function* () {
+        const repo = yield* NotificationRepository
+        const due = yield* repo.claimPendingToSchedule(100)
+        return createTestQueueMessage({
+          payload: {
+            userId: 'user-1',
+            title: 'Test notification',
+            body: 'Test body',
+            notificationIds: Array.map(due, (row) => row.id),
+            plantIds: ['plant-1'],
+          },
+        })
+      })
+      const attempt = async (message?: QueueMessage) => {
+        const relayed = await underTestClock(relay)
+        if (Exit.isFailure(relayed)) throw new Error('relay failed')
+        inbox.push(message ?? relayed.value)
+        return underTestClock(consumeFromTopic('watering_reminder'))
+      }
+      return {
+        sends,
+        requeued,
+        acked,
+        push,
+        alerts: alerter.events,
+        deadLetters: deadLetters.capturedMessages,
+        attempt,
+      }
+    }
+
+    const pendingRow = (id: string) =>
+      createTestNotification({
+        id,
+        userId: 'user-1',
+        status: 'pending',
+        scheduledAt: new Date(0),
+      })
+
+    it('sends once per dequeue and puts the rows back one minute out', async () => {
+      const row = pendingRow('notification-1')
+      const rig = deliveryRig([row])
+
+      await rig.attempt()
+
+      expect(rig.sends).toHaveLength(1)
+      expect(rig.acked).toHaveLength(1)
+      expect(rig.requeued).toEqual([])
+      expect(row).toMatchObject({
+        status: 'pending',
+        retryCount: 1,
+        scheduledAt: minutesAfterEpoch(1),
+      })
+      expect(rig.deadLetters).toEqual([])
+      expect(rig.alerts).toEqual([])
+    })
+
+    it('backs off five minutes after the second failure', async () => {
+      const row = pendingRow('notification-1')
+      const rig = deliveryRig([row])
+
+      await rig.attempt()
+      await rig.attempt()
+
+      expect(rig.sends).toHaveLength(2)
+      expect(row).toMatchObject({
+        status: 'pending',
+        retryCount: 2,
+        scheduledAt: minutesAfterEpoch(5),
+      })
+      expect(rig.deadLetters).toEqual([])
+    })
+
+    it('fails the rows at the third failure with one dead letter and one alert', async () => {
+      const row = pendingRow('notification-1')
+      const rig = deliveryRig([row])
+
+      await rig.attempt()
+      await rig.attempt()
+      await rig.attempt()
+      await rig.attempt()
+
+      expect(rig.sends).toHaveLength(3)
+      expect(row).toMatchObject({ status: 'failed', retryCount: 3 })
+      expect(rig.deadLetters).toHaveLength(1)
+      expect(rig.deadLetters[0]).toMatchObject({
+        topic: 'watering_reminder',
+        retryCount: 3,
+      })
+      expect(rig.alerts).toEqual([
+        expect.objectContaining({
+          _tag: 'warning',
+          summary: 'Message moved to dead letter queue',
+        }),
+      ])
+      expect(rig.requeued).toEqual([])
+    })
+
+    it('counts two failures on a row that then goes out', async () => {
+      const row = pendingRow('notification-1')
+      const rig = deliveryRig([row])
+
+      await rig.attempt()
+      await rig.attempt()
+      rig.push.shouldFail = false
+      await rig.attempt()
+
+      expect(rig.sends).toHaveLength(3)
+      expect(row).toMatchObject({ status: 'sent', retryCount: 2 })
+      expect(rig.deadLetters).toEqual([])
+    })
+
+    it('leaves a row another message holds untouched', async () => {
+      const mine = createTestNotification({
+        id: 'notification-1',
+        userId: 'user-1',
+        plantId: 'plant-1',
+        status: 'queued',
         retryCount: 2,
       })
-      const notification = createTestNotification({
-        id: 'notification-1',
+      const held = createTestNotification({
+        id: 'notification-2',
+        userId: 'user-1',
+        plantId: 'plant-2',
         status: 'queued',
+        retryCount: 2,
+      })
+      const rig = deliveryRig([mine, held], {
+        deliveryClaims: { 'notification-2': 'msg-other' },
       })
 
-      await Effect.runPromise(
-        handleFailedMessage(message, new Error('Test error')).pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              MockAlerterLive,
-              dlqLayer,
-              createMockNotificationRepository([notification]),
-              LaMocksLive,
-              LivingPlantsLive
-            )
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
-        )
+      await rig.attempt(
+        createTestQueueMessage({
+          payload: {
+            userId: 'user-1',
+            title: 'Test notification',
+            body: 'Test body',
+            notificationIds: ['notification-1', 'notification-2'],
+            plantIds: ['plant-1', 'plant-2'],
+          },
+        })
       )
 
-      expect(capturedMessages).toHaveLength(1)
-      expect(capturedMessages[0]?.originalMessageId).toBe('msg-1')
-      expect(capturedMessages[0]?.topic).toBe('watering_reminder')
-      expect(capturedMessages[0]?.error).toContain('Test error')
-      expect(capturedMessages[0]?.retryCount).toBe(2)
+      expect(mine).toMatchObject({ status: 'failed', retryCount: 3 })
+      expect(held).toMatchObject({ status: 'queued', retryCount: 2 })
+      expect(rig.deadLetters).toHaveLength(1)
     })
 
-    it('should mark notification as failed', async () => {
+    it('leaves the message unacked when the retry write fails', async () => {
+      const row = createTestNotification({
+        id: 'notification-1',
+        userId: 'user-1',
+        status: 'queued',
+      })
       const message = createTestQueueMessage()
-      const notification = createTestNotification({
-        id: 'notification-1',
-        status: 'queued',
+      const dbDown = new SqlError({
+        reason: new UnknownError({ cause: 'db down', message: 'db down' }),
       })
+      const retryWriteFails = Layer.effect(
+        NotificationRepository,
+        Effect.map(NotificationRepository, (repo) => ({
+          ...repo,
+          retryLater: () => Effect.fail(dbDown),
+        }))
+      ).pipe(Layer.provide(createMockNotificationRepository([row])))
+      const acked: string[] = []
+      const sends: PushMessage[][] = []
 
-      await Effect.runPromise(
-        handleFailedMessage(message, new Error('Push service down')).pipe(
+      const exit = await Effect.runPromiseExit(
+        consumeFromTopic('watering_reminder').pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
+              createMockPushService({
+                shouldFail: true,
+                onSendBatch: (msgs) => sends.push(msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              retryWriteFails,
+              createMockMessageQueue({
+                onDequeue: () => ({
+                  message,
+                  rawData: JSON.stringify(message),
+                }),
+                onAck: (_, rawData) => acked.push(rawData),
+              }),
               createMockDeadLetterRepository(),
-              createMockNotificationRepository([notification]),
               LaMocksLive,
               LivingPlantsLive
             )
@@ -682,89 +871,10 @@ describe('Notification Worker', () => {
         )
       )
 
-      // Notification status is managed in the mock's internal state
-      expect(true).toBe(true)
-    })
-
-    it('should include plantId when present', async () => {
-      const { layer: dlqLayer, capturedMessages } =
-        createMockDeadLetterRepositoryWithCapture()
-
-      const message = createTestQueueMessage({
-        payload: {
-          userId: 'user-1',
-          title: 'Test',
-          body: 'Test',
-          notificationIds: ['notification-1'],
-          plantIds: ['plant-123'],
-        },
-      })
-      const notification = createTestNotification({
-        id: 'notification-1',
-      })
-
-      await Effect.runPromise(
-        handleFailedMessage(message, new Error('Error')).pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              MockAlerterLive,
-              dlqLayer,
-              createMockNotificationRepository([notification]),
-              LaMocksLive,
-              LivingPlantsLive
-            )
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
-        )
-      )
-
-      expect(capturedMessages[0]?.plantId).toBe('plant-123')
-    })
-
-    it('should mark all IDs as failed for grouped message', async () => {
-      const message = createTestQueueMessage({
-        payload: {
-          userId: 'user-1',
-          title: '💧 3 plants need watering',
-          body: 'Monstera, Pothos, Fern',
-          notificationIds: ['notif-1', 'notif-2', 'notif-3'],
-          plantIds: ['plant-1', 'plant-2', 'plant-3'],
-        },
-      })
-
-      const notifications = [
-        createTestNotification({
-          id: 'notif-1',
-          userId: 'user-1',
-          status: 'queued',
-        }),
-        createTestNotification({
-          id: 'notif-2',
-          userId: 'user-1',
-          status: 'queued',
-        }),
-        createTestNotification({
-          id: 'notif-3',
-          userId: 'user-1',
-          status: 'queued',
-        }),
-      ]
-
-      await Effect.runPromise(
-        handleFailedMessage(message, new Error('Push failed')).pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              MockAlerterLive,
-              createMockDeadLetterRepository(),
-              createMockNotificationRepository(notifications)
-            )
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
-        )
-      )
-
-      // Completes without error - all IDs marked as failed via markManyAsFailed
-      expect(true).toBe(true)
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(sends).toHaveLength(1)
+      expect(acked).toEqual([])
+      expect(row.status).toBe('queued')
     })
   })
 
@@ -1113,10 +1223,6 @@ describe('Notification Worker', () => {
       expect(acked).toEqual([])
       expect(alerter.events).toEqual([])
     })
-
-    // Note: Tests for retry/DLQ logic with consumeFromTopic are skipped because
-    // the exponential backoff schedule makes them too slow. The retry and DLQ
-    // logic is already tested via handleFailedMessage tests above.
   })
 
   describe('Live Activity start guard', () => {

@@ -6,7 +6,16 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Equal, Layer, Option, pipe, Record } from 'effect'
+import {
+  Array,
+  Effect,
+  Equal,
+  Layer,
+  Option,
+  pipe,
+  Record,
+  Result,
+} from 'effect'
 
 // Mutable version of Notification for internal mock state
 type MutableNotification = {
@@ -222,19 +231,34 @@ export const createMockNotificationRepository = (
         return count
       }),
 
-    incrementRetryCount: (id: string) => {
-      const notificationOption = Array.findFirst(
-        notificationsState,
-        (n) => n.id === id
-      )
-      return Option.match(notificationOption, {
-        onNone: () => Effect.succeed(null),
-        onSome: (notification) => {
-          notification.retryCount += 1
-          return Effect.succeed(notification)
-        },
-      })
-    },
+    retryLater: (ids, heldBy, retryAt, error) =>
+      Effect.sync(() =>
+        Array.filterMap(notificationsState, (n) => {
+          if (
+            !Array.contains(ids, n.id) ||
+            n.status !== 'queued' ||
+            deliveryClaims.get(n.id) !== heldBy
+          ) {
+            return Result.failVoid
+          }
+          const due = Array.get(retryAt, n.retryCount)
+          n.retryCount += 1
+          n.lastError = error
+          if (Option.isNone(due)) {
+            n.status = 'failed'
+          } else {
+            n.status = 'pending'
+            n.scheduledAt = due.value
+            queuedAt.delete(n.id)
+            deliveryClaims.delete(n.id)
+          }
+          return Result.succeed({
+            id: n.id,
+            status: n.status,
+            retryCount: n.retryCount,
+          })
+        })
+      ),
 
     deletePendingByPlantAndType: (plantId: string, type: string) =>
       Effect.sync(() => {

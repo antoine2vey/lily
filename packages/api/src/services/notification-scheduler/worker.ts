@@ -4,6 +4,7 @@ import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.reposit
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import {
   type DeferredNotification,
+  type FailedAttempt,
   NotificationRepository,
   type NotificationRow,
 } from '@lily/api/repositories/notification.repository'
@@ -36,6 +37,8 @@ import {
   NotificationId,
   type NotificationTopic,
   PostgresText,
+  type PushConfigError,
+  type PushSendError,
   PushService,
   type QueueMessage,
   type QueueMessageDecodeError,
@@ -51,6 +54,7 @@ import {
   Effect,
   Filter,
   Option,
+  Order,
   Predicate,
   pipe,
   Record,
@@ -59,11 +63,8 @@ import {
   Schema,
   Scope,
   String as Str,
-  Struct,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
-
-const MAX_RETRIES = 3
 
 // How long a push-to-start we dispatched is presumed to still be alive on
 // the device. A started activity only becomes visible to us once the device
@@ -255,7 +256,7 @@ const sendLiveActivityForCare = (
 // Exponential backoff: 1s -> 2s -> 4s
 export const workerRetryPolicy = Schedule.max([
   Schedule.exponential('1 second'),
-  Schedule.recurs(MAX_RETRIES),
+  Schedule.recurs(3),
 ])
 
 const completeDelivery = (
@@ -524,39 +525,71 @@ export const processMessage = Effect.fn('notification-worker.process')(
   }
 )
 
-// Handle a message that failed after all retries
-export const handleFailedMessage = Effect.fn('notification-worker.deadLetter')(
-  function* (message: QueueMessage, error: unknown) {
-    const { notificationIds } = message.payload
-    const deadLetterRepo = yield* DeadLetterRepository
-    const notificationRepo = yield* NotificationRepository
+const RETRY_DELAYS = [Duration.minutes(1), Duration.minutes(5)] as const
 
-    // Add to dead letter queue
-    const firstPlantId = pipe(
-      Array.head(message.payload.plantIds),
-      Option.getOrUndefined
-    )
+const deadLetter = Effect.fn('notification-worker.deadLetter')(function* (
+  message: QueueMessage,
+  failed: Array.NonEmptyReadonlyArray<FailedAttempt>,
+  error: string
+) {
+  const deadLetterRepo = yield* DeadLetterRepository
+  const alerter = yield* Alerter
+  const notificationIds = Array.map(failed, (row) => row.id)
+  const firstPlantId = Array.head(message.payload.plantIds)
 
-    yield* deadLetterRepo.create({
-      originalMessageId: message.id,
-      topic: message.topic,
-      payload: message.payload,
-      error: String(error),
-      retryCount: message.retryCount,
-      userId: message.payload.userId,
-      ...(firstPlantId ? { plantId: firstPlantId } : {}),
-    })
+  yield* deadLetterRepo.create({
+    originalMessageId: message.id,
+    topic: message.topic,
+    payload: message.payload,
+    error,
+    retryCount: Array.max(
+      Array.map(failed, (row) => row.retryCount),
+      Order.Number
+    ),
+    userId: message.payload.userId,
+    ...(Option.isSome(firstPlantId) ? { plantId: firstPlantId.value } : {}),
+  })
+  yield* Effect.logError('Message moved to dead letter queue', {
+    messageId: message.id,
+    notificationIds,
+    error,
+  })
+  yield* alerter.alertWarning(
+    'notification-worker',
+    'Message moved to dead letter queue',
+    { messageId: message.id, topic: message.topic, notificationIds, error }
+  )
+})
 
-    // Mark all notifications as failed
-    yield* notificationRepo.markManyAsFailed(notificationIds, String(error))
-
-    yield* Effect.logError('Message moved to dead letter queue', {
+const retryLater = Effect.fn('notification-worker.retryLater')(function* (
+  message: QueueMessage,
+  cause: SqlError | PushSendError | PushConfigError
+) {
+  const notificationRepo = yield* NotificationRepository
+  const now = yield* DateTime.now
+  const error = String(cause)
+  const attempts = yield* notificationRepo.retryLater(
+    message.payload.notificationIds,
+    message.id,
+    Array.map(RETRY_DELAYS, (delay) =>
+      DateTime.toDateUtc(DateTime.addDuration(now, delay))
+    ),
+    error
+  )
+  const retried = Array.filter(attempts, (row) => row.status === 'pending')
+  if (Array.isReadonlyArrayNonEmpty(retried)) {
+    yield* Effect.logWarning('Retrying notification', {
       messageId: message.id,
-      notificationIds,
-      error: String(error),
+      notificationIds: Array.map(retried, (row) => row.id),
+      retryCount: Array.map(retried, (row) => row.retryCount),
+      error,
     })
   }
-)
+  const failed = Array.filter(attempts, (row) => row.status === 'failed')
+  if (Array.isReadonlyArrayNonEmpty(failed)) {
+    yield* deadLetter(message, failed, error)
+  }
+})
 
 const readEntry = Schema.decodeUnknownOption(
   Schema.fromJsonString(Schema.Unknown)
@@ -723,7 +756,6 @@ const discardUndecodable = (error: QueueMessageDecodeError) =>
 export const consumeFromTopic = (topic: NotificationTopic) =>
   Effect.gen(function* () {
     const queue = yield* MessageQueue
-    const notificationRepo = yield* NotificationRepository
 
     const result = yield* queue.dequeue(topic)
 
@@ -738,33 +770,10 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
         retryCount: message.retryCount,
       })
 
-      yield* Effect.result(
-        processMessage(message).pipe(Effect.retry(workerRetryPolicy))
-      ).pipe(
-        Effect.flatMap((processResult) =>
-          Result.match(processResult, {
-            onFailure: (error) =>
-              Effect.gen(function* () {
-                if (message.retryCount >= MAX_RETRIES - 1) {
-                  // Max retries reached, move to dead letter queue
-                  yield* handleFailedMessage(message, error)
-                } else {
-                  // Re-enqueue with incremented retry count
-                  yield* queue.enqueue(
-                    topic,
-                    Struct.evolve(message, { retryCount: (n) => n + 1 })
-                  )
-                  yield* Effect.forEach(message.payload.notificationIds, (id) =>
-                    notificationRepo.incrementRetryCount(id)
-                  )
-                  yield* Effect.logWarning('Retrying notification', {
-                    messageId: message.id,
-                    retryCount: message.retryCount + 1,
-                  })
-                }
-              }),
-            onSuccess: () => Effect.void,
-          })
+      yield* processMessage(message).pipe(
+        Effect.catchTag(
+          ['SqlError', 'PushSendError', 'PushConfigError'],
+          (error) => retryLater(message, error)
         ),
         Effect.catchDefect((defect) =>
           discardPoisonMessage(
