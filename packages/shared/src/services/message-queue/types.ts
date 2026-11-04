@@ -1,5 +1,4 @@
-import { Array, Data, pipe, Record, Schema } from 'effect'
-import { NotificationMetadata } from '../../domains/notification/schema'
+import { Array, Data, pipe, Record, Schema, String as Str } from 'effect'
 
 export const NOTIFICATION_TOPICS = [
   'watering_reminder',
@@ -106,26 +105,56 @@ export type DeferredCareType = TopicsOfCategory<'care'>
 export type SocialNotificationType = TopicsOfCategory<'social'>
 export type EngagementNotificationType = TopicsOfCategory<'engagement'>
 
+const UNPAIRED_SURROGATE =
+  /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g
+
+// Postgres text and jsonb reject NUL and unpaired UTF-16 surrogates.
+export const toPostgresText = (text: string) =>
+  pipe(
+    text,
+    Str.replaceAll('\u0000', '\\u0000'),
+    Str.replace(UNPAIRED_SURROGATE, '\ufffd')
+  )
+
+export const PostgresText = Schema.String.check(
+  Schema.makeFilter(
+    (value: string) =>
+      toPostgresText(value) === value ||
+      'Expected text without NUL or unpaired surrogates'
+  )
+)
+
+export const NotificationId = Schema.String.check(Schema.isUUID())
+
+// One statement binds at most 65535 parameters. Producers send at most 100 ids.
+export const MAX_NOTIFICATION_IDS = 10_000
+
+export const RetryCount = Schema.Int.check(
+  Schema.isBetween({ minimum: 0, maximum: 2_147_483_647 })
+)
+
 // Queue message payload for notifications
 export const QueueMessagePayload = Schema.Struct({
   userId: Schema.String,
   title: Schema.String,
   body: Schema.String,
-  notificationIds: Schema.Array(Schema.String),
+  notificationIds: Schema.Array(NotificationId).check(
+    Schema.isMaxLength(MAX_NOTIFICATION_IDS)
+  ),
   plantIds: Schema.Array(Schema.String),
   // Optional so queue messages enqueued before this field existed don't fail
   // Schema validation on dequeue. Worker defaults to 'en' when absent.
   language: Schema.optional(Schema.Literals(['en', 'fr'])),
-  metadata: Schema.optional(NotificationMetadata),
+  metadata: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 })
 export type QueueMessagePayload = typeof QueueMessagePayload.Type
 
 // Full queue message with metadata
 export const QueueMessage = Schema.Struct({
-  id: Schema.String,
+  id: PostgresText,
   topic: NotificationTopic,
   payload: QueueMessagePayload,
-  retryCount: Schema.Number,
+  retryCount: RetryCount,
   createdAt: Schema.DateFromString,
   scheduledAt: Schema.DateFromString,
 })
@@ -145,3 +174,12 @@ export class QueueOperationError extends Data.TaggedError(
   message: string
   cause?: unknown
 }> {}
+
+export class QueueMessageDecodeError extends Schema.TaggedError<QueueMessageDecodeError>()(
+  'QueueMessageDecodeError',
+  {
+    topic: NotificationTopic,
+    rawData: Schema.String,
+    message: Schema.String,
+  }
+) {}

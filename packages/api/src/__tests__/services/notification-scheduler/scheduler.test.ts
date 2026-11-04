@@ -8,16 +8,25 @@ import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   type NotificationTopic,
+  QueueConnectionError,
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
-import { Array as Arr, Effect, Layer, Logger, References } from 'effect'
+import {
+  Array as Arr,
+  Effect,
+  Layer,
+  Logger,
+  Predicate,
+  References,
+} from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
 // Default user with all notifications enabled and DND off
@@ -194,6 +203,290 @@ describe('Notification Scheduler', () => {
       ).toEqual([
         [['deleg-req-1'], { delegationId: 'delegation-a' }],
         [['deleg-req-2'], { delegationId: 'delegation-b' }],
+      ])
+    })
+
+    it('resends a delegation request whose fast-path enqueue failed with its delegationId', async () => {
+      const notifications: Notification[] = []
+      const enqueued: QueueMessage[] = []
+
+      await Effect.runPromise(
+        scheduleSimpleNotification(
+          'delegation_request',
+          'user-1',
+          { senderName: 'Bob' },
+          'en',
+          { delegationId: 'delegation-a' }
+        ).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockNotificationRepository(notifications),
+              createMockMessageQueue({
+                enqueueFailure: new QueueConnectionError({
+                  message: 'redis down',
+                }),
+              })
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.metadata)).toEqual([
+        { delegationId: 'delegation-a' },
+      ])
+    })
+
+    const follow = (id: string, metadata?: Notification['metadata']) =>
+      createTestNotification({
+        id,
+        type: 'new_follower',
+        status: 'pending',
+        title: 'New follower',
+        body: 'Someone follows you',
+        scheduledAt: new Date(Date.now() - 60000),
+        userId: 'user-1',
+        ...(metadata ? { metadata } : {}),
+      })
+
+    it('sends two follows for one user as two pushes, each with its sender', async () => {
+      const enqueued: QueueMessage[] = []
+
+      await runPollAndEnqueue(
+        [
+          follow('follow-1', { senderId: 'ada' }),
+          follow('follow-2', { senderId: 'bob' }),
+        ],
+        [defaultUser],
+        (_, message) => enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.metadata)).toEqual([
+        { senderId: 'ada' },
+        { senderId: 'bob' },
+      ])
+    })
+
+    it('sends a follow stored without metadata apart from one with a sender', async () => {
+      const enqueued: QueueMessage[] = []
+
+      await runPollAndEnqueue(
+        [follow('follow-legacy'), follow('follow-2', { senderId: 'bob' })],
+        [defaultUser],
+        (_, message) => enqueued.push(message)
+      )
+
+      expect(
+        Arr.map(enqueued, (m) => [
+          m.payload.notificationIds,
+          Predicate.hasProperty(m.payload, 'metadata')
+            ? m.payload.metadata
+            : 'no metadata key',
+        ])
+      ).toEqual([
+        [['follow-legacy'], 'no metadata key'],
+        [['follow-2'], { senderId: 'bob' }],
+      ])
+    })
+
+    it('sends two follows stored without metadata for one user as two pushes', async () => {
+      const enqueued: QueueMessage[] = []
+
+      await runPollAndEnqueue(
+        [follow('follow-1'), follow('follow-2')],
+        [defaultUser],
+        (_, message) => enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.notificationIds)).toEqual([
+        ['follow-1'],
+        ['follow-2'],
+      ])
+    })
+
+    it('sends two photo reminders stored without metadata for one user as two pushes', async () => {
+      const enqueued: QueueMessage[] = []
+      const photo = (id: string, plantId: string) =>
+        createTestNotification({
+          id,
+          type: 'photo_reminder',
+          status: 'pending',
+          title: `Photo of ${plantId}`,
+          body: 'Time for a picture',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId,
+        })
+
+      await runPollAndEnqueue(
+        [photo('photo-1', 'plant-1'), photo('photo-2', 'plant-2')],
+        [defaultUser],
+        (_, message) => enqueued.push(message),
+        [
+          createTestPlant({ id: 'plant-1', name: 'Monstera' }),
+          createTestPlant({ id: 'plant-2', name: 'Fern' }),
+        ]
+      )
+
+      expect(
+        Arr.map(enqueued, (m) => [m.payload.notificationIds, m.payload.title])
+      ).toEqual([
+        [['photo-1'], 'Photo of plant-1'],
+        [['photo-2'], 'Photo of plant-2'],
+      ])
+    })
+
+    it('drops a row whose metadata does not match its topic', async () => {
+      const enqueued: QueueMessage[] = []
+      const notifications = [
+        createTestNotification({
+          id: 'deleg-bad',
+          type: 'delegation_request',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          metadata: JSON.parse('{"delegationId":5}'),
+        }),
+      ]
+
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(enqueued).toEqual([])
+      expect(notifications).toEqual([])
+    })
+
+    it.each([
+      ['delegation_request', { delegationId: '' }],
+      ['new_follower', { senderId: '' }],
+      ['canopy_invitation', { invitationId: '' }],
+    ] as const)('drops a %s row whose id is empty', async (type, metadata) => {
+      const enqueued: QueueMessage[] = []
+      const notifications = [
+        createTestNotification({
+          id: 'empty-id',
+          type,
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          metadata,
+        }),
+      ]
+
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(enqueued).toEqual([])
+      expect(notifications).toEqual([])
+    })
+
+    it('drops a malformed row and still sends the rows after it on the same poll', async () => {
+      const enqueued: QueueMessage[] = []
+      const notifications = [
+        follow('follow-bad', { senderId: '' }),
+        follow('follow-1', { senderId: 'ada' }),
+        follow('follow-2', { senderId: 'bob' }),
+      ]
+
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.notificationIds)).toEqual([
+        ['follow-1'],
+        ['follow-2'],
+      ])
+      expect(Arr.map(notifications, (n) => n.id)).toEqual([
+        'follow-1',
+        'follow-2',
+      ])
+    })
+
+    it.each([
+      ['a string', '"abc"'],
+      ['a number', '5'],
+      ['an array', '[1,2]'],
+      ['an unknown key', '{"delegationId":"d-1"}'],
+    ])('drops a daily tip whose metadata is %s', async (_, metadata) => {
+      const enqueued: QueueMessage[] = []
+      const notifications = [
+        createTestNotification({
+          id: 'tip-bad',
+          type: 'daily_tip',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          metadata: JSON.parse(metadata),
+        }),
+      ]
+
+      await runPollAndEnqueue(notifications, [defaultUser], (_, message) =>
+        enqueued.push(message)
+      )
+
+      expect(enqueued).toEqual([])
+      expect(notifications).toEqual([])
+    })
+
+    it('logs the schema error of a dropped row on one line', async () => {
+      const warnings: unknown[] = []
+      const capture = Logger.make(({ message }) => {
+        warnings.push(message)
+      })
+
+      await Effect.runPromise(
+        pollAndEnqueue.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockNotificationRepository([
+                follow('follow-bad', JSON.parse('{"senderId":5}')),
+              ]),
+              createMockMessageQueue({}),
+              createMockUserRepository([defaultUser]),
+              createMockPlantRepository({ plants: [] }),
+              Logger.layer([capture])
+            )
+          )
+        )
+      )
+
+      expect(warnings).toContainEqual([
+        'Dropping notification - malformed metadata',
+        {
+          type: 'new_follower',
+          id: 'follow-bad',
+          error: 'Expected string at ["senderId"]',
+        },
+      ])
+    })
+
+    it('sends two daily tips for one user as two pushes', async () => {
+      const enqueued: QueueMessage[] = []
+      const tip = (id: string, title: string) =>
+        createTestNotification({
+          id,
+          type: 'daily_tip',
+          status: 'pending',
+          title,
+          body: 'Tip body',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+        })
+
+      await runPollAndEnqueue(
+        [tip('tip-1', 'Mist ferns'), tip('tip-2', 'Rotate pots')],
+        [defaultUser],
+        (_, message) => enqueued.push(message)
+      )
+
+      expect(Arr.map(enqueued, (m) => m.payload.title)).toEqual([
+        'Mist ferns',
+        'Rotate pots',
       ])
     })
 

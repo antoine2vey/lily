@@ -91,10 +91,12 @@ export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
       onNone: () => Effect.void,
       onSome: ({ canopyName, members }) =>
         Effect.forEach(members, (member) =>
-          notifyMemberBestEffort('canopy_member_joined', member, {
-            ...senderNameOf(joiner.name),
-            canopyName,
-          })
+          notifyMemberBestEffort(
+            'canopy_member_joined',
+            member,
+            { ...senderNameOf(joiner.name), canopyName },
+            {}
+          )
         ),
     })
 

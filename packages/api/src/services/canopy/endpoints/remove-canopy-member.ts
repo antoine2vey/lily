@@ -38,9 +38,12 @@ export const removeCanopyMember = Effect.fn('CanopyService.removeCanopyMember')(
       })
     )
 
-    yield* notifyMemberBestEffort('canopy_member_removed', removed, {
-      canopyName: canopy.name,
-    })
+    yield* notifyMemberBestEffort(
+      'canopy_member_removed',
+      removed,
+      { canopyName: canopy.name },
+      {}
+    )
 
     return yield* canopyView(canopy.id, userId)
   }

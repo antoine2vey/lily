@@ -1,7 +1,7 @@
 import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import type { NotificationParamsMap } from '@lily/api/services/notification-scheduler/translations'
 import type { LanguageCode } from '@lily/shared'
-import type { NotificationMetadata } from '@lily/shared/notification'
+import type { MetadataOf } from '@lily/shared/notification'
 import { Effect, Option } from 'effect'
 
 type CanopyPush =
@@ -27,7 +27,7 @@ export const notifyMemberBestEffort = <T extends CanopyPush>(
   type: T,
   to: Recipient,
   params: NotificationParamsMap[T],
-  metadata?: NotificationMetadata
+  metadata: MetadataOf<T>
 ) =>
   scheduleSimpleNotification(
     type,

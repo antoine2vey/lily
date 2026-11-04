@@ -15,7 +15,8 @@ const schedule = (
       'new_follower',
       'user-1',
       { senderName: 'Ada' },
-      'en'
+      'en',
+      { senderId: 'ada' }
     ).pipe(
       Effect.provide(
         Layer.mergeAll(createMockNotificationRepository(notifications), queue)
@@ -46,6 +47,21 @@ describe('scheduleSimpleNotification', () => {
 
     expect(statusAtEnqueue).toEqual(['queued'])
     expect(Arr.map(notifications, (n) => n.status)).toEqual(['queued'])
+  })
+
+  it('enqueues the metadata with the message', async () => {
+    const enqueued: QueueMessage[] = []
+
+    await schedule(
+      [],
+      createMockMessageQueue({
+        onEnqueue: (_, message: QueueMessage) => enqueued.push(message),
+      })
+    )
+
+    expect(Arr.map(enqueued, (m) => m.payload.metadata)).toEqual([
+      { senderId: 'ada' },
+    ])
   })
 
   it('hands the row to the scheduler when the queue is unavailable', async () => {

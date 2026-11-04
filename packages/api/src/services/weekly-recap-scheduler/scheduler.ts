@@ -85,6 +85,7 @@ export const processWeeklyRecap = Effect.fn(
           body,
           scheduledAt,
           userId: user.id,
+          metadata: {},
         })
       }),
   })

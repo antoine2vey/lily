@@ -11,8 +11,8 @@ import {
   startOfTomorrowAsDate,
 } from '@lily/shared'
 import type {
+  MetadataOf,
   Notification,
-  NotificationMetadata,
   NotificationStatus,
   NotificationsListResponse,
 } from '@lily/shared/notification'
@@ -44,21 +44,28 @@ export interface FindNotificationsParams {
   status?: 'pending' | 'queued' | 'sent' | 'failed' | 'all'
 }
 
-export interface CreateNotificationData {
-  type: NotificationTopic
+interface CreateNotificationFields {
   title?: string
   body?: string
   scheduledAt: Date
   userId: string
   plantId?: string
   status?: Extract<NotificationStatus, 'pending' | 'queued'>
-  metadata?: NotificationMetadata
 }
 
 export interface DeferredNotification {
   readonly id: string
   readonly until: Date
 }
+
+export type CreateNotificationData<
+  T extends NotificationTopic = NotificationTopic,
+> = {
+  [K in T]: CreateNotificationFields & {
+    type: K
+    metadata: MetadataOf<K>
+  }
+}[T]
 
 // Helper to map database row to API Notification type
 const mapToNotification = (
@@ -94,8 +101,8 @@ export interface INotificationRepository {
   readonly markAsRead: (
     id: string
   ) => Effect.Effect<Notification | null, SqlError>
-  readonly create: (
-    data: CreateNotificationData
+  readonly create: <T extends NotificationTopic>(
+    data: CreateNotificationData<T>
   ) => Effect.Effect<Notification | null, SqlError>
   readonly delete: (id: string) => Effect.Effect<Notification | null, SqlError>
   // Scheduler methods
@@ -291,9 +298,9 @@ export const NotificationRepositoryLive = Layer.effect(
         return row ? mapToNotification(row) : null
       }),
 
-      create: Effect.fn('NotificationRepository.create')(function* (
-        data: CreateNotificationData
-      ) {
+      create: Effect.fn('NotificationRepository.create')(function* <
+        T extends NotificationTopic,
+      >(data: CreateNotificationData<T>) {
         const status = Option.getOrElse(
           Option.fromNullishOr(data.status),
           () => 'pending' as const
@@ -309,7 +316,7 @@ export const NotificationRepositoryLive = Layer.effect(
             plantId: Option.getOrNull(Option.fromNullishOr(data.plantId)),
             status,
             queuedAt: status === 'queued' ? nowAsDate() : null,
-            metadata: Option.getOrNull(Option.fromNullishOr(data.metadata)),
+            metadata: data.metadata,
           })
           .returning()
         return row ? mapToNotification(row) : null
@@ -619,8 +626,8 @@ export const NotificationRepositoryLive = Layer.effect(
             sql`, `
           )
           yield* db.execute(
-            sql`INSERT INTO notifications (type, scheduled_at, user_id, plant_id, status)
-              SELECT v.type, v.scheduled_at, v.user_id, v.plant_id, 'pending'::notification_status
+            sql`INSERT INTO notifications (type, scheduled_at, user_id, plant_id, status, metadata)
+              SELECT v.type, v.scheduled_at, v.user_id, v.plant_id, 'pending'::notification_status, '{}'::jsonb
               FROM (VALUES ${values}) AS v(type, scheduled_at, user_id, plant_id, since)
               WHERE v.since IS NULL OR NOT EXISTS (
                 SELECT 1 FROM notifications n

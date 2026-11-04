@@ -487,10 +487,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
       const rows = await db
-        .select({ userId: schema.notifications.userId })
+        .select({
+          userId: schema.notifications.userId,
+          metadata: schema.notifications.metadata,
+        })
         .from(schema.notifications)
         .where(sql`${schema.notifications.status} = 'pending'`)
       expect(Arr.map(rows, (r) => r.userId).sort()).toEqual([alex, lily].sort())
+      expect(Arr.map(rows, (r) => r.metadata)).toEqual([{}, {}])
     })
 
     it('clears every pending row and the queued rows of former recipients on reschedule', async () => {

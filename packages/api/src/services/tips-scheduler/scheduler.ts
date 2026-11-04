@@ -142,6 +142,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
           body,
           scheduledAt,
           userId: user.id,
+          metadata: {},
         })
       }).pipe(
         Effect.catchTags({

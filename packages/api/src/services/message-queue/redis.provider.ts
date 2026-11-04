@@ -1,12 +1,22 @@
+import { NOTIFICATION_METADATA } from '@lily/shared/notification'
 import {
   type IMessageQueue,
   MessageQueue,
   type NotificationTopic,
   QueueConnectionError,
-  type QueueMessage,
+  QueueMessage,
+  QueueMessageDecodeError,
   QueueOperationError,
 } from '@lily/shared/server'
-import { Config, Context, Duration, Effect, Layer } from 'effect'
+import {
+  Config,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Schema,
+} from 'effect'
 import Redis from 'ioredis'
 
 // Redis client service tag
@@ -64,6 +74,39 @@ end
 return moved
 `
 
+const decodeDequeued = Schema.decodeUnknownEffect(Schema.NullOr(Schema.String))
+
+const decodeQueueMessage = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(QueueMessage)
+)
+
+const decodeTopicMetadata = (message: QueueMessage) =>
+  Option.match(Option.fromNullishOr(message.payload.metadata), {
+    onNone: () => Effect.succeed(message),
+    onSome: (metadata) =>
+      Schema.decodeUnknownEffect(NOTIFICATION_METADATA[message.topic])(
+        metadata
+      ).pipe(
+        Effect.map(
+          (decoded): QueueMessage => ({
+            ...message,
+            payload: { ...message.payload, metadata: decoded },
+          })
+        )
+      ),
+  })
+
+export const decodeQueueEntry = (topic: NotificationTopic, rawData: string) =>
+  decodeQueueMessage(rawData).pipe(
+    Effect.flatMap(decodeTopicMetadata),
+    Effect.map((message) => ({ message, rawData })),
+    Effect.catchTag('SchemaError', (error) =>
+      Effect.fail(
+        new QueueMessageDecodeError({ topic, rawData, message: error.message })
+      )
+    )
+  )
+
 export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
   enqueue: (topic, message) =>
     Effect.tryPromise({
@@ -87,25 +130,31 @@ export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
   // is actually dequeued).
   dequeue: (topic) =>
     Effect.tryPromise({
-      try: async () => {
-        const rawData = (await evalTopicScript(
-          redis,
-          DEQUEUE_SCRIPT,
-          topic,
-          Date.now()
-        )) as string | null
-        if (!rawData) return null
-        return {
-          message: JSON.parse(rawData) as QueueMessage,
-          rawData,
-        }
-      },
+      try: () => evalTopicScript(redis, DEQUEUE_SCRIPT, topic, Date.now()),
       catch: (error) =>
         new QueueOperationError({
           message: `Failed to dequeue message from ${topic}`,
           cause: error,
         }),
-    }),
+    }).pipe(
+      Effect.flatMap((result) =>
+        decodeDequeued(result).pipe(
+          Effect.mapError(
+            (error) =>
+              new QueueOperationError({
+                message: `Unexpected dequeue result from ${topic}`,
+                cause: error,
+              })
+          )
+        )
+      ),
+      Effect.flatMap((raw) =>
+        Option.match(Option.fromNullishOr(raw), {
+          onNone: () => Effect.succeed(null),
+          onSome: (rawData) => decodeQueueEntry(topic, rawData),
+        })
+      )
+    ),
 
   ack: (topic, rawData) =>
     Effect.tryPromise({

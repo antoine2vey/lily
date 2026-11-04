@@ -4,6 +4,7 @@ import {
 } from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
+import type { NotificationMetadata } from '@lily/shared'
 import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
@@ -60,7 +61,7 @@ export const notifications = pgTable(
     plantId: uuid('plant_id').references(() => plants.id, {
       onDelete: 'cascade',
     }),
-    metadata: jsonb('metadata').$type<Record<string, string>>(),
+    metadata: jsonb('metadata').$type<NotificationMetadata>(),
   },
   (table) => [
     index('notifications_user_id_idx').on(table.userId),
