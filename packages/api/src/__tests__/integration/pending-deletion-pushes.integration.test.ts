@@ -297,6 +297,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await rowsOf(user.id)).toEqual([])
     })
 
+    it('drops at relay a tip for an account an admin marked pending deletion', async () => {
+      const user = await insertUser('relay-tip')
+      await db.insert(schema.notifications).values({
+        type: 'daily_tip',
+        scheduledAt: new Date(Date.now() - 60_000),
+        userId: user.id,
+      })
+      const { run, enqueued } = pipeline(user)
+
+      await markPendingDeletion(run, user.id)
+      await run(pollAndEnqueue)
+
+      expect(enqueued).toEqual([])
+      expect(await rowsOf(user.id)).toEqual([])
+    })
+
     it('drops at delivery a row already queued when the account was deleted', async () => {
       const user = await insertUser('delivery')
       await insertDevice(user.id)
