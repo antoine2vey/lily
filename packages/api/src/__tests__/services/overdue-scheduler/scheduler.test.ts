@@ -33,6 +33,7 @@ import {
 import type { userSubscriptions } from '@lily/db/schema'
 import { type PlantOwner, pickNotificationTime } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
+import type { QueueMessage } from '@lily/shared/server'
 import {
   Array as Arr,
   Cause,
@@ -105,7 +106,8 @@ const runProcessUser = (
     delegations?: DelegationRow[]
     delegationPlants?: Array<{ delegationId: string; plantId: string }>
   } = {},
-  maxPlants: number | null = 5
+  maxPlants: number | null = 5,
+  queue = createMockMessageQueue()
 ) => {
   const overdue = Arr.filter(plantsData, (p) => {
     const wateringSched = Arr.findFirst(
@@ -140,7 +142,7 @@ const runProcessUser = (
           createMockUserRepository(users),
           createMockCanopyRepository(),
           createMockDelegationRepository(delegationData),
-          createMockMessageQueue()
+          queue
         )
       ),
       Effect.provideService(References.MinimumLogLevel, 'None')
@@ -966,21 +968,34 @@ describe('checkAndCreateOverdueReminders', () => {
         })
       )
 
+      const enqueued: QueueMessage[] = []
       await runProcessUser(
         'user-1',
         plants,
         [defaultUser],
         notifications,
         {},
-        5
+        5,
+        createMockMessageQueue({
+          onEnqueue: (_, message) => enqueued.push(message),
+        })
       )
 
       const nudges = Arr.filter(
         notifications,
         (n) => n.type === 'resubscribe_nudge'
       )
-      expect(nudges.length).toBe(1)
-      expect(nudges[0]?.userId).toBe('user-1')
+      expect(nudges).toHaveLength(1)
+      expect(nudges[0]).toMatchObject({
+        userId: 'user-1',
+        status: 'queued',
+        metadata: {},
+      })
+      expect(
+        Arr.filter(enqueued, (m) => m.topic === 'resubscribe_nudge')
+      ).toMatchObject([
+        { payload: { userId: 'user-1', notificationIds: [nudges[0]?.id] } },
+      ])
     })
 
     it('should NOT send resubscribe_nudge when nudge already sent today', async () => {

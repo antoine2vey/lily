@@ -5,7 +5,7 @@ import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/noti
 import { processWeeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
 import { DateTime, Effect, Layer } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
 // Find a timezone where it's currently Sunday, or null if none found
 const findSundayTimezone = (): string | null => {
@@ -50,10 +50,13 @@ const findNonSundayTimezone = (): string | null => {
 
 describe('processWeeklyRecap', () => {
   it('creates recap notification on Sunday for user with activity', async () => {
-    const sundayTz = findSundayTimezone()
-    if (!sundayTz) return // Can't test — no timezone is on Sunday right now
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-08T12:00:00Z'))
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
 
-    const user = makeUserWithSettings({ id: 'user-1', timezone: sundayTz })
+    const user = makeUserWithSettings({ id: 'user-1', timezone: 'UTC' })
     const notifications: Notification[] = []
 
     const layer = Layer.mergeAll(
@@ -73,8 +76,12 @@ describe('processWeeklyRecap', () => {
     )
 
     expect(notifications).toHaveLength(1)
-    expect(notifications[0]?.type).toBe('weekly_recap')
-    expect(notifications[0]?.userId).toBe('user-1')
+    expect(notifications[0]).toMatchObject({
+      type: 'weekly_recap',
+      userId: 'user-1',
+      status: 'pending',
+      metadata: {},
+    })
   })
 
   it('skips user on non-Sunday', async () => {

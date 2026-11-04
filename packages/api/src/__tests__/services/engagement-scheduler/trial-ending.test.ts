@@ -44,6 +44,8 @@ describe('processTrialEnding', () => {
     expect(notifications).toHaveLength(2)
     expect(notifications[0]?.type).toBe('trial_ending')
     expect(notifications[0]?.userId).toBe('user-1')
+    expect(notifications[0]?.status).toBe('pending')
+    expect(notifications[0]?.metadata).toEqual({})
   })
 
   it('creates notifications for multiple trialing users', async () => {
