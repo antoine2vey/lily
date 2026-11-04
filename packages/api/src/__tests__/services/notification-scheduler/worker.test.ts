@@ -51,6 +51,7 @@ import {
   makeAlerter,
 } from '@lily/api/services/alerting/service'
 import { decodeQueueEntry } from '@lily/api/services/message-queue/redis.provider'
+import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   consumeFromTopic,
   processMessage,
@@ -1848,6 +1849,80 @@ describe('Notification Worker', () => {
       expect(sentMessages.length).toBeGreaterThan(0)
       expect(sentMessages[0]?.body).not.toContain('Buried')
       expect(sentMessages[0]?.data?.plantIds).toBe('plant-2')
+    })
+
+    it('renames a queued digest to the living plant when the other is buried before the send', async () => {
+      const buried = createTestPlant({
+        id: 'plant-1',
+        name: 'Aloe',
+        userId: 'user-1',
+        diedAt: new Date(),
+      })
+      const living = createTestPlant({
+        id: 'plant-2',
+        name: 'Fern',
+        userId: 'user-1',
+      })
+      const rows = Array.map([buried, living], (plant, index) =>
+        createTestNotification({
+          id: `notification-${index + 1}`,
+          userId: 'user-1',
+          plantId: plant.id,
+          type: 'watering_reminder',
+          status: 'queued',
+        })
+      )
+      const sentMessages: PushMessage[] = []
+
+      await Effect.runPromise(
+        processMessage(
+          createTestQueueMessage({
+            topic: 'watering_reminder',
+            payload: {
+              userId: 'user-1',
+              ...buildCareDigestContent(
+                [
+                  { plantName: 'Aloe', careTypes: ['watering_reminder'] },
+                  { plantName: 'Fern', careTypes: ['watering_reminder'] },
+                ],
+                'en'
+              ),
+              notificationIds: ['notification-1', 'notification-2'],
+              plantIds: ['plant-1', 'plant-2'],
+            },
+          })
+        ).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              MockAlerterLive,
+              createMockPushService({
+                onSendBatch: (msgs) => sentMessages.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository(rows),
+              createMockPlantRepository({ plants: [buried, living] }),
+              LaMocksLive
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      const fernOnly = buildCareDigestContent(
+        [{ plantName: 'Fern', careTypes: ['watering_reminder'] }],
+        'en'
+      )
+      expect(
+        Array.dedupe(
+          Array.map(
+            sentMessages,
+            (push) => `${push.title}|${push.body}|${push.data?.plantIds}`
+          )
+        )
+      ).toEqual([`${fernOnly.title}|${fernOnly.body}|plant-2`])
+      expect(Array.map(rows, (row) => [row.id, row.status])).toEqual([
+        ['notification-2', 'sent'],
+      ])
     })
   })
 
