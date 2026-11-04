@@ -46,6 +46,7 @@ import {
   Layer,
   Option,
   References,
+  String as Str,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 import pg from 'pg'
@@ -771,6 +772,148 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ])
         expect(await claimsOf([unclaimedId])).toEqual([
           { status: 'queued', scheduledAt: original, deliveryMessageId: null },
+        ])
+      })
+    })
+
+    describe('retryLater', () => {
+      const firstRetry = new Date('2030-01-01T00:01:00.000Z')
+      const secondRetry = new Date('2030-01-01T00:05:00.000Z')
+
+      const attemptsOf = (ids: ReadonlyArray<string>) =>
+        db
+          .select({
+            id: schema.notifications.id,
+            status: schema.notifications.status,
+            retryCount: schema.notifications.retryCount,
+            scheduledAt: schema.notifications.scheduledAt,
+            queuedAt: schema.notifications.queuedAt,
+            deliveryMessageId: schema.notifications.deliveryMessageId,
+            lastError: schema.notifications.lastError,
+          })
+          .from(schema.notifications)
+          .where(inArray(schema.notifications.id, [...ids]))
+          .orderBy(schema.notifications.id)
+
+      const holdAgain = (id: string, messageId: string) =>
+        db
+          .update(schema.notifications)
+          .set({
+            status: 'queued',
+            queuedAt: new Date(),
+            deliveryMessageId: messageId,
+          })
+          .where(eq(schema.notifications.id, id))
+
+      const retry = (ids: ReadonlyArray<string>, heldBy: string) =>
+        withRepo((repo) =>
+          repo.retryLater(ids, heldBy, [firstRetry, secondRetry], 'push down')
+        )
+
+      it('moves every row the message holds back to pending at the first retry time', async () => {
+        const queuedAt = minutesAgo(1)
+        const held = await insertRows(
+          Arr.makeBy(3, () => ({
+            status: 'queued' as const,
+            queuedAt,
+            deliveryMessageId: 'msg-mine',
+          }))
+        )
+        const [other, unclaimed] = await insertRows([
+          { status: 'queued', queuedAt, deliveryMessageId: 'msg-other' },
+          { status: 'queued', queuedAt },
+        ])
+        if (!other || !unclaimed) throw new Error('seed failed')
+        const [before] = await attemptsOf([other])
+
+        const attempts = await retry([...held, other, unclaimed], 'msg-mine')
+
+        expect(
+          Arr.sort(
+            Arr.map(attempts, (a) => a.id),
+            Str.Order
+          )
+        ).toEqual(Arr.sort(held, Str.Order))
+        expect(
+          Arr.every(
+            attempts,
+            (a) => a.status === 'pending' && a.retryCount === 1
+          )
+        ).toBe(true)
+        expect(await attemptsOf(held)).toEqual(
+          Arr.map(Arr.sort(held, Str.Order), (id) => ({
+            id,
+            status: 'pending',
+            retryCount: 1,
+            scheduledAt: firstRetry,
+            queuedAt: null,
+            deliveryMessageId: null,
+            lastError: 'push down',
+          }))
+        )
+        expect(await attemptsOf([other])).toEqual([before])
+        expect(await statusesOf([unclaimed])).toEqual(['queued'])
+      })
+
+      it('waits the second delay after the second failure and fails the row at the third', async () => {
+        const [id] = await insertRows([
+          {
+            status: 'queued',
+            queuedAt: minutesAgo(1),
+            deliveryMessageId: 'msg-1',
+          },
+        ])
+        if (!id) throw new Error('seed failed')
+
+        await retry([id], 'msg-1')
+        await holdAgain(id, 'msg-2')
+        await retry([id], 'msg-2')
+        expect(await attemptsOf([id])).toEqual([
+          expect.objectContaining({
+            status: 'pending',
+            retryCount: 2,
+            scheduledAt: secondRetry,
+          }),
+        ])
+
+        await holdAgain(id, 'msg-3')
+        const third = await retry([id], 'msg-3')
+
+        expect(third).toEqual([{ id, status: 'failed', retryCount: 3 }])
+        expect(await attemptsOf([id])).toEqual([
+          expect.objectContaining({
+            status: 'failed',
+            retryCount: 3,
+            scheduledAt: secondRetry,
+            deliveryMessageId: 'msg-3',
+            lastError: 'push down',
+          }),
+        ])
+      })
+
+      it('never fails a row another message holds', async () => {
+        const [id] = await insertRows([
+          {
+            status: 'queued',
+            queuedAt: minutesAgo(1),
+            deliveryMessageId: 'msg-other',
+          },
+        ])
+        if (!id) throw new Error('seed failed')
+        await db
+          .update(schema.notifications)
+          .set({ retryCount: 2 })
+          .where(eq(schema.notifications.id, id))
+
+        const attempts = await retry([id], 'msg-mine')
+
+        expect(attempts).toEqual([])
+        expect(await attemptsOf([id])).toEqual([
+          expect.objectContaining({
+            status: 'queued',
+            retryCount: 2,
+            deliveryMessageId: 'msg-other',
+          }),
         ])
       })
     })
