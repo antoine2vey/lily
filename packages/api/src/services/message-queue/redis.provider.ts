@@ -127,27 +127,6 @@ export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
       })
     ),
 
-  nack: (topic, rawData) =>
-    Effect.tryPromise({
-      try: () =>
-        redis
-          .multi()
-          .lrem(getProcessingKey(topic), 1, rawData)
-          .zrem(getClaimedKey(topic), rawData)
-          .rpush(getQueueKey(topic), rawData)
-          .exec(),
-      catch: (error) =>
-        new QueueOperationError({
-          message: 'Failed to nack message',
-          cause: error,
-        }),
-    }).pipe(
-      Effect.asVoid,
-      Effect.withSpan('Redis.nack', {
-        attributes: { 'queue.topic': topic },
-      })
-    ),
-
   requeueStale: (topic, olderThan) =>
     Effect.tryPromise({
       try: async () =>

@@ -25,11 +25,6 @@ export interface IMessageQueue {
     rawData: string
   ) => Effect.Effect<void, QueueOperationError>
 
-  readonly nack: (
-    topic: NotificationTopic,
-    rawData: string
-  ) => Effect.Effect<void, QueueOperationError>
-
   readonly requeueStale: (
     topic: NotificationTopic,
     olderThan: Duration.Duration

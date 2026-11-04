@@ -1,8 +1,6 @@
 import { Array, Data, pipe, Record, Schema } from 'effect'
 import { NotificationMetadata } from '../../domains/notification/schema'
 
-// Notification topics - extensible for new notification types
-// Add new topics here - the worker will fail at compile/runtime if not handled
 export const NOTIFICATION_TOPICS = [
   'watering_reminder',
   'fertilization_reminder',
