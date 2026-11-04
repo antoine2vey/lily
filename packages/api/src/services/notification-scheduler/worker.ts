@@ -783,13 +783,6 @@ const discardUndecodable = (error: QueueMessageDecodeError) =>
     yield* queue.ack(error.rawData)
   })
 
-// Consume and process the next message on the queue.
-// Returns true when a message was processed (caller should re-poll immediately).
-//
-// The dequeue poll runs continuously and finds an empty queue most of the time;
-// to avoid emitting a span on every idle tick (millions of no-op spans/week),
-// the `notification-worker.consume` span is opened only once a message is
-// actually dequeued, wrapping the processing work on the hit path.
 export const consumeNext = Effect.gen(function* () {
   const queue = yield* MessageQueue
 
@@ -859,8 +852,6 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
     'delivery not confirmed'
   )
 
-  // Rows of a legacy entry go back to pending for the scheduler to enqueue on
-  // the one queue. Rows a delivery already claimed stay with that delivery.
   const legacyEntries = yield* queue.drainLegacyTopicLists
   yield* Effect.forEach(
     Array.chunksOf(

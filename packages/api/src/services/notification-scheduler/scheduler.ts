@@ -209,10 +209,6 @@ export const pollAndEnqueue = Effect.gen(function* () {
           Array.dedupe
         )
 
-        // Care groups span several topics; route the merged message on the
-        // most urgent one (overdue > watering > ...). All care topics share
-        // the same app deep link and interruption level, so the choice only
-        // sets the topic the message is logged and dead-lettered under.
         const careTopics = Array.filterMap(
           group,
           Filter.fromPredicateOption((n) =>

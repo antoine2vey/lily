@@ -32,8 +32,6 @@ const CLAIMED_KEY = `${QUEUE_KEY}:processing:claimed`
 const evalQueueScript = (redis: Redis, script: string, arg: number) =>
   redis.eval(script, 3, QUEUE_KEY, PROCESSING_KEY, CLAIMED_KEY, arg)
 
-// The layout before one queue: a ready list, a processing list and a claimed
-// set per topic.
 const LEGACY_PREFIX = 'lily:notifications:'
 const LEGACY_LIST_KEYS = Array.flatMap(NOTIFICATION_TOPICS, (topic) => [
   `${LEGACY_PREFIX}${topic}`,

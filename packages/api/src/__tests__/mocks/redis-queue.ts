@@ -2,8 +2,6 @@ import { makeRedisMessageQueue } from '@lily/api/services/message-queue/redis.pr
 import { Array, Option } from 'effect'
 import type Redis from 'ioredis'
 
-// Lists keep their head (the LPUSH end) at index 0. eval serves the dequeue
-// script only: RPOPLPUSH from KEYS[1] to KEYS[2].
 export const createInMemoryRedis = (
   lists: Record<string, string[]> = {},
   sets: Record<string, string[]> = {}
@@ -21,8 +19,11 @@ export const createInMemoryRedis = (
       commands.push('lpush')
       return Promise.resolve(list(key).unshift(value))
     },
-    eval: (_script: string, _n: number, from: string, to: string) => {
+    eval: (script: string, _n: number, from: string, to: string) => {
       commands.push('eval')
+      if (!script.includes('RPOPLPUSH')) {
+        return Promise.reject(new Error('in-memory redis only runs dequeue'))
+      }
       const raw = Option.fromNullishOr(list(from).pop())
       Option.map(raw, (entry) => list(to).unshift(entry))
       return Promise.resolve(Option.getOrNull(raw))

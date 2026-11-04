@@ -6,8 +6,6 @@ import type {
 } from '@lily/shared/services/message-queue/types'
 import { Context, type Duration, type Effect } from 'effect'
 
-// Provider-agnostic message queue interface. Every topic shares one queue; a
-// message's topic travels inside the message.
 export interface IMessageQueue {
   readonly enqueue: (
     message: QueueMessage
@@ -24,8 +22,6 @@ export interface IMessageQueue {
     olderThan: Duration.Duration
   ) => Effect.Effect<number, QueueOperationError>
 
-  // Empties the per-topic lists left by the layout that ran one queue per
-  // topic and returns their raw entries. Kept for one release after the switch.
   readonly drainLegacyTopicLists: Effect.Effect<
     ReadonlyArray<string>,
     QueueOperationError
