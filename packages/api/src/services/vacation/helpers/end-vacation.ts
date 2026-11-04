@@ -43,6 +43,9 @@ export interface EndVacationParams {
  *
  * Plants with an active caretaker are skipped: the caretaker maintained
  * their schedules, and their reminder rows route to the caretaker.
+ *
+ * The rebuild also covers plants the user cares for as an active caretaker,
+ * whose reminders were muted for the whole vacation.
  */
 export const endVacation = (
   params: EndVacationParams
@@ -51,8 +54,11 @@ export const endVacation = (
     const sql = yield* SqlClient.SqlClient
     const plantRepo = yield* PlantRepository
     const ownPlantIds = yield* plantRepo.findIdsOwnedBy(params.user.id)
-    const claimed = yield* withReminderKeys(reminderKeysFor(ownPlantIds))(
-      endVacationForOwnPlants(params, ownPlantIds)
+    const personalPlantIds = yield* plantRepo.findPersonalReminderPlantIds(
+      params.user.id
+    )
+    const claimed = yield* withReminderKeys(reminderKeysFor(personalPlantIds))(
+      endVacationForPersonalPlants(params, ownPlantIds, personalPlantIds)
     )
     if (claimed === null) return null
     yield* sql.withTransaction(
@@ -68,9 +74,10 @@ export const endVacation = (
     })
   )
 
-const endVacationForOwnPlants = (
+const endVacationForPersonalPlants = (
   params: EndVacationParams,
-  ownPlantIds: ReadonlyArray<string>
+  ownPlantIds: ReadonlyArray<string>,
+  personalPlantIds: ReadonlyArray<string>
 ) =>
   Effect.gen(function* () {
     const { user, effectiveEnd } = params
@@ -131,6 +138,6 @@ const endVacationForOwnPlants = (
       VACATION_MUTED_TOPICS
     )
 
-    yield* rescheduleReminders(ownPlantIds)
+    yield* rescheduleReminders(personalPlantIds)
     return claimed
   })
