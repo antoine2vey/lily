@@ -171,7 +171,6 @@ describe('checkPushReceipts', () => {
 
     const tokenOf = (i: number) => `ExponentPushToken[device-${i}]`
 
-    // Expo's receipt text can name the device token.
     const receiptOf = (
       code: ErrorCode | 'ok',
       token: string
@@ -181,7 +180,10 @@ describe('checkPushReceipts', () => {
         : {
             status: 'error',
             message: `"${token}" failed with ${code}`,
-            ...(code === undefined ? {} : { details: { error: code } }),
+            details: {
+              expoPushToken: token,
+              ...(code === undefined ? {} : { error: code }),
+            },
           }
 
     const receiptsOf = (codes: ReadonlyArray<ErrorCode | 'ok'>) => ({
