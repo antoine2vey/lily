@@ -226,7 +226,7 @@ const reconcile = (
         Array.map(plants, (p) => p.id)
       )
       const recipients = yield* recipientsOf(plants, scope)
-      const users = yield* userRepo.findByIds(
+      const users = yield* userRepo.findByIdsForShare(
         Array.dedupe(Array.flatMap(recipients, ([, ids]) => ids))
       )
       const settingsOf = (userId: string) =>

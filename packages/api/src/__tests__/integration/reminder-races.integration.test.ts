@@ -14,7 +14,10 @@ import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.reposit
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
-import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import {
+  NotificationRepository,
+  NotificationRepositoryLive,
+} from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
   PlantRepositoryLive,
@@ -35,6 +38,8 @@ import {
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
+import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -44,6 +49,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
   Cause,
+  Deferred,
   Effect,
   Exit,
   Layer,
@@ -621,6 +627,73 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
       expect(failures).toEqual([])
       expect((await deadlocks()) - before).toBe(0)
+    }, 60_000)
+
+    it('a vacation that starts while a reconcile runs leaves no care row pending', async () => {
+      const [plant] = await db
+        .insert(schema.plants)
+        .values({
+          userId: sam,
+          createdByUserId: sam,
+          name: 'Personal',
+          health: 'HEALTHY',
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 1,
+          wateringRating: 3,
+        })
+        .returning()
+      if (!plant) throw new Error('Failed to create plant')
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: plant.id,
+        careType: 'watering',
+        frequencyDays: 7,
+        nextCareAt: new Date(Date.now() + 3 * day),
+      })
+      const reached = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const PausedBeforeReplace = Layer.effect(
+        NotificationRepository,
+        Effect.map(NotificationRepository, (repo) => ({
+          ...repo,
+          replaceReminders: (replacement) =>
+            Deferred.succeed(reached, undefined).pipe(
+              Effect.andThen(Deferred.await(release)),
+              Effect.andThen(repo.replaceReminders(replacement))
+            ),
+        }))
+      )
+      const samUser = await runtime.runPromise(
+        Effect.flatMap(UserRepository, (repo) => repo.findById(sam))
+      )
+      if (!samUser) throw new Error('sam')
+
+      const reconcile = as(
+        sam,
+        rescheduleReminders([plant.id]).pipe(
+          Effect.provide(PausedBeforeReplace)
+        )
+      )
+      await Effect.runPromise(Deferred.await(reached))
+      const vacation = as(
+        sam,
+        activateVacation({
+          expected: samUser,
+          range: {
+            vacationStart: new Date(Date.now() - day),
+            vacationEnd: new Date(Date.now() + 7 * day),
+          },
+        })
+      )
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      Deferred.doneUnsafe(release, Exit.void)
+      const exits: ReadonlyArray<Exit.Exit<unknown, unknown>> =
+        await Promise.all([reconcile, vacation])
+
+      expect(Arr.filter(exits, Exit.isFailure)).toHaveLength(0)
+      expect(
+        Arr.filter(await pendingRows(), (row) => row.plantId === plant.id)
+      ).toEqual([])
     }, 60_000)
   }
 )
