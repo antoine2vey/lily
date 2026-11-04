@@ -75,6 +75,7 @@ import {
   type PushMessage,
   PushService,
   type PushTicket,
+  type PushTicketErrorCode,
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
@@ -641,7 +642,13 @@ describe('Notification Worker', () => {
 
     const deliveryRig = (
       rows: Notification[],
-      options: { deliveryClaims?: Record<string, string> } = {}
+      {
+        devices = mockDeviceTokens,
+        ...options
+      }: {
+        deliveryClaims?: Record<string, string>
+        devices?: DeviceToken[]
+      } = {}
     ) => {
       const sends: PushMessage[][] = []
       const requeued: QueueMessage[] = []
@@ -657,7 +664,7 @@ describe('Notification Worker', () => {
       const layer = Layer.mergeAll(
         alerter.layer,
         createMockPushService(push),
-        createMockDeviceTokenRepository(mockDeviceTokens),
+        createMockDeviceTokenRepository(devices),
         notificationRepo,
         createMockMessageQueue({
           onDequeue: () => {
@@ -995,25 +1002,29 @@ describe('Notification Worker', () => {
 
     describe('provider tickets', () => {
       const ok = (): PushTicket => ({ id: crypto.randomUUID(), status: 'ok' })
-      const rejected = (message: string): PushTicket => ({
-        id: crypto.randomUUID(),
-        status: 'error',
-        message,
-      })
+      const rejected =
+        (code: PushTicketErrorCode) =>
+        (message: PushMessage): PushTicket => ({
+          id: crypto.randomUUID(),
+          status: 'error',
+          code,
+          message: `"${message.to}" failed with ${code}`,
+        })
       const ticketRig = (
         row: Notification,
-        tickets: (msgs: PushMessage[]) => PushTicket[]
+        tickets: (msgs: PushMessage[]) => PushTicket[],
+        devices?: DeviceToken[]
       ) => {
-        const rig = deliveryRig([row])
+        const rig = deliveryRig([row], devices ? { devices } : {})
         rig.push.shouldFail = false
         rig.push.batchTickets = tickets
         return rig
       }
 
-      it('retries a message whose every ticket is an error and records the ticket error', async () => {
+      it('retries a message whose every ticket is an error and records the ticket codes', async () => {
         const row = pendingRow('notification-1')
         const rig = ticketRig(row, (msgs) =>
-          Array.map(msgs, () => rejected('InvalidCredentials'))
+          Array.map(msgs, rejected('InvalidCredentials'))
         )
 
         await rig.attempt()
@@ -1024,20 +1035,96 @@ describe('Notification Worker', () => {
           status: 'pending',
           retryCount: 1,
           scheduledAt: minutesAfterEpoch(1),
+          lastError:
+            'PushSendError: Every push ticket failed: InvalidCredentials (2)',
         })
-        expect(row.lastError).toContain(
-          'Every push ticket failed: InvalidCredentials'
-        )
         expect(rig.acked).toHaveLength(1)
         expect(rig.alerts).toEqual([])
       })
 
+      it('names every failing code with its count', async () => {
+        const row = pendingRow('notification-1')
+        const codes: PushTicketErrorCode[] = [
+          'MalformedToken',
+          'DeviceNotRegistered',
+          'DeviceNotRegistered',
+        ]
+        const rig = ticketRig(
+          row,
+          (msgs) =>
+            Array.map(msgs, (m, i) => rejected(codes[i] ?? 'Unknown')(m)),
+          Array.map(codes, () => createTestDeviceToken({ userId: 'user-1' }))
+        )
+
+        await rig.attempt()
+
+        expect(row.lastError).toBe(
+          'PushSendError: Every push ticket failed: MalformedToken (1); DeviceNotRegistered (2)'
+        )
+      })
+
+      it('keeps push tokens out of the recorded error', async () => {
+        const row = pendingRow('notification-1')
+        const rig = ticketRig(row, (msgs) =>
+          Array.map(msgs, (m, i) =>
+            rejected(i === 0 ? 'DeviceNotRegistered' : 'MalformedToken')(m)
+          )
+        )
+
+        await rig.attempt()
+
+        expect(row.status).toBe('pending')
+        expect(row.lastError).not.toContain('expo-push-token')
+      })
+
+      it('keeps a message sent when only a later ticket is ok', async () => {
+        const row = pendingRow('notification-1')
+        const rig = ticketRig(row, (msgs) =>
+          Array.map(msgs, (m, i) =>
+            i === 0 ? rejected('DeviceNotRegistered')(m) : ok()
+          )
+        )
+
+        await rig.attempt()
+
+        expect(row).toMatchObject({ status: 'sent', retryCount: 0 })
+      })
+
+      it('retries a device that is no longer registered once, then marks the message sent', async () => {
+        const row = pendingRow('notification-1')
+        const device = createTestDeviceToken({ userId: 'user-1' })
+        const rig = ticketRig(
+          row,
+          (msgs) => {
+            Object.assign(device, { isActive: false })
+            return Array.map(msgs, rejected('DeviceNotRegistered'))
+          },
+          [device]
+        )
+
+        await rig.attempt()
+
+        expect(row).toMatchObject({
+          status: 'pending',
+          retryCount: 1,
+          lastError:
+            'PushSendError: Every push ticket failed: DeviceNotRegistered (1)',
+        })
+
+        await rig.attempt()
+
+        expect(rig.sends).toHaveLength(1)
+        expect(row).toMatchObject({ status: 'sent', retryCount: 1 })
+        expect(rig.deadLetters).toEqual([])
+      })
+
       it('keeps a partial success sent', async () => {
         const row = pendingRow('notification-1')
-        const rig = ticketRig(row, () => [
-          ok(),
-          rejected('DeviceNotRegistered'),
-        ])
+        const rig = ticketRig(row, (msgs) =>
+          Array.map(msgs, (m, i) =>
+            i === 0 ? ok() : rejected('DeviceNotRegistered')(m)
+          )
+        )
 
         await rig.attempt()
 
@@ -1074,7 +1161,7 @@ describe('Notification Worker', () => {
       it('dead-letters a message whose tickets all fail three times', async () => {
         const row = pendingRow('notification-1')
         const rig = ticketRig(row, (msgs) =>
-          Array.map(msgs, () => rejected('MessageRateExceeded'))
+          Array.map(msgs, rejected('MessageRateExceeded'))
         )
 
         await rig.attempt()

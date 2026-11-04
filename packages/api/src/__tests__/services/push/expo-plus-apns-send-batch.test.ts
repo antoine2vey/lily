@@ -91,6 +91,31 @@ describe('ExpoPlusApns sendBatch', () => {
     expect(await run(isActive(VALID))).toBe(true)
   })
 
+  it('carries the Expo error code on each failed ticket', async () => {
+    const { run } = setup({
+      ticketFor: (m): ExpoPushTicket =>
+        m.to === GONE
+          ? {
+              status: 'error',
+              message: `"${m.to}" is not a registered push notification recipient`,
+              details: { error: 'DeviceNotRegistered', expoPushToken: m.to },
+            }
+          : {
+              status: 'error',
+              message: 'Could not find APNs credentials',
+              details: { error: 'InvalidCredentials' },
+            },
+    })
+
+    const tickets = await run(sendTo([VALID, GONE, MALFORMED]))
+
+    expect(tickets.map((t) => t.status === 'error' && t.code)).toEqual([
+      'InvalidCredentials',
+      'DeviceNotRegistered',
+      'MalformedToken',
+    ])
+  })
+
   it('records each accepted ticket with its token for the receipt check', async () => {
     const { pending, run } = setup({
       ticketFor: (m): ExpoPushTicket => ({

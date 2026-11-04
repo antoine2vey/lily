@@ -163,6 +163,10 @@ const convertTicket = (ticket: ExpoPushTicket): PushTicket =>
     Match.when({ status: 'error' }, (t) => ({
       id: crypto.randomUUID(),
       status: 'error' as const,
+      code: Option.getOrElse(
+        Option.fromNullishOr(t.details?.error),
+        () => 'Unknown' as const
+      ),
       message: t.message,
     })),
     Match.when({ status: 'ok' }, (t) => ({
@@ -293,6 +297,7 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
             (m): PushTicket => ({
               id: crypto.randomUUID(),
               status: 'error',
+              code: 'MalformedToken',
               message: `Invalid Expo push token: ${m.to}`,
             })
           )

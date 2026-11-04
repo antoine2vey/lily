@@ -324,12 +324,18 @@ const completeDelivery = (
     )
   ) satisfies Effect.Effect<void, never, unknown>
 
-const ticketErrors = (tickets: ReadonlyArray<PushTicket>) =>
+type ErrorTicket = Extract<PushTicket, { readonly status: 'error' }>
+
+const isErrorTicket = (ticket: PushTicket): ticket is ErrorTicket =>
+  ticket.status === 'error'
+
+// Expo's ticket messages can quote the push token, and last_error reaches the
+// client, so only the codes and their counts are kept.
+const ticketErrors = (tickets: ReadonlyArray<ErrorTicket>) =>
   pipe(
-    Array.map(tickets, (ticket) =>
-      Option.getOrElse(Option.fromNullishOr(ticket.message), () => 'no message')
-    ),
-    Array.dedupe,
+    Array.groupBy(tickets, (ticket): string => ticket.code),
+    Record.toEntries,
+    Array.map(([code, group]) => `${code} (${Array.length(group)})`),
     Array.join('; ')
   )
 
@@ -537,7 +543,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
     const results = yield* pushService.sendBatch(pushMessages)
     if (
       Array.isReadonlyArrayNonEmpty(results) &&
-      Array.every(results, (ticket) => ticket.status === 'error')
+      Array.every(results, isErrorTicket)
     ) {
       return yield* new PushSendError({
         message: `Every push ticket failed: ${ticketErrors(results)}`,
