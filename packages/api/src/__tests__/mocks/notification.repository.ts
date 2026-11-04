@@ -231,7 +231,7 @@ export const createMockNotificationRepository = (
         return count
       }),
 
-    retryLater: (ids, heldBy, retryAt, error) =>
+    retryLater: (ids, heldBy, retryAtAfterFailures, error) =>
       Effect.sync(() =>
         Array.filterMap(notificationsState, (n) => {
           if (
@@ -241,7 +241,7 @@ export const createMockNotificationRepository = (
           ) {
             return Result.failVoid
           }
-          const due = Array.get(retryAt, n.retryCount)
+          const due = Array.get(retryAtAfterFailures, n.retryCount)
           n.retryCount += 1
           n.lastError = error
           if (Option.isNone(due)) {

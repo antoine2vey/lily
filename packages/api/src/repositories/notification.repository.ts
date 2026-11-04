@@ -139,12 +139,10 @@ export interface INotificationRepository {
     queuedBefore: Date,
     error: string
   ) => Effect.Effect<number, SqlError>
-  // `retryAt[n]` is when a row that already failed `n` times is due again.
-  // A row past the last entry fails for good.
   readonly retryLater: (
     ids: ReadonlyArray<string>,
     heldBy: string,
-    retryAt: Array.NonEmptyReadonlyArray<Date>,
+    retryAtAfterFailures: Array.NonEmptyReadonlyArray<Date>,
     error: string
   ) => Effect.Effect<ReadonlyArray<FailedAttempt>, SqlError>
   readonly deletePendingByPlantAndType: (
@@ -496,11 +494,11 @@ export const NotificationRepositoryLive = Layer.effect(
       retryLater: Effect.fn('NotificationRepository.retryLater')(function* (
         ids: ReadonlyArray<string>,
         heldBy: string,
-        retryAt: Array.NonEmptyReadonlyArray<Date>,
+        retryAtAfterFailures: Array.NonEmptyReadonlyArray<Date>,
         error: string
       ) {
         if (Array.isReadonlyArrayEmpty(ids)) return []
-        const retries = sql`${notifications.retryCount} < ${retryAt.length}`
+        const retries = sql`${notifications.retryCount} < ${retryAtAfterFailures.length}`
         const whenRetried = (value: SQL, otherwise: SQL) =>
           sql`CASE WHEN ${retries} THEN ${value} ELSE ${otherwise} END`
         const rows = yield* db
@@ -514,7 +512,7 @@ export const NotificationRepositoryLive = Layer.effect(
             lastError: error,
             scheduledAt: sql`CASE ${notifications.retryCount} ${sql.join(
               Array.map(
-                retryAt,
+                retryAtAfterFailures,
                 (at, attempt) =>
                   sql`WHEN ${attempt} THEN ${at.toISOString()}::timestamptz`
               ),
