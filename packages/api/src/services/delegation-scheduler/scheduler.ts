@@ -1,5 +1,6 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { rebuildDelegationReminders } from '@lily/api/services/delegation/helpers/transition-delegation'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   dispatchAll,
@@ -58,7 +59,7 @@ const processDelegationBatch = (
               )
               return []
             }
-            const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
+            const plants = yield* rebuildDelegationReminders(d.id)
             const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
             const caretakerLang = yield* getUserLanguage(
               userRepo,

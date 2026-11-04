@@ -1,7 +1,10 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { transitionDelegation } from '@lily/api/services/delegation/helpers/transition-delegation'
+import {
+  rebuildDelegationReminders,
+  transitionDelegation,
+} from '@lily/api/services/delegation/helpers/transition-delegation'
 import {
   dispatchNow,
   recordNotification,
@@ -59,6 +62,7 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
         message: 'This delegation cannot be canceled in its current state',
         timestamps: { canceledAt: nowAsDate() },
       }).pipe(
+        Effect.andThen(rebuildDelegationReminders(delegationId)),
         Effect.andThen(
           recordNotification(
             'delegation_canceled',

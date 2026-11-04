@@ -2,12 +2,13 @@ import {
   DelegationRepository,
   type DelegationRow,
 } from '@lily/api/repositories/delegation.repository'
+import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   DelegationInvalidStatusError,
   DelegationNotFoundError,
   type DelegationStatus,
 } from '@lily/shared'
-import { Effect, Option, pipe } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -55,4 +56,17 @@ export const transitionDelegation = (params: {
           }),
       })
     )
+  })
+
+/**
+ * An active delegation hands its plants' reminders to the caretaker, so any
+ * transition into or out of `active` rebuilds them. Call it inside the
+ * transition's transaction, after the status change.
+ */
+export const rebuildDelegationReminders = (delegationId: string) =>
+  Effect.gen(function* () {
+    const delegationRepo = yield* DelegationRepository
+    const plants = yield* delegationRepo.getPlantsByDelegation(delegationId)
+    yield* rescheduleReminders(Array.map(plants, (plant) => plant.id))
+    return plants
   })
