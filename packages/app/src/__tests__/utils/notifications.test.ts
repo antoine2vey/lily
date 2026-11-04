@@ -10,6 +10,16 @@ describe('resolveNotificationRoute', () => {
     expect(route).toBe('/(app)/plant/plant-1')
   })
 
+  it('routes a care push with title and body to the plant screen', () => {
+    const route = resolveNotificationRoute({
+      topic: 'misting_reminder',
+      title: 'Time to mist',
+      body: 'Fern needs misting',
+      plantIds: 'plant-3',
+    })
+    expect(route).toBe('/(app)/plant/plant-3')
+  })
+
   it('routes watering_reminder with multiple plants to care tab', () => {
     const route = resolveNotificationRoute({
       topic: 'watering_reminder',
@@ -41,6 +51,22 @@ describe('resolveNotificationRoute', () => {
     expect(route).toBe('/(app)/public-profile/user-99')
   })
 
+  it('routes new_follower with a numeric senderId to null', () => {
+    const route = resolveNotificationRoute({
+      topic: 'new_follower',
+      senderId: 99,
+    })
+    expect(route).toBeNull()
+  })
+
+  it('routes new_follower with an empty senderId to null', () => {
+    const route = resolveNotificationRoute({
+      topic: 'new_follower',
+      senderId: '',
+    })
+    expect(route).toBeNull()
+  })
+
   it('routes new_follower without senderId to null', () => {
     const route = resolveNotificationRoute({
       topic: 'new_follower',
@@ -55,51 +81,83 @@ describe('resolveNotificationRoute', () => {
     expect(route).toBe('/(app)/(tabs)/care')
   })
 
-  it('routes delegation_request with delegationId to delegation detail', () => {
-    const route = resolveNotificationRoute({
-      topic: 'delegation_request',
-      delegationId: 'deleg-1',
+  describe.each([
+    'delegation_request',
+    'delegation_accepted',
+    'delegation_rejected',
+    'delegation_canceled',
+    'delegation_activated',
+    'delegation_completed',
+  ])('%s', (topic) => {
+    it('routes a delegationId to the delegation detail', () => {
+      const route = resolveNotificationRoute({
+        topic,
+        title: 'Delegation',
+        body: 'Someone asked you to care for their plants',
+        delegationId: 'deleg-1',
+      })
+      expect(route).toBe('/(app)/delegation/deleg-1')
     })
-    expect(route).toBe('/(app)/delegation/deleg-1')
+
+    it('routes a numeric delegationId to the delegations list', () => {
+      const route = resolveNotificationRoute({ topic, delegationId: 5 })
+      expect(route).toBe('/(app)/delegations')
+    })
+
+    it('routes a push without a delegationId to the delegations list', () => {
+      const route = resolveNotificationRoute({ topic })
+      expect(route).toBe('/(app)/delegations')
+    })
+
+    it('routes an empty delegationId to the delegations list', () => {
+      const route = resolveNotificationRoute({ topic, delegationId: '' })
+      expect(route).toBe('/(app)/delegations')
+    })
   })
 
-  it('routes delegation_accepted to delegation detail', () => {
+  it('routes canopy_invitation with invitationId to the invitation', () => {
     const route = resolveNotificationRoute({
-      topic: 'delegation_accepted',
-      delegationId: 'deleg-2',
+      topic: 'canopy_invitation',
+      invitationId: 'inv-1',
     })
-    expect(route).toBe('/(app)/delegation/deleg-2')
+    expect(route).toBe('/(app)/canopy-invitation/inv-1')
   })
 
-  it('routes delegation_rejected to delegation detail', () => {
+  it('routes canopy_invitation with a numeric invitationId to null', () => {
     const route = resolveNotificationRoute({
-      topic: 'delegation_rejected',
-      delegationId: 'deleg-3',
+      topic: 'canopy_invitation',
+      invitationId: 7,
     })
-    expect(route).toBe('/(app)/delegation/deleg-3')
+    expect(route).toBeNull()
   })
 
-  it('routes delegation_canceled to delegations list when no id', () => {
+  it('routes canopy_invitation with an empty invitationId to null', () => {
     const route = resolveNotificationRoute({
-      topic: 'delegation_canceled',
+      topic: 'canopy_invitation',
+      invitationId: '',
     })
-    expect(route).toBe('/(app)/delegations')
+    expect(route).toBeNull()
   })
 
-  it('routes delegation_activated to delegation detail', () => {
+  it('routes canopy_member_joined to the Canopy screen despite an unknown key', () => {
     const route = resolveNotificationRoute({
-      topic: 'delegation_activated',
-      delegationId: 'deleg-5',
+      topic: 'canopy_member_joined',
+      title: 'New member',
+      body: 'Sam joined your Canopy',
+      canopyId: 'canopy-1',
     })
-    expect(route).toBe('/(app)/delegation/deleg-5')
+    expect(route).toBe('/(app)/canopy')
   })
 
-  it('routes delegation_completed to delegation detail', () => {
-    const route = resolveNotificationRoute({
-      topic: 'delegation_completed',
-      delegationId: 'deleg-6',
-    })
-    expect(route).toBe('/(app)/delegation/deleg-6')
+  it.each([
+    ['canopy_member_removed', '/(app)/canopy'],
+    ['canopy_member_left', '/(app)/canopy'],
+    ['gift_subscription', '/(app)/(tabs)/plants'],
+    ['resubscribe_nudge', '/(app)/subscription/upgrade'],
+  ])('routes %s with a title and body to %s', (topic, expected) => {
+    expect(
+      resolveNotificationRoute({ topic, title: 'Lily', body: 'News' })
+    ).toBe(expected)
   })
 
   it('routes daily_tip to tip modal with encoded params', () => {
