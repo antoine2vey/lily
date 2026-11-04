@@ -368,7 +368,7 @@ export const createMockDelegationRepository = (
             )
         )
       ),
-    lockOpenForUser: () => Effect.void,
+    lockAllForUser: () => Effect.void,
     cancelOpenForUser: (userId, canceledAt) =>
       Effect.sync(() => {
         const open = Array.filter(

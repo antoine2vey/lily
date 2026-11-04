@@ -176,7 +176,7 @@ export interface IDelegationRepository {
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
 
-  readonly lockOpenForUser: (userId: string) => Effect.Effect<void, SqlError>
+  readonly lockAllForUser: (userId: string) => Effect.Effect<void, SqlError>
 
   readonly cancelOpenForUser: (
     userId: string,
@@ -194,14 +194,14 @@ export class DelegationRepository extends Context.Service<
 
 const OPEN_STATUSES: DelegationStatus[] = ['pending', 'accepted', 'active']
 
-const openFor = (userId: string) =>
-  and(
-    or(
-      eq(careDelegations.ownerId, userId),
-      eq(careDelegations.caretakerId, userId)
-    ),
-    inArray(careDelegations.status, OPEN_STATUSES)
+const partyTo = (userId: string) =>
+  or(
+    eq(careDelegations.ownerId, userId),
+    eq(careDelegations.caretakerId, userId)
   )
+
+const openFor = (userId: string) =>
+  and(partyTo(userId), inArray(careDelegations.status, OPEN_STATUSES))
 
 const ownerAlias = sql`owner_user`
 const caretakerAlias = sql`caretaker_user`
@@ -615,12 +615,12 @@ export const DelegationRepositoryLive = Layer.effect(
         return groupPlantRows(rows)
       }),
 
-      lockOpenForUser: Effect.fn('DelegationRepository.lockOpenForUser')(
+      lockAllForUser: Effect.fn('DelegationRepository.lockAllForUser')(
         function* (userId: string) {
           yield* db
             .select({ id: careDelegations.id })
             .from(careDelegations)
-            .where(openFor(userId))
+            .where(partyTo(userId))
             .orderBy(careDelegations.id)
             .for('update')
         }

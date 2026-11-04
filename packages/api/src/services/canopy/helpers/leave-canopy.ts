@@ -116,7 +116,7 @@ export const leaveCanopyAndDelete =
             Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
           )
           const canopyPlants = inCanopy ? yield* canopyPlantIdsOf(userId) : []
-          yield* delegationRepo.lockOpenForUser(userId)
+          yield* delegationRepo.lockAllForUser(userId)
           const personalPlants =
             yield* plantRepo.findPersonalReminderPlantIds(userId)
           return yield* withReminderKeys(

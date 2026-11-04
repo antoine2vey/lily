@@ -36,6 +36,8 @@ import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-c
 import { createCanopyInvite } from '@lily/api/services/canopy/endpoints/create-canopy-invite'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
+import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
+import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
@@ -1326,6 +1328,168 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).toEqual([])
     }, 60_000)
 
+    const pausedAfterKeys = (
+      reached: Deferred.Deferred<void>,
+      release: Deferred.Deferred<void>
+    ) =>
+      Layer.effect(
+        NotificationRepository,
+        Effect.map(NotificationRepository, (repo) => ({
+          ...repo,
+          lockReminderKeys: (keys, updatingUserId) =>
+            repo
+              .lockReminderKeys(keys, updatingUserId)
+              .pipe(
+                Effect.andThen(Deferred.succeed(reached, undefined)),
+                Effect.andThen(Deferred.await(release))
+              ),
+        }))
+      )
+
+    const hardDelete = (userId: string) =>
+      leaveCanopyAndDelete(userId)(
+        Effect.flatMap(UserRepository, (repo) => repo.delete(userId))
+      )
+
+    const delegated = async (
+      ownerId: string,
+      caretakerId: string,
+      plantId: string,
+      status: 'accepted' | 'active'
+    ) => {
+      const [delegation] = await db
+        .insert(schema.careDelegations)
+        .values({
+          ownerId,
+          caretakerId,
+          status,
+          startDate: new Date(
+            Date.now() - (status === 'active' ? day : 60_000)
+          ),
+          endDate: new Date(Date.now() + 7 * day),
+        })
+        .returning()
+      if (!delegation) throw new Error('Failed to create delegation')
+      await db
+        .insert(schema.delegationPlants)
+        .values({ delegationId: delegation.id, plantId })
+      return delegation.id
+    }
+
+    const deletionAgainstDelegationWriter: Record<
+      string,
+      (round: number) => Promise<{
+        readonly first: readonly [
+          string,
+          Effect.Effect<unknown, unknown, unknown>,
+        ]
+        readonly second: readonly [
+          string,
+          Effect.Effect<unknown, unknown, unknown>,
+        ]
+        readonly deleting: 'first' | 'second'
+      }>
+    > = {
+      'a caretaker deletion holding its reminder keys and the cancel of their active delegation':
+        async (round) => {
+          const owner = await user(`CancelingOwner${round}`)
+          const caretaker = await user(`DeletedCaretaker${round}`)
+          const delegation = await delegated(
+            owner,
+            caretaker,
+            await personalPlant(owner),
+            'active'
+          )
+          return {
+            first: [caretaker, hardDelete(caretaker)],
+            second: [owner, cancelDelegation(delegation)],
+            deleting: 'first',
+          }
+        },
+      'a caretaker deletion holding its reminder keys and the tick starting their delegation':
+        async (round) => {
+          const owner = await user(`TickedOwner${round}`)
+          const caretaker = await user(`DeletedCaretaker${round}`)
+          await personalPlant(caretaker)
+          await delegated(
+            owner,
+            caretaker,
+            await personalPlant(owner),
+            'accepted'
+          )
+          return {
+            first: [caretaker, hardDelete(caretaker)],
+            second: [owner, pollAndTransition],
+            deleting: 'first',
+          }
+        },
+      'an owner deletion holding its reminder keys and the tick starting their delegation':
+        async (round) => {
+          const owner = await user(`DeletedOwner${round}`)
+          const caretaker = await user(`TickedCaretaker${round}`)
+          await delegated(
+            owner,
+            caretaker,
+            await personalPlant(owner),
+            'accepted'
+          )
+          return {
+            first: [owner, hardDelete(owner)],
+            second: [caretaker, pollAndTransition],
+            deleting: 'first',
+          }
+        },
+      'the tick holding the reminder keys of a delegation it starts and the caretaker deletion':
+        async (round) => {
+          const owner = await user(`TickingOwner${round}`)
+          const caretaker = await user(`DeletedCaretaker${round}`)
+          await personalPlant(caretaker)
+          await delegated(
+            owner,
+            caretaker,
+            await personalPlant(owner),
+            'accepted'
+          )
+          return {
+            first: [owner, pollAndTransition],
+            second: [caretaker, hardDelete(caretaker)],
+            deleting: 'second',
+          }
+        },
+    }
+
+    it.each(Object.entries(deletionAgainstDelegationWriter))(
+      '%s never deadlock',
+      async (_shape, setup) => {
+        await db.execute(sql`TRUNCATE TABLE care_delegations CASCADE`)
+        const before = await deadlocks()
+        const failures: string[] = []
+        for (const round of Arr.range(1, 10)) {
+          const reached = Deferred.makeUnsafe<void>()
+          const release = Deferred.makeUnsafe<void>()
+          const { first, second, deleting } = await setup(round)
+          const firstRun = as(
+            first[0],
+            first[1].pipe(Effect.provide(pausedAfterKeys(reached, release)))
+          )
+          await Effect.runPromise(Deferred.await(reached))
+          const secondRun = as(second[0], second[1])
+          await untilBlockedOrSettled(secondRun)
+          Deferred.doneUnsafe(release, Exit.void)
+          const [a, b] = await Promise.all([firstRun, secondRun])
+          const [deletion, writer] = deleting === 'first' ? [a, b] : [b, a]
+          if (Exit.isFailure(deletion) || isDeadlock(writer)) {
+            failures.push(
+              `round ${round}: deletion ${outcome(deletion)}, writer ${outcome(writer)}`
+            )
+          }
+        }
+        expect(failures).toEqual([])
+        expect((await deadlocks()) - before).toBe(0)
+      },
+      120_000
+    )
+
     const userRow = async (userId: string) => {
       const row = await runtime.runPromise(
         Effect.flatMap(UserRepository, (repo) => repo.findById(userId))
@@ -1422,21 +1586,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         for (const round of Arr.range(1, 10)) {
           const reached = Deferred.makeUnsafe<void>()
           const release = Deferred.makeUnsafe<void>()
-          const PausedAfterKeys = Layer.effect(
-            NotificationRepository,
-            Effect.map(NotificationRepository, (repo) => ({
-              ...repo,
-              lockReminderKeys: (keys, updatingUserId) =>
-                repo
-                  .lockReminderKeys(keys, updatingUserId)
-                  .pipe(
-                    Effect.andThen(Deferred.succeed(reached, undefined)),
-                    Effect.andThen(Deferred.await(release))
-                  ),
-            }))
-          )
           const { u, first, second } = await setup(round)
-          const firstRun = as(u, first.pipe(Effect.provide(PausedAfterKeys)))
+          const firstRun = as(
+            u,
+            first.pipe(Effect.provide(pausedAfterKeys(reached, release)))
+          )
           await Effect.runPromise(Deferred.await(reached))
           const secondRun = second()
           await untilBlockedOrSettled(secondRun)
