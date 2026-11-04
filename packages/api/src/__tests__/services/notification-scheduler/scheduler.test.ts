@@ -1292,6 +1292,9 @@ describe('Notification Scheduler', () => {
     })
 
     it('should skip notifications for different users where one has DND and one does not', async () => {
+      // Noon UTC sits inside the 00:00-23:59 window on any day.
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-06-15T12:00:00.000Z'))
       const enqueuedMessages: {
         topic: NotificationTopic
         message: QueueMessage
@@ -1331,11 +1334,15 @@ describe('Notification Scheduler', () => {
         }),
       ]
 
-      await runPollAndEnqueue(
-        notifications,
-        [userWithoutDnd, userWithDnd],
-        (topic, message) => enqueuedMessages.push({ topic, message })
-      )
+      try {
+        await runPollAndEnqueue(
+          notifications,
+          [userWithoutDnd, userWithDnd],
+          (topic, message) => enqueuedMessages.push({ topic, message })
+        )
+      } finally {
+        vi.useRealTimers()
+      }
 
       // Only the non-DND user's notification should be enqueued
       expect(enqueuedMessages).toHaveLength(1)
@@ -1377,7 +1384,7 @@ describe('Notification Scheduler', () => {
       )
     })
 
-    it('warns with the userId and the rejected value for an invalid stored DND bound', async () => {
+    it('warns once, with the userId and the rejected value, for an invalid stored DND bound', async () => {
       const warnings: { message: unknown; userId: unknown }[] = []
       const capture = Logger.make(({ logLevel, message, fiber }) => {
         if (logLevel === 'Warn') {
@@ -1422,16 +1429,80 @@ describe('Notification Scheduler', () => {
         vi.useRealTimers()
       }
 
-      expect(warnings).toContainEqual({
-        message: [
-          'Invalid DND bound, using the default',
-          { rejected: '25:99', fallback: '07:00' },
-        ],
-        userId: 'user-1',
-      })
+      expect(warnings).toEqual([
+        {
+          message: [
+            'Invalid DND bound, using the default',
+            { rejected: '25:99', fallback: '07:00' },
+          ],
+          userId: 'user-1',
+        },
+      ])
       expect(notification.scheduledAt).toEqual(
         new Date('2026-06-16T07:00:00.000Z')
       )
+    })
+
+    it("reads a user's DND bounds once however many of their rows the poll claims", async () => {
+      const warnings: unknown[] = []
+      const capture = Logger.make(({ logLevel, message }) => {
+        if (logLevel === 'Warn') warnings.push(message)
+      })
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-06-15T23:00:00.000Z'))
+      const user = createTestUser({
+        id: 'user-1',
+        doNotDisturb: true,
+        careReminders: true,
+        timezone: 'UTC',
+        doNotDisturbStart: '22:00',
+        doNotDisturbEnd: '25:99',
+      })
+      const notifications = [
+        createTestNotification({
+          id: 'n-1',
+          type: 'watering_reminder',
+          status: 'pending',
+          scheduledAt: new Date('2026-06-15T22:30:00.000Z'),
+          userId: 'user-1',
+        }),
+        createTestNotification({
+          id: 'n-2',
+          type: 'misting_reminder',
+          status: 'pending',
+          scheduledAt: new Date('2026-06-15T22:40:00.000Z'),
+          userId: 'user-1',
+        }),
+      ]
+
+      try {
+        await Effect.runPromise(
+          pollAndEnqueue.pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                createMockNotificationRepository(notifications),
+                createMockMessageQueue({}),
+                createMockUserRepository([user]),
+                createMockPlantRepository({ plants: [] }),
+                Logger.layer([capture])
+              )
+            )
+          )
+        )
+      } finally {
+        vi.useRealTimers()
+      }
+
+      expect(warnings).toEqual([
+        [
+          'Invalid DND bound, using the default',
+          { rejected: '25:99', fallback: '07:00' },
+        ],
+      ])
+      expect(notifications.map((n) => [n.status, n.scheduledAt])).toEqual([
+        ['pending', new Date('2026-06-16T07:00:00.000Z')],
+        ['pending', new Date('2026-06-16T07:00:00.000Z')],
+      ])
     })
   })
 
@@ -1799,6 +1870,9 @@ describe('Notification Scheduler', () => {
     })
 
     it('hands rows deferred by DND back to pending for a later tick', async () => {
+      // Noon UTC sits inside the 00:00-23:59 window on any day.
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-06-15T12:00:00.000Z'))
       const notification = dueNotification({ id: 'dnd-1' })
       const user = createTestUser({
         id: 'user-1',
@@ -1810,12 +1884,16 @@ describe('Notification Scheduler', () => {
       })
       const enqueued: QueueMessage[] = []
 
-      await runPollAndEnqueue(
-        [notification],
-        [user],
-        (_, message) => enqueued.push(message),
-        [plant]
-      )
+      try {
+        await runPollAndEnqueue(
+          [notification],
+          [user],
+          (_, message) => enqueued.push(message),
+          [plant]
+        )
+      } finally {
+        vi.useRealTimers()
+      }
 
       expect(enqueued).toHaveLength(0)
       expect(notification.status).toBe('pending')

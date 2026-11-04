@@ -22,7 +22,7 @@ import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconci
 import type { CareReminderType } from '@lily/api/services/plants/helpers/reminder-keys'
 import type { CareType, PlantOwner } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, References } from 'effect'
+import { Array, Effect, Layer, Logger, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const personalPlant = (ownerId: string, remindersEnabled: boolean) => ({
@@ -294,6 +294,64 @@ describe('scheduleCareReminder', () => {
 
       expect(pending).toHaveLength(1)
       // Default DND is 22:00-07:00, 23:00 is in window, should adjust to 07:00
+      expect(pending[0]?.scheduledAt.getUTCHours()).toBe(7)
+    })
+
+    it('warns once, with the recipient userId, for an invalid stored DND end', async () => {
+      const warnings: { message: unknown; userId: unknown }[] = []
+      const capture = Logger.make(({ logLevel, message, fiber }) => {
+        if (logLevel === 'Warn') {
+          warnings.push({
+            message,
+            userId: fiber.getRef(References.CurrentLogAnnotations).userId,
+          })
+        }
+      })
+      const user = createTestUser({
+        id: 'user-1',
+        careReminders: true,
+        timezone: 'UTC',
+        preferredNotificationTime: '23:00',
+        doNotDisturb: true,
+        doNotDisturbStart: '22:00',
+        doNotDisturbEnd: '25:99',
+      })
+
+      const pending = await Effect.runPromise(
+        Effect.gen(function* () {
+          yield* scheduleCareReminder({
+            plant: personalPlant(user.id, true),
+            type: 'watering_reminder',
+            scheduledDate: createFutureDate(7),
+          })
+          const repo = yield* NotificationRepository
+          return yield* repo.findPendingByUserId(user.id)
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              MockSqlClientLive,
+              createMockNotificationRepository([]),
+              createMockUserRepository([user]),
+              createMockCanopyRepository(),
+              createMockDelegationRepository({
+                delegations: [],
+                delegationPlants: [],
+              }),
+              Logger.layer([capture])
+            )
+          )
+        )
+      )
+
+      expect(warnings).toEqual([
+        {
+          message: [
+            'Invalid DND bound, using the default',
+            { rejected: '25:99', fallback: '07:00' },
+          ],
+          userId: 'user-1',
+        },
+      ])
       expect(pending[0]?.scheduledAt.getUTCHours()).toBe(7)
     })
   })

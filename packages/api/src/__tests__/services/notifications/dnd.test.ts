@@ -1,9 +1,30 @@
 import {
   adjustForDoNotDisturb,
+  decodeDndBounds,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const adjust = (
+  scheduledAt: Date,
+  timezone: string | null,
+  dndStart: string | null,
+  dndEnd: string | null
+) =>
+  Effect.flatMap(decodeDndBounds(dndStart, dndEnd), (bounds) =>
+    adjustForDoNotDisturb(scheduledAt, timezone, bounds)
+  )
+
+const inWindow = (
+  currentTime: Date,
+  timezone: string | null,
+  dndStart: string | null,
+  dndEnd: string | null
+) =>
+  Effect.flatMap(decodeDndBounds(dndStart, dndEnd), (bounds) =>
+    isInDoNotDisturbWindow(currentTime, timezone, bounds)
+  )
 
 describe('adjustForDoNotDisturb', () => {
   describe('wrapping window (22:00 → 07:00)', () => {
@@ -15,7 +36,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T21:59:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -26,7 +47,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T22:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -39,7 +60,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -51,7 +72,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T00:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -64,7 +85,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T02:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -76,7 +97,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T07:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -86,7 +107,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T07:01:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -96,7 +117,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T12:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -111,7 +132,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T00:59:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -121,7 +142,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T01:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(6)
@@ -133,7 +154,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T03:30:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(6)
@@ -144,7 +165,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T06:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -154,7 +175,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T06:01:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -168,7 +189,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T03:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'America/New_York', '22:00', '07:00')
+        adjust(scheduledAt, 'America/New_York', '22:00', '07:00')
       )
 
       // 07:00 ET (EDT = UTC-4) → 11:00 UTC
@@ -182,7 +203,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T14:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'Asia/Tokyo', '22:00', '07:00')
+        adjust(scheduledAt, 'Asia/Tokyo', '22:00', '07:00')
       )
 
       // 07:00 JST (UTC+9) → 22:00 UTC (previous day)
@@ -194,7 +215,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', '22:00', '07:00')
+        adjust(scheduledAt, 'UTC', '22:00', '07:00')
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -207,7 +228,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'Invalid/Timezone', '22:00', '07:00')
+        adjust(scheduledAt, 'Invalid/Timezone', '22:00', '07:00')
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -222,7 +243,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2026-09-26T11:30:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'Pacific/Auckland', '22:00', '07:00')
+        adjust(scheduledAt, 'Pacific/Auckland', '22:00', '07:00')
       )
 
       expect(result.toISOString()).toBe('2026-09-26T18:00:00.000Z')
@@ -234,7 +255,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2027-04-03T10:30:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'Pacific/Auckland', '22:00', '07:00')
+        adjust(scheduledAt, 'Pacific/Auckland', '22:00', '07:00')
       )
 
       expect(result.toISOString()).toBe('2027-04-03T19:00:00.000Z')
@@ -242,23 +263,23 @@ describe('adjustForDoNotDisturb', () => {
 
     it('should land on the next day end when today has no such local time', async () => {
       // America/New_York skips 02:00-03:00 on 2026-03-08. At 23:00 EDT that
-      // evening, the 02:30 end is on 2026-03-09, which has an 02:30
+      // evening, the 02:30 end is on 2026-03-09, which has an 02:30.
       const scheduledAt = new Date('2026-03-09T03:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'America/New_York', '22:00', '02:30')
+        adjust(scheduledAt, 'America/New_York', '22:00', '02:30')
       )
 
       expect(result.toISOString()).toBe('2026-03-09T06:30:00.000Z')
     })
 
-    it('should land 30 min after the DND end when the end is in the skipped hour', async () => {
+    it('known limit: lands 30 min after the DND end when the end is in the skipped hour', async () => {
       // 23:00 EST on 2026-03-07: the 02:30 end does not exist on 2026-03-08,
-      // so it resolves forward to 03:30 EDT, while DND really ends at 03:00 EDT
+      // so it resolves forward to 03:30 EDT, while DND really ends at 03:00 EDT.
       const scheduledAt = new Date('2026-03-08T04:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'America/New_York', '22:00', '02:30')
+        adjust(scheduledAt, 'America/New_York', '22:00', '02:30')
       )
 
       expect(result.toISOString()).toBe('2026-03-08T07:30:00.000Z')
@@ -270,7 +291,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T12:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', '22:00', '22:00')
+        adjust(scheduledAt, 'UTC', '22:00', '22:00')
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -282,7 +303,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', null, null)
+        adjust(scheduledAt, 'UTC', null, null)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -293,7 +314,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:59:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', '22:00', '07:00')
+        adjust(scheduledAt, 'UTC', '22:00', '07:00')
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -304,7 +325,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', '22:00', '9999999999:00')
+        adjust(scheduledAt, 'UTC', '22:00', '9999999999:00')
       )
 
       expect(result.toISOString()).toBe('2025-06-16T07:00:00.000Z')
@@ -314,7 +335,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, 'UTC', 'abc', '07:00')
+        adjust(scheduledAt, 'UTC', 'abc', '07:00')
       )
 
       expect(result.toISOString()).toBe('2025-06-16T07:00:00.000Z')
@@ -324,7 +345,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjustForDoNotDisturb(scheduledAt, null, '22:00', '07:00')
+        adjust(scheduledAt, null, '22:00', '07:00')
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -338,7 +359,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T23:00:00Z')
 
     const result = await Effect.runPromise(
-      isInDoNotDisturbWindow(currentTime, 'UTC', '22:00', '07:00')
+      inWindow(currentTime, 'UTC', '22:00', '07:00')
     )
 
     expect(result).toBe(true)
@@ -348,7 +369,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T12:00:00Z')
 
     const result = await Effect.runPromise(
-      isInDoNotDisturbWindow(currentTime, 'UTC', '22:00', '07:00')
+      inWindow(currentTime, 'UTC', '22:00', '07:00')
     )
 
     expect(result).toBe(false)
@@ -358,7 +379,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T22:00:00Z')
 
     const result = await Effect.runPromise(
-      isInDoNotDisturbWindow(currentTime, 'UTC', '22:00', '22:00')
+      inWindow(currentTime, 'UTC', '22:00', '22:00')
     )
 
     expect(result).toBe(false)
@@ -369,7 +390,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T03:00:00Z')
 
     const result = await Effect.runPromise(
-      isInDoNotDisturbWindow(currentTime, 'America/New_York', '22:00', '07:00')
+      inWindow(currentTime, 'America/New_York', '22:00', '07:00')
     )
 
     expect(result).toBe(true)
@@ -379,7 +400,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T03:00:00Z')
 
     const result = await Effect.runPromise(
-      isInDoNotDisturbWindow(currentTime, 'UTC', '22:00', '9999999999:00')
+      inWindow(currentTime, 'UTC', '22:00', '9999999999:00')
     )
 
     expect(result).toBe(true)
@@ -389,7 +410,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T07:00:00Z')
 
     const result = await Effect.runPromise(
-      isInDoNotDisturbWindow(currentTime, 'UTC', '22:00', '07:00')
+      inWindow(currentTime, 'UTC', '22:00', '07:00')
     )
 
     expect(result).toBe(false)

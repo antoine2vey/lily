@@ -13,6 +13,7 @@ import {
 } from '@lily/api/services/notification-scheduler/translations'
 import {
   adjustForDoNotDisturb,
+  decodeDndBounds,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
 import { isOnVacation } from '@lily/shared'
@@ -80,6 +81,35 @@ export const pollAndEnqueue = Effect.gen(function* () {
   )
 
   const currentTime = DateTime.toDateUtc(DateTime.nowUnsafe())
+
+  // One DND decision per user, not per row: when each user in their window
+  // gets out of it.
+  const dndEndByUser = new Map(
+    Array.getSomes(
+      yield* Effect.forEach(
+        Array.filter(fetchedUsers, (u) => u.doNotDisturb),
+        (user) =>
+          Effect.gen(function* () {
+            const bounds = yield* decodeDndBounds(
+              user.doNotDisturbStart,
+              user.doNotDisturbEnd
+            ).pipe(Effect.annotateLogs({ userId: user.id }))
+            const inDnd = yield* isInDoNotDisturbWindow(
+              currentTime,
+              user.timezone,
+              bounds
+            )
+            if (!inDnd) return Option.none()
+            const end = yield* adjustForDoNotDisturb(
+              currentTime,
+              user.timezone,
+              bounds
+            )
+            return Option.some([user.id, end] as const)
+          })
+      )
+    )
+  )
 
   // Batch-fetch every referenced plant up front: Phase 1 needs it to drop
   // reminders for plants that died since the row was scheduled, and Phase 3
@@ -190,28 +220,14 @@ export const pollAndEnqueue = Effect.gen(function* () {
       continue
     }
 
-    if (user?.doNotDisturb) {
-      const inDnd = yield* isInDoNotDisturbWindow(
-        currentTime,
-        user.timezone,
-        user.doNotDisturbStart,
-        user.doNotDisturbEnd
-      ).pipe(Effect.annotateLogs({ userId: user.id }))
-
-      if (inDnd) {
-        const until = yield* adjustForDoNotDisturb(
-          currentTime,
-          user.timezone,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd
-        ).pipe(Effect.annotateLogs({ userId: user.id }))
-        yield* defer(
-          notification,
-          'Deferring notification - user in DND',
-          until
-        )
-        continue
-      }
+    const dndEnd = Option.fromNullishOr(dndEndByUser.get(notification.userId))
+    if (Option.isSome(dndEnd)) {
+      yield* defer(
+        notification,
+        'Deferring notification - user in DND',
+        dndEnd.value
+      )
+      continue
     }
 
     validNotifications.push({ notification, topic })
