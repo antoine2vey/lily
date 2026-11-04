@@ -24,6 +24,7 @@ const RECEIPT_TTL = Duration.hours(24)
 const MAX_TICKETS_PER_RUN = 3000
 
 const APP_FAULT_CODES = HashSet.make('InvalidCredentials', 'MessageTooBig')
+const APP_FAULT_ALERT_WINDOW = Duration.hours(1)
 
 const codeOf = (receipt: ExpoPushErrorReceipt) =>
   Option.getOrElse(
@@ -51,7 +52,8 @@ const reportErrorReceipts = Effect.fn('push-receipts.reportErrorReceipts')(
               _tag: 'ProviderError',
               provider: 'expo-push',
               errorTag: code,
-              message: `${count} push receipts failed with ${code}: ${message}`,
+              message: `${count} push ${count === 1 ? 'receipt' : 'receipts'} failed with ${code}: ${message}`,
+              dedupeWindow: APP_FAULT_ALERT_WINDOW,
             })
           }
         }),

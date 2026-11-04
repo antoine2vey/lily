@@ -5,7 +5,15 @@ import {
   createInMemoryPendingPushReceipts,
 } from '@lily/api/__tests__/mocks/expo-push'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
-import type { PendingReceipt } from '@lily/api/services/push/pending-push-receipts'
+import { Alerter } from '@lily/api/services/alerting'
+import {
+  type AlertEvent,
+  makeAlerter,
+} from '@lily/api/services/alerting/service'
+import {
+  PendingPushReceipts,
+  type PendingReceipt,
+} from '@lily/api/services/push/pending-push-receipts'
 import { checkPushReceipts } from '@lily/api/services/push-receipt-scheduler/scheduler'
 import type { DeviceToken } from '@lily/shared/device-token'
 import {
@@ -16,7 +24,9 @@ import {
   Layer,
   Logger,
   Record,
+  References,
 } from 'effect'
+import { TestClock } from 'effect/testing'
 import type { ExpoPushErrorReceipt, ExpoPushReceipt } from 'expo-server-sdk'
 import { describe, expect, it } from 'vitest'
 
@@ -55,8 +65,10 @@ const setup = (
   const repo = createMockDeviceTokenRepository(devices)
   const alerter = createMockAlerter()
   const warnings: unknown[] = []
+  const infos: unknown[] = []
   const capture = Logger.make(({ logLevel, message }) => {
     if (logLevel === 'Warn') warnings.push(message)
+    if (logLevel === 'Info') infos.push(message)
   })
   const layer = Layer.mergeAll(
     expo.layer,
@@ -75,7 +87,15 @@ const setup = (
         return (yield* repo.findByToken(token))?.isActive
       })
     )
-  return { expo, pending, run, isActive, alerts: alerter.events, warnings }
+  return {
+    expo,
+    pending,
+    run,
+    isActive,
+    alerts: alerter.events,
+    warnings,
+    infos,
+  }
 }
 
 describe('checkPushReceipts', () => {
@@ -232,13 +252,100 @@ describe('checkPushReceipts', () => {
           errorTag: 'InvalidCredentials',
           message:
             '2 push receipts failed with InvalidCredentials: failed with InvalidCredentials',
+          dedupeWindow: Duration.hours(1),
         },
         {
           _tag: 'ProviderError',
           provider: 'expo-push',
           errorTag: 'MessageTooBig',
           message:
-            '1 push receipts failed with MessageTooBig: failed with MessageTooBig',
+            '1 push receipt failed with MessageTooBig: failed with MessageTooBig',
+          dedupeWindow: Duration.hours(1),
+        },
+      ])
+    })
+
+    it('alerts on a code that keeps failing at most once an hour across ticks', async () => {
+      const ticks = Array.range(0, 4)
+      const { receipts } = receiptsOf(
+        Array.map(ticks, () => 'InvalidCredentials' as const)
+      )
+      const expo = createFakeExpoPushClient({ receipts })
+      const pending = createInMemoryPendingPushReceipts()
+      const delivered: AlertEvent[] = []
+
+      const alertsAfterEachTick = await Effect.gen(function* () {
+        yield* TestClock.setTime(Date.parse('2026-11-04T08:00:00Z'))
+        const alerter = yield* makeAlerter(
+          (event) =>
+            Effect.sync(() => {
+              delivered.push(event)
+            }),
+          {
+            environment: 'test',
+            dedupeWindow: Duration.minutes(5),
+            warningDedupeWindow: Duration.minutes(15),
+          }
+        )
+        return yield* Effect.forEach(ticks, (i) =>
+          Effect.gen(function* () {
+            const receipts = yield* PendingPushReceipts
+            const now = yield* DateTime.now
+            yield* receipts.add([
+              pendingReceipt(
+                `t-${i}`,
+                `ExponentPushToken[${i}]`,
+                DateTime.subtractDuration(now, Duration.minutes(30))
+              ),
+            ])
+            yield* checkPushReceipts
+            yield* TestClock.adjust(Duration.millis(10))
+            const count = Array.length(delivered)
+            yield* TestClock.adjust(
+              Duration.subtract(Duration.minutes(15), Duration.millis(10))
+            )
+            return count
+          })
+        ).pipe(Effect.provideService(Alerter, alerter))
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            expo.layer,
+            pending.layer,
+            createMockDeviceTokenRepository([]),
+            TestClock.layer()
+          )
+        ),
+        Effect.provideService(References.MinimumLogLevel, 'None'),
+        Effect.runPromise
+      )
+
+      expect(alertsAfterEachTick).toEqual([1, 1, 1, 1, 2])
+    })
+
+    it('reports each error code with its count in the tick log', async () => {
+      const { pending, receipts } = receiptsOf([
+        'MessageRateExceeded',
+        'MessageRateExceeded',
+        'DeviceNotRegistered',
+        'InvalidCredentials',
+        'ok',
+      ])
+      const { run, infos } = setup([], pending, receipts)
+
+      await run(checkPushReceipts)
+
+      expect(infos).toContainEqual([
+        'Checked Expo push receipts',
+        {
+          checked: 5,
+          settled: 5,
+          unregistered: 1,
+          errorsByCode: {
+            MessageRateExceeded: 2,
+            DeviceNotRegistered: 1,
+            InvalidCredentials: 1,
+          },
         },
       ])
     })
