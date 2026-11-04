@@ -1803,6 +1803,53 @@ describe('Notification Scheduler', () => {
         ['pending', new Date('2026-06-16T07:00:00.000Z')],
       ])
     })
+
+    it('defers each user in DND to their own DND end and sends the user outside DND', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-06-15T23:00:00.000Z'))
+      const users = [
+        createTestUser({
+          id: 'user-a',
+          doNotDisturb: true,
+          timezone: 'UTC',
+          doNotDisturbStart: '22:00',
+          doNotDisturbEnd: '07:00',
+        }),
+        createTestUser({
+          id: 'user-b',
+          doNotDisturb: true,
+          timezone: 'UTC',
+          doNotDisturbStart: '21:00',
+          doNotDisturbEnd: '08:00',
+        }),
+        createTestUser({ id: 'user-c', doNotDisturb: false, timezone: 'UTC' }),
+      ]
+      const rows = Arr.map(['user-a', 'user-b', 'user-c'], (userId) =>
+        createTestNotification({
+          id: `n-${userId}`,
+          type: 'watering_reminder',
+          status: 'pending',
+          scheduledAt: new Date('2026-06-15T22:30:00.000Z'),
+          userId,
+        })
+      )
+      const enqueued: string[] = []
+
+      try {
+        await runPollAndEnqueue(rows, users, (_topic, message) =>
+          enqueued.push(...message.payload.notificationIds)
+        )
+      } finally {
+        vi.useRealTimers()
+      }
+
+      expect(enqueued).toEqual(['n-user-c'])
+      expect(rows.map((n) => [n.id, n.status, n.scheduledAt])).toEqual([
+        ['n-user-a', 'pending', new Date('2026-06-16T07:00:00.000Z')],
+        ['n-user-b', 'pending', new Date('2026-06-16T08:00:00.000Z')],
+        ['n-user-c', 'queued', new Date('2026-06-15T22:30:00.000Z')],
+      ])
+    })
   })
 
   describe('careReminders safety net in pollAndEnqueue', () => {

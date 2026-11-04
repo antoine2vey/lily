@@ -470,6 +470,45 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).toEqual(new Set([`pending@${dndEnd.toISOString()}`]))
       })
 
+      it('moves each DND user to their own DND end and sends the user outside DND', async () => {
+        const now = new Date()
+        const inMinutes = (minutes: number) =>
+          new Date(now.getTime() + minutes * 60_000)
+        const dueFor = async (name: string, endsIn: number) =>
+          insertDue(
+            await insertUser(name, {
+              doNotDisturb: true,
+              timezone: 'Asia/Kolkata',
+              doNotDisturbStart: kolkataClock(inMinutes(-60)),
+              doNotDisturbEnd: kolkataClock(inMinutes(endsIn)),
+            }),
+            'watering_reminder',
+            minutesAgo(10),
+            1
+          )
+        const firstIds = await dueFor('dnd_first', 60)
+        const secondIds = await dueFor('dnd_second', 90)
+        const dueIds = await insertDue(
+          userId,
+          'watering_reminder',
+          minutesAgo(1),
+          1
+        )
+
+        const enqueued: QueueMessage[] = []
+        await poll(enqueued)
+
+        expect(Arr.flatMap(enqueued, (m) => m.payload.notificationIds)).toEqual(
+          dueIds
+        )
+        expect(await rowsOf(firstIds)).toEqual([
+          { status: 'pending', scheduledAt: floorToMinute(inMinutes(60)) },
+        ])
+        expect(await rowsOf(secondIds)).toEqual([
+          { status: 'pending', scheduledAt: floorToMinute(inMinutes(90)) },
+        ])
+      })
+
       it('claims the row behind a fully deferred batch on the drain cooldown, not the interval', async () => {
         const now = new Date()
         const dndUserId = await insertUser('drain_dnd_user', {
