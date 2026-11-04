@@ -625,7 +625,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             'PushSendError: Every push ticket failed: DeviceNotRegistered (1)',
         },
       ])
-      expect(rows[0]?.lastError).not.toContain('expo-outbox-token')
     })
 
     const followLayer = (enqueued: QueueMessage[]) =>

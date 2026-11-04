@@ -1059,6 +1059,21 @@ describe('Notification Worker', () => {
         )
       })
 
+      it('retries a message whose every ticket has no Expo code', async () => {
+        const row = pendingRow('notification-1')
+        const rig = ticketRig(row, (msgs) =>
+          Array.map(msgs, () => rejected('Unknown'))
+        )
+
+        await rig.attempt()
+
+        expect(row).toMatchObject({
+          status: 'pending',
+          retryCount: 1,
+          lastError: 'PushSendError: Every push ticket failed: Unknown (2)',
+        })
+      })
+
       it('keeps a message sent when only a later ticket is ok', async () => {
         const row = pendingRow('notification-1')
         const rig = ticketRig(row, (msgs) =>
