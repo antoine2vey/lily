@@ -35,6 +35,7 @@ import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
+import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import {
@@ -712,6 +713,39 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(await rowsOf(owner.id)).toMatchObject([
           { type: 'overdue_reminder', plantId: plant.id },
         ])
+      }
+    )
+
+    it.each(['pending_deletion', ...LOCKED] as const)(
+      'shifts the schedule of a plant with a %s caretaker when its owner ends a vacation',
+      async (status) => {
+        const owner = await insertUser('vacation-owner')
+        const caretaker = await insertUser(`vacation-caretaker-${status}`)
+        const plant = await insertPlant(
+          owner.id,
+          new Date(Date.now() - 2 * DAY)
+        )
+        await delegate(owner.id, caretaker.id, plant.id)
+        const [vacationer] = await db
+          .update(schema.users)
+          .set({
+            vacationStatus: 'active',
+            vacationStart: new Date(Date.now() - 5 * DAY),
+            vacationEnd: new Date(Date.now() + DAY),
+          })
+          .where(eq(schema.users.id, owner.id))
+          .returning()
+        if (!vacationer) throw new Error('vacation update returned nothing')
+        const { run } = pipeline(owner)
+
+        await markStatus(run, caretaker.id, status)
+        await run(endVacation({ user: vacationer, effectiveEnd: new Date() }))
+
+        const [schedule] = await db
+          .select({ nextCareAt: schema.plantCareSchedules.nextCareAt })
+          .from(schema.plantCareSchedules)
+          .where(eq(schema.plantCareSchedules.plantId, plant.id))
+        expect(schedule?.nextCareAt?.getTime()).toBeGreaterThan(Date.now())
       }
     )
 
