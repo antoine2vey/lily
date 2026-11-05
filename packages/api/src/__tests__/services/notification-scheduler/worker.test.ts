@@ -3933,40 +3933,6 @@ describe('Notification Worker', () => {
       expect(Array.every(statusWhenRequeued, (s) => s === 'failed')).toBe(true)
     })
 
-    it('requeues stale messages when the legacy drain fails', async () => {
-      let sweeps = 0
-      const drainFails = Layer.effect(
-        MessageQueue,
-        Effect.map(MessageQueue, (queue) => ({
-          ...queue,
-          drainLegacyTopicLists: Effect.fail(
-            new QueueOperationError({ message: 'redis down', cause: null })
-          ),
-        }))
-      ).pipe(
-        Layer.provide(
-          createMockMessageQueue({
-            onRequeueStale: () => {
-              sweeps += 1
-              return 0
-            },
-          })
-        )
-      )
-
-      const exit = await Effect.runPromiseExit(
-        recoverStrandedDeliveries.pipe(
-          Effect.provide(
-            Layer.mergeAll(drainFails, createMockNotificationRepository([]))
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
-        )
-      )
-
-      expect(sweeps).toBe(1)
-      expect(Exit.isFailure(exit)).toBe(true)
-    })
-
     it('leaves a message in flight for one minute where it is', async () => {
       const redis = createInMemoryRedisQueue([
         JSON.stringify(
@@ -3999,80 +3965,6 @@ describe('Notification Worker', () => {
         'lily:queue:notifications:in-flight',
         'lily:queue:notifications:in-flight:claimed-at',
       ])
-    })
-
-    it('hands back every readable row left on the per-topic lists and warns about each entry it cannot read', async () => {
-      const ids = [rowId('1'), rowId('2'), rowId('3'), rowId('4')]
-      const rows = Array.map(ids, (id) =>
-        createPlantRow({ id, userId: 'user-1', status: 'queued' })
-      )
-      const entry = (n: number, topic: NotificationTopic, extra = []) =>
-        JSON.stringify(
-          createTestQueueMessage({
-            id: `legacy-${n}`,
-            topic,
-            payload: {
-              ...createTestQueueMessage().payload,
-              notificationIds: [rowId(String(n + 1)), ...extra],
-            },
-          })
-        )
-      const redis = createInMemoryRedis({
-        'lily:notifications:watering_reminder': [
-          entry(0, 'watering_reminder'),
-          entry(1, 'watering_reminder'),
-        ],
-        'lily:notifications:new_follower': [
-          entry(2, 'new_follower', ['not-a-uuid'] as never),
-        ],
-        'lily:notifications:daily_tip:processing': [
-          entry(3, 'daily_tip'),
-          'not json',
-        ],
-      })
-      const warnings: unknown[] = []
-      const capture = Logger.make(({ logLevel, message }) => {
-        if (logLevel === 'Warn') warnings.push(message)
-      })
-
-      await Effect.runPromise(
-        recoverStrandedDeliveries.pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              Layer.succeed(MessageQueue, redis.queue),
-              createMockNotificationRepository(rows, {
-                queuedAt: Record.fromEntries(
-                  Array.map(ids, (id) => [id, new Date(Date.now())])
-                ),
-              }),
-              Logger.layer([capture])
-            )
-          )
-        )
-      )
-
-      expect(redis.liveKeys()).toEqual([])
-      expect(Array.map(rows, (r) => r.status)).toEqual([
-        'pending',
-        'pending',
-        'pending',
-        'pending',
-      ])
-      expect(warnings).toEqual(
-        expect.arrayContaining([
-          [
-            '[notification-recovery] Legacy entry has unreadable notification ids',
-            expect.objectContaining({
-              messageId: 'legacy-2',
-              malformedIds: ['not-a-uuid'],
-            }),
-          ],
-          [
-            '[notification-recovery] Legacy entry has unreadable notification ids',
-            { messageId: undefined, malformedIds: [], entry: 'not json' },
-          ],
-        ])
-      )
     })
   })
 })

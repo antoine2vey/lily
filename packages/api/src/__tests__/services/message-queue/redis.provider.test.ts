@@ -2,11 +2,7 @@ import {
   createInMemoryRedis,
   createInMemoryRedisQueue,
 } from '@lily/api/__tests__/mocks/redis-queue'
-import {
-  MAX_NOTIFICATION_IDS,
-  NOTIFICATION_TOPICS,
-  QueueMessage,
-} from '@lily/shared/server'
+import { MAX_NOTIFICATION_IDS, QueueMessage } from '@lily/shared/server'
 import { Array as Arr, Effect, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -183,70 +179,5 @@ describe('makeRedisMessageQueue one queue', () => {
 
     expect(received).toEqual(sent)
     expect(await Effect.runPromise(queue.dequeue)).toBeNull()
-  })
-})
-
-describe('makeRedisMessageQueue drainLegacyTopicLists', () => {
-  const legacy = (topic: string, suffix = '') =>
-    `lily:notifications:${topic}${suffix}`
-
-  it('empties every per-topic list and claimed set and returns each entry', async () => {
-    const lists = Object.fromEntries(
-      Arr.flatMap(NOTIFICATION_TOPICS, (topic) => [
-        [legacy(topic), [`${topic}-ready`]],
-        [legacy(topic, ':processing'), [`${topic}-claimed`]],
-      ])
-    )
-    lists[legacy('weekly_recap')] = [
-      'weekly_recap-ready-2',
-      'weekly_recap-ready',
-    ]
-    const zsets = Object.fromEntries(
-      Arr.map(NOTIFICATION_TOPICS, (topic) => [
-        legacy(topic, ':processing:claimed'),
-        { [`${topic}-claimed`]: 1 },
-      ])
-    )
-    const { queue, liveKeys } = createInMemoryRedis(lists, zsets)
-
-    const drained = await Effect.runPromise(queue.drainLegacyTopicLists)
-
-    expect(liveKeys()).toEqual([])
-    expect([...drained].sort()).toEqual(
-      [
-        'weekly_recap-ready-2',
-        ...Arr.flatMap(NOTIFICATION_TOPICS, (topic) => [
-          `${topic}-ready`,
-          `${topic}-claimed`,
-        ]),
-      ].sort()
-    )
-  })
-
-  it('leaves the one queue alone', async () => {
-    const { queue, liveKeys } = createInMemoryRedis(
-      {
-        'lily:queue:notifications': [validEntry],
-        [legacy('daily_tip')]: ['old'],
-      },
-      { 'lily:queue:notifications:in-flight:claimed-at': { claim: 1 } },
-      { 'lily:queue:notifications:in-flight': { claim: validEntry } }
-    )
-
-    expect(await Effect.runPromise(queue.drainLegacyTopicLists)).toEqual([
-      'old',
-    ])
-    expect(liveKeys()).toEqual([
-      'lily:queue:notifications',
-      'lily:queue:notifications:in-flight',
-      'lily:queue:notifications:in-flight:claimed-at',
-    ])
-  })
-
-  it('costs one command when nothing is left to drain', async () => {
-    const { queue, commands } = createInMemoryRedis()
-
-    expect(await Effect.runPromise(queue.drainLegacyTopicLists)).toEqual([])
-    expect(commands).toEqual(['exists'])
   })
 })

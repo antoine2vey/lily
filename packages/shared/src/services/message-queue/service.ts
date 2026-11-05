@@ -31,11 +31,6 @@ export interface IMessageQueue {
   readonly requeueStale: (
     olderThan: Duration.Duration
   ) => Effect.Effect<number, QueueOperationError>
-
-  readonly drainLegacyTopicLists: Effect.Effect<
-    ReadonlyArray<string>,
-    QueueOperationError
-  >
 }
 
 // Context tag for dependency injection
