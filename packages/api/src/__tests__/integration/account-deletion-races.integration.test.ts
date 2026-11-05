@@ -23,13 +23,14 @@ import {
   UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
+import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Cause,
@@ -483,5 +484,60 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect((await state(high, user)).user).toBe('pending_deletion')
       }
     )
+
+    it('hard-deletes two accounts that share only finished delegations, one each way, at the same time without a deadlock', async () => {
+      const a = await insertUser('purge-a')
+      const b = await insertUser('purge-b')
+      await db.insert(schema.careDelegations).values([
+        {
+          ownerId: a,
+          caretakerId: b,
+          status: 'completed',
+          startDate: new Date(Date.now() - 9 * DAY),
+          endDate: new Date(Date.now() - 2 * DAY),
+        },
+        {
+          ownerId: b,
+          caretakerId: a,
+          status: 'canceled',
+          startDate: new Date(Date.now() - 9 * DAY),
+          endDate: new Date(Date.now() - 2 * DAY),
+        },
+      ])
+      const hardDelete = (userId: string) =>
+        as(
+          userId,
+          Effect.flatMap(UserRepository, (repo) =>
+            leaveCanopyAndDelete(userId)(repo.delete(userId))
+          )
+        )
+
+      // Slows each cascaded delegation delete so both cascades overlap.
+      await db.execute(
+        sql.raw(`
+          CREATE FUNCTION slow_delegation_delete() RETURNS trigger AS $$
+          BEGIN PERFORM pg_sleep(0.4); RETURN OLD; END $$ LANGUAGE plpgsql;
+          CREATE TRIGGER slow_delegation_delete BEFORE DELETE ON care_delegations
+            FOR EACH ROW EXECUTE FUNCTION slow_delegation_delete();
+        `)
+      )
+      try {
+        const purged = await Promise.all([hardDelete(a), hardDelete(b)])
+        expect(purged.map(outcome)).toEqual(['ok', 'ok'])
+      } finally {
+        await db.execute(
+          sql.raw(`
+            DROP TRIGGER slow_delegation_delete ON care_delegations;
+            DROP FUNCTION slow_delegation_delete();
+          `)
+        )
+      }
+      expect(
+        await db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(inArray(schema.users.id, [a, b]))
+      ).toEqual([])
+    })
   }
 )
