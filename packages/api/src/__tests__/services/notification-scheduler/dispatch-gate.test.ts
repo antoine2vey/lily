@@ -226,7 +226,7 @@ describe('decide', () => {
     ['suspended', 'suspended'],
     ['banned', 'banned'],
   ] as const)(
-    'drops every category for a %s user, even in DND or on vacation',
+    'drops every category for a %s user, even in DND, on vacation or with care reminders and tips off',
     async (status, reason) => {
       const dropped = Decision.Drop({ reason })
       const locked = (overrides: Partial<RecipientSettings> = {}) =>
@@ -248,6 +248,9 @@ describe('decide', () => {
         ).toEqual(dropped)
         expect(
           await run(gateRow, locked({ vacationStatus: 'active' }))
+        ).toEqual(dropped)
+        expect(
+          await run(gateRow, locked({ careReminders: false, tips: false }))
         ).toEqual(dropped)
       }
     }
