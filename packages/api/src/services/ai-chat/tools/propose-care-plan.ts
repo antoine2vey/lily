@@ -1,6 +1,6 @@
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CARE_PLAN_MAX_STEPS } from '@lily/shared'
-import { tool } from 'ai'
+import { type Tool, tool } from 'ai'
 import { Array, Effect, Option, pipe } from 'effect'
 import { z } from 'zod'
 
@@ -10,7 +10,7 @@ import type { ToolDeps } from './index'
 // Plant-only tool: caller is expected to provide plantId.
 type PlantToolDeps = ToolDeps & { plantId: string }
 
-export const proposeCarePlanTool = (deps: PlantToolDeps) =>
+export const proposeCarePlanTool = (deps: PlantToolDeps): Tool =>
   tool({
     description:
       'Propose a concrete, actionable care plan (an ordered checklist of steps) for this plant when your advice involves specific things the user should do. The user sees the steps in a card and can add them to their tasks. Do NOT use it for general education or when the user only asked a factual question.',

@@ -29,13 +29,13 @@
     "seed:knowledge": "bun run scripts/seed-houseplant-knowledge.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.131",
+    "@ai-sdk/openai": "^4.0.109",
     "@effect/platform-bun": "^4.0.5",
     "@lily/db": "workspace:*",
     "@lily/knowledge-db": "workspace:*",
     "@lily/shared": "workspace:*",
     "@mozilla/readability": "^0.6.0",
-    "ai": "^6.0.312",
+    "ai": "^7.0.163",
     "apple-signin-auth": "^2.1.0",
     "drizzle-orm": "^0.45.4",
     "effect": "^4.0.5",

@@ -44,7 +44,7 @@ import {
 // Type alias to avoid TS4023: bun's module resolution prevents TS
 // from naming the 'Output' generic in declaration files
 // biome-ignore lint/suspicious/noExplicitAny: required by StreamTextResult generic
-export type PlantChatStreamResult = StreamTextResult<ToolSet, any>
+export type PlantChatStreamResult = StreamTextResult<ToolSet, any, any>
 
 export interface StepData {
   readonly text: string
