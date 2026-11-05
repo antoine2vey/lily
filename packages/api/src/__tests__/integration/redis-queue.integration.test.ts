@@ -18,6 +18,8 @@ import {
 } from 'vitest'
 
 const REDIS_URL_TEST = process.env.REDIS_URL_TEST ?? ''
+const IN_CI_INTEGRATION_JOB =
+  process.env.CI === 'true' && Boolean(process.env.DATABASE_URL_TEST)
 const MINUTE = 60_000
 const T0 = 1_800_000_000_000
 const VISIBILITY_TIMEOUT = Duration.minutes(10)
@@ -357,6 +359,13 @@ const scenarios: ReadonlyArray<{
     ops: [{ op: 'dequeue', t: 0 }, sweep(30 * MINUTE)],
   },
 ]
+
+it.runIf(IN_CI_INTEGRATION_JOB)(
+  'runs the real-Redis queue tests in the CI integration job',
+  () => {
+    expect(REDIS_URL_TEST).not.toBe('')
+  }
+)
 
 describe.skipIf(!REDIS_URL_TEST)('the one queue on real Redis', () => {
   const redis = new Redis(REDIS_URL_TEST)
