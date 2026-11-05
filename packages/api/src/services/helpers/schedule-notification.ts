@@ -1,7 +1,8 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import type {
-  ParamsOf,
-  SimpleNotificationType,
+import {
+  buildSimpleContent,
+  type ParamsOf,
+  type SimpleNotificationType,
 } from '@lily/api/services/notification-scheduler/translations'
 import type { LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
@@ -49,6 +50,7 @@ const insertSimpleNotification = <T extends SimpleNotificationType>(
   type: T,
   userId: string,
   params: ParamsOf<T>,
+  language: LanguageCode,
   metadata: MetadataOf<T>,
   delivery: {
     readonly status: 'pending' | 'queued'
@@ -58,9 +60,12 @@ const insertSimpleNotification = <T extends SimpleNotificationType>(
 ) =>
   Effect.gen(function* () {
     const notifications = yield* NotificationRepository
+    const { title, body } = buildSimpleContent(type, params, language)
     const row = yield* notifications.create({
       userId,
       type,
+      title,
+      body,
       params,
       metadata,
       ...delivery,
@@ -82,10 +87,10 @@ export const recordNotification = <T extends SimpleNotificationType>(
   type: T,
   userId: string,
   params: ParamsOf<T>,
-  _language: LanguageCode,
+  language: LanguageCode,
   metadata: MetadataOf<T>
 ) =>
-  insertSimpleNotification(type, userId, params, metadata, {
+  insertSimpleNotification(type, userId, params, language, metadata, {
     status: 'queued',
     scheduledAt: nowAsDate(),
   })
@@ -94,11 +99,11 @@ export const recordNotificationAt = <T extends SimpleNotificationType>(
   type: T,
   userId: string,
   params: ParamsOf<T>,
-  _language: LanguageCode,
+  language: LanguageCode,
   metadata: MetadataOf<T>,
   at: { readonly scheduledAt: Date; readonly plantId?: string }
 ) =>
-  insertSimpleNotification(type, userId, params, metadata, {
+  insertSimpleNotification(type, userId, params, language, metadata, {
     status: 'pending',
     ...at,
   }).pipe(Effect.asVoid)

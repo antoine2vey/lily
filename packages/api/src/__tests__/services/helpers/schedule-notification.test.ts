@@ -46,11 +46,12 @@ describe('recordNotification', () => {
       expect.objectContaining({
         type: 'new_follower',
         status: 'queued',
+        title: '👋 New follower!',
+        body: 'Ada started following your plant journey',
         params: { senderName: 'Ada' },
         metadata: { senderId: 'ada' },
       }),
     ])
-    expect(notifications[0]?.title).toBeUndefined()
   })
 
   it('enqueues nothing until the row is dispatched', async () => {

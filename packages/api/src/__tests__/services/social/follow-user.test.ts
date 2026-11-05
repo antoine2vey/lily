@@ -170,6 +170,8 @@ describe('followUser', () => {
       {
         followingId: publicUser.id,
         notification: {
+          title: '👋 New follower!',
+          body: 'Test User started following your plant journey',
           params: { senderName: 'Test User' },
           metadata: { senderId: currentUserId },
         },

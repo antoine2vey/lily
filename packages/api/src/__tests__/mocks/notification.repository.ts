@@ -104,6 +104,8 @@ export const createMockNotificationRepository = (
       const newNotification: MutableNotification = {
         id: `notification-${crypto.randomUUID()}`,
         type: data.type,
+        title: data.title,
+        body: data.body,
         params: data.params,
         scheduledAt: data.scheduledAt,
         isRead: false,

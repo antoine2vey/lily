@@ -46,6 +46,8 @@ export interface FindNotificationsParams {
 }
 
 interface CreateNotificationFields {
+  title?: string
+  body?: string
   params?: unknown
   scheduledAt: Date
   userId: string
@@ -365,6 +367,8 @@ export const NotificationRepositoryLive = Layer.effect(
           .insert(notifications)
           .values({
             type: data.type,
+            title: data.title,
+            body: data.body,
             params: data.params,
             scheduledAt: data.scheduledAt,
             userId: data.userId,

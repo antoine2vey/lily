@@ -1,5 +1,5 @@
 import type { CareType, LanguageCode } from '@lily/shared'
-import type { DeferredCareType } from '@lily/shared/server'
+import type { DeferredCareType, NotificationTopic } from '@lily/shared/server'
 import {
   Array,
   Match,
@@ -52,31 +52,10 @@ type SimpleTranslation = {
   readonly body: (params: InternalNotificationParams) => string
 }
 
-export type SimpleNotificationType =
-  | 'new_follower'
-  | 'nudge_to_water'
-  | 'delegation_request'
-  | 'delegation_accepted'
-  | 'delegation_rejected'
-  | 'delegation_canceled'
-  | 'delegation_activated'
-  | 'delegation_completed'
-  | 'canopy_member_joined'
-  | 'canopy_member_removed'
-  | 'canopy_member_left'
-  | 'canopy_invitation'
-  | 'daily_tip'
-  | 'inactivity_nudge'
-  | 'photo_reminder'
-  | 'plant_parent_milestone'
-  | 'gift_subscription'
-  | 'resubscribe_nudge'
-  | 'streak_at_risk'
-  | 'streak_milestone'
-  | 'weekly_recap'
-  | 'trial_ending'
-  | 'approaching_limit'
-  | 'plant_anniversary'
+export type SimpleNotificationType = Exclude<
+  NotificationTopic,
+  DeferredCareType
+>
 
 const OptionalString = Schema.optional(Schema.String)
 const OptionalNumber = Schema.optional(Schema.Finite)

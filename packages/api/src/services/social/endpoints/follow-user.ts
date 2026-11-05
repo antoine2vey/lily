@@ -3,6 +3,7 @@ import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { dispatchNow } from '@lily/api/services/helpers/schedule-notification'
+import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   AlreadyFollowingError,
   CannotFollowSelfError,
@@ -49,9 +50,17 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
     Option.getOrElse(() => 'Someone')
   )
 
+  const params = { senderName: followerName }
+  const { title, body } = buildSimpleContent(
+    'new_follower',
+    params,
+    targetUser.language
+  )
   const metadata = { senderId: currentUserId }
   const id = yield* followRepo.follow(currentUserId, targetUserId, {
-    params: { senderName: followerName },
+    title,
+    body,
+    params,
     metadata,
   })
 

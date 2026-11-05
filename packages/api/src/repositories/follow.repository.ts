@@ -62,6 +62,8 @@ export interface PublicProfileRow {
 }
 
 export interface FollowerNotification {
+  readonly title: string
+  readonly body: string
   readonly params: ParamsOf<'new_follower'>
   readonly metadata: MetadataOf<'new_follower'>
 }
@@ -183,8 +185,8 @@ export const FollowRepositoryLive = Layer.effect(
             VALUES (${followerId}, ${followingId})
             RETURNING following_id
           )
-          INSERT INTO ${notifications} (type, params, scheduled_at, user_id, status, queued_at, metadata)
-          SELECT 'new_follower', ${JSON.stringify(notification.params)}::jsonb, ${now}::timestamptz,
+          INSERT INTO ${notifications} (type, title, body, params, scheduled_at, user_id, status, queued_at, metadata)
+          SELECT 'new_follower', ${notification.title}, ${notification.body}, ${JSON.stringify(notification.params)}::jsonb, ${now}::timestamptz,
             following_id, 'queued', ${now}::timestamptz, ${JSON.stringify(notification.metadata)}::jsonb
           FROM followed
           RETURNING id

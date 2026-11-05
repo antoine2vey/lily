@@ -670,9 +670,13 @@ describe('Notification Worker', () => {
       {
         language = 'en',
         plants = [createTestPlant({ id: 'plant-1', userId: 'user-1' })],
+        devices = mockDeviceTokens,
+        warnings = [],
       }: {
         language?: 'en' | 'fr'
         plants?: ReturnType<typeof createTestPlant>[]
+        devices?: DeviceToken[]
+        warnings?: unknown[]
       } = {}
     ) => {
       const pushes: PushMessage[] = []
@@ -685,7 +689,7 @@ describe('Notification Worker', () => {
               createMockPushService({
                 onSendBatch: (msgs) => pushes.push(...msgs),
               }),
-              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockDeviceTokenRepository(devices),
               createMockNotificationRepository(rows),
               createMockActivityPushTokenRepository(),
               createMockCareScheduleRepository(),
@@ -693,10 +697,14 @@ describe('Notification Worker', () => {
               createMockDelegationRepository(),
               createMockCanopyRepository([]),
               createMockUserRepository([recipient(language)]),
-              createMockPlantRepository({ plants })
+              createMockPlantRepository({ plants }),
+              Logger.layer([
+                Logger.make(({ logLevel, message }) => {
+                  if (logLevel === 'Warn') warnings.push(message)
+                }),
+              ])
             )
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
+          )
         )
       )
       return pushes
@@ -755,10 +763,12 @@ describe('Notification Worker', () => {
         body: 'Stored body',
       })
 
+      const warnings: unknown[] = []
+
       const pushes = await deliver(
         simpleMessage('streak_at_risk', ['legacy-1']),
         [row],
-        { language: 'fr' }
+        { language: 'fr', warnings }
       )
 
       expect(Array.map(pushes, (m) => [m.title, m.body])).toEqual([
@@ -766,6 +776,7 @@ describe('Notification Worker', () => {
         ['Stored title', 'Stored body'],
       ])
       expect([row.status, row.title]).toEqual(['sent', 'Stored title'])
+      expect(warnings).toEqual([])
     })
 
     it('names the plant by its name at delivery, not at recording', async () => {
@@ -798,29 +809,150 @@ describe('Notification Worker', () => {
       )
     })
 
-    it('drops a row whose params do not match its topic and pushes nothing', async () => {
-      const rows = [
-        withParams(
-          createRow({
-            id: 'trial-1',
-            type: 'trial_ending',
-            status: 'queued',
-            plantId: undefined,
-          }),
-          { trialDaysLeft: 'three' }
-        ),
-      ]
+    it('pushes the stored text of a row whose params do not render', async () => {
+      const row = withParams(
+        createRow({
+          id: 'trial-1',
+          type: 'trial_ending',
+          status: 'queued',
+          plantId: undefined,
+          title: 'Stored trial title',
+          body: 'Stored trial body',
+        }),
+        { trialDaysLeft: 'three' }
+      )
+      const rows = [row]
+      const warnings: unknown[] = []
 
       const pushes = await deliver(
         simpleMessage('trial_ending', ['trial-1']),
+        rows,
+        { language: 'fr', warnings }
+      )
+
+      expect(Array.map(pushes, (m) => [m.title, m.body])).toEqual([
+        ['Stored trial title', 'Stored trial body'],
+        ['Stored trial title', 'Stored trial body'],
+      ])
+      expect(Array.map(rows, (r) => [r.id, r.status, r.title, r.body])).toEqual(
+        [['trial-1', 'sent', 'Stored trial title', 'Stored trial body']]
+      )
+      expect(warnings).toEqual([
+        [
+          'Sending stored text - params did not render',
+          { notificationId: 'trial-1', messageId: expect.any(String) },
+        ],
+      ])
+    })
+
+    it('sends a malformed row its stored text beside a well-formed one', async () => {
+      const tip = (id: string, params: unknown) =>
+        withParams(
+          createRow({
+            id,
+            type: 'daily_tip',
+            status: 'queued',
+            plantId: undefined,
+            title: `Stored ${id}`,
+            body: `Stored ${id} body`,
+          }),
+          params
+        )
+      const rows = [
+        tip('tip-good', { tipTitle: 'Mist ferns', tipBody: 'Weekly' }),
+        tip('tip-bad', { tipTitle: 5 }),
+      ]
+
+      const pushes = await deliver(
+        simpleMessage('daily_tip', ['tip-good', 'tip-bad']),
         rows
+      )
+
+      expect(pushes[0]?.title).toBe('Mist ferns')
+      expect(Array.map(rows, (r) => [r.id, r.status, r.title])).toEqual([
+        ['tip-good', 'sent', 'Mist ferns'],
+        ['tip-bad', 'sent', 'Stored tip-bad'],
+      ])
+    })
+
+    it('pushes the first row of the message when the gate returns rows out of order', async () => {
+      const tip = (id: string, tipTitle: string) =>
+        withParams(
+          createRow({
+            id,
+            type: 'daily_tip',
+            status: 'queued',
+            plantId: undefined,
+          }),
+          { tipTitle, tipBody: `${tipTitle} body` }
+        )
+      const rows = [tip('tip-b', 'Second'), tip('tip-a', 'First')]
+
+      const pushes = await deliver(
+        simpleMessage('daily_tip', ['tip-a', 'tip-b']),
+        rows
+      )
+
+      expect(pushes[0]?.title).toBe('First')
+    })
+
+    it('stores the rendered text on a row whose recipient has no device', async () => {
+      const row = withParams(
+        createRow({
+          id: 'trial-1',
+          type: 'trial_ending',
+          status: 'queued',
+          plantId: undefined,
+        }),
+        { trialDaysLeft: 3 }
+      )
+
+      const pushes = await deliver(
+        simpleMessage('trial_ending', ['trial-1']),
+        [row],
+        { language: 'fr', devices: [] }
+      )
+
+      const french = buildSimpleContent(
+        'trial_ending',
+        { trialDaysLeft: 3 },
+        'fr'
+      )
+      expect(pushes).toEqual([])
+      expect([row.status, row.title, row.body]).toEqual([
+        'sent',
+        french.title,
+        french.body,
+      ])
+    })
+
+    it('deletes a care row that has no plant to name instead of leaving it queued', async () => {
+      const rows = [
+        createRow({
+          id: 'water-orphan',
+          type: 'watering_reminder',
+          status: 'queued',
+          plantId: undefined,
+        }),
+      ]
+
+      const pushes = await deliver(
+        createTestQueueMessage({
+          payload: {
+            userId: 'user-1',
+            notificationIds: ['water-orphan'],
+            plantIds: [],
+          },
+        }),
+        rows,
+        { plants: [] }
       )
 
       expect(pushes).toEqual([])
       expect(rows).toEqual([])
     })
 
-    it('groups anniversaries in one push and keeps each row its own text', async () => {
+    it('groups anniversaries under the plants current names and keeps each row its own text', async () => {
       const anniversary = (id: string, plantId: string, plantName: string) =>
         withParams(
           createRow({
@@ -842,51 +974,30 @@ describe('Notification Worker', () => {
         {
           language: 'fr',
           plants: [
-            createTestPlant({
-              id: 'plant-1',
-              userId: 'user-1',
-              name: 'Monstera',
-            }),
-            createTestPlant({
-              id: 'plant-2',
-              userId: 'user-1',
-              name: 'Pothos',
-            }),
+            createTestPlant({ id: 'plant-1', userId: 'user-1', name: 'Mona' }),
+            createTestPlant({ id: 'plant-2', userId: 'user-1', name: 'Poe' }),
           ],
         }
       )
 
-      const grouped = buildGroupedPlantAnniversaryContent(
-        ['Monstera', 'Pothos'],
-        'fr'
-      )
+      const grouped = buildGroupedPlantAnniversaryContent(['Mona', 'Poe'], 'fr')
       expect(pushes[0]?.title).toBe(grouped.title)
       expect(pushes[0]?.body).toBe(grouped.body)
-      expect(Array.map(rows, (row) => [row.status, row.title])).toEqual([
-        [
-          'sent',
-          buildSimpleContent(
-            'plant_anniversary',
-            {
-              plantName: 'Monstera',
-              anniversaryDuration: '1 year',
-              dateAdded: 'Apr 3, 2025',
-            },
-            'fr'
-          ).title,
-        ],
-        [
-          'sent',
-          buildSimpleContent(
-            'plant_anniversary',
-            {
-              plantName: 'Pothos',
-              anniversaryDuration: '1 year',
-              dateAdded: 'Apr 3, 2025',
-            },
-            'fr'
-          ).title,
-        ],
+      const own = (plantName: string) =>
+        buildSimpleContent(
+          'plant_anniversary',
+          {
+            plantName,
+            anniversaryDuration: '1 year',
+            dateAdded: 'Apr 3, 2025',
+          },
+          'fr'
+        )
+      expect(
+        Array.map(rows, (row) => [row.status, row.title, row.body])
+      ).toEqual([
+        ['sent', own('Mona').title, own('Mona').body],
+        ['sent', own('Poe').title, own('Poe').body],
       ])
     })
 

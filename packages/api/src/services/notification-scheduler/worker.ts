@@ -427,16 +427,18 @@ const isSimpleTopic = (
   topic: NotificationTopic
 ): topic is SimpleNotificationType => !isCareTopic(topic)
 
+const storedContent = (row: NotificationRow): NotificationContent => ({
+  title: Option.getOrElse(Option.fromNullishOr(row.title), () => ''),
+  body: Option.getOrElse(Option.fromNullishOr(row.body), () => ''),
+})
+
 const rowContent = (
   row: NotificationRow & { readonly type: SimpleNotificationType },
   named: Option.Option<PlantName>,
   language: LanguageCode
 ) =>
   row.params === undefined
-    ? Result.succeed({
-        title: Option.getOrElse(Option.fromNullishOr(row.title), () => ''),
-        body: Option.getOrElse(Option.fromNullishOr(row.body), () => ''),
-      })
+    ? Result.succeed(storedContent(row))
     : renderFromParams(
         row.type,
         row.params,
@@ -484,19 +486,19 @@ const renderSimple = (
   nameOf: (row: NotificationRow) => Option.Option<PlantName>,
   language: LanguageCode
 ) => {
-  const [rendered, undecodable] = Array.partition(rows, (row) => {
+  const attempts = Array.map(rows, (row) => {
     const type = row.type
-    if (!isSimpleTopic(type)) {
-      return Result.fail({
-        id: row.id,
-        error: `care row in a ${topic} message`,
-      })
-    }
-    return Result.mapBoth(rowContent({ ...row, type }, nameOf(row), language), {
-      onFailure: (error) => ({ id: row.id, error: error.message }),
-      onSuccess: (content) => ({ row, content }),
-    })
+    const result: Result.Result<NotificationContent, unknown> = isSimpleTopic(
+      type
+    )
+      ? rowContent({ ...row, type }, nameOf(row), language)
+      : Result.failVoid
+    return { row, result }
   })
+  const rendered = Array.map(attempts, ({ row, result }) => ({
+    row,
+    content: Result.getOrElse(result, () => storedContent(row)),
+  }))
   const push = Array.match(rendered, {
     onEmpty: () => Option.none<NotificationContent>(),
     onNonEmpty: (nonEmpty) =>
@@ -515,7 +517,10 @@ const renderSimple = (
       ),
   })
   return {
-    undecodable,
+    unrenderedIds: Array.map(
+      Array.filter(attempts, ({ result }) => Result.isFailure(result)),
+      ({ row }) => row.id
+    ),
     rendered: Option.map(
       push,
       (content): Rendered => ({
@@ -547,7 +552,7 @@ const renderDelivery = (
       )
     )
   return isCareTopic(message.topic)
-    ? { undecodable: [], rendered: renderCare(rows, nameOf, language) }
+    ? { unrenderedIds: [], rendered: renderCare(rows, nameOf, language) }
     : renderSimple(message.topic, rows, nameOf, language)
 }
 
@@ -589,19 +594,18 @@ export const processMessage = Effect.fn('notification-worker.process')(
         notificationIds.indexOf(row.id)
       )
     )
-    const { undecodable, rendered } = renderDelivery(
+    const { unrenderedIds, rendered } = renderDelivery(
       message,
       sendRows,
       gated.plants,
       gated.language
     )
-    yield* Effect.forEach(undecodable, (row) =>
-      Effect.logWarning('Dropping notification - malformed params', {
-        ...row,
+    yield* Effect.forEach(unrenderedIds, (notificationId) =>
+      Effect.logWarning('Sending stored text - params did not render', {
+        notificationId,
         messageId: message.id,
       })
     )
-    yield* notificationRepo.deleteByIds(Array.map(undecodable, (row) => row.id))
     if (Option.isNone(rendered)) {
       yield* Effect.log('Dropping push - no row left to render', {
         messageId: message.id,

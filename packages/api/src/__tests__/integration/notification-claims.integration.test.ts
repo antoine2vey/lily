@@ -328,6 +328,33 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     })
 
+    describe('markManyAsSent', () => {
+      it('writes each row its own title and body', async () => {
+        const queuedNow: SeedRow = { status: 'queued', queuedAt: new Date() }
+        const ids = await insertRows([queuedNow, queuedNow, queuedNow])
+        const sent = Arr.map(ids, (id, i) => ({
+          id,
+          title: `Title ${i}`,
+          body: `Body ${i}`,
+        }))
+
+        await withRepo((repo) => repo.markManyAsSent(sent))
+
+        const stored = await db
+          .select({
+            id: schema.notifications.id,
+            status: schema.notifications.status,
+            title: schema.notifications.title,
+            body: schema.notifications.body,
+          })
+          .from(schema.notifications)
+          .where(inArray(schema.notifications.id, ids))
+        expect(new Set(stored)).toEqual(
+          new Set(Arr.map(sent, (row) => ({ ...row, status: 'sent' })))
+        )
+      })
+    })
+
     describe('recovery sweep', () => {
       it('releases unclaimed stale rows and fails abandoned deliveries', async () => {
         const ids = await insertRows([
