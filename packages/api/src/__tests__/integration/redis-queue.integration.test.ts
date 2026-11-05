@@ -78,9 +78,15 @@ interface Seed {
 
 // Claims are random per dequeue, so each run names them d0, d1, ... in
 // dequeue order. Ops address claims by that name, and both states key every
-// in-flight entry and claim time by it.
-const play = async (queue: IMessageQueue, ops: ReadonlyArray<Op>) => {
+// in-flight entry and claim time by it. The state is read after every op,
+// since a later sweep can erase a difference from the final state.
+const play = async (
+  queue: IMessageQueue,
+  ops: ReadonlyArray<Op>,
+  snapshot: (nameOf: (claim: string) => string) => unknown
+) => {
   const names = new Map<string, string>()
+  const nameOf = (claim: string) => names.get(claim) ?? claim
   const claimNamed = (name: string) =>
     Option.getOrElse(
       Option.map(
@@ -110,17 +116,16 @@ const play = async (queue: IMessageQueue, ops: ReadonlyArray<Op>) => {
     }
   }
   const results: unknown[] = []
+  const states: unknown[] = []
   for (const o of ops) {
     vi.spyOn(Date, 'now').mockReturnValue(o.t)
     const exit = await Effect.runPromiseExit(step(o)).finally(() =>
       vi.restoreAllMocks()
     )
     results.push(Exit.isSuccess(exit) ? exit.value : '<failed>')
+    states.push(await snapshot(nameOf))
   }
-  return {
-    results,
-    nameOf: (claim: string) => names.get(claim) ?? claim,
-  }
+  return { results, states }
 }
 
 const renamed = <A>(
@@ -162,9 +167,12 @@ const realState = async (redis: Redis, nameOf: (claim: string) => string) => {
 
 const fakeState = (seed: Seed, nameOf: (claim: string) => string) =>
   Record.fromEntries([
-    ...Array.filter(
-      Record.toEntries(seed.lists),
-      ([, entries]) => entries.length > 0
+    ...Array.map(
+      Array.filter(
+        Record.toEntries(seed.lists),
+        ([, entries]) => entries.length > 0
+      ),
+      ([key, entries]) => [key, [...entries]] as const
     ),
     ...Array.map(
       Array.filter(
@@ -474,18 +482,18 @@ describe.skipIf(!REDIS_URL_TEST)('the one queue on real Redis', () => {
       for (const [key, fields] of Record.toEntries(realSeed.hashes))
         for (const [field, value] of Record.toEntries(fields))
           await redis.hset(key, field, value)
-      const real = await play(queue, ops)
-      const realAfter = await realState(redis, real.nameOf)
+      const real = await play(queue, ops, (nameOf) => realState(redis, nameOf))
 
       const fakeSeed = seed()
       const fake = await play(
         createInMemoryRedis(fakeSeed.lists, fakeSeed.zsets, fakeSeed.hashes)
           .queue,
-        ops
+        ops,
+        (nameOf) => fakeState(fakeSeed, nameOf)
       )
 
       expect(fake.results).toEqual(real.results)
-      expect(fakeState(fakeSeed, fake.nameOf)).toEqual(realAfter)
+      expect(fake.states).toEqual(real.states)
     }
   )
 })
