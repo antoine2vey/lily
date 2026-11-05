@@ -115,6 +115,8 @@ export default defineRailway(() => {
       ],
     },
     replicas: { 'europe-west4-drams3a': 1 },
+    // Covers the api's two drain phases of SHUTDOWN_DRAIN_DEADLINE (20s) each.
+    deploy: { drainingSeconds: 45 },
     domains: [{ domain: 'api.withlily.app', port: 3000 }],
     networking: { privateNetworkEndpoint: 'api-withlily' },
     env: {
