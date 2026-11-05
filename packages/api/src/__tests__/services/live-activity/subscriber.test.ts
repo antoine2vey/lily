@@ -14,12 +14,21 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import {
+  createMockPushService,
+  type MockPushServiceOptions,
+} from '@lily/api/__tests__/mocks/push.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
 import type { ActivityPushToken } from '@lily/shared'
-import type { AppEvent, LiveActivityPushMessage } from '@lily/shared/server'
-import { Effect, Layer, References } from 'effect'
+import {
+  type AppEvent,
+  type LiveActivityPushMessage,
+  PushSendError,
+  PushTokenInvalidatedError,
+} from '@lily/shared/server'
+import { Array, Effect, Exit, Layer, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const updateToken = (): ActivityPushToken => ({
@@ -38,13 +47,15 @@ const updateToken = (): ActivityPushToken => ({
   updatedAt: new Date(),
 })
 
-const run = (
+const run = async (
   plants: ReturnType<typeof createTestPlant>[],
   schedules: ReturnType<typeof createTestSchedule>[],
-  tokens: ActivityPushToken[]
+  tokens: ActivityPushToken[],
+  failLiveActivity?: MockPushServiceOptions['failLiveActivity']
 ) => {
   const sent: LiveActivityPushMessage[] = []
-  return Effect.runPromise(
+  const activityRepo = createMockActivityPushTokenRepository({ tokens })
+  const exit = await Effect.runPromiseExit(
     processEvent({
       _tag: 'PlantLifecycleChanged',
       userId: 'user-1',
@@ -52,8 +63,11 @@ const run = (
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
-          createMockActivityPushTokenRepository({ tokens }),
-          createMockPushService({ onSendLiveActivity: (m) => sent.push(m) }),
+          activityRepo,
+          createMockPushService({
+            onSendLiveActivity: (m) => sent.push(m),
+            ...(failLiveActivity ? { failLiveActivity } : {}),
+          }),
           createMockCareScheduleRepository({ plants, schedules }),
           createMockPlantRepository({ plants }),
           createMockDelegationRepository(),
@@ -66,7 +80,17 @@ const run = (
       ),
       Effect.provideService(References.MinimumLogLevel, 'None')
     )
-  ).then(() => sent)
+  )
+  expect(Exit.isSuccess(exit)).toBe(true)
+  const stillActive = await Effect.runPromise(
+    Effect.flatMap(ActivityPushTokenRepository, (repo) =>
+      repo.findActiveActivitiesByUserId('user-1')
+    ).pipe(Effect.provide(activityRepo))
+  )
+  return {
+    sent,
+    stillActive: Array.map(stillActive, (a) => a.token).sort(),
+  }
 }
 
 describe('live-activity subscriber: PlantLifecycleChanged', () => {
@@ -76,7 +100,7 @@ describe('live-activity subscriber: PlantLifecycleChanged', () => {
       userId: 'user-1',
       diedAt: new Date(),
     })
-    const sent = await run(
+    const { sent } = await run(
       [plant],
       [
         createTestSchedule({
@@ -99,7 +123,7 @@ describe('live-activity subscriber: PlantLifecycleChanged', () => {
       diedAt: new Date(),
     })
     const alive = createTestPlant({ id: 'plant-2', userId: 'user-1' })
-    const sent = await run(
+    const { sent } = await run(
       [dead, alive],
       [
         createTestSchedule({
@@ -135,7 +159,7 @@ describe('live-activity subscriber: PlantLifecycleChanged', () => {
       diedAt: new Date(),
     })
     const alive = createTestPlant({ id: 'plant-2', userId: 'user-1' })
-    const sent = await run(
+    const { sent } = await run(
       [dead, alive],
       [
         createTestSchedule({
@@ -159,7 +183,7 @@ describe('live-activity subscriber: PlantLifecycleChanged', () => {
       userId: 'user-1',
       diedAt: new Date(),
     })
-    const sent = await run([plant], [], [updateToken(), secondDevice()])
+    const { sent } = await run([plant], [], [updateToken(), secondDevice()])
 
     expect(sent.map((m) => `${m._tag} ${m.to}`).sort()).toEqual([
       'LiveActivityEnd update-token-1',
@@ -167,9 +191,72 @@ describe('live-activity subscriber: PlantLifecycleChanged', () => {
     ])
   })
 
+  const dueNow = (plantId: string) =>
+    createTestSchedule({
+      plantId,
+      careType: 'watering',
+      nextCareAt: new Date(Date.now() - 60_000),
+    })
+
+  const deadAndAlive = () => [
+    createTestPlant({ id: 'plant-1', userId: 'user-1', diedAt: new Date() }),
+    createTestPlant({ id: 'plant-2', userId: 'user-1' }),
+  ]
+
+  it('still refreshes the second card when APNs fails the first', async () => {
+    const { sent } = await run(
+      deadAndAlive(),
+      [dueNow('plant-2')],
+      [updateToken(), secondDevice()],
+      (m) =>
+        m.to === 'update-token-1'
+          ? Option.some(new PushSendError({ message: 'APNs 500' }))
+          : Option.none()
+    )
+
+    expect(sent.map((m) => `${m._tag} ${m.to}`).sort()).toEqual([
+      'LiveActivityUpdate update-token-1',
+      'LiveActivityUpdate update-token-2',
+    ])
+  })
+
+  it('marks every ended card ended so no row stays active', async () => {
+    const plant = createTestPlant({
+      id: 'plant-1',
+      userId: 'user-1',
+      diedAt: new Date(),
+    })
+    const { stillActive } = await run(
+      [plant],
+      [],
+      [updateToken(), secondDevice()]
+    )
+
+    expect(stillActive).toEqual([])
+  })
+
+  it('marks a card ended when its update token is dead, and keeps the other', async () => {
+    const { stillActive } = await run(
+      deadAndAlive(),
+      [dueNow('plant-2')],
+      [updateToken(), secondDevice()],
+      (m) =>
+        m.to === 'update-token-1'
+          ? Option.some(
+              new PushTokenInvalidatedError({
+                message: 'gone',
+                reason: 'Unregistered',
+              })
+            )
+          : Option.none()
+    )
+
+    expect(stillActive).toEqual(['update-token-2'])
+  })
+
   it('does nothing without an active activity', async () => {
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
-    const sent = await run([plant], [], [])
+    const { sent } = await run([plant], [], [])
     expect(sent).toHaveLength(0)
   })
 })

@@ -999,6 +999,55 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'update-second-phone',
         ])
       })
+
+      it("returns only the requested user's cards, never another user's", async () => {
+        const [other] = await db
+          .insert(schema.users)
+          .values({
+            email: `claims-other-${Date.now()}@example.com`,
+            name: 'claims_other_user',
+            emailVerified: true,
+            role: 'user',
+            status: 'active',
+          })
+          .returning()
+        if (!other) throw new Error('Failed to create the other user')
+        const [otherDevice] = await db
+          .insert(schema.deviceTokens)
+          .values({
+            token: `expo-${crypto.randomUUID()}`,
+            platform: 'ios',
+            userId: other.id,
+          })
+          .returning()
+        if (!otherDevice) throw new Error('Failed to create device token')
+        await db.insert(schema.activityPushTokens).values([
+          {
+            userId,
+            deviceTokenId,
+            kind: 'update',
+            activityId: 'activity-mine',
+            token: 'update-mine',
+            status: 'active',
+          },
+          {
+            userId: other.id,
+            deviceTokenId: otherDevice.id,
+            kind: 'update',
+            activityId: 'activity-other',
+            token: 'update-other',
+            status: 'active',
+          },
+        ])
+
+        const activities = await run(
+          Effect.flatMap(ActivityPushTokenRepository, (repo) =>
+            repo.findActiveActivitiesByUserId(userId)
+          )
+        )
+
+        expect(Arr.map(activities, (a) => a.token)).toEqual(['update-mine'])
+      })
     })
 
     describe('claimStartTokens', () => {
