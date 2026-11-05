@@ -20,13 +20,24 @@ import { MockRagServiceLive } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { ChatTurns } from '@lily/api/services/ai-chat/chat-turns'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
 import type { UsageField } from '@lily/shared'
 import type { ChatMessage } from '@lily/shared/ai-chat'
 import { ConversationNotFoundError } from '@lily/shared/ai-chat'
 import type { AppEvent } from '@lily/shared/server'
-import { Effect, Exit, Layer, Stream } from 'effect'
+import {
+  Array,
+  type Duration,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  References,
+  Stream,
+} from 'effect'
 import type { HttpServerResponse } from 'effect/http'
+import { TestClock } from 'effect/testing'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -113,7 +124,8 @@ describe('streamChatMessage', () => {
     ).pipe(
       Layer.merge(createMockGCSService()),
       Layer.merge(emptyDelegationMock),
-      Layer.merge(createMockCanopyRepository())
+      Layer.merge(createMockCanopyRepository()),
+      Layer.merge(ChatTurns.layer)
     )
 
   it('should return a streaming response', async () => {
@@ -435,6 +447,57 @@ describe('streamChatMessage', () => {
 
       expect(messages.map((m) => m.role)).toEqual(['user', 'assistant'])
       expect(released).toEqual([])
+    })
+  })
+
+  describe('shutdown', () => {
+    const shutDownDuring = (
+      opts: Parameters<typeof createTestLayer>[0] & {
+        completesAfter: Duration.Input
+      }
+    ) =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const turn = yield* Effect.forkChild(
+            streamChatMessage(testConversation, {
+              message: 'Still there?',
+            }).pipe(
+              Effect.provide(
+                Layer.merge(
+                  createTestLayer(opts),
+                  createMockAiService({ completesAfter: opts.completesAfter })
+                )
+              )
+            )
+          )
+          yield* Effect.forEach(Array.range(1, 30), () =>
+            TestClock.adjust('1 second')
+          )
+          return yield* Fiber.join(turn)
+        }).pipe(
+          Effect.provide(TestClock.layer()),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+    it('saves the reply and keeps the charge when the turn ends within the drain deadline', async () => {
+      const messages: ChatMessage[] = []
+      const released: UsageField[] = []
+
+      await shutDownDuring({ messages, released, completesAfter: '10 seconds' })
+
+      expect(messages.map((m) => m.role)).toEqual(['user', 'assistant'])
+      expect(released).toEqual([])
+    })
+
+    it('refunds the chat and saves no reply when the turn outlives the drain deadline', async () => {
+      const messages: ChatMessage[] = []
+      const released: UsageField[] = []
+
+      await shutDownDuring({ messages, released, completesAfter: '1 minute' })
+
+      expect(messages.map((m) => m.role)).toEqual(['user'])
+      expect(released).toEqual(['aiChats'])
     })
   })
 
