@@ -138,7 +138,7 @@ export const dispatchNow = (notification: RecordedNotification) =>
         )
       )
     yield* queue
-      .enqueue(type, {
+      .enqueue({
         id: crypto.randomUUID(),
         topic: type,
         payload: {

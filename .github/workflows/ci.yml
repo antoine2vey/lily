@@ -82,9 +82,19 @@ jobs:
           --health-timeout 5s
           --health-retries 5
           --tmpfs /var/lib/postgresql/data:rw
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5432/lily_test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/lily_test
+      REDIS_URL_TEST: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup

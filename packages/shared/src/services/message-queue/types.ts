@@ -178,8 +178,8 @@ export class QueueOperationError extends Data.TaggedError(
 export class QueueMessageDecodeError extends Schema.TaggedError<QueueMessageDecodeError>()(
   'QueueMessageDecodeError',
   {
-    topic: NotificationTopic,
     rawData: Schema.String,
+    claim: Schema.String,
     message: Schema.String,
   }
 ) {}
