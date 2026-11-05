@@ -36,6 +36,29 @@ const RepositoriesLive = Layer.mergeAll(
   CanopyRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
+const careLayer = (
+  user: { id: string; name: string; email: string },
+  publishedEvents: AppEvent[]
+) =>
+  Layer.mergeAll(
+    RepositoriesLive,
+    createMockDelegationRepository({}),
+    createMockEventBus({ publishedEvents }),
+    createMockCurrentUser({
+      ...user,
+      firstName: null,
+      lastName: null,
+      username: user.name,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      role: 'user',
+      status: 'active',
+    }),
+    createMockWeatherProvider(),
+    createMockWeatherCache(),
+    createMockWeatherRepository()
+  )
+
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
   'executePlantCare - Integration',
   () => {
@@ -111,25 +134,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('two concurrent care requests write one log and publish one CareLogCreated', async () => {
       const publishedEvents: AppEvent[] = []
 
-      const layer = Layer.mergeAll(
-        RepositoriesLive,
-        createMockDelegationRepository({}),
-        createMockEventBus({ publishedEvents }),
-        createMockCurrentUser({
-          id: userId,
-          name: 'Care Race User',
-          firstName: null,
-          lastName: null,
-          email: 'care-race@example.com',
-          username: 'carerace',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          role: 'user',
-          status: 'active',
-        }),
-        createMockWeatherProvider(),
-        createMockWeatherCache(),
-        createMockWeatherRepository()
+      const layer = careLayer(
+        { id: userId, name: 'Care Race User', email: 'care-race@example.com' },
+        publishedEvents
       )
 
       const outcomes = await Effect.runPromise(
@@ -215,25 +222,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         frequencyDays: 7,
       })
 
-      const layer = Layer.mergeAll(
-        RepositoriesLive,
-        createMockDelegationRepository({}),
-        createMockEventBus({ publishedEvents: [] }),
-        createMockCurrentUser({
-          id: member.id,
-          name: 'Paris Member',
-          firstName: null,
-          lastName: null,
-          email: member.email,
-          username: 'parismember',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          role: 'user',
-          status: 'active',
-        }),
-        createMockWeatherProvider(),
-        createMockWeatherCache(),
-        createMockWeatherRepository()
+      const layer = careLayer(
+        { id: member.id, name: 'Paris Member', email: member.email },
+        []
       )
 
       const careAt = (date: Date) =>
@@ -262,6 +253,115 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Option.getOrNull
         )
       ).toBe('AlreadyCaredTodayError')
+    })
+
+    it('rolls back the care log and schedule when the reminder rebuild fails, so the retry succeeds', async () => {
+      const lastCareAt = new Date('2026-10-01T00:00:00.000Z')
+      const nextCareAt = new Date('2026-10-08T00:00:00.000Z')
+      const [needy] = await db
+        .insert(schema.plants)
+        .values({
+          userId,
+          name: 'Rollback Fern',
+          health: 'NEEDS_ATTENTION',
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 1,
+          wateringRating: 3,
+        })
+        .returning()
+      if (!needy) throw new Error('Failed to create test plant')
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: needy.id,
+        careType: 'watering',
+        frequencyDays: 7,
+        lastCareAt,
+        nextCareAt,
+      })
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION fail_watering_reminder() RETURNS trigger AS $$
+        BEGIN RAISE EXCEPTION 'reminder rebuild failed'; END;
+        $$ LANGUAGE plpgsql
+      `)
+      await db.execute(sql`
+        CREATE TRIGGER fail_watering_reminder BEFORE INSERT ON notifications
+        FOR EACH ROW WHEN (NEW.type = 'watering_reminder')
+        EXECUTE FUNCTION fail_watering_reminder()
+      `)
+
+      const publishedEvents: AppEvent[] = []
+      const care = Effect.gen(function* () {
+        const plantRepo = yield* PlantRepository
+        const plant = yield* plantRepo.findById(needy.id)
+        if (!plant) throw new Error('Test plant not found')
+        return yield* executePlantCare(plant, {
+          plantId: needy.id,
+          careType: 'watering',
+        }).pipe(Effect.result)
+      }).pipe(
+        Effect.provide(
+          careLayer(
+            { id: userId, name: 'Care Race User', email: 'care@example.com' },
+            publishedEvents
+          )
+        )
+      )
+      const stateOf = async () => {
+        const [logs] = await db
+          .select({ count: count() })
+          .from(schema.careLogs)
+          .where(eq(schema.careLogs.plantId, needy.id))
+        const [schedule] = await db
+          .select()
+          .from(schema.plantCareSchedules)
+          .where(eq(schema.plantCareSchedules.plantId, needy.id))
+        const [plant] = await db
+          .select({ health: schema.plants.health })
+          .from(schema.plants)
+          .where(eq(schema.plants.id, needy.id))
+        const [reminders] = await db
+          .select({ count: count() })
+          .from(schema.notifications)
+          .where(eq(schema.notifications.plantId, needy.id))
+        return {
+          logs: logs?.count,
+          lastCareAt: schedule?.lastCareAt,
+          nextCareAt: schedule?.nextCareAt,
+          health: plant?.health,
+          reminders: reminders?.count,
+        }
+      }
+
+      const failed = await Effect.runPromise(care).finally(() =>
+        db.execute(sql`DROP TRIGGER fail_watering_reminder ON notifications`)
+      )
+      expect(
+        pipe(
+          Option.some(failed),
+          Option.filter(Result.isFailure),
+          Option.map((r) => r.failure._tag),
+          Option.getOrNull
+        )
+      ).toBe('SqlError')
+      expect(await stateOf()).toEqual({
+        logs: 0,
+        lastCareAt,
+        nextCareAt,
+        health: 'NEEDS_ATTENTION',
+        reminders: 0,
+      })
+      expect(publishedEvents).toEqual([])
+
+      const retried = await Effect.runPromise(care)
+      expect(Result.isSuccess(retried)).toBe(true)
+      const after = await stateOf()
+      expect(after.logs).toBe(1)
+      expect(after.health).toBe('HEALTHY')
+      expect(after.reminders).toBe(1)
+      expect(after.nextCareAt?.getTime()).toBeGreaterThan(Date.now())
+      expect(
+        Arr.filter(publishedEvents, (e) => e._tag === 'CareLogCreated')
+      ).toHaveLength(1)
     })
   }
 )

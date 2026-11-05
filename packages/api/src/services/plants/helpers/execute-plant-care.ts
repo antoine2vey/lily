@@ -1,3 +1,4 @@
+import { publishWithRetry } from '@lily/api/events'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
@@ -18,20 +19,36 @@ import {
 } from '@lily/api/services/plants/helpers/care-context'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
+import {
   calculatePlantAdjustment,
   type PlantForAdjustment,
   toIndoorPlantContext,
 } from '@lily/api/services/weather/algorithm'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
-import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
+import {
+  getWeatherContext,
+  type WeatherContext,
+} from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
 import { type CareType, roundCoord, startOfDay } from '@lily/shared'
 import {
   AlreadyCaredTodayError,
   FutureDateNotAllowedError,
 } from '@lily/shared/errors/plant'
-import type { EventBus } from '@lily/shared/server'
-import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
+import { type AppEvent, EventBus, type IEventBus } from '@lily/shared/server'
+import {
+  Array,
+  DateTime,
+  Duration,
+  Effect,
+  Match,
+  Option,
+  pipe,
+  Ref,
+} from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -48,66 +65,84 @@ export interface ExecutePlantCareParams {
   readonly carePlanStepId?: string | undefined
 }
 
+const weatherAt = ({
+  weather,
+}: CareContext): Effect.Effect<
+  Option.Option<WeatherContext>,
+  never,
+  WeatherProvider | WeatherCache | WeatherRepository
+> =>
+  !weather.enabled || !weather.latitude || !weather.longitude
+    ? Effect.succeedNone
+    : getWeatherContext(
+        roundCoord(weather.latitude),
+        roundCoord(weather.longitude)
+      ).pipe(Effect.option)
+
 const applyWeatherAdjustment = (
+  weatherContext: Option.Option<WeatherContext>,
   { weather, timezone }: CareContext,
   plant: PlantForAdjustment,
   careType: CareType,
   nextCareAt: Date | undefined,
   nowDt: DateTime.Utc
-): Effect.Effect<
-  Date | undefined,
-  never,
-  WeatherProvider | WeatherCache | WeatherRepository
-> =>
-  Effect.gen(function* () {
-    if (!nextCareAt) return nextCareAt
-    if (!weather.enabled || !weather.latitude || !weather.longitude) {
-      return nextCareAt
-    }
+): Date | undefined => {
+  if (!nextCareAt || !weather.latitude || Option.isNone(weatherContext)) {
+    return nextCareAt
+  }
 
-    const rlat = roundCoord(weather.latitude)
-    const rlng = roundCoord(weather.longitude)
+  const { currentWeather, recentHistory, forecast } = weatherContext.value
 
-    // Attempt to get weather context — if it fails, silently return original date
-    const weatherResult = yield* getWeatherContext(rlat, rlng).pipe(
-      Effect.option
-    )
+  const adjustment = calculatePlantAdjustment(
+    plant,
+    currentWeather,
+    recentHistory,
+    forecast,
+    weather.latitude
+  )
 
-    if (Option.isNone(weatherResult)) {
-      return nextCareAt
-    }
-
-    const { currentWeather, recentHistory, forecast } = weatherResult.value
-
-    const adjustment = calculatePlantAdjustment(
-      plant,
-      currentWeather,
-      recentHistory,
-      forecast,
-      weather.latitude
-    )
-
-    // For manual care, skip flags don't apply — the user just performed the action,
-    // so we always use adjustedWateringDays to schedule the next one.
-    // Truncate to the user's local midnight, not UTC — otherwise daily schedules
-    // can land back inside the same local day when the user acts between local
-    // and UTC midnight, producing a task they can re-validate immediately.
-    const nowDayStart = startOfDay(nowDt, timezone)
-    return pipe(
-      Match.value(careType),
-      Match.when('watering', () =>
-        DateTime.toDateUtc(
-          DateTime.addDuration(
-            nowDayStart,
-            Duration.days(adjustment.adjustedWateringDays)
-          )
+  // For manual care, skip flags don't apply — the user just performed the action,
+  // so we always use adjustedWateringDays to schedule the next one.
+  // Truncate to the user's local midnight, not UTC — otherwise daily schedules
+  // can land back inside the same local day when the user acts between local
+  // and UTC midnight, producing a task they can re-validate immediately.
+  const nowDayStart = startOfDay(nowDt, timezone)
+  return pipe(
+    Match.value(careType),
+    Match.when('watering', () =>
+      DateTime.toDateUtc(
+        DateTime.addDuration(
+          nowDayStart,
+          Duration.days(adjustment.adjustedWateringDays)
         )
-      ),
-      Match.when('fertilization', () => nextCareAt),
-      Match.when('misting', () => nextCareAt),
-      Match.when('repotting', () => nextCareAt),
-      Match.exhaustive
+      )
+    ),
+    Match.when('fertilization', () => nextCareAt),
+    Match.when('misting', () => nextCareAt),
+    Match.when('repotting', () => nextCareAt),
+    Match.exhaustive
+  )
+}
+
+export const publishEventsAfterCommit = <A, E, R>(
+  transaction: Effect.Effect<A, E, R>
+) =>
+  Effect.gen(function* () {
+    const eventBus = yield* EventBus
+    const events = yield* Ref.make<ReadonlyArray<AppEvent>>([])
+    const buffered: IEventBus = {
+      publish: (event) => Ref.update(events, Array.append(event)),
+      subscribe: eventBus.subscribe,
+    }
+    const result = yield* transaction.pipe(
+      Effect.provideService(EventBus, buffered)
     )
+    yield* Effect.forEach(
+      yield* Ref.get(events),
+      (event) => publishWithRetry(eventBus.publish(event)),
+      { discard: true }
+    )
+    return result
   })
 
 export const executePlantCare = (
@@ -164,143 +199,138 @@ export const executePlantCare = (
     const careDate = DateTime.toDateUtc(careDt)
     const isPastCare = Option.isSome(Option.fromNullishOr(params.date))
 
-    // Idempotency: at most one care log per plant + careType per user-local day.
-    // Compare against the day containing careDt (so backdating to a day that
-    // already has a log is also blocked), in the user's timezone.
-    // The check and the insert run under a per-(plant, type) advisory lock so
-    // that two concurrent requests (double tap, client retry) cannot both pass
-    // the check. The second one waits for the first to commit, then sees its
-    // row and fails with AlreadyCaredTodayError, so only one CareLogCreated
-    // event is ever published for the pair.
+    const weatherContext = isPastCare
+      ? Option.none<WeatherContext>()
+      : yield* weatherAt(context)
+
     const dayStart = startOfDay(careDt, timezone)
     const dayEnd = DateTime.addDuration(dayStart, Duration.days(1))
-    const careLog = yield* sql.withTransaction(
-      Effect.gen(function* () {
-        yield* careLogRepo.lockPlantCareType(params.plantId, params.careType)
-        const alreadyLogged = yield* careLogRepo.existsByPlantAndTypeInRange(
+    const reminderType = `${params.careType}_reminder` as const
+    const writeCare = Effect.gen(function* () {
+      const careLog = yield* createCareLog(plant, {
+        type: params.careType,
+        notes: params.notes,
+        date: careDate,
+      })
+
+      // Care-plan bridging: link the care log to the plan step it satisfies.
+      const completedStep = yield* pipe(
+        Option.fromNullishOr(params.carePlanStepId),
+        Option.match({
+          onNone: () =>
+            carePlanRepo.completeEarliestOpenStep(
+              params.plantId,
+              params.careType,
+              { completedAt: careDate, careLogId: careLog.id }
+            ),
+          onSome: (stepId) =>
+            carePlanRepo.completeStep(stepId, {
+              completedAt: careDate,
+              careLogId: careLog.id,
+            }),
+        })
+      )
+      if (completedStep) {
+        yield* carePlanRepo.settleCompletion(completedStep.planId)
+      }
+
+      // Get frequency from schedule table
+      const schedule = yield* scheduleRepo.findByPlantAndType(
+        params.plantId,
+        params.careType
+      )
+      const frequency = pipe(
+        Option.fromNullishOr(schedule),
+        Option.map((s) => s.frequencyDays),
+        Option.getOrNull
+      )
+
+      // Normalize to start-of-day in the user's local timezone so that the next
+      // care date lands at *their* midnight + N days. Truncating in UTC would let
+      // the next date fall back inside the same local day when validating between
+      // local and UTC midnight, making the task re-appear after one tap.
+      const careDayStart = startOfDay(careDt, timezone)
+
+      // Calculate next care date from the care date (if frequency exists)
+      const nextCareAt = pipe(
+        Option.fromNullishOr(frequency),
+        Option.map((days) =>
+          DateTime.toDateUtc(
+            DateTime.addDuration(careDayStart, Duration.days(days))
+          )
+        ),
+        Option.getOrUndefined
+      )
+
+      const finalNextCareAt = applyWeatherAdjustment(
+        weatherContext,
+        context,
+        {
+          id: plant.id,
+          wateringFrequencyDays: pipe(
+            Option.fromNullishOr(schedule),
+            Option.map((s) => s.frequencyDays),
+            Option.getOrElse(() => 7)
+          ),
+          wateringRating: plant.wateringRating,
+          ...toIndoorPlantContext(plant),
+        },
+        params.careType,
+        nextCareAt,
+        nowDt
+      )
+
+      // Update schedule table
+      if (schedule) {
+        yield* scheduleRepo.updateByPlantAndType(
           params.plantId,
           params.careType,
-          DateTime.toDateUtc(dayStart),
-          DateTime.toDateUtc(dayEnd)
+          {
+            lastCareAt: careDate,
+            ...(finalNextCareAt ? { nextCareAt: finalNextCareAt } : {}),
+          }
         )
-        if (alreadyLogged) {
-          return yield* new AlreadyCaredTodayError({
-            careType: params.careType,
-          })
-        }
+      }
 
-        // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
-        // Called before plant update so createCareLog sees the original health state
-        return yield* createCareLog(plant, {
-          type: params.careType,
-          notes: params.notes,
-          date: careDate,
-        })
-      })
-    )
+      // Re-fetch to include room data
+      const refetched = yield* repo.findById(params.plantId)
 
-    // Care-plan bridging: link the care log to the plan step it satisfies.
-    const completedStep = yield* pipe(
-      Option.fromNullishOr(params.carePlanStepId),
-      Option.match({
-        onNone: () =>
-          carePlanRepo.completeEarliestOpenStep(
+      // Schedule next reminder if we have a next care date
+      if (finalNextCareAt) {
+        yield* reconcileCareReminder(plant.id, reminderType)
+      }
+
+      // Clear any pending overdue reminders — the user just performed care
+      yield* notificationRepo.deletePendingByPlantsAndType(
+        [params.plantId],
+        'overdue_reminder'
+      )
+
+      return pipe(
+        Option.fromNullishOr(refetched),
+        Option.getOrElse(() => plant)
+      )
+    })
+
+    return yield* sql
+      .withTransaction(
+        Effect.gen(function* () {
+          yield* careLogRepo.lockPlantCareType(params.plantId, params.careType)
+          const alreadyLogged = yield* careLogRepo.existsByPlantAndTypeInRange(
             params.plantId,
             params.careType,
-            { completedAt: careDate, careLogId: careLog.id }
-          ),
-        onSome: (stepId) =>
-          carePlanRepo.completeStep(stepId, {
-            completedAt: careDate,
-            careLogId: careLog.id,
-          }),
-      })
-    )
-    if (completedStep) {
-      yield* carePlanRepo.settleCompletion(completedStep.planId)
-    }
-
-    // Get frequency from schedule table
-    const schedule = yield* scheduleRepo.findByPlantAndType(
-      params.plantId,
-      params.careType
-    )
-    const frequency = pipe(
-      Option.fromNullishOr(schedule),
-      Option.map((s) => s.frequencyDays),
-      Option.getOrNull
-    )
-
-    // Normalize to start-of-day in the user's local timezone so that the next
-    // care date lands at *their* midnight + N days. Truncating in UTC would let
-    // the next date fall back inside the same local day when validating between
-    // local and UTC midnight, making the task re-appear after one tap.
-    const careDayStart = startOfDay(careDt, timezone)
-
-    // Calculate next care date from the care date (if frequency exists)
-    const nextCareAt = pipe(
-      Option.fromNullishOr(frequency),
-      Option.map((days) =>
-        DateTime.toDateUtc(
-          DateTime.addDuration(careDayStart, Duration.days(days))
-        )
-      ),
-      Option.getOrUndefined
-    )
-
-    // Skip weather adjustment for past dates (no historical weather data available)
-    const adjustedNextCareAt = isPastCare
-      ? Effect.succeed(nextCareAt)
-      : applyWeatherAdjustment(
-          context,
-          {
-            id: plant.id,
-            wateringFrequencyDays: pipe(
-              Option.fromNullishOr(schedule),
-              Option.map((s) => s.frequencyDays),
-              Option.getOrElse(() => 7)
-            ),
-            wateringRating: plant.wateringRating,
-            ...toIndoorPlantContext(plant),
-          },
-          params.careType,
-          nextCareAt,
-          nowDt
-        )
-
-    const finalNextCareAt = yield* adjustedNextCareAt
-
-    // Update schedule table
-    if (schedule) {
-      yield* scheduleRepo.updateByPlantAndType(
-        params.plantId,
-        params.careType,
-        {
-          lastCareAt: careDate,
-          ...(finalNextCareAt ? { nextCareAt: finalNextCareAt } : {}),
-        }
+            DateTime.toDateUtc(dayStart),
+            DateTime.toDateUtc(dayEnd)
+          )
+          if (alreadyLogged) {
+            return yield* new AlreadyCaredTodayError({
+              careType: params.careType,
+            })
+          }
+          return yield* withReminderKeys(
+            reminderKeysFor([params.plantId], [reminderType])
+          )(writeCare)
+        })
       )
-    }
-
-    // Re-fetch to include room data
-    const refetched = yield* repo.findById(params.plantId)
-    const updatedPlant = pipe(
-      Option.fromNullishOr(refetched),
-      Option.getOrElse(() => plant)
-    )
-
-    // Schedule next reminder if we have a next care date
-    if (finalNextCareAt) {
-      yield* reconcileCareReminder(
-        plant.id,
-        `${params.careType}_reminder` as const
-      )
-    }
-
-    yield* notificationRepo.deletePendingByPlantsAndType(
-      [params.plantId],
-      'overdue_reminder'
-    )
-
-    return updatedPlant
+      .pipe(publishEventsAfterCommit)
   })

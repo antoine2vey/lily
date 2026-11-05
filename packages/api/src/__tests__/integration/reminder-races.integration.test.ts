@@ -58,6 +58,7 @@ import {
   Exit,
   Layer,
   ManagedRuntime,
+  Order,
   References,
 } from 'effect'
 import { SqlError } from 'effect/sql/SqlError'
@@ -965,6 +966,197 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
       expect(failures).toEqual([])
       expect((await deadlocks()) - before).toBe(0)
+    }, 60_000)
+
+    it("a vacation that starts while a single care clears the owner's overdue reminder never deadlocks", async () => {
+      const before = await deadlocks()
+      const failures: string[] = []
+      for (const round of Arr.range(1, 10)) {
+        const owner = await user(`SingleOverdueOwner${round}`)
+        const plantId = await personalPlant(owner)
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const care = as(
+          owner,
+          Effect.flatMap(plantNamed(plantId), (plant) =>
+            executePlantCare(plant, { plantId, careType: 'watering' })
+          ).pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                overdueLandsAfterKeys(owner, plantId),
+                pausedBeforeLocking(owner, reached, release)
+              )
+            )
+          )
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const vacation = startVacation(owner)
+        await untilBlockedOrSettled(vacation)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [cared, vacationed] = await Promise.all([care, vacation])
+        const ownerRows = Arr.filter(
+          await pendingRows(),
+          (r) => r.userId === owner
+        )
+        if (
+          Exit.isFailure(cared) ||
+          Exit.isFailure(vacationed) ||
+          ownerRows.length > 0
+        ) {
+          failures.push(
+            `round ${round}: care ${outcome(cared)}, vacation ${outcome(vacationed)}, owner rows ${ownerRows.length}`
+          )
+        }
+      }
+      expect(failures).toEqual([])
+      expect((await deadlocks()) - before).toBe(0)
+    }, 60_000)
+
+    it('a vacation that starts while a single care clears an overdue reminder that was already waiting never deadlocks', async () => {
+      const before = await deadlocks()
+      const failures: string[] = []
+      for (const round of Arr.range(1, 10)) {
+        const owner = await user(`WaitingOverdueOwner${round}`)
+        const plantId = await personalPlant(owner)
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        await db.insert(schema.notifications).values({
+          type: 'overdue_reminder',
+          scheduledAt: new Date(),
+          userId: owner,
+          plantId,
+          status: 'pending',
+        })
+        const care = as(
+          owner,
+          Effect.flatMap(plantNamed(plantId), (plant) =>
+            executePlantCare(plant, { plantId, careType: 'watering' })
+          ).pipe(Effect.provide(pausedBeforeLocking(owner, reached, release)))
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const vacation = startVacation(owner)
+        await untilBlockedOrSettled(vacation)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [cared, vacationed] = await Promise.all([care, vacation])
+        const ownerRows = Arr.filter(
+          await pendingRows(),
+          (r) => r.userId === owner
+        )
+        if (
+          Exit.isFailure(cared) ||
+          Exit.isFailure(vacationed) ||
+          ownerRows.length > 0
+        ) {
+          failures.push(
+            `round ${round}: care ${outcome(cared)}, vacation ${outcome(vacationed)}, owner rows ${ownerRows.length}`
+          )
+        }
+      }
+      expect(failures).toEqual([])
+      expect((await deadlocks()) - before).toBe(0)
+    }, 60_000)
+
+    it('a bulk care that lands while a single care on the same plant waits for its reminder keys never deadlocks', async () => {
+      const before = await deadlocks()
+      const failures: string[] = []
+      for (const round of Arr.range(1, 10)) {
+        const owner = await user(`SingleBulkOwner${round}`)
+        const plantId = await personalPlant(owner)
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const PausedBeforeKeys = Layer.effect(
+          NotificationRepository,
+          Effect.map(NotificationRepository, (repo) => ({
+            ...repo,
+            lockReminderKeys: (keys, updatingUserId) =>
+              Deferred.succeed(reached, undefined).pipe(
+                Effect.andThen(Deferred.await(release)),
+                Effect.andThen(repo.lockReminderKeys(keys, updatingUserId))
+              ),
+          }))
+        )
+        const single = as(
+          owner,
+          Effect.flatMap(plantNamed(plantId), (plant) =>
+            executePlantCare(plant, { plantId, careType: 'watering' })
+          ).pipe(Effect.provide(PausedBeforeKeys))
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const bulk = as(
+          owner,
+          careMultiplePlants({ plantIds: [plantId], careType: 'watering' })
+        )
+        await untilBlockedOrSettled(bulk)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [singled, bulked] = await Promise.all([single, bulk])
+        const tagOf = (exit: Exit.Exit<unknown, unknown>) =>
+          Exit.isFailure(exit)
+            ? ((Cause.squash(exit.cause) as { _tag?: string })._tag ??
+              outcome(exit))
+            : 'ok'
+        const tags = [tagOf(singled), tagOf(bulked)]
+        if (
+          Arr.some(tags, (t) => t !== 'ok' && t !== 'AlreadyCaredTodayError')
+        ) {
+          failures.push(`round ${round}: single ${tags[0]}, bulk ${tags[1]}`)
+        }
+      }
+      expect(failures).toEqual([])
+      expect((await deadlocks()) - before).toBe(0)
+    }, 60_000)
+
+    it('a second care that arrives while the first waits for its reminder keys writes one care log and gets AlreadyCaredTodayError', async () => {
+      const failures: string[] = []
+      for (const round of Arr.range(1, 5)) {
+        const owner = await user(`DayLockOwner${round}`)
+        const plantId = await personalPlant(owner)
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const PausedBeforeKeys = Layer.effect(
+          NotificationRepository,
+          Effect.map(NotificationRepository, (repo) => ({
+            ...repo,
+            lockReminderKeys: (keys, updatingUserId) =>
+              Deferred.succeed(reached, undefined).pipe(
+                Effect.andThen(Deferred.await(release)),
+                Effect.andThen(repo.lockReminderKeys(keys, updatingUserId))
+              ),
+          }))
+        )
+        const careAs = (paused: boolean) =>
+          as(
+            owner,
+            Effect.flatMap(plantNamed(plantId), (plant) =>
+              executePlantCare(plant, { plantId, careType: 'watering' })
+            ).pipe(paused ? Effect.provide(PausedBeforeKeys) : (e) => e)
+          )
+        const first = careAs(true)
+        await Effect.runPromise(Deferred.await(reached))
+        const second = careAs(false)
+        await untilBlockedOrSettled(second)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [a, b] = await Promise.all([first, second])
+        const [logs] = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(schema.careLogs)
+          .where(sql`${schema.careLogs.plantId} = ${plantId}`)
+        const tags = Arr.join(
+          Arr.sort(
+            Arr.map([a, b], (exit) =>
+              Exit.isFailure(exit)
+                ? ((Cause.squash(exit.cause) as { _tag?: string })._tag ??
+                  'failed')
+                : 'ok'
+            ),
+            Order.String
+          ),
+          ','
+        )
+        if (tags !== 'AlreadyCaredTodayError,ok' || logs?.n !== 1) {
+          failures.push(`round ${round}: ${tags}, logs ${logs?.n}`)
+        }
+      }
+      expect(failures).toEqual([])
     }, 60_000)
 
     it("a vacation that starts while a Canopy dissolves around the member's overdue reminder never deadlocks", async () => {
