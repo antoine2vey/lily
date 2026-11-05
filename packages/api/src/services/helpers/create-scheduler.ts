@@ -1,9 +1,10 @@
 import { Cause, type Duration, Effect, Fiber, type Scope } from 'effect'
 
 /**
- * How long shutdown waits for an in-flight step. It runs alongside the HTTP
- * server's graceful shutdown (see `src/index.ts`), so both fit within the
- * platform's SIGTERM-to-SIGKILL grace period.
+ * How long each shutdown phase waits for in-flight work. The HTTP server and
+ * the schedulers drain in parallel (see `src/index.ts`), then `ChatTurns`
+ * drains the turns still saving a reply. `drainingSeconds` on the API service
+ * in `.railway/railway.ts` covers both phases.
  */
 export const SHUTDOWN_DRAIN_DEADLINE: Duration.Input = '20 seconds'
 

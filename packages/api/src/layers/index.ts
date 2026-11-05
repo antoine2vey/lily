@@ -56,6 +56,7 @@ import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository
 import { AchievementNotifierLive } from '@lily/api/services/achievements/notifier'
 import { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
 import { AiService } from '@lily/api/services/ai/service'
+import { ChatTurns } from '@lily/api/services/ai-chat/chat-turns'
 import {
   ConsoleAlerterLive,
   DiscordAlerterLive,
@@ -235,6 +236,7 @@ const SelfContainedInfraLive = Layer.mergeAll(
   ServiceAuthenticationLive,
   AchievementNotifierLive,
   AiService.layer,
+  ChatTurns.layer,
   GCSService.layer,
   FileService.layer,
   RevenueCatProviderLive,
