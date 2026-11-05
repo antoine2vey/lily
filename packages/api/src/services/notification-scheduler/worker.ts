@@ -83,8 +83,8 @@ import type { SqlError } from 'effect/sql/SqlError'
 // and stays well under the 24h cadence of the next day's reminder.
 const LA_START_COOLDOWN = Duration.hours(10)
 
-const VISIBILITY_TIMEOUT = Duration.minutes(10)
-const CLAIM_REFRESH_INTERVAL = Duration.minutes(1)
+export const VISIBILITY_TIMEOUT = Duration.minutes(10)
+export const CLAIM_REFRESH_INTERVAL = Duration.minutes(1)
 const DELIVERY_TIMEOUT = Duration.hours(1)
 
 // Care reminders are the "do it today or it slips" cluster — we want them to

@@ -56,10 +56,12 @@ import {
 import { decodeQueueEntry } from '@lily/api/services/message-queue/redis.provider'
 import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
 import {
+  CLAIM_REFRESH_INTERVAL,
   consumeNext,
   processMessage,
   recoverStrandedDeliveries,
   startNotificationWorker,
+  VISIBILITY_TIMEOUT,
 } from '@lily/api/services/notification-scheduler/worker'
 import type { ActivityPushToken, CanopyId } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
@@ -2882,6 +2884,58 @@ describe('Notification Worker', () => {
       expect(batches).toHaveLength(1)
       expect(redis.acked).toEqual([JSON.stringify(valid)])
       expect(redis.liveKeys()).toEqual([])
+    })
+
+    it('finishes and acks a send while its claim refresh keeps failing', async () => {
+      const rows = [queuedRow(rowId('1'))]
+      const batches: PushMessage[][] = []
+      const redis = createInMemoryRedisQueue([JSON.stringify(valid)])
+      let refreshes = 0
+      const refreshFails = Layer.succeed(MessageQueue, {
+        ...redis.queue,
+        refreshClaim: () =>
+          Effect.suspend(() => {
+            refreshes++
+            return Effect.fail(
+              new QueueOperationError({ message: 'redis down', cause: null })
+            )
+          }),
+      })
+      const slowPush = Layer.effect(
+        PushService,
+        Effect.map(PushService, (push) => ({
+          ...push,
+          sendBatch: (msgs: PushMessage[]) =>
+            Effect.sleep('3 minutes').pipe(
+              Effect.andThen(push.sendBatch(msgs))
+            ),
+        }))
+      ).pipe(
+        Layer.provide(
+          createMockPushService({ onSendBatch: (msgs) => batches.push(msgs) })
+        )
+      )
+
+      await runWorkersAndTimeDrain(
+        workerLayer({
+          queue: refreshFails,
+          push: slowPush,
+          rows,
+          alerter: MockAlerterLive,
+          queuedAt: { [rowId('1')]: new Date() },
+        }),
+        '4 minutes'
+      )
+
+      expect(refreshes).toBeGreaterThan(0)
+      expect(batches).toHaveLength(1)
+      expect(redis.acked).toEqual([JSON.stringify(valid)])
+    })
+
+    it('refreshes a claim at least twice within the visibility timeout', () => {
+      expect(Duration.toMillis(CLAIM_REFRESH_INTERVAL) * 2).toBeLessThanOrEqual(
+        Duration.toMillis(VISIBILITY_TIMEOUT)
+      )
     })
 
     it('delivers every topic from the one queue', async () => {
