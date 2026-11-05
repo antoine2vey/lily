@@ -4,7 +4,7 @@ import {
   DiagnosisRepository,
 } from '@lily/api/repositories/diagnosis.repository'
 import { CARE_PLAN_MAX_STEPS } from '@lily/shared'
-import { tool } from 'ai'
+import { type Tool, tool } from 'ai'
 import { Array, Effect, Option, pipe } from 'effect'
 import { z } from 'zod'
 
@@ -14,7 +14,7 @@ import type { ToolDeps } from './index'
 // Plant-only tool: caller is expected to provide plantId.
 type PlantToolDeps = ToolDeps & { plantId: string }
 
-export const createDiagnosisTool = (deps: PlantToolDeps) =>
+export const createDiagnosisTool = (deps: PlantToolDeps): Tool =>
   tool({
     description:
       'Create a structured plant diagnosis when you identify a disease, pest, or health issue. Use this when the user describes symptoms or shares a photo showing a problem. The treatment steps automatically become a proposed care plan the user can add to their tasks.',

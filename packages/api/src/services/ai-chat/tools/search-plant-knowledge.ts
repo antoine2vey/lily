@@ -1,5 +1,5 @@
 import { RagService } from '@lily/api/services/rag/service'
-import { tool } from 'ai'
+import { type Tool, tool } from 'ai'
 import { Array, Effect, pipe, String } from 'effect'
 import { z } from 'zod'
 
@@ -104,7 +104,7 @@ const simplify = (query: string, plantName: string | undefined): string =>
     String.trim
   )
 
-export const searchPlantKnowledgeTool = (deps: ToolDeps) =>
+export const searchPlantKnowledgeTool = (deps: ToolDeps): Tool =>
   tool({
     description:
       'REQUIRED: You must call this tool before answering any plant care advice question. Search the knowledge base for real-world advice from experienced growers. Only skip for direct schedule/status lookups (e.g., "when is my next watering?"). Formulate your query in English.',
