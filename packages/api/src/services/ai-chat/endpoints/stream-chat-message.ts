@@ -10,6 +10,7 @@ import type { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repos
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { AiService } from '@lily/api/services/ai/service'
+import { ChatTurns } from '@lily/api/services/ai-chat/chat-turns'
 import { generateMessageId } from '@lily/api/services/ai-chat/generate-message-id'
 import { persistChatCompletion } from '@lily/api/services/ai-chat/persist-chat-completion'
 import type { StepData } from '@lily/api/services/ai-chat/plant-chat'
@@ -138,6 +139,7 @@ export const streamChatMessage = (
   | GCSUploadError,
   | ChatRepository
   | AiService
+  | ChatTurns
   | EventBus
   | CurrentUser
   | PlantRepository
@@ -155,6 +157,7 @@ export const streamChatMessage = (
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const aiService = yield* AiService
+    const chatTurns = yield* ChatTurns
     const { id: userId } = yield* CurrentUser
     const usageTracker = yield* UsageTracker
     const gcs = yield* GCSService
@@ -296,7 +299,10 @@ export const streamChatMessage = (
           streamResult.consumeStream()
         ).pipe(
           Effect.andThen(Deferred.await(completionDeferred)),
-          Effect.timeout(streamCompletionTimeout)
+          Effect.timeout(streamCompletionTimeout),
+          Effect.onInterrupt(() =>
+            logAndRefund('AI stream interrupted by shutdown', 'interrupted')
+          )
         )
 
         if (isEmptyReply(steps)) {
@@ -316,7 +322,8 @@ export const streamChatMessage = (
               conversationId: conversation.id,
               userId,
             })
-          )
+          ),
+          Effect.uninterruptible
         )
       }).pipe(
         Effect.catchTags({
@@ -326,7 +333,7 @@ export const streamChatMessage = (
         Effect.provide(context)
       )
 
-      const settled = yield* Effect.forkDetach(settle)
+      const settled = yield* chatTurns.fork(settle)
 
       return makeSseResponse(
         uiStreamToSse(uiStream, Effect.asVoid(Fiber.await(settled)))
