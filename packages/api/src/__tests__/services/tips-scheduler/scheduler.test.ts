@@ -125,8 +125,10 @@ describe('checkAndGenerateTip', () => {
       type: 'daily_tip',
       status: 'pending',
       metadata: {},
+      params: {
+        tipTitle: 'Rotate your pots',
+        tipBody: 'Turn each pot a quarter every week.',
+      },
     })
-    expect(recorded[0]?.title).toContain('Rotate your pots')
-    expect(recorded[0]?.body).toBe('Turn each pot a quarter every week.')
   })
 })

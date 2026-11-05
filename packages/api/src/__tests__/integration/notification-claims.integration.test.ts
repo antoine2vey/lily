@@ -265,8 +265,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const created = await withRepo((repo) =>
           repo.create({
             type: 'new_follower',
-            title: 'New follower',
-            body: 'Ada follows you',
+            params: { senderName: 'Ada' },
             scheduledAt: new Date(),
             userId,
             status: 'queued',
@@ -314,7 +313,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await withRepo((repo) =>
           Effect.andThen(
             repo.claimForDelivery(ids, 'msg-a'),
-            repo.markManyAsSent(ids)
+            repo.markManyAsSent(
+              ids.map((id) => ({ id, title: 'New follower', body: 'Ada' }))
+            )
           )
         )
         const late = await withRepo((repo) =>
@@ -324,6 +325,33 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         expect(late).toHaveLength(0)
         expect(await statusesOf(ids)).toEqual(['sent'])
+      })
+    })
+
+    describe('markManyAsSent', () => {
+      it('writes each row its own title and body', async () => {
+        const queuedNow: SeedRow = { status: 'queued', queuedAt: new Date() }
+        const ids = await insertRows([queuedNow, queuedNow, queuedNow])
+        const sent = Arr.map(ids, (id, i) => ({
+          id,
+          title: `Title ${i}`,
+          body: `Body ${i}`,
+        }))
+
+        await withRepo((repo) => repo.markManyAsSent(sent))
+
+        const stored = await db
+          .select({
+            id: schema.notifications.id,
+            status: schema.notifications.status,
+            title: schema.notifications.title,
+            body: schema.notifications.body,
+          })
+          .from(schema.notifications)
+          .where(inArray(schema.notifications.id, ids))
+        expect(new Set(stored)).toEqual(
+          new Set(Arr.map(sent, (row) => ({ ...row, status: 'sent' })))
+        )
       })
     })
 

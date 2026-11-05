@@ -235,14 +235,14 @@ describe('DelegationScheduler', () => {
       expect(notifications[0]).toMatchObject({
         userId: delegation.ownerId,
         type: 'delegation_activated',
-        title: '🌱 Plant-sitting has begun',
+        params: { plantCount: 2 },
         status: 'queued',
         metadata: { delegationId: delegation.id },
       })
       expect(notifications[1]).toMatchObject({
         userId: delegation.caretakerId,
         type: 'delegation_activated',
-        title: '🌱 Plant-sitting has begun',
+        params: { plantCount: 2 },
         status: 'queued',
         metadata: { delegationId: delegation.id },
       })
@@ -265,14 +265,14 @@ describe('DelegationScheduler', () => {
       expect(notifications[0]).toMatchObject({
         userId: delegation.ownerId,
         type: 'delegation_completed',
-        title: '🎉 Plant-sitting complete',
+        params: { plantCount: 2 },
         status: 'queued',
         metadata: { delegationId: delegation.id },
       })
       expect(notifications[1]).toMatchObject({
         userId: delegation.caretakerId,
         type: 'delegation_completed',
-        title: '🎉 Plant-sitting complete',
+        params: { plantCount: 2 },
         status: 'queued',
         metadata: { delegationId: delegation.id },
       })

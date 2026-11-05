@@ -106,6 +106,7 @@ export const createMockNotificationRepository = (
         type: data.type,
         title: data.title,
         body: data.body,
+        params: data.params,
         scheduledAt: data.scheduledAt,
         isRead: false,
         status,
@@ -433,9 +434,9 @@ export const createMockNotificationRepository = (
     },
 
     // Batch scheduler methods
-    markManyAsSent: (ids: readonly string[]) =>
+    markManyAsSent: (rows) =>
       Effect.sync(() => {
-        Array.forEach(ids, (id) => {
+        Array.forEach(rows, ({ id, title, body }) => {
           const n = Array.findFirst(
             notificationsState,
             (n) => n.id === id && n.status === 'queued'
@@ -443,6 +444,8 @@ export const createMockNotificationRepository = (
           Option.map(n, (notification) => {
             notification.status = 'sent'
             notification.sentAt = new Date()
+            notification.title = title
+            notification.body = body
           })
         })
       }),

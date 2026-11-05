@@ -169,17 +169,18 @@ describe('followUser', () => {
     expect(recorded).toEqual([
       {
         followingId: publicUser.id,
-        notification: expect.objectContaining({
+        notification: {
+          title: '👋 New follower!',
+          body: 'Test User started following your plant journey',
+          params: { senderName: 'Test User' },
           metadata: { senderId: currentUserId },
-        }),
+        },
       },
     ])
     expect(enqueued).toHaveLength(1)
     expect(enqueued[0]?.topic).toBe('new_follower')
     expect(enqueued[0]?.payload).toMatchObject({
       userId: publicUser.id,
-      title: recorded[0]?.notification.title,
-      body: recorded[0]?.notification.body,
       notificationIds: [`notification-${publicUser.id}`],
       metadata: { senderId: currentUserId },
     })

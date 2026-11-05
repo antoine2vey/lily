@@ -50,15 +50,17 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
     Option.getOrElse(() => 'Someone')
   )
 
+  const params = { senderName: followerName }
   const { title, body } = buildSimpleContent(
     'new_follower',
-    { senderName: followerName },
+    params,
     targetUser.language
   )
   const metadata = { senderId: currentUserId }
   const id = yield* followRepo.follow(currentUserId, targetUserId, {
     title,
     body,
+    params,
     metadata,
   })
 
@@ -66,8 +68,6 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
     id,
     type: 'new_follower',
     userId: targetUserId,
-    title,
-    body,
     metadata,
   })
 

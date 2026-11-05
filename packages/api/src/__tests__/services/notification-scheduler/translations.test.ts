@@ -4,9 +4,12 @@ import {
   buildNotificationContent,
   buildSimpleContent,
   type CareDigestItem,
+  type ParamsOf,
   pickDominantCareTopic,
+  renderFromParams,
+  type SimpleNotificationType,
 } from '@lily/api/services/notification-scheduler/translations'
-import { Array } from 'effect'
+import { Array, Option, Record, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('buildSimpleContent — new notification translations', () => {
@@ -445,5 +448,105 @@ describe('pickDominantCareTopic', () => {
     expect(
       pickDominantCareTopic(['misting_reminder', 'watering_reminder'])
     ).toBe('watering_reminder')
+  })
+})
+
+const SAMPLE_PARAMS: { [K in SimpleNotificationType]: ParamsOf<K> } = {
+  new_follower: { senderName: 'Ada' },
+  nudge_to_water: { senderName: 'Ada' },
+  delegation_request: { senderName: 'Ada' },
+  delegation_accepted: { senderName: 'Ada' },
+  delegation_rejected: { senderName: 'Ada' },
+  delegation_canceled: { senderName: 'Ada' },
+  delegation_activated: { plantCount: 3 },
+  delegation_completed: { plantCount: 3 },
+  canopy_member_joined: { senderName: 'Ada', canopyName: 'Home' },
+  canopy_member_removed: { canopyName: 'Home' },
+  canopy_member_left: { senderName: 'Ada', canopyName: 'Home' },
+  canopy_invitation: { senderName: 'Ada', canopyName: 'Home' },
+  daily_tip: { tipTitle: 'Mist ferns', tipBody: 'Ferns love humidity.' },
+  inactivity_nudge: { plantCount: 3 },
+  photo_reminder: { plantName: 'Fern', daysSincePhoto: 30 },
+  plant_parent_milestone: { daysSinceJoin: 100 },
+  gift_subscription: { giftDuration: '1 month' },
+  resubscribe_nudge: { plantCount: 3 },
+  streak_at_risk: { streakCount: 12, plantName: 'Monstera' },
+  streak_milestone: { streakCount: 14 },
+  weekly_recap: { tasksCompleted: 5, streakCount: 3, healthyCount: 2 },
+  trial_ending: { trialDaysLeft: 3 },
+  approaching_limit: { usageCount: 4, usageMax: 5, featureName: 'plants' },
+  plant_anniversary: {
+    plantName: 'Fern',
+    anniversaryDuration: '1 year',
+    dateAdded: 'Apr 3, 2025',
+  },
+}
+
+const stored = (params: unknown): unknown => JSON.parse(JSON.stringify(params))
+
+const TEXT_IN_RECORDING_LANGUAGE: ReadonlyArray<SimpleNotificationType> = [
+  'daily_tip',
+]
+
+describe('renderFromParams', () => {
+  for (const [type, params] of Record.toEntries(SAMPLE_PARAMS)) {
+    it(`${type}: stored params render the record-time text in en and fr`, () => {
+      const rendered = Array.map(['en', 'fr'] as const, (lang) =>
+        renderFromParams(type, stored(params), Option.none(), lang)
+      )
+      expect(rendered).toEqual(
+        Array.map(['en', 'fr'] as const, (lang) =>
+          Result.succeed(buildSimpleContent(type, params as never, lang))
+        )
+      )
+      expect(Array.contains(TEXT_IN_RECORDING_LANGUAGE, type)).toBe(
+        JSON.stringify(rendered[0]) === JSON.stringify(rendered[1])
+      )
+    })
+  }
+
+  it('renders the language asked for, not the one the params were built in', () => {
+    expect(
+      renderFromParams(
+        'streak_at_risk',
+        stored(SAMPLE_PARAMS.streak_at_risk),
+        Option.none(),
+        'fr'
+      )
+    ).toEqual(
+      Result.succeed({
+        title: '🔥 Ne perds pas ta série de 12 jours !',
+        body: "Ta Monstera a encore besoin de soins aujourd'hui. Garde le rythme !",
+      })
+    )
+  })
+
+  it('names the plant by its current name over the one stored', () => {
+    expect(
+      renderFromParams(
+        'photo_reminder',
+        stored(SAMPLE_PARAMS.photo_reminder),
+        Option.some('Ferdinand'),
+        'en'
+      )
+    ).toEqual(
+      Result.succeed({
+        title: '📸 Time for a growth update!',
+        body: "Your Ferdinand hasn't had a photo in 30 days. Capture how far it's come!",
+      })
+    )
+  })
+
+  it('fails on params that do not match the topic', () => {
+    expect(
+      Result.isFailure(
+        renderFromParams(
+          'trial_ending',
+          { trialDaysLeft: 'three' },
+          Option.none(),
+          'en'
+        )
+      )
+    ).toBe(true)
   })
 })

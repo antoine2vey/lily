@@ -48,6 +48,7 @@ export interface FindNotificationsParams {
 interface CreateNotificationFields {
   title?: string
   body?: string
+  params?: unknown
   scheduledAt: Date
   userId: string
   plantId?: string
@@ -76,6 +77,13 @@ export type CreateNotificationData<
 
 export type NotificationRow = Notification & {
   readonly type: NotificationTopic
+  readonly params?: unknown
+}
+
+export interface SentNotification {
+  readonly id: string
+  readonly title: string
+  readonly body: string
 }
 
 // Helper to map database row to API Notification type
@@ -95,6 +103,7 @@ const mapToNotification = (
   userId: row.userId,
   plantId: Option.getOrUndefined(Option.fromNullishOr(row.plantId)),
   metadata: Option.getOrUndefined(Option.fromNullishOr(row.metadata)),
+  params: Option.getOrUndefined(Option.fromNullishOr(row.params)),
   createdAt: row.createdAt,
 })
 
@@ -188,7 +197,7 @@ export interface INotificationRepository {
   ) => Effect.Effect<NotificationRow | null, SqlError>
   // Batch scheduler methods
   readonly markManyAsSent: (
-    ids: readonly string[]
+    rows: ReadonlyArray<SentNotification>
   ) => Effect.Effect<void, SqlError>
   readonly markManyAsFailed: (
     ids: readonly string[],
@@ -365,6 +374,7 @@ export const NotificationRepositoryLive = Layer.effect(
             type: data.type,
             title: data.title,
             body: data.body,
+            params: data.params,
             scheduledAt: data.scheduledAt,
             userId: data.userId,
             plantId: Option.getOrNull(Option.fromNullishOr(data.plantId)),
@@ -876,17 +886,27 @@ export const NotificationRepositoryLive = Layer.effect(
 
       // Batch scheduler methods
       markManyAsSent: Effect.fn('NotificationRepository.markManyAsSent')(
-        function* (ids: readonly string[]) {
-          if (ids.length === 0) return
+        function* (rows: ReadonlyArray<SentNotification>) {
+          if (Array.isReadonlyArrayEmpty(rows)) return
+          const byId = (column: (row: SentNotification) => string) =>
+            sql<string>`CASE ${notifications.id} ${sql.join(
+              Array.map(rows, (row) => sql`WHEN ${row.id} THEN ${column(row)}`),
+              sql` `
+            )} END`
           yield* db
             .update(notifications)
             .set({
               status: 'sent',
               sentAt: nowAsDate(),
+              title: byId((row) => row.title),
+              body: byId((row) => row.body),
             })
             .where(
               and(
-                inArray(notifications.id, [...ids]),
+                inArray(
+                  notifications.id,
+                  Array.map(rows, (row) => row.id)
+                ),
                 eq(notifications.status, 'queued')
               )
             )

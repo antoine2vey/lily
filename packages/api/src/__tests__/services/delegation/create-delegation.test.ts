@@ -289,7 +289,7 @@ describe('createDelegation', () => {
       userId: mockUser2.id,
       type: 'delegation_request',
       status: 'queued',
-      title: '🤝 Plant-sitting request',
+      params: { senderName: mockUser1.name },
     })
     expect(notifications[0]?.metadata).toEqual({
       delegationId: delegation.id,
@@ -300,7 +300,6 @@ describe('createDelegation', () => {
       'commit',
       `enqueue delegation_request ${mockUser2.id}`,
     ])
-    expect(notifications[0]?.body).toContain(mockUser1.name)
   })
 
   it('should fail with PlantNotAuthorizedError when plantId does not exist', async () => {

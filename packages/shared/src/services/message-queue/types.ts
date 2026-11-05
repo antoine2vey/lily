@@ -136,15 +136,10 @@ export const RetryCount = Schema.Int.check(
 // Queue message payload for notifications
 export const QueueMessagePayload = Schema.Struct({
   userId: Schema.String,
-  title: Schema.String,
-  body: Schema.String,
   notificationIds: Schema.Array(NotificationId).check(
     Schema.isMaxLength(MAX_NOTIFICATION_IDS)
   ),
   plantIds: Schema.Array(Schema.String),
-  // Optional so queue messages enqueued before this field existed don't fail
-  // Schema validation on dequeue. Worker defaults to 'en' when absent.
-  language: Schema.optional(Schema.Literals(['en', 'fr'])),
   metadata: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 })
 export type QueueMessagePayload = typeof QueueMessagePayload.Type

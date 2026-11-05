@@ -226,9 +226,8 @@ describe('respondToDelegation', () => {
       type: 'delegation_accepted',
       status: 'queued',
       metadata: { delegationId: pendingDelegation.id },
-      title: '✅ Request accepted!',
+      params: { senderName: mockUser2.name },
     })
-    expect(notifications[0]?.body).toContain(mockUser2.name)
   })
 
   it('should create delegation_rejected notification for owner on reject', async () => {
@@ -247,9 +246,8 @@ describe('respondToDelegation', () => {
       type: 'delegation_rejected',
       status: 'queued',
       metadata: { delegationId: pendingDelegation.id },
-      title: '😔 Request declined',
+      params: { senderName: mockUser2.name },
     })
-    expect(notifications[0]?.body).toContain(mockUser2.name)
   })
 
   it('should fail with DelegationInvalidStatusError when delegation is already accepted', async () => {
