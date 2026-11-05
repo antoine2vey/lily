@@ -381,5 +381,107 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
       expect((await state(delegationId, caretaker)).rows).toEqual([])
     })
+
+    it.each([
+      {
+        deleter: 'caretaker',
+        change: 'start',
+        status: 'accepted',
+        startsIn: -1000,
+        endsIn: 7 * DAY,
+        after: 'canceled',
+      },
+      {
+        deleter: 'owner',
+        change: 'end',
+        status: 'active',
+        startsIn: -7 * DAY,
+        endsIn: -1000,
+        after: 'completed',
+      },
+    ] as const)(
+      'lets the $deleter delete their account while two of their delegations $change in one scheduler tick, without a deadlock',
+      async ({ deleter, status, startsIn, endsIn, after }) => {
+        const user = await insertUser(deleter)
+        const uuid = crypto.randomUUID().slice(1)
+        const [high, low] = [`f${uuid}`, `0${uuid}`]
+        for (const id of [high, low]) {
+          const other = await insertUser('other')
+          const [owner, caretaker] =
+            deleter === 'owner' ? [user, other] : [other, user]
+          const [plant] = await db
+            .insert(schema.plants)
+            .values({
+              userId: owner,
+              createdByUserId: owner,
+              name: 'Fern',
+              health: 'HEALTHY',
+              humidityRating: 3,
+              lightingRating: 3,
+              petToxicityRating: 1,
+              wateringRating: 3,
+            })
+            .returning()
+          if (!plant) throw new Error('plant insert returned nothing')
+          await db.insert(schema.plantCareSchedules).values({
+            plantId: plant.id,
+            careType: 'watering',
+            frequencyDays: 7,
+            nextCareAt: new Date(Date.now() + 3 * DAY),
+          })
+          await db.insert(schema.careDelegations).values({
+            id,
+            ownerId: owner,
+            caretakerId: caretaker,
+            status,
+            startDate: new Date(Date.now() + startsIn),
+            endDate: new Date(Date.now() + endsIn),
+          })
+          await db
+            .insert(schema.delegationPlants)
+            .values({ delegationId: id, plantId: plant.id })
+        }
+
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        let calls = 0
+        const transitioning = as(
+          user,
+          Effect.gen(function* () {
+            const repo = yield* DelegationRepository
+            return yield* pollAndTransition.pipe(
+              Effect.provideService(DelegationRepository, {
+                ...repo,
+                transitionStatus: (...args) =>
+                  repo
+                    .transitionStatus(...args)
+                    .pipe(
+                      Effect.tap(() =>
+                        calls++ === 0
+                          ? Deferred.succeed(reached, undefined).pipe(
+                              Effect.andThen(Deferred.await(release))
+                            )
+                          : Effect.void
+                      )
+                    ),
+              })
+            )
+          })
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const deleting = as(user, deleteAccount())
+        await settledOrWaitingOnLock(deleting)
+        Deferred.doneUnsafe(release, Exit.void)
+
+        expect({
+          transitioned: outcome(await transitioning),
+          deleted: outcome(await deleting),
+        }).toEqual({ transitioned: 'ok', deleted: 'ok' })
+        for (const id of [high, low]) {
+          expect((await state(id, user)).delegation).toBe(after)
+        }
+        expect((await state(high, user)).user).toBe('pending_deletion')
+      }
+    )
   }
 )

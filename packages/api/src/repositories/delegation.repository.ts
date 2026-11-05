@@ -560,6 +560,7 @@ export const DelegationRepositoryLive = Layer.effect(
               lte(careDelegations.startDate, now)
             )
           )
+          .orderBy(careDelegations.id)
         return rows as DelegationRow[]
       }),
 
@@ -575,6 +576,7 @@ export const DelegationRepositoryLive = Layer.effect(
               lte(careDelegations.endDate, now)
             )
           )
+          .orderBy(careDelegations.id)
         return rows as DelegationRow[]
       }),
 
