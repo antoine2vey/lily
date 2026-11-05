@@ -58,6 +58,12 @@ export interface DeferredNotification {
   readonly until: Date
 }
 
+export interface FailedAttempt {
+  readonly id: string
+  readonly status: Extract<NotificationStatus, 'pending' | 'failed'>
+  readonly retryCount: number
+}
+
 export type CreateNotificationData<
   T extends NotificationTopic = NotificationTopic,
 > = {
@@ -133,9 +139,12 @@ export interface INotificationRepository {
     queuedBefore: Date,
     error: string
   ) => Effect.Effect<number, SqlError>
-  readonly incrementRetryCount: (
-    id: string
-  ) => Effect.Effect<NotificationRow | null, SqlError>
+  readonly retryLater: (
+    ids: ReadonlyArray<string>,
+    heldBy: string,
+    retryAtAfterFailures: Array.NonEmptyReadonlyArray<Date>,
+    error: string
+  ) => Effect.Effect<ReadonlyArray<FailedAttempt>, SqlError>
   readonly deletePendingByPlantAndType: (
     plantId: string,
     type: NotificationTopic
@@ -482,17 +491,64 @@ export const NotificationRepositoryLive = Layer.effect(
         return Array.length(rows)
       }),
 
-      incrementRetryCount: Effect.fn(
-        'NotificationRepository.incrementRetryCount'
-      )(function* (id: string) {
-        const [row] = yield* db
+      retryLater: Effect.fn('NotificationRepository.retryLater')(function* (
+        ids: ReadonlyArray<string>,
+        heldBy: string,
+        retryAtAfterFailures: Array.NonEmptyReadonlyArray<Date>,
+        error: string
+      ) {
+        if (Array.isReadonlyArrayEmpty(ids)) return []
+        const retries = sql`${notifications.retryCount} < ${retryAtAfterFailures.length}`
+        const whenRetried = (value: SQL, otherwise: SQL) =>
+          sql`CASE WHEN ${retries} THEN ${value} ELSE ${otherwise} END`
+        const rows = yield* db
           .update(notifications)
           .set({
+            status: whenRetried(
+              sql`'pending'::notification_status`,
+              sql`'failed'::notification_status`
+            ),
             retryCount: sql`${notifications.retryCount} + 1`,
+            lastError: error,
+            scheduledAt: sql`CASE ${notifications.retryCount} ${sql.join(
+              Array.map(
+                retryAtAfterFailures,
+                (at, attempt) =>
+                  sql`WHEN ${attempt} THEN ${at.toISOString()}::timestamptz`
+              ),
+              sql` `
+            )} ELSE ${notifications.scheduledAt} END`,
+            queuedAt: whenRetried(sql`NULL`, sql`${notifications.queuedAt}`),
+            deliveryMessageId: whenRetried(
+              sql`NULL`,
+              sql`${notifications.deliveryMessageId}`
+            ),
           })
-          .where(eq(notifications.id, id))
-          .returning()
-        return row ? mapToNotification(row) : null
+          .where(
+            inArray(
+              notifications.id,
+              lockedInIdOrder(
+                and(
+                  inArray(notifications.id, [...ids]),
+                  eq(notifications.status, 'queued'),
+                  eq(notifications.deliveryMessageId, heldBy)
+                )
+              )
+            )
+          )
+          .returning({
+            id: notifications.id,
+            status: notifications.status,
+            retryCount: notifications.retryCount,
+          })
+        return Array.map(
+          rows,
+          (row): FailedAttempt => ({
+            id: row.id,
+            status: row.status === 'failed' ? 'failed' : 'pending',
+            retryCount: row.retryCount,
+          })
+        )
       }),
 
       deletePendingByPlantAndType: Effect.fn(
