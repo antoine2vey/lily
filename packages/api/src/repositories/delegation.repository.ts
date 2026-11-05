@@ -3,6 +3,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careDelegations,
@@ -175,12 +176,33 @@ export interface IDelegationRepository {
   readonly hasOpenDelegationForPlant: (
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
+
+  readonly lockAllForUser: (userId: string) => Effect.Effect<void, SqlError>
+
+  readonly cancelOpenForUser: (
+    userId: string,
+    canceledAt: Date
+  ) => Effect.Effect<
+    { readonly reassignedPlantIds: ReadonlyArray<string> },
+    SqlError
+  >
 }
 
 export class DelegationRepository extends Context.Service<
   DelegationRepository,
   IDelegationRepository
 >()('DelegationRepository') {}
+
+const OPEN_STATUSES: DelegationStatus[] = ['pending', 'accepted', 'active']
+
+const partyTo = (userId: string) =>
+  or(
+    eq(careDelegations.ownerId, userId),
+    eq(careDelegations.caretakerId, userId)
+  )
+
+const openFor = (userId: string) =>
+  and(partyTo(userId), inArray(careDelegations.status, OPEN_STATUSES))
 
 const ownerAlias = sql`owner_user`
 const caretakerAlias = sql`caretaker_user`
@@ -538,6 +560,7 @@ export const DelegationRepositoryLive = Layer.effect(
               lte(careDelegations.startDate, now)
             )
           )
+          .orderBy(careDelegations.id)
         return rows as DelegationRow[]
       }),
 
@@ -553,6 +576,7 @@ export const DelegationRepositoryLive = Layer.effect(
               lte(careDelegations.endDate, now)
             )
           )
+          .orderBy(careDelegations.id)
         return rows as DelegationRow[]
       }),
 
@@ -594,6 +618,52 @@ export const DelegationRepositoryLive = Layer.effect(
         return groupPlantRows(rows)
       }),
 
+      lockAllForUser: Effect.fn('DelegationRepository.lockAllForUser')(
+        function* (userId: string) {
+          yield* db
+            .select({ id: careDelegations.id })
+            .from(careDelegations)
+            .where(partyTo(userId))
+            .orderBy(careDelegations.id)
+            .for('update')
+        }
+      ),
+
+      cancelOpenForUser: Effect.fn('DelegationRepository.cancelOpenForUser')(
+        function* (userId: string, canceledAt: Date) {
+          const open = yield* db
+            .select({ id: careDelegations.id, status: careDelegations.status })
+            .from(careDelegations)
+            .where(openFor(userId))
+            .orderBy(careDelegations.id)
+            .for('update')
+          if (!Array.isArrayNonEmpty(open)) return { reassignedPlantIds: [] }
+          yield* db
+            .update(careDelegations)
+            .set({ status: 'canceled', canceledAt })
+            .where(
+              inArray(
+                careDelegations.id,
+                Array.map(open, (d) => d.id)
+              )
+            )
+          const active = Array.filter(open, (d) => d.status === 'active')
+          if (!Array.isArrayNonEmpty(active)) {
+            return { reassignedPlantIds: [] }
+          }
+          const linked = yield* db
+            .selectDistinct({ plantId: delegationPlants.plantId })
+            .from(delegationPlants)
+            .where(
+              inArray(
+                delegationPlants.delegationId,
+                Array.map(active, (d) => d.id)
+              )
+            )
+          return { reassignedPlantIds: Array.map(linked, (l) => l.plantId) }
+        }
+      ),
+
       hasOpenDelegationForPlant: Effect.fn(
         'DelegationRepository.hasOpenDelegationForPlant'
       )(function* (plantId: string) {
@@ -607,7 +677,7 @@ export const DelegationRepositoryLive = Layer.effect(
           .where(
             and(
               eq(delegationPlants.plantId, plantId),
-              inArray(careDelegations.status, ['pending', 'accepted', 'active'])
+              inArray(careDelegations.status, OPEN_STATUSES)
             )
           )
           .limit(1)
@@ -646,10 +716,12 @@ export const DelegationRepositoryLive = Layer.effect(
             delegationPlants,
             eq(careDelegations.id, delegationPlants.delegationId)
           )
+          .innerJoin(users, eq(users.id, careDelegations.caretakerId))
           .where(
             and(
               eq(delegationPlants.plantId, plantId),
-              eq(careDelegations.status, 'active')
+              eq(careDelegations.status, 'active'),
+              isReachableUser()
             )
           )
           .limit(1)
@@ -676,10 +748,12 @@ export const DelegationRepositoryLive = Layer.effect(
             delegationPlants,
             eq(careDelegations.id, delegationPlants.delegationId)
           )
+          .innerJoin(users, eq(users.id, careDelegations.caretakerId))
           .where(
             and(
               inArray(delegationPlants.plantId, [...plantIds]),
-              eq(careDelegations.status, 'active')
+              eq(careDelegations.status, 'active'),
+              isReachableUser()
             )
           )
       }),

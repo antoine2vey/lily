@@ -368,6 +368,39 @@ export const createMockDelegationRepository = (
             )
         )
       ),
+    lockAllForUser: () => Effect.void,
+    cancelOpenForUser: (userId, canceledAt) =>
+      Effect.sync(() => {
+        const open = Array.filter(
+          delegations,
+          (d) =>
+            (d.ownerId === userId || d.caretakerId === userId) &&
+            Array.contains(['pending', 'accepted', 'active'], d.status)
+        )
+        const activeIds = Array.map(
+          Array.filter(open, (d) => d.status === 'active'),
+          (d) => d.id
+        )
+        delegations.splice(
+          0,
+          delegations.length,
+          ...Array.map(delegations, (d) =>
+            Array.contains(open, d)
+              ? { ...d, status: 'canceled' as const, canceledAt }
+              : d
+          )
+        )
+        return {
+          reassignedPlantIds: Array.dedupe(
+            Array.map(
+              Array.filter(dpLinks, (link) =>
+                Array.contains(activeIds, link.delegationId)
+              ),
+              (link) => link.plantId
+            )
+          ),
+        }
+      }),
   }
 
   return Layer.succeed(DelegationRepository, repo)

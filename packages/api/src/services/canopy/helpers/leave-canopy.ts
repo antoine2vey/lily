@@ -1,6 +1,6 @@
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
@@ -108,6 +108,7 @@ export const leaveCanopyAndDelete =
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient
       const plantRepo = yield* PlantRepository
+      const delegationRepo = yield* DelegationRepository
       const [outcome, result] = yield* sql.withTransaction(
         Effect.gen(function* () {
           const inCanopy = yield* lockMyCanopy(userId).pipe(
@@ -115,6 +116,7 @@ export const leaveCanopyAndDelete =
             Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
           )
           const canopyPlants = inCanopy ? yield* canopyPlantIdsOf(userId) : []
+          yield* delegationRepo.lockAllForUser(userId)
           const personalPlants =
             yield* plantRepo.findPersonalReminderPlantIds(userId)
           return yield* withReminderKeys(
