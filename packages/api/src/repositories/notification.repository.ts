@@ -3,7 +3,7 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { notifications, plants } from '@lily/db/schema'
+import { notifications, plants, users } from '@lily/db/schema'
 import {
   nowAsDate,
   paginate,
@@ -23,6 +23,7 @@ import {
   count,
   desc,
   eq,
+  gt,
   inArray,
   isNotNull,
   isNull,
@@ -33,7 +34,7 @@ import {
   type SQL,
   sql,
 } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Context, Data, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Types for repository methods
@@ -145,8 +146,8 @@ export interface INotificationRepository {
     retryAtAfterFailures: Array.NonEmptyReadonlyArray<Date>,
     error: string
   ) => Effect.Effect<ReadonlyArray<FailedAttempt>, SqlError>
-  readonly deletePendingByPlantAndType: (
-    plantId: string,
+  readonly deletePendingByPlantsAndType: (
+    plantIds: ReadonlyArray<string>,
     type: NotificationTopic
   ) => Effect.Effect<void, SqlError>
   readonly deletePendingByUserIdAndTypes: (
@@ -161,7 +162,8 @@ export interface INotificationRepository {
     plantId: string
   ) => Effect.Effect<void, SqlError>
   readonly lockReminderKeys: (
-    keys: ReadonlyArray<ReminderKey>
+    keys: ReadonlyArray<ReminderKey>,
+    updatingUserId: Option.Option<string>
   ) => Effect.Effect<void, SqlError>
   readonly replaceReminders: (
     replacement: ReminderReplacement
@@ -235,9 +237,16 @@ export interface ReminderReplacement {
     readonly scheduledAt: Date
     readonly userId: string
     readonly plantId: string
-    readonly remindedSince: Date | null
+    readonly guard: ReminderGuard
   }>
 }
+
+export type ReminderGuard = Data.TaggedEnum<{
+  Always: {}
+  NotRemindedSince: { readonly since: Date }
+  ReplacesUndelivered: {}
+}>
+export const ReminderGuard = Data.taggedEnum<ReminderGuard>()
 
 export const NotificationRepositoryLive = Layer.effect(
   NotificationRepository,
@@ -250,6 +259,35 @@ export const NotificationRepositoryLive = Layer.effect(
         .where(where)
         .orderBy(asc(notifications.id))
         .for('update')
+    const lockHoldersOfUndeliveredReminders = (
+      plantIds: ReadonlyArray<string>,
+      idRange: SQL | undefined
+    ) =>
+      db
+        .select({ id: users.id })
+        .from(users)
+        .where(
+          and(
+            inArray(
+              users.id,
+              db
+                .select({ userId: notifications.userId })
+                .from(notifications)
+                .where(
+                  and(
+                    inArray(notifications.plantId, [...plantIds]),
+                    or(
+                      eq(notifications.status, 'pending'),
+                      eq(notifications.status, 'queued')
+                    )
+                  )
+                )
+            ),
+            idRange
+          )
+        )
+        .orderBy(asc(users.id))
+        .for('share')
 
     return {
       findByUserId: Effect.fn('NotificationRepository.findByUserId')(function* (
@@ -551,9 +589,10 @@ export const NotificationRepositoryLive = Layer.effect(
         )
       }),
 
-      deletePendingByPlantAndType: Effect.fn(
-        'NotificationRepository.deletePendingByPlantAndType'
-      )(function* (plantId: string, type: NotificationTopic) {
+      deletePendingByPlantsAndType: Effect.fn(
+        'NotificationRepository.deletePendingByPlantsAndType'
+      )(function* (plantIds: ReadonlyArray<string>, type: NotificationTopic) {
+        if (Array.isReadonlyArrayEmpty(plantIds)) return
         yield* db
           .delete(notifications)
           .where(
@@ -561,7 +600,7 @@ export const NotificationRepositoryLive = Layer.effect(
               notifications.id,
               lockedInIdOrder(
                 and(
-                  eq(notifications.plantId, plantId),
+                  inArray(notifications.plantId, [...plantIds]),
                   eq(notifications.type, type),
                   eq(notifications.status, 'pending')
                 )
@@ -574,22 +613,20 @@ export const NotificationRepositoryLive = Layer.effect(
         'NotificationRepository.deletePendingByUserIdAndTypes'
       )(function* (userId: string, types: ReadonlyArray<NotificationTopic>) {
         if (types.length === 0) return
-        yield* db.delete(notifications).where(
-          inArray(
-            notifications.id,
-            db
-              .select({ id: notifications.id })
-              .from(notifications)
-              .where(
+        yield* db
+          .delete(notifications)
+          .where(
+            inArray(
+              notifications.id,
+              lockedInIdOrder(
                 and(
                   eq(notifications.userId, userId),
                   inArray(notifications.type, [...types]),
                   eq(notifications.status, 'pending')
                 )
               )
-              .for('update', { skipLocked: true })
+            )
           )
-        )
       }),
 
       deletePendingByPlantId: Effect.fn(
@@ -630,7 +667,10 @@ export const NotificationRepositoryLive = Layer.effect(
       }),
 
       lockReminderKeys: Effect.fn('NotificationRepository.lockReminderKeys')(
-        function* (keys: ReadonlyArray<ReminderKey>) {
+        function* (
+          keys: ReadonlyArray<ReminderKey>,
+          updatingUserId: Option.Option<string>
+        ) {
           if (Array.isReadonlyArrayEmpty(keys)) return
           const values = sql.join(
             Array.map(
@@ -641,6 +681,25 @@ export const NotificationRepositoryLive = Layer.effect(
           )
           yield* db.execute(
             sql`SELECT pg_advisory_xact_lock(k1, k2) FROM (SELECT DISTINCT hashtext('reminder:' || v.plant_id) AS k1, hashtext(v.type) AS k2 FROM (VALUES ${values}) AS v(plant_id, type) ORDER BY 1, 2) AS keys`
+          )
+          const plantIds = Array.dedupe(Array.map(keys, (key) => key.plantId))
+          if (Option.isNone(updatingUserId)) {
+            yield* lockHoldersOfUndeliveredReminders(plantIds, undefined)
+            return
+          }
+          const userId = updatingUserId.value
+          yield* lockHoldersOfUndeliveredReminders(
+            plantIds,
+            lt(users.id, userId)
+          )
+          yield* db
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.id, userId))
+            .for('no key update')
+          yield* lockHoldersOfUndeliveredReminders(
+            plantIds,
+            gt(users.id, userId)
           )
         }
       ),
@@ -667,33 +726,49 @@ export const NotificationRepositoryLive = Layer.effect(
               )
             )
           )
-          if (Array.isReadonlyArrayNonEmpty(stale)) {
-            yield* db
-              .delete(notifications)
-              .where(
-                inArray(
-                  notifications.id,
-                  lockedInIdOrder(
-                    and(
-                      isNull(notifications.deliveryMessageId),
-                      replacement.onlyUserId === null
-                        ? undefined
-                        : eq(notifications.userId, replacement.onlyUserId),
-                      or(...stale)
+          const replaced = Array.isReadonlyArrayNonEmpty(stale)
+            ? yield* db
+                .delete(notifications)
+                .where(
+                  inArray(
+                    notifications.id,
+                    lockedInIdOrder(
+                      and(
+                        isNull(notifications.deliveryMessageId),
+                        replacement.onlyUserId === null
+                          ? undefined
+                          : eq(notifications.userId, replacement.onlyUserId),
+                        or(...stale)
+                      )
                     )
                   )
                 )
+                .returning({
+                  plantId: notifications.plantId,
+                  type: notifications.type,
+                })
+            : []
+          const rows = Array.filter(
+            replacement.rows,
+            (row) =>
+              !ReminderGuard.$is('ReplacesUndelivered')(row.guard) ||
+              Array.some(
+                replaced,
+                (r) => r.plantId === row.plantId && r.type === row.type
               )
-          }
-          if (Array.isReadonlyArrayEmpty(replacement.rows)) return
+          )
+          if (Array.isReadonlyArrayEmpty(rows)) return
           const values = sql.join(
             Array.map(
-              replacement.rows,
+              rows,
               (row) =>
-                sql`(${row.type}::notification_type, ${row.scheduledAt.toISOString()}::timestamptz, ${row.userId}::uuid, ${row.plantId}::uuid, ${pipe(
-                  Option.fromNullishOr(row.remindedSince),
-                  Option.map((since) => since.toISOString()),
-                  Option.getOrNull
+                sql`(${row.type}::notification_type, ${row.scheduledAt.toISOString()}::timestamptz, ${row.userId}::uuid, ${row.plantId}::uuid, ${ReminderGuard.$match(
+                  row.guard,
+                  {
+                    Always: () => null,
+                    NotRemindedSince: ({ since }) => since.toISOString(),
+                    ReplacesUndelivered: () => null,
+                  }
                 )}::timestamptz)`
             ),
             sql`, `

@@ -9,6 +9,7 @@ import {
 } from '@lily/shared'
 import {
   and,
+  asc,
   desc,
   eq,
   ilike,
@@ -92,6 +93,9 @@ export interface IUserRepository {
     id: string
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
   readonly findByIds: (
+    ids: ReadonlyArray<string>
+  ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
+  readonly findByIdsForShare: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
   readonly findByEmail: (
@@ -212,6 +216,18 @@ export const UserRepositoryLive = Layer.effect(
           .from(users)
           .where(inArray(users.id, [...ids]))
       }),
+
+      findByIdsForShare: Effect.fn('UserRepository.findByIdsForShare')(
+        function* (ids: ReadonlyArray<string>) {
+          if (Array.isReadonlyArrayEmpty(ids)) return []
+          return yield* db
+            .select()
+            .from(users)
+            .where(inArray(users.id, [...ids]))
+            .orderBy(asc(users.id))
+            .for('share')
+        }
+      ),
 
       findByEmail: Effect.fn('UserRepository.findByEmail')(function* (
         email: string

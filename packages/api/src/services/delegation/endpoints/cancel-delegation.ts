@@ -1,7 +1,10 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { transitionDelegation } from '@lily/api/services/delegation/helpers/transition-delegation'
+import {
+  rebuildDelegationReminders,
+  transitionDelegation,
+} from '@lily/api/services/delegation/helpers/transition-delegation'
 import {
   dispatchNow,
   recordNotification,
@@ -9,17 +12,10 @@ import {
 import {
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
-  type DelegationStatus,
   nowAsDate,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
-
-const CANCELABLE_STATUSES: readonly DelegationStatus[] = [
-  'pending',
-  'accepted',
-  'active',
-]
 
 export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
   function* (delegationId: string) {
@@ -50,25 +46,37 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
     )
 
     const sql = yield* SqlClient.SqlClient
+    const canceledAt = nowAsDate()
     const notification = yield* sql.withTransaction(
-      transitionDelegation({
-        delegationId,
-        from: CANCELABLE_STATUSES,
-        to: 'canceled',
-        expectedStatus: 'pending, accepted, or active',
-        message: 'This delegation cannot be canceled in its current state',
-        timestamps: { canceledAt: nowAsDate() },
-      }).pipe(
-        Effect.andThen(
-          recordNotification(
-            'delegation_canceled',
-            delegation.caretakerId,
-            { senderName: ownerName },
-            caretakerLanguage,
-            { delegationId }
-          )
+      Effect.gen(function* () {
+        const canceledBeforeStart =
+          delegation.status === 'active'
+            ? null
+            : yield* delegationRepo.transitionStatus(
+                delegationId,
+                ['pending', 'accepted'],
+                'canceled',
+                { canceledAt }
+              )
+        if (canceledBeforeStart === null) {
+          const canceled = yield* transitionDelegation({
+            delegationId,
+            from: ['active'],
+            to: 'canceled',
+            expectedStatus: 'pending, accepted, or active',
+            message: 'This delegation cannot be canceled in its current state',
+            timestamps: { canceledAt },
+          })
+          yield* rebuildDelegationReminders([canceled])
+        }
+        return yield* recordNotification(
+          'delegation_canceled',
+          delegation.caretakerId,
+          { senderName: ownerName },
+          caretakerLanguage,
+          { delegationId }
         )
-      )
+      })
     )
 
     yield* dispatchNow(notification)

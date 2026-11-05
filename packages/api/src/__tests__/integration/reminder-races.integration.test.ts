@@ -3,6 +3,7 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
@@ -14,7 +15,10 @@ import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.reposit
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
-import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import {
+  NotificationRepository,
+  NotificationRepositoryLive,
+} from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
   PlantRepositoryLive,
@@ -26,6 +30,8 @@ import {
 } from '@lily/api/repositories/user.repository'
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
 import { createCanopyInvite } from '@lily/api/services/canopy/endpoints/create-canopy-invite'
+import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
+import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
 import {
@@ -35,6 +41,9 @@ import {
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
+import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
+import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -44,12 +53,14 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
   Cause,
+  Deferred,
   Effect,
   Exit,
   Layer,
   ManagedRuntime,
   References,
 } from 'effect'
+import { SqlError } from 'effect/sql/SqlError'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -71,8 +82,17 @@ const BaseLive = Layer.mergeAll(
   ActivityPushTokenRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
+const outcome = (exit: Exit.Exit<unknown, unknown>) =>
+  Exit.match(exit, {
+    onSuccess: () => 'ok',
+    onFailure: (cause) => {
+      const error = Cause.squash(cause)
+      return error instanceof SqlError ? error.reason._tag : 'failed'
+    },
+  })
+
 const isDeadlock = (exit: Exit.Exit<unknown, unknown>) =>
-  Exit.isFailure(exit) && Cause.pretty(exit.cause).includes('40P01')
+  outcome(exit) === 'DeadlockError'
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
   'Reminder rows under concurrent writers - Integration',
@@ -101,6 +121,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               createMockWeatherProvider(),
               createMockWeatherCache(),
               createMockWeatherRepository(),
+              createMockRateLimiterService(),
               MockAlerterLive
             )
           ),
@@ -622,5 +643,620 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(failures).toEqual([])
       expect((await deadlocks()) - before).toBe(0)
     }, 60_000)
+
+    it('a vacation that starts while a reconcile runs leaves no care row pending', async () => {
+      const [plant] = await db
+        .insert(schema.plants)
+        .values({
+          userId: sam,
+          createdByUserId: sam,
+          name: 'Personal',
+          health: 'HEALTHY',
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 1,
+          wateringRating: 3,
+        })
+        .returning()
+      if (!plant) throw new Error('Failed to create plant')
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: plant.id,
+        careType: 'watering',
+        frequencyDays: 7,
+        nextCareAt: new Date(Date.now() + 3 * day),
+      })
+      const reached = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const PausedBeforeReplace = Layer.effect(
+        NotificationRepository,
+        Effect.map(NotificationRepository, (repo) => ({
+          ...repo,
+          replaceReminders: (replacement) =>
+            Deferred.succeed(reached, undefined).pipe(
+              Effect.andThen(Deferred.await(release)),
+              Effect.andThen(repo.replaceReminders(replacement))
+            ),
+        }))
+      )
+      const samUser = await runtime.runPromise(
+        Effect.flatMap(UserRepository, (repo) => repo.findById(sam))
+      )
+      if (!samUser) throw new Error('sam')
+
+      const reconcile = as(
+        sam,
+        rescheduleReminders([plant.id]).pipe(
+          Effect.provide(PausedBeforeReplace)
+        )
+      )
+      await Effect.runPromise(Deferred.await(reached))
+      const vacation = as(
+        sam,
+        activateVacation({
+          expected: samUser,
+          range: {
+            vacationStart: new Date(Date.now() - day),
+            vacationEnd: new Date(Date.now() + 7 * day),
+          },
+        })
+      )
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      Deferred.doneUnsafe(release, Exit.void)
+      const exits: ReadonlyArray<Exit.Exit<unknown, unknown>> =
+        await Promise.all([reconcile, vacation])
+
+      expect(Arr.filter(exits, Exit.isFailure)).toHaveLength(0)
+      expect(
+        Arr.filter(await pendingRows(), (row) => row.plantId === plant.id)
+      ).toEqual([])
+    }, 60_000)
+
+    const personalPlant = async (ownerId: string) => {
+      const [row] = await db
+        .insert(schema.plants)
+        .values({
+          userId: ownerId,
+          createdByUserId: ownerId,
+          name: 'Personal',
+          health: 'HEALTHY',
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 1,
+          wateringRating: 3,
+        })
+        .returning()
+      if (!row) throw new Error('Failed to create plant')
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: row.id,
+        careType: 'watering',
+        frequencyDays: 7,
+        nextCareAt: new Date(Date.now() + 3 * day),
+      })
+      return row.id
+    }
+
+    const pendingWatering = (userId: string, plantId: string) =>
+      db.insert(schema.notifications).values({
+        type: 'watering_reminder',
+        scheduledAt: new Date(Date.now() + day),
+        userId,
+        plantId,
+        status: 'pending',
+      })
+
+    const startVacation = async (userId: string) => {
+      const expected = await runtime.runPromise(
+        Effect.flatMap(UserRepository, (repo) => repo.findById(userId))
+      )
+      if (!expected) throw new Error(`no user ${userId}`)
+      return as(
+        userId,
+        activateVacation({
+          expected,
+          range: {
+            vacationStart: new Date(Date.now() - day),
+            vacationEnd: new Date(Date.now() + 7 * day),
+          },
+        })
+      )
+    }
+
+    const overdueLandsAfterKeys = (userId: string, plantId: string) =>
+      Layer.effect(
+        NotificationRepository,
+        Effect.map(NotificationRepository, (repo) => ({
+          ...repo,
+          lockReminderKeys: (keys, updatingUserId) =>
+            repo.lockReminderKeys(keys, updatingUserId).pipe(
+              Effect.andThen(
+                Effect.promise(() =>
+                  db.insert(schema.notifications).values({
+                    type: 'overdue_reminder',
+                    scheduledAt: new Date(),
+                    userId,
+                    plantId,
+                    status: 'pending',
+                  })
+                )
+              )
+            ),
+        }))
+      )
+
+    const pausedBeforeLocking = (
+      userId: string,
+      reached: Deferred.Deferred<void>,
+      release: Deferred.Deferred<void>
+    ) =>
+      Layer.effect(
+        UserRepository,
+        Effect.map(UserRepository, (repo) => ({
+          ...repo,
+          findByIdsForShare: (ids) =>
+            Arr.contains(ids, userId)
+              ? Deferred.succeed(reached, undefined).pipe(
+                  Effect.andThen(Deferred.await(release)),
+                  Effect.andThen(repo.findByIdsForShare(ids))
+                )
+              : repo.findByIdsForShare(ids),
+        }))
+      )
+
+    const untilBlockedOrSettled = async (writer: Promise<unknown>) => {
+      let settled = false
+      void writer.finally(() => {
+        settled = true
+      })
+      for (const _ of Arr.range(1, 60)) {
+        const { rows } = await pool.query<{ waiting: number }>(
+          `SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
+        )
+        if (settled || (rows[0]?.waiting ?? 0) > 0) return
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+    }
+
+    it('a vacation that starts while a bulk care rebuilds a delegated plant never deadlocks', async () => {
+      const before = await deadlocks()
+      const failures: string[] = []
+      for (const round of Arr.range(1, 10)) {
+        const owner = await user(`Owner${round}`)
+        const caretaker = await user(`Caretaker${round}`)
+        const [first, second] = Arr.sort(
+          [await personalPlant(owner), await personalPlant(owner)],
+          (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+        ) as [string, string]
+        const [delegation] = await db
+          .insert(schema.careDelegations)
+          .values({
+            ownerId: owner,
+            caretakerId: caretaker,
+            status: 'active',
+            startDate: new Date(Date.now() - day),
+            endDate: new Date(Date.now() + 7 * day),
+          })
+          .returning()
+        if (!delegation) throw new Error('Failed to create delegation')
+        await db
+          .insert(schema.delegationPlants)
+          .values({ delegationId: delegation.id, plantId: second })
+        await pendingWatering(caretaker, first)
+
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const PausedAfterFirstReplace = Layer.effect(
+          NotificationRepository,
+          Effect.map(NotificationRepository, (repo) => ({
+            ...repo,
+            replaceReminders: (replacement) =>
+              repo
+                .replaceReminders(replacement)
+                .pipe(
+                  Effect.andThen(Deferred.succeed(reached, undefined)),
+                  Effect.andThen(Deferred.await(release))
+                ),
+          }))
+        )
+        const care = as(
+          owner,
+          careMultiplePlants({
+            plantIds: [first, second],
+            careType: 'watering',
+          }).pipe(Effect.provide(PausedAfterFirstReplace))
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const vacation = startVacation(caretaker)
+        await untilBlockedOrSettled(vacation)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [cared, vacationed] = await Promise.all([care, vacation])
+
+        const rows = await pendingRows()
+        const caretakerRows = Arr.filter(rows, (r) => r.userId === caretaker)
+        const ownerRows = Arr.filter(
+          rows,
+          (r) => r.userId === owner && r.plantId === first
+        )
+        if (
+          Exit.isFailure(cared) ||
+          Exit.isFailure(vacationed) ||
+          vacationed.value === null ||
+          caretakerRows.length > 0 ||
+          ownerRows.length !== 1
+        ) {
+          failures.push(
+            `round ${round}: care ${outcome(cared)}, vacation ${outcome(vacationed)}, caretaker rows ${caretakerRows.length}, owner rows on first ${ownerRows.length}`
+          )
+        }
+      }
+      expect(failures).toEqual([])
+      expect((await deadlocks()) - before).toBe(0)
+    }, 60_000)
+
+    it("a vacation that starts while a bulk care clears the caretaker's overdue reminder never deadlocks", async () => {
+      const before = await deadlocks()
+      const failures: string[] = []
+      for (const round of Arr.range(1, 10)) {
+        const owner = await user(`OverdueOwner${round}`)
+        const caretaker = await user(`OverdueCaretaker${round}`)
+        const [unscheduled, scheduled] = Arr.sort(
+          [await personalPlant(owner), await personalPlant(owner)],
+          (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+        ) as [string, string]
+        await db.execute(
+          sql`DELETE FROM plant_care_schedules WHERE plant_id = ${unscheduled}`
+        )
+        const [delegation] = await db
+          .insert(schema.careDelegations)
+          .values({
+            ownerId: owner,
+            caretakerId: caretaker,
+            status: 'active',
+            startDate: new Date(Date.now() - day),
+            endDate: new Date(Date.now() + 7 * day),
+          })
+          .returning()
+        if (!delegation) throw new Error('Failed to create delegation')
+        await db.insert(schema.delegationPlants).values([
+          { delegationId: delegation.id, plantId: unscheduled },
+          { delegationId: delegation.id, plantId: scheduled },
+        ])
+
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const OverdueLandsAfterKeys = overdueLandsAfterKeys(
+          caretaker,
+          unscheduled
+        )
+        const PausedBeforeCaretakerLock = pausedBeforeLocking(
+          caretaker,
+          reached,
+          release
+        )
+        const care = as(
+          owner,
+          careMultiplePlants({
+            plantIds: [unscheduled, scheduled],
+            careType: 'watering',
+          }).pipe(
+            Effect.provide(
+              Layer.mergeAll(OverdueLandsAfterKeys, PausedBeforeCaretakerLock)
+            )
+          )
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const vacation = startVacation(caretaker)
+        await untilBlockedOrSettled(vacation)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [cared, vacationed] = await Promise.all([care, vacation])
+
+        const caretakerRows = Arr.filter(
+          await pendingRows(),
+          (r) => r.userId === caretaker
+        )
+        if (
+          Exit.isFailure(cared) ||
+          Exit.isFailure(vacationed) ||
+          caretakerRows.length > 0
+        ) {
+          failures.push(
+            `round ${round}: care ${outcome(cared)}, vacation ${outcome(vacationed)}, caretaker rows ${caretakerRows.length}`
+          )
+        }
+      }
+      expect(failures).toEqual([])
+      expect((await deadlocks()) - before).toBe(0)
+    }, 60_000)
+
+    it("a vacation that starts while a Canopy dissolves around the member's overdue reminder never deadlocks", async () => {
+      const before = await deadlocks()
+      const failures: string[] = []
+      for (const round of Arr.range(1, 10)) {
+        const owner = await user(`DissolvingOwner${round}`)
+        const sharer = await user(`FirstSharer${round}`)
+        const member = await user(`LeavingMember${round}`)
+        const [canopy] = await db
+          .insert(schema.canopies)
+          .values({ name: `Dissolving ${round}`, timezone: 'UTC' })
+          .returning()
+        if (!canopy) throw new Error('Failed to create canopy')
+        await db.insert(schema.canopyMembers).values([
+          {
+            canopyId: canopy.id,
+            userId: owner,
+            role: 'owner',
+            joinedAt: new Date(Date.now() - 3 * day),
+          },
+          {
+            canopyId: canopy.id,
+            userId: sharer,
+            role: 'member',
+            joinedAt: new Date(Date.now() - 2 * day),
+          },
+          {
+            canopyId: canopy.id,
+            userId: member,
+            role: 'member',
+            joinedAt: new Date(Date.now() - day),
+          },
+        ])
+        const sharedBy = async (userId: string) => {
+          const plant = await personalPlant(userId)
+          await db
+            .update(schema.plants)
+            .set({ canopyId: canopy.id, userId: null })
+            .where(sql`${schema.plants.id} = ${plant}`)
+          return plant
+        }
+        const sharersPlant = await sharedBy(sharer)
+        await sharedBy(member)
+
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const OverdueLandsAfterKeys = overdueLandsAfterKeys(
+          member,
+          sharersPlant
+        )
+        const PausedBeforeMemberLock = pausedBeforeLocking(
+          member,
+          reached,
+          release
+        )
+        const dissolve = as(
+          owner,
+          deleteMyCanopy().pipe(
+            Effect.provide(
+              Layer.mergeAll(OverdueLandsAfterKeys, PausedBeforeMemberLock)
+            )
+          )
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const vacation = startVacation(member)
+        await untilBlockedOrSettled(vacation)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [dissolved, vacationed] = await Promise.all([dissolve, vacation])
+
+        const memberRows = Arr.filter(
+          await pendingRows(),
+          (r) => r.userId === member
+        )
+        if (
+          Exit.isFailure(dissolved) ||
+          Exit.isFailure(vacationed) ||
+          memberRows.length > 0
+        ) {
+          failures.push(
+            `round ${round}: dissolve ${outcome(dissolved)}, vacation ${outcome(vacationed)}, member rows ${memberRows.length}`
+          )
+        }
+      }
+      expect(failures).toEqual([])
+      expect((await deadlocks()) - before).toBe(0)
+    }, 60_000)
+
+    it("a vacation that starts while the same user's account deletion clears an overdue reminder never deadlocks", async () => {
+      const before = await deadlocks()
+      const failures: string[] = []
+      for (const round of Arr.range(1, 10)) {
+        const owner = await user(`StayingOwner${round}`)
+        const leaver = await user(`DeletedMember${round}`)
+        const [canopy] = await db
+          .insert(schema.canopies)
+          .values({ name: `Staying ${round}`, timezone: 'UTC' })
+          .returning()
+        if (!canopy) throw new Error('Failed to create canopy')
+        await db.insert(schema.canopyMembers).values([
+          { canopyId: canopy.id, userId: owner, role: 'owner' },
+          { canopyId: canopy.id, userId: leaver, role: 'member' },
+        ])
+        const sharedPlant = await personalPlant(owner)
+        await db
+          .update(schema.plants)
+          .set({ canopyId: canopy.id, userId: null })
+          .where(sql`${schema.plants.id} = ${sharedPlant}`)
+
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const OverdueLandsAfterKeys = overdueLandsAfterKeys(leaver, sharedPlant)
+        const deletion = Deferred.succeed(reached, undefined).pipe(
+          Effect.andThen(Deferred.await(release)),
+          Effect.andThen(
+            Effect.flatMap(UserRepository, (repo) => repo.delete(leaver))
+          )
+        )
+        const deleted = as(
+          leaver,
+          leaveCanopyAndDelete(leaver)(deletion).pipe(
+            Effect.provide(OverdueLandsAfterKeys)
+          )
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const vacation = startVacation(leaver)
+        await untilBlockedOrSettled(vacation)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [gone, vacationed] = await Promise.all([deleted, vacation])
+
+        if (Exit.isFailure(gone) || isDeadlock(vacationed)) {
+          failures.push(
+            `round ${round}: deletion ${outcome(gone)}, vacation ${outcome(vacationed)}`
+          )
+        }
+      }
+      expect(failures).toEqual([])
+      expect((await deadlocks()) - before).toBe(0)
+    }, 60_000)
+
+    it('a vacation start removes a care reminder another transaction holds locked', async () => {
+      const vacationer = await user('Vacationer')
+      const plant = await personalPlant(vacationer)
+      await pendingWatering(vacationer, plant)
+      const locker = await pool.connect()
+      try {
+        await locker.query('BEGIN')
+        await locker.query(
+          `SELECT id FROM notifications WHERE user_id = $1 FOR UPDATE`,
+          [vacationer]
+        )
+        const vacation = startVacation(vacationer)
+        await untilBlockedOrSettled(vacation)
+        await locker.query('ROLLBACK')
+        const exit = await vacation
+        expect(Exit.isSuccess(exit) && exit.value !== null).toBe(true)
+      } finally {
+        locker.release()
+      }
+
+      expect(
+        Arr.filter(await pendingRows(), (row) => row.userId === vacationer)
+      ).toEqual([])
+    }, 60_000)
+
+    const userRow = async (userId: string) => {
+      const row = await runtime.runPromise(
+        Effect.flatMap(UserRepository, (repo) => repo.findById(userId))
+      )
+      if (!row) throw new Error(`no user ${userId}`)
+      return row
+    }
+
+    const crossWriters: Record<
+      string,
+      (round: number) => Promise<{
+        readonly u: string
+        readonly first: Effect.Effect<unknown, unknown, unknown>
+        readonly second: () => Promise<Exit.Exit<unknown, unknown>>
+      }>
+    > = {
+      'two timezone changes': async (round: number) => {
+        const u = await user(`Tz${round}`)
+        const v = await user(`OtherTz${round}`)
+        const pu = await personalPlant(u)
+        const pv = await personalPlant(v)
+        await pendingWatering(v, pu)
+        await pendingWatering(u, pv)
+        return {
+          u,
+          first: updateUserSettings({ timezone: 'Europe/Paris' }),
+          second: () => as(v, updateUserSettings({ timezone: 'Asia/Tokyo' })),
+        }
+      },
+      'a timezone change and a vacation end': async (round: number) => {
+        const u = await user(`Traveler${round}`)
+        const v = await user(`Vacationer${round}`)
+        await db
+          .update(schema.users)
+          .set({
+            vacationStatus: 'active',
+            vacationStart: new Date(Date.now() - 2 * day),
+            vacationEnd: new Date(Date.now() + 2 * day),
+          })
+          .where(sql`${schema.users.id} = ${v}`)
+        const pu = await personalPlant(u)
+        const pv = await personalPlant(v)
+        const inFlight = (userId: string, plantId: string) =>
+          db.insert(schema.notifications).values({
+            type: 'watering_reminder',
+            scheduledAt: new Date(Date.now() + day),
+            userId,
+            plantId,
+            status: 'queued',
+            queuedAt: new Date(),
+            deliveryMessageId: `in-flight-${userId}`,
+          })
+        await inFlight(v, pu)
+        await inFlight(u, pv)
+        const vacationer = await userRow(v)
+        return {
+          u,
+          first: updateUserSettings({ timezone: 'Europe/Paris' }),
+          second: () =>
+            as(v, endVacation({ user: vacationer, effectiveEnd: new Date() })),
+        }
+      },
+      'a vacation end and a timezone change': async (round: number) => {
+        const [v, u] = Arr.sort(
+          [await user(`Returning${round}`), await user(`Mover${round}`)],
+          (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+        ) as [string, string]
+        await db
+          .update(schema.users)
+          .set({
+            vacationStatus: 'active',
+            vacationStart: new Date(Date.now() - 2 * day),
+            vacationEnd: new Date(Date.now() + 2 * day),
+          })
+          .where(sql`${schema.users.id} = ${v}`)
+        const pu = await personalPlant(u)
+        const pv = await personalPlant(v)
+        await pendingWatering(v, pu)
+        await pendingWatering(u, pv)
+        const vacationer = await userRow(v)
+        return {
+          u: v,
+          first: endVacation({ user: vacationer, effectiveEnd: new Date() }),
+          second: () => as(u, updateUserSettings({ timezone: 'Asia/Tokyo' })),
+        }
+      },
+    }
+
+    it.each(Object.entries(crossWriters))(
+      "%s by two users who each hold a reminder on the other's plant never deadlock",
+      async (_shape, setup) => {
+        const before = await deadlocks()
+        const failures: string[] = []
+        for (const round of Arr.range(1, 10)) {
+          const reached = Deferred.makeUnsafe<void>()
+          const release = Deferred.makeUnsafe<void>()
+          const PausedAfterKeys = Layer.effect(
+            NotificationRepository,
+            Effect.map(NotificationRepository, (repo) => ({
+              ...repo,
+              lockReminderKeys: (keys, updatingUserId) =>
+                repo
+                  .lockReminderKeys(keys, updatingUserId)
+                  .pipe(
+                    Effect.andThen(Deferred.succeed(reached, undefined)),
+                    Effect.andThen(Deferred.await(release))
+                  ),
+            }))
+          )
+          const { u, first, second } = await setup(round)
+          const firstRun = as(u, first.pipe(Effect.provide(PausedAfterKeys)))
+          await Effect.runPromise(Deferred.await(reached))
+          const secondRun = second()
+          await untilBlockedOrSettled(secondRun)
+          Deferred.doneUnsafe(release, Exit.void)
+          const [a, b]: readonly [
+            Exit.Exit<unknown, unknown>,
+            Exit.Exit<unknown, unknown>,
+          ] = await Promise.all([firstRun, secondRun])
+          if (Exit.isFailure(a) || Exit.isFailure(b)) {
+            failures.push(`round ${round}: ${outcome(a)}, ${outcome(b)}`)
+          }
+        }
+        expect(failures).toEqual([])
+        expect((await deadlocks()) - before).toBe(0)
+      },
+      120_000
+    )
   }
 )

@@ -118,7 +118,8 @@ export const leaveCanopyAndDelete =
           const personalPlants =
             yield* plantRepo.findPersonalReminderPlantIds(userId)
           return yield* withReminderKeys(
-            reminderKeysFor(Array.dedupe([...canopyPlants, ...personalPlants]))
+            reminderKeysFor(Array.dedupe([...canopyPlants, ...personalPlants])),
+            Option.some(userId)
           )(
             Effect.all([
               leaveInTransaction(userId, 'stay').pipe(

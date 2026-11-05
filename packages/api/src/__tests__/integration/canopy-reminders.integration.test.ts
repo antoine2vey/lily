@@ -19,6 +19,7 @@ import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.r
 import {
   NotificationRepository,
   NotificationRepositoryLive,
+  ReminderGuard,
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
@@ -452,7 +453,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                   scheduledAt: new Date(Date.now() + 7 * 86_400_000),
                   userId: '00000000-0000-4000-8000-000000000000',
                   plantId: personal,
-                  remindedSince: null,
+                  guard: ReminderGuard.Always(),
                 },
               ],
             })

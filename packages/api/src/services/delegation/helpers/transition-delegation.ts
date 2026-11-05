@@ -2,12 +2,13 @@ import {
   DelegationRepository,
   type DelegationRow,
 } from '@lily/api/repositories/delegation.repository'
+import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   DelegationInvalidStatusError,
   DelegationNotFoundError,
   type DelegationStatus,
 } from '@lily/shared'
-import { Effect, Option, pipe } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -55,4 +56,25 @@ export const transitionDelegation = (params: {
           }),
       })
     )
+  })
+
+export const rebuildDelegationReminders = (
+  transitioned: ReadonlyArray<DelegationRow>
+) =>
+  Effect.gen(function* () {
+    const delegationRepo = yield* DelegationRepository
+    const handedOver = yield* Effect.forEach(transitioned, (delegation) =>
+      Effect.map(
+        delegationRepo.getPlantsByDelegation(delegation.id),
+        (plants) => [delegation, plants] as const
+      )
+    )
+    yield* rescheduleReminders(
+      Array.dedupe(
+        Array.flatMap(handedOver, ([, plants]) =>
+          Array.map(plants, (plant) => plant.id)
+        )
+      )
+    )
+    return handedOver
   })

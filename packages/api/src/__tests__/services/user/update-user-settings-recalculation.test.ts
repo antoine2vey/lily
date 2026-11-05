@@ -5,6 +5,8 @@ import {
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
+  type ScheduleSpec,
+  type TestPlant,
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
@@ -22,14 +24,22 @@ import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-lim
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
+import type { CareType } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
+import type { UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// Future date to avoid "past date + 1 day" adjustment in calculateScheduledAt
-const futureDate = new Date('2030-06-15T00:00:00.000Z')
+const futureDate = new Date('2030-06-15T12:00:00.000Z')
+
+const spec = (careType: CareType): ScheduleSpec => ({
+  careType,
+  frequencyDays: 7,
+  lastCareAt: null,
+  nextCareAt: futureDate,
+})
 
 const testPlant = createTestPlant({
   id: 'plant-recalc',
@@ -44,138 +54,123 @@ const testUser = {
   preferredNotificationTime: '09:00',
 }
 
-describe('updateUserSettings - notification recalculation', () => {
-  it('should recalculate pending notifications when preferredNotificationTime changes', async () => {
-    const originalScheduledAt = new Date('2030-06-15T09:00:00.000Z')
-    const pendingNotification: Notification = {
-      id: 'notif-1',
-      type: 'watering_reminder',
-      title: 'Water your plant',
-      body: 'Time to water',
-      scheduledAt: originalScheduledAt,
-      isRead: false,
-      status: 'pending',
-      retryCount: 0,
-      userId: 'user-1',
-      plantId: 'plant-recalc',
-      createdAt: new Date(),
-    }
+const pendingWatering = (overrides: Partial<Notification> = {}) => [
+  {
+    id: 'notif-1',
+    type: 'watering_reminder',
+    scheduledAt: new Date('2030-06-15T09:00:00.000Z'),
+    isRead: false,
+    status: 'pending',
+    retryCount: 0,
+    userId: 'user-1',
+    plantId: 'plant-recalc',
+    createdAt: new Date(),
+    ...overrides,
+  } satisfies Notification,
+]
 
-    // Track calls to updateScheduledAt
-    let capturedScheduledAt: Date | null = null
-    const notificationMockLayer = createMockNotificationRepository([
-      pendingNotification,
-    ])
-
-    // Wrap the mock to capture updateScheduledAt calls
-    const trackingLayer = Layer.effect(
-      NotificationRepository,
-      Effect.gen(function* () {
-        const repo = yield* Effect.provide(
-          NotificationRepository,
-          notificationMockLayer
+const update = (
+  request: UserSettingsUpdateRequest,
+  scenario: {
+    readonly notifications: Notification[]
+    readonly user?: typeof testUser
+    readonly plants?: TestPlant[]
+    readonly canopy?: Layer.Layer<CanopyRepository>
+  }
+) => {
+  const plants = scenario.plants ?? [testPlant]
+  return Effect.runPromise(
+    updateUserSettings(request).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          createMockDelegationRepository(),
+          MockSqlClientLive,
+          scenario.canopy ?? createMockCanopyRepository(),
+          createMockRateLimiterService(),
+          createMockUserRepository([scenario.user ?? testUser]),
+          createMockCurrentUser({ id: 'user-1' }),
+          createMockNotificationRepository(scenario.notifications),
+          createMockPlantRepository({ plants }),
+          createMockCareLogRepository([]),
+          createMockCareScheduleRepository({
+            schedules: schedulesFromPlants(plants),
+            plants,
+          })
         )
-        return {
-          ...repo,
-          updateScheduledAt: (id: string, scheduledAt: Date) => {
-            capturedScheduledAt = scheduledAt
-            return repo.updateScheduledAt(id, scheduledAt)
-          },
-        }
-      })
-    )
-
-    const layer = Layer.mergeAll(
-      createMockDelegationRepository(),
-      MockSqlClientLive,
-      createMockCanopyRepository(),
-      createMockRateLimiterService(),
-      createMockUserRepository([testUser]),
-      createMockCurrentUser({ id: 'user-1' }),
-      trackingLayer,
-      createMockPlantRepository({ plants: [testPlant] }),
-      createMockCareLogRepository([]),
-      createMockCareScheduleRepository({
-        schedules: schedulesFromPlants([testPlant]),
-        plants: [testPlant],
-      })
-    )
-
-    await Effect.runPromise(
-      updateUserSettings({ preferredNotificationTime: '14:00' }).pipe(
-        Effect.provide(layer)
       )
     )
+  )
+}
 
-    expect(capturedScheduledAt).not.toBeNull()
-    // The new time should reflect 14:00 UTC (since user timezone is UTC)
-    expect(capturedScheduledAt!.getUTCHours()).toBe(14)
-    expect(capturedScheduledAt!.getUTCMinutes()).toBe(0)
+const pending = (notifications: Notification[]) =>
+  notifications
+    .filter((n) => n.status === 'pending')
+    .map((n) => ({ type: n.type, at: n.scheduledAt.toISOString() }))
+
+describe('updateUserSettings - reminder rebuild', () => {
+  it('moves pending reminders to the new preferredNotificationTime', async () => {
+    const notifications = pendingWatering()
+
+    await update({ preferredNotificationTime: '14:00' }, { notifications })
+
+    expect(pending(notifications)).toEqual([
+      { type: 'watering_reminder', at: '2030-06-15T14:00:00.000Z' },
+    ])
   })
 
-  it('should recalculate pending notifications when timezone changes', async () => {
-    const pendingNotification: Notification = {
-      id: 'notif-2',
-      type: 'watering_reminder',
-      title: 'Water your plant',
-      body: 'Time to water',
-      scheduledAt: new Date('2030-06-15T09:00:00.000Z'),
-      isRead: false,
-      status: 'pending',
-      retryCount: 0,
-      userId: 'user-1',
-      plantId: 'plant-recalc',
-      createdAt: new Date(),
-    }
+  it('moves pending reminders to the new timezone', async () => {
+    const notifications = pendingWatering()
 
-    let capturedScheduledAt: Date | null = null
-    const notificationMockLayer = createMockNotificationRepository([
-      pendingNotification,
+    await update({ timezone: 'America/New_York' }, { notifications })
+
+    expect(pending(notifications)).toEqual([
+      { type: 'watering_reminder', at: '2030-06-15T13:00:00.000Z' },
     ])
+  })
 
-    const trackingLayer = Layer.effect(
-      NotificationRepository,
-      Effect.gen(function* () {
-        const repo = yield* Effect.provide(
-          NotificationRepository,
-          notificationMockLayer
-        )
-        return {
-          ...repo,
-          updateScheduledAt: (id: string, scheduledAt: Date) => {
-            capturedScheduledAt = scheduledAt
-            return repo.updateScheduledAt(id, scheduledAt)
-          },
-        }
-      })
+  it('keeps a rescheduled reminder out of the do-not-disturb window', async () => {
+    const notifications = pendingWatering()
+
+    await update(
+      { timezone: 'America/New_York' },
+      {
+        notifications,
+        user: {
+          ...testUser,
+          doNotDisturb: true,
+          doNotDisturbStart: '08:00',
+          doNotDisturbEnd: '10:00',
+        },
+      }
     )
 
-    const layer = Layer.mergeAll(
-      createMockDelegationRepository(),
-      MockSqlClientLive,
-      createMockCanopyRepository(),
-      createMockRateLimiterService(),
-      createMockUserRepository([testUser]),
-      createMockCurrentUser({ id: 'user-1' }),
-      trackingLayer,
-      createMockPlantRepository({ plants: [testPlant] }),
-      createMockCareLogRepository([]),
-      createMockCareScheduleRepository({
-        schedules: schedulesFromPlants([testPlant]),
-        plants: [testPlant],
-      })
+    expect(pending(notifications)).toEqual([
+      { type: 'watering_reminder', at: '2030-06-15T14:00:00.000Z' },
+    ])
+  })
+
+  it('rebuilds every care reminder when care reminders turn back on', async () => {
+    const notifications: Notification[] = []
+
+    await update(
+      { notifications: { careReminders: true } },
+      {
+        notifications,
+        user: { ...testUser, careReminders: false },
+        plants: [
+          createTestPlant({
+            id: 'plant-recalc',
+            userId: 'user-1',
+            scheduleSpecs: [spec('misting'), spec('repotting')],
+          }),
+        ],
+      }
     )
 
-    // Change timezone from UTC to America/New_York (EDT = UTC-4 in June)
-    await Effect.runPromise(
-      updateUserSettings({ timezone: 'America/New_York' }).pipe(
-        Effect.provide(layer)
-      )
-    )
-
-    expect(capturedScheduledAt).not.toBeNull()
-    // 09:00 in America/New_York during summer (EDT = UTC-4) = 13:00 UTC
-    expect(capturedScheduledAt!.getUTCHours()).toBe(13)
+    expect(pending(notifications)).toEqual([
+      { type: 'misting_reminder', at: '2030-06-15T09:00:00.000Z' },
+      { type: 'repotting_reminder', at: '2030-06-15T09:00:00.000Z' },
+    ])
   })
 
   it('keeps a Canopy plant reminder on the Canopy calendar day when the member moves west', async () => {
@@ -187,188 +182,60 @@ describe('updateUserSettings - notification recalculation', () => {
         wateringSpec({ nextCareAt: new Date('2030-07-14T22:00:00.000Z') }),
       ],
     })
-    const pending: Notification = {
+    const notifications = pendingWatering({
       id: 'notif-canopy',
-      type: 'watering_reminder',
-      scheduledAt: new Date('2030-07-15T09:00:00.000Z'),
-      isRead: false,
-      status: 'pending',
-      retryCount: 0,
-      userId: 'user-1',
       plantId: 'plant-canopy',
-      createdAt: new Date(),
-    }
-    const notifications = [pending]
+      scheduledAt: new Date('2030-07-15T09:00:00.000Z'),
+    })
 
-    await Effect.runPromise(
-      updateUserSettings({ timezone: 'America/New_York' }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            createMockDelegationRepository(),
-            MockSqlClientLive,
-            createMockRateLimiterService(),
-            createMockUserRepository([testUser]),
-            createMockCurrentUser({ id: 'user-1' }),
-            createMockNotificationRepository(notifications),
-            createMockPlantRepository({ plants: [canopyPlant] }),
-            createMockCanopyRepository(
-              createCanopyStore({
-                canopies: [
-                  createTestCanopyRow({
-                    id: mockCanopyId,
-                    timezone: 'Europe/Paris',
-                  }),
-                ],
-                members: [createTestMembership({ userId: 'user-1' })],
-                plants: [
-                  {
-                    id: 'plant-canopy',
-                    canopyId: mockCanopyId,
-                    userId: null,
-                    remindersEnabled: true,
-                    diedAt: null,
-                  },
-                ],
-              })
-            ),
-            createMockCareLogRepository([]),
-            createMockCareScheduleRepository({
-              schedules: schedulesFromPlants([canopyPlant]),
-              plants: [canopyPlant],
-            })
-          )
-        )
-      )
+    await update(
+      { timezone: 'America/New_York' },
+      {
+        notifications,
+        plants: [canopyPlant],
+        canopy: createMockCanopyRepository(
+          createCanopyStore({
+            canopies: [
+              createTestCanopyRow({
+                id: mockCanopyId,
+                timezone: 'Europe/Paris',
+              }),
+            ],
+            members: [createTestMembership({ userId: 'user-1' })],
+            plants: [
+              {
+                id: 'plant-canopy',
+                canopyId: mockCanopyId,
+                userId: null,
+                remindersEnabled: true,
+                diedAt: null,
+              },
+            ],
+          })
+        ),
+      }
     )
 
-    expect(
-      notifications
-        .filter((n) => n.status === 'pending')
-        .map((n) => n.scheduledAt.toISOString())
-    ).toEqual(['2030-07-15T13:00:00.000Z'])
+    expect(pending(notifications)).toEqual([
+      { type: 'watering_reminder', at: '2030-07-15T13:00:00.000Z' },
+    ])
   })
 
-  it('should NOT recalculate when preferredNotificationTime stays the same', async () => {
-    const pendingNotification: Notification = {
-      id: 'notif-3',
-      type: 'watering_reminder',
-      title: 'Water your plant',
-      body: 'Time to water',
-      scheduledAt: new Date('2030-06-15T09:00:00.000Z'),
-      isRead: false,
-      status: 'pending',
-      retryCount: 0,
-      userId: 'user-1',
-      plantId: 'plant-recalc',
-      createdAt: new Date(),
-    }
+  it('leaves reminders untouched when preferredNotificationTime stays the same', async () => {
+    const notifications = pendingWatering()
+    const before = [...notifications]
 
-    let updateScheduledAtCalled = false
-    const notificationMockLayer = createMockNotificationRepository([
-      pendingNotification,
-    ])
+    await update({ preferredNotificationTime: '09:00' }, { notifications })
 
-    const trackingLayer = Layer.effect(
-      NotificationRepository,
-      Effect.gen(function* () {
-        const repo = yield* Effect.provide(
-          NotificationRepository,
-          notificationMockLayer
-        )
-        return {
-          ...repo,
-          updateScheduledAt: (id: string, scheduledAt: Date) => {
-            updateScheduledAtCalled = true
-            return repo.updateScheduledAt(id, scheduledAt)
-          },
-        }
-      })
-    )
-
-    const layer = Layer.mergeAll(
-      createMockDelegationRepository(),
-      MockSqlClientLive,
-      createMockCanopyRepository(),
-      createMockRateLimiterService(),
-      createMockUserRepository([testUser]),
-      createMockCurrentUser({ id: 'user-1' }),
-      trackingLayer,
-      createMockPlantRepository({ plants: [testPlant] }),
-      createMockCareLogRepository([]),
-      createMockCareScheduleRepository({
-        schedules: schedulesFromPlants([testPlant]),
-        plants: [testPlant],
-      })
-    )
-
-    // Send the same preferredNotificationTime as existing (09:00)
-    await Effect.runPromise(
-      updateUserSettings({ preferredNotificationTime: '09:00' }).pipe(
-        Effect.provide(layer)
-      )
-    )
-
-    expect(updateScheduledAtCalled).toBe(false)
+    expect(notifications).toEqual(before)
   })
 
-  it('should NOT recalculate when updating unrelated settings', async () => {
-    const pendingNotification: Notification = {
-      id: 'notif-4',
-      type: 'watering_reminder',
-      title: 'Water your plant',
-      body: 'Time to water',
-      scheduledAt: new Date('2030-06-15T09:00:00.000Z'),
-      isRead: false,
-      status: 'pending',
-      retryCount: 0,
-      userId: 'user-1',
-      plantId: 'plant-recalc',
-      createdAt: new Date(),
-    }
+  it('leaves reminders untouched when unrelated settings change', async () => {
+    const notifications = pendingWatering()
+    const before = [...notifications]
 
-    let updateScheduledAtCalled = false
-    const notificationMockLayer = createMockNotificationRepository([
-      pendingNotification,
-    ])
+    await update({ name: 'new_name' }, { notifications })
 
-    const trackingLayer = Layer.effect(
-      NotificationRepository,
-      Effect.gen(function* () {
-        const repo = yield* Effect.provide(
-          NotificationRepository,
-          notificationMockLayer
-        )
-        return {
-          ...repo,
-          updateScheduledAt: (id: string, scheduledAt: Date) => {
-            updateScheduledAtCalled = true
-            return repo.updateScheduledAt(id, scheduledAt)
-          },
-        }
-      })
-    )
-
-    const layer = Layer.mergeAll(
-      createMockDelegationRepository(),
-      MockSqlClientLive,
-      createMockCanopyRepository(),
-      createMockRateLimiterService(),
-      createMockUserRepository([testUser]),
-      createMockCurrentUser({ id: 'user-1' }),
-      trackingLayer,
-      createMockPlantRepository({ plants: [testPlant] }),
-      createMockCareLogRepository([]),
-      createMockCareScheduleRepository({
-        schedules: schedulesFromPlants([testPlant]),
-        plants: [testPlant],
-      })
-    )
-
-    // Update name only - should NOT trigger recalculation
-    await Effect.runPromise(
-      updateUserSettings({ name: 'new_name' }).pipe(Effect.provide(layer))
-    )
-
-    expect(updateScheduledAtCalled).toBe(false)
+    expect(notifications).toEqual(before)
   })
 })

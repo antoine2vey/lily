@@ -4,9 +4,12 @@ import {
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
@@ -23,9 +26,16 @@ const futureDate = new Date('2099-12-31')
 
 const notifications: Notification[] = []
 
+const ReminderMocksLive = Layer.mergeAll(
+  createMockPlantRepository({ plants: [] }),
+  createMockCareScheduleRepository(),
+  createMockCanopyRepository()
+)
+
 const createLayer = (delegations: DelegationRow[]) =>
   Layer.mergeAll(
     MockSqlClientLive,
+    ReminderMocksLive,
     createMockDelegationRepository({
       delegations,
       plants: mockDelegationPlants,
@@ -149,6 +159,7 @@ describe('DelegationScheduler', () => {
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
+              ReminderMocksLive,
               racingCancel,
               createMockNotificationRepository(notifications),
               createMockUserRepository([mockUser1, mockUser2]),
@@ -186,6 +197,7 @@ describe('DelegationScheduler', () => {
       const delegations = [toActivate, toComplete]
       const layer = Layer.mergeAll(
         MockSqlClientLive,
+        ReminderMocksLive,
         createMockDelegationRepository({
           delegations,
           plants: mockDelegationPlants,
@@ -285,6 +297,7 @@ describe('DelegationScheduler', () => {
         const delegations = [d1, d2]
         const layer = Layer.mergeAll(
           MockSqlClientLive,
+          ReminderMocksLive,
           createMockDelegationRepository({
             delegations,
             plants: mockDelegationPlants,
@@ -334,6 +347,7 @@ describe('DelegationScheduler', () => {
         const delegations = [delegation]
         const layer = Layer.mergeAll(
           MockSqlClientLive,
+          ReminderMocksLive,
           createMockDelegationRepository({
             delegations,
             plants: mockDelegationPlants,

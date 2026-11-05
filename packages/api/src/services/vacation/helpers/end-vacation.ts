@@ -51,8 +51,17 @@ export const endVacation = (
     const sql = yield* SqlClient.SqlClient
     const plantRepo = yield* PlantRepository
     const ownPlantIds = yield* plantRepo.findIdsOwnedBy(params.user.id)
-    const claimed = yield* withReminderKeys(reminderKeysFor(ownPlantIds))(
-      endVacationForOwnPlants(params, ownPlantIds)
+    const ownedOrCaredForPlantIds =
+      yield* plantRepo.findPersonalReminderPlantIds(params.user.id)
+    const claimed = yield* withReminderKeys(
+      reminderKeysFor(ownedOrCaredForPlantIds),
+      Option.some(params.user.id)
+    )(
+      endVacationForOwnedOrCaredForPlants(
+        params,
+        ownPlantIds,
+        ownedOrCaredForPlantIds
+      )
     )
     if (claimed === null) return null
     yield* sql.withTransaction(
@@ -68,9 +77,10 @@ export const endVacation = (
     })
   )
 
-const endVacationForOwnPlants = (
+const endVacationForOwnedOrCaredForPlants = (
   params: EndVacationParams,
-  ownPlantIds: ReadonlyArray<string>
+  ownPlantIds: ReadonlyArray<string>,
+  ownedOrCaredForPlantIds: ReadonlyArray<string>
 ) =>
   Effect.gen(function* () {
     const { user, effectiveEnd } = params
@@ -131,6 +141,6 @@ const endVacationForOwnPlants = (
       VACATION_MUTED_TOPICS
     )
 
-    yield* rescheduleReminders(ownPlantIds)
+    yield* rescheduleReminders(ownedOrCaredForPlantIds)
     return claimed
   })

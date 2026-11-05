@@ -297,9 +297,8 @@ export const executePlantCare = (
       )
     }
 
-    // Clear any pending overdue reminders — the user just performed care
-    yield* notificationRepo.deletePendingByPlantAndType(
-      params.plantId,
+    yield* notificationRepo.deletePendingByPlantsAndType(
+      [params.plantId],
       'overdue_reminder'
     )
 

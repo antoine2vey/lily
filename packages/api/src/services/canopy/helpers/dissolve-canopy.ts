@@ -2,7 +2,6 @@ import {
   CanopyRepository,
   type MovedPlant,
 } from '@lily/api/repositories/canopy.repository'
-import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-shared-plants'
 import {
   type ReminderContext,
   rescheduleReminders,
@@ -31,14 +30,18 @@ export const dissolveCanopy = (
         return yield* withReminderKeys(reminderKeysFor(plantIds))(
           Effect.gen(function* () {
             const members = yield* repo.findMembersByJoinDate(canopyId)
-            yield* Effect.forEach(
+            const returned = yield* Effect.forEach(
               Array.filter(members, (m) => m.userId !== heirUserId),
-              (m) => returnSharedPlants(canopyId, m.userId),
-              { discard: true }
+              (m) => repo.returnToSharer(canopyId, m.userId)
             )
             const moved = yield* repo.transferToUser(canopyId, heirUserId)
             yield* repo.delete(canopyId)
-            yield* rescheduleReminders(Array.map(moved, (plant) => plant.id))
+            yield* rescheduleReminders(
+              Array.map(
+                [...Array.flatten(returned), ...moved],
+                (plant) => plant.id
+              )
+            )
             return moved
           })
         )
