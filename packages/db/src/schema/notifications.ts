@@ -63,6 +63,7 @@ export const notifications = pgTable(
       onDelete: 'cascade',
     }),
     metadata: jsonb('metadata').$type<NotificationMetadata>(),
+    params: jsonb('params'),
   },
   (table) => [
     index('notifications_user_id_idx').on(table.userId),
