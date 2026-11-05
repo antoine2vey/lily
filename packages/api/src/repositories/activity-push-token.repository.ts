@@ -58,9 +58,9 @@ export interface IActivityPushTokenRepository {
   readonly findStartTokensByUserId: (
     userId: string
   ) => Effect.Effect<ActivityPushToken[], SqlError>
-  readonly findActiveActivityByUserId: (
+  readonly findActiveActivitiesByUserId: (
     userId: string
-  ) => Effect.Effect<ActivityPushToken | null, SqlError>
+  ) => Effect.Effect<ActivityPushToken[], SqlError>
   readonly findAllActiveUpdateTokens: () => Effect.Effect<
     ActivityPushToken[],
     SqlError
@@ -129,10 +129,10 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
         return Array.map(rows, mapRow)
       }),
 
-      findActiveActivityByUserId: Effect.fn(
-        'ActivityPushTokenRepository.findActiveActivityByUserId'
+      findActiveActivitiesByUserId: Effect.fn(
+        'ActivityPushTokenRepository.findActiveActivitiesByUserId'
       )(function* (userId: string) {
-        const [row] = yield* db
+        const rows = yield* db
           .select()
           .from(activityPushTokens)
           .where(
@@ -142,8 +142,7 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
               eq(activityPushTokens.status, 'active')
             )
           )
-          .limit(1)
-        return row ? mapRow(row) : null
+        return Array.map(rows, mapRow)
       }),
 
       // Reconciliation sweep — recovers activities left stuck after a dropped

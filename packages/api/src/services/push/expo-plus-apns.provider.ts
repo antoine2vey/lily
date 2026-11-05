@@ -275,7 +275,6 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
       sendLiveActivity: Effect.fn('ExpoPlusApns.sendLiveActivity')(function* (
         message: LiveActivityPushMessage
       ) {
-        yield* Effect.annotateCurrentSpan('push.token', message.to)
         yield* Effect.annotateCurrentSpan('liveActivity.event', message._tag)
 
         if (!apnsClient) {

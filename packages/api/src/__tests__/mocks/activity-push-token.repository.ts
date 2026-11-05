@@ -29,16 +29,12 @@ export const createMockActivityPushTokenRepository = (
             t.userId === userId && t.kind === 'start' && t.status === 'active'
         )
       ),
-    findActiveActivityByUserId: (userId) =>
+    findActiveActivitiesByUserId: (userId) =>
       Effect.succeed(
-        Option.getOrNull(
-          Array.findFirst(
-            store,
-            (t) =>
-              t.userId === userId &&
-              t.kind === 'update' &&
-              t.status === 'active'
-          )
+        Array.filter(
+          store,
+          (t) =>
+            t.userId === userId && t.kind === 'update' && t.status === 'active'
         )
       ),
     findAllActiveUpdateTokens: () =>

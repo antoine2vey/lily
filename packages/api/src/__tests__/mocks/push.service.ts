@@ -1,16 +1,23 @@
 import {
   type IPushService,
   type LiveActivityPushMessage,
+  type PushConfigError,
   type PushMessage,
   PushSendError,
   PushService,
   type PushTicket,
+  type PushTokenInvalidatedError,
 } from '@lily/shared/server'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockPushServiceOptions {
   onSendBatch?: (messages: PushMessage[]) => void
   onSendLiveActivity?: (message: LiveActivityPushMessage) => void
+  failLiveActivity?: (
+    message: LiveActivityPushMessage
+  ) => Option.Option<
+    PushSendError | PushConfigError | PushTokenInvalidatedError
+  >
   shouldFail?: boolean
   failureMessage?: string
   batchTickets?: (messages: PushMessage[]) => PushTicket[]
@@ -49,6 +56,14 @@ export const createMockPushService = (
       Effect.gen(function* () {
         if (options.onSendLiveActivity) {
           options.onSendLiveActivity(message)
+        }
+
+        const failure = pipe(
+          Option.fromNullishOr(options.failLiveActivity),
+          Option.flatMap((fail) => fail(message))
+        )
+        if (Option.isSome(failure)) {
+          return yield* Effect.fail(failure.value)
         }
 
         if (options.shouldFail) {

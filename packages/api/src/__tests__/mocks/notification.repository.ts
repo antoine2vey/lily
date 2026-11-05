@@ -29,6 +29,7 @@ export interface MockNotificationRepositoryOptions {
   /** The ids of a Canopy's plants at call time, like the real subquery. */
   canopyPlants?: (canopyId: string) => ReadonlyArray<string>
   onCreate?: (notification: Notification) => void
+  onRetryLater?: (ids: ReadonlyArray<string>) => void
 }
 
 export const createMockNotificationRepository = (
@@ -233,8 +234,9 @@ export const createMockNotificationRepository = (
       }),
 
     retryLater: (ids, heldBy, retryAtAfterFailures, error) =>
-      Effect.sync(() =>
-        Array.filterMap(notificationsState, (n) => {
+      Effect.sync(() => {
+        options.onRetryLater?.(ids)
+        return Array.filterMap(notificationsState, (n) => {
           if (
             !Array.contains(ids, n.id) ||
             n.status !== 'queued' ||
@@ -259,7 +261,7 @@ export const createMockNotificationRepository = (
             retryCount: n.retryCount,
           })
         })
-      ),
+      }),
 
     deletePendingByPlantsAndType: (
       plantIds: ReadonlyArray<string>,
