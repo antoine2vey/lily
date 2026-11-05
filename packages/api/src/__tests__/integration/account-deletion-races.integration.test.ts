@@ -111,11 +111,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ) as Effect.Effect<A, E, Layer.Success<typeof BaseLive>>
       )
 
-    const insertUser = async (label: string) => {
+    const insertUser = async (label: string, id?: string) => {
       const tag = `${label}-${crypto.randomUUID()}`
       const [user] = await db
         .insert(schema.users)
         .values({
+          id,
           email: `${tag}@example.com`,
           name: tag,
           emailVerified: true,
@@ -325,6 +326,66 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     })
 
+    it('keeps the canceledAt of a cancel that commits while the deletion waits on the delegation row', async () => {
+      const caretaker = await insertUser('caretaker')
+      const owner = await insertUser('owner')
+      const reached = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const deleting = as(
+        caretaker,
+        Effect.gen(function* () {
+          const repo = yield* UserRepository
+          return yield* deleteAccount().pipe(
+            Effect.provideService(UserRepository, {
+              ...repo,
+              softDelete: (id: string) =>
+                Deferred.succeed(reached, undefined).pipe(
+                  Effect.andThen(Deferred.await(release)),
+                  Effect.andThen(repo.softDelete(id))
+                ),
+            })
+          )
+        })
+      )
+      await Effect.runPromise(Deferred.await(reached))
+      // Created after the deletion locked the caretaker's delegations.
+      const [created] = await db
+        .insert(schema.careDelegations)
+        .values({
+          ownerId: owner,
+          caretakerId: caretaker,
+          status: 'pending',
+          startDate: new Date(Date.now() + DAY),
+          endDate: new Date(Date.now() + 7 * DAY),
+        })
+        .returning()
+      if (!created) throw new Error('delegation insert returned nothing')
+      const canceledAt = new Date('2020-01-01T00:00:00.000Z')
+      const client = await pool.connect()
+      try {
+        await client.query('BEGIN')
+        await client.query(
+          "UPDATE care_delegations SET status = 'canceled', canceled_at = $1 WHERE id = $2",
+          [canceledAt, created.id]
+        )
+        Deferred.doneUnsafe(release, Exit.void)
+        await settledOrWaitingOnLock(deleting)
+        await client.query('COMMIT')
+      } finally {
+        client.release()
+      }
+
+      expect(outcome(await deleting)).toBe('ok')
+      const [row] = await db
+        .select({
+          status: schema.careDelegations.status,
+          canceledAt: schema.careDelegations.canceledAt,
+        })
+        .from(schema.careDelegations)
+        .where(eq(schema.careDelegations.id, created.id))
+      expect(row).toEqual({ status: 'canceled', canceledAt })
+    })
+
     it('lets a caretaker delete their account while the owner cancels the delegation, without a deadlock', async () => {
       const { owner, caretaker, delegationId } = await seed('active')
 
@@ -401,13 +462,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         after: 'completed',
       },
     ] as const)(
-      'lets the $deleter delete their account while two of their delegations $change in one scheduler tick, without a deadlock',
+      'lets the $deleter delete their account while two of their delegations $change in one scheduler tick, the higher id first by every other column, without a deadlock',
       async ({ deleter, status, startsIn, endsIn, after }) => {
         const user = await insertUser(deleter)
         const uuid = crypto.randomUUID().slice(1)
         const [high, low] = [`f${uuid}`, `0${uuid}`]
         for (const id of [high, low]) {
-          const other = await insertUser('other')
+          const other = await insertUser(
+            'other',
+            `${id === high ? '0' : 'f'}${crypto.randomUUID().slice(1)}`
+          )
+          const earlier = id === high ? -60_000 : 0
           const [owner, caretaker] =
             deleter === 'owner' ? [user, other] : [other, user]
           const [plant] = await db
@@ -435,8 +500,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             ownerId: owner,
             caretakerId: caretaker,
             status,
-            startDate: new Date(Date.now() + startsIn),
-            endDate: new Date(Date.now() + endsIn),
+            startDate: new Date(Date.now() + startsIn + earlier),
+            endDate: new Date(Date.now() + endsIn + earlier),
           })
           await db
             .insert(schema.delegationPlants)
