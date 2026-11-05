@@ -181,59 +181,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     })
 
-    it('pushes the stored text of a row written before params existed', async () => {
-      const user = await seedUser('legacy')
-      const { pushes, warnings, run } = pipeline()
-      await db
-        .update(schema.users)
-        .set({ language: 'fr' })
-        .where(eq(schema.users.id, user.id))
-      const [legacy] = await db
-        .insert(schema.notifications)
-        .values({
-          type: 'streak_at_risk',
-          title: "🔥 Don't lose your 12-day streak!",
-          body: 'Your Monstera still needs care today. Keep the streak alive!',
-          status: 'queued',
-          queuedAt: new Date(),
-          scheduledAt: new Date(),
-          userId: user.id,
-          metadata: {},
-        })
-        .returning()
-      if (!legacy) throw new Error('notification insert returned nothing')
-
-      await run(
-        processMessage({
-          id: crypto.randomUUID(),
-          topic: 'streak_at_risk',
-          payload: {
-            userId: user.id,
-            notificationIds: [legacy.id],
-            plantIds: [],
-            metadata: {},
-          },
-          retryCount: 0,
-          createdAt: new Date(),
-          scheduledAt: new Date(),
-        })
-      )
-
-      const english = {
-        title: "🔥 Don't lose your 12-day streak!",
-        body: 'Your Monstera still needs care today. Keep the streak alive!',
-      }
-      expect(Array.map(pushes, ({ title, body }) => ({ title, body }))).toEqual(
-        [english]
-      )
-      expect(await storedRow(legacy.id)).toEqual({
-        status: 'sent',
-        ...english,
-        params: null,
-      })
-      expect(warnings).toEqual([])
-    })
-
     it('lists a pending row with the text it was recorded with', async () => {
       const user = await seedUser('inbox')
       const { enqueued, run } = pipeline()

@@ -68,7 +68,6 @@ type Op =
       readonly t: number
       readonly olderThan: Duration.Duration
     }
-  | { readonly op: 'drain'; readonly t: number }
 
 interface Seed {
   readonly lists: Record<string, string[]>
@@ -111,8 +110,6 @@ const play = async (
         return queue.refreshClaim(claimNamed(o.claim))
       case 'requeueStale':
         return queue.requeueStale(o.olderThan)
-      case 'drain':
-        return queue.drainLegacyTopicLists
     }
   }
   const results: unknown[] = []
@@ -327,39 +324,6 @@ const scenarios: ReadonlyArray<{
       zsets: { [CLAIMED_AT_KEY]: { a: 1000, ghost: 2000, z: 3000 } },
     }),
     ops: [sweep(10 ** 9), sweep(10 ** 9)],
-  },
-  {
-    name: 'the legacy drain over pending, processing and claimed keys',
-    seed: () => ({
-      lists: {
-        'lily:notifications:new_follower': ['a2', 'a1'],
-        'lily:notifications:new_follower:processing': ['c1'],
-        'lily:notifications:daily_tip': ['d1'],
-        [QUEUE_KEY]: [raw(m1)],
-      },
-      zsets: {
-        'lily:notifications:new_follower:processing:claimed': { c1: 1 },
-        'lily:notifications:watering_reminder:processing:claimed': {
-          ghost: 1,
-        },
-      },
-      hashes: {},
-    }),
-    ops: [
-      { op: 'drain', t: 1000 },
-      { op: 'drain', t: 2000 },
-    ],
-  },
-  {
-    name: 'the legacy drain with only a claimed set left',
-    seed: () => ({
-      lists: {},
-      zsets: {
-        'lily:notifications:misting_reminder:processing:claimed': { x: 1 },
-      },
-      hashes: {},
-    }),
-    ops: [{ op: 'drain', t: 1000 }],
   },
   {
     name: 'dequeue of an empty queue',

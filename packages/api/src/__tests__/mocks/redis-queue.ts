@@ -12,7 +12,6 @@ export const createInMemoryRedis = (
   hashes: Record<string, Record<string, string>> = {}
 ) => {
   const acked: string[] = []
-  const commands: string[] = []
   const list = (key: string) => {
     lists[key] ??= []
     return lists[key]
@@ -41,7 +40,6 @@ export const createInMemoryRedis = (
   )
   const redis = {
     lpush: (key: string, value: string) => {
-      commands.push('lpush')
       return Promise.resolve(list(key).unshift(value))
     },
     eval: (
@@ -52,7 +50,6 @@ export const createInMemoryRedis = (
       claimedAtKey: string,
       ...args: ReadonlyArray<number | string>
     ) => {
-      commands.push('eval')
       if (script === DEQUEUE_SCRIPT) {
         const [now, claim] = args
         const raw = Option.fromNullishOr(list(queueKey).pop())
@@ -85,29 +82,8 @@ export const createInMemoryRedis = (
       return Promise.reject(new Error('in-memory redis has no such script'))
     },
     zadd: (key: string, _xx: 'XX', score: number, member: string) => {
-      commands.push('zadd')
       if (member in zset(key)) zset(key)[member] = score
       return Promise.resolve(0)
-    },
-    exists: (...keys: string[]) => {
-      commands.push('exists')
-      return Promise.resolve(Array.filter(keys, live).length)
-    },
-    lpop: (key: string) => {
-      commands.push('lpop')
-      return Promise.resolve(
-        Option.getOrNull(Option.fromNullishOr(list(key).shift()))
-      )
-    },
-    del: (...keys: string[]) => {
-      commands.push('del')
-      const removed = Array.filter(keys, live).length
-      Array.forEach(keys, (key) => {
-        delete lists[key]
-        delete zsets[key]
-        delete hashes[key]
-      })
-      return Promise.resolve(removed)
     },
     multi: () => {
       const tx = {
@@ -136,7 +112,7 @@ export const createInMemoryRedis = (
       ]),
       live
     ).sort()
-  return { queue: makeRedisMessageQueue(redis), acked, commands, liveKeys }
+  return { queue: makeRedisMessageQueue(redis), acked, liveKeys }
 }
 
 export const createInMemoryRedisQueue = (entries: string[]) =>

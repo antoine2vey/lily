@@ -678,26 +678,6 @@ const readPoisonIds = (entry: Option.Option<unknown>): PoisonIds => {
   }
 }
 
-const readLegacyIds = (rawData: string) => {
-  const ids = readPoisonIds(readEntry(rawData))
-  const lost =
-    Array.isReadonlyArrayEmpty(ids.notificationIds) ||
-    Array.isReadonlyArrayNonEmpty(ids.malformedIds)
-  return lost
-    ? Effect.as(
-        Effect.logWarning(
-          '[notification-recovery] Legacy entry has unreadable notification ids',
-          {
-            messageId: Option.getOrUndefined(ids.messageId),
-            malformedIds: ids.malformedIds,
-            entry: Str.slice(0, 200)(rawData),
-          }
-        ),
-        ids.notificationIds
-      )
-    : Effect.succeed(ids.notificationIds)
-}
-
 const discardPoisonMessage = (
   topic: string,
   ids: PoisonIds,
@@ -898,17 +878,8 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
 
   const requeued = yield* queue.requeueStale(VISIBILITY_TIMEOUT)
 
-  const legacyEntries = yield* queue.drainLegacyTopicLists
-  const legacyIds = yield* Effect.forEach(legacyEntries, readLegacyIds)
-  yield* Effect.forEach(
-    Array.chunksOf(Array.flatten(legacyIds), MAX_NOTIFICATION_IDS),
-    notificationRepo.releaseUnclaimed,
-    { discard: true }
-  )
-
-  if (requeued + released + failed + legacyEntries.length > 0) {
+  if (requeued + released + failed > 0) {
     yield* Effect.logWarning('[notification-recovery] Recovered deliveries', {
-      drainedLegacyMessages: legacyEntries.length,
       requeuedMessages: requeued,
       releasedRows: released,
       failedRows: failed,

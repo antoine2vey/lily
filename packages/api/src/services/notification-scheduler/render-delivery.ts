@@ -54,14 +54,12 @@ const rowContent = (
   named: Option.Option<PlantName>,
   language: LanguageCode
 ) =>
-  row.params === undefined
-    ? Result.succeed(storedContent(row))
-    : renderFromParams(
-        row.type,
-        row.params,
-        Option.map(named, (plant) => plant.plantName),
-        language
-      )
+  renderFromParams(
+    row.type,
+    row.params,
+    Option.map(named, (plant) => plant.plantName),
+    language
+  )
 
 const renderCare = (
   rows: ReadonlyArray<NotificationRow>,

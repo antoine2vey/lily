@@ -2,14 +2,12 @@ import { NOTIFICATION_METADATA } from '@lily/shared/notification'
 import {
   type IMessageQueue,
   MessageQueue,
-  NOTIFICATION_TOPICS,
   QueueConnectionError,
   QueueMessage,
   QueueMessageDecodeError,
   QueueOperationError,
 } from '@lily/shared/server'
 import {
-  Array,
   Clock,
   Config,
   Context,
@@ -35,16 +33,6 @@ const evalQueueScript = (
   script: string,
   ...args: ReadonlyArray<number | string>
 ) => redis.eval(script, 3, QUEUE_KEY, IN_FLIGHT_KEY, CLAIMED_AT_KEY, ...args)
-
-const LEGACY_PREFIX = 'lily:notifications:'
-const LEGACY_LIST_KEYS = Array.flatMap(NOTIFICATION_TOPICS, (topic) => [
-  `${LEGACY_PREFIX}${topic}`,
-  `${LEGACY_PREFIX}${topic}:processing`,
-])
-const LEGACY_CLAIMED_KEYS = Array.map(
-  NOTIFICATION_TOPICS,
-  (topic) => `${LEGACY_PREFIX}${topic}:processing:claimed`
-)
 
 export const DEQUEUE_SCRIPT = `
 local raw = redis.call('RPOP', KEYS[1])
@@ -108,20 +96,6 @@ const queueOperation = <A>(message: string, operation: () => Promise<A>) =>
     try: operation,
     catch: (cause) => new QueueOperationError({ message, cause }),
   })
-
-const popEach = (
-  redis: Redis,
-  key: string
-): Effect.Effect<ReadonlyArray<string>, QueueOperationError> =>
-  queueOperation(`Failed to drain ${key}`, () => redis.lpop(key)).pipe(
-    Effect.flatMap((raw) =>
-      Option.match(Option.fromNullishOr(raw), {
-        onNone: () => Effect.succeed([]),
-        onSome: (entry) =>
-          Effect.map(popEach(redis, key), (rest) => [entry, ...rest]),
-      })
-    )
-  )
 
 export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
   enqueue: (message) =>
@@ -188,24 +162,6 @@ export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
         )
       )
     ).pipe(Effect.withSpan('Redis.requeueStale')),
-
-  drainLegacyTopicLists: queueOperation('Failed to check legacy lists', () =>
-    redis.exists(...LEGACY_LIST_KEYS, ...LEGACY_CLAIMED_KEYS)
-  ).pipe(
-    Effect.flatMap((existing) =>
-      existing === 0
-        ? Effect.succeed([])
-        : Effect.forEach(LEGACY_LIST_KEYS, (key) => popEach(redis, key)).pipe(
-            Effect.map(Array.flatten),
-            Effect.tap(() =>
-              queueOperation('Failed to delete legacy claimed sets', () =>
-                redis.del(...LEGACY_CLAIMED_KEYS)
-              )
-            )
-          )
-    ),
-    Effect.withSpan('Redis.drainLegacyTopicLists')
-  ),
 })
 
 // Redis implementation of IMessageQueue

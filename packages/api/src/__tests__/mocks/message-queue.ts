@@ -13,7 +13,6 @@ export interface MockMessageQueueOptions {
   onDequeue?: () => { message: QueueMessage; rawData: string } | null
   onAck?: (claim: string) => void
   onRequeueStale?: () => number
-  legacyEntries?: ReadonlyArray<string>
   enqueueFailure?: QueueOperationError | QueueConnectionError
 }
 
@@ -21,7 +20,6 @@ export const createMockMessageQueue = (
   options: MockMessageQueueOptions = {}
 ): Layer.Layer<MessageQueue> => {
   const queue: QueueMessage[] = []
-  const legacy = [...(options.legacyEntries ?? [])]
 
   const service: IMessageQueue = {
     enqueue: (message) =>
@@ -56,8 +54,6 @@ export const createMockMessageQueue = (
     refreshClaim: () => Effect.void,
 
     requeueStale: () => Effect.sync(() => options.onRequeueStale?.() ?? 0),
-
-    drainLegacyTopicLists: Effect.sync(() => legacy.splice(0)),
   }
 
   return Layer.succeed(MessageQueue, service)
