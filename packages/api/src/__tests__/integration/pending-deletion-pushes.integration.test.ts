@@ -1,6 +1,8 @@
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -29,16 +31,17 @@ import {
 } from '@lily/api/repositories/user.repository'
 import { dispatchNow } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
-import { processMessage } from '@lily/api/services/notification-scheduler/worker'
+import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import type {
-  LiveActivityPushMessage,
-  PushMessage,
-  QueueMessage,
+import {
+  type LiveActivityPushMessage,
+  MessageQueue,
+  type PushMessage,
+  type QueueMessage,
 } from '@lily/shared/server'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -227,9 +230,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         )
       const deliver = async () => {
-        for (const message of enqueued.splice(0)) {
-          await run(processMessage(message))
-        }
+        const { queue } = createInMemoryRedisQueue(
+          enqueued.splice(0).map((message) => JSON.stringify(message))
+        )
+        const deadLettered: unknown[] = []
+        const consume = consumeNext.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              Layer.succeed(MessageQueue, queue),
+              createMockDeadLetterRepository({
+                onCreate: (data) => deadLettered.push(data),
+              })
+            )
+          )
+        )
+        while (await run(consume)) {}
+        expect(deadLettered).toEqual([])
       }
       return { run, deliver, enqueued, pushes, liveActivities }
     }
