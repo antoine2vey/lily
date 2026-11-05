@@ -749,12 +749,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     )
 
-    it.each(LOCKED)(
-      'writes no overdue reminder for a %s owner',
+    it.each(['pending_deletion', ...LOCKED] as const)(
+      'writes no overdue reminder for a %s owner, even through a caretaker with the same status',
       async (status) => {
         const locked = await insertUser(`overdue-${status}`)
+        const caretaker = await insertUser(`overdue-caretaker-${status}`)
         const active = await insertUser('overdue-active')
         await insertPlant(locked.id, new Date(Date.now() - 2 * DAY))
+        const delegated = await insertPlant(
+          locked.id,
+          new Date(Date.now() - 2 * DAY)
+        )
+        await delegate(locked.id, caretaker.id, delegated.id)
         const activePlant = await insertPlant(
           active.id,
           new Date(Date.now() - 2 * DAY)
@@ -762,16 +768,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const { run } = pipeline(active)
 
         await markStatus(run, locked.id, status)
+        await markStatus(run, caretaker.id, status)
         await run(checkAndCreateOverdueReminders)
 
         expect(await rowsOf(locked.id)).toEqual([])
+        expect(await rowsOf(caretaker.id)).toEqual([])
         expect(await rowsOf(active.id)).toMatchObject([
           { type: 'overdue_reminder', plantId: activePlant.id },
         ])
       }
     )
 
-    it.each(LOCKED)(
+    it.each(['pending_deletion', ...LOCKED] as const)(
       'sends an overdue reminder to the active caretaker of a %s owner',
       async (status) => {
         const owner = await insertUser(`overdue-owner-${status}`)
