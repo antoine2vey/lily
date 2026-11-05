@@ -163,7 +163,7 @@ export const updateUserSettings = (
             )
           })
         )
-      : yield* applyUpdate
+      : yield* sql.withTransaction(applyUpdate)
 
     const careLogsCount = yield* careLogRepo.countByUser(id)
 
