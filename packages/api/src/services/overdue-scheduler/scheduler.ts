@@ -3,10 +3,10 @@ import {
   CareScheduleRepository,
   type OverdueRecipientPlant,
 } from '@lily/api/repositories/care-schedule.repository'
-import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { ownerKey } from '@lily/api/repositories/helpers/plant-owner'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   dispatchNow,
@@ -14,7 +14,14 @@ import {
   scheduleDeferredCareNotification,
 } from '@lily/api/services/helpers/schedule-notification'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
-import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
+import {
+  reminderKeysFor,
+  withReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
+import {
+  notificationSettingsOf,
+  type UserNotificationSettings,
+} from '@lily/api/services/plants/helpers/user-settings'
 import { canopyPlantCapFrom } from '@lily/api/services/subscriptions/canopy-plant-cap'
 import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import {
@@ -74,45 +81,46 @@ const dueBeforeTheirOwnersDay = (
     )
   })
 
-export const processUserOverdueReminders = (
+const timezoneOf = (settings: UserNotificationSettings) =>
+  pipe(
+    Option.fromNullishOr(settings.timezone),
+    Option.getOrElse(() => DEFAULT_TIMEZONE)
+  )
+
+const nudgeOverflow = (
   userId: string,
+  settings: UserNotificationSettings,
+  overflowCount: number
+) =>
+  Effect.gen(function* () {
+    const notificationRepo = yield* NotificationRepository
+    const alreadySentNudge =
+      yield* notificationRepo.hasNotificationOfTypeTodayForUser(
+        userId,
+        timezoneOf(settings),
+        'resubscribe_nudge'
+      )
+    if (alreadySentNudge) return
+    yield* recordNotification(
+      'resubscribe_nudge',
+      userId,
+      { plantCount: overflowCount },
+      settings.language,
+      {}
+    ).pipe(Effect.flatMap(dispatchNow))
+  })
+
+const capAudience = (
+  userId: string,
+  settings: UserNotificationSettings,
   plants: readonly OverdueRecipientPlant[],
   maxPlantsFor: (owner: PlantOwner) => number | null
 ) =>
   Effect.gen(function* () {
-    const notificationRepo = yield* NotificationRepository
-    const delegationRepo = yield* DelegationRepository
-
-    // Check user settings
-    const settings = yield* getUserNotificationSettings(userId)
-
-    if (!settings.careReminders) {
-      return yield* new CareRemindersDisabledError({ userId })
-    }
-
-    const recipientOnVacation = isOnVacation(settings, nowAsDate())
-
-    const timezone = pipe(
-      Option.fromNullishOr(settings.timezone),
-      Option.getOrElse(() => DEFAULT_TIMEZONE)
+    const strictlyOverdue = yield* dueBeforeTheirOwnersDay(
+      plants,
+      timezoneOf(settings)
     )
-
-    // Dedup: skip if already sent today
-    const alreadySent =
-      yield* notificationRepo.hasNotificationOfTypeTodayForUser(
-        userId,
-        timezone,
-        'overdue_reminder'
-      )
-
-    if (alreadySent) {
-      return yield* new AlreadySentTodayError({ userId })
-    }
-
-    const strictlyOverdue = yield* dueBeforeTheirOwnersDay(plants, timezone)
-
-    if (Array.isReadonlyArrayEmpty(strictlyOverdue)) return 0
-
     const sorted = Array.sort(
       strictlyOverdue,
       Order.mapInput(Order.Date, (p: OverdueRecipientPlant) => p.dateAdded)
@@ -133,102 +141,70 @@ export const processUserOverdueReminders = (
     )
     const overflowCount = Array.length(sorted) - Array.length(eligible)
 
-    // Pick the earliest available window (morning-first) for overdue reminders
-    // so users are notified first thing in the morning, not randomly in the evening
-    const randomValue = yield* Random.next
+    if (
+      overflowCount > 0 &&
+      settings.careReminders &&
+      settings.tips &&
+      !isOnVacation(settings, nowAsDate())
+    ) {
+      yield* nudgeOverflow(userId, settings, overflowCount)
+    }
+
+    return eligible
+  })
+
+export const remindRecipient = (
+  recipientId: string,
+  settings: UserNotificationSettings,
+  plants: readonly OverdueRecipientPlant[]
+) =>
+  Effect.gen(function* () {
+    const notificationRepo = yield* NotificationRepository
+    const scheduleRepo = yield* CareScheduleRepository
+
+    if (!settings.careReminders) {
+      return yield* new CareRemindersDisabledError({ userId: recipientId })
+    }
+    if (isOnVacation(settings, nowAsDate())) return 0
+
+    const timezone = timezoneOf(settings)
+    const alreadySent =
+      yield* notificationRepo.hasNotificationOfTypeTodayForUser(
+        recipientId,
+        timezone,
+        'overdue_reminder'
+      )
+    if (alreadySent) {
+      return yield* new AlreadySentTodayError({ userId: recipientId })
+    }
+
+    const morningWindowRoll = yield* Random.nextBetween(0, 0.5)
     const scheduledAt = yield* pickNotificationTime(
-      userId,
+      recipientId,
       timezone,
       settings.doNotDisturb,
       settings.doNotDisturbStart,
       settings.doNotDisturbEnd,
-      randomValue * 0.5 // clamp to [0, 0.5) to always prefer morning window
+      morningWindowRoll
     )
 
-    const routed = yield* Effect.forEach(eligible, (plant) =>
-      Match.value(plant.owner).pipe(
-        Match.tag('Canopy', () => Effect.succeed(null)),
-        Match.tag('User', () =>
-          delegationRepo.findActiveCaretakerForPlant(plant.id)
-        ),
-        Match.exhaustive,
-        Effect.map((caretakerId) => ({ plant, caretakerId }))
-      )
-    )
-
-    // One settings fetch per distinct caretaker to check their vacation
-    const caretakerIds = pipe(
-      routed,
-      Array.filterMap(
-        Filter.fromPredicateOption(({ caretakerId }) =>
-          Option.fromNullishOr(caretakerId)
-        )
-      ),
-      Array.dedupe
-    )
-    const caretakerOnVacation = Record.fromEntries(
-      yield* Effect.forEach(caretakerIds, (caretakerId) =>
-        getUserNotificationSettings(caretakerId).pipe(
-          Effect.map(
-            (caretakerSettings) =>
-              [
-                caretakerId,
-                isOnVacation(caretakerSettings, nowAsDate()),
-              ] as const
-          )
-        )
-      )
-    )
-
-    const deliverable = Array.filter(routed, ({ caretakerId }) =>
-      pipe(
-        Option.fromNullishOr(caretakerId),
-        Option.match({
-          onNone: () => !recipientOnVacation,
-          onSome: (id) =>
-            pipe(
-              Record.get(caretakerOnVacation, id),
-              Option.getOrElse(() => false),
-              (onVacation) => !onVacation
-            ),
+    const plantIds = Array.map(plants, (p) => p.id)
+    return yield* Effect.gen(function* () {
+      const stillOverdue = yield* scheduleRepo.findOverduePlantIds(plantIds)
+      yield* Effect.forEach(stillOverdue, (plantId) =>
+        scheduleDeferredCareNotification({
+          type: 'overdue_reminder',
+          userId: recipientId,
+          plantId,
+          scheduledAt,
         })
       )
-    )
-
-    // Create one notification per deliverable plant, sharing the same scheduledAt
-    yield* Effect.forEach(deliverable, ({ plant, caretakerId }) =>
-      scheduleDeferredCareNotification({
-        type: 'overdue_reminder',
-        userId: pipe(
-          Option.fromNullishOr(caretakerId),
-          Option.getOrElse(() => userId)
-        ),
-        plantId: plant.id,
-        scheduledAt,
-      })
-    )
-
-    if (overflowCount > 0 && !recipientOnVacation && settings.tips) {
-      const alreadySentNudge =
-        yield* notificationRepo.hasNotificationOfTypeTodayForUser(
-          userId,
-          timezone,
-          'resubscribe_nudge'
-        )
-      if (!alreadySentNudge) {
-        yield* recordNotification(
-          'resubscribe_nudge',
-          userId,
-          { plantCount: overflowCount },
-          settings.language,
-          {}
-        ).pipe(Effect.flatMap(dispatchNow))
-      }
-    }
-
-    return Array.length(deliverable)
+      return Array.length(stillOverdue)
+    }).pipe(withReminderKeys(reminderKeysFor(plantIds)))
   }).pipe(
-    Effect.withSpan('overdue-scheduler.processUser', { attributes: { userId } })
+    Effect.withSpan('overdue-scheduler.remindRecipient', {
+      attributes: { recipientId },
+    })
   )
 
 // Core effect: check for overdue plants and create reminder notifications
@@ -236,6 +212,7 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
   const scheduleRepo = yield* CareScheduleRepository
   const canopyRepo = yield* CanopyRepository
   const subRepo = yield* SubscriptionRepository
+  const userRepo = yield* UserRepository
 
   yield* Effect.log('Running overdue reminder check...')
 
@@ -307,11 +284,45 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
       Match.exhaustive
     )
 
-  // Process each user group, handling skip errors via catchTags
-  const results = yield* Effect.forEach(
+  const settingsById = pipe(
+    yield* userRepo.findByIds(
+      pipe(
+        Record.values(grouped),
+        Array.flatten,
+        Array.map((p) => p.recipientId),
+        Array.appendAll(Record.keys(grouped)),
+        Array.dedupe
+      )
+    ),
+    Array.map((user) => [user.id, notificationSettingsOf(user)] as const),
+    Record.fromEntries
+  )
+  const settingsOf = (userId: string) =>
+    pipe(
+      Record.get(settingsById, userId),
+      Option.getOrElse(() => notificationSettingsOf(null))
+    )
+
+  const eligible = yield* Effect.forEach(
     Record.toEntries(grouped),
     ([userId, plants]) =>
-      processUserOverdueReminders(userId, plants, maxPlantsFor).pipe(
+      capAudience(userId, settingsOf(userId), plants, maxPlantsFor).pipe(
+        Effect.catchTag('SqlError', (e) =>
+          Effect.logWarning('[overdue-scheduler] Failed to cap user', {
+            userId,
+            error: String(e),
+          }).pipe(Effect.as([]))
+        )
+      ),
+    { concurrency: 10 }
+  )
+
+  const results = yield* Effect.forEach(
+    Record.toEntries(
+      Array.groupBy(Array.flatten(eligible), (p) => p.recipientId)
+    ),
+    ([recipientId, plants]) =>
+      remindRecipient(recipientId, settingsOf(recipientId), plants).pipe(
         Effect.catchTags({
           CareRemindersDisabledError: (e) =>
             Effect.log('[overdue-scheduler] Skipped — reminders disabled', {
@@ -326,8 +337,8 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
               userId: e.userId,
             }).pipe(Effect.as(0)),
           SqlError: (e) =>
-            Effect.logWarning('[overdue-scheduler] Failed to process user', {
-              userId,
+            Effect.logWarning('[overdue-scheduler] Failed to remind user', {
+              userId: recipientId,
               error: String(e),
             }).pipe(Effect.as(0)),
         })

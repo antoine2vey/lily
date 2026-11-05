@@ -12,7 +12,10 @@ import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
-import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
+import {
+  CareScheduleRepository,
+  CareScheduleRepositoryLive,
+} from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import {
@@ -24,6 +27,7 @@ import {
   PlantRepositoryLive,
 } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import {
   UserRepository,
   UserRepositoryLive,
@@ -33,6 +37,7 @@ import { createCanopyInvite } from '@lily/api/services/canopy/endpoints/create-c
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
+import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
 import {
   mutePlant,
@@ -80,7 +85,8 @@ const BaseLive = Layer.mergeAll(
   DelegationRepositoryLive,
   RoomRepositoryLive,
   DeviceTokenRepositoryLive,
-  ActivityPushTokenRepositoryLive
+  ActivityPushTokenRepositoryLive,
+  SubscriptionRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const outcome = (exit: Exit.Exit<unknown, unknown>) =>
@@ -1450,5 +1456,261 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       },
       120_000
     )
+
+    describe('overdue reminders for a caretaker', () => {
+      let delegated: string[]
+
+      beforeAll(async () => {
+        delegated = []
+        for (const i of Arr.range(1, 3)) {
+          const [row] = await db
+            .insert(schema.plants)
+            .values({
+              userId: alex,
+              createdByUserId: alex,
+              name: `Delegated ${i}`,
+              health: 'HEALTHY',
+              humidityRating: 3,
+              lightingRating: 3,
+              petToxicityRating: 1,
+              wateringRating: 3,
+            })
+            .returning()
+          if (!row) throw new Error('Failed to create plant')
+          delegated.push(row.id)
+          await db.insert(schema.plantCareSchedules).values({
+            plantId: row.id,
+            careType: 'watering',
+            frequencyDays: 7,
+          })
+        }
+        const [delegation] = await db
+          .insert(schema.careDelegations)
+          .values({
+            ownerId: alex,
+            caretakerId: sam,
+            status: 'active',
+            startDate: new Date(Date.now() - 5 * day),
+            endDate: new Date(Date.now() + 7 * day),
+          })
+          .returning()
+        if (!delegation) throw new Error('Failed to create delegation')
+        await db.insert(schema.delegationPlants).values(
+          Arr.map(delegated, (plantId) => ({
+            delegationId: delegation.id,
+            plantId,
+          }))
+        )
+      })
+
+      beforeEach(async () => {
+        await db.execute(
+          sql`UPDATE plant_care_schedules SET next_care_at = now() - interval '3 days' WHERE plant_id IN (${sql.join(
+            Arr.map(delegated, (p) => sql`${p}`),
+            sql`, `
+          )})`
+        )
+      })
+
+      const overdueRows = () =>
+        db
+          .select({
+            userId: schema.notifications.userId,
+            plantId: schema.notifications.plantId,
+            scheduledAt: schema.notifications.scheduledAt,
+          })
+          .from(schema.notifications)
+          .where(sql`${schema.notifications.type} = 'overdue_reminder'`)
+
+      const plantIdsOf = async (userId: string) =>
+        Arr.sort(
+          Arr.flatMap(await overdueRows(), (r) =>
+            r.userId === userId && r.plantId !== null ? [r.plantId] : []
+          ),
+          Order.String
+        )
+
+      const runOverdue = (careLands: () => Promise<unknown> = async () => {}) =>
+        as(
+          sam,
+          checkAndCreateOverdueReminders.pipe(
+            Effect.provide(
+              Layer.effect(
+                CareScheduleRepository,
+                Effect.map(CareScheduleRepository, (repo) => ({
+                  ...repo,
+                  findOverdueByUser: () =>
+                    Effect.tap(repo.findOverdueByUser(), () =>
+                      Effect.promise(careLands)
+                    ),
+                }))
+              )
+            )
+          )
+        )
+
+      it('writes the caretaker one row per delegated plant per day and the owner none', async () => {
+        await runOverdue()
+        await runOverdue()
+
+        expect(await plantIdsOf(sam)).toEqual(Arr.sort(delegated, Order.String))
+        expect(await plantIdsOf(alex)).toEqual([])
+        const times = new Set(
+          Arr.map(await overdueRows(), (r) => r.scheduledAt?.getTime())
+        )
+        expect(times.size).toBe(1)
+      }, 60_000)
+
+      it('leaves no overdue row for a plant cared for while the run is in flight', async () => {
+        const [cared, ...rest] = delegated as [string, ...string[]]
+
+        let careExit: Exit.Exit<unknown, unknown> | undefined
+        const exit = await runOverdue(async () => {
+          careExit = await as(
+            alex,
+            Effect.flatMap(plantNamed(cared), (plant) =>
+              executePlantCare(plant, {
+                plantId: cared,
+                careType: 'watering',
+                date: new Date(),
+              })
+            )
+          )
+        })
+
+        expect(careExit && Exit.isSuccess(careExit)).toBe(true)
+        expect(Exit.isSuccess(exit)).toBe(true)
+        expect(await plantIdsOf(sam)).toEqual(Arr.sort(rest, Order.String))
+      }, 60_000)
+
+      it('writes none of a caretaker rows when one insert fails, and all of them on the next run', async () => {
+        await db.execute(sql`
+          CREATE OR REPLACE FUNCTION fail_third_overdue() RETURNS trigger AS $$
+          BEGIN
+            IF NEW.type = 'overdue_reminder' AND (SELECT count(*) FROM notifications WHERE type = 'overdue_reminder') >= 2 THEN
+              RAISE EXCEPTION 'injected overdue insert failure';
+            END IF;
+            RETURN NEW;
+          END $$ LANGUAGE plpgsql`)
+        await db.execute(
+          sql`CREATE TRIGGER fail_third_overdue BEFORE INSERT ON notifications FOR EACH ROW EXECUTE FUNCTION fail_third_overdue()`
+        )
+        try {
+          await runOverdue()
+          expect(await plantIdsOf(sam)).toEqual([])
+        } finally {
+          await db.execute(
+            sql`DROP TRIGGER IF EXISTS fail_third_overdue ON notifications`
+          )
+          await db.execute(sql`DROP FUNCTION IF EXISTS fail_third_overdue()`)
+        }
+
+        await runOverdue()
+        expect(await plantIdsOf(sam)).toEqual(Arr.sort(delegated, Order.String))
+      }, 60_000)
+
+      it('leaves no overdue row for a plant cared for while the run holds its reminder lock', async () => {
+        const [cared, ...rest] = delegated as [string, ...string[]]
+
+        let care: Promise<Exit.Exit<unknown, unknown>> | undefined
+        const exit = await as(
+          sam,
+          checkAndCreateOverdueReminders.pipe(
+            Effect.provide(
+              Layer.effect(
+                CareScheduleRepository,
+                Effect.map(CareScheduleRepository, (repo) => ({
+                  ...repo,
+                  findOverduePlantIds: (plantIds: ReadonlyArray<string>) =>
+                    Effect.tap(repo.findOverduePlantIds(plantIds), () =>
+                      Effect.promise(async () => {
+                        care = as(
+                          alex,
+                          Effect.flatMap(plantNamed(cared), (plant) =>
+                            executePlantCare(plant, {
+                              plantId: cared,
+                              careType: 'watering',
+                              date: new Date(),
+                            })
+                          )
+                        )
+                        await Promise.race([
+                          care,
+                          new Promise((resolve) => setTimeout(resolve, 1500)),
+                        ])
+                      })
+                    ),
+                }))
+              )
+            )
+          )
+        )
+        const careExit = await care
+
+        expect(careExit && Exit.isSuccess(careExit)).toBe(true)
+        expect(Exit.isSuccess(exit)).toBe(true)
+        expect(await plantIdsOf(sam)).toEqual(Arr.sort(rest, Order.String))
+      }, 60_000)
+
+      it('gives a plant with reminders off no row and no free-tier cap slot', async () => {
+        const fern = await user('Fern')
+        const own: string[] = []
+        for (const i of Arr.range(0, 5)) {
+          const [row] = await db
+            .insert(schema.plants)
+            .values({
+              userId: fern,
+              createdByUserId: fern,
+              name: `Own ${i}`,
+              health: 'HEALTHY',
+              humidityRating: 3,
+              lightingRating: 3,
+              petToxicityRating: 1,
+              wateringRating: 3,
+              remindersEnabled: i !== 0,
+              dateAdded: new Date(Date.now() - (100 - i) * day),
+            })
+            .returning()
+          if (!row) throw new Error('Failed to create plant')
+          own.push(row.id)
+          await db.insert(schema.plantCareSchedules).values({
+            plantId: row.id,
+            careType: 'watering',
+            frequencyDays: 7,
+            nextCareAt: new Date(Date.now() - 3 * day),
+          })
+        }
+
+        await runOverdue()
+
+        expect(await plantIdsOf(fern)).toEqual(
+          Arr.sort(own.slice(1), Order.String)
+        )
+        const nudges = await db
+          .select({ id: schema.notifications.id })
+          .from(schema.notifications)
+          .where(
+            sql`${schema.notifications.type} = 'resubscribe_nudge' AND ${schema.notifications.userId} = ${fern}`
+          )
+        expect(nudges).toEqual([])
+      }, 60_000)
+
+      it('reminds the owner, not the former caretaker, once the delegation has ended', async () => {
+        await db.execute(
+          sql`UPDATE care_delegations SET status = 'completed' WHERE caretaker_id = ${sam}`
+        )
+        try {
+          await runOverdue()
+          expect(await plantIdsOf(sam)).toEqual([])
+          expect(await plantIdsOf(alex)).toEqual(
+            Arr.sort(delegated, Order.String)
+          )
+        } finally {
+          await db.execute(
+            sql`UPDATE care_delegations SET status = 'active' WHERE caretaker_id = ${sam}`
+          )
+        }
+      }, 60_000)
+    })
   }
 )

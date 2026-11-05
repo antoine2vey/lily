@@ -28,6 +28,7 @@ export interface MockCareScheduleData {
   rooms?: MockRoom[]
   memberships?: MockMembership[]
   mutes?: Array<{ userId: string; plantId: string }>
+  caretakers?: Array<{ plantId: string; caretakerId: string }>
 }
 
 export const createMockCareScheduleRepository = (
@@ -47,6 +48,7 @@ export const createMockCareScheduleRepository = (
   )
   const memberships = data.memberships ?? []
   const mutes = data.mutes ?? []
+  const caretakers = data.caretakers ?? []
 
   const isMuted = (userId: string, plantId: string) =>
     Array.some(mutes, (m) => m.userId === userId && m.plantId === plantId)
@@ -73,6 +75,23 @@ export const createMockCareScheduleRepository = (
           ),
           Array.map((m) => m.userId)
         )
+
+  const recipientOf = (p: PlantRecord, userId: string) =>
+    p.userId === null
+      ? userId
+      : pipe(
+          Array.findFirst(caretakers, (c) => c.plantId === p.id),
+          Option.map((c) => c.caretakerId),
+          Option.getOrElse(() => userId)
+        )
+
+  const isOverdueNow = (now: Date) => (s: CareScheduleRow) =>
+    pipe(
+      Array.findFirst(plantsData, (p) => p.id === s.plantId),
+      Option.exists((p) => p.diedAt === null && p.remindersEnabled)
+    ) &&
+    s.nextCareAt !== null &&
+    s.nextCareAt.getTime() <= now.getTime()
 
   const resolveRoom = (roomId: string | null) =>
     pipe(
@@ -161,17 +180,7 @@ export const createMockCareScheduleRepository = (
 
     findOverdueByUser: () => {
       const now = new Date()
-      const livingPlantIds = pipe(
-        Array.filter(plantsData, (p) => p.diedAt === null),
-        Array.map((p) => p.id)
-      )
-      const overdue = Array.filter(
-        schedulesData,
-        (s) =>
-          Array.contains(livingPlantIds, s.plantId) &&
-          s.nextCareAt !== null &&
-          s.nextCareAt.getTime() <= now.getTime()
-      )
+      const overdue = Array.filter(schedulesData, isOverdueNow(now))
 
       const byPlant = Array.groupBy(overdue, (s) => s.plantId)
 
@@ -188,6 +197,7 @@ export const createMockCareScheduleRepository = (
                   name: plant.name,
                   userId,
                   owner: ownerOf(plant),
+                  recipientId: recipientOf(plant, userId),
                   dateAdded: plant.dateAdded,
                   overdueAt: earliestOverdueDate(
                     Array.map(schedules, (sc) => sc.nextCareAt),
@@ -203,6 +213,16 @@ export const createMockCareScheduleRepository = (
 
       return Effect.succeed(Array.groupBy(mapped, (p) => p.userId))
     },
+
+    findOverduePlantIds: (plantIds: ReadonlyArray<string>) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(schedulesData, isOverdueNow(new Date())),
+          Array.map((s) => s.plantId),
+          Array.filter((id) => Array.contains(plantIds, id)),
+          Array.dedupe
+        )
+      ),
 
     findByOwnerWithPlant: (userId: string) =>
       Effect.succeed(

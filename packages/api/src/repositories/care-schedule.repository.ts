@@ -13,6 +13,8 @@ import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   canopyMembers,
   canopyPlantMutes,
+  careDelegations,
+  delegationPlants,
   plantCareSchedules,
   plants,
   rooms,
@@ -68,13 +70,24 @@ export interface OwnerScheduleRow {
   }
 }
 
-export type OverdueRecipientPlant = OverduePlant & { owner: PlantOwner }
+export type OverdueRecipientPlant = OverduePlant & {
+  owner: PlantOwner
+  recipientId: string
+}
 
 export interface UpsertScheduleData {
   frequencyDays: number
   lastCareAt?: Date | null
   nextCareAt?: Date | null
 }
+
+const overdueAt = (now: Date) =>
+  and(
+    isLivingPlant(),
+    eq(plants.remindersEnabled, true),
+    isNotNull(plantCareSchedules.nextCareAt),
+    lte(plantCareSchedules.nextCareAt, now)
+  )
 
 // Repository interface
 export interface ICareScheduleRepository {
@@ -103,6 +116,9 @@ export interface ICareScheduleRepository {
     Record<string, Array<OverdueRecipientPlant>>,
     SqlError
   >
+  readonly findOverduePlantIds: (
+    plantIds: ReadonlyArray<string>
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly findByOwnerWithPlant: (
     userId: string
   ) => Effect.Effect<Array<OwnerScheduleRow>, SqlError>
@@ -250,21 +266,31 @@ export const CareScheduleRepositoryLive = Layer.effect(
       findOverdueByUser: Effect.fn('CareScheduleRepository.findOverdueByUser')(
         function* () {
           const now = nowAsDate()
-          const overdue = and(
-            isLivingPlant(),
-            isNotNull(plantCareSchedules.nextCareAt),
-            lte(plantCareSchedules.nextCareAt, now)
-          )
+          const overdue = overdueAt(now)
+          const activeCaretakers = db
+            .select({
+              plantId: delegationPlants.plantId,
+              caretakerId: careDelegations.caretakerId,
+            })
+            .from(delegationPlants)
+            .innerJoin(
+              careDelegations,
+              eq(careDelegations.id, delegationPlants.delegationId)
+            )
+            .where(eq(careDelegations.status, 'active'))
+            .as('active_caretakers')
           const personal = yield* db
             .select({
               plantId: plants.id,
               plantName: plants.name,
               userId: plants.userId,
+              caretakerId: activeCaretakers.caretakerId,
               nextCareAt: plantCareSchedules.nextCareAt,
               dateAdded: plants.dateAdded,
             })
             .from(plantCareSchedules)
             .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
+            .leftJoin(activeCaretakers, eq(activeCaretakers.plantId, plants.id))
             .where(and(overdue, isNotNull(plants.userId)))
             .orderBy(asc(plants.userId))
 
@@ -294,12 +320,17 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .orderBy(asc(canopyMembers.userId))
 
           const addressed = Array.appendAll(
-            Array.map(Array.filter(personal, hasUserOwner), (r) =>
-              withUserOwner({ ...r, canopyId: null })
-            ),
+            Array.map(Array.filter(personal, hasUserOwner), (r) => ({
+              ...withUserOwner({ ...r, canopyId: null }),
+              recipientId: pipe(
+                Option.fromNullishOr(r.caretakerId),
+                Option.getOrElse(() => r.userId)
+              ),
+            })),
             Array.map(shared, (r) => ({
               ...withCanopyOwner({ ...r, userId: null }),
               userId: r.userId,
+              recipientId: r.userId,
             }))
           )
           const byRecipientPlant = Array.groupBy(
@@ -316,6 +347,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
                 name: first.plantName,
                 userId: first.userId,
                 owner: first.owner,
+                recipientId: first.recipientId,
                 dateAdded: first.dateAdded,
                 overdueAt: earliestOverdueDate(
                   Array.map(schedules, (s) => s.nextCareAt),
@@ -328,6 +360,18 @@ export const CareScheduleRepositoryLive = Layer.effect(
           return Array.groupBy(mapped, (p) => p.userId)
         }
       ),
+
+      findOverduePlantIds: Effect.fn(
+        'CareScheduleRepository.findOverduePlantIds'
+      )(function* (plantIds) {
+        if (Array.isReadonlyArrayEmpty(plantIds)) return []
+        const rows = yield* db
+          .selectDistinct({ id: plants.id })
+          .from(plantCareSchedules)
+          .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
+          .where(and(overdueAt(nowAsDate()), inArray(plants.id, [...plantIds])))
+        return Array.map(rows, (r) => r.id)
+      }),
 
       findByOwnerWithPlant: Effect.fn(
         'CareScheduleRepository.findByOwnerWithPlant'
