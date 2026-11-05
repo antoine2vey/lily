@@ -5,7 +5,7 @@ import type {
   IMessageQueue,
   QueueMessage,
 } from '@lily/shared/server'
-import { Array, Duration, Effect, Exit, Option, Record } from 'effect'
+import { Array, Cause, Duration, Effect, Exit, Option, Record } from 'effect'
 import Redis from 'ioredis'
 import {
   afterAll,
@@ -310,6 +310,15 @@ const scenarios: ReadonlyArray<{
     ops: [sweep(10 ** 9)],
   },
   {
+    name: 'a claim time with no in-flight entry is dropped without blocking the claims after it',
+    seed: () => ({
+      lists: {},
+      hashes: { [IN_FLIGHT_KEY]: { a: raw(m1), z: raw(m3) } },
+      zsets: { [CLAIMED_AT_KEY]: { a: 1000, ghost: 2000, z: 3000 } },
+    }),
+    ops: [sweep(10 ** 9), sweep(10 ** 9)],
+  },
+  {
     name: 'the legacy drain over pending, processing and claimed keys',
     seed: () => ({
       lists: {
@@ -413,6 +422,21 @@ describe.skipIf(!REDIS_URL_TEST)('the one queue on real Redis', () => {
     await at(2, queue.refreshClaim(taken.claim))
 
     expect(await redis.keys('*')).toEqual([])
+  })
+
+  it('requeues the claims around one with no in-flight entry and drops it', async () => {
+    await redis.hset(IN_FLIGHT_KEY, 'a', raw(m1), 'z', raw(m3))
+    await redis.zadd(CLAIMED_AT_KEY, 1000, 'a', 2000, 'ghost', 3000, 'z')
+
+    vi.spyOn(Date, 'now').mockReturnValue(10 ** 9)
+    const exit = await Effect.runPromiseExit(
+      queue.requeueStale(VISIBILITY_TIMEOUT)
+    )
+
+    expect(Exit.isSuccess(exit) ? exit.value : Cause.pretty(exit.cause)).toBe(2)
+    expect(await redis.lrange(QUEUE_KEY, 0, -1)).toEqual([raw(m1), raw(m3)])
+    expect(await redis.hlen(IN_FLIGHT_KEY)).toBe(0)
+    expect(await redis.zcard(CLAIMED_AT_KEY)).toBe(0)
   })
 
   it('keeps the other claim on the same entry when one is acked', async () => {

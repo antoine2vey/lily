@@ -75,14 +75,12 @@ export const createInMemoryRedis = (
             Option.fromNullishOr(hash(inFlightKey)[claim])
           )
         )
-        if (entries.length !== stale.length)
-          return Promise.reject(new Error('claim with no in-flight entry'))
         list(queueKey).push(...entries)
         Array.forEach(stale, ([claim]) => {
           delete hash(inFlightKey)[claim]
           delete zset(claimedAtKey)[claim]
         })
-        return Promise.resolve(stale.length)
+        return Promise.resolve(entries.length)
       }
       return Promise.reject(new Error('in-memory redis has no such script'))
     },

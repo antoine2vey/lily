@@ -57,12 +57,17 @@ return raw
 
 export const REQUEUE_STALE_SCRIPT = `
 local claims = redis.call('ZRANGEBYSCORE', KEYS[3], '-inf', ARGV[1])
+local moved = 0
 for _, claim in ipairs(claims) do
-  redis.call('RPUSH', KEYS[1], redis.call('HGET', KEYS[2], claim))
+  local raw = redis.call('HGET', KEYS[2], claim)
+  if raw then
+    redis.call('RPUSH', KEYS[1], raw)
+    moved = moved + 1
+  end
   redis.call('HDEL', KEYS[2], claim)
   redis.call('ZREM', KEYS[3], claim)
 end
-return #claims
+return moved
 `
 
 const decodeDequeued = Schema.decodeUnknownEffect(Schema.NullOr(Schema.String))
