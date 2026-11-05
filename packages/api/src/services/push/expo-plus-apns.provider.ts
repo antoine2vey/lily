@@ -163,7 +163,10 @@ const convertTicket = (ticket: ExpoPushTicket): PushTicket =>
     Match.when({ status: 'error' }, (t) => ({
       id: crypto.randomUUID(),
       status: 'error' as const,
-      message: t.message,
+      code: Option.getOrElse(
+        Option.fromNullishOr(t.details?.error),
+        () => 'Unknown' as const
+      ),
     })),
     Match.when({ status: 'ok' }, (t) => ({
       id: t.id,
@@ -209,36 +212,6 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
     }
 
     const service: IPushService = {
-      send: Effect.fn('ExpoPlusApns.send')(function* (message: PushMessage) {
-        yield* Effect.annotateCurrentSpan('push.token', message.to)
-        if (!Expo.isExpoPushToken(message.to)) {
-          return yield* new PushConfigError({
-            message: `Invalid Expo push token: ${message.to}`,
-          })
-        }
-        const result = yield* expoClient.send([buildExpoMessage(message)])
-        const ticket = yield* pipe(
-          Array.head(result),
-          Option.match({
-            onNone: () =>
-              Effect.fail(
-                new PushSendError({ message: 'No ticket received from Expo' })
-              ),
-            onSome: Effect.succeed,
-          })
-        )
-        if (ticket.status === 'error') {
-          return yield* new PushSendError({
-            message: pipe(
-              Option.fromNullishOr(ticket.message),
-              Option.getOrElse(() => 'Unknown push error')
-            ),
-            cause: ticket.details,
-          })
-        }
-        return { id: ticket.id, status: 'ok' as const } satisfies PushTicket
-      }, alert),
-
       // A bad token costs only its own message: malformed tokens and tokens
       // Expo reports as unregistered are retired, the rest still go out.
       sendBatch: Effect.fn('ExpoPlusApns.sendBatch')(function* (
@@ -290,10 +263,10 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
           Array.map(tickets, convertTicket),
           Array.map(
             malformed,
-            (m): PushTicket => ({
+            (): PushTicket => ({
               id: crypto.randomUUID(),
               status: 'error',
-              message: `Invalid Expo push token: ${m.to}`,
+              code: 'MalformedToken',
             })
           )
         )

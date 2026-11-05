@@ -91,6 +91,71 @@ describe('ExpoPlusApns sendBatch', () => {
     expect(await run(isActive(VALID))).toBe(true)
   })
 
+  it('carries the Expo error code, and no push token, on each failed ticket', async () => {
+    const { run } = setup({
+      ticketFor: (m): ExpoPushTicket =>
+        m.to === GONE
+          ? {
+              status: 'error',
+              message: `"${m.to}" is not a registered push notification recipient`,
+              details: { error: 'DeviceNotRegistered', expoPushToken: m.to },
+            }
+          : {
+              status: 'error',
+              message: 'Could not find APNs credentials',
+              details: { error: 'InvalidCredentials' },
+            },
+    })
+
+    const tickets = await run(sendTo([VALID, GONE, MALFORMED]))
+
+    expect(tickets.map((t) => t.status === 'error' && t.code)).toEqual([
+      'InvalidCredentials',
+      'DeviceNotRegistered',
+      'MalformedToken',
+    ])
+    expect(JSON.stringify(tickets)).not.toMatch(
+      /valid-device|uninstalled-device|not-an-expo-token/
+    )
+  })
+
+  it.each([
+    'DeveloperError',
+    'DeviceNotRegistered',
+    'ExpoError',
+    'InvalidCredentials',
+    'MessageRateExceeded',
+    'MessageTooBig',
+    'ProviderError',
+  ] as const)('records a %s ticket under that code', async (code) => {
+    const { run } = setup({
+      ticketFor: (): ExpoPushTicket => ({
+        status: 'error',
+        message: 'rejected',
+        details: { error: code },
+      }),
+    })
+
+    const tickets = await run(sendTo([VALID]))
+
+    expect(tickets).toEqual([{ id: expect.any(String), status: 'error', code }])
+  })
+
+  it('records a ticket with no Expo code as Unknown, without the Expo text', async () => {
+    const { run } = setup({
+      ticketFor: (m): ExpoPushTicket => ({
+        status: 'error',
+        message: `"${m.to}" could not be delivered`,
+      }),
+    })
+
+    const tickets = await run(sendTo([VALID]))
+
+    expect(tickets).toEqual([
+      { id: expect.any(String), status: 'error', code: 'Unknown' },
+    ])
+  })
+
   it('records each accepted ticket with its token for the receipt check', async () => {
     const { pending, run } = setup({
       ticketFor: (m): ExpoPushTicket => ({

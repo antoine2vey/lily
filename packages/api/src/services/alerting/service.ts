@@ -7,6 +7,7 @@ import {
   Effect,
   HashMap,
   Match,
+  Number,
   Option,
   Ref,
   String as Str,
@@ -40,6 +41,7 @@ export type AlertEvent =
       readonly errorTag: string
       readonly message: string
       readonly userId?: string
+      readonly dedupeWindow?: Duration.Duration
     }
   | {
       readonly _tag: 'UnhandledDefect'
@@ -98,6 +100,7 @@ type DedupEntry = {
   readonly firstSeenAt: number
   readonly lastSentAt: number
   readonly suppressedCount: number
+  readonly windowMs: number
 }
 
 type SendDecision =
@@ -143,9 +146,16 @@ const windowFor = (
   event: AlertEvent,
   settings: AlerterSettings
 ): Duration.Duration =>
-  event._tag === 'OperationalWarning'
-    ? settings.warningDedupeWindow
-    : settings.dedupeWindow
+  Match.value(event).pipe(
+    Match.tag('OperationalWarning', () => settings.warningDedupeWindow),
+    Match.tag('ProviderError', (e) =>
+      Option.getOrElse(
+        Option.fromNullishOr(e.dedupeWindow),
+        () => settings.dedupeWindow
+      )
+    ),
+    Match.orElse(() => settings.dedupeWindow)
+  )
 
 const decide = (
   existing: Option.Option<DedupEntry>,
@@ -155,7 +165,7 @@ const decide = (
   Option.match(existing, {
     onNone: () => [
       { _tag: 'Send', duplicateCount: 0 },
-      { firstSeenAt: now, lastSentAt: now, suppressedCount: 0 },
+      { firstSeenAt: now, lastSentAt: now, suppressedCount: 0, windowMs },
     ],
     onSome: (entry) =>
       now - entry.lastSentAt >= windowMs
@@ -165,6 +175,7 @@ const decide = (
               firstSeenAt: entry.firstSeenAt,
               lastSentAt: now,
               suppressedCount: 0,
+              windowMs,
             },
           ]
         : [
@@ -173,6 +184,7 @@ const decide = (
               firstSeenAt: entry.firstSeenAt,
               lastSentAt: entry.lastSentAt,
               suppressedCount: entry.suppressedCount + 1,
+              windowMs,
             },
           ],
   })
@@ -185,7 +197,11 @@ const evictStale = (
   now: number,
   maxWindowMs: number
 ): HashMap.HashMap<string, DedupEntry> =>
-  HashMap.filter(map, (entry) => now - entry.lastSentAt < maxWindowMs * 2)
+  HashMap.filter(
+    map,
+    (entry) =>
+      now - entry.lastSentAt < Number.max(maxWindowMs, entry.windowMs) * 2
+  )
 
 export const makeAlerter = (
   transport: AlertTransport,

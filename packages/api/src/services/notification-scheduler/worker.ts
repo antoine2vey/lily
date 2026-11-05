@@ -40,8 +40,9 @@ import {
   type NotificationTopic,
   PostgresText,
   type PushConfigError,
-  type PushSendError,
+  PushSendError,
   PushService,
+  type PushTicket,
   type QueueMessage,
   type QueueMessageDecodeError,
   RetryCount,
@@ -323,6 +324,19 @@ const completeDelivery = (
     )
   ) satisfies Effect.Effect<void, never, unknown>
 
+type ErrorTicket = Extract<PushTicket, { readonly status: 'error' }>
+
+const isErrorTicket = (ticket: PushTicket): ticket is ErrorTicket =>
+  ticket.status === 'error'
+
+const ticketErrors = (tickets: ReadonlyArray<ErrorTicket>) =>
+  pipe(
+    Array.groupBy(tickets, (ticket): string => ticket.code),
+    Record.toEntries,
+    Array.map(([code, group]) => `${code} (${Array.length(group)})`),
+    Array.join('; ')
+  )
+
 const isCareTopic = (topic: NotificationTopic): topic is DeferredCareType =>
   TOPIC_CATEGORY[topic] === 'care'
 
@@ -525,6 +539,14 @@ export const processMessage = Effect.fn('notification-worker.process')(
     }))
 
     const results = yield* pushService.sendBatch(pushMessages)
+    if (
+      Array.isReadonlyArrayNonEmpty(results) &&
+      Array.every(results, isErrorTicket)
+    ) {
+      return yield* new PushSendError({
+        message: `Every push ticket failed: ${ticketErrors(results)}`,
+      })
+    }
 
     yield* completeDelivery(delivery, sendIds, results, activeTokens.length)
   }

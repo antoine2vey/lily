@@ -15,14 +15,6 @@ const makeTicket = (): PushTicket => ({
 export const ConsolePushServiceLive = Layer.succeed(
   PushService,
   PushService.of({
-    send: (message: PushMessage) =>
-      Effect.gen(function* () {
-        yield* Effect.log(
-          `[DEV] Push notification → ${message.to}\n  title: ${message.title}\n  body: ${message.body}`
-        )
-        return makeTicket()
-      }),
-
     sendBatch: (messages: PushMessage[]) =>
       Effect.gen(function* () {
         yield* Effect.log(

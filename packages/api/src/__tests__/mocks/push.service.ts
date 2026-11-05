@@ -9,38 +9,17 @@ import {
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockPushServiceOptions {
-  onSend?: (message: PushMessage) => void
   onSendBatch?: (messages: PushMessage[]) => void
   onSendLiveActivity?: (message: LiveActivityPushMessage) => void
   shouldFail?: boolean
   failureMessage?: string
+  batchTickets?: (messages: PushMessage[]) => PushTicket[]
 }
 
 export const createMockPushService = (
   options: MockPushServiceOptions = {}
 ): Layer.Layer<PushService> => {
   const service: IPushService = {
-    send: (message) =>
-      Effect.gen(function* () {
-        if (options.onSend) {
-          options.onSend(message)
-        }
-
-        if (options.shouldFail) {
-          return yield* new PushSendError({
-            message: pipe(
-              Option.fromNullishOr(options.failureMessage),
-              Option.getOrElse(() => 'Mock push failure')
-            ),
-          })
-        }
-
-        return {
-          id: `ticket-${crypto.randomUUID()}`,
-          status: 'ok',
-        } satisfies PushTicket
-      }),
-
     sendBatch: (messages) =>
       Effect.gen(function* () {
         if (options.onSendBatch) {
@@ -54,6 +33,10 @@ export const createMockPushService = (
               Option.getOrElse(() => 'Mock push batch failure')
             ),
           })
+        }
+
+        if (options.batchTickets) {
+          return options.batchTickets(messages)
         }
 
         return Array.map(messages, () => ({

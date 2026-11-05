@@ -93,6 +93,51 @@ describe('makeAlerter (dedup)', () => {
       expect(snapshot).toHaveLength(1)
     }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise))
 
+  it('holds a provider error for the window the event asks for', () =>
+    Effect.gen(function* () {
+      const { alerter, calls } = yield* makeCapturingAlerter()
+      const stuck = mkEvent({
+        _tag: 'ProviderError',
+        provider: 'expo-push',
+        errorTag: 'InvalidCredentials',
+        message: 'credentials rejected',
+        dedupeWindow: Duration.hours(1),
+      })
+      yield* alerter.alert(stuck)
+      yield* TestClock.adjust(Duration.minutes(45))
+      yield* alerter.alert(mkEvent())
+      yield* alerter.alert(stuck)
+      yield* TestClock.adjust(Duration.minutes(15))
+      yield* alerter.alert(stuck)
+      yield* TestClock.adjust(Duration.millis(10))
+      const snapshot = yield* Ref.get(calls)
+      expect(snapshot.map((c) => [c.event._tag, c.duplicateCount])).toEqual([
+        ['ProviderError', 0],
+        ['HttpError5xx', 0],
+        ['ProviderError', 1],
+      ])
+    }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise))
+
+  it('holds a provider error that asks for no window for the default window only', () =>
+    Effect.gen(function* () {
+      const { alerter, calls } = yield* makeCapturingAlerter()
+      const flaky = mkEvent({
+        _tag: 'ProviderError',
+        provider: 'expo-push',
+        errorTag: 'ExpoError',
+        message: 'upstream failed',
+      })
+      yield* alerter.alert(flaky)
+      yield* TestClock.adjust(Duration.minutes(5))
+      yield* alerter.alert(flaky)
+      yield* TestClock.adjust(Duration.millis(10))
+      const snapshot = yield* Ref.get(calls)
+      expect(snapshot.map((c) => c.event._tag)).toEqual([
+        'ProviderError',
+        'ProviderError',
+      ])
+    }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise))
+
   it('dedupes by fingerprint — different URLs produce separate alerts', () =>
     Effect.gen(function* () {
       const { alerter, calls } = yield* makeCapturingAlerter()

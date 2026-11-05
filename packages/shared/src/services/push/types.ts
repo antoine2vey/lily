@@ -24,12 +24,34 @@ export const PushMessage = Schema.Struct({
 })
 export type PushMessage = typeof PushMessage.Type
 
+const ExpoPushTicketErrorCode = Schema.Literals([
+  'DeveloperError',
+  'DeviceNotRegistered',
+  'ExpoError',
+  'InvalidCredentials',
+  'MessageRateExceeded',
+  'MessageTooBig',
+  'ProviderError',
+])
+
+export const PushTicketErrorCode = Schema.Union([
+  ExpoPushTicketErrorCode,
+  Schema.Literals(['MalformedToken', 'Unknown']),
+])
+export type PushTicketErrorCode = typeof PushTicketErrorCode.Type
+
 // Response from push service
-export const PushTicket = Schema.Struct({
-  id: Schema.String,
-  status: Schema.Union([Schema.Literal('ok'), Schema.Literal('error')]),
-  message: Schema.optional(Schema.String),
-})
+export const PushTicket = Schema.Union([
+  Schema.Struct({
+    id: Schema.String,
+    status: Schema.Literal('ok'),
+  }),
+  Schema.Struct({
+    id: Schema.String,
+    status: Schema.Literal('error'),
+    code: PushTicketErrorCode,
+  }),
+])
 export type PushTicket = typeof PushTicket.Type
 
 // ============================================================================

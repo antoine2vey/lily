@@ -7,6 +7,7 @@ import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import {
   createFailingPushService,
+  createMockPushService,
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
 import {
@@ -35,6 +36,7 @@ import { createDelegation } from '@lily/api/services/delegation/endpoints/create
 import {
   dispatchNow,
   recordNotification,
+  recordNotificationAt,
 } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import {
@@ -121,7 +123,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return enqueued
     }
 
-    const deliverPending = async () => {
+    const deliverPending = async (push = createSuccessPushService()) => {
       const enqueued = await enqueuePending()
       const { queue } = createInMemoryRedisQueue(
         enqueued.map((message) => JSON.stringify(message))
@@ -133,7 +135,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               DatabaseLive,
               Layer.succeed(MessageQueue, queue),
               createMockAlerter().layer,
-              createSuccessPushService(),
+              push,
               createMockActivityPushTokenRepository(),
               createMockCareLogRepository([]),
               createMockDeadLetterRepository()
@@ -581,6 +583,48 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
       expect((await rowsById())[unclaimed.id]?.status).toBe('sent')
       expect((await rowsById())[claimed.id]?.status).toBe('queued')
+    })
+
+    it('puts a notification whose every push ticket failed back to pending, naming the code and not the token', async () => {
+      await Effect.runPromise(
+        recordNotificationAt(
+          'new_follower',
+          userId,
+          { senderName: 'Ada' },
+          'en',
+          { senderId: 'ada' },
+          { scheduledAt: new Date(Date.now() - 60_000) }
+        ).pipe(Effect.provide(DatabaseLive))
+      )
+
+      const enqueued = await deliverPending(
+        createMockPushService({
+          batchTickets: (msgs) =>
+            msgs.map(() => ({
+              id: crypto.randomUUID(),
+              status: 'error',
+              code: 'DeviceNotRegistered',
+            })),
+        })
+      )
+
+      expect(enqueued).toHaveLength(1)
+      const rows = await db
+        .select({
+          status: schema.notifications.status,
+          retryCount: schema.notifications.retryCount,
+          lastError: schema.notifications.lastError,
+        })
+        .from(schema.notifications)
+        .where(eq(schema.notifications.userId, userId))
+      expect(rows).toEqual([
+        {
+          status: 'pending',
+          retryCount: 1,
+          lastError:
+            'PushSendError: Every push ticket failed: DeviceNotRegistered (1)',
+        },
+      ])
     })
 
     const followLayer = (enqueued: QueueMessage[]) =>
