@@ -214,6 +214,11 @@ export interface INotificationRepository {
   readonly markAllAsReadByUserId: (
     userId: string
   ) => Effect.Effect<void, SqlError>
+  readonly setQueuedContent: (
+    ids: readonly string[],
+    title: string,
+    body: string
+  ) => Effect.Effect<void, SqlError>
 }
 
 // Tag for dependency injection
@@ -955,6 +960,21 @@ export const NotificationRepositoryLive = Layer.effect(
             )
           )
       }),
+
+      setQueuedContent: Effect.fn('NotificationRepository.setQueuedContent')(
+        function* (ids: readonly string[], title: string, body: string) {
+          if (ids.length === 0) return
+          yield* db
+            .update(notifications)
+            .set({ title, body })
+            .where(
+              and(
+                inArray(notifications.id, [...ids]),
+                eq(notifications.status, 'queued')
+              )
+            )
+        }
+      ),
 
       hasNotificationOfTypeTodayForUser: Effect.fn(
         'NotificationRepository.hasNotificationOfTypeTodayForUser'

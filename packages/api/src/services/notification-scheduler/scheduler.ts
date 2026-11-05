@@ -1,6 +1,7 @@
 import {
   type DeferredNotification,
   NotificationRepository,
+  type NotificationRow,
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -13,10 +14,13 @@ import {
   loadPlantFacts,
   loadRecipients,
 } from '@lily/api/services/notification-scheduler/dispatch-gate'
+import {
+  recipientLanguage,
+  renderDelivery,
+} from '@lily/api/services/notification-scheduler/render-delivery'
 import { pickDominantCareTopic } from '@lily/api/services/notification-scheduler/translations'
 import {
   NOTIFICATION_METADATA,
-  type Notification,
   type NotificationMetadata,
 } from '@lily/shared/notification'
 import {
@@ -92,7 +96,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
   // Phase 1: Filter valid notifications and resolve topics
   type ValidNotification = {
-    notification: Notification
+    notification: NotificationRow
     topic: NotificationTopic
     metadata: NotificationMetadata | undefined
   }
@@ -201,6 +205,24 @@ export const pollAndEnqueue = Effect.gen(function* () {
           onEmpty: () => first.value.topic,
           onNonEmpty: (types) => pickDominantCareTopic(types),
         })
+
+        if (isCareReminderType(topic)) {
+          const { rendered } = renderDelivery(
+            topic,
+            Array.map(group, (n) => n.notification),
+            plants,
+            recipientLanguage(fetchedUsers, userId)
+          )
+          yield* Option.match(rendered, {
+            onNone: () => Effect.void,
+            onSome: ({ push }) =>
+              notificationRepo.setQueuedContent(
+                notificationIds,
+                push.title,
+                push.body
+              ),
+          })
+        }
 
         const releaseGroup = (error: unknown) =>
           Effect.logWarning(

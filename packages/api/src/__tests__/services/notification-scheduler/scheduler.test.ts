@@ -848,8 +848,14 @@ describe('Notification Scheduler', () => {
       expect(only?.message.push?.body).toBe(
         'Watering and misting are due today.'
       )
-      expect(notifications[0]?.status).toBe('queued')
-      expect(notifications[1]?.status).toBe('queued')
+      const queuedText = [
+        'queued',
+        '🌱 Your Monstera needs care today',
+        'Watering and misting are due today.',
+      ]
+      expect(
+        Arr.map(notifications, (row) => [row.status, row.title, row.body])
+      ).toEqual([queuedText, queuedText])
       expect(
         Arr.map(only?.message.rows ?? [], (row) => [row.status, row.title])
       ).toEqual([

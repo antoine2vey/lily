@@ -486,6 +486,20 @@ export const createMockNotificationRepository = (
         )
       }),
 
+    setQueuedContent: (ids: readonly string[], title: string, body: string) =>
+      Effect.sync(() => {
+        Array.forEach(ids, (id) => {
+          const n = Array.findFirst(
+            notificationsState,
+            (n) => n.id === id && n.status === 'queued'
+          )
+          Option.map(n, (notification) => {
+            notification.title = title
+            notification.body = body
+          })
+        })
+      }),
+
     hasNotificationOfTypeTodayForUser: (
       userId: string,
       _timezone: string,
