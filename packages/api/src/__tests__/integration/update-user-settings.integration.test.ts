@@ -17,7 +17,7 @@ import * as schema from '@lily/db/schema'
 import type { UserSettingsUpdateRequest } from '@lily/shared/user'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Effect, Exit, Layer, References } from 'effect'
+import { Array, Effect, Exit, Layer, References } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -26,19 +26,29 @@ const { Pool } = pg
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+const injected = (message: string) =>
+  Effect.fail(
+    new SqlError({
+      reason: new UnknownError({ cause: new Error('injected'), message }),
+    })
+  )
+
 const RebuildAlwaysFails = Layer.effect(
   NotificationRepository,
   Effect.map(NotificationRepository, (repo) => ({
     ...repo,
-    replaceReminders: () =>
-      Effect.fail(
-        new SqlError({
-          reason: new UnknownError({
-            cause: new Error('injected'),
-            message: 'injected rebuild failure',
-          }),
-        })
-      ),
+    replaceReminders: () => injected('injected rebuild failure'),
+  }))
+).pipe(Layer.provide(NotificationRepositoryLive))
+
+const EngagementDeleteFails = Layer.effect(
+  NotificationRepository,
+  Effect.map(NotificationRepository, (repo) => ({
+    ...repo,
+    deletePendingByUserIdAndTypes: (userId, types) =>
+      Array.contains(types, 'daily_tip')
+        ? injected('injected engagement delete failure')
+        : repo.deletePendingByUserIdAndTypes(userId, types),
   }))
 ).pipe(Layer.provide(NotificationRepositoryLive))
 
@@ -55,6 +65,7 @@ const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
 
 const HealthyLive = makeLayer(NotificationRepositoryLive)
 const FailingLive = makeLayer(RebuildAlwaysFails)
+const EngagementFailingLive = makeLayer(EngagementDeleteFails)
 
 const localHour = (date: Date, timeZone: string) =>
   new Intl.DateTimeFormat('en-US', {
@@ -119,6 +130,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return row?.timezone
     }
 
+    const storedSwitches = async () => {
+      const [row] = await db
+        .select({
+          careReminders: schema.users.careReminders,
+          tips: schema.users.tips,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, userId))
+      return row
+    }
+
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
@@ -181,6 +203,39 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(Exit.isFailure(exit)).toBe(true)
       expect(await storedTimezone()).toBe('UTC')
+      expect(await pending()).toEqual(before)
+    })
+
+    it('keeps both switches and every pending row when the tips delete fails', async () => {
+      await db.insert(schema.notifications).values(
+        (['daily_tip', 'inactivity_nudge'] as const).map((type) => ({
+          userId,
+          type,
+          scheduledAt: new Date(Date.now() + DAY_MS),
+          status: 'pending' as const,
+          title: 'Tip',
+          body: 'Tip',
+        }))
+      )
+      const before = await pending()
+      expect(before.map((row) => row.type)).toEqual([
+        'watering_reminder',
+        'misting_reminder',
+        'repotting_reminder',
+        'daily_tip',
+        'inactivity_nudge',
+      ])
+
+      const exit = await update(
+        { notifications: { careReminders: false, tips: false } },
+        EngagementFailingLive
+      )
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(await storedSwitches()).toEqual({
+        careReminders: true,
+        tips: true,
+      })
       expect(await pending()).toEqual(before)
     })
 
