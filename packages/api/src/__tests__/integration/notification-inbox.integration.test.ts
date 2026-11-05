@@ -71,11 +71,13 @@ const STREAK_AT_RISK = buildSimpleContent(
   'en'
 )
 
-const fernThirsty = (language: 'en' | 'fr') =>
+const thirsty = (plantName: string, language: 'en' | 'fr') =>
   buildCareDigestContent(
-    [{ plantName: 'Fern', careTypes: ['watering_reminder'] }],
+    [{ plantName, careTypes: ['watering_reminder'] }],
     language
   )
+
+const fernThirsty = (language: 'en' | 'fr') => thirsty('Fern', language)
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
   'Inbox text of rows that are not sent yet - Integration',
@@ -207,11 +209,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
     }
 
-    const failAgain = async (userId: string) => {
-      await db
+    const makeDue = (userId: string) =>
+      db
         .update(schema.notifications)
         .set({ scheduledAt: new Date(Date.now() - 1000) })
         .where(eq(schema.notifications.userId, userId))
+
+    const failAgain = async (userId: string) => {
+      await makeDue(userId)
       await consumeFailing(await enqueueDueFor(userId))
     }
 
@@ -427,6 +432,121 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
 
         await expectListed(target.id, { status: 'queued', ...french })
+      })
+    })
+
+    describe('when the scheduler queues a group', () => {
+      const retriedCareRow = async () => {
+        const user = await seedUser('en')
+        await seedCareRow(user.id, new Date(Date.now() - 60_000))
+        await consumeFailing(await enqueueDueFor(user.id))
+        await expectListed(user.id, {
+          status: 'pending',
+          ...fernThirsty('en'),
+        })
+        await makeDue(user.id)
+        return user
+      }
+
+      it('re-queues a retried care reminder under the current plant name', async () => {
+        const user = await retriedCareRow()
+        await db
+          .update(schema.plants)
+          .set({ name: 'Ivy' })
+          .where(eq(schema.plants.userId, user.id))
+
+        await enqueueDueFor(user.id)
+
+        await expectListed(user.id, {
+          status: 'queued',
+          ...thirsty('Ivy', 'en'),
+        })
+      })
+
+      it('re-queues a retried care reminder in the language the recipient reads now', async () => {
+        const user = await retriedCareRow()
+        await db
+          .update(schema.users)
+          .set({ language: 'fr' })
+          .where(eq(schema.users.id, user.id))
+
+        await enqueueDueFor(user.id)
+
+        await expectListed(user.id, { status: 'queued', ...fernThirsty('fr') })
+      })
+
+      it('queues each recipient of one poll in that recipient language', async () => {
+        const english = await seedUser('en')
+        const french = await seedUser('fr')
+        await seedCareRow(english.id, new Date(Date.now() - 60_000))
+        await seedCareRow(french.id, new Date(Date.now() - 60_000))
+        const { enqueued, queue } = capturing()
+
+        await run(pollAndEnqueue.pipe(Effect.provide(queue)))
+
+        expect(
+          Array.map(enqueued, (message) => message.payload.userId).sort()
+        ).toEqual([english.id, french.id].sort())
+        await expectListed(english.id, {
+          status: 'queued',
+          ...fernThirsty('en'),
+        })
+        await expectListed(french.id, {
+          status: 'queued',
+          ...fernThirsty('fr'),
+        })
+      })
+
+      it('writes the care digest onto every row of a multi-plant group', async () => {
+        const user = await seedUser('en')
+        await seedCareRow(user.id, new Date(Date.now() - 60_000))
+        await seedCareRow(user.id, new Date(Date.now() - 60_000))
+
+        const message = await enqueueDueFor(user.id)
+
+        expect(message.payload.notificationIds).toHaveLength(2)
+        const rows = await db
+          .select({
+            title: schema.notifications.title,
+            body: schema.notifications.body,
+          })
+          .from(schema.notifications)
+          .where(eq(schema.notifications.userId, user.id))
+        const [first, second] = rows
+        expect(rows).toHaveLength(2)
+        expect(first).toEqual({
+          title: expect.any(String),
+          body: expect.any(String),
+        })
+        expect(second).toEqual(first)
+      })
+
+      it('keeps the record-time text of a simple row queued after a language change', async () => {
+        const user = await seedUser('en')
+        const params = { streakCount: 7 }
+        await run(
+          recordNotificationAt(
+            'streak_milestone',
+            user.id,
+            params,
+            'en',
+            {},
+            {
+              scheduledAt: new Date(Date.now() - 60_000),
+            }
+          )
+        )
+        await db
+          .update(schema.users)
+          .set({ language: 'fr' })
+          .where(eq(schema.users.id, user.id))
+
+        await enqueueDueFor(user.id)
+
+        await expectListed(user.id, {
+          status: 'queued',
+          ...buildSimpleContent('streak_milestone', params, 'en'),
+        })
       })
     })
   }
