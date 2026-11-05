@@ -5,7 +5,7 @@ import type {
   IMessageQueue,
   QueueMessage,
 } from '@lily/shared/server'
-import { Array, Duration, Effect, Order, Record } from 'effect'
+import { Array, Duration, Effect, Exit, Option, Record } from 'effect'
 import Redis from 'ioredis'
 import {
   afterAll,
@@ -21,8 +21,11 @@ const REDIS_URL_TEST = process.env.REDIS_URL_TEST ?? ''
 const MINUTE = 60_000
 const T0 = 1_800_000_000_000
 const VISIBILITY_TIMEOUT = Duration.minutes(10)
+const QUEUE_KEY = 'lily:queue:notifications'
+const IN_FLIGHT_KEY = `${QUEUE_KEY}:in-flight`
+const CLAIMED_AT_KEY = `${QUEUE_KEY}:in-flight:claimed-at`
 
-const message = (id: string, topic: string) =>
+const message = (id: string, topic: string, metadata?: unknown) =>
   ({
     id,
     topic,
@@ -32,16 +35,20 @@ const message = (id: string, topic: string) =>
       body: 'Your plants are thirsty',
       notificationIds: ['5b0f3c1e-8a4d-4e2b-9c7a-1d2e3f4a5b6c'],
       plantIds: [],
+      metadata,
     },
     retryCount: 0,
     createdAt: new Date('2026-11-03T10:00:00.000Z'),
     scheduledAt: new Date('2026-11-03T10:00:00.000Z'),
   }) as unknown as QueueMessage
 
-const at = <A, E>(minutes: number, effect: Effect.Effect<A, E>) => {
-  vi.spyOn(Date, 'now').mockReturnValue(T0 + minutes * MINUTE)
+const atMillis = <A, E>(t: number, effect: Effect.Effect<A, E>) => {
+  vi.spyOn(Date, 'now').mockReturnValue(t)
   return Effect.runPromise(effect).finally(() => vi.restoreAllMocks())
 }
+
+const at = <A, E>(minutes: number, effect: Effect.Effect<A, E>) =>
+  atMillis(T0 + minutes * MINUTE, effect)
 
 const dequeued = async (minutes: number, queue: IMessageQueue) => {
   const result = await at(minutes, queue.dequeue)
@@ -52,93 +59,295 @@ const dequeued = async (minutes: number, queue: IMessageQueue) => {
 type Op =
   | { readonly op: 'enqueue'; readonly t: number; readonly msg: QueueMessage }
   | { readonly op: 'dequeue'; readonly t: number }
-  | { readonly op: 'ack'; readonly t: number; readonly nth: number }
-  | { readonly op: 'refresh'; readonly t: number; readonly nth: number }
-  | { readonly op: 'requeueStale'; readonly t: number }
+  | { readonly op: 'ack'; readonly t: number; readonly claim: string }
+  | { readonly op: 'refresh'; readonly t: number; readonly claim: string }
+  | {
+      readonly op: 'requeueStale'
+      readonly t: number
+      readonly olderThan: Duration.Duration
+    }
   | { readonly op: 'drain'; readonly t: number }
 
 interface Seed {
   readonly lists: Record<string, string[]>
   readonly zsets: Record<string, Record<string, number>>
+  readonly hashes: Record<string, Record<string, string>>
 }
 
+// Claims are random per dequeue, so each run names them d0, d1, ... in
+// dequeue order. Ops address claims by that name, and both states key every
+// in-flight entry and claim time by it.
 const play = async (queue: IMessageQueue, ops: ReadonlyArray<Op>) => {
-  const claims: string[] = []
-  const results: unknown[] = []
-  for (const o of ops) {
+  const names = new Map<string, string>()
+  const claimNamed = (name: string) =>
+    Option.getOrElse(
+      Option.map(
+        Array.findFirst([...names], ([, alias]) => alias === name),
+        ([claim]) => claim
+      ),
+      () => name
+    )
+  const step = (o: Op): Effect.Effect<unknown, unknown> => {
     switch (o.op) {
       case 'enqueue':
-        results.push(await at(o.t, queue.enqueue(o.msg)))
-        break
-      case 'dequeue': {
-        const result = await at(o.t, queue.dequeue)
-        if (result) claims.push(result.claim)
-        results.push(result?.message.id ?? null)
-        break
-      }
+        return queue.enqueue(o.msg)
+      case 'dequeue':
+        return Effect.map(queue.dequeue, (result) => {
+          if (!result) return null
+          names.set(result.claim, `d${names.size}`)
+          return result.message.id
+        })
       case 'ack':
-        results.push(await at(o.t, queue.ack(Array.getUnsafe(claims, o.nth))))
-        break
+        return queue.ack(claimNamed(o.claim))
       case 'refresh':
-        results.push(
-          await at(o.t, queue.refreshClaim(Array.getUnsafe(claims, o.nth)))
-        )
-        break
+        return queue.refreshClaim(claimNamed(o.claim))
       case 'requeueStale':
-        results.push(await at(o.t, queue.requeueStale(VISIBILITY_TIMEOUT)))
-        break
+        return queue.requeueStale(o.olderThan)
       case 'drain':
-        results.push(await at(o.t, queue.drainLegacyTopicLists))
-        break
+        return queue.drainLegacyTopicLists
     }
   }
-  return results
+  const results: unknown[] = []
+  for (const o of ops) {
+    vi.spyOn(Date, 'now').mockReturnValue(o.t)
+    const exit = await Effect.runPromiseExit(step(o)).finally(() =>
+      vi.restoreAllMocks()
+    )
+    results.push(Exit.isSuccess(exit) ? exit.value : '<failed>')
+  }
+  return {
+    results,
+    nameOf: (claim: string) => names.get(claim) ?? claim,
+  }
 }
 
-// Claims are random per dequeue, so state compares by what each key holds
-// once the claim names are dropped.
-const realState = async (redis: Redis) => {
-  const keys = Array.sort(await redis.keys('*'), Order.String)
+const renamed = <A>(
+  record: Record<string, A>,
+  nameOf: (claim: string) => string
+) =>
+  Record.fromEntries(
+    Array.map(Record.toEntries(record), ([claim, value]) => [
+      nameOf(claim),
+      value,
+    ])
+  )
+
+const realState = async (redis: Redis, nameOf: (claim: string) => string) => {
   const entries = await Promise.all(
-    Array.map(keys, async (key) => {
+    Array.map(await redis.keys('*'), async (key) => {
       const type = await redis.type(key)
       if (type === 'list') return [key, await redis.lrange(key, 0, -1)] as const
       if (type === 'hash')
-        return [key, Array.sort(await redis.hvals(key), Order.String)] as const
+        return [key, renamed(await redis.hgetall(key), nameOf)] as const
       const members = await redis.zrange(key, 0, '-1')
       const scores = await redis.zmscore(key, ...members)
-      return [key, Array.sort(Array.map(scores, Number), Order.Number)] as const
+      return [
+        key,
+        renamed(
+          Record.fromEntries(
+            Array.zipWith(members, scores, (member, score) => [
+              member,
+              Number(score),
+            ])
+          ),
+          nameOf
+        ),
+      ] as const
     })
   )
   return Record.fromEntries(entries)
 }
 
-const fakeState = (
-  lists: Record<string, string[]>,
-  zsets: Record<string, Record<string, number>>,
-  hashes: Record<string, Record<string, string>>
-) =>
-  Record.fromEntries(
-    Array.sort(
-      [
-        ...Array.filter(
-          Record.toEntries(lists),
-          ([, entries]) => entries.length > 0
-        ),
-        ...Array.map(
-          Array.filter(Record.toEntries(hashes), ([, h]) => Record.size(h) > 0),
-          ([key, h]) =>
-            [key, Array.sort(Record.values(h), Order.String)] as const
-        ),
-        ...Array.map(
-          Array.filter(Record.toEntries(zsets), ([, z]) => Record.size(z) > 0),
-          ([key, z]) =>
-            [key, Array.sort(Record.values(z), Order.Number)] as const
-        ),
-      ],
-      Order.mapInput(Order.String, ([key]: readonly [string, unknown]) => key)
-    )
-  )
+const fakeState = (seed: Seed, nameOf: (claim: string) => string) =>
+  Record.fromEntries([
+    ...Array.filter(
+      Record.toEntries(seed.lists),
+      ([, entries]) => entries.length > 0
+    ),
+    ...Array.map(
+      Array.filter(
+        Record.toEntries(seed.hashes),
+        ([, h]) => Record.size(h) > 0
+      ),
+      ([key, h]) => [key, renamed(h, nameOf)] as const
+    ),
+    ...Array.map(
+      Array.filter(Record.toEntries(seed.zsets), ([, z]) => Record.size(z) > 0),
+      ([key, z]) => [key, renamed(z, nameOf)] as const
+    ),
+  ])
+
+const raw = (m: QueueMessage) => JSON.stringify(m)
+const m1 = message('m1', 'watering_reminder')
+const m2 = message('m2', 'new_follower', { senderId: 'ada' })
+const m3 = message('m3', 'daily_tip')
+const m4 = message('m4', 'weekly_recap')
+const TEN_MINUTES = Duration.toMillis(VISIBILITY_TIMEOUT)
+const sweep = (t: number, olderThan = VISIBILITY_TIMEOUT): Op => ({
+  op: 'requeueStale',
+  t,
+  olderThan,
+})
+const empty = (): Seed => ({ lists: {}, zsets: {}, hashes: {} })
+
+const scenarios: ReadonlyArray<{
+  readonly name: string
+  readonly seed: () => Seed
+  readonly ops: ReadonlyArray<Op>
+}> = [
+  {
+    name: 'a sweep splits claims by age and a second sweep finds nothing',
+    seed: empty,
+    ops: [
+      { op: 'enqueue', t: 1000, msg: m1 },
+      { op: 'enqueue', t: 1000, msg: m2 },
+      { op: 'enqueue', t: 1000, msg: m3 },
+      { op: 'enqueue', t: 1000, msg: m4 },
+      { op: 'dequeue', t: 2000 },
+      { op: 'dequeue', t: 3000 },
+      { op: 'dequeue', t: 4000 },
+      { op: 'ack', t: 5000, claim: 'd1' },
+      sweep(2500 + TEN_MINUTES),
+      sweep(2500 + TEN_MINUTES),
+    ],
+  },
+  {
+    name: 'requeued entries come back newest first',
+    seed: empty,
+    ops: [
+      { op: 'enqueue', t: 1000, msg: m1 },
+      { op: 'enqueue', t: 1000, msg: m2 },
+      { op: 'enqueue', t: 1000, msg: m3 },
+      { op: 'dequeue', t: 2000 },
+      { op: 'dequeue', t: 3000 },
+      sweep(3000 + TEN_MINUTES),
+      { op: 'dequeue', t: 4000 + TEN_MINUTES },
+      { op: 'dequeue', t: 4001 + TEN_MINUTES },
+      { op: 'dequeue', t: 4002 + TEN_MINUTES },
+      { op: 'dequeue', t: 4003 + TEN_MINUTES },
+      { op: 'ack', t: 5000 + TEN_MINUTES, claim: 'd0' },
+      { op: 'ack', t: 5000 + TEN_MINUTES, claim: 'd2' },
+      sweep(10 ** 9, Duration.zero),
+    ],
+  },
+  {
+    name: 'a claim exactly at the cutoff is requeued, also with a zero timeout',
+    seed: empty,
+    ops: [
+      { op: 'enqueue', t: 1000, msg: m1 },
+      { op: 'enqueue', t: 1000, msg: m2 },
+      { op: 'dequeue', t: 2000 },
+      sweep(2000 + TEN_MINUTES),
+      { op: 'dequeue', t: 3000 },
+      sweep(3000, Duration.zero),
+    ],
+  },
+  {
+    name: 'two identical entries, each acked by its own claim',
+    seed: empty,
+    ops: [
+      { op: 'enqueue', t: 1000, msg: m1 },
+      { op: 'enqueue', t: 1000, msg: m1 },
+      { op: 'dequeue', t: 2000 },
+      { op: 'dequeue', t: 3000 },
+      { op: 'ack', t: 4000, claim: 'd0' },
+      sweep(4000 + TEN_MINUTES),
+    ],
+  },
+  {
+    name: 'a stalled refresh and ack after a requeue leave the second claim',
+    seed: empty,
+    ops: [
+      { op: 'enqueue', t: 0, msg: m1 },
+      { op: 'dequeue', t: 0 },
+      sweep(11 * MINUTE),
+      { op: 'dequeue', t: 11 * MINUTE },
+      { op: 'refresh', t: 12 * MINUTE, claim: 'd0' },
+      { op: 'ack', t: 12 * MINUTE, claim: 'd0' },
+      sweep(30 * MINUTE),
+    ],
+  },
+  {
+    name: 'refresh of a live, an acked and an unknown claim',
+    seed: empty,
+    ops: [
+      { op: 'enqueue', t: 0, msg: m1 },
+      { op: 'enqueue', t: 0, msg: m2 },
+      { op: 'dequeue', t: 0 },
+      { op: 'dequeue', t: 0 },
+      { op: 'ack', t: MINUTE, claim: 'd1' },
+      { op: 'refresh', t: 5 * MINUTE, claim: 'd0' },
+      { op: 'refresh', t: 5 * MINUTE, claim: 'd1' },
+      { op: 'refresh', t: 5 * MINUTE, claim: 'nobody' },
+      sweep(12 * MINUTE),
+      sweep(16 * MINUTE),
+    ],
+  },
+  {
+    name: 'seeded claims with equal scores requeue in member order',
+    seed: () => ({
+      lists: {},
+      hashes: {
+        [IN_FLIGHT_KEY]: { b: raw(m2), a: raw(m1), c: raw(m3), y: raw(m4) },
+      },
+      zsets: {
+        [CLAIMED_AT_KEY]: { b: 5000, a: 5000, c: 4000, y: 9 * TEN_MINUTES },
+      },
+    }),
+    ops: [
+      sweep(6000 + TEN_MINUTES),
+      { op: 'dequeue', t: 7000 + TEN_MINUTES },
+      { op: 'dequeue', t: 7000 + TEN_MINUTES },
+    ],
+  },
+  {
+    name: 'an in-flight entry with no claim time is never requeued',
+    seed: () => ({
+      lists: {},
+      hashes: { [IN_FLIGHT_KEY]: { orphan: raw(m1), live: raw(m2) } },
+      zsets: { [CLAIMED_AT_KEY]: { live: 1000 } },
+    }),
+    ops: [sweep(10 ** 9)],
+  },
+  {
+    name: 'the legacy drain over pending, processing and claimed keys',
+    seed: () => ({
+      lists: {
+        'lily:notifications:new_follower': ['a2', 'a1'],
+        'lily:notifications:new_follower:processing': ['c1'],
+        'lily:notifications:daily_tip': ['d1'],
+        [QUEUE_KEY]: [raw(m1)],
+      },
+      zsets: {
+        'lily:notifications:new_follower:processing:claimed': { c1: 1 },
+        'lily:notifications:watering_reminder:processing:claimed': {
+          ghost: 1,
+        },
+      },
+      hashes: {},
+    }),
+    ops: [
+      { op: 'drain', t: 1000 },
+      { op: 'drain', t: 2000 },
+    ],
+  },
+  {
+    name: 'the legacy drain with only a claimed set left',
+    seed: () => ({
+      lists: {},
+      zsets: {
+        'lily:notifications:misting_reminder:processing:claimed': { x: 1 },
+      },
+      hashes: {},
+    }),
+    ops: [{ op: 'drain', t: 1000 }],
+  },
+  {
+    name: 'dequeue of an empty queue',
+    seed: empty,
+    ops: [{ op: 'dequeue', t: 0 }, sweep(30 * MINUTE)],
+  },
+]
 
 describe.skipIf(!REDIS_URL_TEST)('the one queue on real Redis', () => {
   const redis = new Redis(REDIS_URL_TEST)
@@ -206,120 +415,44 @@ describe.skipIf(!REDIS_URL_TEST)('the one queue on real Redis', () => {
     expect(await redis.keys('*')).toEqual([])
   })
 
-  const legacy = (id: string, topic: string) =>
-    JSON.stringify(message(id, topic))
-  const noSeed: Seed = { lists: {}, zsets: {} }
-  const scenarios: ReadonlyArray<{
-    readonly name: string
-    readonly ops: ReadonlyArray<Op>
-    readonly seed: Seed
-  }> = [
-    {
-      name: 'the legacy drain over pending, processing and claimed keys',
-      ops: [
-        { op: 'enqueue', t: 0, msg: message('m1', 'watering_reminder') },
-        { op: 'drain', t: 1 },
-        { op: 'drain', t: 2 },
-        { op: 'dequeue', t: 3 },
-      ],
-      seed: {
-        lists: {
-          'lily:notifications:watering_reminder': [
-            legacy('w1', 'watering_reminder'),
-            legacy('w2', 'watering_reminder'),
-            legacy('w3', 'watering_reminder'),
-          ],
-          'lily:notifications:daily_tip:processing': [
-            legacy('d1', 'daily_tip'),
-            legacy('d2', 'daily_tip'),
-          ],
-        },
-        zsets: {
-          'lily:notifications:daily_tip:processing:claimed': {
-            [legacy('d1', 'daily_tip')]: T0,
-          },
-        },
-      },
-    },
-    {
-      name: 'a stalled ack after a requeue',
-      ops: [
-        { op: 'enqueue', t: 0, msg: message('m1', 'watering_reminder') },
-        { op: 'dequeue', t: 0 },
-        { op: 'requeueStale', t: 11 },
-        { op: 'dequeue', t: 11 },
-        { op: 'ack', t: 12, nth: 0 },
-      ],
-      seed: noSeed,
-    },
-    {
-      name: 'stale claims requeued oldest first, younger ones kept',
-      ops: [
-        { op: 'enqueue', t: 0, msg: message('m1', 'watering_reminder') },
-        { op: 'enqueue', t: 0, msg: message('m2', 'new_follower') },
-        { op: 'enqueue', t: 0, msg: message('m3', 'daily_tip') },
-        { op: 'dequeue', t: 2 },
-        { op: 'dequeue', t: 1 },
-        { op: 'dequeue', t: 8 },
-        { op: 'requeueStale', t: 12 },
-        { op: 'dequeue', t: 12 },
-        { op: 'dequeue', t: 12 },
-        { op: 'dequeue', t: 12 },
-      ],
-      seed: noSeed,
-    },
-    {
-      name: 'a claim exactly at the cutoff is requeued',
-      ops: [
-        { op: 'enqueue', t: 0, msg: message('m1', 'watering_reminder') },
-        { op: 'dequeue', t: 0 },
-        { op: 'requeueStale', t: 10 },
-      ],
-      seed: noSeed,
-    },
-    {
-      name: 'refresh of a live and of an acked claim',
-      ops: [
-        { op: 'enqueue', t: 0, msg: message('m1', 'watering_reminder') },
-        { op: 'enqueue', t: 0, msg: message('m2', 'weekly_recap') },
-        { op: 'dequeue', t: 0 },
-        { op: 'dequeue', t: 0 },
-        { op: 'ack', t: 1, nth: 1 },
-        { op: 'refresh', t: 5, nth: 0 },
-        { op: 'refresh', t: 5, nth: 1 },
-        { op: 'requeueStale', t: 12 },
-      ],
-      seed: noSeed,
-    },
-    {
-      name: 'dequeue of an empty queue',
-      ops: [
-        { op: 'dequeue', t: 0 },
-        { op: 'requeueStale', t: 30 },
-      ],
-      seed: noSeed,
-    },
-  ]
+  it('keeps the other claim on the same entry when one is acked', async () => {
+    await at(0, queue.enqueue(m1))
+    await at(0, queue.enqueue(m1))
+    const first = await dequeued(1, queue)
+    const second = await dequeued(2, queue)
+
+    await at(3, queue.ack(first.claim))
+
+    expect(await redis.hgetall(IN_FLIGHT_KEY)).toEqual({
+      [second.claim]: raw(m1),
+    })
+    expect(await redis.zrange(CLAIMED_AT_KEY, 0, '-1')).toEqual([second.claim])
+  })
 
   it.each(scenarios)(
     'the in-memory fake matches real Redis: $name',
-    async ({ ops, seed }) => {
-      for (const [key, entries] of Record.toEntries(seed.lists))
-        await redis.rpush(key, ...entries)
-      for (const [key, members] of Record.toEntries(seed.zsets))
+    async ({ seed, ops }) => {
+      const realSeed = seed()
+      for (const [key, entries] of Record.toEntries(realSeed.lists))
+        if (entries.length > 0) await redis.rpush(key, ...entries)
+      for (const [key, members] of Record.toEntries(realSeed.zsets))
         for (const [member, score] of Record.toEntries(members))
           await redis.zadd(key, score, member)
-      const realResults = await play(queue, ops)
-      const real = await realState(redis)
+      for (const [key, fields] of Record.toEntries(realSeed.hashes))
+        for (const [field, value] of Record.toEntries(fields))
+          await redis.hset(key, field, value)
+      const real = await play(queue, ops)
+      const realAfter = await realState(redis, real.nameOf)
 
-      const lists = structuredClone(seed.lists)
-      const zsets = structuredClone(seed.zsets)
-      const hashes: Record<string, Record<string, string>> = {}
-      const fake = createInMemoryRedis(lists, zsets, hashes)
-      const fakeResults = await play(fake.queue, ops)
+      const fakeSeed = seed()
+      const fake = await play(
+        createInMemoryRedis(fakeSeed.lists, fakeSeed.zsets, fakeSeed.hashes)
+          .queue,
+        ops
+      )
 
-      expect(fakeResults).toEqual(realResults)
-      expect(fakeState(lists, zsets, hashes)).toEqual(real)
+      expect(fake.results).toEqual(real.results)
+      expect(fakeState(fakeSeed, fake.nameOf)).toEqual(realAfter)
     }
   )
 })
