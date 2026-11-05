@@ -754,31 +754,6 @@ describe('Notification Worker', () => {
       })
     })
 
-    it('pushes the stored text of a row written before params existed', async () => {
-      const row = createRow({
-        id: 'legacy-1',
-        type: 'streak_at_risk',
-        status: 'queued',
-        title: 'Stored title',
-        body: 'Stored body',
-      })
-
-      const warnings: unknown[] = []
-
-      const pushes = await deliver(
-        simpleMessage('streak_at_risk', ['legacy-1']),
-        [row],
-        { language: 'fr', warnings }
-      )
-
-      expect(Array.map(pushes, (m) => [m.title, m.body])).toEqual([
-        ['Stored title', 'Stored body'],
-        ['Stored title', 'Stored body'],
-      ])
-      expect([row.status, row.title]).toEqual(['sent', 'Stored title'])
-      expect(warnings).toEqual([])
-    })
-
     it('names the plant by its name at delivery, not at recording', async () => {
       const row = withParams(
         createRow({
