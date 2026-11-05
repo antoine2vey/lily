@@ -1,16 +1,23 @@
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
+import { createTestDeviceToken } from '@lily/api/__tests__/fixtures/device-tokens'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import {
   createTestPlant,
   type PlantRecord,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
+import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
@@ -18,11 +25,16 @@ import {
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
-import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
+import {
+  buildNotificationContent,
+  type NotificationContent,
+} from '@lily/api/services/notification-scheduler/translations'
+import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   type NotificationTopic,
+  type PushMessage,
   QueueConnectionError,
   type QueueMessage,
   QueueOperationError,
@@ -32,6 +44,7 @@ import {
   Effect,
   Layer,
   Logger,
+  Option,
   Predicate,
   References,
 } from 'effect'
@@ -57,34 +70,90 @@ const defaultUser = createTestUser({
   timezone: 'UTC',
 })
 
+type Delivered = QueueMessage & {
+  readonly push: NotificationContent | undefined
+  readonly rows: ReadonlyArray<Notification>
+}
+
+const deliver = (
+  message: QueueMessage,
+  notifications: ReturnType<typeof createTestNotification>[],
+  users: User[],
+  plantsData: PlantRecord[],
+  schedules: CareScheduleRow[]
+) => {
+  const pushes: PushMessage[] = []
+  const copies = structuredClone(notifications)
+  return processMessage(message).pipe(
+    Effect.provide(
+      Layer.mergeAll(
+        MockAlerterLive,
+        MockSqlClientLive,
+        createMockPushService({ onSendBatch: (msgs) => pushes.push(...msgs) }),
+        createMockDeviceTokenRepository(
+          Arr.map(users, (user) => createTestDeviceToken({ userId: user.id }))
+        ),
+        createMockNotificationRepository(copies),
+        createMockActivityPushTokenRepository(),
+        createMockCareLogRepository([]),
+        gateMocks(schedules),
+        createMockUserRepository(users),
+        createMockPlantRepository({ plants: plantsData })
+      )
+    ),
+    Effect.map(
+      (): Delivered => ({
+        ...message,
+        push: Option.getOrUndefined(
+          Option.map(Arr.head(pushes), ({ title, body }) => ({ title, body }))
+        ),
+        rows: Arr.filter(copies, (row) =>
+          Arr.contains(message.payload.notificationIds, row.id)
+        ),
+      })
+    )
+  )
+}
+
 const runPollAndEnqueue = (
   notifications: ReturnType<typeof createTestNotification>[],
   users: User[],
-  onEnqueue?: (topic: NotificationTopic, message: QueueMessage) => void,
+  onEnqueue?: (topic: NotificationTopic, message: Delivered) => void,
   plantsData: PlantRecord[] = [],
   schedules: CareScheduleRow[] = []
-) =>
-  Effect.runPromise(
-    pollAndEnqueue.pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          createMockNotificationRepository(notifications),
-          createMockMessageQueue(onEnqueue ? { onEnqueue } : {}),
-          gateMocks(schedules),
-          createMockUserRepository(users),
-          createMockPlantRepository({ plants: plantsData })
+) => {
+  const enqueued: QueueMessage[] = []
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      const filledBatch = yield* pollAndEnqueue.pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockNotificationRepository(notifications),
+            createMockMessageQueue({
+              onEnqueue: (_, message) => enqueued.push(message),
+            }),
+            gateMocks(schedules),
+            createMockUserRepository(users),
+            createMockPlantRepository({ plants: plantsData })
+          )
         )
-      ),
-      Effect.provideService(References.MinimumLogLevel, 'None')
-    )
+      )
+      yield* Effect.forEach(enqueued, (message) =>
+        deliver(message, notifications, users, plantsData, schedules).pipe(
+          Effect.map((delivered) => onEnqueue?.(message.topic, delivered))
+        )
+      )
+      return filledBatch
+    }).pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
   )
+}
 
 describe('Notification Scheduler', () => {
   describe('pollAndEnqueue', () => {
     it('should enqueue pending watering reminders', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const pendingNotification = createTestNotification({
@@ -110,7 +179,7 @@ describe('Notification Scheduler', () => {
       expect(enqueuedMessages[0]?.message.payload.notificationIds).toContain(
         'pending-1'
       )
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         '💧 Your Monstera is thirsty'
       )
     })
@@ -142,7 +211,7 @@ describe('Notification Scheduler', () => {
     it('should enqueue new_follower notifications with pass-through title/body', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const pendingNotification = createTestNotification({
@@ -163,8 +232,8 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.topic).toBe('new_follower')
-      expect(enqueuedMessages[0]?.message.payload.title).toBe('👋 New follower')
-      expect(enqueuedMessages[0]?.message.payload.body).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe('👋 New follower')
+      expect(enqueuedMessages[0]?.message.push?.body).toBe(
         'Alice started following you'
       )
     })
@@ -172,7 +241,7 @@ describe('Notification Scheduler', () => {
     it('should enqueue delegation_request notifications', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const pendingNotification = createTestNotification({
@@ -193,7 +262,7 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.topic).toBe('delegation_request')
-      expect(enqueuedMessages[0]?.message.payload.title).toBe('🤝 Care request')
+      expect(enqueuedMessages[0]?.message.push?.title).toBe('🤝 Care request')
     })
 
     it('sends each notification with metadata on its own, metadata kept', async () => {
@@ -331,7 +400,7 @@ describe('Notification Scheduler', () => {
     })
 
     it('sends two photo reminders stored without metadata for one user as two pushes', async () => {
-      const enqueued: QueueMessage[] = []
+      const enqueued: Delivered[] = []
       const photo = (id: string, plantId: string) =>
         createTestNotification({
           id,
@@ -355,7 +424,7 @@ describe('Notification Scheduler', () => {
       )
 
       expect(
-        Arr.map(enqueued, (m) => [m.payload.notificationIds, m.payload.title])
+        Arr.map(enqueued, (m) => [m.payload.notificationIds, m.push?.title])
       ).toEqual([
         [['photo-1'], 'Photo of plant-1'],
         [['photo-2'], 'Photo of plant-2'],
@@ -490,7 +559,7 @@ describe('Notification Scheduler', () => {
     })
 
     it('sends two daily tips for one user as two pushes', async () => {
-      const enqueued: QueueMessage[] = []
+      const enqueued: Delivered[] = []
       const tip = (id: string, title: string) =>
         createTestNotification({
           id,
@@ -508,7 +577,7 @@ describe('Notification Scheduler', () => {
         (_, message) => enqueued.push(message)
       )
 
-      expect(Arr.map(enqueued, (m) => m.payload.title)).toEqual([
+      expect(Arr.map(enqueued, (m) => m.push?.title)).toEqual([
         'Mist ferns',
         'Rotate pots',
       ])
@@ -687,7 +756,7 @@ describe('Notification Scheduler', () => {
     it('merges every care type for the same user into one message', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -728,8 +797,8 @@ describe('Notification Scheduler', () => {
         'fert-1',
       ])
       expect(only?.message.payload.plantIds).toEqual(['plant-1', 'plant-2'])
-      expect(only?.message.payload.title).toBe('🌱 2 plants need care today')
-      expect(only?.message.payload.body).toBe(
+      expect(only?.message.push?.title).toBe('🌱 2 plants need care today')
+      expect(only?.message.push?.body).toBe(
         'Monstera (watering), Pothos (fertilizing)'
       )
     })
@@ -737,7 +806,7 @@ describe('Notification Scheduler', () => {
     it('merges watering + misting for one plant into a single banner', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -773,22 +842,26 @@ describe('Notification Scheduler', () => {
       expect(only?.topic).toBe('watering_reminder')
       // One plant, one id — the app's single-plant deep link still resolves.
       expect(only?.message.payload.plantIds).toEqual(['plant-1'])
-      expect(only?.message.payload.title).toBe(
+      expect(only?.message.push?.title).toBe(
         '🌱 Your Monstera needs care today'
       )
-      expect(only?.message.payload.body).toBe(
+      expect(only?.message.push?.body).toBe(
         'Watering and misting are due today.'
       )
-      // Both rows receive the merged content.
       expect(notifications[0]?.status).toBe('queued')
       expect(notifications[1]?.status).toBe('queued')
-      expect(notifications[1]?.title).toBe('🌱 Your Monstera needs care today')
+      expect(
+        Arr.map(only?.message.rows ?? [], (row) => [row.status, row.title])
+      ).toEqual([
+        ['sent', '🌱 Your Monstera needs care today'],
+        ['sent', '🌱 Your Monstera needs care today'],
+      ])
     })
 
     it('routes a merged group containing overdue on the overdue topic', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -833,7 +906,7 @@ describe('Notification Scheduler', () => {
       const [only] = enqueuedMessages
       expect(only?.topic).toBe('overdue_reminder')
       // Labels inside a plant follow priority order: overdue before misting.
-      expect(only?.message.payload.body).toBe(
+      expect(only?.message.push?.body).toBe(
         'Monstera (overdue, misting), Pothos (watering)'
       )
     })
@@ -841,7 +914,7 @@ describe('Notification Scheduler', () => {
     it('uses French digest copy for a mixed-type merge', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const frenchUser = createTestUser({
@@ -890,10 +963,10 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(1)
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         "🌱 2 plantes ont besoin de soins aujourd'hui"
       )
-      expect(enqueuedMessages[0]?.message.payload.body).toBe(
+      expect(enqueuedMessages[0]?.message.push?.body).toBe(
         'Monstera (arrosage, brumisation), Pothos (fertilisation)'
       )
     })
@@ -901,7 +974,7 @@ describe('Notification Scheduler', () => {
     it('keeps same-type merges on the existing per-type wording', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -935,10 +1008,10 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.topic).toBe('misting_reminder')
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         '🌫️ 2 plants want a misting'
       )
-      expect(enqueuedMessages[0]?.message.payload.body).toBe('Monstera, Pothos')
+      expect(enqueuedMessages[0]?.message.push?.body).toBe('Monstera, Pothos')
     })
 
     it('should send separate messages per user', async () => {
@@ -1000,7 +1073,7 @@ describe('Notification Scheduler', () => {
     it('should build translated title/body for single notification', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -1022,10 +1095,10 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(1)
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         '💧 Your Monstera is thirsty'
       )
-      expect(enqueuedMessages[0]?.message.payload.body).toBe(
+      expect(enqueuedMessages[0]?.message.push?.body).toBe(
         'Time to give your Monstera a drink today.'
       )
     })
@@ -1033,7 +1106,7 @@ describe('Notification Scheduler', () => {
     it('should use French translations when user language is fr', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const frenchUser = createTestUser({
@@ -1063,7 +1136,7 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(1)
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         '💧 Ta Monstera a soif'
       )
     })
@@ -1071,7 +1144,7 @@ describe('Notification Scheduler', () => {
     it('should build grouped title/body with plant names', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -1104,10 +1177,10 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(1)
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         '💧 2 plants are thirsty'
       )
-      expect(enqueuedMessages[0]?.message.payload.body).toBe('Monstera, Pothos')
+      expect(enqueuedMessages[0]?.message.push?.body).toBe('Monstera, Pothos')
     })
 
     it('should include notificationIds and plantIds in grouped payload', async () => {
@@ -1156,7 +1229,7 @@ describe('Notification Scheduler', () => {
     it('should merge multiple plant anniversaries for the same user into one push', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -1217,18 +1290,18 @@ describe('Notification Scheduler', () => {
         'plant-2',
         'plant-3',
       ])
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         '🎂 3 plant anniversaries today!'
       )
-      expect(enqueuedMessages[0]?.message.payload.body).toContain('Monstera')
-      expect(enqueuedMessages[0]?.message.payload.body).toContain('Pothos')
-      expect(enqueuedMessages[0]?.message.payload.body).toContain('Fern')
+      expect(enqueuedMessages[0]?.message.push?.body).toContain('Monstera')
+      expect(enqueuedMessages[0]?.message.push?.body).toContain('Pothos')
+      expect(enqueuedMessages[0]?.message.push?.body).toContain('Fern')
     })
 
     it('should pass through DB title/body for a single plant anniversary', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -1253,10 +1326,8 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.topic).toBe('plant_anniversary')
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
-        '🎂 Happy 1 month!'
-      )
-      expect(enqueuedMessages[0]?.message.payload.body).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe('🎂 Happy 1 month!')
+      expect(enqueuedMessages[0]?.message.push?.body).toBe(
         "You've been caring for Monstera since Jan 1, 2026. Keep it up!"
       )
     })
@@ -1264,7 +1335,7 @@ describe('Notification Scheduler', () => {
     it('should use French grouped anniversary title when user language is fr', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const frenchUser = createTestUser({
@@ -1311,7 +1382,7 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(1)
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         "🎂 2 anniversaires de plantes aujourd'hui !"
       )
     })
@@ -1321,7 +1392,7 @@ describe('Notification Scheduler', () => {
     it('should recognize overdue_reminder as care reminder and group by user', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -1360,7 +1431,7 @@ describe('Notification Scheduler', () => {
         'overdue-1',
         'overdue-2',
       ])
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         '⚠️ 2 plants need your attention'
       )
     })
@@ -1368,7 +1439,7 @@ describe('Notification Scheduler', () => {
     it('should build overdue_reminder title for single plant', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
-        message: QueueMessage
+        message: Delivered
       }[] = []
 
       const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
@@ -1393,10 +1464,10 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(1)
-      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.push?.title).toBe(
         '⚠️ Your Monstera needs you'
       )
-      expect(enqueuedMessages[0]?.message.payload.body).toBe(
+      expect(enqueuedMessages[0]?.message.push?.body).toBe(
         "Your Monstera is overdue for care — don't forget!"
       )
     })

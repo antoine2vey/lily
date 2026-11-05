@@ -9,6 +9,7 @@ import {
   type FailedAttempt,
   NotificationRepository,
   type NotificationRow,
+  type SentNotification,
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -27,8 +28,14 @@ import {
   loadPlantFacts,
   loadRecipients,
 } from '@lily/api/services/notification-scheduler/dispatch-gate'
-import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
-import type { ActivityPushToken } from '@lily/shared'
+import {
+  buildCareDigestContent,
+  buildGroupedPlantAnniversaryContent,
+  type NotificationContent,
+  renderFromParams,
+  type SimpleNotificationType,
+} from '@lily/api/services/notification-scheduler/translations'
+import type { ActivityPushToken, LanguageCode } from '@lily/shared'
 import {
   type DeferredCareType,
   type InterruptionLevel,
@@ -273,7 +280,7 @@ export const workerRetryPolicy = Schedule.max([
 
 const completeDelivery = (
   message: QueueMessage,
-  claimedIds: ReadonlyArray<string>,
+  rendered: Rendered,
   results: ReadonlyArray<{ status: 'ok' | 'error' }>,
   deviceCount: number
 ) =>
@@ -292,7 +299,7 @@ const completeDelivery = (
     }
 
     yield* notificationRepo
-      .markManyAsSent(claimedIds)
+      .markManyAsSent(rendered.sent)
       .pipe(Effect.retry(workerRetryPolicy))
 
     // For care topics on iOS 17.2+ subscribers, refresh the LA card. Updates
@@ -302,14 +309,13 @@ const completeDelivery = (
     // for now; consolidating those is a separate UX change.
     if (TOPIC_CATEGORY[message.topic] === 'care') {
       yield* sendLiveActivityForCare(message.payload.userId, {
-        title: message.payload.title,
-        body: message.payload.body,
+        ...rendered.push,
         sound: 'default',
       }).pipe(Effect.retry(workerRetryPolicy))
     }
 
     yield* Effect.log('Push notification sent', {
-      notificationIds: claimedIds,
+      notificationIds: Array.map(rendered.sent, (row) => row.id),
       devices: deviceCount,
     })
   }).pipe(
@@ -322,7 +328,7 @@ const completeDelivery = (
           'Push sent but delivery bookkeeping failed',
           {
             messageId: message.id,
-            notificationIds: claimedIds,
+            notificationIds: Array.map(rendered.sent, (row) => row.id),
             error: String(error),
           }
         )
@@ -365,11 +371,11 @@ const gateClaimedRows = (
       )
     )
     const now = DateTime.toDateUtc(yield* DateTime.now)
+    const users = yield* userRepo.findByIds(
+      Array.dedupe(Array.map(rows, (row) => row.userId))
+    )
     const [recipients, plantFacts] = yield* Effect.all([
-      Effect.flatMap(
-        userRepo.findByIds(Array.dedupe(Array.map(rows, (row) => row.userId))),
-        (users) => loadRecipients(users, now)
-      ),
+      loadRecipients(users, now),
       loadPlantFacts(plants),
     ])
     const decided = Array.map(rows, (row) => ({
@@ -402,53 +408,147 @@ const gateClaimedRows = (
     yield* notificationRepo.deleteByIds(dropIds)
     yield* notificationRepo.deferUntil(deferred, Option.some(message.id))
 
-    return { sendRows, plants }
+    const language: LanguageCode = pipe(
+      Array.findFirst(users, (user) => user.id === message.payload.userId),
+      Option.map((user) => user.language),
+      Option.getOrElse(() => 'en' as const)
+    )
+    return { sendRows, plants, language }
   })
 
-const careDigestFor = (
-  message: QueueMessage,
-  sendRows: ReadonlyArray<NotificationRow>,
-  plants: ReadonlyArray<{ readonly id: string; readonly name: string }>
-): Option.Option<QueueMessage> => {
-  const kept = Array.filter(plants, (plant) =>
-    Array.some(sendRows, (row) => row.plantId === plant.id)
+interface Rendered {
+  readonly push: NotificationContent
+  readonly sent: ReadonlyArray<SentNotification>
+}
+
+type PlantName = { readonly plantId: string; readonly plantName: string }
+
+const isSimpleTopic = (
+  topic: NotificationTopic
+): topic is SimpleNotificationType => !isCareTopic(topic)
+
+const rowContent = (
+  row: NotificationRow & { readonly type: SimpleNotificationType },
+  named: Option.Option<PlantName>,
+  language: LanguageCode
+) =>
+  row.params === undefined
+    ? Result.succeed({
+        title: Option.getOrElse(Option.fromNullishOr(row.title), () => ''),
+        body: Option.getOrElse(Option.fromNullishOr(row.body), () => ''),
+      })
+    : renderFromParams(
+        row.type,
+        row.params,
+        Option.map(named, (plant) => plant.plantName),
+        language
+      )
+
+const renderCare = (
+  rows: ReadonlyArray<NotificationRow>,
+  nameOf: (row: NotificationRow) => Option.Option<PlantName>,
+  language: LanguageCode
+): Option.Option<Rendered> => {
+  const items = pipe(
+    Array.filterMap(
+      rows,
+      Filter.fromPredicateOption((row) => {
+        const careType = row.type
+        if (!isCareTopic(careType)) return Option.none()
+        return Option.map(nameOf(row), (plant) => ({ ...plant, careType }))
+      })
+    ),
+    Array.groupBy((item) => item.plantId),
+    Record.values,
+    Array.map((group) => ({
+      plantName: Array.headNonEmpty(group).plantName,
+      careTypes: Array.map(group, (item) => item.careType),
+    }))
   )
-  const items = Array.filterMap(kept, (plant) =>
-    Array.match(
-      Array.filterMap(
-        sendRows,
-        Filter.fromPredicateOption((row) =>
-          row.plantId === plant.id && isCareTopic(row.type)
-            ? Option.some(row.type)
-            : Option.none()
-        )
-      ),
-      {
-        onEmpty: () => Result.failVoid,
-        onNonEmpty: (careTypes) =>
-          Result.succeed({ plantName: plant.name, careTypes }),
-      }
-    )
+  return Option.map(
+    Array.match(items, {
+      onEmpty: () => Option.none(),
+      onNonEmpty: (nonEmpty) =>
+        Option.some(buildCareDigestContent(nonEmpty, language)),
+    }),
+    (push) => ({
+      push,
+      sent: Array.map(rows, (row) => ({ id: row.id, ...push })),
+    })
   )
-  return Array.match(items, {
-    onEmpty: () => Option.none(),
-    onNonEmpty: (nonEmpty) =>
-      Option.some({
-        ...message,
-        payload: {
-          ...message.payload,
-          ...buildCareDigestContent(
-            nonEmpty,
-            Option.getOrElse(
-              Option.fromNullishOr(message.payload.language),
-              () => 'en' as const
-            )
-          ),
-          notificationIds: Array.map(sendRows, (row) => row.id),
-          plantIds: Array.map(kept, (plant) => plant.id),
-        },
-      }),
+}
+
+const renderSimple = (
+  topic: NotificationTopic,
+  rows: ReadonlyArray<NotificationRow>,
+  nameOf: (row: NotificationRow) => Option.Option<PlantName>,
+  language: LanguageCode
+) => {
+  const [rendered, undecodable] = Array.partition(rows, (row) => {
+    const type = row.type
+    if (!isSimpleTopic(type)) {
+      return Result.fail({
+        id: row.id,
+        error: `care row in a ${topic} message`,
+      })
+    }
+    return Result.mapBoth(rowContent({ ...row, type }, nameOf(row), language), {
+      onFailure: (error) => ({ id: row.id, error: error.message }),
+      onSuccess: (content) => ({ row, content }),
+    })
   })
+  const push = Array.match(rendered, {
+    onEmpty: () => Option.none<NotificationContent>(),
+    onNonEmpty: (nonEmpty) =>
+      Option.some(
+        topic === 'plant_anniversary' && nonEmpty.length > 1
+          ? buildGroupedPlantAnniversaryContent(
+              Array.filterMap(
+                nonEmpty,
+                Filter.fromPredicateOption(({ row }) =>
+                  Option.map(nameOf(row), (plant) => plant.plantName)
+                )
+              ),
+              language
+            )
+          : Array.headNonEmpty(nonEmpty).content
+      ),
+  })
+  return {
+    undecodable,
+    rendered: Option.map(
+      push,
+      (content): Rendered => ({
+        push: content,
+        sent: Array.map(rendered, ({ row, content }) => ({
+          id: row.id,
+          ...content,
+        })),
+      })
+    ),
+  }
+}
+
+const renderDelivery = (
+  message: QueueMessage,
+  rows: ReadonlyArray<NotificationRow>,
+  plants: ReadonlyArray<{ readonly id: string; readonly name: string }>,
+  language: LanguageCode
+) => {
+  const names = new Map(Array.map(plants, (plant) => [plant.id, plant.name]))
+  const nameOf = (row: NotificationRow): Option.Option<PlantName> =>
+    pipe(
+      Option.fromNullishOr(row.plantId),
+      Option.flatMap((plantId) =>
+        Option.map(Option.fromNullishOr(names.get(plantId)), (plantName) => ({
+          plantId,
+          plantName,
+        }))
+      )
+    )
+  return isCareTopic(message.topic)
+    ? { undecodable: [], rendered: renderCare(rows, nameOf, language) }
+    : renderSimple(message.topic, rows, nameOf, language)
 }
 
 export const processMessage = Effect.fn('notification-worker.process')(
@@ -475,31 +575,57 @@ export const processMessage = Effect.fn('notification-worker.process')(
       return
     }
 
-    const { sendRows, plants } = yield* gateClaimedRows(message, claimedIds)
-    if (Array.isReadonlyArrayEmpty(sendRows)) {
+    const gated = yield* gateClaimedRows(message, claimedIds)
+    if (Array.isReadonlyArrayEmpty(gated.sendRows)) {
       yield* Effect.log('Skipping message - the gate kept no row', {
         messageId: message.id,
         notificationIds: claimedIds,
       })
       return
     }
-    const sendIds = Array.map(sendRows, (row) => row.id)
-    const unchanged =
-      sendIds.length === Array.dedupe(message.payload.notificationIds).length
-    const narrowed =
-      unchanged || !isCareTopic(message.topic)
-        ? Option.some(message)
-        : careDigestFor(message, sendRows, plants)
-    if (Option.isNone(narrowed)) {
-      yield* Effect.log('Dropping care push - no care row left to name', {
+    const sendRows = Array.sort(
+      gated.sendRows,
+      Order.mapInput(Order.Number, (row: NotificationRow) =>
+        notificationIds.indexOf(row.id)
+      )
+    )
+    const { undecodable, rendered } = renderDelivery(
+      message,
+      sendRows,
+      gated.plants,
+      gated.language
+    )
+    yield* Effect.forEach(undecodable, (row) =>
+      Effect.logWarning('Dropping notification - malformed params', {
+        ...row,
         messageId: message.id,
-        notificationIds: sendIds,
       })
-      yield* notificationRepo.markManyAsSent(sendIds)
+    )
+    yield* notificationRepo.deleteByIds(Array.map(undecodable, (row) => row.id))
+    if (Option.isNone(rendered)) {
+      yield* Effect.log('Dropping push - no row left to render', {
+        messageId: message.id,
+        notificationIds: Array.map(sendRows, (row) => row.id),
+      })
+      yield* notificationRepo.deleteByIds(Array.map(sendRows, (row) => row.id))
       return
     }
-    const delivery = narrowed.value
-    const { payload } = delivery
+    const delivery = rendered.value
+    const sendIds = Array.map(delivery.sent, (row) => row.id)
+    const plantIds =
+      sendIds.length === Array.dedupe(notificationIds).length
+        ? message.payload.plantIds
+        : pipe(
+            Array.filterMap(
+              sendRows,
+              Filter.fromPredicateOption((row) =>
+                Array.contains(sendIds, row.id)
+                  ? Option.fromNullishOr(row.plantId)
+                  : Option.none()
+              )
+            ),
+            Array.dedupe
+          )
 
     // Get user's active device tokens
     const tokens = yield* deviceTokenRepo.findByUserId(message.payload.userId)
@@ -511,22 +637,18 @@ export const processMessage = Effect.fn('notification-worker.process')(
         notificationIds: sendIds,
       })
       // Still mark as sent since there's no device to send to
-      yield* notificationRepo.markManyAsSent(sendIds)
+      yield* notificationRepo.markManyAsSent(delivery.sent)
       return
     }
-
-    // Build data payload for deep linking
-    const plantIds = Array.match(payload.plantIds, {
-      onEmpty: () => Option.none<string>(),
-      onNonEmpty: (ids) => Option.some(Array.join(ids, ',')),
-    })
 
     const data: Record<string, unknown> = Record.filter(
       {
         topic: message.topic,
-        title: payload.title,
-        body: payload.body,
-        plantIds: Option.getOrUndefined(plantIds),
+        ...delivery.push,
+        plantIds: Array.match(plantIds, {
+          onEmpty: () => undefined,
+          onNonEmpty: (ids) => Array.join(ids, ','),
+        }),
         ...Record.map(message.payload.metadata ?? {}, (v) => v),
       } as Record<string, unknown>,
       (v) => v !== undefined
@@ -537,8 +659,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
     // Send to all active devices
     const pushMessages = Array.map(activeTokens, (token) => ({
       to: token.token,
-      title: payload.title,
-      body: payload.body,
+      ...delivery.push,
       sound: 'default' as const,
       data,
       ...(interruptionLevel ? { interruptionLevel } : {}),
@@ -554,7 +675,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
       })
     }
 
-    yield* completeDelivery(delivery, sendIds, results, activeTokens.length)
+    yield* completeDelivery(message, delivery, results, activeTokens.length)
   }
 )
 

@@ -170,7 +170,7 @@ describe('sendNudge', () => {
     })
   })
 
-  it('should include nudger name in notification body', async () => {
+  it('should store the nudger name for the push', async () => {
     const notifications: Notification[] = []
     const layer = buildLayer(
       [
@@ -187,6 +187,8 @@ describe('sendNudge', () => {
     await Effect.runPromise(
       sendNudge({ targetUserId: targetUser.id }).pipe(Effect.provide(layer))
     )
-    expect(notifications[0]?.body).toContain('Current User')
+    expect(notifications).toEqual([
+      expect.objectContaining({ params: { senderName: 'Current User' } }),
+    ])
   })
 })

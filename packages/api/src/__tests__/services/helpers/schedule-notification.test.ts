@@ -42,11 +42,15 @@ describe('recordNotification', () => {
       ).pipe(Effect.provide(createMockNotificationRepository(notifications)))
     )
 
-    expect(
-      Arr.map(notifications, (n) => [n.type, n.status, n.title, n.metadata])
-    ).toEqual([
-      ['new_follower', 'queued', '👋 New follower!', { senderId: 'ada' }],
+    expect(notifications).toEqual([
+      expect.objectContaining({
+        type: 'new_follower',
+        status: 'queued',
+        params: { senderName: 'Ada' },
+        metadata: { senderId: 'ada' },
+      }),
     ])
+    expect(notifications[0]?.title).toBeUndefined()
   })
 
   it('enqueues nothing until the row is dispatched', async () => {

@@ -5,7 +5,7 @@ import {
   createTestDeviceToken,
   mockDeviceTokens,
 } from '@lily/api/__tests__/fixtures/device-tokens'
-import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
+import { createTestNotification as createRow } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
@@ -57,7 +57,11 @@ import {
   makeAlerter,
 } from '@lily/api/services/alerting/service'
 import { decodeQueueEntry } from '@lily/api/services/message-queue/redis.provider'
-import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations'
+import {
+  buildCareDigestContent,
+  buildGroupedPlantAnniversaryContent,
+  buildSimpleContent,
+} from '@lily/api/services/notification-scheduler/translations'
 import {
   CLAIM_REFRESH_INTERVAL,
   consumeNext,
@@ -133,8 +137,14 @@ const LivingPlantsLive = createMockPlantRepository({
     createTestPlant({ id: 'plant-2', userId: 'user-1' }),
     createTestPlant({ id: 'plant-3', userId: 'user-1' }),
     createTestPlant({ id: 'plant-123', userId: 'user-1' }),
+    createTestPlant({ id: 'plant-mixed', userId: 'mixed-device-user' }),
+    createTestPlant({ id: 'plant-three', userId: 'three-device-user' }),
+    createTestPlant({ id: 'plant-user-2', userId: 'user-2' }),
   ],
 })
+
+const createPlantRow: typeof createRow = (overrides) =>
+  createRow({ plantId: 'plant-1', ...overrides })
 
 // The queue boundary only accepts UUID notification ids.
 const rowId = (label: string) =>
@@ -148,8 +158,6 @@ const createTestQueueMessage = (
   topic: 'watering_reminder',
   payload: {
     userId: 'user-1',
-    title: 'Test notification',
-    body: 'Test body',
     notificationIds: ['notification-1'],
     plantIds: ['plant-1'],
   },
@@ -169,7 +177,7 @@ const runAndCapturePushes = async (
   {
     tokens = mockDeviceTokens,
     notifications = [
-      createTestNotification({
+      createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         status: 'queued',
@@ -207,7 +215,7 @@ describe('Notification Worker', () => {
       const sentMessages: PushMessage[] = []
 
       const message = createTestQueueMessage()
-      const notification = createTestNotification({
+      const notification = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         status: 'queued',
@@ -239,8 +247,7 @@ describe('Notification Worker', () => {
       expect(new Set(sentMessages.map((m) => m.to))).toEqual(
         new Set(['expo-push-token-123', 'expo-push-token-456'])
       )
-      expect(sentMessages[0]?.title).toBe('Test notification')
-      expect(sentMessages[0]?.body).toBe('Test body')
+      expect(sentMessages[0]?.title).toBe('💧 Your Test Plant is thirsty')
     })
 
     it('pushes to active devices only and skips inactive ones for one account', async () => {
@@ -270,8 +277,6 @@ describe('Notification Worker', () => {
         createTestQueueMessage({
           payload: {
             userId,
-            title: 'Test notification',
-            body: 'Test body',
             notificationIds: ['notification-1'],
             plantIds: [],
           },
@@ -279,9 +284,10 @@ describe('Notification Worker', () => {
         {
           tokens,
           notifications: [
-            createTestNotification({
+            createPlantRow({
               id: 'notification-1',
               userId,
+              plantId: 'plant-mixed',
               status: 'queued',
             }),
           ],
@@ -313,8 +319,6 @@ describe('Notification Worker', () => {
         createTestQueueMessage({
           payload: {
             userId,
-            title: 'Test notification',
-            body: 'Test body',
             notificationIds: ['notification-1'],
             plantIds: [],
           },
@@ -322,9 +326,10 @@ describe('Notification Worker', () => {
         {
           tokens,
           notifications: [
-            createTestNotification({
+            createPlantRow({
               id: 'notification-1',
               userId,
+              plantId: 'plant-three',
               status: 'queued',
             }),
           ],
@@ -339,7 +344,7 @@ describe('Notification Worker', () => {
     })
 
     it('should mark notification as sent on success', async () => {
-      const notification = createTestNotification({
+      const notification = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         status: 'queued',
@@ -356,9 +361,10 @@ describe('Notification Worker', () => {
     })
 
     it('should still mark as sent when user has no active tokens', async () => {
-      const notification = createTestNotification({
+      const notification = createPlantRow({
         id: 'notification-1',
         userId: 'user-2',
+        plantId: 'plant-user-2',
         status: 'queued',
       })
 
@@ -368,8 +374,6 @@ describe('Notification Worker', () => {
         createTestQueueMessage({
           payload: {
             userId: 'user-2',
-            title: 'Test',
-            body: 'Test body',
             notificationIds: ['notification-1'],
             plantIds: [],
           },
@@ -385,7 +389,7 @@ describe('Notification Worker', () => {
 
     it('should fail when push service fails', async () => {
       const message = createTestQueueMessage()
-      const notification = createTestNotification({
+      const notification = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         status: 'queued',
@@ -417,15 +421,16 @@ describe('Notification Worker', () => {
         topic: 'delegation_request',
         payload: {
           userId: 'user-1',
-          title: 'Delegation request',
-          body: 'Someone wants you to care for their plants',
           notificationIds: ['notification-1'],
           plantIds: [],
           metadata: { delegationId: 'deleg-42' },
         },
       })
-      const notification = createTestNotification({
+      const notification = createPlantRow({
         id: 'notification-1',
+        type: 'delegation_request',
+        title: 'Delegation request',
+        body: 'Someone wants you to care for their plants',
         userId: 'user-1',
         status: 'queued',
       })
@@ -464,13 +469,11 @@ describe('Notification Worker', () => {
         topic: 'watering_reminder',
         payload: {
           userId: 'user-1',
-          title: 'Water your plants',
-          body: 'Monstera, Pothos',
           notificationIds: ['notification-1'],
           plantIds: ['plant-1', 'plant-2'],
         },
       })
-      const notification = createTestNotification({
+      const notification = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         status: 'queued',
@@ -505,15 +508,15 @@ describe('Notification Worker', () => {
         topic: 'new_follower',
         payload: {
           userId: 'user-1',
-          title: 'New follower',
-          body: 'Someone followed you',
           notificationIds: ['notification-1'],
           plantIds: [],
           metadata: { senderId: 'user-99' },
         },
       })
-      const notification = createTestNotification({
+      const notification = createPlantRow({
         id: 'notification-1',
+        type: 'new_follower',
+        plantId: undefined,
         userId: 'user-1',
         status: 'queued',
       })
@@ -567,12 +570,20 @@ describe('Notification Worker', () => {
           topic: 'daily_tip',
           payload: {
             userId: 'user-1',
-            title: 'Daily tip',
-            body: 'Tip body',
             notificationIds: ['notification-1'],
             plantIds: [],
           },
-        })
+        }),
+        {
+          notifications: [
+            createPlantRow({
+              id: 'notification-1',
+              type: 'daily_tip',
+              userId: 'user-1',
+              status: 'queued',
+            }),
+          ],
+        }
       )
 
       expect(sentMessages.length).toBeGreaterThan(0)
@@ -587,27 +598,28 @@ describe('Notification Worker', () => {
       const message = createTestQueueMessage({
         payload: {
           userId: 'user-1',
-          title: '💧 3 plants need watering',
-          body: 'Monstera, Pothos, Fern',
           notificationIds: ['notif-1', 'notif-2', 'notif-3'],
           plantIds: ['plant-1', 'plant-2', 'plant-3'],
         },
       })
 
       const notifications = [
-        createTestNotification({
+        createPlantRow({
           id: 'notif-1',
           userId: 'user-1',
+          plantId: 'plant-1',
           status: 'queued',
         }),
-        createTestNotification({
+        createPlantRow({
           id: 'notif-2',
           userId: 'user-1',
+          plantId: 'plant-2',
           status: 'queued',
         }),
-        createTestNotification({
+        createPlantRow({
           id: 'notif-3',
           userId: 'user-1',
+          plantId: 'plant-3',
           status: 'queued',
         }),
       ]
@@ -632,12 +644,297 @@ describe('Notification Worker', () => {
 
       // Sends 1 push per device (user-1 has 2 active tokens)
       expect(sentMessages).toHaveLength(2)
-      expect(sentMessages[0]?.title).toBe('💧 3 plants need watering')
-      // Grouped care reminders also carry the time-sensitive flag so the
-      // consolidated "3 plants need watering" push pierces Focus/DND.
+      expect(sentMessages[0]?.title).toBe('💧 3 plants are thirsty')
       for (const m of sentMessages) {
         expect(m.interruptionLevel).toBe('time-sensitive')
       }
+    })
+  })
+
+  describe('render at delivery', () => {
+    const recipient = (language: 'en' | 'fr') =>
+      createTestUser({
+        id: 'user-1',
+        language,
+        careReminders: true,
+        doNotDisturb: false,
+        timezone: 'UTC',
+      })
+
+    const withParams = (row: Notification, params: unknown): Notification =>
+      Object.assign(row, { params })
+
+    const deliver = async (
+      message: QueueMessage,
+      rows: Notification[],
+      {
+        language = 'en',
+        plants = [createTestPlant({ id: 'plant-1', userId: 'user-1' })],
+      }: {
+        language?: 'en' | 'fr'
+        plants?: ReturnType<typeof createTestPlant>[]
+      } = {}
+    ) => {
+      const pushes: PushMessage[] = []
+      await Effect.runPromise(
+        processMessage(message).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              MockAlerterLive,
+              MockSqlClientLive,
+              createMockPushService({
+                onSendBatch: (msgs) => pushes.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository(rows),
+              createMockActivityPushTokenRepository(),
+              createMockCareScheduleRepository(),
+              createMockCareLogRepository([]),
+              createMockDelegationRepository(),
+              createMockCanopyRepository([]),
+              createMockUserRepository([recipient(language)]),
+              createMockPlantRepository({ plants })
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      return pushes
+    }
+
+    const simpleMessage = (
+      topic: NotificationTopic,
+      notificationIds: string[]
+    ): QueueMessage =>
+      createTestQueueMessage({
+        topic,
+        payload: { userId: 'user-1', notificationIds, plantIds: [] },
+      })
+
+    it("pushes a row recorded in English in the recipient's French", async () => {
+      const row = withParams(
+        createRow({
+          id: 'streak-1',
+          type: 'streak_at_risk',
+          status: 'queued',
+          title: "🔥 Don't lose your 12-day streak!",
+          body: 'Your Monstera still needs care today. Keep the streak alive!',
+        }),
+        { streakCount: 12, plantName: 'Monstera' }
+      )
+
+      const pushes = await deliver(
+        simpleMessage('streak_at_risk', ['streak-1']),
+        [row],
+        { language: 'fr' }
+      )
+
+      const french = {
+        title: '🔥 Ne perds pas ta série de 12 jours !',
+        body: "Ta Monstera a encore besoin de soins aujourd'hui. Garde le rythme !",
+      }
+      expect(
+        Array.map(pushes, (m) => ({ title: m.title, body: m.body }))
+      ).toEqual([french, french])
+      expect(Array.map(pushes, (m) => m.data?.title)).toEqual([
+        french.title,
+        french.title,
+      ])
+      expect({ status: row.status, title: row.title, body: row.body }).toEqual({
+        status: 'sent',
+        ...french,
+      })
+    })
+
+    it('pushes the stored text of a row written before params existed', async () => {
+      const row = createRow({
+        id: 'legacy-1',
+        type: 'streak_at_risk',
+        status: 'queued',
+        title: 'Stored title',
+        body: 'Stored body',
+      })
+
+      const pushes = await deliver(
+        simpleMessage('streak_at_risk', ['legacy-1']),
+        [row],
+        { language: 'fr' }
+      )
+
+      expect(Array.map(pushes, (m) => [m.title, m.body])).toEqual([
+        ['Stored title', 'Stored body'],
+        ['Stored title', 'Stored body'],
+      ])
+      expect([row.status, row.title]).toEqual(['sent', 'Stored title'])
+    })
+
+    it('names the plant by its name at delivery, not at recording', async () => {
+      const row = withParams(
+        createRow({
+          id: 'photo-1',
+          type: 'photo_reminder',
+          status: 'queued',
+          plantId: 'plant-1',
+        }),
+        { plantName: 'Fern', daysSincePhoto: 30 }
+      )
+
+      const pushes = await deliver(
+        simpleMessage('photo_reminder', ['photo-1']),
+        [row],
+        {
+          plants: [
+            createTestPlant({
+              id: 'plant-1',
+              userId: 'user-1',
+              name: 'Ferdinand',
+            }),
+          ],
+        }
+      )
+
+      expect(pushes[0]?.body).toBe(
+        "Your Ferdinand hasn't had a photo in 30 days. Capture how far it's come!"
+      )
+    })
+
+    it('drops a row whose params do not match its topic and pushes nothing', async () => {
+      const rows = [
+        withParams(
+          createRow({
+            id: 'trial-1',
+            type: 'trial_ending',
+            status: 'queued',
+            plantId: undefined,
+          }),
+          { trialDaysLeft: 'three' }
+        ),
+      ]
+
+      const pushes = await deliver(
+        simpleMessage('trial_ending', ['trial-1']),
+        rows
+      )
+
+      expect(pushes).toEqual([])
+      expect(rows).toEqual([])
+    })
+
+    it('groups anniversaries in one push and keeps each row its own text', async () => {
+      const anniversary = (id: string, plantId: string, plantName: string) =>
+        withParams(
+          createRow({
+            id,
+            type: 'plant_anniversary',
+            status: 'queued',
+            plantId,
+          }),
+          { plantName, anniversaryDuration: '1 year', dateAdded: 'Apr 3, 2025' }
+        )
+      const rows = [
+        anniversary('anniv-1', 'plant-1', 'Monstera'),
+        anniversary('anniv-2', 'plant-2', 'Pothos'),
+      ]
+
+      const pushes = await deliver(
+        simpleMessage('plant_anniversary', ['anniv-1', 'anniv-2']),
+        rows,
+        {
+          language: 'fr',
+          plants: [
+            createTestPlant({
+              id: 'plant-1',
+              userId: 'user-1',
+              name: 'Monstera',
+            }),
+            createTestPlant({
+              id: 'plant-2',
+              userId: 'user-1',
+              name: 'Pothos',
+            }),
+          ],
+        }
+      )
+
+      const grouped = buildGroupedPlantAnniversaryContent(
+        ['Monstera', 'Pothos'],
+        'fr'
+      )
+      expect(pushes[0]?.title).toBe(grouped.title)
+      expect(pushes[0]?.body).toBe(grouped.body)
+      expect(Array.map(rows, (row) => [row.status, row.title])).toEqual([
+        [
+          'sent',
+          buildSimpleContent(
+            'plant_anniversary',
+            {
+              plantName: 'Monstera',
+              anniversaryDuration: '1 year',
+              dateAdded: 'Apr 3, 2025',
+            },
+            'fr'
+          ).title,
+        ],
+        [
+          'sent',
+          buildSimpleContent(
+            'plant_anniversary',
+            {
+              plantName: 'Pothos',
+              anniversaryDuration: '1 year',
+              dateAdded: 'Apr 3, 2025',
+            },
+            'fr'
+          ).title,
+        ],
+      ])
+    })
+
+    it('writes the digest a care push carried onto every row it names', async () => {
+      const care = (id: string, type: NotificationTopic) =>
+        createRow({ id, type, status: 'queued', plantId: 'plant-1' })
+      const rows = [
+        care('water-1', 'watering_reminder'),
+        care('mist-1', 'misting_reminder'),
+      ]
+
+      const pushes = await deliver(
+        createTestQueueMessage({
+          payload: {
+            userId: 'user-1',
+            notificationIds: ['water-1', 'mist-1'],
+            plantIds: ['plant-1'],
+          },
+        }),
+        rows,
+        {
+          language: 'fr',
+          plants: [
+            createTestPlant({
+              id: 'plant-1',
+              userId: 'user-1',
+              name: 'Monstera',
+            }),
+          ],
+        }
+      )
+
+      const digest = buildCareDigestContent(
+        [
+          {
+            plantName: 'Monstera',
+            careTypes: ['watering_reminder', 'misting_reminder'],
+          },
+        ],
+        'fr'
+      )
+      expect(pushes[0]?.title).toBe(digest.title)
+      expect(
+        Array.map(rows, (row) => [row.status, row.title, row.body])
+      ).toEqual([
+        ['sent', digest.title, digest.body],
+        ['sent', digest.title, digest.body],
+      ])
     })
   })
 
@@ -707,8 +1004,6 @@ describe('Notification Worker', () => {
         return createTestQueueMessage({
           payload: {
             userId: 'user-1',
-            title: 'Test notification',
-            body: 'Test body',
             notificationIds: Array.map(due, (row) => row.id),
             plantIds: ['plant-1'],
           },
@@ -732,7 +1027,7 @@ describe('Notification Worker', () => {
     }
 
     const pendingRow = (id: string) =>
-      createTestNotification({
+      createPlantRow({
         id,
         userId: 'user-1',
         status: 'pending',
@@ -820,14 +1115,14 @@ describe('Notification Worker', () => {
     })
 
     it('leaves a row another message holds untouched', async () => {
-      const mine = createTestNotification({
+      const mine = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         plantId: 'plant-1',
         status: 'queued',
         retryCount: 2,
       })
-      const held = createTestNotification({
+      const held = createPlantRow({
         id: 'notification-2',
         userId: 'user-1',
         plantId: 'plant-2',
@@ -842,8 +1137,6 @@ describe('Notification Worker', () => {
         createTestQueueMessage({
           payload: {
             userId: 'user-1',
-            title: 'Test notification',
-            body: 'Test body',
             notificationIds: ['notification-1', 'notification-2'],
             plantIds: ['plant-1', 'plant-2'],
           },
@@ -876,14 +1169,14 @@ describe('Notification Worker', () => {
     })
 
     it('dead-letters and alerts only the rows that failed when the rest of the message retries', async () => {
-      const spent = createTestNotification({
+      const spent = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         plantId: 'plant-1',
         status: 'queued',
         retryCount: 2,
       })
-      const fresh = createTestNotification({
+      const fresh = createPlantRow({
         id: 'notification-2',
         userId: 'user-1',
         plantId: 'plant-2',
@@ -896,8 +1189,6 @@ describe('Notification Worker', () => {
         createTestQueueMessage({
           payload: {
             userId: 'user-1',
-            title: 'Test notification',
-            body: 'Test body',
             notificationIds: ['notification-1', 'notification-2'],
             plantIds: ['plant-1', 'plant-2'],
           },
@@ -920,13 +1211,13 @@ describe('Notification Worker', () => {
 
     it('records the highest retry count among the failed rows on the dead letter', async () => {
       const rows = [
-        createTestNotification({
+        createPlantRow({
           id: 'notification-1',
           userId: 'user-1',
           status: 'queued',
           retryCount: 2,
         }),
-        createTestNotification({
+        createPlantRow({
           id: 'notification-2',
           userId: 'user-1',
           status: 'queued',
@@ -939,8 +1230,6 @@ describe('Notification Worker', () => {
         createTestQueueMessage({
           payload: {
             userId: 'user-1',
-            title: 'Test notification',
-            body: 'Test body',
             notificationIds: ['notification-1', 'notification-2'],
             plantIds: ['plant-1'],
           },
@@ -954,7 +1243,7 @@ describe('Notification Worker', () => {
     })
 
     it('puts the rows back one minute out when a read fails before the send', async () => {
-      const row = createTestNotification({
+      const row = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         status: 'queued',
@@ -1178,7 +1467,7 @@ describe('Notification Worker', () => {
     })
 
     it('leaves the message unacked when the retry write fails', async () => {
-      const row = createTestNotification({
+      const row = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         status: 'queued',
@@ -1239,7 +1528,7 @@ describe('Notification Worker', () => {
       const queueMessage = createTestQueueMessage({
         id: 'msg-to-process',
       })
-      const notification = createTestNotification({
+      const notification = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         status: 'queued',
@@ -1435,8 +1724,6 @@ describe('Notification Worker', () => {
         topic: 'new_follower',
         payload: {
           userId: 'user-1',
-          title: 'New follower',
-          body: 'Bob follows you',
           notificationIds,
           plantIds: [],
         },
@@ -1622,7 +1909,7 @@ describe('Notification Worker', () => {
         ]
       : [createTestPlant({ id: 'plant-1', userId: 'user-1' })]
     const notifications = Array.makeBy(runs, (i) =>
-      createTestNotification({
+      createPlantRow({
         id: `notification-${i}`,
         userId: 'user-1',
         plantId: 'plant-1',
@@ -1684,8 +1971,6 @@ describe('Notification Worker', () => {
           id: `msg-${i}`,
           payload: {
             userId: 'user-1',
-            title: 'Water time',
-            body: 'Your plants are thirsty',
             notificationIds: [`notification-${i}`],
             plantIds: ['plant-1'],
           },
@@ -2041,7 +2326,7 @@ describe('Notification Worker', () => {
       rows?: Notification[]
     ) => {
       const sentMessages: PushMessage[] = []
-      const notification = createTestNotification({
+      const notification = createPlantRow({
         id: 'notification-1',
         userId: 'user-1',
         plantId: 'plant-1',
@@ -2054,8 +2339,6 @@ describe('Notification Worker', () => {
             topic: 'watering_reminder',
             payload: {
               userId: 'user-1',
-              title: 'Water time',
-              body: 'Your plants are thirsty',
               notificationIds: Array.map(notifications, (n) => n.id),
               plantIds,
             },
@@ -2223,14 +2506,14 @@ describe('Notification Worker', () => {
         userId: 'user-1',
       })
       const rows = [
-        createTestNotification({
+        createPlantRow({
           id: 'notification-1',
           userId: 'user-1',
           plantId: 'plant-1',
           type: 'watering_reminder',
           status: 'queued',
         }),
-        createTestNotification({
+        createPlantRow({
           id: 'notification-2',
           userId: 'user-1',
           plantId: 'plant-2',
@@ -2280,7 +2563,7 @@ describe('Notification Worker', () => {
         undefined,
         undefined,
         [
-          createTestNotification({
+          createPlantRow({
             id: 'notification-1',
             userId: 'user-1',
             plantId: 'plant-1',
@@ -2305,14 +2588,14 @@ describe('Notification Worker', () => {
         undefined,
         undefined,
         [
-          createTestNotification({
+          createPlantRow({
             id: 'notification-1',
             userId: 'user-1',
             plantId: 'plant-1',
             type: 'watering_reminder',
             status: 'queued',
           }),
-          createTestNotification({
+          createPlantRow({
             id: 'notification-2',
             userId: 'user-1',
             plantId: 'plant-2',
@@ -2343,13 +2626,13 @@ describe('Notification Worker', () => {
         undefined,
         undefined,
         [
-          createTestNotification({
+          createPlantRow({
             id: 'notification-1',
             userId: 'user-1',
             plantId: 'plant-1',
             status: 'queued',
           }),
-          createTestNotification({
+          createPlantRow({
             id: 'notification-2',
             userId: 'user-1',
             plantId: 'plant-2',
@@ -2376,7 +2659,7 @@ describe('Notification Worker', () => {
         userId: 'user-1',
       })
       const rows = Array.map([buried, living], (plant, index) =>
-        createTestNotification({
+        createPlantRow({
           id: `notification-${index + 1}`,
           userId: 'user-1',
           plantId: plant.id,
@@ -2496,7 +2779,7 @@ describe('Notification Worker', () => {
 
     it('moves a row claimed during DND back to pending at the end of DND', async () => {
       const rows = [
-        createTestNotification({
+        createPlantRow({
           id: 'notification-1',
           plantId: 'plant-1',
           status: 'queued',
@@ -2519,7 +2802,7 @@ describe('Notification Worker', () => {
     it("reads a user's DND bounds once however many of their rows the message claims", async () => {
       const ids = ['notification-1', 'notification-2', 'notification-3']
       const rows = Array.map(ids, (id) =>
-        createTestNotification({ id, plantId: 'plant-1', status: 'queued' })
+        createPlantRow({ id, plantId: 'plant-1', status: 'queued' })
       )
       const warnings: unknown[] = []
       const capture = Logger.make(({ logLevel, message, fiber }) => {
@@ -2536,8 +2819,6 @@ describe('Notification Worker', () => {
         createTestQueueMessage({
           payload: {
             userId: 'user-1',
-            title: 'Water time',
-            body: 'Your plants are thirsty',
             notificationIds: ids,
             plantIds: ['plant-1'],
           },
@@ -2565,7 +2846,7 @@ describe('Notification Worker', () => {
 
     it('deletes an engagement row sent straight from the caller when tips are off', async () => {
       const rows = [
-        createTestNotification({
+        createPlantRow({
           id: 'notification-1',
           type: 'resubscribe_nudge',
           status: 'queued',
@@ -2576,8 +2857,6 @@ describe('Notification Worker', () => {
           topic: 'resubscribe_nudge',
           payload: {
             userId: 'user-1',
-            title: 'Come back',
-            body: 'Your plants miss you',
             notificationIds: ['notification-1'],
             plantIds: [],
           },
@@ -2592,7 +2871,7 @@ describe('Notification Worker', () => {
 
     it('gates a care row by its own plant when the message names no plant', async () => {
       const rows = [
-        createTestNotification({
+        createPlantRow({
           id: 'notification-1',
           plantId: 'plant-1',
           status: 'queued',
@@ -2602,8 +2881,6 @@ describe('Notification Worker', () => {
         createTestQueueMessage({
           payload: {
             userId: 'user-1',
-            title: 'Water time',
-            body: 'Your plants are thirsty',
             notificationIds: ['notification-1'],
             plantIds: [],
           },
@@ -2625,7 +2902,7 @@ describe('Notification Worker', () => {
 
     it('sends a social row during a vacation', async () => {
       const rows = [
-        createTestNotification({
+        createPlantRow({
           id: 'notification-1',
           type: 'new_follower',
           status: 'queued',
@@ -2636,8 +2913,6 @@ describe('Notification Worker', () => {
           topic: 'new_follower',
           payload: {
             userId: 'user-1',
-            title: 'New follower',
-            body: 'Sam follows you',
             notificationIds: ['notification-1'],
             plantIds: [],
           },
@@ -2656,7 +2931,7 @@ describe('Notification Worker', () => {
 
   describe('delivery claims', () => {
     const queuedRow = (id: string) =>
-      createTestNotification({ id, userId: 'user-1', status: 'queued' })
+      createPlantRow({ id, userId: 'user-1', status: 'queued' })
 
     const deliveryLayer = (
       notificationRepo: Layer.Layer<NotificationRepository>,
@@ -2818,8 +3093,6 @@ describe('Notification Worker', () => {
               id,
               payload: {
                 userId: 'user-1',
-                title: 'Water time',
-                body: 'Your plant is thirsty',
                 notificationIds: [notificationId],
                 plantIds: ['plant-1'],
               },
@@ -2843,7 +3116,7 @@ describe('Notification Worker', () => {
 
   describe('startNotificationWorker', () => {
     const queuedRow = (id: string) =>
-      createTestNotification({ id, userId: 'user-1', status: 'queued' })
+      createPlantRow({ id, userId: 'user-1', status: 'queued' })
 
     const redisQueue = (ready: unknown[], acked: string[]) => {
       const processing = new Set<string>()
@@ -3269,7 +3542,10 @@ describe('Notification Worker', () => {
         ['5', 'new_follower'],
         ['6', 'daily_tip'],
       ] as const
-      const rows = Array.map(plan, ([id]) => queuedRow(rowId(id)))
+      const rows = Array.map(plan, ([id, type]) => ({
+        ...queuedRow(rowId(id)),
+        type,
+      }))
       const batches: PushMessage[][] = []
       const acked: string[] = []
       const messages = Array.map(plan, ([id, topic]) =>
@@ -3475,7 +3751,7 @@ describe('Notification Worker', () => {
 
     it('requeues stranded messages and settles rows their delivery left behind', async () => {
       const row = (id: string) =>
-        createTestNotification({ id, userId: 'user-1', status: 'queued' })
+        createPlantRow({ id, userId: 'user-1', status: 'queued' })
       const rows = {
         lost: row('lost'),
         slow: row('slow'),
@@ -3516,7 +3792,7 @@ describe('Notification Worker', () => {
     })
 
     it('settles legacy rows before any stranded message is back on the queue', async () => {
-      const legacy = createTestNotification({
+      const legacy = createPlantRow({
         id: 'legacy',
         userId: 'user-1',
         status: 'queued',
@@ -3617,7 +3893,7 @@ describe('Notification Worker', () => {
     it('hands back every readable row left on the per-topic lists and warns about each entry it cannot read', async () => {
       const ids = [rowId('1'), rowId('2'), rowId('3'), rowId('4')]
       const rows = Array.map(ids, (id) =>
-        createTestNotification({ id, userId: 'user-1', status: 'queued' })
+        createPlantRow({ id, userId: 'user-1', status: 'queued' })
       )
       const entry = (n: number, topic: NotificationTopic, extra = []) =>
         JSON.stringify(

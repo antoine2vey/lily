@@ -13,12 +13,7 @@ import {
   loadPlantFacts,
   loadRecipients,
 } from '@lily/api/services/notification-scheduler/dispatch-gate'
-import {
-  buildCareDigestContent,
-  buildGroupedPlantAnniversaryContent,
-  type CareDigestItem,
-  pickDominantCareTopic,
-} from '@lily/api/services/notification-scheduler/translations'
+import { pickDominantCareTopic } from '@lily/api/services/notification-scheduler/translations'
 import {
   NOTIFICATION_METADATA,
   type Notification,
@@ -81,17 +76,10 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
   const fetchedUsers = yield* userRepo.findByIds(uniqueUserIds)
 
-  const userSettingsMap = new Map(
-    Array.map(fetchedUsers, (u) => [u.id, u] as const)
-  )
-
   const currentTime = DateTime.toDateUtc(DateTime.nowUnsafe())
 
   const recipients = yield* loadRecipients(fetchedUsers, currentTime)
 
-  // Batch-fetch every referenced plant up front: Phase 1 needs it to drop
-  // reminders for plants that died since the row was scheduled, and Phase 3
-  // reuses it for names.
   const allPlantIds = pipe(
     Array.filterMap(
       pendingNotifications,
@@ -167,12 +155,6 @@ export const pollAndEnqueue = Effect.gen(function* () {
   }
   const grouped = Array.groupBy(validNotifications, batchKey)
 
-  // Phase 3: Resolve plant names (from the batch fetched before Phase 1)
-  const plantNameMap = new Map(
-    Array.map(plants, (p) => [p.id, p.name] as const)
-  )
-
-  // Phase 4: Enqueue one message per group (concurrently)
   yield* Effect.forEach(
     Record.toEntries(grouped),
     ([_key, group]) => {
@@ -220,81 +202,6 @@ export const pollAndEnqueue = Effect.gen(function* () {
           onNonEmpty: (types) => pickDominantCareTopic(types),
         })
 
-        const user = userSettingsMap.get(userId)
-        const language = Option.getOrElse(
-          Option.fromNullishOr(user?.language),
-          () => 'en' as const
-        )
-
-        // Resolve per-group plant names once for content builders that need them.
-        const groupPlantNames = Array.filterMap(
-          plantIds,
-          Filter.fromPredicateOption((id) =>
-            Option.fromNullishOr(plantNameMap.get(id))
-          )
-        )
-
-        // Fall back to the title/body persisted on the first notification row.
-        // Used by simple single-plant notifications (e.g. a lone anniversary).
-        const passthroughContent = {
-          title: Option.getOrElse(
-            Option.fromNullishOr(first.value.notification.title),
-            () => ''
-          ),
-          body: Option.getOrElse(
-            Option.fromNullishOr(first.value.notification.body),
-            () => ''
-          ),
-        }
-
-        // Non-care content: grouped birthday when >1 plant anniversaries land
-        // in the same group, otherwise pass through the DB row as-is.
-        const resolveNonCareContent = (): { title: string; body: string } =>
-          topic === 'plant_anniversary' && group.length > 1
-            ? buildGroupedPlantAnniversaryContent(groupPlantNames, language)
-            : passthroughContent
-
-        // Care reminders: one digest item per plant carrying every care type
-        // due for it. Rows whose plant has no resolvable name are dropped from
-        // the body (same as the old groupPlantNames behaviour).
-        const careItems: CareDigestItem[] = pipe(
-          Array.filterMap(
-            group,
-            Filter.fromPredicateOption(({ notification, topic: rowTopic }) => {
-              if (!isCareReminderType(rowTopic)) return Option.none()
-              const careType: DeferredCareType = rowTopic
-              return pipe(
-                Option.fromNullishOr(notification.plantId),
-                Option.flatMap((plantId) =>
-                  pipe(
-                    Option.fromNullishOr(plantNameMap.get(plantId)),
-                    Option.map((plantName) => ({
-                      plantId,
-                      plantName,
-                      careType,
-                    }))
-                  )
-                )
-              )
-            })
-          ),
-          Array.groupBy((r) => r.plantId),
-          Record.values,
-          Array.map((rows) => ({
-            plantName: Array.headNonEmpty(rows).plantName,
-            careTypes: Array.map(rows, (r) => r.careType),
-          }))
-        )
-
-        const { title, body } = Array.match(careItems, {
-          onEmpty: resolveNonCareContent,
-          onNonEmpty: (items) => buildCareDigestContent(items, language),
-        })
-
-        if (isCareReminderType(topic)) {
-          yield* notificationRepo.setQueuedContent(notificationIds, title, body)
-        }
-
         const releaseGroup = (error: unknown) =>
           Effect.logWarning(
             '[notification-scheduler] Enqueue failed, released group',
@@ -310,11 +217,8 @@ export const pollAndEnqueue = Effect.gen(function* () {
             topic,
             payload: {
               userId,
-              title,
-              body,
               notificationIds,
               plantIds,
-              language,
               ...Option.match(Option.fromNullishOr(metadata), {
                 onNone: () => ({}),
                 onSome: (value) => ({ metadata: value }),

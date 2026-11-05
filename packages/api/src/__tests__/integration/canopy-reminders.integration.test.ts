@@ -381,8 +381,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             topic: 'watering_reminder',
             payload: {
               userId,
-              title: 'Water time',
-              body: 'Your plants are thirsty',
               notificationIds: [row.id],
               plantIds: [plantId],
             },

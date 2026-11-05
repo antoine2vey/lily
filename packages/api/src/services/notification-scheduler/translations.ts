@@ -1,6 +1,15 @@
 import type { CareType, LanguageCode } from '@lily/shared'
 import type { DeferredCareType } from '@lily/shared/server'
-import { Array, Match, Option, Order, pipe, String } from 'effect'
+import {
+  Array,
+  Match,
+  Option,
+  Order,
+  pipe,
+  Result,
+  Schema,
+  String,
+} from 'effect'
 
 const MAX_PLANT_NAMES_IN_BODY = 5
 
@@ -69,61 +78,65 @@ export type SimpleNotificationType =
   | 'approaching_limit'
   | 'plant_anniversary'
 
-// Per-notification-type params for compile-time safety.
-// Required fields per type prevent callers from omitting needed data.
-export type NotificationParamsMap = {
-  readonly new_follower: { readonly senderName?: string }
-  readonly nudge_to_water: { readonly senderName?: string }
-  readonly delegation_request: { readonly senderName?: string }
-  readonly delegation_accepted: { readonly senderName?: string }
-  readonly delegation_rejected: { readonly senderName?: string }
-  readonly delegation_canceled: { readonly senderName?: string }
-  readonly delegation_activated: { readonly plantCount?: number }
-  readonly delegation_completed: { readonly plantCount?: number }
-  readonly canopy_member_joined: {
-    readonly senderName?: string
-    readonly canopyName: string
-  }
-  readonly canopy_member_removed: { readonly canopyName: string }
-  readonly canopy_member_left: {
-    readonly senderName?: string
-    readonly canopyName: string
-  }
-  readonly canopy_invitation: {
-    readonly senderName?: string
-    readonly canopyName: string
-  }
-  readonly daily_tip: { readonly tipTitle?: string; readonly tipBody?: string }
-  readonly inactivity_nudge: { readonly plantCount?: number }
-  readonly photo_reminder: {
-    readonly plantName?: string
-    readonly daysSincePhoto?: number
-  }
-  readonly plant_parent_milestone: { readonly daysSinceJoin?: number }
-  readonly gift_subscription: { readonly giftDuration?: string }
-  readonly resubscribe_nudge: { readonly plantCount?: number }
-  readonly streak_at_risk: {
-    readonly streakCount: number
-    readonly plantName?: string
-  }
-  readonly streak_milestone: { readonly streakCount: number }
-  readonly weekly_recap: {
-    readonly tasksCompleted: number
-    readonly streakCount: number
-    readonly healthyCount: number
-  }
-  readonly trial_ending: { readonly trialDaysLeft: number }
-  readonly approaching_limit: {
-    readonly usageCount: number
-    readonly usageMax: number
-    readonly featureName: string
-  }
-  readonly plant_anniversary: {
-    readonly plantName: string
-    readonly anniversaryDuration: string
-    readonly dateAdded: string
-  }
-}
+const OptionalString = Schema.optional(Schema.String)
+const OptionalNumber = Schema.optional(Schema.Finite)
+const Sender = Schema.Struct({ senderName: OptionalString })
+const PlantCount = Schema.Struct({ plantCount: OptionalNumber })
+const CanopyEvent = Schema.Struct({
+  senderName: OptionalString,
+  canopyName: Schema.String,
+})
+
+export const NOTIFICATION_PARAMS = {
+  new_follower: Sender,
+  nudge_to_water: Sender,
+  delegation_request: Sender,
+  delegation_accepted: Sender,
+  delegation_rejected: Sender,
+  delegation_canceled: Sender,
+  delegation_activated: PlantCount,
+  delegation_completed: PlantCount,
+  canopy_member_joined: CanopyEvent,
+  canopy_member_removed: Schema.Struct({ canopyName: Schema.String }),
+  canopy_member_left: CanopyEvent,
+  canopy_invitation: CanopyEvent,
+  daily_tip: Schema.Struct({
+    tipTitle: OptionalString,
+    tipBody: OptionalString,
+  }),
+  inactivity_nudge: PlantCount,
+  photo_reminder: Schema.Struct({
+    plantName: OptionalString,
+    daysSincePhoto: OptionalNumber,
+  }),
+  plant_parent_milestone: Schema.Struct({ daysSinceJoin: OptionalNumber }),
+  gift_subscription: Schema.Struct({ giftDuration: OptionalString }),
+  resubscribe_nudge: PlantCount,
+  streak_at_risk: Schema.Struct({
+    streakCount: Schema.Finite,
+    plantName: OptionalString,
+  }),
+  streak_milestone: Schema.Struct({ streakCount: Schema.Finite }),
+  weekly_recap: Schema.Struct({
+    tasksCompleted: Schema.Finite,
+    streakCount: Schema.Finite,
+    healthyCount: Schema.Finite,
+  }),
+  trial_ending: Schema.Struct({ trialDaysLeft: Schema.Finite }),
+  approaching_limit: Schema.Struct({
+    usageCount: Schema.Finite,
+    usageMax: Schema.Finite,
+    featureName: Schema.String,
+  }),
+  plant_anniversary: Schema.Struct({
+    plantName: Schema.String,
+    anniversaryDuration: Schema.String,
+    dateAdded: Schema.String,
+  }),
+} as const satisfies Record<SimpleNotificationType, Schema.Top>
+
+export type ParamsOf<T extends SimpleNotificationType> =
+  (typeof NOTIFICATION_PARAMS)[T]['Type']
 
 // Internal flat params type used by translation functions.
 // All fields optional because each translation only reads its own subset.
@@ -733,17 +746,41 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
   },
 }
 
+export interface NotificationContent {
+  readonly title: string
+  readonly body: string
+}
+
 export const buildSimpleContent = <T extends SimpleNotificationType>(
   type: T,
-  params: NotificationParamsMap[T],
+  params: ParamsOf<T>,
   language: LanguageCode
-): { title: string; body: string } => {
+): NotificationContent => {
   const t = simpleTranslations[language][type]
   return {
     title: t.title(params as InternalNotificationParams),
     body: t.body(params as InternalNotificationParams),
   }
 }
+
+export const renderFromParams = (
+  type: SimpleNotificationType,
+  params: unknown,
+  plantName: Option.Option<string>,
+  language: LanguageCode
+): Result.Result<NotificationContent, Schema.SchemaError> =>
+  Result.map(
+    Schema.decodeUnknownResult(NOTIFICATION_PARAMS[type])(params),
+    (decoded) =>
+      buildSimpleContent(
+        type,
+        Option.match(plantName, {
+          onNone: () => decoded,
+          onSome: (name) => ({ ...decoded, plantName: name }),
+        }),
+        language
+      )
+  )
 
 // Grouped plant anniversary content — used when a user has multiple plant
 // anniversaries landing in the same notification poll. Collapses N plants

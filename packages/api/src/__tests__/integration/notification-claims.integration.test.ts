@@ -265,8 +265,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const created = await withRepo((repo) =>
           repo.create({
             type: 'new_follower',
-            title: 'New follower',
-            body: 'Ada follows you',
+            params: { senderName: 'Ada' },
             scheduledAt: new Date(),
             userId,
             status: 'queued',
@@ -314,7 +313,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await withRepo((repo) =>
           Effect.andThen(
             repo.claimForDelivery(ids, 'msg-a'),
-            repo.markManyAsSent(ids)
+            repo.markManyAsSent(
+              ids.map((id) => ({ id, title: 'New follower', body: 'Ada' }))
+            )
           )
         )
         const late = await withRepo((repo) =>

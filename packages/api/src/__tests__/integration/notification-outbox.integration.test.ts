@@ -678,18 +678,21 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           type: 'new_follower',
           status: 'queued',
           plantId: null,
+          title: null,
+          body: null,
+          params: { senderName: 'outbox_user' },
           metadata: { senderId: userId },
           queuedAt: expect.any(Date),
           scheduledAt: expect.any(Date),
         }),
       ])
       expect(enqueued.map((message) => message.payload)).toEqual([
-        expect.objectContaining({
+        {
           userId: targetId,
-          title: rows[0]?.title,
-          body: rows[0]?.body,
           notificationIds: [rows[0]?.id],
-        }),
+          plantIds: [],
+          metadata: { senderId: userId },
+        },
       ])
     })
 
@@ -738,8 +741,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Effect.gen(function* () {
           const follows = yield* FollowRepository
           return yield* follows.follow(userId, targetId, {
-            title: 'title',
-            body: 'body',
+            params: { senderName: 'Ada' },
             metadata: { senderId: userId },
           })
         }).pipe(
