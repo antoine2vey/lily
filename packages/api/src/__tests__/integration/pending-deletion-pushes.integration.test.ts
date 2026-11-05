@@ -772,6 +772,28 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     )
 
     it.each(LOCKED)(
+      'sends an overdue reminder to the active caretaker of a %s owner',
+      async (status) => {
+        const owner = await insertUser(`overdue-owner-${status}`)
+        const caretaker = await insertUser('overdue-caretaker')
+        const plant = await insertPlant(
+          owner.id,
+          new Date(Date.now() - 2 * DAY)
+        )
+        await delegate(owner.id, caretaker.id, plant.id)
+        const { run } = pipeline(caretaker)
+
+        await markStatus(run, owner.id, status)
+        await run(checkAndCreateOverdueReminders)
+
+        expect(await rowsOf(owner.id)).toEqual([])
+        expect(await rowsOf(caretaker.id)).toMatchObject([
+          { type: 'overdue_reminder', plantId: plant.id },
+        ])
+      }
+    )
+
+    it.each(LOCKED)(
       'writes no overdue reminder for a %s Canopy member',
       async (status) => {
         const active = await insertUser('canopy-active')

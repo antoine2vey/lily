@@ -292,8 +292,14 @@ export const CareScheduleRepositoryLive = Layer.effect(
             })
             .from(plantCareSchedules)
             .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-            .innerJoin(users, eq(users.id, plants.userId))
             .leftJoin(activeCaretakers, eq(activeCaretakers.plantId, plants.id))
+            .innerJoin(
+              users,
+              eq(
+                users.id,
+                sql`coalesce(${activeCaretakers.caretakerId}, ${plants.userId})`
+              )
+            )
             .where(and(overdue, isReachableUser()))
             .orderBy(asc(plants.userId))
 
