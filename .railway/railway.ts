@@ -29,10 +29,7 @@ export default defineRailway(() => {
     startCommand:
       '/bin/sh -c "rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH"',
   }
-  Redis.networking = {
-    privateNetworkEndpoint: 'redis',
-    tcpProxies: { '6379': {} },
-  }
+  Redis.networking = { privateNetworkEndpoint: 'redis' }
   const redisVolume = volume('redis-volume', {
     alerts: { usage: { '100': {}, '80': {}, '95': {} } },
     allowOnlineResize: true,
