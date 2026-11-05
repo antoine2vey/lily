@@ -84,6 +84,7 @@ describe('streamChatMessage', () => {
       plantChatResponse?: string
       userId?: string
       mockSteps?: readonly import('@lily/api/services/ai-chat/plant-chat').StepData[]
+      uiChunks?: readonly Record<string, unknown>[]
     } = {}
   ) =>
     Layer.mergeAll(
@@ -95,6 +96,7 @@ describe('streamChatMessage', () => {
       createMockAiService({
         plantChatResponse: opts.plantChatResponse ?? 'AI response text',
         ...(opts.mockSteps ? { mockSteps: opts.mockSteps } : {}),
+        ...(opts.uiChunks ? { uiChunks: opts.uiChunks } : {}),
         ...(opts.chatStreamError
           ? { chatStreamError: opts.chatStreamError }
           : {}),
@@ -301,6 +303,36 @@ describe('streamChatMessage', () => {
     )
 
     expect(result).toBeDefined()
+  })
+
+  it('strips providerMetadata from forwarded chunks and keeps the other fields', async () => {
+    const toolOutput = {
+      type: 'tool-output-available',
+      toolCallId: 'call-1',
+      output: { diagnosisId: 'diag-123' },
+    }
+
+    const result = await Effect.runPromise(
+      streamChatMessage(testConversation, { message: 'Is it sick?' }).pipe(
+        Effect.provide(
+          createTestLayer({
+            uiChunks: [
+              {
+                ...toolOutput,
+                providerMetadata: { openai: { itemId: 'fc_1' } },
+              },
+            ],
+          })
+        )
+      )
+    )
+
+    const chunks = await drainSseStream(result)
+
+    expect(chunks).toEqual([
+      `data: ${JSON.stringify(toolOutput)}\n\n`,
+      'data: [DONE]\n\n',
+    ])
   })
 
   describe('event publishing (quota exceeded path)', () => {

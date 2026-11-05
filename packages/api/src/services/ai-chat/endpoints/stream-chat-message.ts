@@ -39,6 +39,7 @@ import {
   Fiber,
   Option,
   pipe,
+  Record,
   Schedule,
   Stream,
 } from 'effect'
@@ -80,8 +81,14 @@ const SSE_HEADERS = {
   connection: 'keep-alive',
 }
 
+// ai@6.0.82 clients parse chunks with z.strictObject and reject providerMetadata (#89)
+const toSseEvent = (chunk: Record.ReadonlyRecord<string, unknown>) =>
+  encoder.encode(
+    `data: ${JSON.stringify(Record.remove(chunk, 'providerMetadata'))}\n\n`
+  )
+
 const uiStreamToSse = (
-  stream: AsyncIterable<unknown>,
+  stream: AsyncIterable<Record.ReadonlyRecord<string, unknown>>,
   onComplete?: Effect.Effect<void>
 ): Stream.Stream<Uint8Array, StreamTransformError> => {
   const sseChunks = Stream.fromAsyncIterable(
@@ -91,9 +98,7 @@ const uiStreamToSse = (
         message: String(e),
         cause: e,
       })
-  ).pipe(
-    Stream.map((chunk) => encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
-  )
+  ).pipe(Stream.map(toSseEvent))
 
   const afterStream = Stream.fromEffect(
     pipe(

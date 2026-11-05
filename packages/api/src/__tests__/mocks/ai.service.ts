@@ -19,6 +19,7 @@ export interface MockAiServiceData {
   plantChatResponse?: string
   mockSteps?: readonly StepData[]
   chatStreamError?: string
+  uiChunks?: readonly Record<string, unknown>[]
   completesAfter?: Duration.Input
 }
 
@@ -32,6 +33,10 @@ async function* createMockUIMessageStream(text: string) {
   yield { type: 'text-start' as const, id: 'mock-msg' }
   yield { type: 'text-delta' as const, delta: text, id: 'mock-msg' }
   yield { type: 'text-end' as const, id: 'mock-msg' }
+}
+
+async function* createChunkStream(chunks: readonly Record<string, unknown>[]) {
+  yield* chunks
 }
 
 async function* createMockErrorStream(errorText: string) {
@@ -115,7 +120,14 @@ export const createMockAiService = (
               pipe(
                 failure,
                 Option.match({
-                  onNone: () => createMockUIMessageStream(response),
+                  onNone: () =>
+                    pipe(
+                      Option.fromNullishOr(data.uiChunks),
+                      Option.match({
+                        onNone: () => createMockUIMessageStream(response),
+                        onSome: createChunkStream,
+                      })
+                    ),
                   onSome: createMockErrorStream,
                 })
               ),
