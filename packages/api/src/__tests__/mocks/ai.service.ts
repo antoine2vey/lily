@@ -5,13 +5,22 @@ import {
 } from '@lily/api/services/ai-chat/plant-chat'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
-import { Deferred, Effect, Exit, Layer, Option, pipe } from 'effect'
+import {
+  Deferred,
+  type Duration,
+  Effect,
+  Exit,
+  Layer,
+  Option,
+  pipe,
+} from 'effect'
 
 export interface MockAiServiceData {
   plantChatResponse?: string
   mockSteps?: readonly StepData[]
   chatStreamError?: string
   uiChunks?: readonly Record<string, unknown>[]
+  completesAfter?: Duration.Input
 }
 
 // Create an async generator to simulate the text stream
@@ -78,7 +87,7 @@ export const createMockAiService = (
 
         const failure = Option.fromNullishOr(data.chatStreamError)
 
-        yield* Deferred.done(
+        const complete = Deferred.done(
           completionDeferred,
           pipe(
             failure,
@@ -88,6 +97,17 @@ export const createMockAiService = (
                 Exit.fail(new ChatStreamError({ message, cause: message })),
             })
           )
+        )
+
+        yield* pipe(
+          Option.fromNullishOr(data.completesAfter),
+          Option.match({
+            onNone: () => complete,
+            onSome: (delay) =>
+              Effect.forkDetach(
+                Effect.sleep(delay).pipe(Effect.andThen(complete))
+              ),
+          })
         )
 
         return {

@@ -29,10 +29,7 @@ export default defineRailway(() => {
     startCommand:
       '/bin/sh -c "rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH"',
   }
-  Redis.networking = {
-    privateNetworkEndpoint: 'redis',
-    tcpProxies: { '6379': {} },
-  }
+  Redis.networking = { privateNetworkEndpoint: 'redis' }
   const redisVolume = volume('redis-volume', {
     alerts: { usage: { '100': {}, '80': {}, '95': {} } },
     allowOnlineResize: true,
@@ -115,6 +112,8 @@ export default defineRailway(() => {
       ],
     },
     replicas: { 'europe-west4-drams3a': 1 },
+    // Covers the api's two drain phases of SHUTDOWN_DRAIN_DEADLINE (20s) each.
+    deploy: { drainingSeconds: 45 },
     domains: [{ domain: 'api.withlily.app', port: 3000 }],
     networking: { privateNetworkEndpoint: 'api-withlily' },
     env: {
