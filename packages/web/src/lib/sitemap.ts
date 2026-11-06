@@ -7,6 +7,7 @@ import { localeUrl } from './seo'
 export const STATIC_PATHS = [
   '',
   '/about',
+  '/team',
   '/blog',
   '/privacy',
   '/terms',
@@ -30,7 +31,7 @@ export const siteUrls = (
       locale,
       path: `/blog/${post.slug}`,
       lastmod: pipe(
-        DateTime.make(post.date),
+        DateTime.make(post.updated ?? post.date),
         Option.map(DateTime.formatIso),
         Option.getOrUndefined
       ),

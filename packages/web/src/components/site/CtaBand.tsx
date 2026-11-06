@@ -1,5 +1,5 @@
 import { useI18n } from '@/i18n'
-import { APP_STORE_URL, PLAY_STORE_URL } from '@/lib/site'
+import { APP_STORE_URL, PLAY_STORE_LIVE, PLAY_STORE_URL } from '@/lib/site'
 
 // B's final section: mascot, headline, lede and the two store badges.
 export function CtaBand({ id = 'download' }: { id?: string }) {
@@ -36,30 +36,32 @@ export function CtaBand({ id = 'download' }: { id?: string }) {
               <b>{m.Cta.appStore}</b>
             </span>
           </a>
-          <a className="m-store" href={PLAY_STORE_URL}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M3.6 1.9 13.5 12l-9.9 10.1c-.4-.2-.6-.6-.6-1.1V3c0-.5.2-.9.6-1.1z"
-                fill="#34A853"
-              />
-              <path
-                d="m16.8 8.7-3.3 3.3-9.9-10.1h.1c.3-.2.8-.2 1.2 0z"
-                fill="#4285F4"
-              />
-              <path
-                d="m16.8 15.3-11.9 7c-.4.2-.9.2-1.2 0h-.1l9.9-10.3z"
-                fill="#EA4335"
-              />
-              <path
-                d="m20.4 10.6c.9.5.9 1.8 0 2.4l-3.6 2.1-3.3-3.1 3.3-3.3z"
-                fill="#FBBC04"
-              />
-            </svg>
-            <span>
-              <small>{m.Cta.googlePlaySmall}</small>
-              <b>{m.Cta.googlePlay}</b>
-            </span>
-          </a>
+          {PLAY_STORE_LIVE && (
+            <a className="m-store" href={PLAY_STORE_URL}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M3.6 1.9 13.5 12l-9.9 10.1c-.4-.2-.6-.6-.6-1.1V3c0-.5.2-.9.6-1.1z"
+                  fill="#34A853"
+                />
+                <path
+                  d="m16.8 8.7-3.3 3.3-9.9-10.1h.1c.3-.2.8-.2 1.2 0z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="m16.8 15.3-11.9 7c-.4.2-.9.2-1.2 0h-.1l9.9-10.3z"
+                  fill="#EA4335"
+                />
+                <path
+                  d="m20.4 10.6c.9.5.9 1.8 0 2.4l-3.6 2.1-3.3-3.1 3.3-3.3z"
+                  fill="#FBBC04"
+                />
+              </svg>
+              <span>
+                <small>{m.Cta.googlePlaySmall}</small>
+                <b>{m.Cta.googlePlay}</b>
+              </span>
+            </a>
+          )}
         </div>
       </div>
     </section>

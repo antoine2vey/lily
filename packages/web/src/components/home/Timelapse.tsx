@@ -514,6 +514,7 @@ export function Timelapse() {
       </div>
       <div className="tl-copy">
         <h1>
+          <span className="kicker">{t.kicker}</span>
           {t.title}
           <br />
           <em>{t.titleEm}</em>

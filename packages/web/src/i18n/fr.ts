@@ -2,9 +2,9 @@ import type { Messages } from './en'
 
 export const fr = {
   metadata: {
-    title: 'Lily — Ne perdez plus jamais une plante',
+    title: 'Lily : appli d’entretien et rappel d’arrosage des plantes',
     description:
-      'Suivez chaque plante, ne manquez plus aucun soin. Lily vous aide à gérer votre collection avec des rappels, un diagnostic IA et bien plus.',
+      'Lily, l’appli d’entretien des plantes qui cale chaque arrosage sur la plante, sa lumière et la saison. Rappels intelligents, diagnostic IA, guides.',
     ogTitle: 'Lily — Ne perdez plus jamais une plante',
     ogDescription:
       'Rappels intelligents, diagnostic IA et calendriers de soins personnalisés pour chaque plante chez vous.',
@@ -19,6 +19,7 @@ export const fr = {
     langSwitch: 'EN',
   },
   Timelapse: {
+    kicker: 'L’appli d’entretien des plantes qui rappelle quand arroser',
     title: 'Même plante. Même fenêtre.',
     titleEm: 'Une seule a Lily.',
     sub: "Faites défiler une année. Lily ajuste chaque arrosage aux canicules, aux vacances et à la lumière d'hiver. L'autre est arrosée le dimanche.",
@@ -277,7 +278,7 @@ export const fr = {
     },
     devices: {
       title: 'Partout avec vous',
-      body: 'Lily fonctionne sur iPhone, iPad et Android. Vos plantes vivent dans votre compte, elles vous suivent donc sur chaque appareil où vous vous connectez.',
+      body: 'Lily fonctionne aujourd’hui sur iPhone et iPad, et arrive bientôt sur Android. Vos plantes vivent dans votre compte, elles vous suivent donc sur chaque appareil où vous vous connectez.',
       names: ['iPhone', 'iPad', 'Android'],
       time: '13:31',
       padDate: 'jeu. 21 nov.',
@@ -588,7 +589,7 @@ export const fr = {
       },
       {
         q: 'Sur quels appareils Lily fonctionne-t-elle ?',
-        a: "iPhone, iPad et Android, synchronisés entre eux. Sur iPhone, vous avez aussi un widget Aujourd'hui et une Live Activity sur l'écran verrouillé quand un soin est dû.",
+        a: "iPhone et iPad aujourd'hui, synchronisés entre eux, et Android arrive bientôt. Sur iPhone, vous avez aussi un widget Aujourd'hui et une Live Activity sur l'écran verrouillé quand un soin est dû.",
       },
     ],
   },
@@ -601,7 +602,7 @@ export const fr = {
   Cta: {
     title: 'Vos plantes vous',
     titleEm: 'attendent.',
-    lede: 'Sept jours gratuits. Sur iPhone, iPad et Android.',
+    lede: 'Sept jours gratuits sur iPhone et iPad.',
     appStoreSmall: "Télécharger dans l'",
     appStore: 'App Store',
     googlePlaySmall: 'Disponible sur',
@@ -782,6 +783,7 @@ export const fr = {
       "Des soins qui se souviennent, pour que vous n'ayez pas à le faire.",
     nav: 'Pied de page',
     blog: 'Blog',
+    team: 'Équipe',
     about: 'À propos',
     support: 'Assistance',
     privacy: 'Confidentialité',
@@ -819,6 +821,7 @@ export const fr = {
   BlogPost: {
     home: 'Accueil',
     blog: 'Blog',
+    updated: 'Mis à jour',
     by: 'par',
     minRead: '{minutes} min de lecture',
     ctaHeading: 'Suivez vos plantes avec Lily',
@@ -831,7 +834,7 @@ export const fr = {
   About: {
     heading: 'À propos de Lily',
     metaDescription:
-      'Découvrez la petite équipe passionnée derrière Lily. Nous avons créé l’application de soins des plantes que nous rêvions d’avoir — pour ne plus jamais perdre une plante.',
+      'Lily est une appli d’entretien des plantes indépendante, créée par un développeur en France. Pourquoi elle existe, et comment elle décide quand arroser.',
     introHeading: 'À propos de Lily',
     introText:
       'Lily est une application de soins des plantes créée par des amoureux des plantes, pour des amoureux des plantes. Nous vous aidons à suivre chaque plante chez vous grâce à des rappels intelligents, un diagnostic IA et des calendriers de soins personnalisés — pour qu’aucune plante ne soit oubliée.',
@@ -840,7 +843,7 @@ export const fr = {
         heading: 'Notre histoire',
         blocks: [
           'Lily est née d’une frustration toute simple : trop de plantes mouraient par oubli. Nous avions tout essayé — post-its sur le frigo, alarmes sur le téléphone, même des tableurs — et nous regardions quand même des plantes en pleine santé dépérir parce que la vie prenait le dessus.',
-          'Alors nous avons créé l’application que nous rêvions d’avoir. Une petite équipe passionnée d’amoureux des plantes, convaincue que la technologie devrait rendre le soin des êtres vivants plus facile, pas plus compliqué. Lily a commencé comme un projet perso dans un petit appartement rempli de fougères trop arrosées et de succulentes assoiffées. Et ça a grandi à partir de là.',
+          'Alors Antoine de Veyrac, développeur en France, a créé l’application qu’il rêvait d’avoir. Lily a commencé comme un projet perso en juin 2025 et reste l’œuvre d’une seule personne, qui écrit le code, règle le modèle d’arrosage et publie les guides du blog.',
         ],
       },
       {
@@ -851,9 +854,47 @@ export const fr = {
         ],
       },
     ],
+    teamLink: 'Qui fait Lily →',
     ctaHeading: 'Prêt à garder vos plantes en pleine forme ?',
     ctaText: 'Téléchargez Lily et commencez votre essai gratuit de 7 jours.',
     ctaButton: 'Télécharger Lily gratuitement →',
+  },
+  Team: {
+    heading: 'Qui fait Lily',
+    metaDescription:
+      'Lily est développée par Antoine de Veyrac, développeur full-stack en France. Découvrez qui conçoit l’appli, son modèle d’arrosage et les guides du blog.',
+    name: 'Antoine de Veyrac',
+    role: 'Fondateur et développeur de Lily',
+    lead: 'Lily est une application indépendante, faite par une seule personne. Antoine de Veyrac la conçoit, écrit son code et publie les guides d’entretien de ce blog.',
+    sections: [
+      {
+        heading: 'Ce qu’il fait',
+        blocks: [
+          'Antoine est développeur full-stack depuis dix ans, spécialisé en React, React Native et TypeScript. Il a lancé Lily en juin 2025 et publie lui-même chaque version, de l’application iPhone au serveur qui planifie vos rappels.',
+          'L’essentiel du travail tourne autour d’une question : quand cette plante a-t-elle vraiment besoin d’eau ? Lily ajuste chaque rappel selon la saison, la lumière de la pièce et la météo chez vous, au lieu de le répéter à jour fixe.',
+        ],
+      },
+      {
+        heading: 'Comment les guides sont écrits',
+        blocks: [
+          'Chaque guide du blog est publié sous son nom, et il répond de ce qu’il contient. Les guides donnent des chiffres quand il en existe (jours entre deux arrosages, niveaux de lumière, tailles de pot) et renvoient aux services de vulgarisation agricole, jardins botaniques et sources vétérinaires sur lesquels ils s’appuient.',
+          'Une erreur ? Écrivez à support@withlily.app. Un guide corrigé affiche sa nouvelle date en haut de page.',
+        ],
+      },
+      {
+        heading: 'Open source',
+        blocks: [
+          'Le code de Lily est public sur GitHub, sous licence AGPL-3.0. Vous pouvez y lire comment les rappels sont calculés, ou ouvrir un ticket quand quelque chose semble faux.',
+        ],
+      },
+    ],
+    linksHeading: 'Retrouver Antoine',
+    links: {
+      site: 'Site personnel',
+      github: 'GitHub',
+      linkedin: 'LinkedIn',
+      source: 'Code source de Lily',
+    },
   },
   Privacy: {
     heading: 'Politique de confidentialité',
@@ -1092,7 +1133,7 @@ export const fr = {
     faqs: [
       {
         q: 'Comment démarrer mon essai gratuit ?',
-        a: "Lily propose un essai gratuit de 7 jours sans carte bancaire requise. Téléchargez l'application sur l'App Store ou Google Play, créez un compte, et votre essai démarre automatiquement.",
+        a: "Lily propose un essai gratuit de 7 jours sans carte bancaire requise. Téléchargez l'application sur l'App Store, créez un compte, et votre essai démarre automatiquement.",
       },
       {
         q: 'Comment gérer ou annuler mon abonnement ?',

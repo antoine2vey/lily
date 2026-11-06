@@ -40,6 +40,9 @@ export function Footer() {
             <Link to="/$locale/about" params={{ locale }}>
               {m.Footer.about}
             </Link>
+            <Link to="/$locale/team" params={{ locale }}>
+              {m.Footer.team}
+            </Link>
             <Link to="/$locale/support" params={{ locale }}>
               {m.Footer.support}
             </Link>

@@ -1,7 +1,7 @@
 import { type Locale, messagesFor } from '@/i18n'
 import { breadcrumbs, seo } from './seo'
 
-type DocKey = 'About' | 'Privacy' | 'Terms' | 'Support'
+type DocKey = 'About' | 'Team' | 'Privacy' | 'Terms' | 'Support'
 
 // Content pages share one head shape: "<heading> — Lily", a breadcrumb from home, and optional extra JSON-LD.
 export const docHead = (

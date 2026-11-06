@@ -18,6 +18,7 @@ import { Route as LocaleIndexRouteImport } from './routes/$locale/index'
 import { Route as LocaleAboutRouteImport } from './routes/$locale/about'
 import { Route as LocalePrivacyRouteImport } from './routes/$locale/privacy'
 import { Route as LocaleSupportRouteImport } from './routes/$locale/support'
+import { Route as LocaleTeamRouteImport } from './routes/$locale/team'
 import { Route as LocaleTermsRouteImport } from './routes/$locale/terms'
 import { Route as LocaleBlogIndexRouteImport } from './routes/$locale/blog/index'
 import { Route as LocaleBlogSlugRouteImport } from './routes/$locale/blog/$slug'
@@ -68,6 +69,11 @@ const LocaleSupportRoute = LocaleSupportRouteImport.update({
   path: '/support',
   getParentRoute: () => LocaleRouteRoute,
 } as any)
+const LocaleTeamRoute = LocaleTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => LocaleRouteRoute,
+} as any)
 const LocaleTermsRoute = LocaleTermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/$locale/about': typeof LocaleAboutRoute
   '/$locale/privacy': typeof LocalePrivacyRoute
   '/$locale/support': typeof LocaleSupportRoute
+  '/$locale/team': typeof LocaleTeamRoute
   '/$locale/terms': typeof LocaleTermsRoute
   '/$locale/': typeof LocaleIndexRoute
   '/$locale/blog/$slug': typeof LocaleBlogSlugRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByTo {
   '/$locale/about': typeof LocaleAboutRoute
   '/$locale/privacy': typeof LocalePrivacyRoute
   '/$locale/support': typeof LocaleSupportRoute
+  '/$locale/team': typeof LocaleTeamRoute
   '/$locale/terms': typeof LocaleTermsRoute
   '/$locale': typeof LocaleIndexRoute
   '/$locale/blog/$slug': typeof LocaleBlogSlugRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/$locale/about': typeof LocaleAboutRoute
   '/$locale/privacy': typeof LocalePrivacyRoute
   '/$locale/support': typeof LocaleSupportRoute
+  '/$locale/team': typeof LocaleTeamRoute
   '/$locale/terms': typeof LocaleTermsRoute
   '/$locale/': typeof LocaleIndexRoute
   '/$locale/blog/$slug': typeof LocaleBlogSlugRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/$locale/about'
     | '/$locale/privacy'
     | '/$locale/support'
+    | '/$locale/team'
     | '/$locale/terms'
     | '/$locale/'
     | '/$locale/blog/$slug'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/$locale/about'
     | '/$locale/privacy'
     | '/$locale/support'
+    | '/$locale/team'
     | '/$locale/terms'
     | '/$locale'
     | '/$locale/blog/$slug'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/$locale/about'
     | '/$locale/privacy'
     | '/$locale/support'
+    | '/$locale/team'
     | '/$locale/terms'
     | '/$locale/'
     | '/$locale/blog/$slug'
@@ -254,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LocaleSupportRouteImport
       parentRoute: typeof LocaleRouteRoute
     }
+    '/$locale/team': {
+      id: '/$locale/team'
+      path: '/team'
+      fullPath: '/$locale/team'
+      preLoaderRoute: typeof LocaleTeamRouteImport
+      parentRoute: typeof LocaleRouteRoute
+    }
     '/$locale/terms': {
       id: '/$locale/terms'
       path: '/terms'
@@ -289,6 +308,7 @@ interface LocaleRouteRouteChildren {
   LocaleAboutRoute: typeof LocaleAboutRoute
   LocalePrivacyRoute: typeof LocalePrivacyRoute
   LocaleSupportRoute: typeof LocaleSupportRoute
+  LocaleTeamRoute: typeof LocaleTeamRoute
   LocaleTermsRoute: typeof LocaleTermsRoute
   LocaleIndexRoute: typeof LocaleIndexRoute
   LocaleBlogSlugRoute: typeof LocaleBlogSlugRoute
@@ -300,6 +320,7 @@ const LocaleRouteRouteChildren: LocaleRouteRouteChildren = {
   LocaleAboutRoute: LocaleAboutRoute,
   LocalePrivacyRoute: LocalePrivacyRoute,
   LocaleSupportRoute: LocaleSupportRoute,
+  LocaleTeamRoute: LocaleTeamRoute,
   LocaleTermsRoute: LocaleTermsRoute,
   LocaleIndexRoute: LocaleIndexRoute,
   LocaleBlogSlugRoute: LocaleBlogSlugRoute,

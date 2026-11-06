@@ -1,8 +1,8 @@
 export const en = {
   metadata: {
-    title: 'Lily — Never lose a plant again',
+    title: 'Lily: Plant Care App with Smart Watering Reminders',
     description:
-      'Track every plant, never miss a care day. Lily helps you manage your plant collection with care reminders, AI diagnosis, and more.',
+      'Lily is a plant care app that times each watering to your plant, its light and the season. Smart reminders, AI diagnosis and care guides.',
     ogTitle: 'Lily — Never lose a plant again',
     ogDescription:
       'Smart reminders, AI diagnosis, and care schedules personalized to every plant in your home.',
@@ -17,6 +17,7 @@ export const en = {
     langSwitch: 'FR',
   },
   Timelapse: {
+    kicker: 'Plant care app with smart watering reminders',
     title: 'Same plant. Same window.',
     titleEm: 'One has Lily.',
     sub: 'Drag through a year. Lily moves every watering around heatwaves, holidays and winter light. The other one gets watered on Sundays.',
@@ -275,7 +276,7 @@ export const en = {
     },
     devices: {
       title: 'Everywhere you are',
-      body: 'Lily runs on iPhone, iPad and Android. Your plants live in your account, so they follow you to every device you sign in on.',
+      body: 'Lily runs on iPhone and iPad today, and Android is on the way. Your plants live in your account, so they follow you to every device you sign in on.',
       names: ['iPhone', 'iPad', 'Android'],
       time: '13:31',
       padDate: 'Thu 21 Nov',
@@ -569,7 +570,7 @@ export const en = {
       },
       {
         q: 'Which devices does Lily work on?',
-        a: 'iPhone, iPad and Android, synced across all of them. On iPhone you also get a Today widget and a Live Activity on the lock screen when care is due.',
+        a: 'iPhone and iPad today, synced across both, with Android on the way. On iPhone you also get a Today widget and a Live Activity on the lock screen when care is due.',
       },
     ],
   },
@@ -582,7 +583,7 @@ export const en = {
   Cta: {
     title: 'Your plants are',
     titleEm: 'waiting.',
-    lede: 'Seven days free. On iPhone, iPad and Android.',
+    lede: 'Seven days free on iPhone and iPad.',
     appStoreSmall: 'Download on the',
     appStore: 'App Store',
     googlePlaySmall: 'Get it on',
@@ -765,6 +766,7 @@ export const en = {
     tagline: 'Plant care that remembers, so you do not have to.',
     nav: 'Footer',
     blog: 'Blog',
+    team: 'Team',
     about: 'About',
     support: 'Support',
     privacy: 'Privacy',
@@ -802,6 +804,7 @@ export const en = {
   BlogPost: {
     home: 'Home',
     blog: 'Blog',
+    updated: 'Updated',
     by: 'by',
     minRead: '{minutes} min read',
     ctaHeading: 'Track your plants with Lily',
@@ -814,7 +817,7 @@ export const en = {
   About: {
     heading: 'About Lily',
     metaDescription:
-      'Meet the small, passionate team behind Lily. We built the plant care app we wished existed — so you never lose a plant again.',
+      'Lily is an independent plant care app built by one developer in France. Read why it exists and how it decides when each of your plants needs water.',
     introHeading: 'About Lily',
     introText:
       'Lily is a plant care app built by plant lovers, for plant lovers. We help you track every plant in your home with smart reminders, AI-powered diagnosis, and personalised care schedules — so no plant gets forgotten.',
@@ -823,7 +826,7 @@ export const en = {
         heading: 'Our Story',
         blocks: [
           'Lily was born from a simple frustration: too many plants dying from forgotten care. We had tried every trick — sticky notes on the fridge, phone alarms, even spreadsheets — and still watched perfectly healthy plants wilt because life got in the way.',
-          'So we built the app we wished existed. A small, passionate team of plant lovers who believe technology should make caring for living things easier, not harder. Lily started as a side project in a tiny apartment full of overwatered ferns and underwatered succulents. It grew from there.',
+          'So Antoine de Veyrac, a developer in France, built the app he wished existed. Lily started as a side project in June 2025 and is still made by one person, who writes the code, tunes the watering model and publishes the guides on the blog.',
         ],
       },
       {
@@ -834,9 +837,47 @@ export const en = {
         ],
       },
     ],
-    ctaHeading: 'Ready to keep your plants thriving?',
+    teamLink: 'Meet the person who builds Lily →',
+    ctaHeading: 'Ready to keep your plants alive?',
     ctaText: 'Download Lily and start your free 7-day trial.',
     ctaButton: 'Download Lily Free →',
+  },
+  Team: {
+    heading: 'Who builds Lily',
+    metaDescription:
+      'Lily is built by Antoine de Veyrac, a full-stack developer in France. Meet the person behind the app, its watering model and the plant care guides.',
+    name: 'Antoine de Veyrac',
+    role: 'Founder and developer of Lily',
+    lead: 'Lily is an independent app made by one person. Antoine de Veyrac designs it, writes its code and publishes the plant care guides on this blog.',
+    sections: [
+      {
+        heading: 'What he works on',
+        blocks: [
+          'Antoine is a full-stack developer with ten years of experience in React, React Native and TypeScript. He started Lily in June 2025 and ships every release himself, from the iPhone app to the server that schedules your reminders.',
+          'Most of that work goes into one question: when does this plant actually need water? Lily moves each reminder with the season, the light in your room and the weather where you live, instead of repeating it on a fixed day.',
+        ],
+      },
+      {
+        heading: 'How the guides are written',
+        blocks: [
+          'Every guide on the blog is published under his name, and he answers for what it says. Guides give numbers where numbers exist, such as days between waterings, light levels and pot sizes, and link to the extension services, botanical gardens and veterinary sources they rely on.',
+          'If you spot a mistake, email support@withlily.app. A corrected guide shows its new date at the top.',
+        ],
+      },
+      {
+        heading: 'Open source',
+        blocks: [
+          'The code behind Lily is public on GitHub under the AGPL-3.0 licence. You can read how reminders are calculated, or open an issue when something looks wrong.',
+        ],
+      },
+    ],
+    linksHeading: 'Find Antoine elsewhere',
+    links: {
+      site: 'Personal site',
+      github: 'GitHub',
+      linkedin: 'LinkedIn',
+      source: 'Lily source code',
+    },
   },
   Privacy: {
     heading: 'Privacy Policy',
@@ -1075,7 +1116,7 @@ export const en = {
     faqs: [
       {
         q: 'How do I start my free trial?',
-        a: 'Lily offers a 7-day free trial with no credit card required. Download the app from the App Store or Google Play, create an account, and your trial starts automatically.',
+        a: 'Lily offers a 7-day free trial with no credit card required. Download the app from the App Store, create an account, and your trial starts automatically.',
       },
       {
         q: 'How do I manage or cancel my subscription?',

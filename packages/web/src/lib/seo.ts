@@ -22,6 +22,7 @@ export interface SeoInput {
   readonly ogDescription?: string | undefined
   readonly robots?: string | undefined
   readonly publishedTime?: string | undefined
+  readonly modifiedTime?: string | undefined
   readonly jsonLd?: ReadonlyArray<object> | undefined
   readonly alternates?: ReadonlyArray<Locale> | undefined
 }
@@ -38,6 +39,7 @@ export const seo = ({
   ogDescription = description,
   robots,
   publishedTime,
+  modifiedTime,
   jsonLd: ld = [],
   alternates = locales,
 }: SeoInput) => {
@@ -56,6 +58,9 @@ export const seo = ({
       { property: 'og:type', content: type },
       ...(publishedTime
         ? [{ property: 'article:published_time', content: publishedTime }]
+        : []),
+      ...(modifiedTime
+        ? [{ property: 'article:modified_time', content: modifiedTime }]
         : []),
       { property: 'og:image', content: img },
       ...(image

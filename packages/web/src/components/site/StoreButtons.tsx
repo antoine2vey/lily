@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useI18n } from '@/i18n'
-import { APP_STORE_URL, PLAY_STORE_URL } from '@/lib/site'
+import { APP_STORE_URL, PLAY_STORE_LIVE, PLAY_STORE_URL } from '@/lib/site'
 import { AppleIcon, GooglePlayIcon } from './icons'
 
 type Platform = 'ios' | 'android' | 'web'
@@ -30,8 +30,11 @@ const STORES = {
 export function StoreButtons({ size = 'md' }: { size?: 'sm' | 'md' }) {
   const { m } = useI18n()
   const platform = usePlatform()
-  const shown =
-    platform === 'web' ? (['ios', 'android'] as const) : ([platform] as const)
+  const shown = !PLAY_STORE_LIVE
+    ? (['ios'] as const)
+    : platform === 'web'
+      ? (['ios', 'android'] as const)
+      : ([platform] as const)
   const pad = size === 'sm' ? 'px-4 py-2 text-sm' : 'px-5 py-3'
   return (
     <div className="flex flex-wrap gap-3">

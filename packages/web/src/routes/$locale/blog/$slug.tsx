@@ -3,7 +3,7 @@ import { Array } from 'effect'
 import { ReadingProgress } from '@/components/blog/ReadingProgress'
 import { StoreButtons } from '@/components/site/StoreButtons'
 import { fmt, type Locale, locales, messagesFor, useI18n } from '@/i18n'
-import { defaultAuthor } from '@/lib/authors'
+import { author, authorRef } from '@/lib/authors'
 import { categoryLabel, formatPostDate } from '@/lib/blog'
 import type { PostMeta } from '@/lib/posts'
 import { breadcrumbs, localeUrl, seo } from '@/lib/seo'
@@ -15,13 +15,8 @@ const article = (locale: Locale, post: PostMeta) => ({
   headline: post.title,
   description: post.description,
   datePublished: post.date,
-  dateModified: post.date,
-  author: {
-    '@type': 'Person',
-    name: defaultAuthor.name,
-    jobTitle: defaultAuthor.role,
-    url: ORIGIN,
-  },
+  dateModified: post.updated ?? post.date,
+  author: authorRef(locale),
   publisher: {
     '@type': 'Organization',
     name: 'Lily',
@@ -57,6 +52,7 @@ export const Route = createFileRoute('/$locale/blog/$slug')({
       description: meta.description,
       type: 'article',
       publishedTime: meta.date,
+      modifiedTime: meta.updated,
       image: meta.coverImage,
       imageAlt: meta.title,
       alternates,
@@ -107,8 +103,24 @@ function PostPage() {
           <time dateTime={meta.date}>
             {formatPostDate(locale, meta.date, 'long')}
           </time>
+          {meta.updated && meta.updated !== meta.date && (
+            <span>
+              {t.updated}{' '}
+              <time dateTime={meta.updated}>
+                {formatPostDate(locale, meta.updated, 'long')}
+              </time>
+            </span>
+          )}
           <span>
-            {t.by} {defaultAuthor.name}
+            {t.by}{' '}
+            <Link
+              to="/$locale/team"
+              params={{ locale }}
+              rel="author"
+              className="font-semibold text-ink-2 hover:text-ink hover:underline"
+            >
+              {author.name}
+            </Link>
           </span>
         </div>
         <h1 className="mb-6 text-4xl leading-tight font-bold tracking-tight text-ink md:text-5xl">

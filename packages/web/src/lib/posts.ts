@@ -4,6 +4,7 @@ export const PostMeta = Schema.Struct({
   title: Schema.String,
   description: Schema.String,
   date: Schema.String,
+  updated: Schema.optional(Schema.String),
   slug: Schema.String,
   category: Schema.String,
   tags: Schema.Array(Schema.String),

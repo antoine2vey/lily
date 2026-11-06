@@ -2,17 +2,18 @@ import { createFileRoute, notFound, Outlet } from '@tanstack/react-router'
 import { Footer } from '@/components/site/Footer'
 import { Header } from '@/components/site/Header'
 import { I18nProvider, isLocale, type Locale } from '@/i18n'
+import { author, authorRef } from '@/lib/authors'
 import { jsonLd } from '@/lib/seo'
-import { APP_STORE_URL, ORIGIN, PLAY_STORE_URL } from '@/lib/site'
+import { APP_STORE_URL, ORIGIN } from '@/lib/site'
 
 const softwareApplication = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   name: 'Lily',
   description:
-    'Plant care app with smart reminders, AI diagnosis, and personalized care guides for your houseplants.',
+    'Plant care app with watering reminders that adapt to season, light and weather, plus AI plant diagnosis and care guides for your houseplants.',
   applicationCategory: 'LifestyleApplication',
-  operatingSystem: 'iOS, Android',
+  operatingSystem: 'iOS',
   url: ORIGIN,
   downloadUrl: APP_STORE_URL,
   screenshot: `${ORIGIN}/screenshots/home-screen.webp`,
@@ -25,14 +26,16 @@ const softwareApplication = {
   },
 }
 
-const organization = {
+const organization = (locale: Locale) => ({
   '@context': 'https://schema.org',
   '@type': 'Organization',
+  '@id': `${ORIGIN}/#organization`,
   name: 'Lily',
   url: ORIGIN,
   logo: `${ORIGIN}/apple-touch-icon.png`,
-  sameAs: [APP_STORE_URL, PLAY_STORE_URL],
-}
+  founder: authorRef(locale),
+  sameAs: [APP_STORE_URL, author.source],
+})
 
 const webSite = {
   '@context': 'https://schema.org',
@@ -59,8 +62,12 @@ export const Route = createFileRoute('/$locale')({
     },
     stringify: ({ locale }) => ({ locale }),
   },
-  head: () => ({
-    meta: [jsonLd(softwareApplication), jsonLd(organization), jsonLd(webSite)],
+  head: ({ params: { locale } }) => ({
+    meta: [
+      jsonLd(softwareApplication),
+      jsonLd(organization(locale)),
+      jsonLd(webSite),
+    ],
     links: [
       { rel: 'dns-prefetch', href: 'https://www.googletagmanager.com' },
       {

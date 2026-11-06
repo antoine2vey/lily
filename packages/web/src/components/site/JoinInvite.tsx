@@ -9,7 +9,7 @@ import {
   loading,
   tokenFromPath,
 } from '@/lib/canopy-invite'
-import { APP_STORE_URL, PLAY_STORE_URL } from '@/lib/site'
+import { APP_STORE_URL, PLAY_STORE_LIVE, PLAY_STORE_URL } from '@/lib/site'
 import { AppleIcon, GooglePlayIcon, LilyMark } from './icons'
 
 type JoinMessages = ReturnType<typeof messagesFor>['Join']
@@ -107,15 +107,17 @@ function InviteCard({
               <AppleIcon className="size-5" />
               {t.appStore}
             </a>
-            <a
-              href={PLAY_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={SECONDARY}
-            >
-              <GooglePlayIcon className="size-5" />
-              {t.googlePlay}
-            </a>
+            {PLAY_STORE_LIVE && (
+              <a
+                href={PLAY_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={SECONDARY}
+              >
+                <GooglePlayIcon className="size-5" />
+                {t.googlePlay}
+              </a>
+            )}
           </div>
           <p className="mt-4 text-sm text-muted">{t.tapAgain}</p>
         </div>
