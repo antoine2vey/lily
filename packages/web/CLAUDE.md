@@ -9,7 +9,8 @@ Run every command from the monorepo root.
 | Command | What it does |
 |---|---|
 | `bun run --filter=@lily/web dev` | Vite dev server on port 3001 |
-| `bun run --filter=@lily/web build` | Prerenders every page, then runs the SEO lint over `dist/client` |
+| `bun run --filter=@lily/web build` | Prerenders every page, runs the SEO lint over `dist/client`, then the blog gate, which writes `dist/redirects.map` |
+| `bun packages/web/scripts/blog-check.ts --strict --verbose` | The blog gate on its own |
 | `bun run --filter=@lily/web preview` | Serves `dist/client` with the production nginx config in Docker on port 8088 |
 | `bun run --filter=@lily/web tsc` | Typecheck, which also checks that `fr.ts` matches `en.ts` |
 | `bun run --filter=@lily/web lint` | Biome |
@@ -36,6 +37,8 @@ Run every command from the monorepo root.
 - **Head data comes from the loader.** `head()` is synchronous, so anything it needs must come from `loaderData`.
 - **Analytics.** Google Analytics loads from an idle callback after the window `load` event in `__root.tsx`. Loading it earlier starves hydration and competes with the hero bytes.
 
-## Blog frontmatter
+## Blog
 
-Every post in `content/posts/<locale>/` needs `title`, `description`, `date` (ISO), `slug` (matching the file name), `category` and `tags`. `coverImage` is optional. `PostMeta` in `src/lib/posts.ts` validates them, and an invalid post fails the build. Add every new post in both locales.
+The SEO plan, keyword map and editorial rules live in `docs/seo/strategy.md`. Read it before adding or rewriting a post. One post covers one search intent. Improve the existing hub before adding a post that competes with it.
+
+Every post in `content/posts/<locale>/` needs `title`, `description`, `date` (ISO, the day it first went live), `updated` (ISO, last substantive revision), `slug` (equal to the file name, which is the real slug), `category` (`care-guides`, `watering`, `plant-problems`, `pests` or `houseplant-basics`) and `tags`. `redirectFrom` lists old slugs that now return a 301 to this post. Never remove an entry from it. `PostMeta` in `src/lib/posts.ts` validates the fields the site reads. `scripts/blog-check.ts --strict` runs in the build and checks the rest: slug and dates, EN/FR parity, internal links, redirects, title and description length, banned AI phrasing and French spacing. It also writes `dist/redirects.map` for nginx. Add every new post in both locales.

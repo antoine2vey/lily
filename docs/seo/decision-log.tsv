@@ -1,0 +1,28 @@
+when	what	why	evidence	result
+2026-11-06	Merge 289 posts per locale into 125 intent hubs	51 clusters compete for the same query; GSC shows 99 crawled-not-indexed	audit clusters + GSC Pages report	plan/manifest.json, asserts no dropped or duplicated source
+2026-11-06	Author = Antoine de Veyrac with /team Person entity	Emma Laurent persona was unverifiable; E-E-A-T risk	git: sole human committer, antoinedeveyrac.fr	c549063c
+2026-11-06	Hide Play buttons behind PLAY_STORE_LIVE	Play listing returns 404; products are DRAFT	curl 404, memory note	c549063c
+2026-11-06	Blog title suffix "— Lily Blog" -> "| Lily"	gives keyword titles 53 chars before the 60-char cut	seo-check title warnings	pending content commit
+2026-11-06	Gate keys posts by filename, not frontmatter slug	vite/posts.ts derives slug from filename; 423 frontmatter slugs disagree	gate broken-link count matched dist (15 vs 15) only after the fix	scripts/blog-check.ts
+2026-11-06	Hub date = earliest git add date of its sources	2023 dates were invented; posts were added 2026-03..07	git log --diff-filter=A	plan/hubs.json
+2026-11-06	nginx: map-based 301s, slash strip, stale pagination -> /blog	merged slugs and shrinking pagination must not 404	docker preview curl matrix, 15 cases	nginx.conf
+U7	pilot verified	3 hubs rewritten EN+FR, gate 0/0, sources fetched, 12 sources deleted per locale	read fr/peace-lily-problems and en/monstera-care-guide in full; Lily mentions true	fan out b01-b11
+U8	category becomes a typed literal with localized labels	categoryLabel only stripped hyphens, untranslated in FR; 5 categories now fixed by the plan	Schema.Literals(CATEGORIES) shared by PostMeta and blog-check; tsc green	labels in en.ts/fr.ts Category
+U8	blog-check typed by locale	tsc covers scripts/ and Record.fromIterableWith widened keys to string	gate counts unchanged 638/4535 before and after	
+U8	gate runs after vite build	vite empties dist, so the map must be written after it	build script chains seo-check then blog-check --strict --map	
+U8	b02 verified	gate 0/0 on 11 slugs; read fr/how-often-to-water-zz-plant	sources linked, French native	
+U8	NBSP before % and units via one codemod after fan-out	delegates applied it unevenly; gate did not check it	run over all fr files then add gate rule	
+U8	b01 verified	gate 0/0 on 11 slugs; read en/spider-mites-treatment opening	string-of-hearts toxicity omitted for lack of source	
+U8	b06 verified	gate 0/0 on 11 slugs; read fr/best-air-purifying-plants opening	air-purifying claim now matches Cummings & Waring 2020	
+U8	b03 verified	gate 0/0 on 11 slugs	asian-garden redirect lands on indoor hub: topic drift accepted (old post outdoor, off-strategy)	
+U8	b10 verified	gate 0/0 on 11 slugs	root-rot date follows git add date 2026-03-04 (first commit of the blog), per plan	
+U8	b11 verified	gate 0/0 on 12 slugs	some hubs cite 4 sources; accepted, more evidence is not a defect	
+U8	b07 verified + MOJIBAKE gate rule	gate 0/0 on 11 slugs; b07 hit perl mojibake the gate missed; rule red on injected Ã©, green after restore; repo-wide grep clean	encode lesson in gate, not in brief	
+U8	b04 verified; removed "earlier version of this page" self-references (croton, lavender, EN+FR)	gate 0/0 on 11 slugs before and after edit	reader does not care how the page used to read; myth-busting kept	
+U8	b09 verified	gate 0/0 on 11 slugs; Lily toxic-on-add claim backed by app i18n; outdoor rain/heat claim is in the brief fact list	FR cats hub keeps generic "centre antipoison vétérinaire": no number verified this session, none invented	
+U8	b05 verified	gate 0/0 on 11 slugs; read fr/rubber-plant-problems opening	rare-plants hub names thinly documented plants without care specifics rather than inventing them	
+U9	FR unit/thousands NBSP codemod + gate rule	586 plain vs 68 NBSP before units; codemod idempotent (2nd run 0 files); rule red on injected "3 cm", caught missed m², green after; full gate 0/0 both modes	codemod and gate share the unit list; codemod kept in trail	
+U10	nginx map_hash_bucket_size 128	Docker preview: nginx emerg "could not build map_hash" (longest key 67 > 64); after fix: old slug 301 EN+FR, trailing slash 301, team 200, page/40 301, unknown 404, Location relative	prod container would have failed to boot; caught only by running the real image	
+U10	seo-check decodes HTML entities	91 length warnings were &#x27; counted as 6 chars; after decode 15 real, fixed 6 descriptions (incl. false "Expert guides"), now 0		
+U11	baseline parity explained	550 missing = 550 redirects; 222 new = 250 hubs - 28 kept slugs; 28 pagination pages dropped (301 to index); 2 new = team EN/FR; 0 canonical/hreflang/og/JSON-LD diffs on surviving pages		
+U11	red/green proof of the gate	new blog-check --strict on HEAD content: 289/289 posts, 5213 errors (2443 banned phrases, 578 missing updated, 572 bad categories, 423 slug≠filename, 349 long titles); on this branch: 125/125, 0 errors	commit order gate -> content reads as red then green	
