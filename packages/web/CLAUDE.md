@@ -1,165 +1,41 @@
-# packages/web — Coding Rules
+# packages/web
 
-Marketing/landing site for the Lily plant care app. **Next.js 16 static export** (no server runtime), deployed as a CDN-hosted site.
+The public marketing site and blog at `https://withlily.app`. It is built with TanStack Start on Vite and prerendered to static HTML in `dist/client`. nginx serves that directory with `nginx.conf` (see `Dockerfile`). There is no server at runtime. A route that needs data at request time cannot exist here.
 
----
+## Commands
 
-## Architecture
+Run every command from the monorepo root.
 
-- **Framework**: Next.js 16 App Router, static export (`output: 'export'`)
-- **Rendering**: All pages are Server Components by default — add `'use client'` only when strictly needed (event handlers, browser APIs, scroll-triggered animations)
-- **Code splitting**: Use `dynamic()` from `next/dynamic` for heavy client components on the home page to reduce initial JS bundle
-- **i18n**: `next-intl` with locale prefix in URL (`/en/...`, `/fr/...`). Supported locales: `en`, `fr`
-- **Styling**: Tailwind CSS v4 with neumorphic design system (CSS variables in `globals.css`)
-- **Animations**: CSS transitions + IntersectionObserver via `<FadeIn>` component — client components only
-- **Blog content**: MDX files in `content/posts/[locale]/` parsed at build time
+| Command | What it does |
+|---|---|
+| `bun run --filter=@lily/web dev` | Vite dev server on port 3001 |
+| `bun run --filter=@lily/web build` | Prerenders every page, then runs the SEO lint over `dist/client` |
+| `bun run --filter=@lily/web preview` | Serves `dist/client` with the production nginx config in Docker on port 8088 |
+| `bun run --filter=@lily/web tsc` | Typecheck, which also checks that `fr.ts` matches `en.ts` |
+| `bun run --filter=@lily/web lint` | Biome |
+| `bun packages/web/scripts/seo-check.ts packages/web/dist/client --baseline <old dist>` | Diffs URLs, canonical, hreflang, og and JSON-LD types against an earlier build |
 
----
+## Layout
 
-## Effect.js in this package
+- `src/routes/` holds file-based routes. `$locale/route.tsx` validates the locale and injects the site-wide JSON-LD (`SoftwareApplication`, `Organization`, `WebSite`) once. `index.tsx` is the language redirect at `/`. `join.tsx` is the noindex invite page.
+- `src/i18n/en.ts` is the source of truth for every visible string. `fr.ts` is typed against it, so a missing or extra key fails `tsc`. Read strings with `useI18n()` in components and `messagesFor(locale)` in `head()`. Use `fmt` for `{var}` interpolation and `plural` for counts.
+- `src/lib/seo.ts` builds every route's `head()`. It covers the title, description, canonical, en/fr/x-default hreflang, Open Graph, the Twitter card and JSON-LD. `src/lib/page-seo.ts` wraps it for the plain document pages.
+- `src/lib/sitemap.ts` is the single list of indexable URLs. The prerender page list in `vite.config.ts`, `sitemap.xml` and the SEO check all derive from it.
+- `vite/posts.ts` compiles `content/posts/<locale>/*.mdx` to `{ meta, html }` modules at build time and exposes the per-locale index as `virtual:post-index/<locale>`. `src/lib/post-data.ts` is the only reader. Import it dynamically inside loaders (`await import('@/lib/post-data')`) so the post index stays out of every page's main chunk.
+- `src/components/home/` holds the timelapse hero and the Water All phone. Their animation engines run inside a single `useEffect` and touch the DOM directly. React does not re-render per frame. `home.css` is scoped under `.tlhero` and `.wc`.
+- `public/tl/` holds the hero frames. Regenerate them from a source video with `scripts/tl-frames.sh`.
 
-Since this is a static build (no Effect runtime), use Effect utilities **for pure data transformations only** — array ops, Option handling, pattern matching, date parsing. Never use `Effect.runSync` or `Effect.runPromise` at runtime in components.
+## Rules
 
----
+- **Every indexable page calls `seo()`** with a unique title under 60 characters and a description of 120 to 160 characters. The build fails when a page lacks a title, description, canonical, og:url or hreflang, has other than one `h1`, or is indexable but missing from the sitemap. Description length outside 120 to 160 is only a warning.
+- **New static page.** Add the route, add its path to `STATIC_PATHS` in `src/lib/sitemap.ts`, and add its strings to both `en.ts` and `fr.ts`.
+- **No hardcoded copy in components.** That includes aria labels and alt text.
+- **French typography.** Put a no-break space (U+00A0) before `? ! : ;`.
+- **Internal links** use `<Link to="/$locale/..." params={{ locale }}>` so the locale prefix is never lost.
+- **Effect** is for pure data work only (Array, Option, Record, DateTime, Schema). There is no Effect runtime in the browser.
+- **Head data comes from the loader.** `head()` is synchronous, so anything it needs must come from `loaderData`.
+- **Analytics.** Google Analytics loads from an idle callback after the window `load` event in `__root.tsx`. Loading it earlier starves hydration and competes with the hero bytes.
 
-## SEO Rules (MANDATORY)
+## Blog frontmatter
 
-### Every page MUST have:
-
-1. **`generateMetadata`** export returning at minimum:
-   - `title` — unique per page, under 60 characters
-   - `description` — unique per page, 120–160 characters
-   - `openGraph.url` — absolute URL (`https://lilyapp.io/...`)
-   - `alternates.languages` — hreflang for every supported locale
-   - `alternates.canonical` — canonical URL for the current locale
-
-2. **Language alternates** — always include both locales:
-   ```typescript
-   alternates: {
-     canonical: `https://lilyapp.io/${locale}/path`,
-     languages: {
-       en: 'https://lilyapp.io/en/path',
-       fr: 'https://lilyapp.io/fr/path',
-     },
-   }
-   ```
-
-3. **OpenGraph** — required on every page:
-   ```typescript
-   openGraph: {
-     title, description,
-     url: `https://lilyapp.io/${locale}/path`,
-     type: 'website', // or 'article' for blog posts
-     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: '...' }],
-     locale: locale === 'fr' ? 'fr_FR' : 'en_US',
-   }
-   ```
-
-4. **Twitter card** — include on every page:
-   ```typescript
-   twitter: { card: 'summary_large_image', title, description, images: ['/og-image.png'] }
-   ```
-
-### JSON-LD Schemas
-
-Use the `<JsonLd>` component to inject `application/ld+json` scripts. Match schema to page type:
-
-| Page | Schema type |
-|------|-------------|
-| Root layout (`[locale]/layout.tsx`) | `SoftwareApplication` + `Organization` |
-| Home page | `FAQPage` |
-| Blog post | `Article` + `BreadcrumbList` |
-| New content page | Add appropriate schema from schema.org |
-
-**Never duplicate schemas** — `SoftwareApplication` and `Organization` are injected once in `[locale]/layout.tsx`.
-
-Schema field requirements:
-- `Article`: `headline`, `description`, `datePublished`, `dateModified`, `author`, `publisher`, `mainEntityOfPage`, `image` (if cover exists)
-- `BreadcrumbList`: include full path from home to current page with correct `position` and `item` URLs
-- `FAQPage`: `mainEntity` array with `Question` + `Answer` for every FAQ item
-
-### Sitemap
-
-`src/app/sitemap.ts` is auto-generated. When adding new static pages:
-1. Add the path to `staticPages` array in `sitemap.ts`
-
-Blog posts are included automatically via `getAllPosts()`.
-
-> **Note:** `changeFrequency` and `priority` are omitted — Google ignores both fields. Static pages omit `lastModified` since they don't have meaningful modification dates. Blog posts use their frontmatter `date` for `lastModified`.
-
-### Blog Post Frontmatter (MANDATORY fields)
-
-Every MDX file in `content/posts/[locale]/` must have:
-
-```yaml
----
-title: 'Exact title matching the h1 (under 60 chars for SEO)'
-description: 'Meta description, 120–160 characters, unique'
-date: '2025-01-15'           # ISO 8601, used for sitemap lastModified + sorting
-slug: 'url-friendly-slug'    # Must match filename without .mdx
-category: 'plant-care'       # kebab-case, used in UI
-tags: ['watering', 'tips']   # Array, used for grouping
-coverImage: '/images/cover.jpg'  # Optional, used in OG image + article schema
----
-```
-
-- `date` drives post sort order — always set to actual publish date
-- `slug` must match the MDX filename exactly (`slug: 'my-post'` → `my-post.mdx`)
-- When adding a post in one locale, **always add the translated version** in the other locale
-
----
-
-## i18n Rules
-
-- All user-visible strings go in `messages/en.json` and `messages/fr.json` — never hardcode English text in components
-- Server components: `getTranslations({ locale, namespace: 'Namespace' })`
-- Client components: `useTranslations('Namespace')`
-- Always call `setRequestLocale(locale)` at the top of page server components
-- New namespaces must be added to **both** `en.json` and `fr.json`
-
----
-
-## Component Conventions
-
-| Type | When to use | Examples |
-|------|-------------|---------|
-| Server Component (default) | Data fetching, static rendering, i18n, blog content | `LatestPosts`, `Features`, `Footer`, `BlogPostCard` |
-| `'use client'` | Event handlers, `useState`/`useEffect`, IntersectionObserver, scroll listeners | `Header`, `Hero`, `FAQ`, `FeatureSection` |
-
-**Rule**: Keep `'use client'` boundary as deep as possible. A server component can import a client component, but not vice versa for server-only code.
-
----
-
-## URL Structure
-
-```
-/                      → redirects to /en or /fr
-/[locale]              → home/landing page
-/[locale]/blog         → blog index
-/[locale]/blog/[slug]  → blog post
-/[locale]/privacy      → privacy policy
-/[locale]/terms        → terms of service
-```
-
-All internal `<Link href="...">` must include the locale prefix: `href={`/${locale}/blog`}`.
-
----
-
-## Performance Rules
-
-1. **Static only** — no `getServerSideProps`, no API routes, no server actions. Everything is pre-rendered at build time.
-2. **Code split** the home page — wrap heavy sections in `dynamic(() => import(...))` (see `[locale]/page.tsx` for examples)
-3. **Images** — use `next/image` with explicit `width`/`height` or `fill`. Set `priority` on above-the-fold images (hero, cover). All images are unoptimized (static export).
-4. **Fonts** — loaded via `next/font/google` in the locale layout, never via `<link>` tags
-
----
-
-## Adding a New Page
-
-Checklist:
-- [ ] Create `src/app/[locale]/new-page/page.tsx`
-- [ ] Export `generateMetadata` with title, description, OG, Twitter, canonical, hreflang
-- [ ] Add JSON-LD schema if appropriate for the content type
-- [ ] Add to `staticPages` in `sitemap.ts`
-- [ ] Add translations to `messages/en.json` and `messages/fr.json`
-- [ ] Update navigation in `Header.tsx` if user-facing
+Every post in `content/posts/<locale>/` needs `title`, `description`, `date` (ISO), `slug` (matching the file name), `category` and `tags`. `coverImage` is optional. `PostMeta` in `src/lib/posts.ts` validates them, and an invalid post fails the build. Add every new post in both locales.

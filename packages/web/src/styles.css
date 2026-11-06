@@ -1,0 +1,193 @@
+@import "tailwindcss";
+@import "@fontsource-variable/space-grotesk";
+@import "./components/site/site.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Arial resized to Space Grotesk's metrics (Capsize), so the swap to the web font moves no text. */
+@font-face {
+  font-family: "Space Grotesk Fallback";
+  src: local("Arial"), local("ArialMT");
+  ascent-override: 89.7072%;
+  descent-override: 26.6204%;
+  line-gap-override: 0%;
+  size-adjust: 109.6903%;
+}
+
+:root {
+  --primary: #80ac53;
+  --primary-dark: #6a9145;
+  --primary-light: #9bc76d;
+  --on-primary: #0f1a08;
+  --tint: #dceccb;
+  --coral: #e8997e;
+  --bg: #f8faf8;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --text2: #4a5568;
+  --muted: #9ca3af;
+  --border: #e5e7eb;
+  --water: #60a5fa;
+  --gold: #fcd34d;
+  --chip: #f0f5f0;
+  color-scheme: light;
+}
+
+.dark {
+  --primary: #9bc76d;
+  --primary-dark: #80ac53;
+  --primary-light: #b5d98f;
+  --on-primary: #0f1a08;
+  --tint: #2d3728;
+  --coral: #f5b89a;
+  --bg: #1a1a1a;
+  --surface: #252a1f;
+  --text: #ffffff;
+  --text2: #d1d5db;
+  --muted: #9ca3af;
+  --border: #374151;
+  --water: #93c5fd;
+  --gold: #fde68a;
+  --chip: #2d3728;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+  --color-on-primary: var(--on-primary);
+  --color-tint: var(--tint);
+  --color-coral: var(--coral);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--text);
+  --color-ink-2: var(--text2);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-water: var(--water);
+  --color-gold: var(--gold);
+  --color-chip: var(--chip);
+  --font-sans:
+    "Space Grotesk Variable", "Space Grotesk Fallback", ui-sans-serif,
+    system-ui, sans-serif;
+}
+
+html {
+  background: var(--bg);
+  color: var(--text);
+  scroll-padding-top: 72px;
+}
+
+body {
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+.post-body {
+  color: var(--text2);
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+.post-body > * + * {
+  margin-top: 1.25rem;
+}
+.post-body h2 {
+  margin-top: 2.75rem;
+  color: var(--text);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  scroll-margin-top: 5rem;
+}
+.post-body h3 {
+  margin-top: 2rem;
+  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 700;
+  scroll-margin-top: 5rem;
+}
+.post-body strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.post-body a {
+  color: var(--primary-dark);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dark .post-body a {
+  color: var(--primary);
+}
+.post-body ul,
+.post-body ol {
+  padding-left: 1.5rem;
+}
+.post-body ul {
+  list-style: disc;
+}
+.post-body ol {
+  list-style: decimal;
+}
+.post-body li + li {
+  margin-top: 0.5rem;
+}
+.post-body li::marker {
+  color: var(--primary);
+}
+.post-body blockquote {
+  border-left: 4px solid var(--primary);
+  padding-left: 1rem;
+  font-style: italic;
+}
+.post-body table {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.post-body th {
+  border-bottom: 2px solid var(--primary);
+  color: var(--text);
+  font-weight: 600;
+  text-align: left;
+}
+.post-body th,
+.post-body td {
+  padding: 0.5rem 0.75rem;
+}
+.post-body tbody tr + tr {
+  border-top: 1px solid var(--border);
+}
+
+/* Marketing kit, shared by every page. The home sections use the same shapes through story.css. */
+@utility eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+@utility pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--chip);
+  color: var(--text);
+}
+@utility card {
+  padding: 18px;
+  border-radius: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 40px -30px rgba(0, 0, 0, 0.4);
+}

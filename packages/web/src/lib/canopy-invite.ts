@@ -1,7 +1,7 @@
 import { Array, Match, Option, Predicate, pipe, String } from 'effect'
 
 const API_URL = pipe(
-  Option.fromNullishOr(process.env.NEXT_PUBLIC_API_URL),
+  Option.fromNullishOr(import.meta.env.VITE_API_URL),
   Option.getOrElse(() => 'https://api.withlily.app/api')
 )
 
