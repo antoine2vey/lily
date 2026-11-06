@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
-import { Array } from 'effect'
+import { Array, Option, Order } from 'effect'
 
 // usage: bun packages/web/scripts/page-bytes.ts [dist=packages/web/dist/client]
 // Gzipped JS and CSS each prerendered page loads up front, checked against a budget. CI runs it from scripts/check-bundle-sizes.sh.
@@ -9,17 +9,23 @@ import { Array } from 'effect'
 
 const JS_BUDGET = 250 * 1024
 const CSS_BUDGET = 32 * 1024
+const [dist = 'packages/web/dist/client'] = process.argv.slice(2)
+
+const post = existsSync(join(dist, 'en/blog'))
+  ? Array.findFirst(
+      Array.sort(readdirSync(join(dist, 'en/blog')), Order.String),
+      (f) => f.endsWith('.html')
+    ).pipe(Option.getOrUndefined)
+  : undefined
 const PAGES = [
   'en.html',
   'fr.html',
   'en/blog.html',
-  'en/blog/advanced-pothos-pruning-techniques.html',
+  `en/blog/${post ?? '<no post built>'}`,
   'en/about.html',
   'fr/privacy.html',
   'join.html',
 ]
-
-const [dist = 'packages/web/dist/client'] = process.argv.slice(2)
 
 const gz = (file: string) =>
   gzipSync(readFileSync(file), { level: 9 }).byteLength
