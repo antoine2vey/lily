@@ -3,13 +3,12 @@
 # Budgets are ~1.5x current sizes as of 2026-04-16. Tighten once stable.
 # admin/js raised 2026-04-17 to accommodate Recharts (analytics dashboard);
 # admin is internal-only so its budget tracks web/js.
+# web is a static prerender, so it is checked per page by packages/web/scripts/page-bytes.ts below.
 
 set -euo pipefail
 
 # Format: "label dir glob budget_bytes"
 BUDGETS=(
-  "web/js     packages/web/out/_next/static/chunks   *.js   1258291"   # 1.2 MB
-  "web/css    packages/web/out/_next/static/chunks   *.css  40960"     # 40 KB
   "admin/js   packages/admin/dist/assets             *.js   1258291"   # 1.2 MB
   "admin/css  packages/admin/dist/assets             *.css  30720"     # 30 KB
 )
@@ -51,6 +50,9 @@ for row in "${BUDGETS[@]}"; do
 
   printf '%-12s %-12s %-12s %s\n' "$label" "$(fmt_bytes "$total")" "$(fmt_bytes "$budget")" "$status"
 done
+
+echo ''
+bun packages/web/scripts/page-bytes.ts || failed=1
 
 if (( failed )); then
   echo ''
