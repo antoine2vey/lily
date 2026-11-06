@@ -7,9 +7,10 @@ import type { ToolExecutionOptions } from 'ai'
 import { Effect, Layer, ManagedRuntime } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const stubToolOptions: ToolExecutionOptions = {
+const stubToolOptions: ToolExecutionOptions<{}> = {
   toolCallId: 'test-call',
   messages: [],
+  context: {},
 }
 
 const mockChunks: ChunkSearchResult[] = [

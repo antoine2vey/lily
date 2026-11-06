@@ -8,9 +8,10 @@ import type { ToolExecutionOptions } from 'ai'
 import { Array, DateTime, Effect, Layer, ManagedRuntime } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const stubToolOptions: ToolExecutionOptions = {
+const stubToolOptions: ToolExecutionOptions<{}> = {
   toolCallId: 'test-call',
   messages: [],
+  context: {},
 }
 
 const testLayer = Layer.mergeAll(
