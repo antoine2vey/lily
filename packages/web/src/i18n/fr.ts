@@ -593,6 +593,13 @@ export const fr = {
       },
     ],
   },
+  Category: {
+    'care-guides': 'Fiches d’entretien',
+    watering: 'Arrosage',
+    'plant-problems': 'Problèmes des plantes',
+    pests: 'Ravageurs et maladies',
+    'houseplant-basics': 'Les bases',
+  },
   Blog: {
     kicker: 'Sur le blog',
     title: 'À lire.',
@@ -801,7 +808,7 @@ export const fr = {
     empty: "Aucun article pour l'instant. Revenez bientôt.",
     metaTitle: 'Blog Soins des Plantes — Lily',
     metaDescription:
-      "Guides d'experts pour l'entretien de vos plantes d'intérieur. Apprenez à arroser, fertiliser et résoudre les problèmes courants.",
+      "Fiches d'entretien des plantes d'intérieur vérifiées auprès de sources universitaires : arrosage, lumière, terreau, ravageurs et feuilles qui jaunissent.",
     searchPlaceholder: 'Rechercher des articles…',
     searchAriaLabel: 'Rechercher dans le blog',
     searchClear: 'Effacer la recherche',
@@ -829,7 +836,7 @@ export const fr = {
       'Obtenez des rappels de soins personnalisés et un diagnostic IA — gratuit pendant 7 jours.',
     ctaButton: 'Télécharger Lily gratuitement →',
     backLink: '← Plus de guides de plantes',
-    metaTitleSuffix: '— Blog Lily',
+    metaTitleSuffix: '| Lily',
   },
   About: {
     heading: 'À propos de Lily',
@@ -899,7 +906,7 @@ export const fr = {
   Privacy: {
     heading: 'Politique de confidentialité',
     metaDescription:
-      'Découvrez comment Lily collecte, utilise et protège vos données personnelles. Politique de confidentialité conforme au RGPD couvrant vos droits, la conservation des données, les cookies et le partage avec des tiers.',
+      'Comment Lily collecte, utilise et protège vos données personnelles selon le RGPD : vos droits, la durée de conservation, les cookies et les tiers.',
     lastUpdated: 'Dernière mise à jour : mars 2026',
     intro:
       "Cette Politique de confidentialité explique comment Lily (« nous » ou « notre ») collecte, utilise, stocke et protège vos données personnelles lorsque vous utilisez l'application mobile Lily (l'« Application ») et notre site web withlily.app. Nous nous engageons à protéger votre vie privée et à respecter le Règlement Général sur la Protection des Données (RGPD), la loi Informatique et Libertés, et toute autre législation applicable en matière de protection des données.",
@@ -1119,7 +1126,7 @@ export const fr = {
   Support: {
     heading: 'Assistance',
     metaDescription:
-      "Obtenez de l'aide avec Lily. Contactez l'assistance et trouvez les réponses aux questions sur les abonnements, la suppression de compte, l'export de données et les fonctionnalités.",
+      "Obtenez de l'aide avec Lily. Contactez l'assistance et trouvez les réponses sur les abonnements, la suppression de compte et l'export de données.",
     intro:
       "Besoin d'aide avec Lily ? Vous êtes au bon endroit. Vous trouverez ci-dessous les réponses aux questions fréquentes et les moyens de contacter notre équipe.",
     contact: {

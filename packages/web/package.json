@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "dev": "vite dev --port 3001",
-    "build": "vite build && bun scripts/seo-check.ts dist/client",
+    "build": "vite build && bun scripts/seo-check.ts dist/client && bun scripts/blog-check.ts --strict --map dist/redirects.map",
     "preview": "sh scripts/serve-dist.sh",
     "seo-check": "bun scripts/seo-check.ts dist/client",
     "tsc": "tsc --noEmit",

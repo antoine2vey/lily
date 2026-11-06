@@ -4,7 +4,7 @@ import { ReadingProgress } from '@/components/blog/ReadingProgress'
 import { StoreButtons } from '@/components/site/StoreButtons'
 import { fmt, type Locale, locales, messagesFor, useI18n } from '@/i18n'
 import { author, authorRef } from '@/lib/authors'
-import { categoryLabel, formatPostDate } from '@/lib/blog'
+import { formatPostDate } from '@/lib/blog'
 import type { PostMeta } from '@/lib/posts'
 import { breadcrumbs, localeUrl, seo } from '@/lib/seo'
 import { OG_IMAGE, ORIGIN } from '@/lib/site'
@@ -96,8 +96,8 @@ function PostPage() {
           <span className="truncate text-ink-2">{meta.title}</span>
         </nav>
         <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted">
-          <span className="rounded-full bg-tint px-3 py-1 font-semibold text-primary-dark capitalize dark:bg-chip dark:text-primary">
-            {categoryLabel(meta.category)}
+          <span className="rounded-full bg-tint px-3 py-1 font-semibold text-primary-dark dark:bg-chip dark:text-primary">
+            {m.Category[meta.category]}
           </span>
           <span>{fmt(t.minRead, { minutes: meta.readingTime })}</span>
           <time dateTime={meta.date}>

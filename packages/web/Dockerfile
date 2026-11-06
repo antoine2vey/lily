@@ -26,5 +26,6 @@ FROM nginx:alpine AS runner
 COPY --from=builder /app/packages/web/dist/client /usr/share/nginx/html
 
 COPY packages/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/packages/web/dist/redirects.map /etc/nginx/redirects.map
 
 CMD sh -c "sed -i s/__PORT__/$PORT/g /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"

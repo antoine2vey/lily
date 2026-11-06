@@ -7,5 +7,6 @@ docker rm -f lily-web-dist >/dev/null 2>&1 || true
 sed "s/__PORT__/80/" nginx.conf > dist/nginx.conf
 docker run -d --name lily-web-dist -p "$PORT:80" \
   -v "$PWD/dist/client:/usr/share/nginx/html:ro" \
-  -v "$PWD/dist/nginx.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine >/dev/null
+  -v "$PWD/dist/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+  -v "$PWD/dist/redirects.map:/etc/nginx/redirects.map:ro" nginx:alpine >/dev/null
 echo "http://127.0.0.1:$PORT"

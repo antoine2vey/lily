@@ -1,4 +1,4 @@
-import { DateTime, Option, pipe, String } from 'effect'
+import { DateTime, Option, pipe } from 'effect'
 import type { Locale } from '@/i18n'
 
 export const formatPostDate = (
@@ -20,6 +20,3 @@ export const formatPostDate = (
         }),
     })
   )
-
-export const categoryLabel = (category: string): string =>
-  pipe(category, String.replaceAll('-', ' '))

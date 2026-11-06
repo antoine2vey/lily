@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Array } from 'effect'
 import { fmt, useI18n } from '@/i18n'
-import { categoryLabel } from '@/lib/blog'
 import type { PostMeta } from '@/lib/posts'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -40,7 +39,7 @@ export function LatestPosts({ posts, total }: Props) {
               <span className="big" aria-hidden="true">
                 {pad(i + 1)}
               </span>
-              <span className="cat">{categoryLabel(post.category)}</span>
+              <span className="cat">{m.Category[post.category]}</span>
               <h3>{post.title}</h3>
               <span className="go">
                 <i>

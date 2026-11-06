@@ -574,6 +574,13 @@ export const en = {
       },
     ],
   },
+  Category: {
+    'care-guides': 'Care guides',
+    watering: 'Watering',
+    'plant-problems': 'Plant problems',
+    pests: 'Pests and diseases',
+    'houseplant-basics': 'Houseplant basics',
+  },
   Blog: {
     kicker: 'From the blog',
     title: 'Read up.',
@@ -784,7 +791,7 @@ export const en = {
     empty: 'No posts yet. Check back soon.',
     metaTitle: 'Plant Care Blog — Lily',
     metaDescription:
-      'Expert guides on caring for your houseplants. Learn how to water, fertilize, and troubleshoot common plant problems.',
+      'Houseplant care guides checked against university extension services: how often to water, light, soil, pests, and fixes for yellow or drooping leaves.',
     searchPlaceholder: 'Search posts…',
     searchAriaLabel: 'Search blog posts',
     searchClear: 'Clear search',
@@ -812,7 +819,7 @@ export const en = {
       'Get personalised care reminders and AI-powered diagnosis — free for 7 days.',
     ctaButton: 'Download Lily Free →',
     backLink: '← More plant care guides',
-    metaTitleSuffix: '— Lily Blog',
+    metaTitleSuffix: '| Lily',
   },
   About: {
     heading: 'About Lily',
@@ -882,7 +889,7 @@ export const en = {
   Privacy: {
     heading: 'Privacy Policy',
     metaDescription:
-      'Learn how Lily collects, uses, and protects your personal data. GDPR-compliant privacy policy covering your rights, data retention, cookies, and third-party sharing.',
+      'How Lily collects, uses, and protects your personal data under the GDPR: your rights, how long data is kept, cookies, and the services we share it with.',
     lastUpdated: 'Last updated: March 2026',
     intro:
       'This Privacy Policy explains how Lily ("we", "us", or "our") collects, uses, stores, and protects your personal data when you use the Lily mobile application (the "App") and our website at withlily.app. We are committed to protecting your privacy and complying with the General Data Protection Regulation (GDPR), the California Consumer Privacy Act (CCPA), and other applicable data protection laws.',
@@ -1064,7 +1071,7 @@ export const en = {
   Terms: {
     heading: 'Terms of Service',
     metaDescription:
-      'Read the Terms of Service for Lily, the plant care app. Understand your rights and our policies.',
+      'The Terms of Service for Lily, the plant care app for iPhone and iPad: using the app, subscriptions and billing, the free trial, and our disclaimer.',
     lastUpdated: 'Last updated: March 2026',
     sections: [
       {

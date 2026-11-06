@@ -3,6 +3,22 @@ import { join, relative } from 'node:path'
 import { Array, Option, Order, pipe, Record, String } from 'effect'
 
 const ORIGIN = 'https://withlily.app'
+const ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: '\u00a0',
+}
+const decodeEntities = (s: string) =>
+  s.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (entity, name: string) =>
+    name.startsWith('#x') || name.startsWith('#X')
+      ? globalThis.String.fromCodePoint(Number.parseInt(name.slice(2), 16))
+      : name.startsWith('#')
+        ? globalThis.String.fromCodePoint(Number(name.slice(1)))
+        : (ENTITIES[name] ?? entity)
+  )
 
 interface Page {
   readonly url: string
@@ -112,7 +128,8 @@ const parse = async (url: string, html: string): Promise<Page> => {
     })
     .transform(new Response(html))
     .text()
-  page.title = page.title.replace(/&amp;/g, '&').trim()
+  page.title = decodeEntities(page.title).trim()
+  page.description = decodeEntities(page.description)
   page.jsonLd.sort()
   return {
     ...page,
