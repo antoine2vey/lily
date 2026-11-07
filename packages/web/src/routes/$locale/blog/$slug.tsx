@@ -123,7 +123,7 @@ function PostPage() {
             </Link>
           </span>
         </div>
-        <h1 className="mb-12 text-4xl leading-tight font-bold tracking-tight text-ink md:text-5xl">
+        <h1 className="mb-6 text-4xl leading-tight font-bold tracking-tight text-ink md:text-5xl">
           {meta.title}
         </h1>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: build-time markdown from our own content/posts */}
