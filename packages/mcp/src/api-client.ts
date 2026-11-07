@@ -295,10 +295,9 @@ export const ApiClientLive = Layer.unwrap(
           },
 
           getPlant: (plantId) =>
-            HttpClientRequest.get(`${baseUrl}/api/plants/${plantId}`).pipe(
-              authed(PlantDetail),
-              Effect.withSpan('ApiClient.getPlant')
-            ),
+            HttpClientRequest.get(
+              `${baseUrl}/api/plants/${encodeURIComponent(plantId)}`
+            ).pipe(authed(PlantDetail), Effect.withSpan('ApiClient.getPlant')),
 
           createPlant: (body) =>
             HttpClientRequest.post(`${baseUrl}/api/plants`).pipe(
@@ -312,7 +311,7 @@ export const ApiClientLive = Layer.unwrap(
             if (params?.limit) query.set('limit', params.limit)
             const qs = query.toString()
             return HttpClientRequest.get(
-              `${baseUrl}/api/plants/${plantId}/logs${qs ? `?${qs}` : ''}`
+              `${baseUrl}/api/plants/${encodeURIComponent(plantId)}/logs${qs ? `?${qs}` : ''}`
             ).pipe(
               authed(CareLogsListResponse),
               Effect.withSpan('ApiClient.getCareLogs')
@@ -321,7 +320,7 @@ export const ApiClientLive = Layer.unwrap(
 
           carePlant: (plantId, body) =>
             HttpClientRequest.post(
-              `${baseUrl}/api/plants/${plantId}/care`
+              `${baseUrl}/api/plants/${encodeURIComponent(plantId)}/care`
             ).pipe(
               HttpClientRequest.bodyJsonUnsafe(body),
               authed(Plant),

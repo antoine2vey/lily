@@ -115,3 +115,47 @@ describe('MCP API client response decoding', () => {
     expect(error.url).toBe('http://api.test/api/care-tasks?includeCanopy=true')
   })
 })
+
+describe('MCP API client plant id path segment', () => {
+  const traversal = '../canopies/me/leave#'
+  const plantId = '3f2b8c1e-5d4a-4b7e-9c0d-1a2b3c4d5e6f'
+
+  const calls: ReadonlyArray<
+    readonly [
+      string,
+      (
+        api: typeof ApiClient.Service
+      ) => Effect.Effect<unknown, unknown, CurrentJwt>,
+    ]
+  > = [
+    ['getPlant', (api: typeof ApiClient.Service) => api.getPlant(traversal)],
+    [
+      'getCareLogs',
+      (api: typeof ApiClient.Service) => api.getCareLogs(traversal),
+    ],
+    [
+      'carePlant',
+      (api: typeof ApiClient.Service) =>
+        api.carePlant(traversal, { careType: 'watering' }),
+    ],
+  ]
+
+  it.each(calls)(
+    '%s keeps a traversal id inside /api/plants/',
+    async (_name, call) => {
+      await run((api) => Effect.exit(call(api)))
+
+      const { pathname } = new URL(requests[0]?.url ?? '')
+      expect(pathname.startsWith('/api/plants/')).toBe(true)
+      expect(pathname).not.toContain('/canopies/')
+    }
+  )
+
+  it('carePlant posts a valid id to /api/plants/<id>/care', async () => {
+    await run((api) => api.carePlant(plantId, { careType: 'watering' }))
+
+    expect(new URL(requests[0]?.url ?? '').pathname).toBe(
+      `/api/plants/${plantId}/care`
+    )
+  })
+})

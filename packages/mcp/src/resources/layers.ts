@@ -4,12 +4,13 @@ import {
   readCareScheduleResource,
   readPlantResource,
 } from '@lily/mcp/resources'
-import { Effect, Schema } from 'effect'
+import { PlantId } from '@lily/mcp/tools/definitions'
+import { Effect } from 'effect'
 import { McpSchema, McpServer } from 'effect/ai'
 
 // ── Plant Resource (templated) ─────────────────────────────────────────
 
-const plantIdParam = McpSchema.param('plantId', Schema.String)
+const plantIdParam = McpSchema.param('plantId', PlantId)
 
 /**
  * The plant resource requires bearer auth and fetches plant details
