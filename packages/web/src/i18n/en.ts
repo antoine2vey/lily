@@ -792,6 +792,8 @@ export const en = {
     metaTitle: 'Plant Care Blog — Lily',
     metaDescription:
       'Houseplant care guides checked against university extension services: how often to water, light, soil, pests, and fixes for yellow or drooping leaves.',
+    metaDescriptionPage:
+      'Houseplant care guides checked against university extension services, page {page} of {total}: watering, light, soil, pests and leaf problems.',
     searchPlaceholder: 'Search posts…',
     searchAriaLabel: 'Search blog posts',
     searchClear: 'Clear search',
