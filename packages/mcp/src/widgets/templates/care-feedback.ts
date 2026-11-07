@@ -6,6 +6,7 @@
  */
 import {
   baseStyles,
+  escFunction,
   fontLink,
   themeScript,
 } from '@lily/mcp/widgets/templates/styles'
@@ -84,11 +85,7 @@ ${themeScript}
       root.innerHTML = html;
     }
 
-    function esc(s) {
-      var d = document.createElement('div');
-      d.textContent = s || '';
-      return d.innerHTML;
-    }
+    ${escFunction}
 
     // Listen for async globals (official ChatGPT data delivery)
     window.addEventListener('openai:set_globals', function() {
