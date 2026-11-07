@@ -1,6 +1,9 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
+export const CHAT_MESSAGE_MAX_LENGTH = 4000
+export const CHAT_TITLE_MAX_LENGTH = 200
+
 // Conversation kind: free-form ('general') or scoped to a specific plant
 export const ChatConversationKind = Schema.Literals(['general', 'plant'])
 export type ChatConversationKind = typeof ChatConversationKind.Type

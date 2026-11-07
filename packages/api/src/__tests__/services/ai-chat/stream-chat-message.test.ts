@@ -167,7 +167,7 @@ describe('streamChatMessage', () => {
     })
   })
 
-  it('should return quota exceeded message when limit reached', async () => {
+  it('streams the quota-exceeded reply and saves nothing when the limit is reached', async () => {
     const messages: ChatMessage[] = []
 
     const result = await Effect.runPromise(
@@ -182,14 +182,11 @@ describe('streamChatMessage', () => {
       )
     )
 
-    // Response should be valid
-    expect(result).toBeDefined()
+    const body = (await drainSseStream(result)).join('')
 
-    // Check that the user message and quota exceeded response were saved
-    expect(messages.length).toBe(2)
-    expect(messages[0]?.role).toBe('user')
-    expect(messages[1]?.role).toBe('assistant')
-    expect(messages[1]?.content).toBe('__QUOTA_EXCEEDED__')
+    expect(body).toContain('"delta":"__QUOTA_EXCEEDED__"')
+    expect(body).not.toContain('Should not see this')
+    expect(messages).toEqual([])
   })
 
   it('should persist messages after consuming the stream', async () => {
