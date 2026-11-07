@@ -123,12 +123,9 @@ function PostPage() {
             </Link>
           </span>
         </div>
-        <h1 className="mb-6 text-4xl leading-tight font-bold tracking-tight text-ink md:text-5xl">
+        <h1 className="mb-12 text-4xl leading-tight font-bold tracking-tight text-ink md:text-5xl">
           {meta.title}
         </h1>
-        <p className="mb-12 text-xl leading-relaxed text-ink-2">
-          {meta.description}
-        </p>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: build-time markdown from our own content/posts */}
         <div className="post-body" dangerouslySetInnerHTML={{ __html: html }} />
         <aside className="mt-16 rounded-3xl bg-tint p-8 text-center dark:bg-surface">
