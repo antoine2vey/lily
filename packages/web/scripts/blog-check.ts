@@ -39,6 +39,7 @@ const BANNED: Record<Locale, ReadonlyArray<RegExp>> = {
     /\bhappy (gardening|growing|planting)\b/i,
     /\bin conclusion\b/i,
     /^#+ *(conclusion|final thoughts)\b/im,
+    /(?<=^|[.!?] )(?:below|the (?:following )?sections below|the following sections)\b[^.\n]*\beach symptom\b/im,
   ],
   fr: [
     /\bcrucia(l|le|ux)\b/i,
@@ -51,6 +52,7 @@ const BANNED: Record<Locale, ReadonlyArray<RegExp>> = {
     /\bvéritable\b/i,
     /\bbon jardinage\b/i,
     /^#+ *(conclusion|le mot de la fin)\b/im,
+    /(?<=^|[.!?] )(?=[^.\n]*(?:chaque symptôme|symptôme par symptôme))(?:voici|pour chaque symptôme|les sections suivantes|ci-dessous)[^.\n]*/im,
   ],
 }
 const BANNED_HOSTS = /example\.com|lilyblog/i
