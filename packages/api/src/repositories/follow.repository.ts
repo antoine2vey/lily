@@ -245,7 +245,13 @@ export const FollowRepositoryLive = Layer.effect(
           const countResult = yield* db
             .select({ value: count() })
             .from(userFollows)
-            .where(eq(userFollows.followingId, params.userId))
+            .innerJoin(users, eq(userFollows.followerId, users.id))
+            .where(
+              and(
+                eq(userFollows.followingId, params.userId),
+                eq(users.publicProfile, true)
+              )
+            )
           const total = extractCount(countResult)
 
           const rows = yield* db
@@ -285,7 +291,12 @@ export const FollowRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(userFollows)
             .innerJoin(users, eq(userFollows.followingId, users.id))
-            .where(eq(userFollows.followerId, params.userId))
+            .where(
+              and(
+                eq(userFollows.followerId, params.userId),
+                eq(users.publicProfile, true)
+              )
+            )
           const total = extractCount(countResult)
 
           const rows = yield* db
@@ -298,7 +309,12 @@ export const FollowRepositoryLive = Layer.effect(
             })
             .from(userFollows)
             .innerJoin(users, eq(userFollows.followingId, users.id))
-            .where(eq(userFollows.followerId, params.userId))
+            .where(
+              and(
+                eq(userFollows.followerId, params.userId),
+                eq(users.publicProfile, true)
+              )
+            )
             .orderBy(desc(userFollows.createdAt))
             .offset(offset)
             .limit(limit)
