@@ -44,14 +44,6 @@ const webSite = {
   name: 'Lily',
   url: ORIGIN,
   publisher: { '@type': 'Organization', name: 'Lily', url: ORIGIN },
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: {
-      '@type': 'EntryPoint',
-      urlTemplate: `${ORIGIN}/en/blog?q={search_term_string}`,
-    },
-    'query-input': 'required name=search_term_string',
-  },
 }
 
 export const Route = createFileRoute('/$locale')({
