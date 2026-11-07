@@ -1,6 +1,7 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   ActivityPushToken,
+  DeviceTokenNotFoundError,
   RegisterActivityTokenRequest,
   RegisterStartTokenRequest,
 } from '@lily/shared'
@@ -17,6 +18,7 @@ export const ActivityPushTokensApi = HttpApiGroup.make('activityPushTokens')
       payload: RegisterStartTokenRequest,
       success: ActivityPushToken.pipe(HttpApiSchema.status(201)),
       error: [
+        DeviceTokenNotFoundError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(400)),
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
@@ -30,6 +32,7 @@ export const ActivityPushTokensApi = HttpApiGroup.make('activityPushTokens')
       payload: RegisterActivityTokenRequest,
       success: ActivityPushToken.pipe(HttpApiSchema.status(201)),
       error: [
+        DeviceTokenNotFoundError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(400)),
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
