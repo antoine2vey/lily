@@ -27,7 +27,10 @@ export const blogIndexHead = (
     locale,
     path,
     title,
-    description: t.metaDescription,
+    description:
+      page > 1
+        ? fmt(t.metaDescriptionPage, { page, total: totalPages })
+        : t.metaDescription,
     imageAlt: `Lily — ${t.heading}`,
     robots: page > 1 ? 'index, follow' : undefined,
     jsonLd: [

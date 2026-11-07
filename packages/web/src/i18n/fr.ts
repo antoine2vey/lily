@@ -809,6 +809,8 @@ export const fr = {
     metaTitle: 'Blog Soins des Plantes — Lily',
     metaDescription:
       "Fiches d'entretien des plantes d'intérieur vérifiées auprès de sources universitaires : arrosage, lumière, terreau, ravageurs et feuilles qui jaunissent.",
+    metaDescriptionPage:
+      "Fiches d'entretien des plantes d'intérieur vérifiées auprès de sources universitaires, page {page} sur {total} : arrosage, lumière, terreau et ravageurs.",
     searchPlaceholder: 'Rechercher des articles…',
     searchAriaLabel: 'Rechercher dans le blog',
     searchClear: 'Effacer la recherche',
