@@ -6,7 +6,9 @@ import {
 } from '@lily/shared/services/file/image-upload'
 import { Array, Effect, Layer } from 'effect'
 
-export const createMockGCSService = (): Layer.Layer<GCSService> => {
+export const createMockGCSService = (
+  options: { privateUploads?: GCSUploadRequest[] } = {}
+): Layer.Layer<GCSService> => {
   const mockService = {
     uploadFile: (
       request: GCSUploadRequest
@@ -42,7 +44,9 @@ export const createMockGCSService = (): Layer.Layer<GCSService> => {
       request: GCSUploadRequest
     ): Effect.Effect<GCSUploadResponse, InvalidImageError> =>
       Effect.map(
-        planImageUpload(request.fileBuffer, request.folder),
+        Effect.tap(planImageUpload(request.fileBuffer, request.folder), () =>
+          Effect.sync(() => options.privateUploads?.push(request))
+        ),
         ({ key }) => ({
           key,
           url: `https://storage.googleapis.com/mock-private-bucket/${key}?signed=true`,

@@ -2,10 +2,13 @@ import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { HTML_BYTES } from '@lily/api/__tests__/fixtures/images'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { uploadChatImage } from '@lily/api/services/ai-chat/endpoints/upload-chat-image'
+import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
+import type { GCSUploadRequest } from '@lily/shared/server'
 import { InvalidImageError } from '@lily/shared/services/file/image-upload'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Exit, Layer } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
 
@@ -24,7 +27,8 @@ describe('uploadChatImage', () => {
     Layer.mergeAll(
       createMockCurrentUser({ id: 'user-1' }),
       createMockGCSService(),
-      createMockFileSystem()
+      createMockFileSystem(),
+      createMockRateLimiterService()
     )
 
   it('should upload an image and return a signed URL', async () => {
@@ -80,7 +84,8 @@ describe('uploadChatImage', () => {
           Layer.mergeAll(
             createMockCurrentUser({ id: 'user-1' }),
             createMockGCSService(),
-            createMockFileSystem(HTML_BYTES)
+            createMockFileSystem(HTML_BYTES),
+            createMockRateLimiterService()
           )
         )
       )
@@ -98,5 +103,36 @@ describe('uploadChatImage', () => {
     )
 
     expect(result.imageUrl).toContain('conv-abc')
+  })
+
+  it('refuses the sixth upload in a minute and stores nothing for it', async () => {
+    const privateUploads: GCSUploadRequest[] = []
+    const upload = uploadChatImage({
+      conversationId: 'conv-1',
+      files: [mockFile],
+    })
+
+    const { firstFive, sixth } = await Effect.runPromise(
+      Effect.gen(function* () {
+        const firstFive = yield* Effect.forEach(Array.range(1, 5), () =>
+          Effect.exit(upload)
+        )
+        const sixth = yield* Effect.exit(upload)
+        return { firstFive, sixth }
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockCurrentUser({ id: 'user-1' }),
+            createMockGCSService({ privateUploads }),
+            createMockFileSystem(),
+            createMockRateLimiterService()
+          )
+        )
+      )
+    )
+
+    expect(Array.every(firstFive, Exit.isSuccess)).toBe(true)
+    expect(failureOf(sixth)).toBeInstanceOf(RateLimitExceededError)
+    expect(privateUploads).toHaveLength(5)
   })
 })
