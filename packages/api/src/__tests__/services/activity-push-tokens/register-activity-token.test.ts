@@ -1,12 +1,19 @@
+import { createTestDeviceToken } from '@lily/api/__tests__/fixtures/device-tokens'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
+import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { registerActivityToken } from '@lily/api/services/activity-push-tokens/endpoints/register-activity-token'
-import type { ActivityPushToken } from '@lily/shared'
+import { type ActivityPushToken, DeviceTokenNotFoundError } from '@lily/shared'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('registerActivityToken', () => {
+  const ownDevice = createMockDeviceTokenRepository([
+    createTestDeviceToken({ id: 'device-A', userId: 'user-1' }),
+  ])
+
   it('confirms the matching start-token when an update token is registered', async () => {
     const startToken: ActivityPushToken = {
       id: 'start-id',
@@ -25,6 +32,7 @@ describe('registerActivityToken', () => {
     }
     const layer = Layer.mergeAll(
       createMockActivityPushTokenRepository({ tokens: [startToken] }),
+      ownDevice,
       createMockCurrentUser({ id: 'user-1' })
     )
 
@@ -63,6 +71,7 @@ describe('registerActivityToken', () => {
     }
     const layer = Layer.mergeAll(
       createMockActivityPushTokenRepository({ tokens: [otherDeviceStart] }),
+      ownDevice,
       createMockCurrentUser({ id: 'user-1' })
     )
 
@@ -80,5 +89,31 @@ describe('registerActivityToken', () => {
       ).pipe(Effect.provide(layer))
     )
     expect(startsAfter[0]?.lastConfirmedAt).toBeNull()
+  })
+
+  it("rejects another user's device token and writes nothing", async () => {
+    const layer = Layer.mergeAll(
+      createMockActivityPushTokenRepository(),
+      createMockDeviceTokenRepository([
+        createTestDeviceToken({ id: 'device-of-user-2', userId: 'user-2' }),
+      ]),
+      createMockCurrentUser({ id: 'user-1' })
+    )
+
+    const exit = await Effect.runPromiseExit(
+      registerActivityToken({
+        activityId: 'activity-xyz',
+        updateToken: 'hijack',
+        deviceTokenId: 'device-of-user-2',
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(failureOf(exit)).toBeInstanceOf(DeviceTokenNotFoundError)
+    const written = await Effect.runPromise(
+      Effect.flatMap(ActivityPushTokenRepository, (r) =>
+        r.findByActivityId('activity-xyz')
+      ).pipe(Effect.provide(layer))
+    )
+    expect(written).toBeNull()
   })
 })

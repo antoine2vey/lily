@@ -1,6 +1,12 @@
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
+import type { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
+import { requireOwnDeviceToken } from '@lily/api/services/activity-push-tokens/helpers/require-own-device-token'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import type { ActivityPushToken, RegisterStartTokenRequest } from '@lily/shared'
+import type {
+  ActivityPushToken,
+  DeviceTokenNotFoundError,
+  RegisterStartTokenRequest,
+} from '@lily/shared'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -9,12 +15,13 @@ export const registerStartToken = (
   request: RegisterStartTokenRequest
 ): Effect.Effect<
   ActivityPushToken,
-  SqlError,
-  ActivityPushTokenRepository | CurrentUser
+  DeviceTokenNotFoundError | SqlError,
+  ActivityPushTokenRepository | DeviceTokenRepository | CurrentUser
 > =>
   Effect.gen(function* () {
     const repo = yield* ActivityPushTokenRepository
     const { id: userId } = yield* CurrentUser
+    yield* requireOwnDeviceToken(request.deviceTokenId)
 
     const upserted = yield* repo.upsertStartToken({
       userId,
