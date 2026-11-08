@@ -17,6 +17,19 @@ export const fontLink = `<link rel="preconnect" href="https://fonts.googleapis.c
 <meta name="color-scheme" content="light dark">`
 
 /**
+ * Source of the widgets' `esc()` helper. Output goes into element text and
+ * double-quoted attributes, so quotes are escaped as well as & < >.
+ */
+export const escFunction = `function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }`
+
+/**
  * Inline script that detects dark mode and adds .dark to <html>.
  *
  * ChatGPT sets window.openai.theme asynchronously via a custom
