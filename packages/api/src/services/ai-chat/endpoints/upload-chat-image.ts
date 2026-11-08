@@ -1,4 +1,9 @@
-import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
+import {
+  RATE_LIMITS,
+  RateLimiterService,
+} from '@lily/api/services/rate-limiter/service'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type {
   GCSConfigError,
@@ -18,10 +23,25 @@ export const uploadChatImage = ({
   files: readonly PersistedFile[]
 }): Effect.Effect<
   { imageUrl: string; imageKey: string },
-  GCSUploadError | InvalidImageError | GCSConfigError | PlatformError,
-  GCSService | FileSystem | CurrentUser
+  | GCSUploadError
+  | InvalidImageError
+  | GCSConfigError
+  | PlatformError
+  | RateLimitExceededError,
+  GCSService | FileSystem | CurrentUser | RateLimiterService
 > =>
   Effect.gen(function* () {
+    const user = yield* CurrentUser
+    const rateLimiter = yield* RateLimiterService
+    yield* rateLimiter.checkRateLimit(
+      `chat-image-upload:${user.id}`,
+      RATE_LIMITS.CHAT_IMAGE_UPLOAD
+    )
+    yield* rateLimiter.checkRateLimit(
+      `chat-image-upload:daily:${user.id}`,
+      RATE_LIMITS.CHAT_IMAGE_UPLOAD_DAILY
+    )
+
     const fileSystem = yield* FileSystem
     const gcs = yield* GCSService
 

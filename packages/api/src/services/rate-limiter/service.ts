@@ -33,6 +33,8 @@ export const RATE_LIMITS = {
   USER_SEARCH: { maxRequests: 30, windowSeconds: 60 },
   CANOPY_INVITE_PREVIEW: { maxRequests: 30, windowSeconds: 60 },
   CANOPY_INVITATION: { maxRequests: 20, windowSeconds: 3600 },
+  CHAT_IMAGE_UPLOAD: { maxRequests: 5, windowSeconds: 60 },
+  CHAT_IMAGE_UPLOAD_DAILY: { maxRequests: 50, windowSeconds: 86_400 },
 } as const
 
 /**

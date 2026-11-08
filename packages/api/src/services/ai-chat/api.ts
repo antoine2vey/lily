@@ -1,4 +1,5 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
+import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
 import {
   ChatConversation,
@@ -147,6 +148,7 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
         error: [
           ConversationNotFoundError.pipe(HttpApiSchema.status(404)),
           InvalidImageError,
+          RateLimitExceededError,
           GCSUploadError.pipe(HttpApiSchema.status(500)),
           GCSConfigError.pipe(HttpApiSchema.status(500)),
           Schema.Struct({ error: Schema.String }).pipe(
