@@ -1,9 +1,14 @@
 import { ApiClient } from '@lily/mcp/api-client'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthError, OAuthService } from '@lily/mcp/auth/oauth-service'
-import { grantScopes } from '@lily/mcp/auth/scopes'
+import {
+  cookieOptions,
+  open,
+  PENDING_COOKIE,
+  PendingSecret,
+} from '@lily/mcp/auth/pending-authorization'
 import { McpServerUrl } from '@lily/mcp/config'
-import { Array, Effect, Option, pipe } from 'effect'
+import { DateTime, Effect, Option } from 'effect'
 import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 const escapeHtml = (s: string) =>
@@ -27,16 +32,20 @@ const errorHtml = (message: string) =>
     }
   )
 
+const SAME_BROWSER_MESSAGE =
+  'This link must be opened in the same browser where you started connecting. Go back to that browser and request a new link.'
+
 /**
  * Handles GET /verify — magic link callback.
  *
- * Called when the user clicks the magic link in their email.
- * The code in the URL is a magic link token created by the API server.
+ * The emailed link carries only the pending authorization id and the magic
+ * link code. The OAuth request itself comes from the signed cookie set by
+ * POST /confirm, so the link completes only in the browser that asked for it.
  *
  * Flow:
- * 1. Calls ApiClient.issueServiceToken({ magicLinkCode }) to validate the
+ * 1. Matches the cookie against the pending id in the URL
+ * 2. Calls ApiClient.issueServiceToken({ magicLinkCode }) to validate the
  *    magic link and obtain an API JWT + user profile
- * 2. Validates OAuth params (client_id, redirect_uri, code_challenge)
  * 3. Upserts API credentials into oauth_user_api_credentials
  * 4. Creates an OAuth authorization code
  * 5. Redirects back to the MCP client with the auth code
@@ -52,11 +61,23 @@ export const verifyHandler = Effect.gen(function* () {
   const params = url.searchParams
 
   const code = params.get('code')
-  if (!code) {
+  const pendingId = params.get('pending')
+  if (!code || !pendingId) {
     return errorHtml('Missing verification code')
   }
 
-  // Validate magic link and get API JWT via the API server.
+  const secret = yield* PendingSecret
+  const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
+  const pending = Option.fromNullishOr(request.cookies[PENDING_COOKIE]).pipe(
+    Option.flatMap((sealed) => open(secret, sealed, nowMs)),
+    Option.filter((pending) => pending.id === pendingId)
+  )
+  if (Option.isNone(pending)) {
+    return errorHtml(SAME_BROWSER_MESSAGE)
+  }
+  const { clientId, redirectUri, codeChallenge, scopes, state, resource } =
+    pending.value
+
   const authResponse = yield* apiClient
     .issueServiceToken({ magicLinkCode: code })
     .pipe(
@@ -75,52 +96,6 @@ export const verifyHandler = Effect.gen(function* () {
       )
     )
 
-  // Validate required OAuth params before storing credentials
-  const clientId = params.get('client_id')
-  if (!clientId) {
-    return errorHtml('Missing client_id')
-  }
-
-  const maybeClient = yield* oauthService.getClient(clientId)
-  if (Option.isNone(maybeClient)) {
-    return errorHtml('Unknown client')
-  }
-  const client = maybeClient.value
-
-  const redirectUri = params.get('redirect_uri')
-  const codeChallenge = params.get('code_challenge')
-  if (!redirectUri || !codeChallenge) {
-    return errorHtml('Missing redirect_uri or code_challenge')
-  }
-
-  // Validate redirect_uri against registered URIs (RFC 6749 §10.6)
-  if (
-    !Array.some(client.redirect_uris as string[], (uri) => uri === redirectUri)
-  ) {
-    return errorHtml('redirect_uri does not match registered URIs')
-  }
-
-  // Validate code_challenge_method — only S256 is supported
-  const codeChallengeMethod = pipe(
-    Option.fromNullishOr(params.get('code_challenge_method')),
-    Option.getOrElse(() => 'S256')
-  )
-  if (codeChallengeMethod !== 'S256') {
-    return errorHtml('Only S256 code_challenge_method is supported')
-  }
-
-  const maybeScopes = grantScopes(params.get('scope'))
-  if (Option.isNone(maybeScopes)) {
-    return errorHtml('Unsupported scope requested')
-  }
-  const scopes = maybeScopes.value
-  const state = Option.getOrUndefined(Option.fromNullishOr(params.get('state')))
-  const resource = Option.getOrUndefined(
-    Option.fromNullishOr(params.get('resource'))
-  )
-
-  // Store API credentials and create authorization code in parallel
-  // (independent DB writes — no ordering dependency)
   const [, authCode] = yield* Effect.all(
     [
       repo.upsertUserApiCredentials({
@@ -141,7 +116,6 @@ export const verifyHandler = Effect.gen(function* () {
     { concurrency: 'unbounded' }
   )
 
-  // Redirect back to client with auth code
   const redirectUrl = new URL(redirectUri)
   redirectUrl.searchParams.set('code', authCode)
   if (state) {
@@ -150,7 +124,12 @@ export const verifyHandler = Effect.gen(function* () {
 
   return HttpServerResponse.redirect(redirectUrl.toString(), {
     status: 302,
-  })
+  }).pipe(
+    HttpServerResponse.expireCookieUnsafe(
+      PENDING_COOKIE,
+      cookieOptions(serverUrl)
+    )
+  )
 }).pipe(
   Effect.catchTag('OAuthError', (err) =>
     Effect.succeed(errorHtml(err.error_description))
