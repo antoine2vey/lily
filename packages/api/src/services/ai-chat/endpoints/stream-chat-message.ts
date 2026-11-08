@@ -73,7 +73,6 @@ const makeImageParts = (url: string | undefined): UIMessage['parts'] =>
 
 export interface StreamChatRequest {
   message: string
-  imageUrl?: string
   imageKey?: string
 }
 
@@ -178,11 +177,10 @@ export const streamChatMessage = (
       return yield* new ConversationNotFoundError({ id: conversation.id })
     }
 
-    // If imageKey is provided, generate a fresh signed URL for AI processing
     const imageSignedUrl: string | undefined = yield* pipe(
       Option.fromNullishOr(request.imageKey),
       Option.match({
-        onNone: () => Effect.succeed(request.imageUrl),
+        onNone: () => Effect.undefined,
         onSome: (key: string) => gcs.getSignedUrl(key),
       })
     )

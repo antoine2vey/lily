@@ -59,9 +59,6 @@ export const AIChatApiLive = (api: Api) =>
             Effect.flatMap((conversation) =>
               streamChatMessage(conversation, {
                 message: payload.message,
-                ...(payload.imageUrl !== undefined
-                  ? { imageUrl: payload.imageUrl }
-                  : {}),
                 ...(payload.imageKey !== undefined
                   ? { imageKey: payload.imageKey }
                   : {}),

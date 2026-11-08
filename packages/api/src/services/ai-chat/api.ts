@@ -27,7 +27,6 @@ const conversationIdParam = Schema.String.check(Schema.isGUID())
 
 const StreamChatRequest = Schema.Struct({
   message: Schema.String.check(Schema.isMaxLength(CHAT_MESSAGE_MAX_LENGTH)),
-  imageUrl: Schema.optional(Schema.String),
   imageKey: Schema.optional(Schema.String),
 })
 
