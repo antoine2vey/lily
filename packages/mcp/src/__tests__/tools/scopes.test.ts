@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest'
 const unexpiredJwt = `h.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.s`
 
 const clientInfo = { name: 'scope-test', version: '1.0.0' }
+const PLANT_ID = '3f2b8c1e-5d4a-4b7e-9c0d-1a2b3c4d5e6f'
 
 const INTERNAL_URL =
   'http://api-withlily.railway.internal:3000/api/plants/someone-elses'
@@ -101,7 +102,7 @@ describe('tool scopes', () => {
   it('refuses a write tool for a read-only token', async () => {
     const result = await callTool(
       'care_plant',
-      { plantId: 'p1', type: 'watering' },
+      { plantId: PLANT_ID, type: 'watering' },
       ['plants:read']
     )
 
@@ -120,11 +121,9 @@ describe('tool scopes', () => {
 
 describe('tool API failures', () => {
   it('reports a 403 from the API without the internal URL', async () => {
-    const result = await callTool(
-      'get_plant_details',
-      { plantId: 'someone-elses' },
-      ['plants:read']
-    )
+    const result = await callTool('get_plant_details', { plantId: PLANT_ID }, [
+      'plants:read',
+    ])
 
     expect(result.isError).toBe(true)
     expect(result.text).toBe('Not found, or not one of your plants.')
