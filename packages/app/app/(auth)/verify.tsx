@@ -47,7 +47,7 @@ export default function VerifyScreen() {
   const [verifyState, setVerifyState] = useState<VerifyState>({
     _tag: 'Verifying',
   })
-  const { verifyMagicLink } = useAuth()
+  const { state, verifyMagicLink } = useAuth()
   const router = useRouter()
 
   // A magic-link code is single-use: the effect re-runs when `verifyMagicLink`
@@ -57,6 +57,14 @@ export default function VerifyScreen() {
 
   useEffect(() => {
     if (verificationCode && attemptedCodeRef.current === verificationCode) {
+      return
+    }
+    if (state._tag === 'Loading') return
+    // Requesting a link needs a signed-out device, so a link opened while
+    // signed in was not requested here. Verifying it would swap this session
+    // for whichever account the link belongs to.
+    if (state._tag !== 'Unauthenticated') {
+      router.replace('/')
       return
     }
     attemptedCodeRef.current = verificationCode ?? null
@@ -90,7 +98,7 @@ export default function VerifyScreen() {
     }
 
     verify()
-  }, [verificationCode, verifyMagicLink, t])
+  }, [verificationCode, verifyMagicLink, t, state._tag, router])
 
   // Hold the welcome state long enough to read, then let the index route
   // pick the next screen (username, onboarding or the app). AuthContext leaves
