@@ -44,17 +44,17 @@ export const sendInternalMagicLink = (input: {
     // Validate email format
     yield* validateEmail(normalized)
 
-    // Silently succeed for unknown emails to prevent email enumeration
-    const existingUser = yield* userRepo.findByEmail(normalized)
-    if (!existingUser) {
-      return { message: 'Magic link sent' }
-    }
-
-    // Rate limit
+    // Rate-limit before the account lookup so known and unknown emails hit
+    // the limit identically and the 429 can't reveal which accounts exist.
     yield* rateLimiter.checkRateLimit(
       `magic-link:${normalized}`,
       RATE_LIMITS.MAGIC_LINK
     )
+
+    const existingUser = yield* userRepo.findByEmail(normalized)
+    if (!existingUser) {
+      return { message: 'Magic link sent' }
+    }
 
     // Create magic link token
     const { token } = yield* createMagicLinkToken(normalized)
