@@ -21,6 +21,12 @@ export interface MockAiServiceData {
   chatStreamError?: string
   uiChunks?: readonly Record<string, unknown>[]
   completesAfter?: Duration.Input
+  chatStreamCalls?: ChatStreamCall[]
+}
+
+export interface ChatStreamCall {
+  messages: UIMessage[]
+  imageOptions?: { imageUrl?: string; imageKey?: string } | undefined
 }
 
 // Create an async generator to simulate the text stream
@@ -76,10 +82,11 @@ export const createMockAiService = (
       }),
     chatStream: (
       _conversation: ChatConversation,
-      _messages: UIMessage[],
-      _imageOptions?: { imageUrl?: string; imageKey?: string }
+      messages: UIMessage[],
+      imageOptions?: { imageUrl?: string; imageKey?: string }
     ) =>
       Effect.gen(function* () {
+        data.chatStreamCalls?.push({ messages, imageOptions })
         const completionDeferred = yield* Deferred.make<
           readonly StepData[],
           ChatStreamError
