@@ -1,5 +1,6 @@
 import { OAuthIdentityRepository } from '@lily/api/repositories/oauth-identity.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { normalizeEmail } from '@lily/api/services/auth/helpers/create-magic-link'
 import { issueSession } from '@lily/api/services/auth/helpers/issue-session'
 import {
   OAuthVerifierService,
@@ -42,9 +43,9 @@ const buildFullName = (
  *  1. Verify the provider ID token (JWKS, audience, expiry).
  *  2. If an `oauth_identities` row already exists for (provider, sub) → load
  *     that user and issue a session (refresh snapshot fields for next time).
- *  3. Otherwise look up `users` by email:
- *     - Hit + at least one side verified → link new identity to existing user.
- *     - Hit + neither verified → fail (security).
+ *  3. Otherwise require the provider to assert `email_verified`, then look up
+ *     `users` by the normalized email:
+ *     - Hit → link new identity to existing user (marking it verified).
  *     - Miss → create user + link identity.
  *  4. Issue JWT + refresh token via `issueSession`.
  */
@@ -107,7 +108,14 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
     Option.match({
       onNone: () =>
         Effect.gen(function* () {
-          const existingByEmail = yield* userRepo.findByEmail(verified.email)
+          if (!verified.emailVerified) {
+            return yield* new AuthError({
+              message:
+                'Your sign-in provider has not verified this email. Sign in with a magic link instead.',
+            })
+          }
+          const email = normalizeEmail(verified.email)
+          const existingByEmail = yield* userRepo.findByEmail(email)
 
           const targetUser = yield* pipe(
             Option.fromNullishOr(existingByEmail),
@@ -118,8 +126,8 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
                 // first/last name from provider data, so signed-in users see
                 // their real name on the profile screen right away.
                 userRepo.create({
-                  email: verified.email,
-                  emailVerified: verified.emailVerified,
+                  email,
+                  emailVerified: true,
                   ...(firstName ? { firstName } : {}),
                   ...(lastName ? { lastName } : {}),
                   ...(payload.timezone ? { timezone: payload.timezone } : {}),
@@ -127,15 +135,7 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
                 }),
               onSome: (existing) =>
                 Effect.gen(function* () {
-                  const eitherVerified =
-                    existing.emailVerified || verified.emailVerified
-                  if (!eitherVerified) {
-                    return yield* new AuthError({
-                      message:
-                        'An account with this email exists but cannot be verified for merging. Sign in with magic link first.',
-                    })
-                  }
-                  if (!existing.emailVerified && verified.emailVerified) {
+                  if (!existing.emailVerified) {
                     const updated = yield* userRepo.update(existing.id, {
                       emailVerified: true,
                     })
