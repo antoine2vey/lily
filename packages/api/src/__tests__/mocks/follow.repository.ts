@@ -67,9 +67,9 @@ export const createMockFollowRepository = (
   const toUserCardPage = (
     params: { userId: string; currentUserId: string },
     isEdge: (follow: FollowRecord) => boolean,
-    otherSide: 'followerId' | 'followingId'
+    otherSide: 'followerId' | 'followingId',
+    isListed: (user: MockUser) => boolean
   ) => {
-    const isOwnList = params.userId === params.currentUserId
     const items = pipe(
       follows,
       Array.filter(isEdge),
@@ -77,7 +77,7 @@ export const createMockFollowRepository = (
         pipe(
           Array.findFirst(
             mockUsers,
-            (u) => u.id === f[otherSide] && (isOwnList || u.publicProfile)
+            (u) => u.id === f[otherSide] && isListed(u)
           ),
           Option.map((u) => toUserCard(u, params.currentUserId))
         )
@@ -115,7 +115,8 @@ export const createMockFollowRepository = (
         toUserCardPage(
           params,
           (f) => f.followingId === params.userId,
-          'followerId'
+          'followerId',
+          (u) => u.publicProfile
         )
       ),
 
@@ -124,7 +125,8 @@ export const createMockFollowRepository = (
         toUserCardPage(
           params,
           (f) => f.followerId === params.userId,
-          'followingId'
+          'followingId',
+          (u) => params.userId === params.currentUserId || u.publicProfile
         )
       ),
 

@@ -103,13 +103,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     )
 
-    it.each(['getFollowing', 'getFollowers'] as const)(
-      '%s on your own list keeps private accounts in items and total',
-      async (kind) => {
-        const { names, total } = await list(kind, subject)
-        expect([...names].sort()).toEqual([`f${run}_private`, `f${run}_public`])
-        expect(total).toBe(2)
-      }
-    )
+    it('getFollowing on your own list keeps private accounts in items and total', async () => {
+      const { names, total } = await list('getFollowing', subject)
+      expect([...names].sort()).toEqual([`f${run}_private`, `f${run}_public`])
+      expect(total).toBe(2)
+    })
+
+    it('getFollowers on your own list still leaves out private accounts', async () => {
+      expect(await list('getFollowers', subject)).toEqual({
+        names: [`f${run}_public`],
+        total: 1,
+      })
+    })
   }
 )

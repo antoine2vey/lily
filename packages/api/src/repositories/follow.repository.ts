@@ -167,8 +167,8 @@ const shownPlants = (userId: SQLWrapper | string) =>
 const plantCountFor = (userId: SQLWrapper | string) =>
   sql<number>`(SELECT count(*)::int FROM ${plants} WHERE ${shownPlants(userId)})`
 
-// Your own lists stay complete so you can still unfollow a private account.
-const listedUsers = (params: { userId: string; currentUserId: string }) =>
+// You can still see and unfollow the private accounts you follow.
+const listedFollowees = (params: { userId: string; currentUserId: string }) =>
   params.userId === params.currentUserId
     ? undefined
     : eq(users.publicProfile, true)
@@ -255,7 +255,7 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followingId, params.userId),
-                listedUsers(params)
+                eq(users.publicProfile, true)
               )
             )
           const total = extractCount(countResult)
@@ -273,7 +273,7 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followingId, params.userId),
-                listedUsers(params)
+                eq(users.publicProfile, true)
               )
             )
             .orderBy(desc(userFollows.createdAt))
@@ -300,7 +300,7 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followerId, params.userId),
-                listedUsers(params)
+                listedFollowees(params)
               )
             )
           const total = extractCount(countResult)
@@ -318,7 +318,7 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followerId, params.userId),
-                listedUsers(params)
+                listedFollowees(params)
               )
             )
             .orderBy(desc(userFollows.createdAt))
