@@ -35,13 +35,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
     )
 
-    const list = (kind: 'getFollowers' | 'getFollowing') =>
+    const list = (
+      kind: 'getFollowers' | 'getFollowing',
+      currentUserId: string
+    ) =>
       Effect.runPromise(
         Effect.gen(function* () {
           const repo = yield* FollowRepository
           const { items, total } = yield* repo[kind]({
             userId: subject,
-            currentUserId: viewer,
+            currentUserId,
           })
           return { names: Array.map(items, (item) => item.name), total }
         }).pipe(Effect.provide(RepoLive))
@@ -90,18 +93,23 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await pool.end()
     })
 
-    it('getFollowing leaves out private accounts from items and total', async () => {
-      expect(await list('getFollowing')).toEqual({
-        names: [`f${run}_public`],
-        total: 1,
-      })
-    })
+    it.each(['getFollowing', 'getFollowers'] as const)(
+      '%s on someone else leaves out private accounts from items and total',
+      async (kind) => {
+        expect(await list(kind, viewer)).toEqual({
+          names: [`f${run}_public`],
+          total: 1,
+        })
+      }
+    )
 
-    it('getFollowers leaves out private accounts from items and total', async () => {
-      expect(await list('getFollowers')).toEqual({
-        names: [`f${run}_public`],
-        total: 1,
-      })
-    })
+    it.each(['getFollowing', 'getFollowers'] as const)(
+      '%s on your own list keeps private accounts in items and total',
+      async (kind) => {
+        const { names, total } = await list(kind, subject)
+        expect([...names].sort()).toEqual([`f${run}_private`, `f${run}_public`])
+        expect(total).toBe(2)
+      }
+    )
   }
 )
