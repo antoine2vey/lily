@@ -167,6 +167,12 @@ const shownPlants = (userId: SQLWrapper | string) =>
 const plantCountFor = (userId: SQLWrapper | string) =>
   sql<number>`(SELECT count(*)::int FROM ${plants} WHERE ${shownPlants(userId)})`
 
+// You can still see and unfollow the private accounts you follow.
+const listedFollowees = (params: { userId: string; currentUserId: string }) =>
+  params.userId === params.currentUserId
+    ? undefined
+    : eq(users.publicProfile, true)
+
 export const FollowRepositoryLive = Layer.effect(
   FollowRepository,
   Effect.gen(function* () {
@@ -245,7 +251,13 @@ export const FollowRepositoryLive = Layer.effect(
           const countResult = yield* db
             .select({ value: count() })
             .from(userFollows)
-            .where(eq(userFollows.followingId, params.userId))
+            .innerJoin(users, eq(userFollows.followerId, users.id))
+            .where(
+              and(
+                eq(userFollows.followingId, params.userId),
+                eq(users.publicProfile, true)
+              )
+            )
           const total = extractCount(countResult)
 
           const rows = yield* db
@@ -285,7 +297,12 @@ export const FollowRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(userFollows)
             .innerJoin(users, eq(userFollows.followingId, users.id))
-            .where(eq(userFollows.followerId, params.userId))
+            .where(
+              and(
+                eq(userFollows.followerId, params.userId),
+                listedFollowees(params)
+              )
+            )
           const total = extractCount(countResult)
 
           const rows = yield* db
@@ -298,7 +315,12 @@ export const FollowRepositoryLive = Layer.effect(
             })
             .from(userFollows)
             .innerJoin(users, eq(userFollows.followingId, users.id))
-            .where(eq(userFollows.followerId, params.userId))
+            .where(
+              and(
+                eq(userFollows.followerId, params.userId),
+                listedFollowees(params)
+              )
+            )
             .orderBy(desc(userFollows.createdAt))
             .offset(offset)
             .limit(limit)

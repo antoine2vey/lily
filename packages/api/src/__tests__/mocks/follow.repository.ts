@@ -64,6 +64,29 @@ export const createMockFollowRepository = (
     isFollowing: isFollowing(currentUserId, user.id),
   })
 
+  const toUserCardPage = (
+    params: { userId: string; currentUserId: string },
+    isEdge: (follow: FollowRecord) => boolean,
+    otherSide: 'followerId' | 'followingId',
+    isListed: (user: MockUser) => boolean
+  ) => {
+    const items = pipe(
+      follows,
+      Array.filter(isEdge),
+      Array.map((f) =>
+        pipe(
+          Array.findFirst(
+            mockUsers,
+            (u) => u.id === f[otherSide] && isListed(u)
+          ),
+          Option.map((u) => toUserCard(u, params.currentUserId))
+        )
+      ),
+      Array.getSomes
+    )
+    return { items, total: items.length }
+  }
+
   const repo: IFollowRepository = {
     follow: (followerId, followingId, notification) =>
       Effect.sync(() => {
@@ -89,47 +112,21 @@ export const createMockFollowRepository = (
 
     getFollowers: (params) =>
       Effect.succeed(
-        pipe(
-          follows,
-          Array.filter((f) => f.followingId === params.userId),
-          (allFollows) => {
-            const items = pipe(
-              allFollows,
-              Array.map((f) =>
-                pipe(
-                  Array.findFirst(
-                    mockUsers,
-                    (u) => u.id === f.followerId && u.publicProfile
-                  ),
-                  Option.map((u) => toUserCard(u, params.currentUserId))
-                )
-              ),
-              Array.getSomes
-            )
-            return {
-              items,
-              total: allFollows.length,
-            }
-          }
+        toUserCardPage(
+          params,
+          (f) => f.followingId === params.userId,
+          'followerId',
+          (u) => u.publicProfile
         )
       ),
 
     getFollowing: (params) =>
       Effect.succeed(
-        pipe(
-          follows,
-          Array.filter((f) => f.followerId === params.userId),
-          Array.map((f) =>
-            pipe(
-              Array.findFirst(mockUsers, (u) => u.id === f.followingId),
-              Option.map((u) => toUserCard(u, params.currentUserId))
-            )
-          ),
-          Array.getSomes,
-          (items) => ({
-            items,
-            total: items.length,
-          })
+        toUserCardPage(
+          params,
+          (f) => f.followerId === params.userId,
+          'followingId',
+          (u) => params.userId === params.currentUserId || u.publicProfile
         )
       ),
 
