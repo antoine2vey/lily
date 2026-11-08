@@ -1,6 +1,9 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
+export const CHAT_MESSAGE_MAX_LENGTH = 4000
+export const CHAT_TITLE_MAX_LENGTH = 200
+
 // Conversation kind: free-form ('general') or scoped to a specific plant
 export const ChatConversationKind = Schema.Literals(['general', 'plant'])
 export type ChatConversationKind = typeof ChatConversationKind.Type
@@ -33,7 +36,9 @@ export const ChatMessage = Schema.Struct({
 export const CreateConversationRequest = Schema.Struct({
   kind: ChatConversationKind,
   plantId: Schema.optional(Schema.String),
-  title: Schema.optional(Schema.String),
+  title: Schema.optional(
+    Schema.String.check(Schema.isMaxLength(CHAT_TITLE_MAX_LENGTH))
+  ),
 })
 export type CreateConversationRequest = typeof CreateConversationRequest.Type
 

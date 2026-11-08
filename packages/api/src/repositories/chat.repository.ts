@@ -121,8 +121,10 @@ export interface IChatRepository {
     conversationId: string
     beforeDate: Date
   }) => Effect.Effect<ChatMessageRow[], SqlError>
+  /** The `limit` most recent messages, oldest first. */
   readonly getMessagesAsUIMessages: (
-    conversationId: string
+    conversationId: string,
+    limit: number
   ) => Effect.Effect<UIMessage[], SqlError>
   readonly create: (
     data: CreateChatMessageData
@@ -330,12 +332,14 @@ export const ChatRepositoryLive = Layer.effect(
 
       getMessagesAsUIMessages: Effect.fn(
         'ChatRepository.getMessagesAsUIMessages'
-      )(function* (conversationId: string) {
-        const rows = yield* db
+      )(function* (conversationId: string, limit: number) {
+        const newestFirst = yield* db
           .select()
           .from(chatMessages)
           .where(eq(chatMessages.conversationId, conversationId))
-          .orderBy(asc(chatMessages.createdAt))
+          .orderBy(desc(chatMessages.createdAt))
+          .limit(limit)
+        const rows = Array.reverse(newestFirst)
 
         // Only text and file parts are safe for convertToModelMessages.
         // Tool UI parts (e.g. "tool-createDiagnosis") are for frontend

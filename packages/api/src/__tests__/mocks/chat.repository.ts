@@ -225,7 +225,7 @@ export const createMockChatRepository = (
       return Effect.succeed(paginate(items, total, page, limit))
     },
 
-    getMessagesAsUIMessages: (conversationId: string) => {
+    getMessagesAsUIMessages: (conversationId: string, limit: number) => {
       const filtered = Array.filter(
         data.messages,
         (msg) => msg.conversationId === conversationId
@@ -237,11 +237,14 @@ export const createMockChatRepository = (
           (msg: ChatMessage) => new Date(msg.createdAt)
         )
       )
-      const uiMessages: UIMessage[] = Array.map(sorted, (msg) => ({
-        id: msg.id,
-        role: msg.role as 'user' | 'assistant',
-        parts: [{ type: 'text' as const, text: msg.content }],
-      }))
+      const uiMessages: UIMessage[] = Array.map(
+        Array.takeRight(sorted, limit),
+        (msg) => ({
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant',
+          parts: [{ type: 'text' as const, text: msg.content }],
+        })
+      )
       return Effect.succeed(uiMessages)
     },
 
