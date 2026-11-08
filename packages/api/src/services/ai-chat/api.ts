@@ -1,6 +1,7 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
 import {
+  CHAT_MESSAGE_MAX_LENGTH,
   ChatConversation,
   ChatConversationKind,
   ChatConversationListResponse,
@@ -24,7 +25,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 const conversationIdParam = Schema.String.check(Schema.isGUID())
 
 const StreamChatRequest = Schema.Struct({
-  message: Schema.String,
+  message: Schema.String.check(Schema.isMaxLength(CHAT_MESSAGE_MAX_LENGTH)),
   imageUrl: Schema.optional(Schema.String),
   imageKey: Schema.optional(Schema.String),
 })

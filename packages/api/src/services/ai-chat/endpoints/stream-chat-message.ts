@@ -56,6 +56,10 @@ export const streamCompletionTimeout = '3 minutes'
 
 const QUOTA_EXCEEDED_KEY = '__QUOTA_EXCEEDED__'
 
+// Recent turns are what the model needs to follow up. A fixed window keeps
+// each turn's load and prompt size flat however long the conversation grows.
+const HISTORY_WINDOW = 30
+
 const makeImageParts = (url: string | undefined): UIMessage['parts'] =>
   pipe(
     Option.fromNullishOr(url),
@@ -204,19 +208,6 @@ export const streamChatMessage = (
       )
 
     if (Option.isNone(reservation)) {
-      const assistantUIMessage: UIMessage = {
-        id: generateMessageId('assistant'),
-        role: 'assistant',
-        parts: [{ type: 'text', text: QUOTA_EXCEEDED_KEY }],
-      }
-
-      yield* chatRepo.saveChat({
-        conversationId: conversation.id,
-        userId,
-        messages: [userMessage, assistantUIMessage],
-      })
-      yield* chatRepo.touchLastMessageAt(conversation.id)
-
       async function* quotaChunks() {
         yield { type: 'text-start', id: 'quota-msg' }
         yield {
@@ -242,7 +233,8 @@ export const streamChatMessage = (
 
     const startStream = Effect.gen(function* () {
       const previousMessages = yield* chatRepo.getMessagesAsUIMessages(
-        conversation.id
+        conversation.id,
+        HISTORY_WINDOW
       )
 
       yield* chatRepo.saveChat({

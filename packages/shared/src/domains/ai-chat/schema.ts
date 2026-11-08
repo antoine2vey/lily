@@ -36,7 +36,9 @@ export const ChatMessage = Schema.Struct({
 export const CreateConversationRequest = Schema.Struct({
   kind: ChatConversationKind,
   plantId: Schema.optional(Schema.String),
-  title: Schema.optional(Schema.String),
+  title: Schema.optional(
+    Schema.String.check(Schema.isMaxLength(CHAT_TITLE_MAX_LENGTH))
+  ),
 })
 export type CreateConversationRequest = typeof CreateConversationRequest.Type
 

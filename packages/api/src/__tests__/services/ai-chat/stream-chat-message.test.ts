@@ -355,28 +355,6 @@ describe('streamChatMessage', () => {
     })
   })
 
-  describe('quota exceeded message content', () => {
-    it('should include upgrade suggestion in quota exceeded message', async () => {
-      const messages: ChatMessage[] = []
-
-      const _response = await Effect.runPromise(
-        streamChatMessage(testConversation, { message: 'Test' }).pipe(
-          Effect.provide(
-            createTestLayer({
-              messages,
-              aiChatLimitReached: true,
-              plantChatResponse: 'Should not see',
-            })
-          )
-        )
-      )
-
-      // Find the assistant message
-      const assistantMessage = messages[1]
-      expect(assistantMessage?.content).toBe('__QUOTA_EXCEEDED__')
-    })
-  })
-
   describe('model failure', () => {
     it('saves the question, no reply, and refunds the chat when the model fails', async () => {
       const messages: ChatMessage[] = []
