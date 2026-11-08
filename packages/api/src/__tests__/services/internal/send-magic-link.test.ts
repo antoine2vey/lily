@@ -1,5 +1,5 @@
 import { sendInternalMagicLink } from '@lily/api/services/internal/endpoints/send-magic-link'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mockUser1, mockUsers } from '../../fixtures/users'
 import { createMockEmailService } from '../../mocks/email.service'
@@ -89,5 +89,33 @@ describe('sendInternalMagicLink', () => {
     const store = getMagicLinkStore()
     expect(store).toHaveLength(1)
     expect(store[0]?.email).toBe(mockUser1.email)
+  })
+
+  it('answers known and unknown emails with the same outcomes under the rate limit', async () => {
+    const outcomesFor = (email: string) =>
+      Effect.runPromise(
+        Effect.forEach(Array.range(1, 4), () =>
+          sendInternalMagicLink({
+            email,
+            callbackUrl: 'https://example.com/callback',
+          }).pipe(
+            Effect.match({
+              onSuccess: (r) => r.message,
+              onFailure: (e) => e._tag,
+            })
+          )
+        ).pipe(Effect.provide(createTestLayer()))
+      )
+
+    const known = await outcomesFor(mockUser1.email)
+    const unknown = await outcomesFor('unknown@example.com')
+
+    expect(known).toEqual([
+      'Magic link sent',
+      'Magic link sent',
+      'Magic link sent',
+      'RateLimitExceededError',
+    ])
+    expect(unknown).toEqual(known)
   })
 })
