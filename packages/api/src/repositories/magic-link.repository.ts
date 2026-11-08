@@ -1,7 +1,7 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { magicLinks } from '@lily/db/schema/auth'
 import { hoursAgoAsDate, nowAsDate } from '@lily/shared'
-import { and, eq, gt, isNull, lt } from 'drizzle-orm'
+import { and, eq, gt, isNotNull, isNull, lt, or } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -39,7 +39,10 @@ export interface IMagicLinkRepository {
   ) => Effect.Effect<MagicLink | null, SqlError>
   readonly markUsed: (id: string) => Effect.Effect<MagicLink | null, SqlError>
   readonly deleteExpired: () => Effect.Effect<number, SqlError>
-  readonly deleteByEmail: (email: string) => Effect.Effect<number, SqlError>
+  /** Deletes the address's used and expired links; live ones stay valid. */
+  readonly deleteSpentByEmail: (
+    email: string
+  ) => Effect.Effect<number, SqlError>
 }
 
 /**
@@ -165,21 +168,27 @@ export const MagicLinkRepositoryLive = Layer.effect(
         }
       ),
 
-      deleteByEmail: Effect.fn('MagicLinkRepository.deleteByEmail')(function* (
-        email: string
-      ) {
-        const result = yield* db
-          .delete(magicLinks)
-          .where(
-            eq(
-              magicLinks.email,
-              pipe(email, EffectString.toLowerCase, EffectString.trim)
+      deleteSpentByEmail: Effect.fn('MagicLinkRepository.deleteSpentByEmail')(
+        function* (email: string) {
+          const result = yield* db
+            .delete(magicLinks)
+            .where(
+              and(
+                eq(
+                  magicLinks.email,
+                  pipe(email, EffectString.toLowerCase, EffectString.trim)
+                ),
+                or(
+                  isNotNull(magicLinks.usedAt),
+                  lt(magicLinks.expiresAt, nowAsDate())
+                )
+              )
             )
-          )
-          .returning()
+            .returning()
 
-        return result.length
-      }),
+          return result.length
+        }
+      ),
     }
   })
 )

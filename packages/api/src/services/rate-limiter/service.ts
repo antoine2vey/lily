@@ -25,6 +25,8 @@ export interface RateLimitConfig {
  */
 export const RATE_LIMITS = {
   MAGIC_LINK: { maxRequests: 3, windowSeconds: 60 },
+  MAGIC_LINK_HOURLY: { maxRequests: 20, windowSeconds: 3600 },
+  MAGIC_LINK_PER_IP: { maxRequests: 10, windowSeconds: 3600 },
   VERIFY: { maxRequests: 5, windowSeconds: 10 },
   REFRESH: { maxRequests: 10, windowSeconds: 60 },
   REDEEM_CODE: { maxRequests: 5, windowSeconds: 600 },

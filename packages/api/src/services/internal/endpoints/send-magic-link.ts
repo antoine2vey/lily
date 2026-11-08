@@ -1,16 +1,14 @@
 import type { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import {
+  checkMagicLinkEmailLimits,
   createMagicLinkToken,
   normalizeEmail,
   validateEmail,
 } from '@lily/api/services/auth/helpers/create-magic-link'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
 import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
-import {
-  RATE_LIMITS,
-  RateLimiterService,
-} from '@lily/api/services/rate-limiter/service'
+import type { RateLimiterService } from '@lily/api/services/rate-limiter/service'
 import type { AuthError, LanguageCode } from '@lily/shared'
 import type { EmailService } from '@lily/shared/server'
 import { Console, Effect } from 'effect'
@@ -36,7 +34,6 @@ export const sendInternalMagicLink = (input: {
   MagicLinkRepository | RateLimiterService | UserRepository | EmailService
 > =>
   Effect.gen(function* () {
-    const rateLimiter = yield* RateLimiterService
     const userRepo = yield* UserRepository
 
     const normalized = normalizeEmail(input.email)
@@ -46,10 +43,7 @@ export const sendInternalMagicLink = (input: {
 
     // Rate-limit before the account lookup so known and unknown emails hit
     // the limit identically and the 429 can't reveal which accounts exist.
-    yield* rateLimiter.checkRateLimit(
-      `magic-link:${normalized}`,
-      RATE_LIMITS.MAGIC_LINK
-    )
+    yield* checkMagicLinkEmailLimits(normalized)
 
     const existingUser = yield* userRepo.findByEmail(normalized)
     if (!existingUser) {

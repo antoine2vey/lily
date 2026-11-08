@@ -9,14 +9,22 @@ import { setUsername } from '@lily/api/services/auth/endpoints/set-username'
 import { verifyMagicLink } from '@lily/api/services/auth/endpoints/verify-magic-link'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { Effect } from 'effect'
-import { HttpServerResponse } from 'effect/http'
+import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
 export const AuthApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'auth', (handlers) =>
     handlers
       .handle('sendMagicLink', ({ payload }) =>
-        sendMagicLink(payload).pipe(withInfraErrorsAsDefect)
+        HttpServerRequest.HttpServerRequest.pipe(
+          Effect.flatMap(({ headers }) =>
+            sendMagicLink(payload, {
+              'x-real-ip': headers['x-real-ip'],
+              'cf-connecting-ip': headers['cf-connecting-ip'],
+            })
+          ),
+          withInfraErrorsAsDefect
+        )
       )
       .handle('magicLinkCallback', ({ query: urlParams }) =>
         Effect.gen(function* () {

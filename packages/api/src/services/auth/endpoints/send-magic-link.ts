@@ -2,6 +2,7 @@ import type { MagicLinkRepository } from '@lily/api/repositories/magic-link.repo
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { APP_VERIFY_DEEP_LINK_PREFIX } from '@lily/api/services/auth/constants'
 import {
+  checkMagicLinkEmailLimits,
   createMagicLinkToken,
   normalizeEmail,
   validateEmail,
@@ -14,7 +15,7 @@ import {
 } from '@lily/api/services/rate-limiter/service'
 import { AuthError, type LanguageCode } from '@lily/shared'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
-import type { EmailService } from '@lily/shared/server'
+import { clientIp, type EmailService } from '@lily/shared/server'
 import {
   Array,
   Config,
@@ -78,10 +79,13 @@ const emailNotSent = (language: LanguageCode) =>
     ),
   })
 
-export const sendMagicLink = ({
-  email,
-  language,
-}: MagicLinkRequest): Effect.Effect<
+export const sendMagicLink = (
+  { email, language }: MagicLinkRequest,
+  headers: {
+    readonly 'x-real-ip'?: string | undefined
+    readonly 'cf-connecting-ip'?: string | undefined
+  }
+): Effect.Effect<
   MagicLinkSentResponse,
   AuthError | SqlError | RateLimitExceededError,
   | MagicLinkRepository
@@ -100,11 +104,13 @@ export const sendMagicLink = ({
     // Validate email format
     yield* validateEmail(normalized)
 
-    // Check rate limit
+    // The client IP is checked first, so a source over its limit is turned
+    // away before it can spend the address's own quota.
     yield* rateLimiter.checkRateLimit(
-      `magic-link:${normalized}`,
-      RATE_LIMITS.MAGIC_LINK
+      `magic-link-ip:${clientIp(headers)}`,
+      RATE_LIMITS.MAGIC_LINK_PER_IP
     )
+    yield* checkMagicLinkEmailLimits(normalized)
 
     // Create magic link token
     const { token } = yield* createMagicLinkToken(normalized)
