@@ -113,13 +113,16 @@ export const createMockMagicLinkRepository = (
         return originalLength - magicLinkStore.length
       }),
 
-    deleteByEmail: (email: string) =>
+    deleteSpentByEmail: (email: string) =>
       Effect.gen(function* () {
         const normalizedEmail = email.toLowerCase().trim()
+        const now = new Date()
         const originalLength = magicLinkStore.length
         magicLinkStore = Array.filter(
           magicLinkStore,
-          (ml) => ml.email !== normalizedEmail
+          (ml) =>
+            ml.email !== normalizedEmail ||
+            (ml.usedAt === null && ml.expiresAt >= now)
         )
         return originalLength - magicLinkStore.length
       }),
