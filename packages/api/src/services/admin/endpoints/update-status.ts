@@ -1,3 +1,4 @@
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
 import { withUserRemindersRebuilt } from '@lily/api/services/plants/helpers/rebuild-user-reminders'
@@ -14,7 +15,7 @@ export const updateStatus = (
 ): Effect.Effect<
   User,
   SqlError | UserNotFoundError | CannotModifySelfError,
-  UserRepository | AdminUser | ReminderContext
+  UserRepository | AdminUser | ReminderContext | DelegationRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* UserRepository

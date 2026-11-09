@@ -1,6 +1,7 @@
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
@@ -35,6 +36,7 @@ export const updateUserSettings = (
   | CareLogRepository
   | PlantRepository
   | CanopyRepository
+  | DelegationRepository
   | RecipientRepository
   | SqlClient.SqlClient
 > =>

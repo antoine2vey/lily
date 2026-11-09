@@ -1,7 +1,6 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import {
   heardBy,
   RecipientRepository,
@@ -10,22 +9,16 @@ import {
   UserRepository,
   type VacationSnapshot,
 } from '@lily/api/repositories/user.repository'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
+import { changeMember } from '@lily/api/services/plants/helpers/plant-change'
 import {
-  canopyPlantIdsOf,
   type ReminderContext,
   rebuildMemberReminders,
   rescheduleReminders,
 } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface EndVacationParams {
@@ -49,10 +42,10 @@ export interface EndVacationParams {
  * Plants with an active caretaker are skipped: the caretaker maintained
  * their schedules, and their reminder rows route to the caretaker.
  *
- * The plant sets are read under the Canopy row and the user's delegation
- * locks, so a delegation that activates meanwhile either lands before the
- * read (and its plants are in the set) or waits until this commits (and
- * rebuilds for a caretaker who is no longer away).
+ * Runs as one member change, so a delegation that activates meanwhile
+ * either lands before the plant sets are read (and its plants are in them)
+ * or waits until this commits (and rebuilds for a caretaker who is no
+ * longer away).
  */
 export const endVacation = (
   params: EndVacationParams
@@ -61,39 +54,18 @@ export const endVacation = (
   SqlError,
   ReminderContext | DelegationRepository
 > =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient
-    const plantRepo = yield* PlantRepository
-    const delegationRepo = yield* DelegationRepository
-    const userId = params.user.id
-    return yield* sql.withTransaction(
-      Effect.gen(function* () {
-        const inCanopy = yield* lockMyCanopy(userId).pipe(
-          Effect.as(true),
-          Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
-        )
-        yield* delegationRepo.lockAllForUser(userId)
-        const own = yield* plantRepo.findIdsOwnedBy(userId)
-        const personal = yield* plantRepo.findPersonalReminderPlantIds(userId)
-        const canopy = inCanopy ? yield* canopyPlantIdsOf(userId) : []
-        return yield* withReminderKeys(
-          reminderKeysFor(Array.dedupe([...personal, ...canopy])),
-          Option.some(userId)
-        )(
-          Effect.gen(function* () {
-            const claimed = yield* endVacationForOwnedOrCaredForPlants(
-              params,
-              own,
-              personal
-            )
-            if (claimed === null) return null
-            yield* rebuildMemberReminders(userId, canopy)
-            return claimed
-          })
-        )
-      })
-    )
-  }).pipe(
+  changeMember(params.user.id)(({ own, personal, canopy }) =>
+    Effect.gen(function* () {
+      const claimed = yield* endVacationForOwnedOrCaredForPlants(
+        params,
+        own,
+        personal
+      )
+      if (claimed === null) return null
+      yield* rebuildMemberReminders(params.user.id, canopy)
+      return claimed
+    })
+  ).pipe(
     Effect.withSpan('VacationService.endVacation', {
       attributes: { 'user.id': params.user.id },
     })

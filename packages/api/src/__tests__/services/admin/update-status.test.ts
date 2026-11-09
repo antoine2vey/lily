@@ -1,6 +1,7 @@
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
@@ -32,6 +33,7 @@ const asAdmin = (users: User[]) =>
     Layer.succeed(AdminUser, mockAdminContext),
     createMockCanopyRepository(),
     createMockCareScheduleRepository(),
+    createMockDelegationRepository(),
     createMockNotificationRepository([]),
     createMockPlantRepository({ plants: [] }),
     createMockRecipientRepository(),

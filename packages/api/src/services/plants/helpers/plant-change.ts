@@ -197,6 +197,7 @@ export const movePlant =
     })
 
 export interface MemberScope {
+  readonly locked: Option.Option<LockedCanopy>
   readonly own: ReadonlyArray<string>
   readonly personal: ReadonlyArray<string>
   readonly canopy: ReadonlyArray<string>
@@ -204,7 +205,8 @@ export interface MemberScope {
 
 /**
  * A change to every reminder one member hears: their own plants, the plants
- * they care for, and their Canopy's plants when they are in one.
+ * they care for, and their Canopy's plants when they are in one. The change
+ * receives the locked Canopy, when there is one, so it never locks it again.
  */
 export const changeMember =
   (userId: string) =>
@@ -216,25 +218,28 @@ export const changeMember =
     R | LockContext | PlantRepository | CanopyRepository | DelegationRepository
   > => {
     const plan: LockPlan<
-      boolean,
+      Option.Option<LockedCanopy>,
       MemberScope,
       SqlError,
       PlantRepository | CanopyRepository | DelegationRepository
     > = {
       user: Option.none(),
       canopy: lockMyCanopy(userId).pipe(
-        Effect.as(true),
-        Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
+        Effect.map(Option.some),
+        Effect.catchTag('CanopyNotFoundError', () =>
+          Effect.succeed(Option.none<LockedCanopy>())
+        )
       ),
       delegations: Effect.flatMap(DelegationRepository, (repo) =>
         repo.lockAllForUser(userId)
       ),
-      scope: (inCanopy) =>
+      scope: (locked) =>
         Effect.flatMap(PlantRepository, (repo) =>
           Effect.all({
+            locked: Effect.succeed(locked),
             own: repo.findIdsOwnedBy(userId),
             personal: repo.findPersonalReminderPlantIds(userId),
-            canopy: inCanopy
+            canopy: Option.isSome(locked)
               ? canopyPlantIdsOf(userId)
               : Effect.succeed(Array.empty<string>()),
           })
