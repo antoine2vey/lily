@@ -254,7 +254,7 @@ export const changeMember =
       SqlError,
       PlantRepository | CanopyRepository | DelegationRepository
     > = {
-      user: Option.none(),
+      user: Option.some(userId),
       canopy: lockMyCanopy(userId).pipe(
         Effect.map(Option.some),
         Effect.catchTag('CanopyNotFoundError', () =>

@@ -15,7 +15,10 @@ import {
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
 import { rebuildDelegationReminders } from '@lily/api/services/delegation/helpers/transition-delegation'
-import { changeDelegations } from '@lily/api/services/plants/helpers/plant-change'
+import {
+  changeDelegations,
+  changeMember,
+} from '@lily/api/services/plants/helpers/plant-change'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -418,6 +421,31 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           sql`${schema.notifications.status} = 'pending' AND ${schema.notifications.plantId} = ${ivy}`
         )
       expect(Arr.map(rows, (row) => names.get(row.userId))).toEqual(['bea'])
+    })
+
+    it("a member change waits for the member's own-collection lock", async () => {
+      const owner = await user('locked-owner', { vacationStatus: 'none' })
+      const locker = await pool.connect()
+      try {
+        await locker.query('BEGIN')
+        await locker.query(
+          `SELECT pg_advisory_xact_lock(1, hashtext('${owner.id}'))`
+        )
+        let settled = false
+        const changing = Effect.runPromise(
+          changeMember(owner.id)(() => Effect.void).pipe(
+            Effect.provide(VacationServicesLive)
+          )
+        ).then(() => {
+          settled = true
+        })
+        await waitForLockWaiter(changing)
+        expect(settled).toBe(false)
+        await locker.query('COMMIT')
+        await changing
+      } finally {
+        locker.release()
+      }
     })
   }
 )
