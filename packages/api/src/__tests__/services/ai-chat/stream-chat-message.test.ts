@@ -114,7 +114,7 @@ describe('streamChatMessage', () => {
       createMockUserRepository([]),
       createMockUsageTracker({
         limitReached: opts.aiChatLimitReached ?? false,
-        onRelease: (_userId, field) => opts.released?.push(field),
+        onRelease: (field) => opts.released?.push(field),
       }),
       MockRagServiceLive,
       createMockCareScheduleRepository({
