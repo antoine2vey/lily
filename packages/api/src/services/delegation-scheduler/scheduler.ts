@@ -6,10 +6,10 @@ import {
   dispatchAll,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import { changeDelegations } from '@lily/api/services/plants/helpers/plant-change'
 import type { DelegationStatus, LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const getUserLanguage = (
@@ -42,34 +42,34 @@ const transitionTogether = (
   Effect.gen(function* () {
     const delegationRepo = yield* DelegationRepository
     const userRepo = yield* UserRepository
-    const sql = yield* SqlClient.SqlClient
 
-    const recorded = yield* sql.withTransaction(
-      Effect.gen(function* () {
-        const transitioned = yield* Effect.forEach(delegations, (d) =>
-          Effect.map(
-            delegationRepo.transitionStatus(
-              d.id,
-              [transition.from],
-              transition.to,
-              transition.timestamps
-            ),
-            Option.fromNullishOr
-          ).pipe(
-            Effect.tap(
-              Option.match({
-                onNone: () =>
-                  Effect.log(
-                    `[delegation-scheduler] Skipped ${d.id}: no longer ${transition.from}`
-                  ),
-                onSome: () => Effect.void,
-              })
-            )
+    const moved = Effect.map(
+      Effect.forEach(delegations, (d) =>
+        Effect.map(
+          delegationRepo.transitionStatus(
+            d.id,
+            [transition.from],
+            transition.to,
+            transition.timestamps
+          ),
+          Option.fromNullishOr
+        ).pipe(
+          Effect.tap(
+            Option.match({
+              onNone: () =>
+                Effect.log(
+                  `[delegation-scheduler] Skipped ${d.id}: no longer ${transition.from}`
+                ),
+              onSome: () => Effect.void,
+            })
           )
         )
-        const handedOver = yield* rebuildDelegationReminders(
-          Array.getSomes(transitioned)
-        )
+      ),
+      Array.getSomes
+    )
+    const recorded = yield* changeDelegations(moved)((handedOver) =>
+      Effect.gen(function* () {
+        yield* rebuildDelegationReminders(handedOver)
         return yield* Effect.forEach(handedOver, ([delegation, plants]) =>
           Effect.gen(function* () {
             const ownerLang = yield* getUserLanguage(

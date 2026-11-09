@@ -17,11 +17,8 @@ import {
   type CareContext,
   careContext,
 } from '@lily/api/services/plants/helpers/care-context'
+import { changeCare } from '@lily/api/services/plants/helpers/plant-change'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   calculatePlantAdjustment,
   type PlantForAdjustment,
@@ -49,7 +46,7 @@ import {
   pipe,
   Ref,
 } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type { CareType } from '@lily/shared'
@@ -167,7 +164,6 @@ export const executePlantCare = (
   | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
     const notificationRepo = yield* NotificationRepository
@@ -312,25 +308,22 @@ export const executePlantCare = (
       )
     })
 
-    return yield* sql
-      .withTransaction(
-        Effect.gen(function* () {
-          yield* careLogRepo.lockPlantCareType(params.plantId, params.careType)
-          const alreadyLogged = yield* careLogRepo.existsByPlantAndTypeInRange(
-            params.plantId,
-            params.careType,
-            DateTime.toDateUtc(dayStart),
-            DateTime.toDateUtc(dayEnd)
-          )
-          if (alreadyLogged) {
-            return yield* new AlreadyCaredTodayError({
-              careType: params.careType,
-            })
-          }
-          return yield* withReminderKeys(
-            reminderKeysFor([params.plantId], [reminderType])
-          )(writeCare)
-        })
-      )
-      .pipe(publishEventsAfterCommit)
+    return yield* changeCare([
+      { plantId: params.plantId, careType: params.careType },
+    ])(
+      Effect.gen(function* () {
+        const alreadyLogged = yield* careLogRepo.existsByPlantAndTypeInRange(
+          params.plantId,
+          params.careType,
+          DateTime.toDateUtc(dayStart),
+          DateTime.toDateUtc(dayEnd)
+        )
+        if (alreadyLogged) {
+          return yield* new AlreadyCaredTodayError({
+            careType: params.careType,
+          })
+        }
+        return yield* writeCare
+      })
+    ).pipe(publishEventsAfterCommit)
   })

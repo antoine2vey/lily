@@ -2,7 +2,11 @@ import {
   CanopyRepository,
   type CanopyRow,
 } from '@lily/api/repositories/canopy.repository'
-import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import {
+  type DelegationPlantRow,
+  DelegationRepository,
+  type DelegationRow,
+} from '@lily/api/repositories/delegation.repository'
 import { sameOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type {
   NotificationRepository,
@@ -22,9 +26,9 @@ import {
   reminderKeysFor,
   withReminderKeys,
 } from '@lily/api/services/plants/helpers/reminder-keys'
-import { CanopyNotFoundError } from '@lily/shared'
+import { CanopyNotFoundError, type CareType } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import { Array, Effect, identity, Match, Option } from 'effect'
+import { Array, Effect, identity, Match, Option, Order } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -35,29 +39,45 @@ export const lockUser = (sql: SqlClient.SqlClient, userId: string) =>
     sql`SELECT pg_advisory_xact_lock(${OWNER_LOCK_KEYSPACE}, hashtext(${userId}))`
   )
 
+export interface CareLock {
+  readonly plantId: string
+  readonly careType: CareType
+}
+
+const careLockOrder: Order.Order<CareLock> = Order.combine(
+  Order.mapInput(Order.String, (lock: CareLock) => lock.plantId),
+  Order.mapInput(Order.String, (lock: CareLock) => lock.careType)
+)
+
+const lockCare = (sql: SqlClient.SqlClient, { plantId, careType }: CareLock) =>
+  Effect.asVoid(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${plantId}), hashtext(${careType}))`
+  )
+
 /**
  * Every lock a plant change may take, in the one order every change takes
- * them: the owning user, the Canopy row, the user's delegations, the
- * reminder keys with the reminders' holders, then the plant rows the change
- * reloads. Two changes that meet on any of these wait for each other and
- * never deadlock, because neither holds a later rank while asking for an
- * earlier one. `scope` reads what the change covers once the ranks above it
- * are held, so a concurrent change cannot move a plant in or out between the
- * read and the write.
+ * them: the owning user, the Canopy row, the care locks in plant id then care
+ * type order, the delegation rows, the reminder keys with the reminders'
+ * holders, then the plant rows the change reloads. Two changes that meet on
+ * any of these wait for each other and never deadlock, because neither holds
+ * a later rank while asking for an earlier one. `scope` reads what the change
+ * covers once the ranks above it are held, so a concurrent change cannot move
+ * a plant in or out between the read and the write.
  */
-interface LockPlan<C, S, E, R> {
+interface LockPlan<C, D, S, E, R> {
   readonly user: Option.Option<string>
   readonly canopy: Effect.Effect<C, E, R>
-  readonly delegations: Effect.Effect<void, E, R>
-  readonly scope: (canopy: C) => Effect.Effect<S, E, R>
+  readonly care: ReadonlyArray<CareLock>
+  readonly delegations: Effect.Effect<D, E, R>
+  readonly scope: (canopy: C, delegations: D) => Effect.Effect<S, E, R>
   readonly keys: (scope: S) => ReadonlyArray<ReminderKey>
   readonly updatingUser: Option.Option<string>
 }
 
 type LockContext = SqlClient.SqlClient | NotificationRepository
 
-const run = <C, S, E, R, A, E2, R2>(
-  plan: LockPlan<C, S, E, R>,
+const run = <C, D, S, E, R, A, E2, R2>(
+  plan: LockPlan<C, D, S, E, R>,
   change: (scope: S) => Effect.Effect<A, E2, R2>
 ): Effect.Effect<A, E | E2 | SqlError, R | R2 | LockContext> =>
   Effect.flatMap(SqlClient.SqlClient, (sql) =>
@@ -68,8 +88,13 @@ const run = <C, S, E, R, A, E2, R2>(
           onSome: (userId) => lockUser(sql, userId),
         })
         const canopy = yield* plan.canopy
-        yield* plan.delegations
-        const scope = yield* plan.scope(canopy)
+        yield* Effect.forEach(
+          Array.sort(plan.care, careLockOrder),
+          (lock) => lockCare(sql, lock),
+          { discard: true }
+        )
+        const delegations = yield* plan.delegations
+        const scope = yield* plan.scope(canopy, delegations)
         return yield* withReminderKeys(
           plan.keys(scope),
           plan.updatingUser
@@ -130,6 +155,7 @@ export const changePlant =
   > => {
     const plan: LockPlan<
       void,
+      void,
       PlantRow,
       PlantNotFoundError | SqlError,
       CurrentUser | CanopyRepository
@@ -146,6 +172,7 @@ export const changePlant =
         ),
         Match.exhaustive
       ),
+      care: [],
       delegations: Effect.void,
       scope: () => Effect.succeed(plant),
       keys: (current) => reminderKeysFor([current.id]),
@@ -175,6 +202,7 @@ export const movePlant =
     Effect.flatMap(CurrentUser, ({ id: userId }) => {
       const plan: LockPlan<
         LockedCanopy,
+        void,
         LockedCanopy,
         PlantNotFoundError | CanopyNotFoundError | SqlError,
         CurrentUser | CanopyRepository
@@ -187,6 +215,7 @@ export const movePlant =
           ),
           Match.exhaustive
         ),
+        care: [],
         delegations: Effect.void,
         scope: Effect.succeed,
         keys: () => reminderKeysFor([plant.id]),
@@ -222,6 +251,7 @@ export const changeMember =
   > => {
     const plan: LockPlan<
       Option.Option<LockedCanopy>,
+      void,
       MemberScope,
       SqlError,
       PlantRepository | CanopyRepository | DelegationRepository
@@ -233,6 +263,7 @@ export const changeMember =
           Effect.succeed(Option.none<LockedCanopy>())
         )
       ),
+      care: [],
       delegations: Effect.flatMap(DelegationRepository, (repo) =>
         repo.lockAllForUser(userId)
       ),
@@ -262,9 +293,10 @@ interface CanopyScope<C> {
 const canopyPlan = <C, E, R>(
   lock: Effect.Effect<C, E, R>,
   rowOf: (held: C) => CanopyRow
-): LockPlan<C, CanopyScope<C>, E | SqlError, R | CanopyRepository> => ({
+): LockPlan<C, void, CanopyScope<C>, E | SqlError, R | CanopyRepository> => ({
   user: Option.none(),
   canopy: lock,
+  care: [],
   delegations: Effect.void,
   scope: (held) =>
     Effect.map(
@@ -331,3 +363,104 @@ export const changeMyCanopy =
       canopyPlan(lockMyCanopy(userId), ({ canopy }) => canopy),
       ({ held, plantIds }) => change(held, plantIds)
     )
+
+const keysOnly = (
+  keys: ReadonlyArray<ReminderKey>
+): LockPlan<void, void, void, never, never> => ({
+  user: Option.none(),
+  canopy: Effect.void,
+  care: [],
+  delegations: Effect.void,
+  scope: () => Effect.void,
+  keys: () => keys,
+  updatingUser: Option.none(),
+})
+
+/**
+ * A change to the care of some plants by a caller who need not be signed
+ * in, such as a scheduler. Each care lock is taken in plant id then care type
+ * order, so bulk care and single care never deadlock, and only the reminders
+ * of those care types are held.
+ */
+export const changeCare =
+  (locks: ReadonlyArray<CareLock>) =>
+  <A, E, R>(
+    change: Effect.Effect<A, E, R>
+  ): Effect.Effect<A, E | SqlError, R | LockContext> =>
+    run(
+      {
+        ...keysOnly(
+          Array.map(locks, ({ plantId, careType }) => ({
+            plantId,
+            type: `${careType}_reminder` as const,
+          }))
+        ),
+        care: locks,
+      },
+      () => change
+    )
+
+/**
+ * A change to the reminders of some plants with no other lock, for a caller
+ * that only reschedules them, such as the overdue scheduler.
+ */
+export const changeReminders =
+  (plantIds: ReadonlyArray<string>) =>
+  <A, E, R>(
+    change: Effect.Effect<A, E, R>
+  ): Effect.Effect<A, E | SqlError, R | LockContext> =>
+    run(keysOnly(reminderKeysFor(plantIds)), () => change)
+
+export type HandedOver = ReadonlyArray<
+  readonly [DelegationRow, ReadonlyArray<DelegationPlantRow>]
+>
+
+export const handedOverPlantIds = (
+  handedOver: HandedOver
+): ReadonlyArray<string> =>
+  Array.dedupe(
+    Array.flatMap(handedOver, ([, plants]) =>
+      Array.map(plants, (plant) => plant.id)
+    )
+  )
+
+/**
+ * A change that moves delegations between statuses. The transition's
+ * conditional UPDATE is the row lock at the delegation rank; the plants each
+ * moved delegation hands over are read under it and their reminders held, so
+ * the rebuild never races a member change by either party.
+ */
+export const changeDelegations =
+  <E, R>(transition: Effect.Effect<ReadonlyArray<DelegationRow>, E, R>) =>
+  <A, E2, R2>(
+    change: (handedOver: HandedOver) => Effect.Effect<A, E2, R2>
+  ): Effect.Effect<
+    A,
+    E | E2 | SqlError,
+    R | R2 | LockContext | DelegationRepository
+  > => {
+    const plan: LockPlan<
+      void,
+      ReadonlyArray<DelegationRow>,
+      HandedOver,
+      E | SqlError,
+      R | DelegationRepository
+    > = {
+      user: Option.none(),
+      canopy: Effect.void,
+      care: [],
+      delegations: transition,
+      scope: (_, transitioned) =>
+        Effect.flatMap(DelegationRepository, (repo) =>
+          Effect.forEach(transitioned, (delegation) =>
+            Effect.map(
+              repo.getPlantsByDelegation(delegation.id),
+              (plants) => [delegation, plants] as const
+            )
+          )
+        ),
+      keys: (handedOver) => reminderKeysFor(handedOverPlantIds(handedOver)),
+      updatingUser: Option.none(),
+    }
+    return run(plan, change)
+  }

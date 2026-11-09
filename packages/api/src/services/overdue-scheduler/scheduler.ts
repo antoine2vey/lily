@@ -14,10 +14,7 @@ import {
   scheduleDeferredCareNotification,
 } from '@lily/api/services/helpers/schedule-notification'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
+import { changeReminders } from '@lily/api/services/plants/helpers/plant-change'
 import {
   notificationSettingsOf,
   type UserNotificationSettings,
@@ -200,7 +197,7 @@ export const remindRecipient = (
         })
       )
       return Array.length(stillOverdue)
-    }).pipe(withReminderKeys(reminderKeysFor(plantIds)))
+    }).pipe(changeReminders(plantIds))
   }).pipe(
     Effect.withSpan('overdue-scheduler.remindRecipient', {
       attributes: { recipientId },

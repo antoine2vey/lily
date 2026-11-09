@@ -15,13 +15,13 @@ import {
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
 import { rebuildDelegationReminders } from '@lily/api/services/delegation/helpers/transition-delegation'
+import { changeDelegations } from '@lily/api/services/plants/helpers/plant-change'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array as Arr, Deferred, Effect, Layer } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -398,18 +398,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await Effect.runPromise(Deferred.await(readPlants))
       const activating = Effect.runPromise(
         Effect.gen(function* () {
-          const sql = yield* SqlClient.SqlClient
           const repo = yield* DelegationRepository
-          yield* sql.withTransaction(
-            Effect.gen(function* () {
-              const row = yield* repo.transitionStatus(
-                delegation.id,
-                ['pending'],
-                'active'
-              )
-              if (row) yield* rebuildDelegationReminders([row])
-            })
-          )
+          yield* changeDelegations(
+            Effect.map(
+              repo.transitionStatus(delegation.id, ['pending'], 'active'),
+              Arr.fromNullishOr
+            )
+          )(rebuildDelegationReminders)
         }).pipe(Effect.provide(VacationServicesLive))
       )
       await waitForLockWaiter(activating)
