@@ -12,16 +12,16 @@ import {
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import {
   createMockPushService,
   type MockPushServiceOptions,
 } from '@lily/api/__tests__/mocks/push.service'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
-import type { ActivityPushToken } from '@lily/shared'
+import type { ActivityPushToken, UserStatus } from '@lily/shared'
 import {
   type AppEvent,
   type LiveActivityPushMessage,
@@ -70,7 +70,7 @@ const run = async (
           }),
           createMockCareScheduleRepository({ plants, schedules }),
           createMockPlantRepository({ plants }),
-          createMockDelegationRepository(),
+          createMockRecipientRepository({ plants }),
           createMockCanopyRepository(),
           createMockCareLogRepository([]),
           createMockUserRepository([
@@ -273,8 +273,15 @@ describe('live-activity subscriber: CareLogCreated on a Canopy plant', () => {
 
   const runCare = (
     event: AppEvent,
-    mutes: { userId: string; plantId: string }[] = []
+    mutes: { userId: string; plantId: string }[] = [],
+    suspended: string[] = []
   ) => {
+    const member = (id: string) =>
+      createTestUser({
+        id,
+        timezone: 'UTC',
+        status: suspended.includes(id) ? 'suspended' : 'active',
+      })
     const sent: Array<{ to: string; tag: LiveActivityPushMessage['_tag'] }> = []
     const shared = createTestPlant({
       id: 'plant-1',
@@ -291,6 +298,7 @@ describe('live-activity subscriber: CareLogCreated on a Canopy plant', () => {
       createTestMembership({ userId: 'lily' }),
       createTestMembership({ userId: 'sam' }),
     ]
+    const users = [member('alex'), member('lily'), member('sam')]
     const dueNow = (plantId: string) =>
       createTestSchedule({
         plantId,
@@ -314,14 +322,15 @@ describe('live-activity subscriber: CareLogCreated on a Canopy plant', () => {
               mutes,
             }),
             createMockPlantRepository({ plants: [shared, other] }),
-            createMockDelegationRepository(),
+            createMockRecipientRepository({
+              plants: [shared, other],
+              members,
+              mutes,
+              users,
+            }),
             createMockCanopyRepository(createCanopyStore({ members, mutes })),
             createMockCareLogRepository([]),
-            createMockUserRepository([
-              createTestUser({ id: 'alex', timezone: 'UTC' }),
-              createTestUser({ id: 'lily', timezone: 'UTC' }),
-              createTestUser({ id: 'sam', timezone: 'UTC' }),
-            ])
+            createMockUserRepository(users)
           )
         ),
         Effect.provideService(References.MinimumLogLevel, 'None')
@@ -357,6 +366,14 @@ describe('live-activity subscriber: CareLogCreated on a Canopy plant', () => {
     ])
   })
 
+  it('leaves the card of a suspended member alone', async () => {
+    const sent = await runCare(lilyWaters, [], ['sam'])
+    expect(sent.map((m) => m.to).sort()).toEqual([
+      'update-token-alex',
+      'update-token-lily',
+    ])
+  })
+
   it('refreshes every member on PlantLifecycleChanged too', async () => {
     const sent = await runCare({
       _tag: 'PlantLifecycleChanged',
@@ -368,9 +385,13 @@ describe('live-activity subscriber: CareLogCreated on a Canopy plant', () => {
 })
 
 describe('live-activity subscriber: CareLogCreated by a caretaker', () => {
-  it('refreshes the owner card as well as the caretaker card on a delegated plant', async () => {
+  const runCaretakerCare = async (ownerStatus: UserStatus) => {
     const sent: string[] = []
     const fern = createTestPlant({ id: 'plant-1', userId: 'owner' })
+    const users = [
+      createTestUser({ id: 'owner', timezone: 'UTC', status: ownerStatus }),
+      createTestUser({ id: 'caretaker', timezone: 'UTC' }),
+    ]
     const tokenFor = (userId: string): ActivityPushToken => ({
       ...updateToken(),
       id: `apt-${userId}`,
@@ -406,38 +427,38 @@ describe('live-activity subscriber: CareLogCreated by a caretaker', () => {
               ],
             }),
             createMockPlantRepository({ plants: [fern] }),
-            createMockDelegationRepository({
+            createMockRecipientRepository({
+              plants: [fern],
               delegations: [
                 {
                   id: 'delegation-1',
-                  ownerId: 'owner',
                   caretakerId: 'caretaker',
                   status: 'active',
-                  message: null,
-                  startDate: new Date(Date.now() - 86_400_000),
-                  endDate: new Date(Date.now() + 86_400_000),
-                  respondedAt: null,
-                  canceledAt: null,
-                  completedAt: null,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
                 },
               ],
               delegationPlants: [
                 { delegationId: 'delegation-1', plantId: 'plant-1' },
               ],
+              users,
             }),
             createMockCanopyRepository(),
             createMockCareLogRepository([]),
-            createMockUserRepository([
-              createTestUser({ id: 'owner', timezone: 'UTC' }),
-              createTestUser({ id: 'caretaker', timezone: 'UTC' }),
-            ])
+            createMockUserRepository(users)
           )
         ),
         Effect.provideService(References.MinimumLogLevel, 'None')
       )
     )
-    expect(sent).toContain('update-token-owner')
+    return sent
+  }
+
+  it('refreshes the owner card as well as the caretaker card on a delegated plant', async () => {
+    expect(await runCaretakerCare('active')).toContain('update-token-owner')
+  })
+
+  it('leaves the card of a suspended owner alone', async () => {
+    expect(await runCaretakerCare('suspended')).toEqual([
+      'update-token-caretaker',
+    ])
   })
 })

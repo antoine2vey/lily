@@ -1,8 +1,13 @@
 import { type AppEvent, EventBus } from '@lily/api/events'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
+import { lockOf } from '@lily/api/repositories/helpers/recipient'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  heardBy,
+  RecipientRepository,
+} from '@lily/api/repositories/recipient.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import type { CareType } from '@lily/shared'
 import {
   type IPushService,
@@ -117,13 +122,13 @@ const refreshCardsFor = (params: {
 }) =>
   Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
+    const userRepo = yield* UserRepository
     const plant = Option.fromNullishOr(
       yield* plantRepo.findById(params.plantId)
     )
-    const recipients = yield* Option.match(plant, {
-      onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
-      onSome: reminderRecipients,
-    })
+    const audience = yield* Effect.flatMap(RecipientRepository, (repo) =>
+      repo.audienceOf([params.plantId])
+    )
     const owner = pipe(
       plant,
       Option.flatMap((p) =>
@@ -134,8 +139,19 @@ const refreshCardsFor = (params: {
       ),
       Option.toArray
     )
+    const candidates = Array.dedupe([
+      params.actorId,
+      ...owner,
+      ...heardBy(audience, params.plantId),
+    ])
+    // The actor and the owner see the card whoever hears about the plant, but
+    // a locked account's card stops moving like its reminders do.
+    const users = yield* userRepo.findByIds(candidates)
+    const reachable = Array.filter(candidates, (userId) =>
+      Array.some(users, (u) => u.id === userId && Option.isNone(lockOf(u)))
+    )
     yield* Effect.forEach(
-      Array.dedupe([params.actorId, ...owner, ...recipients]),
+      reachable,
       (userId) =>
         refreshLiveActivity({
           userId,
