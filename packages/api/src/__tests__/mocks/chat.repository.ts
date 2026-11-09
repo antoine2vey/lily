@@ -22,6 +22,8 @@ export interface MockChatRepositoryData {
   conversations?: ChatConversation[]
   saveChatFails?: boolean
   replySaveFails?: boolean
+  /** `touchLastMessageAt` dies with this message once a reply row is saved. */
+  touchDiesAfterReply?: string
 }
 
 const saveChatFailure = new SqlError({
@@ -152,6 +154,12 @@ export const createMockChatRepository = (
     },
 
     touchLastMessageAt: (id: string) => {
+      if (
+        data.touchDiesAfterReply &&
+        Array.some(data.messages, (m) => m.role === 'assistant')
+      ) {
+        return Effect.die(new Error(data.touchDiesAfterReply))
+      }
       const conv = ensureGet(id)
       if (conv) {
         const idx = conversations.findIndex((c) => c.id === id)

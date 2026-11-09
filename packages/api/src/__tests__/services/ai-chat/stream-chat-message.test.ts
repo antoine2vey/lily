@@ -81,6 +81,7 @@ describe('streamChatMessage', () => {
       chatStreamError?: string
       saveChatFails?: boolean
       replySaveFails?: boolean
+      touchDiesAfterReply?: string
       consumeStreamRejects?: string
       released?: UsageField[]
       plantChatResponse?: string
@@ -95,6 +96,9 @@ describe('streamChatMessage', () => {
         conversations: [testConversation],
         ...(opts.saveChatFails ? { saveChatFails: true } : {}),
         ...(opts.replySaveFails ? { replySaveFails: true } : {}),
+        ...(opts.touchDiesAfterReply
+          ? { touchDiesAfterReply: opts.touchDiesAfterReply }
+          : {}),
       }),
       createMockAiService({
         plantChatResponse: opts.plantChatResponse ?? 'AI response text',
@@ -432,7 +436,7 @@ describe('streamChatMessage', () => {
   })
 
   describe('billing per outcome', () => {
-    it('keeps the charge when the reply streamed but could not be saved', async () => {
+    it("keeps the charge when the reply can't be saved", async () => {
       const messages: ChatMessage[] = []
       const released: UsageField[] = []
 
@@ -450,7 +454,7 @@ describe('streamChatMessage', () => {
       expect(released).toEqual([])
     })
 
-    it('saves the reply and keeps the charge when the client never reads it', async () => {
+    it('saves the reply and keeps the charge for a reply the client never read', async () => {
       const messages: ChatMessage[] = []
       const released: UsageField[] = []
 
@@ -464,6 +468,28 @@ describe('streamChatMessage', () => {
         expect(messages.map((m) => m.role)).toEqual(['user', 'assistant'])
       )
       expect(released).toEqual([])
+    })
+
+    it('refunds the chat on a defect while finishing, even after the reply was saved', async () => {
+      const messages: ChatMessage[] = []
+      const released: UsageField[] = []
+
+      const result = await Effect.runPromise(
+        streamChatMessage(testConversation, { message: 'Hi' }).pipe(
+          Effect.provide(
+            createTestLayer({
+              messages,
+              released,
+              touchDiesAfterReply: 'conversation row vanished',
+            })
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      await drainSseStream(result)
+
+      await vi.waitFor(() => expect(released).toEqual(['aiChats']))
+      expect(messages.map((m) => m.role)).toEqual(['user', 'assistant'])
     })
 
     it('refunds the chat and saves no reply when draining the stream crashes', async () => {
