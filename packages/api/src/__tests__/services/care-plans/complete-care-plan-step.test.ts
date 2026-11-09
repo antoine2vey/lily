@@ -17,6 +17,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
@@ -139,6 +140,7 @@ const buildScenario = (scenario: Scenario = {}) => {
     ),
     createMockUserRepository([user]),
     createMockDelegationRepository({}),
+    createMockRecipientRepository({ plants: [testPlant] }),
     createMockCanopyRepository(),
     createMockEventBus(),
     createMockCurrentUser({

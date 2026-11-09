@@ -13,6 +13,7 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -67,6 +68,8 @@ const asCanopyPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
   schedules: [],
 })
 
+const members = [createTestMembership({ userId: 'user-1' })]
+
 const makeLayer = (options: {
   plant: ReturnType<typeof createTestPlant>
   schedules?: ReturnType<typeof createTestSchedule>[]
@@ -86,6 +89,7 @@ const makeLayer = (options: {
       createTestUser({ id: 'user-1', timezone: 'UTC', careReminders: true }),
     ]),
     createMockDelegationRepository({}),
+    createMockRecipientRepository({ plants: [options.plant], members }),
     createMockCurrentUser({ id: 'user-1' }),
     createMockLimitChecker({
       plantLimitReached: options.plantLimitReached ?? false,
@@ -95,7 +99,7 @@ const makeLayer = (options: {
     createMockCanopyRepository(
       createCanopyStore({
         canopies: [createTestCanopyRow()],
-        members: [createTestMembership({ userId: 'user-1' })],
+        members,
       })
     ),
     MockSqlClientLive

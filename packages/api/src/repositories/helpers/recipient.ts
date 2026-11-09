@@ -48,16 +48,18 @@ export const reachableSql = (status: AnyPgColumn = users.status): SQL =>
 
 export type AudienceRole = 'caretaker' | 'owner' | 'member'
 
+// Drizzle names a subquery's aliased columns without the subquery's alias, so
+// these names must not collide with any table joined next to the relation.
 const audienceRow = (
   plantId: AnyPgColumn,
   recipientId: AnyPgColumn,
   role: AudienceRole,
   joinedAt: SQL | AnyPgColumn
 ) => ({
-  plantId: sql<string>`${plantId}`.as('plant_id'),
-  recipientId: sql<string>`${recipientId}`.as('recipient_id'),
-  role: sql<AudienceRole>`${sql.raw(`'${role}'`)}`.as('role'),
-  joinedAt: sql<Date | null>`${joinedAt}`.as('joined_at'),
+  plantId: sql<string>`${plantId}`.as('audience_plant_id'),
+  recipientId: sql<string>`${recipientId}`.as('audience_recipient_id'),
+  role: sql<AudienceRole>`${sql.raw(`'${role}'`)}`.as('audience_role'),
+  joinedAt: sql<Date | null>`${joinedAt}`.as('audience_joined_at'),
 })
 
 const noJoinTime = sql`null::timestamptz`

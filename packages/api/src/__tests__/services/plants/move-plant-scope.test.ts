@@ -15,6 +15,7 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
@@ -115,42 +116,48 @@ const world = (options: {
   notifications?: Notification[]
 }) => {
   const store = options.store ?? home()
+  const plants = [
+    alexPlant,
+    sharedByLily,
+    sharedBySam,
+    sharedByAlex,
+    sharerDeleted,
+  ].map((p) => ({ ...p }))
+  const delegation = options.delegated
+    ? {
+        delegations: [
+          {
+            id: 'd-1',
+            ownerId: 'alex',
+            caretakerId: 'lily',
+            status: 'accepted' as const,
+            message: null,
+            startDate: new Date(),
+            endDate: new Date(),
+            respondedAt: new Date(),
+            canceledAt: null,
+            completedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        delegationPlants: [{ delegationId: 'd-1', plantId: 'alex-fern' }],
+      }
+    : {}
   return Layer.mergeAll(
     createMockPlantRepository({
-      plants: [
-        alexPlant,
-        sharedByLily,
-        sharedBySam,
-        sharedByAlex,
-        sharerDeleted,
-      ].map((p) => ({ ...p })),
+      plants,
       memberships: store.members.map((m) => ({ ...m, canopyName: 'Home' })),
     }),
     createMockCanopyRepository(store),
     createMockRoomRepository([]),
-    createMockDelegationRepository(
-      options.delegated
-        ? {
-            delegations: [
-              {
-                id: 'd-1',
-                ownerId: 'alex',
-                caretakerId: 'lily',
-                status: 'accepted',
-                message: null,
-                startDate: new Date(),
-                endDate: new Date(),
-                respondedAt: new Date(),
-                canceledAt: null,
-                completedAt: null,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            ],
-            delegationPlants: [{ delegationId: 'd-1', plantId: 'alex-fern' }],
-          }
-        : {}
-    ),
+    createMockDelegationRepository(delegation),
+    createMockRecipientRepository({
+      ...delegation,
+      plants,
+      members: store.members,
+      mutes: store.mutes,
+    }),
     createMockNotificationRepository(options.notifications ?? []),
     createMockCareScheduleRepository(),
     createMockUserRepository([

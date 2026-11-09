@@ -26,6 +26,7 @@ import {
   PlantRepository,
   PlantRepositoryLive,
 } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import {
@@ -84,6 +85,7 @@ const BaseLive = Layer.mergeAll(
   UserRepositoryLive,
   CarePlanRepositoryLive,
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   DelegationRepositoryLive,
   RoomRepositoryLive,
   DeviceTokenRepositoryLive,

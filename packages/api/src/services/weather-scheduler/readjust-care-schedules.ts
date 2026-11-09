@@ -1,8 +1,8 @@
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
@@ -88,7 +88,7 @@ type ReadjustContext =
   | CareScheduleRepository
   | NotificationRepository
   | UserRepository
-  | DelegationRepository
+  | RecipientRepository
   | CanopyRepository
   | SqlClient.SqlClient
 

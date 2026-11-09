@@ -14,29 +14,39 @@ export interface RecipientWorld {
     readonly userId: string | null
     readonly canopyId: string | null
   }>
-  readonly members?: ReadonlyArray<{
-    readonly userId: string
-    readonly canopyId: string
-    readonly joinedAt: Date
-  }>
-  readonly mutes?: ReadonlyArray<{
-    readonly userId: string
-    readonly plantId: string
-  }>
-  readonly delegations?: ReadonlyArray<{
-    readonly id: string
-    readonly caretakerId: string
-    readonly status: DelegationStatus
-  }>
-  readonly delegationPlants?: ReadonlyArray<{
-    readonly delegationId: string
-    readonly plantId: string
-  }>
+  readonly members?:
+    | ReadonlyArray<{
+        readonly userId: string
+        readonly canopyId: string
+        readonly joinedAt: Date
+      }>
+    | undefined
+  readonly mutes?:
+    | ReadonlyArray<{
+        readonly userId: string
+        readonly plantId: string
+      }>
+    | undefined
+  readonly delegations?:
+    | ReadonlyArray<{
+        readonly id: string
+        readonly caretakerId: string
+        readonly status: DelegationStatus
+      }>
+    | undefined
+  readonly delegationPlants?:
+    | ReadonlyArray<{
+        readonly delegationId: string
+        readonly plantId: string
+      }>
+    | undefined
   // A user missing from this list is active.
-  readonly users?: ReadonlyArray<{
-    readonly id: string
-    readonly status: UserStatus
-  }>
+  readonly users?:
+    | ReadonlyArray<{
+        readonly id: string
+        readonly status: UserStatus
+      }>
+    | undefined
 }
 
 const reachable = (world: RecipientWorld, userId: string) =>

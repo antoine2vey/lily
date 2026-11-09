@@ -5,15 +5,26 @@ import {
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plants } from '@lily/db/schema'
 import { asc, inArray } from 'drizzle-orm'
-import { Array, Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface IRecipientRepository {
   // Every requested plant is a key; its recipients come in join order.
   readonly audienceOf: (
     plantIds: ReadonlyArray<string>
-  ) => Effect.Effect<ReadonlyMap<string, ReadonlyArray<string>>, SqlError>
+  ) => Effect.Effect<Audience, SqlError>
 }
+
+export type Audience = ReadonlyMap<string, ReadonlyArray<string>>
+
+export const heardBy = (
+  audience: Audience,
+  plantId: string
+): ReadonlyArray<string> =>
+  pipe(
+    Option.fromNullishOr(audience.get(plantId)),
+    Option.getOrElse(() => [])
+  )
 
 export class RecipientRepository extends Context.Service<
   RecipientRepository,

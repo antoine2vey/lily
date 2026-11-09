@@ -13,6 +13,7 @@ import {
   PlantRepository,
   PlantRepositoryLive,
 } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -33,7 +34,8 @@ const RepositoriesLive = Layer.mergeAll(
   NotificationRepositoryLive,
   UserRepositoryLive,
   CarePlanRepositoryLive,
-  CanopyRepositoryLive
+  CanopyRepositoryLive,
+  RecipientRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const careLayer = (

@@ -1,9 +1,9 @@
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
@@ -57,7 +57,7 @@ export const updateUserSettings = (
   | CareLogRepository
   | PlantRepository
   | CanopyRepository
-  | DelegationRepository
+  | RecipientRepository
   | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {

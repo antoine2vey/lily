@@ -4,6 +4,7 @@ import type { CareScheduleRepository } from '@lily/api/repositories/care-schedul
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { WeatherRepository } from '@lily/api/repositories/weather.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -42,6 +43,7 @@ export const completeCarePlanStep = ({
   | WeatherCache
   | WeatherRepository
   | DelegationRepository
+  | RecipientRepository
   | PlantAccessContext
   | EventBus
   | CurrentUser

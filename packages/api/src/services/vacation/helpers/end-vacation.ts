@@ -1,7 +1,10 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  heardBy,
+  RecipientRepository,
+} from '@lily/api/repositories/recipient.repository'
 import {
   UserRepository,
   type VacationSnapshot,
@@ -19,7 +22,7 @@ import {
 import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
-import { DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -86,7 +89,7 @@ const endVacationForOwnedOrCaredForPlants = (
     const { user, effectiveEnd } = params
     const userRepo = yield* UserRepository
     const scheduleRepo = yield* CareScheduleRepository
-    const delegationRepo = yield* DelegationRepository
+    const recipientRepo = yield* RecipientRepository
 
     const claimed = yield* userRepo.transitionVacation(user, {
       vacationStatus: 'none',
@@ -122,11 +125,9 @@ const endVacationForOwnedOrCaredForPlants = (
       )
     )
 
-    const undelegated = yield* Effect.filter(ownPlantIds, (plantId) =>
-      Effect.map(
-        delegationRepo.findActiveCaretakerForPlant(plantId),
-        (caretakerId) => caretakerId === null
-      )
+    const audience = yield* recipientRepo.audienceOf(ownPlantIds)
+    const undelegated = Array.filter(ownPlantIds, (plantId) =>
+      Array.every(heardBy(audience, plantId), (id) => id === user.id)
     )
     yield* scheduleRepo.shiftDueBefore({
       plantIds: undelegated,

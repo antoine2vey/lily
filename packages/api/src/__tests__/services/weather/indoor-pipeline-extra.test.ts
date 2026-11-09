@@ -1,3 +1,4 @@
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 /**
  * Extra full-pipeline integration tests for the location-aware indoor
  * watering-demand model, driven end-to-end through `readjustCareSchedules` to
@@ -180,6 +181,7 @@ const runScheduler = async (
     createMockNotificationRepository([]),
     createMockCanopyRepository(),
     createMockDelegationRepository(),
+    createMockRecipientRepository({ plants }),
     createMockCareScheduleRepository({ schedules, plants })
   )
   await Effect.runPromise(
@@ -539,6 +541,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         createMockNotificationRepository([]),
         createMockCanopyRepository(),
         createMockDelegationRepository(),
+        createMockRecipientRepository({ plants: [plant] }),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
 

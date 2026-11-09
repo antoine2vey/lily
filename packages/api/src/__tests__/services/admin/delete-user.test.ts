@@ -5,6 +5,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
@@ -31,6 +32,7 @@ const mockAdminLayer = Layer.mergeAll(
   createMockCanopyRepository(),
   createMockCareScheduleRepository(),
   createMockDelegationRepository(),
+  createMockRecipientRepository({ plants: [] }),
   createMockNotificationRepository([]),
   createMockMessageQueue(),
   createMockPlantRepository({ plants: [] }),

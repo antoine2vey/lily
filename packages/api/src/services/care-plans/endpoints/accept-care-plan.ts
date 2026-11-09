@@ -2,6 +2,7 @@ import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CarePlanContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
@@ -60,6 +61,7 @@ export const acceptCarePlan = ({
   | PlantRepository
   | NotificationRepository
   | UserRepository
+  | RecipientRepository
   | PlantAccessContext
   | SqlClient.SqlClient
 > =>

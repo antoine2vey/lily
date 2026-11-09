@@ -9,6 +9,7 @@ import {
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
@@ -60,6 +61,7 @@ const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
     CareLogRepositoryLive,
     DelegationRepositoryLive,
     CanopyRepositoryLive,
+    RecipientRepositoryLive,
     notifications
   ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 

@@ -1,5 +1,9 @@
 import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
 import {
+  audienceIn,
+  type RecipientWorld,
+} from '@lily/api/__tests__/mocks/recipient.repository'
+import {
   CareScheduleRepository,
   type CareScheduleRow,
   type CareType,
@@ -28,7 +32,9 @@ export interface MockCareScheduleData {
   rooms?: MockRoom[]
   memberships?: MockMembership[]
   mutes?: Array<{ userId: string; plantId: string }>
-  caretakers?: Array<{ plantId: string; caretakerId: string }>
+  delegations?: RecipientWorld['delegations']
+  delegationPlants?: RecipientWorld['delegationPlants']
+  users?: RecipientWorld['users']
 }
 
 export const createMockCareScheduleRepository = (
@@ -48,7 +54,18 @@ export const createMockCareScheduleRepository = (
   )
   const memberships = data.memberships ?? []
   const mutes = data.mutes ?? []
-  const caretakers = data.caretakers ?? []
+  const audienceOf = (plantId: string) =>
+    audienceIn(
+      {
+        plants: plantsData,
+        members: memberships,
+        mutes,
+        delegations: data.delegations,
+        delegationPlants: data.delegationPlants,
+        users: data.users,
+      },
+      plantId
+    )
 
   const isMuted = (userId: string, plantId: string) =>
     Array.some(mutes, (m) => m.userId === userId && m.plantId === plantId)
@@ -64,26 +81,6 @@ export const createMockCareScheduleRepository = (
       Option.map((m): string => m.canopyId),
       Option.getOrNull
     )
-
-  const recipientsOf = (p: PlantRecord): ReadonlyArray<string> =>
-    p.userId !== null
-      ? [p.userId]
-      : pipe(
-          memberships,
-          Array.filter(
-            (m) => m.canopyId === p.canopyId && !isMuted(m.userId, p.id)
-          ),
-          Array.map((m) => m.userId)
-        )
-
-  const recipientOf = (p: PlantRecord, userId: string) =>
-    p.userId === null
-      ? userId
-      : pipe(
-          Array.findFirst(caretakers, (c) => c.plantId === p.id),
-          Option.map((c) => c.caretakerId),
-          Option.getOrElse(() => userId)
-        )
 
   const isOverdueNow = (now: Date) => (s: CareScheduleRow) =>
     pipe(
@@ -191,13 +188,13 @@ export const createMockCareScheduleRepository = (
             Array.findFirst(plantsData, (p) => p.id === plantId),
             Option.map((plant) =>
               Array.map(
-                recipientsOf(plant),
-                (userId): OverdueRecipientPlant => ({
+                audienceOf(plant.id),
+                (recipientId): OverdueRecipientPlant => ({
                   id: plant.id,
                   name: plant.name,
-                  userId,
+                  userId: plant.userId ?? recipientId,
                   owner: ownerOf(plant),
-                  recipientId: recipientOf(plant, userId),
+                  recipientId,
                   dateAdded: plant.dateAdded,
                   overdueAt: earliestOverdueDate(
                     Array.map(schedules, (sc) => sc.nextCareAt),

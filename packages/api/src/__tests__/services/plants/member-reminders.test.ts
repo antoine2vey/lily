@@ -14,6 +14,7 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
@@ -111,7 +112,8 @@ const run = (
             memberships: members,
           }),
           createMockPlantRepository({ plants }),
-          createMockDelegationRepository()
+          createMockDelegationRepository(),
+          createMockRecipientRepository({ plants, members })
         )
       ),
       Effect.provideService(References.MinimumLogLevel, 'None')

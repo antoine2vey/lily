@@ -7,6 +7,7 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
@@ -27,6 +28,7 @@ const { Pool } = pg
 const ReposLive = Layer.mergeAll(
   AchievementRepositoryLive,
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   CareScheduleRepositoryLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,

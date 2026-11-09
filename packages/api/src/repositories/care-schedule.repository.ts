@@ -3,24 +3,10 @@ import {
   memberCanopyIdOf,
 } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
-import {
-  ownerOf,
-  withCanopyOwner,
-  withUserOwner,
-} from '@lily/api/repositories/helpers/plant-owner'
-import { reachableSql } from '@lily/api/repositories/helpers/recipient'
-import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
+import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
+import { plantAudience } from '@lily/api/repositories/helpers/recipient'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import {
-  canopyMembers,
-  canopyPlantMutes,
-  careDelegations,
-  delegationPlants,
-  plantCareSchedules,
-  plants,
-  rooms,
-  users,
-} from '@lily/db/schema'
+import { plantCareSchedules, plants, rooms, users } from '@lily/db/schema'
 import {
   type CareType,
   earliestOverdueDate,
@@ -29,17 +15,7 @@ import {
   type PlantOwner,
   type PlantSharer,
 } from '@lily/shared'
-import {
-  and,
-  asc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  lte,
-  sql,
-} from 'drizzle-orm'
+import { and, asc, eq, inArray, isNotNull, lt, lte, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -268,83 +244,44 @@ export const CareScheduleRepositoryLive = Layer.effect(
         function* () {
           const now = nowAsDate()
           const overdue = overdueAt(now)
-          const activeCaretakers = db
-            .select({
-              plantId: delegationPlants.plantId,
-              caretakerId: careDelegations.caretakerId,
-            })
-            .from(delegationPlants)
-            .innerJoin(
-              careDelegations,
-              eq(careDelegations.id, delegationPlants.delegationId)
+          const audience = plantAudience(
+            db,
+            inArray(
+              plants.id,
+              db
+                .select({ id: plantCareSchedules.plantId })
+                .from(plantCareSchedules)
+                .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
+                .where(overdue)
             )
-            .innerJoin(users, eq(users.id, careDelegations.caretakerId))
-            .where(and(eq(careDelegations.status, 'active'), reachableSql()))
-            .as('active_caretakers')
-          const personal = yield* db
+          )
+          const rows = yield* db
             .select({
               plantId: plants.id,
               plantName: plants.name,
               userId: plants.userId,
-              caretakerId: activeCaretakers.caretakerId,
+              canopyId: plants.canopyId,
+              recipientId: audience.recipientId,
               nextCareAt: plantCareSchedules.nextCareAt,
               dateAdded: plants.dateAdded,
             })
             .from(plantCareSchedules)
             .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-            .leftJoin(activeCaretakers, eq(activeCaretakers.plantId, plants.id))
-            .innerJoin(
-              users,
-              eq(
-                users.id,
-                sql`coalesce(${activeCaretakers.caretakerId}, ${plants.userId})`
-              )
-            )
-            .where(and(overdue, reachableSql()))
-            .orderBy(asc(plants.userId))
+            .innerJoin(audience, eq(audience.plantId, plants.id))
+            .where(overdue)
+            .orderBy(asc(audience.role), asc(audience.recipientId))
 
-          const shared = yield* db
-            .select({
-              plantId: plants.id,
-              plantName: plants.name,
-              userId: canopyMembers.userId,
-              canopyId: canopyMembers.canopyId,
-              nextCareAt: plantCareSchedules.nextCareAt,
-              dateAdded: plants.dateAdded,
-            })
-            .from(plantCareSchedules)
-            .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-            .innerJoin(
-              canopyMembers,
-              eq(plants.canopyId, canopyMembers.canopyId)
-            )
-            .innerJoin(users, eq(users.id, canopyMembers.userId))
-            .leftJoin(
-              canopyPlantMutes,
-              and(
-                eq(canopyPlantMutes.userId, canopyMembers.userId),
-                eq(canopyPlantMutes.plantId, plants.id)
-              )
-            )
-            .where(
-              and(overdue, reachableSql(), isNull(canopyPlantMutes.userId))
-            )
-            .orderBy(asc(canopyMembers.userId))
-
-          const addressed = Array.appendAll(
-            Array.map(Array.filter(personal, hasUserOwner), (r) => ({
-              ...withUserOwner({ ...r, canopyId: null }),
-              recipientId: pipe(
-                Option.fromNullishOr(r.caretakerId),
-                Option.getOrElse(() => r.userId)
-              ),
-            })),
-            Array.map(shared, (r) => ({
-              ...withCanopyOwner({ ...r, userId: null }),
-              userId: r.userId,
-              recipientId: r.userId,
-            }))
-          )
+          // A personal plant's overdue reminder counts against its owner's
+          // cap even when a caretaker receives it; a Canopy plant's counts
+          // against each member who receives it.
+          const addressed = Array.map(rows, (r) => {
+            const owner = ownerOf(r)
+            return {
+              ...r,
+              owner,
+              userId: owner._tag === 'User' ? owner.userId : r.recipientId,
+            }
+          })
           const byRecipientPlant = Array.groupBy(
             addressed,
             (r) => `${r.userId}:${r.plantId}`

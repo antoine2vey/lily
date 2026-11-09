@@ -3,6 +3,7 @@ import type { CareScheduleRepository } from '@lily/api/repositories/care-schedul
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
 import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
@@ -26,6 +27,7 @@ export const deleteUser = (
   | CareScheduleRepository
   | NotificationRepository
   | DelegationRepository
+  | RecipientRepository
   | PlantRepository
   | MessageQueue
 > =>

@@ -1,15 +1,12 @@
 import { createTestMembership } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { mockDelegation1 } from '@lily/api/__tests__/fixtures/delegations'
-import {
-  createCanopyStore,
-  createMockCanopyRepository,
-} from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import {
+  createMockRecipientRepository,
+  type RecipientWorld,
+} from '@lily/api/__tests__/mocks/recipient.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
   Decision,
   decide,
@@ -20,7 +17,7 @@ import {
   type RecipientSettings,
 } from '@lily/api/services/notification-scheduler/dispatch-gate'
 import type { CanopyId, PlantOwner } from '@lily/shared'
-import { Effect, Layer, Option } from 'effect'
+import { Array, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const NOW = new Date('2026-11-04T12:00:00Z')
@@ -326,12 +323,10 @@ describe('loadPlantFacts', () => {
     plants: Parameters<typeof loadPlantFacts>[0],
     {
       schedules = [],
-      delegation = createMockDelegationRepository(),
-      canopy = createMockCanopyRepository([]),
+      people = {},
     }: {
       schedules?: CareScheduleRow[]
-      delegation?: Layer.Layer<DelegationRepository>
-      canopy?: Layer.Layer<CanopyRepository>
+      people?: Omit<RecipientWorld, 'plants'>
     } = {}
   ) =>
     Effect.runPromise(
@@ -339,8 +334,14 @@ describe('loadPlantFacts', () => {
         Effect.provide(
           Layer.mergeAll(
             createMockCareScheduleRepository({ schedules }),
-            delegation,
-            canopy
+            createMockRecipientRepository({
+              ...people,
+              plants: Array.map(plants, ({ id, owner }) => ({
+                id,
+                userId: owner._tag === 'User' ? owner.userId : null,
+                canopyId: owner._tag === 'Canopy' ? owner.canopyId : null,
+              })),
+            })
           )
         )
       )
@@ -350,12 +351,12 @@ describe('loadPlantFacts', () => {
     const facts = await load(
       [{ id: 'plant-1', diedAt: null, owner: userOwned('user-1') }],
       {
-        delegation: createMockDelegationRepository({
+        people: {
           delegations: [{ ...mockDelegation1, status: 'active' }],
           delegationPlants: [
             { delegationId: 'delegation-1', plantId: 'plant-1' },
           ],
-        }),
+        },
       }
     )
     expect(facts.get('plant-1')?.recipients).toEqual(['user-2', 'user-1'])
@@ -365,12 +366,12 @@ describe('loadPlantFacts', () => {
     const facts = await load(
       [{ id: 'plant-1', diedAt: null, owner: userOwned('user-1') }],
       {
-        delegation: createMockDelegationRepository({
+        people: {
           delegations: [{ ...mockDelegation1, status: 'completed' }],
           delegationPlants: [
             { delegationId: 'delegation-1', plantId: 'plant-1' },
           ],
-        }),
+        },
       }
     )
     expect(facts.get('plant-1')?.recipients).toEqual(['user-1'])
@@ -380,21 +381,19 @@ describe('loadPlantFacts', () => {
     const facts = await load(
       [{ id: 'plant-1', diedAt: null, owner: canopyOwned }],
       {
-        canopy: createMockCanopyRepository(
-          createCanopyStore({
-            members: [
-              createTestMembership({
-                userId: 'user-1',
-                canopyId: 'canopy-1' as CanopyId,
-              }),
-              createTestMembership({
-                userId: 'user-2',
-                canopyId: 'canopy-1' as CanopyId,
-              }),
-            ],
-            mutes: [{ userId: 'user-1', plantId: 'plant-1' }],
-          })
-        ),
+        people: {
+          members: [
+            createTestMembership({
+              userId: 'user-1',
+              canopyId: 'canopy-1' as CanopyId,
+            }),
+            createTestMembership({
+              userId: 'user-2',
+              canopyId: 'canopy-1' as CanopyId,
+            }),
+          ],
+          mutes: [{ userId: 'user-1', plantId: 'plant-1' }],
+        },
       }
     )
     expect(facts.get('plant-1')?.recipients).toEqual(['user-2'])

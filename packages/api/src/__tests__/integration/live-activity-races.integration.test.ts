@@ -8,6 +8,7 @@ import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repo
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
@@ -40,6 +41,7 @@ const CONCURRENT_PUSHES = 3
 const RepositoriesLive = Layer.mergeAll(
   ActivityPushTokenRepositoryLive,
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
   DelegationRepositoryLive,

@@ -22,9 +22,13 @@ import {
   ReminderGuard,
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
-import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  reconcileCareReminder,
+  rescheduleReminders,
+} from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   CARE_REMINDER_TYPES,
   reminderKeysFor,
@@ -33,7 +37,7 @@ import {
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { PushMessage } from '@lily/shared/server'
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
@@ -77,7 +81,8 @@ const WorkerLive = Layer.mergeAll(
   UserRepositoryLive,
   DeviceTokenRepositoryLive,
   ActivityPushTokenRepositoryLive,
-  DelegationRepositoryLive
+  DelegationRepositoryLive,
+  RecipientRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
@@ -543,6 +548,53 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .from(schema.notifications)
       expect(left).toEqual([{ userId: lily, status: 'queued' }])
+    })
+
+    it('writes no reminder for a suspended member and clears theirs on reschedule', async () => {
+      await db.execute(
+        sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      await db
+        .insert(schema.canopyMembers)
+        .values({ canopyId, userId: sam, role: 'member' })
+      await db
+        .update(schema.users)
+        .set({ status: 'suspended' })
+        .where(eq(schema.users.id, sam))
+      await db.execute(
+        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days' WHERE plant_id = ${shared}`
+      )
+      await db.insert(schema.notifications).values(
+        Arr.map(['pending', 'queued'] as const, (status) => ({
+          type: 'watering_reminder' as const,
+          scheduledAt: new Date(),
+          userId: sam,
+          plantId: shared,
+          status,
+        }))
+      )
+
+      await Effect.runPromise(
+        rescheduleReminders([shared]).pipe(Effect.provide(WorkerLive))
+      )
+
+      const rows = await db
+        .select({
+          userId: schema.notifications.userId,
+          status: schema.notifications.status,
+        })
+        .from(schema.notifications)
+        .where(eq(schema.notifications.plantId, shared))
+      expect(
+        Arr.sort(
+          Arr.map(
+            rows,
+            (r) =>
+              `${r.userId === sam ? 'sam' : r.userId === lily ? 'lily' : 'alex'}:${r.status}`
+          ),
+          Order.String
+        )
+      ).toEqual(['alex:pending', 'lily:pending'])
     })
   }
 )

@@ -53,24 +53,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const daysAgo = (days: number): Date =>
   new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
-const activeCaretakers = ({
-  delegations = [],
-  delegationPlants = [],
-}: {
-  delegations?: DelegationRow[]
-  delegationPlants?: Array<{ delegationId: string; plantId: string }>
-}) =>
-  Arr.flatMap(delegationPlants, ({ delegationId, plantId }) =>
-    pipe(
-      Arr.findFirst(
-        delegations,
-        (d) => d.id === delegationId && d.status === 'active'
-      ),
-      Option.map((d) => ({ plantId, caretakerId: d.caretakerId })),
-      Option.toArray
-    )
-  )
-
 const check = (
   plantsData: TestPlant[],
   users: ReturnType<typeof createTestUser>[],
@@ -102,7 +84,7 @@ const check = (
           plants: plantsData,
           memberships,
           mutes,
-          caretakers: activeCaretakers(delegationData),
+          ...delegationData,
         }),
         createMockCanopyRepository(
           createCanopyStore({ members: memberships, mutes, canopies })

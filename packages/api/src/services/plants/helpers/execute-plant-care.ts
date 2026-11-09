@@ -3,12 +3,12 @@ import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
+import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { WeatherRepository } from '@lily/api/repositories/weather.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -159,7 +159,7 @@ export const executePlantCare = (
   | WeatherProvider
   | WeatherCache
   | WeatherRepository
-  | DelegationRepository
+  | RecipientRepository
   | EventBus
   | CurrentUser
   | CarePlanRepository
