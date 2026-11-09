@@ -2,20 +2,11 @@ import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
-import {
-  canopyPlantIdsOf,
-  rebuildMemberReminders,
-  rescheduleReminders,
-} from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
+import { withUserRemindersRebuilt } from '@lily/api/services/plants/helpers/rebuild-user-reminders'
 import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import type { RateLimiterService } from '@lily/api/services/rate-limiter/service'
 import {
@@ -29,19 +20,6 @@ import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Array, Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
-
-const lockReminderPlantsOf = (userId: string) =>
-  Effect.gen(function* () {
-    const plantRepo = yield* PlantRepository
-    const inCanopy = yield* lockMyCanopy(userId).pipe(
-      Effect.as(true),
-      Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
-    )
-    return {
-      personal: yield* plantRepo.findPersonalReminderPlantIds(userId),
-      canopy: inCanopy ? yield* canopyPlantIdsOf(userId) : [],
-    }
-  })
 
 // Update user settings (profile + notification preferences)
 export const updateUserSettings = (
@@ -146,23 +124,7 @@ export const updateUserSettings = (
 
     const sql = yield* SqlClient.SqlClient
     const user = rebuildReminders
-      ? yield* sql.withTransaction(
-          Effect.gen(function* () {
-            const { personal, canopy } = yield* lockReminderPlantsOf(id)
-            return yield* withReminderKeys(
-              reminderKeysFor(Array.dedupe([...personal, ...canopy])),
-              Option.some(id)
-            )(
-              applyUpdate.pipe(
-                Effect.tap(() =>
-                  rescheduleReminders(personal).pipe(
-                    Effect.andThen(rebuildMemberReminders(id, canopy))
-                  )
-                )
-              )
-            )
-          })
-        )
+      ? yield* withUserRemindersRebuilt(id)(applyUpdate)
       : yield* sql.withTransaction(applyUpdate)
 
     const careLogsCount = yield* careLogRepo.countByUser(id)

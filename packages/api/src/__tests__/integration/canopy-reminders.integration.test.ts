@@ -24,6 +24,8 @@ import {
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { updateStatus } from '@lily/api/services/admin/endpoints/update-status'
+import { AdminUser } from '@lily/api/services/admin/middleware.types'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import {
   reconcileCareReminder,
@@ -37,7 +39,8 @@ import {
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { PushMessage } from '@lily/shared/server'
-import { eq, sql } from 'drizzle-orm'
+import type { UserStatus } from '@lily/shared/user'
+import { and, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
@@ -595,6 +598,101 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Order.String
         )
       ).toEqual(['alex:pending', 'lily:pending'])
+    })
+
+    const asAdmin = Layer.succeed(AdminUser, {
+      id: '00000000-0000-4000-8000-00000000ad31',
+      email: 'admin@example.com',
+      name: 'Admin',
+      firstName: null,
+      lastName: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      role: 'admin',
+      status: 'active',
+    })
+
+    const setStatusAsAdmin = (userId: string, status: UserStatus) =>
+      Effect.runPromise(
+        updateStatus(userId, status).pipe(
+          Effect.provide(Layer.merge(WorkerLive, asAdmin))
+        )
+      )
+
+    const reminderHolders = async (plantId: string) =>
+      Arr.sort(
+        Arr.map(
+          await db
+            .select({ userId: schema.notifications.userId })
+            .from(schema.notifications)
+            .where(
+              and(
+                eq(schema.notifications.plantId, plantId),
+                eq(schema.notifications.status, 'pending')
+              )
+            ),
+          (r) => r.userId
+        ),
+        Order.String
+      )
+
+    it('gives a member reminders again when an admin reactivates them', async () => {
+      await db.execute(
+        sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      await db
+        .insert(schema.canopyMembers)
+        .values({ canopyId, userId: sam, role: 'member' })
+        .onConflictDoNothing()
+      await db
+        .update(schema.users)
+        .set({ status: 'suspended' })
+        .where(eq(schema.users.id, sam))
+      await db.execute(
+        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days' WHERE plant_id = ${shared}`
+      )
+      await Effect.runPromise(
+        rescheduleReminders([shared]).pipe(Effect.provide(WorkerLive))
+      )
+      expect(await reminderHolders(shared)).not.toContain(sam)
+
+      await setStatusAsAdmin(sam, 'active')
+
+      expect(await reminderHolders(shared)).toContain(sam)
+    })
+
+    it('hands the owner the reminder when an admin suspends the caretaker', async () => {
+      await db.execute(
+        sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      const owner = await user('Olive')
+      const caretaker = await user('Cato')
+      const fern = await plant({ userId: owner }, 'Fern')
+      await db.execute(
+        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days' WHERE plant_id = ${fern}`
+      )
+      const [delegation] = await db
+        .insert(schema.careDelegations)
+        .values({
+          ownerId: owner,
+          caretakerId: caretaker,
+          status: 'active',
+          startDate: new Date(Date.now() - 86_400_000),
+          endDate: new Date(Date.now() + 30 * 86_400_000),
+        })
+        .returning({ id: schema.careDelegations.id })
+      if (!delegation) throw new Error('Failed to create delegation')
+      await db
+        .insert(schema.delegationPlants)
+        .values({ delegationId: delegation.id, plantId: fern })
+      await Effect.runPromise(
+        rescheduleReminders([fern]).pipe(Effect.provide(WorkerLive))
+      )
+      expect(await reminderHolders(fern)).toEqual([caretaker])
+
+      await setStatusAsAdmin(caretaker, 'suspended')
+
+      expect(await reminderHolders(fern)).toEqual([owner])
     })
   }
 )

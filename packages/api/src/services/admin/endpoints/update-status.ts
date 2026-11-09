@@ -1,5 +1,7 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
+import { withUserRemindersRebuilt } from '@lily/api/services/plants/helpers/rebuild-user-reminders'
+import type { ReminderContext } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { User, UserStatus } from '@lily/shared/user'
@@ -12,7 +14,7 @@ export const updateStatus = (
 ): Effect.Effect<
   User,
   SqlError | UserNotFoundError | CannotModifySelfError,
-  UserRepository | AdminUser
+  UserRepository | AdminUser | ReminderContext
 > =>
   Effect.gen(function* () {
     const repo = yield* UserRepository
@@ -23,13 +25,13 @@ export const updateStatus = (
       return yield* new CannotModifySelfError()
     }
 
-    const updated = yield* repo.updateStatus(id, status)
-
-    if (!updated) {
-      return yield* new UserNotFoundError()
-    }
-
-    return updated
+    // A status change moves who hears about the user's plants: a locked
+    // caretaker hands them back to the owner, a reactivated member gets theirs.
+    return yield* withUserRemindersRebuilt(id)(
+      Effect.flatMap(repo.updateStatus(id, status), (updated) =>
+        updated ? Effect.succeed(updated) : Effect.fail(new UserNotFoundError())
+      )
+    )
   }).pipe(
     Effect.withSpan('AdminService.updateStatus', {
       attributes: { 'user.id': id, 'user.status': status },
