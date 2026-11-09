@@ -21,7 +21,7 @@ import {
 import type { subscriptionUsage } from '@lily/db/schema'
 import { LimitExceededError, type UsageField } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Deferred, Effect, Exit, Fiber, Layer, Schema } from 'effect'
+import { Deferred, Effect, Exit, Fiber, FiberSet, Layer, Schema } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
 class TurnFailed extends Schema.TaggedError<TurnFailed>()('TurnFailed', {}) {}
@@ -388,8 +388,6 @@ describe('UsageTracker', () => {
         }).pipe(Effect.provide(layer))
       )
 
-      // The settlement never leaves its uninterruptible region, so the
-      // interrupt is never delivered and the fiber ends with its billing.
       expect(exit).toEqual(Exit.succeed('refund'))
       expect(billFinished).toBe(true)
       expect(released).toEqual(['aiChats'])
@@ -411,6 +409,69 @@ describe('UsageTracker', () => {
 
       expect(Exit.isFailure(exit)).toBe(true)
       expect(Exit.hasInterrupts(exit)).toBe(false)
+      expect(released).toEqual(['aiChats'])
+    })
+
+    it('refunds a turn handed to a closed fiber set', async () => {
+      const { layer, released } = createTestLayer({ usage: usageAt() })
+      const closedSet = await Effect.runPromise(
+        Effect.scoped(FiberSet.make<Billing>())
+      )
+      let billed = 0
+
+      const exit = await Effect.runPromise(
+        Effect.gen(function* () {
+          const { settled } = yield* runTurn(
+            turnThatBills('charge', {
+              bill: () => Effect.sync(() => (billed++, 'charge' as const)),
+              detach: (turn) => FiberSet.run(closedSet, turn),
+            })
+          )
+          return yield* Fiber.await(settled)
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(Exit.hasInterrupts(exit)).toBe(true)
+      expect(billed).toBe(0)
+      await vi.waitFor(() => expect(released).toEqual(['aiChats']))
+    })
+
+    it('refunds a detached fiber interrupted before its first step', async () => {
+      const { layer, released } = createTestLayer({ usage: usageAt() })
+      let billed = 0
+
+      const exit = await Effect.runPromise(
+        Effect.gen(function* () {
+          const { settled } = yield* runTurn(
+            turnThatBills('charge', {
+              bill: () => Effect.sync(() => (billed++, 'charge' as const)),
+              detach: (turn) =>
+                Effect.forkDetach(turn).pipe(Effect.tap(Fiber.interrupt)),
+            })
+          )
+          return yield* Fiber.await(settled)
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(Exit.hasInterrupts(exit)).toBe(true)
+      expect(billed).toBe(0)
+      await vi.waitFor(() => expect(released).toEqual(['aiChats']))
+    })
+
+    it('refunds when detaching the turn dies', async () => {
+      const { layer, released } = createTestLayer({ usage: usageAt() })
+
+      const exit = await Effect.runPromise(
+        Effect.exit(
+          runTurn(
+            turnThatBills('charge', {
+              detach: () => Effect.die(new Error('fiber set gone')),
+            })
+          ).pipe(Effect.provide(layer))
+        )
+      )
+
+      expect(Exit.isFailure(exit)).toBe(true)
       expect(released).toEqual(['aiChats'])
     })
   })
