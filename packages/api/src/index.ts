@@ -3,7 +3,7 @@ import { Api } from '@lily/api/api'
 import { AppLive } from '@lily/api/layers'
 import { LoggerLayer } from '@lily/api/logger'
 import { ObservabilityMiddleware } from '@lily/api/middleware/observability'
-import { SecurityHeadersMiddleware } from '@lily/api/middleware/security-headers'
+import { GlobalRouterMiddleware } from '@lily/api/middleware/router'
 import { startAccountCleanupScheduler } from '@lily/api/services/account-cleanup/scheduler'
 import { startAchievementReconciliationScheduler } from '@lily/api/services/achievement-scheduler/scheduler'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
@@ -195,8 +195,7 @@ const ApiRoutes = HttpApiBuilder.layer(Api, {
 const AllRoutes = Layer.mergeAll(
   ApiRoutes,
   HttpApiSwagger.layer(Api),
-  HttpRouter.cors({ maxAge: 86400 }),
-  HttpRouter.middleware(SecurityHeadersMiddleware, { global: true })
+  GlobalRouterMiddleware
 )
 
 // ObservabilityMiddleware already logs every request, so the router's

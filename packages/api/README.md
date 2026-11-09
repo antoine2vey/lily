@@ -23,6 +23,12 @@ HTTP Request → Authentication Middleware → Handler → Endpoint Logic → Re
 4. **Repository Layer** (`repositories/`): Data access abstraction
 5. **Database Layer**: Drizzle ORM with PostgreSQL
 
+### Routes
+
+- Every service group except `internal` is served under `/api/v1`. The prefix is `API_PREFIX` from `@lily/shared`, and clients build URLs from the same constant.
+- The unversioned `/api/...` paths are a permanent alias of `/api/v1/...`. Installed native app builds call them and cannot be updated. The RevenueCat webhook URL in the RevenueCat dashboard also still points at `/api/...`. `LegacyApiPrefixMiddleware` (`middleware/legacy-api-prefix.ts`) rewrites the URL before route lookup and sets `http.legacy_api_prefix` on the request span.
+- `/health`, `/internal/*`, `/openapi.json` and the Swagger UI at `/docs` stay at the root.
+
 ## Project Structure
 
 ```
@@ -198,7 +204,7 @@ return handlers.handle('myEndpoint', ({ payload }) =>
 6. **Wire into `src/api.ts`**:
 ```typescript
 import { MyServiceApi } from './services/my-service/api'
-export const Api = HttpApi.make('api').add(MyServiceApi)
+export const Api = HttpApi.make('api').add(MyServiceApi.prefix(API_PREFIX))
 ```
 7. **Add Layer to `src/index.ts`**:
 ```typescript
