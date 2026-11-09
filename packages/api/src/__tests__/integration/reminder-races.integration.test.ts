@@ -1668,6 +1668,65 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     }, 60_000)
 
+    it('a delegation that activates while its caretaker moves their reminder time lands at the new time', async () => {
+      await db.execute(sql`DELETE FROM care_delegations`)
+      const owner = await user('SettingsOwner')
+      const caretaker = await user('SettingsCaretaker')
+      const plantId = await personalPlant(owner)
+      const [delegation] = await db
+        .insert(schema.careDelegations)
+        .values({
+          ownerId: owner,
+          caretakerId: caretaker,
+          status: 'accepted',
+          startDate: new Date(Date.now() - day),
+          endDate: new Date(Date.now() + 7 * day),
+        })
+        .returning()
+      if (!delegation) throw new Error('Failed to create delegation')
+      await db
+        .insert(schema.delegationPlants)
+        .values({ delegationId: delegation.id, plantId })
+
+      const reached = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const PausedAfterReadingPlants = Layer.effect(
+        PlantRepository,
+        Effect.map(PlantRepository, (repo) => ({
+          ...repo,
+          findPersonalReminderPlantIds: (userId) =>
+            repo.findPersonalReminderPlantIds(userId).pipe(
+              Effect.tap(() => Deferred.succeed(reached, undefined)),
+              Effect.tap(() => Deferred.await(release))
+            ),
+        }))
+      )
+      const settings = as(
+        caretaker,
+        updateUserSettings({ preferredNotificationTime: '18:30' }).pipe(
+          Effect.provide(PausedAfterReadingPlants)
+        )
+      )
+      await Effect.runPromise(Deferred.await(reached))
+      const activation = as(caretaker, pollAndTransition)
+      await untilBlockedOrSettled(activation)
+      Deferred.doneUnsafe(release, Exit.void)
+      const [updated, activated] = await Promise.all([settings, activation])
+      expect(outcome(updated)).toBe('ok')
+      expect(outcome(activated)).toBe('ok')
+
+      const rows = await db
+        .select({
+          userId: schema.notifications.userId,
+          at: sql<string>`to_char(${schema.notifications.scheduledAt} AT TIME ZONE 'UTC', 'HH24:MI')`,
+        })
+        .from(schema.notifications)
+        .where(
+          sql`${schema.notifications.plantId} = ${plantId} AND ${schema.notifications.type} = 'watering_reminder' AND ${schema.notifications.status} = 'pending'`
+        )
+      expect(rows).toEqual([{ userId: caretaker, at: '18:30' }])
+    }, 60_000)
+
     describe('overdue reminders for a caretaker', () => {
       let delegated: string[]
 
