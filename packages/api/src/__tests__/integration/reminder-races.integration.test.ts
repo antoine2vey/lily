@@ -1,3 +1,4 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -25,6 +26,7 @@ import {
 import {
   PlantRepository,
   PlantRepositoryLive,
+  type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
@@ -36,12 +38,15 @@ import {
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
 import { createCanopyInvite } from '@lily/api/services/canopy/endpoints/create-canopy-invite'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
+import { removeCanopyMember } from '@lily/api/services/canopy/endpoints/remove-canopy-member'
 import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
+import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
+import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
 import {
   mutePlant,
   unmutePlant,
@@ -50,6 +55,7 @@ import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
@@ -1610,6 +1616,57 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       },
       120_000
     )
+
+    it('a member who left after the access check can neither delete nor bury a plant that stayed', async () => {
+      const target = plants[0] as string
+      const cases = [
+        {
+          action: 'delete',
+          createdBy: sam,
+          leave: () => as(sam, leaveCanopyAndDelete(sam)(Effect.void)),
+          write: (plant: PlantWithRoom) => deletePlant(plant, target),
+        },
+        {
+          action: 'markDead',
+          createdBy: alex,
+          leave: () => as(alex, removeCanopyMember(sam)),
+          write: (plant: PlantWithRoom) =>
+            markPlantDead(plant, { cause: 'unknown' }, target),
+        },
+      ] as const
+      for (const { action, createdBy, leave, write } of cases) {
+        await reset()
+        await db
+          .insert(schema.canopyMembers)
+          .values({ canopyId, userId: sam, role: 'member' })
+        await db.execute(
+          sql`UPDATE plants SET created_by_user_id = ${createdBy} WHERE id = ${target}`
+        )
+        try {
+          const seen = await as(sam, withPlantAuth(target, action))
+          if (Exit.isFailure(seen)) throw new Error(`sam may not ${action}`)
+          const left = await leave()
+          if (left._tag === 'Failure') throw new Error('sam did not leave')
+          const exit = await as(sam, write(seen.value))
+          expect(failureOf(exit)).toMatchObject({
+            _tag: 'PlantNotFoundError',
+            plantId: target,
+          })
+          const [row] = await db
+            .select({
+              canopyId: schema.plants.canopyId,
+              diedAt: schema.plants.diedAt,
+            })
+            .from(schema.plants)
+            .where(sql`${schema.plants.id} = ${target}`)
+          expect(row).toEqual({ canopyId, diedAt: null })
+        } finally {
+          await db.execute(
+            sql`UPDATE plants SET created_by_user_id = ${alex} WHERE id = ${target}`
+          )
+        }
+      }
+    }, 60_000)
 
     describe('overdue reminders for a caretaker', () => {
       let delegated: string[]
