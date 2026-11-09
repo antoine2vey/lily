@@ -4,10 +4,6 @@ import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { changePlant } from '@lily/api/services/plants/helpers/plant-change'
 import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -34,7 +30,7 @@ export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(function* (
 ) {
   const { id: userId } = yield* CurrentUser
   const repo = yield* CanopyRepository
-  yield* withReminderKeys(reminderKeysFor([plant.id]))(
+  yield* changePlant(plant)(() =>
     Effect.andThen(
       repo.unmute(userId, plant.id),
       rebuildMemberReminders(userId, [plant.id])

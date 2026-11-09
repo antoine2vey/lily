@@ -1,15 +1,12 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
+import { changePlant } from '@lily/api/services/plants/helpers/plant-change'
 import {
   PlantAlreadyDeadError,
   PlantNotFoundError,
@@ -33,6 +30,7 @@ export const markPlantDead = (
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
   | PlantRepository
   | NotificationRepository
+  | CanopyRepository
   | EventBus
   | CurrentUser
   | SqlClient.SqlClient
@@ -47,18 +45,21 @@ export const markPlantDead = (
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
 
-    yield* withReminderKeys(reminderKeysFor([plant.id]))(
+    yield* changePlant(
+      plant,
+      requestedId
+    )((current) =>
       Effect.gen(function* () {
-        const updated = yield* repo.markDead(plant.id, plant.owner, {
+        if (current.diedAt !== null) {
+          return yield* new PlantAlreadyDeadError()
+        }
+        const updated = yield* repo.markDead(current.id, current.owner, {
           diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
           cause: request.cause,
           note: Option.getOrNull(Option.fromNullishOr(request.note)),
         })
         if (!updated) {
-          const current = yield* reloadOwnedPlant(plant, requestedId)
-          return yield* current.diedAt === null
-            ? new PlantNotFoundError({ plantId: requestedId })
-            : new PlantAlreadyDeadError()
+          return yield* new PlantNotFoundError({ plantId: requestedId })
         }
         yield* notificationRepo.deletePendingByPlantId(plant.id)
       })

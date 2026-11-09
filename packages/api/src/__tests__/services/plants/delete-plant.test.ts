@@ -1,6 +1,8 @@
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
@@ -27,6 +29,8 @@ describe('deletePlant', () => {
           Layer.mergeAll(
             createMockPlantRepository({ plants: [plant] }),
             createMockNotificationRepository([]),
+            createMockCanopyRepository(),
+            createMockCurrentUser({ id: 'user-1' }),
             MockSqlClientLive
           )
         )
@@ -50,6 +54,8 @@ describe('deletePlant', () => {
           Layer.mergeAll(
             createMockPlantRepository({ plants: [] }),
             createMockNotificationRepository([]),
+            createMockCanopyRepository(),
+            createMockCurrentUser({ id: 'user-1' }),
             MockSqlClientLive
           )
         )

@@ -1,5 +1,6 @@
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import { sameOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type {
   NotificationRepository,
   ReminderKey,
@@ -9,13 +10,16 @@ import {
   type PlantRow,
 } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
+import {
+  type LockedCanopy,
+  lockMyCanopy,
+} from '@lily/api/services/canopy/helpers/membership'
 import { canopyPlantIdsOf } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import {
   reminderKeysFor,
   withReminderKeys,
 } from '@lily/api/services/plants/helpers/reminder-keys'
+import type { CanopyNotFoundError } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Array, Effect, Match, Option } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
@@ -71,11 +75,28 @@ const run = <C, S, E, R, A, E2, R2>(
     )
   )
 
+const reloadOwnedPlant = (
+  plant: PlantRow,
+  requestedId: string
+): Effect.Effect<PlantRow, PlantNotFoundError | SqlError, PlantRepository> =>
+  Effect.flatMap(PlantRepository, (repo) => repo.findByIds([plant.id])).pipe(
+    Effect.flatMap((rows) =>
+      Option.match(
+        Array.findFirst(rows, (row) => sameOwner(row.owner, plant.owner)),
+        {
+          onNone: () =>
+            Effect.fail(new PlantNotFoundError({ plantId: requestedId })),
+          onSome: Effect.succeed,
+        }
+      )
+    )
+  )
+
 const holdingCanopy = (
   requestedId: string,
   canopyId: string
 ): Effect.Effect<
-  void,
+  LockedCanopy,
   PlantNotFoundError | SqlError,
   CurrentUser | CanopyRepository
 > =>
@@ -84,7 +105,6 @@ const holdingCanopy = (
       ({ canopy }) => canopy.id === canopyId,
       () => new PlantNotFoundError({ plantId: requestedId })
     ),
-    Effect.asVoid,
     Effect.catchTag('CanopyNotFoundError', () =>
       Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
     )
@@ -119,7 +139,7 @@ export const changePlant =
       canopy: Match.value(plant.owner).pipe(
         Match.tag('User', () => Effect.void),
         Match.tag('Canopy', ({ canopyId }) =>
-          holdingCanopy(requestedId, canopyId)
+          Effect.asVoid(holdingCanopy(requestedId, canopyId))
         ),
         Match.exhaustive
       ),
@@ -132,6 +152,49 @@ export const changePlant =
       Effect.flatMap(reloadOwnedPlant(current, requestedId), change)
     )
   }
+
+/**
+ * A move between the caller and their Canopy, in either direction. The
+ * caller is locked first, then their Canopy, which must be the plant's when
+ * the plant is shared. A sharer without a Canopy gets `CanopyNotFoundError`;
+ * a member whose Canopy no longer holds the plant gets `PlantNotFoundError`.
+ * The change receives the reloaded row and the locked Canopy.
+ */
+export const movePlant =
+  (plant: PlantRow, requestedId: string = plant.id) =>
+  <A, E, R>(
+    change: (current: PlantRow, locked: LockedCanopy) => Effect.Effect<A, E, R>
+  ): Effect.Effect<
+    A,
+    E | PlantNotFoundError | CanopyNotFoundError | SqlError,
+    R | LockContext | PlantRepository | CurrentUser | CanopyRepository
+  > =>
+    Effect.flatMap(CurrentUser, ({ id: userId }) => {
+      const plan: LockPlan<
+        LockedCanopy,
+        LockedCanopy,
+        PlantNotFoundError | CanopyNotFoundError | SqlError,
+        CurrentUser | CanopyRepository
+      > = {
+        user: Option.some(userId),
+        canopy: Match.value(plant.owner).pipe(
+          Match.tag('User', () => lockMyCanopy(userId)),
+          Match.tag('Canopy', ({ canopyId }) =>
+            holdingCanopy(requestedId, canopyId)
+          ),
+          Match.exhaustive
+        ),
+        delegations: Effect.void,
+        scope: Effect.succeed,
+        keys: () => reminderKeysFor([plant.id]),
+        updatingUser: Option.none(),
+      }
+      return run(plan, (locked) =>
+        Effect.flatMap(reloadOwnedPlant(plant, requestedId), (current) =>
+          change(current, locked)
+        )
+      )
+    })
 
 export interface MemberScope {
   readonly own: ReadonlyArray<string>
