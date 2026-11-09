@@ -1,7 +1,7 @@
 import { heldBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
-import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
+import { reachableSql } from '@lily/api/repositories/helpers/recipient'
 import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -120,7 +120,7 @@ export const EngagementRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
-    const reachable = isReachableUser()
+    const reachable = reachableSql()
 
     const userSettingsSelection = {
       id: users.id,

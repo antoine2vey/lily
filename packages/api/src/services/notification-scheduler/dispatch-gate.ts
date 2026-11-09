@@ -1,4 +1,5 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { lockOf } from '@lily/api/repositories/helpers/recipient'
 import type { NotificationRow } from '@lily/api/repositories/notification.repository'
 import {
   adjustForDoNotDisturb,
@@ -118,18 +119,11 @@ const plantRule = (
     )
   )
 
-const LOCKED: Record<GateRecipient['status'], Option.Option<DropReason>> = {
-  active: Option.none(),
-  suspended: Option.some('suspended'),
-  banned: Option.some('banned'),
-  pending_deletion: Option.some('pending-deletion'),
-}
-
 const preferenceRule = (
   row: GateRow,
   user: GateRecipient
 ): Option.Option<DropReason> => {
-  const locked = LOCKED[user.status]
+  const locked = lockOf(user)
   if (Option.isSome(locked)) return locked
   const category = TOPIC_CATEGORY[row.type]
   if (category === 'care' && !user.careReminders) {

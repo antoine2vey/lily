@@ -3,7 +3,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
+import { reachableSql } from '@lily/api/repositories/helpers/recipient'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careDelegations,
@@ -721,7 +721,7 @@ export const DelegationRepositoryLive = Layer.effect(
             and(
               eq(delegationPlants.plantId, plantId),
               eq(careDelegations.status, 'active'),
-              isReachableUser()
+              reachableSql()
             )
           )
           .limit(1)
@@ -753,7 +753,7 @@ export const DelegationRepositoryLive = Layer.effect(
             and(
               inArray(delegationPlants.plantId, [...plantIds]),
               eq(careDelegations.status, 'active'),
-              isReachableUser()
+              reachableSql()
             )
           )
       }),

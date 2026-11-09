@@ -8,7 +8,7 @@ import {
   withCanopyOwner,
   withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
-import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
+import { reachableSql } from '@lily/api/repositories/helpers/recipient'
 import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -279,7 +279,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
               eq(careDelegations.id, delegationPlants.delegationId)
             )
             .innerJoin(users, eq(users.id, careDelegations.caretakerId))
-            .where(and(eq(careDelegations.status, 'active'), isReachableUser()))
+            .where(and(eq(careDelegations.status, 'active'), reachableSql()))
             .as('active_caretakers')
           const personal = yield* db
             .select({
@@ -300,7 +300,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
                 sql`coalesce(${activeCaretakers.caretakerId}, ${plants.userId})`
               )
             )
-            .where(and(overdue, isReachableUser()))
+            .where(and(overdue, reachableSql()))
             .orderBy(asc(plants.userId))
 
           const shared = yield* db
@@ -327,7 +327,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
               )
             )
             .where(
-              and(overdue, isReachableUser(), isNull(canopyPlantMutes.userId))
+              and(overdue, reachableSql(), isNull(canopyPlantMutes.userId))
             )
             .orderBy(asc(canopyMembers.userId))
 
