@@ -34,6 +34,15 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown))
 
+export const UsageId = Schema.String.pipe(Schema.brand('UsageId'))
+export type UsageId = typeof UsageId.Type
+
+/** A `subscription_usage` row that `reserveUsage` charged one unit to. */
+export interface ReservedUsage
+  extends Omit<typeof subscriptionUsage.$inferSelect, 'id'> {
+  readonly id: UsageId
+}
+
 export interface CreateSubscriptionData {
   userId: string
   tier: SubscriptionTier
@@ -123,18 +132,21 @@ export interface ISubscriptionRepository {
 
   /**
    * Atomically takes one unit of `field` for the current month. Returns the
-   * updated row, or `null` when `limit` is already reached. A `null` limit
+   * charged row, or `null` when `limit` is already reached. A `null` limit
    * never refuses.
    */
   readonly reserveUsage: (
     userId: string,
     field: UsageField,
     limit: number | null
-  ) => Effect.Effect<typeof subscriptionUsage.$inferSelect | null, SqlError>
+  ) => Effect.Effect<ReservedUsage | null, SqlError>
 
-  /** Gives back one unit taken by `reserveUsage`; never goes below zero. */
+  /**
+   * Gives back one unit of `field` on the row `reserveUsage` charged, even
+   * after the month has rolled over; never goes below zero.
+   */
   readonly releaseUsage: (
-    userId: string,
+    usageId: UsageId,
     field: UsageField
   ) => Effect.Effect<void, SqlError>
 
@@ -521,14 +533,19 @@ export const SubscriptionRepositoryLive = Layer.effect(
           )
           .returning()
 
-        return Option.getOrNull(Option.fromNullishOr(usage))
+        return pipe(
+          Option.fromNullishOr(usage),
+          Option.map(
+            (row): ReservedUsage => ({ ...row, id: UsageId.make(row.id) })
+          ),
+          Option.getOrNull
+        )
       }),
 
       releaseUsage: Effect.fn('SubscriptionRepository.releaseUsage')(function* (
-        userId: string,
+        usageId: UsageId,
         field: UsageField
       ) {
-        const { periodStart } = getMonthBoundaries()
         const { column, columnName } = usageColumn(field)
 
         yield* db
@@ -537,12 +554,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             [columnName]: sql`GREATEST(${column} - 1, 0)`,
             updatedAt: nowAsDate(),
           })
-          .where(
-            and(
-              eq(subscriptionUsage.userId, userId),
-              eq(subscriptionUsage.periodStart, periodStart)
-            )
-          )
+          .where(eq(subscriptionUsage.id, usageId))
       }),
 
       findGiftEvents: Effect.fn('SubscriptionRepository.findGiftEvents')(

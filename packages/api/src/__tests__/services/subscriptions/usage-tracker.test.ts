@@ -59,7 +59,7 @@ const createTestLayer = (options: {
           usage: options.usage,
           tier: options.tier,
           onReserveUsage: (_userId, field) => reserved.push(field),
-          onReleaseUsage: (_userId, field) => released.push(field),
+          onReleaseUsage: (_usageId, field) => released.push(field),
         }),
         Layer.succeed(NotificationRepository, notifRepo),
         Layer.succeed(UserRepository, userRepo)

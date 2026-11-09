@@ -206,7 +206,7 @@ export const UsageTrackerLive = Layer.effect(
         )
       }
 
-      const release = subRepo.releaseUsage(userId, field)
+      const release = subRepo.releaseUsage(usage.id, field)
       return { usage, release } satisfies UsageReservation
     })
 
