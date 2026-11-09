@@ -9,7 +9,6 @@ import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface IRecipientRepository {
-  // Every requested plant is a key; its recipients come in join order.
   readonly audienceOf: (
     plantIds: ReadonlyArray<string>
   ) => Effect.Effect<Audience, SqlError>

@@ -144,8 +144,6 @@ const refreshCardsFor = (params: {
       ...owner,
       ...heardBy(audience, params.plantId),
     ])
-    // The actor and the owner see the card whoever hears about the plant, but
-    // a locked account's card stops moving like its reminders do.
     const users = yield* userRepo.findByIds(candidates)
     const reachable = Array.filter(candidates, (userId) =>
       Array.some(users, (u) => u.id === userId && Option.isNone(lockOf(u)))

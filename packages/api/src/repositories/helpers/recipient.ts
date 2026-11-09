@@ -26,8 +26,6 @@ type UserStatus = (typeof userStatusEnum.enumValues)[number]
 
 export type Lock = 'suspended' | 'banned' | 'pending-deletion'
 
-// Every status gets a verdict here, so a new enum value fails to compile until
-// someone decides whether that account still hears about its plants.
 const STATUS_LOCK: Record<UserStatus, Option.Option<Lock>> = {
   active: Option.none(),
   suspended: Option.some('suspended'),
@@ -69,12 +67,21 @@ const activeCaretaker = and(
   eq(careDelegations.status, 'active')
 )
 
-// Who hears about each plant in `plantScope`: the reachable active caretaker,
-// else the reachable owner, of a personal plant, and the reachable unmuted
-// members of a Canopy plant. The scope sits inside every branch so Postgres
-// filters plants before it joins people.
 export const plantAudience = (db: Db, plantScope: SQL) => {
   const caretaker = alias(users, 'caretaker')
+  const noReachableCaretaker = notExists(
+    db
+      .select({ one: sql`1` })
+      .from(delegationPlants)
+      .innerJoin(careDelegations, activeCaretaker)
+      .innerJoin(caretaker, eq(caretaker.id, careDelegations.caretakerId))
+      .where(
+        and(
+          eq(delegationPlants.plantId, plants.id),
+          reachableSql(caretaker.status)
+        )
+      )
+  )
   const caretakers = db
     .select(
       audienceRow(
@@ -93,25 +100,7 @@ export const plantAudience = (db: Db, plantScope: SQL) => {
     .select(audienceRow(plants.id, plants.userId, 'owner', noJoinTime))
     .from(plants)
     .innerJoin(users, eq(users.id, plants.userId))
-    .where(
-      and(
-        plantScope,
-        reachableSql(),
-        notExists(
-          db
-            .select({ one: sql`1` })
-            .from(delegationPlants)
-            .innerJoin(careDelegations, activeCaretaker)
-            .innerJoin(caretaker, eq(caretaker.id, careDelegations.caretakerId))
-            .where(
-              and(
-                eq(delegationPlants.plantId, plants.id),
-                reachableSql(caretaker.status)
-              )
-            )
-        )
-      )
-    )
+    .where(and(plantScope, reachableSql(), noReachableCaretaker))
   const members = db
     .select(
       audienceRow(

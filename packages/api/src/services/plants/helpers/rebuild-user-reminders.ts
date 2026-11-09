@@ -27,9 +27,6 @@ const lockReminderPlantsOf = (userId: string) =>
     }
   })
 
-// Runs `change` to the user's row holding the reminder keys of every plant
-// they own, care for or share, then rebuilds those reminders for whoever
-// hears about each plant once the change is in.
 export const withUserRemindersRebuilt =
   (userId: string) =>
   <A, E, R>(

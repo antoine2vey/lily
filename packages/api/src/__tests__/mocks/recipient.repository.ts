@@ -6,8 +6,6 @@ import { RecipientRepository } from '@lily/api/repositories/recipient.repository
 import type { DelegationStatus, UserStatus } from '@lily/shared'
 import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 
-// The mock reads its world on every call, so a test that mutates these arrays
-// (a mute, a new member, a suspension) sees the audience follow.
 export interface RecipientWorld {
   readonly plants: ReadonlyArray<{
     readonly id: string
@@ -40,7 +38,6 @@ export interface RecipientWorld {
         readonly plantId: string
       }>
     | undefined
-  // A user missing from this list is active.
   readonly users?:
     | ReadonlyArray<{
         readonly id: string
@@ -50,10 +47,12 @@ export interface RecipientWorld {
 }
 
 const reachable = (world: RecipientWorld, userId: string) =>
-  pipe(
+  Option.match(
     Array.findFirst(world.users ?? [], (u) => u.id === userId),
-    Option.flatMap(lockOf),
-    Option.isNone
+    {
+      onNone: () => true,
+      onSome: (user) => Option.isNone(lockOf(user)),
+    }
   )
 
 type Member = NonNullable<RecipientWorld['members']>[number]

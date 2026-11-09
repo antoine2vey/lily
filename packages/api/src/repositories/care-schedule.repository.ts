@@ -271,9 +271,6 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .where(overdue)
             .orderBy(asc(audience.role), asc(audience.recipientId))
 
-          // A personal plant's overdue reminder counts against its owner's
-          // cap even when a caretaker receives it; a Canopy plant's counts
-          // against each member who receives it.
           const addressed = Array.map(rows, (r) => {
             const owner = ownerOf(r)
             return {

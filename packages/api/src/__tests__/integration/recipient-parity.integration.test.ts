@@ -147,8 +147,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
       }
 
-      // Every status takes every seat, so a branch that forgets the status
-      // table leaks that user into the audience.
       for (const status of STATUSES) {
         const owner = await user(`owner-${status}`, status)
         await plant(`alone-${status}`, { userId: owner })

@@ -25,8 +25,6 @@ export const updateStatus = (
       return yield* new CannotModifySelfError()
     }
 
-    // A status change moves who hears about the user's plants: a locked
-    // caretaker hands them back to the owner, a reactivated member gets theirs.
     return yield* withUserRemindersRebuilt(id)(
       Effect.flatMap(repo.updateStatus(id, status), (updated) =>
         updated ? Effect.succeed(updated) : Effect.fail(new UserNotFoundError())
