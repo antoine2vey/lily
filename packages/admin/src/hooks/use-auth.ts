@@ -1,4 +1,5 @@
 import type { UserRole, UserStatus } from '@lily/shared'
+import { API_PREFIX } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 import {
@@ -29,7 +30,7 @@ export const useSendMagicLink = () =>
   useMutation({
     mutationFn: async (email: string) => {
       const baseUrl = getApiUrl()
-      const response = await fetch(`${baseUrl}/api/auth/magic-link`, {
+      const response = await fetch(`${baseUrl}${API_PREFIX}/auth/magic-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -48,7 +49,7 @@ export const useVerifyCode = () =>
   useMutation({
     mutationFn: async (code: string) => {
       const baseUrl = getApiUrl()
-      const response = await fetch(`${baseUrl}/api/auth/verify`, {
+      const response = await fetch(`${baseUrl}${API_PREFIX}/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
@@ -75,7 +76,7 @@ export const useLogout = () =>
   useMutation({
     mutationFn: async () => {
       try {
-        await apiRequest('/api/auth/logout', { method: 'POST' })
+        await apiRequest(`${API_PREFIX}/auth/logout`, { method: 'POST' })
       } finally {
         clearAuth()
       }

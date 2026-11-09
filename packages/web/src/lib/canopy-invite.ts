@@ -2,7 +2,7 @@ import { Array, Match, Option, Predicate, pipe, String } from 'effect'
 
 const API_URL = pipe(
   Option.fromNullishOr(import.meta.env.VITE_API_URL),
-  Option.getOrElse(() => 'https://api.withlily.app/api')
+  Option.getOrElse(() => 'https://api.withlily.app/api/v1')
 )
 
 export interface InvitePreview {

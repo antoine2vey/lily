@@ -1,6 +1,6 @@
 import { makePlant } from '@lily/mcp/__tests__/mocks/plant'
 import { ApiClient, ApiClientLive, CurrentJwt } from '@lily/mcp/api-client'
-import { ExternalServiceError } from '@lily/shared'
+import { API_PREFIX, ExternalServiceError } from '@lily/shared'
 import { Plant } from '@lily/shared/plant'
 import { ConfigProvider, Effect, Layer, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
@@ -84,7 +84,9 @@ describe('MCP API client plant scope', () => {
   it('asks GET /care-tasks for Canopy tasks', async () => {
     await run((api) => api.getCareTasks())
 
-    expect(new URL(requests[0]?.url ?? '').pathname).toBe('/api/care-tasks')
+    expect(new URL(requests[0]?.url ?? '').pathname).toBe(
+      `${API_PREFIX}/care-tasks`
+    )
     expect(sentQuery()).toEqual({ includeCanopy: 'true' })
   })
 
@@ -100,7 +102,9 @@ describe('MCP API client plant scope', () => {
     )
 
     expect(requests[0]?.method).toBe('POST')
-    expect(new URL(requests[0]?.url ?? '').pathname).toBe('/api/plants')
+    expect(new URL(requests[0]?.url ?? '').pathname).toBe(
+      `${API_PREFIX}/plants`
+    )
     expect(await requests[0]?.json()).toMatchObject({ owner: 'canopy' })
   })
 })
@@ -112,7 +116,9 @@ describe('MCP API client response decoding', () => {
     const error = await run((api) => api.getCareTasks().pipe(Effect.flip))
 
     expect(error).toBeInstanceOf(ExternalServiceError)
-    expect(error.url).toBe('http://api.test/api/care-tasks?includeCanopy=true')
+    expect(error.url).toBe(
+      `http://api.test${API_PREFIX}/care-tasks?includeCanopy=true`
+    )
   })
 })
 
@@ -141,21 +147,21 @@ describe('MCP API client plant id path segment', () => {
   ]
 
   it.each(calls)(
-    '%s keeps a traversal id inside /api/plants/',
+    '%s keeps a traversal id inside /api/v1/plants/',
     async (_name, call) => {
       await run((api) => Effect.exit(call(api)))
 
       const { pathname } = new URL(requests[0]?.url ?? '')
-      expect(pathname.startsWith('/api/plants/')).toBe(true)
+      expect(pathname.startsWith(`${API_PREFIX}/plants/`)).toBe(true)
       expect(pathname).not.toContain('/canopies/')
     }
   )
 
-  it('carePlant posts a valid id to /api/plants/<id>/care', async () => {
+  it('carePlant posts a valid id to /api/v1/plants/<id>/care', async () => {
     await run((api) => api.carePlant(plantId, { careType: 'watering' }))
 
     expect(new URL(requests[0]?.url ?? '').pathname).toBe(
-      `/api/plants/${plantId}/care`
+      `${API_PREFIX}/plants/${plantId}/care`
     )
   })
 })

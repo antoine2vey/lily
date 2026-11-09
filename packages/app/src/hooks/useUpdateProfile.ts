@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { DateTime } from 'effect'
 import { apiEffectRunner } from '@/utils/client'
@@ -25,7 +26,9 @@ export function useUpdateProfile() {
           name: `avatar-${timestamp}.jpg`,
           type: 'image/jpeg',
         })
-        await uploadMultipart<{ url: string }>('/api/users/avatar', [file])
+        await uploadMultipart<{ url: string }>(`${API_PREFIX}/users/avatar`, [
+          file,
+        ])
       }
 
       // Update name/bio/first/last via settings endpoint

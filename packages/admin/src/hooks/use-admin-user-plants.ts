@@ -1,4 +1,5 @@
 import type { PaginatedResponse } from '@lily/shared'
+import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -22,7 +23,7 @@ export const useAdminUserPlants = (id: string, page: number) =>
     queryKey: ['admin-user-plants', id, page],
     queryFn: () =>
       apiRequest<PaginatedResponse<AdminPlantItem>>(
-        `/api/admin/users/${id}/plants?page=${page}&limit=10`
+        `${API_PREFIX}/admin/users/${id}/plants?page=${page}&limit=10`
       ),
     enabled: !!id,
   })

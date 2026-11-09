@@ -134,7 +134,7 @@ function PlantsScreen() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['plants'],
     queryFn: async () => {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/plants`)
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/v1/plants`)
       return response.json()
     },
   })
@@ -156,7 +156,7 @@ import { HttpClient } from '@effect/platform'
 
 const getPlants = Effect.gen(function* () {
   const client = yield* HttpClient.HttpClient
-  const response = yield* client.get('/api/plants')
+  const response = yield* client.get('/api/v1/plants')
   return yield* response.json
 })
 ```

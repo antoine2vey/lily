@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import type { AiChatVolumeResponse } from '@lily/shared/admin/analytics'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
@@ -13,7 +14,7 @@ export const useAiChatVolume = () => {
     queryFn: () => {
       const { from, to } = resolvePresetRange(preset)
       return apiRequest<AiChatVolumeResponse>(
-        `/api/admin/analytics/ai-chat-volume?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+        `${API_PREFIX}/admin/analytics/ai-chat-volume?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
       )
     },
     staleTime: 5 * 60 * 1000,

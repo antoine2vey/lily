@@ -1,4 +1,5 @@
 import { useChat } from '@ai-sdk/react'
+import { API_PREFIX } from '@lily/shared'
 import { ChatSuggestionTap } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
 import { DefaultChatTransport } from 'ai'
@@ -40,7 +41,7 @@ export function useConversationChat({
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: `${API_BASE_URL}/api/chat/conversations/${conversationId}/stream`,
+        api: `${API_BASE_URL}${API_PREFIX}/chat/conversations/${conversationId}/stream`,
         fetch: withAuthRefresh(expoFetch as typeof globalThis.fetch),
         prepareSendMessagesRequest: async ({
           messages,
