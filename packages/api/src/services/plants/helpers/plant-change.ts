@@ -1,4 +1,7 @@
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import {
+  CanopyRepository,
+  type CanopyRow,
+} from '@lily/api/repositories/canopy.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { sameOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type {
@@ -19,9 +22,9 @@ import {
   reminderKeysFor,
   withReminderKeys,
 } from '@lily/api/services/plants/helpers/reminder-keys'
-import type { CanopyNotFoundError } from '@lily/shared'
+import { CanopyNotFoundError } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import { Array, Effect, Match, Option } from 'effect'
+import { Array, Effect, identity, Match, Option } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -250,3 +253,81 @@ export const changeMember =
     }
     return run(plan, change)
   }
+
+interface CanopyScope<C> {
+  readonly held: C
+  readonly plantIds: ReadonlyArray<string>
+}
+
+const canopyPlan = <C, E, R>(
+  lock: Effect.Effect<C, E, R>,
+  rowOf: (held: C) => CanopyRow
+): LockPlan<C, CanopyScope<C>, E | SqlError, R | CanopyRepository> => ({
+  user: Option.none(),
+  canopy: lock,
+  delegations: Effect.void,
+  scope: (held) =>
+    Effect.map(
+      Effect.flatMap(CanopyRepository, (repo) =>
+        repo.findPlantIdsOfCanopy(rowOf(held).id)
+      ),
+      (plantIds) => ({ held, plantIds })
+    ),
+  keys: ({ plantIds }) => reminderKeysFor(plantIds),
+  updatingUser: Option.none(),
+})
+
+const lockCanopy = (
+  canopyId: string
+): Effect.Effect<CanopyRow, CanopyNotFoundError | SqlError, CanopyRepository> =>
+  Effect.flatMap(CanopyRepository, (repo) => repo.lock(canopyId)).pipe(
+    Effect.flatMap((row) =>
+      row === null
+        ? Effect.fail(new CanopyNotFoundError())
+        : Effect.succeed(row)
+    )
+  )
+
+/**
+ * A change to a Canopy by id, for a caller who does not act through a
+ * membership in it, such as someone joining. The row is locked, then every
+ * plant it holds. The change receives the row and those plant ids.
+ */
+export const changeCanopy =
+  (canopyId: string) =>
+  <A, E, R>(
+    change: (
+      canopy: CanopyRow,
+      plantIds: ReadonlyArray<string>
+    ) => Effect.Effect<A, E, R>
+  ): Effect.Effect<
+    A,
+    E | CanopyNotFoundError | SqlError,
+    R | LockContext | CanopyRepository
+  > =>
+    run(canopyPlan(lockCanopy(canopyId), identity), ({ held, plantIds }) =>
+      change(held, plantIds)
+    )
+
+/**
+ * A change to the caller's own Canopy. The row is locked through the
+ * caller's membership, then every plant it holds. The change receives the
+ * locked Canopy with that membership, so it can check the role, and the
+ * plant ids.
+ */
+export const changeMyCanopy =
+  (userId: string) =>
+  <A, E, R>(
+    change: (
+      locked: LockedCanopy,
+      plantIds: ReadonlyArray<string>
+    ) => Effect.Effect<A, E, R>
+  ): Effect.Effect<
+    A,
+    E | CanopyNotFoundError | SqlError,
+    R | LockContext | CanopyRepository
+  > =>
+    run(
+      canopyPlan(lockMyCanopy(userId), ({ canopy }) => canopy),
+      ({ held, plantIds }) => change(held, plantIds)
+    )

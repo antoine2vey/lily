@@ -28,6 +28,7 @@ import {
 } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { listPlantCarePlans } from '@lily/api/services/care-plans/endpoints/list-plant-care-plans'
 import { withCarePlanAuth } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
+import { changeCanopy } from '@lily/api/services/plants/helpers/plant-change'
 import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -192,7 +193,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expiresAt: inDays(7),
       })
 
-      await run(dissolveCanopy(canopyId, alexId))
+      await run(changeCanopy(canopyId)(() => dissolveCanopy(canopyId, alexId)))
 
       const plants = await db
         .select()
