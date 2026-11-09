@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { DateTime } from 'effect'
 import {
   clearAuth,
@@ -50,7 +51,7 @@ const tryRefresh = async (): Promise<boolean> => {
 
   try {
     const baseUrl = getApiUrl()
-    const response = await fetch(`${baseUrl}/api/auth/refresh`, {
+    const response = await fetch(`${baseUrl}${API_PREFIX}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),

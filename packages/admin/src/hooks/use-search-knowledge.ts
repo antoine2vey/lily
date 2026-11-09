@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -21,8 +22,11 @@ export interface ChunkSearchResult {
 export const useSearchKnowledge = () =>
   useMutation({
     mutationFn: (body: SearchKnowledgeRequest) =>
-      apiRequest<ReadonlyArray<ChunkSearchResult>>('/api/knowledge/search', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
+      apiRequest<ReadonlyArray<ChunkSearchResult>>(
+        `${API_PREFIX}/knowledge/search`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
   })

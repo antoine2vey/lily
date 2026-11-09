@@ -1,4 +1,5 @@
 import type { PaginatedResponse } from '@lily/shared'
+import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -20,7 +21,7 @@ export const useAdminConversationMessages = (
     queryKey: ['admin-conversation-messages', userId, conversationId, page],
     queryFn: () =>
       apiRequest<PaginatedResponse<AdminChatMessage>>(
-        `/api/admin/users/${userId}/conversations/${conversationId}/messages?page=${page}&limit=20`
+        `${API_PREFIX}/admin/users/${userId}/conversations/${conversationId}/messages?page=${page}&limit=20`
       ),
     enabled: !!userId && !!conversationId,
   })

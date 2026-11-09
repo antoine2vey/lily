@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
@@ -15,7 +16,7 @@ export function useUploadConversationImage(conversationId: string) {
       })
 
       return uploadMultipart<UploadResult>(
-        `/api/chat/conversations/${conversationId}/upload`,
+        `${API_PREFIX}/chat/conversations/${conversationId}/upload`,
         [file]
       )
     },

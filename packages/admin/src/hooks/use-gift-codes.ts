@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -54,7 +55,7 @@ export const useGiftCodes = (page = 1) =>
     queryKey: ['gift-codes', page],
     queryFn: () =>
       apiRequest<PaginatedGiftCodes>(
-        `/api/admin/gift-codes?page=${page}&limit=20`
+        `${API_PREFIX}/admin/gift-codes?page=${page}&limit=20`
       ),
   })
 
@@ -62,14 +63,16 @@ export const useGiftCode = (id: string) =>
   useQuery({
     queryKey: ['gift-codes', id],
     queryFn: () =>
-      apiRequest<GiftCodeWithRedemptions>(`/api/admin/gift-codes/${id}`),
+      apiRequest<GiftCodeWithRedemptions>(
+        `${API_PREFIX}/admin/gift-codes/${id}`
+      ),
     enabled: !!id,
   })
 
 export const useCreateGiftCode = () =>
   useMutation({
     mutationFn: (data: CreateGiftCodeRequest) =>
-      apiRequest<GiftCodeItem>('/api/admin/gift-codes', {
+      apiRequest<GiftCodeItem>(`${API_PREFIX}/admin/gift-codes`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -78,7 +81,7 @@ export const useCreateGiftCode = () =>
 export const useUpdateGiftCode = () =>
   useMutation({
     mutationFn: ({ id, ...data }: UpdateGiftCodeRequest & { id: string }) =>
-      apiRequest<GiftCodeItem>(`/api/admin/gift-codes/${id}`, {
+      apiRequest<GiftCodeItem>(`${API_PREFIX}/admin/gift-codes/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
@@ -87,7 +90,7 @@ export const useUpdateGiftCode = () =>
 export const useDeleteGiftCode = () =>
   useMutation({
     mutationFn: (id: string) =>
-      apiRequest<GiftCodeItem>(`/api/admin/gift-codes/${id}`, {
+      apiRequest<GiftCodeItem>(`${API_PREFIX}/admin/gift-codes/${id}`, {
         method: 'DELETE',
       }),
   })

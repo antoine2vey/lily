@@ -3,7 +3,7 @@ import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import type { Scope } from '@lily/mcp/auth/scopes'
 import { ToolsLayer } from '@lily/mcp/tools/handlers'
-import { ExternalServiceError } from '@lily/shared'
+import { API_PREFIX, ExternalServiceError } from '@lily/shared'
 import { Effect, Layer, Option } from 'effect'
 import { McpSchema, McpServer } from 'effect/ai'
 import { HttpServerRequest } from 'effect/http'
@@ -14,8 +14,7 @@ const unexpiredJwt = `h.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 100
 const clientInfo = { name: 'scope-test', version: '1.0.0' }
 const PLANT_ID = '3f2b8c1e-5d4a-4b7e-9c0d-1a2b3c4d5e6f'
 
-const INTERNAL_URL =
-  'http://api-withlily.railway.internal:3000/api/plants/someone-elses'
+const INTERNAL_URL = `http://api-withlily.railway.internal:3000${API_PREFIX}/plants/someone-elses`
 
 const callTool = (
   name: string,

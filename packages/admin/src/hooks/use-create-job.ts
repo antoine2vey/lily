@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -25,7 +26,7 @@ export const useCreateJob = () => {
 
   return useMutation({
     mutationFn: (body: CreateIngestJobRequest) =>
-      apiRequest('/api/knowledge/jobs', {
+      apiRequest(`${API_PREFIX}/knowledge/jobs`, {
         method: 'POST',
         body: JSON.stringify(body),
       }),

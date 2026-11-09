@@ -1,4 +1,4 @@
-import { nowAsEpochMillis } from '@lily/shared'
+import { API_PREFIX, nowAsEpochMillis } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Result } from 'effect'
 import { plantDetailKey } from '@/utils/plant-cache'
@@ -37,7 +37,7 @@ export function useUpdatePlant() {
       const data = isLocalFile ? fields : { ...fields, imageUrl }
 
       return uploadMultipart<unknown>(
-        `/api/plants/${path.id}`,
+        `${API_PREFIX}/plants/${path.id}`,
         files,
         'image',
         { data: JSON.stringify(data) },

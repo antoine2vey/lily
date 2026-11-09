@@ -2,6 +2,7 @@ import { Api } from '@lily/api/api'
 import {
   type AlreadyCaredTodayError,
   type AlreadyInCanopyError,
+  API_PREFIX,
   type CannotDelegateSelfError,
   type CanopyFullError,
   type CanopyInviteExpiredError,
@@ -468,13 +469,16 @@ const performRefresh = (
       }
 
       addAuthBreadcrumb('refresh_started')
-      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken }),
-      })
+      const response = await fetch(
+        `${API_BASE_URL}${API_PREFIX}/auth/refresh`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refreshToken }),
+        }
+      )
 
       if (!response.ok) {
         // Only clear tokens on auth errors, not server errors

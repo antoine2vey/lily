@@ -55,7 +55,7 @@ const isJwtExpired = (jwt: string): boolean => {
 // ── API JWT refresh ────────────────────────────────────────────────────
 
 /**
- * Refresh the API JWT via POST /api/auth/refresh (no JWT required)
+ * Refresh the API JWT via POST /api/v1/auth/refresh (no JWT required)
  * and persist the new credentials.
  */
 const refreshApiJwt = Effect.fn('MCP.refreshApiJwt')(function* (

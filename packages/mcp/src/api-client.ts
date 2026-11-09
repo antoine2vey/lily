@@ -1,5 +1,9 @@
 import type { CareType, LanguageCode } from '@lily/shared'
-import { CareTasksResponse, ExternalServiceError } from '@lily/shared'
+import {
+  API_PREFIX,
+  CareTasksResponse,
+  ExternalServiceError,
+} from '@lily/shared'
 import { AuthResponse, RefreshTokenResponse } from '@lily/shared/auth'
 import { CareLogsListResponse } from '@lily/shared/care-log'
 import {
@@ -134,7 +138,7 @@ export interface IApiClient {
 // 2026-10-19, so 15 s only cuts off a hung API.
 const API_TIMEOUT = Duration.seconds(15)
 
-// /api/knowledge/query embeds the question (RagService.retrieve at most 3.2 s
+// /api/v1/knowledge/query embeds the question (RagService.retrieve at most 3.2 s
 // over 60 days) under the API's own 30 s embedding deadline. 45 s lets that
 // deadline report its own error first.
 const KNOWLEDGE_QUERY_TIMEOUT = Duration.seconds(45)
@@ -288,7 +292,9 @@ export const ApiClientLive = Layer.unwrap(
             const query = new URLSearchParams(includeEveryPlant)
             if (params?.filter) query.set('filter', params.filter)
             if (params?.limit) query.set('limit', params.limit)
-            return HttpClientRequest.get(`${baseUrl}/api/plants?${query}`).pipe(
+            return HttpClientRequest.get(
+              `${baseUrl}${API_PREFIX}/plants?${query}`
+            ).pipe(
               authed(PlantsListResponse),
               Effect.withSpan('ApiClient.listPlants')
             )
@@ -296,11 +302,11 @@ export const ApiClientLive = Layer.unwrap(
 
           getPlant: (plantId) =>
             HttpClientRequest.get(
-              `${baseUrl}/api/plants/${encodeURIComponent(plantId)}`
+              `${baseUrl}${API_PREFIX}/plants/${encodeURIComponent(plantId)}`
             ).pipe(authed(PlantDetail), Effect.withSpan('ApiClient.getPlant')),
 
           createPlant: (body) =>
-            HttpClientRequest.post(`${baseUrl}/api/plants`).pipe(
+            HttpClientRequest.post(`${baseUrl}${API_PREFIX}/plants`).pipe(
               HttpClientRequest.bodyJsonUnsafe(body),
               authed(Plant),
               Effect.withSpan('ApiClient.createPlant')
@@ -311,7 +317,7 @@ export const ApiClientLive = Layer.unwrap(
             if (params?.limit) query.set('limit', params.limit)
             const qs = query.toString()
             return HttpClientRequest.get(
-              `${baseUrl}/api/plants/${encodeURIComponent(plantId)}/logs${qs ? `?${qs}` : ''}`
+              `${baseUrl}${API_PREFIX}/plants/${encodeURIComponent(plantId)}/logs${qs ? `?${qs}` : ''}`
             ).pipe(
               authed(CareLogsListResponse),
               Effect.withSpan('ApiClient.getCareLogs')
@@ -320,7 +326,7 @@ export const ApiClientLive = Layer.unwrap(
 
           carePlant: (plantId, body) =>
             HttpClientRequest.post(
-              `${baseUrl}/api/plants/${encodeURIComponent(plantId)}/care`
+              `${baseUrl}${API_PREFIX}/plants/${encodeURIComponent(plantId)}/care`
             ).pipe(
               HttpClientRequest.bodyJsonUnsafe(body),
               authed(Plant),
@@ -328,7 +334,9 @@ export const ApiClientLive = Layer.unwrap(
             ),
 
           getUserTimezone: () =>
-            HttpClientRequest.get(`${baseUrl}/api/users/settings`).pipe(
+            HttpClientRequest.get(
+              `${baseUrl}${API_PREFIX}/users/settings`
+            ).pipe(
               authed(UserSettings),
               Effect.map((settings) =>
                 pipe(
@@ -341,7 +349,7 @@ export const ApiClientLive = Layer.unwrap(
 
           getCareTasks: () =>
             HttpClientRequest.get(
-              `${baseUrl}/api/care-tasks?includeCanopy=true`
+              `${baseUrl}${API_PREFIX}/care-tasks?includeCanopy=true`
             ).pipe(
               authed(CareTasksResponse),
               Effect.withSpan('ApiClient.getCareTasks')
@@ -356,7 +364,7 @@ export const ApiClientLive = Layer.unwrap(
               })
             )
             return HttpClientRequest.post(
-              `${baseUrl}/api/knowledge/query`
+              `${baseUrl}${API_PREFIX}/knowledge/query`
             ).pipe(
               HttpClientRequest.bodyJsonUnsafe(body),
               (request) =>
@@ -366,7 +374,7 @@ export const ApiClientLive = Layer.unwrap(
           },
 
           refreshToken: (refreshTokenValue) =>
-            HttpClientRequest.post(`${baseUrl}/api/auth/refresh`).pipe(
+            HttpClientRequest.post(`${baseUrl}${API_PREFIX}/auth/refresh`).pipe(
               HttpClientRequest.bodyJsonUnsafe({
                 refreshToken: refreshTokenValue,
               }),

@@ -14,7 +14,7 @@ React Router (lazy routes) ─▶ pages/*  ─▶ hooks/* (TanStack Query)
                                    lib/api-client.ts (fetch + JWT refresh)
                                               │
                                               ▼
-                                      @lily/api  /api/admin/*
+                                      @lily/api  /api/v1/admin/*
 ```
 
 - **Server state** is managed with [TanStack Query](https://tanstack.com/query); each endpoint has a dedicated `use-*` hook with consistent query keys and stale times.
