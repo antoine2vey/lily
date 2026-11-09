@@ -21,12 +21,13 @@ import {
   Context,
   Effect,
   Exit,
-  type Fiber,
+  Fiber,
   Layer,
   Match,
   Option,
   pipe,
   Random,
+  Ref,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -107,6 +108,8 @@ export interface IUsageTracker {
    * `detach` returns. The unit is refunded when `start` fails or is
    * interrupted, when `work` is interrupted, when `bill` answers `'refund'`,
    * or when `bill` dies; a dying `bill` still fails `settled` with its cause.
+   * It is also refunded when `detach` fails or hands back a fiber that ends
+   * without ever running the turn, as a closed `FiberSet` does.
    */
   readonly withDetachedReservation: <A, E, R, W, WE, RW>(
     userId: string,
@@ -276,10 +279,12 @@ export const UsageTrackerLive = Layer.effect(
             Effect.onError(() => refund(usage, field))
           )
           const context = yield* Effect.context<RW>()
+          const entered = yield* Ref.make(false)
 
           // The detached fiber does not inherit this mask, so it gets its own.
           const settle = Effect.uninterruptibleMask((restoreWork) =>
             Effect.gen(function* () {
+              yield* Ref.set(entered, true)
               const exit = yield* Effect.exit(restoreWork(turn.work(started)))
               if (Exit.hasInterrupts(exit)) {
                 yield* Effect.logWarning(
@@ -308,7 +313,20 @@ export const UsageTrackerLive = Layer.effect(
             })
           )
 
-          const settled = yield* turn.detach(Effect.provide(settle, context))
+          const settled = yield* turn
+            .detach(Effect.provide(settle, context))
+            .pipe(Effect.onError(() => refund(usage, field)))
+          // A fiber that ends without entering settle, as one a closed
+          // FiberSet hands back does, never refunds itself.
+          yield* Effect.forkDetach(
+            Fiber.await(settled).pipe(
+              Effect.andThen(Ref.get(entered)),
+              Effect.flatMap((ran) =>
+                ran ? Effect.void : refund(usage, field)
+              )
+            ),
+            { startImmediately: true }
+          )
           return { started, settled } satisfies DetachedReservation<A>
         })
       )
