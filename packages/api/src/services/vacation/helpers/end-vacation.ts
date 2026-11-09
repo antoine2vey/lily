@@ -1,4 +1,5 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import {
@@ -11,6 +12,7 @@ import {
 } from '@lily/api/repositories/user.repository'
 import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
 import {
+  canopyPlantIdsOf,
   type ReminderContext,
   rebuildMemberReminders,
   rescheduleReminders,
@@ -46,34 +48,51 @@ export interface EndVacationParams {
  *
  * Plants with an active caretaker are skipped: the caretaker maintained
  * their schedules, and their reminder rows route to the caretaker.
+ *
+ * The plant sets are read under the Canopy row and the user's delegation
+ * locks, so a delegation that activates meanwhile either lands before the
+ * read (and its plants are in the set) or waits until this commits (and
+ * rebuilds for a caretaker who is no longer away).
  */
 export const endVacation = (
   params: EndVacationParams
-): Effect.Effect<typeof users.$inferSelect | null, SqlError, ReminderContext> =>
+): Effect.Effect<
+  typeof users.$inferSelect | null,
+  SqlError,
+  ReminderContext | DelegationRepository
+> =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
     const plantRepo = yield* PlantRepository
-    const ownPlantIds = yield* plantRepo.findIdsOwnedBy(params.user.id)
-    const ownedOrCaredForPlantIds =
-      yield* plantRepo.findPersonalReminderPlantIds(params.user.id)
-    const claimed = yield* withReminderKeys(
-      reminderKeysFor(ownedOrCaredForPlantIds),
-      Option.some(params.user.id)
-    )(
-      endVacationForOwnedOrCaredForPlants(
-        params,
-        ownPlantIds,
-        ownedOrCaredForPlantIds
-      )
+    const delegationRepo = yield* DelegationRepository
+    const userId = params.user.id
+    return yield* sql.withTransaction(
+      Effect.gen(function* () {
+        const inCanopy = yield* lockMyCanopy(userId).pipe(
+          Effect.as(true),
+          Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
+        )
+        yield* delegationRepo.lockAllForUser(userId)
+        const own = yield* plantRepo.findIdsOwnedBy(userId)
+        const personal = yield* plantRepo.findPersonalReminderPlantIds(userId)
+        const canopy = inCanopy ? yield* canopyPlantIdsOf(userId) : []
+        return yield* withReminderKeys(
+          reminderKeysFor(Array.dedupe([...personal, ...canopy])),
+          Option.some(userId)
+        )(
+          Effect.gen(function* () {
+            const claimed = yield* endVacationForOwnedOrCaredForPlants(
+              params,
+              own,
+              personal
+            )
+            if (claimed === null) return null
+            yield* rebuildMemberReminders(userId, canopy)
+            return claimed
+          })
+        )
+      })
     )
-    if (claimed === null) return null
-    yield* sql.withTransaction(
-      lockMyCanopy(params.user.id).pipe(
-        Effect.andThen(rebuildMemberReminders(params.user.id)),
-        Effect.catchTag('CanopyNotFoundError', () => Effect.void)
-      )
-    )
-    return claimed
   }).pipe(
     Effect.withSpan('VacationService.endVacation', {
       attributes: { 'user.id': params.user.id },
