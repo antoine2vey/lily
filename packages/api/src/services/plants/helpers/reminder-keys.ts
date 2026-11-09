@@ -1,5 +1,5 @@
 import type { ReminderKey } from '@lily/api/repositories/notification.repository'
-import { Array, Context, Data, Effect, pipe } from 'effect'
+import { Array, Context, Data, Effect, Option, pipe } from 'effect'
 
 export const CARE_REMINDER_TYPES = [
   'watering_reminder',
@@ -20,22 +20,28 @@ export const reminderKeysFor = (
 
 const keyId = (key: ReminderKey) => `${key.plantId}:${key.type}`
 
-const HeldReminderKeys = Context.Reference<ReadonlySet<string>>(
+const HeldReminderKeys = Context.Reference<Option.Option<ReadonlySet<string>>>(
   'lily/HeldReminderKeys',
-  { defaultValue: () => new Set() }
+  { defaultValue: Option.none }
 )
 
-export class ReminderKeyNotHeld extends Data.TaggedError('ReminderKeyNotHeld')<{
+class ReminderKeyNotHeld extends Data.TaggedError('ReminderKeyNotHeld')<{
   readonly keys: ReadonlyArray<string>
 }> {}
+
+class LockPlanNested extends Data.TaggedError('LockPlanNested') {}
 
 export const holdingReminderKeys =
   (keys: ReadonlyArray<ReminderKey>) =>
   <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
-    Effect.provideService(
-      effect,
-      HeldReminderKeys,
-      new Set(Array.map(keys, keyId))
+    Effect.flatMap(HeldReminderKeys, (held) =>
+      Option.isSome(held)
+        ? Effect.die(new LockPlanNested())
+        : Effect.provideService(
+            effect,
+            HeldReminderKeys,
+            Option.some(new Set(Array.map(keys, keyId)))
+          )
     )
 
 export const requireReminderKeys =
@@ -44,7 +50,7 @@ export const requireReminderKeys =
     Effect.flatMap(HeldReminderKeys, (held) => {
       const late = pipe(
         Array.map(keys, keyId),
-        Array.filter((id) => !held.has(id))
+        Array.filter((id) => !Option.exists(held, (set) => set.has(id)))
       )
       return Array.isReadonlyArrayEmpty(late)
         ? effect
