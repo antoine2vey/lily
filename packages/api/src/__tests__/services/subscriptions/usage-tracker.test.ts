@@ -75,21 +75,47 @@ const createTestLayer = (options: {
 }
 
 describe('UsageTracker', () => {
-  describe('reserve', () => {
-    it('counts one unit for a free user under the limit', async () => {
-      const { layer, reserved } = createTestLayer({
+  describe('withReservation', () => {
+    it('keeps the unit when the body succeeds', async () => {
+      const { layer, reserved, released } = createTestLayer({
         usage: usageAt({ aiChatsCount: 4 }),
       })
 
-      const reservation = await Effect.runPromise(
+      const result = await Effect.runPromise(
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
-          return yield* tracker.reserve('user-1', 'aiChats')
+          return yield* tracker.withReservation(
+            'user-1',
+            'aiChats',
+            Effect.succeed('answered')
+          )
         }).pipe(Effect.provide(layer))
       )
 
-      expect(reservation.usage.aiChatsCount).toBe(5)
+      expect(result).toBe('answered')
       expect(reserved).toEqual(['aiChats'])
+      expect(released).toEqual([])
+    })
+
+    it('still counts usage for a paid user with no limit', async () => {
+      const { layer, reserved, released } = createTestLayer({
+        usage: usageAt({ cardScansCount: 500 }),
+        tier: 'paid',
+      })
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const tracker = yield* UsageTracker
+          return yield* tracker.withReservation(
+            'user-1',
+            'cardScans',
+            Effect.void
+          )
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(reserved).toEqual(['cardScans'])
+      expect(released).toEqual([])
     })
 
     it('records one pending approaching_limit when usage crosses the threshold', async () => {
@@ -110,7 +136,11 @@ describe('UsageTracker', () => {
       await Effect.runPromise(
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
-          return yield* tracker.reserve(mockUser1.id, 'plantIdentifies')
+          return yield* tracker.withReservation(
+            mockUser1.id,
+            'plantIdentifies',
+            Effect.void
+          )
         }).pipe(Effect.provide(layer))
       )
 
@@ -121,80 +151,6 @@ describe('UsageTracker', () => {
         status: 'pending',
         metadata: {},
       })
-    })
-
-    it('fails with LimitExceededError at the free limit and counts nothing', async () => {
-      const { layer, reserved } = createTestLayer({
-        usage: usageAt({ plantIdentifiesCount: 3 }),
-      })
-
-      const exit = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const tracker = yield* UsageTracker
-          return yield* tracker.reserve('user-1', 'plantIdentifies')
-        }).pipe(Effect.provide(layer))
-      )
-
-      expect(Exit.isFailure(exit)).toBe(true)
-      const error = failureOf(exit)
-      expect(error).toBeInstanceOf(LimitExceededError)
-      expect((error as LimitExceededError).feature).toBe('plant_identifies')
-      expect((error as LimitExceededError).limit).toBe(3)
-      expect(reserved).toEqual([])
-    })
-
-    it('still counts usage for a paid user with no limit', async () => {
-      const { layer, reserved } = createTestLayer({
-        usage: usageAt({ cardScansCount: 500 }),
-        tier: 'paid',
-      })
-
-      const reservation = await Effect.runPromise(
-        Effect.gen(function* () {
-          const tracker = yield* UsageTracker
-          return yield* tracker.reserve('user-1', 'cardScans')
-        }).pipe(Effect.provide(layer))
-      )
-
-      expect(reservation.usage.cardScansCount).toBe(501)
-      expect(reserved).toEqual(['cardScans'])
-    })
-
-    it('release gives the unit back', async () => {
-      const { layer, released } = createTestLayer({ usage: usageAt() })
-
-      await Effect.runPromise(
-        Effect.gen(function* () {
-          const tracker = yield* UsageTracker
-          const reservation = yield* tracker.reserve('user-1', 'aiChats')
-          yield* reservation.release
-        }).pipe(Effect.provide(layer))
-      )
-
-      expect(released).toEqual(['aiChats'])
-    })
-  })
-
-  describe('withReservation', () => {
-    it('keeps the unit when the body succeeds', async () => {
-      const { layer, reserved, released } = createTestLayer({
-        usage: usageAt(),
-      })
-
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const tracker = yield* UsageTracker
-          return yield* tracker.withReservation(
-            'user-1',
-            'cardScans',
-            Effect.succeed('scanned')
-          )
-        }).pipe(Effect.provide(layer))
-      )
-
-      expect(result).toBe('scanned')
-      expect(reserved).toEqual(['cardScans'])
-      expect(released).toEqual([])
     })
 
     it('refunds the unit and surfaces the error when the body fails', async () => {
@@ -218,9 +174,9 @@ describe('UsageTracker', () => {
       expect(released).toEqual(['plantIdentifies'])
     })
 
-    it('does not run the body when the limit is reached', async () => {
-      const { layer } = createTestLayer({
-        usage: usageAt({ aiChatsCount: 10 }),
+    it('fails with LimitExceededError at the free limit and runs nothing', async () => {
+      const { layer, reserved } = createTestLayer({
+        usage: usageAt({ plantIdentifiesCount: 3 }),
       })
       let ran = false
 
@@ -229,7 +185,7 @@ describe('UsageTracker', () => {
           const tracker = yield* UsageTracker
           return yield* tracker.withReservation(
             'user-1',
-            'aiChats',
+            'plantIdentifies',
             Effect.sync(() => {
               ran = true
             })
@@ -237,8 +193,12 @@ describe('UsageTracker', () => {
         }).pipe(Effect.provide(layer))
       )
 
-      expect(failureOf(exit)).toBeInstanceOf(LimitExceededError)
+      const error = failureOf(exit)
+      expect(error).toBeInstanceOf(LimitExceededError)
+      expect((error as LimitExceededError).feature).toBe('plant_identifies')
+      expect((error as LimitExceededError).limit).toBe(3)
       expect(ran).toBe(false)
+      expect(reserved).toEqual([])
     })
   })
 

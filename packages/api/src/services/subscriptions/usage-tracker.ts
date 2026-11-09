@@ -1,5 +1,8 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
+import {
+  type ReservedUsage,
+  SubscriptionRepository,
+} from '@lily/api/repositories/subscription.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
@@ -62,15 +65,6 @@ const usageFieldMeta = (field: UsageField) =>
     Match.exhaustive
   )
 
-/**
- * One unit of monthly usage, already counted. `release` gives it back when
- * the work it paid for did not happen.
- */
-export interface UsageReservation {
-  readonly usage: SubscriptionUsage
-  readonly release: Effect.Effect<void, SqlError>
-}
-
 /** Whether a metered unit of work is paid for or given back. */
 export type Billing = 'charge' | 'refund'
 
@@ -97,14 +91,10 @@ export interface DetachedReservation<A> {
 }
 
 export interface IUsageTracker {
-  readonly reserve: (
-    userId: string,
-    field: UsageField
-  ) => Effect.Effect<UsageReservation, LimitExceededError | SqlError>
-
   /**
-   * Reserves one unit, runs `body`, and releases the unit again unless
-   * `body` succeeds.
+   * Charges one unit, runs `body`, and refunds the unit unless `body`
+   * succeeds. Fails with `LimitExceededError` before `body` runs when the
+   * user has no unit left.
    */
   readonly withReservation: <A, E, R>(
     userId: string,
@@ -248,16 +238,11 @@ export const UsageTrackerLive = Layer.effect(
         )
       }
 
-      const release = subRepo.releaseUsage(usage.id, field)
-      return { usage, release } satisfies UsageReservation
+      return usage
     })
 
-    const refund = (
-      reservation: UsageReservation,
-      userId: string,
-      field: UsageField
-    ) =>
-      reservation.release.pipe(
+    const refund = (usage: ReservedUsage, userId: string, field: UsageField) =>
+      subRepo.releaseUsage(usage.id, field).pipe(
         Effect.catchTag('SqlError', (error) =>
           Effect.logError('Failed to release usage reservation', {
             userId,
@@ -275,10 +260,8 @@ export const UsageTrackerLive = Layer.effect(
       Effect.acquireUseRelease(
         reserve(userId, field),
         () => body,
-        (reservation, exit) =>
-          Exit.isSuccess(exit)
-            ? Effect.void
-            : refund(reservation, userId, field)
+        (usage, exit) =>
+          Exit.isSuccess(exit) ? Effect.void : refund(usage, userId, field)
       )
 
     const withDetachedReservation = <A, E, R, W, WE, RW>(
@@ -288,9 +271,9 @@ export const UsageTrackerLive = Layer.effect(
     ) =>
       Effect.uninterruptibleMask((restore) =>
         Effect.gen(function* () {
-          const reservation = yield* reserve(userId, field)
+          const usage = yield* reserve(userId, field)
           const started = yield* restore(turn.start).pipe(
-            Effect.onError(() => refund(reservation, userId, field))
+            Effect.onError(() => refund(usage, userId, field))
           )
           const context = yield* Effect.context<RW>()
 
@@ -299,7 +282,7 @@ export const UsageTrackerLive = Layer.effect(
             Effect.gen(function* () {
               const exit = yield* Effect.exit(restoreWork(turn.work(started)))
               if (Exit.hasInterrupts(exit)) {
-                yield* refund(reservation, userId, field)
+                yield* refund(usage, userId, field)
                 return 'refund' as const
               }
               const billing = yield* turn.bill(exit).pipe(
@@ -308,11 +291,11 @@ export const UsageTrackerLive = Layer.effect(
                     userId,
                     field,
                     cause: String(cause),
-                  }).pipe(Effect.andThen(refund(reservation, userId, field)))
+                  }).pipe(Effect.andThen(refund(usage, userId, field)))
                 )
               )
               if (billing === 'refund') {
-                yield* refund(reservation, userId, field)
+                yield* refund(usage, userId, field)
               }
               return billing
             })
@@ -323,6 +306,6 @@ export const UsageTrackerLive = Layer.effect(
         })
       )
 
-    return { reserve, withReservation, withDetachedReservation }
+    return { withReservation, withDetachedReservation }
   })
 )
