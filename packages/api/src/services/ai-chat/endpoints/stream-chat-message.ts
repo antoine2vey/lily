@@ -13,12 +13,15 @@ import { AiService } from '@lily/api/services/ai/service'
 import { ChatTurns } from '@lily/api/services/ai-chat/chat-turns'
 import { generateMessageId } from '@lily/api/services/ai-chat/generate-message-id'
 import { persistChatCompletion } from '@lily/api/services/ai-chat/persist-chat-completion'
-import type { StepData } from '@lily/api/services/ai-chat/plant-chat'
+import type {
+  ChatStreamError,
+  StepData,
+} from '@lily/api/services/ai-chat/plant-chat'
 import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { RagService } from '@lily/api/services/rag/service'
 import {
-  type UsageReservation,
+  type Billing,
   UsageTracker,
 } from '@lily/api/services/subscriptions/usage-tracker'
 import {
@@ -34,9 +37,12 @@ import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import type { UIMessage } from 'ai'
 import {
   Array,
+  Cause,
   Deferred,
   Effect,
+  Exit,
   Fiber,
+  Match,
   Option,
   pipe,
   Record,
@@ -127,6 +133,34 @@ const makeSseResponse = (
 const isKeyOfConversation = (key: string, conversationId: string) =>
   key.replace(/^\d+-/, '').startsWith(`chat/${conversationId}/`)
 
+/** How a chat turn ended once it got past the quota check. */
+type TurnOutcome =
+  | 'replied'
+  | 'replyNotSaved'
+  | 'emptyReply'
+  | 'modelFailed'
+  | 'timedOut'
+  | 'crashed'
+
+// The user saw the reply in both kept cases; only saving it failed for
+// `replyNotSaved`.
+const turnBilling: Record<TurnOutcome, Billing> = {
+  replied: 'charge',
+  replyNotSaved: 'charge',
+  emptyReply: 'refund',
+  modelFailed: 'refund',
+  timedOut: 'refund',
+  crashed: 'refund',
+}
+
+const turnFailureLog: Record<Exclude<TurnOutcome, 'replied'>, string> = {
+  replyNotSaved: 'Failed to save chat message after stream',
+  emptyReply: 'AI stream produced an empty reply',
+  modelFailed: 'AI stream failed',
+  timedOut: 'AI stream timed out',
+  crashed: 'AI chat turn crashed',
+}
+
 const isEmptyReply = (steps: readonly StepData[]) =>
   Array.every(
     steps,
@@ -196,39 +230,6 @@ export const streamChatMessage = (
       }) as UIMessage['parts'],
     }
 
-    const reservation: Option.Option<UsageReservation> = yield* usageTracker
-      .reserve(userId, 'aiChats')
-      .pipe(
-        Effect.map(Option.some),
-        Effect.catchTag('LimitExceededError', () =>
-          Effect.succeed(Option.none())
-        )
-      )
-
-    if (Option.isNone(reservation)) {
-      async function* quotaChunks() {
-        yield { type: 'text-start', id: 'quota-msg' }
-        yield {
-          type: 'text-delta',
-          delta: QUOTA_EXCEEDED_KEY,
-          id: 'quota-msg',
-        }
-        yield { type: 'text-end', id: 'quota-msg' }
-      }
-
-      return makeSseResponse(uiStreamToSse(quotaChunks()))
-    }
-
-    const refund = reservation.value.release.pipe(
-      Effect.catchTag('SqlError', (error) =>
-        Effect.logError('Failed to refund chat usage', {
-          error: String(error),
-          conversationId: conversation.id,
-          userId,
-        })
-      )
-    )
-
     const startStream = Effect.gen(function* () {
       const previousMessages = yield* chatRepo.getMessagesAsUIMessages(
         conversation.id,
@@ -268,72 +269,98 @@ export const streamChatMessage = (
         Option.getOrUndefined
       )
 
-      const { stream: streamResult, completionDeferred } =
-        yield* aiService.chatStream(conversation, allMessages, imageOptions)
-
-      const uiStream = streamResult.toUIMessageStream()
-      const context = yield* Effect.context<
-        | ChatRepository
-        | DiagnosisRepository
-        | CarePlanRepository
-        | EventBus
-        | AiService
-      >()
-
-      const logAndRefund = (reason: string, error: unknown) =>
-        Effect.logError(reason, {
-          error: String(error),
-          conversationId: conversation.id,
-          userId,
-        }).pipe(Effect.andThen(refund))
-
-      // Drains the model stream server-side (the response body is a tee of
-      // the same stream), so the reply is saved even if the client goes away.
-      const settle = Effect.gen(function* () {
-        const steps = yield* Effect.promise(() =>
-          streamResult.consumeStream()
-        ).pipe(
-          Effect.andThen(Deferred.await(completionDeferred)),
-          Effect.timeout(streamCompletionTimeout),
-          Effect.onInterrupt(() =>
-            logAndRefund('AI stream interrupted by shutdown', 'interrupted')
-          )
-        )
-
-        if (isEmptyReply(steps)) {
-          return yield* logAndRefund('AI stream produced an empty reply', steps)
-        }
-
-        yield* persistChatCompletion({
-          conversation,
-          userId,
-          userMessage,
-          steps,
-        }).pipe(
-          Effect.retry(postStreamRetryPolicy),
-          Effect.catchTag('SqlError', (error) =>
-            Effect.logError('Failed to save chat message after stream', {
-              error: String(error),
-              conversationId: conversation.id,
-              userId,
-            })
-          ),
-          Effect.uninterruptible
-        )
-      }).pipe(
-        Effect.catchTags({
-          ChatStreamError: (error) => logAndRefund('AI stream failed', error),
-          TimeoutError: (error) => logAndRefund('AI stream timed out', error),
-        }),
-        Effect.provide(context)
-      )
-
-      const settled = yield* chatTurns.fork(settle)
-
-      return makeSseResponse(
-        uiStreamToSse(uiStream, Effect.asVoid(Fiber.await(settled)))
+      return yield* aiService.chatStream(
+        conversation,
+        allMessages,
+        imageOptions
       )
     })
 
-    return yield* Effect.onError(startStream, () => refund)
+    const failedWith = (
+      outcome: Exclude<TurnOutcome, 'replied'>,
+      detail: unknown
+    ) =>
+      Effect.logError(turnFailureLog[outcome], {
+        error: String(detail),
+        conversationId: conversation.id,
+        userId,
+      }).pipe(Effect.as<TurnOutcome>(outcome))
+
+    const saveReply = (steps: readonly StepData[]) =>
+      persistChatCompletion({ conversation, userId, userMessage, steps }).pipe(
+        Effect.retry(postStreamRetryPolicy),
+        Effect.as<TurnOutcome>('replied'),
+        Effect.catchTag('SqlError', (error) =>
+          failedWith('replyNotSaved', error)
+        )
+      )
+
+    const outcomeOf = (
+      exit: Exit.Exit<readonly StepData[], ChatStreamError | Cause.TimeoutError>
+    ) =>
+      Exit.match(exit, {
+        onSuccess: (steps) =>
+          isEmptyReply(steps)
+            ? failedWith('emptyReply', steps)
+            : saveReply(steps),
+        onFailure: (cause) =>
+          pipe(
+            Cause.findErrorOption(cause),
+            Option.match({
+              onNone: () => failedWith('crashed', Cause.pretty(cause)),
+              onSome: (error) =>
+                pipe(
+                  Match.value(error),
+                  Match.tag('ChatStreamError', () =>
+                    failedWith('modelFailed', error)
+                  ),
+                  Match.tag('TimeoutError', () =>
+                    failedWith('timedOut', error)
+                  ),
+                  Match.exhaustive
+                ),
+            })
+          ),
+      })
+
+    const metered = yield* usageTracker
+      .withDetachedReservation(userId, 'aiChats', {
+        start: startStream,
+        // Drains the model stream server-side (the response body is a tee of
+        // the same stream), so the reply is saved even if the client goes away.
+        work: ({ stream, completionDeferred }) =>
+          Effect.promise(() => stream.consumeStream()).pipe(
+            Effect.andThen(Deferred.await(completionDeferred)),
+            Effect.timeout(streamCompletionTimeout)
+          ),
+        bill: (exit) =>
+          Effect.map(outcomeOf(exit), (outcome) => turnBilling[outcome]),
+        detach: chatTurns.fork,
+      })
+      .pipe(
+        Effect.asSome,
+        Effect.catchTag('LimitExceededError', () => Effect.succeedNone)
+      )
+
+    return Option.match(metered, {
+      onNone: () => {
+        async function* quotaChunks() {
+          yield { type: 'text-start', id: 'quota-msg' }
+          yield {
+            type: 'text-delta',
+            delta: QUOTA_EXCEEDED_KEY,
+            id: 'quota-msg',
+          }
+          yield { type: 'text-end', id: 'quota-msg' }
+        }
+        return makeSseResponse(uiStreamToSse(quotaChunks()))
+      },
+      onSome: ({ started, settled }) =>
+        makeSseResponse(
+          uiStreamToSse(
+            started.stream.toUIMessageStream(),
+            Effect.asVoid(Fiber.await(settled))
+          )
+        ),
+    })
   })
