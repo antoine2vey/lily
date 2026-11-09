@@ -17,6 +17,7 @@ import {
   type UsageField,
 } from '@lily/shared'
 import {
+  Cause,
   Context,
   Effect,
   Exit,
@@ -65,7 +66,6 @@ const usageFieldMeta = (field: UsageField) =>
     Match.exhaustive
   )
 
-/** Whether a metered unit of work is paid for or given back. */
 export type Billing = 'charge' | 'refund'
 
 /**
@@ -241,11 +241,11 @@ export const UsageTrackerLive = Layer.effect(
       return usage
     })
 
-    const refund = (usage: ReservedUsage, userId: string, field: UsageField) =>
+    const refund = (usage: ReservedUsage, field: UsageField) =>
       subRepo.releaseUsage(usage.id, field).pipe(
         Effect.catchTag('SqlError', (error) =>
           Effect.logError('Failed to release usage reservation', {
-            userId,
+            userId: usage.userId,
             field,
             error: String(error),
           })
@@ -261,7 +261,7 @@ export const UsageTrackerLive = Layer.effect(
         reserve(userId, field),
         () => body,
         (usage, exit) =>
-          Exit.isSuccess(exit) ? Effect.void : refund(usage, userId, field)
+          Exit.isSuccess(exit) ? Effect.void : refund(usage, field)
       )
 
     const withDetachedReservation = <A, E, R, W, WE, RW>(
@@ -273,7 +273,7 @@ export const UsageTrackerLive = Layer.effect(
         Effect.gen(function* () {
           const usage = yield* reserve(userId, field)
           const started = yield* restore(turn.start).pipe(
-            Effect.onError(() => refund(usage, userId, field))
+            Effect.onError(() => refund(usage, field))
           )
           const context = yield* Effect.context<RW>()
 
@@ -282,7 +282,14 @@ export const UsageTrackerLive = Layer.effect(
             Effect.gen(function* () {
               const exit = yield* Effect.exit(restoreWork(turn.work(started)))
               if (Exit.hasInterrupts(exit)) {
-                yield* refund(usage, userId, field)
+                yield* Effect.logWarning(
+                  'Usage reservation refunded after interrupted work',
+                  {
+                    userId,
+                    field,
+                  }
+                )
+                yield* refund(usage, field)
                 return 'refund' as const
               }
               const billing = yield* turn.bill(exit).pipe(
@@ -290,12 +297,12 @@ export const UsageTrackerLive = Layer.effect(
                   Effect.logError('Billing a usage reservation crashed', {
                     userId,
                     field,
-                    cause: String(cause),
-                  }).pipe(Effect.andThen(refund(usage, userId, field)))
+                    cause: Cause.pretty(cause),
+                  }).pipe(Effect.andThen(refund(usage, field)))
                 )
               )
               if (billing === 'refund') {
-                yield* refund(usage, userId, field)
+                yield* refund(usage, field)
               }
               return billing
             })

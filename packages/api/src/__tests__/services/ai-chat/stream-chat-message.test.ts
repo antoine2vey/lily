@@ -492,8 +492,6 @@ describe('streamChatMessage', () => {
       const messages: ChatMessage[] = []
       const released: UsageField[] = []
 
-      // ChatTurns is provided around the whole program, so its scope outlives
-      // the request the way the server's does.
       await Effect.runPromise(
         Effect.gen(function* () {
           const result = yield* streamChatMessage(testConversation, {

@@ -21,8 +21,6 @@ export interface MockAiServiceData {
   chatStreamError?: string
   uiChunks?: readonly Record<string, unknown>[]
   completesAfter?: Duration.Input
-  // `consumeStream` rejects with this message, like a transport error the
-  // AI SDK does not turn into a stream error.
   consumeStreamRejects?: string
   chatStreamCalls?: ChatStreamCall[]
 }

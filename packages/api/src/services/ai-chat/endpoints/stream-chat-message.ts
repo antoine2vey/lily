@@ -136,17 +136,15 @@ const isKeyOfConversation = (key: string, conversationId: string) =>
 /** How a chat turn ended once it got past the quota check. */
 type TurnOutcome =
   | 'replied'
-  | 'replyNotSaved'
+  | 'repliedUnsaved'
   | 'emptyReply'
   | 'modelFailed'
   | 'timedOut'
   | 'crashed'
 
-// The user saw the reply in both kept cases; only saving it failed for
-// `replyNotSaved`.
 const turnBilling: Record<TurnOutcome, Billing> = {
   replied: 'charge',
-  replyNotSaved: 'charge',
+  repliedUnsaved: 'charge',
   emptyReply: 'refund',
   modelFailed: 'refund',
   timedOut: 'refund',
@@ -154,7 +152,7 @@ const turnBilling: Record<TurnOutcome, Billing> = {
 }
 
 const turnFailureLog: Record<Exclude<TurnOutcome, 'replied'>, string> = {
-  replyNotSaved: 'Failed to save chat message after stream',
+  repliedUnsaved: 'Failed to save chat message after stream',
   emptyReply: 'AI stream produced an empty reply',
   modelFailed: 'AI stream failed',
   timedOut: 'AI stream timed out',
@@ -291,7 +289,7 @@ export const streamChatMessage = (
         Effect.retry(postStreamRetryPolicy),
         Effect.as<TurnOutcome>('replied'),
         Effect.catchTag('SqlError', (error) =>
-          failedWith('replyNotSaved', error)
+          failedWith('repliedUnsaved', error)
         )
       )
 
