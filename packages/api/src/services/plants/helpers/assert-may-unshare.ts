@@ -27,7 +27,7 @@ const sharerStillMember = (
 /**
  * The member who shared a plant can make it personal. The Canopy owner can
  * only once that member has left the Canopy, so the owner never takes a plant
- * from someone still in it. Runs inside `movePlant` so a leave can't race.
+ * from someone still in it.
  */
 export const assertMayUnshare = (
   plant: Pick<PlantRow, 'createdByUserId'>,

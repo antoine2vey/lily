@@ -212,7 +212,6 @@ const readjustPlantSchedule = (
     Effect.gen(function* () {
       const scheduleRepo = yield* CareScheduleRepository
 
-      // Fetch care schedules for this plant
       const schedules = yield* scheduleRepo.findByPlant(plant.id)
 
       const wateringSchedule = pipe(
@@ -225,7 +224,6 @@ const readjustPlantSchedule = (
         Option.getOrNull
       )
 
-      // Skip plants without a watering schedule or missing lastCareAt/nextCareAt
       if (
         !wateringSchedule ||
         !wateringSchedule.lastCareAt ||
@@ -244,7 +242,6 @@ const readjustPlantSchedule = (
       const nowDt = DateTime.nowUnsafe()
       const nowMs = Number(DateTime.toEpochMillis(nowDt))
 
-      // Compute the schedule delta using forecast-averaged gate model
       const delta = calculateScheduleDelta(
         {
           id: plant.id,
@@ -275,7 +272,6 @@ const readjustPlantSchedule = (
 
       const oneDayMs = Duration.toMillis(Duration.days(1))
 
-      // Compute schedule changes as immutable result
       const newNextWateringAt = pipe(
         Option.fromNullishOr(wateringSchedule.nextCareAt),
         Option.filter(() => delta.wateringDaysDelta !== 0),
@@ -302,7 +298,6 @@ const readjustPlantSchedule = (
       const wateringChanged = Option.isSome(newNextWateringAt)
       const fertilizationChanged = Option.isSome(newNextFertilizationAt)
 
-      // Apply updates if anything changed
       if (wateringChanged || fertilizationChanged) {
         if (wateringChanged) {
           yield* scheduleRepo.updateByPlantAndType(plant.id, 'watering', {
@@ -329,7 +324,6 @@ const readjustPlantSchedule = (
           }`
         )
 
-        // Reschedule notifications
         if (wateringChanged) {
           yield* reconcileCareReminder(plant.id, 'watering_reminder')
         }

@@ -9,11 +9,6 @@ import {
 import { Array, Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Ends a Canopy the caller holds through a Canopy or member change. Every
- * other member's shared plants go back to them, the rest go to the heir,
- * and the row is deleted.
- */
 export const dissolveCanopy = (
   canopyId: string,
   heirUserId: string

@@ -29,10 +29,6 @@ export class ReminderKeyNotHeld extends Data.TaggedError('ReminderKeyNotHeld')<{
   readonly keys: ReadonlyArray<string>
 }> {}
 
-/**
- * Marks these reminder keys as held for the effect. Only a lock plan calls
- * this, after it has locked the keys' rows.
- */
 export const holdingReminderKeys =
   (keys: ReadonlyArray<ReminderKey>) =>
   <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
@@ -42,10 +38,6 @@ export const holdingReminderKeys =
       new Set(Array.map(keys, keyId))
     )
 
-/**
- * A reminder write must run inside a lock plan that holds its keys. One that
- * does not is a programming error, so it dies rather than fails.
- */
 export const requireReminderKeys =
   (keys: ReadonlyArray<ReminderKey>) =>
   <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>

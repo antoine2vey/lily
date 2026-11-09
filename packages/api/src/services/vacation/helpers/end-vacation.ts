@@ -41,11 +41,6 @@ export interface EndVacationParams {
  *
  * Plants with an active caretaker are skipped: the caretaker maintained
  * their schedules, and their reminder rows route to the caretaker.
- *
- * Runs as one member change, so a delegation that activates meanwhile
- * either lands before the plant sets are read (and its plants are in them)
- * or waits until this commits (and rebuilds for a caretaker who is no
- * longer away).
  */
 export const endVacation = (
   params: EndVacationParams

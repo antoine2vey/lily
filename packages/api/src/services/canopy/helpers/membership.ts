@@ -61,7 +61,7 @@ export const requireOwner = (
 
 /**
  * Ends a membership. With `'return'`, the member's shared plants go back to
- * them first. Runs inside a lock plan that holds the Canopy's plant reminders.
+ * them first.
  */
 export const dropMember = (
   canopyId: string,

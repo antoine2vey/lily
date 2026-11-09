@@ -79,16 +79,6 @@ const lockMyCanopy = (
     return { canopy, membership }
   })
 
-/**
- * Every lock a plant change may take, in the one order every change takes
- * them: the owning user, the Canopy row, the care locks in plant id then care
- * type order, the delegation rows, the reminder keys with the reminders'
- * holders, then the plant rows the change reloads. Two changes that meet on
- * any of these wait for each other and never deadlock, because neither holds
- * a later rank while asking for an earlier one. `scope` reads what the change
- * covers once the ranks above it are held, so a concurrent change cannot move
- * a plant in or out between the read and the write.
- */
 interface LockPlan<C, D, S, E, R> {
   readonly user: Option.Option<string>
   readonly canopy: Effect.Effect<C, E, R>
@@ -146,7 +136,7 @@ const reloadOwnedPlant = (
     )
   )
 
-const holdingCanopy = (
+const requirePlantsCanopy = (
   requestedId: string,
   canopyId: string
 ): Effect.Effect<
@@ -164,12 +154,6 @@ const holdingCanopy = (
     )
   )
 
-/**
- * A change to one plant. A personal plant is locked through its owner; a
- * Canopy plant through the caller's Canopy, which must be the plant's, so a
- * removed member gets `PlantNotFoundError` like anyone else outside it. The
- * change receives the row reloaded under the locks.
- */
 export const changePlant =
   (plant: PlantRow, requestedId: string = plant.id) =>
   <A, E, R>(
@@ -194,7 +178,7 @@ export const changePlant =
       canopy: Match.value(plant.owner).pipe(
         Match.tag('User', () => Effect.void),
         Match.tag('Canopy', ({ canopyId }) =>
-          Effect.asVoid(holdingCanopy(requestedId, canopyId))
+          Effect.asVoid(requirePlantsCanopy(requestedId, canopyId))
         ),
         Match.exhaustive
       ),
@@ -209,13 +193,6 @@ export const changePlant =
     )
   }
 
-/**
- * A move between the caller and their Canopy, in either direction. The
- * caller is locked first, then their Canopy, which must be the plant's when
- * the plant is shared. A sharer without a Canopy gets `CanopyNotFoundError`;
- * a member whose Canopy no longer holds the plant gets `PlantNotFoundError`.
- * The change receives the reloaded row and the locked Canopy.
- */
 export const movePlant =
   (plant: PlantRow, requestedId: string = plant.id) =>
   <A, E, R>(
@@ -237,7 +214,7 @@ export const movePlant =
         canopy: Match.value(plant.owner).pipe(
           Match.tag('User', () => lockMyCanopy(userId)),
           Match.tag('Canopy', ({ canopyId }) =>
-            holdingCanopy(requestedId, canopyId)
+            requirePlantsCanopy(requestedId, canopyId)
           ),
           Match.exhaustive
         ),
@@ -261,11 +238,6 @@ export interface MemberScope {
   readonly canopy: ReadonlyArray<string>
 }
 
-/**
- * A change to every reminder one member hears: their own plants, the plants
- * they care for, and their Canopy's plants when they are in one. The change
- * receives the locked Canopy, when there is one, so it never locks it again.
- */
 export const changeMember =
   (userId: string) =>
   <A, E, R>(
@@ -346,11 +318,6 @@ const lockCanopy = (
     )
   )
 
-/**
- * A change to a Canopy by id, for a caller who does not act through a
- * membership in it, such as someone joining. The row is locked, then every
- * plant it holds. The change receives the row and those plant ids.
- */
 export const changeCanopy =
   (canopyId: string) =>
   <A, E, R>(
@@ -367,12 +334,6 @@ export const changeCanopy =
       change(held, plantIds)
     )
 
-/**
- * A change to the caller's own Canopy. The row is locked through the
- * caller's membership, then every plant it holds. The change receives the
- * locked Canopy with that membership, so it can check the role, and the
- * plant ids.
- */
 export const changeMyCanopy =
   (userId: string) =>
   <A, E, R>(
@@ -405,10 +366,6 @@ const myCanopyOf = (
     )
   )
 
-/**
- * An addition to what a user holds on their own, such as a delegation.
- * Only the user is locked: the thing added does not exist yet.
- */
 export const changeOwn =
   (userId: string) =>
   <A, E, R>(
@@ -416,11 +373,6 @@ export const changeOwn =
   ): Effect.Effect<A, E | SqlError, R | LockContext> =>
     run({ ...keysOnly([]), user: Option.some(userId) }, () => change)
 
-/**
- * An addition to what an owner holds, such as a new plant or room. A
- * personal owner is locked as a user; a Canopy owner through the caller's
- * membership, which must be in that Canopy.
- */
 export const changeCollection =
   (owner: PlantOwner) =>
   <A, E, R>(
@@ -446,11 +398,6 @@ export const changeCollection =
       Match.exhaustive
     )
 
-/**
- * A change to the invitations of the caller's Canopy. The row is locked
- * through the membership so a leave or dissolve cannot race it; no plant or
- * reminder is involved.
- */
 export const changeInvitations =
   (userId: string) =>
   <A, E, R>(
@@ -490,12 +437,6 @@ const keysOnly = (
   updatingUser: Option.none(),
 })
 
-/**
- * A change to the care of some plants by a caller who need not be signed
- * in, such as a scheduler. Each care lock is taken in plant id then care type
- * order, so bulk care and single care never deadlock, and only the reminders
- * of those care types are held.
- */
 export const changeCare =
   (locks: ReadonlyArray<CareLock>) =>
   <A, E, R>(
@@ -514,10 +455,6 @@ export const changeCare =
       () => change
     )
 
-/**
- * A change to the reminders of some plants with no other lock, for a caller
- * that only reschedules them, such as the overdue scheduler.
- */
 export const changeReminders =
   (plantIds: ReadonlyArray<string>) =>
   <A, E, R>(
@@ -538,12 +475,6 @@ export const handedOverPlantIds = (
     )
   )
 
-/**
- * A change that moves delegations between statuses. The transition's
- * conditional UPDATE is the row lock at the delegation rank; the plants each
- * moved delegation hands over are read under it and their reminders held, so
- * the rebuild never races a member change by either party.
- */
 export const changeDelegations =
   <E, R>(transition: Effect.Effect<ReadonlyArray<DelegationRow>, E, R>) =>
   <A, E2, R2>(
