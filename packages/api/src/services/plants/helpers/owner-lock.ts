@@ -1,17 +1,11 @@
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
+import { lockUser } from '@lily/api/services/plants/helpers/plant-change'
 import { CanopyNotFoundError, type PlantOwner } from '@lily/shared'
 import { Effect, Match } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
-
-const OWNER_LOCK_KEYSPACE = 1
-
-const lockUser = (sql: SqlClient.SqlClient, userId: string) =>
-  Effect.asVoid(
-    sql`SELECT pg_advisory_xact_lock(${OWNER_LOCK_KEYSPACE}, hashtext(${userId}))`
-  )
 
 export const withUserLock =
   (userId: string) =>
