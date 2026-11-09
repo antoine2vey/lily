@@ -37,7 +37,6 @@ const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown))
 export const UsageId = Schema.String.pipe(Schema.brand('UsageId'))
 export type UsageId = typeof UsageId.Type
 
-/** A `subscription_usage` row that `reserveUsage` charged one unit to. */
 export interface ReservedUsage
   extends Omit<typeof subscriptionUsage.$inferSelect, 'id'> {
   readonly id: UsageId

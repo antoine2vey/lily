@@ -27,17 +27,13 @@ const freeLimitsReached: typeof subscriptionUsage.$inferSelect = {
   userId: 'user-1',
   periodStart: new Date(),
   periodEnd: new Date(),
-  aiChatsCount: 10,
-  cardScansCount: 5,
-  plantIdentifiesCount: 3,
+  aiChatsCount: Number.MAX_SAFE_INTEGER,
+  cardScansCount: Number.MAX_SAFE_INTEGER,
+  plantIdentifiesCount: Number.MAX_SAFE_INTEGER,
   createdAt: new Date(),
   updatedAt: new Date(),
 }
 
-/**
- * The real tracker over an in-memory repository, so tests exercise the same
- * reserve, refund and interruption rules production runs.
- */
 export const createMockUsageTracker = (
   options: MockUsageTrackerOptions = {}
 ): Layer.Layer<UsageTracker> => {

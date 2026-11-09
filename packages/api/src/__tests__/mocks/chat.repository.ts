@@ -21,7 +21,6 @@ export interface MockChatRepositoryData {
   messages: ChatMessage[]
   conversations?: ChatConversation[]
   saveChatFails?: boolean
-  // Saving the assistant reply fails; the user's question still saves.
   replySaveFails?: boolean
 }
 
