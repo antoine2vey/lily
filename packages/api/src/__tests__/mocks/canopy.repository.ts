@@ -171,50 +171,10 @@ export const createMockCanopyRepository = (
           Record.map(Array.map((m) => m.userId))
         )
       ),
-    findReminderRecipients: (canopyId, plantId) =>
-      Effect.sync(() =>
-        pipe(
-          store.members,
-          Array.filter(
-            (m) =>
-              m.canopyId === canopyId &&
-              !Array.some(
-                store.mutes,
-                (mute) => mute.userId === m.userId && mute.plantId === plantId
-              )
-          ),
-          Array.sort(
-            (a: MockMembership, b: MockMembership) =>
-              Math.sign(a.joinedAt.getTime() - b.joinedAt.getTime()) as
-                | -1
-                | 0
-                | 1
-          ),
-          Array.map((m) => m.userId)
-        )
-      ),
     findPlantIdsOfCanopy: (canopyId) =>
       Effect.succeed(
         pipe(
           Array.filter(store.plants, (p) => p.canopyId === canopyId),
-          Array.map((p) => p.id)
-        )
-      ),
-    findAudiblePlantIds: (userId, candidates) =>
-      Effect.sync(() =>
-        pipe(
-          candidates,
-          Array.filter(
-            (p) =>
-              Array.some(
-                store.members,
-                (m) => m.userId === userId && m.canopyId === p.canopyId
-              ) &&
-              !Array.some(
-                store.mutes,
-                (mute) => mute.userId === userId && mute.plantId === p.id
-              )
-          ),
           Array.map((p) => p.id)
         )
       ),

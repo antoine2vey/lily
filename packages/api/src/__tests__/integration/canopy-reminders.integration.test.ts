@@ -2,7 +2,7 @@ import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import {
-  CanopyRepository,
+  type CanopyRepository,
   CanopyRepositoryLive,
 } from '@lily/api/repositories/canopy.repository'
 import {
@@ -22,7 +22,11 @@ import {
   ReminderGuard,
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
-import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
+import {
+  heardBy,
+  RecipientRepository,
+  RecipientRepositoryLive,
+} from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { updateStatus } from '@lily/api/services/admin/endpoints/update-status'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
@@ -61,7 +65,8 @@ const RepositoriesLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
-  CareLogRepositoryLive
+  CareLogRepositoryLive,
+  RecipientRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const run = <A, E>(
@@ -72,6 +77,7 @@ const run = <A, E>(
     | CanopyRepository
     | NotificationRepository
     | CareLogRepository
+    | RecipientRepository
   >
 ) => Effect.runPromise(effect.pipe(Effect.provide(RepositoriesLive)))
 
@@ -322,16 +328,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('lists reminder recipients minus the member who muted the plant', async () => {
-      const [forShared, forMuted] = await run(
-        Effect.flatMap(CanopyRepository, (repo) =>
-          Effect.all([
-            repo.findReminderRecipients(canopyId, shared),
-            repo.findReminderRecipients(canopyId, mutedPlant),
-          ])
+      const audience = await run(
+        Effect.flatMap(RecipientRepository, (repo) =>
+          repo.audienceOf([shared, mutedPlant])
         )
       )
-      expect([...forShared].sort()).toEqual([alex, lily].sort())
-      expect(forMuted).toEqual([alex])
+      expect([...heardBy(audience, shared)].sort()).toEqual([alex, lily].sort())
+      expect(heardBy(audience, mutedPlant)).toEqual([alex])
     })
     it('counts care done today on living plants only, in both scopes', async () => {
       const dead = await plant({ canopyId }, 'Buried Canopy Palm')

@@ -13,10 +13,7 @@ import {
   createMockAlerter,
   MockAlerterLive,
 } from '@lily/api/__tests__/mocks/alerter'
-import {
-  createCanopyStore,
-  createMockCanopyRepository,
-} from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import {
@@ -45,15 +42,11 @@ import {
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import {
   type CreateDeadLetterData,
   DeadLetterRepository,
 } from '@lily/api/repositories/dead-letter.repository'
-import type {
-  DelegationRepository,
-  DelegationRow,
-} from '@lily/api/repositories/delegation.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { Alerter } from '@lily/api/services/alerting'
 import {

@@ -17,7 +17,7 @@ import { type AuthError, compact, trimAndNullify } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { CARE_TOPICS, ENGAGEMENT_TOPICS } from '@lily/shared/server'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 

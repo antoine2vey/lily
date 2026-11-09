@@ -121,16 +121,8 @@ export interface ICanopyRepository {
   readonly findMemberIdsByCanopyIds: (
     canopyIds: ReadonlyArray<string>
   ) => Effect.Effect<Record<string, ReadonlyArray<string>>, SqlError>
-  readonly findReminderRecipients: (
-    canopyId: string,
-    plantId: string
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly findPlantIdsOfCanopy: (
     canopyId: string
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
-  readonly findAudiblePlantIds: (
-    userId: string,
-    plants: ReadonlyArray<{ readonly id: string; readonly canopyId: string }>
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly findWithLocation: () => Effect.Effect<
     ReadonlyArray<CanopyRow>,
@@ -348,29 +340,6 @@ export const CanopyRepositoryLive = Layer.effect(
         )
       }),
 
-      findReminderRecipients: Effect.fn(
-        'CanopyRepository.findReminderRecipients'
-      )(function* (canopyId: string, plantId: string) {
-        const rows = yield* db
-          .select({ userId: canopyMembers.userId })
-          .from(canopyMembers)
-          .leftJoin(
-            canopyPlantMutes,
-            and(
-              eq(canopyPlantMutes.userId, canopyMembers.userId),
-              eq(canopyPlantMutes.plantId, plantId)
-            )
-          )
-          .where(
-            and(
-              eq(canopyMembers.canopyId, canopyId),
-              isNull(canopyPlantMutes.userId)
-            )
-          )
-          .orderBy(asc(canopyMembers.joinedAt), asc(canopyMembers.id))
-        return Array.map(rows, (row) => row.userId)
-      }),
-
       findPlantIdsOfCanopy: Effect.fn('CanopyRepository.findPlantIdsOfCanopy')(
         function* (canopyId: string) {
           const rows = yield* db
@@ -378,44 +347,6 @@ export const CanopyRepositoryLive = Layer.effect(
             .from(plants)
             .where(eq(plants.canopyId, canopyId))
           return Array.map(rows, (row) => row.id)
-        }
-      ),
-
-      findAudiblePlantIds: Effect.fn('CanopyRepository.findAudiblePlantIds')(
-        function* (
-          userId: string,
-          candidates: ReadonlyArray<{
-            readonly id: string
-            readonly canopyId: string
-          }>
-        ) {
-          if (Array.isReadonlyArrayEmpty(candidates)) return []
-          const rows = yield* db
-            .select({
-              canopyId: canopyMembers.canopyId,
-              mutedPlantId: canopyPlantMutes.plantId,
-            })
-            .from(canopyMembers)
-            .leftJoin(
-              canopyPlantMutes,
-              and(
-                eq(canopyPlantMutes.userId, canopyMembers.userId),
-                inArray(
-                  canopyPlantMutes.plantId,
-                  Array.map(candidates, (p) => p.id)
-                )
-              )
-            )
-            .where(eq(canopyMembers.userId, userId))
-          return pipe(
-            candidates,
-            Array.filter(
-              (p) =>
-                Array.some(rows, (r) => r.canopyId === p.canopyId) &&
-                !Array.some(rows, (r) => r.mutedPlantId === p.id)
-            ),
-            Array.map((p) => p.id)
-          )
         }
       ),
 

@@ -44,7 +44,6 @@ import {
   Exit,
   Layer,
   Option,
-  pipe,
   References,
 } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
