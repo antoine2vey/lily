@@ -1,4 +1,5 @@
 import {
+  type CanopyMembership,
   CanopyRepository,
   type CanopyRow,
 } from '@lily/api/repositories/canopy.repository'
@@ -8,25 +9,26 @@ import {
   type DelegationRow,
 } from '@lily/api/repositories/delegation.repository'
 import { sameOwner } from '@lily/api/repositories/helpers/plant-owner'
-import type {
+import {
   NotificationRepository,
-  ReminderKey,
+  type ReminderKey,
 } from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
   type PlantRow,
 } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import {
-  type LockedCanopy,
-  lockMyCanopy,
-} from '@lily/api/services/canopy/helpers/membership'
+import { requireMembership } from '@lily/api/services/canopy/helpers/membership'
 import { canopyPlantIdsOf } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
+  holdingReminderKeys,
   reminderKeysFor,
-  withReminderKeys,
 } from '@lily/api/services/plants/helpers/reminder-keys'
-import { CanopyNotFoundError, type CareType } from '@lily/shared'
+import {
+  CanopyNotFoundError,
+  type CareType,
+  type PlantOwner,
+} from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Array, Effect, identity, Match, Option, Order } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
@@ -53,6 +55,29 @@ const lockCare = (sql: SqlClient.SqlClient, { plantId, careType }: CareLock) =>
   Effect.asVoid(
     sql`SELECT pg_advisory_xact_lock(hashtext(${plantId}), hashtext(${careType}))`
   )
+
+export interface LockedCanopy {
+  readonly canopy: CanopyRow
+  readonly membership: CanopyMembership
+}
+
+const lockMyCanopy = (
+  userId: string
+): Effect.Effect<
+  LockedCanopy,
+  CanopyNotFoundError | SqlError,
+  CanopyRepository
+> =>
+  Effect.gen(function* () {
+    const repo = yield* CanopyRepository
+    const seen = yield* requireMembership(userId)
+    const canopy = yield* repo.lock(seen.canopyId)
+    const membership = yield* requireMembership(userId)
+    if (canopy === null || membership.canopyId !== canopy.id) {
+      return yield* new CanopyNotFoundError()
+    }
+    return { canopy, membership }
+  })
 
 /**
  * Every lock a plant change may take, in the one order every change takes
@@ -95,10 +120,11 @@ const run = <C, D, S, E, R, A, E2, R2>(
         )
         const delegations = yield* plan.delegations
         const scope = yield* plan.scope(canopy, delegations)
-        return yield* withReminderKeys(
-          plan.keys(scope),
-          plan.updatingUser
-        )(change(scope))
+        const keys = plan.keys(scope)
+        yield* Effect.flatMap(NotificationRepository, (repo) =>
+          repo.lockReminderKeys(keys, plan.updatingUser)
+        )
+        return yield* holdingReminderKeys(keys)(change(scope))
       })
     )
   )
@@ -363,6 +389,94 @@ export const changeMyCanopy =
       canopyPlan(lockMyCanopy(userId), ({ canopy }) => canopy),
       ({ held, plantIds }) => change(held, plantIds)
     )
+
+const myCanopyOf = (
+  userId: string,
+  canopyId: string
+): Effect.Effect<
+  LockedCanopy,
+  CanopyNotFoundError | SqlError,
+  CanopyRepository
+> =>
+  lockMyCanopy(userId).pipe(
+    Effect.filterOrFail(
+      ({ canopy }) => canopy.id === canopyId,
+      () => new CanopyNotFoundError()
+    )
+  )
+
+/**
+ * An addition to what a user holds on their own, such as a delegation.
+ * Only the user is locked: the thing added does not exist yet.
+ */
+export const changeOwn =
+  (userId: string) =>
+  <A, E, R>(
+    change: Effect.Effect<A, E, R>
+  ): Effect.Effect<A, E | SqlError, R | LockContext> =>
+    run({ ...keysOnly([]), user: Option.some(userId) }, () => change)
+
+/**
+ * An addition to what an owner holds, such as a new plant or room. A
+ * personal owner is locked as a user; a Canopy owner through the caller's
+ * membership, which must be in that Canopy.
+ */
+export const changeCollection =
+  (owner: PlantOwner) =>
+  <A, E, R>(
+    change: Effect.Effect<A, E, R>
+  ): Effect.Effect<
+    A,
+    E | CanopyNotFoundError | SqlError,
+    R | LockContext | CanopyRepository | CurrentUser
+  > =>
+    Match.value(owner).pipe(
+      Match.tag('User', ({ userId }) => changeOwn(userId)(change)),
+      Match.tag('Canopy', ({ canopyId }) =>
+        run(
+          {
+            ...keysOnly([]),
+            canopy: Effect.flatMap(CurrentUser, ({ id }) =>
+              Effect.asVoid(myCanopyOf(id, canopyId))
+            ),
+          },
+          () => change
+        )
+      ),
+      Match.exhaustive
+    )
+
+/**
+ * A change to the invitations of the caller's Canopy. The row is locked
+ * through the membership so a leave or dissolve cannot race it; no plant or
+ * reminder is involved.
+ */
+export const changeInvitations =
+  (userId: string) =>
+  <A, E, R>(
+    change: (locked: LockedCanopy) => Effect.Effect<A, E, R>
+  ): Effect.Effect<
+    A,
+    E | CanopyNotFoundError | SqlError,
+    R | LockContext | CanopyRepository
+  > => {
+    const plan: LockPlan<
+      LockedCanopy,
+      void,
+      LockedCanopy,
+      CanopyNotFoundError | SqlError,
+      CanopyRepository
+    > = {
+      user: Option.none(),
+      canopy: lockMyCanopy(userId),
+      care: [],
+      delegations: Effect.void,
+      scope: (locked) => Effect.succeed(locked),
+      keys: () => [],
+      updatingUser: Option.none(),
+    }
+    return run(plan, change)
+  }
 
 const keysOnly = (
   keys: ReadonlyArray<ReminderKey>

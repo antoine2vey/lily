@@ -16,6 +16,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
+import { changeReminders } from '@lily/api/services/plants/helpers/plant-change'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -333,7 +334,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ivy = await plant('ivy', owner)
       toAnn = await delegate(fern, ann)
       toBen = await delegate(ivy, ben)
-      await as(owner, rescheduleReminders([fern, ivy]))
+      await as(
+        owner,
+        changeReminders([fern, ivy])(rescheduleReminders([fern, ivy]))
+      )
     })
 
     afterAll(async () => {
@@ -391,7 +395,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('starts the other delegations of a tick when one of them cannot rebuild its reminders', async () => {
       const rose = await plant('rose', owner)
       await delegate(rose, await user('cat'))
-      await as(owner, rescheduleReminders([rose]))
+      await as(owner, changeReminders([rose])(rescheduleReminders([rose])))
 
       await as(
         owner,

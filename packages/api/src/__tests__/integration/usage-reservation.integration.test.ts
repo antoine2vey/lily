@@ -4,6 +4,7 @@ import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.re
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { GiftCodeRepositoryLive } from '@lily/api/repositories/gift-code.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import {
@@ -76,7 +77,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         AchievementRepositoryLive,
         RateLimiterServiceLive,
         RoomRepositoryLive,
-        CanopyRepositoryLive
+        CanopyRepositoryLive,
+        NotificationRepositoryLive
       ).pipe(Layer.provideMerge(DbLive))
       return Layer.mergeAll(
         LimitCheckerLive,

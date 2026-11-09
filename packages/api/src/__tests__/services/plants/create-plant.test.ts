@@ -8,6 +8,7 @@ import {
   createMockLimitChecker,
   MockLimitCheckerLive,
 } from '@lily/api/__tests__/mocks/limit-checker'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -60,6 +61,7 @@ describe('createPlant', () => {
         createMockCurrentUser({ id: 'user-1' }),
         MockLimitCheckerLive,
         MockSqlClientLive,
+        createMockNotificationRepository([]),
         createMockCanopyRepository(),
         createMockCareScheduleRepository({ schedules })
       ),
@@ -237,6 +239,7 @@ describe('createPlant', () => {
             createMockCurrentUser({ id: 'user-1' }),
             MockLimitCheckerLive,
             MockSqlClientLive,
+            createMockNotificationRepository([]),
             createMockCanopyRepository(),
             createMockCareScheduleRepository({ schedules })
           )
@@ -324,6 +327,7 @@ describe('createPlant', () => {
       createMockCurrentUser({ id: 'user-1' }),
       createMockLimitChecker({ plantLimitReached: true }),
       MockSqlClientLive,
+      createMockNotificationRepository([]),
       createMockCanopyRepository(),
       createMockCareScheduleRepository({ schedules })
     )

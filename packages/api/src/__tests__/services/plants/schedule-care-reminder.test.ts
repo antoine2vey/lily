@@ -23,7 +23,10 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import type { CareReminderType } from '@lily/api/services/plants/helpers/reminder-keys'
+import {
+  type CareReminderType,
+  holdingReminderKeys,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { CareType, PlantOwner } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Logger, Option, References } from 'effect'
@@ -52,6 +55,7 @@ const scheduleCareReminder = (params: {
     remindersEnabled: params.plant.remindersEnabled,
   })
   return reconcileCareReminder(params.plant.id, params.type).pipe(
+    holdingReminderKeys([{ plantId: params.plant.id, type: params.type }]),
     Effect.provide(
       Layer.mergeAll(
         createMockPlantRepository({ plants: [plant] }),

@@ -12,6 +12,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
+import { changeReminders } from '@lily/api/services/plants/helpers/plant-change'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
@@ -195,7 +196,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('keeps the owner reminder when the plant reminders are rescheduled', async () => {
       await remindToday(owner, fern)
 
-      await as(owner, rescheduleReminders([fern]))
+      await as(owner, changeReminders([fern])(rescheduleReminders([fern])))
 
       expect(await dueWithinADay()).toEqual(['fern -> owner'])
     })

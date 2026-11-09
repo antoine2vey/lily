@@ -6,16 +6,14 @@ import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canopy'
-import {
-  dropMember,
-  type LockedCanopy,
-} from '@lily/api/services/canopy/helpers/membership'
+import { dropMember } from '@lily/api/services/canopy/helpers/membership'
 import { senderNameOf } from '@lily/api/services/canopy/helpers/notify-member'
 import {
   dispatchNow,
   type RecordedNotification,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import type { LockedCanopy } from '@lily/api/services/plants/helpers/plant-change'
 import { changeMember } from '@lily/api/services/plants/helpers/plant-change'
 import { CanopyNotFoundError } from '@lily/shared'
 import type { MessageQueue } from '@lily/shared/server'

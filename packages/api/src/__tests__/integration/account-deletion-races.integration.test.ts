@@ -27,6 +27,7 @@ import {
 import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
+import { changeReminders } from '@lily/api/services/plants/helpers/plant-change'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -171,7 +172,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db
         .insert(schema.delegationPlants)
         .values({ delegationId: delegation.id, plantId: plant.id })
-      const seeded = await as(owner, rescheduleReminders([plant.id]))
+      const seeded = await as(
+        owner,
+        changeReminders([plant.id])(rescheduleReminders([plant.id]))
+      )
       if (Exit.isFailure(seeded)) throw new Error(Cause.pretty(seeded.cause))
       return {
         owner,

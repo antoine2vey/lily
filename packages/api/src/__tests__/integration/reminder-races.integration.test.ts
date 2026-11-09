@@ -63,6 +63,7 @@ import {
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
+import { changeReminders } from '@lily/api/services/plants/helpers/plant-change'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
@@ -713,7 +714,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       const reconcile = as(
         sam,
-        rescheduleReminders([plant.id]).pipe(
+        changeReminders([plant.id])(rescheduleReminders([plant.id])).pipe(
           Effect.provide(PausedBeforeReplace)
         )
       )

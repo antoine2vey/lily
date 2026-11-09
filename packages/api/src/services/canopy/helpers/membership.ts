@@ -8,7 +8,7 @@ import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-sha
 import type { ReminderContext } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   reminderKeysFor,
-  withReminderKeys,
+  requireReminderKeys,
 } from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   AlreadyInCanopyError,
@@ -16,7 +16,6 @@ import {
   NotCanopyOwnerError,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
-import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const requireMembership = (
@@ -60,32 +59,9 @@ export const requireOwner = (
     ? Effect.void
     : Effect.fail(new NotCanopyOwnerError())
 
-export interface LockedCanopy {
-  readonly canopy: CanopyRow
-  readonly membership: CanopyMembership
-}
-
-export const lockMyCanopy = (
-  userId: string
-): Effect.Effect<
-  LockedCanopy,
-  CanopyNotFoundError | SqlError,
-  CanopyRepository
-> =>
-  Effect.gen(function* () {
-    const repo = yield* CanopyRepository
-    const seen = yield* requireMembership(userId)
-    const canopy = yield* repo.lock(seen.canopyId)
-    const membership = yield* requireMembership(userId)
-    if (canopy === null || membership.canopyId !== canopy.id) {
-      return yield* new CanopyNotFoundError()
-    }
-    return { canopy, membership }
-  })
-
 /**
  * Ends a membership. With `'return'`, the member's shared plants go back to
- * them first, under the same reminder locks as the rest of the change.
+ * them first. Runs inside a lock plan that holds the Canopy's plant reminders.
  */
 export const dropMember = (
   canopyId: string,
@@ -96,7 +72,7 @@ export const dropMember = (
     const repo = yield* CanopyRepository
     const notificationRepo = yield* NotificationRepository
     const plantIds = yield* repo.findPlantIdsOfCanopy(canopyId)
-    yield* withReminderKeys(reminderKeysFor(plantIds))(
+    yield* requireReminderKeys(reminderKeysFor(plantIds))(
       Effect.gen(function* () {
         if (sharedPlants === 'return') {
           yield* returnSharedPlants(canopyId, userId)

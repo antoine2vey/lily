@@ -1,6 +1,6 @@
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { PlantRow } from '@lily/api/repositories/plant.repository'
-import type { LockedCanopy } from '@lily/api/services/canopy/helpers/membership'
+import type { LockedCanopy } from '@lily/api/services/plants/helpers/plant-change'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import { Effect, Match, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -27,7 +27,7 @@ const sharerStillMember = (
 /**
  * The member who shared a plant can make it personal. The Canopy owner can
  * only once that member has left the Canopy, so the owner never takes a plant
- * from someone still in it. Call under `lockMyCanopy` so a leave can't race.
+ * from someone still in it. Runs inside `movePlant` so a leave can't race.
  */
 export const assertMayUnshare = (
   plant: Pick<PlantRow, 'createdByUserId'>,

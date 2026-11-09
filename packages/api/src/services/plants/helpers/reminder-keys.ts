@@ -1,10 +1,5 @@
-import {
-  NotificationRepository,
-  type ReminderKey,
-} from '@lily/api/repositories/notification.repository'
-import { Array, Context, Data, Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
-import type { SqlError } from 'effect/sql/SqlError'
+import type { ReminderKey } from '@lily/api/repositories/notification.repository'
+import { Array, Context, Data, Effect, pipe } from 'effect'
 
 export const CARE_REMINDER_TYPES = [
   'watering_reminder',
@@ -25,48 +20,41 @@ export const reminderKeysFor = (
 
 const keyId = (key: ReminderKey) => `${key.plantId}:${key.type}`
 
-export const HeldReminderKeys = Context.Reference<ReadonlySet<string> | null>(
+const HeldReminderKeys = Context.Reference<ReadonlySet<string>>(
   'lily/HeldReminderKeys',
-  { defaultValue: () => null }
+  { defaultValue: () => new Set() }
 )
 
 export class ReminderKeyNotHeld extends Data.TaggedError('ReminderKeyNotHeld')<{
   readonly keys: ReadonlyArray<string>
 }> {}
 
-export const withReminderKeys =
-  (
-    keys: ReadonlyArray<ReminderKey>,
-    updatingUserId: Option.Option<string> = Option.none()
-  ) =>
-  <A, E, R>(
-    effect: Effect.Effect<A, E, R>
-  ): Effect.Effect<
-    A,
-    E | SqlError,
-    R | SqlClient.SqlClient | NotificationRepository
-  > =>
-    Effect.gen(function* () {
-      const held = yield* HeldReminderKeys
-      if (held !== null) {
-        const late = pipe(
-          Array.map(keys, keyId),
-          Array.filter((id) => !held.has(id))
-        )
-        return Array.isReadonlyArrayEmpty(late)
-          ? yield* effect
-          : yield* Effect.die(new ReminderKeyNotHeld({ keys: late }))
-      }
-      const sql = yield* SqlClient.SqlClient
-      const notificationRepo = yield* NotificationRepository
-      return yield* sql.withTransaction(
-        Effect.andThen(
-          notificationRepo.lockReminderKeys(keys, updatingUserId),
-          Effect.provideService(
-            effect,
-            HeldReminderKeys,
-            new Set(Array.map(keys, keyId))
-          )
-        )
+/**
+ * Marks these reminder keys as held for the effect. Only a lock plan calls
+ * this, after it has locked the keys' rows.
+ */
+export const holdingReminderKeys =
+  (keys: ReadonlyArray<ReminderKey>) =>
+  <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+    Effect.provideService(
+      effect,
+      HeldReminderKeys,
+      new Set(Array.map(keys, keyId))
+    )
+
+/**
+ * A reminder write must run inside a lock plan that holds its keys. One that
+ * does not is a programming error, so it dies rather than fails.
+ */
+export const requireReminderKeys =
+  (keys: ReadonlyArray<ReminderKey>) =>
+  <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+    Effect.flatMap(HeldReminderKeys, (held) => {
+      const late = pipe(
+        Array.map(keys, keyId),
+        Array.filter((id) => !held.has(id))
       )
+      return Array.isReadonlyArrayEmpty(late)
+        ? effect
+        : Effect.die(new ReminderKeyNotHeld({ keys: late }))
     })

@@ -11,6 +11,7 @@ import {
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { changeReminders } from '@lily/api/services/plants/helpers/plant-change'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -189,7 +190,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }))
       )
       await Effect.runPromise(
-        rescheduleReminders([plantId]).pipe(Effect.provide(HealthyLive))
+        changeReminders([plantId])(rescheduleReminders([plantId])).pipe(
+          Effect.provide(HealthyLive)
+        )
       )
     })
 
