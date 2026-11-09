@@ -1,7 +1,26 @@
-import { userStatusEnum, users } from '@lily/db/schema'
-import { inArray, type SQL } from 'drizzle-orm'
-import type { AnyPgColumn } from 'drizzle-orm/pg-core'
-import { Array, Option } from 'effect'
+import type * as PgDrizzle from '@lily/db/effect-drizzle'
+import {
+  canopyMembers,
+  canopyPlantMutes,
+  careDelegations,
+  delegationPlants,
+  plants,
+  userStatusEnum,
+  users,
+} from '@lily/db/schema'
+import {
+  and,
+  eq,
+  inArray,
+  isNotNull,
+  notExists,
+  type SQL,
+  sql,
+} from 'drizzle-orm'
+import { type AnyPgColumn, alias } from 'drizzle-orm/pg-core'
+import { Array, Filter, Option } from 'effect'
+
+type Db = PgDrizzle.PgDrizzle['Service']
 
 type UserStatus = (typeof userStatusEnum.enumValues)[number]
 
@@ -26,3 +45,118 @@ export const lockOf = (user: {
 
 export const reachableSql = (status: AnyPgColumn = users.status): SQL =>
   inArray(status, reachableStatuses)
+
+export type AudienceRole = 'caretaker' | 'owner' | 'member'
+
+const audienceRow = (
+  plantId: AnyPgColumn,
+  recipientId: AnyPgColumn,
+  role: AudienceRole,
+  joinedAt: SQL | AnyPgColumn
+) => ({
+  plantId: sql<string>`${plantId}`.as('plant_id'),
+  recipientId: sql<string>`${recipientId}`.as('recipient_id'),
+  role: sql<AudienceRole>`${sql.raw(`'${role}'`)}`.as('role'),
+  joinedAt: sql<Date | null>`${joinedAt}`.as('joined_at'),
+})
+
+const noJoinTime = sql`null::timestamptz`
+
+const activeCaretaker = and(
+  eq(careDelegations.id, delegationPlants.delegationId),
+  eq(careDelegations.status, 'active')
+)
+
+// Who hears about each plant in `plantScope`: the reachable active caretaker,
+// else the reachable owner, of a personal plant, and the reachable unmuted
+// members of a Canopy plant. The scope sits inside every branch so Postgres
+// filters plants before it joins people.
+export const plantAudience = (db: Db, plantScope: SQL) => {
+  const caretaker = alias(users, 'caretaker')
+  const caretakers = db
+    .select(
+      audienceRow(
+        plants.id,
+        careDelegations.caretakerId,
+        'caretaker',
+        noJoinTime
+      )
+    )
+    .from(plants)
+    .innerJoin(delegationPlants, eq(delegationPlants.plantId, plants.id))
+    .innerJoin(careDelegations, activeCaretaker)
+    .innerJoin(users, eq(users.id, careDelegations.caretakerId))
+    .where(and(plantScope, isNotNull(plants.userId), reachableSql()))
+  const owners = db
+    .select(audienceRow(plants.id, plants.userId, 'owner', noJoinTime))
+    .from(plants)
+    .innerJoin(users, eq(users.id, plants.userId))
+    .where(
+      and(
+        plantScope,
+        reachableSql(),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(delegationPlants)
+            .innerJoin(careDelegations, activeCaretaker)
+            .innerJoin(caretaker, eq(caretaker.id, careDelegations.caretakerId))
+            .where(
+              and(
+                eq(delegationPlants.plantId, plants.id),
+                reachableSql(caretaker.status)
+              )
+            )
+        )
+      )
+    )
+  const members = db
+    .select(
+      audienceRow(
+        plants.id,
+        canopyMembers.userId,
+        'member',
+        canopyMembers.joinedAt
+      )
+    )
+    .from(plants)
+    .innerJoin(canopyMembers, eq(canopyMembers.canopyId, plants.canopyId))
+    .innerJoin(users, eq(users.id, canopyMembers.userId))
+    .where(
+      and(
+        plantScope,
+        reachableSql(),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(canopyPlantMutes)
+            .where(
+              and(
+                eq(canopyPlantMutes.userId, canopyMembers.userId),
+                eq(canopyPlantMutes.plantId, plants.id)
+              )
+            )
+        )
+      )
+    )
+  return caretakers.unionAll(owners).unionAll(members).as('plant_audience')
+}
+
+export const audienceByPlant = (
+  plantIds: ReadonlyArray<string>,
+  rows: ReadonlyArray<{
+    readonly plantId: string
+    readonly recipientId: string
+  }>
+): ReadonlyMap<string, ReadonlyArray<string>> =>
+  new Map(
+    Array.map(plantIds, (plantId) => [
+      plantId,
+      Array.filterMap(
+        rows,
+        Filter.fromPredicateOption((row) =>
+          row.plantId === plantId ? Option.some(row.recipientId) : Option.none()
+        )
+      ),
+    ])
+  )

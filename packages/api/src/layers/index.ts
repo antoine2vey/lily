@@ -47,6 +47,7 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { PlantCatalogRepositoryLive } from '@lily/api/repositories/plant-catalog.repository'
 import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
 import { RawDocumentRepositoryLive } from '@lily/api/repositories/raw-document.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
@@ -147,6 +148,7 @@ const RepositoriesGroup2 = Layer.mergeAll(
   AnalyticsRepositoryLive,
   GiftCodeRepositoryLive,
   OAuthIdentityRepositoryLive,
+  RecipientRepositoryLive,
   ScanRepositoryLive,
   SubscriptionRepositoryLive,
   UserRepositoryLive,
