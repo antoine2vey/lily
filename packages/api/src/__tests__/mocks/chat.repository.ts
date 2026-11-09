@@ -21,6 +21,8 @@ export interface MockChatRepositoryData {
   messages: ChatMessage[]
   conversations?: ChatConversation[]
   saveChatFails?: boolean
+  // Saving the assistant reply fails; the user's question still saves.
+  replySaveFails?: boolean
 }
 
 const saveChatFailure = new SqlError({
@@ -355,6 +357,12 @@ export const createMockChatRepository = (
 
     saveChat: (params: SaveChatParams) => {
       if (data.saveChatFails) return Effect.fail(saveChatFailure)
+      if (
+        data.replySaveFails &&
+        Array.some(params.messages, (m) => m.role === 'assistant')
+      ) {
+        return Effect.fail(saveChatFailure)
+      }
       const saved: SavedChatMessage[] = []
 
       Array.forEach(params.messages, (msg) => {
