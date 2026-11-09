@@ -3,7 +3,10 @@ import type {
   ISubscriptionRepository,
   RevenueCatWebhookEventRecord,
 } from '@lily/api/repositories/subscription.repository'
-import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
+import {
+  SubscriptionRepository,
+  UsageId,
+} from '@lily/api/repositories/subscription.repository'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
 import type {
   SubscriptionEventType,
@@ -55,7 +58,7 @@ interface MockSubscriptionOptions {
   // The first `create` calls fail with a SqlError, then writes succeed.
   failingCreates?: number | undefined
   onReserveUsage?: (userId: string, field: UsageField) => void
-  onReleaseUsage?: (userId: string, field: UsageField) => void
+  onReleaseUsage?: (usageId: UsageId, field: UsageField) => void
   subscriptionsByUser?: Record<string, typeof userSubscriptions.$inferSelect>
 }
 
@@ -189,7 +192,6 @@ export const createMockSubscriptionRepository = (
       if (limit !== null && current >= limit) return Effect.succeed(null)
       options.onReserveUsage?.(userId, field)
       return Effect.succeed({
-        id: 'usage-1',
         userId,
         periodStart: new Date(),
         periodEnd: new Date(),
@@ -199,11 +201,18 @@ export const createMockSubscriptionRepository = (
         createdAt: new Date(),
         updatedAt: new Date(),
         ...usage,
+        id: UsageId.make(
+          pipe(
+            Option.fromNullishOr(usage),
+            Option.map((u) => u.id),
+            Option.getOrElse(() => 'usage-1')
+          )
+        ),
         [countKey]: current + 1,
       })
     },
-    releaseUsage: (userId, field) =>
-      Effect.sync(() => options.onReleaseUsage?.(userId, field)),
+    releaseUsage: (usageId, field) =>
+      Effect.sync(() => options.onReleaseUsage?.(usageId, field)),
     findGiftEvents: () => Effect.succeed({ items: [], total: 0 }),
     logEvent: (userId, eventType, metadata) =>
       Effect.sync(() => {

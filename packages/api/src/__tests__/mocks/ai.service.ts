@@ -21,6 +21,7 @@ export interface MockAiServiceData {
   chatStreamError?: string
   uiChunks?: readonly Record<string, unknown>[]
   completesAfter?: Duration.Input
+  consumeStreamRejects?: string
   chatStreamCalls?: ChatStreamCall[]
 }
 
@@ -122,7 +123,14 @@ export const createMockAiService = (
             textStream: createTextStream(response),
             text: Promise.resolve(response),
             toolResults: Promise.resolve([]),
-            consumeStream: () => Promise.resolve(),
+            consumeStream: () =>
+              pipe(
+                Option.fromNullishOr(data.consumeStreamRejects),
+                Option.match({
+                  onNone: () => Promise.resolve(),
+                  onSome: (message) => Promise.reject(new Error(message)),
+                })
+              ),
             toUIMessageStream: () =>
               pipe(
                 failure,

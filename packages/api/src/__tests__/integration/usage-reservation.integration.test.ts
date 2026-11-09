@@ -201,14 +201,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const afterRelease = await runtime.runPromise(
           Effect.gen(function* () {
             const repo = yield* SubscriptionRepository
-            yield* repo.reserveUsage(userId, 'plantIdentifies', 1)
+            const reserved = yield* Effect.fromNullishOr(
+              yield* repo.reserveUsage(userId, 'plantIdentifies', 1)
+            )
             const refused = yield* repo.reserveUsage(
               userId,
               'plantIdentifies',
               1
             )
-            yield* repo.releaseUsage(userId, 'plantIdentifies')
-            yield* repo.releaseUsage(userId, 'plantIdentifies')
+            yield* repo.releaseUsage(reserved.id, 'plantIdentifies')
+            yield* repo.releaseUsage(reserved.id, 'plantIdentifies')
             const granted = yield* repo.reserveUsage(
               userId,
               'plantIdentifies',

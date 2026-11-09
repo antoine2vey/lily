@@ -38,7 +38,7 @@ import {
 } from 'effect'
 import type { HttpServerResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 /**
  * Drain the SSE stream body to trigger the onComplete callback
@@ -80,6 +80,9 @@ describe('streamChatMessage', () => {
       aiChatLimitReached?: boolean
       chatStreamError?: string
       saveChatFails?: boolean
+      replySaveFails?: boolean
+      touchDiesAfterReply?: string
+      consumeStreamRejects?: string
       released?: UsageField[]
       plantChatResponse?: string
       userId?: string
@@ -92,6 +95,10 @@ describe('streamChatMessage', () => {
         messages: opts.messages ?? [...mockChatMessages],
         conversations: [testConversation],
         ...(opts.saveChatFails ? { saveChatFails: true } : {}),
+        ...(opts.replySaveFails ? { replySaveFails: true } : {}),
+        ...(opts.touchDiesAfterReply
+          ? { touchDiesAfterReply: opts.touchDiesAfterReply }
+          : {}),
       }),
       createMockAiService({
         plantChatResponse: opts.plantChatResponse ?? 'AI response text',
@@ -99,6 +106,9 @@ describe('streamChatMessage', () => {
         ...(opts.uiChunks ? { uiChunks: opts.uiChunks } : {}),
         ...(opts.chatStreamError
           ? { chatStreamError: opts.chatStreamError }
+          : {}),
+        ...(opts.consumeStreamRejects
+          ? { consumeStreamRejects: opts.consumeStreamRejects }
           : {}),
       }),
       createMockEventBus(
@@ -114,7 +124,7 @@ describe('streamChatMessage', () => {
       createMockUserRepository([]),
       createMockUsageTracker({
         limitReached: opts.aiChatLimitReached ?? false,
-        onRelease: (_userId, field) => opts.released?.push(field),
+        onRelease: (field) => opts.released?.push(field),
       }),
       MockRagServiceLive,
       createMockCareScheduleRepository({
@@ -422,6 +432,118 @@ describe('streamChatMessage', () => {
 
       expect(messages.map((m) => m.role)).toEqual(['user', 'assistant'])
       expect(released).toEqual([])
+    })
+  })
+
+  describe('billing per outcome', () => {
+    it("keeps the charge when the reply can't be saved", async () => {
+      const messages: ChatMessage[] = []
+      const released: UsageField[] = []
+
+      const result = await Effect.runPromise(
+        streamChatMessage(testConversation, { message: 'Hi' }).pipe(
+          Effect.provide(
+            createTestLayer({ messages, released, replySaveFails: true })
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      await drainSseStream(result)
+
+      expect(messages.map((m) => m.role)).toEqual(['user'])
+      expect(released).toEqual([])
+    })
+
+    it('saves the reply and keeps the charge for a reply the client never read', async () => {
+      const messages: ChatMessage[] = []
+      const released: UsageField[] = []
+
+      await Effect.runPromise(
+        streamChatMessage(testConversation, { message: 'Hi' }).pipe(
+          Effect.provide(createTestLayer({ messages, released }))
+        )
+      )
+
+      await vi.waitFor(() =>
+        expect(messages.map((m) => m.role)).toEqual(['user', 'assistant'])
+      )
+      expect(released).toEqual([])
+    })
+
+    it('refunds the chat on a defect while finishing, even after the reply was saved', async () => {
+      const messages: ChatMessage[] = []
+      const released: UsageField[] = []
+
+      const result = await Effect.runPromise(
+        streamChatMessage(testConversation, { message: 'Hi' }).pipe(
+          Effect.provide(
+            createTestLayer({
+              messages,
+              released,
+              touchDiesAfterReply: 'conversation row vanished',
+            })
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      await drainSseStream(result)
+
+      await vi.waitFor(() => expect(released).toEqual(['aiChats']))
+      expect(messages.map((m) => m.role)).toEqual(['user', 'assistant'])
+    })
+
+    it('refunds the chat and saves no reply when draining the stream crashes', async () => {
+      const messages: ChatMessage[] = []
+      const released: UsageField[] = []
+
+      const result = await Effect.runPromise(
+        streamChatMessage(testConversation, { message: 'Hi' }).pipe(
+          Effect.provide(
+            createTestLayer({
+              messages,
+              released,
+              consumeStreamRejects: 'socket hang up',
+            })
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      await drainSseStream(result)
+
+      expect(messages.map((m) => m.role)).toEqual(['user'])
+      expect(released).toEqual(['aiChats'])
+    })
+
+    it('refunds the chat and saves no reply when the model never finishes', async () => {
+      const messages: ChatMessage[] = []
+      const released: UsageField[] = []
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const result = yield* streamChatMessage(testConversation, {
+            message: 'Hi',
+          })
+          const drained = yield* Effect.forkChild(
+            Effect.promise(() => drainSseStream(result))
+          )
+          yield* Effect.forEach(Array.range(1, 40), () =>
+            TestClock.adjust('6 seconds')
+          )
+          yield* Fiber.join(drained)
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createTestLayer({ messages, released }),
+              createMockAiService({ completesAfter: '1 hour' }),
+              TestClock.layer()
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(messages.map((m) => m.role)).toEqual(['user'])
+      expect(released).toEqual(['aiChats'])
     })
   })
 

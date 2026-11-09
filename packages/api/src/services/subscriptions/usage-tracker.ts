@@ -1,5 +1,8 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
+import {
+  type ReservedUsage,
+  SubscriptionRepository,
+} from '@lily/api/repositories/subscription.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
@@ -14,14 +17,17 @@ import {
   type UsageField,
 } from '@lily/shared'
 import {
+  Cause,
   Context,
   Effect,
   Exit,
+  Fiber,
   Layer,
   Match,
   Option,
   pipe,
   Random,
+  Ref,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -61,30 +67,59 @@ const usageFieldMeta = (field: UsageField) =>
     Match.exhaustive
   )
 
+export type Billing = 'charge' | 'refund'
+
 /**
- * One unit of monthly usage, already counted. `release` gives it back when
- * the work it paid for did not happen.
+ * A metered unit of work whose result outlives the request that started it.
+ *
+ * `start` runs in the caller and is interruptible. `work` runs in the fiber
+ * `detach` returns and is the only interruptible part of it. `bill` turns
+ * the exit of `work` into a `Billing` and runs uninterruptible, so whatever
+ * it commits matches the bill.
  */
-export interface UsageReservation {
-  readonly usage: SubscriptionUsage
-  readonly release: Effect.Effect<void, SqlError>
+export interface DetachedTurn<A, E, R, W, WE, RW> {
+  readonly start: Effect.Effect<A, E, R>
+  readonly work: (started: A) => Effect.Effect<W, WE, RW>
+  readonly bill: (exit: Exit.Exit<W, WE>) => Effect.Effect<Billing, never, RW>
+  readonly detach: (
+    turn: Effect.Effect<Billing>
+  ) => Effect.Effect<Fiber.Fiber<Billing>>
+}
+
+export interface DetachedReservation<A> {
+  readonly started: A
+  readonly settled: Fiber.Fiber<Billing>
 }
 
 export interface IUsageTracker {
-  readonly reserve: (
-    userId: string,
-    field: UsageField
-  ) => Effect.Effect<UsageReservation, LimitExceededError | SqlError>
-
   /**
-   * Reserves one unit, runs `body`, and releases the unit again unless
-   * `body` succeeds.
+   * Charges one unit, runs `body`, and refunds the unit unless `body`
+   * succeeds. Fails with `LimitExceededError` before `body` runs when the
+   * user has no unit left.
    */
   readonly withReservation: <A, E, R>(
     userId: string,
     field: UsageField,
     body: Effect.Effect<A, E, R>
   ) => Effect.Effect<A, E | LimitExceededError | SqlError, R>
+
+  /**
+   * Reserves one unit for `turn` and settles it exactly once, in the fiber
+   * `detach` returns. The unit is refunded when `start` fails or is
+   * interrupted, when `work` is interrupted, when `bill` answers `'refund'`,
+   * or when `bill` dies; a dying `bill` still fails `settled` with its cause.
+   * It is also refunded when `detach` fails or hands back a fiber that ends
+   * without ever running the turn, as a closed `FiberSet` does.
+   */
+  readonly withDetachedReservation: <A, E, R, W, WE, RW>(
+    userId: string,
+    field: UsageField,
+    turn: DetachedTurn<A, E, R, W, WE, RW>
+  ) => Effect.Effect<
+    DetachedReservation<A>,
+    E | LimitExceededError | SqlError,
+    R | RW
+  >
 }
 
 export class UsageTracker extends Context.Service<
@@ -206,9 +241,19 @@ export const UsageTrackerLive = Layer.effect(
         )
       }
 
-      const release = subRepo.releaseUsage(userId, field)
-      return { usage, release } satisfies UsageReservation
+      return usage
     })
+
+    const refund = (usage: ReservedUsage, field: UsageField) =>
+      subRepo.releaseUsage(usage.id, field).pipe(
+        Effect.catchTag('SqlError', (error) =>
+          Effect.logError('Failed to release usage reservation', {
+            userId: usage.userId,
+            field,
+            error: String(error),
+          })
+        )
+      )
 
     const withReservation = <A, E, R>(
       userId: string,
@@ -218,20 +263,74 @@ export const UsageTrackerLive = Layer.effect(
       Effect.acquireUseRelease(
         reserve(userId, field),
         () => body,
-        (reservation, exit) =>
-          Exit.isSuccess(exit)
-            ? Effect.void
-            : reservation.release.pipe(
-                Effect.catchTag('SqlError', (error) =>
-                  Effect.logError('Failed to release usage reservation', {
-                    userId,
-                    field,
-                    error: String(error),
-                  })
-                )
-              )
+        (usage, exit) =>
+          Exit.isSuccess(exit) ? Effect.void : refund(usage, field)
       )
 
-    return { reserve, withReservation }
+    const withDetachedReservation = <A, E, R, W, WE, RW>(
+      userId: string,
+      field: UsageField,
+      turn: DetachedTurn<A, E, R, W, WE, RW>
+    ) =>
+      Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const usage = yield* reserve(userId, field)
+          const started = yield* restore(turn.start).pipe(
+            Effect.onError(() => refund(usage, field))
+          )
+          const context = yield* Effect.context<RW>()
+          const entered = yield* Ref.make(false)
+
+          // The detached fiber does not inherit this mask, so it gets its own.
+          const settle = Effect.uninterruptibleMask((restoreWork) =>
+            Effect.gen(function* () {
+              yield* Ref.set(entered, true)
+              const exit = yield* Effect.exit(restoreWork(turn.work(started)))
+              if (Exit.hasInterrupts(exit)) {
+                yield* Effect.logWarning(
+                  'Usage reservation refunded after interrupted work',
+                  {
+                    userId,
+                    field,
+                  }
+                )
+                yield* refund(usage, field)
+                return 'refund' as const
+              }
+              const billing = yield* turn.bill(exit).pipe(
+                Effect.onError((cause) =>
+                  Effect.logError('Billing a usage reservation crashed', {
+                    userId,
+                    field,
+                    cause: Cause.pretty(cause),
+                  }).pipe(Effect.andThen(refund(usage, field)))
+                )
+              )
+              if (billing === 'refund') {
+                yield* refund(usage, field)
+              }
+              return billing
+            })
+          )
+
+          const settled = yield* turn
+            .detach(Effect.provide(settle, context))
+            .pipe(Effect.onError(() => refund(usage, field)))
+          // A fiber that ends without entering settle, as one a closed
+          // FiberSet hands back does, never refunds itself.
+          yield* Effect.forkDetach(
+            Fiber.await(settled).pipe(
+              Effect.andThen(Ref.get(entered)),
+              Effect.flatMap((ran) =>
+                ran ? Effect.void : refund(usage, field)
+              )
+            ),
+            { startImmediately: true }
+          )
+          return { started, settled } satisfies DetachedReservation<A>
+        })
+      )
+
+    return { withReservation, withDetachedReservation }
   })
 )

@@ -1,69 +1,64 @@
-import type {
-  IUsageTracker,
-  UsageReservation,
+import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
+import {
+  type INotificationRepository,
+  NotificationRepository,
+} from '@lily/api/repositories/notification.repository'
+import {
+  type IUserRepository,
+  UserRepository,
+} from '@lily/api/repositories/user.repository'
+import {
+  type UsageTracker,
+  UsageTrackerLive,
 } from '@lily/api/services/subscriptions/usage-tracker'
-import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
-import { LimitExceededError, type UsageField } from '@lily/shared'
-import { Effect, Exit, Layer, Match, pipe } from 'effect'
+import type { subscriptionUsage } from '@lily/db/schema'
+import type { UsageField } from '@lily/shared'
+import { Effect, Layer } from 'effect'
 
 interface MockUsageTrackerOptions {
   limitReached?: boolean | undefined
-  onReserve?: ((userId: string, field: UsageField) => void) | undefined
-  onRelease?: ((userId: string, field: UsageField) => void) | undefined
+  onReserve?: ((field: UsageField) => void) | undefined
+  onRelease?: ((field: UsageField) => void) | undefined
 }
 
-const featureOf = (field: UsageField) =>
-  pipe(
-    Match.value(field),
-    Match.when('aiChats', () => 'ai_chats' as const),
-    Match.when('cardScans', () => 'card_scans' as const),
-    Match.when('plantIdentifies', () => 'plant_identifies' as const),
-    Match.exhaustive
-  )
+const freeLimitsReached: typeof subscriptionUsage.$inferSelect = {
+  id: 'usage-1',
+  userId: 'user-1',
+  periodStart: new Date(),
+  periodEnd: new Date(),
+  aiChatsCount: Number.MAX_SAFE_INTEGER,
+  cardScansCount: Number.MAX_SAFE_INTEGER,
+  plantIdentifiesCount: Number.MAX_SAFE_INTEGER,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
 
 export const createMockUsageTracker = (
   options: MockUsageTrackerOptions = {}
 ): Layer.Layer<UsageTracker> => {
-  const reserve: IUsageTracker['reserve'] = (userId, field) => {
-    if (options.limitReached) {
-      return Effect.fail(
-        new LimitExceededError({
-          feature: featureOf(field),
-          limit: 1,
-          current: 1,
-          message: `${field} limit reached`,
-        })
+  const notifRepo = new Proxy({} as INotificationRepository, {
+    get: () => () => Effect.succeed(null),
+  })
+  const userRepo = new Proxy({} as IUserRepository, {
+    get: () => () => Effect.succeed(null),
+  })
+
+  return UsageTrackerLive.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        MockAlerterLive,
+        createMockSubscriptionRepository({
+          usage: options.limitReached ? freeLimitsReached : undefined,
+          onReserveUsage: (_userId, field) => options.onReserve?.(field),
+          onReleaseUsage: (_usageId, field) => options.onRelease?.(field),
+        }),
+        Layer.succeed(NotificationRepository, notifRepo),
+        Layer.succeed(UserRepository, userRepo)
       )
-    }
-    options.onReserve?.(userId, field)
-    const reservation: UsageReservation = {
-      usage: {
-        id: 'usage-1',
-        userId,
-        periodStart: new Date(),
-        periodEnd: new Date(),
-        aiChatsCount: 0,
-        cardScansCount: 0,
-        plantIdentifiesCount: 0,
-      },
-      release: Effect.sync(() => options.onRelease?.(userId, field)),
-    }
-    return Effect.succeed(reservation)
-  }
-
-  const tracker: IUsageTracker = {
-    reserve,
-    withReservation: (userId, field, body) =>
-      Effect.acquireUseRelease(
-        reserve(userId, field),
-        () => body,
-        (reservation, exit) =>
-          Exit.isSuccess(exit) ? Effect.void : reservation.release
-      ),
-  }
-
-  return Layer.succeed(UsageTracker, tracker)
+    ),
+    Layer.orDie
+  )
 }
 
-// Default mock for tests
 export const MockUsageTrackerLive = createMockUsageTracker()
