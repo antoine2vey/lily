@@ -4,13 +4,13 @@ import {
   rebuildDelegationReminders,
   transitionDelegation,
 } from '@lily/api/services/delegation/helpers/transition-delegation'
+import { changeDelegations } from '@lily/api/services/plants/helpers/plant-change'
 import {
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
   nowAsDate,
 } from '@lily/shared'
-import { Effect } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import { Array, Effect } from 'effect'
 
 export const completeDelegation = Effect.fn(
   'DelegationService.completeDelegation'
@@ -29,19 +29,19 @@ export const completeDelegation = Effect.fn(
     })
   }
 
-  const sql = yield* SqlClient.SqlClient
-  yield* sql.withTransaction(
-    transitionDelegation({
-      delegationId,
-      from: ['active'],
-      to: 'completed',
-      expectedStatus: 'active',
-      message: 'Only active delegations can be completed early',
-      timestamps: { completedAt: nowAsDate() },
-    }).pipe(
-      Effect.andThen((completed) => rebuildDelegationReminders([completed]))
+  yield* changeDelegations(
+    Effect.map(
+      transitionDelegation({
+        delegationId,
+        from: ['active'],
+        to: 'completed',
+        expectedStatus: 'active',
+        message: 'Only active delegations can be completed early',
+        timestamps: { completedAt: nowAsDate() },
+      }),
+      Array.of
     )
-  )
+  )(rebuildDelegationReminders)
 
   const updated = yield* delegationRepo.findById(delegationId)
   if (!updated) {

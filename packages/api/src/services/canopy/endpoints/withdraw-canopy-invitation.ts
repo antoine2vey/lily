@@ -5,10 +5,9 @@ import {
 } from '@lily/api/repositories/canopy.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { canopyView } from '@lily/api/services/canopy/helpers/canopy-view'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
+import { changeInvitations } from '@lily/api/services/plants/helpers/plant-change'
 import { CanopyInviteNotFoundError } from '@lily/shared'
 import { Effect } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 
 const mayWithdraw = (
   invitation: CanopyInvitationRow,
@@ -23,11 +22,9 @@ export const withdrawCanopyInvitation = Effect.fn(
 )(function* (invitationId: string) {
   const { id: userId } = yield* CurrentUser
   const repo = yield* CanopyRepository
-  const sql = yield* SqlClient.SqlClient
 
-  const canopyId = yield* sql.withTransaction(
+  const canopyId = yield* changeInvitations(userId)(({ canopy, membership }) =>
     Effect.gen(function* () {
-      const { canopy, membership } = yield* lockMyCanopy(userId)
       const invitation = yield* repo.findInvitation(invitationId)
       if (invitation === null || !mayWithdraw(invitation, userId, membership)) {
         return yield* new CanopyInviteNotFoundError()

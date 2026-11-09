@@ -18,6 +18,10 @@ import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipie
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import {
+  holdingReminderKeys,
+  reminderKeysFor,
+} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, References } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -77,6 +81,7 @@ const run = (
   ]
   return Effect.runPromise(
     rebuildMemberReminders(userId, plantIds).pipe(
+      holdingReminderKeys(reminderKeysFor(Array.map(plants, (p) => p.id))),
       Effect.provide(
         Layer.mergeAll(
           MockSqlClientLive,

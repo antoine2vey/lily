@@ -14,11 +14,8 @@ import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import { publishEventsAfterCommit } from '@lily/api/services/plants/helpers/execute-plant-care'
+import { changeCare } from '@lily/api/services/plants/helpers/plant-change'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   caller,
   canPerform,
@@ -134,7 +131,12 @@ export const careMultiplePlants = (
 
     const accessibleIds = Array.map(accessible, (plant) => plant.id)
     const cared = Record.fromEntries(
-      yield* withReminderKeys(reminderKeysFor(accessibleIds, [reminderType]))(
+      yield* changeCare(
+        Array.map(accessible, (plant) => ({
+          plantId: plant.id,
+          careType: request.careType,
+        }))
+      )(
         Effect.forEach(accessible, careFor).pipe(
           Effect.tap(() =>
             notificationRepo.deletePendingByPlantsAndType(

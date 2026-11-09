@@ -12,11 +12,12 @@ import {
 import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
+import { changeCare } from '@lily/api/services/plants/helpers/plant-change'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
-import { DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -122,30 +123,33 @@ export const correctCareDates = (
     const repo = yield* PlantRepository
     const { timezone } = yield* careContext(plant.owner)
 
-    // Correct watering date if provided
-    if (request.lastWateredAt) {
-      yield* correctSingleCareDate(
-        request.id,
-        request.lastWateredAt,
-        'watering',
-        plant,
-        timezone
-      )
-    }
+    const corrections = Array.getSomes([
+      Option.map(
+        Option.fromNullishOr(request.lastWateredAt),
+        (date) => ['watering', date] as const
+      ),
+      Option.map(
+        Option.fromNullishOr(request.lastFertilizedAt),
+        (date) => ['fertilization', date] as const
+      ),
+    ])
 
-    // Correct fertilization date if provided
-    if (request.lastFertilizedAt) {
-      yield* correctSingleCareDate(
-        request.id,
-        request.lastFertilizedAt,
-        'fertilization',
-        plant,
-        timezone
-      )
-    }
-
-    // Re-fetch to get updated plant with room data
-    const updatedPlant = yield* repo.findById(request.id)
+    const updatedPlant = yield* changeCare(
+      Array.map(corrections, ([careType]) => ({
+        plantId: request.id,
+        careType,
+      }))
+    )(
+      Effect.gen(function* () {
+        yield* Effect.forEach(
+          corrections,
+          ([careType, date]) =>
+            correctSingleCareDate(request.id, date, careType, plant, timezone),
+          { discard: true }
+        )
+        return yield* repo.findById(request.id)
+      })
+    )
 
     return pipe(
       Option.fromNullishOr(updatedPlant),

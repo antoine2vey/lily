@@ -1,19 +1,30 @@
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
-import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
+import {
+  DelegationRepository,
+  DelegationRepositoryLive,
+} from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  PlantRepositoryLive,
+} from '@lily/api/repositories/plant.repository'
 import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import {
   UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
+import { rebuildDelegationReminders } from '@lily/api/services/delegation/helpers/transition-delegation'
+import {
+  changeDelegations,
+  changeMember,
+} from '@lily/api/services/plants/helpers/plant-change'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array as Arr, Effect, Layer } from 'effect'
+import { Array as Arr, Deferred, Effect, Layer } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -324,6 +335,117 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
         )
       ).toEqual(['fern -> ann', 'moss -> ann'])
+    })
+
+    const waitForLockWaiter = async (done: Promise<unknown>) => {
+      for (const _ of Arr.range(1, 40)) {
+        const { rows } = await pool.query<{ waiting: number }>(
+          `SELECT count(*)::int AS waiting FROM pg_stat_activity
+           WHERE datname = current_database() AND wait_event_type = 'Lock'`
+        )
+        if ((rows[0]?.waiting ?? 0) > 0) return
+        const finished = await Promise.race([
+          done.then(() => true),
+          new Promise<boolean>((resolve) =>
+            setTimeout(() => resolve(false), 50)
+          ),
+        ])
+        if (finished) return
+      }
+    }
+
+    it('gives a caretaker the reminders of a delegation that starts while the vacation ends', async () => {
+      const owner = await user('owner2', { vacationStatus: 'none' })
+      const bea = await user('bea', {
+        vacationStatus: 'active',
+        vacationStart: new Date(Date.now() - 2 * DAY_MS),
+        vacationEnd: new Date(Date.now() + 2 * DAY_MS),
+      })
+      const ivy = await plant('ivy', owner.id)
+      const [delegation] = await db
+        .insert(schema.careDelegations)
+        .values({
+          ownerId: owner.id,
+          caretakerId: bea.id,
+          status: 'pending',
+          startDate: new Date(Date.now() - DAY_MS),
+          endDate: new Date(Date.now() + 30 * DAY_MS),
+        })
+        .returning()
+      if (!delegation) throw new Error('Failed to create delegation')
+      await db
+        .insert(schema.delegationPlants)
+        .values({ delegationId: delegation.id, plantId: ivy })
+
+      const readPlants = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const pausedAfterReadingPlants = Layer.effect(
+        PlantRepository,
+        Effect.map(PlantRepository, (repo) => ({
+          ...repo,
+          findPersonalReminderPlantIds: (userId: string) =>
+            repo.findPersonalReminderPlantIds(userId).pipe(
+              Effect.tap(() => Deferred.succeed(readPlants, undefined)),
+              Effect.tap(() => Deferred.await(release))
+            ),
+        }))
+      )
+
+      const ending = Effect.runPromise(
+        endVacation({ user: bea, effectiveEnd: new Date() }).pipe(
+          Effect.provide(
+            Layer.provideMerge(pausedAfterReadingPlants, VacationServicesLive)
+          )
+        )
+      )
+      await Effect.runPromise(Deferred.await(readPlants))
+      const activating = Effect.runPromise(
+        Effect.gen(function* () {
+          const repo = yield* DelegationRepository
+          yield* changeDelegations(
+            Effect.map(
+              repo.transitionStatus(delegation.id, ['pending'], 'active'),
+              Arr.fromNullishOr
+            )
+          )(rebuildDelegationReminders)
+        }).pipe(Effect.provide(VacationServicesLive))
+      )
+      await waitForLockWaiter(activating)
+      await Effect.runPromise(Deferred.succeed(release, undefined))
+      await Promise.all([ending, activating])
+
+      const rows = await db
+        .select({ userId: schema.notifications.userId })
+        .from(schema.notifications)
+        .where(
+          sql`${schema.notifications.status} = 'pending' AND ${schema.notifications.plantId} = ${ivy}`
+        )
+      expect(Arr.map(rows, (row) => names.get(row.userId))).toEqual(['bea'])
+    })
+
+    it("a member change waits for the member's own-collection lock", async () => {
+      const owner = await user('locked-owner', { vacationStatus: 'none' })
+      const locker = await pool.connect()
+      try {
+        await locker.query('BEGIN')
+        await locker.query(
+          `SELECT pg_advisory_xact_lock(1, hashtext('${owner.id}'))`
+        )
+        let settled = false
+        const changing = Effect.runPromise(
+          changeMember(owner.id)(() => Effect.void).pipe(
+            Effect.provide(VacationServicesLive)
+          )
+        ).then(() => {
+          settled = true
+        })
+        await waitForLockWaiter(changing)
+        expect(settled).toBe(false)
+        await locker.query('COMMIT')
+        await changing
+      } finally {
+        locker.release()
+      }
     })
   }
 )

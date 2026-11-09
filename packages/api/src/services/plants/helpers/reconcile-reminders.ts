@@ -27,7 +27,7 @@ import {
   CARE_REMINDER_TYPES,
   type CareReminderType,
   reminderKeysFor,
-  withReminderKeys,
+  requireReminderKeys,
 } from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   notificationSettingsOf,
@@ -218,7 +218,7 @@ const reconcile = (
   scope: Scope,
   policy: Policy
 ): Effect.Effect<void, SqlError, ReminderContext> =>
-  withReminderKeys(reminderKeysFor(plantIds, types))(
+  requireReminderKeys(reminderKeysFor(plantIds, types))(
     Effect.gen(function* () {
       const plantRepo = yield* PlantRepository
       const scheduleRepo = yield* CareScheduleRepository

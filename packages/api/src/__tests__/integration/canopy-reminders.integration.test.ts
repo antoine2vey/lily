@@ -31,16 +31,14 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { updateStatus } from '@lily/api/services/admin/endpoints/update-status'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
+import { changeReminders } from '@lily/api/services/plants/helpers/plant-change'
 import {
   reconcileCareReminder,
   rescheduleReminders,
 } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  CARE_REMINDER_TYPES,
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
+import { CARE_REMINDER_TYPES } from '@lily/api/services/plants/helpers/reminder-keys'
 import { DrizzleLive, PgLive } from '@lily/db'
+
 import * as schema from '@lily/db/schema'
 import type { PushMessage } from '@lily/shared/server'
 import type { UserStatus } from '@lily/shared/user'
@@ -444,7 +442,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         status: 'pending',
       })
       const exit = await Effect.runPromiseExit(
-        withReminderKeys(reminderKeysFor([personal], ['watering_reminder']))(
+        changeReminders([personal])(
           Effect.flatMap(NotificationRepository, (repo) =>
             repo.replaceReminders({
               onlyUserId: null,
@@ -486,7 +484,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(
         sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days' WHERE plant_id = ${shared}`
       )
-      const reschedule = reconcileCareReminder(shared, 'watering_reminder')
+      const reschedule = changeReminders([shared])(
+        reconcileCareReminder(shared, 'watering_reminder')
+      )
       await Effect.runPromise(
         Effect.all(
           Arr.makeBy(20, () => reschedule),
@@ -581,7 +581,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
 
       await Effect.runPromise(
-        rescheduleReminders([shared]).pipe(Effect.provide(WorkerLive))
+        changeReminders([shared])(rescheduleReminders([shared])).pipe(
+          Effect.provide(WorkerLive)
+        )
       )
 
       const rows = await db
@@ -655,7 +657,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days' WHERE plant_id = ${shared}`
       )
       await Effect.runPromise(
-        rescheduleReminders([shared]).pipe(Effect.provide(WorkerLive))
+        changeReminders([shared])(rescheduleReminders([shared])).pipe(
+          Effect.provide(WorkerLive)
+        )
       )
       expect(await reminderHolders(shared)).not.toContain(sam)
 
@@ -689,7 +693,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .insert(schema.delegationPlants)
         .values({ delegationId: delegation.id, plantId: fern })
       await Effect.runPromise(
-        rescheduleReminders([fern]).pipe(Effect.provide(WorkerLive))
+        changeReminders([fern])(rescheduleReminders([fern])).pipe(
+          Effect.provide(WorkerLive)
+        )
       )
       expect(await reminderHolders(fern)).toEqual([caretaker])
 

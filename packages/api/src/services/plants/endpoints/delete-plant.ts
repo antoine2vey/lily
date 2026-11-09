@@ -1,12 +1,11 @@
+import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { changePlant } from '@lily/api/services/plants/helpers/plant-change'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
@@ -18,20 +17,26 @@ export const deletePlant = (
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError,
-  PlantRepository | NotificationRepository | SqlClient.SqlClient
+  | PlantRepository
+  | NotificationRepository
+  | CanopyRepository
+  | CurrentUser
+  | SqlClient.SqlClient
 > =>
-  Effect.gen(function* () {
-    const repo = yield* PlantRepository
-    const deleted = yield* withReminderKeys(reminderKeysFor([plant.id]))(
-      repo.delete(plant.id, plant.owner)
+  changePlant(
+    plant,
+    requestedId
+  )((current) =>
+    Effect.flatMap(PlantRepository, (repo) =>
+      repo.delete(current.id, current.owner)
+    ).pipe(
+      Effect.flatMap((deleted) =>
+        deleted === null
+          ? Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
+          : Effect.succeed({ ...plant, room: null, schedules: [] })
+      )
     )
-
-    if (!deleted) {
-      return yield* new PlantNotFoundError({ plantId: requestedId })
-    }
-
-    return { ...plant, room: null, schedules: [] }
-  }).pipe(
+  ).pipe(
     Effect.withSpan('PlantsService.deletePlant', {
       attributes: { 'plant.id': plant.id },
     })

@@ -2,14 +2,8 @@ import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { changePlant } from '@lily/api/services/plants/helpers/plant-change'
 import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -20,19 +14,13 @@ export const mutePlant = Effect.fn('PlantsService.mutePlant')(function* (
   const { id: userId } = yield* CurrentUser
   const repo = yield* CanopyRepository
   const notificationRepo = yield* NotificationRepository
-  yield* withOwnerLock(plant.owner)(
-    withReminderKeys(reminderKeysFor([plant.id]))(
-      Effect.andThen(
-        reloadOwnedPlant(plant, requestedId),
-        Effect.andThen(
-          repo.mute(userId, plant.id),
-          notificationRepo.deleteUndeliveredByUserAndPlant(userId, plant.id)
-        )
-      )
-    )
-  ).pipe(
-    Effect.catchTag('CanopyNotFoundError', () =>
-      Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
+  yield* changePlant(
+    plant,
+    requestedId
+  )(() =>
+    Effect.andThen(
+      repo.mute(userId, plant.id),
+      notificationRepo.deleteUndeliveredByUserAndPlant(userId, plant.id)
     )
   )
 })
@@ -42,7 +30,7 @@ export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(function* (
 ) {
   const { id: userId } = yield* CurrentUser
   const repo = yield* CanopyRepository
-  yield* withReminderKeys(reminderKeysFor([plant.id]))(
+  yield* changePlant(plant)(() =>
     Effect.andThen(
       repo.unmute(userId, plant.id),
       rebuildMemberReminders(userId, [plant.id])

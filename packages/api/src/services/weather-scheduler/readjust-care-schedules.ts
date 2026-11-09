@@ -4,6 +4,7 @@ import type { NotificationRepository } from '@lily/api/repositories/notification
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { changeCare } from '@lily/api/services/plants/helpers/plant-change'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   calculateScheduleDelta,
@@ -204,129 +205,132 @@ const readjustPlantSchedule = (
   latitude: number,
   weatherCtx: WeatherContext
 ): Effect.Effect<void, SqlError, ReadjustContext> =>
-  Effect.gen(function* () {
-    const scheduleRepo = yield* CareScheduleRepository
+  changeCare([
+    { plantId: plant.id, careType: 'watering' },
+    { plantId: plant.id, careType: 'fertilization' },
+  ])(
+    Effect.gen(function* () {
+      const scheduleRepo = yield* CareScheduleRepository
 
-    // Fetch care schedules for this plant
-    const schedules = yield* scheduleRepo.findByPlant(plant.id)
+      const schedules = yield* scheduleRepo.findByPlant(plant.id)
 
-    const wateringSchedule = pipe(
-      Array.findFirst(schedules, (s) => s.careType === 'watering'),
-      Option.getOrNull
-    )
-
-    const fertSchedule = pipe(
-      Array.findFirst(schedules, (s) => s.careType === 'fertilization'),
-      Option.getOrNull
-    )
-
-    // Skip plants without a watering schedule or missing lastCareAt/nextCareAt
-    if (
-      !wateringSchedule ||
-      !wateringSchedule.lastCareAt ||
-      !wateringSchedule.nextCareAt
-    ) {
-      yield* Effect.log(
-        `[Readjust] Skipping plant "${plant.name}" (${plant.id}) — no watering schedule or missing lastCareAt/nextCareAt`
+      const wateringSchedule = pipe(
+        Array.findFirst(schedules, (s) => s.careType === 'watering'),
+        Option.getOrNull
       )
-      return
-    }
 
-    yield* Effect.log(
-      `[Readjust] Evaluating plant "${plant.name}" (${plant.id}): freq=${wateringSchedule.frequencyDays}d, lastWatered=${wateringSchedule.lastCareAt.toISOString()}, nextWatering=${wateringSchedule.nextCareAt.toISOString()}`
-    )
-
-    const nowDt = DateTime.nowUnsafe()
-    const nowMs = Number(DateTime.toEpochMillis(nowDt))
-
-    // Compute the schedule delta using forecast-averaged gate model
-    const delta = calculateScheduleDelta(
-      {
-        id: plant.id,
-        wateringFrequencyDays: wateringSchedule.frequencyDays,
-        wateringRating: plant.wateringRating,
-        ...toIndoorPlantContext(plant),
-        lastWateredAt: wateringSchedule.lastCareAt,
-        nextWateringAt: wateringSchedule.nextCareAt,
-        nextFertilizationAt: pipe(
-          Option.fromNullishOr(fertSchedule),
-          Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
-          Option.getOrNull
-        ),
-        fertilizationFrequencyDays: pipe(
-          Option.fromNullishOr(fertSchedule),
-          Option.map((s) => s.frequencyDays),
-          Option.getOrNull
-        ),
-      },
-      weatherCtx,
-      nowMs,
-      latitude
-    )
-
-    yield* Effect.log(
-      `[Readjust] Delta for "${plant.name}": watering=${delta.wateringDaysDelta}d${delta.wateringReason ? ` (${delta.wateringReason})` : ''}, fertilization=${delta.fertilizationDaysDelta}d`
-    )
-
-    const oneDayMs = Duration.toMillis(Duration.days(1))
-
-    // Compute schedule changes as immutable result
-    const newNextWateringAt = pipe(
-      Option.fromNullishOr(wateringSchedule.nextCareAt),
-      Option.filter(() => delta.wateringDaysDelta !== 0),
-      Option.map(
-        (wateringDate) =>
-          new Date(wateringDate.getTime() + delta.wateringDaysDelta * oneDayMs)
+      const fertSchedule = pipe(
+        Array.findFirst(schedules, (s) => s.careType === 'fertilization'),
+        Option.getOrNull
       )
-    )
 
-    const newNextFertilizationAt = pipe(
-      Option.fromNullishOr(fertSchedule),
-      Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
-      Option.filter(() => delta.fertilizationDaysDelta !== 0),
-      Option.map(
-        (fertDate) =>
-          new Date(fertDate.getTime() + delta.fertilizationDaysDelta * oneDayMs)
-      )
-    )
-
-    const wateringChanged = Option.isSome(newNextWateringAt)
-    const fertilizationChanged = Option.isSome(newNextFertilizationAt)
-
-    // Apply updates if anything changed
-    if (wateringChanged || fertilizationChanged) {
-      if (wateringChanged) {
-        yield* scheduleRepo.updateByPlantAndType(plant.id, 'watering', {
-          nextCareAt: newNextWateringAt.value,
-        })
-      }
-
-      if (fertilizationChanged) {
-        yield* scheduleRepo.updateByPlantAndType(plant.id, 'fertilization', {
-          nextCareAt: newNextFertilizationAt.value,
-        })
+      if (
+        !wateringSchedule ||
+        !wateringSchedule.lastCareAt ||
+        !wateringSchedule.nextCareAt
+      ) {
+        yield* Effect.log(
+          `[Readjust] Skipping plant "${plant.name}" (${plant.id}) — no watering schedule or missing lastCareAt/nextCareAt`
+        )
+        return
       }
 
       yield* Effect.log(
-        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${String(wateringChanged)}${wateringChanged ? ` (${wateringSchedule.nextCareAt.toISOString()} → ${newNextWateringAt.value.toISOString()})` : ''}, fertilization=${String(fertilizationChanged)}${
-          fertilizationChanged
-            ? ` (${pipe(
-                Option.fromNullishOr(fertSchedule),
-                Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
-                Option.map((d) => d.toISOString()),
-                Option.getOrElse(() => 'none')
-              )} → ${newNextFertilizationAt.value.toISOString()})`
-            : ''
-        }`
+        `[Readjust] Evaluating plant "${plant.name}" (${plant.id}): freq=${wateringSchedule.frequencyDays}d, lastWatered=${wateringSchedule.lastCareAt.toISOString()}, nextWatering=${wateringSchedule.nextCareAt.toISOString()}`
       )
 
-      // Reschedule notifications
-      if (wateringChanged) {
-        yield* reconcileCareReminder(plant.id, 'watering_reminder')
-      }
+      const nowDt = DateTime.nowUnsafe()
+      const nowMs = Number(DateTime.toEpochMillis(nowDt))
 
-      if (fertilizationChanged) {
-        yield* reconcileCareReminder(plant.id, 'fertilization_reminder')
+      const delta = calculateScheduleDelta(
+        {
+          id: plant.id,
+          wateringFrequencyDays: wateringSchedule.frequencyDays,
+          wateringRating: plant.wateringRating,
+          ...toIndoorPlantContext(plant),
+          lastWateredAt: wateringSchedule.lastCareAt,
+          nextWateringAt: wateringSchedule.nextCareAt,
+          nextFertilizationAt: pipe(
+            Option.fromNullishOr(fertSchedule),
+            Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
+            Option.getOrNull
+          ),
+          fertilizationFrequencyDays: pipe(
+            Option.fromNullishOr(fertSchedule),
+            Option.map((s) => s.frequencyDays),
+            Option.getOrNull
+          ),
+        },
+        weatherCtx,
+        nowMs,
+        latitude
+      )
+
+      yield* Effect.log(
+        `[Readjust] Delta for "${plant.name}": watering=${delta.wateringDaysDelta}d${delta.wateringReason ? ` (${delta.wateringReason})` : ''}, fertilization=${delta.fertilizationDaysDelta}d`
+      )
+
+      const oneDayMs = Duration.toMillis(Duration.days(1))
+
+      const newNextWateringAt = pipe(
+        Option.fromNullishOr(wateringSchedule.nextCareAt),
+        Option.filter(() => delta.wateringDaysDelta !== 0),
+        Option.map(
+          (wateringDate) =>
+            new Date(
+              wateringDate.getTime() + delta.wateringDaysDelta * oneDayMs
+            )
+        )
+      )
+
+      const newNextFertilizationAt = pipe(
+        Option.fromNullishOr(fertSchedule),
+        Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
+        Option.filter(() => delta.fertilizationDaysDelta !== 0),
+        Option.map(
+          (fertDate) =>
+            new Date(
+              fertDate.getTime() + delta.fertilizationDaysDelta * oneDayMs
+            )
+        )
+      )
+
+      const wateringChanged = Option.isSome(newNextWateringAt)
+      const fertilizationChanged = Option.isSome(newNextFertilizationAt)
+
+      if (wateringChanged || fertilizationChanged) {
+        if (wateringChanged) {
+          yield* scheduleRepo.updateByPlantAndType(plant.id, 'watering', {
+            nextCareAt: newNextWateringAt.value,
+          })
+        }
+
+        if (fertilizationChanged) {
+          yield* scheduleRepo.updateByPlantAndType(plant.id, 'fertilization', {
+            nextCareAt: newNextFertilizationAt.value,
+          })
+        }
+
+        yield* Effect.log(
+          `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${String(wateringChanged)}${wateringChanged ? ` (${wateringSchedule.nextCareAt.toISOString()} → ${newNextWateringAt.value.toISOString()})` : ''}, fertilization=${String(fertilizationChanged)}${
+            fertilizationChanged
+              ? ` (${pipe(
+                  Option.fromNullishOr(fertSchedule),
+                  Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
+                  Option.map((d) => d.toISOString()),
+                  Option.getOrElse(() => 'none')
+                )} → ${newNextFertilizationAt.value.toISOString()})`
+              : ''
+          }`
+        )
+
+        if (wateringChanged) {
+          yield* reconcileCareReminder(plant.id, 'watering_reminder')
+        }
+
+        if (fertilizationChanged) {
+          yield* reconcileCareReminder(plant.id, 'fertilization_reminder')
+        }
       }
-    }
-  })
+    })
+  )

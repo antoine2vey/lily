@@ -9,6 +9,7 @@ import {
   createMockCanopyRepository,
   createTestCanopyRow,
 } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
@@ -35,7 +36,8 @@ const createTestLayer = (userId = 'user-1') =>
         members: [createTestMembership({ userId: 'user-1' })],
       })
     ),
-    MockSqlClientLive
+    MockSqlClientLive,
+    createMockNotificationRepository([])
   )
 
 describe('createRoom', () => {

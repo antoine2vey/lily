@@ -4,22 +4,12 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
 import { assertMayUnshare } from '@lily/api/services/plants/helpers/assert-may-unshare'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
-import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { movePlant } from '@lily/api/services/plants/helpers/plant-change'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
-import {
-  CanopyNotFoundError,
-  type MovePlantScopeRequest,
-  type PlantOwner,
-} from '@lily/shared'
+import type { MovePlantScopeRequest, PlantOwner } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect, Option, pipe } from 'effect'
 
@@ -35,29 +25,25 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
   const me: PlantOwner = { _tag: 'User', userId }
   const roomId = pipe(Option.fromNullishOr(request.roomId), Option.getOrNull)
 
-  yield* withOwnerLock(me)(
+  yield* movePlant(
+    plant,
+    requestedId
+  )((current, locked) =>
     Effect.gen(function* () {
-      const locked = yield* lockMyCanopy(userId)
-      const { canopy } = locked
-      if (plant.owner._tag !== 'Canopy' || plant.owner.canopyId !== canopy.id) {
-        return yield* new CanopyNotFoundError()
+      if (current.owner._tag !== 'Canopy') {
+        return yield* new PlantNotFoundError({ plantId: requestedId })
       }
-      yield* assertMayUnshare(plant, locked, userId)
-      yield* withReminderKeys(reminderKeysFor([plant.id]))(
-        Effect.gen(function* () {
-          const current = yield* reloadOwnedPlant(plant, requestedId)
-          yield* assertRoomFits(roomId, me)
-          if (current.diedAt === null) {
-            yield* limitChecker.checkPlantLimit(me)
-          }
-          yield* canopyRepo.deleteMutesForPlant(plant.id)
-          const moved = yield* repo.moveTo(plant.id, plant.owner, me, roomId)
-          if (moved === null) {
-            return yield* new PlantNotFoundError({ plantId: requestedId })
-          }
-          yield* rescheduleReminders([moved.id])
-        })
-      )
+      yield* assertMayUnshare(current, locked, userId)
+      yield* assertRoomFits(roomId, me)
+      if (current.diedAt === null) {
+        yield* limitChecker.checkPlantLimit(me)
+      }
+      yield* canopyRepo.deleteMutesForPlant(plant.id)
+      const moved = yield* repo.moveTo(current.id, current.owner, me, roomId)
+      if (moved === null) {
+        return yield* new PlantNotFoundError({ plantId: requestedId })
+      }
+      yield* rescheduleReminders([moved.id])
     })
   )
 

@@ -7,18 +7,14 @@ import {
   type RecordedNotification,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import { changeCanopy } from '@lily/api/services/plants/helpers/plant-change'
 import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
   CanopyInviteNotFoundError,
 } from '@lily/shared'
 import { Array, Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 
 export interface JoinTarget {
   readonly canopyId: string
@@ -39,15 +35,10 @@ export interface Joiner {
 export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
   Effect.gen(function* () {
     const repo = yield* CanopyRepository
-    const sql = yield* SqlClient.SqlClient
+    const seen = yield* source.findBeforeLock
 
-    const joined = yield* sql.withTransaction(
+    const joined = yield* changeCanopy(seen.canopyId)((canopy, plantIds) =>
       Effect.gen(function* () {
-        const seen = yield* source.findBeforeLock
-        const canopy = yield* repo.lock(seen.canopyId)
-        if (canopy === null) {
-          return yield* new CanopyInviteNotFoundError()
-        }
         const target = yield* source.findUnderLock
         const current = yield* repo.findMembershipByUser(joiner.id)
         if (current !== null) {
@@ -68,22 +59,17 @@ export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
         if (members.length >= CANOPY_MAX_MEMBERS) {
           return yield* new CanopyFullError({ limit: CANOPY_MAX_MEMBERS })
         }
-        const plantIds = yield* repo.findPlantIdsOfCanopy(canopy.id)
-        yield* withReminderKeys(reminderKeysFor(plantIds))(
-          Effect.gen(function* () {
-            if (!(yield* repo.addMember(canopy.id, joiner.id, 'member'))) {
-              const winner = yield* repo.findMembershipByUser(joiner.id)
-              return yield* failAlreadyInCanopy(
-                pipe(
-                  Option.fromNullishOr(winner),
-                  Option.map((m) => m.canopyId),
-                  Option.getOrElse(() => canopy.id)
-                )
-              )
-            }
-            yield* rebuildMemberReminders(joiner.id, plantIds)
-          })
-        )
+        if (!(yield* repo.addMember(canopy.id, joiner.id, 'member'))) {
+          const winner = yield* repo.findMembershipByUser(joiner.id)
+          return yield* failAlreadyInCanopy(
+            pipe(
+              Option.fromNullishOr(winner),
+              Option.map((m) => m.canopyId),
+              Option.getOrElse(() => canopy.id)
+            )
+          )
+        }
+        yield* rebuildMemberReminders(joiner.id, plantIds)
         yield* source.markUsed
         const notifications = yield* Effect.forEach(members, (member) =>
           recordNotification(
@@ -96,6 +82,10 @@ export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
         )
         return { canopyId: canopy.id, notifications }
       })
+    ).pipe(
+      Effect.catchTag('CanopyNotFoundError', () =>
+        Effect.fail(new CanopyInviteNotFoundError())
+      )
     )
 
     yield* dispatchAll(joined.notifications)

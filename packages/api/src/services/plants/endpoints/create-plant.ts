@@ -2,12 +2,13 @@ import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { requireMembership } from '@lily/api/services/canopy/helpers/membership'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
-import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { changeCollection } from '@lily/api/services/plants/helpers/plant-change'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { RoomNotFoundError } from '@lily/shared'
 import {
@@ -34,6 +35,7 @@ export const createPlant = (
   | CurrentUser
   | LimitChecker
   | SqlClient.SqlClient
+  | NotificationRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
@@ -55,7 +57,7 @@ export const createPlant = (
     // Set next care dates to now (due immediately)
     const now = DateTime.toDateUtc(DateTime.nowUnsafe())
 
-    const plantOrNull = yield* withOwnerLock(owner)(
+    const plantOrNull = yield* changeCollection(owner)(
       Effect.gen(function* () {
         yield* assertRoomFits(request.roomId, owner)
         yield* limitChecker.checkPlantLimit(owner)

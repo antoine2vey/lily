@@ -1,6 +1,6 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import {
   heardBy,
   RecipientRepository,
@@ -9,21 +9,16 @@ import {
   UserRepository,
   type VacationSnapshot,
 } from '@lily/api/repositories/user.repository'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
+import { changeMember } from '@lily/api/services/plants/helpers/plant-change'
 import {
   type ReminderContext,
   rebuildMemberReminders,
   rescheduleReminders,
 } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface EndVacationParams {
@@ -49,32 +44,23 @@ export interface EndVacationParams {
  */
 export const endVacation = (
   params: EndVacationParams
-): Effect.Effect<typeof users.$inferSelect | null, SqlError, ReminderContext> =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient
-    const plantRepo = yield* PlantRepository
-    const ownPlantIds = yield* plantRepo.findIdsOwnedBy(params.user.id)
-    const ownedOrCaredForPlantIds =
-      yield* plantRepo.findPersonalReminderPlantIds(params.user.id)
-    const claimed = yield* withReminderKeys(
-      reminderKeysFor(ownedOrCaredForPlantIds),
-      Option.some(params.user.id)
-    )(
-      endVacationForOwnedOrCaredForPlants(
+): Effect.Effect<
+  typeof users.$inferSelect | null,
+  SqlError,
+  ReminderContext | DelegationRepository
+> =>
+  changeMember(params.user.id)(({ own, personal, canopy }) =>
+    Effect.gen(function* () {
+      const claimed = yield* endVacationForOwnedOrCaredForPlants(
         params,
-        ownPlantIds,
-        ownedOrCaredForPlantIds
+        own,
+        personal
       )
-    )
-    if (claimed === null) return null
-    yield* sql.withTransaction(
-      lockMyCanopy(params.user.id).pipe(
-        Effect.andThen(rebuildMemberReminders(params.user.id)),
-        Effect.catchTag('CanopyNotFoundError', () => Effect.void)
-      )
-    )
-    return claimed
-  }).pipe(
+      if (claimed === null) return null
+      yield* rebuildMemberReminders(params.user.id, canopy)
+      return claimed
+    })
+  ).pipe(
     Effect.withSpan('VacationService.endVacation', {
       attributes: { 'user.id': params.user.id },
     })

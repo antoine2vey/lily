@@ -1,30 +1,24 @@
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canopy'
-import {
-  dropMember,
-  lockMyCanopy,
-} from '@lily/api/services/canopy/helpers/membership'
+import { dropMember } from '@lily/api/services/canopy/helpers/membership'
 import { senderNameOf } from '@lily/api/services/canopy/helpers/notify-member'
 import {
   dispatchNow,
   type RecordedNotification,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
-import { canopyPlantIdsOf } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
-import type { CanopyNotFoundError } from '@lily/shared'
+import type { LockedCanopy } from '@lily/api/services/plants/helpers/plant-change'
+import { changeMember } from '@lily/api/services/plants/helpers/plant-change'
+import { CanopyNotFoundError } from '@lily/shared'
 import type { MessageQueue } from '@lily/shared/server'
 import { Array, Data, Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type LeaveOutcome = Data.TaggedEnum<{
@@ -45,13 +39,13 @@ type LeaveContext =
   | RecipientRepository
   | MessageQueue
 
-const leaveInTransaction = (
+const leaveLocked = (
+  { canopy }: LockedCanopy,
   userId: string,
   sharedPlants: 'return' | 'stay'
-): Effect.Effect<LeaveOutcome, CanopyNotFoundError | SqlError, LeaveContext> =>
+): Effect.Effect<LeaveOutcome, SqlError, LeaveContext> =>
   Effect.gen(function* () {
     const repo = yield* CanopyRepository
-    const { canopy } = yield* lockMyCanopy(userId)
     const members = yield* repo.findMembersByJoinDate(canopy.id)
     const leaver = yield* Option.match(
       Array.findFirst(members, (m) => m.userId === userId),
@@ -94,9 +88,18 @@ export const leaveCanopy = (
   userId: string
 ): Effect.Effect<LeaveOutcome, CanopyNotFoundError | SqlError, LeaveContext> =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient
-    const outcome = yield* sql.withTransaction(
-      leaveInTransaction(userId, 'return')
+    const outcome = yield* changeMember(userId)(
+      ({
+        locked,
+      }): Effect.Effect<
+        LeaveOutcome,
+        CanopyNotFoundError | SqlError,
+        LeaveContext
+      > =>
+        Option.match(locked, {
+          onNone: () => Effect.fail(new CanopyNotFoundError()),
+          onSome: (held) => leaveLocked(held, userId, 'return'),
+        })
     )
     yield* notifyLeave(outcome)
     return outcome
@@ -108,34 +111,15 @@ export const leaveCanopyAndDelete =
     deletion: Effect.Effect<A, E, R>
   ): Effect.Effect<A, E | SqlError, R | LeaveContext> =>
     Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient
-      const plantRepo = yield* PlantRepository
-      const delegationRepo = yield* DelegationRepository
-      const [outcome, result] = yield* sql.withTransaction(
-        Effect.gen(function* () {
-          const inCanopy = yield* lockMyCanopy(userId).pipe(
-            Effect.as(true),
-            Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
-          )
-          const canopyPlants = inCanopy ? yield* canopyPlantIdsOf(userId) : []
-          yield* delegationRepo.lockAllForUser(userId)
-          const personalPlants =
-            yield* plantRepo.findPersonalReminderPlantIds(userId)
-          return yield* withReminderKeys(
-            reminderKeysFor(Array.dedupe([...canopyPlants, ...personalPlants])),
-            Option.some(userId)
-          )(
-            Effect.all([
-              leaveInTransaction(userId, 'stay').pipe(
-                Effect.map(Option.some),
-                Effect.catchTag('CanopyNotFoundError', () =>
-                  Effect.succeed(Option.none<LeaveOutcome>())
-                )
-              ),
-              deletion,
-            ])
-          )
-        })
+      const [outcome, result] = yield* changeMember(userId)(({ locked }) =>
+        Effect.all([
+          Option.match(locked, {
+            onNone: () => Effect.succeed(Option.none<LeaveOutcome>()),
+            onSome: (held) =>
+              Effect.map(leaveLocked(held, userId, 'stay'), Option.some),
+          }),
+          deletion,
+        ])
       )
       yield* Option.match(outcome, {
         onNone: () => Effect.void,

@@ -5,6 +5,7 @@ import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CarePlanContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
+import { changeCare } from '@lily/api/services/plants/helpers/plant-change'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import type { PlantAccessContext } from '@lily/api/services/plants/helpers/with-plant-access'
 import { type CareType, nowAsDate } from '@lily/shared'
@@ -78,30 +79,39 @@ export const acceptCarePlan = ({
     // Move each affected schedule's next date to the step's due date (either
     // direction). Plants without a schedule of that type are left alone: the
     // AI asked for a one-off action, not a recurring habit.
-    yield* Effect.forEach(
-      scheduleTargetsFromSteps(plan.steps),
-      ({ careType, dueDate }) =>
-        Effect.gen(function* () {
-          const schedule = yield* scheduleRepo.findByPlantAndType(
-            plan.plantId,
-            careType
-          )
-          if (!schedule) return
-          yield* scheduleRepo.updateByPlantAndType(plan.plantId, careType, {
-            nextCareAt: dueDate,
-          })
-          yield* reconcileCareReminder(
-            plant.id,
-            `${careType}_reminder` as const
-          )
-        }),
-      { discard: true }
+    const targets = scheduleTargetsFromSteps(plan.steps)
+    const accepted = yield* changeCare(
+      Array.map(targets, ({ careType }) => ({
+        plantId: plan.plantId,
+        careType,
+      }))
+    )(
+      Effect.gen(function* () {
+        yield* Effect.forEach(
+          targets,
+          ({ careType, dueDate }) =>
+            Effect.gen(function* () {
+              const schedule = yield* scheduleRepo.findByPlantAndType(
+                plan.plantId,
+                careType
+              )
+              if (!schedule) return
+              yield* scheduleRepo.updateByPlantAndType(plan.plantId, careType, {
+                nextCareAt: dueDate,
+              })
+              yield* reconcileCareReminder(
+                plant.id,
+                `${careType}_reminder` as const
+              )
+            }),
+          { discard: true }
+        )
+        return yield* repo.updateStatus(plan.id, plan.userId, {
+          status: 'accepted',
+          acceptedAt: nowAsDate(),
+        })
+      })
     )
-
-    const accepted = yield* repo.updateStatus(plan.id, plan.userId, {
-      status: 'accepted',
-      acceptedAt: nowAsDate(),
-    })
     return pipe(
       Option.fromNullishOr(accepted),
       Option.getOrElse(() => plan)

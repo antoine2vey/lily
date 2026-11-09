@@ -1,3 +1,8 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import {
+  buildWeatherCtx,
+  tropicalMonsoonForecast,
+} from '@lily/api/__tests__/fixtures/weather'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -11,7 +16,10 @@ import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-pro
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
-import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
+import {
+  CarePlanRepository,
+  CarePlanRepositoryLive,
+} from '@lily/api/repositories/care-plan.repository'
 import {
   CareScheduleRepository,
   CareScheduleRepositoryLive,
@@ -25,6 +33,7 @@ import {
 import {
   PlantRepository,
   PlantRepositoryLive,
+  type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
@@ -36,12 +45,17 @@ import {
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
 import { createCanopyInvite } from '@lily/api/services/canopy/endpoints/create-canopy-invite'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
+import { removeCanopyMember } from '@lily/api/services/canopy/endpoints/remove-canopy-member'
 import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
+import { acceptCarePlan } from '@lily/api/services/care-plans/endpoints/accept-care-plan'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
+import { correctCareDates } from '@lily/api/services/plants/endpoints/correct-care-dates'
+import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
+import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
 import {
   mutePlant,
   unmutePlant,
@@ -49,10 +63,16 @@ import {
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
+import { changeReminders } from '@lily/api/services/plants/helpers/plant-change'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
+import {
+  readjustCareSchedules,
+  weatherLocationKey,
+} from '@lily/api/services/weather-scheduler/readjust-care-schedules'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { PushMessage } from '@lily/shared/server'
@@ -694,7 +714,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       const reconcile = as(
         sam,
-        rescheduleReminders([plant.id]).pipe(
+        changeReminders([plant.id])(rescheduleReminders([plant.id])).pipe(
           Effect.provide(PausedBeforeReplace)
         )
       )
@@ -1610,6 +1630,344 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       },
       120_000
     )
+
+    it('a member who left after the access check can neither delete nor bury a plant that stayed', async () => {
+      const target = plants[0] as string
+      const cases = [
+        {
+          action: 'delete',
+          createdBy: sam,
+          leave: () => as(sam, leaveCanopyAndDelete(sam)(Effect.void)),
+          write: (plant: PlantWithRoom) => deletePlant(plant, target),
+        },
+        {
+          action: 'markDead',
+          createdBy: alex,
+          leave: () => as(alex, removeCanopyMember(sam)),
+          write: (plant: PlantWithRoom) =>
+            markPlantDead(plant, { cause: 'unknown' }, target),
+        },
+      ] as const
+      for (const { action, createdBy, leave, write } of cases) {
+        await reset()
+        await db
+          .insert(schema.canopyMembers)
+          .values({ canopyId, userId: sam, role: 'member' })
+        await db.execute(
+          sql`UPDATE plants SET created_by_user_id = ${createdBy} WHERE id = ${target}`
+        )
+        try {
+          const seen = await as(sam, withPlantAuth(target, action))
+          if (Exit.isFailure(seen)) throw new Error(`sam may not ${action}`)
+          const left = await leave()
+          if (left._tag === 'Failure') throw new Error('sam did not leave')
+          const exit = await as(sam, write(seen.value))
+          expect(failureOf(exit)).toMatchObject({
+            _tag: 'PlantNotFoundError',
+            plantId: target,
+          })
+          const [row] = await db
+            .select({
+              canopyId: schema.plants.canopyId,
+              diedAt: schema.plants.diedAt,
+            })
+            .from(schema.plants)
+            .where(sql`${schema.plants.id} = ${target}`)
+          expect(row).toEqual({ canopyId, diedAt: null })
+        } finally {
+          await db.execute(
+            sql`UPDATE plants SET created_by_user_id = ${alex} WHERE id = ${target}`
+          )
+        }
+      }
+    }, 60_000)
+
+    it('a delegation that activates while its caretaker moves their reminder time lands at the new time', async () => {
+      await db.execute(sql`DELETE FROM care_delegations`)
+      const owner = await user('SettingsOwner')
+      const caretaker = await user('SettingsCaretaker')
+      const plantId = await personalPlant(owner)
+      const [delegation] = await db
+        .insert(schema.careDelegations)
+        .values({
+          ownerId: owner,
+          caretakerId: caretaker,
+          status: 'accepted',
+          startDate: new Date(Date.now() - day),
+          endDate: new Date(Date.now() + 7 * day),
+        })
+        .returning()
+      if (!delegation) throw new Error('Failed to create delegation')
+      await db
+        .insert(schema.delegationPlants)
+        .values({ delegationId: delegation.id, plantId })
+
+      const reached = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const PausedAfterReadingPlants = Layer.effect(
+        PlantRepository,
+        Effect.map(PlantRepository, (repo) => ({
+          ...repo,
+          findPersonalReminderPlantIds: (userId) =>
+            repo.findPersonalReminderPlantIds(userId).pipe(
+              Effect.tap(() => Deferred.succeed(reached, undefined)),
+              Effect.tap(() => Deferred.await(release))
+            ),
+        }))
+      )
+      const settings = as(
+        caretaker,
+        updateUserSettings({ preferredNotificationTime: '18:30' }).pipe(
+          Effect.provide(PausedAfterReadingPlants)
+        )
+      )
+      await Effect.runPromise(Deferred.await(reached))
+      const activation = as(caretaker, pollAndTransition)
+      await untilBlockedOrSettled(activation)
+      Deferred.doneUnsafe(release, Exit.void)
+      const [updated, activated] = await Promise.all([settings, activation])
+      expect(outcome(updated)).toBe('ok')
+      expect(outcome(activated)).toBe('ok')
+
+      const rows = await db
+        .select({
+          userId: schema.notifications.userId,
+          at: sql<string>`to_char(${schema.notifications.scheduledAt} AT TIME ZONE 'UTC', 'HH24:MI')`,
+        })
+        .from(schema.notifications)
+        .where(
+          sql`${schema.notifications.plantId} = ${plantId} AND ${schema.notifications.type} = 'watering_reminder' AND ${schema.notifications.status} = 'pending'`
+        )
+      expect(rows).toEqual([{ userId: caretaker, at: '18:30' }])
+    }, 60_000)
+
+    describe('care writes without a signed-in user behind the lock', () => {
+      const utcMidnight = (daysAhead: number) => {
+        const date = new Date()
+        date.setUTCHours(0, 0, 0, 0)
+        return new Date(date.getTime() + daysAhead * day)
+      }
+
+      const wateringSchedule = async (plantId: string) => {
+        const [row] = await db
+          .select({
+            lastCareAt: schema.plantCareSchedules.lastCareAt,
+            nextCareAt: schema.plantCareSchedules.nextCareAt,
+          })
+          .from(schema.plantCareSchedules)
+          .where(
+            sql`${schema.plantCareSchedules.plantId} = ${plantId} AND ${schema.plantCareSchedules.careType} = 'watering'`
+          )
+        if (!row) throw new Error(`no watering schedule for ${plantId}`)
+        return row
+      }
+
+      const pendingWateringDays = (plantId: string) =>
+        db
+          .select({
+            day: sql<string>`to_char(${schema.notifications.scheduledAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+          })
+          .from(schema.notifications)
+          .where(
+            sql`${schema.notifications.plantId} = ${plantId} AND ${schema.notifications.type} = 'watering_reminder' AND ${schema.notifications.status} = 'pending'`
+          )
+          .then((rows) => Arr.map(rows, (r) => r.day))
+
+      const pausedAfterReadingSchedule = (
+        reached: Deferred.Deferred<void>,
+        release: Deferred.Deferred<void>,
+        read: 'findByPlantAndType' | 'findByPlant'
+      ) =>
+        Layer.effect(
+          CareScheduleRepository,
+          Effect.map(CareScheduleRepository, (repo) => {
+            const pause = <A, E>(effect: Effect.Effect<A, E>) =>
+              effect.pipe(
+                Effect.tap(() => Deferred.succeed(reached, undefined)),
+                Effect.tap(() => Deferred.await(release))
+              )
+            return read === 'findByPlant'
+              ? {
+                  ...repo,
+                  findByPlant: (plantId) => pause(repo.findByPlant(plantId)),
+                }
+              : {
+                  ...repo,
+                  findByPlantAndType: (plantId, careType) =>
+                    pause(repo.findByPlantAndType(plantId, careType)),
+                }
+          })
+        )
+
+      const expectCareKept = async (plantId: string) => {
+        const schedule = await wateringSchedule(plantId)
+        expect(Date.now() - (schedule.lastCareAt?.getTime() ?? 0)).toBeLessThan(
+          60_000
+        )
+        expect(schedule.nextCareAt).toEqual(utcMidnight(7))
+        expect(await pendingWateringDays(plantId)).toEqual([
+          utcMidnight(7).toISOString().slice(0, 10),
+        ])
+      }
+
+      it('a care logged while a care-date correction runs stays in the schedule', async () => {
+        const owner = await user('Correcting')
+        const plantId = await personalPlant(owner)
+        await db.execute(
+          sql`UPDATE plant_care_schedules SET last_care_at = now() - interval '4 days', next_care_at = now() + interval '3 days' WHERE plant_id = ${plantId}`
+        )
+        const plant = await runtime.runPromise(plantNamed(plantId))
+
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const correction = as(
+          owner,
+          correctCareDates(plant, {
+            id: plantId,
+            lastWateredAt: new Date(Date.now() - 5 * day),
+          }).pipe(
+            Effect.provide(
+              pausedAfterReadingSchedule(reached, release, 'findByPlantAndType')
+            )
+          )
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const care = as(
+          owner,
+          executePlantCare(plant, { plantId, careType: 'watering' })
+        )
+        await untilBlockedOrSettled(care)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [corrected, cared] = await Promise.all([correction, care])
+        expect(outcome(corrected)).toBe('ok')
+        expect(outcome(cared)).toBe('ok')
+
+        await expectCareKept(plantId)
+      }, 60_000)
+
+      it('a care logged while the weather readjust runs keeps its next date', async () => {
+        const owner = await user('Readjusted')
+        const plantId = await personalPlant(owner)
+        const [room] = await db
+          .insert(schema.rooms)
+          .values({ name: 'Balcony', userId: owner, isOutdoor: true })
+          .returning()
+        if (!room) throw new Error('Failed to create room')
+        await db.execute(
+          sql`UPDATE plants SET room_id = ${room.id} WHERE id = ${plantId}`
+        )
+        await db.execute(
+          sql`UPDATE plant_care_schedules SET last_care_at = now() - interval '2 days', next_care_at = now() + interval '5 days' WHERE plant_id = ${plantId}`
+        )
+        const plant = await runtime.runPromise(plantNamed(plantId))
+        const scope = {
+          owner: { _tag: 'User', userId: owner } as const,
+          latitude: 48.86,
+          longitude: 2.35,
+          timezone: 'UTC',
+        }
+        const weather = new Map([
+          [
+            weatherLocationKey(scope.latitude, scope.longitude),
+            buildWeatherCtx(tropicalMonsoonForecast),
+          ],
+        ])
+
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const readjust = as(
+          owner,
+          readjustCareSchedules([scope], weather).pipe(
+            Effect.provide(
+              pausedAfterReadingSchedule(reached, release, 'findByPlant')
+            )
+          )
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const care = as(
+          owner,
+          executePlantCare(plant, { plantId, careType: 'watering' })
+        )
+        await untilBlockedOrSettled(care)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [readjusted, cared] = await Promise.all([readjust, care])
+        expect(outcome(readjusted)).toBe('ok')
+        expect(outcome(cared)).toBe('ok')
+
+        await expectCareKept(plantId)
+      }, 60_000)
+
+      it('an accept whose second schedule move fails moves no schedule and leaves the plan proposed', async () => {
+        const owner = await user('Accepting')
+        const plantId = await personalPlant(owner)
+        await db.insert(schema.plantCareSchedules).values({
+          plantId,
+          careType: 'fertilization',
+          frequencyDays: 30,
+          nextCareAt: new Date(Date.now() + 10 * day),
+        })
+        const before = await wateringSchedule(plantId)
+        const [planRow] = await db
+          .insert(schema.carePlans)
+          .values({ plantId, userId: owner, title: 'Recovery' })
+          .returning()
+        if (!planRow) throw new Error('Failed to create care plan')
+        await db.insert(schema.carePlanSteps).values([
+          {
+            planId: planRow.id,
+            position: 1,
+            title: 'Water tomorrow',
+            careType: 'watering',
+            dueDate: new Date(Date.now() + day),
+          },
+          {
+            planId: planRow.id,
+            position: 2,
+            title: 'Feed after',
+            careType: 'fertilization',
+            dueDate: new Date(Date.now() + 2 * day),
+          },
+        ])
+        const plan = await runtime.runPromise(
+          Effect.flatMap(CarePlanRepository, (repo) =>
+            repo.findById(planRow.id)
+          )
+        )
+        if (!plan) throw new Error('no care plan')
+        const plant = await runtime.runPromise(plantNamed(plantId))
+
+        await db.execute(sql`
+          CREATE OR REPLACE FUNCTION fail_fertilization_move() RETURNS trigger AS $$
+          BEGIN
+            IF NEW.care_type = 'fertilization' THEN
+              RAISE EXCEPTION 'injected schedule update failure';
+            END IF;
+            RETURN NEW;
+          END $$ LANGUAGE plpgsql`)
+        await db.execute(
+          sql`CREATE TRIGGER fail_fertilization_move BEFORE UPDATE ON plant_care_schedules FOR EACH ROW EXECUTE FUNCTION fail_fertilization_move()`
+        )
+        try {
+          const exit = await as(owner, acceptCarePlan({ plan, plant }))
+          expect(Exit.isFailure(exit)).toBe(true)
+        } finally {
+          await db.execute(
+            sql`DROP TRIGGER IF EXISTS fail_fertilization_move ON plant_care_schedules`
+          )
+          await db.execute(
+            sql`DROP FUNCTION IF EXISTS fail_fertilization_move()`
+          )
+        }
+
+        expect(await wateringSchedule(plantId)).toEqual(before)
+        expect(await pendingWateringDays(plantId)).toEqual([])
+        const [status] = await db
+          .select({ status: schema.carePlans.status })
+          .from(schema.carePlans)
+          .where(sql`${schema.carePlans.id} = ${planRow.id}`)
+        expect(status).toEqual({ status: 'proposed' })
+      }, 60_000)
+    })
 
     describe('overdue reminders for a caretaker', () => {
       let delegated: string[]

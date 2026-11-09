@@ -9,9 +9,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 /**
  * Hands every plant a member shared, alive or dead, back to them as a personal
  * plant with no room, and rebuilds its reminders for them. No plant-limit
- * check: a returned plant is not a new plant. Run under the Canopy lock, inside
- * `withReminderKeys` over the Canopy's plants, so these reminder locks are
- * taken in the same single pass as the rest of the membership change.
+ * check: a returned plant is not a new plant.
  */
 export const returnSharedPlants = (
   canopyId: string,

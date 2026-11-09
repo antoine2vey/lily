@@ -6,7 +6,7 @@ import {
   dispatchNow,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
-import { withUserLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { changeOwn } from '@lily/api/services/plants/helpers/plant-change'
 import {
   caller,
   canPerform,
@@ -83,7 +83,7 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
       Option.getOrElse(() => 'Someone')
     )
 
-    const { delegation, notification } = yield* withUserLock(currentUserId)(
+    const { delegation, notification } = yield* changeOwn(currentUserId)(
       Effect.gen(function* () {
         // Verify all plants belong to the current user
         const plants = yield* plantRepo.findByIds(plantIds)

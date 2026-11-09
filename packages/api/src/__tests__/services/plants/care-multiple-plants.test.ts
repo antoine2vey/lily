@@ -1,4 +1,5 @@
 import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import type {
   CareScheduleRow,
   CareType,
@@ -7,7 +8,6 @@ import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-mul
 import type { Notification } from '@lily/shared/notification'
 import type { AppEvent } from '@lily/shared/server'
 import { Effect, Layer } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 import { describe, expect, it } from 'vitest'
 import { mockPlants, type TestPlant } from '../../fixtures/plants'
 import { mockUser1 } from '../../fixtures/users'
@@ -24,12 +24,6 @@ import { createMockUserRepository } from '../../mocks/user.repository'
 type DelegationMockData = NonNullable<
   Parameters<typeof createMockDelegationRepository>[0]
 >
-
-const createMockSqlClient = (): Layer.Layer<SqlClient.SqlClient> =>
-  Layer.succeed(SqlClient.SqlClient, {
-    withTransaction: (effect: Effect.Effect<unknown, unknown, unknown>) =>
-      effect,
-  } as any)
 
 const schedulesFromPlants = (plants: TestPlant[]): CareScheduleRow[] =>
   plants.flatMap((p) =>
@@ -94,7 +88,7 @@ const createTestLayer = (
     createMockCanopyRepository(),
     createMockEventBus({ publishedEvents }),
     createMockCurrentUser({ id: 'user-1' }),
-    createMockSqlClient()
+    MockSqlClientLive
   )
 }
 

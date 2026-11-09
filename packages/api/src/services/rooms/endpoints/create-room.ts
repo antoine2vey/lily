@@ -1,9 +1,10 @@
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import { requireMembership } from '@lily/api/services/canopy/helpers/membership'
-import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { changeCollection } from '@lily/api/services/plants/helpers/plant-change'
 import type {
   CanopyNotFoundError,
   PlantOwner,
@@ -19,7 +20,11 @@ export const createRoom = (
 ): Effect.Effect<
   Room,
   SqlError | CanopyNotFoundError,
-  RoomRepository | CurrentUser | CanopyRepository | SqlClient.SqlClient
+  | RoomRepository
+  | CurrentUser
+  | CanopyRepository
+  | SqlClient.SqlClient
+  | NotificationRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* RoomRepository
@@ -33,7 +38,7 @@ export const createRoom = (
           }
         : { _tag: 'User', userId }
 
-    const room = yield* withOwnerLock(owner)(
+    const room = yield* changeCollection(owner)(
       Effect.gen(function* () {
         const maxOrder = yield* repo.getMaxOrder(owner)
         return yield* repo.create({
