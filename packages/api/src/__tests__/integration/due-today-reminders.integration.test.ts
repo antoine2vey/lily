@@ -7,6 +7,7 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
@@ -33,6 +34,7 @@ const ServicesLive = Layer.mergeAll(
   NotificationRepositoryLive,
   UserRepositoryLive,
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   DelegationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 

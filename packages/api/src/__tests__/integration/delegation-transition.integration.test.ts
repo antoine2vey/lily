@@ -11,6 +11,7 @@ import {
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
@@ -183,6 +184,7 @@ const ReminderServicesLive = Layer.mergeAll(
   NotificationRepositoryLive,
   UserRepositoryLive,
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   DelegationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 

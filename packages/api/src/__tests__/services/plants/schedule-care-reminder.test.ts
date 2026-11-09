@@ -14,6 +14,10 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import {
+  createMockRecipientRepository,
+  type RecipientWorld,
+} from '@lily/api/__tests__/mocks/recipient.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
@@ -37,26 +41,21 @@ const scheduleCareReminder = (params: {
   plant: { id: string; owner: PlantOwner; remindersEnabled: boolean }
   type: CareReminderType
   scheduledDate: Date
-}) =>
-  reconcileCareReminder(params.plant.id, params.type).pipe(
+  people?: Omit<RecipientWorld, 'plants'>
+}) => {
+  const plant = createTestPlant({
+    id: params.plant.id,
+    userId:
+      params.plant.owner._tag === 'User' ? params.plant.owner.userId : null,
+    canopyId:
+      params.plant.owner._tag === 'Canopy' ? params.plant.owner.canopyId : null,
+    remindersEnabled: params.plant.remindersEnabled,
+  })
+  return reconcileCareReminder(params.plant.id, params.type).pipe(
     Effect.provide(
       Layer.mergeAll(
-        createMockPlantRepository({
-          plants: [
-            createTestPlant({
-              id: params.plant.id,
-              userId:
-                params.plant.owner._tag === 'User'
-                  ? params.plant.owner.userId
-                  : null,
-              canopyId:
-                params.plant.owner._tag === 'Canopy'
-                  ? params.plant.owner.canopyId
-                  : null,
-              remindersEnabled: params.plant.remindersEnabled,
-            }),
-          ],
-        }),
+        createMockPlantRepository({ plants: [plant] }),
+        createMockRecipientRepository({ ...params.people, plants: [plant] }),
         createMockCareScheduleRepository({
           schedules: [
             createTestSchedule({
@@ -69,6 +68,12 @@ const scheduleCareReminder = (params: {
       )
     )
   )
+}
+
+const delegatedTo = (delegation: DelegationRow) => ({
+  delegations: [delegation],
+  delegationPlants: [{ delegationId: delegation.id, plantId: 'plant-1' }],
+})
 
 // Helper to create a future date for scheduling
 const createFutureDate = (daysFromNow: number, hours = 12): Date => {
@@ -91,7 +96,13 @@ const runAndGetPendingNotifications = (
   const allUsers = [user, ...(options?.extraUsers ?? [])]
   return Effect.runPromise(
     Effect.gen(function* () {
-      yield* scheduleCareReminder(params)
+      yield* scheduleCareReminder({
+        ...params,
+        people: {
+          delegations: options?.delegations,
+          delegationPlants: options?.delegationPlants,
+        },
+      })
       const repo = yield* NotificationRepository
       return yield* repo.findPendingByUserId(user.id)
     }).pipe(
@@ -495,6 +506,7 @@ describe('scheduleCareReminder', () => {
             plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
+            people: delegatedTo(delegation),
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -505,12 +517,7 @@ describe('scheduleCareReminder', () => {
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
-              createMockDelegationRepository({
-                delegations: [delegation],
-                delegationPlants: [
-                  { delegationId: delegation.id, plantId: 'plant-1' },
-                ],
-              })
+              createMockDelegationRepository(delegatedTo(delegation))
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -586,6 +593,7 @@ describe('scheduleCareReminder', () => {
             plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
+            people: delegatedTo(delegation),
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(owner.id)
@@ -596,12 +604,7 @@ describe('scheduleCareReminder', () => {
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
-              createMockDelegationRepository({
-                delegations: [delegation],
-                delegationPlants: [
-                  { delegationId: delegation.id, plantId: 'plant-1' },
-                ],
-              })
+              createMockDelegationRepository(delegatedTo(delegation))
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -638,6 +641,7 @@ describe('scheduleCareReminder', () => {
             plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
+            people: delegatedTo(delegation),
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -648,12 +652,7 @@ describe('scheduleCareReminder', () => {
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
-              createMockDelegationRepository({
-                delegations: [delegation],
-                delegationPlants: [
-                  { delegationId: delegation.id, plantId: 'plant-1' },
-                ],
-              })
+              createMockDelegationRepository(delegatedTo(delegation))
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -687,6 +686,7 @@ describe('scheduleCareReminder', () => {
             plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
+            people: delegatedTo(delegation),
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -697,12 +697,7 @@ describe('scheduleCareReminder', () => {
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
-              createMockDelegationRepository({
-                delegations: [delegation],
-                delegationPlants: [
-                  { delegationId: delegation.id, plantId: 'plant-1' },
-                ],
-              })
+              createMockDelegationRepository(delegatedTo(delegation))
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -820,6 +815,7 @@ describe('scheduleCareReminder', () => {
             plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
+            people: delegatedTo(delegation),
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -830,12 +826,7 @@ describe('scheduleCareReminder', () => {
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
-              createMockDelegationRepository({
-                delegations: [delegation],
-                delegationPlants: [
-                  { delegationId: delegation.id, plantId: 'plant-1' },
-                ],
-              })
+              createMockDelegationRepository(delegatedTo(delegation))
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -864,6 +855,7 @@ describe('scheduleCareReminder', () => {
             plant: personalPlant(owner.id, true),
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
+            people: delegatedTo(delegation),
           })
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
@@ -874,12 +866,7 @@ describe('scheduleCareReminder', () => {
               createMockNotificationRepository([]),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
-              createMockDelegationRepository({
-                delegations: [delegation],
-                delegationPlants: [
-                  { delegationId: delegation.id, plantId: 'plant-1' },
-                ],
-              })
+              createMockDelegationRepository(delegatedTo(delegation))
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -930,6 +917,7 @@ describe('scheduleCareReminder', () => {
           plant: canopyPlant,
           type: 'watering_reminder',
           scheduledDate: options.scheduledDate ?? createFutureDate(7),
+          people: { members, mutes: options.mutes ?? [] },
         }).pipe(
           Effect.provide(
             Layer.mergeAll(

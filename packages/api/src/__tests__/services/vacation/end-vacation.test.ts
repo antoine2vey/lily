@@ -14,6 +14,7 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
@@ -111,38 +112,30 @@ const buildScenario = () => {
 
   const users = [owner, caretaker]
   const notifications: Notification[] = []
+  const plants = [
+    plantOverdue,
+    plantMid,
+    plantFuture,
+    plantDelegated,
+    plantDelegatedFuture,
+  ]
+  const delegated = {
+    delegations: [delegation],
+    delegationPlants: [
+      { delegationId: delegation.id, plantId: plantDelegated.id },
+      { delegationId: delegation.id, plantId: plantDelegatedFuture.id },
+    ],
+  }
 
   const layer = Layer.mergeAll(
     MockSqlClientLive,
     createMockUserRepository(users),
     createMockNotificationRepository(notifications),
-    createMockCareScheduleRepository({
-      schedules,
-      plants: [
-        plantOverdue,
-        plantMid,
-        plantFuture,
-        plantDelegated,
-        plantDelegatedFuture,
-      ],
-    }),
-    createMockPlantRepository({
-      plants: [
-        plantOverdue,
-        plantMid,
-        plantFuture,
-        plantDelegated,
-        plantDelegatedFuture,
-      ],
-    }),
+    createMockCareScheduleRepository({ schedules, plants }),
+    createMockPlantRepository({ plants }),
     createMockCanopyRepository(),
-    createMockDelegationRepository({
-      delegations: [delegation],
-      delegationPlants: [
-        { delegationId: delegation.id, plantId: plantDelegated.id },
-        { delegationId: delegation.id, plantId: plantDelegatedFuture.id },
-      ],
-    })
+    createMockDelegationRepository(delegated),
+    createMockRecipientRepository({ ...delegated, plants })
   )
 
   return { owner, caretaker, schedules, notifications, users, layer }
@@ -373,7 +366,11 @@ describe('endVacation', () => {
           })),
         })
       ),
-      createMockDelegationRepository({})
+      createMockDelegationRepository({}),
+      createMockRecipientRepository({
+        plants: [sharedMid, sharedFuture],
+        members,
+      })
     )
 
     await run(
@@ -440,7 +437,8 @@ describe('endVacation', () => {
           ],
         })
       ),
-      createMockDelegationRepository({})
+      createMockDelegationRepository({}),
+      createMockRecipientRepository({ plants: [dueToday], members })
     )
 
     await run(

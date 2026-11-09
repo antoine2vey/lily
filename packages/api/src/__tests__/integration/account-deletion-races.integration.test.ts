@@ -17,6 +17,7 @@ import {
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import {
@@ -52,6 +53,7 @@ const DAY = 86_400_000
 const BaseLive = Layer.mergeAll(
   ActivityPushTokenRepositoryLive,
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   CareLogRepositoryLive,
   CarePlanRepositoryLive,
   CareScheduleRepositoryLive,

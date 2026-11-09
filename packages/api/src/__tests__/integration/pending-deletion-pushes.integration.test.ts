@@ -19,10 +19,12 @@ import {
   FollowRepositoryLive,
 } from '@lily/api/repositories/follow.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import {
-  PlantRepository,
-  PlantRepositoryLive,
-} from '@lily/api/repositories/plant.repository'
+  heardBy,
+  RecipientRepository,
+  RecipientRepositoryLive,
+} from '@lily/api/repositories/recipient.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import {
@@ -33,7 +35,6 @@ import { dispatchNow } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -57,6 +58,7 @@ const DAY = 86_400_000
 const RepositoriesLive = Layer.mergeAll(
   ActivityPushTokenRepositoryLive,
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
   DelegationRepositoryLive,
@@ -495,13 +497,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const { run } = pipeline(owner)
       const recipients = () =>
         run(
-          Effect.flatMap(PlantRepository, (repo) =>
-            repo.findById(plant.id)
-          ).pipe(
-            Effect.flatMap((row) =>
-              row ? reminderRecipients(row) : Effect.die('plant missing')
-            )
-          )
+          Effect.flatMap(RecipientRepository, (repo) =>
+            repo.audienceOf([plant.id])
+          ).pipe(Effect.map((audience) => heardBy(audience, plant.id)))
         )
 
       expect(await recipients()).toEqual([caretaker.id])
@@ -674,13 +672,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const { run } = pipeline(owner)
         const recipients = () =>
           run(
-            Effect.flatMap(PlantRepository, (repo) =>
-              repo.findById(plant.id)
-            ).pipe(
-              Effect.flatMap((row) =>
-                row ? reminderRecipients(row) : Effect.die('plant missing')
-              )
-            )
+            Effect.flatMap(RecipientRepository, (repo) =>
+              repo.audienceOf([plant.id])
+            ).pipe(Effect.map((audience) => heardBy(audience, plant.id)))
           )
 
         expect(await recipients()).toEqual([caretaker.id])

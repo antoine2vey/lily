@@ -3,7 +3,6 @@ import {
   CareScheduleRepository,
   type CareScheduleRow,
 } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
   NotificationRepository,
   ReminderGuard,
@@ -13,6 +12,10 @@ import {
   PlantRepository,
   type PlantRow,
 } from '@lily/api/repositories/plant.repository'
+import {
+  heardBy,
+  RecipientRepository,
+} from '@lily/api/repositories/recipient.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import {
   adjustForDoNotDisturb,
@@ -26,7 +29,6 @@ import {
   reminderKeysFor,
   withReminderKeys,
 } from '@lily/api/services/plants/helpers/reminder-keys'
-import { reminderRecipientsOf } from '@lily/api/services/plants/helpers/reminder-recipients'
 import {
   notificationSettingsOf,
   type UserNotificationSettings,
@@ -49,7 +51,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 export type ReminderContext =
   | NotificationRepository
   | UserRepository
-  | DelegationRepository
+  | RecipientRepository
   | CanopyRepository
   | PlantRepository
   | CareScheduleRepository
@@ -182,32 +184,32 @@ const nextCareOf = (
   )
 
 const recipientsOf = (plants: ReadonlyArray<PlantRow>, scope: Scope) =>
-  Scope.$match(scope, {
-    AllRecipients: () => reminderRecipientsOf(plants),
-    OnlyMember: ({ userId }) =>
-      Effect.gen(function* () {
-        const canopyPlants = Array.filterMap(
+  Effect.gen(function* () {
+    const audience = yield* Effect.flatMap(RecipientRepository, (repo) =>
+      repo.audienceOf(Array.map(plants, (p) => p.id))
+    )
+    return Scope.$match(scope, {
+      AllRecipients: () =>
+        Array.map(
+          plants,
+          (plant) => [plant, heardBy(audience, plant.id)] as const
+        ),
+      OnlyMember: ({ userId }) =>
+        Array.filterMap(
           plants,
           Filter.fromPredicateOption((plant: PlantRow) =>
             plant.owner._tag === 'Canopy'
-              ? Option.some({ plant, canopyId: plant.owner.canopyId })
+              ? Option.some([
+                  plant,
+                  Array.filter(
+                    heardBy(audience, plant.id),
+                    (id) => id === userId
+                  ),
+                ] as const)
               : Option.none()
           )
-        )
-        const canopyRepo = yield* CanopyRepository
-        const audible = yield* canopyRepo.findAudiblePlantIds(
-          userId,
-          Array.map(canopyPlants, ({ plant, canopyId }) => ({
-            id: plant.id,
-            canopyId,
-          }))
-        )
-        return Array.map(
-          canopyPlants,
-          ({ plant }) =>
-            [plant, Array.contains(audible, plant.id) ? [userId] : []] as const
-        )
-      }),
+        ),
+    })
   })
 
 const reconcile = (

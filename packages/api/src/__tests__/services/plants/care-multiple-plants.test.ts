@@ -1,3 +1,4 @@
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import type {
   CareScheduleRow,
   CareType,
@@ -84,6 +85,11 @@ const createTestLayer = (
       delegations: overrides.delegations,
       delegationPlants: overrides.delegationPlants,
       users: overrides.users,
+    }),
+    createMockRecipientRepository({
+      plants,
+      delegations: overrides.delegations,
+      delegationPlants: overrides.delegationPlants,
     }),
     createMockCanopyRepository(),
     createMockEventBus({ publishedEvents }),

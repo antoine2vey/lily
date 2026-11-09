@@ -14,6 +14,7 @@ import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.r
 import { FollowRepositoryLive } from '@lily/api/repositories/follow.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import {
   dispatchNow,
@@ -42,6 +43,7 @@ const { Pool } = pg
 
 const DatabaseLive = Layer.mergeAll(
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   CareScheduleRepositoryLive,
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,

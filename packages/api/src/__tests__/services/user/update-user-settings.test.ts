@@ -9,6 +9,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -21,6 +22,7 @@ describe('updateUserSettings', () => {
   const createTestLayer = (userId: string) =>
     Layer.mergeAll(
       createMockDelegationRepository(),
+      createMockRecipientRepository({ plants: mockPlants }),
       MockSqlClientLive,
       createMockCanopyRepository(),
       createMockRateLimiterService(),
@@ -145,6 +147,7 @@ describe('updateUserSettings', () => {
     ]
     const layer = Layer.mergeAll(
       createMockDelegationRepository(),
+      createMockRecipientRepository({ plants: mockPlants }),
       MockSqlClientLive,
       createMockCanopyRepository(),
       createMockRateLimiterService(),

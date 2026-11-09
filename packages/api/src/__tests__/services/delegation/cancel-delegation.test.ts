@@ -10,6 +10,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
@@ -72,7 +73,8 @@ const createLayer = (
         { id: mockUser2.id, name: mockUser2.name, image: mockUser2.image },
       ],
       plants: mockDelegationPlants,
-    })
+    }),
+    createMockRecipientRepository({ plants: [], delegations })
   )
 
 describe('cancelDelegation', () => {

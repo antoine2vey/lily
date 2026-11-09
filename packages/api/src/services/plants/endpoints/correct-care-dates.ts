@@ -4,12 +4,12 @@ import {
   CareScheduleRepository,
   type CareType,
 } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
+import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
@@ -114,7 +114,7 @@ export const correctCareDates = (
   | CareScheduleRepository
   | NotificationRepository
   | UserRepository
-  | DelegationRepository
+  | RecipientRepository
   | CanopyRepository
   | SqlClient.SqlClient
 > =>

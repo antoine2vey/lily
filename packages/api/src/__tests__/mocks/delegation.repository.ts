@@ -334,40 +334,6 @@ export const createMockDelegationRepository = (
         )
       ),
 
-    findActiveCaretakerForPlant: (plantId) =>
-      Effect.succeed(
-        pipe(
-          dpLinks,
-          Array.findFirst((link) => link.plantId === plantId),
-          Option.flatMap((link) =>
-            pipe(
-              Array.findFirst(
-                delegations,
-                (d) => d.id === link.delegationId && d.status === 'active'
-              ),
-              Option.map((d) => d.caretakerId)
-            )
-          ),
-          Option.getOrNull
-        )
-      ),
-
-    findActiveCaretakersForPlants: (plantIds) =>
-      Effect.succeed(
-        Array.flatMap(
-          Array.filter(dpLinks, (link) =>
-            Array.contains(plantIds, link.plantId)
-          ),
-          (link: (typeof dpLinks)[number]) =>
-            Array.map(
-              Array.filter(
-                delegations,
-                (d) => d.id === link.delegationId && d.status === 'active'
-              ),
-              (d) => ({ plantId: link.plantId, caretakerId: d.caretakerId })
-            )
-        )
-      ),
     lockAllForUser: () => Effect.void,
     cancelOpenForUser: (userId, canceledAt) =>
       Effect.sync(() => {

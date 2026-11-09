@@ -10,6 +10,7 @@ import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/noti
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
@@ -83,6 +84,7 @@ export const canopyWorld = (
       plantRepository,
       createMockUserRepository(memberUsers(store)),
       createMockDelegationRepository(),
+      createMockRecipientRepository(store),
       createMockRateLimiterService(),
       timeline.sql,
       createMockCurrentUser({ id: actor.id, name: actor.name ?? actor.id })

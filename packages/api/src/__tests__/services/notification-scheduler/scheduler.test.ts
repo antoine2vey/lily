@@ -17,6 +17,7 @@ import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
@@ -50,11 +51,15 @@ import {
 } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
-const gateMocks = (schedules: CareScheduleRow[] = []) =>
+const gateMocks = (
+  schedules: CareScheduleRow[] = [],
+  plants: PlantRecord[] = []
+) =>
   Layer.mergeAll(
     createMockCareScheduleRepository({ schedules }),
     createMockDelegationRepository(),
-    createMockCanopyRepository([])
+    createMockCanopyRepository([]),
+    createMockRecipientRepository({ plants })
   )
 
 const GateMocksLive = gateMocks()
@@ -96,7 +101,7 @@ const deliver = (
         createMockNotificationRepository(copies),
         createMockActivityPushTokenRepository(),
         createMockCareLogRepository([]),
-        gateMocks(schedules),
+        gateMocks(schedules, plantsData),
         createMockUserRepository(users),
         createMockPlantRepository({ plants: plantsData })
       )
@@ -132,7 +137,7 @@ const runPollAndEnqueue = (
             createMockMessageQueue({
               onEnqueue: (_, message) => enqueued.push(message),
             }),
-            gateMocks(schedules),
+            gateMocks(schedules, plantsData),
             createMockUserRepository(users),
             createMockPlantRepository({ plants: plantsData })
           )
@@ -2330,7 +2335,7 @@ describe('Notification Scheduler', () => {
                   message: 'redis down',
                 }),
               }),
-              GateMocksLive,
+              gateMocks([], [plant]),
               createMockUserRepository([defaultUser]),
               createMockPlantRepository({ plants: [plant] })
             )

@@ -3,7 +3,6 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careDelegations,
@@ -161,17 +160,6 @@ export interface IDelegationRepository {
     userId: string,
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
-
-  readonly findActiveCaretakerForPlant: (
-    plantId: string
-  ) => Effect.Effect<string | null, SqlError>
-
-  readonly findActiveCaretakersForPlants: (
-    plantIds: ReadonlyArray<string>
-  ) => Effect.Effect<
-    ReadonlyArray<{ readonly plantId: string; readonly caretakerId: string }>,
-    SqlError
-  >
 
   readonly hasOpenDelegationForPlant: (
     plantId: string
@@ -704,58 +692,6 @@ export const DelegationRepositoryLive = Layer.effect(
           .limit(1)
 
         return rows.length > 0
-      }),
-
-      findActiveCaretakerForPlant: Effect.fn(
-        'DelegationRepository.findActiveCaretakerForPlant'
-      )(function* (plantId) {
-        const rows = yield* db
-          .select({ caretakerId: careDelegations.caretakerId })
-          .from(careDelegations)
-          .innerJoin(
-            delegationPlants,
-            eq(careDelegations.id, delegationPlants.delegationId)
-          )
-          .innerJoin(users, eq(users.id, careDelegations.caretakerId))
-          .where(
-            and(
-              eq(delegationPlants.plantId, plantId),
-              eq(careDelegations.status, 'active'),
-              isReachableUser()
-            )
-          )
-          .limit(1)
-
-        return pipe(
-          rows,
-          Array.head,
-          Option.map((r) => r.caretakerId),
-          Option.getOrNull
-        )
-      }),
-
-      findActiveCaretakersForPlants: Effect.fn(
-        'DelegationRepository.findActiveCaretakersForPlants'
-      )(function* (plantIds) {
-        if (Array.isReadonlyArrayEmpty(plantIds)) return []
-        return yield* db
-          .select({
-            plantId: delegationPlants.plantId,
-            caretakerId: careDelegations.caretakerId,
-          })
-          .from(careDelegations)
-          .innerJoin(
-            delegationPlants,
-            eq(careDelegations.id, delegationPlants.delegationId)
-          )
-          .innerJoin(users, eq(users.id, careDelegations.caretakerId))
-          .where(
-            and(
-              inArray(delegationPlants.plantId, [...plantIds]),
-              eq(careDelegations.status, 'active'),
-              isReachableUser()
-            )
-          )
       }),
     }
   })

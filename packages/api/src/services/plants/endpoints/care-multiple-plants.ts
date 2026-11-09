@@ -8,6 +8,7 @@ import {
   PlantRepository,
   type PlantRow,
 } from '@lily/api/repositories/plant.repository'
+import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
@@ -54,6 +55,7 @@ export const careMultiplePlants = (
   | UserRepository
   | SqlClient.SqlClient
   | CurrentUser
+  | RecipientRepository
   | DelegationRepository
   | CanopyRepository
   | EventBus

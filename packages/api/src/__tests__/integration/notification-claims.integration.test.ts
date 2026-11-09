@@ -25,6 +25,10 @@ import {
   PlantRepositoryLive,
 } from '@lily/api/repositories/plant.repository'
 import {
+  type RecipientRepository,
+  RecipientRepositoryLive,
+} from '@lily/api/repositories/recipient.repository'
+import {
   type UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
@@ -96,6 +100,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       | UserRepository
       | PlantRepository
       | CanopyRepository
+      | RecipientRepository
       | CareScheduleRepository
       | DelegationRepository,
       Config.ConfigError | SqlError
@@ -166,6 +171,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         UserRepositoryLive,
         PlantRepositoryLive,
         CanopyRepositoryLive,
+        RecipientRepositoryLive,
         CareScheduleRepositoryLive,
         DelegationRepositoryLive
       ).pipe(

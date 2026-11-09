@@ -3,6 +3,7 @@ import type { CareScheduleRepository } from '@lily/api/repositories/care-schedul
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { RecipientRepository } from '@lily/api/repositories/recipient.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canopy'
 import {
@@ -41,6 +42,7 @@ type LeaveContext =
   | PlantRepository
   | UserRepository
   | DelegationRepository
+  | RecipientRepository
   | MessageQueue
 
 const leaveInTransaction = (

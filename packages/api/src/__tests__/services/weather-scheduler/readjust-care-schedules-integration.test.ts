@@ -1,3 +1,4 @@
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 /**
  * Integration test: verifies the full readjustCareSchedules pipeline
  * with plants in different rooms (indoor, outdoor, no room) and realistic
@@ -116,6 +117,7 @@ const buildLayers = ({
       createMockNotificationRepository(notifications),
       createMockCanopyRepository(),
       createMockDelegationRepository(),
+      createMockRecipientRepository({ plants }),
       createMockCareScheduleRepository({
         schedules: resolvedSchedules,
         plants,
@@ -533,6 +535,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           createMockNotificationRepository([]),
           createMockCanopyRepository(),
           createMockDelegationRepository(),
+          createMockRecipientRepository({ plants: [plant] }),
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
 
@@ -607,6 +610,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           createMockNotificationRepository([]),
           createMockCanopyRepository(),
           createMockDelegationRepository(),
+          createMockRecipientRepository({ plants: [plant] }),
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
 
@@ -680,6 +684,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
           createMockNotificationRepository([]),
           createMockCanopyRepository(),
           createMockDelegationRepository(),
+          createMockRecipientRepository({ plants: [plant] }),
           createMockCareScheduleRepository({ schedules, plants: [plant] })
         )
         await Effect.runPromise(
@@ -779,6 +784,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         createMockNotificationRepository([]),
         createMockCanopyRepository(),
         createMockDelegationRepository(),
+        createMockRecipientRepository({ plants: [plant] }),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
       await Effect.runPromise(
@@ -1158,6 +1164,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         createMockNotificationRepository([]),
         createMockCanopyRepository(),
         createMockDelegationRepository(),
+        createMockRecipientRepository({ plants: [plant] }),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
 
@@ -1187,6 +1194,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         createMockNotificationRepository([]),
         createMockCanopyRepository(),
         createMockDelegationRepository(),
+        createMockRecipientRepository({ plants: [plant] }),
         createMockCareScheduleRepository({ schedules, plants: [plant] })
       )
 

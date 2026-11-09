@@ -7,6 +7,7 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
@@ -42,7 +43,8 @@ const RepositoriesLive = Layer.mergeAll(
   NotificationRepositoryLive,
   UserRepositoryLive,
   DelegationRepositoryLive,
-  CanopyRepositoryLive
+  CanopyRepositoryLive,
+  RecipientRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 interface Published {

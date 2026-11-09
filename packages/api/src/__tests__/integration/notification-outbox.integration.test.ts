@@ -26,6 +26,7 @@ import {
 } from '@lily/api/repositories/follow.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { Alerter } from '@lily/api/services/alerting'
 import {
@@ -76,6 +77,7 @@ const DatabaseLive = Layer.mergeAll(
   PlantRepositoryLive,
   DeviceTokenRepositoryLive,
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   CareScheduleRepositoryLive,
   DelegationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
@@ -718,6 +720,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               DatabaseLive,
               DelegationRepositoryLive.pipe(Layer.provide(DatabaseLive)),
               CanopyRepositoryLive.pipe(Layer.provide(DatabaseLive)),
+              RecipientRepositoryLive.pipe(Layer.provide(DatabaseLive)),
               createMockLimitChecker(),
               createMockCurrentUser({ id: userId, name: 'outbox_user' }),
               createMockMessageQueue()

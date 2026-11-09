@@ -1,11 +1,15 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { lockOf } from '@lily/api/repositories/helpers/recipient'
 import type { NotificationRow } from '@lily/api/repositories/notification.repository'
+import {
+  heardBy,
+  RecipientRepository,
+} from '@lily/api/repositories/recipient.repository'
 import {
   adjustForDoNotDisturb,
   decodeDndBounds,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import type { users } from '@lily/db/schema'
 import { isOnVacation, type PlantOwner } from '@lily/shared'
 import { TOPIC_CATEGORY } from '@lily/shared/server'
@@ -118,18 +122,11 @@ const plantRule = (
     )
   )
 
-const LOCKED: Record<GateRecipient['status'], Option.Option<DropReason>> = {
-  active: Option.none(),
-  suspended: Option.some('suspended'),
-  banned: Option.some('banned'),
-  pending_deletion: Option.some('pending-deletion'),
-}
-
 const preferenceRule = (
   row: GateRow,
   user: GateRecipient
 ): Option.Option<DropReason> => {
-  const locked = LOCKED[user.status]
+  const locked = lockOf(user)
   if (Option.isSome(locked)) return locked
   const category = TOPIC_CATEGORY[row.type]
   if (category === 'care' && !user.careReminders) {
@@ -216,8 +213,6 @@ export const loadRecipients = (
     (entries) => new Map(entries)
   )
 
-const PLANT_FACT_CONCURRENCY = 10
-
 const ownerKeepsQueuedRowsWhileDelegated = (
   owner: PlantOwner
 ): ReadonlyArray<string> => (owner._tag === 'User' ? [owner.userId] : [])
@@ -233,39 +228,39 @@ export const loadPlantFacts = (
     if (Array.isReadonlyArrayEmpty(plants)) {
       return new Map<string, PlantFacts>()
     }
-    const schedules = yield* Effect.flatMap(CareScheduleRepository, (repo) =>
-      repo.findByPlantIds(Array.map(plants, (p) => p.id))
-    )
-    const facts = yield* Effect.forEach(
+    const living = Array.filter(plants, (p) => p.diedAt === null)
+    const [schedules, audience] = yield* Effect.all([
+      Effect.flatMap(CareScheduleRepository, (repo) =>
+        repo.findByPlantIds(Array.map(plants, (p) => p.id))
+      ),
+      Effect.flatMap(RecipientRepository, (repo) =>
+        repo.audienceOf(Array.map(living, (p) => p.id))
+      ),
+    ])
+    const facts = Array.map(
       plants,
       (plant) =>
-        Effect.map(
-          plant.diedAt === null
-            ? Effect.map(reminderRecipients(plant), (recipients) =>
-                Array.union(
-                  recipients,
-                  ownerKeepsQueuedRowsWhileDelegated(plant.owner)
-                )
-              )
-            : Effect.succeed<ReadonlyArray<string>>([]),
-          (recipients) =>
-            [
-              plant.id,
-              {
-                diedAt: plant.diedAt,
-                recipients,
-                nextCareAt: Array.filterMap(
-                  schedules,
-                  Filter.fromPredicateOption((s) =>
-                    s.plantId === plant.id
-                      ? Option.fromNullishOr(s.nextCareAt)
-                      : Option.none()
+        [
+          plant.id,
+          {
+            diedAt: plant.diedAt,
+            recipients:
+              plant.diedAt === null
+                ? Array.union(
+                    heardBy(audience, plant.id),
+                    ownerKeepsQueuedRowsWhileDelegated(plant.owner)
                   )
-                ),
-              },
-            ] as const
-        ),
-      { concurrency: PLANT_FACT_CONCURRENCY }
+                : [],
+            nextCareAt: Array.filterMap(
+              schedules,
+              Filter.fromPredicateOption((s) =>
+                s.plantId === plant.id
+                  ? Option.fromNullishOr(s.nextCareAt)
+                  : Option.none()
+              )
+            ),
+          },
+        ] as const
     )
     return new Map<string, PlantFacts>(facts)
   })

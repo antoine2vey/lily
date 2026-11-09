@@ -8,6 +8,7 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { RecipientRepositoryLive } from '@lily/api/repositories/recipient.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { acceptCanopyInvitation } from '@lily/api/services/canopy/endpoints/accept-canopy-invitation'
 import { leaveCanopy } from '@lily/api/services/canopy/helpers/leave-canopy'
@@ -23,6 +24,7 @@ const { Pool } = pg
 
 const AppLive = Layer.mergeAll(
   CanopyRepositoryLive,
+  RecipientRepositoryLive,
   CareScheduleRepositoryLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,

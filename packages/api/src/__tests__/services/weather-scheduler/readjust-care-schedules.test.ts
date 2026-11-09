@@ -25,6 +25,7 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
@@ -82,6 +83,7 @@ const buildLayers = ({
     createMockNotificationRepository(notifications),
     createMockCanopyRepository(),
     createMockDelegationRepository(),
+    createMockRecipientRepository({ plants }),
     createMockCareScheduleRepository({
       schedules: schedulesFromPlants(plants),
       plants,
@@ -441,6 +443,10 @@ describe('readjustCareSchedules for a Canopy', () => {
     })
     const schedules = schedulesFromPlants([plant])
     const notifications: Notification[] = []
+    const members = [
+      createTestMembership({ userId: morningMember.id, role: 'owner' }),
+      createTestMembership({ userId: eveningMember.id }),
+    ]
 
     await Effect.runPromise(
       readjustCareSchedules(weatherScopes([], [canopy]), contextMap).pipe(
@@ -464,16 +470,11 @@ describe('readjustCareSchedules for a Canopy', () => {
             createMockCanopyRepository(
               createCanopyStore({
                 canopies: [canopy],
-                members: [
-                  createTestMembership({
-                    userId: morningMember.id,
-                    role: 'owner',
-                  }),
-                  createTestMembership({ userId: eveningMember.id }),
-                ],
+                members,
               })
             ),
             createMockDelegationRepository(),
+            createMockRecipientRepository({ plants: [plant], members }),
             createMockCareScheduleRepository({ schedules, plants: [plant] })
           )
         )

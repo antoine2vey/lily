@@ -14,6 +14,7 @@ import {
   createCanopyStore,
   createMockCanopyRepository,
   createTestCanopyRow,
+  type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -21,10 +22,10 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
+import { createMockRecipientRepository } from '@lily/api/__tests__/mocks/recipient.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import type { CareType } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
@@ -75,17 +76,19 @@ const update = (
     readonly notifications: Notification[]
     readonly user?: typeof testUser
     readonly plants?: TestPlant[]
-    readonly canopy?: Layer.Layer<CanopyRepository>
+    readonly canopy?: MockCanopyStore
   }
 ) => {
   const plants = scenario.plants ?? [testPlant]
+  const canopy = scenario.canopy ?? createCanopyStore()
   return Effect.runPromise(
     updateUserSettings(request).pipe(
       Effect.provide(
         Layer.mergeAll(
           createMockDelegationRepository(),
+          createMockRecipientRepository({ plants, members: canopy.members }),
           MockSqlClientLive,
-          scenario.canopy ?? createMockCanopyRepository(),
+          createMockCanopyRepository(canopy),
           createMockRateLimiterService(),
           createMockUserRepository([scenario.user ?? testUser]),
           createMockCurrentUser({ id: 'user-1' }),
@@ -193,26 +196,24 @@ describe('updateUserSettings - reminder rebuild', () => {
       {
         notifications,
         plants: [canopyPlant],
-        canopy: createMockCanopyRepository(
-          createCanopyStore({
-            canopies: [
-              createTestCanopyRow({
-                id: mockCanopyId,
-                timezone: 'Europe/Paris',
-              }),
-            ],
-            members: [createTestMembership({ userId: 'user-1' })],
-            plants: [
-              {
-                id: 'plant-canopy',
-                canopyId: mockCanopyId,
-                userId: null,
-                remindersEnabled: true,
-                diedAt: null,
-              },
-            ],
-          })
-        ),
+        canopy: createCanopyStore({
+          canopies: [
+            createTestCanopyRow({
+              id: mockCanopyId,
+              timezone: 'Europe/Paris',
+            }),
+          ],
+          members: [createTestMembership({ userId: 'user-1' })],
+          plants: [
+            {
+              id: 'plant-canopy',
+              canopyId: mockCanopyId,
+              userId: null,
+              remindersEnabled: true,
+              diedAt: null,
+            },
+          ],
+        }),
       }
     )
 

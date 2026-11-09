@@ -13,10 +13,7 @@ import {
   createMockAlerter,
   MockAlerterLive,
 } from '@lily/api/__tests__/mocks/alerter'
-import {
-  createCanopyStore,
-  createMockCanopyRepository,
-} from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import {
@@ -35,21 +32,21 @@ import {
   type MockPushServiceOptions,
 } from '@lily/api/__tests__/mocks/push.service'
 import {
+  createMockRecipientRepository,
+  type RecipientWorld,
+} from '@lily/api/__tests__/mocks/recipient.repository'
+import {
   createInMemoryRedis,
   createInMemoryRedisQueue,
 } from '@lily/api/__tests__/mocks/redis-queue'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import {
   type CreateDeadLetterData,
   DeadLetterRepository,
 } from '@lily/api/repositories/dead-letter.repository'
-import type {
-  DelegationRepository,
-  DelegationRow,
-} from '@lily/api/repositories/delegation.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { Alerter } from '@lily/api/services/alerting'
 import {
@@ -113,6 +110,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 // Empty mocks for the Live Activity path — worker unconditionally reads
 // these repos when TOPIC_CATEGORY[topic] === 'care'. With no tokens seeded,
 // the LA helper returns early and the care banner path is unchanged.
+const laMembers = [
+  createTestMembership({
+    userId: 'user-1',
+    canopyId: 'canopy-1' as CanopyId,
+  }),
+]
+
 const LaMocksLive = Layer.mergeAll(
   MockSqlClientLive,
   createMockActivityPushTokenRepository(),
@@ -120,28 +124,26 @@ const LaMocksLive = Layer.mergeAll(
   createMockCareLogRepository([]),
   createMockUserRepository([]),
   createMockDelegationRepository(),
-  createMockCanopyRepository([
-    createTestMembership({
-      userId: 'user-1',
-      canopyId: 'canopy-1' as CanopyId,
-    }),
-  ])
+  createMockCanopyRepository(laMembers)
 )
 
 // Every plant id the queue-message fixtures reference, all living. The
 // worker drops a care message whose plants are all dead, so tests that
 // exercise the happy path must be able to resolve their plants.
-const LivingPlantsLive = createMockPlantRepository({
-  plants: [
-    createTestPlant({ id: 'plant-1', userId: 'user-1' }),
-    createTestPlant({ id: 'plant-2', userId: 'user-1' }),
-    createTestPlant({ id: 'plant-3', userId: 'user-1' }),
-    createTestPlant({ id: 'plant-123', userId: 'user-1' }),
-    createTestPlant({ id: 'plant-mixed', userId: 'mixed-device-user' }),
-    createTestPlant({ id: 'plant-three', userId: 'three-device-user' }),
-    createTestPlant({ id: 'plant-user-2', userId: 'user-2' }),
-  ],
-})
+const livingPlants = [
+  createTestPlant({ id: 'plant-1', userId: 'user-1' }),
+  createTestPlant({ id: 'plant-2', userId: 'user-1' }),
+  createTestPlant({ id: 'plant-3', userId: 'user-1' }),
+  createTestPlant({ id: 'plant-123', userId: 'user-1' }),
+  createTestPlant({ id: 'plant-mixed', userId: 'mixed-device-user' }),
+  createTestPlant({ id: 'plant-three', userId: 'three-device-user' }),
+  createTestPlant({ id: 'plant-user-2', userId: 'user-2' }),
+]
+
+const LivingPlantsLive = Layer.mergeAll(
+  createMockPlantRepository({ plants: livingPlants }),
+  createMockRecipientRepository({ plants: livingPlants, members: laMembers })
+)
 
 const createPlantRow: typeof createRow = (overrides) =>
   createRow({ plantId: 'plant-1', ...overrides })
@@ -696,6 +698,7 @@ describe('Notification Worker', () => {
               createMockCareLogRepository([]),
               createMockDelegationRepository(),
               createMockCanopyRepository([]),
+              createMockRecipientRepository({ plants }),
               createMockUserRepository([recipient(language)]),
               createMockPlantRepository({ plants }),
               Logger.layer([
@@ -2010,6 +2013,14 @@ describe('Notification Worker', () => {
         annotations: fiber.getRef(References.CurrentLogAnnotations),
       })
     })
+    const delegation = delegated
+      ? {
+          delegations: [activeDelegation('user-2', 'user-1')],
+          delegationPlants: [
+            { delegationId: 'delegation-1', plantId: 'plant-1' },
+          ],
+        }
+      : {}
     const layer = Layer.mergeAll(
       MockAlerterLive,
       createMockPushService({
@@ -2038,14 +2049,8 @@ describe('Notification Worker', () => {
       ]),
       createMockPlantRepository({ plants }),
       createMockCanopyRepository(),
-      delegated
-        ? createMockDelegationRepository({
-            delegations: [activeDelegation('user-2', 'user-1')],
-            delegationPlants: [
-              { delegationId: 'delegation-1', plantId: 'plant-1' },
-            ],
-          })
-        : createMockDelegationRepository(),
+      createMockDelegationRepository(delegation),
+      createMockRecipientRepository({ plants, ...delegation }),
       deadLetters.layer,
       MockSqlClientLive,
       Logger.layer([capture])
@@ -2407,8 +2412,7 @@ describe('Notification Worker', () => {
     const runWithPlants = async (
       plants: ReturnType<typeof createTestPlant>[],
       plantIds: string[],
-      canopyLayer?: Layer.Layer<CanopyRepository>,
-      delegationLayer?: Layer.Layer<DelegationRepository>,
+      people: Omit<RecipientWorld, 'plants'> = {},
       rows?: Notification[]
     ) => {
       const sentMessages: PushMessage[] = []
@@ -2440,8 +2444,11 @@ describe('Notification Worker', () => {
               createMockNotificationRepository(notifications),
               createMockPlantRepository({ plants }),
               LaMocksLive,
-              canopyLayer ?? Layer.empty,
-              delegationLayer ?? Layer.empty
+              createMockRecipientRepository({
+                members: laMembers,
+                ...people,
+                plants,
+              })
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -2489,17 +2496,7 @@ describe('Notification Worker', () => {
       const { sentMessages, notifications } = await runWithPlants(
         [shared],
         ['plant-1'],
-        createMockCanopyRepository(
-          createCanopyStore({
-            members: [
-              createTestMembership({
-                userId: 'user-1',
-                canopyId: 'canopy-1' as CanopyId,
-              }),
-            ],
-            mutes: [{ userId: 'user-1', plantId: 'plant-1' }],
-          })
-        )
+        { mutes: [{ userId: 'user-1', plantId: 'plant-1' }] }
       )
 
       expect(sentMessages).toHaveLength(0)
@@ -2530,13 +2527,12 @@ describe('Notification Worker', () => {
       const { sentMessages, notification } = await runWithPlants(
         [own],
         ['plant-1'],
-        undefined,
-        createMockDelegationRepository({
+        {
           delegations: [activeDelegation('user-1', 'user-2', 'active')],
           delegationPlants: [
             { delegationId: 'delegation-1', plantId: 'plant-1' },
           ],
-        })
+        }
       )
 
       expect(sentMessages.length).toBeGreaterThan(0)
@@ -2548,13 +2544,12 @@ describe('Notification Worker', () => {
       const { sentMessages, notifications } = await runWithPlants(
         [theirs],
         ['plant-1'],
-        undefined,
-        createMockDelegationRepository({
+        {
           delegations: [activeDelegation('user-2', 'user-1', 'completed')],
           delegationPlants: [
             { delegationId: 'delegation-1', plantId: 'plant-1' },
           ],
-        })
+        }
       )
 
       expect(sentMessages).toHaveLength(0)
@@ -2566,13 +2561,12 @@ describe('Notification Worker', () => {
       const { sentMessages, notification } = await runWithPlants(
         [theirs],
         ['plant-1'],
-        undefined,
-        createMockDelegationRepository({
+        {
           delegations: [activeDelegation('user-2', 'user-1', 'active')],
           delegationPlants: [
             { delegationId: 'delegation-1', plantId: 'plant-1' },
           ],
-        })
+        }
       )
 
       expect(sentMessages.length).toBeGreaterThan(0)
@@ -2610,8 +2604,7 @@ describe('Notification Worker', () => {
       const { sentMessages } = await runWithPlants(
         [leftBehind, fern],
         ['plant-1', 'plant-2'],
-        undefined,
-        undefined,
+        {},
         rows
       )
 
@@ -2646,8 +2639,7 @@ describe('Notification Worker', () => {
       const { sentMessages } = await runWithPlants(
         [dead, alive],
         ['plant-1', 'plant-2'],
-        undefined,
-        undefined,
+        {},
         [
           createPlantRow({
             id: 'notification-1',
@@ -2671,8 +2663,7 @@ describe('Notification Worker', () => {
       const { sentMessages } = await runWithPlants(
         [dead, alive],
         ['plant-1', 'plant-2'],
-        undefined,
-        undefined,
+        {},
         [
           createPlantRow({
             id: 'notification-1',
@@ -2709,8 +2700,7 @@ describe('Notification Worker', () => {
       const { sentMessages } = await runWithPlants(
         [dead, alive],
         ['plant-1', 'plant-2'],
-        undefined,
-        undefined,
+        {},
         [
           createPlantRow({
             id: 'notification-1',
@@ -2782,6 +2772,7 @@ describe('Notification Worker', () => {
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository(rows),
               createMockPlantRepository({ plants: [buried, living] }),
+              createMockRecipientRepository({ plants: [buried, living] }),
               LaMocksLive
             )
           ),
@@ -2838,6 +2829,7 @@ describe('Notification Worker', () => {
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository(rows),
               createMockPlantRepository({ plants }),
+              createMockRecipientRepository({ plants, members: laMembers }),
               LaMocksLive,
               createMockUserRepository([
                 createTestUser({ id: 'user-1', ...userOverrides }),
@@ -3170,7 +3162,8 @@ describe('Notification Worker', () => {
         ]),
         createMockPlantRepository({ plants: [plant] }),
         createMockCanopyRepository(),
-        createMockDelegationRepository()
+        createMockDelegationRepository(),
+        createMockRecipientRepository({ plants: [plant] })
       )
       const run = (id: string, notificationId: string) =>
         Effect.runPromise(
