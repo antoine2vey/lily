@@ -220,24 +220,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).toEqual({ id: canopyPlant?.id, createdByUserId: null })
     })
 
-    it('records the owner as the creator of a plant the repository creates', async () => {
-      const created = await Effect.runPromise(
-        Effect.gen(function* () {
-          const repo = yield* PlantRepository
-          return yield* repo.create({
-            ...plantValues,
-            description: null,
-            category: null,
-            health: 'HEALTHY',
-            owner: { _tag: 'User', userId: alexId },
-            createdByUserId: alexId,
-          })
-        }).pipe(Effect.provide(RepositoryLive))
-      )
-
-      expect(created?.createdByUserId).toBe(alexId)
-    })
-
     it('reads a Canopy plant with its Canopy and creator', async () => {
       const canopyId = await createCanopy('Home')
       const [canopyPlant] = await db

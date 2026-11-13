@@ -1,9 +1,7 @@
 import type { Canopy } from '@lily/api/contexts/canopy'
-import { Care } from '@lily/api/contexts/care'
+import { PlantLife } from '@lily/api/contexts/care'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
-import { EventBus, publishWithRetry } from '@lily/api/events'
 import type { Outbox } from '@lily/api/kernel/outbox'
-import { systemPermit } from '@lily/api/kernel/permit'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
@@ -36,8 +34,7 @@ export const createPlant = (
   | CanopyRepository
   | Canopy
   | RoomRepository
-  | Care
-  | EventBus
+  | PlantLife
   | CurrentUser
   | LimitChecker
   | SqlClient.SqlClient
@@ -45,8 +42,7 @@ export const createPlant = (
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const care = yield* Care
-    const eventBus = yield* EventBus
+    const life = yield* PlantLife
     const { id: userId } = yield* CurrentUser
     const limitChecker = yield* LimitChecker
 
@@ -57,86 +53,50 @@ export const createPlant = (
         ? yield* canopyOwnerOf(userId)
         : { _tag: 'User', userId }
 
-    const plantOrNull = yield* withOwnerLock(owner)(
+    const { plantId } = yield* withOwnerLock(owner)((held) =>
       Effect.gen(function* () {
         yield* assertRoomFits(request.roomId, owner)
         yield* limitChecker.checkPlantLimit(owner)
-        return yield* repo.create({
-          name: request.name,
-          description: pipe(
-            Option.fromNullishOr(request.description),
-            Option.getOrNull
-          ),
-          category: pipe(
-            Option.fromNullishOr(request.category),
-            Option.getOrNull
-          ),
-          imageUrl: pipe(
-            Option.fromNullishOr(request.imageUrl),
-            Option.getOrNull
-          ),
-          humidityRating: pipe(
-            Option.fromNullishOr(request.humidityRating),
-            Option.getOrElse(() => 0)
-          ),
-          lightingRating: pipe(
-            Option.fromNullishOr(request.lightingRating),
-            Option.getOrElse(() => luxToSliderValue(request.luxNeeded))
-          ),
-          petToxicityRating: pipe(
-            Option.fromNullishOr(request.petToxicityRating),
-            Option.getOrElse(() => 0)
-          ),
-          wateringRating: pipe(
-            Option.fromNullishOr(request.wateringRating),
-            Option.getOrElse(() => 0)
-          ),
-          health: 'HEALTHY',
-          potWidthCm: pipe(
-            Option.fromNullishOr(request.potWidthCm),
-            Option.getOrNull
-          ),
-          potHeightCm: pipe(
-            Option.fromNullishOr(request.potHeightCm),
-            Option.getOrNull
-          ),
-          owner,
-          createdByUserId: userId,
-          roomId: pipe(Option.fromNullishOr(request.roomId), Option.getOrNull),
+        return yield* life.plant({
+          held,
+          by: userId,
+          draft: {
+            name: request.name,
+            description: Option.fromNullishOr(request.description),
+            category: Option.fromNullishOr(request.category),
+            imageUrl: Option.fromNullishOr(request.imageUrl),
+            humidityRating: pipe(
+              Option.fromNullishOr(request.humidityRating),
+              Option.getOrElse(() => 0)
+            ),
+            lightingRating: pipe(
+              Option.fromNullishOr(request.lightingRating),
+              Option.getOrElse(() => luxToSliderValue(request.luxNeeded))
+            ),
+            petToxicityRating: pipe(
+              Option.fromNullishOr(request.petToxicityRating),
+              Option.getOrElse(() => 0)
+            ),
+            wateringRating: pipe(
+              Option.fromNullishOr(request.wateringRating),
+              Option.getOrElse(() => 0)
+            ),
+            potWidthCm: Option.fromNullishOr(request.potWidthCm),
+            potHeightCm: Option.fromNullishOr(request.potHeightCm),
+            roomId: Option.fromNullishOr(request.roomId),
+          },
+          frequencies: frequencyChanges({
+            wateringFrequencyDays: request.wateringFrequencyDays,
+            fertilizationFrequencyDays:
+              request.fertilizationFrequencyDays || undefined,
+            mistingFrequencyDays: request.mistingFrequencyDays || undefined,
+            repottingFrequencyDays: request.repottingFrequencyDays || undefined,
+          }),
         })
       })
     )
 
-    if (!plantOrNull) {
-      return yield* Effect.die(
-        new EntityMutationDefect({
-          message: 'Plant create returned null',
-          entity: 'plant',
-          operation: 'create',
-        })
-      )
-    }
-
-    const plant = plantOrNull
-
-    yield* care
-      .setSchedules({
-        permit: systemPermit(plant.id, 'edit', 'create-plant'),
-        frequencies: frequencyChanges({
-          wateringFrequencyDays: request.wateringFrequencyDays,
-          fertilizationFrequencyDays:
-            request.fertilizationFrequencyDays || undefined,
-          mistingFrequencyDays: request.mistingFrequencyDays || undefined,
-          repottingFrequencyDays: request.repottingFrequencyDays || undefined,
-        }),
-      })
-      .pipe(Effect.orDie)
-
-    yield* publishWithRetry(
-      eventBus.publish({ _tag: 'PlantCreated', userId, plantId: plant.id })
-    )
-
-    const created = yield* repo.findById(plant.id)
+    const created = yield* repo.findById(plantId)
     if (!created) {
       return yield* Effect.die(
         new EntityMutationDefect({

@@ -3,23 +3,18 @@ import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createStubCare } from '@lily/api/__tests__/mocks/care'
-import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
 import {
   createMockLimitChecker,
   MockLimitCheckerLive,
 } from '@lily/api/__tests__/mocks/limit-checker'
-import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { frequencyOfDays } from '@lily/api/contexts/care'
-import type { AppEvent } from '@lily/api/events'
-import { systemPermit } from '@lily/api/kernel/permit'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
+import type { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { RoomNotFoundError } from '@lily/shared'
-import { Effect, Exit, Layer, Option } from 'effect'
+import { Array, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const strangersRoom = {
@@ -40,24 +35,40 @@ describe('createPlant', () => {
     petToxicityRating: 1,
   }
 
-  const createTestLayer = () => {
-    const care = createStubCare()
+  const createTestLayer = (
+    limits: Layer.Layer<LimitChecker> = MockLimitCheckerLive
+  ) => {
+    const rows = Array.map(mockPlants, (plant) => ({ ...plant }))
+    const care = createInMemoryCare([], { plantRows: rows })
     return {
       layer: Layer.mergeAll(
         createMockRoomRepository(roomsWithStranger),
-        createMockPlantRepository({ plants: mockPlants }),
-        createMockEventBus(),
+        createMockPlantRepository({ plants: rows, sharesPlantsArray: true }),
         createMockCurrentUser({ id: 'user-1' }),
-        MockLimitCheckerLive,
-        MockSqlClientLive,
-        MockOutboxLive,
+        limits,
         createMockCanopyRepository(),
         createInMemoryCanopy().layer,
         care.layer
       ),
       care,
+      rows,
     }
   }
+
+  const frequenciesOf = (
+    care: ReturnType<typeof createInMemoryCare>,
+    plantId: string
+  ) =>
+    Array.flatMap(
+      [...(care.plants.get(plantId)?.lines.values() ?? [])],
+      (line) =>
+        Option.toArray(
+          Option.map(
+            line.schedule,
+            (schedule) => [line.careType, schedule.frequency] as const
+          )
+        )
+    )
 
   it('should create a new plant', async () => {
     const { layer } = createTestLayer()
@@ -108,17 +119,12 @@ describe('createPlant', () => {
       createPlant(validRequest).pipe(Effect.provide(layer))
     )
 
-    expect(care.scheduled).toEqual([
-      {
-        permit: systemPermit(result.id, 'edit', 'create-plant'),
-        frequencies: [['watering', Option.some(frequencyOfDays(7))]],
-      },
-    ])
+    expect(frequenciesOf(care, result.id)).toEqual([['watering', 7]])
   })
 
   it('schedules every care type whose frequency the request names', async () => {
     const { layer, care } = createTestLayer()
-    await Effect.runPromise(
+    const result = await Effect.runPromise(
       createPlant({
         ...validRequest,
         fertilizationFrequencyDays: 14,
@@ -127,11 +133,11 @@ describe('createPlant', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(care.scheduled[0]?.frequencies).toEqual([
-      ['watering', Option.some(frequencyOfDays(7))],
-      ['fertilization', Option.some(frequencyOfDays(14))],
-      ['misting', Option.some(frequencyOfDays(3))],
-      ['repotting', Option.some(frequencyOfDays(180))],
+    expect(frequenciesOf(care, result.id)).toEqual([
+      ['watering', 7],
+      ['fertilization', 14],
+      ['misting', 3],
+      ['repotting', 180],
     ])
   })
 
@@ -214,49 +220,28 @@ describe('createPlant', () => {
     expect(result.lightingRating).toBe(75)
   })
 
-  it('should publish PlantCreated event', async () => {
-    const publishedEvents: AppEvent[] = []
-    const eventBusMock = createMockEventBus({ publishedEvents })
-
+  it('publishes that the caller planted it', async () => {
+    const { layer, care } = createTestLayer()
     const result = await Effect.runPromise(
-      createPlant(validRequest).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            createMockRoomRepository(roomsWithStranger),
-            createMockPlantRepository({ plants: mockPlants }),
-            eventBusMock,
-            createMockCurrentUser({ id: 'user-1' }),
-            MockLimitCheckerLive,
-            MockSqlClientLive,
-            MockOutboxLive,
-            createMockCanopyRepository(),
-            createInMemoryCanopy().layer,
-            createStubCare().layer
-          )
-        )
-      )
+      createPlant(validRequest).pipe(Effect.provide(layer))
     )
 
-    expect(publishedEvents.length).toBe(1)
-    expect(publishedEvents[0]).toMatchObject({
-      _tag: 'PlantCreated',
-      userId: 'user-1',
-      plantId: result.id,
-    })
+    expect(
+      Array.filter(care.events, (event) => event._tag === 'PlantLifeChanged')
+    ).toEqual([
+      {
+        _tag: 'PlantLifeChanged',
+        plantId: result.id,
+        owner: { _tag: 'User', userId: 'user-1' },
+        life: 'Planted',
+        by: 'user-1',
+      },
+    ])
   })
 
   it('should fail with LimitExceededError when plant limit is reached', async () => {
-    const layer = Layer.mergeAll(
-      createMockRoomRepository(roomsWithStranger),
-      createMockPlantRepository({ plants: mockPlants }),
-      createMockEventBus(),
-      createMockCurrentUser({ id: 'user-1' }),
-      createMockLimitChecker({ plantLimitReached: true }),
-      MockSqlClientLive,
-      MockOutboxLive,
-      createMockCanopyRepository(),
-      createInMemoryCanopy().layer,
-      createStubCare().layer
+    const { layer, care, rows } = createTestLayer(
+      createMockLimitChecker({ plantLimitReached: true })
     )
 
     const result = await Effect.runPromiseExit(
@@ -264,6 +249,8 @@ describe('createPlant', () => {
     )
 
     expect(result._tag).toBe('Failure')
+    expect(rows).toHaveLength(mockPlants.length)
+    expect(care.events).toEqual([])
   })
 
   describe('room', () => {

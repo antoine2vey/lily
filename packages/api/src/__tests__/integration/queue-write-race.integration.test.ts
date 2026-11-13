@@ -1,3 +1,4 @@
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -106,11 +107,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .returning()
       if (!plant) throw new Error('plant insert returned nothing')
+      const dueAt = new Date(Date.now() - 86_400_000)
       await db.insert(schema.plantCareSchedules).values({
         plantId: plant.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: new Date(Date.now() - 86_400_000),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       const [row] = await db
         .insert(schema.notifications)

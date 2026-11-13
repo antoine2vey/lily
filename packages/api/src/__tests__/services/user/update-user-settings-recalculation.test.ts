@@ -207,7 +207,10 @@ describe('updateUserSettings - reminder rebuild', () => {
       userId: null,
       canopyId: mockCanopyId,
       scheduleSpecs: [
-        wateringSpec({ nextCareAt: new Date('2030-07-14T22:00:00.000Z') }),
+        wateringSpec({
+          nextCareAt: new Date('2030-07-14T22:00:00.000Z'),
+          dueDay: '2030-07-15',
+        }),
       ],
     })
     const notifications = pendingWatering({

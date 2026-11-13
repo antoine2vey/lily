@@ -218,6 +218,63 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await recordedHashes()).toEqual(['0076_reminder_occasion_unique'])
     }, 30_000)
 
+    it('builds the due day index over an invalid one a failed build left, and writes no row', async () => {
+      const dueDayIndex = await readFile(
+        fileURLToPath(
+          new URL(
+            '../../../../db/drizzle/0077_schedule_due_day_index.sql',
+            import.meta.url
+          )
+        ),
+        'utf-8'
+      )
+      await pool.query(
+        'CREATE TABLE plant_care_schedules (id serial PRIMARY KEY, next_care_at timestamptz NOT NULL, due_day date)'
+      )
+      await pool.query(
+        `INSERT INTO plant_care_schedules (next_care_at, due_day) VALUES
+          ('2026-11-12T00:00:00Z', '2026-11-12'),
+          ('2026-11-13T00:00:00Z', NULL)`
+      )
+      await pool.query(
+        'CREATE INDEX plant_care_schedules_due_day_idx ON plant_care_schedules (id)'
+      )
+      await pool.query(
+        `UPDATE pg_index SET indisvalid = false WHERE indexrelid = 'plant_care_schedules_due_day_idx'::regclass`
+      )
+      const index = async () => {
+        const result = await pool.query<{ valid: boolean; definition: string }>(
+          `SELECT i.indisvalid AS valid, pg_get_indexdef(i.indexrelid) AS definition FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = 'plant_care_schedules_due_day_idx'`
+        )
+        return result.rows
+      }
+      const rows = async () =>
+        (
+          await pool.query<{ id: number; day: string | null }>(
+            'SELECT id, due_day::text AS day FROM plant_care_schedules ORDER BY id'
+          )
+        ).rows
+      const before = await rows()
+      await writeMigrations({ '0077_schedule_due_day_index.sql': dueDayIndex })
+
+      const built = await runRunner(workDir, databaseUrl)
+
+      expect(built.code, built.output).toBe(0)
+      expect(await index()).toEqual([
+        {
+          valid: true,
+          definition:
+            'CREATE INDEX plant_care_schedules_due_day_idx ON public.plant_care_schedules USING btree (due_day)',
+        },
+      ])
+      expect(await rows()).toEqual(before)
+      expect(before).toEqual([
+        { id: 1, day: '2026-11-12' },
+        { id: 2, day: null },
+      ])
+      expect(await recordedHashes()).toEqual(['0077_schedule_due_day_index'])
+    }, 30_000)
+
     it('keeps running against a migrations table that already holds duplicate hashes', async () => {
       await pool.query(
         'CREATE TABLE "__drizzle_migrations" (id SERIAL PRIMARY KEY, hash TEXT NOT NULL, created_at BIGINT)'

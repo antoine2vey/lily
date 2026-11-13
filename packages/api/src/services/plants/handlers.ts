@@ -94,20 +94,22 @@ export const PlantsApiLive = (api: Api) =>
         )
       )
       .handle('deletePlant', ({ params: { id } }) =>
-        withPlantAuth(id, 'delete').pipe(
-          Effect.flatMap((plant) => deletePlant(plant, id)),
+        withPermittedPlant(id, 'delete').pipe(
+          Effect.flatMap(({ plant, permit }) => deletePlant(plant, permit, id)),
           withInfraErrorsAsDefect
         )
       )
       .handle('markPlantDead', ({ params: { id }, payload }) =>
-        withPlantAuth(id, 'markDead').pipe(
-          Effect.flatMap((plant) => markPlantDead(plant, payload, id)),
+        withPermittedPlant(id, 'markDead').pipe(
+          Effect.flatMap(({ plant, permit }) =>
+            markPlantDead(plant, permit, payload, id)
+          ),
           withInfraErrorsAsDefect
         )
       )
       .handle('revivePlant', ({ params: { id } }) =>
-        withPlantAuth(id, 'revive').pipe(
-          Effect.flatMap((plant) => revivePlant(plant, id)),
+        withPermittedPlant(id, 'revive').pipe(
+          Effect.flatMap(({ plant, permit }) => revivePlant(plant, permit, id)),
           withInfraErrorsAsDefect
         )
       )

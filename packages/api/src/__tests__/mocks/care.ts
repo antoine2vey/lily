@@ -1,3 +1,12 @@
+import {
+  createTestCarePlan,
+  createTestCarePlanStep,
+} from '@lily/api/__tests__/fixtures/care-plans'
+import {
+  type CarePlanRows,
+  createCarePlanRows,
+} from '@lily/api/__tests__/mocks/care-plan.repository'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import {
   Care,
@@ -7,23 +16,69 @@ import {
   Refusal,
 } from '@lily/api/contexts/care'
 import { CareLive, oneOutcome } from '@lily/api/contexts/care/care'
-import type {
-  CareEntry,
-  CareLine,
-  CarePlant,
+import { CarePlansLive } from '@lily/api/contexts/care/care-plans'
+import {
+  type CareEntry,
+  type CareLine,
+  type CarePlant,
+  LifeState,
 } from '@lily/api/contexts/care/domain/care-plant'
 import { CareWrite } from '@lily/api/contexts/care/domain/decide'
+import type { Plan } from '@lily/api/contexts/care/domain/plan'
+import { PlantLifeLive } from '@lily/api/contexts/care/plant-life'
 import { CareStore } from '@lily/api/contexts/care/store'
 import { WeatherAdvisor } from '@lily/api/contexts/care/weather'
+import { eventBusForwarder } from '@lily/api/events/care-forwarder'
 import { Outbox } from '@lily/api/kernel/outbox'
-import { Actor, mintPermit, type PlantPermit } from '@lily/api/kernel/permit'
-import type { CareType } from '@lily/shared'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { mintOwnerHeld, type OwnerHeld } from '@lily/api/kernel/owner'
+import {
+  Actor,
+  mintPermit,
+  type PlantAction,
+  type PlantPermit,
+} from '@lily/api/kernel/permit'
+import {
+  ownerColumns,
+  withOwner,
+} from '@lily/api/repositories/helpers/plant-owner'
+import type { plants as plantsTable } from '@lily/db/schema'
+import { CareDays, type CareType, type PlantOwner } from '@lily/shared'
+import type { AppEvent, EventBus } from '@lily/shared/server'
+import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
+
+type PlantRow = typeof plantsTable.$inferSelect
 
 export const carePermit = (
   plantId: string,
   userId = 'user-1'
 ): PlantPermit<'care'> => mintPermit(plantId, 'care', Actor.User({ userId }))
+
+export const chatPermit = (
+  plantId: string,
+  userId = 'user-1'
+): PlantPermit<'chat'> => mintPermit(plantId, 'chat', Actor.User({ userId }))
+
+export const permitTo = <A extends PlantAction>(
+  action: A,
+  plantId: string,
+  userId = 'user-1'
+): PlantPermit<A> => mintPermit(plantId, action, Actor.User({ userId }))
+
+export const toldToTheApp = async (
+  events: ReadonlyArray<CareEvent>
+): Promise<ReadonlyArray<AppEvent>> => {
+  const publishedEvents: AppEvent[] = []
+  await Effect.runPromise(
+    Effect.flatMap(Effect.context<EventBus>(), (context) =>
+      Effect.forEach(events, eventBusForwarder(context).handle, {
+        discard: true,
+      })
+    ).pipe(Effect.provide(createMockEventBus({ publishedEvents })))
+  )
+  return publishedEvents
+}
+
+export const ownerHeld = (owner: PlantOwner): OwnerHeld => mintOwnerHeld(owner)
 
 const latestFirst = (history: ReadonlyArray<CareEntry>) =>
   [...history].sort((a, b) => (a.day < b.day ? 1 : -1))
@@ -59,11 +114,121 @@ const mapLines = (
   ),
 })
 
+const seedPlanRows = (rows: CarePlanRows, plant: CarePlant) =>
+  Array.forEach(plant.plans, (plan) => {
+    rows.plans.push(
+      createTestCarePlan({
+        id: plan.id,
+        plantId: plant.id,
+        status: plan.status,
+        createdAt: DateTime.toDateUtc(plan.createdAt),
+      })
+    )
+    Array.forEach(plan.steps, (step) => {
+      rows.steps.push(
+        createTestCarePlanStep(plan.id, {
+          id: step.id,
+          position: step.position,
+          careType: Option.getOrNull(step.careType),
+          dueDate: Option.getOrNull(Option.map(step.dueAt, DateTime.toDateUtc)),
+          completedAt: step.done ? new Date(0) : null,
+        })
+      )
+    })
+  })
+
+const plansOf = (rows: CarePlanRows, plantId: string): ReadonlyArray<Plan> =>
+  Array.map(
+    Array.filter(rows.plans, (plan) => plan.plantId === plantId),
+    (plan): Plan => ({
+      id: plan.id,
+      status: plan.status,
+      createdAt: DateTime.makeUnsafe(plan.createdAt),
+      steps: Array.map(
+        Array.filter(rows.steps, (step) => step.planId === plan.id),
+        (step) => ({
+          id: step.id,
+          position: step.position,
+          careType: Option.fromNullishOr(step.careType),
+          dueAt: Option.map(
+            Option.fromNullishOr(step.dueDate),
+            DateTime.makeUnsafe
+          ),
+          done: step.completedAt !== null,
+        })
+      ),
+    })
+  )
+
+const ownerIdOf = (owner: PlantOwner): string =>
+  owner._tag === 'User' ? owner.userId : owner.canopyId
+
 export const createInMemoryCare = (
   initial: ReadonlyArray<CarePlant>,
-  options: { readonly wateringDays?: Readonly<Record<string, number>> } = {}
+  options: {
+    readonly wateringDays?: Readonly<Record<string, number>>
+    readonly plans?: CarePlanRows
+    readonly plantRows?: PlantRow[]
+    readonly timezones?: Readonly<Record<string, string>>
+  } = {}
 ) => {
-  const plants = new Map(Array.map(initial, (plant) => [plant.id, plant]))
+  const plantRows = options.plantRows ?? []
+  const timezoneOf = (owner: PlantOwner) =>
+    options.timezones?.[ownerIdOf(owner)] ?? 'UTC'
+  const carePlantOf = (
+    id: string,
+    owner: PlantOwner,
+    life: LifeState
+  ): CarePlant => ({
+    id,
+    owner,
+    life,
+    timezone: timezoneOf(owner),
+    today: CareDays.today(timezoneOf(owner), DateTime.nowUnsafe()),
+    needsAttention: false,
+    lines: new Map(),
+    plans: [],
+  })
+  const plants = new Map([
+    ...Array.map(plantRows, (row) => {
+      const { owner } = withOwner(row)
+      return [
+        row.id,
+        carePlantOf(
+          row.id,
+          owner,
+          row.diedAt === null ? LifeState.Living() : LifeState.Dead()
+        ),
+      ] as const
+    }),
+    ...Array.map(initial, (plant) => [plant.id, plant] as const),
+  ])
+  const planRows = options.plans ?? createCarePlanRows()
+  Array.forEach(initial, (plant) => seedPlanRows(planRows, plant))
+  const changeStep = (
+    stepId: string,
+    change: (
+      step: CarePlanRows['steps'][number]
+    ) => CarePlanRows['steps'][number]
+  ) =>
+    Array.forEach(planRows.steps, (step, index) => {
+      if (step.id === stepId) planRows.steps[index] = change(step)
+    })
+  const changePlan = (
+    planId: string,
+    change: (
+      plan: CarePlanRows['plans'][number]
+    ) => CarePlanRows['plans'][number]
+  ) =>
+    Array.forEach(planRows.plans, (plan, index) => {
+      if (plan.id === planId) planRows.plans[index] = change(plan)
+    })
+  const changeRow = (plantId: string, change: (row: PlantRow) => PlantRow) =>
+    Array.forEach(plantRows, (row, index) => {
+      if (row.id === plantId) plantRows[index] = change(row)
+    })
+  const removeWhere = <A>(rows: A[], gone: (row: A) => boolean) =>
+    rows.splice(0, rows.length, ...Array.filter(rows, (row) => !gone(row)))
   const events: CareEvent[] = []
   const writes: CareWrite[] = []
 
@@ -125,14 +290,115 @@ export const createInMemoryCare = (
         }))
       ),
     CompletePlanStep: (w) =>
-      everyPlant((plant) => ({
-        ...plant,
-        openPlanSteps: Array.filter(
-          plant.openPlanSteps,
-          (step) => step.id !== w.stepId
-        ),
+      changeStep(w.stepId, (step) => ({
+        ...step,
+        completedAt: DateTime.toDateUtc(w.at),
+        careLogId: Option.getOrNull(w.careLogId),
       })),
-    SettlePlan: () => undefined,
+    ReopenPlanStep: (w) =>
+      changeStep(w.stepId, (step) => ({
+        ...step,
+        completedAt: null,
+        careLogId: null,
+      })),
+    DeletePlanStep: (w) =>
+      removeWhere(planRows.steps, (step) => step.id === w.stepId),
+    SetPlanStatus: (w) => {
+      const at = DateTime.toDateUtc(w.at)
+      changePlan(w.planId, (plan) => ({
+        ...plan,
+        status: w.to,
+        acceptedAt:
+          w.to === 'accepted' && w.from !== 'completed' ? at : plan.acceptedAt,
+        completedAt:
+          w.to === 'completed'
+            ? at
+            : w.to === 'accepted'
+              ? null
+              : plan.completedAt,
+      }))
+    },
+    DeletePlan: (w) => {
+      removeWhere(planRows.plans, (plan) => plan.id === w.planId)
+      removeWhere(planRows.steps, (step) => step.planId === w.planId)
+    },
+    InsertPlan: (w) => {
+      planRows.plans.push(
+        createTestCarePlan({
+          id: w.planId,
+          plantId: w.plantId,
+          userId: w.authorId,
+          title: w.title,
+          source: w.source,
+          status: 'proposed',
+          createdAt: new Date(),
+        })
+      )
+      Array.forEach(w.steps, (step, position) => {
+        planRows.steps.push(
+          createTestCarePlanStep(w.planId, {
+            position,
+            title: step.title,
+            description: Option.getOrNull(step.description),
+            careType: Option.getOrNull(step.careType),
+            dueDate: Option.getOrNull(
+              Option.map(step.dueAt, DateTime.toDateUtc)
+            ),
+          })
+        )
+      })
+    },
+    LinkPlanToDiagnosis: (w) =>
+      changePlan(w.planId, (plan) => ({ ...plan, diagnosisId: w.diagnosisId })),
+    InsertPlant: (w) => {
+      plants.set(w.plantId, carePlantOf(w.plantId, w.owner, LifeState.Living()))
+      plantRows.push({
+        id: w.plantId,
+        ...ownerColumns(w.owner),
+        createdByUserId: w.createdBy,
+        name: w.draft.name,
+        description: Option.getOrNull(w.draft.description),
+        category: Option.getOrNull(w.draft.category),
+        imageUrl: Option.getOrNull(w.draft.imageUrl),
+        humidityRating: w.draft.humidityRating,
+        lightingRating: w.draft.lightingRating,
+        petToxicityRating: w.draft.petToxicityRating,
+        wateringRating: w.draft.wateringRating,
+        potWidthCm: Option.getOrNull(w.draft.potWidthCm),
+        potHeightCm: Option.getOrNull(w.draft.potHeightCm),
+        roomId: Option.getOrNull(w.draft.roomId),
+        health: 'HEALTHY',
+        remindersEnabled: true,
+        isFavorite: false,
+        dateAdded: new Date(),
+        updatedAt: new Date(),
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
+      })
+    },
+    BuryPlant: (w) => {
+      update(w.plantId, (plant) => ({ ...plant, life: LifeState.Dead() }))
+      changeRow(w.plantId, (row) => ({
+        ...row,
+        diedAt: DateTime.toDateUtc(w.at),
+        deathCause: w.cause,
+        deathNote: Option.getOrNull(w.note),
+      }))
+    },
+    RevivePlant: (w) => {
+      update(w.plantId, (plant) => ({ ...plant, life: LifeState.Living() }))
+      changeRow(w.plantId, (row) => ({
+        ...row,
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
+      }))
+    },
+    DeletePlant: (w) => {
+      plants.delete(w.plantId)
+      removeWhere(plantRows, (row) => row.id === w.plantId)
+    },
   })
 
   const store = Layer.succeed(
@@ -153,7 +419,18 @@ export const createInMemoryCare = (
             (key) => key.id === careLogId
           )
         ),
-      lockAndLoad: (plantIds) =>
+      careTypesOfPlan: (planId) =>
+        Effect.sync(() =>
+          Array.dedupe(
+            Array.flatMap(planRows.steps, (step) =>
+              step.planId === planId
+                ? Option.toArray(Option.fromNullishOr(step.careType))
+                : []
+            )
+          )
+        ),
+      careTimezoneOf: (owner) => Effect.succeed(timezoneOf(owner)),
+      lockAndLoad: (plantIds, careTypes) =>
         Effect.sync(
           () =>
             new Map(
@@ -162,13 +439,30 @@ export const createInMemoryCare = (
                   Option.fromNullishOr(plants.get(id)),
                   Option.match({
                     onNone: () => [],
-                    onSome: (plant) => [[id, plant] as const],
+                    onSome: (plant) => [
+                      [
+                        id,
+                        {
+                          ...plant,
+                          lines: new Map(
+                            Array.filter([...plant.lines], ([careType]) =>
+                              Array.contains(careTypes, careType)
+                            )
+                          ),
+                          plans: plansOf(planRows, id),
+                        },
+                      ] as const,
+                    ],
                   })
                 )
               )
             )
         ),
       weatherProfiles: () => Effect.succeed([]),
+      linkPlanToMessage: (planId, chatMessageId) =>
+        Effect.sync(() =>
+          changePlan(planId, (plan) => ({ ...plan, chatMessageId }))
+        ),
       apply: (applied) =>
         Effect.sync(() => {
           Array.forEach(applied, (write) => {
@@ -214,10 +508,10 @@ export const createInMemoryCare = (
     plants,
     events,
     writes,
-    layer: CareLive.pipe(
-      Layer.provide(
-        Layer.mergeAll(store, advisor, outbox, createMockSqlClient())
-      )
+    carePlanRepository: planRows.layer,
+    layer: Layer.mergeAll(CareLive, CarePlansLive, PlantLifeLive).pipe(
+      Layer.provide(Layer.mergeAll(store, advisor)),
+      Layer.provideMerge(Layer.mergeAll(outbox, createMockSqlClient()))
     ),
   }
 }

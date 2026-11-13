@@ -3,21 +3,26 @@ import {
   type ScheduleSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import { CareDays } from '@lily/shared'
+import { DateTime } from 'effect'
 
 export const createTestSchedule = (
   overrides: Partial<CareScheduleRow> = {}
-): CareScheduleRow => ({
-  id: `schedule-${crypto.randomUUID()}`,
-  plantId: 'plant-1',
-  careType: 'watering',
-  frequencyDays: 7,
-  lastCareAt: null,
-  nextCareAt: NOT_DUE_YET,
-  dueDay: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  ...overrides,
-})
+): CareScheduleRow => {
+  const nextCareAt = overrides.nextCareAt ?? NOT_DUE_YET
+  return {
+    id: `schedule-${crypto.randomUUID()}`,
+    plantId: 'plant-1',
+    careType: 'watering',
+    frequencyDays: 7,
+    lastCareAt: null,
+    dueDay: CareDays.of(DateTime.makeUnsafe(nextCareAt), 'UTC'),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+    nextCareAt,
+  }
+}
 
 /**
  * Build schedule rows from plant fixtures.
@@ -37,6 +42,7 @@ export const schedulesFromPlants = (
           frequencyDays: spec.frequencyDays,
           lastCareAt: spec.lastCareAt,
           nextCareAt: spec.nextCareAt,
+          ...(spec.dueDay === undefined ? {} : { dueDay: spec.dueDay }),
         })
       )
     }

@@ -1,6 +1,7 @@
 import { Canopy } from '@lily/api/contexts/canopy'
 import { lockUser } from '@lily/api/kernel/locks'
 import type { Outbox } from '@lily/api/kernel/outbox'
+import { mintOwnerHeld, type OwnerHeld } from '@lily/api/kernel/owner'
 import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CanopyOwner } from '@lily/api/repositories/helpers/plant-owner'
@@ -37,7 +38,7 @@ export const withUserLock =
 export const withOwnerLock =
   (owner: PlantOwner) =>
   <A, E, R>(
-    effect: Effect.Effect<A, E, R>
+    body: (held: OwnerHeld) => Effect.Effect<A, E, R>
   ): Effect.Effect<
     A,
     E | SqlError | CanopyNotFoundError,
@@ -53,6 +54,6 @@ export const withOwnerLock =
           )
         ),
         Match.exhaustive,
-        Effect.andThen(effect)
+        Effect.andThen(() => body(mintOwnerHeld(owner)))
       )
     )

@@ -12,6 +12,7 @@ import {
   ownedBy,
   ownerColumns,
   ownerOf,
+  sameOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
@@ -21,6 +22,7 @@ import {
   canopyInvites,
   canopyMembers,
   canopyPlantMutes,
+  carePlans,
   plants,
   rooms,
   users,
@@ -32,7 +34,7 @@ import {
   type PlantOwner,
   type UserStatus,
 } from '@lily/shared'
-import { and, asc, eq, inArray, isNull, type SQL, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, or, type SQL, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -75,6 +77,7 @@ export type PlantScope = Data.TaggedEnum<{
   Move: { readonly plantId: string }
   Pin: { readonly plantId: string }
   OfCanopy: Record<never, never>
+  Leaver: { readonly userId: string }
 }>
 export const PlantScope = Data.taggedEnum<PlantScope>()
 
@@ -450,9 +453,8 @@ export const CanopyStoreLive = Layer.effect(
           ),
       })
 
-    const plantsWhere = (
-      held: Held,
-      where: SQL,
+    const lockedPlants = (
+      where: SQL | undefined,
       strength: 'key share' | 'no key update'
     ) =>
       Effect.map(
@@ -468,14 +470,52 @@ export const CanopyStoreLive = Layer.effect(
           .where(where)
           .orderBy(asc(plants.id))
           .for(strength),
-        (rows) => ({
+        Array.map((row) => ({
+          id: row.id,
+          owner: ownerOf(row),
+          sharer: Option.fromNullishOr(row.sharer),
+          living: row.diedAt === null,
+        }))
+      )
+
+    const plantsWhere = (
+      held: Held,
+      where: SQL,
+      strength: 'key share' | 'no key update'
+    ) =>
+      Effect.map(lockedPlants(where, strength), (locked) => ({
+        ...held,
+        plants: locked,
+      }))
+
+    const plantsTheAccountDeleteWrites = (held: Held, userId: string) =>
+      Effect.map(
+        lockedPlants(
+          or(
+            ...Option.toArray(
+              Option.map(held.canopy, (state) => eq(plants.canopyId, state.id))
+            ),
+            eq(plants.userId, userId),
+            eq(plants.createdByUserId, userId),
+            inArray(
+              plants.id,
+              db
+                .select({ plantId: carePlans.plantId })
+                .from(carePlans)
+                .where(eq(carePlans.userId, userId))
+            )
+          ),
+          'no key update'
+        ),
+        (locked) => ({
           ...held,
-          plants: Array.map(rows, (row) => ({
-            id: row.id,
-            owner: ownerOf(row),
-            sharer: Option.fromNullishOr(row.sharer),
-            living: row.diedAt === null,
-          })),
+          plants: Option.match(held.canopy, {
+            onNone: () => [],
+            onSome: (state) =>
+              Array.filter(locked, (plant) =>
+                sameOwner(plant.owner, { _tag: 'Canopy', canopyId: state.id })
+              ),
+          }),
         })
       )
 
@@ -490,6 +530,7 @@ export const CanopyStoreLive = Layer.effect(
           ofHeldCanopy(held, (state) =>
             plantsWhere(held, eq(plants.canopyId, state.id), 'no key update')
           ),
+        Leaver: ({ userId }) => plantsTheAccountDeleteWrites(held, userId),
       })
 
     const IN_LOCK_ORDER: ReadonlyArray<LockClass> = [

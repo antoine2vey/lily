@@ -145,8 +145,6 @@ export const createMockPlantRepository = (
     return filtered
   }
 
-  // Shared by update/markDead/revive: mutates the working copy and mirrors
-  // the change onto the caller's original array so tests can observe it.
   const patchPlant = (
     id: string,
     owner: PlantOwner,
@@ -314,66 +312,7 @@ export const createMockPlantRepository = (
         )
       ),
 
-    create: (createData) => {
-      const newPlant: PlantRecord = {
-        id: `plant-${crypto.randomUUID()}`,
-        name: createData.name,
-        description: createData.description,
-        imageUrl: Option.getOrNull(Option.fromNullishOr(createData.imageUrl)),
-        category: createData.category,
-        dateAdded: new Date(),
-        updatedAt: new Date(),
-        humidityRating: createData.humidityRating,
-        lightingRating: createData.lightingRating,
-        petToxicityRating: createData.petToxicityRating,
-        wateringRating: createData.wateringRating,
-        health: createData.health,
-        remindersEnabled: true,
-        isFavorite: false,
-        potWidthCm: null,
-        potHeightCm: null,
-        roomId: Option.getOrNull(Option.fromNullishOr(createData.roomId)),
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        ...ownerColumns(createData.owner),
-        createdByUserId: createData.createdByUserId,
-      }
-      plantsData.push(newPlant)
-      return Effect.succeed(withOwner(newPlant))
-    },
-
     update: (id, owner, updateData) => patchPlant(id, owner, updateData),
-
-    delete: (id, owner) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(
-            plantsData,
-            (p) => p.id === id && sameOwner(withOwner(p).owner, owner)
-          ),
-          Option.map(withOwner),
-          Option.getOrNull
-        )
-      ),
-
-    markDead: (id, owner, data) =>
-      Array.some(plantsData, (p) => p.id === id && p.diedAt === null)
-        ? patchPlant(id, owner, {
-            diedAt: data.diedAt,
-            deathCause: data.cause,
-            deathNote: data.note,
-          })
-        : Effect.succeed(null),
-
-    revive: (id, owner) =>
-      Array.some(plantsData, (p) => p.id === id && p.diedAt !== null)
-        ? patchPlant(id, owner, {
-            diedAt: null,
-            deathCause: null,
-            deathNote: null,
-          })
-        : Effect.succeed(null),
 
     findPhotos: (params: FindPhotosParams) => {
       const page = pipe(

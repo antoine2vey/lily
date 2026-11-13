@@ -1,4 +1,5 @@
 import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -200,12 +201,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .returning()
       if (!plant) throw new Error('Failed to create plant')
       plantId = plant.id
+      const dueAt = new Date(Date.now() + 3 * DAY_MS)
       await db.insert(schema.plantCareSchedules).values(
         (['watering', 'misting', 'repotting'] as const).map((careType) => ({
           plantId,
           careType,
           frequencyDays: 7,
-          nextCareAt: new Date(Date.now() + 3 * DAY_MS),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         }))
       )
       await Effect.runPromise(

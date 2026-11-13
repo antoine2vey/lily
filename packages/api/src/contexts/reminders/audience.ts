@@ -9,12 +9,6 @@ export interface AddressedPlant {
   readonly owner: PlantOwner
 }
 
-/**
- * Who each plant's reminders are addressed to, before the recipient's own
- * settings apply. A personal plant addresses its active caretaker, or its
- * owner when nobody tends it. A Canopy plant addresses every member who has
- * not muted it.
- */
 export const audiencesOf = <P extends AddressedPlant>(
   plants: ReadonlyArray<P>
 ): Effect.Effect<
@@ -56,7 +50,6 @@ export const audiencesOf = <P extends AddressedPlant>(
     )
   })
 
-/** `audiencesOf` for one plant. */
 export const audienceOf = (
   plant: AddressedPlant
 ): Effect.Effect<

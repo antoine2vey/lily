@@ -40,6 +40,7 @@ export const plantCareSchedules = pgTable(
     ),
     index('plant_care_schedules_plant_id_idx').on(table.plantId),
     index('plant_care_schedules_next_care_at_idx').on(table.nextCareAt),
+    index('plant_care_schedules_due_day_idx').on(table.dueDay),
     check(
       'plant_care_schedules_frequency_days_min',
       sql`${table.frequencyDays} >= 1`

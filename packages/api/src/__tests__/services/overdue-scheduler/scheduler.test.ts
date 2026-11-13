@@ -1320,7 +1320,12 @@ describe('checkAndCreateOverdueReminders', () => {
             id: 'due-today-in-paris',
             userId: null,
             canopyId: mockCanopyId,
-            scheduleSpecs: [wateringSpec({ nextCareAt: parisMidnightJul15 })],
+            scheduleSpecs: [
+              wateringSpec({
+                nextCareAt: parisMidnightJul15,
+                dueDay: '2099-07-15',
+              }),
+            ],
           }),
         ],
         [member1, newYorker],

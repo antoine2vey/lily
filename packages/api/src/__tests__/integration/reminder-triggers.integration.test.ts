@@ -3,6 +3,12 @@ import {
   tickVacations,
 } from '@lily/api/__tests__/integration/absence-layers'
 import { delivered, leave } from '@lily/api/__tests__/integration/canopy-layers'
+import {
+  buryAsCurrentUser,
+  removeAsCurrentUser,
+  reviveAsCurrentUser,
+} from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -23,7 +29,11 @@ import {
   hashInviteToken,
   JoinVia,
 } from '@lily/api/contexts/canopy'
-import { type Care, CareReadsLive } from '@lily/api/contexts/care'
+import {
+  type Care,
+  CareReadsLive,
+  type PlantLife,
+} from '@lily/api/contexts/care'
 import { Dirty, Reminders } from '@lily/api/contexts/reminders'
 import { Outbox } from '@lily/api/kernel/outbox'
 import { Actor, mintPermit } from '@lily/api/kernel/permit'
@@ -34,23 +44,16 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import {
-  PlantRepository,
-  PlantRepositoryLive,
-  type PlantWithRoom,
-} from '@lily/api/repositories/plant.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-canopy'
-import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
-import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
 import {
   mutePlant,
   unmutePlant,
 } from '@lily/api/services/plants/endpoints/mute-plant'
-import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-plant-with-canopy'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
@@ -59,7 +62,7 @@ import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { CanopyId, CareDays, type PlantOwner } from '@lily/shared'
-import { eq, sql } from 'drizzle-orm'
+import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Layer, References } from 'effect'
 import pg from 'pg'
@@ -99,6 +102,7 @@ type App =
   | Layer.Success<ReturnType<typeof appAs>>
   | Outbox
   | Care
+  | PlantLife
   | Canopy
   | Absence
 
@@ -158,6 +162,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careType: 'watering',
         frequencyDays: 7,
         nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       labels.set(row.id, label)
       return row.id
@@ -196,11 +201,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }))
       )
 
-    const requests = async () => {
-      const [row] = await db
-        .select({ count: sql<number>`count(*)::int` })
+    const published = async () => {
+      const rows = await db
+        .select({ topic: schema.outbox.topic, event: schema.outbox.event })
         .from(schema.outbox)
-      return row?.count
+        .orderBy(asc(schema.outbox.id))
+      return Array.map(rows, (row) => {
+        const event = row.event as { _tag: string; life?: string }
+        return `${row.topic}:${event._tag}${event.life ? `:${event.life}` : ''}`
+      })
     }
 
     const as = <A, E>(userId: string, effect: Effect.Effect<A, E, App>) =>
@@ -209,16 +218,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           delivered,
           Effect.provide(appAs(userId)),
           Effect.provideService(References.MinimumLogLevel, 'None')
-        )
-      )
-
-    const on = <A, E>(
-      plantId: string,
-      act: (plant: PlantWithRoom) => Effect.Effect<A, E, App>
-    ) =>
-      Effect.flatMap(PlantRepository, (repo) => repo.findById(plantId)).pipe(
-        Effect.flatMap((found) =>
-          found === null ? Effect.die(`no plant ${plantId}`) : act(found)
         )
       )
 
@@ -270,10 +269,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('a buried plant loses its waiting reminders', async () => {
       await plan(personal, shared)
 
-      await as(
-        alex,
-        on(personal, (found) => markPlantDead(found, { cause: 'unknown' }))
-      )
+      await as(alex, buryAsCurrentUser(personal))
 
       expect(await waiting()).toEqual([
         'alex:shared:watering_reminder',
@@ -288,23 +284,25 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await plan(personal)
       const whileDead = await waiting()
 
-      await as(alex, on(personal, revivePlant))
+      await as(alex, reviveAsCurrentUser(personal))
 
       expect(whileDead).toEqual([])
       expect(await waiting()).toEqual(['alex:personal:watering_reminder'])
     })
 
-    it('a deleted plant takes its reminders with it and asks for nothing', async () => {
+    it('a deleted plant takes its reminders with it and says so on the Care topic alone', async () => {
       await plan(personal, shared)
-      const before = await requests()
+      const before = await published()
 
-      await as(alex, on(personal, deletePlant))
+      await as(alex, removeAsCurrentUser(personal))
 
       expect(await waiting()).toEqual([
         'alex:shared:watering_reminder',
         'lily:shared:watering_reminder',
       ])
-      expect(await requests()).toBe(before)
+      expect((await published()).slice(before.length)).toEqual([
+        'care:PlantLifeChanged:Removed',
+      ])
     })
 
     it('a member who mutes a plant loses their waiting reminder, and nobody else does', async () => {
@@ -372,24 +370,47 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
-    it('a Canopy that changes timezone has its reminders planned for the new care days', async () => {
+    describe('a Canopy that changes timezone', () => {
       const dueDayIn = (timezone: string) =>
         CareDays.of(DateTime.makeUnsafe(dueAt), timezone)
       const occasions = async () =>
         Array.map(await waitingRows(), (row) => row.occasionDay)
-      await db
-        .update(schema.canopies)
-        .set({ timezone: 'Pacific/Kiritimati' })
-        .where(eq(schema.canopies.id, canopyId))
-      await plan(shared)
-      const before = await occasions()
+      const inKiritimatiWith = async (dueDay: string | null) => {
+        await db
+          .update(schema.canopies)
+          .set({ timezone: 'Pacific/Kiritimati' })
+          .where(eq(schema.canopies.id, canopyId))
+        await db
+          .update(schema.plantCareSchedules)
+          .set({ dueDay })
+          .where(eq(schema.plantCareSchedules.plantId, shared))
+        await plan(shared)
+        return occasions()
+      }
 
-      await as(alex, updateMyCanopy({ timezone: 'Pacific/Niue' }))
+      it('keeps its reminders on the stored due days (declared change: they moved to the days of the new timezone before)', async () => {
+        const before = await inKiritimatiWith(dueDayIn('Pacific/Kiritimati'))
 
-      expect(before).toEqual(Array.replicate(dueDayIn('Pacific/Kiritimati'), 2))
-      expect(await occasions()).toEqual(
-        Array.replicate(dueDayIn('Pacific/Niue'), 2)
-      )
+        await as(alex, updateMyCanopy({ timezone: 'Pacific/Niue' }))
+
+        expect(before).toEqual(
+          Array.replicate(dueDayIn('Pacific/Kiritimati'), 2)
+        )
+        expect(await occasions()).toEqual(before)
+      })
+
+      it('has its reminders planned for the new care days where no due day is stored', async () => {
+        const before = await inKiritimatiWith(null)
+
+        await as(alex, updateMyCanopy({ timezone: 'Pacific/Niue' }))
+
+        expect(before).toEqual(
+          Array.replicate(dueDayIn('Pacific/Kiritimati'), 2)
+        )
+        expect(await occasions()).toEqual(
+          Array.replicate(dueDayIn('Pacific/Niue'), 2)
+        )
+      })
     })
 
     it('a member who joins is reminded of the Canopy plants', async () => {

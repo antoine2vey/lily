@@ -2,6 +2,7 @@ import {
   returnFromVacation,
   settled,
 } from '@lily/api/__tests__/integration/absence-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
@@ -123,6 +124,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careType: 'watering',
         frequencyDays: 7,
         nextCareAt: todayStart,
+        dueDay: careDayOf(todayStart),
         lastCareAt: new Date(todayStart.getTime() - 7 * DAY_MS),
       })
       return row.id

@@ -1,4 +1,5 @@
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import {
   AchievementRepository,
   AchievementRepositoryLive,
@@ -84,12 +85,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       days: ReadonlyArray<number>
     ) =>
       db.insert(schema.careLogs).values(
-        Array.map(days, (d) => ({
-          plantId,
-          type: 'watering' as const,
-          date: daysAgo(d),
-          performedByUserId: userId,
-        }))
+        Array.map(days, (d) => {
+          const date = daysAgo(d)
+          return {
+            plantId,
+            type: 'watering' as const,
+            date,
+            careDay: careDayOf(date),
+            performedByUserId: userId,
+          }
+        })
       )
 
     const streakOf = (userId: string) =>
@@ -402,11 +407,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     it('counts a member’s healthy Canopy plants in their weekly recap', async () => {
       // An overdue care is what makes a plant need attention.
+      const dueAt = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
       await db.insert(schema.plantCareSchedules).values({
         plantId: alexsCanopyPlant,
         careType: 'misting',
         frequencyDays: 3,
-        nextCareAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
 
       const healthy = await run(

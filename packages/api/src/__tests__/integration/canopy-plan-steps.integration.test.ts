@@ -1,4 +1,5 @@
 import { CareOnPostgresLive } from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -98,12 +99,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .returning()
       if (!plant) throw new Error('plant insert returned nothing')
       plantId = plant.id
+      const dueAt = daysFromNow(-3)
       await db.insert(schema.plantCareSchedules).values({
         plantId,
         careType: 'watering',
         frequencyDays: 7,
         lastCareAt: daysFromNow(-10),
-        nextCareAt: daysFromNow(-3),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       const [plan] = await db
         .insert(schema.carePlans)

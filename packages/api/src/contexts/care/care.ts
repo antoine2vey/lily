@@ -28,6 +28,7 @@ import {
   CareTopic,
   type ScheduleChangeReason,
 } from '@lily/api/contexts/care/domain/events'
+import { asError } from '@lily/api/contexts/care/refusals'
 import { CareStore } from '@lily/api/contexts/care/store'
 import { WeatherAdvisor } from '@lily/api/contexts/care/weather'
 import type { Outbox } from '@lily/api/kernel/outbox'
@@ -38,11 +39,11 @@ import {
 } from '@lily/api/kernel/permit'
 import { decision, runCommand } from '@lily/api/kernel/transact'
 import type { CareType } from '@lily/shared'
-import { CareLogNotFoundError } from '@lily/shared/errors/care-log'
+import type { CareLogNotFoundError } from '@lily/shared/errors/care-log'
 import {
-  AlreadyCaredTodayError,
-  FutureDateNotAllowedError,
-  PlantIsDeadError,
+  type AlreadyCaredTodayError,
+  type FutureDateNotAllowedError,
+  type PlantIsDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import {
@@ -51,7 +52,6 @@ import {
   DateTime,
   Effect,
   Layer,
-  Match,
   Option,
   Order,
   pipe,
@@ -152,38 +152,6 @@ export class Care extends Context.Service<
   }
 >()('care/Care') {}
 
-const skipAsError = Match.type<SkipReason>().pipe(
-  Match.tagsExhaustive({
-    AlreadyCared: ({ careType }): RecordOneError =>
-      new AlreadyCaredTodayError({ careType }),
-    FutureDay: (): RecordOneError => new FutureDateNotAllowedError(),
-    Dead: ({ plantId }): RecordOneError => new PlantIsDeadError({ plantId }),
-    PlantGone: ({ plantId }): RecordOneError =>
-      new PlantNotFoundError({ plantId }),
-  })
-)
-
-type RefusalOfDeadOrGone = Extract<SkipReason, { _tag: 'Dead' | 'PlantGone' }>
-
-const deadOrGoneAsError = Match.type<RefusalOfDeadOrGone>().pipe(
-  Match.tagsExhaustive({
-    Dead: ({ plantId }): PlantIsDeadError | PlantNotFoundError =>
-      new PlantIsDeadError({ plantId }),
-    PlantGone: ({ plantId }): PlantIsDeadError | PlantNotFoundError =>
-      new PlantNotFoundError({ plantId }),
-  })
-)
-
-const amendRefusalAsError = Match.type<AmendRefusal>().pipe(
-  Match.tagsExhaustive({
-    CareNotFound: ({ careLogId }): AmendCareError =>
-      new CareLogNotFoundError({ careLogId }),
-    AlreadyCared: ({ careType }): AmendCareError =>
-      new AlreadyCaredTodayError({ careType }),
-    FutureDay: (): AmendCareError => new FutureDateNotAllowedError(),
-  })
-)
-
 export const oneOutcome = (
   permit: PlantPermit<'care'>,
   outcomes: ReadonlyArray<RecordOutcome>
@@ -196,7 +164,7 @@ export const oneOutcome = (
       onSome: RecordOutcome.$match({
         Recorded: (recorded): Effect.Effect<Recorded, RecordOneError> =>
           Effect.succeed(recorded),
-        Skipped: ({ reason }) => Effect.fail(skipAsError(reason)),
+        Skipped: ({ reason }) => Effect.fail(asError(reason)),
       }),
     })
   )
@@ -334,7 +302,7 @@ export const CareLive = Layer.effect(
           Refusal.CareNotFound({ careLogId }),
           (plant) => amendCare(plant, careLogId, careType, input, env())
         )
-      }).pipe(Effect.mapError(amendRefusalAsError))
+      }).pipe(Effect.mapError(asError))
 
     const remove: Care['Service']['remove'] = ({ permit, careLogId }) =>
       Effect.gen(function* () {
@@ -347,11 +315,7 @@ export const CareLive = Layer.effect(
           Refusal.CareNotFound({ careLogId }),
           (plant) => removeCare(plant, careLogId, careType, env())
         )
-      }).pipe(
-        Effect.mapError(
-          ({ careLogId }) => new CareLogNotFoundError({ careLogId })
-        )
-      )
+      }).pipe(Effect.mapError(asError))
 
     const correct: Care['Service']['correctLastCare'] = ({
       permit,
@@ -378,7 +342,7 @@ export const CareLive = Layer.effect(
               )
             )
         )
-      }).pipe(Effect.mapError(skipAsError))
+      }).pipe(Effect.mapError(asError))
 
     const setSchedules: Care['Service']['setSchedules'] = ({
       permit,
@@ -386,7 +350,7 @@ export const CareLive = Layer.effect(
     }) =>
       Array.isReadonlyArrayEmpty(frequencies)
         ? Effect.void
-        : onPlant<RefusalOfDeadOrGone>(
+        : onPlant<Extract<SkipReason, { _tag: 'Dead' | 'PlantGone' }>>(
             'care.setSchedules',
             permit,
             Array.map(frequencies, ([careType]) => careType),
@@ -397,7 +361,7 @@ export const CareLive = Layer.effect(
                   setSchedule(plant, careType, frequency)
                 )
               )
-          ).pipe(Effect.mapError(deadOrGoneAsError))
+          ).pipe(Effect.mapError(asError))
 
     const moveDueDays: Care['Service']['moveDueDays'] = ({ reason, moves }) =>
       Array.isReadonlyArrayEmpty(moves)

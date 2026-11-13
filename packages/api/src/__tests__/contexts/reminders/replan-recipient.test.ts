@@ -17,8 +17,9 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { Dirty, replan, replanPlants } from '@lily/api/contexts/reminders'
+import { CareDays } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, References } from 'effect'
+import { Array, DateTime, Effect, Layer, Option, References } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)
@@ -70,6 +71,10 @@ const run = (
           createTestSchedule({
             plantId: 'due-today',
             nextCareAt: options.dueToday,
+            dueDay: CareDays.of(
+              DateTime.makeUnsafe(options.dueToday),
+              'Europe/Paris'
+            ),
           }),
         ]),
     createTestSchedule({ plantId: 'personal', nextCareAt: inDays(2) }),

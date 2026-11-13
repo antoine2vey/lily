@@ -3,6 +3,7 @@ import {
   waitsForALock,
 } from '@lily/api/__tests__/integration/absence-layers'
 import { delivered } from '@lily/api/__tests__/integration/canopy-layers'
+import { removeAsCurrentUser } from '@lily/api/__tests__/integration/care-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -24,17 +25,13 @@ import {
 } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import {
-  PlantRepository,
-  PlantRepositoryLive,
-} from '@lily/api/repositories/plant.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import {
   UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
-import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
 import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-plant-with-canopy'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -214,17 +211,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
       )
 
-    const thePlant = Effect.flatMap(PlantRepository, (repo) =>
-      repo.findById(plant)
-    ).pipe(
-      Effect.flatMap((found) =>
-        found === null ? Effect.die(`no plant ${plant}`) : Effect.succeed(found)
-      )
-    )
-
-    const deleteThePlant = Effect.flatMap(thePlant, (found) =>
-      deletePlant(found)
-    )
+    const deleteThePlant = Effect.suspend(() => removeAsCurrentUser(plant))
 
     const shareThePlant = () =>
       sharePlantWithCanopy(

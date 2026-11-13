@@ -263,6 +263,7 @@ export const createInMemoryCanopy = (
           Pin: ({ plantId }) =>
             Array.filter(plantRows, (plant) => plant.id === plantId),
           OfCanopy: () => Array.filter(plantRows, inHeldCanopy),
+          Leaver: () => Array.filter(plantRows, inHeldCanopy),
         }),
         Array.sort(byId),
         Array.map((plant) => ({

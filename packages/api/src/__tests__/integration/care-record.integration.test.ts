@@ -2,6 +2,7 @@ import {
   CareOnPostgresLive,
   drainOutbox,
 } from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { carePermit } from '@lily/api/__tests__/mocks/care'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -106,6 +107,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       careType: 'watering',
       frequencyDays: 7,
       nextCareAt,
+      dueDay: careDayOf(nextCareAt),
     })
     return plant.id
   }
@@ -365,7 +367,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
     const addCare = async (plantId: string, date: Date) => {
       const [log] = await db
         .insert(schema.careLogs)
-        .values({ plantId, type: 'watering', date, notes: 'Seeded' })
+        .values({
+          plantId,
+          type: 'watering',
+          date,
+          careDay: careDayOf(date),
+          notes: 'Seeded',
+        })
         .returning()
       if (!log) throw new Error('care log insert failed')
       return log.id
@@ -632,11 +640,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
 
     it('keeps the pending overdue reminder while another care of the plant is still overdue', async () => {
       const plantId = await seedOverdue()
+      const dueAt = yesterday()
       await db.insert(schema.plantCareSchedules).values({
         plantId,
         careType: 'misting',
         frequencyDays: 3,
-        nextCareAt: yesterday(),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
 
       await run(water(plantId).pipe(Effect.tap(() => drainOutbox)))
@@ -787,9 +797,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
     it('counts a new frequency from the latest care and rebuilds the reminder', async () => {
       const plantId = await addPlant('Thirsty')
       const cared = new Date(Date.now() - 2 * DAY)
-      await db
-        .insert(schema.careLogs)
-        .values({ plantId, type: 'watering', date: cared })
+      await db.insert(schema.careLogs).values({
+        plantId,
+        type: 'watering',
+        date: cared,
+        careDay: careDayOf(cared),
+      })
 
       await run(
         Effect.andThen(setWatering(plantId, Option.some(5)), drainOutbox)
@@ -805,9 +818,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
 
     it('stops a schedule and drops its pending reminder', async () => {
       const plantId = await addPlant('Paused', new Date(Date.now() + 3 * DAY))
-      await db
-        .insert(schema.careLogs)
-        .values({ plantId, type: 'watering', date: new Date(Date.now() - DAY) })
+      const caredAt = new Date(Date.now() - DAY)
+      await db.insert(schema.careLogs).values({
+        plantId,
+        type: 'watering',
+        date: caredAt,
+        careDay: careDayOf(caredAt),
+      })
       await run(
         Effect.andThen(setWatering(plantId, Option.some(4)), drainOutbox)
       )
@@ -882,6 +899,81 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
         .where(eq(schema.plants.id, plantId))
       expect(row?.name).toBe('Buried')
       expect((await scheduleOf(plantId))?.frequencyDays).toBe(7)
+    })
+  })
+
+  describe('the day a row was stored with', () => {
+    const DAY = 86_400_000
+    const today = () => careDayOf(new Date())
+    const waterNow = (plantId: string) =>
+      run(
+        Effect.flatMap(Care, (care) =>
+          care.record({ ...waterToday, permits: [carePermit(plantId, userId)] })
+        )
+      ).then(summary)
+    const addCare = (plantId: string, date: Date, careDay: string | null) =>
+      db
+        .insert(schema.careLogs)
+        .values({ plantId, type: 'watering', date, careDay })
+    const moveByThreeDays = (plantId: string) =>
+      run(
+        Effect.flatMap(Care, (care) =>
+          care.moveDueDays({
+            reason: 'weather',
+            moves: [
+              { plantId, careType: 'watering', move: DueMove.By({ days: 3 }) },
+            ],
+          })
+        )
+      )
+    const storeDueDay = (plantId: string, dueDay: string | null) =>
+      db
+        .update(schema.plantCareSchedules)
+        .set({ dueDay })
+        .where(eq(schema.plantCareSchedules.plantId, plantId))
+
+    it('counts a care on its stored care day, also when its instant falls on an earlier day (the stored day stays put, as declared for the due day)', async () => {
+      const plantId = await addPlant('Stored care')
+      await addCare(plantId, new Date(Date.now() - 2 * DAY), today())
+
+      expect(await waterNow(plantId)).toEqual(['AlreadyCared'])
+    })
+
+    it('gives a care log without a stored day the day of its instant', async () => {
+      const caredToday = await addPlant('Unstored today')
+      const caredBefore = await addPlant('Unstored before')
+      await addCare(caredToday, new Date(), null)
+      await addCare(caredBefore, new Date(Date.now() - 2 * DAY), null)
+
+      expect(await waterNow(caredToday)).toEqual(['AlreadyCared'])
+      expect(await waterNow(caredBefore)).toEqual(['Recorded'])
+    })
+
+    it('moves a schedule from its stored due day, not from the day of its instant', async () => {
+      const plantId = await addPlant(
+        'Stored due',
+        new Date(Date.now() - 2 * DAY)
+      )
+      const stored = CareDays.addDays(today(), 4)
+      await storeDueDay(plantId, stored)
+
+      await moveByThreeDays(plantId)
+
+      expect((await scheduleOf(plantId))?.dueDay).toBe(
+        CareDays.addDays(stored, 3)
+      )
+    })
+
+    it('moves a schedule without a stored due day from the day of its instant', async () => {
+      const dueAt = new Date(Date.now() + 4 * DAY)
+      const plantId = await addPlant('Unstored due', dueAt)
+      await storeDueDay(plantId, null)
+
+      await moveByThreeDays(plantId)
+
+      expect((await scheduleOf(plantId))?.dueDay).toBe(
+        CareDays.addDays(careDayOf(dueAt), 3)
+      )
     })
   })
 })

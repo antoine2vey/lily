@@ -6,6 +6,7 @@ import {
   waitsForALock,
 } from '@lily/api/__tests__/integration/absence-layers'
 import { ManualOutboxLive } from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -538,11 +539,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .returning()
       if (!row) throw new Error(`Failed to create ${name}`)
       names.set(row.id, name)
+      const dueAt = new Date(Date.now() + 3 * DAY_MS)
       await db.insert(schema.plantCareSchedules).values({
         plantId: row.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: new Date(Date.now() + 3 * DAY_MS),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       return row.id
     }

@@ -6,7 +6,7 @@ A term listed under **Avoid** is a synonym that has meant something different so
 
 ## Care
 
-Care covers plants, their care schedules, the care history, care plans and the weather adjustment.
+Care covers plants and their life, their care schedules, the care history, care plans and the weather adjustment.
 
 ### Plant and ownership
 
@@ -30,13 +30,13 @@ Care covers plants, their care schedules, the care history, care plans and the w
 | Term | Meaning | Avoid |
 | --- | --- | --- |
 | **Care type** | One of watering, fertilization, misting, repotting. | "care log type" as a separate concept |
-| **Care** | The fact that someone performed one care type on one plant on one care day. Recorded as a care log. | "task" for something already done |
+| **Care** | The fact that someone performed one care type on one plant on one care day. Recorded as a care log. Its care day is fixed when it is recorded. | "task" for something already done |
 | **Care history** | All cares of a plant. The source of truth for when the plant was last cared for. | |
 | **Care schedule** | The plan for one care type on one plant: its frequency and its next due day. A plant has at most one schedule per care type. | "reminder" for the schedule |
 | **Frequency** | The number of care days between two cares of a schedule. At least 1. | |
-| **Due day** | The care day on which a schedule's next care should happen. A new schedule's first due day is the day it is created. | "due date" as an instant |
+| **Due day** | The care day on which a schedule's next care should happen. A new schedule's first due day is the day it is created. It is stored with the schedule, and it stays the same calendar day when the owner changes timezone. | "due date" as an instant |
 | **Weather adjustment** | A change to the number of days until the next watering, computed from current weather, recent history and forecast at the care context's location. | |
-| **Due-day move** | A change of a schedule's due day that no care caused. A care plan sets it to a day, the weather shifts it by whole days, and the end of a vacation pushes later every line that came due while the owner was away. | "reschedule" for a recompute after a care |
+| **Due-day move** | A change of a schedule's due day that no care caused. A care plan sets it to a day, the weather shifts it by whole days, the end of a vacation pushes later every line that came due while the owner was away, and reviving a dead plant restarts every line at today plus its frequency. | "reschedule" for a recompute after a care |
 
 ### Care status
 
@@ -53,16 +53,37 @@ Every schedule of a living plant has exactly one status, derived from its due da
 1. **One care per day.** A plant has at most one care per care type per care day. A second attempt is rejected on every path. Bulk care skips the plants already cared for today and reports them; it does not fail the batch.
 2. **Next due day.** A schedule's next due day is the care day of the latest care of that type plus the frequency. For watering logged for today, the weather adjustment replaces the frequency. Every path that changes the latest care of a type (a new care, an edit, a removal, a correction) recomputes the due day with this rule, and so does a change of frequency. A due-day move stands until then.
 3. **No care in the future.** A care's day is today or earlier.
-4. **Dead plants are out of care.** Rules 1 and 2, statuses and reminders apply to living plants only. A dead plant accepts no new care, no correction, no schedule change and no due-day move. Its past cares can still be edited or removed.
+4. **A dead plant takes part in nothing.** Rules 1 and 2, statuses and reminders apply to living plants only. A dead plant accepts no new care, no correction, no schedule change, no due-day move, no new care plan and no change to a plan. Its past cares can still be edited or removed, and its plans can still be deleted.
+5. **A care closes a plan step.** A care recorded outside a plan ticks the earliest open step of that care type among the plant's accepted plans, oldest plan first.
+6. **A plan is answered once.** Only a proposed plan can be accepted or dismissed. A second answer is refused and moves nothing.
 
 ### Health
 
 - **Condition.** The stored health of a plant: thriving, healthy, sick or recovering. A new plant is healthy. No code changes the condition afterwards yet; which context sets it is open.
 - **Needs attention.** Not stored. A living plant in good condition (thriving or healthy) needs attention exactly while one of its cares is overdue. A sick or recovering plant keeps its condition. A dead plant never needs attention.
 
-### Not decided yet
+### Plant life
 
-- **Care plan** and **care plan step.** Terms exist in code; their rules have not been reviewed.
+| Term | Meaning | Avoid |
+| --- | --- | --- |
+| **Plant life** | Whether a plant is living or dead, and the four changes it goes through: planted, buried, revived, removed. | "status" for the life of a plant |
+| **Plant** (the change) | Create a plant for its first owner, with its schedules. Each schedule is due today in the owner's care context. It counts against the owner's plant limit. | |
+| **Bury** | Give a living plant a death date, a cause and an optional note. The plant moves to the cemetery and keeps every row: schedules, cares, photos and care plans. | "archive", "delete" |
+| **Revive** | Bring a dead plant back to life. It counts against the owner's plant limit again, and every schedule restarts at today plus its frequency. | "restore" |
+| **Remove** | Delete a plant, living or dead, with every row that hangs on it. | "bury" for a delete |
+
+### Care plan
+
+| Term | Meaning | Avoid |
+| --- | --- | --- |
+| **Care plan** | A short list of steps for one plant, proposed by the assistant or by a user. Its status is proposed, accepted, dismissed or completed. | "schedule" for a plan |
+| **Plan step** | One thing to do in a care plan. It may name a care type and a due date. It is open or done. | "task" for a step |
+| **Propose** | Create a plan with all its steps, in the status proposed. | |
+| **Accept** | Take a proposed plan. For each care type, the schedule's due day moves to the earliest dated open step of that type. A step that is already done moves no due day. A plan whose steps are all done is completed at once. | |
+| **Dismiss** | Turn a proposed plan down. No due day moves. | "delete" for a dismissal |
+| **Tick** | Mark a step done. A step with a care type records that care for today. When the plant was already cared for today, the step is done without a new care. A step can be ticked whatever the status of its plan. | |
+| **Untick** | Reopen a done step. The care the tick recorded stays. | "undo" |
+| **Settle** | The status change a plan makes by itself after its steps change. An accepted plan with at least one step and none open becomes completed. A completed plan with an open step becomes accepted again. A proposed or dismissed plan does not settle. | |
 
 ## Reminders
 

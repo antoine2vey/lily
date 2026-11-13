@@ -4,9 +4,8 @@ import {
   CareWhen,
   type DecideEnv,
   Frequency,
-  type OpenPlanStep,
+  LifeState,
   PlanStepChoice,
-  PlantLife,
 } from '@lily/api/contexts/care/domain/care-plant'
 import {
   amendCare,
@@ -18,6 +17,7 @@ import {
   recordCareOnAll,
   removeCare,
 } from '@lily/api/contexts/care/domain/decide'
+import type { PlanStatus, PlanStep } from '@lily/api/contexts/care/domain/plan'
 import { CareDay, CareDays, type CareType } from '@lily/shared'
 import { Array, DateTime, Option, pipe, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -52,12 +52,12 @@ const plant = (
 ): CarePlant => ({
   id: 'plant-1',
   owner: { _tag: 'User', userId: 'user-1' },
-  life: PlantLife.Living(),
+  life: LifeState.Living(),
   timezone: 'UTC',
   today,
   needsAttention: false,
   lines: new Map(Array.map(lines, (l) => [l.careType, l])),
-  openPlanSteps: [],
+  plans: [],
   ...overrides,
 })
 
@@ -220,7 +220,7 @@ describe('recordCare', () => {
 
   it('refuses a dead plant', () => {
     const dead = plant([line('watering', { frequency: 7 })], {
-      life: PlantLife.Dead(),
+      life: LifeState.Dead(),
     })
     expect(refusalOf(recordCare(dead, water(), env()))).toBe('Dead')
   })
@@ -289,18 +289,31 @@ describe('recordCare', () => {
   })
 
   describe('care plan steps', () => {
-    const step = (
-      id: string,
-      overrides: Partial<OpenPlanStep> = {}
-    ): OpenPlanStep => ({
+    const step = (id: string, overrides: Partial<PlanStep> = {}): PlanStep => ({
       id,
-      planId: 'plan-1',
-      planAccepted: true,
+      position: 0,
       careType: Option.some('watering'),
+      dueAt: Option.none(),
+      done: false,
       ...overrides,
     })
-    const withSteps = (openPlanSteps: ReadonlyArray<OpenPlanStep>) =>
-      plant([line('watering', { frequency: 7 })], { openPlanSteps })
+    const withSteps = (
+      steps: ReadonlyArray<PlanStep>,
+      status: PlanStatus = 'accepted'
+    ) =>
+      plant([line('watering', { frequency: 7 })], {
+        plans: [
+          {
+            id: 'plan-1',
+            status,
+            createdAt: DateTime.makeUnsafe('2026-01-01T00:00:00Z'),
+            steps: Array.map(steps, (each, position) => ({
+              ...each,
+              position,
+            })),
+          },
+        ],
+      })
 
     it('completes the earliest open step of the care type', () => {
       const decided = pipe(
@@ -320,10 +333,35 @@ describe('recordCare', () => {
         expect.objectContaining({
           _tag: 'CompletePlanStep',
           stepId: 'first',
-          careLogId: 'care-new',
+          careLogId: Option.some('care-new'),
         })
       )
-      expect(tags(decided.writes)).not.toContain('SettlePlan')
+      expect(tags(decided.writes)).not.toContain('SetPlanStatus')
+    })
+
+    it('completes a step of the oldest accepted plan first', () => {
+      const [older] = withSteps([step('of-the-older-plan')]).plans
+      const [newer] = withSteps([step('of-the-newer-plan')]).plans
+      if (!older || !newer) throw new Error('plans were not built')
+      const withTwoPlans = plant([line('watering', { frequency: 7 })], {
+        plans: [
+          {
+            ...newer,
+            id: 'plan-2',
+            createdAt: DateTime.makeUnsafe('2026-02-01T00:00:00Z'),
+          },
+          older,
+        ],
+      })
+
+      const decided = pipe(
+        recordCare(withTwoPlans, water(), env()),
+        Result.getOrThrow
+      )
+
+      expect(
+        Array.filter(decided.writes, (w) => w._tag === 'CompletePlanStep')
+      ).toEqual([expect.objectContaining({ stepId: 'of-the-older-plan' })])
     })
 
     it('settles the plan when its last open step is completed', () => {
@@ -334,13 +372,13 @@ describe('recordCare', () => {
       expect(tags(decided.writes)).toEqual([
         'InsertCare',
         'CompletePlanStep',
-        'SettlePlan',
+        'SetPlanStatus',
         'PutSchedule',
       ])
     })
 
     it('ignores steps of a plan that is not accepted unless one is named', () => {
-      const proposed = withSteps([step('proposed', { planAccepted: false })])
+      const proposed = withSteps([step('proposed')], 'proposed')
 
       const auto = pipe(recordCare(proposed, water(), env()), Result.getOrThrow)
       const named = pipe(
@@ -354,7 +392,7 @@ describe('recordCare', () => {
 
       expect(tags(auto.writes)).not.toContain('CompletePlanStep')
       expect(tags(named.writes)).toContain('CompletePlanStep')
-      expect(tags(named.writes)).not.toContain('SettlePlan')
+      expect(tags(named.writes)).not.toContain('SetPlanStatus')
     })
   })
 })
@@ -368,7 +406,7 @@ describe('recordCareOnAll', () => {
     )
     const dead = plant([line('watering', { frequency: 7 })], {
       id: 'dead',
-      life: PlantLife.Dead(),
+      life: LifeState.Dead(),
     })
 
     const decided = recordCareOnAll(
@@ -476,7 +514,7 @@ describe('amendCare', () => {
   it('edits history of a dead plant without touching its schedule', () => {
     const decided = pipe(
       amendCare(
-        { ...twoCares, life: PlantLife.Dead() },
+        { ...twoCares, life: LifeState.Dead() },
         'latest',
         'watering',
         moveTo('2026-11-08'),
@@ -574,7 +612,7 @@ describe('correctLastCare', () => {
     expect(
       refusalOf(
         correctLastCare(
-          { ...cared, life: PlantLife.Dead() },
+          { ...cared, life: LifeState.Dead() },
           'watering',
           on('2026-11-09'),
           env()

@@ -21,11 +21,6 @@ export type CapOf = (owner: PlantOwner) => Option.Option<number>
 const ownerKey = (owner: PlantOwner) =>
   owner._tag === 'User' ? `user:${owner.userId}` : `canopy:${owner.canopyId}`
 
-/**
- * The overdue plants one audience member is reminded about: of each owner,
- * the plants added first, up to that owner's cap. `overflow` counts the
- * plants the caps left out.
- */
 export const capAudience = <P extends AudiencePlant>(
   plants: ReadonlyArray<P>,
   capOf: CapOf
@@ -59,25 +54,13 @@ export const OverdueDecision = Data.taggedEnum<OverdueDecision>()
 
 export interface OverdueDigest {
   readonly recipient: Recipient
-  /** The plants the scan found for the recipient, read again under their locks. */
   readonly candidates: ReadonlyArray<PlantState>
-  /** The recipient's calendar day. The rows are about it. */
   readonly day: CareDay
-  /** The recipient already holds an overdue reminder about `day`, in any status. */
   readonly alreadyReminded: boolean
-  /** When the digest goes out. None when quiet hours cover every slot of the day. */
   readonly slot: Option.Option<DateTime.Utc>
   readonly now: DateTime.Utc
 }
 
-/**
- * One recipient's overdue reminders for their day: one row per candidate
- * plant that still addresses them and still has an overdue care, all at the
- * same slot. At most one digest per recipient per day.
- *
- * Entitlement is `barredBy`, the same check `planPlant` runs, so a row
- * written here is one the next replan keeps.
- */
 export const planOverdueDigest = ({
   recipient,
   candidates,

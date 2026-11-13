@@ -1,4 +1,5 @@
 import { leave, settled } from '@lily/api/__tests__/integration/canopy-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -142,11 +143,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .returning()
       if (!row) throw new Error(`Failed to create plant ${name}`)
+      const dueAt = new Date(Date.now() - 2 * 86_400_000)
       await db.insert(schema.plantCareSchedules).values({
         plantId: row.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: new Date(Date.now() - 2 * 86_400_000),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       return row.id
     }
@@ -285,7 +288,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .values({ canopyId, userId: sam, role: 'member' })
       const samsOwn = await plant({ userId: sam }, 'Sam Ivy')
       await db.execute(
-        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '3 days' WHERE plant_id = ${samsOwn}`
+        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '3 days', due_day = ((now() + interval '3 days') AT TIME ZONE 'UTC')::date WHERE plant_id = ${samsOwn}`
       )
       const row = (
         userId: string,
@@ -369,11 +372,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .update(schema.plants)
         .set({ diedAt: new Date() })
         .where(sql`${schema.plants.id} in (${dead}, ${deadOwn})`)
+      const caredAt = new Date()
       await db.insert(schema.careLogs).values(
         Arr.map([shared, dead, personal, deadOwn], (plantId) => ({
           plantId,
           type: 'watering' as const,
-          date: new Date(),
+          date: caredAt,
+          careDay: careDayOf(caredAt),
         }))
       )
       const [withCanopy, personalOnly] = await run(
@@ -501,7 +506,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
       )
       await db.execute(
-        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days' WHERE plant_id = ${shared}`
+        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days', due_day = ((now() + interval '7 days') AT TIME ZONE 'UTC')::date WHERE plant_id = ${shared}`
       )
       const reschedule = replanPlants([shared])
       await Effect.runPromise(

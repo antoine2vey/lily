@@ -1,26 +1,34 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
-import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import {
-  createMockOutbox,
-  MockOutboxLive,
-} from '@lily/api/__tests__/mocks/outbox'
+  createInMemoryCare,
+  permitTo,
+  toldToTheApp,
+} from '@lily/api/__tests__/mocks/care'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { Dirty } from '@lily/api/contexts/reminders'
+import { staleAfterCare } from '@lily/api/contexts/reminders/triggers'
 import {
   withCanopyOwner,
   withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  type PlantWithRoom,
+} from '@lily/api/repositories/plant.repository'
 import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
-import { PlantAlreadyDeadError } from '@lily/shared/errors/plant'
-import type { AppEvent } from '@lily/shared/server'
-import { Cause, Effect, Exit, Layer, Option } from 'effect'
+import {
+  PlantAlreadyDeadError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
+import type { PlantDeathRequest } from '@lily/shared/plant'
+import { Array, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const asPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
+type Row = ReturnType<typeof createTestPlant>
+
+const asPlantWithRoom = (plant: Row): PlantWithRoom => ({
   ...withUserOwner(plant),
   room: null,
   ownership: 'owned' as const,
@@ -28,24 +36,44 @@ const asPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
   ...noCare,
 })
 
+const asCanopyPlantWithRoom = (plant: Row): PlantWithRoom => ({
+  ...withCanopyOwner(plant),
+  room: null,
+  ownership: 'canopy',
+  ownerName: null,
+  canopy: { id: mockCanopyId, name: 'Home' },
+  createdBy: null,
+  ...noCare,
+})
+
+const world = (stored: Row) => {
+  const rows = [{ ...stored }]
+  const care = createInMemoryCare([], { plantRows: rows })
+  return {
+    care,
+    layer: Layer.mergeAll(
+      createMockPlantRepository({ plants: rows, sharesPlantsArray: true }),
+      care.layer
+    ),
+  }
+}
+
+const bury = (
+  seen: PlantWithRoom,
+  request: PlantDeathRequest,
+  by = 'user-1',
+  requestedId?: string
+) =>
+  markPlantDead(seen, permitTo('markDead', seen.id, by), request, requestedId)
+
 describe('markPlantDead', () => {
   it('sets diedAt, cause and note on a living plant', async () => {
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
     const result = await Effect.runPromise(
-      markPlantDead(asPlantWithRoom(plant), {
+      bury(asPlantWithRoom(plant), {
         cause: 'overwatering',
         note: 'Too much love',
-      }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            createMockPlantRepository({ plants: [plant] }),
-            MockOutboxLive,
-            createMockEventBus(),
-            createMockCurrentUser({ id: 'user-1' })
-          )
-        )
-      )
+      }).pipe(Effect.provide(world(plant).layer))
     )
 
     expect(result.diedAt).not.toBeNull()
@@ -56,16 +84,8 @@ describe('markPlantDead', () => {
   it('stores a null note when none is given', async () => {
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
     const result = await Effect.runPromise(
-      markPlantDead(asPlantWithRoom(plant), { cause: 'unknown' }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            createMockPlantRepository({ plants: [plant] }),
-            MockOutboxLive,
-            createMockEventBus(),
-            createMockCurrentUser({ id: 'user-1' })
-          )
-        )
+      bury(asPlantWithRoom(plant), { cause: 'unknown' }).pipe(
+        Effect.provide(world(plant).layer)
       )
     )
 
@@ -80,69 +100,49 @@ describe('markPlantDead', () => {
       deathCause: 'pests',
     })
     const exit = await Effect.runPromiseExit(
-      markPlantDead(asPlantWithRoom(plant), { cause: 'unknown' }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            createMockPlantRepository({ plants: [plant] }),
-            MockOutboxLive,
-            createMockEventBus(),
-            createMockCurrentUser({ id: 'user-1' })
-          )
-        )
+      bury(asPlantWithRoom(plant), { cause: 'unknown' }).pipe(
+        Effect.provide(world(plant).layer)
       )
     )
 
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      const failure = Cause.findErrorOption(exit.cause)
-      expect(Option.isSome(failure)).toBe(true)
-      if (Option.isSome(failure)) {
-        expect(failure.value._tag).toBe('PlantAlreadyDeadError')
-      }
-    }
+    expect(failureOf(exit)).toEqual(new PlantAlreadyDeadError())
   })
 
-  it('asks Reminders to plan the buried plant again', async () => {
+  it('makes Reminders plan the buried plant again', async () => {
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
-    const outbox = createMockOutbox()
+    const { care, layer } = world(plant)
 
     await Effect.runPromise(
-      markPlantDead(asPlantWithRoom(plant), { cause: 'cold' }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            createMockPlantRepository({ plants: [plant] }),
-            outbox.layer,
-            createMockEventBus(),
-            createMockCurrentUser({ id: 'user-1' })
-          )
-        )
+      bury(asPlantWithRoom(plant), { cause: 'cold' }).pipe(
+        Effect.provide(layer)
       )
     )
 
-    expect(outbox.requested).toEqual([Dirty.Plants({ plantIds: ['plant-1'] })])
+    expect(care.events).toEqual([
+      {
+        _tag: 'PlantLifeChanged',
+        plantId: 'plant-1',
+        owner: { _tag: 'User', userId: 'user-1' },
+        life: 'Buried',
+        by: 'user-1',
+      },
+    ])
+    expect(Array.flatMap(care.events, staleAfterCare)).toEqual([
+      Dirty.Plants({ plantIds: ['plant-1'] }),
+    ])
   })
 
   it('publishes a PlantLifecycleChanged event', async () => {
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
-    const published: AppEvent[] = []
+    const { care, layer } = world(plant)
 
     await Effect.runPromise(
-      markPlantDead(asPlantWithRoom(plant), { cause: 'heat' }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            createMockPlantRepository({ plants: [plant] }),
-            MockOutboxLive,
-            createMockEventBus({ publishedEvents: published }),
-            createMockCurrentUser({ id: 'user-1' })
-          )
-        )
+      bury(asPlantWithRoom(plant), { cause: 'heat' }).pipe(
+        Effect.provide(layer)
       )
     )
 
-    expect(published).toEqual([
+    expect(await toldToTheApp(care.events)).toEqual([
       { _tag: 'PlantLifecycleChanged', userId: 'user-1', plantId: 'plant-1' },
     ])
   })
@@ -154,34 +154,15 @@ describe('markPlantDead', () => {
       canopyId: mockCanopyId,
       createdByUserId: 'user-1',
     })
-    const published: AppEvent[] = []
+    const { care, layer } = world(plant)
 
     await Effect.runPromise(
-      markPlantDead(
-        {
-          ...withCanopyOwner(plant),
-          room: null,
-          ownership: 'canopy',
-          ownerName: null,
-          canopy: { id: mockCanopyId, name: 'Home' },
-          createdBy: null,
-          ...noCare,
-        },
-        { cause: 'heat' }
-      ).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            createMockPlantRepository({ plants: [plant] }),
-            MockOutboxLive,
-            createMockEventBus({ publishedEvents: published }),
-            createMockCurrentUser({ id: 'user-2' })
-          )
-        )
+      bury(asCanopyPlantWithRoom(plant), { cause: 'heat' }, 'user-2').pipe(
+        Effect.provide(layer)
       )
     )
 
-    expect(published).toEqual([
+    expect(await toldToTheApp(care.events)).toEqual([
       {
         _tag: 'PlantLifecycleChanged',
         userId: 'user-2',
@@ -204,32 +185,18 @@ describe('markPlantDead', () => {
       deathCause: null,
       deathNote: null,
     }
-    const repoLayer = createMockPlantRepository({ plants: [buried] })
-    const outbox = createMockOutbox()
+    const { care, layer } = world(buried)
 
     const exit = await Effect.runPromiseExit(
       Effect.gen(function* () {
         const failure = yield* Effect.flip(
-          markPlantDead(asPlantWithRoom(seenAlive), {
-            cause: 'pests',
-            note: 'second',
-          })
+          bury(asPlantWithRoom(seenAlive), { cause: 'pests', note: 'second' })
         )
         const after = yield* Effect.flatMap(PlantRepository, (repo) =>
           repo.findById('plant-1')
         )
         return { failure, after }
-      }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            repoLayer,
-            outbox.layer,
-            createMockEventBus(),
-            createMockCurrentUser({ id: 'user-1' })
-          )
-        )
-      )
+      }).pipe(Effect.provide(layer))
     )
 
     if (!Exit.isSuccess(exit)) throw new Error('test setup failed')
@@ -238,6 +205,31 @@ describe('markPlantDead', () => {
       deathCause: 'underwatering',
       deathNote: 'first',
     })
-    expect(outbox.requested).toEqual([])
+    expect(care.events).toEqual([])
+  })
+
+  it('answers not found, with the id as the caller sent it, once the plant has left the owner the caller saw', async () => {
+    const seen = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+    const shared = { ...seen, userId: null, canopyId: mockCanopyId }
+    const { care, layer } = world(shared)
+
+    const exit = await Effect.runPromiseExit(
+      Effect.gen(function* () {
+        const failure = yield* Effect.flip(
+          bury(asPlantWithRoom(seen), { cause: 'pests' }, 'user-1', 'PLANT-1')
+        )
+        const after = yield* Effect.flatMap(PlantRepository, (repo) =>
+          repo.findById('plant-1')
+        )
+        return { failure, after }
+      }).pipe(Effect.provide(layer))
+    )
+
+    if (!Exit.isSuccess(exit)) throw new Error('test setup failed')
+    expect(exit.value.failure).toEqual(
+      new PlantNotFoundError({ plantId: 'PLANT-1' })
+    )
+    expect(exit.value.after?.diedAt).toBeNull()
+    expect(care.events).toEqual([])
   })
 })

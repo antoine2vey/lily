@@ -1,3 +1,4 @@
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import {
   createMockAlerter,
@@ -278,11 +279,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
           .returning()
         if (!plant) throw new Error('plant insert returned nothing')
+        const dueAt = new Date(Date.now() - 86_400_000)
         await db.insert(schema.plantCareSchedules).values({
           plantId: plant.id,
           careType: 'watering',
           frequencyDays: 7,
-          nextCareAt: new Date(Date.now() - 86_400_000),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         })
         return plant
       }
@@ -481,9 +484,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       const seedDailyDueToday = async (userId: string) => {
         const plant = await seedPlant(userId, 'Daily')
+        const dueNow = new Date()
         await db
           .update(schema.plantCareSchedules)
-          .set({ frequencyDays: 1, nextCareAt: new Date() })
+          .set({
+            frequencyDays: 1,
+            nextCareAt: dueNow,
+            dueDay: careDayOf(dueNow),
+          })
           .where(eq(schema.plantCareSchedules.plantId, plant.id))
         await db.insert(schema.notifications).values({
           type: 'watering_reminder',
@@ -500,9 +508,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const plant = await seedDailyDueToday(user.id)
 
         const [message] = await enqueueDue()
+        const dueTomorrow = new Date(Date.now() + 86_400_000)
         await db
           .update(schema.plantCareSchedules)
-          .set({ nextCareAt: new Date(Date.now() + 86_400_000) })
+          .set({ nextCareAt: dueTomorrow, dueDay: careDayOf(dueTomorrow) })
           .where(eq(schema.plantCareSchedules.plantId, plant.id))
         const result = await consume(message)
 

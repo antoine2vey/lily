@@ -20,9 +20,17 @@ import { Dirty, replan } from '@lily/api/contexts/reminders'
 import type { CareReminderType } from '@lily/api/contexts/reminders/domain/plan'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import type { CareType, PlantOwner } from '@lily/shared'
+import { CareDays, type CareType, type PlantOwner } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Logger, Option, References } from 'effect'
+import {
+  Array,
+  DateTime,
+  Effect,
+  Layer,
+  Logger,
+  Option,
+  References,
+} from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const personalPlant = (ownerId: string, remindersEnabled: boolean) => ({
@@ -67,6 +75,10 @@ const replanPlant = (params: {
               plantId: params.plant.id,
               careType: params.type.replace('_reminder', '') as CareType,
               nextCareAt: params.scheduledDate,
+              dueDay: CareDays.of(
+                DateTime.makeUnsafe(params.scheduledDate),
+                params.careTimezone ?? 'UTC'
+              ),
             }),
           ],
         })

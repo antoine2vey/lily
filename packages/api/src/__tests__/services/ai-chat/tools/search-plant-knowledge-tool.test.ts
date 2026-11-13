@@ -42,7 +42,6 @@ const makeDeps = async (
     deps: {
       runtime: rt,
       userId: 'user-1',
-      plantId: 'plant-1',
       plantName: 'Monstera',
     },
     cleanup: () => managedRuntime.dispose(),

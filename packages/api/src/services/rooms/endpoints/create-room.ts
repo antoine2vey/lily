@@ -39,7 +39,7 @@ export const createRoom = (
         ? yield* canopyOwnerOf(userId)
         : { _tag: 'User', userId }
 
-    const room = yield* withOwnerLock(owner)(
+    const room = yield* withOwnerLock(owner)(() =>
       Effect.gen(function* () {
         const maxOrder = yield* repo.getMaxOrder(owner)
         return yield* repo.create({

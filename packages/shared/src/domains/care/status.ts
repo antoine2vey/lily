@@ -1,4 +1,4 @@
-import { DateTime, Match, Option, pipe, Schema } from 'effect'
+import { Match, Schema } from 'effect'
 
 import { type CareDay, CareDays } from './care-day'
 
@@ -21,21 +21,4 @@ export const careStatus = (dueDay: CareDay, today: CareDay): CareStatus =>
       (inDays): CareStatus => ({ _tag: 'Upcoming', inDays })
     ),
     Match.orElse((days): CareStatus => ({ _tag: 'Overdue', daysLate: -days }))
-  )
-
-export const dueDayAndStatus = (
-  dueAt: Date | null,
-  careTimezone: string,
-  now: DateTime.DateTime
-): { readonly dueDay: CareDay | null; readonly status: CareStatus | null } =>
-  pipe(
-    Option.fromNullishOr(dueAt),
-    Option.map((instant) => {
-      const dueDay = CareDays.of(DateTime.makeUnsafe(instant), careTimezone)
-      return {
-        dueDay,
-        status: careStatus(dueDay, CareDays.today(careTimezone, now)),
-      }
-    }),
-    Option.getOrElse(() => ({ dueDay: null, status: null }))
   )

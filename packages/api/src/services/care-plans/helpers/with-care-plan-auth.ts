@@ -1,4 +1,4 @@
-import { Actor, mintPermit, type PlantPermit } from '@lily/api/kernel/permit'
+import { mintPlanPermit, type PlanPermit } from '@lily/api/kernel/permit'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import {
@@ -30,9 +30,10 @@ import {
 import { Array, Effect, identity, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export interface CarePlanContext {
+export interface CarePlanContext<A extends CarePlanAction = CarePlanAction> {
   readonly plan: CarePlan
   readonly plant: PlantWithRoom
+  readonly permit: PlanPermit<A>
 }
 
 const authorLeftCanopy = (
@@ -60,11 +61,11 @@ const isSteward = (
     ? authorLeftCanopy(plan, plant)
     : Effect.succeed(false)
 
-export const withCarePlanAuth = (
+export const withCarePlanAuth = <A extends CarePlanAction>(
   planId: string,
-  action: CarePlanAction
+  action: A
 ): Effect.Effect<
-  CarePlanContext,
+  CarePlanContext<A>,
   CarePlanNotFoundError | CarePlanNotAuthorizedError | SqlError,
   CarePlanRepository | PlantRepository | PlantAccessContext
 > =>
@@ -99,7 +100,11 @@ export const withCarePlanAuth = (
       onNone: () => Effect.fail(new CarePlanNotFoundError({ planId })),
       onSome: (role) =>
         carePlanAllows(action)(role)
-          ? Effect.succeed({ plan, plant })
+          ? Effect.succeed({
+              plan,
+              plant,
+              permit: mintPlanPermit(plan, action, viewerId),
+            })
           : Effect.fail(new CarePlanNotAuthorizedError({ planId })),
     })
   }).pipe(
@@ -108,41 +113,48 @@ export const withCarePlanAuth = (
     })
   )
 
-export interface CarePlanStepContext extends CarePlanContext {
+export interface CarePlanStepContext<A extends CarePlanAction = CarePlanAction>
+  extends CarePlanContext<A> {
   readonly step: CarePlanStep
-  readonly carePermit: PlantPermit<'care'>
 }
 
 /** `withCarePlanAuth` plus the step, which must belong to that plan. */
-export const withCarePlanStep = (
+export const withCarePlanStep = <A extends CarePlanAction>(
   planId: string,
   stepId: string,
-  action: CarePlanAction
+  action: A
 ): Effect.Effect<
-  CarePlanStepContext,
+  CarePlanStepContext<A>,
   | CarePlanNotFoundError
   | CarePlanNotAuthorizedError
   | CarePlanStepNotFoundError
   | SqlError,
   CarePlanRepository | PlantRepository | PlantAccessContext
 > =>
-  Effect.gen(function* () {
-    const context = yield* withCarePlanAuth(planId, action)
-    const { id: userId } = yield* CurrentUser
-    return yield* Option.match(
+  Effect.flatMap(withCarePlanAuth(planId, action), (context) =>
+    Option.match(
       Array.findFirst(context.plan.steps, (s) => s.id === stepId),
       {
         onNone: () => Effect.fail(new CarePlanStepNotFoundError({ stepId })),
-        onSome: (step) =>
-          Effect.succeed({
-            ...context,
-            step,
-            carePermit: mintPermit(
-              context.plant.id,
-              'care',
-              Actor.User({ userId })
-            ),
-          }),
+        onSome: (step) => Effect.succeed({ ...context, step }),
+      }
+    )
+  )
+
+export const reloadPlan = (
+  planId: string
+): Effect.Effect<
+  CarePlan,
+  CarePlanNotFoundError | SqlError,
+  CarePlanRepository
+> =>
+  Effect.gen(function* () {
+    const repo = yield* CarePlanRepository
+    return yield* Option.match(
+      Option.fromNullishOr(yield* repo.findById(planId)),
+      {
+        onNone: () => Effect.fail(new CarePlanNotFoundError({ planId })),
+        onSome: (plan) => Effect.succeed(plan),
       }
     )
   })

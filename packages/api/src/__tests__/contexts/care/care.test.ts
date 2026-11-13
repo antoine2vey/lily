@@ -10,7 +10,7 @@ import {
   type CareLine,
   type CarePlant,
   Frequency,
-  PlantLife,
+  LifeState,
 } from '@lily/api/contexts/care/domain/care-plant'
 import type { AmendInput } from '@lily/api/contexts/care/domain/decide'
 import { Actor, mintPermit } from '@lily/api/kernel/permit'
@@ -36,12 +36,12 @@ const watering = (history: ReadonlyArray<string> = []): CareLine => ({
 const plant = (id: string, overrides: Partial<CarePlant> = {}): CarePlant => ({
   id,
   owner: { _tag: 'User', userId: 'user-1' },
-  life: PlantLife.Living(),
+  life: LifeState.Living(),
   timezone: 'UTC',
   today,
   needsAttention: false,
   lines: new Map([['watering', watering()]]),
-  openPlanSteps: [],
+  plans: [],
   ...overrides,
 })
 
@@ -110,7 +110,7 @@ describe('Care', () => {
       ],
       [
         'a dead plant',
-        plant('plant-1', { life: PlantLife.Dead() }),
+        plant('plant-1', { life: LifeState.Dead() }),
         'PlantIsDeadError',
       ],
     ])('refuses %s and writes nothing', async (_name, state, error) => {
@@ -206,7 +206,7 @@ describe('Care', () => {
         plant('b-cared', {
           lines: new Map([['watering', watering(['2026-11-12'])]]),
         }),
-        plant('c-dead', { life: PlantLife.Dead() }),
+        plant('c-dead', { life: LifeState.Dead() }),
       ])
 
       const outcomes = await Effect.runPromise(
@@ -321,7 +321,7 @@ describe('Care', () => {
     })
 
     it('edits a care of a dead plant', async () => {
-      const world = createInMemoryCare([caredTwice({ life: PlantLife.Dead() })])
+      const world = createInMemoryCare([caredTwice({ life: LifeState.Dead() })])
 
       await Effect.runPromise(
         amend(world, 'care-0', { notes: Option.some(Option.none()) })
@@ -540,7 +540,7 @@ describe('Care', () => {
     })
 
     it('refuses a dead plant', async () => {
-      const world = createInMemoryCare([caredTwice({ life: PlantLife.Dead() })])
+      const world = createInMemoryCare([caredTwice({ life: LifeState.Dead() })])
 
       const failure = await Effect.runPromise(
         Effect.flip(
@@ -645,8 +645,8 @@ describe('Care', () => {
     })
 
     it.each([
-      ['a living plant', PlantLife.Living()],
-      ['a dead plant', PlantLife.Dead()],
+      ['a living plant', LifeState.Living()],
+      ['a dead plant', LifeState.Dead()],
     ])(
       'changes nothing when %s already has what is asked',
       async (_name, life) => {
@@ -667,7 +667,7 @@ describe('Care', () => {
     it.each([
       [
         'a dead plant',
-        [caredTwice({ life: PlantLife.Dead() })],
+        [caredTwice({ life: LifeState.Dead() })],
         'PlantIsDeadError',
       ],
       ['a plant that is gone', [], 'PlantNotFoundError'],
@@ -829,7 +829,7 @@ describe('Care', () => {
     it('leaves alone a dead plant, a missing plant, an unscheduled care and a move to the same day', async () => {
       const world = createInMemoryCare([
         caredTwice(),
-        plant('dead', { life: PlantLife.Dead() }),
+        plant('dead', { life: LifeState.Dead() }),
       ])
 
       await Effect.runPromise(

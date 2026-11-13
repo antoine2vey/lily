@@ -220,10 +220,9 @@ const readjustPlantSchedule = (
       Option.getOrNull
     )
 
-    // Skip plants without a watering schedule or missing lastCareAt/nextCareAt
-    if (!wateringSchedule?.lastCareAt || !wateringSchedule.nextCareAt) {
+    if (!wateringSchedule?.lastCareAt) {
       yield* Effect.log(
-        `[Readjust] Skipping plant "${plant.name}" (${plant.id}) — no watering schedule or missing lastCareAt/nextCareAt`
+        `[Readjust] Skipping plant "${plant.name}" (${plant.id}): no watering schedule or no care yet`
       )
       return
     }
@@ -246,7 +245,7 @@ const readjustPlantSchedule = (
         nextWateringAt: wateringSchedule.nextCareAt,
         nextFertilizationAt: pipe(
           Option.fromNullishOr(fertSchedule),
-          Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
+          Option.map((s) => s.nextCareAt),
           Option.getOrNull
         ),
         fertilizationFrequencyDays: pipe(

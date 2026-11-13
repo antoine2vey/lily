@@ -216,7 +216,7 @@ const buildPlantContext = (
     const scheduleRepo = yield* CareScheduleRepository
     const carePlanRepo = yield* CarePlanRepository
 
-    const { plant, view } = yield* withPlantKnowledge(plantId, 'chat')
+    const { plant, view, permit } = yield* withPlantKnowledge(plantId, 'chat')
 
     const schedules = yield* scheduleRepo.findByPlant(plantId)
     const careLogsResponse = yield* careLogRepo.findByPlantId({
@@ -244,7 +244,7 @@ const buildPlantContext = (
     const tools = buildPlantChatTools({
       runtime,
       userId,
-      plantId,
+      permit,
       ...(imageKey ? { imageKey } : {}),
       plantName: plant.name,
       timezone,

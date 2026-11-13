@@ -156,15 +156,12 @@ export interface IPlantRepository {
 
   findById: (id: string) => Effect.Effect<Plant | null, SqlError>
 
-  // Write operations
-  create: (data: typeof plants.$inferInsert) => Effect.Effect<Plant, SqlError>
-
+  // Write operations. A plant is created, buried, revived and removed by
+  // `PlantLife` in `contexts/care`, not here.
   update: (
     id: string,
     data: Partial<typeof plants.$inferInsert>
   ) => Effect.Effect<Plant, SqlError>
-
-  delete: (id: string) => Effect.Effect<Plant, SqlError>
 
   // Watering/fertilizing
   updateWatering: (
@@ -258,14 +255,6 @@ export const PlantRepositoryLive = Layer.effect(
             db.select().from(plants).where(eq(plants.id, id))
           )
           return pipe(Array.head(items), Option.getOrNull)
-        }),
-
-      create: (data) =>
-        Effect.gen(function* () {
-          const [plant] = yield* Effect.promise(() =>
-            db.insert(plants).values(data).returning()
-          )
-          return plant
         }),
 
       // ... other methods

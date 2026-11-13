@@ -8,7 +8,12 @@ import {
   delivered,
   leaveForDeletion,
 } from '@lily/api/__tests__/integration/canopy-layers'
-import { waterAsCurrentUser } from '@lily/api/__tests__/integration/care-layers'
+import {
+  removeAsCurrentUser,
+  reviveAsCurrentUser,
+  waterAsCurrentUser,
+} from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -44,10 +49,7 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
-import {
-  PlantRepository,
-  PlantRepositoryLive,
-} from '@lily/api/repositories/plant.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import {
@@ -62,12 +64,10 @@ import { pollAndTransition } from '@lily/api/services/delegation-scheduler/sched
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
-import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
 import {
   mutePlant,
   unmutePlant,
 } from '@lily/api/services/plants/endpoints/mute-plant'
-import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
@@ -162,15 +162,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ) as Effect.Effect<A, E, Layer.Success<typeof BaseLive>>
       )
 
-    const plantNamed = (plantId: string) =>
-      Effect.flatMap(PlantRepository, (repo) => repo.findById(plantId)).pipe(
-        Effect.flatMap((plant) =>
-          plant === null
-            ? Effect.die(`no plant ${plantId}`)
-            : Effect.succeed(plant)
-        )
-      )
-
     const deadlocks = async () => {
       await new Promise((resolve) => setTimeout(resolve, 1200))
       const [row] = await db
@@ -222,7 +213,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )})`
       )
       await db.execute(
-        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '3 days', last_care_at = now() - interval '4 days'`
+        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '3 days', due_day = ((now() + interval '3 days') AT TIME ZONE 'UTC')::date, last_care_at = now() - interval '4 days'`
       )
       await db.execute(
         sql`UPDATE users SET vacation_status = 'none', vacation_start = NULL, vacation_end = NULL`
@@ -278,11 +269,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           .returning()
         if (!row) throw new Error('Failed to create plant')
         plants.push(row.id)
+        const dueAt = new Date()
         await db.insert(schema.plantCareSchedules).values({
           plantId: row.id,
           careType: 'watering',
           frequencyDays: 7,
-          nextCareAt: new Date(),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         })
       }
     })
@@ -452,7 +445,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         sql`UPDATE plants SET name = 'Gone Cactus' WHERE id = ${other}`
       )
       await db.execute(
-        sql`UPDATE plant_care_schedules SET next_care_at = now() WHERE plant_id IN (${mine}, ${other})`
+        sql`UPDATE plant_care_schedules SET next_care_at = now(), due_day = (now() AT TIME ZONE 'UTC')::date WHERE plant_id IN (${mine}, ${other})`
       )
       await db
         .insert(schema.deviceTokens)
@@ -565,10 +558,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 {}
               )
             ),
-            as(
-              alex,
-              Effect.flatMap(plantNamed(p6), (p) => revivePlant(p))
-            ),
+            as(alex, reviveAsCurrentUser(p6)),
             as(
               lily,
               mutePlant(mintPermit(p1, 'mute', Actor.User({ userId: lily })))
@@ -666,11 +656,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .returning()
       if (!plant) throw new Error('Failed to create plant')
+      const dueAt = new Date(Date.now() + 3 * day)
       await db.insert(schema.plantCareSchedules).values({
         plantId: plant.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: new Date(Date.now() + 3 * day),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       const reached = Deferred.makeUnsafe<void>()
       const release = Deferred.makeUnsafe<void>()
@@ -723,11 +715,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .returning()
       if (!row) throw new Error('Failed to create plant')
+      const dueAt = new Date(Date.now() + 3 * day)
       await db.insert(schema.plantCareSchedules).values({
         plantId: row.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: new Date(Date.now() + 3 * day),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       return row.id
     }
@@ -1580,7 +1574,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
       await Effect.runPromise(Deferred.await(reached))
-      const deleting = as(owner, Effect.flatMap(plantNamed(plant), deletePlant))
+      const deleting = as(owner, removeAsCurrentUser(plant))
       await untilBlockedOrSettled(deleting)
       Deferred.doneUnsafe(release, Exit.void)
       const [replanned, deleted] = await Promise.all([replanning, deleting])
@@ -1779,11 +1773,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             .returning()
           if (!row) throw new Error('Failed to create plant')
           delegated.push(row.id)
+          const dueAt = new Date()
           await db.insert(schema.plantCareSchedules).values({
             plantId: row.id,
             careType: 'watering',
             frequencyDays: 7,
-            nextCareAt: new Date(),
+            nextCareAt: dueAt,
+            dueDay: careDayOf(dueAt),
           })
         }
         const [delegation] = await db
@@ -1807,7 +1803,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       beforeEach(async () => {
         await db.execute(
-          sql`UPDATE plant_care_schedules SET next_care_at = now() - interval '3 days' WHERE plant_id IN (${sql.join(
+          sql`UPDATE plant_care_schedules SET next_care_at = now() - interval '3 days', due_day = ((now() - interval '3 days') AT TIME ZONE 'UTC')::date WHERE plant_id IN (${sql.join(
             Arr.map(delegated, (p) => sql`${p}`),
             sql`, `
           )})`
@@ -1997,11 +1993,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
           .returning()
         if (!own) throw new Error('Failed to create plant')
+        const dueAt = new Date(Date.now() - 3 * day)
         await db.insert(schema.plantCareSchedules).values({
           plantId: own.id,
           careType: 'watering',
           frequencyDays: 7,
-          nextCareAt: new Date(Date.now() - 3 * day),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         })
         await db.execute(sql`
           CREATE OR REPLACE FUNCTION fail_overdue_of_sam() RETURNS trigger AS $$
@@ -2082,11 +2080,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             .returning()
           if (!row) throw new Error('Failed to create plant')
           own.push(row.id)
+          const dueAt = new Date(Date.now() - 3 * day)
           await db.insert(schema.plantCareSchedules).values({
             plantId: row.id,
             careType: 'watering',
             frequencyDays: 7,
-            nextCareAt: new Date(Date.now() - 3 * day),
+            nextCareAt: dueAt,
+            dueDay: careDayOf(dueAt),
           })
         }
 

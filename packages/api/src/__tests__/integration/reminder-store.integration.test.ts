@@ -1,3 +1,4 @@
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import {
   Change,
@@ -113,6 +114,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careType: 'watering',
         frequencyDays: 7,
         nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       return row.id
     }

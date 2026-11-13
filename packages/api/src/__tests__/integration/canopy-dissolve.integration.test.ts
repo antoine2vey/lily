@@ -5,6 +5,8 @@ import {
   leaveForDeletion,
   settled,
 } from '@lily/api/__tests__/integration/canopy-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import { chatPermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -15,7 +17,7 @@ import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-pro
 import { type Canopy, hashInviteToken } from '@lily/api/contexts/canopy'
 import { CanopyWrite } from '@lily/api/contexts/canopy/domain/decide'
 import { CanopyStore } from '@lily/api/contexts/canopy/store'
-import { CareReadsLive } from '@lily/api/contexts/care'
+import { CarePlans, CareReadsLive } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import {
   CanopyRepository,
@@ -85,9 +87,19 @@ const run = <A, E>(
   effect: Effect.Effect<
     A,
     E,
-    Layer.Success<typeof AppLive> | Outbox | Canopy | CanopyStore
+    Layer.Success<typeof AppLive> | Outbox | Canopy | CanopyStore | CarePlans
   >
 ) => Effect.runPromise(Effect.provide(settled(effect), AppLive))
+
+const proposeRescue = (plantId: string, authorId: string) =>
+  Effect.flatMap(CarePlans, (carePlans) =>
+    carePlans.propose({
+      permit: chatPermit(plantId, authorId),
+      title: 'Rescue',
+      source: 'ai',
+      steps: [],
+    })
+  )
 
 const plantValues = {
   name: 'Monstera',
@@ -192,11 +204,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         userId: lilyId,
         createdByUserId: lilyId,
       })
+      const dueAt = inDays(3)
       await db.insert(schema.plantCareSchedules).values({
         plantId: living.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: inDays(3),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       await db.insert(schema.notifications).values({
         userId: lilyId,
@@ -265,11 +279,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         userId: alexId,
         createdByUserId: alexId,
       })
+      const dueAt = inDays(1)
       await db.insert(schema.plantCareSchedules).values({
         plantId: alexsOwn.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: inDays(1),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       await db.insert(schema.notifications).values([
         {
@@ -346,16 +362,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             Layer.merge(AppLive, createMockCurrentUser({ id: lilyId }))
           )
         )
-      const lilysPlan = await run(
-        Effect.flatMap(CarePlanRepository, (repo) =>
-          repo.create({
-            plantId: fern.id,
-            userId: lilyId,
-            title: 'Rescue',
-            steps: [],
-          })
-        )
-      )
+      const lilysPlan = await run(proposeRescue(fern.id, lilyId))
       const plansOnFern = () =>
         asLily(
           withPlantKnowledge(fern.id, 'view').pipe(
@@ -369,7 +376,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
 
       const before = await plansOnFern()
-      expect(Exit.isSuccess(before) && before.value).toEqual([lilysPlan.id])
+      expect(Exit.isSuccess(before) && before.value).toEqual([lilysPlan.planId])
       expect(await lilysPlans()).toHaveLength(1)
 
       await run(leave(lilyId))
@@ -377,12 +384,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(failureOf(await plansOnFern())).toBeInstanceOf(PlantNotFoundError)
       expect(await lilysPlans()).toEqual([])
       expect(
-        failureOf(await asLily(withCarePlanAuth(lilysPlan.id, 'manage')))
+        failureOf(await asLily(withCarePlanAuth(lilysPlan.planId, 'manage')))
       ).toBeInstanceOf(CarePlanNotFoundError)
       const kept = await db
         .select({ id: schema.carePlans.id })
         .from(schema.carePlans)
-      expect(kept).toEqual([{ id: lilysPlan.id }])
+      expect(kept).toEqual([{ id: lilysPlan.planId }])
     })
 
     it("shows a caretaker's plan only while their delegation of the owner's plant is active", async () => {
@@ -406,16 +413,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db
         .insert(schema.delegationPlants)
         .values({ delegationId: delegation.id, plantId: fern.id })
-      await run(
-        Effect.flatMap(CarePlanRepository, (repo) =>
-          repo.create({
-            plantId: fern.id,
-            userId: lilyId,
-            title: 'Rescue',
-            steps: [],
-          })
-        )
-      )
+      await run(proposeRescue(fern.id, lilyId))
       const lilysPlans = () =>
         run(
           Effect.flatMap(CarePlanRepository, (repo) => repo.findByUser(lilyId))
@@ -440,24 +438,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await lilysPlans()).toEqual([])
     })
 
-    it('returns a new care plan even when its author can no longer reach the plant', async () => {
+    it('proposes a care plan even when its author can no longer reach the plant', async () => {
       const fern = await insertPlant({
         userId: alexId,
         createdByUserId: alexId,
       })
 
-      const plan = await run(
-        Effect.flatMap(CarePlanRepository, (repo) =>
-          repo.create({
-            plantId: fern.id,
-            userId: lilyId,
-            title: 'Rescue',
-            steps: [],
-          })
-        )
-      )
+      const { planId } = await run(proposeRescue(fern.id, lilyId))
 
-      expect(plan).toMatchObject({ plantId: fern.id, title: 'Rescue' })
+      expect(
+        await run(
+          Effect.flatMap(CarePlanRepository, (repo) => repo.findById(planId))
+        )
+      ).toMatchObject({ plantId: fern.id, title: 'Rescue' })
     })
 
     it('rolls the Canopy exit back when the account write after it fails', async () => {

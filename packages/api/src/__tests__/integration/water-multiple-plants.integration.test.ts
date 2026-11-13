@@ -1,3 +1,4 @@
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import * as schema from '@lily/db/schema'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -23,9 +24,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       // Reset care schedule watering rows
       if (testPlantIds?.length > 0) {
         for (const plantId of testPlantIds) {
+          const dueNow = new Date()
           await db
             .update(schema.plantCareSchedules)
-            .set({ lastCareAt: null, nextCareAt: new Date() })
+            .set({
+              lastCareAt: null,
+              nextCareAt: dueNow,
+              dueDay: careDayOf(dueNow),
+            })
             .where(
               and(
                 eq(schema.plantCareSchedules.plantId, plantId),
@@ -103,18 +109,21 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       // Create watering schedules for each plant
       const [firstPlantId, secondPlantId] = testPlantIds
+      const dueAt = new Date()
       await db.insert(schema.plantCareSchedules).values([
         {
           plantId: firstPlantId ?? '',
           careType: 'watering',
           frequencyDays: 3,
-          nextCareAt: new Date(),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         },
         {
           plantId: secondPlantId ?? '',
           careType: 'watering',
           frequencyDays: 7,
-          nextCareAt: new Date(),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         },
       ])
     })
@@ -147,6 +156,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await client.query('BEGIN')
 
         const now = new Date()
+        const dueInAWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
         // Update watering schedules for both plants
         for (const plantId of testPlantIds) {
@@ -154,7 +164,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             .update(schema.plantCareSchedules)
             .set({
               lastCareAt: now,
-              nextCareAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+              nextCareAt: dueInAWeek,
+              dueDay: careDayOf(dueInAWeek),
             })
             .where(
               and(
@@ -170,6 +181,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             type: 'watering' as const,
             plantId,
             date: now,
+            careDay: careDayOf(now),
             performedByUserId: testUserId,
           }))
         )
@@ -212,16 +224,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await client.query('BEGIN')
 
         const now = new Date()
+        const dueInAWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
         // Update first plant's schedule within the transaction (succeeds)
         await client.query(
-          `UPDATE plant_care_schedules SET last_care_at = $1, next_care_at = $2
-           WHERE plant_id = $3 AND care_type = 'watering'`,
-          [
-            now,
-            new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-            testPlantIds[0],
-          ]
+          `UPDATE plant_care_schedules SET last_care_at = $1, next_care_at = $2, due_day = $3
+           WHERE plant_id = $4 AND care_type = 'watering'`,
+          [now, dueInAWeek, careDayOf(dueInAWeek), testPlantIds[0]]
         )
 
         // Insert a care log with a non-existent plantId — FK violation triggers real failure
@@ -271,6 +280,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     it('should handle concurrent schedule updates within the same transaction', async () => {
       const now = new Date()
+      const dueInAWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
       // Update all plant schedules concurrently using Promise.all
       await Promise.all(
@@ -279,7 +289,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             .update(schema.plantCareSchedules)
             .set({
               lastCareAt: now,
-              nextCareAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+              nextCareAt: dueInAWeek,
+              dueDay: careDayOf(dueInAWeek),
             })
             .where(
               and(

@@ -2,6 +2,7 @@ import {
   CareOnPostgresLive,
   drainOutbox,
 } from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
@@ -172,6 +173,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           frequencyDays: 7,
           lastCareAt,
           nextCareAt,
+          dueDay: careDayOf(nextCareAt),
         }))
       )
       await db.insert(schema.notifications).values(

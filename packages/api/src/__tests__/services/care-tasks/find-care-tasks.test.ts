@@ -974,6 +974,7 @@ describe('findCareTasks', () => {
               frequencyDays: 7,
               lastCareAt: new Date('2024-01-01'),
               nextCareAt: crossMidnight,
+              dueDay: '2025-01-31',
             }),
           ],
           remindersEnabled: true,

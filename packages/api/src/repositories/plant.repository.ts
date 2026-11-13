@@ -1,7 +1,8 @@
 import {
   DueWindow,
+  dueOnOrBefore,
+  duePrune,
   hasOverdueCare,
-  pruneCutoff,
   type SeenSchedule,
   type StoredSchedule,
   seePlantCare,
@@ -128,23 +129,6 @@ export type PlantWithRoom = RawPlant &
 
 export type FindPlantsResult = PaginatedResponse<PlantWithRoom>
 
-export interface CreatePlantData {
-  name: string
-  description: string | null
-  category: string | null
-  imageUrl?: string | null
-  humidityRating: number
-  lightingRating: number
-  petToxicityRating: number
-  wateringRating: number
-  health: PlantHealthStatus
-  potWidthCm?: number | null
-  potHeightCm?: number | null
-  owner: PlantOwner
-  createdByUserId: string
-  roomId?: string | null
-}
-
 export interface UpdatePlantData {
   name?: string
   description?: string | null
@@ -158,12 +142,6 @@ export interface UpdatePlantData {
   potWidthCm?: number | null
   potHeightCm?: number | null
   roomId?: string | null
-}
-
-export interface MarkPlantDeadData {
-  diedAt: Date
-  cause: PlantDeathCause
-  note: string | null
 }
 
 export interface FindPhotosParams {
@@ -196,26 +174,10 @@ export interface IPlantRepository {
   readonly findById: (
     id: string
   ) => Effect.Effect<PlantWithRoom | null, SqlError>
-  readonly create: (
-    data: CreatePlantData
-  ) => Effect.Effect<PlantRow | null, SqlError>
   readonly update: (
     id: string,
     owner: PlantOwner,
     data: UpdatePlantData
-  ) => Effect.Effect<PlantRow | null, SqlError>
-  readonly delete: (
-    id: string,
-    owner: PlantOwner
-  ) => Effect.Effect<PlantRow | null, SqlError>
-  readonly markDead: (
-    id: string,
-    owner: PlantOwner,
-    data: MarkPlantDeadData
-  ) => Effect.Effect<PlantRow | null, SqlError>
-  readonly revive: (
-    id: string,
-    owner: PlantOwner
   ) => Effect.Effect<PlantRow | null, SqlError>
   readonly findPhotos: (
     params: FindPhotosParams
@@ -280,6 +242,7 @@ function buildPlantFilters(
   db: Db,
   now: DateTime.DateTime
 ): ReturnType<typeof and>[] {
+  const overdue = duePrune(DueWindow.Overdue(), now)
   const filterCondition = pipe(
     Match.value(params.filter),
     Match.when(
@@ -291,15 +254,7 @@ function buildPlantFilters(
             db
               .select({ plantId: plantCareSchedules.plantId })
               .from(plantCareSchedules)
-              .where(
-                and(
-                  isNotNull(plantCareSchedules.nextCareAt),
-                  lt(
-                    plantCareSchedules.nextCareAt,
-                    pruneCutoff(DueWindow.Overdue(), now)
-                  )
-                )
-              )
+              .where(dueOnOrBefore(overdue.day, overdue.undatedBefore))
           )
         )
     ),
@@ -424,6 +379,7 @@ export const PlantRepositoryLive = Layer.effect(
           frequencyDays: r.frequencyDays,
           lastCareAt: r.lastCareAt,
           nextCareAt: r.nextCareAt,
+          dueDay: r.dueDay,
         })
         grouped.set(r.plantId, existing)
       })
@@ -693,17 +649,6 @@ export const PlantRepositoryLive = Layer.effect(
         return toCanopyPlant({ ...row, ...scope }, care)
       }),
 
-      create: Effect.fn('PlantRepository.create')(function* (
-        data: CreatePlantData
-      ) {
-        const { owner, ...fields } = data
-        const [plant] = yield* db
-          .insert(plants)
-          .values({ ...fields, ...ownerColumns(owner) })
-          .returning()
-        return withOwnerOrNull(plant)
-      }),
-
       update: Effect.fn('PlantRepository.update')(function* (
         id: string,
         owner: PlantOwner,
@@ -713,58 +658,6 @@ export const PlantRepositoryLive = Layer.effect(
           .update(plants)
           .set({ ...data, updatedAt: nowAsDate() })
           .where(and(eq(plants.id, id), ownedBy(plants, owner)))
-          .returning()
-        return withOwnerOrNull(plant)
-      }),
-
-      delete: Effect.fn('PlantRepository.delete')(function* (
-        id: string,
-        owner: PlantOwner
-      ) {
-        const [plant] = yield* db
-          .delete(plants)
-          .where(and(eq(plants.id, id), ownedBy(plants, owner)))
-          .returning()
-        return withOwnerOrNull(plant)
-      }),
-
-      markDead: Effect.fn('PlantRepository.markDead')(function* (
-        id: string,
-        owner: PlantOwner,
-        data: MarkPlantDeadData
-      ) {
-        const [plant] = yield* db
-          .update(plants)
-          .set({
-            diedAt: data.diedAt,
-            deathCause: data.cause,
-            deathNote: data.note,
-          })
-          .where(
-            and(
-              eq(plants.id, id),
-              ownedBy(plants, owner),
-              isNull(plants.diedAt)
-            )
-          )
-          .returning()
-        return withOwnerOrNull(plant)
-      }),
-
-      revive: Effect.fn('PlantRepository.revive')(function* (
-        id: string,
-        owner: PlantOwner
-      ) {
-        const [plant] = yield* db
-          .update(plants)
-          .set({ diedAt: null, deathCause: null, deathNote: null })
-          .where(
-            and(
-              eq(plants.id, id),
-              ownedBy(plants, owner),
-              isNotNull(plants.diedAt)
-            )
-          )
           .returning()
         return withOwnerOrNull(plant)
       }),

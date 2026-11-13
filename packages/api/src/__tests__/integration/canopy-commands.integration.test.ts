@@ -35,6 +35,7 @@ import {
   CareReadsLive,
   careWhenOf,
   PlanStepChoice,
+  PlantLife,
 } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { Actor, mintPermit } from '@lily/api/kernel/permit'
@@ -43,10 +44,7 @@ import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import {
-  PlantRepository,
-  PlantRepositoryLive,
-} from '@lily/api/repositories/plant.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -96,7 +94,12 @@ const AppLive = Layer.mergeAll(
   createMockWeatherRepository()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
-type App = Layer.Success<typeof AppLive> | Outbox | Canopy | CanopyStore
+type App =
+  | Layer.Success<typeof AppLive>
+  | Outbox
+  | Canopy
+  | CanopyStore
+  | PlantLife
 
 const exitOf = <A, E>(effect: Effect.Effect<A, E, App>) =>
   Effect.runPromiseExit(Effect.provide(settled(effect), AppLive))
@@ -1243,8 +1246,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             exitOf(mute(lilyId, plantId)),
             later(n, () =>
               run(
-                Effect.flatMap(PlantRepository, (repo) =>
-                  repo.delete(plantId, { _tag: 'Canopy', canopyId })
+                Effect.flatMap(PlantLife, (life) =>
+                  life.remove({
+                    permit: mintPermit(
+                      plantId,
+                      'delete',
+                      Actor.User({ userId: alexId })
+                    ),
+                    seenOwner: { _tag: 'Canopy', canopyId },
+                  })
                 )
               )
             ),

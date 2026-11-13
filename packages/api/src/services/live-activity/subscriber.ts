@@ -60,13 +60,6 @@ const refreshLiveActivity = (params: {
     )
     if (Array.isReadonlyArrayEmpty(activities)) return
 
-    // CareLogCreated excludes the just-completed (plantId, careType) pair.
-    // Care publishes after its transaction commits, so the schedule row
-    // usually holds the new nextCareAt already. A backdated care can still
-    // leave that date due today, and the exclusion keeps the done task off
-    // the card. Lifecycle events need no exclusion: the plant row is
-    // committed before they are published and findPendingByUser already
-    // skips dead plants.
     const contentState = yield* buildLiveActivityContentState(
       params.userId,
       params.exclude

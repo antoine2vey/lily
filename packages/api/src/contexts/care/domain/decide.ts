@@ -6,8 +6,8 @@ import {
   type DecideEnv,
   type Frequency,
   lineOf,
-  type OpenPlanStep,
   PlanStepChoice,
+  type PlantDraft,
   type Schedule,
 } from '@lily/api/contexts/care/domain/care-plant'
 import type {
@@ -15,10 +15,29 @@ import type {
   ScheduleChangeReason,
 } from '@lily/api/contexts/care/domain/events'
 import {
+  earliestOpenStepOfAcceptedPlans,
+  openStepNamed,
+  type Plan,
+  type PlanStatus,
+  type ProposedStep,
+  type SettledStatus,
+  type StepOfPlan,
+  statusToSettleInto,
+  withStepDone,
+} from '@lily/api/contexts/care/domain/plan'
+import {
   decision,
   type Decision as KernelDecision,
 } from '@lily/api/kernel/transact'
-import { type CareDay, CareDays, type CareType } from '@lily/shared'
+import {
+  type CareDay,
+  CareDays,
+  type CareType,
+  type LimitExceededError,
+  type PlantOwner,
+} from '@lily/shared'
+import type { CarePlanSource } from '@lily/shared/care-plan'
+import type { PlantDeathCause } from '@lily/shared/plant'
 import { Array, Data, DateTime, Option, Order, pipe, Result } from 'effect'
 
 export type CareWrite = Data.TaggedEnum<{
@@ -51,10 +70,44 @@ export type CareWrite = Data.TaggedEnum<{
   DropSchedule: { readonly plantId: string; readonly careType: CareType }
   CompletePlanStep: {
     readonly stepId: string
-    readonly careLogId: string
+    readonly careLogId: Option.Option<string>
     readonly at: DateTime.Utc
   }
-  SettlePlan: { readonly planId: string; readonly at: DateTime.Utc }
+  ReopenPlanStep: { readonly stepId: string }
+  DeletePlanStep: { readonly stepId: string }
+  SetPlanStatus: {
+    readonly planId: string
+    readonly from: PlanStatus
+    readonly to: Exclude<PlanStatus, 'proposed'>
+    readonly at: DateTime.Utc
+  }
+  DeletePlan: { readonly planId: string }
+  InsertPlan: {
+    readonly planId: string
+    readonly plantId: string
+    readonly authorId: string
+    readonly title: string
+    readonly source: CarePlanSource
+    readonly steps: ReadonlyArray<ProposedStep>
+  }
+  LinkPlanToDiagnosis: {
+    readonly planId: string
+    readonly diagnosisId: string
+  }
+  InsertPlant: {
+    readonly plantId: string
+    readonly owner: PlantOwner
+    readonly createdBy: string
+    readonly draft: PlantDraft
+  }
+  BuryPlant: {
+    readonly plantId: string
+    readonly at: DateTime.Utc
+    readonly cause: PlantDeathCause
+    readonly note: Option.Option<string>
+  }
+  RevivePlant: { readonly plantId: string }
+  DeletePlant: { readonly plantId: string }
 }>
 export const CareWrite = Data.taggedEnum<CareWrite>()
 
@@ -74,10 +127,18 @@ export type Refusal = Data.TaggedEnum<{
   Dead: { readonly plantId: string }
   PlantGone: { readonly plantId: string }
   CareNotFound: { readonly careLogId: string }
+  PlanGone: { readonly planId: string }
+  PlanOfDeadPlant: { readonly planId: string }
+  StepGone: { readonly planId: string; readonly stepId: string }
+  PlanNotProposed: { readonly planId: string; readonly status: PlanStatus }
+  ProposalForDeadPlant: { readonly plantId: string }
+  AlreadyDead: { readonly plantId: string }
+  NotDead: { readonly plantId: string }
+  OwnerFull: { readonly error: LimitExceededError }
 }>
 export const Refusal = Data.taggedEnum<Refusal>()
 
-type RefusalOf<T extends Refusal['_tag']> = Extract<
+export type RefusalOf<T extends Refusal['_tag']> = Extract<
   Refusal,
   { readonly _tag: T }
 >
@@ -248,37 +309,35 @@ const refuseIfCaredOn = (
     : Result.succeed(day)
 
 const pickStep = (
-  steps: ReadonlyArray<OpenPlanStep>,
+  plans: ReadonlyArray<Plan>,
   careType: CareType,
   choice: PlanStepChoice
-): Option.Option<OpenPlanStep> =>
+): Option.Option<StepOfPlan> =>
   PlanStepChoice.$match(choice, {
-    Auto: () =>
-      Array.findFirst(
-        steps,
-        (step) => step.planAccepted && Option.contains(step.careType, careType)
-      ),
-    Step: ({ id }) => Array.findFirst(steps, (step) => step.id === id),
+    Auto: () => earliestOpenStepOfAcceptedPlans(plans, careType),
+    Step: ({ id }) => openStepNamed(plans, id),
     None: () => Option.none(),
   })
 
-const completeStep = (
-  plant: CarePlant,
-  step: OpenPlanStep,
-  careLogId: string,
+export const settleWrites = (
+  plan: Plan,
   at: DateTime.Utc
-): ReadonlyArray<CareWrite> => {
-  const lastOpen = !Array.some(
-    plant.openPlanSteps,
-    (other) => other.planId === step.planId && other.id !== step.id
-  )
-  return [
-    CareWrite.CompletePlanStep({ stepId: step.id, careLogId, at }),
-    ...(lastOpen && step.planAccepted
-      ? [CareWrite.SettlePlan({ planId: step.planId, at })]
-      : []),
-  ]
-}
+): ReadonlyArray<CareWrite> =>
+  Option.match(statusToSettleInto(plan), {
+    onNone: () => [],
+    onSome: (to: SettledStatus) => [
+      CareWrite.SetPlanStatus({ planId: plan.id, from: plan.status, to, at }),
+    ],
+  })
+
+export const completeStep = (
+  { plan, step }: StepOfPlan,
+  careLogId: Option.Option<string>,
+  at: DateTime.Utc
+): ReadonlyArray<CareWrite> => [
+  CareWrite.CompletePlanStep({ stepId: step.id, careLogId, at }),
+  ...settleWrites(withStepDone(plan, step.id), at),
+]
 
 export interface RecordInput {
   readonly careType: CareType
@@ -313,10 +372,11 @@ export const recordCare = (
       env.wateringDays
     )
     const stepWrites = pipe(
-      pickStep(plant.openPlanSteps, input.careType, input.planStep),
+      pickStep(plant.plans, input.careType, input.planStep),
       Option.match({
         onNone: () => [],
-        onSome: (step) => completeStep(plant, step, env.newCareLogId, at),
+        onSome: (picked) =>
+          completeStep(picked, Option.some(env.newCareLogId), at),
       })
     )
 
@@ -544,7 +604,7 @@ export const mergeDecisions = <R>(
   decisions: ReadonlyArray<Result.Result<Decision<void>, R>>
 ): Result.Result<Decision<void>, R> => Result.map(Result.all(decisions), merged)
 
-const putSchedule = (
+export const putSchedule = (
   plant: CarePlant,
   careType: CareType,
   schedule: Schedule,
@@ -570,6 +630,33 @@ const putSchedule = (
       },
     ]
   )
+
+const everyDays = (
+  plant: CarePlant,
+  line: CareLine,
+  days: Frequency
+): Decision<void> => {
+  const startedOn = pipe(
+    line.schedule,
+    Option.map((schedule) => schedule.startedOn),
+    Option.getOrElse(() => plant.today)
+  )
+  const draft: Schedule = { frequency: days, startedOn, dueDay: startedOn }
+  const dueDay = pipe(
+    nextDueDay(
+      { ...line, schedule: Option.some(draft) },
+      plant.today,
+      Option.none()
+    ),
+    Option.getOrElse(() => startedOn)
+  )
+  return putSchedule(
+    plant,
+    line.careType,
+    { ...draft, dueDay },
+    Option.isSome(line.schedule) ? 'frequency' : 'created'
+  )
+}
 
 export const setSchedule = (
   plant: CarePlant,
@@ -598,35 +685,24 @@ export const setSchedule = (
             },
           ]
         ),
-      onSome: (days) => {
-        const startedOn = pipe(
-          line.schedule,
-          Option.map((schedule) => schedule.startedOn),
-          Option.getOrElse(() => plant.today)
-        )
-        const draft: Schedule = {
-          frequency: days,
-          startedOn,
-          dueDay: startedOn,
-        }
-        const dueDay = pipe(
-          nextDueDay(
-            { ...line, schedule: Option.some(draft) },
-            plant.today,
-            Option.none()
-          ),
-          Option.getOrElse(() => startedOn)
-        )
-        return putSchedule(
-          plant,
-          careType,
-          { ...draft, dueDay },
-          Option.isSome(line.schedule) ? 'frequency' : 'created'
-        )
-      },
+      onSome: (days) => everyDays(plant, line, days),
     })
   )
 }
+
+export const startSchedules = (
+  planted: CarePlant,
+  frequencies: ReadonlyArray<readonly [CareType, Option.Option<Frequency>]>
+): Decision<void> =>
+  merged(
+    Array.flatMap(frequencies, ([careType, frequency]) =>
+      Option.toArray(
+        Option.map(frequency, (days) =>
+          everyDays(planted, lineOf(planted, careType), days)
+        )
+      )
+    )
+  )
 
 export type DueMove = Data.TaggedEnum<{
   /** To the care day of an instant. */

@@ -41,7 +41,13 @@ const cases: ReadonlyArray<readonly [CareEvent, ReadonlyArray<Dirty>]> = [
     thePlant,
   ],
   [
-    { _tag: 'PlantLifeChanged', plantId: 'plant-1', owner, life: 'Dead' },
+    {
+      _tag: 'PlantLifeChanged',
+      plantId: 'plant-1',
+      owner,
+      life: 'Buried',
+      by: 'user-1',
+    },
     thePlant,
   ],
   [

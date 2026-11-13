@@ -1,5 +1,7 @@
+import type { CarePlans } from '@lily/api/contexts/care'
 import { StreamTransformError } from '@lily/api/errors/defects'
 import type { EventBus } from '@lily/api/events'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
@@ -44,6 +46,7 @@ import {
   Stream,
 } from 'effect'
 import { HttpServerResponse } from 'effect/http'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Exponential backoff: 200ms -> 400ms -> 800ms (max 3 retries)
@@ -155,6 +158,9 @@ export const streamChatMessage = (
   | CareScheduleRepository
   | DiagnosisRepository
   | CarePlanRepository
+  | CarePlans
+  | SqlClient.SqlClient
+  | Outbox
   | UserRepository
   | DelegationRepository
   | CanopyRepository
@@ -273,11 +279,7 @@ export const streamChatMessage = (
 
       const uiStream = streamResult.toUIMessageStream()
       const context = yield* Effect.context<
-        | ChatRepository
-        | DiagnosisRepository
-        | CarePlanRepository
-        | EventBus
-        | AiService
+        ChatRepository | DiagnosisRepository | CarePlans | EventBus | AiService
       >()
 
       const logAndRefund = (reason: string, error: unknown) =>

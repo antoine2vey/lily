@@ -14,6 +14,14 @@ export const ScheduleChangeReason = Schema.Literals([
 ])
 export type ScheduleChangeReason = typeof ScheduleChangeReason.Type
 
+export const LifeChange = Schema.Literals([
+  'Planted',
+  'Buried',
+  'Revived',
+  'Removed',
+])
+export type LifeChange = typeof LifeChange.Type
+
 /**
  * What Care tells other contexts. An event names what changed; a consumer
  * reads current state again and does not trust the values carried here.
@@ -48,7 +56,8 @@ export const CareEvent = Schema.TaggedUnion({
   PlantLifeChanged: {
     plantId: Schema.String,
     owner: PlantOwner,
-    life: Schema.Literals(['Living', 'Dead']),
+    life: LifeChange,
+    by: Schema.NullOr(Schema.String),
   },
 })
 export type CareEvent = typeof CareEvent.Type

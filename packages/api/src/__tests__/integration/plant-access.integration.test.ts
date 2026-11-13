@@ -253,35 +253,20 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(stranger).toEqual([])
     })
 
-    it('refuses a plant mutation scoped to the wrong owner and leaves the row untouched', async () => {
+    it('refuses a plant update scoped to the wrong owner and leaves the row untouched', async () => {
       const plant = await insertPlant(canopyOwner)
 
-      const [renamed, deleted, buried, revived] = await run(
-        Effect.gen(function* () {
-          const repo = yield* PlantRepository
-          return yield* Effect.all([
-            repo.update(plant.id, alexOwner, { name: 'Stolen' }),
-            repo.delete(plant.id, alexOwner),
-            repo.markDead(plant.id, alexOwner, {
-              diedAt: new Date(),
-              cause: 'unknown',
-              note: null,
-            }),
-            repo.revive(plant.id, { _tag: 'User', userId: lilyId }),
-          ])
-        })
+      const renamed = await run(
+        Effect.flatMap(PlantRepository, (repo) =>
+          repo.update(plant.id, alexOwner, { name: 'Stolen' })
+        )
       )
       const [row] = await db
         .select()
         .from(schema.plants)
         .where(eq(schema.plants.id, plant.id))
 
-      expect([renamed, deleted, buried, revived]).toEqual([
-        null,
-        null,
-        null,
-        null,
-      ])
+      expect(renamed).toBeNull()
       expect(row).toMatchObject({ name: 'Monstera', diedAt: null })
     })
 

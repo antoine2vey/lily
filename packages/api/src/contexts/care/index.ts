@@ -1,5 +1,7 @@
 import { Layer } from 'effect'
 import { CareLive as CareServiceLive } from './care'
+import { CarePlansLive } from './care-plans'
+import { PlantLifeLive } from './plant-life'
 import { CareStoreLive } from './store'
 import { WeatherAdvisorLive } from './weather'
 
@@ -9,16 +11,18 @@ export {
   type RecordCare,
   type RecordOneError,
 } from './care'
+export { CarePlans } from './care-plans'
 export {
   CareReads,
   CareReadsLive,
   type DueCare,
   type DuePlant,
+  type DuePrune,
   type DueQuery,
   DueScope,
   DueWindow,
+  duePrune,
   makeCareReads,
-  pruneCutoff,
   type ScheduledCare,
 } from './care-reads'
 export {
@@ -27,6 +31,7 @@ export {
   Frequency,
   frequencyOfDays,
   PlanStepChoice,
+  type PlantDraft,
 } from './domain/care-plant'
 export {
   DueMove,
@@ -34,7 +39,9 @@ export {
   RecordOutcome,
   Refusal,
 } from './domain/decide'
-export { CareEvent, CareTopic } from './domain/events'
+export { CareEvent, CareTopic, type LifeChange } from './domain/events'
+export { OwnerRoom } from './domain/life'
+export type { ProposedStep } from './domain/plan'
 export {
   hasOverdueCare,
   type PlantCare,
@@ -43,8 +50,11 @@ export {
   seeLivingPlantCare,
   seePlantCare,
 } from './plant-care'
+export { PlantLife } from './plant-life'
+export { dueOnOrBefore } from './stored-day'
 
-export const CareLive = CareServiceLive.pipe(
-  Layer.provide(WeatherAdvisorLive),
-  Layer.provide(CareStoreLive)
-)
+export const CareLive = Layer.mergeAll(
+  CareServiceLive,
+  CarePlansLive,
+  PlantLifeLive
+).pipe(Layer.provide(WeatherAdvisorLive), Layer.provide(CareStoreLive))

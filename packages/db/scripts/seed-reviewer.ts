@@ -32,6 +32,7 @@ import {
 } from '@lily/db/schema'
 import { eq } from 'drizzle-orm'
 import { Array as A, Console, Effect, Option, pipe } from 'effect'
+import { careDayOf } from './care-day'
 
 export interface ReviewerSeedConfig {
   /** Human label for logs, e.g. 'Apple' or 'Android'. */
@@ -447,7 +448,12 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
         return entries
       })
     )
-    yield* db.insert(plantCareSchedules).values(scheduleEntries)
+    yield* db.insert(plantCareSchedules).values(
+      A.map(scheduleEntries, (entry) => ({
+        ...entry,
+        dueDay: careDayOf(entry.nextCareAt, user.timezone),
+      }))
+    )
     yield* Console.log(
       `Created ${scheduleEntries.length} care schedule entries`
     )
@@ -496,11 +502,13 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
       })
     )
 
-    yield* db
-      .insert(careLogs)
-      .values(
-        A.map(careLogEntries, (log) => ({ ...log, performedByUserId: user.id }))
-      )
+    yield* db.insert(careLogs).values(
+      A.map(careLogEntries, (log) => ({
+        ...log,
+        careDay: careDayOf(log.date, user.timezone),
+        performedByUserId: user.id,
+      }))
+    )
     yield* Console.log(`Created ${careLogEntries.length} care log entries`)
 
     // 6. Create plant photos for some plants

@@ -2,56 +2,38 @@ import {
   createTestCarePlan,
   createTestCarePlanStep,
 } from '@lily/api/__tests__/fixtures/care-plans'
+import {
+  createTestCareLine,
+  createTestCarePlant,
+  TEST_CARE_TODAY,
+} from '@lily/api/__tests__/fixtures/care-plants'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createStubCare } from '@lily/api/__tests__/mocks/care'
-import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
+import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
+import { createCarePlanRows } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
+import { LifeState } from '@lily/api/contexts/care/domain/care-plant'
+import type { CareWrite } from '@lily/api/contexts/care/domain/decide'
 import { completeCarePlanStep } from '@lily/api/services/care-plans/endpoints/complete-care-plan-step'
 import { uncompleteCarePlanStep } from '@lily/api/services/care-plans/endpoints/uncomplete-care-plan-step'
 import { withCarePlanStep } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
-import { CareDay } from '@lily/shared'
-import { Array, Effect, Layer, Option, References } from 'effect'
+import type { CarePlanStatus } from '@lily/shared/care-plan'
+import { Array, Effect, Exit, Layer, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const userId = 'user-1'
 const plantId = 'plant-1'
-const today = CareDay.make('2026-11-12')
 
-type CareAnswer = 'Recorded' | 'AlreadyCared' | 'Dead'
+type PlantState = 'NotCaredToday' | 'CaredToday' | 'Dead'
 
-const outcomeOf = (answer: CareAnswer) => (id: string) =>
-  answer === 'Recorded'
-    ? RecordOutcome.Recorded({
-        plantId: id,
-        careLogId: 'care-1',
-        careType: 'watering',
-        day: today,
-        dueDay: Option.none(),
-      })
-    : RecordOutcome.Skipped({
-        plantId: id,
-        reason:
-          answer === 'Dead'
-            ? Refusal.Dead({ plantId: id })
-            : Refusal.AlreadyCared({
-                plantId: id,
-                careType: 'watering',
-                day: today,
-              }),
-      })
-
-const buildScenario = (answer: CareAnswer = 'Recorded') => {
+const buildScenario = (
+  state: PlantState = 'NotCaredToday',
+  status: CarePlanStatus = 'accepted'
+) => {
   const testPlant = createTestPlant({ id: plantId, userId })
-  const plan = createTestCarePlan({
-    id: 'plan-1',
-    plantId,
-    userId,
-    status: 'accepted',
-  })
+  const plan = createTestCarePlan({ id: 'plan-1', plantId, userId, status })
   const steps = [
     createTestCarePlanStep(plan.id, {
       id: 'step-water',
@@ -65,13 +47,26 @@ const buildScenario = (answer: CareAnswer = 'Recorded') => {
       title: 'Check the leaves',
     }),
   ]
-  const care = createStubCare(outcomeOf(answer))
+  const plans = createCarePlanRows({
+    plans: [plan],
+    steps,
+    plants: [{ id: plantId, name: testPlant.name, imageUrl: null }],
+  })
+  const care = createInMemoryCare(
+    [
+      createTestCarePlant(plantId, {
+        life: state === 'Dead' ? LifeState.Dead() : LifeState.Living(),
+        lines: [
+          createTestCareLine('watering', {
+            caredOn: state === 'CaredToday' ? [TEST_CARE_TODAY] : [],
+          }),
+        ],
+      }),
+    ],
+    { plans }
+  )
   const layer = Layer.mergeAll(
-    createMockCarePlanRepository({
-      plans: [plan],
-      steps,
-      plants: [{ id: plantId, name: testPlant.name, imageUrl: null }],
-    }),
+    plans.layer,
     createMockPlantRepository({ plants: [testPlant], schedules: [] }),
     createMockDelegationRepository({}),
     createMockCanopyRepository(),
@@ -91,10 +86,21 @@ const tick = (stepId: string) =>
     Effect.flatMap(completeCarePlanStep)
   )
 
+const untick = (stepId: string) =>
+  withCarePlanStep('plan-1', stepId, 'tick').pipe(
+    Effect.flatMap(uncompleteCarePlanStep)
+  )
+
 const stepOf = (
   plan: { readonly steps: ReadonlyArray<{ readonly id: string }> },
   stepId: string
 ) => Array.findFirst(plan.steps, (s) => s.id === stepId).pipe(Option.getOrThrow)
+
+const caresRecorded = (writes: ReadonlyArray<CareWrite>) =>
+  Array.filter(writes, (write) => write._tag === 'InsertCare')
+
+const wateringHistory = (care: ReturnType<typeof createInMemoryCare>) =>
+  care.plants.get(plantId)?.lines.get('watering')?.history ?? []
 
 describe('completeCarePlanStep', () => {
   it('ticks a free-text step without recording a care', async () => {
@@ -106,55 +112,61 @@ describe('completeCarePlanStep', () => {
       completedAt: expect.any(Date),
     })
     expect(plan.status).toBe('accepted')
-    expect(care.commands).toEqual([])
+    expect(caresRecorded(care.writes)).toEqual([])
   })
 
   it('records a care for today that names the step, for a care step', async () => {
     const { layer, care } = buildScenario()
 
-    await run(tick('step-water').pipe(Effect.provide(layer)))
+    const plan = await run(tick('step-water').pipe(Effect.provide(layer)))
 
-    expect(care.commands).toHaveLength(1)
-    expect(care.commands[0]).toMatchObject({
-      careType: 'watering',
-      on: { _tag: 'Today' },
-      planStep: { _tag: 'Step', id: 'step-water' },
-    })
-    expect(care.commands[0]?.permits[0]).toMatchObject({
+    const recorded = caresRecorded(care.writes)
+    expect(recorded).toHaveLength(1)
+    expect(recorded[0]).toMatchObject({
       plantId,
-      action: 'care',
-      actor: { _tag: 'User', userId },
+      careType: 'watering',
+      day: TEST_CARE_TODAY,
+      by: Option.some(userId),
+    })
+    expect(stepOf(plan, 'step-water')).toMatchObject({
+      completedAt: expect.any(Date),
+      careLogId: recorded[0]?.id,
     })
   })
 
-  it.each([
-    ['was already cared for today', 'AlreadyCared' as const],
-    ['is dead', 'Dead' as const],
-  ])(
-    'ticks a care step without a care when the plant %s',
-    async (_, answer) => {
-      const { layer } = buildScenario(answer)
+  it('ticks a care step without a care when the plant was already cared for today', async () => {
+    const { layer, care } = buildScenario('CaredToday')
 
-      const plan = await run(tick('step-water').pipe(Effect.provide(layer)))
+    const plan = await run(tick('step-water').pipe(Effect.provide(layer)))
 
-      const step = stepOf(plan, 'step-water')
-      expect(step).toMatchObject({ completedAt: expect.any(Date) })
-      expect(step).not.toHaveProperty('careLogId', expect.any(String))
+    const step = stepOf(plan, 'step-water')
+    expect(step).toMatchObject({ completedAt: expect.any(Date) })
+    expect(step).not.toHaveProperty('careLogId', expect.any(String))
+    expect(caresRecorded(care.writes)).toEqual([])
+  })
+
+  it('answers that the plan does not exist when the plant is dead, and leaves the step open (a change: it used to tick without a care)', async () => {
+    const { layer, care } = buildScenario('Dead')
+
+    const exit = await Effect.runPromiseExit(
+      tick('step-water').pipe(Effect.provide(layer))
+    )
+
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      expect(String(exit.cause)).toContain('CarePlanNotFoundError')
     }
-  )
+    expect(care.writes).toEqual([])
+  })
 
   it('completes the plan once the last step is done, and reopens on undo', async () => {
-    const { layer } = buildScenario('AlreadyCared')
+    const { layer } = buildScenario('CaredToday')
 
     const { completed, reopened } = await run(
       Effect.gen(function* () {
         yield* tick('step-check')
         const completed = yield* tick('step-water')
-        const reopened = yield* withCarePlanStep(
-          'plan-1',
-          'step-check',
-          'tick'
-        ).pipe(Effect.flatMap(uncompleteCarePlanStep))
+        const reopened = yield* untick('step-check')
         return { completed, reopened }
       }).pipe(Effect.provide(layer))
     )
@@ -166,7 +178,7 @@ describe('completeCarePlanStep', () => {
   })
 
   it('does nothing for a step that is already completed', async () => {
-    const { layer, care } = buildScenario('AlreadyCared')
+    const { layer, care } = buildScenario()
 
     const plan = await run(
       Effect.gen(function* () {
@@ -176,6 +188,45 @@ describe('completeCarePlanStep', () => {
     )
 
     expect(plan.steps).toHaveLength(2)
-    expect(care.commands).toHaveLength(1)
+    expect(caresRecorded(care.writes)).toHaveLength(1)
+    expect(
+      Array.filter(care.writes, (write) => write._tag === 'CompletePlanStep')
+    ).toHaveLength(1)
+  })
+
+  it('ticks a step of a plan that was never accepted, and leaves the plan proposed', async () => {
+    const { layer, care } = buildScenario('NotCaredToday', 'proposed')
+
+    const plan = await run(
+      Effect.gen(function* () {
+        yield* tick('step-check')
+        return yield* tick('step-water')
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(plan.status).toBe('proposed')
+    expect(
+      Array.every(plan.steps, (step) => step.completedAt instanceof Date)
+    ).toBe(true)
+    expect(caresRecorded(care.writes)).toHaveLength(1)
+  })
+
+  it('keeps the care a tick recorded when the step is unticked', async () => {
+    const { layer, care } = buildScenario()
+
+    const plan = await run(
+      Effect.gen(function* () {
+        yield* tick('step-water')
+        return yield* untick('step-water')
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(stepOf(plan, 'step-water')).not.toHaveProperty(
+      'completedAt',
+      expect.any(Date)
+    )
+    expect(wateringHistory(care)).toEqual([
+      expect.objectContaining({ day: TEST_CARE_TODAY }),
+    ])
   })
 })

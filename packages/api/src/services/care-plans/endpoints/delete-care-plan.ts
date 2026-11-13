@@ -1,20 +1,16 @@
-import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
-import type { CarePlan } from '@lily/shared/care-plan'
+import { CarePlans } from '@lily/api/contexts/care'
+import type { CarePlanContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { Effect } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
 
 // Deleting an accepted plan leaves any schedule adjustments made on accept in
 // place: the calendar already reflects the advice the user agreed to.
-/** `plan` comes from `withCarePlanAuth` in the handler. */
-export const deleteCarePlan = (
-  plan: CarePlan
-): Effect.Effect<{ message: string }, SqlError, CarePlanRepository> =>
+export const deleteCarePlan = ({ permit }: CarePlanContext<'manage'>) =>
   Effect.gen(function* () {
-    const repo = yield* CarePlanRepository
-    yield* repo.delete(plan.id, plan.userId)
-    return { message: `Care plan ${plan.id} deleted successfully` }
+    const carePlans = yield* CarePlans
+    yield* carePlans.delete({ permit })
+    return { message: `Care plan ${permit.planId} deleted successfully` }
   }).pipe(
     Effect.withSpan('CarePlansService.deleteCarePlan', {
-      attributes: { 'carePlan.id': plan.id },
+      attributes: { 'carePlan.id': permit.planId },
     })
   )

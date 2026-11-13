@@ -1,9 +1,10 @@
+import { storedDay } from '@lily/api/contexts/care/stored-day'
 import {
   type CareDay,
   CareDays,
   type CareStatus,
   type CareType,
-  dueDayAndStatus,
+  careStatus,
   type PlantHealthStatus,
 } from '@lily/shared'
 import { Array, type DateTime } from 'effect'
@@ -12,12 +13,13 @@ export interface StoredSchedule {
   readonly careType: CareType
   readonly frequencyDays: number
   readonly lastCareAt: Date | null
-  readonly nextCareAt: Date | null
+  readonly nextCareAt: Date
+  readonly dueDay: string | null
 }
 
 export interface SeenSchedule extends StoredSchedule {
-  readonly dueDay: CareDay | null
-  readonly status: CareStatus | null
+  readonly dueDay: CareDay
+  readonly status: CareStatus
 }
 
 export interface PlantCare {
@@ -28,16 +30,14 @@ export interface PlantCare {
 }
 
 const isOverdue = (schedule: SeenSchedule): boolean =>
-  schedule.status?._tag === 'Overdue'
+  schedule.status._tag === 'Overdue'
 
 export const hasOverdueCare = (plant: {
   readonly schedules: ReadonlyArray<SeenSchedule>
 }): boolean => Array.some(plant.schedules, isOverdue)
 
-/** The health a plant can be stored with. */
 export type PlantCondition = Exclude<PlantHealthStatus, 'NEEDS_ATTENTION'>
 
-// Rows written before health became derived can still hold the old value.
 const storedCondition = (health: PlantHealthStatus): PlantCondition =>
   health === 'NEEDS_ATTENTION' ? 'HEALTHY' : health
 
@@ -57,19 +57,21 @@ const see = (
   careTimezone: string,
   now: DateTime.DateTime
 ): PlantCare => {
-  const seen = Array.map(
-    schedules,
-    (schedule): SeenSchedule => ({
+  const today = CareDays.today(careTimezone, now)
+  const seen = Array.map(schedules, (schedule): SeenSchedule => {
+    const dueDay = storedDay(schedule.dueDay, schedule.nextCareAt, careTimezone)
+    return {
       careType: schedule.careType,
       frequencyDays: schedule.frequencyDays,
       lastCareAt: schedule.lastCareAt,
       nextCareAt: schedule.nextCareAt,
-      ...dueDayAndStatus(schedule.nextCareAt, careTimezone, now),
-    })
-  )
+      dueDay,
+      status: careStatus(dueDay, today),
+    }
+  })
   return {
     careTimezone,
-    today: CareDays.today(careTimezone, now),
+    today,
     schedules: seen,
     health: seenHealth(
       storedCondition(health),

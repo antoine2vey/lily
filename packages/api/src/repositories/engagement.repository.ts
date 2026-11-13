@@ -385,6 +385,7 @@ export const EngagementRepositoryLive = Layer.effect(
             frequencyDays: plantCareSchedules.frequencyDays,
             lastCareAt: plantCareSchedules.lastCareAt,
             nextCareAt: plantCareSchedules.nextCareAt,
+            dueDay: plantCareSchedules.dueDay,
           })
           .from(plants)
           .leftJoin(
@@ -402,7 +403,9 @@ export const EngagementRepositoryLive = Layer.effect(
               Array.filter(
                 plantRows,
                 (row): row is typeof row & StoredSchedule =>
-                  row.careType !== null && row.frequencyDays !== null
+                  row.careType !== null &&
+                  row.frequencyDays !== null &&
+                  row.nextCareAt !== null
               ),
               plantRows[0].careTimezone,
               now

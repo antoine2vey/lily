@@ -10,7 +10,10 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { PlantAction } from '@lily/api/services/plants/helpers/plant-access'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import {
+  withPlantAuth,
+  withPlantKnowledge,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
@@ -183,5 +186,31 @@ describe('withPlantAuth', () => {
     expect(failureOf(exit)).toEqual(
       new PlantNotFoundError({ plantId: 'canopy-plant' })
     )
+  })
+})
+
+describe('withPlantKnowledge', () => {
+  it('gives a permit for the checked action, in the name of the caller', async () => {
+    const { permit } = await Effect.runPromise(
+      withPlantKnowledge('canopy-plant', 'chat').pipe(
+        Effect.provide(layerFor(lily))
+      )
+    )
+
+    expect(permit).toEqual({
+      plantId: 'canopy-plant',
+      action: 'chat',
+      actor: { _tag: 'User', userId: lily },
+    })
+  })
+
+  it('gives no permit to someone who cannot reach the plant', async () => {
+    const exit = await Effect.runPromiseExit(
+      withPlantKnowledge('alex-plant', 'chat').pipe(
+        Effect.provide(layerFor(sam))
+      )
+    )
+
+    expect(failureOf(exit)).toBeInstanceOf(PlantNotFoundError)
   })
 })

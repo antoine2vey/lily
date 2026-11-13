@@ -24,6 +24,17 @@ const DELIVERY = [
 
 const CANOPY_STORE = 'contexts/canopy/store.ts'
 
+const CARE_STORE = 'contexts/care/store.ts'
+
+const OWNER_LOCK = 'services/plants/helpers/owner-lock.ts'
+
+const PLANT_LIFE_ENDPOINTS = [
+  'services/plants/endpoints/create-plant.ts',
+  'services/plants/endpoints/mark-plant-dead.ts',
+  'services/plants/endpoints/revive-plant.ts',
+  'services/plants/endpoints/delete-plant.ts',
+]
+
 const CANOPY_CODE = [
   'contexts/canopy/',
   'services/canopy/',
@@ -153,7 +164,7 @@ describe('bounded contexts', () => {
         (graph.get(file) ?? []).some(
           (imported) =>
             imported.target === join(SRC, 'kernel/permit.ts') &&
-            /\bmintPermit\b/.test(imported.names)
+            /\bmint\w*Permit\b/.test(imported.names)
         )
       )
       .map(name)
@@ -184,7 +195,56 @@ describe('bounded contexts', () => {
       .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
       .map(name)
 
-    expect(writers).toEqual(['contexts/care/store.ts'])
+    expect(writers).toEqual([CARE_STORE])
+  })
+
+  it('leave care plans and their steps to the Care store', () => {
+    const WRITES =
+      /\.(insert|update|delete)\(\s*(schema\.)?(carePlans|carePlanSteps)\s*\)|(insert into|update|delete from)\s+"?(care_plans|care_plan_steps)\b/i
+    const writers = files
+      .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
+      .map(name)
+
+    expect(writers).toEqual([CARE_STORE])
+  })
+
+  it('leave the creation, the death, the revival and the removal of a plant to the Care store', () => {
+    const WRITES =
+      /\.(insert|delete)\(\s*(schema\.)?plants\s*\)|\.set\(\s*\{[^}]*\bdiedAt\b|(insert into|delete from)\s+"?plants\b|\bset\s+"?died_at"?\s*=/i
+    const writers = files
+      .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
+      .map(name)
+
+    expect(writers).toEqual([CARE_STORE])
+  })
+
+  it('let the plant life endpoints tell Reminders and the app nothing themselves', () => {
+    const tellers = PLANT_LIFE_ENDPOINTS.filter((endpoint) =>
+      (graph.get(join(SRC, endpoint)) ?? []).some(
+        (imported) =>
+          contextOf(imported.target) === 'reminders' ||
+          imported.target === join(SRC, 'events/index.ts')
+      )
+    )
+
+    expect(
+      PLANT_LIFE_ENDPOINTS.filter((endpoint) => !graph.has(join(SRC, endpoint)))
+    ).toEqual([])
+    expect(tellers).toEqual([])
+  })
+
+  it('take the proof of a held owner from the owner lock only', () => {
+    const minters = files
+      .filter((file) =>
+        (graph.get(file) ?? []).some(
+          (imported) =>
+            imported.target === join(SRC, 'kernel/owner.ts') &&
+            /\bmintOwnerHeld\b/.test(imported.names)
+        )
+      )
+      .map(name)
+
+    expect(minters).toEqual([OWNER_LOCK])
   })
 
   it('leave reminder rows, their locks and their planning to Reminders', () => {
@@ -231,7 +291,7 @@ describe('bounded contexts', () => {
 
     expect(matching(OWNER_COLUMNS)).toEqual([
       CANOPY_STORE,
-      'repositories/plant.repository.ts',
+      CARE_STORE,
       'repositories/room.repository.ts',
     ])
     expect(matching(SETS_OWNER)).toEqual([CANOPY_STORE])
@@ -331,6 +391,24 @@ describe('bounded contexts', () => {
       [...seen]
         .filter((file) =>
           ['canopy', 'reminders'].includes(contextOf(file) ?? '')
+        )
+        .map(name)
+    ).toEqual([])
+  })
+
+  it('keep Care loadable without Canopy, Absence or Reminders', () => {
+    const seen = new Set<string>()
+    const visit = (file: string) => {
+      if (seen.has(file)) return
+      seen.add(file)
+      for (const imported of graph.get(file) ?? []) visit(imported.target)
+    }
+    visit(join(CONTEXTS, 'care', 'index.ts'))
+
+    expect(
+      [...seen]
+        .filter((file) =>
+          ['canopy', 'absence', 'reminders'].includes(contextOf(file) ?? '')
         )
         .map(name)
     ).toEqual([])

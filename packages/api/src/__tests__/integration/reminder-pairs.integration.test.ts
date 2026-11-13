@@ -4,9 +4,13 @@ import {
 } from '@lily/api/__tests__/integration/absence-layers'
 import { delivered, leave } from '@lily/api/__tests__/integration/canopy-layers'
 import {
+  buryAsCurrentUser,
   drainOutbox,
+  removeAsCurrentUser,
+  reviveAsCurrentUser,
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -18,7 +22,12 @@ import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import type { Absence } from '@lily/api/contexts/absence'
 import { Canopy, hashInviteToken, JoinVia } from '@lily/api/contexts/canopy'
-import { Care, CareReadsLive, frequencyOfDays } from '@lily/api/contexts/care'
+import {
+  Care,
+  CareReadsLive,
+  frequencyOfDays,
+  type PlantLife,
+} from '@lily/api/contexts/care'
 import { replanPlants } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { Actor, mintPermit } from '@lily/api/kernel/permit'
@@ -30,11 +39,7 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import {
-  PlantRepository,
-  PlantRepositoryLive,
-  type PlantWithRoom,
-} from '@lily/api/repositories/plant.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
@@ -43,13 +48,10 @@ import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-ca
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
-import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
-import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
 import {
   mutePlant,
   unmutePlant,
 } from '@lily/api/services/plants/endpoints/mute-plant'
-import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-plant-with-canopy'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
@@ -113,6 +115,7 @@ type App =
   | Layer.Success<ReturnType<typeof mocksAs>>
   | Outbox
   | Care
+  | PlantLife
   | Canopy
   | Absence
 
@@ -141,16 +144,6 @@ type Act = readonly [
   effect: Effect.Effect<unknown, unknown, App>,
 ]
 
-const on = <A, E>(
-  plantId: string,
-  act: (plant: PlantWithRoom) => Effect.Effect<A, E, App>
-) =>
-  Effect.flatMap(PlantRepository, (repo) => repo.findById(plantId)).pipe(
-    Effect.flatMap((found) =>
-      found === null ? Effect.die(`no plant ${plantId}`) : act(found)
-    )
-  )
-
 const JOIN_TOKEN = 'join-the-flat'
 
 const TRIGGERS: ReadonlyArray<
@@ -173,14 +166,8 @@ const TRIGGERS: ReadonlyArray<
       ),
     ],
   ],
-  [
-    'bury',
-    (w) => [
-      w.alex,
-      on(w.sharedPlant, (p) => markPlantDead(p, { cause: 'unknown' })),
-    ],
-  ],
-  ['revive', (w) => [w.alex, on(w.deadPlant, revivePlant)]],
+  ['bury', (w) => [w.alex, buryAsCurrentUser(w.sharedPlant)]],
+  ['revive', (w) => [w.alex, reviveAsCurrentUser(w.deadPlant)]],
   [
     'mute',
     (w) => [
@@ -255,7 +242,7 @@ const TRIGGERS: ReadonlyArray<
   ['account purge', (w) => [w.alex, purgeAccount(w.sam)]],
   ['overdue pass', (w) => [w.alex, checkAndCreateOverdueReminders]],
   ['a replan', (w) => [w.alex, replanPlants(w.plants)]],
-  ['plant deleted', (w) => [w.alex, on(w.sharedPlant, deletePlant)]],
+  ['plant deleted', (w) => [w.alex, removeAsCurrentUser(w.sharedPlant)]],
 ]
 
 const tableOf = (failure: unknown) =>
@@ -417,14 +404,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         tendedPlant,
       ]
       await db.insert(schema.plantCareSchedules).values(
-        Array.map(plants, (plantId) => ({
-          plantId,
-          careType: 'watering' as const,
-          frequencyDays: 7,
-          nextCareAt: new Date(
+        Array.map(plants, (plantId) => {
+          const nextCareAt = new Date(
             Date.now() + (plantId === overduePlant ? -2 : 3) * DAY_MS
-          ),
-        }))
+          )
+          return {
+            plantId,
+            careType: 'watering' as const,
+            frequencyDays: 7,
+            nextCareAt,
+            dueDay: careDayOf(nextCareAt),
+          }
+        })
       )
       await db
         .insert(schema.canopyPlantMutes)

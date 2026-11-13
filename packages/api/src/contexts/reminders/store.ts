@@ -61,7 +61,6 @@ export type StoreContext =
   | CareReads
   | SqlClient.SqlClient
 
-/** What may have gone stale, in the form a replan request is stored in. */
 export const DirtySchema = Schema.TaggedUnion({
   /** Every slot of these plants. */
   Plants: { plantIds: Schema.Array(Schema.String) },
@@ -78,9 +77,7 @@ export const Dirty = Data.taggedEnum<Dirty>()
 
 export interface Loaded {
   readonly now: DateTime.Utc
-  /** One entry per plant that still exists. A deleted plant's rows went with it. */
   readonly plants: ReadonlyArray<PlantState>
-  /** Every audience member whose account exists. */
   readonly recipients: ReadonlyMap<string, Recipient>
 }
 
@@ -105,7 +102,6 @@ type RecipientRow = Pick<
   'id' | 'status' | keyof VacationFields | (typeof RECIPIENT_SETTINGS)[number]
 >
 
-/** The plants a `Dirty` names right now. Takes no lock. */
 export const plantsOf = (
   dirty: Dirty
 ): Effect.Effect<
@@ -336,10 +332,6 @@ const loadWithAccounts = (
     return { loaded, accounts }
   })
 
-/**
- * Reads everything the rule plans from, for these plants, and locks it until
- * the transaction ends. Must run in a transaction.
- */
 export const load = (
   plantIds: ReadonlyArray<string>
 ): Effect.Effect<Loaded, SqlError, StoreContext> =>
@@ -348,14 +340,6 @@ export const load = (
     Effect.withSpan('ReminderStore.load')
   )
 
-/**
- * Reads what one recipient's overdue digest is planned from: `load` with the
- * same locks in the same order, the recipient's account locked with the
- * audience, then whether they were already reminded on their day. None when
- * the account is gone. Must run in a transaction.
- *
- * `roll` draws the slot within the day; see `pickNotificationTime`.
- */
 export const loadDigest = (
   recipientId: string,
   plantIds: ReadonlyArray<string>,
@@ -400,12 +384,6 @@ export const loadDigest = (
     })
   }).pipe(Effect.withSpan('ReminderStore.loadDigest'))
 
-/**
- * Writes a plan in one transaction. A removal skips a row a worker took in
- * the meantime. A put over a row re-times it only while it is pending and
- * not retried; a put of a new row is skipped when any row of the slot already
- * carries the occasion.
- */
 export const apply = (
   changes: ReadonlyArray<Change>
 ): Effect.Effect<

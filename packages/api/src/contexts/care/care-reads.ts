@@ -1,3 +1,4 @@
+import { dueOnOrBefore, storedDay } from '@lily/api/contexts/care/stored-day'
 import { caredForBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
@@ -18,7 +19,7 @@ import {
   type PlantOwner,
   type PlantSharer,
 } from '@lily/shared'
-import { and, eq, inArray, isNotNull, lt } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import {
   Array,
@@ -26,7 +27,6 @@ import {
   Data,
   DateTime,
   Effect,
-  Filter,
   Layer,
   Match,
   Option,
@@ -84,7 +84,13 @@ export interface ScheduledCare {
   readonly careType: CareType
   readonly frequencyDays: number
   readonly dueAt: Date
+  readonly dueDay: CareDay
   readonly careTimezone: string
+}
+
+export interface DuePrune {
+  readonly day: CareDay
+  readonly undatedBefore: Date
 }
 
 export interface DueQuery {
@@ -132,12 +138,8 @@ export const seeDue = (
   pipe(
     schedules,
     Array.map((schedule): DueCare => {
-      const dueDay = CareDays.of(
-        DateTime.makeUnsafe(schedule.dueAt),
-        schedule.careTimezone
-      )
       const today = CareDays.today(schedule.careTimezone, now)
-      return { ...schedule, dueDay, today, status: careStatus(dueDay, today) }
+      return { ...schedule, today, status: careStatus(schedule.dueDay, today) }
     }),
     Array.filter((care) => admits(upTo, care.status)),
     Array.sort(dueCareOrder)
@@ -145,29 +147,35 @@ export const seeDue = (
 
 const LONGEST_LOCAL_DAY_HOURS = 25
 const DST_SHIFT_HOURS = 1
-// A care admitted by the window is due before the end of a local day that
-// started at or before now, give or take one clock change inside the window.
-const PRUNE_SLACK_HOURS = LONGEST_LOCAL_DAY_HOURS + DST_SHIFT_HOURS
+const UNDATED_ROW_SLACK_HOURS = LONGEST_LOCAL_DAY_HOURS + DST_SHIFT_HOURS
 
-export const pruneCutoff = (
+// No timezone is ahead of UTC+14, so no plant's today is later than this one.
+const FURTHEST_AHEAD_TIMEZONE = 'Etc/GMT-14'
+
+export const duePrune = (
   upTo: BoundedWindow,
   now: DateTime.DateTime
-): Date =>
-  DateTime.toDateUtc(
-    DateTime.add(now, { days: daysAhead(upTo), hours: PRUNE_SLACK_HOURS })
-  )
+): DuePrune => ({
+  day: CareDays.addDays(
+    CareDays.today(FURTHEST_AHEAD_TIMEZONE, now),
+    daysAhead(upTo)
+  ),
+  undatedBefore: DateTime.toDateUtc(
+    DateTime.add(now, { days: daysAhead(upTo), hours: UNDATED_ROW_SLACK_HOURS })
+  ),
+})
 
 export const makeCareReads = (
   load: (
     scope: DueScope,
-    dueBefore: Option.Option<Date>
+    prune: Option.Option<DuePrune>
   ) => Effect.Effect<ReadonlyArray<ScheduledCare>, SqlError>
 ): CareReads['Service'] => ({
   due: Effect.fn('CareReads.due')(function* ({ scope, upTo }: DueQuery) {
     const now = yield* DateTime.now
     const schedules = yield* load(
       scope,
-      upTo._tag === 'Any' ? Option.none() : Option.some(pruneCutoff(upTo, now))
+      upTo._tag === 'Any' ? Option.none() : Option.some(duePrune(upTo, now))
     )
     return seeDue(schedules, upTo, now)
   }),
@@ -187,7 +195,7 @@ export const CareReadsLive = Layer.effect(
         Plants: ({ plantIds }) => inArray(plants.id, [...plantIds]),
       })
 
-    return makeCareReads((scope, dueBefore) =>
+    return makeCareReads((scope, prune) =>
       Effect.gen(function* () {
         if (
           scope._tag === 'Plants' &&
@@ -199,6 +207,7 @@ export const CareReadsLive = Layer.effect(
             careType: plantCareSchedules.careType,
             frequencyDays: plantCareSchedules.frequencyDays,
             dueAt: plantCareSchedules.nextCareAt,
+            dueDay: plantCareSchedules.dueDay,
             plant: {
               id: plants.id,
               name: plants.name,
@@ -229,41 +238,37 @@ export const CareReadsLive = Layer.effect(
             and(
               inScope(scope),
               isLivingPlant(),
-              isNotNull(plantCareSchedules.nextCareAt),
-              Option.match(dueBefore, {
+              Option.match(prune, {
                 onNone: () => undefined,
-                onSome: (cutoff) => lt(plantCareSchedules.nextCareAt, cutoff),
+                onSome: ({ day, undatedBefore }) =>
+                  dueOnOrBefore(day, undatedBefore),
               })
             )
           )
-        return Array.filterMap(
-          rows,
-          Filter.fromPredicateOption((row) =>
-            Option.map(
-              Option.fromNullishOr(row.dueAt),
-              (dueAt): ScheduledCare => ({
-                careType: row.careType,
-                frequencyDays: row.frequencyDays,
-                dueAt,
-                careTimezone: pipe(
-                  Option.fromNullishOr(row.canopyTimezone),
-                  Option.orElse(() => Option.fromNullishOr(row.userTimezone)),
-                  Option.getOrElse(() => 'UTC')
-                ),
-                plant: {
-                  id: row.plant.id,
-                  name: row.plant.name,
-                  imageUrl: row.plant.imageUrl,
-                  owner: ownerOf(row.plant),
-                  remindersEnabled: row.plant.remindersEnabled,
-                  dateAdded: row.plant.dateAdded,
-                  room: row.room,
-                  sharedBy: row.sharedBy,
-                },
-              })
-            )
+        return Array.map(rows, (row): ScheduledCare => {
+          const careTimezone = pipe(
+            Option.fromNullishOr(row.canopyTimezone),
+            Option.orElse(() => Option.fromNullishOr(row.userTimezone)),
+            Option.getOrElse(() => 'UTC')
           )
-        )
+          return {
+            careType: row.careType,
+            frequencyDays: row.frequencyDays,
+            dueAt: row.dueAt,
+            dueDay: storedDay(row.dueDay, row.dueAt, careTimezone),
+            careTimezone,
+            plant: {
+              id: row.plant.id,
+              name: row.plant.name,
+              imageUrl: row.plant.imageUrl,
+              owner: ownerOf(row.plant),
+              remindersEnabled: row.plant.remindersEnabled,
+              dateAdded: row.plant.dateAdded,
+              room: row.room,
+              sharedBy: row.sharedBy,
+            },
+          }
+        })
       })
     )
   })

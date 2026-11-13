@@ -49,12 +49,6 @@ export interface ReminderAudiencePlant {
   dateAdded: Date
 }
 
-export interface UpsertScheduleData {
-  frequencyDays: number
-  lastCareAt?: Date | null
-  nextCareAt?: Date | null
-}
-
 // Repository interface
 export interface ICareScheduleRepository {
   readonly findByPlantAndType: (

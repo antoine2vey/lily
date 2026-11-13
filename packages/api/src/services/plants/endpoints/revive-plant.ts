@@ -1,86 +1,63 @@
 import type { Canopy } from '@lily/api/contexts/canopy'
-import { Dirty, Reminders } from '@lily/api/contexts/reminders'
-import { EventBus, publishWithRetry } from '@lily/api/events'
+import { OwnerRoom, PlantLife } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
+import type { PlantPermit } from '@lily/api/kernel/permit'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
-import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
 import {
-  PlantNotDeadError,
+  type PlantNotDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * "Bring back": clear the death columns and ask Reminders to plan from the
- * schedule rows that survived burial. Only future due dates get a reminder;
- * past ones are left for the overdue scheduler, so a neglected plant comes
- * back overdue rather than magically fresh.
- */
 export const revivePlant = (
   plant: PlantWithRoom,
+  permit: PlantPermit<'revive'>,
   requestedId: string = plant.id
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantNotDeadError | LimitExceededError,
   | PlantRepository
+  | PlantLife
   | LimitChecker
-  | EventBus
   | CurrentUser
   | SqlClient.SqlClient
   | Outbox
   | Canopy
 > =>
   Effect.gen(function* () {
-    if (plant.diedAt === null) {
-      return yield* new PlantNotDeadError()
-    }
-
+    const life = yield* PlantLife
     const repo = yield* PlantRepository
     const limitChecker = yield* LimitChecker
-    const eventBus = yield* EventBus
-    const { id: userId } = yield* CurrentUser
+    const notFound = () =>
+      Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
 
-    // A revived plant takes a slot again; free users at the cap are paywalled
-    // exactly like on create, so bury-then-revive is not a way around it.
-    yield* withOwnerLock(plant.owner)(
+    yield* withOwnerLock(plant.owner)((held) =>
       Effect.gen(function* () {
-        const current = yield* reloadOwnedPlant(plant, requestedId)
-        if (current.diedAt === null) {
-          return yield* new PlantNotDeadError()
-        }
-        yield* limitChecker.checkPlantLimit(plant.owner)
-        const updated = yield* repo.revive(plant.id, plant.owner)
-        if (!updated) {
-          return yield* new PlantNotFoundError({ plantId: requestedId })
-        }
-        yield* Reminders.request(Dirty.Plants({ plantIds: [updated.id] }))
+        const room = yield* limitChecker.checkPlantLimit(held.owner).pipe(
+          Effect.as(OwnerRoom.Room()),
+          Effect.catchTag('LimitExceededError', (error) =>
+            Effect.succeed(OwnerRoom.Full({ error }))
+          )
+        )
+        yield* life.revive({ permit, held, room })
       })
     ).pipe(
-      Effect.catchTag('CanopyNotFoundError', () =>
-        Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
-      )
-    )
-
-    yield* publishWithRetry(
-      eventBus.publish({
-        _tag: 'PlantLifecycleChanged',
-        userId,
-        plantId: plant.id,
-      })
+      Effect.catchTag('CanopyNotFoundError', notFound),
+      Effect.catchTag('PlantNotFoundError', notFound)
     )
 
     const fresh = yield* repo.findById(plant.id)
     if (!fresh) {
-      return yield* new PlantNotFoundError({ plantId: requestedId })
+      return yield* notFound()
     }
     return fresh
   }).pipe(

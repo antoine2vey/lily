@@ -4,10 +4,11 @@ import {
   makeCareReads,
   type ScheduledCare,
 } from '@lily/api/contexts/care'
+import { storedDay } from '@lily/api/contexts/care/stored-day'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
 import type { plants } from '@lily/db/schema'
-import { CARE_TYPES, type CareType } from '@lily/shared'
+import { CARE_TYPES, CareDays, type CareType } from '@lily/shared'
 import {
   Array,
   DateTime,
@@ -39,6 +40,7 @@ const dueToday = (
   careType,
   frequencyDays: 7,
   dueAt,
+  dueDay: CareDays.of(DateTime.makeUnsafe(dueAt), 'UTC'),
   careTimezone: 'UTC',
   plant: {
     id: plantId,
@@ -94,7 +96,7 @@ export const createMockCareReads = (
 
   return Layer.succeed(
     CareReads,
-    makeCareReads((scope, dueBefore) =>
+    makeCareReads((scope, prune) =>
       Effect.flatMap(
         Effect.succeed(
           Array.filterMap(
@@ -108,22 +110,27 @@ export const createMockCareReads = (
                 Option.filter((p) => p.diedAt === null && inScope(scope)(p)),
                 Option.flatMap((plant) =>
                   pipe(
-                    Option.fromNullishOr(schedule.nextCareAt),
+                    Option.some(schedule.nextCareAt),
                     Option.filter((dueAt) =>
-                      Option.match(dueBefore, {
+                      Option.match(prune, {
                         onNone: () => true,
-                        onSome: (cutoff) => dueAt < cutoff,
+                        onSome: ({ day, undatedBefore }) =>
+                          schedule.dueDay === null
+                            ? dueAt < undatedBefore
+                            : schedule.dueDay <= day,
                       })
                     ),
                     Option.map((dueAt): ScheduledCare => {
                       const owner = ownerOf(plant)
                       const ownerId =
                         owner._tag === 'User' ? owner.userId : owner.canopyId
+                      const careTimezone = data.timezones?.[ownerId] ?? 'UTC'
                       return {
                         careType: schedule.careType,
                         frequencyDays: schedule.frequencyDays,
                         dueAt,
-                        careTimezone: data.timezones?.[ownerId] ?? 'UTC',
+                        dueDay: storedDay(schedule.dueDay, dueAt, careTimezone),
+                        careTimezone,
                         plant: {
                           id: plant.id,
                           name: plant.name,

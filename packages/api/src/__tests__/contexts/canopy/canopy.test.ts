@@ -1584,7 +1584,11 @@ describe('Canopy', () => {
 
         expect(deleted).toBe('deleted')
         expect(world.plans).toEqual([
-          { ...ending('sam'), absenceOf: Option.some('sam') },
+          {
+            ...ending('sam'),
+            absenceOf: Option.some('sam'),
+            plants: PlantScope.Leaver({ userId: 'sam' }),
+          },
         ])
         expect(world.writes).toEqual([])
       })
@@ -1595,7 +1599,11 @@ describe('Canopy', () => {
         await run(world, deleting('lily', Effect.void))
 
         expect(world.plans).toEqual([
-          { ...ending('lily'), absenceOf: Option.some('lily') },
+          {
+            ...ending('lily'),
+            absenceOf: Option.some('lily'),
+            plants: PlantScope.Leaver({ userId: 'lily' }),
+          },
         ])
         expect(Array.map(world.store.members, (m) => m.userId)).toEqual([
           'alex',

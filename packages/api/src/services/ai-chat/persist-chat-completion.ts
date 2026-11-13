@@ -1,5 +1,5 @@
+import { CarePlans } from '@lily/api/contexts/care'
 import { EventBus, publishWithRetry } from '@lily/api/events'
-import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { AiService } from '@lily/api/services/ai/service'
@@ -86,16 +86,12 @@ export const persistChatCompletion = (
 ): Effect.Effect<
   void,
   SqlError,
-  | ChatRepository
-  | DiagnosisRepository
-  | CarePlanRepository
-  | EventBus
-  | AiService
+  ChatRepository | DiagnosisRepository | CarePlans | EventBus | AiService
 > =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const diagnosisRepo = yield* DiagnosisRepository
-    const carePlanRepo = yield* CarePlanRepository
+    const carePlans = yield* CarePlans
     const eventBus = yield* EventBus
     const { conversation, userId, userMessage, steps } = params
 
@@ -230,8 +226,8 @@ export const persistChatCompletion = (
       )
       yield* Effect.forEach(
         createdCarePlanIds,
-        (carePlanId) =>
-          carePlanRepo.linkChatMessage(carePlanId, userMessageDbId),
+        (planId) =>
+          carePlans.linkToMessage({ planId, chatMessageId: userMessageDbId }),
         { discard: true }
       )
     }

@@ -1,3 +1,4 @@
+import type { Plan } from '@lily/api/contexts/care/domain/plan'
 import type { CareDay, CareType, PlantOwner } from '@lily/shared'
 import { Data, DateTime, Option, Schema } from 'effect'
 
@@ -11,11 +12,11 @@ export type Frequency = typeof Frequency.Type
 export const frequencyOfDays = (days: number): Frequency =>
   Frequency.make(Math.max(1, Math.trunc(days)))
 
-export type PlantLife = Data.TaggedEnum<{
+export type LifeState = Data.TaggedEnum<{
   Living: Record<never, never>
   Dead: Record<never, never>
 }>
-export const PlantLife = Data.taggedEnum<PlantLife>()
+export const LifeState = Data.taggedEnum<LifeState>()
 
 export interface Schedule {
   readonly frequency: Frequency
@@ -34,22 +35,29 @@ export interface CareLine {
   readonly history: ReadonlyArray<CareEntry>
 }
 
-export interface OpenPlanStep {
-  readonly id: string
-  readonly planId: string
-  readonly planAccepted: boolean
-  readonly careType: Option.Option<CareType>
-}
-
 export interface CarePlant {
   readonly id: string
   readonly owner: PlantOwner
-  readonly life: PlantLife
+  readonly life: LifeState
   readonly timezone: string
   readonly today: CareDay
   readonly needsAttention: boolean
   readonly lines: ReadonlyMap<CareType, CareLine>
-  readonly openPlanSteps: ReadonlyArray<OpenPlanStep>
+  readonly plans: ReadonlyArray<Plan>
+}
+
+export interface PlantDraft {
+  readonly name: string
+  readonly description: Option.Option<string>
+  readonly category: Option.Option<string>
+  readonly imageUrl: Option.Option<string>
+  readonly humidityRating: number
+  readonly lightingRating: number
+  readonly petToxicityRating: number
+  readonly wateringRating: number
+  readonly potWidthCm: Option.Option<number>
+  readonly potHeightCm: Option.Option<number>
+  readonly roomId: Option.Option<string>
 }
 
 export type CareWhen = Data.TaggedEnum<{

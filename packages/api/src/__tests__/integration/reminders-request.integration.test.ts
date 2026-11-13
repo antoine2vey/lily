@@ -1,3 +1,4 @@
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { CareReadsLive, CareTopic } from '@lily/api/contexts/care'
 import {
@@ -117,12 +118,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           }))
         )
         .returning({ id: schema.plants.id })
+      const dueAt = new Date(Date.now() + dueInDays * DAY_MS)
       await db.insert(schema.plantCareSchedules).values(
         Array.map(rows, (row) => ({
           plantId: row.id,
           careType: 'watering' as const,
           frequencyDays: 7,
-          nextCareAt: new Date(Date.now() + dueInDays * DAY_MS),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         }))
       )
       return Array.map(rows, (row) => row.id)

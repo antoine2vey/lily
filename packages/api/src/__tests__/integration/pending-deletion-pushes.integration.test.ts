@@ -3,6 +3,7 @@ import {
   delivered,
   settled,
 } from '@lily/api/__tests__/integration/canopy-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -153,6 +154,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careType: 'watering',
         frequencyDays: 7,
         nextCareAt,
+        dueDay: careDayOf(nextCareAt),
       })
       return plant
     }
@@ -873,11 +875,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
           .returning()
         if (!plant) throw new Error('plant insert returned nothing')
+        const dueAt = new Date(Date.now() - 2 * DAY)
         await db.insert(schema.plantCareSchedules).values({
           plantId: plant.id,
           careType: 'watering',
           frequencyDays: 7,
-          nextCareAt: new Date(Date.now() - 2 * DAY),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         })
         const { run } = pipeline(active)
 

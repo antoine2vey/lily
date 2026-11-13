@@ -20,12 +20,6 @@ const saidByScheduleChanged: ReadonlyArray<Dirty> = []
 
 const saidByPlantsMoved: ReadonlyArray<Dirty> = []
 
-/**
- * What a Care event may have made stale. The event only names the plant: the
- * replan reads current state, so a redelivered or reordered event converges
- * on the same reminders. A new Care event does not compile until it has an
- * arm here.
- */
 export const staleAfterCare: (event: CareEvent) => ReadonlyArray<Dirty> =
   Match.type<CareEvent>().pipe(
     Match.tagsExhaustive({

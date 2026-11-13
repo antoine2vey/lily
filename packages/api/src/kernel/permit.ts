@@ -50,3 +50,27 @@ export const actingUserId = (permit: PlantPermit<PlantAction>): string | null =>
     User: ({ userId }) => userId,
     System: () => null,
   })
+
+export type PlanAction = 'manage' | 'tick'
+
+declare const PlanPermitBrand: unique symbol
+
+/**
+ * Proof that `by` may perform `action` on the care plan `planId`, which the
+ * access check found on the plant `plantId`.
+ */
+export interface PlanPermit<A extends PlanAction> {
+  readonly planId: string
+  readonly plantId: string
+  readonly action: A
+  readonly by: string
+  readonly [PlanPermitBrand]: A
+}
+
+/** Only access modules may call this, after the role check has passed. */
+export const mintPlanPermit = <A extends PlanAction>(
+  plan: { readonly id: string; readonly plantId: string },
+  action: A,
+  by: string
+): PlanPermit<A> =>
+  ({ planId: plan.id, plantId: plan.plantId, action, by }) as PlanPermit<A>

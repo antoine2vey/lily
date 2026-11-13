@@ -3,14 +3,18 @@ import {
   type CareLine,
   type CarePlant,
   frequencyOfDays,
-  type OpenPlanStep,
-  PlantLife,
+  LifeState,
   type Schedule,
 } from '@lily/api/contexts/care/domain/care-plant'
 import { CareWrite } from '@lily/api/contexts/care/domain/decide'
+import type { Plan, PlanStep } from '@lily/api/contexts/care/domain/plan'
 import { seePlantCare } from '@lily/api/contexts/care/plant-care'
+import { storedDay } from '@lily/api/contexts/care/stored-day'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
-import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
+import {
+  ownerColumns,
+  ownerOf,
+} from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantForAdjustment } from '@lily/api/services/weather/algorithm'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -23,17 +27,25 @@ import {
   rooms,
   users,
 } from '@lily/db/schema'
-import { CARE_TYPES, CareDays, type CareType } from '@lily/shared'
-import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import {
+  CARE_TYPES,
+  CareDays,
+  type CareType,
+  type PlantOwner,
+} from '@lily/shared'
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
+  Data,
   DateTime,
   Effect,
   Layer,
+  Match,
   Option,
   Order,
   pipe,
+  Record,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -56,9 +68,16 @@ export class CareStore extends Context.Service<
     readonly careLogKey: (
       careLogId: string
     ) => Effect.Effect<Option.Option<CareLogKey>, SqlError>
+    readonly careTypesOfPlan: (
+      planId: string
+    ) => Effect.Effect<ReadonlyArray<CareType>, SqlError>
+    readonly careTimezoneOf: (
+      owner: PlantOwner
+    ) => Effect.Effect<string, SqlError>
     readonly lockAndLoad: (
       plantIds: ReadonlyArray<string>,
-      careTypes: ReadonlyArray<CareType>
+      careTypes: ReadonlyArray<CareType>,
+      lock?: PlantRowLock
     ) => Effect.Effect<ReadonlyMap<string, CarePlant>, SqlError>
     readonly apply: (
       writes: ReadonlyArray<CareWrite>
@@ -66,6 +85,10 @@ export class CareStore extends Context.Service<
     readonly weatherProfiles: (
       plantIds: ReadonlyArray<string>
     ) => Effect.Effect<ReadonlyArray<WeatherProfile>, SqlError>
+    readonly linkPlanToMessage: (
+      planId: string,
+      chatMessageId: string
+    ) => Effect.Effect<void, SqlError>
   }
 >()('care/CareStore') {}
 
@@ -75,7 +98,7 @@ const toSchedule = (row: ScheduleRow, timezone: string): Schedule => {
   const startedOn = CareDays.of(DateTime.makeUnsafe(row.createdAt), timezone)
   return {
     frequency: frequencyOfDays(row.frequencyDays),
-    dueDay: CareDays.of(DateTime.makeUnsafe(row.nextCareAt), timezone),
+    dueDay: storedDay(row.dueDay, row.nextCareAt, timezone),
     startedOn,
   }
 }
@@ -86,7 +109,11 @@ const latestFirst = Order.mapInput(
 )
 
 const toHistory = (
-  rows: ReadonlyArray<{ readonly id: string; readonly date: Date }>,
+  rows: ReadonlyArray<{
+    readonly id: string
+    readonly date: Date
+    readonly careDay: string | null
+  }>,
   timezone: string
 ): ReadonlyArray<CareEntry> =>
   pipe(
@@ -95,7 +122,115 @@ const toHistory = (
     Array.map(
       (row): CareEntry => ({
         id: row.id,
-        day: CareDays.of(DateTime.makeUnsafe(row.date), timezone),
+        day: storedDay(row.careDay, row.date, timezone),
+      })
+    )
+  )
+
+type PlanWrite = Extract<
+  CareWrite,
+  {
+    readonly _tag:
+      | 'CompletePlanStep'
+      | 'ReopenPlanStep'
+      | 'DeletePlanStep'
+      | 'SetPlanStatus'
+      | 'DeletePlan'
+      | 'LinkPlanToDiagnosis'
+  }
+>
+
+type PlantLifeWrite = Extract<
+  CareWrite,
+  { readonly _tag: 'BuryPlant' | 'RevivePlant' | 'DeletePlant' }
+>
+
+export class PlantRowNotWrittenDefect extends Data.TaggedError(
+  'PlantRowNotWrittenDefect'
+)<{
+  readonly write: PlantLifeWrite
+  readonly written: number
+}> {}
+
+const plantWrittenOnce =
+  (write: PlantLifeWrite) =>
+  (rows: ReadonlyArray<unknown>): Effect.Effect<void> =>
+    rows.length === 1
+      ? Effect.void
+      : Effect.die(
+          new PlantRowNotWrittenDefect({ write, written: rows.length })
+        )
+
+export type PlantRowLock = 'no key update' | 'update'
+
+export class PlanRowNotWrittenDefect extends Data.TaggedError(
+  'PlanRowNotWrittenDefect'
+)<{
+  readonly write: PlanWrite
+  readonly written: number
+}> {}
+
+export const writtenOnce =
+  (write: PlanWrite) =>
+  (rows: ReadonlyArray<unknown>): Effect.Effect<void> =>
+    rows.length === 1
+      ? Effect.void
+      : Effect.die(new PlanRowNotWrittenDefect({ write, written: rows.length }))
+
+type SetPlanStatus = Extract<CareWrite, { readonly _tag: 'SetPlanStatus' }>
+
+const STAMPS_OF = {
+  accepted: ({ from, at }) =>
+    from === 'completed' ? { completedAt: null } : { acceptedAt: at },
+  completed: ({ at }) => ({ completedAt: at }),
+  dismissed: () => ({}),
+} satisfies Record<
+  SetPlanStatus['to'],
+  (moved: { readonly from: SetPlanStatus['from']; readonly at: Date }) => {
+    readonly acceptedAt?: Date
+    readonly completedAt?: Date | null
+  }
+>
+
+interface PlanStepRow {
+  readonly planId: string
+  readonly plantId: string
+  readonly status: Plan['status']
+  readonly createdAt: Date
+  readonly stepId: string | null
+  readonly position: number | null
+  readonly careType: CareType | null
+  readonly dueDate: Date | null
+  readonly completedAt: Date | null
+}
+
+const toPlans = (rows: ReadonlyArray<PlanStepRow>): ReadonlyArray<Plan> =>
+  pipe(
+    Array.groupBy(rows, (row) => row.planId),
+    Record.values,
+    Array.map(
+      (ofPlan): Plan => ({
+        id: Array.headNonEmpty(ofPlan).planId,
+        status: Array.headNonEmpty(ofPlan).status,
+        createdAt: DateTime.makeUnsafe(Array.headNonEmpty(ofPlan).createdAt),
+        steps: Array.flatMap(
+          ofPlan,
+          (row): ReadonlyArray<PlanStep> =>
+            row.stepId === null || row.position === null
+              ? []
+              : [
+                  {
+                    id: row.stepId,
+                    position: row.position,
+                    careType: Option.fromNullishOr(row.careType),
+                    dueAt: Option.map(
+                      Option.fromNullishOr(row.dueDate),
+                      DateTime.makeUnsafe
+                    ),
+                    done: row.completedAt !== null,
+                  },
+                ]
+        ),
       })
     )
   )
@@ -221,29 +356,150 @@ export const CareStoreLive = Layer.effect(
               )
           ),
         CompletePlanStep: (w) =>
-          Effect.asVoid(
+          Effect.flatMap(
             db
               .update(carePlanSteps)
               .set({
                 completedAt: DateTime.toDateUtc(w.at),
-                careLogId: w.careLogId,
-              })
-              .where(eq(carePlanSteps.id, w.stepId))
-          ),
-        SettlePlan: (w) =>
-          Effect.asVoid(
-            db
-              .update(carePlans)
-              .set({
-                status: 'completed',
-                completedAt: DateTime.toDateUtc(w.at),
+                careLogId: Option.getOrNull(w.careLogId),
               })
               .where(
                 and(
-                  eq(carePlans.id, w.planId),
-                  eq(carePlans.status, 'accepted')
+                  eq(carePlanSteps.id, w.stepId),
+                  isNull(carePlanSteps.completedAt)
                 )
               )
+              .returning({ id: carePlanSteps.id }),
+            writtenOnce(w)
+          ),
+        ReopenPlanStep: (w) =>
+          Effect.flatMap(
+            db
+              .update(carePlanSteps)
+              .set({ completedAt: null, careLogId: null })
+              .where(
+                and(
+                  eq(carePlanSteps.id, w.stepId),
+                  isNotNull(carePlanSteps.completedAt)
+                )
+              )
+              .returning({ id: carePlanSteps.id }),
+            writtenOnce(w)
+          ),
+        DeletePlanStep: (w) =>
+          Effect.flatMap(
+            db
+              .delete(carePlanSteps)
+              .where(eq(carePlanSteps.id, w.stepId))
+              .returning({ id: carePlanSteps.id }),
+            writtenOnce(w)
+          ),
+        SetPlanStatus: (w) =>
+          Effect.flatMap(
+            db
+              .update(carePlans)
+              .set({
+                status: w.to,
+                ...STAMPS_OF[w.to]({
+                  from: w.from,
+                  at: DateTime.toDateUtc(w.at),
+                }),
+              })
+              .where(
+                and(eq(carePlans.id, w.planId), eq(carePlans.status, w.from))
+              )
+              .returning({ id: carePlans.id }),
+            writtenOnce(w)
+          ),
+        DeletePlan: (w) =>
+          Effect.flatMap(
+            db
+              .delete(carePlans)
+              .where(eq(carePlans.id, w.planId))
+              .returning({ id: carePlans.id }),
+            writtenOnce(w)
+          ),
+        InsertPlan: (w) =>
+          Effect.gen(function* () {
+            yield* db.insert(carePlans).values({
+              id: w.planId,
+              plantId: w.plantId,
+              userId: w.authorId,
+              title: w.title,
+              source: w.source,
+            })
+            if (Array.isReadonlyArrayEmpty(w.steps)) return
+            yield* db.insert(carePlanSteps).values(
+              Array.map(w.steps, (step, position) => ({
+                planId: w.planId,
+                position,
+                title: step.title,
+                description: Option.getOrNull(step.description),
+                careType: Option.getOrNull(step.careType),
+                dueDate: Option.getOrNull(
+                  Option.map(step.dueAt, DateTime.toDateUtc)
+                ),
+              }))
+            )
+          }),
+        LinkPlanToDiagnosis: (w) =>
+          Effect.flatMap(
+            db
+              .update(carePlans)
+              .set({ diagnosisId: w.diagnosisId })
+              .where(eq(carePlans.id, w.planId))
+              .returning({ id: carePlans.id }),
+            writtenOnce(w)
+          ),
+        InsertPlant: (w) =>
+          Effect.asVoid(
+            db.insert(plants).values({
+              id: w.plantId,
+              ...ownerColumns(w.owner),
+              createdByUserId: w.createdBy,
+              health: 'HEALTHY',
+              name: w.draft.name,
+              description: Option.getOrNull(w.draft.description),
+              category: Option.getOrNull(w.draft.category),
+              imageUrl: Option.getOrNull(w.draft.imageUrl),
+              humidityRating: w.draft.humidityRating,
+              lightingRating: w.draft.lightingRating,
+              petToxicityRating: w.draft.petToxicityRating,
+              wateringRating: w.draft.wateringRating,
+              potWidthCm: Option.getOrNull(w.draft.potWidthCm),
+              potHeightCm: Option.getOrNull(w.draft.potHeightCm),
+              roomId: Option.getOrNull(w.draft.roomId),
+            })
+          ),
+        BuryPlant: (w) =>
+          Effect.flatMap(
+            db
+              .update(plants)
+              .set({
+                diedAt: DateTime.toDateUtc(w.at),
+                deathCause: w.cause,
+                deathNote: Option.getOrNull(w.note),
+              })
+              .where(and(eq(plants.id, w.plantId), isNull(plants.diedAt)))
+              .returning({ id: plants.id }),
+            plantWrittenOnce(w)
+          ),
+        RevivePlant: (w) =>
+          Effect.flatMap(
+            db
+              .update(plants)
+              .set({ diedAt: null, deathCause: null, deathNote: null })
+              .where(and(eq(plants.id, w.plantId), isNotNull(plants.diedAt)))
+              .returning({ id: plants.id }),
+            plantWrittenOnce(w)
+          ),
+        DeletePlant: (w) =>
+          Effect.flatMap(
+            db
+              .delete(plants)
+              .where(eq(plants.id, w.plantId))
+              .returning({ id: plants.id }),
+            plantWrittenOnce(w)
           ),
       })
 
@@ -258,9 +514,54 @@ export const CareStoreLive = Layer.effect(
         return Array.head(rows)
       }),
 
+      careTypesOfPlan: Effect.fn('CareStore.careTypesOfPlan')(function* (
+        planId: string
+      ) {
+        const rows = yield* db
+          .selectDistinct({ careType: carePlanSteps.careType })
+          .from(carePlanSteps)
+          .where(eq(carePlanSteps.planId, planId))
+        return Array.flatMap(rows, (row) =>
+          Option.toArray(Option.fromNullishOr(row.careType))
+        )
+      }),
+
+      careTimezoneOf: Effect.fn('CareStore.careTimezoneOf')(function* (
+        owner: PlantOwner
+      ) {
+        const stored: ReadonlyArray<string | null> = yield* Match.value(
+          owner
+        ).pipe(
+          Match.tagsExhaustive({
+            User: ({ userId }) =>
+              Effect.map(
+                db
+                  .select({ timezone: users.timezone })
+                  .from(users)
+                  .where(eq(users.id, userId)),
+                Array.map((row) => row.timezone)
+              ),
+            Canopy: ({ canopyId }) =>
+              Effect.map(
+                db
+                  .select({ timezone: canopies.timezone })
+                  .from(canopies)
+                  .where(eq(canopies.id, canopyId)),
+                Array.map((row) => row.timezone)
+              ),
+          })
+        )
+        return pipe(
+          Array.head(stored),
+          Option.flatMap(Option.fromNullishOr),
+          Option.getOrElse(() => 'UTC')
+        )
+      }),
+
       lockAndLoad: Effect.fn('CareStore.lockAndLoad')(function* (
         plantIds: ReadonlyArray<string>,
-        careTypes: ReadonlyArray<CareType>
+        careTypes: ReadonlyArray<CareType>,
+        lock: PlantRowLock = 'no key update'
       ) {
         if (Array.isReadonlyArrayEmpty(plantIds)) {
           return new Map<string, CarePlant>()
@@ -278,7 +579,7 @@ export const CareStoreLive = Layer.effect(
           .from(plants)
           .where(inArray(plants.id, ids))
           .orderBy(asc(plants.id))
-          .for('no key update', { of: plants })
+          .for(lock, { of: plants })
         const scheduleRows = yield* db
           .select()
           .from(plantCareSchedules)
@@ -291,6 +592,7 @@ export const CareStoreLive = Layer.effect(
                 plantId: careLogs.plantId,
                 careType: careLogs.type,
                 date: careLogs.date,
+                careDay: careLogs.careDay,
               })
               .from(careLogs)
               .where(
@@ -299,27 +601,21 @@ export const CareStoreLive = Layer.effect(
                   inArray(careLogs.type, [...careTypes])
                 )
               )
-        const stepRows = yield* db
+        const planRows = yield* db
           .select({
-            id: carePlanSteps.id,
-            planId: carePlanSteps.planId,
-            careType: carePlanSteps.careType,
+            planId: carePlans.id,
             plantId: carePlans.plantId,
-            planStatus: carePlans.status,
+            status: carePlans.status,
+            createdAt: carePlans.createdAt,
+            stepId: carePlanSteps.id,
+            position: carePlanSteps.position,
+            careType: carePlanSteps.careType,
+            dueDate: carePlanSteps.dueDate,
+            completedAt: carePlanSteps.completedAt,
           })
-          .from(carePlanSteps)
-          .innerJoin(carePlans, eq(carePlanSteps.planId, carePlans.id))
-          .where(
-            and(
-              inArray(carePlans.plantId, ids),
-              isNull(carePlanSteps.completedAt)
-            )
-          )
-          .orderBy(
-            desc(sql`${carePlans.status} = 'accepted'`),
-            asc(carePlans.createdAt),
-            asc(carePlanSteps.position)
-          )
+          .from(carePlans)
+          .leftJoin(carePlanSteps, eq(carePlanSteps.planId, carePlans.id))
+          .where(inArray(carePlans.plantId, ids))
 
         const now = yield* DateTime.now
         return new Map(
@@ -349,7 +645,7 @@ export const CareStoreLive = Layer.effect(
                 id: row.id,
                 owner: ownerOf(row),
                 life:
-                  row.diedAt === null ? PlantLife.Living() : PlantLife.Dead(),
+                  row.diedAt === null ? LifeState.Living() : LifeState.Dead(),
                 timezone: row.timezone,
                 today: seen.today,
                 needsAttention: seen.health === 'NEEDS_ATTENTION',
@@ -361,14 +657,8 @@ export const CareStoreLive = Layer.effect(
                     (careType) => [careType, lineOf(careType)]
                   )
                 ),
-                openPlanSteps: Array.map(
-                  Array.filter(stepRows, (s) => s.plantId === row.id),
-                  (s): OpenPlanStep => ({
-                    id: s.id,
-                    planId: s.planId,
-                    planAccepted: s.planStatus === 'accepted',
-                    careType: Option.fromNullishOr(s.careType),
-                  })
+                plans: toPlans(
+                  Array.filter(planRows, (plan) => plan.plantId === row.id)
                 ),
               },
             ]
@@ -380,6 +670,16 @@ export const CareStoreLive = Layer.effect(
         Effect.forEach(writes, write, { discard: true }).pipe(
           Effect.withSpan('CareStore.apply')
         ),
+
+      linkPlanToMessage: Effect.fn('CareStore.linkPlanToMessage')(function* (
+        planId: string,
+        chatMessageId: string
+      ) {
+        yield* db
+          .update(carePlans)
+          .set({ chatMessageId })
+          .where(eq(carePlans.id, planId))
+      }),
 
       weatherProfiles: Effect.fn('CareStore.weatherProfiles')(function* (
         plantIds: ReadonlyArray<string>

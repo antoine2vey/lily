@@ -81,7 +81,7 @@ const result = await Effect.runPromise(
 
 ## Reminders
 
-Care and overdue reminders are planned in `contexts/reminders` and nowhere else. Code that changes what they are planned from (a plant's life, a recipient's settings) calls `Reminders.request(Dirty.Plants | Dirty.Canopy | Dirty.Recipient)` inside its own transaction, opened with `transact` from `kernel/transact.ts`. The request commits with the change and is replanned after it, with retries, so a failed replan never rolls the change back. A change made through a `Care`, `Canopy` or `Absence` command needs no request. The context publishes a fact on its outbox topic, and Reminders replans what the fact makes stale.
+Care and overdue reminders are planned in `contexts/reminders` and nowhere else. Code that changes what they are planned from (a recipient's settings, the release of an account) calls `Reminders.request(Dirty.Plants | Dirty.Canopy | Dirty.Recipient)` inside its own transaction, opened with `transact` from `kernel/transact.ts`. The request commits with the change and is replanned after it, with retries, so a failed replan never rolls the change back. A change made through a `Care`, `Canopy` or `Absence` command needs no request. The context publishes a fact on its outbox topic, and Reminders replans what the fact makes stale.
 
 Do not create, re-time, lock or delete a row of a reminder type outside the context. `NotificationRepository.create` and `deletePendingByUserIdAndTypes` reject those types at compile time, and `__tests__/architecture/context-boundaries.test.ts` fails on a new writer. Terms: `CONTEXT.md`, section Reminders.
 
@@ -101,9 +101,27 @@ Each command opens its own transaction, takes its locks in the one order of `Abs
 
 Do not write `care_delegations` or `delegation_plants` outside `contexts/absence/store.ts`, do not lock a delegation row outside it, and do not give `vacation_status`, `vacation_start` or `vacation_end` a value there either. Absence must not import `contexts/canopy` or `contexts/reminders`; it reads memberships through `CanopyRepository`. `__tests__/architecture/context-boundaries.test.ts` fails on each of these. Canopy imports `contexts/absence` for `holdForDeletion` only, so `CanopyLive` is built over `AbsenceLive`. A new command or status does not compile until `RULES` has its cell, a new refusal until `absence.ts` gives it an error, and a new fact until `staleAfterAbsence` in `contexts/reminders/triggers.ts` says what it makes stale. Terms: `CONTEXT.md`, section Absence.
 
-A vacation command locks the account row `FOR NO KEY UPDATE`, so it never waits on a care that only references the account. An account deletion takes the same lock through `holdForDeletion`, right after the user's delegation rows and before any plant or notification row. A new path that updates an account row and then deletes that user's waiting notifications must take the account row first too, or it can deadlock with a deletion.
+A vacation command locks the account row `FOR NO KEY UPDATE`, so it never waits on a care that only references the account. An account deletion takes the same lock through `holdForDeletion`, right after the user's delegation rows and before any plant or notification row. It then takes every plant its delete writes, in one statement in id order (`PlantScope.Leaver` in `contexts/canopy/store.ts`): the plants of the canopy, the user's own, those the user created and those with a plan the user wrote. A new path that updates an account row and then deletes that user's waiting notifications must take the account row first too, or it can deadlock with a deletion.
 
 Whether a caretaker tends a plant is one SQL condition, `tending()` in `repositories/helpers/tending.ts`: the delegation is active and the caretaker's account is reachable. Use it in every query that gives a caretaker access to a plant or picks who is reminded. Do not compare `careDelegations.status` with `'active'` for that.
+
+## Care
+
+A care, a care schedule, a care plan and the life of a plant are changed in `contexts/care` and nowhere else. A caller runs one command of one of three services from `@lily/api/contexts/care`. All three write through one `CareStore` and publish on one outbox topic, `care`.
+
+- `Care` records and edits cares and schedules: `record`, `recordOne`, `amend`, `remove`, `correctLastCare`, `setSchedules` or `moveDueDays`.
+- `PlantLife` creates, buries, revives and removes a plant: `plant`, `bury`, `revive` or `remove`. The cemetery section below has its rules.
+- `CarePlans` proposes and runs a care plan: `propose`, `accept`, `dismiss`, `delete`, `tickStep`, `untickStep`, `dropStep`, `linkToDiagnosis` or `linkToMessage`.
+
+A command on a plant takes a `PlantPermit` from `withPlantPermit` or `withPermittedPlant`. A command on a plan takes a `PlanPermit` from `withCarePlanAuth`. Two commands take no permit. `moveDueDays` serves the weather readjustment and Absence, and `linkToMessage` serves the chat save. No Care code reads the current user.
+
+Each command opens its own transaction and locks the plant row, `FOR NO KEY UPDATE` in every command except `PlantLife.remove`, which takes it `FOR UPDATE`. A command on several plants locks them in id order. A plan command locks the plant of its plan, so no command locks a plan row. The command then applies the rules of `domain/decide.ts`, `domain/life.ts` or `domain/plan-decide.ts`, writes, and publishes what happened on the topic `care`. Reminders consumes that topic and replans by itself, and `events/care-forwarder.ts` turns the facts the app listens to into EventBus events. So no caller of a Care command calls `Reminders.request` or publishes a care event. `linkToMessage` is the one exception to the shape. It is a single statement on a column no rule reads, with no plant lock and no fact. `CareReads.due` is the read side for due cares. `CareLogRepository`, `CareScheduleRepository` and `CarePlanRepository` only read.
+
+A dead plant takes part in nothing. It accepts no new care, no correction, no schedule change, no due-day move and no plan command except `CarePlans.delete`, and a proposal for it answers as a plant that does not exist. Its past cares can still be edited or removed.
+
+A day is stored, not derived. The due day of a schedule is `plant_care_schedules.due_day` and the day of a care is `care_logs.care_day`. The store writes both in the plant's care timezone, and a stored day stays put when the owner changes timezone. Do not compute a day from `next_care_at` or from `date`. Both columns stay nullable until `packages/db/gated/README.md` has been followed. Until then, read a day through `storedDay` and filter due days with `dueOnOrBefore`, both in `contexts/care/stored-day.ts`. They give a row without a day the day of its instant. An insert into either table in a test or a seed script names its day column.
+
+Do not write `care_logs`, `plant_care_schedules`, `care_plans` or `care_plan_steps` outside `contexts/care/store.ts`. Care must not load `contexts/canopy`, `contexts/absence` or `contexts/reminders`, directly or through a module it imports. `__tests__/architecture/context-boundaries.test.ts` fails on each of these. A new refusal does not compile until `errorOf` in `contexts/care/refusals.ts` gives it an error. A new life state does not compile until `LIFE` in `domain/life.ts` has its cell, and a new plan command or status until `RULES` and `DEAD_PLANT_TAKES` in `domain/plan.ts` have theirs. A new fact does not compile until `staleAfterCare` in `contexts/reminders/triggers.ts` says what it makes stale and `events/care-forwarder.ts` says what the app hears. Terms: `CONTEXT.md`, section Care.
 
 ## Dead plants (the cemetery)
 
@@ -118,12 +136,24 @@ Activity.
   the join condition, not the WHERE, or rows without plants disappear.
 - `PlantRepository.findAll`: `filter: 'dead'` lists the cemetery; every other
   filter is living-only unless the caller passes `includeDead: true` (admin).
-- Lifecycle endpoints (`markPlantDead`, `revivePlant`, `deletePlant`) are
-  gated by `withPlantAuth(id, 'markDead' | 'revive' | 'delete')`. Bury and
-  revive call `Reminders.request` for the plant and publish
-  `PlantLifecycleChanged`, which the Live Activity subscriber uses to refresh
-  the card. Delivery drops any other notification of a dead plant
-  (`plant-gone`). Revive enforces the limit of the plant's owner, a user or a
-  Canopy, through `LimitChecker.checkPlantLimit`.
+- A plant is created, buried, revived and removed by one command of
+  `PlantLife` from `@lily/api/contexts/care`: `plant`, `bury`, `revive` or
+  `remove`. The lifecycle endpoints (`markPlantDead`, `revivePlant`,
+  `deletePlant`) take the plant and a permit from
+  `withPermittedPlant(id, 'markDead' | 'revive' | 'delete')`. Each command
+  publishes `PlantLifeChanged` on the Care topic in its own transaction.
+  Reminders replans from that fact, and the EventBus forwarder turns it into
+  `PlantCreated` or `PlantLifecycleChanged`, which the Live Activity
+  subscriber uses to refresh the card. So no lifecycle endpoint calls
+  `Reminders.request` or publishes an event. Delivery drops any other
+  notification of a dead plant (`plant-gone`).
+- `plant` and `revive` add a living plant to an owner, a user or a Canopy.
+  They take the `OwnerHeld` proof that `withOwnerLock` gives its body, and
+  the endpoint asks `LimitChecker.checkPlantLimit` under that lock. Revive
+  restarts every due day at today plus the schedule's frequency, in the
+  plant's care timezone.
+- Do not insert or delete a `plants` row, or give `died_at` a value, outside
+  `contexts/care/store.ts`. `__tests__/architecture/context-boundaries.test.ts`
+  fails on it.
 - Deliberately unfiltered: achievements (`countPlants`), admin analytics, and
   care-log history/streaks (past care stays history).

@@ -146,11 +146,15 @@ export const canPerform = (
  * `Effect.zipRight` or `Effect.andThen` for endpoints that only need the
  * check. Endpoints must not re-fetch a plant received from here.
  */
-export const withPlantKnowledge = (
+export const withPlantKnowledge = <A extends PlantAction>(
   plantId: string,
-  action: PlantAction
+  action: A
 ): Effect.Effect<
-  { readonly plant: PlantWithRoom; readonly view: KnowledgeView },
+  {
+    readonly plant: PlantWithRoom
+    readonly view: KnowledgeView
+    readonly permit: PlantPermit<A>
+  },
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
 > =>
@@ -165,7 +169,11 @@ export const withPlantKnowledge = (
 
     const role = yield* authorizedRole(plantId, plant, action)
 
-    return { plant, view: knowledgeView(role, viewerId) }
+    return {
+      plant,
+      view: knowledgeView(role, viewerId),
+      permit: mintPermit(plant.id, action, Actor.User({ userId: viewerId })),
+    }
   }).pipe(Effect.withSpan('withPlantAuth', { attributes: { action } }))
 
 export const withPlantAuth = (
@@ -185,14 +193,10 @@ export const withPermittedPlant = <A extends PlantAction>(
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
 > =>
-  Effect.gen(function* () {
-    const plant = yield* withPlantAuth(plantId, action)
-    const { id: userId } = yield* CurrentUser
-    return {
-      plant,
-      permit: mintPermit(plant.id, action, Actor.User({ userId })),
-    }
-  })
+  Effect.map(withPlantKnowledge(plantId, action), ({ plant, permit }) => ({
+    plant,
+    permit,
+  }))
 
 export const withPlantPermit = <A extends PlantAction>(
   plantId: string,

@@ -10,12 +10,13 @@ import { type Context, Effect, Match } from 'effect'
 
 const NAME = 'event-bus'
 
+const NOTHING: ReadonlyArray<AppEvent> = []
+
 const asAppEvents = Match.type<CareEvent>().pipe(
-  Match.tag(
-    'CareRecorded',
-    (event): ReadonlyArray<AppEvent> =>
+  Match.tagsExhaustive({
+    CareRecorded: (event): ReadonlyArray<AppEvent> =>
       event.by === null
-        ? []
+        ? NOTHING
         : [
             {
               _tag: 'CareLogCreated',
@@ -33,9 +34,19 @@ const asAppEvents = Match.type<CareEvent>().pipe(
                   },
                 ]
               : []),
-          ]
-  ),
-  Match.orElse((): ReadonlyArray<AppEvent> => [])
+          ],
+    PlantLifeChanged: ({ by, plantId, life }): ReadonlyArray<AppEvent> =>
+      by === null
+        ? NOTHING
+        : [
+            life === 'Planted'
+              ? { _tag: 'PlantCreated', userId: by, plantId }
+              : { _tag: 'PlantLifecycleChanged', userId: by, plantId },
+          ],
+    CareAmended: () => NOTHING,
+    CareRemoved: () => NOTHING,
+    ScheduleChanged: () => NOTHING,
+  })
 )
 
 export const eventBusForwarder = (

@@ -49,10 +49,6 @@ const handle = (event: CareEvent) =>
 const failed = (name: string) => (error: { readonly _tag: string }) =>
   Effect.fail(ConsumerFailed.because(name, error))
 
-/**
- * Reminders' reaction to Care. Every handler rebuilds from current state, so
- * a redelivered or reordered event converges on the same reminders.
- */
 export const remindersConsumer = (
   context: Context.Context<RemindersConsumerContext>
 ): Consumer =>
@@ -93,11 +89,6 @@ export const absenceConsumer = (
     )
   )
 
-/**
- * Plans what a request named, after the requester's commit and in
- * transactions of its own. A request that fails stays in the outbox and is
- * tried again; a request delivered twice plans nothing the second time.
- */
 export const replanConsumer = (
   context: Context.Context<ReplanContext>
 ): Consumer =>

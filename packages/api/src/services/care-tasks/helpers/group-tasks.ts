@@ -20,9 +20,6 @@ import type { SqlError } from 'effect/sql/SqlError'
 // v3 adds server-rendered `title` + per-group `label` (widget can't reach i18next).
 const LIVE_ACTIVITY_SCHEMA_VERSION = 3
 
-// `exclude` strips one (plantId, careType) pair — the `CareLogCreated` event
-// fires BEFORE execute-plant-care updates `next_care_at`, so without this the
-// just-completed task would still count as due.
 export const buildLiveActivityContentState = (
   userId: string,
   exclude?: { plantId: string; careType: CareType }

@@ -3,6 +3,7 @@ import {
   leaveForDeletion,
   settled,
 } from '@lily/api/__tests__/integration/canopy-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -248,12 +249,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await insertPlant({ userId: lilyId, createdByUserId: lilyId })
 
       const canopyPlants = [...lilys, samsFern, alexsPalm, orphan, exMembers]
+      const dueAt = inDays(3)
       await db.insert(schema.plantCareSchedules).values(
         Array.map(canopyPlants, (plantId) => ({
           plantId,
           careType: 'watering' as const,
           frequencyDays: 7,
-          nextCareAt: inDays(3),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         }))
       )
       await db

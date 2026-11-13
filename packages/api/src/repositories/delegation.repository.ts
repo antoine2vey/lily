@@ -143,6 +143,7 @@ const scheduleColumns = {
   frequencyDays: plantCareSchedules.frequencyDays,
   lastCareAt: plantCareSchedules.lastCareAt,
   nextCareAt: plantCareSchedules.nextCareAt,
+  dueDay: plantCareSchedules.dueDay,
 }
 
 type ScheduleJoinRow = {
@@ -150,15 +151,17 @@ type ScheduleJoinRow = {
   frequencyDays: number | null
   lastCareAt: Date | null
   nextCareAt: Date | null
+  dueDay: string | null
 }
 
 const toScheduleRef = (r: ScheduleJoinRow): StoredSchedule | null =>
-  r.careType !== null && r.frequencyDays !== null
+  r.careType !== null && r.frequencyDays !== null && r.nextCareAt !== null
     ? {
         careType: r.careType,
         frequencyDays: r.frequencyDays,
         lastCareAt: r.lastCareAt,
         nextCareAt: r.nextCareAt,
+        dueDay: r.dueDay,
       }
     : null
 
@@ -419,13 +422,13 @@ export const DelegationRepositoryLive = Layer.effect(
         )
         const now = yield* DateTime.now
 
+        const seen = Array.map(tasks, (task) => withCareSeen(task, now))
         return Array.sortWith(
-          Array.map(tasks, (task): DelegatedTaskRow => withCareSeen(task, now)),
+          seen,
           (t) =>
             pipe(
               Array.findFirst(t.schedules, (s) => s.careType === 'watering'),
-              Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
-              Option.map((d) => d.getTime()),
+              Option.map((s) => s.nextCareAt.getTime()),
               Option.getOrElse(() => Number.MAX_SAFE_INTEGER)
             ),
           Order.Number

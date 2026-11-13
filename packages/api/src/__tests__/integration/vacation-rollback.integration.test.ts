@@ -2,6 +2,7 @@ import {
   settled,
   tickVacations,
 } from '@lily/api/__tests__/integration/absence-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
@@ -182,6 +183,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careType: 'watering',
         frequencyDays: 3,
         nextCareAt: dueMidVacation,
+        dueDay: careDayOf(dueMidVacation),
       })
       const nextCareAt = async () => {
         const [row] = await db

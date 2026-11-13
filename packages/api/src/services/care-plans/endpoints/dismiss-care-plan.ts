@@ -1,34 +1,17 @@
-import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
-import type { CarePlan } from '@lily/shared/care-plan'
-import { CarePlanNotProposedError } from '@lily/shared/errors/care-plan'
-import { Effect, Option, pipe } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
+import { CarePlans } from '@lily/api/contexts/care'
+import {
+  type CarePlanContext,
+  reloadPlan,
+} from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
+import { Effect } from 'effect'
 
-/** `plan` comes from `withCarePlanAuth` in the handler. */
-export const dismissCarePlan = (
-  plan: CarePlan
-): Effect.Effect<
-  CarePlan,
-  CarePlanNotProposedError | SqlError,
-  CarePlanRepository
-> =>
+export const dismissCarePlan = ({ permit }: CarePlanContext<'manage'>) =>
   Effect.gen(function* () {
-    const repo = yield* CarePlanRepository
-    if (plan.status !== 'proposed') {
-      return yield* new CarePlanNotProposedError({
-        planId: plan.id,
-        status: plan.status,
-      })
-    }
-    const dismissed = yield* repo.updateStatus(plan.id, plan.userId, {
-      status: 'dismissed',
-    })
-    return pipe(
-      Option.fromNullishOr(dismissed),
-      Option.getOrElse(() => plan)
-    )
+    const carePlans = yield* CarePlans
+    yield* carePlans.dismiss({ permit })
+    return yield* reloadPlan(permit.planId)
   }).pipe(
     Effect.withSpan('CarePlansService.dismissCarePlan', {
-      attributes: { 'carePlan.id': plan.id },
+      attributes: { 'carePlan.id': permit.planId },
     })
   )
