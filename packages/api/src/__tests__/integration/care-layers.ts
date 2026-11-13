@@ -7,6 +7,7 @@ import {
 } from '@lily/api/contexts/care'
 import { CareLive as CareOverAStore } from '@lily/api/contexts/care/care'
 import { CarePlansLive } from '@lily/api/contexts/care/care-plans'
+import { PlantLifeLive } from '@lily/api/contexts/care/plant-life'
 import { CareStore, CareStoreLive } from '@lily/api/contexts/care/store'
 import { WeatherAdvisorLive } from '@lily/api/contexts/care/weather'
 import { makeOutbox, Outbox } from '@lily/api/kernel/outbox'
@@ -58,7 +59,7 @@ export const careOverStore = (
   seam: (store: CareStore['Service']) => CareStore['Service']
 ) =>
   Layer.fresh(
-    Layer.mergeAll(CareOverAStore, CarePlansLive).pipe(
+    Layer.mergeAll(CareOverAStore, CarePlansLive, PlantLifeLive).pipe(
       Layer.provide(WeatherAdvisorLive),
       Layer.provide(
         Layer.effect(CareStore, Effect.map(CareStore, seam)).pipe(

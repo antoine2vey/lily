@@ -19,6 +19,7 @@ import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
+import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
 import {
   Canopy,
   type CanopyChanges,
@@ -37,6 +38,7 @@ import {
   RowsNotWrittenDefect,
 } from '@lily/api/contexts/canopy/store'
 import { Actor, mintPermit, systemPermit } from '@lily/api/kernel/permit'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   AlreadyInCanopyError,
@@ -53,6 +55,7 @@ import {
   PlantInDelegationError,
   type PlantOwner,
   RoomNotFoundError,
+  UnauthorizedError,
   UserNotFoundError,
 } from '@lily/shared'
 import {
@@ -109,18 +112,24 @@ type Service = Canopy['Service']
 
 const run = <A, E>(
   world: World,
-  command: (canopy: Service) => Effect.Effect<A, E>
+  command: (canopy: Service) => Effect.Effect<A, E, Transaction>
 ) =>
   Effect.runPromise(
-    Effect.flatMap(Canopy, command).pipe(Effect.provide(world.layer))
+    Effect.flatMap(Canopy, command).pipe(
+      assumingTransaction,
+      Effect.provide(world.layer)
+    )
   )
 
 const refused = <A, E>(
   world: World,
-  command: (canopy: Service) => Effect.Effect<A, E>
+  command: (canopy: Service) => Effect.Effect<A, E, Transaction>
 ) =>
   Effect.runPromiseExit(
-    Effect.flatMap(Canopy, command).pipe(Effect.provide(world.layer))
+    Effect.flatMap(Canopy, command).pipe(
+      assumingTransaction,
+      Effect.provide(world.layer)
+    )
   ).then(failureOf)
 
 const changes = (given: Partial<CanopyChanges>): CanopyChanges => ({
@@ -183,6 +192,23 @@ describe('Canopy', () => {
         Array.filter(world.store.members, (m) => m.userId === 'sam')
       ).toEqual([{ canopyId, userId: 'sam', role: 'owner', joinedAt: NOW }])
       expect(world.events).toEqual([])
+    })
+
+    it('answers the UnauthorizedError of a request with no account behind it to a creator whose account is gone, and creates nothing', async () => {
+      const world = home()
+
+      const error = await refused(world, (canopy) =>
+        canopy.create({ by: 'ghost', name: 'Nowhere' })
+      )
+
+      expect(error).toEqual(
+        new UnauthorizedError({ message: 'Authentication failed' })
+      )
+      expect(Array.map(world.store.canopies, (c) => c.name)).toEqual([
+        'Home',
+        'Cabin',
+      ])
+      expect(world.store.members).toHaveLength(3)
     })
   })
 
@@ -1167,7 +1193,7 @@ describe('Canopy', () => {
               room: RoomMove.Clear(),
             }),
           ])
-        ).pipe(Effect.provide(world.storeLayer))
+        ).pipe(assumingTransaction, Effect.provide(world.storeLayer))
       )
 
       expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toEqual(
@@ -1574,7 +1600,7 @@ describe('Canopy', () => {
           )
         )
 
-      it('locks the delegations of a user with no canopy, runs the deletion and answers what it answered', async () => {
+      it('locks a user with no canopy and their delegations, runs the deletion and answers what it answered', async () => {
         const world = household()
 
         const deleted = await run(
@@ -1586,6 +1612,7 @@ describe('Canopy', () => {
         expect(world.plans).toEqual([
           {
             ...ending('sam'),
+            actor: Option.some('sam'),
             absenceOf: Option.some('sam'),
             plants: PlantScope.Leaver({ userId: 'sam' }),
           },
@@ -1601,6 +1628,7 @@ describe('Canopy', () => {
         expect(world.plans).toEqual([
           {
             ...ending('lily'),
+            actor: Option.some('lily'),
             absenceOf: Option.some('lily'),
             plants: PlantScope.Leaver({ userId: 'lily' }),
           },
@@ -1711,6 +1739,7 @@ describe('Canopy', () => {
 
         const exit = await Effect.runPromiseExit(
           Effect.flatMap(CanopyStore, (store) => store.apply([named])).pipe(
+            assumingTransaction,
             Effect.provide(world.storeLayer)
           )
         )
@@ -1749,7 +1778,7 @@ describe('Canopy', () => {
     })
   })
 
-  it('locks the creator alone to create, and the canopy of the actor for everything else', async () => {
+  it('locks the creator and holds their account to create, and the canopy of the actor for everything else', async () => {
     const world = home()
     const ofLily = lockPlan({ canopy: Find.OfMember({ userId: 'lily' }) })
 
@@ -1770,7 +1799,7 @@ describe('Canopy', () => {
         actor: Option.some('sam'),
         canopy: Find.None(),
         absenceOf: Option.none(),
-        accounts: [],
+        accounts: ['sam'],
         invitations: InvitationScope.None(),
         rooms: RoomScope.None(),
         plants: PlantScope.None(),

@@ -5,6 +5,7 @@ import {
   leave,
   settled,
 } from '@lily/api/__tests__/integration/canopy-layers'
+import { sessionsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { carePermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -39,7 +40,7 @@ import {
 } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { Actor, mintPermit } from '@lily/api/kernel/permit'
-import { transact } from '@lily/api/kernel/transact'
+import { type Transaction, transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
@@ -56,6 +57,7 @@ import {
   CanopyNotFoundError,
   type PlantOwner,
   RoomNotFoundError,
+  UnauthorizedError,
   UserNotFoundError,
 } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
@@ -165,14 +167,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
 
     const untilLockWaits = async (sessions: number) => {
-      for (const _ of Array.range(1, 100)) {
-        const { rows } = await pool.query<{ waiting: number }>(
-          `SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-        )
-        if ((rows[0]?.waiting ?? 0) >= sessions) return
-        await new Promise((resolve) => setTimeout(resolve, 50))
+      if ((await sessionsWaitingForALock(pool, sessions)) === 0) {
+        throw new Error(`${sessions} session(s) never waited on a lock`)
       }
-      throw new Error(`${sessions} session(s) never waited on a lock`)
     }
 
     const whileAnotherSessionHolds = async <A, B>(
@@ -377,7 +374,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       Effect.flatMap(CanopyStore, (store) => store.lockAndLoad(plan))
 
     const inOneTransaction = <A, E>(
-      effect: Effect.Effect<A, E, App | SqlClient.SqlClient>
+      effect: Effect.Effect<A, E, App | SqlClient.SqlClient | Transaction>
     ) => run(transact(effect))
 
     beforeAll(async () => {
@@ -487,6 +484,31 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           new AlreadyInCanopyError({ canopyName: created[0]?.name ?? '' }),
         ])
       })
+
+      it('answers UnauthorizedError to a create that waited for the hard delete of its creator to commit, and creates nothing', async () => {
+        const client = await pool.connect()
+
+        try {
+          await client.query('BEGIN')
+          await client.query('DELETE FROM users WHERE id = $1', [samId])
+          const creating = exitOf(
+            Effect.flatMap(Canopy, (canopy) =>
+              canopy.create({ by: samId, name: 'Studio' })
+            )
+          )
+          await untilLockWaits(1)
+          await client.query('COMMIT')
+
+          expect(outcomeOf(await creating)).toEqual(
+            new UnauthorizedError({ message: 'Authentication failed' })
+          )
+        } finally {
+          client.release()
+        }
+        expect(Array.map(await canopies(), (canopy) => canopy.name)).toEqual([
+          'Home',
+        ])
+      })
     })
 
     describe('update', () => {
@@ -525,7 +547,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
 
       const revokedFor = async (createdBy: Option.Option<string>) => {
-        await run(
+        await inOneTransaction(
           Effect.flatMap(CanopyStore, (store) =>
             store.apply([
               linkBy(alexId),
@@ -669,7 +691,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const link = await linkTo(canopyId, 'home-token')
         const round = async () => {
           const { done } = await whileTheAccountIsHeld(samId, () =>
-            Promise.all([
+            Promise.all<Exit.Exit<unknown, { readonly _tag: string }>>([
               exitOf(
                 Effect.flatMap(Canopy, (canopy) =>
                   canopy.create({ by: samId, name: 'Studio' })

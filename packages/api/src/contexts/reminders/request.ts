@@ -1,5 +1,6 @@
 import { type Dirty, DirtySchema } from '@lily/api/contexts/reminders/store'
 import { Outbox, topic } from '@lily/api/kernel/outbox'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -13,7 +14,7 @@ export const RemindersTopic = topic('reminders', DirtySchema)
  */
 export const request = (
   ...dirty: ReadonlyArray<Dirty>
-): Effect.Effect<void, SqlError, Outbox> =>
+): Effect.Effect<void, SqlError, Outbox | Transaction> =>
   Effect.flatMap(Outbox, (outbox) => outbox.append(RemindersTopic, dirty)).pipe(
     Effect.catchTag('SchemaError', Effect.die),
     Effect.withSpan('Reminders.request', {

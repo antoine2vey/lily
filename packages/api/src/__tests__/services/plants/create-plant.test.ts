@@ -36,10 +36,11 @@ describe('createPlant', () => {
   }
 
   const createTestLayer = (
-    limits: Layer.Layer<LimitChecker> = MockLimitCheckerLive
+    limits: Layer.Layer<LimitChecker> = MockLimitCheckerLive,
+    goneAccounts: ReadonlyArray<string> = []
   ) => {
     const rows = Array.map(mockPlants, (plant) => ({ ...plant }))
-    const care = createInMemoryCare([], { plantRows: rows })
+    const care = createInMemoryCare([], { plantRows: rows, goneAccounts })
     return {
       layer: Layer.mergeAll(
         createMockRoomRepository(roomsWithStranger),
@@ -78,6 +79,21 @@ describe('createPlant', () => {
 
     expect(result.name).toBe('New Plant')
     expect(result.id).toBeDefined()
+  })
+
+  it('answers a creator whose account is gone as a request with no account, and writes nothing', async () => {
+    const { layer, care } = createTestLayer(MockLimitCheckerLive, ['user-1'])
+
+    const failure = await Effect.runPromise(
+      createPlant(validRequest).pipe(Effect.flip, Effect.provide(layer))
+    )
+
+    expect(failure).toMatchObject({
+      _tag: 'UnauthorizedError',
+      message: 'Authentication failed',
+    })
+    expect(care.writes).toEqual([])
+    expect(care.events).toEqual([])
   })
 
   it('should return the created plant with an id', async () => {

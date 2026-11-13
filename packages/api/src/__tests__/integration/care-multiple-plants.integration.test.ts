@@ -1,6 +1,7 @@
 import {
   CareOnPostgresLive,
   drainOutbox,
+  waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
@@ -17,6 +18,7 @@ import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repo
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -26,7 +28,7 @@ import {
   EventBus,
   type LiveActivityPushMessage,
 } from '@lily/shared/server'
-import { count, inArray, sql } from 'drizzle-orm'
+import { count, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
@@ -193,50 +195,79 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     }
 
+    const heardByTheSubscriber =
+      (
+        user: { id: string; name: string; email: string },
+        plantIds: ReadonlyArray<string>,
+        published: Published[]
+      ) =>
+      <A, E, R>(care: Effect.Effect<A, E, R>) =>
+        care.pipe(
+          Effect.exit,
+          Effect.tap(() => drainOutbox),
+          Effect.provide(
+            CareOnPostgresLive.pipe(
+              Layer.provideMerge(
+                Layer.mergeAll(
+                  RepositoriesLive,
+                  createMockWeatherProvider(),
+                  createMockWeatherCache(),
+                  createMockWeatherRepository(),
+                  Layer.succeed(EventBus, {
+                    publish: (event) =>
+                      Effect.promise(async () => {
+                        published.push({
+                          event,
+                          committedLogs: await committedLogs(plantIds),
+                        })
+                        await subscriber.runPromise(processEvent(event))
+                      }),
+                    subscribe: Queue.unbounded<AppEvent>(),
+                  }),
+                  createMockCurrentUser({
+                    ...user,
+                    firstName: null,
+                    lastName: null,
+                    username: user.name,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    role: 'user',
+                    status: 'active',
+                  })
+                )
+              )
+            )
+          )
+        )
+
     const careAll = (
       user: { id: string; name: string; email: string },
       plantIds: ReadonlyArray<string>,
       published: Published[]
     ) =>
-      careMultiplePlants({
-        plantIds: [...plantIds],
-        careType: 'watering',
-      }).pipe(
-        Effect.exit,
-        Effect.tap(() => drainOutbox),
-        Effect.provide(
-          CareOnPostgresLive.pipe(
-            Layer.provideMerge(
-              Layer.mergeAll(
-                RepositoriesLive,
-                createMockWeatherProvider(),
-                createMockWeatherCache(),
-                createMockWeatherRepository(),
-                Layer.succeed(EventBus, {
-                  publish: (event) =>
-                    Effect.promise(async () => {
-                      published.push({
-                        event,
-                        committedLogs: await committedLogs(plantIds),
-                      })
-                      await subscriber.runPromise(processEvent(event))
-                    }),
-                  subscribe: Queue.unbounded<AppEvent>(),
-                }),
-                createMockCurrentUser({
-                  ...user,
-                  firstName: null,
-                  lastName: null,
-                  username: user.name,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                  role: 'user',
-                  status: 'active',
-                })
-              )
-            )
-          )
-        )
+      heardByTheSubscriber(
+        user,
+        plantIds,
+        published
+      )(careMultiplePlants({ plantIds: [...plantIds], careType: 'watering' }))
+
+    const cardOf = (userId: string) =>
+      subscriber.runPromise(buildLiveActivityContentState(userId)).then(
+        (card) =>
+          card && {
+            totalPlants: card.totalPlants,
+            groups: Arr.map(card.groups, (group) => [
+              group.careType,
+              group.count,
+            ]),
+          }
+      )
+
+    const updates = () =>
+      Arr.map(laPushes, (push) =>
+        push._tag === 'LiveActivityUpdate'
+          ? [push._tag, push.contentState.totalPlants]
+          : [push._tag]
       )
 
     it('publishes nothing and sends no Live Activity push when the transaction rolls back', async () => {
@@ -304,6 +335,50 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       // Both schedules moved past today before the subscriber ran, so the
       // first event ends the activity and the second finds none to update.
       expect(Arr.map(laPushes, (m) => m._tag)).toEqual(['LiveActivityEnd'])
+    })
+
+    it('takes a plant off the card once it is cared for today, with nothing excluded by hand', async () => {
+      const { user, plantIds } = await seed()
+      const [fern] = plantIds
+      if (!fern) throw new Error('seed returned no plant')
+
+      const outcome = await Effect.runPromise(
+        heardByTheSubscriber(user, plantIds, [])(waterAsCurrentUser(fern))
+      )
+
+      expect(Exit.isSuccess(outcome)).toBe(true)
+      expect(await cardOf(user.id)).toEqual({
+        totalPlants: 1,
+        groups: [['watering', 1]],
+      })
+      expect(updates()).toEqual([['LiveActivityUpdate', 1]])
+    })
+
+    it('keeps a plant on the card after a backdated care that leaves it due today', async () => {
+      const { user, plantIds } = await seed()
+      const [fern] = plantIds
+      if (!fern) throw new Error('seed returned no plant')
+      await db
+        .update(schema.plantCareSchedules)
+        .set({ frequencyDays: 1 })
+        .where(eq(schema.plantCareSchedules.plantId, fern))
+
+      const outcome = await Effect.runPromise(
+        heardByTheSubscriber(
+          user,
+          plantIds,
+          []
+        )(waterAsCurrentUser(fern, new Date(Date.now() - 86_400_000)))
+      )
+
+      expect(Exit.isSuccess(outcome)).toBe(true)
+      expect(
+        await db
+          .select({ dueDay: schema.plantCareSchedules.dueDay })
+          .from(schema.plantCareSchedules)
+          .where(eq(schema.plantCareSchedules.plantId, fern))
+      ).toEqual([{ dueDay: careDayOf(new Date()) }])
+      expect(updates()).toEqual([['LiveActivityUpdate', 2]])
     })
   }
 )

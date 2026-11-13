@@ -8,6 +8,7 @@ import {
 } from '@lily/api/contexts/canopy/domain/canopy'
 import { CanopyWrite, RoomMove } from '@lily/api/contexts/canopy/domain/decide'
 import { lockUser } from '@lily/api/kernel/locks'
+import type { Transaction } from '@lily/api/kernel/transact'
 import {
   ownedBy,
   ownerColumns,
@@ -113,10 +114,12 @@ export const lockPlan = (classes: Partial<LockPlan>): LockPlan => ({
 export class CanopyStore extends Context.Service<
   CanopyStore,
   {
-    readonly lockAndLoad: (plan: LockPlan) => Effect.Effect<Held, SqlError>
+    readonly lockAndLoad: (
+      plan: LockPlan
+    ) => Effect.Effect<Held, SqlError, Transaction>
     readonly apply: (
       writes: ReadonlyArray<CanopyWrite>
-    ) => Effect.Effect<void, SqlError>
+    ) => Effect.Effect<void, SqlError, Transaction>
   }
 >()('canopy/CanopyStore') {}
 
@@ -152,7 +155,10 @@ export const allWritten = (
     ? Effect.void
     : Effect.die(new RowsNotWrittenDefect({ write, named, written }))
 
-type LockClass = (plan: LockPlan, held: Held) => Effect.Effect<Held, SqlError>
+type LockClass = (
+  plan: LockPlan,
+  held: Held
+) => Effect.Effect<Held, SqlError, Transaction>
 
 const toAccount = (row: {
   readonly id: string

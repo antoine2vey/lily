@@ -649,6 +649,14 @@ describe('the error a refusal answers with', () => {
       },
       error: 'LimitExceededError',
     },
+    ActorGone: {
+      refusal: { _tag: 'ActorGone', plantId: 'p', userId: 'u' },
+      error: 'PlantNotFoundError',
+    },
+    CreatorGone: {
+      refusal: { _tag: 'CreatorGone', userId: 'u' },
+      error: 'UnauthorizedError',
+    },
   } satisfies {
     readonly [T in Refusal['_tag']]: {
       readonly refusal: Extract<Refusal, { readonly _tag: T }>

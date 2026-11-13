@@ -7,6 +7,7 @@ import {
   type CareLine,
   Change,
   Delivery,
+  Life,
   type PlantState,
   planPlant,
   type Recipient,
@@ -45,13 +46,19 @@ const sam: Recipient = {
 
 const plant = (
   id: string,
-  overrides: Partial<PlantState> = {}
+  {
+    living = true,
+    lines = [line('watering', YESTERDAY)],
+    ...overrides
+  }: Partial<Omit<PlantState, 'life'>> & {
+    readonly living?: boolean
+    readonly lines?: ReadonlyArray<CareLine>
+  } = {}
 ): PlantState => ({
   id,
-  living: true,
+  life: living ? Life.Living({ lines }) : Life.Dead(),
   remindersEnabled: true,
   shared: false,
-  lines: [line('watering', YESTERDAY)],
   audience: ['sam'],
   rows: [],
   ...overrides,
@@ -74,7 +81,6 @@ const overduePut = (plantId: string) =>
     type: 'overdue_reminder',
     occasion: TODAY,
     scheduledAt: SLOT,
-    over: Option.none(),
   })
 
 const changesOf = (input: OverdueDigest): ReadonlyArray<Change> => {
@@ -162,14 +168,15 @@ describe('planOverdueDigest', () => {
 
   it('writes rows the next replan keeps', () => {
     const written = Array.map(changesOf(digest()), (change, index) => {
-      if (change._tag !== 'Put') throw new Error('expected a put')
+      if (change._tag !== 'Put' || change.type !== 'overdue_reminder') {
+        throw new Error('expected an overdue put')
+      }
       const row: ReminderRow = {
         id: `row-${index}`,
         userId: change.userId,
         type: change.type,
         delivery: Delivery.Pending({ retrying: false }),
         scheduledAt: change.scheduledAt,
-        occasion: Option.some(change.occasion),
       }
       return plant(change.plantId, { rows: [row] })
     })

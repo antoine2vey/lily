@@ -5,6 +5,7 @@ import {
   type PlantDraft,
 } from '@lily/api/contexts/care/domain/care-plant'
 import {
+  type AccountsHeld,
   CareWrite,
   type Decision,
   putSchedule,
@@ -51,6 +52,7 @@ export const LIFE = {
   Record<LifeState['_tag'], LifeRule<Refusal>>
 >
 
+export type PlantRefusal = RefusalOf<'CreatorGone'>
 export type BuryRefusal = RefusalOf<'PlantGone' | 'AlreadyDead'>
 export type ReviveRefusal = RefusalOf<'PlantGone' | 'NotDead' | 'OwnerFull'>
 export type RemoveRefusal = RefusalOf<'PlantGone'>
@@ -102,8 +104,24 @@ export interface NewPlant {
   readonly today: CareDay
 }
 
-export const plantNew = (plant: NewPlant): Decision<{ plantId: string }> => {
+export const usersNamedBy = (plant: {
+  readonly owner: PlantOwner
+  readonly by: string
+}): ReadonlyArray<string> =>
+  Array.dedupe([
+    plant.by,
+    ...(plant.owner._tag === 'User' ? [plant.owner.userId] : []),
+  ])
+
+export const plantNew = (
+  plant: NewPlant,
+  held: AccountsHeld
+): Result.Result<Decision<{ plantId: string }>, PlantRefusal> => {
   const { plantId, owner, by } = plant
+  const gone = Array.findFirst(usersNamedBy(plant), (id) => !held.has(id))
+  if (Option.isSome(gone)) {
+    return Result.fail(Refusal.CreatorGone({ userId: gone.value }))
+  }
   const planted: CarePlant = {
     id: plantId,
     owner,
@@ -115,21 +133,23 @@ export const plantNew = (plant: NewPlant): Decision<{ plantId: string }> => {
     plans: [],
   }
   const scheduled = startSchedules(planted, plant.frequencies)
-  return decision(
-    { plantId },
-    [
-      CareWrite.InsertPlant({
-        plantId,
-        owner,
-        createdBy: by,
-        draft: plant.draft,
-      }),
-      ...scheduled.writes,
-    ],
-    [
-      lifeChanged(plantId, owner, 'Planted', Option.some(by)),
-      ...scheduled.events,
-    ]
+  return Result.succeed(
+    decision(
+      { plantId },
+      [
+        CareWrite.InsertPlant({
+          plantId,
+          owner,
+          createdBy: by,
+          draft: plant.draft,
+        }),
+        ...scheduled.writes,
+      ],
+      [
+        lifeChanged(plantId, owner, 'Planted', Option.some(by)),
+        ...scheduled.events,
+      ]
+    )
   )
 }
 

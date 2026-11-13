@@ -3,6 +3,7 @@ import {
   type CareLine,
   Change,
   Delivery,
+  Life,
   onlyFor,
   type PlantState,
   planPlant,
@@ -73,23 +74,39 @@ const row = (
     readonly scheduledAt?: DateTime.Utc
     readonly occasion?: CareDay | null
   } = {}
-): ReminderRow => ({
-  id: `row-${++nextRow}`,
-  userId,
-  type: options.type ?? 'watering_reminder',
-  delivery: options.delivery ?? Delivery.Pending({ retrying: false }),
-  scheduledAt: options.scheduledAt ?? at('2026-11-12T09:00:00Z'),
-  occasion: Option.fromNullishOr(
-    options.occasion === undefined ? TODAY : options.occasion
-  ),
-})
+): ReminderRow => {
+  const stored = {
+    id: `row-${++nextRow}`,
+    userId,
+    delivery: options.delivery ?? Delivery.Pending({ retrying: false }),
+    scheduledAt: options.scheduledAt ?? at('2026-11-12T09:00:00Z'),
+  }
+  const type = options.type ?? 'watering_reminder'
+  return type === 'overdue_reminder'
+    ? { ...stored, type }
+    : {
+        ...stored,
+        type,
+        dueDay: Option.fromNullishOr(
+          options.occasion === undefined ? TODAY : options.occasion
+        ),
+      }
+}
 
-const plant = (overrides: Partial<PlantState> = {}): PlantState => ({
+type PlantOptions = Partial<Omit<PlantState, 'life'>> & {
+  readonly living?: boolean
+  readonly lines?: ReadonlyArray<CareLine>
+}
+
+const plant = ({
+  living = true,
+  lines = [line('watering', TODAY)],
+  ...overrides
+}: PlantOptions = {}): PlantState => ({
   id: 'plant-1',
-  living: true,
+  life: living ? Life.Living({ lines }) : Life.Dead(),
   remindersEnabled: true,
   shared: false,
-  lines: [line('watering', TODAY)],
   audience: ['alex'],
   rows: [],
   ...overrides,
@@ -107,13 +124,22 @@ const put = (
   over: Option.Option<string> = Option.none(),
   careType: CareType = 'watering'
 ) =>
-  Change.Put({
-    userId: who.id,
-    plantId: 'plant-1',
-    type: reminderTypeOf(careType),
-    occasion: dueDay,
-    scheduledAt: sendTime(who, dueDay),
-    over,
+  Option.match(over, {
+    onNone: () =>
+      Change.Put({
+        userId: who.id,
+        plantId: 'plant-1',
+        type: reminderTypeOf(careType),
+        occasion: dueDay,
+        scheduledAt: sendTime(who, dueDay),
+      }),
+    onSome: (rowId) =>
+      Change.Retime({
+        rowId,
+        userId: who.id,
+        occasion: dueDay,
+        scheduledAt: sendTime(who, dueDay),
+      }),
   })
 
 const removed = (changes: ReadonlyArray<Change>) =>
@@ -129,16 +155,16 @@ const afterApplying = (
   rows: Array.reduce(changes, state.rows, (rows, change) =>
     Change.$match(change, {
       Remove: ({ rowId }) => Array.filter(rows, (r) => r.id !== rowId),
-      Put: ({ userId, type, occasion, scheduledAt, over }) =>
-        Option.match(over, {
-          onSome: (rowId) =>
-            Array.map(rows, (r) =>
-              r.id === rowId
-                ? { ...r, scheduledAt, occasion: Option.some(occasion) }
-                : r
-            ),
-          onNone: () => [...rows, row(userId, { type, scheduledAt, occasion })],
-        }),
+      Retime: ({ rowId, occasion, scheduledAt }) =>
+        Array.map(rows, (r) =>
+          r.id === rowId && r.type !== 'overdue_reminder'
+            ? { ...r, scheduledAt, dueDay: Option.some(occasion) }
+            : r
+        ),
+      Put: ({ userId, type, occasion, scheduledAt }) => [
+        ...rows,
+        row(userId, { type, scheduledAt, occasion }),
+      ],
     })
   ),
 })
@@ -336,12 +362,7 @@ describe('planPlant, entitlement', () => {
   } as const
 
   const cases: ReadonlyArray<
-    readonly [
-      name: string,
-      state: Partial<PlantState>,
-      who: Recipient,
-      why: string,
-    ]
+    readonly [name: string, state: PlantOptions, who: Recipient, why: string]
   > = [
     ['a dead plant', { living: false, lines: [] }, alex, 'plant-dead'],
     [
@@ -571,7 +592,6 @@ describe('planPlant, a personal plant changing hands', () => {
     type: 'watering_reminder',
     occasion: TODAY,
     scheduledAt: at('2026-11-12T15:00:00Z'),
-    over: Option.none(),
   })
 
   it.each([
@@ -711,8 +731,8 @@ describe('planPlant, fixpoint', () => {
   const generator = (seed: number) => {
     let state = seed
     const next = () => {
-      state = (state * 1_103_515_245 + 12_345) % 2_147_483_648
-      return state
+      state = (Math.imul(state, 1_103_515_245) + 12_345) & 0x7fffffff
+      return state >>> 16
     }
     return {
       pick: <A>(values: ReadonlyArray<A>): A =>
@@ -784,7 +804,8 @@ describe('planPlant, fixpoint', () => {
       const touched = Array.flatMap(changes, (change) =>
         Change.$match(change, {
           Remove: ({ rowId }) => [rowId],
-          Put: ({ over }) => Option.toArray(over),
+          Retime: ({ rowId }) => [rowId],
+          Put: () => [],
         })
       )
       const inFlight = pipe(

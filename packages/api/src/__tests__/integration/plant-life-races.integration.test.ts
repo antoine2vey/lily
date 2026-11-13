@@ -5,6 +5,7 @@ import {
   reviveAsCurrentUser,
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
+import { statementsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { chatPermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -369,17 +370,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('a remove asks for its strongest lock first: behind a session that references the plant, the statement that waits is the lock, not the delete', async () => {
       const plantId = await plantOf()
       const session = await pool.connect()
-      const waiting = async () => {
-        for (const _ of Array.range(1, 100)) {
-          const { rows } = await pool.query<{ query: string }>(
-            `SELECT query FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-          )
-          if (rows.length > 0) return Array.map(rows, (row) => row.query)
-          await new Promise((resolve) => setTimeout(resolve, 50))
-        }
-        throw new Error('no session ever waited on a lock')
-      }
-
       try {
         await session.query('BEGIN')
         await session.query(
@@ -387,7 +377,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           [plantId]
         )
         const removing = atOnce(0, removeAsCurrentUser(plantId), Effect.void)
-        const waited = await waiting()
+        const waited = await statementsWaitingForALock(pool)
         await session.query('ROLLBACK')
         const [removed] = await removing
 

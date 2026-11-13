@@ -25,6 +25,7 @@ import {
   statusToSettleInto,
   withStepDone,
 } from '@lily/api/contexts/care/domain/plan'
+import { Actor } from '@lily/api/kernel/permit'
 import {
   decision,
   type Decision as KernelDecision,
@@ -135,6 +136,8 @@ export type Refusal = Data.TaggedEnum<{
   AlreadyDead: { readonly plantId: string }
   NotDead: { readonly plantId: string }
   OwnerFull: { readonly error: LimitExceededError }
+  ActorGone: { readonly plantId: string; readonly userId: string }
+  CreatorGone: { readonly userId: string }
 }>
 export const Refusal = Data.taggedEnum<Refusal>()
 
@@ -249,6 +252,28 @@ export const recompute = (
     })
   )
 }
+
+export type AccountsHeld = ReadonlySet<string>
+
+export const requireActor = (
+  held: AccountsHeld,
+  userId: string,
+  plantId: string
+): Result.Result<string, RefusalOf<'ActorGone'>> =>
+  held.has(userId)
+    ? Result.succeed(userId)
+    : Result.fail(Refusal.ActorGone({ plantId, userId }))
+
+export const authorOf = (
+  held: AccountsHeld,
+  actor: Actor,
+  plantId: string
+): Result.Result<Option.Option<string>, RefusalOf<'ActorGone'>> =>
+  Actor.$match(actor, {
+    System: () => Result.succeed(Option.none()),
+    User: ({ userId }) =>
+      Result.map(requireActor(held, userId, plantId), Option.some),
+  })
 
 const requireLiving = (
   plant: CarePlant

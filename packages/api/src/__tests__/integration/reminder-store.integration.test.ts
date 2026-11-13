@@ -1,7 +1,10 @@
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
+import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import {
   Change,
+  linesOf,
   type ReminderRow,
 } from '@lily/api/contexts/reminders/domain/plan'
 import { replan } from '@lily/api/contexts/reminders/replan'
@@ -11,6 +14,7 @@ import {
   load,
   type StoreContext,
 } from '@lily/api/contexts/reminders/store'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import {
@@ -50,9 +54,10 @@ const StoreLive = Layer.mergeAll(
   DelegationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
-const run = <A, E>(effect: Effect.Effect<A, E, StoreContext>) =>
+const run = <A, E>(effect: Effect.Effect<A, E, StoreContext | Transaction>) =>
   Effect.runPromise(
     effect.pipe(
+      assumingTransaction,
       Effect.provide(StoreLive),
       Effect.provideService(References.MinimumLogLevel, 'None')
     )
@@ -156,19 +161,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const sendTime = (day: CareDay, timezone: string, hour: number) =>
       DateTime.add(CareDays.startOf(day, timezone), { hours: hour })
 
-    const put = (
-      userId: string,
-      scheduledAt: DateTime.Utc,
-      over: Option.Option<string> = Option.none()
-    ) =>
+    const put = (userId: string, scheduledAt: DateTime.Utc) =>
       Change.Put({
         userId,
         plantId: shared,
         type: 'watering_reminder',
         occasion: dueDay,
         scheduledAt,
-        over,
       })
+
+    const retime = (userId: string, scheduledAt: DateTime.Utc, rowId: string) =>
+      Change.Retime({ rowId, userId, occasion: dueDay, scheduledAt })
 
     const drop = (rowId: string, userId: string) =>
       Change.Remove({ rowId, userId, why: 'superseded' })
@@ -224,10 +227,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         expect(
           Option.map(fern, (p) => ({
-            living: p.living,
+            living: p.life._tag === 'Living',
             remindersEnabled: p.remindersEnabled,
             audience: [...p.audience].sort(),
-            lines: Array.map(p.lines, (l) => [
+            lines: Array.map(linesOf(p), (l) => [
               l.careType,
               l.dueDay,
               l.status._tag,
@@ -273,7 +276,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         )
         expect(
-          Array.map(loaded.plants, (p) => [p.living, p.lines.length])
+          Array.map(loaded.plants, (p) => [
+            p.life._tag === 'Living',
+            linesOf(p).length,
+          ])
         ).toEqual([[false, 0]])
       })
 
@@ -326,7 +332,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Array.map((r: ReminderRow) => [
             r.id,
             r.delivery._tag,
-            Option.getOrNull(r.occasion),
+            r.type === 'overdue_reminder' ? null : Option.getOrNull(r.dueDay),
           ])
         )
 
@@ -418,7 +424,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       it('re-times a pending row in place: same id, new time, occasion recorded', async () => {
         const existing = await seed({ userId: alex })
         const at = sendTime(dueDay, 'UTC', 11)
-        await run(apply([put(alex, at, Option.some(existing))]))
+        await run(apply([retime(alex, at, existing)]))
 
         expect(
           Array.map(await stored(), (r) => [
@@ -449,9 +455,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const at = sendTime(dueDay, 'UTC', 11)
         await run(
           apply([
-            put(alex, at, Option.some(retried)),
-            put(lily, at, Option.some(queued)),
-            put(sam, at, Option.some(sent)),
+            retime(alex, at, retried),
+            retime(lily, at, queued),
+            retime(sam, at, sent),
           ])
         )
 
@@ -508,7 +514,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         await Effect.runPromise(Deferred.await(firstWrote))
         const second = run(apply([put(alex, late)]))
-        await new Promise((resolve) => setTimeout(resolve, 200))
+        await waitsForALock(pool, second)
         Deferred.doneUnsafe(letFirstCommit, Exit.void)
         await Promise.all([first, second])
 
@@ -602,6 +608,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             drop(old, alex),
             put(NOBODY, sendTime(dueDay, 'UTC', 9)),
           ]).pipe(
+            assumingTransaction,
             Effect.provide(StoreLive),
             Effect.provideService(References.MinimumLogLevel, 'None')
           )

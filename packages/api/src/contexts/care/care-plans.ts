@@ -2,7 +2,12 @@ import type {
   CarePlant,
   DecideEnv,
 } from '@lily/api/contexts/care/domain/care-plant'
-import type { Decision, Refusal } from '@lily/api/contexts/care/domain/decide'
+import {
+  type Decision,
+  type Refusal,
+  type RefusalOf,
+  requireActor,
+} from '@lily/api/contexts/care/domain/decide'
 import { CareTopic } from '@lily/api/contexts/care/domain/events'
 import type { ProposedStep } from '@lily/api/contexts/care/domain/plan'
 import {
@@ -41,7 +46,7 @@ import {
   Effect,
   Layer,
   Option,
-  type Result,
+  Result,
 } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -57,7 +62,7 @@ export class CarePlans extends Context.Service<
     /**
      * Writes a proposed plan and all its steps, or neither. The author is
      * the user the permit names. A dead plant answers as a plant that does
-     * not exist.
+     * not exist, and so does an author whose account is gone.
      */
     readonly propose: (command: {
       readonly permit: PlantPermit<'chat'>
@@ -84,12 +89,16 @@ export class CarePlans extends Context.Service<
      * A step with a care type records that care for today. When today's care
      * was already given, the step is ticked without one. A step already done
      * is left as it is. Ticking the last open step of an accepted plan
-     * completes the plan.
+     * completes the plan. A ticker whose account is gone is answered that
+     * the plant does not exist.
      */
     readonly tickStep: (command: {
       readonly permit: PlanPermit<'tick'>
       readonly stepId: string
-    }) => Effect.Effect<void, CarePlanNotFoundError | CarePlanStepNotFoundError>
+    }) => Effect.Effect<
+      void,
+      CarePlanNotFoundError | CarePlanStepNotFoundError | PlantNotFoundError
+    >
     /**
      * Reopens the step and, with it, a completed plan. The care a tick
      * recorded stays.
@@ -161,6 +170,32 @@ export const CarePlansLive = Layer.effect(
         Effect.mapError((refusal: R) => asError(refusal))
       )
 
+    const onPlantOfBy = <A, R extends Refusal>(
+      name: string,
+      permit: { readonly plantId: string },
+      by: string,
+      careTypes: ReadonlyArray<CareType>,
+      decide: (plant: Option.Option<CarePlant>) => Result.Result<Decision<A>, R>
+    ) =>
+      runCommand({
+        name,
+        topic: CareTopic,
+        load: store.lockAndLoadFor([by], [permit.plantId], careTypes),
+        decide: ({
+          plants,
+          accountsHeld,
+        }): Result.Result<Decision<A>, R | RefusalOf<'ActorGone'>> =>
+          Result.flatMap(requireActor(accountsHeld, by, permit.plantId), () =>
+            decide(Option.fromNullishOr(plants.get(permit.plantId)))
+          ),
+        apply: store.apply,
+      }).pipe(
+        Effect.provide(context),
+        Effect.mapError((refusal: R | RefusalOf<'ActorGone'>) =>
+          asError(refusal)
+        )
+      )
+
     const authorOf = (permit: PlantPermit<'chat'>) =>
       Actor.$match(permit.actor, {
         User: ({ userId }) => Effect.succeed(userId),
@@ -195,7 +230,7 @@ export const CarePlansLive = Layer.effect(
     return CarePlans.of({
       propose: ({ permit, title, source, steps }) =>
         Effect.flatMap(authorOf(permit), (authorId) =>
-          onPlantOf('care.proposePlan', permit, [], (plant) =>
+          onPlantOfBy('care.proposePlan', permit, authorId, [], (plant) =>
             proposePlan(plant, {
               planId: crypto.randomUUID(),
               plantId: permit.plantId,
@@ -230,8 +265,12 @@ export const CarePlansLive = Layer.effect(
         Effect.gen(function* () {
           const careTypes = yield* careTypesOf(permit)
           const env = yield* tickEnv(permit, careTypes)
-          yield* onPlantOf('care.tickPlanStep', permit, careTypes, (plant) =>
-            tickStep(plant, permit.planId, stepId, env)
+          yield* onPlantOfBy(
+            'care.tickPlanStep',
+            permit,
+            permit.by,
+            careTypes,
+            (plant) => tickStep(plant, permit.planId, stepId, env)
           )
         }),
       untickStep: ({ permit, stepId }) =>

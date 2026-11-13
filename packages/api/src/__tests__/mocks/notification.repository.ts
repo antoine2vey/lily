@@ -1,6 +1,7 @@
 import {
   type FindNotificationsParams,
   type INotificationRepository,
+  isReminderTopic,
   NotificationRepository,
   type NotificationRow,
 } from '@lily/api/repositories/notification.repository'
@@ -329,7 +330,7 @@ export const createMockNotificationRepository = (
               : Array.contains(query.occasionDays, occasionDay))
           return n.plantId !== undefined &&
             Array.contains(query.plantIds, n.plantId) &&
-            Array.contains(CARE_TOPICS, n.type) &&
+            isReminderTopic(n.type) &&
             read
             ? [
                 {

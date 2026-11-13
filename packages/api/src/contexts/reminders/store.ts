@@ -10,12 +10,13 @@ import {
   type CareLine,
   Change,
   Delivery,
+  Life,
   type PlantState,
   type Recipient,
   type ReminderRow,
-  type ReminderType,
   reminderTypeOf,
 } from '@lily/api/contexts/reminders/domain/plan'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
@@ -198,7 +199,7 @@ const deliveryOf = (stored: StoredReminder): Delivery =>
     })
   )
 
-const occasionBeforeTheColumn = (
+const dueDayBeforeTheColumn = (
   stored: StoredReminder,
   cares: ReadonlyArray<DueCare>
 ): Option.Option<CareDay> =>
@@ -217,27 +218,34 @@ const occasionBeforeTheColumn = (
     )
   )
 
-const occasionOf = (
+const dueDayOf = (
   stored: StoredReminder,
   cares: ReadonlyArray<DueCare>
 ): Option.Option<CareDay> =>
   pipe(
     Option.fromNullishOr(stored.occasionDay),
     Option.map((day) => CareDay.make(day)),
-    Option.orElse(() => occasionBeforeTheColumn(stored, cares))
+    Option.orElse(() => dueDayBeforeTheColumn(stored, cares))
   )
 
 const rowOf = (
   stored: StoredReminder,
   cares: ReadonlyArray<DueCare>
-): ReminderRow => ({
-  id: stored.id,
-  userId: stored.userId,
-  type: stored.type as ReminderType,
-  delivery: deliveryOf(stored),
-  scheduledAt: DateTime.makeUnsafe(stored.scheduledAt),
-  occasion: occasionOf(stored, cares),
-})
+): ReminderRow => {
+  const row = {
+    id: stored.id,
+    userId: stored.userId,
+    delivery: deliveryOf(stored),
+    scheduledAt: DateTime.makeUnsafe(stored.scheduledAt),
+  }
+  return stored.type === 'overdue_reminder'
+    ? { ...row, type: stored.type }
+    : {
+        ...row,
+        type: stored.type,
+        dueDay: dueDayOf(stored, cares),
+      }
+}
 
 const BEFORE_THE_COLUMN_LOOKBACK_DAYS = 2
 
@@ -276,9 +284,7 @@ const loadWithAccounts = (
       upTo: DueWindow.Any(),
     })
     const caresOf = (plant: PlantRow) =>
-      plant.diedAt === null
-        ? Array.filter(cares, (care) => care.plant.id === plant.id)
-        : []
+      Array.filter(cares, (care) => care.plant.id === plant.id)
     const now = yield* DateTime.now
     const recipients = yield* Effect.forEach(accounts, (user) =>
       recipientOf(
@@ -306,17 +312,21 @@ const loadWithAccounts = (
         const due = caresOf(plant)
         return {
           id: plant.id,
-          living: plant.diedAt === null,
+          life:
+            plant.diedAt === null
+              ? Life.Living({
+                  lines: Array.map(
+                    due,
+                    ({ careType, dueDay, status }): CareLine => ({
+                      careType,
+                      dueDay,
+                      status,
+                    })
+                  ),
+                })
+              : Life.Dead(),
           remindersEnabled: plant.remindersEnabled,
           shared: plant.owner._tag === 'Canopy',
-          lines: Array.map(
-            due,
-            ({ careType, dueDay, status }): CareLine => ({
-              careType,
-              dueDay,
-              status,
-            })
-          ),
           audience,
           rows: pipe(
             stored,
@@ -334,7 +344,7 @@ const loadWithAccounts = (
 
 export const load = (
   plantIds: ReadonlyArray<string>
-): Effect.Effect<Loaded, SqlError, StoreContext> =>
+): Effect.Effect<Loaded, SqlError, StoreContext | Transaction> =>
   loadWithAccounts(plantIds, []).pipe(
     Effect.map(({ loaded }) => loaded),
     Effect.withSpan('ReminderStore.load')
@@ -344,7 +354,11 @@ export const loadDigest = (
   recipientId: string,
   plantIds: ReadonlyArray<string>,
   roll: number
-): Effect.Effect<Option.Option<OverdueDigest>, SqlError, StoreContext> =>
+): Effect.Effect<
+  Option.Option<OverdueDigest>,
+  SqlError,
+  StoreContext | Transaction
+> =>
   Effect.gen(function* () {
     const notificationRepo = yield* NotificationRepository
     const { loaded, accounts } = yield* loadWithAccounts(plantIds, [
@@ -389,13 +403,12 @@ export const apply = (
 ): Effect.Effect<
   void,
   SqlError,
-  NotificationRepository | SqlClient.SqlClient
+  NotificationRepository | SqlClient.SqlClient | Transaction
 > =>
   Effect.gen(function* () {
     if (Array.isReadonlyArrayEmpty(changes)) return
     const sql = yield* SqlClient.SqlClient
     const notificationRepo = yield* NotificationRepository
-    const puts = Array.filter(changes, Change.$is('Put'))
     yield* sql.withTransaction(
       notificationRepo.writeReminders({
         removeIds: pipe(
@@ -403,21 +416,18 @@ export const apply = (
           Array.filter(Change.$is('Remove')),
           Array.map((change) => change.rowId)
         ),
-        retimes: Array.flatMap(puts, (change) =>
-          Option.match(change.over, {
-            onNone: () => [],
-            onSome: (id) => [
-              {
-                id,
-                scheduledAt: DateTime.toDateUtc(change.scheduledAt),
-                occasionDay: change.occasion,
-              },
-            ],
-          })
+        retimes: pipe(
+          changes,
+          Array.filter(Change.$is('Retime')),
+          Array.map((change) => ({
+            id: change.rowId,
+            scheduledAt: DateTime.toDateUtc(change.scheduledAt),
+            occasionDay: change.occasion,
+          }))
         ),
         inserts: pipe(
-          puts,
-          Array.filter((change) => Option.isNone(change.over)),
+          changes,
+          Array.filter(Change.$is('Put')),
           Array.map((change) => ({
             type: change.type,
             userId: change.userId,

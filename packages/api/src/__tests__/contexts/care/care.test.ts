@@ -179,6 +179,25 @@ describe('Care', () => {
       expect(dueDayOf(world.plants, 'yesterday')).toBe('2026-11-18')
     })
 
+    it('answers not found to a carer whose account is gone, and writes nothing', async () => {
+      const world = createInMemoryCare([plant('plant-1')], {
+        goneAccounts: ['user-1'],
+      })
+
+      const failure = await Effect.runPromise(
+        Effect.flatMap(Care, (care) =>
+          care.recordOne({ ...waterToday, permit: carePermit('plant-1') })
+        ).pipe(Effect.flip, Effect.provide(world.layer))
+      )
+
+      expect(failure).toMatchObject({
+        _tag: 'PlantNotFoundError',
+        plantId: 'plant-1',
+      })
+      expect(world.writes).toEqual([])
+      expect(world.events).toEqual([])
+    })
+
     it('records a system care without a carer', async () => {
       const world = createInMemoryCare([plant('plant-1')])
 
@@ -237,6 +256,28 @@ describe('Care', () => {
       ).toHaveLength(1)
       expect(dueDayOf(world.plants, 'a-fresh')).toBe('2026-11-19')
       expect(dueDayOf(world.plants, 'b-cared')).toBe('2026-11-10')
+    })
+
+    it('refuses every plant when one carer has no account left, and writes nothing', async () => {
+      const world = createInMemoryCare([plant('a-fresh'), plant('b-fresh')], {
+        goneAccounts: ['user-2'],
+      })
+
+      const failure = await Effect.runPromise(
+        Effect.flatMap(Care, (care) =>
+          care.record({
+            ...waterToday,
+            permits: [carePermit('a-fresh'), carePermit('b-fresh', 'user-2')],
+          })
+        ).pipe(Effect.flip, Effect.provide(world.layer))
+      )
+
+      expect(failure).toMatchObject({
+        _tag: 'PlantNotFoundError',
+        plantId: 'b-fresh',
+      })
+      expect(world.writes).toEqual([])
+      expect(world.events).toEqual([])
     })
 
     it('does nothing without a permit', async () => {
@@ -549,6 +590,24 @@ describe('Care', () => {
       )
 
       expect(failure._tag).toBe('PlantIsDeadError')
+      expect(world.writes).toEqual([])
+    })
+
+    it('answers not found to a carer whose account is gone, and writes nothing', async () => {
+      const world = createInMemoryCare([plant('plant-1')], {
+        goneAccounts: ['user-1'],
+      })
+
+      const failure = await Effect.runPromise(
+        Effect.flip(
+          correct(world, [{ careType: 'watering', on: day('2026-11-08') }])
+        )
+      )
+
+      expect(failure).toMatchObject({
+        _tag: 'PlantNotFoundError',
+        plantId: 'plant-1',
+      })
       expect(world.writes).toEqual([])
     })
 

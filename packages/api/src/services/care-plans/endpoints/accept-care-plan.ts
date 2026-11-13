@@ -1,4 +1,5 @@
 import { CarePlans } from '@lily/api/contexts/care'
+import { transact } from '@lily/api/kernel/transact'
 import {
   type CarePlanContext,
   reloadPlan,
@@ -6,11 +7,13 @@ import {
 import { Effect } from 'effect'
 
 export const acceptCarePlan = ({ permit }: CarePlanContext<'manage'>) =>
-  Effect.gen(function* () {
-    const carePlans = yield* CarePlans
-    yield* carePlans.accept({ permit })
-    return yield* reloadPlan(permit.planId)
-  }).pipe(
+  transact(
+    Effect.gen(function* () {
+      const carePlans = yield* CarePlans
+      yield* carePlans.accept({ permit })
+      return yield* reloadPlan(permit.planId)
+    })
+  ).pipe(
     Effect.withSpan('CarePlansService.acceptCarePlan', {
       attributes: { 'carePlan.id': permit.planId },
     })

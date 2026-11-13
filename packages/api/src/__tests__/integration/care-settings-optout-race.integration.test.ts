@@ -4,6 +4,7 @@ import {
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -206,20 +207,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       ).rows[0]?.n ?? 0
 
-    const untilBlockedOrSettled = async (writer: Promise<unknown>) => {
-      let settled = false
-      void writer.finally(() => {
-        settled = true
-      })
-      for (const _ of Arr.range(1, 60)) {
-        const { rows } = await pool.query<{ waiting: number }>(
-          `SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-        )
-        if (settled || (rows[0]?.waiting ?? 0) > 0) return
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-    }
-
     const optOutPausedHoldingItsUserRow = (
       reached: Deferred.Deferred<void>,
       release: Deferred.Deferred<void>
@@ -305,10 +292,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             )
         await Promise.race([
           Effect.runPromise(Deferred.await(careReached)),
-          untilBlockedOrSettled(care),
+          waitsForALock(pool, care),
         ])
         Deferred.doneUnsafe(optOutRelease, Exit.void)
-        await untilBlockedOrSettled(optOut)
+        await waitsForALock(pool, optOut)
         Deferred.doneUnsafe(careRelease, Exit.void)
         const [optedOut, cared] = await Promise.all([optOut, care])
 

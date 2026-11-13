@@ -6,6 +6,8 @@
  * every consumer of its topic, at least once and in no guaranteed order.
  * Consumers must therefore be idempotent and rebuild from current state.
  */
+
+import type { Transaction } from '@lily/api/kernel/transact'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { deadLetterMessages, outbox } from '@lily/db/schema'
 import {
@@ -108,13 +110,13 @@ export class Outbox extends Context.Service<
   Outbox,
   {
     /**
-     * Records events in the caller's transaction, one row per event, for the
-     * consumers registered on the topic. Without a consumer nothing is stored.
+     * Records events, one row per event, for the consumers registered on the
+     * topic. Without a consumer nothing is stored.
      */
     readonly append: <E>(
       to: OutboxTopic<E>,
       events: ReadonlyArray<E>
-    ) => Effect.Effect<void, SqlError | Schema.SchemaError>
+    ) => Effect.Effect<void, SqlError | Schema.SchemaError, Transaction>
     /** Asks the relay to deliver now instead of at its next poll. */
     readonly wake: Effect.Effect<void>
     /**

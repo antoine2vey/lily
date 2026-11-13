@@ -1,6 +1,7 @@
 import { mockDelegation1 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
+import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
 import { Absence } from '@lily/api/contexts/absence'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import type { User } from '@lily/shared'
@@ -60,7 +61,7 @@ const released = async (
   await Effect.runPromise(
     Effect.flatMap(Absence, (service) =>
       service.releaseForDeletion(userId)
-    ).pipe(Effect.provide(absence.layer))
+    ).pipe(assumingTransaction, Effect.provide(absence.layer))
   )
   return {
     statuses: Array.map(absence.delegations, (row) => row.status),

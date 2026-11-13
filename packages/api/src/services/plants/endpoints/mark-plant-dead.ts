@@ -1,5 +1,7 @@
 import { PlantLife } from '@lily/api/contexts/care'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { PlantPermit } from '@lily/api/kernel/permit'
+import { transact } from '@lily/api/kernel/transact'
 import {
   PlantRepository,
   type PlantWithRoom,
@@ -10,6 +12,7 @@ import {
 } from '@lily/shared/errors/plant'
 import type { PlantDeathRequest } from '@lily/shared/plant'
 import { Effect, Option } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const markPlantDead = (
@@ -20,31 +23,33 @@ export const markPlantDead = (
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
-  PlantRepository | PlantLife
+  PlantRepository | PlantLife | SqlClient.SqlClient | Outbox
 > =>
-  Effect.gen(function* () {
-    const life = yield* PlantLife
-    const repo = yield* PlantRepository
+  transact(
+    Effect.gen(function* () {
+      const life = yield* PlantLife
+      const repo = yield* PlantRepository
 
-    yield* life
-      .bury({
-        permit,
-        seenOwner: plant.owner,
-        cause: request.cause,
-        note: Option.fromNullishOr(request.note),
-      })
-      .pipe(
-        Effect.catchTag('PlantNotFoundError', () =>
-          Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
+      yield* life
+        .bury({
+          permit,
+          seenOwner: plant.owner,
+          cause: request.cause,
+          note: Option.fromNullishOr(request.note),
+        })
+        .pipe(
+          Effect.catchTag('PlantNotFoundError', () =>
+            Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
+          )
         )
-      )
 
-    const fresh = yield* repo.findById(plant.id)
-    if (!fresh) {
-      return yield* new PlantNotFoundError({ plantId: requestedId })
-    }
-    return fresh
-  }).pipe(
+      const fresh = yield* repo.findById(plant.id)
+      if (!fresh) {
+        return yield* new PlantNotFoundError({ plantId: requestedId })
+      }
+      return fresh
+    })
+  ).pipe(
     Effect.withSpan('PlantsService.markPlantDead', {
       attributes: { 'plant.id': plant.id, 'plant.death_cause': request.cause },
     })

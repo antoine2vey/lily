@@ -1,6 +1,8 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { carePermit, createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { CareWhen } from '@lily/api/contexts/care'
 import { updateCareLog } from '@lily/api/services/care-logs/endpoints/update-care-log'
 import type { CareLogUpdateRequest } from '@lily/shared/care-log'
@@ -17,7 +19,12 @@ const update = (
   care,
   effect: updateCareLog(permit, 'log-1', request).pipe(
     Effect.provide(
-      Layer.mergeAll(care.layer, createMockCareLogRepository(logs))
+      Layer.mergeAll(
+        care.layer,
+        createMockCareLogRepository(logs),
+        MockSqlClientLive,
+        MockOutboxLive
+      )
     )
   ),
 })

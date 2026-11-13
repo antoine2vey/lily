@@ -11,10 +11,10 @@ import {
   loadDigest,
   type StoreContext,
 } from '@lily/api/contexts/reminders/store'
+import { transactQuietly } from '@lily/api/kernel/transact'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { PlantOwner } from '@lily/shared'
 import { Array, Effect, Option, pipe, Random, Record } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /** Billing's answer to how many plants of each owner may be reminded about. */
@@ -46,8 +46,7 @@ const remindRecipient = (
 ): Effect.Effect<OverdueOutcome, never, StoreContext> =>
   Effect.gen(function* () {
     const roll = yield* Random.nextBetween(0, 0.5)
-    const sql = yield* SqlClient.SqlClient
-    const decision = yield* sql.withTransaction(
+    const decision = yield* transactQuietly(
       Effect.gen(function* () {
         const decided = Option.match(
           yield* loadDigest(recipientId, plantIds, roll),

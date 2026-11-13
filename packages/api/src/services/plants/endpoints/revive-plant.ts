@@ -40,7 +40,7 @@ export const revivePlant = (
     const notFound = () =>
       Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
 
-    yield* withOwnerLock(plant.owner)((held) =>
+    return yield* withOwnerLock(plant.owner)((held) =>
       Effect.gen(function* () {
         const room = yield* limitChecker.checkPlantLimit(held.owner).pipe(
           Effect.as(OwnerRoom.Room()),
@@ -49,17 +49,16 @@ export const revivePlant = (
           )
         )
         yield* life.revive({ permit, held, room })
+        const fresh = yield* repo.findById(plant.id)
+        if (!fresh) {
+          return yield* notFound()
+        }
+        return fresh
       })
     ).pipe(
       Effect.catchTag('CanopyNotFoundError', notFound),
       Effect.catchTag('PlantNotFoundError', notFound)
     )
-
-    const fresh = yield* repo.findById(plant.id)
-    if (!fresh) {
-      return yield* notFound()
-    }
-    return fresh
   }).pipe(
     Effect.withSpan('PlantsService.revivePlant', {
       attributes: { 'plant.id': plant.id },

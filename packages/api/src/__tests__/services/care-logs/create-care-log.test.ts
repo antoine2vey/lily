@@ -1,6 +1,8 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { carePermit, createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { CareDay } from '@lily/shared'
@@ -33,7 +35,9 @@ const setup = (outcome: 'Recorded' | 'AlreadyCared' = 'Recorded') => {
     care,
     layer: Layer.mergeAll(
       createMockCareLogRepository(mockCareLogs),
-      care.layer
+      care.layer,
+      MockSqlClientLive,
+      MockOutboxLive
     ),
   }
 }

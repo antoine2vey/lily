@@ -41,6 +41,7 @@ import {
   commandBody,
   decision,
   type Decision as KernelDecision,
+  type Transaction,
   transact,
 } from '@lily/api/kernel/transact'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -166,20 +167,22 @@ export class Absence extends Context.Service<
      */
     readonly advanceVacations: Effect.Effect<Tally, SqlError>
     /**
-     * Locks every delegation the user is a party to, then their account row,
-     * in the caller's transaction. An account deletion calls it before it
-     * touches a plant or a notification, so it meets a vacation command or a
-     * settings change at the account row and not behind it.
+     * Locks every delegation the user is a party to, then their account row.
+     * An account deletion calls it before it touches a plant or a
+     * notification, so it meets a vacation command or a settings change at
+     * the account row and not behind it.
      */
-    readonly holdForDeletion: (userId: string) => Effect.Effect<void, SqlError>
+    readonly holdForDeletion: (
+      userId: string
+    ) => Effect.Effect<void, SqlError, Transaction>
     /**
-     * Cancels every open delegation of the user and ends their vacation, in
-     * the caller's transaction. Tells nobody and moves no due day. Keeps
-     * `SqlError` so the cleanup can isolate one failing account.
+     * Cancels every open delegation of the user and ends their vacation.
+     * Tells nobody and moves no due day. Keeps `SqlError` so the cleanup can
+     * isolate one failing account.
      */
     readonly releaseForDeletion: (
       userId: string
-    ) => Effect.Effect<void, SqlError>
+    ) => Effect.Effect<void, SqlError, Transaction>
   }
 >()('absence/Absence') {}
 
@@ -402,7 +405,7 @@ export const AbsenceLive = Layer.effect(
 
     const runNoticed = <Loaded, A, R extends { readonly _tag: string }>(
       name: string,
-      load: Effect.Effect<Loaded, SqlError>,
+      load: Effect.Effect<Loaded, SqlError, Transaction>,
       decide: (loaded: Loaded) => Result.Result<Decision<Noticed<A>>, R>
     ) =>
       transact(
@@ -431,7 +434,7 @@ export const AbsenceLive = Layer.effect(
 
     const run = <Loaded, A, R extends { readonly _tag: string }>(
       name: string,
-      load: Effect.Effect<Loaded, SqlError>,
+      load: Effect.Effect<Loaded, SqlError, Transaction>,
       decide: (
         loaded: Loaded
       ) => Result.Result<KernelDecision<AbsenceWrite, AbsenceEvent, A>, R>

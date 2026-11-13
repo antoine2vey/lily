@@ -3,7 +3,6 @@ import { type AppEvent, EventBus } from '@lily/api/events'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
-import type { CareType } from '@lily/shared'
 import {
   type IPushService,
   type LiveActivityPushMessage,
@@ -48,22 +47,14 @@ const sendWithLogging = (
   )
 }
 
-const refreshLiveActivity = (params: {
-  userId: string
-  exclude?: { plantId: string; careType: CareType }
-}) =>
+const refreshLiveActivity = (userId: string) =>
   Effect.gen(function* () {
     const activityRepo = yield* ActivityPushTokenRepository
     const pushService = yield* PushService
-    const activities = yield* activityRepo.findActiveActivitiesByUserId(
-      params.userId
-    )
+    const activities = yield* activityRepo.findActiveActivitiesByUserId(userId)
     if (Array.isReadonlyArrayEmpty(activities)) return
 
-    const contentState = yield* buildLiveActivityContentState(
-      params.userId,
-      params.exclude
-    )
+    const contentState = yield* buildLiveActivityContentState(userId)
 
     yield* Effect.forEach(
       activities,
@@ -103,11 +94,7 @@ const refreshLiveActivity = (params: {
     )
   })
 
-const refreshCardsFor = (params: {
-  actorId: string
-  plantId: string
-  exclude?: { plantId: string; careType: CareType }
-}) =>
+const refreshCardsFor = (params: { actorId: string; plantId: string }) =>
   Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
     const plant = Option.fromNullishOr(
@@ -129,11 +116,7 @@ const refreshCardsFor = (params: {
     )
     yield* Effect.forEach(
       Array.dedupe([params.actorId, ...owner, ...recipients]),
-      (userId) =>
-        refreshLiveActivity({
-          userId,
-          ...(params.exclude ? { exclude: params.exclude } : {}),
-        }),
+      refreshLiveActivity,
       { discard: true }
     )
   })
@@ -142,14 +125,7 @@ const refreshCardsFor = (params: {
 // variants are no-ops.
 export const processEvent = (event: AppEvent) =>
   Match.value(event).pipe(
-    Match.tag('CareLogCreated', (e) =>
-      refreshCardsFor({
-        actorId: e.userId,
-        plantId: e.plantId,
-        exclude: { plantId: e.plantId, careType: e.type },
-      })
-    ),
-    Match.tag('PlantLifecycleChanged', (e) =>
+    Match.tag('CareLogCreated', 'PlantLifecycleChanged', (e) =>
       refreshCardsFor({ actorId: e.userId, plantId: e.plantId })
     ),
     Match.orElse(() => Effect.void)

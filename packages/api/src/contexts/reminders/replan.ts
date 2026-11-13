@@ -6,8 +6,8 @@ import {
   plantsOf,
   type StoreContext,
 } from '@lily/api/contexts/reminders/store'
+import { transactQuietly } from '@lily/api/kernel/transact'
 import { Array, Effect, Number, Option } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type ReplanContext = StoreContext
@@ -18,20 +18,18 @@ const replanChunk = (
   plantIds: ReadonlyArray<string>,
   onlyUser: Option.Option<string>
 ): Effect.Effect<number, SqlError, ReplanContext> =>
-  Effect.flatMap(SqlClient.SqlClient, (sql) =>
-    sql.withTransaction(
-      Effect.gen(function* () {
-        const { plants, recipients, now } = yield* load(plantIds)
-        const changes = Array.flatMap(plants, (plant) =>
-          onlyFor(
-            planPlant(plant, recipients, now),
-            plant.shared ? onlyUser : Option.none()
-          )
+  transactQuietly(
+    Effect.gen(function* () {
+      const { plants, recipients, now } = yield* load(plantIds)
+      const changes = Array.flatMap(plants, (plant) =>
+        onlyFor(
+          planPlant(plant, recipients, now),
+          plant.shared ? onlyUser : Option.none()
         )
-        yield* apply(changes)
-        return changes.length
-      })
-    )
+      )
+      yield* apply(changes)
+      return changes.length
+    })
   )
 
 /**

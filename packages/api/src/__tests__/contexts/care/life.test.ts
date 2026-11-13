@@ -18,6 +18,7 @@ import {
 import {
   bury,
   type LifeCommand,
+  type NewPlant,
   OwnerRoom,
   plantNew,
   remove,
@@ -51,7 +52,7 @@ const draft: PlantDraft = {
 }
 
 describe('plantNew', () => {
-  const planted = plantNew({
+  const fern = {
     plantId: 'fern',
     owner: alex,
     by: 'lily',
@@ -63,7 +64,8 @@ describe('plantNew', () => {
     ],
     timezone: 'Pacific/Kiritimati',
     today,
-  })
+  } satisfies NewPlant
+  const planted = Result.getOrThrow(plantNew(fern, new Set(['alex', 'lily'])))
 
   it('writes the plant before its schedules, each starting and due today', () => {
     expect(planted.writes).toEqual([
@@ -124,6 +126,23 @@ describe('plantNew', () => {
 
   it('answers with the id of the new plant', () => {
     expect(planted.outcome).toEqual({ plantId: 'fern' })
+  })
+
+  it.each([
+    { gone: 'lily', who: 'creator', held: ['alex'] },
+    { gone: 'alex', who: 'user who owns it', held: ['lily'] },
+  ])('refuses a plant whose $who has no account', ({ gone, held }) => {
+    expect(plantNew(fern, new Set(held))).toEqual(
+      Result.fail({ _tag: 'CreatorGone', userId: gone })
+    )
+  })
+
+  it('needs no account for the canopy that owns the plant', () => {
+    const inCanopy = plantNew({ ...fern, owner: home }, new Set(['lily']))
+
+    expect(Result.map(inCanopy, (decided) => decided.outcome)).toEqual(
+      Result.succeed({ plantId: 'fern' })
+    )
   })
 })
 

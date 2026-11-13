@@ -3,14 +3,15 @@ import {
   AbsenceOnPostgresLive,
   absenceOverStore,
   settled,
-  waitsForALock,
 } from '@lily/api/__tests__/integration/absence-layers'
 import { ManualOutboxLive } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
@@ -182,7 +183,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Effect.andThen(
           move('Accepted', 'Canceled'),
           move('Accepted', 'Active')
-        ).pipe(Effect.provide(StoreLive))
+        ).pipe(assumingTransaction, Effect.provide(StoreLive))
       )
 
       expect(

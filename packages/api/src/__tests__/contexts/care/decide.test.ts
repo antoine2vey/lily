@@ -9,6 +9,7 @@ import {
 } from '@lily/api/contexts/care/domain/care-plant'
 import {
   amendCare,
+  authorOf,
   type CareWrite,
   correctLastCare,
   nextDueDay,
@@ -16,8 +17,10 @@ import {
   recordCare,
   recordCareOnAll,
   removeCare,
+  requireActor,
 } from '@lily/api/contexts/care/domain/decide'
 import type { PlanStatus, PlanStep } from '@lily/api/contexts/care/domain/plan'
+import { Actor } from '@lily/api/kernel/permit'
 import { CareDay, CareDays, type CareType } from '@lily/shared'
 import { Array, DateTime, Option, pipe, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -144,6 +147,41 @@ describe('nextDueDay', () => {
     expect(nextDueDay(line('watering'), today, Option.none())).toEqual(
       Option.none()
     )
+  })
+})
+
+describe('the user a write names', () => {
+  const held = new Set(['user-1'])
+
+  it.each([
+    ['whose account is held', 'user-1', Result.succeed('user-1')],
+    [
+      'whose account is gone',
+      'user-2',
+      Result.fail({ _tag: 'ActorGone', plantId: 'plant-1', userId: 'user-2' }),
+    ],
+  ])('a user %s', (_name, userId, expected) => {
+    expect(requireActor(held, userId, 'plant-1')).toEqual(expected)
+  })
+
+  it.each([
+    [
+      'a user whose account is held',
+      Actor.User({ userId: 'user-1' }),
+      Result.succeed(Option.some('user-1')),
+    ],
+    [
+      'a user whose account is gone',
+      Actor.User({ userId: 'user-2' }),
+      Result.fail({ _tag: 'ActorGone', plantId: 'plant-1', userId: 'user-2' }),
+    ],
+    [
+      'a job, which names nobody',
+      Actor.System({ job: 'import' }),
+      Result.succeed(Option.none()),
+    ],
+  ])('%s', (_name, actor, expected) => {
+    expect(authorOf(held, actor, 'plant-1')).toEqual(expected)
   })
 })
 

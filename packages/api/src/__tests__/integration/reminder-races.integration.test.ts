@@ -14,6 +14,10 @@ import {
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import {
+  sessionsWaitingForALock,
+  waitsForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -689,7 +693,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           end: new Date(Date.now() + 7 * day),
         })
       )
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await waitsForALock(pool, vacation)
       Deferred.doneUnsafe(release, Exit.void)
       const exits: ReadonlyArray<Exit.Exit<unknown, unknown>> =
         await Promise.all([reconcile, vacation])
@@ -786,20 +790,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }))
       )
 
-    const untilBlockedOrSettled = async (writer: Promise<unknown>) => {
-      let settled = false
-      void writer.finally(() => {
-        settled = true
-      })
-      for (const _ of Arr.range(1, 60)) {
-        const { rows } = await pool.query<{ waiting: number }>(
-          `SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-        )
-        if (settled || (rows[0]?.waiting ?? 0) > 0) return
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-    }
-
     it('a vacation that starts while a bulk care rebuilds a delegated plant never deadlocks', async () => {
       const before = await deadlocks()
       const failures: string[] = []
@@ -852,7 +842,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         await Effect.runPromise(Deferred.await(reached))
         const vacation = startVacation(caretaker)
-        await untilBlockedOrSettled(vacation)
+        await waitsForALock(pool, vacation)
         Deferred.doneUnsafe(release, Exit.void)
         const [cared, vacationed] = await Promise.all([care, vacation])
 
@@ -933,7 +923,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         await Effect.runPromise(Deferred.await(reached))
         const vacation = startVacation(caretaker)
-        await untilBlockedOrSettled(vacation)
+        await waitsForALock(pool, vacation)
         Deferred.doneUnsafe(release, Exit.void)
         const [cared, vacationed] = await Promise.all([care, vacation])
 
@@ -976,7 +966,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         await Effect.runPromise(Deferred.await(reached))
         const vacation = startVacation(owner)
-        await untilBlockedOrSettled(vacation)
+        await waitsForALock(pool, vacation)
         Deferred.doneUnsafe(release, Exit.void)
         const [cared, vacationed] = await Promise.all([care, vacation])
         const ownerRows = Arr.filter(
@@ -1020,7 +1010,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         await Effect.runPromise(Deferred.await(reached))
         const vacation = startVacation(owner)
-        await untilBlockedOrSettled(vacation)
+        await waitsForALock(pool, vacation)
         Deferred.doneUnsafe(release, Exit.void)
         const [cared, vacationed] = await Promise.all([care, vacation])
         const ownerRows = Arr.filter(
@@ -1071,7 +1061,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           owner,
           careMultiplePlants({ plantIds: [plantId], careType: 'watering' })
         )
-        await untilBlockedOrSettled(bulk)
+        await waitsForALock(pool, bulk)
         Deferred.doneUnsafe(release, Exit.void)
         const [singled, bulked] = await Promise.all([single, bulk])
         const tagOf = (exit: Exit.Exit<unknown, unknown>) =>
@@ -1118,7 +1108,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const first = careAs(true)
         await Effect.runPromise(Deferred.await(reached))
         const second = careAs(false)
-        await untilBlockedOrSettled(second)
+        await waitsForALock(pool, second)
         Deferred.doneUnsafe(release, Exit.void)
         const [a, b] = await Promise.all([first, second])
         const [logs] = await db
@@ -1208,7 +1198,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         await Effect.runPromise(Deferred.await(reached))
         const vacation = startVacation(member)
-        await untilBlockedOrSettled(vacation)
+        await waitsForALock(pool, vacation)
         Deferred.doneUnsafe(release, Exit.void)
         const [dissolved, vacationed] = await Promise.all([dissolve, vacation])
 
@@ -1268,7 +1258,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         await Effect.runPromise(Deferred.await(reached))
         const vacation = startVacation(leaver)
-        await untilBlockedOrSettled(vacation)
+        await waitsForALock(pool, vacation)
         Deferred.doneUnsafe(release, Exit.void)
         const [gone, vacationed] = await Promise.all([deleted, vacation])
 
@@ -1294,7 +1284,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           [vacationer]
         )
         const vacation = startVacation(vacationer)
-        await untilBlockedOrSettled(vacation)
+        await waitsForALock(pool, vacation)
         await locker.query('ROLLBACK')
         const exit = await vacation
         expect(Exit.isSuccess(exit) && exit.value !== null).toBe(true)
@@ -1544,7 +1534,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           const firstRun = as(first[0], Effect.provide(first[1], paused))
           await Effect.runPromise(Deferred.await(reached))
           const secondRun = as(second[0], second[1])
-          await untilBlockedOrSettled(secondRun)
+          await waitsForALock(pool, secondRun)
           Deferred.doneUnsafe(release, Exit.void)
           const [a, b] = await Promise.all([firstRun, secondRun])
           const [deletion, writer] = deleting === 'first' ? [a, b] : [b, a]
@@ -1575,7 +1565,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       await Effect.runPromise(Deferred.await(reached))
       const deleting = as(owner, removeAsCurrentUser(plant))
-      await untilBlockedOrSettled(deleting)
+      await waitsForALock(pool, deleting)
       Deferred.doneUnsafe(release, Exit.void)
       const [replanned, deleted] = await Promise.all([replanning, deleting])
 
@@ -1680,7 +1670,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
           await Effect.runPromise(Deferred.await(reached))
           const secondRun = second()
-          await untilBlockedOrSettled(secondRun)
+          await waitsForALock(pool, secondRun)
           Deferred.doneUnsafe(release, Exit.void)
           const [a, b]: readonly [
             Exit.Exit<unknown, unknown>,
@@ -1738,7 +1728,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             careType: 'watering',
           })
         )
-        await untilBlockedOrSettled(caring)
+        await waitsForALock(pool, caring)
         Deferred.doneUnsafe(release, Exit.void)
         const [ended, cared]: readonly [
           Exit.Exit<unknown, unknown>,
@@ -1867,7 +1857,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             arrived += 1
             return arrived === 2
               ? Deferred.succeed(both, undefined)
-              : Effect.race(Deferred.await(both), Effect.sleep('300 millis'))
+              : Effect.race(
+                  Deferred.await(both),
+                  Effect.asVoid(
+                    Effect.promise((signal) =>
+                      sessionsWaitingForALock(pool, 1, signal)
+                    )
+                  )
+                )
           })
         }
         const scanned = together()
@@ -2041,10 +2038,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                       Effect.promise(async () => {
                         if (query.scope._tag !== 'Plants') return
                         care = as(alex, waterAsCurrentUser(cared, new Date()))
-                        await Promise.race([
-                          care,
-                          new Promise((resolve) => setTimeout(resolve, 1500)),
-                        ])
+                        await waitsForALock(pool, care)
                       })
                     ),
                 }))

@@ -51,7 +51,7 @@ export {
   seePlantCare,
 } from './plant-care'
 export { PlantLife } from './plant-life'
-export { dueOnOrBefore } from './stored-day'
+export { dueOnOrBefore, storedDay } from './stored-day'
 
 export const CareLive = Layer.mergeAll(
   CareServiceLive,

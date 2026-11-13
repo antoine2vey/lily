@@ -1,9 +1,10 @@
-import {
-  absenceOverStore,
-  waitsForALock,
-} from '@lily/api/__tests__/integration/absence-layers'
+import { absenceOverStore } from '@lily/api/__tests__/integration/absence-layers'
 import { delivered } from '@lily/api/__tests__/integration/canopy-layers'
 import { removeAsCurrentUser } from '@lily/api/__tests__/integration/care-layers'
+import {
+  sessionsWaitingForALock,
+  waitsForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -39,6 +40,7 @@ import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
+  Array,
   Cause,
   DateTime,
   Deferred,
@@ -106,6 +108,16 @@ const purgePausedAfterItsDelete = (pause: Pause) =>
       ...repo,
       delete: (userId: string) =>
         repo.delete(userId).pipe(Effect.tap(() => here(pause))),
+    }))
+  )
+
+const purgePausedBeforeItsDelete = (pause: Pause) =>
+  Layer.effect(
+    UserRepository,
+    Effect.map(UserRepository, (repo) => ({
+      ...repo,
+      delete: (userId: string) =>
+        Effect.andThen(here(pause), repo.delete(userId)),
     }))
   )
 
@@ -199,17 +211,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return canopy.id
     }
 
-    const open = () =>
+    const openFor = (by: string, caretakerId: string, plantId: string) =>
       Effect.flatMap(Absence, (absence) =>
         absence.openDelegation({
-          by: owner,
-          caretakerId: caretaker,
+          by,
+          caretakerId,
           start: DateTime.add(DateTime.nowUnsafe(), { days: 1 }),
           end: DateTime.add(DateTime.nowUnsafe(), { days: 7 }),
           message: Option.none(),
-          plantIds: [plant],
+          plantIds: [plantId],
         })
       )
+
+    const open = () => openFor(owner, caretaker, plant)
 
     const deleteThePlant = Effect.suspend(() => removeAsCurrentUser(plant))
 
@@ -325,6 +339,73 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
       expect(await delegations()).toEqual([])
     })
+
+    it('makes an opening wait for a purge of the caretaker that has read their delegations, then answers that the caretaker is unknown', async () => {
+      const at = pause()
+
+      const result = await raced(
+        at,
+        as(
+          caretaker,
+          Effect.provide(
+            purgeAccount(caretaker),
+            purgePausedBeforeItsDelete(at)
+          )
+        ),
+        () => as(owner, open())
+      )
+
+      expect(result).toEqual({
+        first: 'ok',
+        second: 'UserNotFoundError',
+        secondWaited: true,
+      })
+      expect(await delegations()).toEqual([])
+    })
+
+    it('takes the keys of the owner and the caretaker in key order, so two users who open to each other at once hold nothing the other waits for', async () => {
+      const plantOfTheCaretaker = await personalPlant(caretaker)
+      const {
+        rows: [keys],
+      } = await pool.query<{ lower: string; higher: string }>(
+        `SELECT CASE WHEN hashtext($1) < hashtext($2) THEN $1 ELSE $2 END AS lower,
+                CASE WHEN hashtext($1) < hashtext($2) THEN $2 ELSE $1 END AS higher`,
+        [owner, caretaker]
+      )
+      if (!keys) throw new Error('key order query returned nothing')
+      const holder = await pool.connect()
+      const prober = await pool.connect()
+
+      try {
+        await holder.query('BEGIN')
+        await holder.query('SELECT pg_advisory_xact_lock(1, hashtext($1))', [
+          keys.lower,
+        ])
+        const opening = Promise.all([
+          as(owner, open()),
+          as(caretaker, openFor(caretaker, owner, plantOfTheCaretaker)),
+        ])
+        const waiting = await sessionsWaitingForALock(pool, 2)
+        const {
+          rows: [probe],
+        } = await prober.query<{ free: boolean }>(
+          'SELECT pg_try_advisory_lock(1, hashtext($1)) AS free',
+          [keys.higher]
+        )
+        await prober.query('SELECT pg_advisory_unlock_all()')
+        await holder.query('ROLLBACK')
+
+        expect({
+          waiting,
+          higherKeyFree: probe?.free,
+          opened: Array.map(await opening, answer),
+        }).toEqual({ waiting: 2, higherKeyFree: true, opened: ['ok', 'ok'] })
+      } finally {
+        await holder.query('ROLLBACK')
+        holder.release()
+        prober.release()
+      }
+    }, 15_000)
 
     it('makes a delete of a requested plant wait for an opening that already holds the plant', async () => {
       const at = pause()

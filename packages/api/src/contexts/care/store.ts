@@ -6,10 +6,14 @@ import {
   LifeState,
   type Schedule,
 } from '@lily/api/contexts/care/domain/care-plant'
-import { CareWrite } from '@lily/api/contexts/care/domain/decide'
+import {
+  type AccountsHeld,
+  CareWrite,
+} from '@lily/api/contexts/care/domain/decide'
 import type { Plan, PlanStep } from '@lily/api/contexts/care/domain/plan'
 import { seePlantCare } from '@lily/api/contexts/care/plant-care'
 import { storedDay } from '@lily/api/contexts/care/stored-day'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import {
   ownerColumns,
@@ -60,6 +64,16 @@ export interface WeatherProfile {
   readonly plant: PlantForAdjustment
 }
 
+export interface ActedOn {
+  readonly plants: ReadonlyMap<string, CarePlant>
+  readonly accountsHeld: AccountsHeld
+}
+
+export interface PlantingGround {
+  readonly timezone: string
+  readonly accountsHeld: AccountsHeld
+}
+
 const DEFAULT_WATERING_FREQUENCY_DAYS = 7
 
 export class CareStore extends Context.Service<
@@ -71,17 +85,29 @@ export class CareStore extends Context.Service<
     readonly careTypesOfPlan: (
       planId: string
     ) => Effect.Effect<ReadonlyArray<CareType>, SqlError>
-    readonly careTimezoneOf: (
+    readonly lockAndLoadForPlanting: (
+      userIds: ReadonlyArray<string>,
       owner: PlantOwner
-    ) => Effect.Effect<string, SqlError>
+    ) => Effect.Effect<PlantingGround, SqlError, Transaction>
     readonly lockAndLoad: (
       plantIds: ReadonlyArray<string>,
       careTypes: ReadonlyArray<CareType>,
       lock?: PlantRowLock
-    ) => Effect.Effect<ReadonlyMap<string, CarePlant>, SqlError>
+    ) => Effect.Effect<ReadonlyMap<string, CarePlant>, SqlError, Transaction>
+    /**
+     * `lockAndLoad`, then the account rows of `actorIds` `FOR KEY SHARE` in id
+     * order. A row that names a user takes that lock through its foreign key
+     * anyway. Taking it at the load makes a deleted account a fact the
+     * command refuses on, where the write would break the constraint.
+     */
+    readonly lockAndLoadFor: (
+      actorIds: ReadonlyArray<string>,
+      plantIds: ReadonlyArray<string>,
+      careTypes: ReadonlyArray<CareType>
+    ) => Effect.Effect<ActedOn, SqlError, Transaction>
     readonly apply: (
       writes: ReadonlyArray<CareWrite>
-    ) => Effect.Effect<void, SqlError>
+    ) => Effect.Effect<void, SqlError, Transaction>
     readonly weatherProfiles: (
       plantIds: ReadonlyArray<string>
     ) => Effect.Effect<ReadonlyArray<WeatherProfile>, SqlError>
@@ -503,6 +529,124 @@ export const CareStoreLive = Layer.effect(
           ),
       })
 
+    const lockAndLoad = Effect.fn('CareStore.lockAndLoad')(function* (
+      plantIds: ReadonlyArray<string>,
+      careTypes: ReadonlyArray<CareType>,
+      lock: PlantRowLock = 'no key update'
+    ) {
+      if (Array.isReadonlyArrayEmpty(plantIds)) {
+        return new Map<string, CarePlant>()
+      }
+      const ids = [...plantIds]
+      const locked = yield* db
+        .select({
+          id: plants.id,
+          userId: plants.userId,
+          canopyId: plants.canopyId,
+          health: plants.health,
+          diedAt: plants.diedAt,
+          timezone: careTimezoneSql,
+        })
+        .from(plants)
+        .where(inArray(plants.id, ids))
+        .orderBy(asc(plants.id))
+        .for(lock, { of: plants })
+      const scheduleRows = yield* db
+        .select()
+        .from(plantCareSchedules)
+        .where(inArray(plantCareSchedules.plantId, ids))
+      const careRows = Array.isReadonlyArrayEmpty(careTypes)
+        ? []
+        : yield* db
+            .select({
+              id: careLogs.id,
+              plantId: careLogs.plantId,
+              careType: careLogs.type,
+              date: careLogs.date,
+              careDay: careLogs.careDay,
+            })
+            .from(careLogs)
+            .where(
+              and(
+                inArray(careLogs.plantId, ids),
+                inArray(careLogs.type, [...careTypes])
+              )
+            )
+      const planRows = yield* db
+        .select({
+          planId: carePlans.id,
+          plantId: carePlans.plantId,
+          status: carePlans.status,
+          createdAt: carePlans.createdAt,
+          stepId: carePlanSteps.id,
+          position: carePlanSteps.position,
+          careType: carePlanSteps.careType,
+          dueDate: carePlanSteps.dueDate,
+          completedAt: carePlanSteps.completedAt,
+        })
+        .from(carePlans)
+        .leftJoin(carePlanSteps, eq(carePlanSteps.planId, carePlans.id))
+        .where(inArray(carePlans.plantId, ids))
+
+      const now = yield* DateTime.now
+      return new Map(
+        Array.map(locked, (row): readonly [string, CarePlant] => {
+          const schedules = Array.filter(
+            scheduleRows,
+            (s) => s.plantId === row.id
+          )
+          const seen = seePlantCare(row, schedules, row.timezone, now)
+          const lineOf = (careType: CareType): CareLine => ({
+            careType,
+            schedule: pipe(
+              Array.findFirst(schedules, (s) => s.careType === careType),
+              Option.map((s) => toSchedule(s, row.timezone))
+            ),
+            history: toHistory(
+              Array.filter(
+                careRows,
+                (c) => c.plantId === row.id && c.careType === careType
+              ),
+              row.timezone
+            ),
+          })
+          return [
+            row.id,
+            {
+              id: row.id,
+              owner: ownerOf(row),
+              life: row.diedAt === null ? LifeState.Living() : LifeState.Dead(),
+              timezone: row.timezone,
+              today: seen.today,
+              needsAttention: seen.health === 'NEEDS_ATTENTION',
+              lines: new Map(
+                Array.map(
+                  Array.filter(CARE_TYPES, (t) => Array.contains(careTypes, t)),
+                  (careType) => [careType, lineOf(careType)]
+                )
+              ),
+              plans: toPlans(
+                Array.filter(planRows, (plan) => plan.plantId === row.id)
+              ),
+            },
+          ]
+        })
+      )
+    })
+
+    const holdAccounts = (userIds: ReadonlyArray<string>) =>
+      Array.isReadonlyArrayEmpty(userIds)
+        ? Effect.succeed(new Set<string>())
+        : Effect.map(
+            db
+              .select({ id: users.id })
+              .from(users)
+              .where(inArray(users.id, [...userIds]))
+              .orderBy(asc(users.id))
+              .for('key share'),
+            (rows) => new Set(Array.map(rows, (row) => row.id))
+          )
+
     return CareStore.of({
       careLogKey: Effect.fn('CareStore.careLogKey')(function* (
         careLogId: string
@@ -526,144 +670,49 @@ export const CareStoreLive = Layer.effect(
         )
       }),
 
-      careTimezoneOf: Effect.fn('CareStore.careTimezoneOf')(function* (
-        owner: PlantOwner
-      ) {
-        const stored: ReadonlyArray<string | null> = yield* Match.value(
-          owner
-        ).pipe(
-          Match.tagsExhaustive({
-            User: ({ userId }) =>
-              Effect.map(
-                db
-                  .select({ timezone: users.timezone })
-                  .from(users)
-                  .where(eq(users.id, userId)),
-                Array.map((row) => row.timezone)
-              ),
-            Canopy: ({ canopyId }) =>
-              Effect.map(
-                db
-                  .select({ timezone: canopies.timezone })
-                  .from(canopies)
-                  .where(eq(canopies.id, canopyId)),
-                Array.map((row) => row.timezone)
-              ),
-          })
-        )
-        return pipe(
-          Array.head(stored),
-          Option.flatMap(Option.fromNullishOr),
-          Option.getOrElse(() => 'UTC')
-        )
-      }),
-
-      lockAndLoad: Effect.fn('CareStore.lockAndLoad')(function* (
-        plantIds: ReadonlyArray<string>,
-        careTypes: ReadonlyArray<CareType>,
-        lock: PlantRowLock = 'no key update'
-      ) {
-        if (Array.isReadonlyArrayEmpty(plantIds)) {
-          return new Map<string, CarePlant>()
-        }
-        const ids = [...plantIds]
-        const locked = yield* db
-          .select({
-            id: plants.id,
-            userId: plants.userId,
-            canopyId: plants.canopyId,
-            health: plants.health,
-            diedAt: plants.diedAt,
-            timezone: careTimezoneSql,
-          })
-          .from(plants)
-          .where(inArray(plants.id, ids))
-          .orderBy(asc(plants.id))
-          .for(lock, { of: plants })
-        const scheduleRows = yield* db
-          .select()
-          .from(plantCareSchedules)
-          .where(inArray(plantCareSchedules.plantId, ids))
-        const careRows = Array.isReadonlyArrayEmpty(careTypes)
-          ? []
-          : yield* db
-              .select({
-                id: careLogs.id,
-                plantId: careLogs.plantId,
-                careType: careLogs.type,
-                date: careLogs.date,
-                careDay: careLogs.careDay,
-              })
-              .from(careLogs)
-              .where(
-                and(
-                  inArray(careLogs.plantId, ids),
-                  inArray(careLogs.type, [...careTypes])
-                )
-              )
-        const planRows = yield* db
-          .select({
-            planId: carePlans.id,
-            plantId: carePlans.plantId,
-            status: carePlans.status,
-            createdAt: carePlans.createdAt,
-            stepId: carePlanSteps.id,
-            position: carePlanSteps.position,
-            careType: carePlanSteps.careType,
-            dueDate: carePlanSteps.dueDate,
-            completedAt: carePlanSteps.completedAt,
-          })
-          .from(carePlans)
-          .leftJoin(carePlanSteps, eq(carePlanSteps.planId, carePlans.id))
-          .where(inArray(carePlans.plantId, ids))
-
-        const now = yield* DateTime.now
-        return new Map(
-          Array.map(locked, (row): readonly [string, CarePlant] => {
-            const schedules = Array.filter(
-              scheduleRows,
-              (s) => s.plantId === row.id
-            )
-            const seen = seePlantCare(row, schedules, row.timezone, now)
-            const lineOf = (careType: CareType): CareLine => ({
-              careType,
-              schedule: pipe(
-                Array.findFirst(schedules, (s) => s.careType === careType),
-                Option.map((s) => toSchedule(s, row.timezone))
-              ),
-              history: toHistory(
-                Array.filter(
-                  careRows,
-                  (c) => c.plantId === row.id && c.careType === careType
+      lockAndLoadForPlanting: Effect.fn('CareStore.lockAndLoadForPlanting')(
+        function* (userIds: ReadonlyArray<string>, owner: PlantOwner) {
+          const accountsHeld = yield* holdAccounts(userIds)
+          const stored: ReadonlyArray<string | null> = yield* Match.value(
+            owner
+          ).pipe(
+            Match.tagsExhaustive({
+              User: ({ userId }) =>
+                Effect.map(
+                  db
+                    .select({ timezone: users.timezone })
+                    .from(users)
+                    .where(eq(users.id, userId)),
+                  Array.map((row) => row.timezone)
                 ),
-                row.timezone
-              ),
+              Canopy: ({ canopyId }) =>
+                Effect.map(
+                  db
+                    .select({ timezone: canopies.timezone })
+                    .from(canopies)
+                    .where(eq(canopies.id, canopyId)),
+                  Array.map((row) => row.timezone)
+                ),
             })
-            return [
-              row.id,
-              {
-                id: row.id,
-                owner: ownerOf(row),
-                life:
-                  row.diedAt === null ? LifeState.Living() : LifeState.Dead(),
-                timezone: row.timezone,
-                today: seen.today,
-                needsAttention: seen.health === 'NEEDS_ATTENTION',
-                lines: new Map(
-                  Array.map(
-                    Array.filter(CARE_TYPES, (t) =>
-                      Array.contains(careTypes, t)
-                    ),
-                    (careType) => [careType, lineOf(careType)]
-                  )
-                ),
-                plans: toPlans(
-                  Array.filter(planRows, (plan) => plan.plantId === row.id)
-                ),
-              },
-            ]
-          })
-        )
+          )
+          const timezone = pipe(
+            Array.head(stored),
+            Option.flatMap(Option.fromNullishOr),
+            Option.getOrElse(() => 'UTC')
+          )
+          return { timezone, accountsHeld }
+        }
+      ),
+
+      lockAndLoad,
+
+      lockAndLoadFor: Effect.fn('CareStore.lockAndLoadFor')(function* (
+        actorIds: ReadonlyArray<string>,
+        plantIds: ReadonlyArray<string>,
+        careTypes: ReadonlyArray<CareType>
+      ) {
+        const plants = yield* lockAndLoad(plantIds, careTypes)
+        return { plants, accountsHeld: yield* holdAccounts(actorIds) }
       }),
 
       apply: (writes) =>

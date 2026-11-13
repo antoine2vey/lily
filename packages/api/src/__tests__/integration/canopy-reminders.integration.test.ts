@@ -5,6 +5,7 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
@@ -487,9 +488,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             type: 'watering_reminder',
             occasion: CareDay.make('2099-01-01'),
             scheduledAt: DateTime.makeUnsafe(Date.now() + 7 * 86_400_000),
-            over: Option.none(),
           }),
         ]).pipe(
+          assumingTransaction,
           Effect.provide(WorkerLive),
           Effect.provideService(References.MinimumLogLevel, 'None')
         )

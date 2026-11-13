@@ -13,6 +13,7 @@ import {
   PlantNotDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
+import { UnauthorizedError } from '@lily/shared/errors/user'
 import { Match } from 'effect'
 
 const errorOf = {
@@ -30,6 +31,9 @@ const errorOf = {
   AlreadyDead: () => new PlantAlreadyDeadError(),
   NotDead: () => new PlantNotDeadError(),
   OwnerFull: ({ error }) => error,
+  ActorGone: ({ plantId }) => new PlantNotFoundError({ plantId }),
+  CreatorGone: () =>
+    new UnauthorizedError({ message: 'Authentication failed' }),
 } satisfies {
   readonly [T in Refusal['_tag']]: (refusal: RefusalOf<T>) => unknown
 }

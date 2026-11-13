@@ -1,4 +1,5 @@
 import { CarePlans } from '@lily/api/contexts/care'
+import { transact } from '@lily/api/kernel/transact'
 import {
   type CarePlanStepContext,
   reloadPlan,
@@ -9,11 +10,13 @@ export const deleteCarePlanStep = ({
   permit,
   step: { id: stepId },
 }: CarePlanStepContext<'manage'>) =>
-  Effect.gen(function* () {
-    const carePlans = yield* CarePlans
-    yield* carePlans.dropStep({ permit, stepId })
-    return yield* reloadPlan(permit.planId)
-  }).pipe(
+  transact(
+    Effect.gen(function* () {
+      const carePlans = yield* CarePlans
+      yield* carePlans.dropStep({ permit, stepId })
+      return yield* reloadPlan(permit.planId)
+    })
+  ).pipe(
     Effect.withSpan('CarePlansService.deleteCarePlanStep', {
       attributes: { 'carePlan.id': permit.planId, 'carePlanStep.id': stepId },
     })

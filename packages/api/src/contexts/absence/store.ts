@@ -15,7 +15,8 @@ import {
   vacationOf,
 } from '@lily/api/contexts/absence/domain/vacation'
 import { Care, DueMove } from '@lily/api/contexts/care'
-import { lockUser } from '@lily/api/kernel/locks'
+import { lockUsers } from '@lily/api/kernel/locks'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
@@ -85,10 +86,10 @@ export class AbsenceStore extends Context.Service<
   {
     readonly lockForOpening: (
       request: OpenRequest
-    ) => Effect.Effect<Option.Option<OpenFacts>, SqlError>
+    ) => Effect.Effect<Option.Option<OpenFacts>, SqlError, Transaction>
     readonly lockDelegation: (
       delegationId: string
-    ) => Effect.Effect<Option.Option<Delegation>, SqlError>
+    ) => Effect.Effect<Option.Option<Delegation>, SqlError, Transaction>
     readonly dueDelegations: (
       edge: Edge,
       now: DateTime.Utc
@@ -96,19 +97,21 @@ export class AbsenceStore extends Context.Service<
     readonly lockVacation: (
       userId: string,
       now: DateTime.Utc
-    ) => Effect.Effect<Option.Option<Held>, SqlError>
+    ) => Effect.Effect<Option.Option<Held>, SqlError, Transaction>
     readonly dueVacations: (
       edge: Edge,
       now: DateTime.Utc
     ) => Effect.Effect<ReadonlyArray<string>, SqlError>
-    readonly holdForDeletion: (userId: string) => Effect.Effect<void, SqlError>
+    readonly holdForDeletion: (
+      userId: string
+    ) => Effect.Effect<void, SqlError, Transaction>
     readonly lockForRelease: (
       userId: string,
       now: DateTime.Utc
-    ) => Effect.Effect<Releasable, SqlError>
+    ) => Effect.Effect<Releasable, SqlError, Transaction>
     readonly apply: (
       writes: ReadonlyArray<AbsenceWrite>
-    ) => Effect.Effect<void, SqlError>
+    ) => Effect.Effect<void, SqlError, Transaction>
   }
 >()('absence/AbsenceStore') {}
 
@@ -371,7 +374,7 @@ export const AbsenceStoreLive = Layer.effect(
 
     const lockForOpening = (request: OpenRequest) =>
       Effect.gen(function* () {
-        yield* lockUser(request.by).pipe(
+        yield* lockUsers([request.by, request.caretakerId]).pipe(
           Effect.provideService(SqlClient.SqlClient, client)
         )
         const parties = yield* partiesHeldAgainstDeletion([

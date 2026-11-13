@@ -1,6 +1,8 @@
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { carePermit, createStubCare } from '@lily/api/__tests__/mocks/care'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { careWhenOf } from '@lily/api/contexts/care'
 import { correctCareDates } from '@lily/api/services/plants/endpoints/correct-care-dates'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
@@ -18,7 +20,12 @@ const correct = (
     care,
     effect: correctCareDates(permit, request).pipe(
       Effect.provide(
-        Layer.mergeAll(care.layer, createMockPlantRepository({ plants }))
+        Layer.mergeAll(
+          care.layer,
+          createMockPlantRepository({ plants }),
+          MockSqlClientLive,
+          MockOutboxLive
+        )
       )
     ),
   }

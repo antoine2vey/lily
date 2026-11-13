@@ -10,7 +10,7 @@ import {
 import { ownershipLabel } from '@lily/mcp/widgets/mappers'
 import type { PlantDetail } from '@lily/mcp/widgets/schemas'
 import { formatIsoDate } from '@lily/shared'
-import { Array, DateTime, Effect, Option, pipe } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 
 /**
  * Returns detailed information about a specific plant including
@@ -72,33 +72,31 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
 
     // Single pass: build both markdown + structured for schedules
     const scheduleMapped = Array.map(plant.schedules, (s) => {
-      const nextCare = formatIsoDate(s.nextCareAt, 'Not scheduled')
+      const nextCare = pipe(
+        Option.fromNullishOr(s.dueDay),
+        Option.getOrElse(() => 'Not scheduled')
+      )
       return {
         line: `- **${s.careType}**: every ${s.frequencyDays} days (next: ${nextCare})`,
         structured: {
           careType: s.careType,
           frequencyDays: s.frequencyDays,
-          nextCareAt: Option.getOrNull(
-            Option.map(Option.fromNullishOr(s.nextCareAt), (d) =>
-              formatIsoDate(d)
-            )
-          ),
+          nextCareAt: s.dueDay,
         },
       }
     })
 
     // Single pass: build both markdown + structured for logs
     const logMapped = Array.map(recentLogs.items, (log) => {
-      const date = formatIsoDate(log.date)
       const notes = pipe(
         Option.fromNullishOr(log.notes),
         Option.map((n) => ` — ${escapeInlineMarkdown(n)}`),
         Option.getOrElse(() => '')
       )
       return {
-        line: `- ${date}: ${log.type}${notes}`,
+        line: `- ${log.careDay}: ${log.type}${notes}`,
         structured: {
-          date,
+          date: log.careDay,
           type: log.type,
           notes: Option.getOrNull(Option.fromNullishOr(log.notes)),
         },

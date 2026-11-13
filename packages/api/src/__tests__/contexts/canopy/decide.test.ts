@@ -133,28 +133,34 @@ describe('createCanopy', () => {
     )
   })
 
-  it.each([
-    ['has set no timezone', new Map([['sam', account()]])],
-    ['has no account left', new Map<string, Account>()],
-  ])(
-    'falls back to UTC and no location when the creator %s',
-    (_name, accounts) => {
-      const decided = create({ ...HELD_NOTHING, accounts })
+  it('falls back to UTC and no location when the creator has set no timezone', () => {
+    const decided = create({
+      ...HELD_NOTHING,
+      accounts: new Map([['sam', account()]]),
+    })
 
-      expect(Result.map(decided, ({ writes }) => Array.head(writes))).toEqual(
-        Result.succeed(
-          Option.some(
-            CanopyWrite.CreateCanopy({
-              id: CanopyId.make('canopy-2'),
-              name: 'Cabin',
-              timezone: 'UTC',
-              location: Option.none(),
-            })
-          )
+    expect(Result.map(decided, ({ writes }) => Array.head(writes))).toEqual(
+      Result.succeed(
+        Option.some(
+          CanopyWrite.CreateCanopy({
+            id: CanopyId.make('canopy-2'),
+            name: 'Cabin',
+            timezone: 'UTC',
+            location: Option.none(),
+          })
         )
       )
-    }
-  )
+    )
+  })
+
+  it('refuses a creator whose account is gone', () => {
+    const decided = create({
+      ...HELD_NOTHING,
+      accounts: new Map([['alex', account({ userId: 'alex' })]]),
+    })
+
+    expect(decided).toEqual(Result.fail(Refusal.CreatorGone()))
+  })
 })
 
 describe('updateCanopy', () => {

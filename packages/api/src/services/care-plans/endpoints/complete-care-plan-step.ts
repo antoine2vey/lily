@@ -1,4 +1,5 @@
 import { CarePlans } from '@lily/api/contexts/care'
+import { transact } from '@lily/api/kernel/transact'
 import {
   type CarePlanStepContext,
   reloadPlan,
@@ -9,11 +10,13 @@ export const completeCarePlanStep = ({
   permit,
   step: { id: stepId },
 }: CarePlanStepContext<'tick'>) =>
-  Effect.gen(function* () {
-    const carePlans = yield* CarePlans
-    yield* carePlans.tickStep({ permit, stepId })
-    return yield* reloadPlan(permit.planId)
-  }).pipe(
+  transact(
+    Effect.gen(function* () {
+      const carePlans = yield* CarePlans
+      yield* carePlans.tickStep({ permit, stepId })
+      return yield* reloadPlan(permit.planId)
+    })
+  ).pipe(
     Effect.withSpan('CarePlansService.completeCarePlanStep', {
       attributes: { 'carePlan.id': permit.planId, 'carePlanStep.id': stepId },
     })

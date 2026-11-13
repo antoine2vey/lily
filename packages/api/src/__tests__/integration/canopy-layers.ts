@@ -5,7 +5,7 @@ import {
 import { AbsenceLive } from '@lily/api/contexts/absence'
 import { Canopy } from '@lily/api/contexts/canopy'
 import { CanopyLive as CanopyOverAStore } from '@lily/api/contexts/canopy/canopy'
-import { CanopyStoreLive } from '@lily/api/contexts/canopy/store'
+import { CanopyStore, CanopyStoreLive } from '@lily/api/contexts/canopy/store'
 import { CareLive } from '@lily/api/contexts/care'
 import { Effect, Layer } from 'effect'
 
@@ -17,6 +17,19 @@ export const CanopyOnPostgresLive = CanopyOverAStore.pipe(
 )
 
 export const settled = drainedOn(CanopyOnPostgresLive)
+
+export const canopyOverStore = (
+  seam: (store: CanopyStore['Service']) => CanopyStore['Service']
+) =>
+  Layer.fresh(
+    CanopyOverAStore.pipe(
+      Layer.provide(
+        Layer.effect(CanopyStore, Effect.map(CanopyStore, seam)).pipe(
+          Layer.provide(CanopyStoreLive)
+        )
+      )
+    )
+  )
 
 export const delivered = settled
 

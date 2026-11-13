@@ -1,3 +1,4 @@
+import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
 import {
   type Consumer,
   ConsumerFailed,
@@ -6,6 +7,7 @@ import {
   Outbox,
   topic,
 } from '@lily/api/kernel/outbox'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { commandBody, decision, transact } from '@lily/api/kernel/transact'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -44,11 +46,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Outbox - Integration', () => {
     consumers: ReadonlyArray<Consumer>,
     use: (
       outbox: Effect.Success<ReturnType<typeof makeOutbox>>['service']
-    ) => Effect.Effect<A, E, SqlClient.SqlClient>
+    ) => Effect.Effect<A, E, SqlClient.SqlClient | Transaction>
   ) =>
     Effect.runPromise(
       makeOutbox(consumers, { maxAttempts: 3 }).pipe(
-        Effect.flatMap(({ service }) => use(service)),
+        Effect.flatMap(({ service }) => assumingTransaction(use(service))),
         Effect.provide(DbLive)
       )
     )

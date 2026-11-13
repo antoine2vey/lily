@@ -6,17 +6,21 @@ import {
   type CarePlant,
   LifeState,
 } from '@lily/api/contexts/care/domain/care-plant'
-import { systemPermit } from '@lily/api/kernel/permit'
+import { mintPlanPermit, systemPermit } from '@lily/api/kernel/permit'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CarePlanNotFoundError } from '@lily/shared/errors/care-plan'
-import { Cause, DateTime, Effect, Exit, Layer } from 'effect'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { Cause, DateTime, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const world = (buried: ReadonlyArray<CarePlant> = []) => {
+const world = (
+  buried: ReadonlyArray<CarePlant> = [],
+  goneAccounts: ReadonlyArray<string> = []
+) => {
   const plans = createCarePlanRows()
   const care = createInMemoryCare(
     [createTestCarePlant('plant-1'), createTestCarePlant('plant-2'), ...buried],
-    { plans }
+    { plans, goneAccounts }
   )
   return { care, layer: Layer.merge(care.layer, plans.layer) }
 }
@@ -53,6 +57,61 @@ describe('CarePlans', () => {
       plantId: 'plant-1',
       job: 'digest',
     })
+    expect(care.writes).toEqual([])
+  })
+
+  it('answers not found to a proposal by an author whose account is gone', async () => {
+    const { care, layer } = world([], ['user-1'])
+
+    const refused = await Effect.runPromise(
+      Effect.flip(proposeOn('plant-1')).pipe(Effect.provide(layer))
+    )
+
+    expect(refused).toBeInstanceOf(PlantNotFoundError)
+    expect(care.writes).toEqual([])
+  })
+
+  it('answers not found to a tick by a user whose account is gone, and leaves the step open', async () => {
+    const { care, layer } = world(
+      [
+        createTestCarePlant('planned', {
+          plans: [
+            {
+              id: 'plan-1',
+              status: 'accepted',
+              createdAt: DateTime.makeUnsafe('2026-11-01T00:00:00Z'),
+              steps: [
+                {
+                  id: 'step-1',
+                  position: 0,
+                  careType: Option.some('watering'),
+                  dueAt: Option.none(),
+                  done: false,
+                },
+              ],
+            },
+          ],
+        }),
+      ],
+      ['user-1']
+    )
+
+    const refused = await Effect.runPromise(
+      Effect.flatMap(CarePlans, (carePlans) =>
+        Effect.flip(
+          carePlans.tickStep({
+            permit: mintPlanPermit(
+              { id: 'plan-1', plantId: 'planned' },
+              'tick',
+              'user-1'
+            ),
+            stepId: 'step-1',
+          })
+        )
+      ).pipe(Effect.provide(layer))
+    )
+
+    expect(refused).toBeInstanceOf(PlantNotFoundError)
     expect(care.writes).toEqual([])
   })
 

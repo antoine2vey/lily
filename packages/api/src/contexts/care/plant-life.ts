@@ -11,6 +11,7 @@ import {
   plantNew,
   remove,
   revive,
+  usersNamedBy,
 } from '@lily/api/contexts/care/domain/life'
 import { asError } from '@lily/api/contexts/care/refusals'
 import { CareStore, type PlantRowLock } from '@lily/api/contexts/care/store'
@@ -34,8 +35,9 @@ import type {
   PlantNotDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
+import type { UnauthorizedError } from '@lily/shared/errors/user'
 import type { PlantDeathCause } from '@lily/shared/plant'
-import { Context, DateTime, Effect, Layer, Option, Result } from 'effect'
+import { Context, DateTime, Effect, Layer, Option, type Result } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 
 /**
@@ -48,7 +50,8 @@ export class PlantLife extends Context.Service<
     /**
      * Writes the plant and its schedules, or neither. Each schedule starts
      * today in the owner's care timezone. `held` is the caller's proof that
-     * it checked the owner's plant limit under the owner lock.
+     * it checked the owner's plant limit under the owner lock. A creator
+     * whose account is gone answers as a request with no account behind it.
      */
     readonly plant: (command: {
       readonly held: OwnerHeld
@@ -57,7 +60,7 @@ export class PlantLife extends Context.Service<
       readonly frequencies: ReadonlyArray<
         readonly [CareType, Option.Option<Frequency>]
       >
-    }) => Effect.Effect<{ readonly plantId: string }>
+    }) => Effect.Effect<{ readonly plantId: string }, UnauthorizedError>
     /**
      * Moves the plant to the cemetery. Its schedules, cares, photos and
      * plans stay. A plant that left `seenOwner` since the access check
@@ -128,10 +131,13 @@ export const PlantLifeLive = Layer.effect(
           runCommand({
             name: 'care.plant',
             topic: CareTopic,
-            load: store.careTimezoneOf(held.owner),
-            decide: (timezone) =>
-              Result.succeed(
-                plantNew({
+            load: store.lockAndLoadForPlanting(
+              usersNamedBy({ owner: held.owner, by }),
+              held.owner
+            ),
+            decide: ({ timezone, accountsHeld }) =>
+              plantNew(
+                {
                   plantId: crypto.randomUUID(),
                   owner: held.owner,
                   by,
@@ -139,11 +145,12 @@ export const PlantLifeLive = Layer.effect(
                   frequencies,
                   timezone,
                   today: CareDays.today(timezone, now),
-                })
+                },
+                accountsHeld
               ),
             apply: store.apply,
           })
-        ).pipe(Effect.provide(context)),
+        ).pipe(Effect.provide(context), Effect.mapError(asError)),
       bury: ({ permit, seenOwner, cause, note }) =>
         Effect.flatMap(DateTime.now, (at) =>
           onPlant('care.bury', permit, [], 'no key update', (plant, by) =>

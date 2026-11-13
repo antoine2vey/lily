@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import { CareDay } from '../care/care-day'
 import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 
@@ -11,6 +12,8 @@ export const CareLog = Schema.Struct({
   type: CareType,
   notes: Schema.optional(Schema.String),
   date: Schema.DateFromString,
+  /** The day of the care in the plant's care timezone, as stored. */
+  careDay: CareDay,
   photoUrl: Schema.optional(Schema.String),
   plantId: Schema.String,
   createdAt: Schema.DateFromString,

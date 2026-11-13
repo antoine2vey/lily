@@ -154,6 +154,7 @@ export type Refusal = Data.TaggedEnum<{
   NotMember: Record<never, never>
   NotOwner: Record<never, never>
   AlreadyInCanopy: { readonly canopyName: string }
+  CreatorGone: Record<never, never>
   CanopyFull: { readonly limit: number }
   MemberNotFound: Record<never, never>
   InviteNotFound: Record<never, never>
@@ -243,33 +244,37 @@ export const createCanopy = (
     readonly name: string
     readonly now: DateTime.Utc
   }
-): Decided<{ readonly canopyId: CanopyId }, 'AlreadyInCanopy'> =>
-  Option.match(held.actorCanopy, {
-    onSome: ({ name }) =>
-      Result.fail(Refusal.AlreadyInCanopy({ canopyName: name })),
-    onNone: () => {
-      const creator = Option.fromNullishOr(held.accounts.get(command.by))
-      return Result.succeed(
-        decision({ canopyId: command.canopyId }, [
-          CanopyWrite.CreateCanopy({
-            id: command.canopyId,
-            name: command.name,
-            timezone: pipe(
-              creator,
-              Option.flatMapNullishOr((account) => account.timezone),
-              Option.getOrElse(() => 'UTC')
-            ),
-            location: Option.flatMap(creator, (account) => account.location),
-          }),
-          CanopyWrite.AddMember({
-            canopyId: command.canopyId,
-            userId: command.by,
-            role: 'owner',
-            at: command.now,
-          }),
-        ])
+): Decided<
+  { readonly canopyId: CanopyId },
+  'AlreadyInCanopy' | 'CreatorGone'
+> =>
+  Result.gen(function* () {
+    if (Option.isSome(held.actorCanopy)) {
+      return yield* Result.fail(
+        Refusal.AlreadyInCanopy({ canopyName: held.actorCanopy.value.name })
       )
-    },
+    }
+    const creator = yield* Result.fromNullishOr(
+      held.accounts.get(command.by),
+      () => Refusal.CreatorGone()
+    )
+    return decision({ canopyId: command.canopyId }, [
+      CanopyWrite.CreateCanopy({
+        id: command.canopyId,
+        name: command.name,
+        timezone: Option.getOrElse(
+          Option.fromNullishOr(creator.timezone),
+          () => 'UTC'
+        ),
+        location: creator.location,
+      }),
+      CanopyWrite.AddMember({
+        canopyId: command.canopyId,
+        userId: command.by,
+        role: 'owner',
+        at: command.now,
+      }),
+    ])
   })
 
 const actionsOf = (

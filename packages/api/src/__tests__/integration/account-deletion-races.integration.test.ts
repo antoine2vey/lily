@@ -2,23 +2,33 @@ import {
   absenceOverStore,
   leaveOnVacation,
   returnFromVacation,
-  waitsForALock,
 } from '@lily/api/__tests__/integration/absence-layers'
-import { settled } from '@lily/api/__tests__/integration/canopy-layers'
+import {
+  canopyOverStore,
+  settled,
+} from '@lily/api/__tests__/integration/canopy-layers'
 import {
   careOverStore,
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import {
+  readBehind,
+  sessionsWaitingForALock,
+  waitsForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import { chatPermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { CareReadsLive } from '@lily/api/contexts/care'
+import { hashInviteToken } from '@lily/api/contexts/canopy'
+import { CarePlans, CareReadsLive } from '@lily/api/contexts/care'
 import { replanPlants } from '@lily/api/contexts/reminders'
+import { mintPlanPermit } from '@lily/api/kernel/permit'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -30,18 +40,24 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
-import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  PlantRepositoryLive,
+} from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import {
   UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
+import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
+import { createCanopy } from '@lily/api/services/canopy/endpoints/create-canopy'
 import { completeCarePlanStep } from '@lily/api/services/care-plans/endpoints/complete-care-plan-step'
 import { withCarePlanStep } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
+import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
@@ -59,6 +75,7 @@ import {
   ManagedRuntime,
   Order,
   References,
+  Struct,
 } from 'effect'
 import { SqlError } from 'effect/sql/SqlError'
 import pg from 'pg'
@@ -67,6 +84,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 const { Pool } = pg
 
 const DAY = 86_400_000
+
+const DELEGATION_DELETE_GATE = 7_403_001
 
 const BaseLive = Layer.mergeAll(
   ActivityPushTokenRepositoryLive,
@@ -225,22 +244,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     }
 
-    const settledOrWaitingOnLock = async (other: Promise<unknown>) => {
-      let settled = false
-      void other.then(() => {
-        settled = true
-      })
-      for (let i = 0; i < 500 && !settled; i++) {
-        const [row] = await db
-          .execute<{ waiting: string }>(
-            sql`SELECT count(*)::text AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-          )
-          .then((r) => r.rows)
-        if (Number(row?.waiting ?? 0) > 0) return
-        await new Promise((resolve) => setTimeout(resolve, 20))
-      }
-    }
-
     const deleteWhileOtherRuns = async (
       deleterId: string,
       other: () => Promise<Exit.Exit<unknown, unknown>>
@@ -265,7 +268,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       await Effect.runPromise(Deferred.await(reached))
       const otherExit = other()
-      await settledOrWaitingOnLock(otherExit)
+      await waitsForALock(pool, otherExit)
       Deferred.doneUnsafe(release, Exit.void)
       return {
         deleted: outcome(await deleting),
@@ -336,7 +339,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       await Effect.runPromise(Deferred.await(reached))
       const deleting = as(owner, deleteAccount())
-      await settledOrWaitingOnLock(deleting)
+      await waitsForALock(pool, deleting)
       Deferred.doneUnsafe(release, Exit.void)
 
       expect({
@@ -462,7 +465,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           [canceledAt, created.id]
         )
         Deferred.doneUnsafe(release, Exit.void)
-        await settledOrWaitingOnLock(deleting)
+        await waitsForALock(pool, deleting)
         await client.query('COMMIT')
       } finally {
         client.release()
@@ -629,7 +632,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         await Effect.runPromise(Deferred.await(reached))
         const deleting = as(user, deleteAccount())
-        await settledOrWaitingOnLock(deleting)
+        await waitsForALock(pool, deleting)
         Deferred.doneUnsafe(release, Exit.void)
 
         expect({
@@ -665,23 +668,33 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
       const hardDelete = (userId: string) => as(userId, purgeAccount(userId))
 
-      // Slows each cascaded delegation delete so both cascades overlap.
+      const gate = await pool.connect()
       await db.execute(
         sql.raw(`
-          CREATE FUNCTION slow_delegation_delete() RETURNS trigger AS $$
-          BEGIN PERFORM pg_sleep(0.4); RETURN OLD; END $$ LANGUAGE plpgsql;
-          CREATE TRIGGER slow_delegation_delete BEFORE DELETE ON care_delegations
-            FOR EACH ROW EXECUTE FUNCTION slow_delegation_delete();
+          CREATE FUNCTION held_delegation_delete() RETURNS trigger AS $$
+          BEGIN PERFORM pg_advisory_xact_lock_shared(${DELEGATION_DELETE_GATE}); RETURN OLD; END $$ LANGUAGE plpgsql;
+          CREATE TRIGGER held_delegation_delete BEFORE DELETE ON care_delegations
+            FOR EACH ROW EXECUTE FUNCTION held_delegation_delete();
         `)
       )
       try {
-        const purged = await Promise.all([hardDelete(a), hardDelete(b)])
+        await gate.query('SELECT pg_advisory_lock($1)', [
+          DELEGATION_DELETE_GATE,
+        ])
+        const purging = Promise.all([hardDelete(a), hardDelete(b)])
+        await sessionsWaitingForALock(pool, 2)
+        await gate.query('SELECT pg_advisory_unlock($1)', [
+          DELEGATION_DELETE_GATE,
+        ])
+        const purged = await purging
         expect(purged.map(outcome)).toEqual(['ok', 'ok'])
       } finally {
+        await gate.query('SELECT pg_advisory_unlock_all()')
+        gate.release()
         await db.execute(
           sql.raw(`
-            DROP TRIGGER slow_delegation_delete ON care_delegations;
-            DROP FUNCTION slow_delegation_delete();
+            DROP TRIGGER held_delegation_delete ON care_delegations;
+            DROP FUNCTION held_delegation_delete();
           `)
         )
       }
@@ -781,6 +794,46 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       Deferred.succeed(reached, undefined).pipe(
         Effect.andThen(Deferred.await(release)),
         Effect.andThen(step)
+      )
+
+    const purgePausedAfterTheDelete = (
+      userId: string,
+      reached: Deferred.Deferred<void>,
+      release: Deferred.Deferred<void>
+    ) =>
+      as(
+        userId,
+        Effect.gen(function* () {
+          const repo = yield* UserRepository
+          return yield* purgeAccount(userId).pipe(
+            Effect.provideService(UserRepository, {
+              ...repo,
+              delete: (id: string) =>
+                Effect.tap(repo.delete(id), () =>
+                  pausedBefore(Effect.void, reached, release)
+                ),
+            })
+          )
+        })
+      )
+
+    const purgePausedBeforeTheDelete = (
+      userId: string,
+      reached: Deferred.Deferred<void>,
+      release: Deferred.Deferred<void>
+    ) =>
+      as(
+        userId,
+        Effect.gen(function* () {
+          const repo = yield* UserRepository
+          return yield* purgeAccount(userId).pipe(
+            Effect.provideService(UserRepository, {
+              ...repo,
+              delete: (id: string) =>
+                pausedBefore(repo.delete(id), reached, release),
+            })
+          )
+        })
       )
 
     const changeHoldingTheAccountWhileItIsDeleted = async (
@@ -1094,18 +1147,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         return { planId: plan.id, stepId: step.id }
       }
 
-      const sessionsWaitingForALock = async (atLeast: number) => {
-        for (const _ of Array.range(1, 100)) {
-          const { rows } = await pool.query<{ waiting: number }>(
-            `SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-          )
-          const waiting = rows[0]?.waiting ?? 0
-          if (waiting >= atLeast) return waiting
-          await new Promise((resolve) => setTimeout(resolve, 50))
-        }
-        return 0
-      }
-
       const whileAnotherSessionHolds = async <A>(
         plantId: string,
         work: () => Promise<A>
@@ -1122,25 +1163,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           session.release()
         }
       }
-
-      const purgePausedBeforeTheDelete = (
-        userId: string,
-        reached: Deferred.Deferred<void>,
-        release: Deferred.Deferred<void>
-      ) =>
-        as(
-          userId,
-          Effect.gen(function* () {
-            const repo = yield* UserRepository
-            return yield* purgeAccount(userId).pipe(
-              Effect.provideService(UserRepository, {
-                ...repo,
-                delete: (id: string) =>
-                  pausedBefore(repo.delete(id), reached, release),
-              })
-            )
-          })
-        )
 
       const holdingItsPlants = (
         reached: Deferred.Deferred<void>,
@@ -1204,7 +1226,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
           const raced = await whileAnotherSessionHolds(higher, async () => {
             const purging = as(leaver, purgeAccount(leaver))
-            const purgeWaits = await sessionsWaitingForALock(1)
+            const purgeWaits = await sessionsWaitingForALock(pool, 1)
             const caring = as(
               leaver,
               careMultiplePlants({
@@ -1212,7 +1234,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 careType: 'watering',
               })
             )
-            const bothWait = await sessionsWaitingForALock(2)
+            const bothWait = await sessionsWaitingForALock(pool, 2)
             return { purging, caring, waiting: [purgeWaits, bothWait] }
           })
 
@@ -1224,7 +1246,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           }).toEqual({
             waiting: [1, 2],
             purged: 'ok',
-            cared: 'ConstraintError',
+            cared: 'PlantNotFoundError',
             deadlocks: 0,
           })
           expect(await accountOf(leaver)).toEqual([])
@@ -1360,6 +1382,333 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           expect(await accountOf(leaver)).toEqual([])
         }
       )
+
+      describe('by a user none of whose plants the deletion holds', () => {
+        const whatWasWrittenOn = async (plantId: string) => ({
+          cares: await db
+            .select({ by: schema.careLogs.performedByUserId })
+            .from(schema.careLogs)
+            .where(eq(schema.careLogs.plantId, plantId)),
+          steps: await db
+            .select({ completedAt: schema.carePlanSteps.completedAt })
+            .from(schema.carePlanSteps)
+            .innerJoin(
+              schema.carePlans,
+              eq(schema.carePlans.id, schema.carePlanSteps.planId)
+            )
+            .where(eq(schema.carePlans.plantId, plantId)),
+          plans: await db
+            .select({ author: schema.carePlans.userId })
+            .from(schema.carePlans)
+            .where(eq(schema.carePlans.plantId, plantId)),
+        })
+
+        type WriteNamingTheUser = (on: {
+          readonly plantId: string
+          readonly planId: string
+          readonly stepId: string
+          readonly userId: string
+        }) => Effect.Effect<unknown, unknown, unknown>
+
+        const WRITES_THAT_NAME_THE_USER = {
+          'a care': ({ plantId }) => waterAsCurrentUser(plantId),
+          'a tick': ({ plantId, planId, stepId, userId }) =>
+            Effect.flatMap(CarePlans, (carePlans) =>
+              carePlans.tickStep({
+                permit: mintPlanPermit({ id: planId, plantId }, 'tick', userId),
+                stepId,
+              })
+            ),
+          'a plan proposal': ({ plantId, userId }) =>
+            Effect.flatMap(CarePlans, (carePlans) =>
+              carePlans.propose({
+                permit: chatPermit(plantId, userId),
+                title: 'Rescue',
+                source: 'ai',
+                steps: [],
+              })
+            ),
+        } satisfies Record<string, WriteNamingTheUser>
+
+        it.each(Struct.keys(WRITES_THAT_NAME_THE_USER))(
+          'makes %s behind the delete wait for it, then answers that the plant is not found and writes nothing',
+          async (what) => {
+            const owner = await insertUser('owner')
+            const userId = await insertUser('stranger')
+            const plantId = await plantOf({ userId: owner }, owner)
+            const plan = await acceptedPlanOn(plantId, owner)
+            const before = await deadlocks()
+            const reached = Deferred.makeUnsafe<void>()
+            const release = Deferred.makeUnsafe<void>()
+
+            const purging = purgePausedAfterTheDelete(userId, reached, release)
+            await Effect.runPromise(Deferred.await(reached))
+            const write: WriteNamingTheUser = WRITES_THAT_NAME_THE_USER[what]
+            const writing = as(userId, write({ plantId, userId, ...plan }))
+            const writeWaited = await waitsForALock(pool, writing)
+            Deferred.doneUnsafe(release, Exit.void)
+
+            expect({
+              written: outcome(await writing),
+              purged: outcome(await purging),
+              writeWaited,
+              deadlocks: (await deadlocks()) - before,
+            }).toEqual({
+              written: 'PlantNotFoundError',
+              purged: 'ok',
+              writeWaited: true,
+              deadlocks: 0,
+            })
+            expect(await whatWasWrittenOn(plantId)).toEqual({
+              cares: [],
+              steps: [{ completedAt: null }],
+              plans: [{ author: owner }],
+            })
+          }
+        )
+
+        it('waits for a care that already holds the account of its carer, and the care commits', async () => {
+          const owner = await insertUser('owner')
+          const stranger = await insertUser('stranger')
+          const plantId = await plantOf({ userId: owner }, owner)
+
+          const raced = await purgeWhileACareHoldsItsPlants(
+            stranger,
+            (reached, release) =>
+              as(
+                stranger,
+                Effect.provide(
+                  waterAsCurrentUser(plantId),
+                  holdingItsPlants(reached, release)
+                )
+              )
+          )
+
+          expect(raced).toEqual({
+            cared: 'ok',
+            purged: 'ok',
+            purgeWaited: true,
+            deadlocks: 0,
+          })
+          expect((await whatWasWrittenOn(plantId)).cares).toEqual([
+            { by: null },
+          ])
+          expect(await accountOf(stranger)).toEqual([])
+        })
+      })
+    })
+    describe('the hard deletion of an account that is creating a personal plant', () => {
+      const plantsNamed = (name: string) =>
+        db
+          .select({ id: schema.plants.id })
+          .from(schema.plants)
+          .where(eq(schema.plants.name, name))
+
+      const aPlantNamed = (name: string) => ({
+        name,
+        wateringFrequencyDays: 7,
+        luxNeeded: 2000,
+        humidityRating: 3,
+        petToxicityRating: 1,
+      })
+
+      it('makes the create behind the delete wait for it, then answers that no account is behind the request and writes no plant', async () => {
+        const userId = await insertUser('planter')
+        const name = `Fern ${crypto.randomUUID()}`
+        const before = await deadlocks()
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+
+        const purging = purgePausedAfterTheDelete(userId, reached, release)
+        await Effect.runPromise(Deferred.await(reached))
+        const creating = as(userId, createPlant(aPlantNamed(name)))
+        const createWaited = await waitsForALock(pool, creating)
+        Deferred.doneUnsafe(release, Exit.void)
+
+        expect({
+          created: outcome(await creating),
+          purged: outcome(await purging),
+          createWaited,
+          deadlocks: (await deadlocks()) - before,
+        }).toEqual({
+          created: 'UnauthorizedError',
+          purged: 'ok',
+          createWaited: true,
+          deadlocks: 0,
+        })
+        expect(await plantsNamed(name)).toEqual([])
+      })
+
+      it('waits for a create that already holds the account of its creator, then deletes the plant with the account', async () => {
+        const userId = await insertUser('planter')
+        const name = `Fern ${crypto.randomUUID()}`
+        const before = await deadlocks()
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+
+        const purged = Deferred.makeUnsafe<void>()
+
+        const creating = as(
+          userId,
+          Effect.gen(function* () {
+            const plants = yield* PlantRepository
+            const behindThePurge = yield* readBehind(purged)
+            return yield* createPlant(aPlantNamed(name)).pipe(
+              Effect.provide(
+                careOverStore((store) => ({
+                  ...store,
+                  apply: (writes) =>
+                    pausedBefore(store.apply(writes), reached, release),
+                }))
+              ),
+              Effect.provideService(PlantRepository, {
+                ...plants,
+                findById: (id) => behindThePurge(plants.findById(id)),
+              })
+            )
+          })
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const purging = as(userId, purgeAccount(userId))
+        void purging.then(() => Deferred.doneUnsafe(purged, Exit.void))
+        const purgeWaited = await waitsForALock(pool, purging)
+        Deferred.doneUnsafe(release, Exit.void)
+
+        expect({
+          created: outcome(await creating),
+          purged: outcome(await purging),
+          purgeWaited,
+          deadlocks: (await deadlocks()) - before,
+        }).toEqual({
+          created: 'ok',
+          purged: 'ok',
+          purgeWaited: true,
+          deadlocks: 0,
+        })
+        expect(await plantsNamed(name)).toEqual([])
+        expect(await accountOf(userId)).toEqual([])
+      })
+    })
+
+    describe('the hard deletion of an account that is creating a canopy', () => {
+      const canopiesNamed = (name: string) =>
+        db
+          .select({ id: schema.canopies.id })
+          .from(schema.canopies)
+          .where(eq(schema.canopies.name, name))
+
+      it('makes the create behind the delete wait for it, then answers that no account is behind the request and creates no canopy', async () => {
+        const userId = await insertUser('creator')
+        const name = `Home ${crypto.randomUUID()}`
+        const before = await deadlocks()
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+
+        const purging = purgePausedAfterTheDelete(userId, reached, release)
+        await Effect.runPromise(Deferred.await(reached))
+        const creating = as(userId, createCanopy({ name }))
+        const createWaited = await waitsForALock(pool, creating)
+        Deferred.doneUnsafe(release, Exit.void)
+
+        expect({
+          created: outcome(await creating),
+          purged: outcome(await purging),
+          createWaited,
+          deadlocks: (await deadlocks()) - before,
+        }).toEqual({
+          created: 'UnauthorizedError',
+          purged: 'ok',
+          createWaited: true,
+          deadlocks: 0,
+        })
+        expect(await canopiesNamed(name)).toEqual([])
+      })
+
+      it('waits for a create that already holds the account of its creator, then dissolves the canopy with its last member', async () => {
+        const userId = await insertUser('creator')
+        const name = `Home ${crypto.randomUUID()}`
+        const before = await deadlocks()
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+
+        const creating = as(
+          userId,
+          Effect.provide(
+            createCanopy({ name }),
+            canopyOverStore((store) => ({
+              ...store,
+              apply: (writes) =>
+                pausedBefore(store.apply(writes), reached, release),
+            }))
+          )
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const purging = as(userId, purgeAccount(userId))
+        const purgeWaited = await waitsForALock(pool, purging)
+        Deferred.doneUnsafe(release, Exit.void)
+
+        expect({
+          created: outcome(await creating),
+          purged: outcome(await purging),
+          purgeWaited,
+          deadlocks: (await deadlocks()) - before,
+        }).toEqual({
+          created: 'ok',
+          purged: 'ok',
+          purgeWaited: true,
+          deadlocks: 0,
+        })
+        expect(await canopiesNamed(name)).toEqual([])
+        expect(await accountOf(userId)).toEqual([])
+      })
+    })
+
+    describe('the hard deletion of an account, once it has read that the account has no canopy', () => {
+      it('makes a join by that account wait for it, then answers that the invite is not found and seats nobody', async () => {
+        const owner = await insertUser('canopy-owner')
+        const joiner = await insertUser('joiner')
+        const token = crypto.randomUUID()
+        const [canopy] = await db
+          .insert(schema.canopies)
+          .values({ name: 'Home', timezone: 'UTC' })
+          .returning()
+        if (!canopy) throw new Error('canopy insert returned nothing')
+        await db
+          .insert(schema.canopyMembers)
+          .values({ canopyId: canopy.id, userId: owner, role: 'owner' })
+        await db.insert(schema.canopyInvites).values({
+          canopyId: canopy.id,
+          tokenHash: hashInviteToken(token),
+          expiresAt: new Date(Date.now() + DAY),
+        })
+        const before = await deadlocks()
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+
+        const purging = purgePausedBeforeTheDelete(joiner, reached, release)
+        await Effect.runPromise(Deferred.await(reached))
+        const joining = as(joiner, acceptCanopyInvite(token))
+        const joinWaited = await waitsForALock(pool, joining)
+        Deferred.doneUnsafe(release, Exit.void)
+
+        expect({
+          joined: outcome(await joining),
+          purged: outcome(await purging),
+          joinWaited,
+          deadlocks: (await deadlocks()) - before,
+        }).toEqual({
+          joined: 'CanopyInviteNotFoundError',
+          purged: 'ok',
+          joinWaited: true,
+          deadlocks: 0,
+        })
+        expect(
+          await db
+            .select({ userId: schema.canopyMembers.userId })
+            .from(schema.canopyMembers)
+            .where(eq(schema.canopyMembers.canopyId, canopy.id))
+        ).toEqual([{ userId: owner }])
+      })
     })
   }
 )

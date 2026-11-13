@@ -9,6 +9,7 @@ import {
   type AmendInput,
   type AmendRefusal,
   amendCare,
+  authorOf,
   correctLastCare,
   type Decision,
   type DueMove,
@@ -18,6 +19,7 @@ import {
   RecordOutcome,
   type RecordRefusal,
   Refusal,
+  type RefusalOf,
   type RemoveRefusal,
   recordCareOnAll,
   removeCare,
@@ -99,13 +101,15 @@ export class Care extends Context.Service<
   {
     /**
      * Records the same care on many plants. A plant that refuses is skipped
-     * and reported; the others are still recorded.
+     * and reported; the others are still recorded. An acting user whose
+     * account is gone refuses the whole command, as someone with no role on
+     * the plant.
      */
     readonly record: (
       command: RecordCare & {
         readonly permits: ReadonlyArray<PlantPermit<'care'>>
       }
-    ) => Effect.Effect<ReadonlyArray<RecordOutcome>>
+    ) => Effect.Effect<ReadonlyArray<RecordOutcome>, PlantNotFoundError>
     readonly recordOne: (
       command: RecordCare & { readonly permit: PlantPermit<'care'> }
     ) => Effect.Effect<Recorded, RecordOneError>
@@ -169,6 +173,13 @@ export const oneOutcome = (
     })
   )
 
+const actorIdsOf = (permits: ReadonlyArray<PlantPermit<PlantAction>>) =>
+  Array.dedupe(
+    Array.flatMap(permits, (permit) =>
+      Option.toArray(Option.fromNullishOr(actingUserId(permit)))
+    )
+  )
+
 export const CareLive = Layer.effect(
   Care,
   Effect.gen(function* () {
@@ -196,48 +207,62 @@ export const CareLive = Layer.effect(
             ? yield* advisor.wateringDays(plantIds)
             : new Map<string, number>()
         const now = yield* DateTime.now
-        const envOf = (permit: PlantPermit<'care'>): DecideEnv => ({
+        const envOf = (
+          permit: PlantPermit<'care'>,
+          by: Option.Option<string>
+        ): DecideEnv => ({
           now,
           newCareLogId: crypto.randomUUID(),
           wateringDays: Option.fromNullishOr(wateringDays.get(permit.plantId)),
-          by: Option.fromNullishOr(actingUserId(permit)),
+          by,
         })
 
         return yield* runCommand({
           name: 'care.record',
           topic: CareTopic,
-          load: store.lockAndLoad(plantIds, [command.careType]),
-          decide: (plants) => {
-            const present = Array.flatMap(permits, (permit) =>
-              pipe(
-                Option.fromNullishOr(plants.get(permit.plantId)),
-                Option.match({
-                  onNone: () => [],
-                  onSome: (plant) => [[plant, envOf(permit)] as const],
-                })
-              )
-            )
-            const gone = Array.filter(plantIds, (id) => !plants.has(id))
-            const decided = recordCareOnAll(present, command)
-            return Result.succeed(
-              decision(
-                [
-                  ...decided.outcome,
-                  ...Array.map(gone, (plantId) =>
-                    RecordOutcome.Skipped({
-                      plantId,
-                      reason: Refusal.PlantGone({ plantId }),
+          load: store.lockAndLoadFor(actorIdsOf(permits), plantIds, [
+            command.careType,
+          ]),
+          decide: ({ plants, accountsHeld }) =>
+            Result.map(
+              Result.all(
+                Array.map(permits, (permit) =>
+                  Result.map(
+                    authorOf(accountsHeld, permit.actor, permit.plantId),
+                    (by) => [permit, by] as const
+                  )
+                )
+              ),
+              (authored) => {
+                const present = Array.flatMap(authored, ([permit, by]) =>
+                  pipe(
+                    Option.fromNullishOr(plants.get(permit.plantId)),
+                    Option.match({
+                      onNone: () => [],
+                      onSome: (plant) => [[plant, envOf(permit, by)] as const],
                     })
-                  ),
-                ],
-                decided.writes,
-                decided.events
-              )
-            )
-          },
+                  )
+                )
+                const gone = Array.filter(plantIds, (id) => !plants.has(id))
+                const decided = recordCareOnAll(present, command)
+                return decision(
+                  [
+                    ...decided.outcome,
+                    ...Array.map(gone, (plantId) =>
+                      RecordOutcome.Skipped({
+                        plantId,
+                        reason: Refusal.PlantGone({ plantId }),
+                      })
+                    ),
+                  ],
+                  decided.writes,
+                  decided.events
+                )
+              }
+            ),
           apply: store.apply,
         })
-      }).pipe(Effect.provide(context))
+      }).pipe(Effect.provide(context), Effect.mapError(asError))
 
     const envOf = (
       permit: PlantPermit<'care'>,
@@ -325,23 +350,44 @@ export const CareLive = Layer.effect(
         if (Array.isReadonlyArrayEmpty(corrections)) return
         const careTypes = Array.map(corrections, (c) => c.careType)
         const env = yield* envOf(permit, careTypes)
-        yield* onPlant<SkipReason>(
-          'care.correctLastCare',
-          permit,
-          careTypes,
-          Refusal.PlantGone({ plantId: permit.plantId }),
-          (plant) =>
-            mergeDecisions(
-              Array.map(
-                corrections,
-                ({
-                  careType,
-                  on,
-                }): Result.Result<Decision<void>, RecordRefusal> =>
-                  correctLastCare(plant, careType, on, env())
+        yield* runCommand({
+          name: 'care.correctLastCare',
+          topic: CareTopic,
+          load: store.lockAndLoadFor(
+            actorIdsOf([permit]),
+            [permit.plantId],
+            careTypes
+          ),
+          decide: ({
+            plants,
+            accountsHeld,
+          }): Result.Result<
+            Decision<void>,
+            SkipReason | RefusalOf<'ActorGone'>
+          > =>
+            Result.gen(function* () {
+              const by = yield* authorOf(
+                accountsHeld,
+                permit.actor,
+                permit.plantId
               )
-            )
-        )
+              const plant = yield* Result.fromOption(
+                Option.fromNullishOr(plants.get(permit.plantId)),
+                () => Refusal.PlantGone({ plantId: permit.plantId })
+              )
+              return yield* mergeDecisions(
+                Array.map(
+                  corrections,
+                  ({
+                    careType,
+                    on,
+                  }): Result.Result<Decision<void>, RecordRefusal> =>
+                    correctLastCare(plant, careType, on, { ...env(), by })
+                )
+              )
+            }),
+          apply: store.apply,
+        }).pipe(Effect.provide(context))
       }).pipe(Effect.mapError(asError))
 
     const setSchedules: Care['Service']['setSchedules'] = ({

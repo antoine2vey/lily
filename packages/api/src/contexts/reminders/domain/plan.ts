@@ -22,14 +22,23 @@ export type Delivery = Data.TaggedEnum<{
 }>
 export const Delivery = Data.taggedEnum<Delivery>()
 
-export interface ReminderRow {
+interface RowBase {
   readonly id: string
   readonly userId: string
-  readonly type: ReminderType
   readonly delivery: Delivery
   readonly scheduledAt: DateTime.Utc
-  readonly occasion: Option.Option<CareDay>
 }
+
+export interface CareReminderRow extends RowBase {
+  readonly type: CareReminderType
+  readonly dueDay: Option.Option<CareDay>
+}
+
+export interface OverdueReminderRow extends RowBase {
+  readonly type: 'overdue_reminder'
+}
+
+export type ReminderRow = CareReminderRow | OverdueReminderRow
 
 export interface CareLine {
   readonly careType: CareType
@@ -45,15 +54,23 @@ export interface Recipient {
   readonly sendTimes: ReadonlyMap<CareDay, DateTime.Utc>
 }
 
+export type Life = Data.TaggedEnum<{
+  Living: { readonly lines: ReadonlyArray<CareLine> }
+  Dead: Record<never, never>
+}>
+export const Life = Data.taggedEnum<Life>()
+
 export interface PlantState {
   readonly id: string
-  readonly living: boolean
+  readonly life: Life
   readonly remindersEnabled: boolean
   readonly shared: boolean
-  readonly lines: ReadonlyArray<CareLine>
   readonly audience: ReadonlyArray<string>
   readonly rows: ReadonlyArray<ReminderRow>
 }
+
+export const linesOf = (plant: PlantState): ReadonlyArray<CareLine> =>
+  plant.life._tag === 'Living' ? plant.life.lines : []
 
 export type Removal =
   | 'plant-dead'
@@ -74,7 +91,12 @@ export type Change = Data.TaggedEnum<{
     readonly type: ReminderType
     readonly occasion: CareDay
     readonly scheduledAt: DateTime.Utc
-    readonly over: Option.Option<string>
+  }
+  Retime: {
+    readonly rowId: string
+    readonly userId: string
+    readonly occasion: CareDay
+    readonly scheduledAt: DateTime.Utc
   }
   Remove: {
     readonly rowId: string
@@ -90,7 +112,7 @@ export const barredBy = (
   recipients: ReadonlyMap<string, Recipient>,
   now: DateTime.Utc
 ): Option.Option<Removal> => {
-  if (!plant.living) return Option.some('plant-dead')
+  if (plant.life._tag === 'Dead') return Option.some('plant-dead')
   if (!plant.remindersEnabled) return Option.some('reminders-disabled')
   if (!Array.contains(plant.audience, userId)) {
     return Option.some('not-in-audience')
@@ -111,15 +133,15 @@ export const barredBy = (
 }
 
 export const hasOverdueCare = (plant: PlantState) =>
-  Array.some(plant.lines, (line) => line.status._tag === 'Overdue')
+  Array.some(linesOf(plant), (line) => line.status._tag === 'Overdue')
 
 const isPending = (row: ReminderRow) => row.delivery._tag === 'Pending'
 
 const isWaiting = (row: ReminderRow) =>
   isPending(row) || row.delivery._tag === 'Queued'
 
-const isAbout = (day: CareDay) => (row: ReminderRow) =>
-  Option.contains(row.occasion, day)
+const isAbout = (day: CareDay) => (row: CareReminderRow) =>
+  Option.contains(row.dueDay, day)
 
 const remove = (rows: ReadonlyArray<ReminderRow>, why: Removal) =>
   Array.map(rows, (row) =>
@@ -141,8 +163,8 @@ const Standing = Data.taggedEnum<Standing>()
 const standingOf = (
   line: CareLine,
   recipient: Recipient,
-  slotRows: ReadonlyArray<ReminderRow>,
-  handedOver: ReadonlyArray<ReminderRow>,
+  slotRows: ReadonlyArray<CareReminderRow>,
+  handedOver: ReadonlyArray<CareReminderRow>,
   now: DateTime.Utc
 ): Standing => {
   const aboutDueDay = isAbout(line.dueDay)
@@ -174,8 +196,8 @@ const planSlot = (
   plantId: string,
   line: CareLine,
   recipient: Recipient,
-  slotRows: ReadonlyArray<ReminderRow>,
-  handedOver: ReadonlyArray<ReminderRow>,
+  slotRows: ReadonlyArray<CareReminderRow>,
+  handedOver: ReadonlyArray<CareReminderRow>,
   now: DateTime.Utc
 ): ReadonlyArray<Change> => {
   const aboutDueDay = isAbout(line.dueDay)
@@ -189,27 +211,32 @@ const planSlot = (
     ],
     'superseded'
   )
-  const standsAt = (sendAt: DateTime.Utc) =>
+  const pendingAt = (sendAt: DateTime.Utc): ReadonlyArray<Change> =>
     Option.match(mine, {
-      onNone: () => false,
+      onNone: () => [
+        ...superseded,
+        Change.Put({
+          userId: recipient.id,
+          plantId,
+          type: reminderTypeOf(line.careType),
+          occasion: line.dueDay,
+          scheduledAt: sendAt,
+        }),
+      ],
       onSome: (row) =>
         settledByDelivery(row, now) ||
-        DateTime.Equivalence(row.scheduledAt, sendAt),
+        DateTime.Equivalence(row.scheduledAt, sendAt)
+          ? superseded
+          : [
+              ...superseded,
+              Change.Retime({
+                rowId: row.id,
+                userId: recipient.id,
+                occasion: line.dueDay,
+                scheduledAt: sendAt,
+              }),
+            ],
     })
-  const pendingAt = (sendAt: DateTime.Utc): ReadonlyArray<Change> =>
-    standsAt(sendAt)
-      ? superseded
-      : [
-          ...superseded,
-          Change.Put({
-            userId: recipient.id,
-            plantId,
-            type: reminderTypeOf(line.careType),
-            occasion: line.dueDay,
-            scheduledAt: sendAt,
-            over: Option.map(mine, (row) => row.id),
-          }),
-        ]
   return Standing.$match(
     standingOf(line, recipient, slotRows, handedOver, now),
     {
@@ -229,8 +256,9 @@ const planEntitled = (
   now: DateTime.Utc
 ): ReadonlyArray<Change> => {
   const pending = Array.filter(rows, isPending)
-  const scheduled = Array.flatMap(plant.lines, (line) => {
-    const ofLine = (row: ReminderRow) =>
+  const lines = linesOf(plant)
+  const scheduled = Array.flatMap(lines, (line) => {
+    const ofLine = (row: ReminderRow): row is CareReminderRow =>
       row.type === reminderTypeOf(line.careType)
     return planSlot(
       plant.id,
@@ -245,10 +273,7 @@ const planEntitled = (
     pending,
     (row) =>
       row.type !== 'overdue_reminder' &&
-      !Array.some(
-        plant.lines,
-        (line) => reminderTypeOf(line.careType) === row.type
-      )
+      !Array.some(lines, (line) => reminderTypeOf(line.careType) === row.type)
   )
   const settledOverdue = hasOverdueCare(plant)
     ? []

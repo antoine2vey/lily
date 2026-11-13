@@ -49,6 +49,7 @@ import {
   type CommandSpec,
   commandBody,
   runCommand,
+  type Transaction,
   transact,
 } from '@lily/api/kernel/transact'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
@@ -73,6 +74,7 @@ import {
   PlantInDelegationError,
   type PlantOwner,
   RoomNotFoundError,
+  UnauthorizedError,
   UserNotFoundError,
 } from '@lily/shared'
 import {
@@ -123,7 +125,7 @@ export class Canopy extends Context.Service<
     readonly create: (command: {
       readonly by: string
       readonly name: string
-    }) => Effect.Effect<InCanopy, AlreadyInCanopyError>
+    }) => Effect.Effect<InCanopy, AlreadyInCanopyError | UnauthorizedError>
     /** Any member renames. Timezone and location need the owner. */
     readonly update: (command: {
       readonly by: string
@@ -154,9 +156,9 @@ export class Canopy extends Context.Service<
     /**
      * Account deletion, soft and hard. Takes the user out of their canopy,
      * where the plants they shared stay, and runs `deletion` in the same
-     * transaction, once the canopy row and every delegation of the user are
-     * locked. A user with no canopy still gets the delegation locks and the
-     * deletion.
+     * transaction, once the key of the user, the canopy row and every
+     * delegation of the user are locked. A user with no canopy still gets the
+     * key, the delegation locks and the deletion.
      *
      * The one command that keeps `SqlError` typed: the account cleanup
      * isolates a failing account by catching it.
@@ -165,7 +167,7 @@ export class Canopy extends Context.Service<
       userId: string
     ) => <A, E, R>(
       deletion: Effect.Effect<A, E, R>
-    ) => Effect.Effect<A, E | SqlError, R>
+    ) => Effect.Effect<A, E | SqlError, Exclude<R, Transaction>>
     /** Any member. Replaces the live link. */
     readonly createLink: (command: {
       readonly by: string
@@ -254,14 +256,13 @@ export class Canopy extends Context.Service<
       readonly muted: boolean
     }) => Effect.Effect<void, PlantNotFoundError>
     /**
-     * Locks `canopyId` for the rest of the caller's transaction and checks
-     * that `by` is a member. For the callers that add a plant or a room to a
-     * canopy, so the count they read cannot move. Opens no transaction.
+     * Locks `canopyId` and checks that `by` is a member. For the callers that
+     * add a plant or a room to a canopy, so the count they read cannot move.
      */
     readonly holdAsMember: (command: {
       readonly by: string
       readonly canopyId: string
-    }) => Effect.Effect<void, CanopyNotFoundError | SqlError>
+    }) => Effect.Effect<void, CanopyNotFoundError | SqlError, Transaction>
   }
 >()('canopy/Canopy') {}
 
@@ -269,6 +270,8 @@ const errorOf = {
   NotMember: () => new CanopyNotFoundError(),
   NotOwner: () => new NotCanopyOwnerError(),
   AlreadyInCanopy: ({ canopyName }) => new AlreadyInCanopyError({ canopyName }),
+  CreatorGone: () =>
+    new UnauthorizedError({ message: 'Authentication failed' }),
   CanopyFull: ({ limit }) => new CanopyFullError({ limit }),
   MemberNotFound: () => new CanopyMemberNotFoundError(),
   InviteNotFound: () => new CanopyInviteNotFoundError(),
@@ -393,9 +396,9 @@ export const CanopyLive = Layer.effect(
 
     const spec = <Loaded, A, R extends Refusal>(
       name: string,
-      load: Effect.Effect<Loaded, SqlError>,
+      load: Effect.Effect<Loaded, SqlError, Transaction>,
       decide: (loaded: Loaded) => Result.Result<Decision<A>, R>
-    ): CommandSpec<Loaded, CanopyWrite, CanopyEvent, A, R, never> => ({
+    ): CommandSpec<Loaded, CanopyWrite, CanopyEvent, A, R, Transaction> => ({
       name,
       topic: CanopyTopic,
       load,
@@ -477,13 +480,16 @@ export const CanopyLive = Layer.effect(
     return Canopy.of({
       create: ({ by, name }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          run('canopy.create', lockPlan({ actor: Option.some(by) }), (held) =>
-            createCanopy(held, {
-              by,
-              canopyId: CanopyId.make(crypto.randomUUID()),
-              name,
-              now,
-            })
+          run(
+            'canopy.create',
+            lockPlan({ actor: Option.some(by), accounts: [by] }),
+            (held) =>
+              createCanopy(held, {
+                by,
+                canopyId: CanopyId.make(crypto.randomUUID()),
+                name,
+                now,
+              })
           )
         ),
       update: ({ by, changes }) =>
@@ -512,6 +518,7 @@ export const CanopyLive = Layer.effect(
                 'canopy.leaveForDeletion',
                 {
                   ...ending(userId),
+                  actor: Option.some(userId),
                   absenceOf: Option.some(userId),
                   plants: PlantScope.Leaver({ userId }),
                 },

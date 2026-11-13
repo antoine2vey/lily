@@ -117,14 +117,15 @@ const mapToNotification = (
 /** A topic Reminders does not plan. */
 export type OtherTopic = Exclude<NotificationTopic, DeferredCareType>
 
+export const isReminderTopic = (
+  topic: NotificationTopic
+): topic is DeferredCareType => TOPIC_CATEGORY[topic] === 'care'
+
 /** Drops the reminder topics, whose rows only Reminders may write or delete. */
 export const exceptReminders = (
   topics: ReadonlyArray<NotificationTopic>
 ): ReadonlyArray<OtherTopic> =>
-  Array.filter(
-    topics,
-    (topic): topic is OtherTopic => TOPIC_CATEGORY[topic] !== 'care'
-  )
+  Array.filter(topics, (topic): topic is OtherTopic => !isReminderTopic(topic))
 
 const REMINDER_PLANT_KEYSPACE = 2
 
@@ -279,7 +280,7 @@ export interface StoredReminder {
   readonly id: string
   readonly userId: string
   readonly plantId: string
-  readonly type: NotificationTopic
+  readonly type: DeferredCareType
   readonly status: NotificationStatus
   readonly inFlight: boolean
   readonly retryCount: number
@@ -733,13 +734,14 @@ export const NotificationRepositoryLive = Layer.effect(
             .orderBy(asc(notifications.id))
           return Array.flatMap(
             [...locked, ...handedOver],
-            ({ deliveryMessageId, plantId, status, ...row }) =>
-              plantId === null
+            ({ deliveryMessageId, plantId, status, type, ...row }) =>
+              plantId === null || !isReminderTopic(type)
                 ? []
                 : [
                     {
                       ...row,
                       plantId,
+                      type,
                       status: status as NotificationStatus,
                       inFlight: deliveryMessageId !== null,
                     },

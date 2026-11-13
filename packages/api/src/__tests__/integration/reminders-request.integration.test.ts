@@ -1,5 +1,6 @@
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
 import { CareReadsLive, CareTopic } from '@lily/api/contexts/care'
 import {
   Dirty,
@@ -9,6 +10,7 @@ import {
 } from '@lily/api/contexts/reminders'
 import { replan } from '@lily/api/contexts/reminders/replan'
 import { makeOutbox, Outbox, type RelayConfig } from '@lily/api/kernel/outbox'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { transact } from '@lily/api/kernel/transact'
 import { type AppConsumersContext, appConsumers } from '@lily/api/layers/outbox'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -58,11 +60,16 @@ const appLayer = (relay: Partial<RelayConfig>) =>
   ).pipe(Layer.provideMerge(Layer.mergeAll(StoreLive, createMockEventBus())))
 
 const run = <A, E>(
-  effect: Effect.Effect<A, E, Layer.Success<ReturnType<typeof appLayer>>>,
+  effect: Effect.Effect<
+    A,
+    E,
+    Layer.Success<ReturnType<typeof appLayer>> | Transaction
+  >,
   relay: Partial<RelayConfig> = {}
 ) =>
   Effect.runPromise(
     effect.pipe(
+      assumingTransaction,
       Effect.provide(Layer.fresh(appLayer(relay))),
       Effect.provideService(References.MinimumLogLevel, 'None')
     )

@@ -102,7 +102,6 @@ export const planOverdueDigest = ({
             type: 'overdue_reminder',
             occasion: day,
             scheduledAt,
-            over: Option.none(),
           })
         ),
       }),

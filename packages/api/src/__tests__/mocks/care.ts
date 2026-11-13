@@ -170,6 +170,7 @@ export const createInMemoryCare = (
     readonly plans?: CarePlanRows
     readonly plantRows?: PlantRow[]
     readonly timezones?: Readonly<Record<string, string>>
+    readonly goneAccounts?: ReadonlyArray<string>
   } = {}
 ) => {
   const plantRows = options.plantRows ?? []
@@ -401,6 +402,38 @@ export const createInMemoryCare = (
     },
   })
 
+  const lockAndLoad: CareStore['Service']['lockAndLoad'] = (
+    plantIds,
+    careTypes
+  ) =>
+    Effect.sync(
+      () =>
+        new Map(
+          Array.flatMap(plantIds, (id) =>
+            pipe(
+              Option.fromNullishOr(plants.get(id)),
+              Option.match({
+                onNone: () => [],
+                onSome: (plant) => [
+                  [
+                    id,
+                    {
+                      ...plant,
+                      lines: new Map(
+                        Array.filter([...plant.lines], ([careType]) =>
+                          Array.contains(careTypes, careType)
+                        )
+                      ),
+                      plans: plansOf(planRows, id),
+                    },
+                  ] as const,
+                ],
+              })
+            )
+          )
+        )
+    )
+
   const store = Layer.succeed(
     CareStore,
     CareStore.of({
@@ -429,35 +462,21 @@ export const createInMemoryCare = (
             )
           )
         ),
-      careTimezoneOf: (owner) => Effect.succeed(timezoneOf(owner)),
-      lockAndLoad: (plantIds, careTypes) =>
-        Effect.sync(
-          () =>
-            new Map(
-              Array.flatMap(plantIds, (id) =>
-                pipe(
-                  Option.fromNullishOr(plants.get(id)),
-                  Option.match({
-                    onNone: () => [],
-                    onSome: (plant) => [
-                      [
-                        id,
-                        {
-                          ...plant,
-                          lines: new Map(
-                            Array.filter([...plant.lines], ([careType]) =>
-                              Array.contains(careTypes, careType)
-                            )
-                          ),
-                          plans: plansOf(planRows, id),
-                        },
-                      ] as const,
-                    ],
-                  })
-                )
-              )
-            )
-        ),
+      lockAndLoadForPlanting: (userIds, owner) =>
+        Effect.succeed({
+          timezone: timezoneOf(owner),
+          accountsHeld: new Set(
+            Array.difference(userIds, options.goneAccounts ?? [])
+          ),
+        }),
+      lockAndLoad,
+      lockAndLoadFor: (actorIds, plantIds, careTypes) =>
+        Effect.map(lockAndLoad(plantIds, careTypes), (loaded) => ({
+          plants: loaded,
+          accountsHeld: new Set(
+            Array.difference(actorIds, options.goneAccounts ?? [])
+          ),
+        })),
       weatherProfiles: () => Effect.succeed([]),
       linkPlanToMessage: (planId, chatMessageId) =>
         Effect.sync(() =>

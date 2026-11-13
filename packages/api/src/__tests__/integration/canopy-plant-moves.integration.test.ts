@@ -1,5 +1,6 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { settled } from '@lily/api/__tests__/integration/canopy-layers'
+import { sessionsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -88,16 +89,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return row?.n
     }
 
-    const untilALockWait = async () => {
-      for (let waited = 0; waited < 100; waited++) {
-        const blocked = await pool.query(
-          'SELECT count(*)::int AS n FROM pg_locks WHERE NOT granted'
-        )
-        if (blocked.rows[0]?.n > 0) return
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-    }
-
     const reviveWhileMoveWaits = async <A>(
       lock: string,
       plantId: string,
@@ -111,7 +102,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           plantId,
         ])
         const moved = move()
-        await untilALockWait()
+        await sessionsWaitingForALock(pool, 1)
         await client.query('COMMIT')
         return await moved
       } finally {

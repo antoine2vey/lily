@@ -21,8 +21,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 const LIVE_ACTIVITY_SCHEMA_VERSION = 3
 
 export const buildLiveActivityContentState = (
-  userId: string,
-  exclude?: { plantId: string; careType: CareType }
+  userId: string
 ): Effect.Effect<
   LiveActivityContentState | null,
   SqlError,
@@ -48,19 +47,10 @@ export const buildLiveActivityContentState = (
 
     const now = DateTime.nowUnsafe()
     const canopyId = yield* memberCanopyId(userId)
-    const due = yield* reads.due({
+    const dueSchedules = yield* reads.due({
       scope: DueScope.CaredForBy({ userId, canopyId }),
       upTo: DueWindow.DueOrOverdue(),
     })
-    const dueSchedules = Array.filter(
-      due,
-      (care) =>
-        !(
-          exclude &&
-          care.plant.id === exclude.plantId &&
-          care.careType === exclude.careType
-        )
-    )
 
     if (Array.isReadonlyArrayEmpty(dueSchedules)) {
       return null

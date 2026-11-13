@@ -20,6 +20,7 @@ import {
   luxToSliderValue,
   type PlantOwner,
 } from '@lily/shared'
+import type { UnauthorizedError } from '@lily/shared/errors/user'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { Effect, Option, pipe } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
@@ -29,7 +30,11 @@ export const createPlant = (
   request: EnhancedPlantCreateRequest
 ): Effect.Effect<
   Plant,
-  SqlError | LimitExceededError | RoomNotFoundError | CanopyNotFoundError,
+  | SqlError
+  | LimitExceededError
+  | RoomNotFoundError
+  | CanopyNotFoundError
+  | UnauthorizedError,
   | PlantRepository
   | CanopyRepository
   | Canopy
@@ -53,11 +58,11 @@ export const createPlant = (
         ? yield* canopyOwnerOf(userId)
         : { _tag: 'User', userId }
 
-    const { plantId } = yield* withOwnerLock(owner)((held) =>
+    return yield* withOwnerLock(owner)((held) =>
       Effect.gen(function* () {
         yield* assertRoomFits(request.roomId, owner)
         yield* limitChecker.checkPlantLimit(owner)
-        return yield* life.plant({
+        const { plantId } = yield* life.plant({
           held,
           by: userId,
           draft: {
@@ -93,18 +98,17 @@ export const createPlant = (
             repottingFrequencyDays: request.repottingFrequencyDays || undefined,
           }),
         })
+        const created = yield* repo.findById(plantId)
+        if (!created) {
+          return yield* Effect.die(
+            new EntityMutationDefect({
+              message: 'Created plant not found',
+              entity: 'plant',
+              operation: 'create',
+            })
+          )
+        }
+        return created
       })
     )
-
-    const created = yield* repo.findById(plantId)
-    if (!created) {
-      return yield* Effect.die(
-        new EntityMutationDefect({
-          message: 'Created plant not found',
-          entity: 'plant',
-          operation: 'create',
-        })
-      )
-    }
-    return created
   }).pipe(Effect.withSpan('PlantsService.createPlant'))

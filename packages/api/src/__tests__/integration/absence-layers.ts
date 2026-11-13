@@ -9,8 +9,7 @@ import {
   AbsenceStoreLive,
 } from '@lily/api/contexts/absence/store'
 import { CareLive } from '@lily/api/contexts/care'
-import { Array, DateTime, Effect, Layer } from 'effect'
-import type pg from 'pg'
+import { DateTime, Effect, Layer } from 'effect'
 
 export const AbsenceOnPostgresLive = AbsenceLive.pipe(
   Layer.provideMerge(CareLive),
@@ -52,20 +51,3 @@ export const absenceOverStore = (
       )
     )
   )
-
-export const waitsForALock = async (pool: pg.Pool, other: Promise<unknown>) => {
-  let settled = false
-  const mark = () => {
-    settled = true
-  }
-  void other.then(mark, mark)
-  for (const _ of Array.range(1, 100)) {
-    const { rows } = await pool.query<{ waiting: number }>(
-      `SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-    )
-    if (settled) return false
-    if ((rows[0]?.waiting ?? 0) > 0) return true
-    await new Promise((resolve) => setTimeout(resolve, 50))
-  }
-  return false
-}

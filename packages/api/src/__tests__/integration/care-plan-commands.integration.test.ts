@@ -2,11 +2,13 @@ import {
   CareOnPostgresLive,
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
+import { statementsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { chatPermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
@@ -427,6 +429,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const at = DateTime.nowUnsafe()
       const applied = (write: CareWrite) =>
         Effect.flatMap(CareStore, (store) => store.apply([write])).pipe(
+          assumingTransaction,
           Effect.exit,
           Effect.provide(
             CareStoreLive.pipe(
@@ -611,17 +614,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
 
-      const statementsWaitingOnALock = async () => {
-        for (const _ of Array.range(1, 100)) {
-          const { rows } = await pool.query<{ query: string }>(
-            `SELECT query FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-          )
-          if (rows.length > 0) return Array.map(rows, (row) => row.query)
-          await new Promise((resolve) => setTimeout(resolve, 50))
-        }
-        throw new Error('no session ever waited on a lock')
-      }
-
       it('a proposal writes the plan and all its steps, or neither', async () => {
         const step = (careType: string) => ({
           title: 'Hold off watering',
@@ -771,7 +763,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'FOR UPDATE',
           async () => {
             const diagnosing = run(diagnose())
-            return { diagnosing, waiting: await statementsWaitingOnALock() }
+            return {
+              diagnosing,
+              waiting: await statementsWaitingForALock(pool),
+            }
           }
         )
         const diagnosed = await diagnosing

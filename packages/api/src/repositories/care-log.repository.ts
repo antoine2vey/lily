@@ -1,3 +1,5 @@
+import { storedDay } from '@lily/api/contexts/care'
+import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { caredForBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
@@ -27,11 +29,15 @@ export interface FindCareLogsParams {
 }
 
 // Helper to map database row to API CareLog type (null -> undefined)
-const mapToCareLog = (row: typeof careLogs.$inferSelect): CareLog => ({
+const mapToCareLog = (
+  row: typeof careLogs.$inferSelect,
+  careTimezone: string
+): CareLog => ({
   id: row.id,
   type: row.type,
   notes: Option.getOrUndefined(Option.fromNullishOr(row.notes)),
   date: row.date,
+  careDay: storedDay(row.careDay, row.date, careTimezone),
   photoUrl: Option.getOrUndefined(Option.fromNullishOr(row.photoUrl)),
   plantId: row.plantId,
   createdAt: row.createdAt,
@@ -102,10 +108,12 @@ export const CareLogRepositoryLive = Layer.effect(
         const rows = yield* db
           .select({
             log: careLogs,
+            careTimezone: careTimezoneSql,
             performerId: users.id,
             performerName: users.name,
           })
           .from(careLogs)
+          .innerJoin(plants, eq(plants.id, careLogs.plantId))
           .leftJoin(
             users,
             and(
@@ -121,7 +129,7 @@ export const CareLogRepositoryLive = Layer.effect(
         const items = Array.map(
           rows,
           (row): CareLogHistoryItem => ({
-            ...mapToCareLog(row.log),
+            ...mapToCareLog(row.log, row.careTimezone),
             performedBy: pipe(
               Option.fromNullishOr(row.performerId),
               Option.map((id) => ({ id, name: row.performerName })),
@@ -137,10 +145,11 @@ export const CareLogRepositoryLive = Layer.effect(
         plantId: string
       ) {
         const [row] = yield* db
-          .select()
+          .select({ log: careLogs, careTimezone: careTimezoneSql })
           .from(careLogs)
+          .innerJoin(plants, eq(plants.id, careLogs.plantId))
           .where(and(eq(careLogs.id, id), eq(careLogs.plantId, plantId)))
-        return row ? mapToCareLog(row) : null
+        return row ? mapToCareLog(row.log, row.careTimezone) : null
       }),
 
       findRecentByUserId: Effect.fn('CareLogRepository.findRecentByUserId')(

@@ -10,6 +10,7 @@ Never run one of these files by hand against production.
 | `schedule_next_care_at_not_null.sql` | Fills `plant_care_schedules.next_care_at` where it is null, then makes the column `NOT NULL`. | No |
 | `schedule_due_day_not_null.sql` | Fills `plant_care_schedules.due_day` where it is null, then makes the column `NOT NULL`. | No |
 | `care_log_care_day_not_null.sql` | Fills `care_logs.care_day` where it is null, then makes the column `NOT NULL`. | No |
+| `plant_health_stored_condition.sql` | Removes `NEEDS_ATTENTION` from the `plant_health` type, so the column can only hold a stored condition. | No |
 | `care_day_unique.sql` | Removes same-day duplicate care logs, then enforces one care per plant, care type and care day. | Yes |
 
 ## `schedule_due_day_not_null.sql` and `care_log_care_day_not_null.sql`
@@ -132,6 +133,38 @@ Zero is expected. A count above zero is safe for the file, which fills those row
 ### The code change that goes with it
 
 None. The schema and the code already treat the column as never null. `lock_timeout` works as described above.
+
+## `plant_health_stored_condition.sql`
+
+### Why it is gated
+
+Since migration `0070`, "needs attention" is derived from overdue care when a plant is read, and nothing stores it. The `plant_health` type still admits the value, so the code keeps a function, `storedCondition`, that reads a stored `NEEDS_ATTENTION` as `HEALTHY`. This file removes the value from the type. The previous release still runs the health scheduler, which stores the value, and that write fails once the type has lost it. So the file cannot ship with `0070`.
+
+### The condition
+
+The release that contains migration `0070` is fully deployed, no container of an older release is running, and you no longer intend to roll back to an older release.
+
+### Read-only check to run first
+
+```sql
+SELECT count(*) AS plants_stored_as_needs_attention
+  FROM plants
+ WHERE health = 'NEEDS_ATTENTION';
+```
+
+Zero is expected. A count above zero is safe for the file, which rewrites those rows first, but it means a process still stores the value. Run the query a second time a few minutes later. A count that grows means the condition does not hold yet.
+
+### What it changes
+
+Postgres cannot drop a value from an enum. The file renames the type, creates `plant_health` again with four values, converts the column and drops the old type. The conversion rewrites the `plants` table under an `ACCESS EXCLUSIVE` lock. `lock_timeout` bounds the wait for that lock, as described above, and not the rewrite.
+
+### The code change that goes with it
+
+Ship it in the same release as the file.
+
+1. In `packages/db/src/schema/enums.ts`, remove `'NEEDS_ATTENTION'` from `plantHealthEnum`.
+2. Run `bun run tsc`. `plants.health` is now typed as a stored condition.
+3. In `packages/api/src/contexts/care/plant-care.ts`, delete `storedCondition` and type the stored health as `PlantCondition`. `PlantHealthStatus` in `@lily/shared` keeps all five values, because the API still answers a derived `NEEDS_ATTENTION`.
 
 ## `care_day_unique.sql`
 

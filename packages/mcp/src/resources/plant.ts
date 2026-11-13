@@ -34,7 +34,7 @@ export const readPlantResource = (plant: PlantDetail) =>
           careType: s.careType,
           frequencyDays: s.frequencyDays,
           lastCareAt: s.lastCareAt ? formatIsoDate(s.lastCareAt) : null,
-          nextCareAt: s.nextCareAt ? formatIsoDate(s.nextCareAt) : null,
+          nextCareAt: s.dueDay,
         })),
         dateAdded: formatIsoDate(plant.dateAdded),
       },
