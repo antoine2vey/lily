@@ -1,7 +1,9 @@
-import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { leave, settled } from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { Canopy } from '@lily/api/contexts/canopy'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import {
@@ -14,7 +16,6 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { acceptCanopyInvitation } from '@lily/api/services/canopy/endpoints/accept-canopy-invitation'
-import { leaveCanopy } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
@@ -34,11 +35,12 @@ const AppLive = Layer.mergeAll(
   PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue(),
-  createMockEventBus()
+  createMockEventBus(),
+  createMockLimitChecker()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const run = <A, E>(
-  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | Outbox>
+  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | Outbox | Canopy>
 ) => Effect.runPromise(Effect.provide(settled(effect), AppLive))
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)
@@ -54,27 +56,32 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let carolId: string
     let canopyId: string
 
-    const invite = (
-      inviteeUserId: string,
-      invitedByUserId: string,
-      expiresAt = inDays(7)
-    ) =>
-      run(
-        Effect.flatMap(CanopyRepository, (repo) =>
-          repo.upsertInvitation({
-            canopyId,
-            inviteeUserId,
-            invitedByUserId,
-            expiresAt,
-          })
-        )
-      )
-
     const invitationsFor = (inviteeUserId: string) =>
       db
         .select()
         .from(schema.canopyDirectInvites)
         .where(eq(schema.canopyDirectInvites.inviteeUserId, inviteeUserId))
+
+    const invite = async (
+      inviteeUserId: string,
+      invitedByUserId: string,
+      expiresAt?: Date
+    ) => {
+      await run(
+        Effect.flatMap(Canopy, (canopy) =>
+          canopy.invite({ by: invitedByUserId, invitee: inviteeUserId })
+        )
+      )
+      if (expiresAt !== undefined) {
+        await db
+          .update(schema.canopyDirectInvites)
+          .set({ expiresAt })
+          .where(eq(schema.canopyDirectInvites.inviteeUserId, inviteeUserId))
+      }
+      const [invitation] = await invitationsFor(inviteeUserId)
+      if (!invitation) throw new Error('no invitation was opened')
+      return invitation
+    }
 
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
@@ -122,8 +129,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('reopens the same row when a resolved invitation is sent again', async () => {
       const first = await invite(lilyId, samId)
       await run(
-        Effect.flatMap(CanopyRepository, (repo) =>
-          repo.transitionInvitation(first.id, 'pending', 'withdrawn')
+        Effect.flatMap(Canopy, (canopy) =>
+          canopy.withdrawInvitation({ by: samId, invitationId: first.id })
         )
       )
 
@@ -181,7 +188,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await invite(lilyId, samId)
       await invite(carolId, alexId)
 
-      await run(leaveCanopy(samId))
+      await run(leave(samId))
 
       expect(Array.map(await invitationsFor(lilyId), (i) => i.status)).toEqual([
         'withdrawn',

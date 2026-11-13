@@ -1,6 +1,7 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
+import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -51,6 +52,7 @@ describe('createPlant', () => {
         MockSqlClientLive,
         MockOutboxLive,
         createMockCanopyRepository(),
+        createInMemoryCanopy().layer,
         care.layer
       ),
       care,
@@ -228,6 +230,7 @@ describe('createPlant', () => {
             MockSqlClientLive,
             MockOutboxLive,
             createMockCanopyRepository(),
+            createInMemoryCanopy().layer,
             createStubCare().layer
           )
         )
@@ -252,6 +255,7 @@ describe('createPlant', () => {
       MockSqlClientLive,
       MockOutboxLive,
       createMockCanopyRepository(),
+      createInMemoryCanopy().layer,
       createStubCare().layer
     )
 

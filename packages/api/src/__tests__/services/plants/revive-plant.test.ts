@@ -1,5 +1,6 @@
 import { createTestMembership } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
+import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import {
   createCanopyStore,
   createMockCanopyRepository,
@@ -66,8 +67,12 @@ const makeLayer = (options: {
   plantLimitReached?: boolean | ((owner: PlantOwner) => boolean)
   checkedOwners?: PlantOwner[]
   publishedEvents?: AppEvent[]
-}) =>
-  Layer.mergeAll(
+}) => {
+  const home = createCanopyStore({
+    canopies: [createTestCanopyRow()],
+    members: [createTestMembership({ userId: 'user-1' })],
+  })
+  return Layer.mergeAll(
     createMockPlantRepository({ plants: [options.plant] }),
     createMockOutbox(options.requested).layer,
     createMockCurrentUser({ id: 'user-1' }),
@@ -76,14 +81,11 @@ const makeLayer = (options: {
       checkedOwners: options.checkedOwners,
     }),
     createMockEventBus({ publishedEvents: options.publishedEvents ?? [] }),
-    createMockCanopyRepository(
-      createCanopyStore({
-        canopies: [createTestCanopyRow()],
-        members: [createTestMembership({ userId: 'user-1' })],
-      })
-    ),
+    createMockCanopyRepository(home),
+    createInMemoryCanopy(home).layer,
     MockSqlClientLive
   )
+}
 
 const failureTag = (exit: Exit.Exit<unknown, { _tag: string }>) =>
   Exit.isFailure(exit)

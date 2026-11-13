@@ -81,9 +81,17 @@ const result = await Effect.runPromise(
 
 ## Reminders
 
-Care and overdue reminders are planned in `contexts/reminders` and nowhere else. Code that changes what they are planned from (a plant, its owner or audience, a schedule, a recipient's settings, a vacation, a delegation) calls `Reminders.request(Dirty.Plants | Dirty.Canopy | Dirty.Recipient)` inside its own transaction, opened with `transact` from `kernel/transact.ts`. The request commits with the change and is replanned after it, with retries, so a failed replan never rolls the change back.
+Care and overdue reminders are planned in `contexts/reminders` and nowhere else. Code that changes what they are planned from (a plant's life, a recipient's settings, a vacation, a delegation) calls `Reminders.request(Dirty.Plants | Dirty.Canopy | Dirty.Recipient)` inside its own transaction, opened with `transact` from `kernel/transact.ts`. The request commits with the change and is replanned after it, with retries, so a failed replan never rolls the change back. A change made through a `Care` or `Canopy` command needs no request. The context publishes a fact on its outbox topic, and Reminders replans what the fact makes stale.
 
 Do not create, re-time, lock or delete a row of a reminder type outside the context. `NotificationRepository.create` and `deletePendingByUserIdAndTypes` reject those types at compile time, and `__tests__/architecture/context-boundaries.test.ts` fails on a new writer. Terms: `CONTEXT.md`, section Reminders.
+
+## Canopy
+
+A canopy, its members, links, invitations and mutes are changed in `contexts/canopy` and nowhere else. The same holds for the owner of a plant or a room once the row exists. A caller runs one command of the `Canopy` service from `@lily/api/contexts/canopy`: `create`, `update`, `leave`, `removeMember`, `dissolve`, `leaveForDeletion`, `createLink`, `revokeLink`, `join`, `invite`, `withdrawInvitation`, `declineInvitation`, `sharePlant`, `unsharePlant` or `setMute`. The plant commands take a `PlantPermit` from `withPlantPermit`. The others take the id of the acting user.
+
+Each command opens its own transaction, takes its locks in the one order of `CanopyStore.lockAndLoad`, applies the rules of `domain/decide.ts`, writes, records the notifications it owes and publishes what happened on the outbox topic `canopy`. Reminders consumes that topic and replans by itself, so no caller of a Canopy command calls `Reminders.request`. `CanopyRepository` is the read side. It has no write and no lock.
+
+Do not write `canopies`, `canopy_members`, `canopy_invites`, `canopy_direct_invites` or `canopy_plant_mutes` outside `contexts/canopy/store.ts`, do not set `user_id` or `canopy_id` on an existing plant or room there either, and do not lock a canopy row. `__tests__/architecture/context-boundaries.test.ts` fails on each of these, and on an import of `contexts/reminders` from Canopy code. A new refusal does not compile until `errorOf` in `contexts/canopy/canopy.ts` gives it an error, and a new fact does not compile until `staleAfterCanopy` in `contexts/reminders/triggers.ts` says what it makes stale. Terms: `CONTEXT.md`, section Canopy.
 
 ## Dead plants (the cemetery)
 

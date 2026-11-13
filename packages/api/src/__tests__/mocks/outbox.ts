@@ -1,32 +1,43 @@
+import { type CanopyEvent, CanopyTopic } from '@lily/api/contexts/canopy'
 import {
   type Dirty,
   type ReplanContext,
   replan,
 } from '@lily/api/contexts/reminders'
+import { staleAfterCanopy } from '@lily/api/contexts/reminders/triggers'
 import { Outbox } from '@lily/api/kernel/outbox'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 
 const REMINDERS_TOPIC = 'reminders'
 
-const remindersOnly =
+const asReplanRequests =
   (requested: Dirty[]): Outbox['Service']['append'] =>
   (to, events) =>
     Effect.sync(() => {
       if (to.name === REMINDERS_TOPIC) {
         requested.push(...(events as ReadonlyArray<Dirty>))
       }
+      if (to.name === CanopyTopic.name) {
+        requested.push(
+          ...Array.flatMap(
+            events as ReadonlyArray<CanopyEvent>,
+            staleAfterCanopy
+          )
+        )
+      }
     })
 
 /**
  * An outbox that keeps what was appended and delivers nothing. `requested`
- * holds the replan requests, in the order they were made.
+ * holds the replans asked for, directly or through a Canopy fact, in the
+ * order they were made.
  */
 export const createMockOutbox = (requested: Dirty[] = []) => ({
   requested,
   layer: Layer.succeed(
     Outbox,
     Outbox.of({
-      append: remindersOnly(requested),
+      append: asReplanRequests(requested),
       wake: Effect.void,
       drain: Effect.succeed(0),
       redrive: () => Effect.succeed(0),
@@ -51,7 +62,7 @@ export const DeliveringOutboxLive = Layer.effect(
       Effect.forEach(requested.splice(0), replan)
     ).pipe(Effect.provide(context), Effect.orDie)
     return Outbox.of({
-      append: remindersOnly(requested),
+      append: asReplanRequests(requested),
       wake: Effect.asVoid(deliver),
       drain: Effect.map(deliver, (planned) => planned.length),
       redrive: () => Effect.succeed(0),

@@ -4,6 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/canopies'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
+import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import {
   createCanopyStore,
   createMockCanopyRepository,
@@ -26,19 +27,20 @@ const canopyRoom = {
   order: 7,
 }
 
-const createTestLayer = (userId = 'user-1') =>
-  Layer.mergeAll(
+const createTestLayer = (userId = 'user-1') => {
+  const home = createCanopyStore({
+    canopies: [createTestCanopyRow({ id: mockCanopyId })],
+    members: [createTestMembership({ userId: 'user-1' })],
+  })
+  return Layer.mergeAll(
     createMockRoomRepository([...mockRooms, canopyRoom]),
     createMockCurrentUser({ id: userId }),
-    createMockCanopyRepository(
-      createCanopyStore({
-        canopies: [createTestCanopyRow({ id: mockCanopyId })],
-        members: [createTestMembership({ userId: 'user-1' })],
-      })
-    ),
+    createMockCanopyRepository(home),
+    createInMemoryCanopy(home).layer,
     MockSqlClientLive,
     MockOutboxLive
   )
+}
 
 describe('createRoom', () => {
   it('should create a room with name and default icon', async () => {

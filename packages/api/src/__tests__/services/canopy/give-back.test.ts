@@ -10,10 +10,10 @@ import {
   canopyWorld,
   type WorldServices,
 } from '@lily/api/__tests__/services/canopy/canopy-world'
+import { Canopy } from '@lily/api/contexts/canopy'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { leaveMyCanopy } from '@lily/api/services/canopy/endpoints/leave-my-canopy'
 import { removeCanopyMember } from '@lily/api/services/canopy/endpoints/remove-canopy-member'
-import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Exit, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -292,7 +292,9 @@ describe('when a member deletes their account', () => {
     const exit = await run(
       store,
       'lily',
-      leaveCanopyAndDelete('lily')(Effect.void),
+      Effect.flatMap(Canopy, (canopy) =>
+        canopy.leaveForDeletion('lily')(Effect.void)
+      ),
       reminders()
     )
 

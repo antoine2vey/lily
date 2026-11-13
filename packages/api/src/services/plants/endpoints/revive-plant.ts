@@ -1,7 +1,7 @@
+import type { Canopy } from '@lily/api/contexts/canopy'
 import { Dirty, Reminders } from '@lily/api/contexts/reminders'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import type { Outbox } from '@lily/api/kernel/outbox'
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import {
   PlantRepository,
   type PlantWithRoom,
@@ -37,7 +37,7 @@ export const revivePlant = (
   | CurrentUser
   | SqlClient.SqlClient
   | Outbox
-  | CanopyRepository
+  | Canopy
 > =>
   Effect.gen(function* () {
     if (plant.diedAt === null) {

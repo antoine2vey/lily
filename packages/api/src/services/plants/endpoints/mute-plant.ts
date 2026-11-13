@@ -1,45 +1,30 @@
-import { Dirty, Reminders } from '@lily/api/contexts/reminders'
-import { transact } from '@lily/api/kernel/transact'
+import { Canopy } from '@lily/api/contexts/canopy'
+import type { PlantPermit } from '@lily/api/kernel/permit'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
-import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const mutePlant = Effect.fn('PlantsService.mutePlant')(function* (
-  plant: PlantWithRoom,
-  requestedId: string = plant.id
-) {
-  const { id: userId } = yield* CurrentUser
-  const repo = yield* CanopyRepository
-  yield* withOwnerLock(plant.owner)(
-    Effect.gen(function* () {
-      yield* reloadOwnedPlant(plant, requestedId)
-      yield* repo.mute(userId, plant.id)
-      yield* Reminders.request(Dirty.Plants({ plantIds: [plant.id] }))
-    })
-  ).pipe(
-    Effect.catchTag('CanopyNotFoundError', () =>
-      Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
-    )
+const setMute = (
+  permit: PlantPermit<'mute'>,
+  muted: boolean,
+  requestedId: string
+) =>
+  Effect.flatMap(Canopy, (canopy) => canopy.setMute({ permit, muted })).pipe(
+    Effect.mapError(() => new PlantNotFoundError({ plantId: requestedId }))
   )
-})
 
-export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(function* (
-  plant: PlantWithRoom
-) {
-  const { id: userId } = yield* CurrentUser
-  const repo = yield* CanopyRepository
-  yield* transact(
-    Effect.andThen(
-      repo.unmute(userId, plant.id),
-      Reminders.request(Dirty.Plants({ plantIds: [plant.id] }))
-    )
-  )
-})
+export const mutePlant = Effect.fn('PlantsService.mutePlant')(
+  (permit: PlantPermit<'mute'>, requestedId: string = permit.plantId) =>
+    setMute(permit, true, requestedId)
+)
+
+export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(
+  (permit: PlantPermit<'mute'>, requestedId: string = permit.plantId) =>
+    setMute(permit, false, requestedId)
+)
 
 // Muting is per member, so only the caller's own state is reported, and only
 // on Canopy plants.

@@ -1,6 +1,7 @@
-import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { leave, settled } from '@lily/api/__tests__/integration/canopy-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import {
@@ -34,7 +35,6 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
-import { leaveCanopy } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -304,13 +304,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ])
 
       await Effect.runPromise(
-        leaveCanopy(sam).pipe(
+        leave(sam).pipe(
           settled,
           Effect.provide(
             Layer.mergeAll(
               WorkerLive,
               createMockMessageQueue(),
-              createMockEventBus()
+              createMockEventBus(),
+              createMockLimitChecker()
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')

@@ -1,4 +1,4 @@
-import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { settled } from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -18,7 +18,10 @@ import {
   unmutePlant,
   withMuteState,
 } from '@lily/api/services/plants/endpoints/mute-plant'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import {
+  withPlantAuth,
+  withPlantPermit,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -94,8 +97,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       run: typeof mutePlant | typeof unmutePlant
     ) =>
       Effect.runPromise(
-        withPlantAuth(plantId, 'mute').pipe(
-          Effect.flatMap((plant) => run(plant)),
+        withPlantPermit(plantId, 'mute').pipe(
+          Effect.flatMap((permit) => run(permit)),
           settled,
           Effect.provide(appAs(userId))
         )

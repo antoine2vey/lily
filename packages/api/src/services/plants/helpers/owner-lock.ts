@@ -1,18 +1,30 @@
+import { Canopy } from '@lily/api/contexts/canopy'
+import { lockUser } from '@lily/api/kernel/locks'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { transact } from '@lily/api/kernel/transact'
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import type { CanopyOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
 import { CanopyNotFoundError, type PlantOwner } from '@lily/shared'
 import { Effect, Match } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-const OWNER_LOCK_KEYSPACE = 1
-
-const lockUser = (sql: SqlClient.SqlClient, userId: string) =>
-  Effect.asVoid(
-    sql`SELECT pg_advisory_xact_lock(${OWNER_LOCK_KEYSPACE}, hashtext(${userId}))`
+export const canopyOwnerOf = (
+  userId: string
+): Effect.Effect<
+  CanopyOwner,
+  CanopyNotFoundError | SqlError,
+  CanopyRepository
+> =>
+  Effect.flatMap(CanopyRepository, (repo) =>
+    repo.findMembershipByUser(userId)
+  ).pipe(
+    Effect.flatMap((membership) =>
+      membership === null
+        ? Effect.fail(new CanopyNotFoundError())
+        : Effect.succeed({ _tag: 'Canopy', canopyId: membership.canopyId })
+    )
   )
 
 export const withUserLock =
@@ -20,9 +32,7 @@ export const withUserLock =
   <A, E, R>(
     effect: Effect.Effect<A, E, R>
   ): Effect.Effect<A, E | SqlError, R | SqlClient.SqlClient | Outbox> =>
-    Effect.flatMap(SqlClient.SqlClient, (sql) =>
-      transact(Effect.andThen(lockUser(sql, userId), effect))
-    )
+    transact(Effect.andThen(lockUser(userId), effect))
 
 export const withOwnerLock =
   (owner: PlantOwner) =>
@@ -31,23 +41,18 @@ export const withOwnerLock =
   ): Effect.Effect<
     A,
     E | SqlError | CanopyNotFoundError,
-    R | SqlClient.SqlClient | Outbox | CanopyRepository | CurrentUser
+    R | SqlClient.SqlClient | Outbox | Canopy | CurrentUser
   > =>
-    Effect.flatMap(SqlClient.SqlClient, (sql) =>
-      transact(
-        Match.value(owner).pipe(
-          Match.tag('User', ({ userId }) => lockUser(sql, userId)),
-          Match.tag('Canopy', ({ canopyId }) =>
-            Effect.flatMap(CurrentUser, ({ id }) => lockMyCanopy(id)).pipe(
-              Effect.flatMap(({ canopy }) =>
-                canopy.id === canopyId
-                  ? Effect.void
-                  : Effect.fail(new CanopyNotFoundError())
-              )
-            )
-          ),
-          Match.exhaustive,
-          Effect.andThen(effect)
-        )
+    transact(
+      Match.value(owner).pipe(
+        Match.tag('User', ({ userId }) => lockUser(userId)),
+        Match.tag('Canopy', ({ canopyId }) =>
+          Effect.flatMap(
+            Effect.all([Canopy, CurrentUser]),
+            ([canopy, { id }]) => canopy.holdAsMember({ by: id, canopyId })
+          )
+        ),
+        Match.exhaustive,
+        Effect.andThen(effect)
       )
     )

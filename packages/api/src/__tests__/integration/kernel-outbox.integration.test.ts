@@ -6,12 +6,12 @@ import {
   Outbox,
   topic,
 } from '@lily/api/kernel/outbox'
-import { transact } from '@lily/api/kernel/transact'
+import { commandBody, decision, transact } from '@lily/api/kernel/transact'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Duration, Effect, Layer, Queue, Schema } from 'effect'
+import { Array, Duration, Effect, Layer, Queue, Result, Schema } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import pg from 'pg'
 import {
@@ -341,6 +341,50 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Outbox - Integration', () => {
 
       expect(wakes).toBe(0)
       expect(await rows()).toHaveLength(0)
+    })
+
+    describe('around a command body', () => {
+      const water = (plantId: string) =>
+        commandBody({
+          name: 'test.water',
+          topic: care,
+          load: Effect.succeed(plantId),
+          decide: (loaded: string) =>
+            Result.succeed(decision(loaded, [loaded], [{ plantId: loaded }])),
+          apply: (writes: ReadonlyArray<string>) =>
+            Effect.flatMap(SqlClient.SqlClient, (client) =>
+              Effect.forEach(
+                writes,
+                (written) =>
+                  client`INSERT INTO dead_letter_messages (original_message_id, topic, payload, error, retry_count) VALUES (${written}, 'test-write', '{}'::jsonb, 'none', 0)`,
+                { discard: true }
+              )
+            ),
+        })
+
+      const written = async () =>
+        Array.map(
+          await db.select().from(schema.deadLetterMessages),
+          (row) => row.originalMessageId
+        )
+
+      it('commits the writes and the events of the command with what its caller adds', async () => {
+        await wakesAfter(() => transact(water('fern')))
+
+        expect(await written()).toEqual(['fern'])
+        expect(Array.map(await rows(), (row) => row.event)).toEqual([
+          { plantId: 'fern' },
+        ])
+      })
+
+      it('rolls back the writes and the events of the command when its caller fails after it', async () => {
+        await wakesAfter(() =>
+          transact(Effect.andThen(water('fern'), Effect.fail('notice failed')))
+        )
+
+        expect(await written()).toEqual([])
+        expect(await rows()).toEqual([])
+      })
     })
   })
 

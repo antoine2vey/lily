@@ -1,13 +1,26 @@
-import type { CanopyInvitationRow } from '@lily/api/repositories/canopy.repository'
-import type { CanopyInvitationView } from '@lily/shared'
-import { DateTime } from 'effect'
+import { createHash, randomBytes } from 'node:crypto'
+import type { CanopyInvitationStatus, CanopyInvitationView } from '@lily/shared'
+import { DateTime, Effect } from 'effect'
 
+const TOKEN_BYTES = 32
 const DECLINE_COOLDOWN_DAYS = 7
 
-type InvitationState = Pick<
-  CanopyInvitationRow,
-  'status' | 'expiresAt' | 'resolvedAt'
->
+export const hashInviteToken = (token: string): string =>
+  createHash('sha256').update(token).digest('hex')
+
+export const newInviteToken: Effect.Effect<{
+  readonly token: string
+  readonly tokenHash: string
+}> = Effect.sync(() => {
+  const token = randomBytes(TOKEN_BYTES).toString('base64url')
+  return { token, tokenHash: hashInviteToken(token) }
+})
+
+export interface InvitationState {
+  readonly status: CanopyInvitationStatus
+  readonly expiresAt: Date
+  readonly resolvedAt: Date | null
+}
 
 export const statusAt = (
   invitation: InvitationState,

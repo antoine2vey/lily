@@ -1,6 +1,7 @@
-import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { settled } from '@lily/api/__tests__/integration/canopy-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -108,6 +109,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId, email: `${userId}@x.test` }),
               createMockEventBus(),
+              createMockLimitChecker(),
               createMockMessageQueue(),
               createMockPushService(),
               MockAlerterLive

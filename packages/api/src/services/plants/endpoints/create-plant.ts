@@ -1,3 +1,4 @@
+import type { Canopy } from '@lily/api/contexts/canopy'
 import { Care } from '@lily/api/contexts/care'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
@@ -7,9 +8,11 @@ import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { requireMembership } from '@lily/api/services/canopy/helpers/membership'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
-import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import {
+  canopyOwnerOf,
+  withOwnerLock,
+} from '@lily/api/services/plants/helpers/owner-lock'
 import { frequencyChanges } from '@lily/api/services/plants/helpers/schedule-frequencies'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { RoomNotFoundError } from '@lily/shared'
@@ -31,6 +34,7 @@ export const createPlant = (
   SqlError | LimitExceededError | RoomNotFoundError | CanopyNotFoundError,
   | PlantRepository
   | CanopyRepository
+  | Canopy
   | RoomRepository
   | Care
   | EventBus
@@ -50,10 +54,7 @@ export const createPlant = (
 
     const owner: PlantOwner =
       request.owner === 'canopy'
-        ? {
-            _tag: 'Canopy',
-            canopyId: (yield* requireMembership(userId)).canopyId,
-          }
+        ? yield* canopyOwnerOf(userId)
         : { _tag: 'User', userId }
 
     const plantOrNull = yield* withOwnerLock(owner)(

@@ -1,6 +1,10 @@
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import {
+  createInMemoryCanopy,
+  type MockCanopySurroundings,
+} from '@lily/api/__tests__/mocks/canopy'
+import {
   createMockCanopyRepository,
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
@@ -33,7 +37,9 @@ export const canopyWorld = (
   actor: { readonly id: string; readonly name?: string },
   notifications: Notification[] = [],
   schedules: CareScheduleRow[] = [],
-  timeline = createOutboxTimeline()
+  timeline = createOutboxTimeline(),
+  around: MockCanopySurroundings = {},
+  outsiders: ReadonlyArray<User> = []
 ) => {
   const plantsNow = () =>
     Array.map(store.plants, (p) =>
@@ -73,6 +79,20 @@ export const canopyWorld = (
       Option.flatMapNullishOr((p) => p.userId),
       Option.getOrNull
     )
+  const users = [
+    ...memberUsers(store),
+    ...Array.filter(outsiders, (user) => user.id !== actor.id),
+    ...(Array.some(store.members, (m) => m.userId === actor.id)
+      ? []
+      : [
+          {
+            ...mockUser1,
+            id: actor.id,
+            name: actor.name ?? null,
+            email: `${actor.id}@example.com`,
+          },
+        ]),
+  ]
   const repositories = Layer.mergeAll(
     createMockCanopyRepository(store),
     createMockNotificationRepository(notifications, {
@@ -87,19 +107,7 @@ export const canopyWorld = (
       memberships: store.members,
     }),
     plantRepository,
-    createMockUserRepository([
-      ...memberUsers(store),
-      ...(Array.some(store.members, (m) => m.userId === actor.id)
-        ? []
-        : [
-            {
-              ...mockUser1,
-              id: actor.id,
-              name: actor.name ?? null,
-              email: `${actor.id}@example.com`,
-            },
-          ]),
-    ]),
+    createMockUserRepository(users),
     createMockDelegationRepository(),
     createMockRateLimiterService(),
     timeline.sql,
@@ -107,7 +115,10 @@ export const canopyWorld = (
   )
   return {
     notifications,
-    layer: DeliveringOutboxLive.pipe(Layer.provideMerge(repositories)),
+    layer: createInMemoryCanopy(store, users, around).service.pipe(
+      Layer.provideMerge(DeliveringOutboxLive),
+      Layer.provideMerge(repositories)
+    ),
   }
 }
 

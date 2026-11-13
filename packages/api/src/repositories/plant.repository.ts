@@ -219,12 +219,6 @@ export interface IPlantRepository {
     id: string,
     owner: PlantOwner
   ) => Effect.Effect<PlantRow | null, SqlError>
-  readonly moveTo: (
-    id: string,
-    from: PlantOwner,
-    to: PlantOwner,
-    roomId: string | null
-  ) => Effect.Effect<PlantRow | null, SqlError>
   readonly findPhotos: (
     params: FindPhotosParams
   ) => Effect.Effect<FindPhotosResult, SqlError>
@@ -788,20 +782,6 @@ export const PlantRepositoryLive = Layer.effect(
               isNotNull(plants.diedAt)
             )
           )
-          .returning()
-        return withOwnerOrNull(plant)
-      }),
-
-      moveTo: Effect.fn('PlantRepository.moveTo')(function* (
-        id: string,
-        from: PlantOwner,
-        to: PlantOwner,
-        roomId: string | null
-      ) {
-        const [plant] = yield* db
-          .update(plants)
-          .set({ ...ownerColumns(to), roomId, updatedAt: nowAsDate() })
-          .where(and(eq(plants.id, id), ownedBy(plants, from)))
           .returning()
         return withOwnerOrNull(plant)
       }),

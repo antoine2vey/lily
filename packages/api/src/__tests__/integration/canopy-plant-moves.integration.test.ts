@@ -1,5 +1,5 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
-import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { settled } from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -15,7 +15,7 @@ import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-plant-with-canopy'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import { withPlantPermit } from '@lily/api/services/plants/helpers/with-plant-access'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -164,8 +164,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         dead.id,
         () =>
           Effect.runPromiseExit(
-            withPlantAuth(dead.id, 'share').pipe(
-              Effect.flatMap((plant) => sharePlantWithCanopy(plant, {})),
+            withPlantPermit(dead.id, 'share').pipe(
+              Effect.flatMap((permit) => sharePlantWithCanopy(permit, {})),
               settled,
               Effect.provide(appAs(alexId))
             )
@@ -193,8 +193,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         dead.id,
         () =>
           Effect.runPromiseExit(
-            withPlantAuth(dead.id, 'unshare').pipe(
-              Effect.flatMap((plant) => unsharePlant(plant, {})),
+            withPlantPermit(dead.id, 'unshare').pipe(
+              Effect.flatMap((permit) => unsharePlant(permit, {})),
               settled,
               Effect.provide(appAs(lilyId))
             )
@@ -210,8 +210,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const ownerUnshares = (plantId: string) =>
       Effect.runPromiseExit(
-        withPlantAuth(plantId, 'unshare').pipe(
-          Effect.flatMap((plant) => unsharePlant(plant, {})),
+        withPlantPermit(plantId, 'unshare').pipe(
+          Effect.flatMap((permit) => unsharePlant(permit, {})),
           settled,
           Effect.provide(appAs(alexId))
         )

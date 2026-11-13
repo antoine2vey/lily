@@ -380,6 +380,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(during).toEqual([false, true])
         expect(after).toBe(true)
       })
+
+      it('never waits for an owner change: no unique index of plants holds an owner column, so the change takes NO KEY UPDATE', async () => {
+        const { rows } = await pool.query(
+          `SELECT indexname FROM pg_indexes
+           WHERE schemaname = current_schema()
+             AND tablename = 'plants'
+             AND indexdef LIKE 'CREATE UNIQUE INDEX%'
+             AND indexdef ~ '\\m(user_id|canopy_id)\\M'`
+        )
+
+        expect(rows).toEqual([])
+      })
     })
 
     describe('apply', () => {

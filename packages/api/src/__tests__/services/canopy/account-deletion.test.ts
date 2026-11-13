@@ -1,8 +1,8 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { mockAdminUser } from '@lily/api/__tests__/fixtures/users'
+import type { MockCanopySurroundings } from '@lily/api/__tests__/mocks/canopy'
 import {
   createCanopyStore,
-  createMockCanopyRepository,
   createTestCanopyRow,
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
@@ -13,14 +13,14 @@ import {
   canopyWorld,
   memberUsers,
 } from '@lily/api/__tests__/services/canopy/canopy-world'
-import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import { Find } from '@lily/api/contexts/canopy/store'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { cleanupExpiredAccounts } from '@lily/api/services/account-cleanup/scheduler'
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
 import { AdminUser } from '@lily/api/services/admin/middleware'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import type { User } from '@lily/shared'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Exit, Layer, Option } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'
 
@@ -81,17 +81,12 @@ const databaseDown = new SqlError({
   }),
 })
 
-const canopyFailingFor = (store: MockCanopyStore, failingUserId: string) =>
-  Layer.effect(
-    CanopyRepository,
-    Effect.map(CanopyRepository, (repo) => ({
-      ...repo,
-      findMembershipByUser: (userId: string) =>
-        userId === failingUserId
-          ? Effect.fail(databaseDown)
-          : repo.findMembershipByUser(userId),
-    }))
-  ).pipe(Layer.provide(createMockCanopyRepository(store)))
+const canopyFailingFor = (failingUserId: string): MockCanopySurroundings => ({
+  lockFailure: (plan) =>
+    Find.$is('OfMember')(plan.canopy) && plan.canopy.userId === failingUserId
+      ? Option.some(databaseDown)
+      : Option.none(),
+})
 
 const recordingUsers = (
   users: User[],
@@ -183,10 +178,16 @@ describe('account deletion', () => {
       deleteAccount().pipe(
         Effect.provide(
           Layer.mergeAll(
-            canopyWorld(store, { id: 'alex' }).layer,
+            canopyWorld(
+              store,
+              { id: 'alex' },
+              [],
+              [],
+              undefined,
+              canopyFailingFor('alex')
+            ).layer,
             createMockRefreshTokenRepository(),
             createMockDeviceTokenRepository([]),
-            canopyFailingFor(store, 'alex'),
             recordingUsers(users, writes)
           )
         )
@@ -208,8 +209,14 @@ describe('account deletion', () => {
       cleanupExpiredAccounts.pipe(
         Effect.provide(
           Layer.mergeAll(
-            canopyWorld(store, { id: 'scheduler' }).layer,
-            canopyFailingFor(store, 'alex'),
+            canopyWorld(
+              store,
+              { id: 'scheduler' },
+              [],
+              [],
+              undefined,
+              canopyFailingFor('alex')
+            ).layer,
             recordingUsers(users, writes, expired)
           )
         )

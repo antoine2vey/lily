@@ -1,7 +1,7 @@
+import { Canopy } from '@lily/api/contexts/canopy'
 import { Dirty, Reminders } from '@lily/api/contexts/reminders'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { Array, Effect } from 'effect'
 
 /**
@@ -11,15 +11,17 @@ import { Array, Effect } from 'effect'
  * owners. Returns null when the account does not exist.
  */
 export const purgeAccount = (userId: string) =>
-  leaveCanopyAndDelete(userId)(
-    Effect.gen(function* () {
-      const plantRepo = yield* PlantRepository
-      const userRepo = yield* UserRepository
-      const tended = Array.difference(
-        yield* plantRepo.findPersonalReminderPlantIds(userId),
-        yield* plantRepo.findIdsOwnedBy(userId)
-      )
-      yield* Reminders.request(Dirty.Plants({ plantIds: tended }))
-      return yield* userRepo.delete(userId)
-    })
+  Effect.flatMap(Canopy, (canopy) =>
+    canopy.leaveForDeletion(userId)(
+      Effect.gen(function* () {
+        const plantRepo = yield* PlantRepository
+        const userRepo = yield* UserRepository
+        const tended = Array.difference(
+          yield* plantRepo.findPersonalReminderPlantIds(userId),
+          yield* plantRepo.findIdsOwnedBy(userId)
+        )
+        yield* Reminders.request(Dirty.Plants({ plantIds: tended }))
+        return yield* userRepo.delete(userId)
+      })
+    )
   ).pipe(Effect.withSpan('purgeAccount', { attributes: { 'user.id': userId } }))

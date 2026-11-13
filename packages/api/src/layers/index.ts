@@ -21,6 +21,7 @@
  */
 
 import { BunServices } from '@effect/platform-bun'
+import { CanopyLive } from '@lily/api/contexts/canopy'
 import { CareLive, CareReadsLive } from '@lily/api/contexts/care'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AppOutboxLive } from '@lily/api/layers/outbox'
@@ -290,7 +291,9 @@ const AllInfrastructureLive = Layer.mergeAll(
 // Requires: PgDrizzle (from SharedLive = DrizzleLive + PgLive)
 // ============================================================================
 
-const ContextsLive = CareLive.pipe(Layer.provideMerge(AppOutboxLive))
+const ContextsLive = Layer.mergeAll(CareLive, CanopyLive).pipe(
+  Layer.provideMerge(AppOutboxLive)
+)
 
 export const AppLive = ContextsLive.pipe(
   Layer.provideMerge(AllInfrastructureLive),

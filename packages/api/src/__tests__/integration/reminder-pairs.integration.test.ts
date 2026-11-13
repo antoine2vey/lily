@@ -1,5 +1,5 @@
+import { delivered, leave } from '@lily/api/__tests__/integration/canopy-layers'
 import {
-  delivered,
   drainOutbox,
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
@@ -12,6 +12,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { Canopy, hashInviteToken, JoinVia } from '@lily/api/contexts/canopy'
 import { Care, CareReadsLive, frequencyOfDays } from '@lily/api/contexts/care'
 import { replanPlants } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
@@ -34,8 +35,6 @@ import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-canopy'
-import { joinCanopy } from '@lily/api/services/canopy/helpers/join-canopy'
-import { leaveCanopy } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
@@ -106,7 +105,12 @@ const mocksAs = (userId: string) =>
   )
 
 type Repos = Layer.Success<typeof ReposLive>
-type App = Repos | Layer.Success<ReturnType<typeof mocksAs>> | Outbox | Care
+type App =
+  | Repos
+  | Layer.Success<ReturnType<typeof mocksAs>>
+  | Outbox
+  | Care
+  | Canopy
 
 type UserRow = typeof schema.users.$inferSelect
 
@@ -143,6 +147,8 @@ const on = <A, E>(
     )
   )
 
+const JOIN_TOKEN = 'join-the-flat'
+
 const TRIGGERS: ReadonlyArray<
   readonly [name: string, act: (world: World) => Act]
 > = [
@@ -171,34 +177,64 @@ const TRIGGERS: ReadonlyArray<
     ],
   ],
   ['revive', (w) => [w.alex, on(w.deadPlant, revivePlant)]],
-  ['mute', (w) => [w.aboutToLeave.id, on(w.sharedPlant, mutePlant)]],
-  ['unmute', (w) => [w.alex, on(w.mutedPlant, unmutePlant)]],
+  [
+    'mute',
+    (w) => [
+      w.aboutToLeave.id,
+      mutePlant(
+        mintPermit(
+          w.sharedPlant,
+          'mute',
+          Actor.User({ userId: w.aboutToLeave.id })
+        )
+      ),
+    ],
+  ],
+  [
+    'unmute',
+    (w) => [
+      w.alex,
+      unmutePlant(
+        mintPermit(w.mutedPlant, 'mute', Actor.User({ userId: w.alex }))
+      ),
+    ],
+  ],
   [
     'share',
-    (w) => [w.alex, on(w.ownPlant, (p) => sharePlantWithCanopy(p, {}))],
+    (w) => [
+      w.alex,
+      sharePlantWithCanopy(
+        mintPermit(w.ownPlant, 'share', Actor.User({ userId: w.alex })),
+        {}
+      ),
+    ],
   ],
-  ['unshare', (w) => [w.alex, on(w.sharedPlant, (p) => unsharePlant(p, {}))]],
+  [
+    'unshare',
+    (w) => [
+      w.alex,
+      unsharePlant(
+        mintPermit(w.sharedPlant, 'unshare', Actor.User({ userId: w.alex })),
+        {}
+      ),
+    ],
+  ],
   [
     'canopy timezone',
     (w) => [w.alex, updateMyCanopy({ timezone: 'Pacific/Niue' })],
   ],
-  ['leave', (w) => [w.aboutToLeave.id, leaveCanopy(w.aboutToLeave.id)]],
+  ['leave', (w) => [w.aboutToLeave.id, leave(w.aboutToLeave.id)]],
   [
     'join',
-    (w) => {
-      const invited = Effect.succeed({ canopyId: w.canopyId })
-      return [
-        w.june,
-        joinCanopy(
-          { id: w.june, name: 'June' },
-          {
-            findBeforeLock: invited,
-            findUnderLock: invited,
-            markUsed: Effect.void,
-          }
-        ),
-      ]
-    },
+    (w) => [
+      w.june,
+      Effect.flatMap(Canopy, (canopy) =>
+        canopy.join({
+          joiner: w.june,
+          via: JoinVia.Link({ token: JOIN_TOKEN }),
+        })
+      ),
+    ],
   ],
   ['delegation start', (w) => [w.alex, pollAndTransition]],
   ['delegation end', (w) => [w.alex, completeDelegation(w.tendedDelegation)]],
@@ -317,6 +353,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         { canopyId: canopy.id, userId: aboutToLeave.id, role: 'member' },
         { canopyId: canopy.id, userId: onVacation.id, role: 'member' },
       ])
+      await db.insert(schema.canopyInvites).values({
+        canopyId: canopy.id,
+        tokenHash: hashInviteToken(JOIN_TOKEN),
+        createdByUserId: alex.id,
+        expiresAt: new Date(Date.now() + DAY_MS),
+      })
       const shared = { canopyId: canopy.id, createdByUserId: alex.id }
       const own = { userId: alex.id, createdByUserId: alex.id }
       const seeded = await db

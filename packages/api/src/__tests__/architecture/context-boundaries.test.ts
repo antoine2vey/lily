@@ -22,6 +22,16 @@ const DELIVERY = [
   'services/helpers/schedule-notification.ts',
 ]
 
+const CANOPY_STORE = 'contexts/canopy/store.ts'
+
+const CANOPY_CODE = [
+  'contexts/canopy/',
+  'services/canopy/',
+  'services/plants/endpoints/share-plant-with-canopy.ts',
+  'services/plants/endpoints/unshare-plant.ts',
+  'services/plants/endpoints/mute-plant.ts',
+]
+
 const walk = (dir: string): ReadonlyArray<string> =>
   readdirSync(dir).flatMap((name) => {
     const path = join(dir, name)
@@ -187,6 +197,64 @@ describe('bounded contexts', () => {
       .map(name)
 
     expect(outsiders).toEqual([])
+  })
+
+  it('leave canopies, members, links, invitations and mutes to the Canopy store', () => {
+    const WRITES =
+      /\.(insert|update|delete)\(\s*(schema\.)?(canopies|canopyMembers|canopyInvites|canopyDirectInvites|canopyPlantMutes)\s*\)|(insert into|update|delete from)\s+"?(canopies|canopy_members|canopy_invites|canopy_direct_invites|canopy_plant_mutes)\b/i
+    const writers = files
+      .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
+      .map(name)
+
+    expect(writers).toEqual([CANOPY_STORE])
+  })
+
+  it("change a plant's or a room's owner only in the Canopy store", () => {
+    const OWNER_COLUMNS = /\bownerColumns\(/
+    const SETS_OWNER =
+      /\.update\(\s*(schema\.)?(plants|rooms)\s*\)\s*\.set\(\s*\{[^}]*\b(userId|canopyId)\b|\bupdate\s+"?(plants|rooms)"?\s+set\b[^;`]*\b(user_id|canopy_id)\b/i
+    const matching = (pattern: RegExp) =>
+      files
+        .filter((file) => pattern.test(readFileSync(file, 'utf8')))
+        .map(name)
+        .sort()
+
+    expect(matching(OWNER_COLUMNS)).toEqual([
+      CANOPY_STORE,
+      'repositories/plant.repository.ts',
+      'repositories/room.repository.ts',
+    ])
+    expect(matching(SETS_OWNER)).toEqual([CANOPY_STORE])
+  })
+
+  it('lock a canopy row only in the Canopy store', () => {
+    const LOCKS =
+      /\.(from|innerJoin|leftJoin|rightJoin|fullJoin)\(\s*(schema\.)?canopies\b(?:(?!\n\s*\n|\byield\*|\bconst\b|\breturn\b)[\s\S])*?\.for\(|\bfrom\s+"?canopies"?\b[^`;]*?\bfor\s+(no\s+key\s+update|update|key\s+share|share)\b/i
+    const lockers = files
+      .filter((file) => LOCKS.test(readFileSync(file, 'utf8')))
+      .map(name)
+
+    expect(lockers).toEqual([CANOPY_STORE])
+  })
+
+  it('hear about Canopy changes through its topic', () => {
+    const canopyCode = files.filter((file) =>
+      CANOPY_CODE.some((path) => name(file).startsWith(path))
+    )
+    const askers = canopyCode
+      .filter((file) =>
+        (graph.get(file) ?? []).some(
+          (imported) => contextOf(imported.target) === 'reminders'
+        )
+      )
+      .map(name)
+
+    expect(
+      CANOPY_CODE.filter(
+        (path) => !canopyCode.some((file) => name(file).startsWith(path))
+      )
+    ).toEqual([])
+    expect(askers).toEqual([])
   })
 
   it('keep every write of the notifications table in its repository', () => {

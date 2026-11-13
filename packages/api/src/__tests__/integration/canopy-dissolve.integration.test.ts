@@ -1,8 +1,17 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
-import { settled } from '@lily/api/__tests__/integration/care-layers'
+import {
+  dissolve,
+  leave,
+  leaveForDeletion,
+  settled,
+} from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { type Canopy, hashInviteToken } from '@lily/api/contexts/canopy'
+import { CanopyWrite } from '@lily/api/contexts/canopy/domain/decide'
+import { CanopyStore, CanopyStoreLive } from '@lily/api/contexts/canopy/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import {
@@ -23,12 +32,6 @@ import {
 } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
-import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canopy'
-import { hashInviteToken } from '@lily/api/services/canopy/helpers/invite-token'
-import {
-  leaveCanopy,
-  leaveCanopyAndDelete,
-} from '@lily/api/services/canopy/helpers/leave-canopy'
 import { listPlantCarePlans } from '@lily/api/services/care-plans/endpoints/list-plant-care-plans'
 import { withCarePlanAuth } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
@@ -37,13 +40,14 @@ import * as schema from '@lily/db/schema'
 import {
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
+  CanopyId,
   UserNotFoundError,
 } from '@lily/shared'
 import { CarePlanNotFoundError } from '@lily/shared/errors/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Effect, Exit, Layer } from 'effect'
+import { Array, DateTime, Effect, Exit, Layer } from 'effect'
 import pg from 'pg'
 import {
   afterAll,
@@ -59,6 +63,10 @@ const { Pool } = pg
 
 const AppLive = Layer.mergeAll(
   CanopyRepositoryLive,
+  Layer.provide(
+    CanopyStoreLive,
+    Layer.mergeAll(NotificationRepositoryLive, DelegationRepositoryLive)
+  ),
   CarePlanRepositoryLive,
   CareScheduleRepositoryLive,
   CareReadsLive,
@@ -67,11 +75,12 @@ const AppLive = Layer.mergeAll(
   PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue(),
-  createMockEventBus()
+  createMockEventBus(),
+  createMockLimitChecker()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const run = <A, E>(
-  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | Outbox>
+  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | Outbox | Canopy>
 ) => Effect.runPromise(Effect.provide(settled(effect), AppLive))
 
 const plantValues = {
@@ -199,7 +208,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expiresAt: inDays(7),
       })
 
-      await run(dissolveCanopy(canopyId, alexId))
+      await run(dissolve(alexId))
 
       const plants = await db
         .select()
@@ -271,9 +280,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         },
       ])
 
-      const outcome = await run(leaveCanopy(alexId))
+      const outcome = await run(leave(alexId))
 
-      expect(outcome._tag).toBe('Left')
+      expect(outcome).toBe('left')
       const members = await db
         .select({
           userId: schema.canopyMembers.userId,
@@ -303,9 +312,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await join(lilyId, 'owner', '2024-01-01')
       const fern = await insertPlant({ canopyId, createdByUserId: alexId })
 
-      const outcome = await run(leaveCanopy(lilyId))
+      const outcome = await run(leave(lilyId))
 
-      expect(outcome._tag).toBe('Dissolved')
+      expect(outcome).toBe('dissolved')
       const [plant] = await db
         .select()
         .from(schema.plants)
@@ -357,7 +366,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(Exit.isSuccess(before) && before.value).toEqual([lilysPlan.id])
       expect(await lilysPlans()).toHaveLength(1)
 
-      await run(leaveCanopy(lilyId))
+      await run(leave(lilyId))
 
       expect(failureOf(await plansOnFern())).toBeInstanceOf(PlantNotFoundError)
       expect(await lilysPlans()).toEqual([])
@@ -454,7 +463,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const exit = await Effect.runPromiseExit(
         Effect.provide(
           settled(
-            leaveCanopyAndDelete(alexId)(Effect.fail(new UserNotFoundError()))
+            leaveForDeletion(alexId)(Effect.fail(new UserNotFoundError()))
           ),
           AppLive
         )
@@ -511,7 +520,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const requestsBefore = await requestCount()
 
       const exit = await Effect.runPromiseExit(
-        Effect.provide(settled(leaveCanopy(lilyId)), AppLive)
+        Effect.provide(settled(leave(lilyId)), AppLive)
       )
 
       expect(Exit.isFailure(exit)).toBe(true)
@@ -530,13 +539,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await join(alexId, 'owner', '2024-01-01')
       const replace = (tokenHash: string) =>
         run(
-          Effect.flatMap(CanopyRepository, (repo) =>
-            repo.replaceInvite({
-              canopyId,
-              tokenHash,
-              createdByUserId: alexId,
-              expiresAt: inDays(7),
-            })
+          Effect.flatMap(CanopyStore, (store) =>
+            store.apply([
+              CanopyWrite.ReplaceLink({
+                canopyId: CanopyId.make(canopyId),
+                tokenHash,
+                createdBy: alexId,
+                expiresAt: DateTime.makeUnsafe(inDays(7)),
+                at: DateTime.nowUnsafe(),
+              }),
+            ])
           )
         )
 
@@ -578,7 +590,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.insert(schema.rooms).values({ name: 'Kitchen', canopyId })
 
       await run(
-        leaveCanopyAndDelete(lilyId)(
+        leaveForDeletion(lilyId)(
           Effect.flatMap(UserRepository, (repo) => repo.delete(lilyId))
         )
       )
@@ -603,19 +615,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const fern = await insertPlant({ canopyId, createdByUserId: null })
 
       const outcomes = await Promise.all([
-        run(leaveCanopy(alexId)),
-        run(leaveCanopy(lilyId)),
+        run(leave(alexId)),
+        run(leave(lilyId)),
       ])
 
-      expect(Array.map(outcomes, (o) => o._tag).sort()).toEqual([
-        'Dissolved',
-        'Left',
-      ])
+      expect([...outcomes].sort()).toEqual(['dissolved', 'left'])
       const [plant] = await db
         .select()
         .from(schema.plants)
         .where(eq(schema.plants.id, fern.id))
-      const dissolvedBy = outcomes[0]?._tag === 'Dissolved' ? alexId : lilyId
+      const dissolvedBy = outcomes[0] === 'dissolved' ? alexId : lilyId
       expect(plant).toMatchObject({ canopyId: null, userId: dissolvedBy })
       expect(await db.select().from(schema.canopies)).toEqual([])
       expect(await db.select().from(schema.canopyMembers)).toEqual([])

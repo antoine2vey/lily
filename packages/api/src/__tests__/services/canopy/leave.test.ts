@@ -12,9 +12,9 @@ import {
   pushesOf,
   type WorldServices,
 } from '@lily/api/__tests__/services/canopy/canopy-world'
+import { Canopy } from '@lily/api/contexts/canopy'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { leaveMyCanopy } from '@lily/api/services/canopy/endpoints/leave-my-canopy'
-import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { CanopyNotFoundError, NotCanopyOwnerError } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Exit } from 'effect'
@@ -105,7 +105,7 @@ const run = <A, E>(
 const roleOf = (store: MockCanopyStore, userId: string) =>
   store.members.find((m) => m.userId === userId)?.role
 
-describe('leaveCanopy', () => {
+describe('leave', () => {
   it('hands ownership to the longest-standing member and pushes them', async () => {
     const store = home()
     const notifications: Notification[] = []
@@ -205,7 +205,9 @@ describe('leaveCanopy', () => {
     const deletion = await run(
       store,
       'stranger',
-      leaveCanopyAndDelete('stranger')(Effect.void)
+      Effect.flatMap(Canopy, (canopy) =>
+        canopy.leaveForDeletion('stranger')(Effect.void)
+      )
     )
 
     expect(failureOf(endpoint)).toEqual(new CanopyNotFoundError())

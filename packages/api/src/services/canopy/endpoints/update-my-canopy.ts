@@ -1,41 +1,22 @@
-import { Dirty, Reminders } from '@lily/api/contexts/reminders'
-import { transact } from '@lily/api/kernel/transact'
-import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import { Canopy } from '@lily/api/contexts/canopy'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { canopyView } from '@lily/api/services/canopy/helpers/canopy-view'
-import {
-  lockMyCanopy,
-  requireOwner,
-} from '@lily/api/services/canopy/helpers/membership'
 import type { UpdateCanopyRequest } from '@lily/shared'
-import { Array, Effect } from 'effect'
+import { Effect, Option } from 'effect'
 
 export const updateMyCanopy = Effect.fn('CanopyService.updateMyCanopy')(
   function* (request: UpdateCanopyRequest) {
-    const { id: userId } = yield* CurrentUser
-    const repo = yield* CanopyRepository
-
-    const canopyId = yield* transact(
-      Effect.gen(function* () {
-        const { canopy, membership } = yield* lockMyCanopy(userId)
-        const { name, timezone, latitude, longitude } = request
-        const changesSettings = Array.some(
-          [timezone, latitude, longitude],
-          (value) => value !== undefined
-        )
-        if (changesSettings) {
-          yield* requireOwner(membership)
-        }
-        if (changesSettings || name !== undefined) {
-          yield* repo.update(canopy.id, request)
-        }
-        if (timezone !== undefined && timezone !== canopy.timezone) {
-          yield* Reminders.request(Dirty.Canopy({ canopyId: canopy.id }))
-        }
-        return canopy.id
-      })
-    )
-
-    return yield* canopyView(canopyId, userId)
+    const { id: by } = yield* CurrentUser
+    const canopy = yield* Canopy
+    const { canopyId } = yield* canopy.update({
+      by,
+      changes: {
+        name: Option.fromUndefinedOr(request.name),
+        timezone: Option.fromUndefinedOr(request.timezone),
+        latitude: Option.fromUndefinedOr(request.latitude),
+        longitude: Option.fromUndefinedOr(request.longitude),
+      },
+    })
+    return yield* canopyView(canopyId, by)
   }
 )

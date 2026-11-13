@@ -1,5 +1,5 @@
 import { Outbox, type OutboxTopic } from '@lily/api/kernel/outbox'
-import { Effect, type Result } from 'effect'
+import { Effect, type Result, type Schema } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -43,6 +43,24 @@ export const transact = <A, E, R>(
   })
 
 /**
+ * Load, decide, apply and the outbox append, with no transaction of its own.
+ * For a command that must put more in the transaction than its own writes.
+ * The caller opens it with `transact`, so a failure after this body rolls the
+ * writes and the events back with it.
+ */
+export const commandBody = <Agg, W, E, A, Refusal, R>(
+  spec: CommandSpec<Agg, W, E, A, Refusal, R>
+): Effect.Effect<A, Refusal | SqlError | Schema.SchemaError, R | Outbox> =>
+  Effect.gen(function* () {
+    const outbox = yield* Outbox
+    const aggregate = yield* spec.load
+    const decided = yield* Effect.fromResult(spec.decide(aggregate))
+    yield* spec.apply(decided.writes)
+    yield* outbox.append(spec.topic, decided.events)
+    return decided.outcome
+  })
+
+/**
  * Runs one command: load, decide, apply and the outbox append, all in one
  * transaction (a savepoint when the caller already holds one). A refusal
  * rolls back and is the only failure; a database error is a defect.
@@ -50,18 +68,7 @@ export const transact = <A, E, R>(
 export const runCommand = <Agg, W, E, A, Refusal, R>(
   spec: CommandSpec<Agg, W, E, A, Refusal, R>
 ): Effect.Effect<A, Refusal, R | SqlClient.SqlClient | Outbox> =>
-  Effect.gen(function* () {
-    const outbox = yield* Outbox
-    return yield* transact(
-      Effect.gen(function* () {
-        const aggregate = yield* spec.load
-        const decided = yield* Effect.fromResult(spec.decide(aggregate))
-        yield* spec.apply(decided.writes)
-        yield* outbox.append(spec.topic, decided.events)
-        return decided.outcome
-      })
-    )
-  }).pipe(
+  transact(commandBody(spec)).pipe(
     Effect.catchTag('SqlError', Effect.die),
     Effect.catchTag('SchemaError', Effect.die),
     Effect.withSpan(spec.name)

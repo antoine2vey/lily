@@ -1,6 +1,11 @@
+import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
+import type { CanopyEvent } from '@lily/api/contexts/canopy'
 import type { CareEvent } from '@lily/api/contexts/care'
 import { Dirty } from '@lily/api/contexts/reminders/store'
-import { staleAfterCare } from '@lily/api/contexts/reminders/triggers'
+import {
+  staleAfterCanopy,
+  staleAfterCare,
+} from '@lily/api/contexts/reminders/triggers'
 import { CareDay } from '@lily/shared'
 import { describe, expect, it } from 'vitest'
 
@@ -63,4 +68,45 @@ describe('staleAfterCare', () => {
       expect(staleAfterCare(event)).toEqual(stale)
     }
   )
+})
+
+const home = { _tag: 'Canopy', canopyId: mockCanopyId } as const
+const lily = [Dirty.Recipient({ userId: 'lily' })]
+
+const canopyCases: ReadonlyArray<readonly [CanopyEvent, ReadonlyArray<Dirty>]> =
+  [
+    [{ _tag: 'MemberJoined', canopyId: 'canopy-1', userId: 'lily' }, lily],
+    [
+      {
+        _tag: 'MemberLeft',
+        canopyId: 'canopy-1',
+        userId: 'lily',
+        reason: 'removed',
+      },
+      lily,
+    ],
+    [
+      {
+        _tag: 'PlantsMoved',
+        plantIds: ['plant-1', 'plant-2'],
+        from: home,
+        to: owner,
+      },
+      [Dirty.Plants({ plantIds: ['plant-1', 'plant-2'] })],
+    ],
+    [
+      { _tag: 'CanopyTimezoneChanged', canopyId: 'canopy-1' },
+      [Dirty.Canopy({ canopyId: 'canopy-1' })],
+    ],
+    [{ _tag: 'PlantMuted', plantId: 'plant-1', userId: 'lily' }, thePlant],
+    [{ _tag: 'PlantUnmuted', plantId: 'plant-1', userId: 'lily' }, thePlant],
+    [{ _tag: 'CanopyDissolved', canopyId: 'canopy-1' }, []],
+  ]
+
+describe('staleAfterCanopy', () => {
+  it.each(
+    canopyCases.map(([event, stale]) => ({ tag: event._tag, event, stale }))
+  )('$tag names what to replan', ({ event, stale }) => {
+    expect(staleAfterCanopy(event)).toEqual(stale)
+  })
 })

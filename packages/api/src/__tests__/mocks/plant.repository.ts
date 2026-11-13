@@ -39,6 +39,7 @@ export interface MockCaretakingPlant {
 
 interface MockPlantRepositoryData {
   plants: PlantRecord[]
+  sharesPlantsArray?: boolean
   photos?: PlantPhoto[]
   rooms?: MockRoom[]
   caretakingPlants?: MockCaretakingPlant[]
@@ -52,7 +53,9 @@ export const createMockPlantRepository = (
   data: MockPlantRepositoryData
 ): Layer.Layer<PlantRepository> => {
   // Shallow copy each plant so mutations don't leak between tests
-  const plantsData: PlantRecord[] = Array.map(data.plants, (p) => ({ ...p }))
+  const plantsData: PlantRecord[] = data.sharesPlantsArray
+    ? data.plants
+    : Array.map(data.plants, (p) => ({ ...p }))
   // Keep a reference to the original array for health scheduler mutations
   const originalPlantsData = data.plants
   const photos = Option.getOrElse(
@@ -379,9 +382,6 @@ export const createMockPlantRepository = (
             deathNote: null,
           })
         : Effect.succeed(null),
-
-    moveTo: (id, from, to, roomId) =>
-      patchPlant(id, from, { ...ownerColumns(to), roomId }),
 
     findPhotos: (params: FindPhotosParams) => {
       const page = pipe(

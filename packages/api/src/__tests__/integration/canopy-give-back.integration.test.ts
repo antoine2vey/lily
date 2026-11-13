@@ -1,7 +1,13 @@
-import { settled } from '@lily/api/__tests__/integration/care-layers'
+import {
+  leave,
+  leaveForDeletion,
+  settled,
+} from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import type { Canopy } from '@lily/api/contexts/canopy'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -12,10 +18,6 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { removeCanopyMember } from '@lily/api/services/canopy/endpoints/remove-canopy-member'
-import {
-  leaveCanopy,
-  leaveCanopyAndDelete,
-} from '@lily/api/services/canopy/helpers/leave-canopy'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm'
@@ -35,7 +37,8 @@ const ReposLive = Layer.mergeAll(
   PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue(),
-  createMockEventBus()
+  createMockEventBus(),
+  createMockLimitChecker({ plantLimitReached: true })
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const as = (userId: string) =>
@@ -43,7 +46,11 @@ const as = (userId: string) =>
 
 const run = <A, E>(
   userId: string,
-  effect: Effect.Effect<A, E, Layer.Success<ReturnType<typeof as>> | Outbox>
+  effect: Effect.Effect<
+    A,
+    E,
+    Layer.Success<ReturnType<typeof as>> | Outbox | Canopy
+  >
 ) => Effect.runPromise(Effect.provide(settled(effect), as(userId)))
 
 const plantValues = {
@@ -295,9 +302,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     }
 
     it("gives a leaving free member every plant they shared, past the plan's limit", async () => {
-      const outcome = await run(lilyId, leaveCanopy(lilyId))
+      const outcome = await run(lilyId, leave(lilyId))
 
-      expect(outcome._tag).toBe('Left')
+      expect(outcome).toBe('left')
       await expectLilysReturned()
     })
 
@@ -314,7 +321,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('gives a leaving owner their plants and passes ownership', async () => {
-      await run(alexId, leaveCanopy(alexId))
+      await run(alexId, leave(alexId))
 
       const [owner] = await db
         .select({ userId: schema.canopyMembers.userId })
@@ -371,7 +378,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('leaves the plants of a member who deletes their account in the Canopy', async () => {
-      await run(lilyId, leaveCanopyAndDelete(lilyId)(Effect.void))
+      await run(lilyId, leaveForDeletion(lilyId)(Effect.void))
 
       expect(await plantsOf(lilys)).toEqual(
         expect.arrayContaining(stillShared(lilys))

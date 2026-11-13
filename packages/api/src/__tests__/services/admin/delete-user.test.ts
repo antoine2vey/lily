@@ -1,4 +1,5 @@
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
@@ -29,6 +30,7 @@ const mockAdminContext: UserProfile = {
 
 const mockAdminLayer = Layer.mergeAll(
   Layer.succeed(AdminUser, mockAdminContext),
+  createInMemoryCanopy().layer,
   createMockCanopyRepository(),
   createMockCareScheduleRepository(),
   createMockDelegationRepository(),

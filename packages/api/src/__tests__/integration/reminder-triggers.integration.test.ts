@@ -1,4 +1,4 @@
-import { delivered } from '@lily/api/__tests__/integration/care-layers'
+import { delivered, leave } from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -7,9 +7,17 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import {
+  Canopy,
+  type CanopyEvent,
+  CanopyTopic,
+  hashInviteToken,
+  JoinVia,
+} from '@lily/api/contexts/canopy'
 import { type Care, CareReadsLive } from '@lily/api/contexts/care'
 import { Dirty, Reminders } from '@lily/api/contexts/reminders'
-import type { Outbox } from '@lily/api/kernel/outbox'
+import { Outbox } from '@lily/api/kernel/outbox'
+import { Actor, mintPermit } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -27,8 +35,6 @@ import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-canopy'
-import { joinCanopy } from '@lily/api/services/canopy/helpers/join-canopy'
-import { leaveCanopy } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
 import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
 import {
@@ -45,7 +51,7 @@ import { activateVacation } from '@lily/api/services/vacation/helpers/activate-v
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDays } from '@lily/shared'
+import { CanopyId, CareDays, type PlantOwner } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Layer, References } from 'effect'
@@ -82,7 +88,7 @@ const appAs = (userId: string) =>
     createMockWeatherRepository()
   ).pipe(Layer.provideMerge(ReposLive))
 
-type App = Layer.Success<ReturnType<typeof appAs>> | Outbox | Care
+type App = Layer.Success<ReturnType<typeof appAs>> | Outbox | Care | Canopy
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
   'What makes reminders stale reaches Reminders - Integration',
@@ -292,7 +298,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('a member who mutes a plant loses their waiting reminder, and nobody else does', async () => {
       await plan(shared)
 
-      await as(lily, on(shared, mutePlant))
+      await as(
+        lily,
+        mutePlant(mintPermit(shared, 'mute', Actor.User({ userId: lily })))
+      )
 
       expect(await waiting()).toEqual(['alex:shared:watering_reminder'])
     })
@@ -304,7 +313,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await plan(shared)
       const whileMuted = await waiting()
 
-      await as(lily, on(shared, unmutePlant))
+      await as(
+        lily,
+        unmutePlant(mintPermit(shared, 'mute', Actor.User({ userId: lily })))
+      )
 
       expect(whileMuted).toEqual(['alex:shared:watering_reminder'])
       expect(await waiting()).toEqual([
@@ -318,7 +330,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       await as(
         alex,
-        on(personal, (found) => sharePlantWithCanopy(found, {}))
+        sharePlantWithCanopy(
+          mintPermit(personal, 'share', Actor.User({ userId: alex })),
+          {}
+        )
       )
 
       expect(await waiting()).toEqual([
@@ -333,7 +348,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       await as(
         alex,
-        on(shared, (found) => unsharePlant(found, {}))
+        unsharePlant(
+          mintPermit(shared, 'unshare', Actor.User({ userId: alex })),
+          {}
+        )
       )
 
       expect(await waiting()).toEqual([
@@ -365,17 +383,20 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('a member who joins is reminded of the Canopy plants', async () => {
       const sam = await user('Sam')
       await plan(shared)
-      const invited = Effect.succeed({ canopyId })
+      await db.insert(schema.canopyInvites).values({
+        canopyId,
+        tokenHash: hashInviteToken('join-the-flat'),
+        createdByUserId: alex,
+        expiresAt: new Date(Date.now() + DAY_MS),
+      })
 
       await as(
         sam,
-        joinCanopy(
-          { id: sam, name: 'Sam' },
-          {
-            findBeforeLock: invited,
-            findUnderLock: invited,
-            markUsed: Effect.void,
-          }
+        Effect.flatMap(Canopy, (canopy) =>
+          canopy.join({
+            joiner: sam,
+            via: JoinVia.Link({ token: 'join-the-flat' }),
+          })
         )
       )
 
@@ -554,6 +575,71 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     })
 
+    describe('when Canopy says what changed', () => {
+      const theFlat = (): PlantOwner => ({
+        _tag: 'Canopy',
+        canopyId: CanopyId.make(canopyId),
+      })
+      const canopySays = (...events: ReadonlyArray<CanopyEvent>) =>
+        as(
+          alex,
+          transact(
+            Effect.flatMap(Outbox, (outbox) =>
+              outbox.append(CanopyTopic, events)
+            )
+          )
+        )
+
+      it('plants that moved are planned again for whoever holds them now', async () => {
+        await plan(personal, shared)
+        await db
+          .update(schema.plants)
+          .set({ userId: null, canopyId })
+          .where(eq(schema.plants.id, personal))
+        await db
+          .update(schema.plants)
+          .set({ userId: alex, canopyId: null })
+          .where(eq(schema.plants.id, shared))
+
+        await canopySays(
+          {
+            _tag: 'PlantsMoved',
+            plantIds: [personal],
+            from: { _tag: 'User', userId: alex },
+            to: theFlat(),
+          },
+          {
+            _tag: 'PlantsMoved',
+            plantIds: [shared],
+            from: theFlat(),
+            to: { _tag: 'User', userId: alex },
+          }
+        )
+
+        expect(await waiting()).toEqual([
+          'alex:personal:watering_reminder',
+          'alex:shared:watering_reminder',
+          'lily:personal:watering_reminder',
+        ])
+      })
+
+      it('a member who left loses their reminders on the plants that stayed, and nobody else does', async () => {
+        await plan(shared)
+        await db
+          .delete(schema.canopyMembers)
+          .where(eq(schema.canopyMembers.userId, lily))
+
+        await canopySays({
+          _tag: 'MemberLeft',
+          canopyId,
+          userId: lily,
+          reason: 'left',
+        })
+
+        expect(await waiting()).toEqual(['alex:shared:watering_reminder'])
+      })
+    })
+
     describe('when a Canopy and a member part', () => {
       let lilys: string
 
@@ -576,7 +662,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ]
 
       it('a member who leaves takes their plant, and each side stops hearing about the other plant', async () => {
-        await as(lily, leaveCanopy(lily))
+        await as(lily, leave(lily))
 
         expect(await waiting()).toEqual(eachHearsOfTheirOwnPlantOnly)
       })

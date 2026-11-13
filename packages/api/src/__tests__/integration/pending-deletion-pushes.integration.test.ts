@@ -1,7 +1,11 @@
-import { delivered, settled } from '@lily/api/__tests__/integration/care-layers'
+import {
+  delivered,
+  settled,
+} from '@lily/api/__tests__/integration/canopy-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
@@ -9,6 +13,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import type { Canopy } from '@lily/api/contexts/canopy'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import { Reminders } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
@@ -215,6 +220,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         RepositoriesLive,
         MockAlerterLive,
         createMockEventBus(),
+        createMockLimitChecker(),
         createMockWeatherProvider(),
         createMockWeatherCache(),
         createMockWeatherRepository(),
@@ -234,7 +240,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         createMockCurrentUser({ id: actor.id, email: actor.email })
       )
       const run = <A, E>(
-        effect: Effect.Effect<A, E, Layer.Success<typeof PipelineLive> | Outbox>
+        effect: Effect.Effect<
+          A,
+          E,
+          Layer.Success<typeof PipelineLive> | Outbox | Canopy
+        >
       ) =>
         Effect.runPromise(
           effect.pipe(

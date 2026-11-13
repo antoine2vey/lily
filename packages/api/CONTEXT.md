@@ -88,3 +88,45 @@ Reminders decides which care reminders exist, for whom and when. It plans them f
 2. **Ask, do not plan.** A change that makes reminders stale sends a request in its own transaction. A replan that fails does not undo the change. It is retried.
 3. **A vacation silences the plant.** A caretaker on vacation is barred and nobody takes their place. The owner is not reminded while the delegation runs.
 
+## Canopy
+
+Canopy covers the shared household: who is in it, how people get in and out, which plants and rooms it owns, and who has muted which plant. It is the only context that changes the owner of a plant or a room once the row exists.
+
+| Term | Meaning | Avoid |
+| --- | --- | --- |
+| **Canopy** | A household that owns plants and rooms together. It has a name, a timezone and an optional location, which are the care context of its plants. | "group", "team" |
+| **Member** | A user in a canopy. A user is a member of at most one canopy, and a canopy has at most 10 members. | "collaborator" |
+| **Canopy owner** | The one member who may change the timezone and location, remove a member and dissolve the canopy. | "owner" alone, which means the owner of a plant |
+| **Link** | A join URL. A canopy has at most one live link, and whoever holds it may join until it expires or is revoked. | "invite" for a link |
+| **Invitation** | An offer to one account to join one canopy. It is pending, accepted, declined or withdrawn, and a pending one expires 7 days after it was sent. A canopy keeps one invitation per invitee and opens it again when it invites them again. | "invite link" |
+| **Share** | A member moves a personal plant of their own into their canopy. **Unshare** moves a canopy plant to the member who asks, as a personal plant. | "transfer" |
+| **Sharer** | The user who created the plant. It is recorded once, when the plant is created, and no move changes it. For a canopy plant it is the member who shared it or who created it there. A give-back returns a plant to its sharer and to nobody else. | "creator" when the rule is about who gets the plant back |
+| **Ending** | A change that ends a membership or the whole canopy: a member leaves, the canopy owner removes a member, a member's account is deleted, or the canopy is dissolved. | "exit", "cleanup" |
+| **Give-back** | The move, at an ending, of the plants a member shared back to that member as personal plants in no room. | "return" for an unshare the member asked for |
+| **Heir** | The member who takes what a dissolved canopy still owns after the give-back: its rooms and every plant left, each still in its room. The heir is the canopy owner who dissolves it, or the last member who leaves. | "successor", which is the next canopy owner |
+| **Mute** | One member's choice to get no reminder about one plant of their canopy. It ends when the plant or the member leaves the canopy. | "silence", "unsubscribe" |
+| **Fact** | What Canopy publishes when a change commits. A fact names what changed. Whoever hears it reads the current state again and does not trust the values it carries. | "event" for an EventBus message |
+
+### Facts
+
+Canopy publishes seven facts on the outbox topic `canopy`, in the transaction of the change.
+
+| Fact | Published when | Reminders replans |
+| --- | --- | --- |
+| `MemberJoined` | A user joins through a link or an invitation. | The new member as a recipient. |
+| `MemberLeft` | A membership ends and the canopy goes on. It says why: left, removed or account deleted. | The former member as a recipient. |
+| `PlantsMoved` | Plants change owner: a share, an unshare, a give-back or the heir's part. One fact per receiver. | Those plants. |
+| `CanopyTimezoneChanged` | The canopy owner sets a different timezone. | Every plant of the canopy. |
+| `PlantMuted` | A member mutes a plant. | That plant. |
+| `PlantUnmuted` | A member takes a mute back. | That plant. |
+| `CanopyDissolved` | The canopy is gone. It follows the `PlantsMoved` facts of the same change. | Nothing more. The `PlantsMoved` facts said it. |
+
+### Rules
+
+1. **One writer.** Only Canopy writes a canopy, a member, a link, an invitation or a mute, and only Canopy changes the owner of an existing plant or room. Other code reads them and never locks a canopy.
+2. **Tell, do not plan.** Canopy never asks Reminders for a replan. It publishes facts, and Reminders decides what they make stale.
+3. **Always one canopy owner.** When the canopy owner leaves, the member who joined earliest becomes the canopy owner. The last member who leaves dissolves the canopy and is its heir.
+4. **Who may unshare.** The sharer of a canopy plant may unshare it. The canopy owner may once the sharer is no longer a member.
+5. **Give-back.** A member who leaves or is removed gets back the plants they shared. When the canopy is dissolved, every member but the heir gets theirs back. A member whose account is deleted leaves their plants in the canopy.
+6. **Limits.** A share asks the canopy's plant limit and an unshare asks the member's. A give-back and the heir's part ask no limit.
+7. **Invitations.** Any member invites an account that is active and not being deleted. Inviting again while the invitation is open, or within 7 days of the invitee declining, succeeds and sends nothing. The sender or the canopy owner withdraws it, and only the invitee accepts or declines it. An invitation is accepted or declined, never both.

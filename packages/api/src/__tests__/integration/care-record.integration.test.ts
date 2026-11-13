@@ -729,7 +729,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       expect(stuck?.lastError).toContain('reminder rebuild failed')
 
       await db.execute(
-        sql`UPDATE outbox SET available_at = now(), claimed_until = NULL`
+        sql`UPDATE outbox SET available_at = now() - interval '1 minute', claimed_until = NULL`
       )
       await run(drainOutbox)
 

@@ -25,7 +25,7 @@ export const CareOnPostgresLive = CareLive.pipe(
 
 export const drainOutbox = Effect.flatMap(Outbox, (outbox) => outbox.drain)
 
-const drainedOn =
+export const drainedOn =
   <ROut, LE, RIn>(outbox: Layer.Layer<ROut, LE, RIn>) =>
   <A, E, R>(effect: Effect.Effect<A, E, R>) =>
     effect.pipe(

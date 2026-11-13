@@ -1,5 +1,6 @@
-import { delivered } from '@lily/api/__tests__/integration/care-layers'
+import { delivered } from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
@@ -93,6 +94,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return Layer.mergeAll(
         LimitCheckerLive,
         createMockEventBus(),
+        createMockMessageQueue(),
         createMockWeatherProvider(),
         createMockWeatherCache(),
         createMockWeatherRepository(),

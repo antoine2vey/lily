@@ -1,10 +1,13 @@
+import type { Canopy } from '@lily/api/contexts/canopy'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
-import { requireMembership } from '@lily/api/services/canopy/helpers/membership'
-import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import {
+  canopyOwnerOf,
+  withOwnerLock,
+} from '@lily/api/services/plants/helpers/owner-lock'
 import type {
   CanopyNotFoundError,
   PlantOwner,
@@ -20,7 +23,12 @@ export const createRoom = (
 ): Effect.Effect<
   Room,
   SqlError | CanopyNotFoundError,
-  RoomRepository | CurrentUser | CanopyRepository | SqlClient.SqlClient | Outbox
+  | RoomRepository
+  | CurrentUser
+  | CanopyRepository
+  | Canopy
+  | SqlClient.SqlClient
+  | Outbox
 > =>
   Effect.gen(function* () {
     const repo = yield* RoomRepository
@@ -28,10 +36,7 @@ export const createRoom = (
 
     const owner: PlantOwner =
       request.owner === 'canopy'
-        ? {
-            _tag: 'Canopy',
-            canopyId: (yield* requireMembership(userId)).canopyId,
-          }
+        ? yield* canopyOwnerOf(userId)
         : { _tag: 'User', userId }
 
     const room = yield* withOwnerLock(owner)(

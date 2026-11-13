@@ -1,7 +1,7 @@
 import {
   admissionOf,
   planInvitation,
-} from '@lily/api/services/canopy/helpers/invitation'
+} from '@lily/api/contexts/canopy/domain/invitation'
 import type { CanopyInvitationStatus } from '@lily/shared'
 import { DateTime } from 'effect'
 import { describe, expect, it } from 'vitest'

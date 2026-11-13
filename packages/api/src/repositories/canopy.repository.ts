@@ -6,12 +6,10 @@ import {
   canopyMembers,
   canopyPlantMutes,
   plants,
-  rooms,
   users,
 } from '@lily/db/schema'
 import type {
   CanopyId,
-  CanopyInvitationStatus,
   CanopyMemberRole,
   CanopyPendingInvitation,
   LanguageCode,
@@ -57,46 +55,12 @@ export interface CanopyInviteRow {
   readonly revokedAt: Date | null
 }
 
-export interface CreateCanopyData {
-  readonly name: string
-  readonly timezone: string
-  readonly latitude: number | null
-  readonly longitude: number | null
-}
-
-export interface UpdateCanopyData {
-  readonly name?: string | undefined
-  readonly timezone?: string | undefined
-  readonly latitude?: number | null | undefined
-  readonly longitude?: number | null | undefined
-}
-
-export interface NewCanopyInvite {
-  readonly canopyId: string
-  readonly tokenHash: string
-  readonly createdByUserId: string
-  readonly expiresAt: Date
-}
-
 export type CanopyInvitationRow = typeof canopyDirectInvites.$inferSelect
 
 export interface CanopyInvitationPreviewRow extends CanopyInvitationRow {
   readonly canopyName: string
   readonly inviterName: string | null
   readonly memberCount: number
-}
-
-export interface NewCanopyInvitation {
-  readonly canopyId: string
-  readonly inviteeUserId: string
-  readonly invitedByUserId: string
-  readonly expiresAt: Date
-}
-
-export interface MovedPlant {
-  readonly id: string
-  readonly remindersEnabled: boolean
-  readonly diedAt: Date | null
 }
 
 export interface ICanopyRepository {
@@ -106,15 +70,6 @@ export interface ICanopyRepository {
   readonly findById: (
     canopyId: string
   ) => Effect.Effect<CanopyRow | null, SqlError>
-  readonly lock: (canopyId: string) => Effect.Effect<CanopyRow | null, SqlError>
-  readonly create: (
-    data: CreateCanopyData
-  ) => Effect.Effect<CanopyRow, SqlError>
-  readonly update: (
-    canopyId: string,
-    data: UpdateCanopyData
-  ) => Effect.Effect<CanopyRow | null, SqlError>
-  readonly delete: (canopyId: string) => Effect.Effect<void, SqlError>
   readonly findMembersByJoinDate: (
     canopyId: string
   ) => Effect.Effect<ReadonlyArray<CanopyMemberRow>, SqlError>
@@ -132,91 +87,22 @@ export interface ICanopyRepository {
     ReadonlyArray<CanopyRow>,
     SqlError
   >
-  readonly addMember: (
-    canopyId: string,
-    userId: string,
-    role: CanopyMemberRole
-  ) => Effect.Effect<boolean, SqlError>
-  readonly removeMember: (
-    canopyId: string,
-    userId: string
-  ) => Effect.Effect<boolean, SqlError>
-  readonly setRole: (
-    canopyId: string,
-    userId: string,
-    role: CanopyMemberRole
-  ) => Effect.Effect<void, SqlError>
   readonly findActiveInvite: (
     canopyId: string
   ) => Effect.Effect<{ readonly expiresAt: Date } | null, SqlError>
-  readonly replaceInvite: (
-    invite: NewCanopyInvite
-  ) => Effect.Effect<void, SqlError>
-  readonly revokeInvite: (canopyId: string) => Effect.Effect<void, SqlError>
-  readonly revokeInviteCreatedBy: (
-    canopyId: string,
-    userId: string
-  ) => Effect.Effect<void, SqlError>
   readonly findInviteByTokenHash: (
     tokenHash: string
   ) => Effect.Effect<CanopyInviteRow | null, SqlError>
-  readonly findInvitation: (
-    id: string
-  ) => Effect.Effect<CanopyInvitationRow | null, SqlError>
-  readonly lockInvitation: (
-    id: string
-  ) => Effect.Effect<CanopyInvitationRow | null, SqlError>
   readonly findInvitationPreview: (
     id: string
   ) => Effect.Effect<CanopyInvitationPreviewRow | null, SqlError>
-  readonly findInvitationByPair: (
-    canopyId: string,
-    inviteeUserId: string
-  ) => Effect.Effect<CanopyInvitationRow | null, SqlError>
-  /** Opens a fresh pending invitation, reusing the pair's row if it has one. */
-  readonly upsertInvitation: (
-    invitation: NewCanopyInvitation
-  ) => Effect.Effect<CanopyInvitationRow, SqlError>
-  /** Moves `from` to `to`, or returns null when the row is not in `from`. */
-  readonly transitionInvitation: (
-    id: string,
-    from: CanopyInvitationStatus,
-    to: Exclude<CanopyInvitationStatus, 'pending'>
-  ) => Effect.Effect<CanopyInvitationRow | null, SqlError>
   readonly findPendingInvitations: (
     canopyId: string
   ) => Effect.Effect<ReadonlyArray<CanopyPendingInvitation>, SqlError>
-  readonly withdrawInvitationsSentBy: (
-    canopyId: string,
-    userId: string
-  ) => Effect.Effect<void, SqlError>
-  readonly mute: (
-    userId: string,
-    plantId: string
-  ) => Effect.Effect<void, SqlError>
-  readonly unmute: (
-    userId: string,
-    plantId: string
-  ) => Effect.Effect<void, SqlError>
   readonly isMuted: (
     userId: string,
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
-  readonly deleteMutesForPlant: (
-    plantId: string
-  ) => Effect.Effect<void, SqlError>
-  readonly deleteMemberMutes: (
-    canopyId: string,
-    userId: string
-  ) => Effect.Effect<void, SqlError>
-  readonly transferToUser: (
-    canopyId: string,
-    userId: string
-  ) => Effect.Effect<ReadonlyArray<MovedPlant>, SqlError>
-  readonly returnToSharer: (
-    canopyId: string,
-    sharerId: string
-  ) => Effect.Effect<ReadonlyArray<MovedPlant>, SqlError>
 }
 
 export class CanopyRepository extends Context.Service<
@@ -231,12 +117,6 @@ export const CanopyRepositoryLive = Layer.effect(
   CanopyRepository,
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
-
-    const canopyPlantIds = (canopyId: string) =>
-      db
-        .select({ id: plants.id })
-        .from(plants)
-        .where(eq(plants.canopyId, canopyId))
 
     return {
       findMembershipByUser: Effect.fn('CanopyRepository.findMembershipByUser')(
@@ -270,43 +150,6 @@ export const CanopyRepositoryLive = Layer.effect(
           .from(canopies)
           .where(eq(canopies.id, canopyId))
         return first(rows)
-      }),
-
-      lock: Effect.fn('CanopyRepository.lock')(function* (canopyId: string) {
-        const rows = yield* db
-          .select()
-          .from(canopies)
-          .where(eq(canopies.id, canopyId))
-          .for('update')
-        return first(rows)
-      }),
-
-      create: Effect.fn('CanopyRepository.create')(function* (
-        data: CreateCanopyData
-      ) {
-        const rows = yield* db.insert(canopies).values(data).returning()
-        return yield* Option.match(Array.head(rows), {
-          onNone: () => Effect.die(new Error('canopy insert returned no row')),
-          onSome: Effect.succeed,
-        })
-      }),
-
-      update: Effect.fn('CanopyRepository.update')(function* (
-        canopyId: string,
-        data: UpdateCanopyData
-      ) {
-        const rows = yield* db
-          .update(canopies)
-          .set({ ...data, updatedAt: nowAsDate() })
-          .where(eq(canopies.id, canopyId))
-          .returning()
-        return first(rows)
-      }),
-
-      delete: Effect.fn('CanopyRepository.delete')(function* (
-        canopyId: string
-      ) {
-        yield* db.delete(canopies).where(eq(canopies.id, canopyId))
       }),
 
       findMembersByJoinDate: Effect.fn(
@@ -388,51 +231,6 @@ export const CanopyRepositoryLive = Layer.effect(
         }
       ),
 
-      addMember: Effect.fn('CanopyRepository.addMember')(function* (
-        canopyId: string,
-        userId: string,
-        role: CanopyMemberRole
-      ) {
-        const rows = yield* db
-          .insert(canopyMembers)
-          .values({ canopyId, userId, role })
-          .onConflictDoNothing({ target: canopyMembers.userId })
-          .returning({ id: canopyMembers.id })
-        return Array.isArrayNonEmpty(rows)
-      }),
-
-      removeMember: Effect.fn('CanopyRepository.removeMember')(function* (
-        canopyId: string,
-        userId: string
-      ) {
-        const rows = yield* db
-          .delete(canopyMembers)
-          .where(
-            and(
-              eq(canopyMembers.canopyId, canopyId),
-              eq(canopyMembers.userId, userId)
-            )
-          )
-          .returning({ id: canopyMembers.id })
-        return Array.isArrayNonEmpty(rows)
-      }),
-
-      setRole: Effect.fn('CanopyRepository.setRole')(function* (
-        canopyId: string,
-        userId: string,
-        role: CanopyMemberRole
-      ) {
-        yield* db
-          .update(canopyMembers)
-          .set({ role })
-          .where(
-            and(
-              eq(canopyMembers.canopyId, canopyId),
-              eq(canopyMembers.userId, userId)
-            )
-          )
-      }),
-
       findActiveInvite: Effect.fn('CanopyRepository.findActiveInvite')(
         function* (canopyId: string) {
           const rows = yield* db
@@ -448,50 +246,6 @@ export const CanopyRepositoryLive = Layer.effect(
           return first(rows)
         }
       ),
-
-      replaceInvite: Effect.fn('CanopyRepository.replaceInvite')(function* (
-        invite: NewCanopyInvite
-      ) {
-        yield* db
-          .update(canopyInvites)
-          .set({ revokedAt: nowAsDate() })
-          .where(
-            and(
-              eq(canopyInvites.canopyId, invite.canopyId),
-              isNull(canopyInvites.revokedAt)
-            )
-          )
-        yield* db.insert(canopyInvites).values(invite)
-      }),
-
-      revokeInvite: Effect.fn('CanopyRepository.revokeInvite')(function* (
-        canopyId: string
-      ) {
-        yield* db
-          .update(canopyInvites)
-          .set({ revokedAt: nowAsDate() })
-          .where(
-            and(
-              eq(canopyInvites.canopyId, canopyId),
-              isNull(canopyInvites.revokedAt)
-            )
-          )
-      }),
-
-      revokeInviteCreatedBy: Effect.fn(
-        'CanopyRepository.revokeInviteCreatedBy'
-      )(function* (canopyId: string, userId: string) {
-        yield* db
-          .update(canopyInvites)
-          .set({ revokedAt: nowAsDate() })
-          .where(
-            and(
-              eq(canopyInvites.canopyId, canopyId),
-              eq(canopyInvites.createdByUserId, userId),
-              isNull(canopyInvites.revokedAt)
-            )
-          )
-      }),
 
       findInviteByTokenHash: Effect.fn(
         'CanopyRepository.findInviteByTokenHash'
@@ -512,29 +266,6 @@ export const CanopyRepositoryLive = Layer.effect(
         return first(rows)
       }),
 
-      findInvitation: Effect.fn('CanopyRepository.findInvitation')(function* (
-        id: string
-      ) {
-        return first(
-          yield* db
-            .select()
-            .from(canopyDirectInvites)
-            .where(eq(canopyDirectInvites.id, id))
-        )
-      }),
-
-      lockInvitation: Effect.fn('CanopyRepository.lockInvitation')(function* (
-        id: string
-      ) {
-        return first(
-          yield* db
-            .select()
-            .from(canopyDirectInvites)
-            .where(eq(canopyDirectInvites.id, id))
-            .for('update')
-        )
-      }),
-
       findInvitationPreview: Effect.fn(
         'CanopyRepository.findInvitationPreview'
       )(function* (id: string) {
@@ -551,71 +282,6 @@ export const CanopyRepositoryLive = Layer.effect(
           .where(eq(canopyDirectInvites.id, id))
         return first(rows)
       }),
-
-      findInvitationByPair: Effect.fn('CanopyRepository.findInvitationByPair')(
-        function* (canopyId: string, inviteeUserId: string) {
-          return first(
-            yield* db
-              .select()
-              .from(canopyDirectInvites)
-              .where(
-                and(
-                  eq(canopyDirectInvites.canopyId, canopyId),
-                  eq(canopyDirectInvites.inviteeUserId, inviteeUserId)
-                )
-              )
-          )
-        }
-      ),
-
-      upsertInvitation: Effect.fn('CanopyRepository.upsertInvitation')(
-        function* (invitation: NewCanopyInvitation) {
-          const fresh = {
-            invitedByUserId: invitation.invitedByUserId,
-            status: 'pending' as const,
-            expiresAt: invitation.expiresAt,
-            resolvedAt: null,
-            createdAt: nowAsDate(),
-          }
-          const rows = yield* db
-            .insert(canopyDirectInvites)
-            .values({ ...invitation, ...fresh })
-            .onConflictDoUpdate({
-              target: [
-                canopyDirectInvites.canopyId,
-                canopyDirectInvites.inviteeUserId,
-              ],
-              set: fresh,
-            })
-            .returning()
-          return yield* Option.match(Array.head(rows), {
-            onNone: () =>
-              Effect.die(new Error('invitation upsert returned no row')),
-            onSome: Effect.succeed,
-          })
-        }
-      ),
-
-      transitionInvitation: Effect.fn('CanopyRepository.transitionInvitation')(
-        function* (
-          id: string,
-          from: CanopyInvitationStatus,
-          to: Exclude<CanopyInvitationStatus, 'pending'>
-        ) {
-          return first(
-            yield* db
-              .update(canopyDirectInvites)
-              .set({ status: to, resolvedAt: nowAsDate() })
-              .where(
-                and(
-                  eq(canopyDirectInvites.id, id),
-                  eq(canopyDirectInvites.status, from)
-                )
-              )
-              .returning()
-          )
-        }
-      ),
 
       findPendingInvitations: Effect.fn(
         'CanopyRepository.findPendingInvitations'
@@ -643,45 +309,6 @@ export const CanopyRepositoryLive = Layer.effect(
           .orderBy(asc(canopyDirectInvites.createdAt))
       }),
 
-      withdrawInvitationsSentBy: Effect.fn(
-        'CanopyRepository.withdrawInvitationsSentBy'
-      )(function* (canopyId: string, userId: string) {
-        yield* db
-          .update(canopyDirectInvites)
-          .set({ status: 'withdrawn', resolvedAt: nowAsDate() })
-          .where(
-            and(
-              eq(canopyDirectInvites.canopyId, canopyId),
-              eq(canopyDirectInvites.invitedByUserId, userId),
-              eq(canopyDirectInvites.status, 'pending')
-            )
-          )
-      }),
-
-      mute: Effect.fn('CanopyRepository.mute')(function* (
-        userId: string,
-        plantId: string
-      ) {
-        yield* db
-          .insert(canopyPlantMutes)
-          .values({ userId, plantId })
-          .onConflictDoNothing()
-      }),
-
-      unmute: Effect.fn('CanopyRepository.unmute')(function* (
-        userId: string,
-        plantId: string
-      ) {
-        yield* db
-          .delete(canopyPlantMutes)
-          .where(
-            and(
-              eq(canopyPlantMutes.userId, userId),
-              eq(canopyPlantMutes.plantId, plantId)
-            )
-          )
-      }),
-
       isMuted: Effect.fn('CanopyRepository.isMuted')(function* (
         userId: string,
         plantId: string
@@ -696,97 +323,6 @@ export const CanopyRepositoryLive = Layer.effect(
             )
           )
         return Array.isReadonlyArrayNonEmpty(rows)
-      }),
-
-      deleteMutesForPlant: Effect.fn('CanopyRepository.deleteMutesForPlant')(
-        function* (plantId: string) {
-          yield* db
-            .delete(canopyPlantMutes)
-            .where(eq(canopyPlantMutes.plantId, plantId))
-        }
-      ),
-
-      deleteMemberMutes: Effect.fn('CanopyRepository.deleteMemberMutes')(
-        function* (canopyId: string, userId: string) {
-          yield* db
-            .delete(canopyPlantMutes)
-            .where(
-              and(
-                eq(canopyPlantMutes.userId, userId),
-                inArray(canopyPlantMutes.plantId, canopyPlantIds(canopyId))
-              )
-            )
-        }
-      ),
-
-      transferToUser: Effect.fn('CanopyRepository.transferToUser')(function* (
-        canopyId: string,
-        userId: string
-      ) {
-        yield* db
-          .delete(canopyPlantMutes)
-          .where(inArray(canopyPlantMutes.plantId, canopyPlantIds(canopyId)))
-
-        const [ownRooms] = yield* db
-          .select({ last: sql<number>`coalesce(max(${rooms.order}), 0)` })
-          .from(rooms)
-          .where(eq(rooms.userId, userId))
-        const offset = pipe(
-          Option.fromNullishOr(ownRooms),
-          Option.map((r) => Number(r.last) + 1),
-          Option.getOrElse(() => 1)
-        )
-        yield* db
-          .update(rooms)
-          .set({
-            userId,
-            canopyId: null,
-            order: sql`${rooms.order} + ${offset}`,
-            updatedAt: nowAsDate(),
-          })
-          .where(eq(rooms.canopyId, canopyId))
-
-        return yield* db
-          .update(plants)
-          .set({ userId, canopyId: null, updatedAt: nowAsDate() })
-          .where(eq(plants.canopyId, canopyId))
-          .returning({
-            id: plants.id,
-            remindersEnabled: plants.remindersEnabled,
-            diedAt: plants.diedAt,
-          })
-      }),
-
-      returnToSharer: Effect.fn('CanopyRepository.returnToSharer')(function* (
-        canopyId: string,
-        sharerId: string
-      ) {
-        const shared = and(
-          eq(plants.canopyId, canopyId),
-          eq(plants.createdByUserId, sharerId)
-        )
-        yield* db
-          .delete(canopyPlantMutes)
-          .where(
-            inArray(
-              canopyPlantMutes.plantId,
-              db.select({ id: plants.id }).from(plants).where(shared)
-            )
-          )
-        return yield* db
-          .update(plants)
-          .set({
-            userId: sharerId,
-            canopyId: null,
-            roomId: null,
-            updatedAt: nowAsDate(),
-          })
-          .where(shared)
-          .returning({
-            id: plants.id,
-            remindersEnabled: plants.remindersEnabled,
-            diedAt: plants.diedAt,
-          })
       }),
     }
   })

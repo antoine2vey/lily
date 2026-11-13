@@ -13,6 +13,7 @@ import {
   pushesOf,
   type WorldServices,
 } from '@lily/api/__tests__/services/canopy/canopy-world'
+import { hashInviteToken } from '@lily/api/contexts/canopy'
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
 import { createCanopy } from '@lily/api/services/canopy/endpoints/create-canopy'
 import { createCanopyInvite } from '@lily/api/services/canopy/endpoints/create-canopy-invite'
@@ -21,7 +22,6 @@ import { previewCanopyInvite } from '@lily/api/services/canopy/endpoints/preview
 import { removeCanopyMember } from '@lily/api/services/canopy/endpoints/remove-canopy-member'
 import { revokeCanopyInvite } from '@lily/api/services/canopy/endpoints/revoke-canopy-invite'
 import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-canopy'
-import { hashInviteToken } from '@lily/api/services/canopy/helpers/invite-token'
 import type { CanopyId } from '@lily/shared'
 import {
   AlreadyInCanopyError,

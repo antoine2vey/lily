@@ -7,10 +7,9 @@ import {
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import {
   canopyWorld,
-  memberUsers,
   pushesOf,
   type WorldServices,
 } from '@lily/api/__tests__/services/canopy/canopy-world'
@@ -21,6 +20,7 @@ import { getCanopyInvitation } from '@lily/api/services/canopy/endpoints/get-can
 import { leaveMyCanopy } from '@lily/api/services/canopy/endpoints/leave-my-canopy'
 import { sendCanopyInvitation } from '@lily/api/services/canopy/endpoints/send-canopy-invitation'
 import { withdrawCanopyInvitation } from '@lily/api/services/canopy/endpoints/withdraw-canopy-invitation'
+import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import {
   AlreadyInCanopyError,
   CANOPY_MAX_MEMBERS,
@@ -32,7 +32,7 @@ import {
   type User,
 } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Exit, Layer } from 'effect'
+import { Array, Effect, Exit } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const day = 24 * 60 * 60 * 1000
@@ -94,16 +94,15 @@ const run = <A, E>(
   Effect.runPromiseExit(
     Effect.provide(
       effect,
-      Layer.merge(
-        canopyWorld(
-          store,
-          { id: actor, name: actor },
-          notifications,
-          [],
-          timeline
-        ).layer,
-        createMockUserRepository([...memberUsers(store), ...outsiders])
-      )
+      canopyWorld(
+        store,
+        { id: actor, name: actor },
+        notifications,
+        [],
+        timeline,
+        {},
+        outsiders
+      ).layer
     )
   )
 
@@ -227,6 +226,25 @@ describe('sendCanopyInvitation', () => {
       new CanopyFullError({ limit: CANOPY_MAX_MEMBERS })
     )
     expect(store.invitations).toEqual([])
+  })
+
+  it('refuses a sender who is rate limited before it invites anyone', async () => {
+    const store = home()
+    const notifications: Notification[] = []
+
+    const exit = await run(
+      store,
+      'sam',
+      Effect.provide(
+        sendCanopyInvitation('lily'),
+        createMockRateLimiterService({ shouldExceedLimit: true })
+      ),
+      notifications
+    )
+
+    expect(failureOf(exit)).toBeInstanceOf(RateLimitExceededError)
+    expect(store.invitations).toEqual([])
+    expect(notifications).toEqual([])
   })
 })
 

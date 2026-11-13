@@ -1,7 +1,9 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   delivered,
-  waterAsCurrentUser,
-} from '@lily/api/__tests__/integration/care-layers'
+  leaveForDeletion,
+} from '@lily/api/__tests__/integration/canopy-layers'
+import { waterAsCurrentUser } from '@lily/api/__tests__/integration/care-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -12,12 +14,14 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CanopyLive } from '@lily/api/contexts/canopy'
 import {
   CareReads,
   CareReadsLive,
   type DueQuery,
 } from '@lily/api/contexts/care'
 import { replanPlants } from '@lily/api/contexts/reminders'
+import { Actor, mintPermit } from '@lily/api/kernel/permit'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -48,7 +52,6 @@ import {
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
 import { createCanopyInvite } from '@lily/api/services/canopy/endpoints/create-canopy-invite'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
-import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
@@ -342,8 +345,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           ...(await Promise.all([
             as(
               alex,
-              Effect.flatMap(plantNamed(target), (plant) =>
-                unsharePlant(plant, {})
+              unsharePlant(
+                mintPermit(target, 'unshare', Actor.User({ userId: alex })),
+                {}
               )
             ),
             as(lily, waterAsCurrentUser(target, new Date(Date.now() - day))),
@@ -360,25 +364,30 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     it('an unmute racing an unshare never leaves the former member a row', async () => {
       let stale = 0
+      const unmutes = []
       for (const round of Arr.range(1, 30)) {
         await reset()
         const target = plants[round % plants.length] as string
         await as(
           lily,
-          Effect.flatMap(plantNamed(target), (plant) => mutePlant(plant))
+          mutePlant(mintPermit(target, 'mute', Actor.User({ userId: lily })))
         )
-        await Promise.all([
+        const [unmuted] = await Promise.all([
           as(
             lily,
-            Effect.flatMap(plantNamed(target), (plant) => unmutePlant(plant))
+            unmutePlant(
+              mintPermit(target, 'mute', Actor.User({ userId: lily }))
+            )
           ),
           as(
             alex,
-            Effect.flatMap(plantNamed(target), (plant) =>
-              unsharePlant(plant, {})
+            unsharePlant(
+              mintPermit(target, 'unshare', Actor.User({ userId: alex })),
+              {}
             )
           ),
         ])
+        unmutes.push(unmuted)
         const rows = await pendingRows()
         stale += Arr.filter(
           rows,
@@ -386,6 +395,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).length
       }
       expect(stale).toBe(0)
+      expect(
+        Arr.filter(
+          unmutes,
+          (exit) =>
+            !Exit.isSuccess(exit) &&
+            !(
+              Exit.hasFails(exit) &&
+              failureOf(exit)._tag === 'PlantNotFoundError'
+            )
+        )
+      ).toEqual([])
     }, 60_000)
 
     it('a joiner never keeps a reminder for a date another member just moved', async () => {
@@ -498,7 +518,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ]
         await as(
           lily,
-          Effect.flatMap(plantNamed(p2), (p) => mutePlant(p))
+          mutePlant(mintPermit(p2, 'mute', Actor.User({ userId: lily })))
         )
         await db.execute(
           sql`UPDATE plants SET died_at = now() WHERE id = ${p6}`
@@ -536,12 +556,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             as(sam, acceptCanopyInvite(token)),
             as(
               lily,
-              Effect.flatMap(plantNamed(p2), (p) => unmutePlant(p))
+              unmutePlant(mintPermit(p2, 'mute', Actor.User({ userId: lily })))
             ),
             as(lily, endVacation({ user: lilyUser, effectiveEnd: new Date() })),
             as(
               alex,
-              Effect.flatMap(plantNamed(p5), (p) => unsharePlant(p, {}))
+              unsharePlant(
+                mintPermit(p5, 'unshare', Actor.User({ userId: alex })),
+                {}
+              )
             ),
             as(
               alex,
@@ -549,11 +572,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             ),
             as(
               lily,
-              Effect.flatMap(plantNamed(p1), (p) => mutePlant(p))
+              mutePlant(mintPermit(p1, 'mute', Actor.User({ userId: lily })))
             ),
             as(
               lily,
-              Effect.flatMap(plantNamed(p1), (p) => unmutePlant(p))
+              unmutePlant(mintPermit(p1, 'mute', Actor.User({ userId: lily })))
             ),
             as(
               alex,
@@ -1262,7 +1285,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         const deleted = as(
           leaver,
-          leaveCanopyAndDelete(leaver)(deletion).pipe(
+          leaveForDeletion(leaver)(deletion).pipe(
             Effect.provide(OverdueLandsAfterKeys)
           )
         )
@@ -1347,18 +1370,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       reached: Deferred.Deferred<void>,
       release: Deferred.Deferred<void>
     ) =>
-      Layer.effect(
-        DelegationRepository,
-        Effect.map(DelegationRepository, (repo) => ({
-          ...repo,
-          lockAllForUser: (userId: string) =>
-            repo
-              .lockAllForUser(userId)
-              .pipe(
-                Effect.andThen(Deferred.succeed(reached, undefined)),
-                Effect.andThen(Deferred.await(release))
-              ),
-        }))
+      Layer.fresh(CanopyLive).pipe(
+        Layer.provide(
+          Layer.effect(
+            DelegationRepository,
+            Effect.map(DelegationRepository, (repo) => ({
+              ...repo,
+              lockAllForUser: (userId: string) =>
+                repo
+                  .lockAllForUser(userId)
+                  .pipe(
+                    Effect.andThen(Deferred.succeed(reached, undefined)),
+                    Effect.andThen(Deferred.await(release))
+                  ),
+            }))
+          )
+        )
       )
 
     const pausedHoldingReminderRows = (
