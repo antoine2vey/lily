@@ -19,6 +19,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -76,26 +77,34 @@ const update = (
     readonly user?: typeof testUser
     readonly plants?: TestPlant[]
     readonly canopy?: Layer.Layer<CanopyRepository>
+    readonly careTimezones?: Readonly<Record<string, string>>
   }
 ) => {
   const plants = scenario.plants ?? [testPlant]
   return Effect.runPromise(
     updateUserSettings(request).pipe(
       Effect.provide(
-        Layer.mergeAll(
-          createMockDelegationRepository(),
-          MockSqlClientLive,
-          scenario.canopy ?? createMockCanopyRepository(),
-          createMockRateLimiterService(),
-          createMockUserRepository([scenario.user ?? testUser]),
-          createMockCurrentUser({ id: 'user-1' }),
-          createMockNotificationRepository(scenario.notifications),
-          createMockPlantRepository({ plants }),
-          createMockCareLogRepository([]),
-          createMockCareScheduleRepository({
-            schedules: schedulesFromPlants(plants),
-            plants,
-          })
+        DeliveringOutboxLive.pipe(
+          Layer.provideMerge(
+            Layer.mergeAll(
+              createMockDelegationRepository(),
+              MockSqlClientLive,
+              scenario.canopy ?? createMockCanopyRepository(),
+              createMockRateLimiterService(),
+              createMockUserRepository([scenario.user ?? testUser]),
+              createMockCurrentUser({ id: 'user-1' }),
+              createMockNotificationRepository(scenario.notifications),
+              createMockPlantRepository({ plants }),
+              createMockCareLogRepository([]),
+              createMockCareScheduleRepository({
+                schedules: schedulesFromPlants(plants),
+                plants,
+                ...(scenario.careTimezones
+                  ? { timezones: scenario.careTimezones }
+                  : {}),
+              })
+            )
+          )
         )
       )
     )
@@ -149,6 +158,25 @@ describe('updateUserSettings - reminder rebuild', () => {
     ])
   })
 
+  it('moves a pending reminder out of the quiet hours the user turns on', async () => {
+    const notifications = pendingWatering()
+
+    await update(
+      {
+        notifications: {
+          doNotDisturb: true,
+          doNotDisturbStart: '08:00',
+          doNotDisturbEnd: '10:00',
+        },
+      },
+      { notifications }
+    )
+
+    expect(pending(notifications)).toEqual([
+      { type: 'watering_reminder', at: '2030-06-15T10:00:00.000Z' },
+    ])
+  })
+
   it('rebuilds every care reminder when care reminders turn back on', async () => {
     const notifications: Notification[] = []
 
@@ -193,6 +221,7 @@ describe('updateUserSettings - reminder rebuild', () => {
       {
         notifications,
         plants: [canopyPlant],
+        careTimezones: { [mockCanopyId]: 'Europe/Paris' },
         canopy: createMockCanopyRepository(
           createCanopyStore({
             canopies: [

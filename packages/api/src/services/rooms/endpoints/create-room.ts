@@ -1,4 +1,5 @@
 import { EntityMutationDefect } from '@lily/api/errors/defects'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
@@ -19,7 +20,7 @@ export const createRoom = (
 ): Effect.Effect<
   Room,
   SqlError | CanopyNotFoundError,
-  RoomRepository | CurrentUser | CanopyRepository | SqlClient.SqlClient
+  RoomRepository | CurrentUser | CanopyRepository | SqlClient.SqlClient | Outbox
 > =>
   Effect.gen(function* () {
     const repo = yield* RoomRepository

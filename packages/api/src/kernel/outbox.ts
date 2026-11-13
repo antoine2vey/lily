@@ -8,7 +8,19 @@
  */
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { deadLetterMessages, outbox } from '@lily/db/schema'
-import { and, asc, eq, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm'
 import {
   Array,
   Cause,
@@ -111,6 +123,15 @@ export class Outbox extends Context.Service<
      * from several processes.
      */
     readonly drain: Effect.Effect<number, SqlError>
+    /**
+     * Gives the events a consumer dead-lettered a fresh round of attempts and
+     * returns how many. Only events appended within `within` qualify, so an
+     * event that can never be handled stops coming back.
+     */
+    readonly redrive: (
+      consumerName: string,
+      within: Duration.Duration
+    ) => Effect.Effect<number, SqlError>
   }
 >()('kernel/Outbox') {}
 
@@ -252,13 +273,14 @@ export const makeOutbox = (
         const encoded = yield* Effect.forEach(events, (event) =>
           Schema.encodeUnknownEffect(to.schema)(event)
         )
-        const availableAt = DateTime.toDateUtc(yield* DateTime.now)
+        const appendedAt = DateTime.toDateUtc(yield* DateTime.now)
         yield* db.insert(outbox).values(
           Array.map(encoded, (event) => ({
             topic: to.name,
             event,
             pendingConsumers,
-            availableAt,
+            availableAt: appendedAt,
+            createdAt: appendedAt,
           }))
         )
       }),
@@ -272,6 +294,31 @@ export const makeOutbox = (
         })
         return Array.length(rows)
       }).pipe(Effect.withSpan('Outbox.drain')),
+      redrive: Effect.fn('Outbox.redrive')(function* (
+        consumerName: string,
+        within: Duration.Duration
+      ) {
+        const now = yield* DateTime.now
+        const revived = yield* db
+          .update(outbox)
+          .set({
+            processedAt: null,
+            attempts: 0,
+            availableAt: DateTime.toDateUtc(now),
+          })
+          .where(
+            and(
+              isNotNull(outbox.processedAt),
+              sql`${consumerName} = ANY(${outbox.pendingConsumers})`,
+              gte(
+                outbox.createdAt,
+                DateTime.toDateUtc(DateTime.subtractDuration(now, within))
+              )
+            )
+          )
+          .returning({ id: outbox.id })
+        return Array.length(revived)
+      }),
     })
     return { service, wakes, config }
   })

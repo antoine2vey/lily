@@ -11,33 +11,11 @@ import type {
   NotificationMetadata,
 } from '@lily/shared/notification'
 import {
-  type DeferredCareType,
   MessageQueue,
   type QueueConnectionError,
   type QueueOperationError,
 } from '@lily/shared/server'
 import { Effect, Option } from 'effect'
-
-interface DeferredCareNotificationParams {
-  type: DeferredCareType
-  userId: string
-  plantId: string
-  scheduledAt: Date
-}
-
-export const scheduleDeferredCareNotification = (
-  params: DeferredCareNotificationParams
-) =>
-  Effect.gen(function* () {
-    const notifications = yield* NotificationRepository
-    yield* notifications.create({
-      type: params.type,
-      scheduledAt: params.scheduledAt,
-      userId: params.userId,
-      plantId: params.plantId,
-      metadata: {},
-    })
-  })
 
 export interface RecordedNotification {
   readonly id: string

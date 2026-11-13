@@ -5,6 +5,7 @@ import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
@@ -41,16 +42,20 @@ const setup = (
   const care = createStubCare()
   return {
     care,
-    layer: Layer.mergeAll(
-      MockSqlClientLive,
-      care.layer,
-      userRepository,
-      createMockNotificationRepository([]),
-      createMockCareScheduleRepository({ plants }),
-      createMockPlantRepository({ plants }),
-      createMockDelegationRepository({}),
-      createMockCanopyRepository(),
-      createMockCurrentUser({ id: 'user-1' })
+    layer: DeliveringOutboxLive.pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(
+          MockSqlClientLive,
+          care.layer,
+          userRepository,
+          createMockNotificationRepository([]),
+          createMockCareScheduleRepository({ plants }),
+          createMockPlantRepository({ plants }),
+          createMockDelegationRepository({}),
+          createMockCanopyRepository(),
+          createMockCurrentUser({ id: 'user-1' })
+        )
+      )
     ),
   }
 }

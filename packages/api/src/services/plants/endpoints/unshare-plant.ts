@@ -5,15 +5,11 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
+import { plantsLeftCanopy } from '@lily/api/services/canopy/helpers/plants-left-canopy'
 import { assertMayUnshare } from '@lily/api/services/plants/helpers/assert-may-unshare'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
   CanopyNotFoundError,
@@ -43,21 +39,17 @@ export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
         return yield* new CanopyNotFoundError()
       }
       yield* assertMayUnshare(plant, locked, userId)
-      yield* withReminderKeys(reminderKeysFor([plant.id]))(
-        Effect.gen(function* () {
-          const current = yield* reloadOwnedPlant(plant, requestedId)
-          yield* assertRoomFits(roomId, me)
-          if (current.diedAt === null) {
-            yield* limitChecker.checkPlantLimit(me)
-          }
-          yield* canopyRepo.deleteMutesForPlant(plant.id)
-          const moved = yield* repo.moveTo(plant.id, plant.owner, me, roomId)
-          if (moved === null) {
-            return yield* new PlantNotFoundError({ plantId: requestedId })
-          }
-          yield* rescheduleReminders([moved.id])
-        })
-      )
+      const current = yield* reloadOwnedPlant(plant, requestedId)
+      yield* assertRoomFits(roomId, me)
+      if (current.diedAt === null) {
+        yield* limitChecker.checkPlantLimit(me)
+      }
+      yield* canopyRepo.deleteMutesForPlant(plant.id)
+      const moved = yield* repo.moveTo(plant.id, plant.owner, me, roomId)
+      if (moved === null) {
+        return yield* new PlantNotFoundError({ plantId: requestedId })
+      }
+      yield* plantsLeftCanopy([moved.id])
     })
   )
 

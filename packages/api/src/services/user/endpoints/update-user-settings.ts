@@ -1,21 +1,17 @@
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import {
+  Dirty,
+  RECIPIENT_SETTINGS,
+  Reminders,
+} from '@lily/api/contexts/reminders'
+import type { Outbox } from '@lily/api/kernel/outbox'
+import { transact } from '@lily/api/kernel/transact'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  exceptReminders,
+  NotificationRepository,
+} from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
-import {
-  canopyPlantIdsOf,
-  rebuildMemberReminders,
-  rescheduleReminders,
-} from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import type { RateLimiterService } from '@lily/api/services/rate-limiter/service'
 import {
@@ -24,24 +20,11 @@ import {
 } from '@lily/api/services/username/claim-username'
 import { type AuthError, compact, trimAndNullify } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
-import { CARE_TOPICS, ENGAGEMENT_TOPICS } from '@lily/shared/server'
+import { ENGAGEMENT_TOPICS } from '@lily/shared/server'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Array, Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
-
-const lockReminderPlantsOf = (userId: string) =>
-  Effect.gen(function* () {
-    const plantRepo = yield* PlantRepository
-    const inCanopy = yield* lockMyCanopy(userId).pipe(
-      Effect.as(true),
-      Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
-    )
-    return {
-      personal: yield* plantRepo.findPersonalReminderPlantIds(userId),
-      canopy: inCanopy ? yield* canopyPlantIdsOf(userId) : [],
-    }
-  })
 
 // Update user settings (profile + notification preferences)
 export const updateUserSettings = (
@@ -53,12 +36,9 @@ export const updateUserSettings = (
   | RateLimiterService
   | CurrentUser
   | NotificationRepository
-  | CareScheduleRepository
   | CareLogRepository
-  | PlantRepository
-  | CanopyRepository
-  | DelegationRepository
   | SqlClient.SqlClient
+  | Outbox
 > =>
   Effect.gen(function* () {
     const { id } = yield* CurrentUser
@@ -66,7 +46,6 @@ export const updateUserSettings = (
     const notificationRepo = yield* NotificationRepository
     const careLogRepo = yield* CareLogRepository
 
-    // Get current user settings to check if timezone/time changed
     const existingUser = yield* repo.findById(id)
     if (!existingUser) {
       return yield* new UserNotFoundError()
@@ -115,55 +94,31 @@ export const updateUserSettings = (
       language: data.language,
     })
 
-    const timezoneChanged =
-      data.timezone !== undefined && data.timezone !== existingUser.timezone
-    const timeChanged =
-      data.preferredNotificationTime !== undefined &&
-      data.preferredNotificationTime !== existingUser.preferredNotificationTime
-    const careRemindersTurnedOn =
-      data.notifications?.careReminders === true && !existingUser.careReminders
-    const rebuildReminders =
-      timezoneChanged || timeChanged || careRemindersTurnedOn
-
-    const applyUpdate = Effect.gen(function* () {
-      const updated = yield* usernameTakenOnConflict(
-        repo.update(id, updateData)
-      )
-      if (!updated) {
-        return yield* new UserNotFoundError()
-      }
-      if (data.notifications?.careReminders === false) {
-        yield* notificationRepo.deletePendingByUserIdAndTypes(id, CARE_TOPICS)
-      }
-      if (data.notifications?.tips === false) {
-        yield* notificationRepo.deletePendingByUserIdAndTypes(
-          id,
-          ENGAGEMENT_TOPICS
+    const user = yield* transact(
+      Effect.gen(function* () {
+        const updated = yield* usernameTakenOnConflict(
+          repo.update(id, updateData)
         )
-      }
-      return updated
-    })
-
-    const sql = yield* SqlClient.SqlClient
-    const user = rebuildReminders
-      ? yield* sql.withTransaction(
-          Effect.gen(function* () {
-            const { personal, canopy } = yield* lockReminderPlantsOf(id)
-            return yield* withReminderKeys(
-              reminderKeysFor(Array.dedupe([...personal, ...canopy])),
-              Option.some(id)
-            )(
-              applyUpdate.pipe(
-                Effect.tap(() =>
-                  rescheduleReminders(personal).pipe(
-                    Effect.andThen(rebuildMemberReminders(id, canopy))
-                  )
-                )
-              )
-            )
-          })
-        )
-      : yield* sql.withTransaction(applyUpdate)
+        if (!updated) {
+          return yield* new UserNotFoundError()
+        }
+        if (data.notifications?.tips === false) {
+          yield* notificationRepo.deletePendingByUserIdAndTypes(
+            id,
+            exceptReminders(ENGAGEMENT_TOPICS)
+          )
+        }
+        if (
+          Array.some(
+            RECIPIENT_SETTINGS,
+            (setting) => updated[setting] !== existingUser[setting]
+          )
+        ) {
+          yield* Reminders.request(Dirty.Recipient({ userId: id }))
+        }
+        return updated
+      })
+    )
 
     const careLogsCount = yield* careLogRepo.countByUser(id)
 

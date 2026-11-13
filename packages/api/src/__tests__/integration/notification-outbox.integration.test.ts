@@ -5,6 +5,7 @@ import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-l
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import {
   createFailingPushService,
   createMockPushService,
@@ -722,7 +723,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               CanopyRepositoryLive.pipe(Layer.provide(DatabaseLive)),
               createMockLimitChecker(),
               createMockCurrentUser({ id: userId, name: 'outbox_user' }),
-              createMockMessageQueue()
+              createMockMessageQueue(),
+              MockOutboxLive
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')

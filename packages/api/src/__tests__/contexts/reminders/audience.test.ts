@@ -7,8 +7,8 @@ import {
   createMockCanopyRepository,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import { Reminders } from '@lily/api/contexts/reminders'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import type { PlantOwner } from '@lily/shared'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -43,7 +43,7 @@ const run = (
   } = {}
 ) =>
   Effect.runPromise(
-    reminderRecipients({ id: 'plant-1', owner }).pipe(
+    Reminders.audienceOf({ id: 'plant-1', owner }).pipe(
       Effect.provide(
         Layer.mergeAll(
           createMockDelegationRepository({
@@ -61,7 +61,7 @@ const run = (
     )
   )
 
-describe('reminderRecipients', () => {
+describe('Reminders.audienceOf', () => {
   it('addresses a personal plant to its owner', async () => {
     expect(await run({ _tag: 'User', userId: 'alex' })).toEqual(['alex'])
   })

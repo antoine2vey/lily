@@ -8,6 +8,7 @@ import {
   createMockLimitChecker,
   MockLimitCheckerLive,
 } from '@lily/api/__tests__/mocks/limit-checker'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -48,6 +49,7 @@ describe('createPlant', () => {
         createMockCurrentUser({ id: 'user-1' }),
         MockLimitCheckerLive,
         MockSqlClientLive,
+        MockOutboxLive,
         createMockCanopyRepository(),
         care.layer
       ),
@@ -224,6 +226,7 @@ describe('createPlant', () => {
             createMockCurrentUser({ id: 'user-1' }),
             MockLimitCheckerLive,
             MockSqlClientLive,
+            MockOutboxLive,
             createMockCanopyRepository(),
             createStubCare().layer
           )
@@ -247,6 +250,7 @@ describe('createPlant', () => {
       createMockCurrentUser({ id: 'user-1' }),
       createMockLimitChecker({ plantLimitReached: true }),
       MockSqlClientLive,
+      MockOutboxLive,
       createMockCanopyRepository(),
       createStubCare().layer
     )

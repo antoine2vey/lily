@@ -23,8 +23,14 @@ import {
   type PlantFacts,
   type RecipientSettings,
 } from '@lily/api/services/notification-scheduler/dispatch-gate'
-import type { CanopyId, PlantOwner } from '@lily/shared'
-import { Effect, Layer, Option } from 'effect'
+import {
+  type CanopyId,
+  CareDay,
+  CareDays,
+  type CareType,
+  type PlantOwner,
+} from '@lily/shared'
+import { DateTime, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const NOW = new Date('2026-11-04T12:00:00Z')
@@ -55,11 +61,18 @@ const row = (overrides: Partial<GateRow> = {}): GateRow => ({
   ...overrides,
 })
 
+const DUE_DAY = CareDay.make('2026-11-04')
+
+const dueOn = (careType: CareType, dueDay: CareDay = DUE_DAY) => ({
+  careType,
+  dueDay,
+})
+
 const living = (overrides: Partial<PlantFacts> = {}): PlantFacts => ({
   diedAt: null,
   recipients: ['user-1'],
   hasOverdueCare: true,
-  nearlyDue: ['watering'],
+  nearlyDue: [dueOn('watering')],
   ...overrides,
 })
 
@@ -145,8 +158,35 @@ describe('decide', () => {
     expect(await run(row(), undefined, caughtUp)).toEqual(Decision.Send())
   })
 
+  it('drops a care reminder about a due day the care has moved on from', async () => {
+    const caredToday = plantsOf(
+      living({ nearlyDue: [dueOn('watering', CareDay.make('2026-11-05'))] })
+    )
+    expect(
+      await run(row({ occasionDay: DUE_DAY }), undefined, caredToday)
+    ).toEqual(Decision.Drop({ reason: 'superseded' }))
+    expect(
+      await run(
+        row({ type: 'overdue_reminder', occasionDay: DUE_DAY }),
+        undefined,
+        caredToday
+      )
+    ).toEqual(Decision.Send())
+  })
+
+  it('sends a care reminder about the care current due day', async () => {
+    expect(await run(row({ occasionDay: DUE_DAY }))).toEqual(Decision.Send())
+  })
+
+  it('sends a care reminder that records no day, whatever the due day', async () => {
+    const caredToday = plantsOf(
+      living({ nearlyDue: [dueOn('watering', CareDay.make('2026-11-05'))] })
+    )
+    expect(await run(row(), undefined, caredToday)).toEqual(Decision.Send())
+  })
+
   it('drops a care reminder once its care is no longer due', async () => {
-    const watered = plantsOf(living({ nearlyDue: ['misting'] }))
+    const watered = plantsOf(living({ nearlyDue: [dueOn('misting')] }))
     expect(await run(row(), undefined, watered)).toEqual(
       Decision.Drop({ reason: 'no-longer-due' })
     )
@@ -435,10 +475,13 @@ describe('loadPlantFacts', () => {
       }
     )
     expect(facts.get('plant-1')?.hasOverdueCare).toBe(true)
-    expect(facts.get('plant-1')?.nearlyDue).toContain('watering')
+    const dayOf = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
+    expect(facts.get('plant-1')?.nearlyDue).toEqual([
+      dueOn('watering', dayOf(yesterday)),
+    ])
     expect(facts.get('plant-3')).toMatchObject({
       hasOverdueCare: false,
-      nearlyDue: ['watering'],
+      nearlyDue: [dueOn('watering', dayOf(tomorrow))],
     })
     expect(facts.get('plant-2')).toEqual({
       diedAt,

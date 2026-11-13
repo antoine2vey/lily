@@ -18,15 +18,14 @@ import {
 } from 'effect'
 
 /**
- * Calculates the scheduled notification time in the user's preferred timezone
- * at their preferred time of day.
+ * The preferred time of day on the calendar day `baseDate` falls on in the
+ * user's timezone. The day is never moved, so the result can be in the past.
  *
- * @param baseDate - The date when the care task is due (e.g., next watering date)
+ * @param baseDate - An instant on the wanted calendar day
  * @param timezone - IANA timezone string (e.g., "America/New_York")
  * @param preferredTime - Time in HH:mm format (e.g., "09:00")
- * @returns Date object representing when the notification should be sent (in UTC)
  */
-export const calculateScheduledAt = (
+export const preferredTimeOn = (
   baseDate: Date,
   timezone: string | null,
   preferredTime: string | null
@@ -102,21 +101,30 @@ export const calculateScheduledAt = (
       })
     )
 
-    // Convert back to UTC for storage
-    const utcDateTime = DateTime.toDateUtc(adjustedDateTime)
-
-    // If the calculated time is in the past, add 1 day
-    const now = DateTime.toDateUtc(DateTime.nowUnsafe())
-    if (utcDateTime < now) {
-      const nextDayDateTime = pipe(
-        adjustedDateTime,
-        DateTime.addDuration('1 day')
-      )
-      return DateTime.toDateUtc(nextDayDateTime)
-    }
-
-    return utcDateTime
+    return DateTime.toDateUtc(adjustedDateTime)
   })
+
+/**
+ * Calculates the scheduled notification time in the user's preferred timezone
+ * at their preferred time of day. A time already past moves one day later.
+ *
+ * @param baseDate - The date when the care task is due (e.g., next watering date)
+ * @param timezone - IANA timezone string (e.g., "America/New_York")
+ * @param preferredTime - Time in HH:mm format (e.g., "09:00")
+ * @returns Date object representing when the notification should be sent (in UTC)
+ */
+export const calculateScheduledAt = (
+  baseDate: Date,
+  timezone: string | null,
+  preferredTime: string | null
+): Effect.Effect<Date, never> =>
+  Effect.map(preferredTimeOn(baseDate, timezone, preferredTime), (at) =>
+    at < DateTime.toDateUtc(DateTime.nowUnsafe())
+      ? DateTime.toDateUtc(
+          DateTime.addDuration(DateTime.makeUnsafe(at), '1 day')
+        )
+      : at
+  )
 
 /**
  * Recalculates all pending notifications for a user when their timezone

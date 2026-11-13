@@ -1,3 +1,5 @@
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { canopyView } from '@lily/api/services/canopy/helpers/canopy-view'
 import { failAlreadyInCanopy } from '@lily/api/services/canopy/helpers/membership'
@@ -7,18 +9,12 @@ import {
   type RecordedNotification,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
-import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
   CanopyInviteNotFoundError,
 } from '@lily/shared'
 import { Array, Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 
 export interface JoinTarget {
   readonly canopyId: string
@@ -39,9 +35,8 @@ export interface Joiner {
 export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
   Effect.gen(function* () {
     const repo = yield* CanopyRepository
-    const sql = yield* SqlClient.SqlClient
 
-    const joined = yield* sql.withTransaction(
+    const joined = yield* transact(
       Effect.gen(function* () {
         const seen = yield* source.findBeforeLock
         const canopy = yield* repo.lock(seen.canopyId)
@@ -68,22 +63,17 @@ export const joinCanopy = <E, R>(joiner: Joiner, source: JoinSource<E, R>) =>
         if (members.length >= CANOPY_MAX_MEMBERS) {
           return yield* new CanopyFullError({ limit: CANOPY_MAX_MEMBERS })
         }
-        const plantIds = yield* repo.findPlantIdsOfCanopy(canopy.id)
-        yield* withReminderKeys(reminderKeysFor(plantIds))(
-          Effect.gen(function* () {
-            if (!(yield* repo.addMember(canopy.id, joiner.id, 'member'))) {
-              const winner = yield* repo.findMembershipByUser(joiner.id)
-              return yield* failAlreadyInCanopy(
-                pipe(
-                  Option.fromNullishOr(winner),
-                  Option.map((m) => m.canopyId),
-                  Option.getOrElse(() => canopy.id)
-                )
-              )
-            }
-            yield* rebuildMemberReminders(joiner.id, plantIds)
-          })
-        )
+        if (!(yield* repo.addMember(canopy.id, joiner.id, 'member'))) {
+          const winner = yield* repo.findMembershipByUser(joiner.id)
+          return yield* failAlreadyInCanopy(
+            pipe(
+              Option.fromNullishOr(winner),
+              Option.map((m) => m.canopyId),
+              Option.getOrElse(() => canopy.id)
+            )
+          )
+        }
+        yield* Reminders.request(Dirty.Recipient({ userId: joiner.id }))
         yield* source.markUsed
         const notifications = yield* Effect.forEach(members, (member) =>
           recordNotification(

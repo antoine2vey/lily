@@ -479,6 +479,50 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
       }
 
+      const seedDailyDueToday = async (userId: string) => {
+        const plant = await seedPlant(userId, 'Daily')
+        await db
+          .update(schema.plantCareSchedules)
+          .set({ frequencyDays: 1, nextCareAt: new Date() })
+          .where(eq(schema.plantCareSchedules.plantId, plant.id))
+        await db.insert(schema.notifications).values({
+          type: 'watering_reminder',
+          scheduledAt: new Date(Date.now() - 60_000),
+          userId,
+          plantId: plant.id,
+          occasionDay: new Date().toISOString().slice(0, 10),
+        })
+        return plant
+      }
+
+      it('drops a queued reminder for today once a daily care moved the due day to tomorrow, with no push', async () => {
+        const user = await seedUser('daily-cared')
+        const plant = await seedDailyDueToday(user.id)
+
+        const [message] = await enqueueDue()
+        await db
+          .update(schema.plantCareSchedules)
+          .set({ nextCareAt: new Date(Date.now() + 86_400_000) })
+          .where(eq(schema.plantCareSchedules.plantId, plant.id))
+        const result = await consume(message)
+
+        expect(Exit.isSuccess(result.exit)).toBe(true)
+        expect(result.pushes).toEqual([])
+        expect(await rowsOf(user.id)).toEqual([])
+      })
+
+      it('pushes a queued reminder for today while the daily care is still due today', async () => {
+        const user = await seedUser('daily-due')
+        await seedDailyDueToday(user.id)
+
+        const [message] = await enqueueDue()
+        const result = await consume(message)
+
+        expect(Exit.isSuccess(result.exit)).toBe(true)
+        expect(result.pushes).toHaveLength(1)
+        expect(await rowsOf(user.id)).toMatchObject([{ status: 'sent' }])
+      })
+
       it('renders a retried push on redelivery and dead-letters after the last attempt', async () => {
         const user = await seedUser('retry')
         const plant = await seedPlant(user.id, 'Oldname')

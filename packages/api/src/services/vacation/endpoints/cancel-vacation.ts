@@ -1,6 +1,5 @@
 import type { Care } from '@lily/api/contexts/care'
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
@@ -60,7 +59,7 @@ const attemptCancel = Effect.gen(function* () {
  *
  * - 'scheduled': plain reset — activation side effects never ran.
  * - 'active': the "end vacation now" button — runs the full end-routine
- *   (schedule shift + reminder rebuild) with effectiveEnd = now.
+ *   (schedule shift + reminder request) with effectiveEnd = now.
  * - 'none': nothing to cancel.
  *
  * Each write is a conditional update against the row just read. A lost
@@ -72,12 +71,11 @@ export const cancelVacation = (): Effect.Effect<
   SqlError | VacationNotFoundError | UserNotFoundError,
   | UserRepository
   | Care
-  | CareScheduleRepository
   | DelegationRepository
   | NotificationRepository
-  | CanopyRepository
   | PlantRepository
   | SqlClient.SqlClient
+  | Outbox
   | CurrentUser
 > =>
   pipe(

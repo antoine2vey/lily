@@ -9,12 +9,14 @@ import type { NotificationMetadata } from '@lily/shared'
 import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -64,6 +66,7 @@ export const notifications = pgTable(
     }),
     metadata: jsonb('metadata').$type<NotificationMetadata>(),
     params: jsonb('params'),
+    occasionDay: date('occasion_day'),
   },
   (table) => [
     index('notifications_user_id_idx').on(table.userId),
@@ -74,6 +77,9 @@ export const notifications = pgTable(
     index('notifications_pending_plant_type_idx')
       .on(table.plantId, table.type)
       .where(sql`${table.status} = 'pending'`),
+    uniqueIndex('notifications_occasion_unique')
+      .on(table.userId, table.plantId, table.type, table.occasionDay)
+      .where(sql`${table.occasionDay} IS NOT NULL`),
   ]
 )
 

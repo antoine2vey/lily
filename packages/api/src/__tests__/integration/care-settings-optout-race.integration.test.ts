@@ -27,7 +27,10 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
-import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import {
+  UserRepository,
+  UserRepositoryLive,
+} from '@lily/api/repositories/user.repository'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -214,23 +217,23 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     }
 
-    const optOutPausedBeforeDelete = (
+    const optOutPausedHoldingItsUserRow = (
       reached: Deferred.Deferred<void>,
       release: Deferred.Deferred<void>
     ) =>
       Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        UserRepository,
+        Effect.map(UserRepository, (repo) => ({
           ...repo,
-          deletePendingByUserIdAndTypes: (userId, types) =>
-            Deferred.succeed(reached, undefined).pipe(
-              Effect.andThen(Deferred.await(release)),
-              Effect.andThen(repo.deletePendingByUserIdAndTypes(userId, types))
+          update: (id, data) =>
+            repo.update(id, data).pipe(
+              Effect.tap(() => Deferred.succeed(reached, undefined)),
+              Effect.tap(() => Deferred.await(release))
             ),
         }))
       )
 
-    const carePausedBeforeOverdueDelete = (
+    const carePausedBeforeRowLocks = (
       reached: Deferred.Deferred<void>,
       release: Deferred.Deferred<void>
     ) =>
@@ -238,10 +241,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         NotificationRepository,
         Effect.map(NotificationRepository, (repo) => ({
           ...repo,
-          deletePendingByPlantsAndType: (plantIds, type) =>
+          lockReminders: (query) =>
             Deferred.succeed(reached, undefined).pipe(
               Effect.andThen(Deferred.await(release)),
-              Effect.andThen(repo.deletePendingByPlantsAndType(plantIds, type))
+              Effect.andThen(repo.lockReminders(query))
             ),
         }))
       )
@@ -272,7 +275,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           caretaker,
           updateUserSettings({ notifications: { careReminders: false } }).pipe(
             Effect.provide(
-              optOutPausedBeforeDelete(optOutReached, optOutRelease)
+              optOutPausedHoldingItsUserRow(optOutReached, optOutRelease)
             )
           )
         )
@@ -280,7 +283,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         const careReached = Deferred.makeUnsafe<void>()
         const careRelease = Deferred.makeUnsafe<void>()
-        const paused = carePausedBeforeOverdueDelete(careReached, careRelease)
+        const paused = carePausedBeforeRowLocks(careReached, careRelease)
         const care: Promise<Exit.Exit<unknown, unknown>> = bulk
           ? as(
               owner,

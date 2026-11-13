@@ -109,11 +109,6 @@ export const createMockCareScheduleRepository = (
     findByPlant: (plantId: string) =>
       Effect.succeed(Array.filter(schedulesData, (s) => s.plantId === plantId)),
 
-    findByPlantIds: (plantIds: ReadonlyArray<string>) =>
-      Effect.succeed(
-        Array.filter(schedulesData, (s) => Array.contains(plantIds, s.plantId))
-      ),
-
     findReminderAudience: (plantIds: ReadonlyArray<string>) =>
       Effect.succeed(
         pipe(

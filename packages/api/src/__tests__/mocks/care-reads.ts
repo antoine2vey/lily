@@ -109,7 +109,12 @@ export const createMockCareReads = (
                 Option.flatMap((plant) =>
                   pipe(
                     Option.fromNullishOr(schedule.nextCareAt),
-                    Option.filter((dueAt) => dueAt < dueBefore),
+                    Option.filter((dueAt) =>
+                      Option.match(dueBefore, {
+                        onNone: () => true,
+                        onSome: (cutoff) => dueAt < cutoff,
+                      })
+                    ),
                     Option.map((dueAt): ScheduledCare => {
                       const owner = ownerOf(plant)
                       const ownerId =

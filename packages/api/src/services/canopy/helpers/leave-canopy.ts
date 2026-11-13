@@ -1,9 +1,8 @@
+import type { Outbox } from '@lily/api/kernel/outbox'
+import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canopy'
 import {
   dropMember,
@@ -15,15 +14,10 @@ import {
   type RecordedNotification,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
-import { canopyPlantIdsOf } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { CanopyNotFoundError } from '@lily/shared'
 import type { MessageQueue } from '@lily/shared/server'
 import { Array, Data, Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type LeaveOutcome = Data.TaggedEnum<{
@@ -36,12 +30,10 @@ export const LeaveOutcome = Data.taggedEnum<LeaveOutcome>()
 type LeaveContext =
   | SqlClient.SqlClient
   | CanopyRepository
-  | CareScheduleRepository
   | NotificationRepository
-  | PlantRepository
-  | UserRepository
   | DelegationRepository
   | MessageQueue
+  | Outbox
 
 const leaveInTransaction = (
   userId: string,
@@ -92,47 +84,38 @@ export const leaveCanopy = (
   userId: string
 ): Effect.Effect<LeaveOutcome, CanopyNotFoundError | SqlError, LeaveContext> =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient
-    const outcome = yield* sql.withTransaction(
-      leaveInTransaction(userId, 'return')
-    )
+    const outcome = yield* transact(leaveInTransaction(userId, 'return'))
     yield* notifyLeave(outcome)
     return outcome
   }).pipe(Effect.withSpan('leaveCanopy', { attributes: { 'user.id': userId } }))
 
+/**
+ * Runs `deletion` in the transaction that takes the user out of their Canopy.
+ * The Canopy row is locked first, then every delegation the user is a party
+ * to, so the deletion sees memberships and delegations that cannot move.
+ */
 export const leaveCanopyAndDelete =
   (userId: string) =>
   <A, E, R>(
     deletion: Effect.Effect<A, E, R>
   ): Effect.Effect<A, E | SqlError, R | LeaveContext> =>
     Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient
-      const plantRepo = yield* PlantRepository
       const delegationRepo = yield* DelegationRepository
-      const [outcome, result] = yield* sql.withTransaction(
+      const [outcome, result] = yield* transact(
         Effect.gen(function* () {
-          const inCanopy = yield* lockMyCanopy(userId).pipe(
-            Effect.as(true),
-            Effect.catchTag('CanopyNotFoundError', () => Effect.succeed(false))
+          yield* lockMyCanopy(userId).pipe(
+            Effect.catchTag('CanopyNotFoundError', () => Effect.void)
           )
-          const canopyPlants = inCanopy ? yield* canopyPlantIdsOf(userId) : []
           yield* delegationRepo.lockAllForUser(userId)
-          const personalPlants =
-            yield* plantRepo.findPersonalReminderPlantIds(userId)
-          return yield* withReminderKeys(
-            reminderKeysFor(Array.dedupe([...canopyPlants, ...personalPlants])),
-            Option.some(userId)
-          )(
-            Effect.all([
-              leaveInTransaction(userId, 'stay').pipe(
-                Effect.map(Option.some),
-                Effect.catchTag('CanopyNotFoundError', () =>
-                  Effect.succeed(Option.none<LeaveOutcome>())
-                )
-              ),
-              deletion,
-            ])
-          )
+          return yield* Effect.all([
+            leaveInTransaction(userId, 'stay').pipe(
+              Effect.map(Option.some),
+              Effect.catchTag('CanopyNotFoundError', () =>
+                Effect.succeed(Option.none<LeaveOutcome>())
+              )
+            ),
+            deletion,
+          ])
         })
       )
       yield* Option.match(outcome, {

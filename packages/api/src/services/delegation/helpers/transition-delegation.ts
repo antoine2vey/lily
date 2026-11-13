@@ -1,8 +1,10 @@
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import {
+  type DelegationPlantRow,
   DelegationRepository,
   type DelegationRow,
 } from '@lily/api/repositories/delegation.repository'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   DelegationInvalidStatusError,
   DelegationNotFoundError,
@@ -58,9 +60,18 @@ export const transitionDelegation = (params: {
     )
   })
 
-export const rebuildDelegationReminders = (
+/**
+ * A delegation that enters or leaves `active` changes who is reminded of its
+ * plants. Run it in the transaction of the transition, so the request exists
+ * if and only if the new status does.
+ */
+export const plantsHandedOver = (
   transitioned: ReadonlyArray<DelegationRow>
-) =>
+): Effect.Effect<
+  ReadonlyArray<readonly [DelegationRow, ReadonlyArray<DelegationPlantRow>]>,
+  SqlError,
+  DelegationRepository | Outbox
+> =>
   Effect.gen(function* () {
     const delegationRepo = yield* DelegationRepository
     const handedOver = yield* Effect.forEach(transitioned, (delegation) =>
@@ -69,12 +80,13 @@ export const rebuildDelegationReminders = (
         (plants) => [delegation, plants] as const
       )
     )
-    yield* rescheduleReminders(
-      Array.dedupe(
-        Array.flatMap(handedOver, ([, plants]) =>
-          Array.map(plants, (plant) => plant.id)
-        )
+    const plantIds = Array.dedupe(
+      Array.flatMap(handedOver, ([, plants]) =>
+        Array.map(plants, (plant) => plant.id)
       )
     )
+    if (Array.isReadonlyArrayNonEmpty(plantIds)) {
+      yield* Reminders.request(Dirty.Plants({ plantIds }))
+    }
     return handedOver
   })

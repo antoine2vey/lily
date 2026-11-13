@@ -16,9 +16,9 @@ import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/noti
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
+import { Dirty, replan, replanPlants } from '@lily/api/contexts/reminders'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, References } from 'effect'
+import { Array, Effect, Layer, Option, References } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)
@@ -75,7 +75,10 @@ const run = (
     createTestSchedule({ plantId: 'personal', nextCareAt: inDays(2) }),
   ]
   return Effect.runPromise(
-    rebuildMemberReminders(userId, plantIds).pipe(
+    Option.match(Option.fromNullishOr(plantIds), {
+      onNone: () => replan(Dirty.Recipient({ userId })),
+      onSome: (ids) => replanPlants(ids, Option.some(userId)),
+    }).pipe(
       Effect.provide(
         Layer.mergeAll(
           MockSqlClientLive,
@@ -94,7 +97,12 @@ const run = (
           ]),
           createMockCanopyRepository(
             createCanopyStore({
-              canopies: [createTestCanopyRow({ id: mockCanopyId })],
+              canopies: [
+                createTestCanopyRow({
+                  id: mockCanopyId,
+                  timezone: 'Europe/Paris',
+                }),
+              ],
               members,
               plants: plants.map((p) => ({
                 id: p.id,
@@ -109,6 +117,7 @@ const run = (
             plants,
             schedules,
             memberships: members,
+            timezones: { [mockCanopyId]: 'Europe/Paris' },
           }),
           createMockPlantRepository({ plants }),
           createMockDelegationRepository()
@@ -121,12 +130,12 @@ const run = (
   )
 }
 
-describe('rebuildMemberReminders', () => {
+describe('a replan for one recipient', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('gives a joiner a row for a Canopy schedule due earlier today in the Canopy zone', async () => {
+  it('gives a joiner a row for a Canopy schedule due today while their send time is ahead', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2099-06-15T10:00:00.000Z'))
     const parisMidnightJun15 = new Date('2099-06-14T22:00:00.000Z')
@@ -136,12 +145,22 @@ describe('rebuildMemberReminders', () => {
     expect(rows).toEqual([['lily', 'due-today', 'watering_reminder']])
   })
 
-  it('gives a joiner a row for every future Canopy schedule, and nobody else', async () => {
+  it('gives a joiner no row for a Canopy schedule due today once their send time has passed', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2099-06-15T10:00:00.000Z'))
+    const rows = await run('alex', ['due-today', 'overdue'], [], {
+      dueToday: new Date('2099-06-14T22:00:00.000Z'),
+    })
+    expect(rows).toEqual([])
+  })
+
+  it('gives a member a row for every future schedule they are reminded of, and nobody else', async () => {
     const rows = await run('lily')
     expect(rows.sort()).toEqual([
       ['lily', 'cactus', 'watering_reminder'],
       ['lily', 'fern', 'fertilization_reminder'],
       ['lily', 'fern', 'watering_reminder'],
+      ['lily', 'personal', 'watering_reminder'],
     ])
   })
 
@@ -167,23 +186,27 @@ describe('rebuildMemberReminders', () => {
     expect(Array.map(existing, (n) => n.id)).toEqual(['sent-today'])
   })
 
-  it('keeps the member overdue rows for the plant', async () => {
-    const overdue: Notification = {
-      id: 'overdue-row',
+  it('keeps the member overdue row while the plant is overdue, and drops it once it is not', async () => {
+    const overdueRow = (plantId: string): Notification => ({
+      id: `overdue-row-${plantId}`,
       type: 'overdue_reminder',
       scheduledAt: inDays(0.1),
       isRead: false,
       status: 'pending',
       retryCount: 0,
       userId: 'lily',
-      plantId: 'fern',
+      plantId,
       createdAt: new Date(),
-    }
-    const rows = await run('lily', ['fern'], [overdue])
+    })
+    const rows = await run(
+      'lily',
+      ['fern', 'overdue'],
+      [overdueRow('fern'), overdueRow('overdue')]
+    )
     expect(rows.sort()).toEqual([
       ['lily', 'fern', 'fertilization_reminder'],
-      ['lily', 'fern', 'overdue_reminder'],
       ['lily', 'fern', 'watering_reminder'],
+      ['lily', 'overdue', 'overdue_reminder'],
     ])
   })
 

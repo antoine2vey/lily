@@ -1,8 +1,8 @@
+import { Reminders } from '@lily/api/contexts/reminders'
 import { type AppEvent, EventBus } from '@lily/api/events'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import type { CareType } from '@lily/shared'
 import {
   type IPushService,
@@ -122,7 +122,7 @@ const refreshCardsFor = (params: {
     )
     const recipients = yield* Option.match(plant, {
       onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
-      onSome: reminderRecipients,
+      onSome: Reminders.audienceOf,
     })
     const owner = pipe(
       plant,

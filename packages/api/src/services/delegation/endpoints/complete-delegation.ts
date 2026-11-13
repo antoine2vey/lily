@@ -1,7 +1,8 @@
+import { transact } from '@lily/api/kernel/transact'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
-  rebuildDelegationReminders,
+  plantsHandedOver,
   transitionDelegation,
 } from '@lily/api/services/delegation/helpers/transition-delegation'
 import {
@@ -10,7 +11,6 @@ import {
   nowAsDate,
 } from '@lily/shared'
 import { Effect } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 
 export const completeDelegation = Effect.fn(
   'DelegationService.completeDelegation'
@@ -29,8 +29,7 @@ export const completeDelegation = Effect.fn(
     })
   }
 
-  const sql = yield* SqlClient.SqlClient
-  yield* sql.withTransaction(
+  yield* transact(
     transitionDelegation({
       delegationId,
       from: ['active'],
@@ -38,9 +37,7 @@ export const completeDelegation = Effect.fn(
       expectedStatus: 'active',
       message: 'Only active delegations can be completed early',
       timestamps: { completedAt: nowAsDate() },
-    }).pipe(
-      Effect.andThen((completed) => rebuildDelegationReminders([completed]))
-    )
+    }).pipe(Effect.andThen((completed) => plantsHandedOver([completed])))
   )
 
   const updated = yield* delegationRepo.findById(delegationId)

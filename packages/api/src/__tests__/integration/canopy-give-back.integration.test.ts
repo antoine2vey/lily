@@ -1,6 +1,9 @@
+import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
@@ -31,7 +34,8 @@ const ReposLive = Layer.mergeAll(
   NotificationRepositoryLive,
   PlantRepositoryLive,
   UserRepositoryLive,
-  createMockMessageQueue()
+  createMockMessageQueue(),
+  createMockEventBus()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const as = (userId: string) =>
@@ -39,8 +43,8 @@ const as = (userId: string) =>
 
 const run = <A, E>(
   userId: string,
-  effect: Effect.Effect<A, E, Layer.Success<ReturnType<typeof as>>>
-) => Effect.runPromise(Effect.provide(effect, as(userId)))
+  effect: Effect.Effect<A, E, Layer.Success<ReturnType<typeof as>> | Outbox>
+) => Effect.runPromise(Effect.provide(settled(effect), as(userId)))
 
 const plantValues = {
   name: 'Monstera',

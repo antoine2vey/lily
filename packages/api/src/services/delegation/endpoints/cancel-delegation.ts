@@ -1,8 +1,9 @@
+import { transact } from '@lily/api/kernel/transact'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
-  rebuildDelegationReminders,
+  plantsHandedOver,
   transitionDelegation,
 } from '@lily/api/services/delegation/helpers/transition-delegation'
 import {
@@ -15,7 +16,6 @@ import {
   nowAsDate,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 
 export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
   function* (delegationId: string) {
@@ -45,9 +45,8 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
       () => 'en' as const
     )
 
-    const sql = yield* SqlClient.SqlClient
     const canceledAt = nowAsDate()
-    const notification = yield* sql.withTransaction(
+    const notification = yield* transact(
       Effect.gen(function* () {
         const canceledBeforeStart =
           delegation.status === 'active'
@@ -67,7 +66,7 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
             message: 'This delegation cannot be canceled in its current state',
             timestamps: { canceledAt },
           })
-          yield* rebuildDelegationReminders([canceled])
+          yield* plantsHandedOver([canceled])
         }
         return yield* recordNotification(
           'delegation_canceled',

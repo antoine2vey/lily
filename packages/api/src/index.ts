@@ -42,6 +42,7 @@ import { startOverdueScheduler } from '@lily/api/services/overdue-scheduler/sche
 import { PlantCatalogApiLive } from '@lily/api/services/plant-catalog/handlers'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import { startPushReceiptScheduler } from '@lily/api/services/push-receipt-scheduler/scheduler'
+import { startRemindersAuditScheduler } from '@lily/api/services/reminders-audit/scheduler'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
 import { SocialApiLive } from '@lily/api/services/social/handlers'
 import {
@@ -90,6 +91,10 @@ const AchievementReconciliationSchedulerLive = Layer.effectDiscard(
 
 const OverdueSchedulerLive = Layer.effectDiscard(startOverdueScheduler)
 
+const RemindersAuditSchedulerLive = Layer.effectDiscard(
+  startRemindersAuditScheduler
+)
+
 const EngagementSchedulerLive = Layer.effectDiscard(startEngagementScheduler)
 
 const TipsSchedulerLive = Layer.effectDiscard(startTipsScheduler)
@@ -131,6 +136,7 @@ const AllSchedulersLive = Layer.mergeAll(
   AchievementSubscriberLive,
   DelegationSchedulerLive,
   OverdueSchedulerLive,
+  RemindersAuditSchedulerLive,
   WeatherSchedulerLive,
   NotificationSchedulerLive,
   NotificationWorkerLive,

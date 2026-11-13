@@ -1,11 +1,14 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
-import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import {
+  createMockOutbox,
+  MockOutboxLive,
+} from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { Dirty } from '@lily/api/contexts/reminders'
 import {
   withCanopyOwner,
   withUserOwner,
@@ -37,7 +40,7 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
-            createMockNotificationRepository([]),
+            MockOutboxLive,
             createMockEventBus(),
             createMockCurrentUser({ id: 'user-1' })
           )
@@ -58,7 +61,7 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
-            createMockNotificationRepository([]),
+            MockOutboxLive,
             createMockEventBus(),
             createMockCurrentUser({ id: 'user-1' })
           )
@@ -82,7 +85,7 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
-            createMockNotificationRepository([]),
+            MockOutboxLive,
             createMockEventBus(),
             createMockCurrentUser({ id: 'user-1' })
           )
@@ -100,25 +103,9 @@ describe('markPlantDead', () => {
     }
   })
 
-  it('deletes the pending reminders of the buried plant only', async () => {
+  it('asks Reminders to plan the buried plant again', async () => {
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
-    const notifications = [
-      createTestNotification({
-        id: 'n-dead-pending',
-        plantId: 'plant-1',
-        status: 'pending',
-      }),
-      createTestNotification({
-        id: 'n-dead-sent',
-        plantId: 'plant-1',
-        status: 'sent',
-      }),
-      createTestNotification({
-        id: 'n-other-pending',
-        plantId: 'plant-2',
-        status: 'pending',
-      }),
-    ]
+    const outbox = createMockOutbox()
 
     await Effect.runPromise(
       markPlantDead(asPlantWithRoom(plant), { cause: 'cold' }).pipe(
@@ -126,7 +113,7 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
-            createMockNotificationRepository(notifications),
+            outbox.layer,
             createMockEventBus(),
             createMockCurrentUser({ id: 'user-1' })
           )
@@ -134,10 +121,7 @@ describe('markPlantDead', () => {
       )
     )
 
-    const remaining = notifications.map((n) => n.id)
-    expect(remaining).not.toContain('n-dead-pending')
-    expect(remaining).toContain('n-dead-sent')
-    expect(remaining).toContain('n-other-pending')
+    expect(outbox.requested).toEqual([Dirty.Plants({ plantIds: ['plant-1'] })])
   })
 
   it('publishes a PlantLifecycleChanged event', async () => {
@@ -150,7 +134,7 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
-            createMockNotificationRepository([]),
+            MockOutboxLive,
             createMockEventBus({ publishedEvents: published }),
             createMockCurrentUser({ id: 'user-1' })
           )
@@ -189,7 +173,7 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             MockSqlClientLive,
             createMockPlantRepository({ plants: [plant] }),
-            createMockNotificationRepository([]),
+            MockOutboxLive,
             createMockEventBus({ publishedEvents: published }),
             createMockCurrentUser({ id: 'user-2' })
           )
@@ -221,6 +205,7 @@ describe('markPlantDead', () => {
       deathNote: null,
     }
     const repoLayer = createMockPlantRepository({ plants: [buried] })
+    const outbox = createMockOutbox()
 
     const exit = await Effect.runPromiseExit(
       Effect.gen(function* () {
@@ -239,7 +224,7 @@ describe('markPlantDead', () => {
           Layer.mergeAll(
             MockSqlClientLive,
             repoLayer,
-            createMockNotificationRepository([]),
+            outbox.layer,
             createMockEventBus(),
             createMockCurrentUser({ id: 'user-1' })
           )
@@ -253,5 +238,6 @@ describe('markPlantDead', () => {
       deathCause: 'underwatering',
       deathNote: 'first',
     })
+    expect(outbox.requested).toEqual([])
   })
 })

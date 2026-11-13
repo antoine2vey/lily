@@ -4,12 +4,18 @@ import type { PlantOwner } from '@lily/shared'
 import { Array, Effect, Filter, Match, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export interface ReminderPlant {
+export interface AddressedPlant {
   readonly id: string
   readonly owner: PlantOwner
 }
 
-export const reminderRecipientsOf = <P extends ReminderPlant>(
+/**
+ * Who each plant's reminders are addressed to, before the recipient's own
+ * settings apply. A personal plant addresses its active caretaker, or its
+ * owner when nobody tends it. A Canopy plant addresses every member who has
+ * not muted it.
+ */
+export const audiencesOf = <P extends AddressedPlant>(
   plants: ReadonlyArray<P>
 ): Effect.Effect<
   ReadonlyArray<readonly [P, ReadonlyArray<string>]>,
@@ -45,18 +51,19 @@ export const reminderRecipientsOf = <P extends ReminderPlant>(
           )
         ),
         Match.exhaustive,
-        Effect.map((recipients) => [plant, recipients] as const)
+        Effect.map((audience) => [plant, audience] as const)
       )
     )
   })
 
-export const reminderRecipients = (
-  plant: ReminderPlant
+/** `audiencesOf` for one plant. */
+export const audienceOf = (
+  plant: AddressedPlant
 ): Effect.Effect<
   ReadonlyArray<string>,
   SqlError,
   DelegationRepository | CanopyRepository
 > =>
-  Effect.map(reminderRecipientsOf([plant]), (pairs) =>
-    Array.flatMap(pairs, ([, recipients]) => recipients)
+  Effect.map(audiencesOf([plant]), (pairs) =>
+    Array.flatMap(pairs, ([, audience]) => audience)
   )

@@ -1,21 +1,14 @@
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
 import { EventBus, publishWithRetry } from '@lily/api/events'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
 import {
@@ -27,7 +20,7 @@ import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
- * "Bring back": clear the death columns and rebuild reminders from the
+ * "Bring back": clear the death columns and ask Reminders to plan from the
  * schedule rows that survived burial. Only future due dates get a reminder;
  * past ones are left for the overdue scheduler, so a neglected plant comes
  * back overdue rather than magically fresh.
@@ -39,14 +32,11 @@ export const revivePlant = (
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantNotDeadError | LimitExceededError,
   | PlantRepository
-  | CareScheduleRepository
-  | NotificationRepository
-  | UserRepository
-  | DelegationRepository
   | LimitChecker
   | EventBus
   | CurrentUser
   | SqlClient.SqlClient
+  | Outbox
   | CanopyRepository
 > =>
   Effect.gen(function* () {
@@ -62,20 +52,18 @@ export const revivePlant = (
     // A revived plant takes a slot again; free users at the cap are paywalled
     // exactly like on create, so bury-then-revive is not a way around it.
     yield* withOwnerLock(plant.owner)(
-      withReminderKeys(reminderKeysFor([plant.id]))(
-        Effect.gen(function* () {
-          const current = yield* reloadOwnedPlant(plant, requestedId)
-          if (current.diedAt === null) {
-            return yield* new PlantNotDeadError()
-          }
-          yield* limitChecker.checkPlantLimit(plant.owner)
-          const updated = yield* repo.revive(plant.id, plant.owner)
-          if (!updated) {
-            return yield* new PlantNotFoundError({ plantId: requestedId })
-          }
-          yield* rescheduleReminders([updated.id])
-        })
-      )
+      Effect.gen(function* () {
+        const current = yield* reloadOwnedPlant(plant, requestedId)
+        if (current.diedAt === null) {
+          return yield* new PlantNotDeadError()
+        }
+        yield* limitChecker.checkPlantLimit(plant.owner)
+        const updated = yield* repo.revive(plant.id, plant.owner)
+        if (!updated) {
+          return yield* new PlantNotFoundError({ plantId: requestedId })
+        }
+        yield* Reminders.request(Dirty.Plants({ plantIds: [updated.id] }))
+      })
     ).pipe(
       Effect.catchTag('CanopyNotFoundError', () =>
         Effect.fail(new PlantNotFoundError({ plantId: requestedId }))

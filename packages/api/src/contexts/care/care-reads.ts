@@ -48,6 +48,8 @@ export type DueWindow = Data.TaggedEnum<{
   DueOrOverdue: Record<never, never>
   /** Overdue, due today, and upcoming within `days` care days. */
   Ahead: { readonly days: number }
+  /** Every schedule, however far ahead its due day. */
+  Any: Record<never, never>
 }>
 export const DueWindow = Data.taggedEnum<DueWindow>()
 
@@ -100,7 +102,9 @@ export class CareReads extends Context.Service<
   }
 >()('care/CareReads') {}
 
-const daysAhead = (upTo: DueWindow): number =>
+type BoundedWindow = Exclude<DueWindow, { readonly _tag: 'Any' }>
+
+const daysAhead = (upTo: BoundedWindow): number =>
   Match.valueTags(upTo, {
     Overdue: () => 0,
     DueOrOverdue: () => 0,
@@ -112,6 +116,7 @@ const admits = (upTo: DueWindow, status: CareStatus): boolean =>
     Overdue: () => status._tag === 'Overdue',
     DueOrOverdue: () => status._tag !== 'Upcoming',
     Ahead: ({ days }) => status._tag !== 'Upcoming' || status.inDays <= days,
+    Any: () => true,
   })
 
 const dueCareOrder: Order.Order<DueCare> = Order.combine(
@@ -144,7 +149,10 @@ const DST_SHIFT_HOURS = 1
 // started at or before now, give or take one clock change inside the window.
 const PRUNE_SLACK_HOURS = LONGEST_LOCAL_DAY_HOURS + DST_SHIFT_HOURS
 
-export const pruneCutoff = (upTo: DueWindow, now: DateTime.DateTime): Date =>
+export const pruneCutoff = (
+  upTo: BoundedWindow,
+  now: DateTime.DateTime
+): Date =>
   DateTime.toDateUtc(
     DateTime.add(now, { days: daysAhead(upTo), hours: PRUNE_SLACK_HOURS })
   )
@@ -152,12 +160,15 @@ export const pruneCutoff = (upTo: DueWindow, now: DateTime.DateTime): Date =>
 export const makeCareReads = (
   load: (
     scope: DueScope,
-    dueBefore: Date
+    dueBefore: Option.Option<Date>
   ) => Effect.Effect<ReadonlyArray<ScheduledCare>, SqlError>
 ): CareReads['Service'] => ({
   due: Effect.fn('CareReads.due')(function* ({ scope, upTo }: DueQuery) {
     const now = yield* DateTime.now
-    const schedules = yield* load(scope, pruneCutoff(upTo, now))
+    const schedules = yield* load(
+      scope,
+      upTo._tag === 'Any' ? Option.none() : Option.some(pruneCutoff(upTo, now))
+    )
     return seeDue(schedules, upTo, now)
   }),
 })
@@ -219,7 +230,10 @@ export const CareReadsLive = Layer.effect(
               inScope(scope),
               isLivingPlant(),
               isNotNull(plantCareSchedules.nextCareAt),
-              lt(plantCareSchedules.nextCareAt, dueBefore)
+              Option.match(dueBefore, {
+                onNone: () => undefined,
+                onSome: (cutoff) => lt(plantCareSchedules.nextCareAt, cutoff),
+              })
             )
           )
         return Array.filterMap(

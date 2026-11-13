@@ -21,7 +21,7 @@ import {
   users,
 } from '@lily/db/schema'
 import type { CareType, PlantOwner } from '@lily/shared'
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -63,9 +63,6 @@ export interface ICareScheduleRepository {
   readonly findByPlant: (
     plantId: string
   ) => Effect.Effect<Array<CareScheduleRow>, SqlError>
-  readonly findByPlantIds: (
-    plantIds: ReadonlyArray<string>
-  ) => Effect.Effect<ReadonlyArray<CareScheduleRow>, SqlError>
   /**
    * Who gets care reminders for these plants, grouped by audience member.
    * Living plants with reminders enabled only; reachable users only.
@@ -122,17 +119,6 @@ export const CareScheduleRepositoryLive = Layer.effect(
           .where(eq(plantCareSchedules.plantId, plantId))
         return rows
       }),
-
-      findByPlantIds: Effect.fn('CareScheduleRepository.findByPlantIds')(
-        function* (plantIds: ReadonlyArray<string>) {
-          if (Array.isReadonlyArrayEmpty(plantIds)) return []
-          return yield* db
-            .select()
-            .from(plantCareSchedules)
-            .where(inArray(plantCareSchedules.plantId, [...plantIds]))
-            .orderBy(asc(plantCareSchedules.id))
-        }
-      ),
 
       findReminderAudience: Effect.fn(
         'CareScheduleRepository.findReminderAudience'

@@ -1,3 +1,4 @@
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
@@ -6,6 +7,7 @@ import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -81,22 +83,26 @@ describe('vacation-scheduler', () => {
     await run(
       pollAndTransitionVacations.pipe(
         Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            createStubCare().layer,
-            withRacingWrite(users, 'findVacationsToActivate', () => {
-              users[0] = {
-                ...user,
-                vacationStatus: 'none',
-                vacationStart: null,
-                vacationEnd: null,
-              }
-            }),
-            createMockNotificationRepository(notifications),
-            createMockCareScheduleRepository({}),
-            createMockPlantRepository({ plants: [] }),
-            createMockCanopyRepository(),
-            createMockDelegationRepository({})
+          DeliveringOutboxLive.pipe(
+            Layer.provideMerge(
+              Layer.mergeAll(
+                MockSqlClientLive,
+                createStubCare().layer,
+                withRacingWrite(users, 'findVacationsToActivate', () => {
+                  users[0] = {
+                    ...user,
+                    vacationStatus: 'none',
+                    vacationStart: null,
+                    vacationEnd: null,
+                  }
+                }),
+                createMockNotificationRepository(notifications),
+                createMockCareScheduleRepository({}),
+                createMockPlantRepository({ plants: [] }),
+                createMockCanopyRepository(),
+                createMockDelegationRepository({})
+              )
+            )
           )
         )
       )
@@ -123,17 +129,21 @@ describe('vacation-scheduler', () => {
     await run(
       pollAndTransitionVacations.pipe(
         Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            care.layer,
-            withRacingWrite(users, 'findVacationsToEnd', () => {
-              users[0] = { ...user, vacationEnd: extendedEnd }
-            }),
-            createMockNotificationRepository([]),
-            createMockCareScheduleRepository({ plants: [plant] }),
-            createMockPlantRepository({ plants: [plant] }),
-            createMockCanopyRepository(),
-            createMockDelegationRepository({})
+          DeliveringOutboxLive.pipe(
+            Layer.provideMerge(
+              Layer.mergeAll(
+                MockSqlClientLive,
+                care.layer,
+                withRacingWrite(users, 'findVacationsToEnd', () => {
+                  users[0] = { ...user, vacationEnd: extendedEnd }
+                }),
+                createMockNotificationRepository([]),
+                createMockCareScheduleRepository({ plants: [plant] }),
+                createMockPlantRepository({ plants: [plant] }),
+                createMockCanopyRepository(),
+                createMockDelegationRepository({})
+              )
+            )
           )
         )
       )
@@ -159,10 +169,12 @@ describe('vacation-scheduler', () => {
       vacationEnd: daysFromNow(10),
     })
     const users = [dueUser, futureUser]
+    const plant = createTestPlant({ id: 'plant-due', userId: 'user-due' })
     const notifications: Notification[] = [
       createTestNotification({
         id: 'n-care',
         userId: 'user-due',
+        plantId: plant.id,
         type: 'watering_reminder',
         status: 'pending',
       }),
@@ -177,15 +189,27 @@ describe('vacation-scheduler', () => {
     await run(
       pollAndTransitionVacations.pipe(
         Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            createStubCare().layer,
-            createMockUserRepository(users),
-            createMockNotificationRepository(notifications),
-            createMockCareScheduleRepository({}),
-            createMockPlantRepository({ plants: [] }),
-            createMockCanopyRepository(),
-            createMockDelegationRepository({})
+          DeliveringOutboxLive.pipe(
+            Layer.provideMerge(
+              Layer.mergeAll(
+                MockSqlClientLive,
+                createStubCare().layer,
+                createMockUserRepository(users),
+                createMockNotificationRepository(notifications),
+                createMockCareScheduleRepository({
+                  plants: [plant],
+                  schedules: [
+                    createTestSchedule({
+                      plantId: plant.id,
+                      nextCareAt: daysFromNow(3),
+                    }),
+                  ],
+                }),
+                createMockPlantRepository({ plants: [plant] }),
+                createMockCanopyRepository(),
+                createMockDelegationRepository({})
+              )
+            )
           )
         )
       )
@@ -193,7 +217,6 @@ describe('vacation-scheduler', () => {
 
     expect(findUser(users, 'user-due')?.vacationStatus).toBe('active')
     expect(findUser(users, 'user-future')?.vacationStatus).toBe('scheduled')
-    // Muted care row deleted, social row kept
     expect(Array.map(notifications, (n) => n.id)).toEqual(['n-social'])
   })
 
@@ -214,15 +237,19 @@ describe('vacation-scheduler', () => {
     await run(
       pollAndTransitionVacations.pipe(
         Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            care.layer,
-            createMockUserRepository(users),
-            createMockNotificationRepository([]),
-            createMockCareScheduleRepository({ plants: [plant] }),
-            createMockPlantRepository({ plants: [plant] }),
-            createMockCanopyRepository(),
-            createMockDelegationRepository({})
+          DeliveringOutboxLive.pipe(
+            Layer.provideMerge(
+              Layer.mergeAll(
+                MockSqlClientLive,
+                care.layer,
+                createMockUserRepository(users),
+                createMockNotificationRepository([]),
+                createMockCareScheduleRepository({ plants: [plant] }),
+                createMockPlantRepository({ plants: [plant] }),
+                createMockCanopyRepository(),
+                createMockDelegationRepository({})
+              )
+            )
           )
         )
       )
@@ -251,15 +278,19 @@ describe('vacation-scheduler', () => {
     await run(
       pollAndTransitionVacations.pipe(
         Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            createStubCare().layer,
-            createMockUserRepository(users),
-            createMockNotificationRepository([]),
-            createMockCareScheduleRepository({}),
-            createMockPlantRepository({ plants: [] }),
-            createMockCanopyRepository(),
-            createMockDelegationRepository({})
+          DeliveringOutboxLive.pipe(
+            Layer.provideMerge(
+              Layer.mergeAll(
+                MockSqlClientLive,
+                createStubCare().layer,
+                createMockUserRepository(users),
+                createMockNotificationRepository([]),
+                createMockCareScheduleRepository({}),
+                createMockPlantRepository({ plants: [] }),
+                createMockCanopyRepository(),
+                createMockDelegationRepository({})
+              )
+            )
           )
         )
       )

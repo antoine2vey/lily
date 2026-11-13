@@ -1,3 +1,4 @@
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -112,7 +113,11 @@ export const setVacation = (
 ): Effect.Effect<
   VacationState,
   SqlError | VacationDateError | UserNotFoundError,
-  UserRepository | NotificationRepository | SqlClient.SqlClient | CurrentUser
+  | UserRepository
+  | NotificationRepository
+  | SqlClient.SqlClient
+  | CurrentUser
+  | Outbox
 > =>
   pipe(
     attemptSet(request),

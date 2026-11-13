@@ -1,15 +1,13 @@
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
 import { EventBus, publishWithRetry } from '@lily/api/events'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import type { Outbox } from '@lily/api/kernel/outbox'
+import { transact } from '@lily/api/kernel/transact'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   PlantAlreadyDeadError,
   PlantNotFoundError,
@@ -20,9 +18,9 @@ import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
- * "Say goodbye": flag the plant as dead, drop its pending reminders and let
- * the Live Activity subscriber refresh the user's card. Schedule rows are
- * kept on purpose — `revive-plant` rebuilds reminders from them.
+ * "Say goodbye": flag the plant as dead, ask Reminders to drop what it had
+ * planned and let the Live Activity subscriber refresh the user's card.
+ * Schedule rows are kept on purpose: a revive plans reminders from them.
  */
 export const markPlantDead = (
   plant: PlantWithRoom,
@@ -31,11 +29,7 @@ export const markPlantDead = (
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
-  | PlantRepository
-  | NotificationRepository
-  | EventBus
-  | CurrentUser
-  | SqlClient.SqlClient
+  PlantRepository | EventBus | CurrentUser | SqlClient.SqlClient | Outbox
 > =>
   Effect.gen(function* () {
     if (plant.diedAt !== null) {
@@ -43,11 +37,10 @@ export const markPlantDead = (
     }
 
     const repo = yield* PlantRepository
-    const notificationRepo = yield* NotificationRepository
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
 
-    yield* withReminderKeys(reminderKeysFor([plant.id]))(
+    yield* transact(
       Effect.gen(function* () {
         const updated = yield* repo.markDead(plant.id, plant.owner, {
           diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
@@ -60,7 +53,7 @@ export const markPlantDead = (
             ? new PlantNotFoundError({ plantId: requestedId })
             : new PlantAlreadyDeadError()
         }
-        yield* notificationRepo.deletePendingByPlantId(plant.id)
+        yield* Reminders.request(Dirty.Plants({ plantIds: [plant.id] }))
       })
     )
 

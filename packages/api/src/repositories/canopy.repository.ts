@@ -128,10 +128,6 @@ export interface ICanopyRepository {
   readonly findPlantIdsOfCanopy: (
     canopyId: string
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
-  readonly findAudiblePlantIds: (
-    userId: string,
-    plants: ReadonlyArray<{ readonly id: string; readonly canopyId: string }>
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly findWithLocation: () => Effect.Effect<
     ReadonlyArray<CanopyRow>,
     SqlError
@@ -378,44 +374,6 @@ export const CanopyRepositoryLive = Layer.effect(
             .from(plants)
             .where(eq(plants.canopyId, canopyId))
           return Array.map(rows, (row) => row.id)
-        }
-      ),
-
-      findAudiblePlantIds: Effect.fn('CanopyRepository.findAudiblePlantIds')(
-        function* (
-          userId: string,
-          candidates: ReadonlyArray<{
-            readonly id: string
-            readonly canopyId: string
-          }>
-        ) {
-          if (Array.isReadonlyArrayEmpty(candidates)) return []
-          const rows = yield* db
-            .select({
-              canopyId: canopyMembers.canopyId,
-              mutedPlantId: canopyPlantMutes.plantId,
-            })
-            .from(canopyMembers)
-            .leftJoin(
-              canopyPlantMutes,
-              and(
-                eq(canopyPlantMutes.userId, canopyMembers.userId),
-                inArray(
-                  canopyPlantMutes.plantId,
-                  Array.map(candidates, (p) => p.id)
-                )
-              )
-            )
-            .where(eq(canopyMembers.userId, userId))
-          return pipe(
-            candidates,
-            Array.filter(
-              (p) =>
-                Array.some(rows, (r) => r.canopyId === p.canopyId) &&
-                !Array.some(rows, (r) => r.mutedPlantId === p.id)
-            ),
-            Array.map((p) => p.id)
-          )
         }
       ),
 

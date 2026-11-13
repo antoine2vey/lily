@@ -1,4 +1,4 @@
-import { delivered } from '@lily/api/__tests__/integration/care-layers'
+import { delivered, settled } from '@lily/api/__tests__/integration/care-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -10,6 +10,8 @@ import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.r
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { Reminders } from '@lily/api/contexts/reminders'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -39,7 +41,6 @@ import { dispatchNow } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -233,10 +234,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         createMockCurrentUser({ id: actor.id, email: actor.email })
       )
       const run = <A, E>(
-        effect: Effect.Effect<A, E, Layer.Success<typeof PipelineLive>>
+        effect: Effect.Effect<A, E, Layer.Success<typeof PipelineLive> | Outbox>
       ) =>
         Effect.runPromise(
           effect.pipe(
+            settled,
             Effect.provide(PipelineLive),
             Effect.provideService(References.MinimumLogLevel, 'None')
           )
@@ -510,7 +512,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             repo.findById(plant.id)
           ).pipe(
             Effect.flatMap((row) =>
-              row ? reminderRecipients(row) : Effect.die('plant missing')
+              row ? Reminders.audienceOf(row) : Effect.die('plant missing')
             )
           )
         )
@@ -689,7 +691,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               repo.findById(plant.id)
             ).pipe(
               Effect.flatMap((row) =>
-                row ? reminderRecipients(row) : Effect.die('plant missing')
+                row ? Reminders.audienceOf(row) : Effect.die('plant missing')
               )
             )
           )

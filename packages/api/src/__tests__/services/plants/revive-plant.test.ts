@@ -1,33 +1,26 @@
 import { createTestMembership } from '@lily/api/__tests__/fixtures/canopies'
-import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
-import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
   createMockCanopyRepository,
   createTestCanopyRow,
 } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { Dirty } from '@lily/api/contexts/reminders'
 import {
   withCanopyOwner,
   withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import type { CanopyId, PlantOwner } from '@lily/shared'
-import type { Notification } from '@lily/shared/notification'
 import type { AppEvent } from '@lily/shared/server'
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
-
-const DAY_MS = 24 * 60 * 60 * 1000
 
 const deadPlant = () =>
   createTestPlant({
@@ -69,23 +62,14 @@ const asCanopyPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
 
 const makeLayer = (options: {
   plant: ReturnType<typeof createTestPlant>
-  schedules?: ReturnType<typeof createTestSchedule>[]
-  notifications?: Notification[]
+  requested?: Dirty[]
   plantLimitReached?: boolean | ((owner: PlantOwner) => boolean)
   checkedOwners?: PlantOwner[]
   publishedEvents?: AppEvent[]
 }) =>
   Layer.mergeAll(
     createMockPlantRepository({ plants: [options.plant] }),
-    createMockCareScheduleRepository({
-      plants: [options.plant],
-      schedules: options.schedules ?? [],
-    }),
-    createMockNotificationRepository(options.notifications ?? []),
-    createMockUserRepository([
-      createTestUser({ id: 'user-1', timezone: 'UTC', careReminders: true }),
-    ]),
-    createMockDelegationRepository({}),
+    createMockOutbox(options.requested).layer,
     createMockCurrentUser({ id: 'user-1' }),
     createMockLimitChecker({
       plantLimitReached: options.plantLimitReached ?? false,
@@ -163,42 +147,30 @@ describe('revivePlant', () => {
 
   it('enforces the plant limit like create does', async () => {
     const plant = deadPlant()
+    const requested: Dirty[] = []
     const exit = await Effect.runPromiseExit(
       revivePlant(asPlantWithRoom(plant)).pipe(
-        Effect.provide(makeLayer({ plant, plantLimitReached: true }))
+        Effect.provide(makeLayer({ plant, plantLimitReached: true, requested }))
       )
     )
 
     expect(failureTag(exit)).toEqual(Option.some('LimitExceededError'))
     // The plant stays in the cemetery when the paywall blocks the revive
     expect(plant.diedAt).not.toBeNull()
+    expect(requested).toEqual([])
   })
 
-  it('re-schedules reminders only for future due dates', async () => {
+  it('asks Reminders to plan the revived plant again', async () => {
     const plant = deadPlant()
-    const notifications: Notification[] = []
-    const schedules = [
-      createTestSchedule({
-        plantId: 'plant-1',
-        careType: 'watering',
-        nextCareAt: new Date(Date.now() + 3 * DAY_MS),
-      }),
-      createTestSchedule({
-        plantId: 'plant-1',
-        careType: 'fertilization',
-        nextCareAt: new Date(Date.now() - 3 * DAY_MS),
-      }),
-    ]
+    const requested: Dirty[] = []
 
     await Effect.runPromise(
       revivePlant(asPlantWithRoom(plant)).pipe(
-        Effect.provide(makeLayer({ plant, schedules, notifications }))
+        Effect.provide(makeLayer({ plant, requested }))
       )
     )
 
-    const types = notifications.map((n) => n.type)
-    expect(types).toContain('watering_reminder')
-    expect(types).not.toContain('fertilization_reminder')
+    expect(requested).toEqual([Dirty.Plants({ plantIds: ['plant-1'] })])
   })
 
   it('publishes a PlantLifecycleChanged event', async () => {

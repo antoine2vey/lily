@@ -1,6 +1,9 @@
+import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import {
   CanopyRepository,
   CanopyRepositoryLive,
@@ -30,12 +33,13 @@ const AppLive = Layer.mergeAll(
   NotificationRepositoryLive,
   PlantRepositoryLive,
   UserRepositoryLive,
-  createMockMessageQueue()
+  createMockMessageQueue(),
+  createMockEventBus()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const run = <A, E>(
-  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive>>
-) => Effect.runPromise(Effect.provide(effect, AppLive))
+  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | Outbox>
+) => Effect.runPromise(Effect.provide(settled(effect), AppLive))
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)
 
@@ -192,6 +196,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const accept = () =>
         Effect.runPromiseExit(
           acceptCanopyInvitation(id).pipe(
+            settled,
             Effect.provide(
               Layer.merge(AppLive, createMockCurrentUser({ id: lilyId }))
             )

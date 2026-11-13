@@ -206,6 +206,7 @@ export const createInMemoryCare = (
         }),
       wake: Effect.void,
       drain: Effect.succeed(0),
+      redrive: () => Effect.succeed(0),
     })
   )
 

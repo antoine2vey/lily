@@ -1,11 +1,11 @@
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
+import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
-import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
+import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { MessageQueue } from '@lily/shared/server'
@@ -23,14 +23,13 @@ export const deleteUser = (
   | AdminUser
   | SqlClient.SqlClient
   | CanopyRepository
-  | CareScheduleRepository
   | NotificationRepository
   | DelegationRepository
   | PlantRepository
   | MessageQueue
+  | Outbox
 > =>
   Effect.gen(function* () {
-    const repo = yield* UserRepository
     const currentAdmin = yield* AdminUser
 
     // Prevent admins from deleting themselves
@@ -38,7 +37,7 @@ export const deleteUser = (
       return yield* new CannotModifySelfError()
     }
 
-    const deleted = yield* leaveCanopyAndDelete(id)(repo.delete(id))
+    const deleted = yield* purgeAccount(id)
 
     if (!deleted) {
       return yield* new UserNotFoundError()

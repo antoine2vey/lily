@@ -1,6 +1,7 @@
+import { transact } from '@lily/api/kernel/transact'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { rebuildDelegationReminders } from '@lily/api/services/delegation/helpers/transition-delegation'
+import { plantsHandedOver } from '@lily/api/services/delegation/helpers/transition-delegation'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   dispatchAll,
@@ -9,7 +10,6 @@ import {
 import type { DelegationStatus, LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const getUserLanguage = (
@@ -42,9 +42,8 @@ const transitionTogether = (
   Effect.gen(function* () {
     const delegationRepo = yield* DelegationRepository
     const userRepo = yield* UserRepository
-    const sql = yield* SqlClient.SqlClient
 
-    const recorded = yield* sql.withTransaction(
+    const recorded = yield* transact(
       Effect.gen(function* () {
         const transitioned = yield* Effect.forEach(delegations, (d) =>
           Effect.map(
@@ -67,9 +66,7 @@ const transitionTogether = (
             )
           )
         )
-        const handedOver = yield* rebuildDelegationReminders(
-          Array.getSomes(transitioned)
-        )
+        const handedOver = yield* plantsHandedOver(Array.getSomes(transitioned))
         return yield* Effect.forEach(handedOver, ([delegation, plants]) =>
           Effect.gen(function* () {
             const ownerLang = yield* getUserLanguage(

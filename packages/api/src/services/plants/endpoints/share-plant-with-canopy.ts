@@ -1,3 +1,4 @@
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
   PlantRepository,
@@ -10,12 +11,7 @@ import {
   withOwnerLock,
   withUserLock,
 } from '@lily/api/services/plants/helpers/owner-lock'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
   type MovePlantScopeRequest,
@@ -45,28 +41,26 @@ export const sharePlantWithCanopy = Effect.fn('PlantsService.shareWithCanopy')(
     const roomId = pipe(Option.fromNullishOr(request.roomId), Option.getOrNull)
     yield* withUserLock(userId)(
       withOwnerLock(canopy)(
-        withReminderKeys(reminderKeysFor([plant.id]))(
-          Effect.gen(function* () {
-            if (yield* delegationRepo.hasOpenDelegationForPlant(plant.id)) {
-              return yield* new PlantInDelegationError({ plantId: requestedId })
-            }
-            const current = yield* reloadOwnedPlant(plant, requestedId)
-            yield* assertRoomFits(roomId, canopy)
-            if (current.diedAt === null) {
-              yield* limitChecker.checkPlantLimit(canopy)
-            }
-            const moved = yield* repo.moveTo(
-              plant.id,
-              plant.owner,
-              canopy,
-              roomId
-            )
-            if (moved === null) {
-              return yield* new PlantNotFoundError({ plantId: requestedId })
-            }
-            yield* rescheduleReminders([moved.id])
-          })
-        )
+        Effect.gen(function* () {
+          if (yield* delegationRepo.hasOpenDelegationForPlant(plant.id)) {
+            return yield* new PlantInDelegationError({ plantId: requestedId })
+          }
+          const current = yield* reloadOwnedPlant(plant, requestedId)
+          yield* assertRoomFits(roomId, canopy)
+          if (current.diedAt === null) {
+            yield* limitChecker.checkPlantLimit(canopy)
+          }
+          const moved = yield* repo.moveTo(
+            plant.id,
+            plant.owner,
+            canopy,
+            roomId
+          )
+          if (moved === null) {
+            return yield* new PlantNotFoundError({ plantId: requestedId })
+          }
+          yield* Reminders.request(Dirty.Plants({ plantIds: [moved.id] }))
+        })
       )
     )
 

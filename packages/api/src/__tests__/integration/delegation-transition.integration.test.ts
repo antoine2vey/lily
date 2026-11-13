@@ -1,6 +1,11 @@
+import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import { Outbox } from '@lily/api/kernel/outbox'
+import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import {
@@ -16,10 +21,9 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array as Arr, Effect, Layer, ManagedRuntime, References } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
@@ -155,28 +159,52 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
   }
 )
 
-const rebuildFailsWhen = (
-  fails: (plantIds: ReadonlyArray<string>) => boolean
-) =>
+const injected = (message: string) =>
+  Effect.fail(
+    new SqlError({
+      reason: new UnknownError({ cause: new Error('injected'), message }),
+    })
+  )
+
+const RemindersCannotBePlanned = Layer.effect(
+  NotificationRepository,
+  Effect.map(NotificationRepository, (repo) => ({
+    ...repo,
+    lockReminders: () => injected('injected replan failure'),
+  }))
+)
+
+const NotificationsCannotBeRecorded = Layer.effect(
+  NotificationRepository,
+  Effect.map(NotificationRepository, (repo) => ({
+    ...repo,
+    create: () => injected('injected notification failure'),
+  }))
+)
+
+const transitionFailsFor = (delegationId: string) =>
   Layer.effect(
-    NotificationRepository,
-    Effect.map(NotificationRepository, (repo) => ({
+    DelegationRepository,
+    Effect.map(DelegationRepository, (repo) => ({
       ...repo,
-      replaceReminders: (replacement) =>
-        fails(Arr.map(replacement.plants, (p) => p.plantId))
-          ? Effect.fail(
-              new SqlError({
-                reason: new UnknownError({
-                  cause: new Error('injected'),
-                  message: 'injected rebuild failure',
-                }),
-              })
-            )
-          : repo.replaceReminders(replacement),
+      transitionStatus: (
+        ...args: Parameters<typeof repo.transitionStatus>
+      ): ReturnType<typeof repo.transitionStatus> =>
+        args[0] === delegationId
+          ? injected('injected transition failure')
+          : repo.transitionStatus(...args),
     }))
   )
 
-const RebuildAlwaysFails = rebuildFailsWhen(() => true)
+const RequestsCannotBeStored = Layer.succeed(
+  Outbox,
+  Outbox.of({
+    append: () => injected('injected outbox failure'),
+    wake: Effect.void,
+    drain: Effect.succeed(0),
+    redrive: () => Effect.succeed(0),
+  })
+)
 
 const ReminderServicesLive = Layer.mergeAll(
   PlantRepositoryLive,
@@ -203,17 +231,38 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let toBen: string
     let ivy: string
 
-    const as = <A, E, R>(userId: string, effect: Effect.Effect<A, E, R>) =>
+    const run = <A, E, R>(userId: string, effect: Effect.Effect<A, E, R>) =>
       runtime.runPromise(
         effect.pipe(
           Effect.provide(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId }),
-              createMockMessageQueue()
+              createMockMessageQueue(),
+              createMockEventBus()
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
         ) as Effect.Effect<A, E, Layer.Success<typeof ReminderServicesLive>>
+      )
+
+    const as = <A, E, R>(userId: string, effect: Effect.Effect<A, E, R>) =>
+      run(userId, settled(effect))
+
+    const plan = (...plantIds: ReadonlyArray<string>) =>
+      as(owner, transact(Reminders.request(Dirty.Plants({ plantIds }))))
+
+    const requests = () =>
+      db
+        .select({
+          pendingConsumers: schema.outbox.pendingConsumers,
+          processed: sql<boolean>`${schema.outbox.processedAt} is not null`,
+        })
+        .from(schema.outbox)
+        .orderBy(asc(schema.outbox.id))
+
+    const retryNow = () =>
+      db.execute(
+        sql`UPDATE outbox SET available_at = to_timestamp(0), claimed_until = NULL`
       )
 
     const user = async (name: string) => {
@@ -333,7 +382,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ivy = await plant('ivy', owner)
       toAnn = await delegate(fern, ann)
       toBen = await delegate(ivy, ben)
-      await as(owner, rescheduleReminders([fern, ivy]))
+      await plan(fern, ivy)
+      await db.execute(sql`TRUNCATE TABLE outbox RESTART IDENTITY`)
     })
 
     afterAll(async () => {
@@ -377,28 +427,40 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await as(owner, cancelDelegation(toAnn))
 
       expect(await pendingReminders()).toEqual(before)
+      expect(await requests()).toEqual([])
     })
 
-    it('leaves delegations accepted and reminders on the owner when the scheduler cannot rebuild them', async () => {
+    it('starts the delegations when their reminders cannot be planned, and hands the plants over on a later drain', async () => {
       const before = await pendingReminders()
 
-      await as(owner, Effect.provide(pollAndTransition, RebuildAlwaysFails))
+      await run(
+        owner,
+        Effect.provide(settled(pollAndTransition), RemindersCannotBePlanned)
+      )
 
-      expect(await statuses()).toEqual(['accepted', 'accepted'])
+      expect(await statuses()).toEqual(['active', 'active'])
       expect(await pendingReminders()).toEqual(before)
+      expect(await requests()).toEqual([
+        { pendingConsumers: ['reminders-replan'], processed: false },
+      ])
+
+      await retryNow()
+      await as(owner, Effect.void)
+
+      expect(await holders()).toEqual(['fern -> ann', 'ivy -> ben'])
+      expect(await requests()).toEqual([
+        { pendingConsumers: [], processed: true },
+      ])
     })
 
-    it('starts the other delegations of a tick when one of them cannot rebuild its reminders', async () => {
+    it('starts the other delegations of a tick when one of them cannot be written', async () => {
       const rose = await plant('rose', owner)
       await delegate(rose, await user('cat'))
-      await as(owner, rescheduleReminders([rose]))
+      await plan(rose)
 
       await as(
         owner,
-        Effect.provide(
-          pollAndTransition,
-          rebuildFailsWhen((plantIds) => plantIds.includes(ivy))
-        )
+        Effect.provide(pollAndTransition, transitionFailsFor(toBen))
       )
 
       expect(await statuses()).toEqual(['active', 'accepted', 'active'])
@@ -409,28 +471,36 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
-    it('keeps a delegation active and its reminders on the caretaker when completing it cannot rebuild them', async () => {
+    it('keeps a delegation active and its reminders on the caretaker when completing it cannot store the request', async () => {
       await as(owner, pollAndTransition)
       const before = await pendingReminders()
 
       await expect(
-        as(owner, Effect.provide(completeDelegation(toAnn), RebuildAlwaysFails))
+        as(
+          owner,
+          Effect.provide(completeDelegation(toAnn), RequestsCannotBeStored)
+        )
       ).rejects.toThrow()
 
       expect(await statuses()).toEqual(['active', 'active'])
       expect(await pendingReminders()).toEqual(before)
     })
 
-    it('keeps a delegation active and its reminders on the caretaker when canceling it cannot rebuild them', async () => {
+    it('keeps a delegation active, its reminders on the caretaker and no request when canceling it fails after the request', async () => {
       await as(owner, pollAndTransition)
+      await db.execute(sql`TRUNCATE TABLE outbox RESTART IDENTITY`)
       const before = await pendingReminders()
 
       await expect(
-        as(owner, Effect.provide(cancelDelegation(toBen), RebuildAlwaysFails))
+        as(
+          owner,
+          Effect.provide(cancelDelegation(toBen), NotificationsCannotBeRecorded)
+        )
       ).rejects.toThrow()
 
       expect(await statuses()).toEqual(['active', 'active'])
       expect(await pendingReminders()).toEqual(before)
+      expect(await requests()).toEqual([])
     })
   }
 )

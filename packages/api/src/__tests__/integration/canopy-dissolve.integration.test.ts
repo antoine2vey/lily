@@ -1,7 +1,10 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import {
   CanopyRepository,
   CanopyRepositoryLive,
@@ -63,12 +66,13 @@ const AppLive = Layer.mergeAll(
   NotificationRepositoryLive,
   PlantRepositoryLive,
   UserRepositoryLive,
-  createMockMessageQueue()
+  createMockMessageQueue(),
+  createMockEventBus()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const run = <A, E>(
-  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive>>
-) => Effect.runPromise(Effect.provide(effect, AppLive))
+  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | Outbox>
+) => Effect.runPromise(Effect.provide(settled(effect), AppLive))
 
 const plantValues = {
   name: 'Monstera',
@@ -105,6 +109,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       db
         .insert(schema.canopyMembers)
         .values({ canopyId, userId, role, joinedAt: new Date(joinedAt) })
+
+    const requestCount = async () =>
+      (await db.select({ id: schema.outbox.id }).from(schema.outbox)).length
 
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
@@ -243,6 +250,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         userId: alexId,
         createdByUserId: alexId,
       })
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: alexsOwn.id,
+        careType: 'watering',
+        frequencyDays: 7,
+        nextCareAt: inDays(1),
+      })
       await db.insert(schema.notifications).values([
         {
           userId: alexId,
@@ -306,11 +319,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await join(lilyId, 'member', '2024-02-01')
       const fern = await insertPlant({ canopyId, createdByUserId: alexId })
       const asLily = <A, E>(
-        effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | CurrentUser>
+        effect: Effect.Effect<
+          A,
+          E,
+          Layer.Success<typeof AppLive> | CurrentUser | Outbox
+        >
       ) =>
         Effect.runPromiseExit(
           Effect.provide(
-            effect,
+            settled(effect),
             Layer.merge(AppLive, createMockCurrentUser({ id: lilyId }))
           )
         )
@@ -432,15 +449,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await join(alexId, 'owner', '2024-01-01')
       await join(lilyId, 'member', '2024-02-01')
       const fern = await insertPlant({ canopyId, createdByUserId: alexId })
+      const requestsBefore = await requestCount()
 
       const exit = await Effect.runPromiseExit(
         Effect.provide(
-          leaveCanopyAndDelete(alexId)(Effect.fail(new UserNotFoundError())),
+          settled(
+            leaveCanopyAndDelete(alexId)(Effect.fail(new UserNotFoundError()))
+          ),
           AppLive
         )
       )
 
       expect(failureOf(exit)).toEqual(new UserNotFoundError())
+      expect(await requestCount()).toBe(requestsBefore)
       const members = await db
         .select({
           userId: schema.canopyMembers.userId,
@@ -487,11 +508,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       })
 
+      const requestsBefore = await requestCount()
+
       const exit = await Effect.runPromiseExit(
-        Effect.provide(leaveCanopy(lilyId), AppLive)
+        Effect.provide(settled(leaveCanopy(lilyId)), AppLive)
       )
 
       expect(Exit.isFailure(exit)).toBe(true)
+      expect(await requestCount()).toBe(requestsBefore)
       const members = await db
         .select({ userId: schema.canopyMembers.userId })
         .from(schema.canopyMembers)
@@ -624,6 +648,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const accept = (userId: string) =>
         Effect.runPromiseExit(
           acceptCanopyInvite(token).pipe(
+            settled,
             Effect.provide(
               Layer.merge(AppLive, createMockCurrentUser({ id: userId }))
             )

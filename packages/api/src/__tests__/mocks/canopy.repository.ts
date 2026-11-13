@@ -200,24 +200,6 @@ export const createMockCanopyRepository = (
           Array.map((p) => p.id)
         )
       ),
-    findAudiblePlantIds: (userId, candidates) =>
-      Effect.sync(() =>
-        pipe(
-          candidates,
-          Array.filter(
-            (p) =>
-              Array.some(
-                store.members,
-                (m) => m.userId === userId && m.canopyId === p.canopyId
-              ) &&
-              !Array.some(
-                store.mutes,
-                (mute) => mute.userId === userId && mute.plantId === p.id
-              )
-          ),
-          Array.map((p) => p.id)
-        )
-      ),
     findWithLocation: () =>
       Effect.sync(() =>
         Array.filter(

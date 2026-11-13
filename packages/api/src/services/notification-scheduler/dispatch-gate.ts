@@ -1,14 +1,15 @@
 import { CareReads, DueScope, DueWindow } from '@lily/api/contexts/care'
+import { Reminders } from '@lily/api/contexts/reminders'
 import type { NotificationRow } from '@lily/api/repositories/notification.repository'
 import {
   adjustForDoNotDisturb,
   decodeDndBounds,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import type { users } from '@lily/db/schema'
 import {
   CARE_TYPES,
+  type CareDay,
   type CareType,
   isOnVacation,
   type PlantOwner,
@@ -22,7 +23,7 @@ const DAYS_A_RECIPIENT_CAN_BE_AHEAD = 1
 
 export type GateRow = Pick<
   NotificationRow,
-  'id' | 'type' | 'userId' | 'plantId'
+  'id' | 'type' | 'userId' | 'plantId' | 'occasionDay'
 >
 
 export type RecipientSettings = Pick<
@@ -57,7 +58,11 @@ export interface PlantFacts {
   readonly diedAt: Date | null
   readonly recipients: ReadonlyArray<string>
   readonly hasOverdueCare: boolean
-  readonly nearlyDue: ReadonlyArray<CareType>
+  /** The cares due within a day, overdue ones included, with their due day. */
+  readonly nearlyDue: ReadonlyArray<{
+    readonly careType: CareType
+    readonly dueDay: CareDay
+  }>
 }
 
 export type DropReason =
@@ -68,6 +73,7 @@ export type DropReason =
   | 'not-recipient'
   | 'no-longer-overdue'
   | 'no-longer-due'
+  | 'superseded'
   | 'care-reminders-off'
   | 'tips-off'
 
@@ -89,6 +95,7 @@ export const DROP_MESSAGE: Record<DropReason, string> = {
   'not-recipient': 'Dropping care reminder - user no longer the recipient',
   'no-longer-overdue': 'Dropping overdue reminder - plant no longer overdue',
   'no-longer-due': 'Dropping care reminder - care no longer due',
+  superseded: 'Dropping care reminder - the care has a newer due day',
   'care-reminders-off': 'Dropping care reminder - user disabled',
   'tips-off': 'Dropping engagement notification - user disabled tips',
 }
@@ -121,15 +128,23 @@ const plantRule = (
           if (row.type === 'overdue_reminder' && !plant.hasOverdueCare) {
             return Option.some<DropReason>('no-longer-overdue')
           }
-          if (
-            Option.exists(
-              remindedCare(row.type),
-              (careType) => !Array.contains(plant.nearlyDue, careType)
+          return Option.flatMap(remindedCare(row.type), (careType) =>
+            pipe(
+              Array.findFirst(
+                plant.nearlyDue,
+                (care) => care.careType === careType
+              ),
+              Option.match({
+                onNone: () => Option.some<DropReason>('no-longer-due'),
+                onSome: ({ dueDay }) =>
+                  pipe(
+                    Option.fromNullishOr(row.occasionDay),
+                    Option.filter((occasion) => occasion !== dueDay),
+                    Option.map((): DropReason => 'superseded')
+                  ),
+              })
             )
-          ) {
-            return Option.some<DropReason>('no-longer-due')
-          }
-          return Option.none()
+          )
         },
       })
     )
@@ -263,7 +278,7 @@ export const loadPlantFacts = (
       (plant) =>
         Effect.map(
           plant.diedAt === null
-            ? Effect.map(reminderRecipients(plant), (recipients) =>
+            ? Effect.map(Reminders.audienceOf(plant), (recipients) =>
                 Array.union(
                   recipients,
                   ownerKeepsQueuedRowsWhileDelegated(plant.owner)
@@ -280,7 +295,10 @@ export const loadPlantFacts = (
                   dueOf(plant.id),
                   (care) => care.status._tag === 'Overdue'
                 ),
-                nearlyDue: Array.map(dueOf(plant.id), (care) => care.careType),
+                nearlyDue: Array.map(
+                  dueOf(plant.id),
+                  ({ careType, dueDay }) => ({ careType, dueDay })
+                ),
               },
             ] as const
         ),

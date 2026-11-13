@@ -1,8 +1,11 @@
+import { settled } from '@lily/api/__tests__/integration/care-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { replanPlants } from '@lily/api/contexts/reminders'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -24,11 +27,10 @@ import {
   UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
-import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
+import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
@@ -101,9 +103,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const as = <A, E, R>(userId: string, effect: Effect.Effect<A, E, R>) =>
       runtime.runPromiseExit(
         effect.pipe(
+          settled,
           Effect.provide(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId, email: `${userId}@x.test` }),
+              createMockEventBus(),
               createMockMessageQueue(),
               createMockPushService(),
               MockAlerterLive
@@ -171,7 +175,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db
         .insert(schema.delegationPlants)
         .values({ delegationId: delegation.id, plantId: plant.id })
-      const seeded = await as(owner, rescheduleReminders([plant.id]))
+      const seeded = await as(owner, replanPlants([plant.id]))
       if (Exit.isFailure(seeded)) throw new Error(Cause.pretty(seeded.cause))
       return {
         owner,
@@ -287,7 +291,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).toHaveLength(1)
     })
 
-    it('waits for a cancel that already holds the delegation row before taking any reminder lock', async () => {
+    it('waits for a cancel that already holds the delegation row', async () => {
       const { owner, delegationId } = await seed('active')
       const reached = Deferred.makeUnsafe<void>()
       const release = Deferred.makeUnsafe<void>()
@@ -409,7 +413,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
-    it('lets a caretaker delete their account while the delegation starts, holding every reminder lock it needs', async () => {
+    it('lets a caretaker delete their account while the delegation starts', async () => {
       const { owner, caretaker, delegationId } = await seed(
         'accepted',
         new Date(Date.now() - 1000)
@@ -571,13 +575,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           endDate: new Date(Date.now() - 2 * DAY),
         },
       ])
-      const hardDelete = (userId: string) =>
-        as(
-          userId,
-          Effect.flatMap(UserRepository, (repo) =>
-            leaveCanopyAndDelete(userId)(repo.delete(userId))
-          )
-        )
+      const hardDelete = (userId: string) => as(userId, purgeAccount(userId))
 
       // Slows each cascaded delegation delete so both cascades overlap.
       await db.execute(

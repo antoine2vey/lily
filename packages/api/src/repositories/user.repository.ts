@@ -95,7 +95,8 @@ export interface IUserRepository {
   readonly findByIds: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
-  readonly findByIdsForShare: (
+  /** In id order, each row locked against deletion until the transaction ends. */
+  readonly findByIdsForKeyShare: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
   readonly findByEmail: (
@@ -217,7 +218,7 @@ export const UserRepositoryLive = Layer.effect(
           .where(inArray(users.id, [...ids]))
       }),
 
-      findByIdsForShare: Effect.fn('UserRepository.findByIdsForShare')(
+      findByIdsForKeyShare: Effect.fn('UserRepository.findByIdsForKeyShare')(
         function* (ids: ReadonlyArray<string>) {
           if (Array.isReadonlyArrayEmpty(ids)) return []
           return yield* db
@@ -225,7 +226,7 @@ export const UserRepositoryLive = Layer.effect(
             .from(users)
             .where(inArray(users.id, [...ids]))
             .orderBy(asc(users.id))
-            .for('share')
+            .for('key share')
         }
       ),
 

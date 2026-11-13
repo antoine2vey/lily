@@ -1,3 +1,5 @@
+import type { Outbox } from '@lily/api/kernel/outbox'
+import { transact } from '@lily/api/kernel/transact'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
@@ -17,9 +19,9 @@ export const withUserLock =
   (userId: string) =>
   <A, E, R>(
     effect: Effect.Effect<A, E, R>
-  ): Effect.Effect<A, E | SqlError, R | SqlClient.SqlClient> =>
+  ): Effect.Effect<A, E | SqlError, R | SqlClient.SqlClient | Outbox> =>
     Effect.flatMap(SqlClient.SqlClient, (sql) =>
-      sql.withTransaction(Effect.andThen(lockUser(sql, userId), effect))
+      transact(Effect.andThen(lockUser(sql, userId), effect))
     )
 
 export const withOwnerLock =
@@ -29,10 +31,10 @@ export const withOwnerLock =
   ): Effect.Effect<
     A,
     E | SqlError | CanopyNotFoundError,
-    R | SqlClient.SqlClient | CanopyRepository | CurrentUser
+    R | SqlClient.SqlClient | Outbox | CanopyRepository | CurrentUser
   > =>
     Effect.flatMap(SqlClient.SqlClient, (sql) =>
-      sql.withTransaction(
+      transact(
         Match.value(owner).pipe(
           Match.tag('User', ({ userId }) => lockUser(sql, userId)),
           Match.tag('Canopy', ({ canopyId }) =>

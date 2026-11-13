@@ -1,11 +1,14 @@
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import {
+  exceptReminders,
+  NotificationRepository,
+} from '@lily/api/repositories/notification.repository'
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { nowAsDate, UserNotFoundError } from '@lily/shared'
 import { NOTIFICATION_TOPICS } from '@lily/shared/server'
 import { Effect, Option, pipe } from 'effect'
@@ -28,10 +31,13 @@ export const deleteAccount = Effect.fn('UserService.deleteAccount')(
           user.id,
           nowAsDate()
         )
-        yield* rescheduleReminders(reassignedPlantIds)
         yield* notificationRepo.deletePendingByUserIdAndTypes(
           user.id,
-          NOTIFICATION_TOPICS
+          exceptReminders(NOTIFICATION_TOPICS)
+        )
+        yield* Reminders.request(
+          Dirty.Plants({ plantIds: reassignedPlantIds }),
+          Dirty.Recipient({ userId: user.id })
         )
         return softDeleted
       })

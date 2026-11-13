@@ -14,6 +14,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
@@ -98,6 +99,7 @@ const createLayer = (options?: {
     ),
     options?.timeline?.queue ?? createMockMessageQueue(),
     options?.timeline?.sql ?? MockSqlClientLive,
+    MockOutboxLive,
     createMockDelegationRepository({
       delegations: options?.delegations ?? [],
       delegationPlants: options?.delegationPlants ?? [],

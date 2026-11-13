@@ -10,7 +10,7 @@ services/{domain}/
 └── endpoints/      # Individual endpoint functions
 ```
 
-**No `service.ts` files.** Handlers call endpoint functions directly. 21 HTTP domains, 10 schedulers, 8 infrastructure services (`ai`, `email`, `event-bus`, `jwt`, `message-queue`, `push`, `rag`, `rate-limiter`), 24 repositories.
+**No `service.ts` files.** Handlers call endpoint functions directly. 27 HTTP domains, 16 schedulers, 8 infrastructure services (`ai`, `email`, `event-bus`, `jwt`, `message-queue`, `push`, `rag`, `rate-limiter`), 31 repositories.
 
 ## Handlers
 
@@ -79,6 +79,12 @@ const result = await Effect.runPromise(
 )
 ```
 
+## Reminders
+
+Care and overdue reminders are planned in `contexts/reminders` and nowhere else. Code that changes what they are planned from (a plant, its owner or audience, a schedule, a recipient's settings, a vacation, a delegation) calls `Reminders.request(Dirty.Plants | Dirty.Canopy | Dirty.Recipient)` inside its own transaction, opened with `transact` from `kernel/transact.ts`. The request commits with the change and is replanned after it, with retries, so a failed replan never rolls the change back.
+
+Do not create, re-time, lock or delete a row of a reminder type outside the context. `NotificationRepository.create` and `deletePendingByUserIdAndTypes` reject those types at compile time, and `__tests__/architecture/context-boundaries.test.ts` fails on a new writer. Terms: `CONTEXT.md`, section Reminders.
+
 ## Dead plants (the cemetery)
 
 A plant with `died_at IS NOT NULL` is in the user's cemetery. It keeps every
@@ -93,10 +99,11 @@ Activity.
 - `PlantRepository.findAll`: `filter: 'dead'` lists the cemetery; every other
   filter is living-only unless the caller passes `includeDead: true` (admin).
 - Lifecycle endpoints (`markPlantDead`, `revivePlant`, `deletePlant`) are
-  gated by `withPlantAuth(id, 'markDead' | 'revive' | 'delete')`. Bury cancels pending notifications and
-  publishes `PlantLifecycleChanged`, which the Live Activity subscriber uses to
-  refresh the card. Revive re-runs `scheduleCareReminder` for future due dates
-  and enforces the limit of the plant's owner, a user or a Canopy, through
-  `LimitChecker.checkPlantLimit`.
+  gated by `withPlantAuth(id, 'markDead' | 'revive' | 'delete')`. Bury and
+  revive call `Reminders.request` for the plant and publish
+  `PlantLifecycleChanged`, which the Live Activity subscriber uses to refresh
+  the card. Delivery drops any other notification of a dead plant
+  (`plant-gone`). Revive enforces the limit of the plant's owner, a user or a
+  Canopy, through `LimitChecker.checkPlantLimit`.
 - Deliberately unfiltered: achievements (`countPlants`), admin analytics, and
   care-log history/streaks (past care stays history).

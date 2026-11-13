@@ -3,6 +3,7 @@ import {
   mockCanopyId,
 } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
@@ -14,6 +15,7 @@ import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -102,21 +104,25 @@ const buildScenario = () => {
   const notifications: Notification[] = []
   const care = createStubCare()
 
-  const layer = Layer.mergeAll(
-    MockSqlClientLive,
-    care.layer,
-    createMockUserRepository(users),
-    createMockNotificationRepository(notifications),
-    createMockCareScheduleRepository({ schedules, plants }),
-    createMockPlantRepository({ plants }),
-    createMockCanopyRepository(),
-    createMockDelegationRepository({
-      delegations: [delegation],
-      delegationPlants: [
-        { delegationId: delegation.id, plantId: plantDelegated.id },
-        { delegationId: delegation.id, plantId: plantDelegatedFuture.id },
-      ],
-    })
+  const layer = DeliveringOutboxLive.pipe(
+    Layer.provideMerge(
+      Layer.mergeAll(
+        MockSqlClientLive,
+        care.layer,
+        createMockUserRepository(users),
+        createMockNotificationRepository(notifications),
+        createMockCareScheduleRepository({ schedules, plants }),
+        createMockPlantRepository({ plants }),
+        createMockCanopyRepository(),
+        createMockDelegationRepository({
+          delegations: [delegation],
+          delegationPlants: [
+            { delegationId: delegation.id, plantId: plantDelegated.id },
+            { delegationId: delegation.id, plantId: plantDelegatedFuture.id },
+          ],
+        })
+      )
+    )
   )
 
   return { owner, caretaker, notifications, users, care, layer }
@@ -128,10 +134,6 @@ const run = <A>(effect: Effect.Effect<A, unknown, never>): Promise<A> =>
   ) as Promise<A>
 
 describe('endVacation', () => {
-  // endVacation rebuilds reminders only for schedules due after the real
-  // clock, so pin "now" to the moment the vacation ends. Without this the
-  // fixed August fixtures silently fall into the past once the calendar
-  // moves on and the reminder assertions stop seeing any rows.
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(EFFECTIVE_END)
@@ -185,8 +187,17 @@ describe('endVacation', () => {
     expect(updated?.vacationEnd).toBeNull()
   })
 
-  it('should rebuild reminders for future schedules, routing delegated plants to the caretaker', async () => {
+  it('gives the owner back the reminders of their undelegated plants and leaves a delegated plant to its caretaker', async () => {
     const { owner, caretaker, notifications, layer } = buildScenario()
+    notifications.push(
+      createTestNotification({
+        id: 'caretaker-row',
+        userId: caretaker.id,
+        plantId: 'plant-delegated-future',
+        type: 'watering_reminder',
+        status: 'pending',
+      })
+    )
 
     await run(
       endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
@@ -194,15 +205,12 @@ describe('endVacation', () => {
       )
     )
 
-    const byPlant = (plantId: string) =>
-      pipe(
-        Array.findFirst(notifications, (n) => n.plantId === plantId),
-        Option.getOrNull
-      )
-
-    expect(byPlant('plant-future')?.userId).toBe(owner.id)
-    expect(byPlant('plant-delegated-future')?.userId).toBe(caretaker.id)
-    expect(byPlant('plant-delegated')).toBeNull()
+    expect(
+      Array.map(notifications, (n) => [n.userId, n.plantId]).sort()
+    ).toEqual([
+      [caretaker.id, 'plant-delegated-future'],
+      [owner.id, 'plant-future'],
+    ])
   })
 
   it('should ask for no second move when rerun from the same snapshot after completion', async () => {
@@ -279,31 +287,35 @@ describe('endVacation', () => {
     ]
     const notifications: Notification[] = []
     const care = createStubCare()
-    const layer = Layer.mergeAll(
-      MockSqlClientLive,
-      care.layer,
-      createMockUserRepository([owner, housemate]),
-      createMockNotificationRepository(notifications),
-      createMockCareScheduleRepository({
-        schedules,
-        plants: [sharedMid, sharedFuture],
-        memberships: members,
-      }),
-      createMockPlantRepository({ plants: [sharedMid, sharedFuture] }),
-      createMockCanopyRepository(
-        createCanopyStore({
-          canopies: [createTestCanopyRow({ id: mockCanopyId })],
-          members,
-          plants: Array.map([sharedMid, sharedFuture], (p) => ({
-            id: p.id,
-            canopyId: mockCanopyId,
-            userId: null,
-            remindersEnabled: true,
-            diedAt: null,
-          })),
-        })
-      ),
-      createMockDelegationRepository({})
+    const layer = DeliveringOutboxLive.pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(
+          MockSqlClientLive,
+          care.layer,
+          createMockUserRepository([owner, housemate]),
+          createMockNotificationRepository(notifications),
+          createMockCareScheduleRepository({
+            schedules,
+            plants: [sharedMid, sharedFuture],
+            memberships: members,
+          }),
+          createMockPlantRepository({ plants: [sharedMid, sharedFuture] }),
+          createMockCanopyRepository(
+            createCanopyStore({
+              canopies: [createTestCanopyRow({ id: mockCanopyId })],
+              members,
+              plants: Array.map([sharedMid, sharedFuture], (p) => ({
+                id: p.id,
+                canopyId: mockCanopyId,
+                userId: null,
+                remindersEnabled: true,
+                diedAt: null,
+              })),
+            })
+          ),
+          createMockDelegationRepository({})
+        )
+      )
     )
 
     await run(
@@ -342,35 +354,39 @@ describe('endVacation', () => {
       }),
     ]
     const notifications: Notification[] = []
-    const layer = Layer.mergeAll(
-      MockSqlClientLive,
-      createStubCare().layer,
-      createMockUserRepository([owner]),
-      createMockNotificationRepository(notifications),
-      createMockCareScheduleRepository({
-        schedules,
-        plants: [dueToday],
-        memberships: members,
-      }),
-      createMockPlantRepository({ plants: [dueToday] }),
-      createMockCanopyRepository(
-        createCanopyStore({
-          canopies: [
-            createTestCanopyRow({ id: mockCanopyId, timezone: 'UTC' }),
-          ],
-          members,
-          plants: [
-            {
-              id: dueToday.id,
-              canopyId: mockCanopyId,
-              userId: null,
-              remindersEnabled: true,
-              diedAt: null,
-            },
-          ],
-        })
-      ),
-      createMockDelegationRepository({})
+    const layer = DeliveringOutboxLive.pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(
+          MockSqlClientLive,
+          createStubCare().layer,
+          createMockUserRepository([owner]),
+          createMockNotificationRepository(notifications),
+          createMockCareScheduleRepository({
+            schedules,
+            plants: [dueToday],
+            memberships: members,
+          }),
+          createMockPlantRepository({ plants: [dueToday] }),
+          createMockCanopyRepository(
+            createCanopyStore({
+              canopies: [
+                createTestCanopyRow({ id: mockCanopyId, timezone: 'UTC' }),
+              ],
+              members,
+              plants: [
+                {
+                  id: dueToday.id,
+                  canopyId: mockCanopyId,
+                  userId: null,
+                  remindersEnabled: true,
+                  diedAt: null,
+                },
+              ],
+            })
+          ),
+          createMockDelegationRepository({})
+        )
+      )
     )
 
     await run(

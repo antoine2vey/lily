@@ -1,26 +1,22 @@
 import { Care, DueMove } from '@lily/api/contexts/care'
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import type { Outbox } from '@lily/api/kernel/outbox'
+import { transact } from '@lily/api/kernel/transact'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import {
+  exceptReminders,
+  NotificationRepository,
+} from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import {
   UserRepository,
   type VacationSnapshot,
 } from '@lily/api/repositories/user.repository'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
-import {
-  type ReminderContext,
-  rebuildMemberReminders,
-  rescheduleReminders,
-} from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import type { users } from '@lily/db/schema'
 import { CARE_TYPES, startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface EndVacationParams {
@@ -30,116 +26,96 @@ export interface EndVacationParams {
 }
 
 /**
- * End a user's vacation: claim the transition, shift the care schedules
- * that fell due while they were away, then rebuild care reminders.
+ * Ends a user's vacation in one transaction: claims the transition, moves
+ * the cares that fell due while they were away, and asks Reminders to plan
+ * the user's reminders again. Returns null, with nothing written, when a
+ * concurrent write changed the row since `user` was read.
  *
- * Plants with an active caretaker are skipped: the caretaker maintained
- * their schedules, and their reminder rows route to the caretaker.
+ * Plants with an active caretaker are not moved: the caretaker kept their
+ * schedules, and their reminders are addressed to the caretaker.
  */
 export const endVacation = (
   params: EndVacationParams
 ): Effect.Effect<
   typeof users.$inferSelect | null,
   SqlError,
-  ReminderContext | Care
+  | UserRepository
+  | PlantRepository
+  | DelegationRepository
+  | NotificationRepository
+  | Care
+  | SqlClient.SqlClient
+  | Outbox
 > =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient
+    const { user, effectiveEnd } = params
+    const userRepo = yield* UserRepository
     const plantRepo = yield* PlantRepository
-    const ownPlantIds = yield* plantRepo.findIdsOwnedBy(params.user.id)
-    const ownedOrCaredForPlantIds =
-      yield* plantRepo.findPersonalReminderPlantIds(params.user.id)
-    const claimed = yield* withReminderKeys(
-      reminderKeysFor(ownedOrCaredForPlantIds),
-      Option.some(params.user.id)
-    )(
-      endVacationForOwnedOrCaredForPlants(
-        params,
-        ownPlantIds,
-        ownedOrCaredForPlantIds
-      )
+    const delegationRepo = yield* DelegationRepository
+    const notificationRepo = yield* NotificationRepository
+    const care = yield* Care
+
+    return yield* transact(
+      Effect.gen(function* () {
+        const claimed = yield* userRepo.transitionVacation(user, {
+          vacationStatus: 'none',
+          vacationStart: null,
+          vacationEnd: null,
+        })
+        if (!claimed) {
+          return null
+        }
+
+        const timezone = pipe(
+          Option.fromNullishOr(user.timezone),
+          Option.getOrElse(() => 'UTC')
+        )
+        const vacationStart = pipe(
+          Option.fromNullishOr(user.vacationStart),
+          Option.getOrElse(() => effectiveEnd)
+        )
+        const effectiveEndDt = DateTime.makeUnsafe(effectiveEnd)
+        const daysAway = Math.round(
+          Duration.toDays(
+            DateTime.distance(
+              startOfDay(DateTime.makeUnsafe(vacationStart), timezone),
+              startOfDay(effectiveEndDt, timezone)
+            )
+          )
+        )
+
+        const undelegated = yield* Effect.filter(
+          yield* plantRepo.findIdsOwnedBy(user.id),
+          (plantId) =>
+            Effect.map(
+              delegationRepo.findActiveCaretakerForPlant(plantId),
+              (caretakerId) => caretakerId === null
+            )
+        )
+        yield* care.moveDueDays({
+          reason: 'vacation',
+          moves: Array.flatMap(undelegated, (plantId) =>
+            Array.map(CARE_TYPES, (careType) => ({
+              plantId,
+              careType,
+              move: DueMove.AfterAbsence({
+                endedAt: effectiveEndDt,
+                days: daysAway,
+              }),
+            }))
+          ),
+        })
+
+        yield* notificationRepo.deletePendingByUserIdAndTypes(
+          user.id,
+          exceptReminders(VACATION_MUTED_TOPICS)
+        )
+        yield* Reminders.request(Dirty.Recipient({ userId: user.id }))
+        return claimed
+      })
     )
-    if (claimed === null) return null
-    yield* sql.withTransaction(
-      lockMyCanopy(params.user.id).pipe(
-        Effect.andThen(rebuildMemberReminders(params.user.id)),
-        Effect.catchTag('CanopyNotFoundError', () => Effect.void)
-      )
-    )
-    return claimed
   }).pipe(
     Effect.withSpan('VacationService.endVacation', {
       attributes: { 'user.id': params.user.id },
     })
   )
-
-const endVacationForOwnedOrCaredForPlants = (
-  params: EndVacationParams,
-  ownPlantIds: ReadonlyArray<string>,
-  ownedOrCaredForPlantIds: ReadonlyArray<string>
-) =>
-  Effect.gen(function* () {
-    const { user, effectiveEnd } = params
-    const userRepo = yield* UserRepository
-    const care = yield* Care
-    const delegationRepo = yield* DelegationRepository
-
-    const claimed = yield* userRepo.transitionVacation(user, {
-      vacationStatus: 'none',
-      vacationStart: null,
-      vacationEnd: null,
-    })
-    if (!claimed) {
-      return null
-    }
-
-    const timezone = pipe(
-      Option.fromNullishOr(user.timezone),
-      Option.getOrElse(() => 'UTC')
-    )
-    // Missing vacationStart (defensive) degrades to delta 0 — the floor
-    // clamp alone still moves overdue tasks to tomorrow.
-    const vacationStart = pipe(
-      Option.fromNullishOr(user.vacationStart),
-      Option.getOrElse(() => effectiveEnd)
-    )
-
-    const effectiveEndDt = DateTime.makeUnsafe(effectiveEnd)
-    const daysAway = Math.round(
-      Duration.toDays(
-        DateTime.distance(
-          startOfDay(DateTime.makeUnsafe(vacationStart), timezone),
-          startOfDay(effectiveEndDt, timezone)
-        )
-      )
-    )
-
-    const undelegated = yield* Effect.filter(ownPlantIds, (plantId) =>
-      Effect.map(
-        delegationRepo.findActiveCaretakerForPlant(plantId),
-        (caretakerId) => caretakerId === null
-      )
-    )
-    yield* care.moveDueDays({
-      reason: 'vacation',
-      moves: Array.flatMap(undelegated, (plantId) =>
-        Array.map(CARE_TYPES, (careType) => ({
-          plantId,
-          careType,
-          move: DueMove.AfterAbsence({
-            endedAt: effectiveEndDt,
-            days: daysAway,
-          }),
-        }))
-      ),
-    })
-
-    const notificationRepo = yield* NotificationRepository
-    yield* notificationRepo.deletePendingByUserIdAndTypes(
-      user.id,
-      VACATION_MUTED_TOPICS
-    )
-
-    yield* rescheduleReminders(ownedOrCaredForPlantIds)
-    return claimed
-  })

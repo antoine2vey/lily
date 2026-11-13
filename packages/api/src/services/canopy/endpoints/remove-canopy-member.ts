@@ -1,3 +1,4 @@
+import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { canopyView } from '@lily/api/services/canopy/helpers/canopy-view'
@@ -12,15 +13,13 @@ import {
 } from '@lily/api/services/helpers/schedule-notification'
 import { CanopyMemberNotFoundError } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
 
 export const removeCanopyMember = Effect.fn('CanopyService.removeCanopyMember')(
   function* (memberUserId: string) {
     const { id: userId } = yield* CurrentUser
     const repo = yield* CanopyRepository
-    const sql = yield* SqlClient.SqlClient
 
-    const { canopy, notification } = yield* sql.withTransaction(
+    const { canopy, notification } = yield* transact(
       Effect.gen(function* () {
         const { canopy, membership } = yield* lockMyCanopy(userId)
         yield* requireOwner(membership)

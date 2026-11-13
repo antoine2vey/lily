@@ -4,14 +4,13 @@ import {
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
-import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { Dirty } from '@lily/api/contexts/reminders'
 import {
   DelegationRepository,
   type DelegationRow,
@@ -26,16 +25,14 @@ const futureDate = new Date('2099-12-31')
 
 const notifications: Notification[] = []
 
-const ReminderMocksLive = Layer.mergeAll(
-  createMockPlantRepository({ plants: [] }),
-  createMockCareScheduleRepository(),
-  createMockCanopyRepository()
-)
+const requested: Dirty[] = []
+
+const RemindersLive = createMockOutbox(requested).layer
 
 const createLayer = (delegations: DelegationRow[]) =>
   Layer.mergeAll(
     MockSqlClientLive,
-    ReminderMocksLive,
+    RemindersLive,
     createMockDelegationRepository({
       delegations,
       plants: mockDelegationPlants,
@@ -120,6 +117,7 @@ describe('DelegationScheduler', () => {
 
     it('leaves a delegation canceled between the read and the activation, and sends nothing', async () => {
       notifications.length = 0
+      requested.length = 0
       const delegation: DelegationRow = {
         ...mockDelegation1,
         status: 'accepted' as const,
@@ -159,7 +157,7 @@ describe('DelegationScheduler', () => {
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              ReminderMocksLive,
+              RemindersLive,
               racingCancel,
               createMockNotificationRepository(notifications),
               createMockUserRepository([mockUser1, mockUser2]),
@@ -171,6 +169,60 @@ describe('DelegationScheduler', () => {
 
       expect(delegations[0]?.status).toBe('canceled')
       expect(notifications).toHaveLength(0)
+      expect(requested).toEqual([])
+    })
+
+    it('asks Reminders once per batch to plan the plants that changed hands', async () => {
+      requested.length = 0
+      const starting: DelegationRow = {
+        ...mockDelegation1,
+        id: 'starting',
+        status: 'accepted' as const,
+        startDate: pastDate,
+        endDate: futureDate,
+      }
+      const ending: DelegationRow = {
+        ...mockDelegation2,
+        id: 'ending',
+        status: 'active' as const,
+        startDate: pastDate,
+        endDate: pastDate,
+      }
+      const waiting: DelegationRow = {
+        ...mockDelegation2,
+        id: 'waiting',
+        status: 'accepted' as const,
+        startDate: futureDate,
+        endDate: futureDate,
+      }
+
+      await Effect.runPromise(
+        pollAndTransition.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              MockSqlClientLive,
+              RemindersLive,
+              createMockDelegationRepository({
+                delegations: [starting, ending, waiting],
+                plants: mockDelegationPlants,
+                delegationPlants: [
+                  { delegationId: 'starting', plantId: 'plant-1' },
+                  { delegationId: 'ending', plantId: 'plant-2' },
+                  { delegationId: 'waiting', plantId: 'plant-2' },
+                ],
+              }),
+              createMockNotificationRepository(notifications),
+              createMockUserRepository([mockUser1, mockUser2]),
+              createMockMessageQueue()
+            )
+          )
+        )
+      )
+
+      expect(requested).toEqual([
+        Dirty.Plants({ plantIds: ['plant-1'] }),
+        Dirty.Plants({ plantIds: ['plant-2'] }),
+      ])
     })
 
     it('should handle empty results gracefully', async () => {
@@ -197,7 +249,7 @@ describe('DelegationScheduler', () => {
       const delegations = [toActivate, toComplete]
       const layer = Layer.mergeAll(
         MockSqlClientLive,
-        ReminderMocksLive,
+        RemindersLive,
         createMockDelegationRepository({
           delegations,
           plants: mockDelegationPlants,
@@ -297,7 +349,7 @@ describe('DelegationScheduler', () => {
         const delegations = [d1, d2]
         const layer = Layer.mergeAll(
           MockSqlClientLive,
-          ReminderMocksLive,
+          RemindersLive,
           createMockDelegationRepository({
             delegations,
             plants: mockDelegationPlants,
@@ -347,7 +399,7 @@ describe('DelegationScheduler', () => {
         const delegations = [delegation]
         const layer = Layer.mergeAll(
           MockSqlClientLive,
-          ReminderMocksLive,
+          RemindersLive,
           createMockDelegationRepository({
             delegations,
             plants: mockDelegationPlants,

@@ -1,6 +1,7 @@
 import { Care } from '@lily/api/contexts/care'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import { systemPermit } from '@lily/api/kernel/permit'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
@@ -36,6 +37,7 @@ export const createPlant = (
   | CurrentUser
   | LimitChecker
   | SqlClient.SqlClient
+  | Outbox
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository

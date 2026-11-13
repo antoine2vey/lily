@@ -15,6 +15,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -116,7 +117,7 @@ const world = (options: {
   notifications?: Notification[]
 }) => {
   const store = options.store ?? home()
-  return Layer.mergeAll(
+  const repositories = Layer.mergeAll(
     createMockPlantRepository({
       plants: [
         alexPlant,
@@ -166,6 +167,7 @@ const world = (options: {
     MockSqlClientLive,
     createMockCurrentUser({ id: options.actor })
   )
+  return DeliveringOutboxLive.pipe(Layer.provideMerge(repositories))
 }
 
 const ownerAfter = (plantId: string) =>

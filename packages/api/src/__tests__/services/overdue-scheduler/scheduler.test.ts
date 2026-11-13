@@ -25,20 +25,16 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { remindOverdue } from '@lily/api/contexts/reminders'
 import type { CanopyRow } from '@lily/api/repositories/canopy.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
-import {
-  checkAndCreateOverdueReminders,
-  remindRecipient,
-} from '@lily/api/services/overdue-scheduler/scheduler'
-import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
+import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import type { userSubscriptions } from '@lily/db/schema'
-import { type PlantOwner, pickNotificationTime } from '@lily/shared'
+import { pickNotificationTime } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import type { QueueMessage } from '@lily/shared/server'
 import {
   Array as Arr,
-  Cause,
   DateTime,
   Effect,
   Exit,
@@ -129,38 +125,35 @@ const runCheck = (...args: Parameters<typeof check>) =>
 const runCheckExit = (...args: Parameters<typeof check>) =>
   Effect.runPromiseExit(check(...args))
 
-const runRemind = (
+const skipOf = async (
   userId: string,
   plantsData: TestPlant[],
   users: ReturnType<typeof createTestUser>[],
   notifications: Notification[] = []
 ) => {
-  const plants = Arr.map(plantsData, (p) => ({
-    id: p.id,
-    name: p.name,
-    audienceUserId: userId,
-    recipientId: userId,
-    owner: { _tag: 'User', userId } as PlantOwner,
-    dateAdded: p.dateAdded,
-  }))
-
-  return Effect.runPromiseExit(
-    getUserNotificationSettings(userId).pipe(
-      Effect.flatMap((settings) => remindRecipient(userId, settings, plants)),
+  const { outcomes } = await Effect.runPromise(
+    remindOverdue(() => Effect.succeed(() => Option.none())).pipe(
       Effect.provide(
         Layer.mergeAll(
           createMockCareScheduleRepository({
             schedules: schedulesFromPlants(plantsData),
             plants: plantsData,
           }),
+          createMockCanopyRepository(createCanopyStore({})),
+          createMockPlantRepository({ plants: plantsData }),
           createMockNotificationRepository(notifications),
           createMockUserRepository(users),
-          createMockMessageQueue(),
+          createMockDelegationRepository({}),
           MockSqlClientLive
         )
       ),
       Effect.provideService(References.MinimumLogLevel, 'None')
     )
+  )
+  return pipe(
+    Arr.findFirst(outcomes, (outcome) => outcome.recipientId === userId),
+    Option.flatMap((outcome) => outcome.skipped),
+    Option.getOrNull
   )
 }
 
@@ -453,7 +446,7 @@ describe('checkAndCreateOverdueReminders', () => {
       expect(overdueNotifs.length).toBe(0)
     })
 
-    it('should fail with AlreadySentTodayError when already sent today', async () => {
+    it('skips a recipient already reminded today as already-reminded', async () => {
       const existingNotification = createTestNotification({
         id: 'existing-1',
         type: 'overdue_reminder',
@@ -469,19 +462,12 @@ describe('checkAndCreateOverdueReminders', () => {
         scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
-      const exit = await runRemind(
-        'user-1',
-        [plant],
-        [defaultUser],
-        [existingNotification]
-      )
+      const notifications = [existingNotification]
 
-      expect(Exit.isFailure(exit)).toBe(true)
-      if (Exit.isFailure(exit)) {
-        const error = Cause.findErrorOption(exit.cause)
-        expect(Option.isSome(error)).toBe(true)
-        expect(Option.getOrThrow(error)._tag).toBe('AlreadySentTodayError')
-      }
+      expect(
+        await skipOf('user-1', [plant], [defaultUser], notifications)
+      ).toBe('already-reminded')
+      expect(Arr.map(notifications, (n) => n.id)).toEqual(['existing-1'])
     })
 
     it('should also suppress duplicates at the orchestrator level', async () => {
@@ -512,7 +498,7 @@ describe('checkAndCreateOverdueReminders', () => {
       expect(overdueNotifs[0]?.id).toBe('existing-1')
     })
 
-    it('should fail with CareRemindersDisabledError when user has careReminders off', async () => {
+    it('skips a recipient whose care reminders are off as care-reminders-off', async () => {
       const userWithCareOff = createTestUser({
         id: 'user-1',
         careReminders: false,
@@ -526,14 +512,26 @@ describe('checkAndCreateOverdueReminders', () => {
         scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
-      const exit = await runRemind('user-1', [plant], [userWithCareOff])
+      const notifications: Notification[] = []
 
-      expect(Exit.isFailure(exit)).toBe(true)
-      if (Exit.isFailure(exit)) {
-        const error = Cause.findErrorOption(exit.cause)
-        expect(Option.isSome(error)).toBe(true)
-        expect(Option.getOrThrow(error)._tag).toBe('CareRemindersDisabledError')
-      }
+      expect(
+        await skipOf('user-1', [plant], [userWithCareOff], notifications)
+      ).toBe('care-reminders-off')
+      expect(notifications).toEqual([])
+    })
+
+    it('skips a recipient whose account is gone as unreachable', async () => {
+      const plant = createTestPlant({
+        id: 'plant-1',
+        userId: 'user-gone',
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+      })
+      const notifications: Notification[] = []
+
+      expect(await skipOf('user-gone', [plant], [], notifications)).toBe(
+        'unreachable'
+      )
+      expect(notifications).toEqual([])
     })
 
     it('should also suppress careReminders skip at the orchestrator level', async () => {
@@ -560,7 +558,7 @@ describe('checkAndCreateOverdueReminders', () => {
       expect(overdueNotifs.length).toBe(0)
     })
 
-    it('should fail with DndWindowBlockedError when both windows are in DND', async () => {
+    it('skips a recipient whose quiet hours cover both windows as quiet-hours', async () => {
       const userWithFullDnd = createTestUser({
         id: 'user-1',
         careReminders: true,
@@ -576,14 +574,12 @@ describe('checkAndCreateOverdueReminders', () => {
         scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
-      const exit = await runRemind('user-1', [plant], [userWithFullDnd])
+      const notifications: Notification[] = []
 
-      expect(Exit.isFailure(exit)).toBe(true)
-      if (Exit.isFailure(exit)) {
-        const error = Cause.findErrorOption(exit.cause)
-        expect(Option.isSome(error)).toBe(true)
-        expect(Option.getOrThrow(error)._tag).toBe('DndWindowBlockedError')
-      }
+      expect(
+        await skipOf('user-1', [plant], [userWithFullDnd], notifications)
+      ).toBe('quiet-hours')
+      expect(notifications).toEqual([])
     })
 
     it('should route to caretaker when plant is delegated', async () => {
@@ -616,7 +612,14 @@ describe('checkAndCreateOverdueReminders', () => {
         updatedAt: daysAgo(5),
       }
 
-      await runCheck([plant], [owner], notifications, {
+      const caretaker = createTestUser({
+        id: 'user-caretaker',
+        careReminders: true,
+        doNotDisturb: false,
+        timezone: 'UTC',
+      })
+
+      await runCheck([plant], [owner, caretaker], notifications, {
         delegations: [delegation],
         delegationPlants: [
           { delegationId: 'deleg-1', plantId: 'plant-delegated' },

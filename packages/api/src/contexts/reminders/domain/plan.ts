@@ -1,0 +1,339 @@
+import {
+  type CareDay,
+  type CareStatus,
+  type CareType,
+  isOnVacation,
+  type VacationFields,
+} from '@lily/shared'
+import { Array, Data, DateTime, Option, pipe } from 'effect'
+
+export type CareReminderType = `${CareType}_reminder`
+export type ReminderType = CareReminderType | 'overdue_reminder'
+
+export const reminderTypeOf = (careType: CareType): CareReminderType =>
+  `${careType}_reminder`
+
+/** Where a stored row stands in delivery. Planning re-times a row only while it is Pending. */
+export type Delivery = Data.TaggedEnum<{
+  Pending: { readonly retrying: boolean }
+  /** Claimed by the relay; no worker holds it yet. */
+  Queued: Record<never, never>
+  /** A worker holds it. Planning never touches it. */
+  InFlight: Record<never, never>
+  Sent: Record<never, never>
+  Failed: Record<never, never>
+}>
+export const Delivery = Data.taggedEnum<Delivery>()
+
+export interface ReminderRow {
+  readonly id: string
+  readonly userId: string
+  readonly type: ReminderType
+  readonly delivery: Delivery
+  readonly scheduledAt: DateTime.Utc
+  /**
+   * The day the row is about: the due day for a care reminder, the
+   * recipient's own calendar day for an overdue reminder.
+   */
+  readonly occasion: Option.Option<CareDay>
+}
+
+export interface CareLine {
+  readonly careType: CareType
+  readonly dueDay: CareDay
+  /** Where the due day stands against the plant's today. */
+  readonly status: CareStatus
+}
+
+export interface Recipient {
+  readonly id: string
+  readonly active: boolean
+  readonly careReminders: boolean
+  readonly vacation: VacationFields
+  /** When this recipient is reminded of a care due on a day, by due day. */
+  readonly sendTimes: ReadonlyMap<CareDay, DateTime.Utc>
+}
+
+export interface PlantState {
+  readonly id: string
+  readonly living: boolean
+  readonly remindersEnabled: boolean
+  /**
+   * A Canopy plant: every member holds their own reminder. A personal plant
+   * has one reminder, which follows whoever tends it.
+   */
+  readonly shared: boolean
+  /** Empty for a dead plant. */
+  readonly lines: ReadonlyArray<CareLine>
+  /** Who the plant's reminders are addressed to, before their own settings apply. */
+  readonly audience: ReadonlyArray<string>
+  readonly rows: ReadonlyArray<ReminderRow>
+}
+
+export type Removal =
+  | 'plant-dead'
+  | 'reminders-disabled'
+  | 'not-in-audience'
+  | 'unreachable'
+  | 'care-reminders-off'
+  | 'on-vacation'
+  | 'no-schedule'
+  | 'superseded'
+  | 'already-announced'
+  | 'no-longer-overdue'
+
+export type Change = Data.TaggedEnum<{
+  /**
+   * The slot holds a pending reminder for `occasion` at `scheduledAt`.
+   * `over` names the pending row that already stands for the occasion: it is
+   * re-timed in place and keeps its id. Without it a new row is written.
+   */
+  Put: {
+    readonly userId: string
+    readonly plantId: string
+    readonly type: ReminderType
+    readonly occasion: CareDay
+    readonly scheduledAt: DateTime.Utc
+    readonly over: Option.Option<string>
+  }
+  Remove: {
+    readonly rowId: string
+    readonly userId: string
+    readonly why: Removal
+  }
+}>
+export const Change = Data.taggedEnum<Change>()
+
+/**
+ * Why `userId` gets no reminder for `plant`, or None when they do. Checked
+ * in this order, so the reason names the widest cause.
+ */
+export const barredBy = (
+  plant: PlantState,
+  userId: string,
+  recipients: ReadonlyMap<string, Recipient>,
+  now: DateTime.Utc
+): Option.Option<Removal> => {
+  if (!plant.living) return Option.some('plant-dead')
+  if (!plant.remindersEnabled) return Option.some('reminders-disabled')
+  if (!Array.contains(plant.audience, userId)) {
+    return Option.some('not-in-audience')
+  }
+  return pipe(
+    Option.fromNullishOr(recipients.get(userId)),
+    Option.match({
+      onNone: (): Option.Option<Removal> => Option.some('unreachable'),
+      onSome: (recipient) => {
+        if (!recipient.active) return Option.some('unreachable')
+        if (!recipient.careReminders) return Option.some('care-reminders-off')
+        return isOnVacation(recipient.vacation, DateTime.toDateUtc(now))
+          ? Option.some('on-vacation')
+          : Option.none()
+      },
+    })
+  )
+}
+
+export const hasOverdueCare = (plant: PlantState) =>
+  Array.some(plant.lines, (line) => line.status._tag === 'Overdue')
+
+const isPending = (row: ReminderRow) => row.delivery._tag === 'Pending'
+
+const isWaiting = (row: ReminderRow) =>
+  isPending(row) || row.delivery._tag === 'Queued'
+
+const isAbout = (day: CareDay) => (row: ReminderRow) =>
+  Option.contains(row.occasion, day)
+
+const remove = (rows: ReadonlyArray<ReminderRow>, why: Removal) =>
+  Array.map(rows, (row) =>
+    Change.Remove({ rowId: row.id, userId: row.userId, why })
+  )
+
+const settledByDelivery = (row: ReminderRow, now: DateTime.Utc) =>
+  (row.delivery._tag === 'Pending' && row.delivery.retrying) ||
+  DateTime.isLessThanOrEqualTo(row.scheduledAt, now)
+
+type Standing = Data.TaggedEnum<{
+  Announced: Record<never, never>
+  Ahead: { readonly sendAt: DateTime.Utc }
+  HandedOver: { readonly sendAt: DateTime.Utc }
+  Late: Record<never, never>
+}>
+const Standing = Data.taggedEnum<Standing>()
+
+const standingOf = (
+  line: CareLine,
+  recipient: Recipient,
+  slotRows: ReadonlyArray<ReminderRow>,
+  handedOver: ReadonlyArray<ReminderRow>,
+  now: DateTime.Utc
+): Standing => {
+  const aboutDueDay = isAbout(line.dueDay)
+  if (Array.some(slotRows, (row) => !isPending(row) && aboutDueDay(row))) {
+    return Standing.Announced()
+  }
+  if (line.status._tag === 'Overdue') return Standing.Late()
+  const ahead = pipe(
+    Option.fromNullishOr(recipient.sendTimes.get(line.dueDay)),
+    Option.filter((sendAt) => DateTime.isGreaterThan(sendAt, now))
+  )
+  if (Option.isSome(ahead)) return Standing.Ahead({ sendAt: ahead.value })
+  if (Array.some(slotRows, (row) => isPending(row) && aboutDueDay(row))) {
+    return Standing.Late()
+  }
+  return pipe(
+    Array.filter(handedOver, aboutDueDay),
+    Array.map((row) => row.scheduledAt),
+    Array.sort(DateTime.Order),
+    Array.head,
+    Option.match({
+      onNone: () => Standing.Late(),
+      onSome: (sendAt) => Standing.HandedOver({ sendAt }),
+    })
+  )
+}
+
+const planSlot = (
+  plantId: string,
+  line: CareLine,
+  recipient: Recipient,
+  slotRows: ReadonlyArray<ReminderRow>,
+  handedOver: ReadonlyArray<ReminderRow>,
+  now: DateTime.Utc
+): ReadonlyArray<Change> => {
+  const aboutDueDay = isAbout(line.dueDay)
+  const pending = Array.filter(slotRows, isPending)
+  const current = Array.filter(pending, aboutDueDay)
+  const mine = Array.head(current)
+  const superseded = remove(
+    [
+      ...Array.filter(pending, (row) => !aboutDueDay(row)),
+      ...Array.drop(current, 1),
+    ],
+    'superseded'
+  )
+  const standsAt = (sendAt: DateTime.Utc) =>
+    Option.match(mine, {
+      onNone: () => false,
+      onSome: (row) =>
+        settledByDelivery(row, now) ||
+        DateTime.Equivalence(row.scheduledAt, sendAt),
+    })
+  const pendingAt = (sendAt: DateTime.Utc): ReadonlyArray<Change> =>
+    standsAt(sendAt)
+      ? superseded
+      : [
+          ...superseded,
+          Change.Put({
+            userId: recipient.id,
+            plantId,
+            type: reminderTypeOf(line.careType),
+            occasion: line.dueDay,
+            scheduledAt: sendAt,
+            over: Option.map(mine, (row) => row.id),
+          }),
+        ]
+  return Standing.$match(
+    standingOf(line, recipient, slotRows, handedOver, now),
+    {
+      Announced: () => remove(pending, 'already-announced'),
+      Ahead: ({ sendAt }) => pendingAt(sendAt),
+      HandedOver: ({ sendAt }) => pendingAt(sendAt),
+      Late: () => superseded,
+    }
+  )
+}
+
+const planEntitled = (
+  plant: PlantState,
+  recipient: Recipient,
+  rows: ReadonlyArray<ReminderRow>,
+  handedOver: ReadonlyArray<ReminderRow>,
+  now: DateTime.Utc
+): ReadonlyArray<Change> => {
+  const pending = Array.filter(rows, isPending)
+  const scheduled = Array.flatMap(plant.lines, (line) => {
+    const ofLine = (row: ReminderRow) =>
+      row.type === reminderTypeOf(line.careType)
+    return planSlot(
+      plant.id,
+      line,
+      recipient,
+      Array.filter(rows, ofLine),
+      Array.filter(handedOver, ofLine),
+      now
+    )
+  })
+  const unscheduled = Array.filter(
+    pending,
+    (row) =>
+      row.type !== 'overdue_reminder' &&
+      !Array.some(
+        plant.lines,
+        (line) => reminderTypeOf(line.careType) === row.type
+      )
+  )
+  const settledOverdue = hasOverdueCare(plant)
+    ? []
+    : Array.filter(pending, (row) => row.type === 'overdue_reminder')
+  return [
+    ...scheduled,
+    ...remove(unscheduled, 'no-schedule'),
+    ...remove(settledOverdue, 'no-longer-overdue'),
+  ]
+}
+
+/**
+ * Every change that makes one plant's stored reminders match the rule, for
+ * all recipients and all care types. Empty when they already match.
+ *
+ * An entitled recipient gets `planSlot` per care line, loses a pending care
+ * row whose care has no schedule, and loses a pending overdue row once no
+ * care of the plant is overdue. Anyone else loses every row not yet handed
+ * to a worker, with the reason from `barredBy`.
+ *
+ * On a personal plant a waiting row of someone who left the audience is not
+ * lost with them: whoever tends the plant now inherits it (see `planSlot`).
+ */
+export const planPlant = (
+  plant: PlantState,
+  recipients: ReadonlyMap<string, Recipient>,
+  now: DateTime.Utc
+): ReadonlyArray<Change> => {
+  const handedOver = plant.shared
+    ? []
+    : Array.filter(
+        plant.rows,
+        (row) => isWaiting(row) && !Array.contains(plant.audience, row.userId)
+      )
+  return pipe(
+    [...plant.audience, ...Array.map(plant.rows, (row) => row.userId)],
+    Array.dedupe,
+    Array.flatMap((userId) => {
+      const rows = Array.filter(plant.rows, (row) => row.userId === userId)
+      return Option.match(barredBy(plant, userId, recipients, now), {
+        onSome: (why) => remove(Array.filter(rows, isWaiting), why),
+        onNone: () =>
+          pipe(
+            Option.fromNullishOr(recipients.get(userId)),
+            Option.match({
+              onNone: () => [],
+              onSome: (recipient) =>
+                planEntitled(plant, recipient, rows, handedOver, now),
+            })
+          ),
+      })
+    })
+  )
+}
+
+/** Narrows a plan to one user's rows. The rule is not narrowed, only the writes. */
+export const onlyFor = (
+  changes: ReadonlyArray<Change>,
+  userId: Option.Option<string>
+): ReadonlyArray<Change> =>
+  Option.match(userId, {
+    onNone: () => changes,
+    onSome: (id) => Array.filter(changes, (change) => change.userId === id),
+  })

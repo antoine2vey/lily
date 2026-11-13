@@ -26,6 +26,23 @@ export interface CommandSpec<Agg, W, E, A, Refusal, R> {
 }
 
 /**
+ * One transaction (a savepoint when the caller already holds one), then a
+ * relay wake. A nested call wakes before the outer commit and the relay finds
+ * nothing yet; the outermost call wakes again once the rows are visible, so
+ * whoever opens the outermost transaction around an append should use this.
+ */
+export const transact = <A, E, R>(
+  body: Effect.Effect<A, E, R>
+): Effect.Effect<A, E | SqlError, R | SqlClient.SqlClient | Outbox> =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    const outbox = yield* Outbox
+    const result = yield* sql.withTransaction(body)
+    yield* outbox.wake
+    return result
+  })
+
+/**
  * Runs one command: load, decide, apply and the outbox append, all in one
  * transaction (a savepoint when the caller already holds one). A refusal
  * rolls back and is the only failure; a database error is a defect.
@@ -34,9 +51,8 @@ export const runCommand = <Agg, W, E, A, Refusal, R>(
   spec: CommandSpec<Agg, W, E, A, Refusal, R>
 ): Effect.Effect<A, Refusal, R | SqlClient.SqlClient | Outbox> =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient
     const outbox = yield* Outbox
-    const outcome = yield* sql.withTransaction(
+    return yield* transact(
       Effect.gen(function* () {
         const aggregate = yield* spec.load
         const decided = yield* Effect.fromResult(spec.decide(aggregate))
@@ -45,8 +61,6 @@ export const runCommand = <Agg, W, E, A, Refusal, R>(
         return decided.outcome
       })
     )
-    yield* outbox.wake
-    return outcome
   }).pipe(
     Effect.catchTag('SqlError', Effect.die),
     Effect.catchTag('SchemaError', Effect.die),

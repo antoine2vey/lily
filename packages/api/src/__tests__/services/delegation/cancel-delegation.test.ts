@@ -4,14 +4,13 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
-import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { Dirty } from '@lily/api/contexts/reminders'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
@@ -54,14 +53,13 @@ const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
   delegations: DelegationRow[] = [
     { ...mockDelegation1, status: 'pending' as const },
-  ]
+  ],
+  requested: Dirty[] = []
 ) =>
   Layer.mergeAll(
     MockSqlClientLive,
     currentUser,
-    createMockPlantRepository({ plants: [] }),
-    createMockCareScheduleRepository(),
-    createMockCanopyRepository(),
+    createMockOutbox(requested).layer,
     createMockNotificationRepository(notifications),
     createMockMessageQueue(),
     createMockUserRepository([mockUser1, mockUser2]),
@@ -72,6 +70,10 @@ const createLayer = (
         { id: mockUser2.id, name: mockUser2.name, image: mockUser2.image },
       ],
       plants: mockDelegationPlants,
+      delegationPlants: [
+        { delegationId: mockDelegation1.id, plantId: 'plant-1' },
+        { delegationId: mockDelegation1.id, plantId: 'plant-2' },
+      ],
     })
   )
 
@@ -111,6 +113,47 @@ describe('cancelDelegation', () => {
 
     expect(result.status).toBe('canceled')
   })
+
+  it('asks Reminders to plan the plants again when an active delegation is canceled', async () => {
+    const requested: Dirty[] = []
+
+    await Effect.runPromise(
+      cancelDelegation(mockDelegation1.id).pipe(
+        Effect.provide(
+          createLayer(
+            ownerCurrentUser,
+            [{ ...mockDelegation1, status: 'active' as const }],
+            requested
+          )
+        )
+      )
+    )
+
+    expect(requested).toEqual([
+      Dirty.Plants({ plantIds: ['plant-1', 'plant-2'] }),
+    ])
+  })
+
+  it.each(['pending', 'accepted'] as const)(
+    'asks Reminders for nothing when a %s delegation is canceled',
+    async (status) => {
+      const requested: Dirty[] = []
+
+      await Effect.runPromise(
+        cancelDelegation(mockDelegation1.id).pipe(
+          Effect.provide(
+            createLayer(
+              ownerCurrentUser,
+              [{ ...mockDelegation1, status }],
+              requested
+            )
+          )
+        )
+      )
+
+      expect(requested).toEqual([])
+    }
+  )
 
   it('records one queued delegation_canceled for the caretaker', async () => {
     notifications.length = 0

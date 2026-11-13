@@ -1,6 +1,13 @@
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
+import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -17,17 +24,41 @@ import { describe, expect, it } from 'vitest'
 const daysFromNow = (days: number): Date =>
   new Date(Date.now() + days * 24 * 60 * 60 * 1000)
 
+const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+
+const worldAround = (
+  userRepository: Layer.Layer<UserRepository>,
+  notifications: Notification[] = [],
+  currentUserId = 'user-1'
+) =>
+  DeliveringOutboxLive.pipe(
+    Layer.provideMerge(
+      Layer.mergeAll(
+        MockSqlClientLive,
+        userRepository,
+        createMockNotificationRepository(notifications),
+        createMockPlantRepository({ plants: [plant] }),
+        createMockCareScheduleRepository({
+          plants: [plant],
+          schedules: [
+            createTestSchedule({
+              plantId: plant.id,
+              nextCareAt: daysFromNow(3),
+            }),
+          ],
+        }),
+        createMockCanopyRepository(),
+        createMockDelegationRepository({}),
+        createMockCurrentUser({ id: currentUserId })
+      )
+    )
+  )
+
 const createLayer = (
   users: User[],
   notifications: Notification[] = [],
   currentUserId = 'user-1'
-) =>
-  Layer.mergeAll(
-    MockSqlClientLive,
-    createMockUserRepository(users),
-    createMockNotificationRepository(notifications),
-    createMockCurrentUser({ id: currentUserId })
-  )
+) => worldAround(createMockUserRepository(users), notifications, currentUserId)
 
 const run = <A, E>(effect: Effect.Effect<A, E, never>): Promise<A> =>
   Effect.runPromise(
@@ -126,6 +157,7 @@ describe('setVacation', () => {
         createTestNotification({
           id: 'n-care',
           userId: 'user-1',
+          plantId: plant.id,
           type: 'watering_reminder',
           status: 'pending',
         }),
@@ -217,14 +249,7 @@ describe('setVacation', () => {
 
       const state = await run(
         setVacation({ startDate: start, endDate: newEnd }).pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              MockSqlClientLive,
-              racingEnd,
-              createMockNotificationRepository([]),
-              createMockCurrentUser({ id: 'user-1' })
-            )
-          )
+          Effect.provide(worldAround(racingEnd))
         )
       )
 

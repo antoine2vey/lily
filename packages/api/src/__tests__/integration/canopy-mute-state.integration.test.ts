@@ -1,3 +1,5 @@
+import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
@@ -45,6 +47,7 @@ const appAs = (userId: string) =>
   Layer.mergeAll(
     LimitCheckerLive,
     createMockMessageQueue(),
+    createMockEventBus(),
     createMockCurrentUser({ id: userId })
   ).pipe(Layer.provideMerge(ReposLive))
 
@@ -93,6 +96,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       Effect.runPromise(
         withPlantAuth(plantId, 'mute').pipe(
           Effect.flatMap((plant) => run(plant)),
+          settled,
           Effect.provide(appAs(userId))
         )
       )

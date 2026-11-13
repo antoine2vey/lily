@@ -7,6 +7,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -19,20 +20,24 @@ import { describe, expect, it } from 'vitest'
 
 describe('updateUserSettings', () => {
   const createTestLayer = (userId: string) =>
-    Layer.mergeAll(
-      createMockDelegationRepository(),
-      MockSqlClientLive,
-      createMockCanopyRepository(),
-      createMockRateLimiterService(),
-      createMockUserRepository([...mockUsers]),
-      createMockCurrentUser({ id: userId }),
-      createMockNotificationRepository([]),
-      createMockPlantRepository({ plants: mockPlants }),
-      createMockCareLogRepository([]),
-      createMockCareScheduleRepository({
-        schedules: schedulesFromPlants(mockPlants),
-        plants: mockPlants,
-      })
+    DeliveringOutboxLive.pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(
+          createMockDelegationRepository(),
+          MockSqlClientLive,
+          createMockCanopyRepository(),
+          createMockRateLimiterService(),
+          createMockUserRepository([...mockUsers]),
+          createMockCurrentUser({ id: userId }),
+          createMockNotificationRepository([]),
+          createMockPlantRepository({ plants: mockPlants }),
+          createMockCareLogRepository([]),
+          createMockCareScheduleRepository({
+            schedules: schedulesFromPlants(mockPlants),
+            plants: mockPlants,
+          })
+        )
+      )
     )
 
   it('should update user name', async () => {
@@ -130,7 +135,7 @@ describe('updateUserSettings', () => {
     expect(result.privacy.personalizedTips).toBe(true)
   })
 
-  it('deletes pending rows of a preference the user turns off', async () => {
+  it('drops what the user was waiting for on a preference they turn off, except a reminder a worker already holds', async () => {
     const due = (overrides: Partial<Notification>) =>
       createTestNotification({
         userId: 'user-1',
@@ -138,25 +143,36 @@ describe('updateUserSettings', () => {
         ...overrides,
       })
     const notifications = [
-      due({ id: 'care', type: 'watering_reminder' }),
+      due({ id: 'care', type: 'watering_reminder', plantId: 'plant-1' }),
       due({ id: 'tip', type: 'daily_tip' }),
       due({ id: 'social', type: 'new_follower' }),
-      due({ id: 'in-flight', type: 'watering_reminder', status: 'queued' }),
+      due({
+        id: 'in-flight',
+        type: 'watering_reminder',
+        plantId: 'plant-1',
+        status: 'queued',
+      }),
     ]
-    const layer = Layer.mergeAll(
-      createMockDelegationRepository(),
-      MockSqlClientLive,
-      createMockCanopyRepository(),
-      createMockRateLimiterService(),
-      createMockUserRepository([...mockUsers]),
-      createMockCurrentUser({ id: 'user-1' }),
-      createMockNotificationRepository(notifications),
-      createMockPlantRepository({ plants: mockPlants }),
-      createMockCareLogRepository([]),
-      createMockCareScheduleRepository({
-        schedules: schedulesFromPlants(mockPlants),
-        plants: mockPlants,
-      })
+    const layer = DeliveringOutboxLive.pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(
+          createMockDelegationRepository(),
+          MockSqlClientLive,
+          createMockCanopyRepository(),
+          createMockRateLimiterService(),
+          createMockUserRepository([...mockUsers]),
+          createMockCurrentUser({ id: 'user-1' }),
+          createMockNotificationRepository(notifications, {
+            deliveryClaims: { 'in-flight': 'message-1' },
+          }),
+          createMockPlantRepository({ plants: mockPlants }),
+          createMockCareLogRepository([]),
+          createMockCareScheduleRepository({
+            schedules: schedulesFromPlants(mockPlants),
+            plants: mockPlants,
+          })
+        )
+      )
     )
 
     await Effect.runPromise(

@@ -1,4 +1,4 @@
-import { delivered } from '@lily/api/__tests__/integration/care-layers'
+import { delivered, settled } from '@lily/api/__tests__/integration/care-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
@@ -19,7 +19,7 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Effect, Exit, Layer } from 'effect'
+import { Effect, Exit, Layer } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -123,7 +123,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return row
     }
 
-    it('rolls the activation claim back when the pending-row delete fails, and the rerun completes it', async () => {
+    it('rolls the activation claim and its reminder request back when the pending-row delete fails, and the rerun completes it', async () => {
       const user = await insertUser({
         vacationStatus: 'scheduled',
         vacationStart: new Date(Date.now() - DAY_MS),
@@ -131,19 +131,24 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
 
       const failed = await Effect.runPromiseExit(
-        activateVacation({ expected: user }).pipe(Effect.provide(FailingLive))
+        settled(activateVacation({ expected: user })).pipe(
+          Effect.provide(FailingLive)
+        )
       )
       expect(Exit.isFailure(failed)).toBe(true)
       expect((await currentUser(user.id))?.vacationStatus).toBe('scheduled')
+      expect(await db.select().from(schema.outbox)).toEqual([])
 
       const rerun = await Effect.runPromise(
-        activateVacation({ expected: user }).pipe(Effect.provide(HealthyLive))
+        settled(activateVacation({ expected: user })).pipe(
+          Effect.provide(HealthyLive)
+        )
       )
       expect(rerun?.vacationStatus).toBe('active')
       expect((await currentUser(user.id))?.vacationStatus).toBe('active')
     })
 
-    it('rolls the end claim, the schedule shift and its event back when the sweep fails, and the rerun completes them', async () => {
+    it('rolls the end claim, the schedule shift, its event and the reminder request back when the sweep fails, and the rerun completes them', async () => {
       const user = await insertUser({
         vacationStatus: 'active',
         vacationStart: new Date(Date.now() - 7 * DAY_MS),
@@ -176,12 +181,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           .where(eq(schema.plantCareSchedules.plantId, plant.id))
         return row?.nextCareAt
       }
-      const scheduleEvents = async () => {
-        const rows = await db
-          .select({ event: schema.outbox.event })
+      const appended = () =>
+        db
+          .select({ topic: schema.outbox.topic, event: schema.outbox.event })
           .from(schema.outbox)
-        return Array.map(rows, (row) => row.event)
-      }
+          .orderBy(schema.outbox.id)
       const pendingReminders = () =>
         db
           .select({
@@ -202,7 +206,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(afterFailure?.vacationStatus).toBe('active')
       expect(afterFailure?.vacationEnd).toEqual(user.vacationEnd)
       expect(await nextCareAt()).toEqual(dueMidVacation)
-      expect(await scheduleEvents()).toEqual([])
+      expect(await appended()).toEqual([])
 
       const rerun = await Effect.runPromise(
         delivered(endVacation({ user, effectiveEnd })).pipe(
@@ -214,13 +218,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(afterRerun?.vacationStatus).toBe('none')
       expect(afterRerun?.vacationEnd).toBeNull()
       expect((await nextCareAt())?.getTime()).toBeGreaterThan(Date.now())
-      expect(await scheduleEvents()).toMatchObject([
+      expect(await appended()).toMatchObject([
         {
-          _tag: 'ScheduleChanged',
-          plantId: plant.id,
-          careType: 'watering',
-          reason: 'vacation',
+          topic: 'care',
+          event: {
+            _tag: 'ScheduleChanged',
+            plantId: plant.id,
+            careType: 'watering',
+            reason: 'vacation',
+          },
         },
+        { topic: 'reminders', event: { _tag: 'Recipient', userId: user.id } },
       ])
       expect(await pendingReminders()).toEqual([
         { userId: user.id, type: 'watering_reminder' },

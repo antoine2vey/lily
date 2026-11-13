@@ -3,13 +3,15 @@ import {
   ConsumerFailed,
   consumer,
   makeOutbox,
+  Outbox,
   topic,
 } from '@lily/api/kernel/outbox'
+import { transact } from '@lily/api/kernel/transact'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Effect, Layer, Schema } from 'effect'
+import { Array, Duration, Effect, Layer, Queue, Schema } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import pg from 'pg'
 import {
@@ -232,6 +234,114 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Outbox - Integration', () => {
     expect(
       await withOutbox([reminders.consumer], (outbox) => outbox.drain)
     ).toBe(0)
+  })
+
+  describe('redrive', () => {
+    const deadLetter = async (
+      reminders: ReturnType<typeof recorder>,
+      plantId: string
+    ) => {
+      reminders.state.failing = true
+      await withOutbox([reminders.consumer], (outbox) =>
+        outbox.append(care, [{ plantId }])
+      )
+      for (const at of [0, 2, 6]) {
+        vi.setSystemTime(seconds(at))
+        await withOutbox([reminders.consumer], (outbox) => outbox.drain)
+      }
+      reminders.state.failing = false
+    }
+
+    it('delivers a dead-lettered event once its consumer works again', async () => {
+      const reminders = recorder('reminders')
+      await deadLetter(reminders, 'fern')
+      vi.setSystemTime(seconds(3600))
+
+      const revived = await withOutbox([reminders.consumer], (outbox) =>
+        outbox.redrive('reminders', Duration.hours(24))
+      )
+      await withOutbox([reminders.consumer], (outbox) => outbox.drain)
+
+      expect(revived).toBe(1)
+      expect(reminders.seen).toEqual(['fern'])
+      expect(await rows()).toMatchObject([
+        { attempts: 1, pendingConsumers: [], processedAt: seconds(3600) },
+      ])
+    })
+
+    it('leaves delivered events and other consumers alone', async () => {
+      const reminders = recorder('reminders')
+      const achievements = recorder('achievements')
+      await withOutbox([reminders.consumer, achievements.consumer], (outbox) =>
+        Effect.andThen(outbox.append(care, [{ plantId: 'fern' }]), outbox.drain)
+      )
+      await deadLetter(achievements, 'ivy')
+
+      const revived = await withOutbox(
+        [reminders.consumer, achievements.consumer],
+        (outbox) => outbox.redrive('reminders', Duration.hours(24))
+      )
+
+      expect(revived).toBe(0)
+    })
+
+    it('gives up on an event older than the window', async () => {
+      const reminders = recorder('reminders')
+      await deadLetter(reminders, 'fern')
+      vi.setSystemTime(seconds(25 * 3600))
+
+      const revived = await withOutbox([reminders.consumer], (outbox) =>
+        outbox.redrive('reminders', Duration.hours(24))
+      )
+
+      expect(revived).toBe(0)
+      expect(
+        await withOutbox([reminders.consumer], (outbox) => outbox.drain)
+      ).toBe(0)
+    })
+  })
+
+  describe('transact', () => {
+    const wakesAfter = <E>(
+      body: (
+        outbox: Effect.Success<ReturnType<typeof makeOutbox>>['service']
+      ) => Effect.Effect<unknown, E, SqlClient.SqlClient | Outbox>
+    ) =>
+      Effect.runPromise(
+        makeOutbox([recorder('reminders').consumer]).pipe(
+          Effect.flatMap(({ service, wakes }) =>
+            body(service).pipe(
+              Effect.provideService(Outbox, service),
+              Effect.exit,
+              Effect.andThen(Queue.size(wakes))
+            )
+          ),
+          Effect.provide(DbLive)
+        )
+      )
+
+    it('wakes the relay once the transaction has committed', async () => {
+      const wakes = await wakesAfter((outbox) =>
+        transact(outbox.append(care, [{ plantId: 'fern' }]))
+      )
+
+      expect(wakes).toBe(1)
+      expect(await rows()).toHaveLength(1)
+    })
+
+    it('does not wake the relay when the transaction rolls back', async () => {
+      const wakes = await wakesAfter((outbox) =>
+        transact(
+          Effect.andThen(
+            outbox.append(care, [{ plantId: 'fern' }]),
+            Effect.fail('refused')
+          )
+        )
+      )
+
+      expect(wakes).toBe(0)
+      expect(await rows()).toHaveLength(0)
+    })
   })
 
   it('fails delivery, without dropping it, when an event no longer decodes', async () => {

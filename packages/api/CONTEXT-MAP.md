@@ -1,6 +1,6 @@
 # Context map draft: `packages/api`
 
-Status: draft from a read-only pass over the working tree of branch `antoine2vey/ddd-core-business-assessment` (2026-11-12).
+Status: draft from a read-only pass over the working tree of branch `antoine2vey/ddd-core-business-assessment` (2026-11-12). Updated the same day once the Reminders context was built: every row about reminder planning describes the built code.
 Paths are relative to `packages/api/src/` unless they start with `packages/`.
 "Inferred" marks a judgement. Everything else comes from a file read or a grep.
 
@@ -11,7 +11,8 @@ Method for sections 1, 2 and 4: a script resolved every `const x = yield* SomeRe
 | Context | Classification | One-line scope |
 | --- | --- | --- |
 | **Care** | core | Plants, rooms, care schedules, care history, care plans, weather adjustment. Glossary: `packages/api/CONTEXT.md`. Already has `contexts/care`. |
-| **Notifications** | core (inferred: reminders are the product's main loop) | Reminder planning and delivery, inbox, device tokens, push, Live Activity. |
+| **Reminders** | core | Which care reminders exist, for whom and when. Built in `contexts/reminders`. Other contexts call `Reminders.request`, and the plan is rebuilt after their commit. Glossary: `packages/api/CONTEXT.md`. |
+| **Notifications** | core (inferred: delivery is how the main loop reaches the user) | Delivery of every notification, inbox, device tokens, push, Live Activity. It moves reminder rows through their statuses and never plans one. |
 | **Canopy** | core (inferred) | Shared household: membership, invites, mutes, plant hand-back. |
 | **Delegation** | supporting | Temporary caretaker for a set of plants. Vacation is placed here provisionally (see open question 3). |
 | **Identity & Access** | generic | Magic link, OAuth sign-in, JWT, refresh tokens, user profile and settings, username, account deletion. |
@@ -26,7 +27,7 @@ Method for sections 1, 2 and 4: a script resolved every `const x = yield* SomeRe
 
 ## 1. Service modules
 
-All 54 directories under `services/` (`ls`), in directory order. "Repos" is every repository class named in the module (grep count in brackets where it helps).
+All 55 directories under `services/` (`ls`), in directory order. "Repos" is every repository class named in the module (grep count in brackets where it helps).
 
 | Module | What it does | Context | Class | Repositories used |
 | --- | --- | --- | --- | --- |
@@ -66,13 +67,14 @@ All 54 directories under `services/` (`ls`), in directory order. "Repos" is ever
 | `notification-scheduler` | Claims pending notifications, gates and renders them, enqueues; worker delivers pushes. | Notifications | core | Notification, User, Plant, DeadLetter, DeviceToken, ActivityPushToken |
 | `notifications` | Inbox endpoints; `timezone-scheduler.ts` computes send time and DND. | Notifications | core | Notification |
 | `oauth-verifier` | Verifies third-party OAuth identity tokens. | Identity & Access | generic | none |
-| `overdue-scheduler` | Hourly overdue digest per user, built from `CareReads`. | Notifications | core | Notification, CareSchedule, User, Subscription, Canopy |
+| `overdue-scheduler` | Hourly overdue digest per recipient. The pass is `remindOverdue` in `contexts/reminders` (`scheduler.ts:150`). The module supplies the plan caps and the overflow push. | Reminders | core | User, Subscription, Canopy |
 | `plant-catalog` | One read endpoint over the species catalog. | Care (inferred; reference data) | supporting | PlantCatalog, User |
 | `plants` | Plant CRUD, death and revival, photos, scan and AI identify, perform care, correct care dates, share, unshare, mute. | Care | core | Plant, Canopy, Notification, Delegation, CareSchedule, User, CareLog, Room, Scan, Weather, CarePlan |
 | `push` | Expo and APNs providers, receipts store, token retirement. | Notifications | generic | DeviceToken |
 | `push-receipt-scheduler` | Reads Expo push receipts every 15 min. | Notifications | generic | none |
 | `rag` | Embedding and retrieval service over the knowledge DB. | Assistant | supporting | ProcessedChunk |
 | `rate-limiter` | DB-backed rate limits; writes `rate_limits` directly (`service.ts:79,118`). | Platform | generic | none |
+| `reminders-audit` | Daily pass that gives dead-lettered Reminders events another round and replans every plant with a care due soon, reporting what it had to change (`scheduler.ts:15,23`). | Reminders | core | none (calls `contexts/reminders`) |
 | `rooms` | Room CRUD for a user or a canopy. | Care (inferred) | supporting | Room, Canopy |
 | `social` | Follow, unfollow, profiles, search, suggestions, nudge. | Social | supporting | Follow, User |
 | `subscriptions` | Current subscription, tiers, gift-code redemption, RevenueCat webhook, limits, usage, nightly reconciliation. | Billing | supporting | Subscription, GiftCode, Notification, User, Canopy, Achievement |
@@ -87,6 +89,8 @@ All 54 directories under `services/` (`ls`), in directory order. "Repos" is ever
 
 `contexts/care` uses no repository. `CareReadsLive` queries `plantCareSchedules`, `plants`, `users`, `canopies`, `rooms` through `PgDrizzle` (`contexts/care/care-reads.ts:172-224`).
 
+`contexts/reminders` reaches `notifications` only through `NotificationRepository` (`lockReminderPlants`, `findHoldersOfWaitingReminders`, `lockReminders`, `writeReminders`). It reads plants, users, canopies and delegations through their repositories, and due cares through `CareReads` (`contexts/reminders/store.ts`, `contexts/reminders/audience.ts`).
+
 ## 2. Repositories
 
 31 repository files in `repositories/` (`packages/api/CLAUDE.md:13` says 24; stale). "Tables written" comes from `.insert/.update/.delete(<table>)` in the file. **MULTI** = write methods are called from more than one proposed context.
@@ -100,7 +104,7 @@ All 54 directories under `services/` (`ls`), in directory order. "Repos" is ever
 | `canopy` | Canopy | `canopies`, `canopyMembers`, `canopyInvites`, `canopyDirectInvites`, `canopyPlantMutes`, **`plants`**, **`rooms`** | Care W (`plants/endpoints/mute-plant.ts:28,47`, `unshare-plant.ts:53`); r: Care, Assistant, Billing, Identity, Delegation(vacation), Notifications(overdue), Weather, Admin | **MULTI**; writes Care tables |
 | `care-log` | Care | `careLogs` | r: Assistant, Engagement, Identity (`user`), Admin | |
 | `care-plan` | Care | `carePlans`, `carePlanSteps` | Assistant W (`ai-chat/tools/create-diagnosis.ts:78`, `propose-care-plan.ts:39`, `persist-chat-completion.ts:234`) | **MULTI** |
-| `care-schedule` | Care | `plantCareSchedules` | Delegation(vacation) W (`vacation/helpers/end-vacation.ts:131` `shiftDueBefore`); weather-scheduler W (`readjust-care-schedules.ts:298`); r: Assistant, Canopy, Notifications(overdue), Weather, Identity, Admin | **MULTI** |
+| `care-schedule` | Care | none. The Care store writes `plantCareSchedules` (`contexts/care/store.ts`). | r: Assistant, Canopy, Reminders (overdue audience), Weather, Identity, Admin | |
 | `chat` | Assistant | `chatConversations`, `chatMessages` | Admin r | |
 | `daily-tip` | Engagement | `dailyTips` | none | |
 | `dead-letter` | Platform (inferred) | `deadLetterMessages` | Notifications W (`notification-scheduler/worker.ts:585`), Assistant W (`knowledge-ingestion/processor.ts:152`) | **MULTI** |
@@ -112,7 +116,7 @@ All 54 directories under `services/` (`ls`), in directory order. "Repos" is ever
 | `gift-code` | Billing | `giftCodes`, `giftCodeRedemptions` | Admin W (`admin/endpoints/create-gift-code.ts:33`, `update-gift-code.ts:62`, `delete-gift-code.ts:19`) | **MULTI** |
 | `ingest-job` | Assistant | `ingestJobs` | none | |
 | `magic-link` | Identity & Access | `magicLinks` | none (`auth`, `internal`) | |
-| `notification` | Notifications | `notifications` | W from Care (`plants/helpers/reconcile-reminders.ts:303`, `plants/endpoints/mark-plant-dead.ts:63`, `care-multiple-plants.ts:138`, `mute-plant.ts:29`), Canopy (`canopy/helpers/membership.ts:107`), Identity (`user/endpoints/delete-account.ts:32`), Delegation(vacation) (`vacation/helpers/activate-vacation.ts:44`), and every caller of `helpers/schedule-notification.ts:33`; r: Engagement, Billing, Admin | **MULTI** |
+| `notification` | Notifications. Rows of the five reminder types belong to Reminders. | `notifications` | Reminders W (`contexts/reminders/store.ts`, the only caller of `lockReminders` and `writeReminders`); deletes of other topics from Canopy (`canopy/helpers/membership.ts:106`, `canopy/helpers/plants-left-canopy.ts:19`), Identity (`user/endpoints/delete-account.ts:34`, `user/endpoints/update-user-settings.ts:112`) and Delegation(vacation) (`vacation/helpers/activate-vacation.ts:50`, `vacation/helpers/end-vacation.ts:111`); every caller of `helpers/schedule-notification.ts:64`; r: Engagement, Billing, Admin | **MULTI** |
 | `oauth-identity` | Identity & Access | `oauthIdentities` | none | |
 | `plant-catalog` | Care (inferred) | none (read only) | Content r (`blog-generator/topics.ts:75`) | |
 | `plant` | Care | `plants`, `plantPhotos` | r: Assistant, Canopy, Delegation, Notifications, Weather, Identity, Admin. No write caller outside `services/plants`. | table also written by `canopy` repo |
@@ -125,7 +129,7 @@ All 54 directories under `services/` (`ls`), in directory order. "Repos" is ever
 | `user` | Identity & Access | `users` | Delegation(vacation) W (`vacation/endpoints/set-vacation.ts:71` `transitionVacation`); Admin W (`admin/endpoints/update-user.ts:36`, `update-role.ts:26`, `update-status.ts:26`, `delete-user.ts:41`); r: almost every context | **MULTI** |
 | `weather` | Weather | `weatherSnapshots` | Care r (`plants`, `care-plans`) | |
 
-**MULTI count: 10** (`canopy`, `care-plan`, `care-schedule`, `dead-letter`, `delegation`, `device-token`, `gift-code`, `notification`, `subscription`, `user`).
+**MULTI count: 9** (`canopy`, `care-plan`, `dead-letter`, `delegation`, `device-token`, `gift-code`, `notification`, `subscription`, `user`).
 
 Writes that bypass repositories: `internal/endpoints/issue-service-token.ts:60` (`db.update(users)`), `rate-limiter/service.ts:79,118` (`rateLimits`).
 
@@ -175,19 +179,19 @@ Direction is "upstream -> downstream" for events, "caller -> callee" for calls.
 | --- | --- | --- |
 | Care -> Engagement | EventBus `CareLogCreated`, `PlantCreated`, `PhotoUploaded`, `PlantScanned`, `AttentionResponded`, `ReminderResponded`, `CareHistoryViewed`, `PlantShared` | publish `care-logs/endpoints/create-care-log.ts:58`; consume `achievements/checker.ts:235-245` |
 | Care -> Notifications (Live Activity) | EventBus `CareLogCreated`, `PlantLifecycleChanged` | publish `plants/endpoints/mark-plant-dead.ts:69`; consume `live-activity/subscriber.ts:152,159` |
-| Care -> Notifications | Direct `NotificationRepository` writes (replace, delete pending reminders) | `plants/helpers/reconcile-reminders.ts:303` |
-| Notifications -> Care | `CareReads.due` (the only published Care interface so far) | `notification-scheduler/dispatch-gate.ts:233`, `overdue-scheduler/scheduler.ts:50` |
+| Care -> Reminders | Outbox topic of Care events. Reminders replans the plant after `ScheduleChanged`, `CareRecorded` and `PlantLifeChanged`. | consume `contexts/reminders/consumers.ts:36-40`; which event makes what stale in `contexts/reminders/triggers.ts:17-30` |
+| Care endpoints, Canopy, Delegation, Identity -> Reminders | `Reminders.request(Dirty)`: a row on the outbox topic `reminders`, written in the caller's transaction and planned after its commit by the `reminders-replan` consumer | `plants/endpoints/mark-plant-dead.ts:56`, `canopy/helpers/membership.ts:110`, `canopy/helpers/plants-left-canopy.ts:20`, `delegation/helpers/transition-delegation.ts:89`, `vacation/helpers/end-vacation.ts:115`, `user/endpoints/update-user-settings.ts:123`, `user/helpers/purge-account.ts:22` |
+| Notifications, Reminders -> Care | `CareReads.due` (the only published Care read) | `notification-scheduler/dispatch-gate.ts:268`, `contexts/reminders/store.ts`, `contexts/reminders/overdue.ts` |
+| Notifications -> Reminders | `Reminders.audienceOf`: who a plant's reminders are addressed to | `notification-scheduler/dispatch-gate.ts:281`, `live-activity/subscriber.ts:125` |
 | Notifications -> Care | Direct `PlantRepository.findById` | `live-activity/subscriber.ts:121` |
 | Notifications internal | MessageQueue: scheduler enqueues, worker delivers; messages `LiveActivityStart/Update/End` | `notification-scheduler/scheduler.ts:237`, `worker.ts:231` |
 | Any context -> Notifications | `recordNotification` / `dispatchNow` helper (writes `notifications`, enqueues) | `helpers/schedule-notification.ts:33,130`; callers e.g. `social/endpoints/send-nudge.ts:66`, `delegation/endpoints/cancel-delegation.ts:72`, `subscriptions/usage-tracker.ts:155`, `engagement-scheduler/scheduler.ts:107` |
 | Canopy -> Care | Writes `plants` and `rooms` inside `CanopyRepository` | `repositories/canopy.repository.ts:782,792,819` |
-| Canopy -> Care | Calls Care helper `rescheduleReminders` | `canopy/helpers/dissolve-canopy.ts:39` |
 | Care -> Canopy | Direct `CanopyRepository` writes for mutes | `plants/endpoints/mute-plant.ts:28` |
 | Care -> Canopy | Shared table join (`canopyMembers`, `canopyPlantMutes`) for visibility | `repositories/helpers/care-visibility.ts` (imports both tables) |
 | Care -> Delegation | Shared table join on `careDelegations` | `repositories/plant.repository.ts:442` |
 | Delegation -> Care | Shared table join on `plants` and `plantCareSchedules`; uses `seePlantCare` | `repositories/delegation.repository.ts:363-366,265` |
-| Delegation -> Care | Calls `rescheduleReminders` | `delegation/helpers/transition-delegation.ts:72` |
-| Delegation(vacation) -> Care | Direct `CareScheduleRepository.shiftDueBefore` | `vacation/helpers/end-vacation.ts:131` |
+| Delegation(vacation) -> Care | `Care.moveDueDays` with reason `vacation` | `vacation/helpers/end-vacation.ts:97` |
 | Delegation(vacation) -> Identity | Direct `UserRepository.transitionVacation` (vacation columns on `users`, `packages/db/src/schema/users.ts:82-86`) | `vacation/endpoints/set-vacation.ts:71` |
 | Assistant -> Care | Direct `CarePlanRepository.create` | `ai-chat/tools/create-diagnosis.ts:78` |
 | Assistant -> Care | Direct reads of schedules and care logs for the prompt | `ai-chat/plant-chat.ts:221-222` |
@@ -197,9 +201,8 @@ Direction is "upstream -> downstream" for events, "caller -> callee" for calls.
 | Delegation -> Billing | `LimitChecker.checkDelegationAccess` | `delegation/endpoints/create-delegation.ts:35` |
 | Billing -> Engagement | Direct `AchievementRepository.countLivingPlants` (a plant count kept in the achievements repo) | `subscriptions/limit-checker.ts:116` |
 | Notifications -> Billing | Direct `SubscriptionRepository` reads | `overdue-scheduler/scheduler.ts:220-221` |
-| Identity -> Canopy, Delegation, Notifications, Care | Account deletion calls each repository in turn | `user/endpoints/delete-account.ts:22-32` |
-| Identity -> Care | Settings change calls `rescheduleReminders` | `user/endpoints/update-user-settings.ts:158` |
-| Weather -> Care | Direct `CareScheduleRepository.updateByPlantAndType`, then `reconcileCareReminder` | `weather-scheduler/readjust-care-schedules.ts:298,324` |
+| Identity -> Canopy, Delegation, Notifications, Reminders | Account deletion calls each repository in turn, then asks Reminders for a replan | `user/endpoints/delete-account.ts:25-41` |
+| Weather -> Care | `Care.moveDueDays` with reason `weather` | `weather-scheduler/readjust-care-schedules.ts:277` |
 | Care -> Weather | Direct `WeatherRepository` reads and `weather/algorithm` | `care-plans` and `plants` (grep: `WeatherRepository` in both; `weather/algorithm` import in `plants`) |
 | Social -> Engagement | EventBus `UserFollowed` (consumer ignores it) | `social/endpoints/follow-user.ts:76`, `achievements/checker.ts:246` |
 | Engagement -> Care, Notifications, Billing, Identity | Shared table joins in one read repository | `repositories/engagement.repository.ts` (tables listed in section 2) |
@@ -213,20 +216,20 @@ Event notes:
 
 - 13 event tags are defined in `packages/shared/src/services/event-bus/types.ts:5-77`.
 - `RarePlantIdentified` has a consumer (`achievements/checker.ts:243`) and no publisher in `packages/api/src` (grep).
-- `execute-plant-care.ts:127-142` buffers events and publishes after commit (`publishEventsAfterCommit`).
+- Care events and replan requests do not use the EventBus. They are rows in the `outbox` table, written in the writer's transaction, delivered after commit, retried, then dead-lettered (`kernel/outbox.ts`, `kernel/transact.ts`).
 - The EventBus is fire-and-forget (`packages/api/CLAUDE.md:34`); `activity-scheduler/scheduler.ts:34` is a safety net for dropped `CareLogCreated`.
 
 ## 5. Open questions
 
 1. **Who sets a plant's condition?** The glossary says "A diagnosis sets it" (`packages/api/CONTEXT.md:59`). No code writes `plants.health` after creation (section 3). `ai-chat/tools/create-diagnosis.ts:76-78` creates a diagnosis and a care plan and never touches the plant. Either the rule is not implemented, or the glossary is ahead of the code.
-2. **Reminder planning: Care or Notifications?** `plants/helpers/reconcile-reminders.ts` (in the Care module) decides which reminders exist and writes `notifications` directly (`:303`). Canopy, Delegation, Identity, Weather and vacation all call it (section 4). `overdue-scheduler` and `dispatch-gate.ts` (Notifications) read Care through `CareReads`. The glossary puts "reminders" inside rule 4 of Care (`CONTEXT.md:55`). `plants.remindersEnabled` has no writer.
-3. **Vacation has no clear home.** State lives on `users` (`users.ts:82-86`), written through `UserRepository.transitionVacation`. Ending a vacation shifts care schedules (`end-vacation.ts:131`), reads delegations (`:127`) and deletes notifications (`:139`). Candidates: Identity (data), Care (effect), Delegation (same "I am away" intent and the scheduler mirrors the delegation scheduler, `vacation-scheduler/scheduler.ts:31`).
+2. **Reminder planning: decided.** It is a context of its own, `contexts/reminders`. Nothing outside it plans, locks or deletes a row of the five reminder types, and delivery only moves their status (`__tests__/architecture/context-boundaries.test.ts`). The glossary still lists reminders in rule 4 of Care (`CONTEXT.md:55`), which is where Care hands over to Reminders. `plants.remindersEnabled` has no writer.
+3. **Vacation has no clear home.** State lives on `users` (`users.ts:82-86`), written through `UserRepository.transitionVacation`. Ending a vacation moves due days through `Care.moveDueDays` (`end-vacation.ts:97`), reads delegations (`:89-96`), deletes the muted notifications that are not reminders (`:111`) and asks Reminders for a replan (`:115`). Candidates: Identity (data), Care (effect), Delegation (same "I am away" intent and the scheduler mirrors the delegation scheduler, `vacation-scheduler/scheduler.ts:31`).
 4. **Plant ownership is written by two contexts.** `PlantRepository.moveTo` (share/unshare, in `services/plants`) and `CanopyRepository.transferToUser/returnToSharer` (dissolve/leave) both set `plants.userId/canopyId`; the Canopy repo also re-homes `rooms` (`canopy.repository.ts:782`). The glossary defines Owner under Care (`CONTEXT.md:16`). Mutes go the other way: Care endpoints write `canopyPlantMutes`.
-5. **Care plans straddle Care and Assistant.** The glossary lists care plans under Care but marks their rules "not decided" (`CONTEXT.md:9,64`). Assistant creates them and links chat messages (`create-diagnosis.ts:78`, `persist-chat-completion.ts:234`); Care completes steps, including as a side effect of a normal care (`plants/helpers/execute-plant-care.ts:221-234`).
-6. **Weather adjustment split.** The rule is Care (`CONTEXT.md:38`), but the algorithm lives in `services/weather/algorithm*` and the schedule write in `services/weather-scheduler/readjust-care-schedules.ts:298`.
+5. **Care plans straddle Care and Assistant.** The glossary lists care plans under Care but marks their rules "not decided" (`CONTEXT.md:9,64`). Assistant creates them and links chat messages (`create-diagnosis.ts:78`, `persist-chat-completion.ts:234`); Care completes steps, including as a side effect of a normal care (`CompletePlanStep` in `contexts/care/domain/decide.ts`).
+6. **Weather adjustment split.** The rule is Care (`CONTEXT.md:38`), but the algorithm lives in `services/weather/algorithm*` and `services/weather-scheduler/readjust-care-schedules.ts:277` decides the move and hands it to `Care.moveDueDays`.
 7. **Billing counts plants through the achievements repository** (`limit-checker.ts:116`). `countLivingPlants` is a Care fact kept in an Engagement repository.
 8. **`AttentionResponded` still tests `plant.health === 'NEEDS_ATTENTION'`** (`care-logs/endpoints/create-care-log.ts:67`). It works only because the plant read derives the value (`plant.repository.ts:350`). The event is a Care fact phrased with a value that is no longer stored.
 9. **Rooms and plant catalog.** Rooms are owned by a user or a canopy and only place plants; placed in Care by inference. The catalog is read-only reference data used by Care and Content.
 10. **`EngagementRepository` and `AnalyticsRepository` are cross-context read models** over raw tables. They need a decision: published reads per context, or an accepted reporting exception.
 11. **`dead-letter` is shared** by notification delivery and knowledge ingestion; treated as Platform by inference.
-12. **Account deletion orchestrates five contexts** from `user/endpoints/delete-account.ts:22-32` and the same helper (`leaveCanopyAndDelete`) is reused by Admin and `account-cleanup`. No event exists for it.
+12. **Account deletion orchestrates five contexts** from `user/endpoints/delete-account.ts:25-41`. The hard delete (`user/helpers/purge-account.ts`, called by Admin and `account-cleanup`) wraps the same helper, `leaveCanopyAndDelete`. No event exists for it.

@@ -1,3 +1,5 @@
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import {
   type CanopyMembership,
   CanopyRepository,
@@ -5,18 +7,12 @@ import {
 } from '@lily/api/repositories/canopy.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { returnSharedPlants } from '@lily/api/services/canopy/helpers/return-shared-plants'
-import type { ReminderContext } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import {
   AlreadyInCanopyError,
   CanopyNotFoundError,
   NotCanopyOwnerError,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
-import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const requireMembership = (
@@ -85,29 +81,31 @@ export const lockMyCanopy = (
 
 /**
  * Ends a membership. With `'return'`, the member's shared plants go back to
- * them first, under the same reminder locks as the rest of the change.
+ * them first. Reminders drops the care reminders the member was waiting for
+ * on the plants that stay; the rest of what they were waiting for on those
+ * plants is dropped here.
  */
 export const dropMember = (
   canopyId: string,
   userId: string,
   sharedPlants: 'return' | 'stay'
-): Effect.Effect<void, SqlError, ReminderContext> =>
+): Effect.Effect<
+  void,
+  SqlError,
+  CanopyRepository | NotificationRepository | Outbox
+> =>
   Effect.gen(function* () {
     const repo = yield* CanopyRepository
     const notificationRepo = yield* NotificationRepository
-    const plantIds = yield* repo.findPlantIdsOfCanopy(canopyId)
-    yield* withReminderKeys(reminderKeysFor(plantIds))(
-      Effect.gen(function* () {
-        if (sharedPlants === 'return') {
-          yield* returnSharedPlants(canopyId, userId)
-        }
-        yield* repo.deleteMemberMutes(canopyId, userId)
-        yield* repo.removeMember(canopyId, userId)
-        yield* repo.withdrawInvitationsSentBy(canopyId, userId)
-        yield* notificationRepo.deleteUndeliveredForMemberOnCanopy(
-          userId,
-          canopyId
-        )
-      })
+    if (sharedPlants === 'return') {
+      yield* returnSharedPlants(canopyId, userId)
+    }
+    yield* repo.deleteMemberMutes(canopyId, userId)
+    yield* repo.removeMember(canopyId, userId)
+    yield* repo.withdrawInvitationsSentBy(canopyId, userId)
+    yield* notificationRepo.deleteUndeliveredNonCareForMemberOnCanopy(
+      userId,
+      canopyId
     )
+    yield* Reminders.request(Dirty.Recipient({ userId }))
   })

@@ -5,23 +5,16 @@ import {
   careWhenOf,
   PlanStepChoice,
 } from '@lily/api/contexts/care'
-import {
-  type RemindersConsumerContext,
-  remindersConsumer,
-} from '@lily/api/contexts/reminders'
-import { eventBusForwarder } from '@lily/api/events/care-forwarder'
 import { makeOutbox, Outbox } from '@lily/api/kernel/outbox'
+import { type AppConsumersContext, appConsumers } from '@lily/api/layers/outbox'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { Effect, Layer, Option } from 'effect'
 
 export const ManualOutboxLive = Layer.effect(
   Outbox,
   Effect.gen(function* () {
-    const context = yield* Effect.context<RemindersConsumerContext>()
-    const { service } = yield* makeOutbox([
-      remindersConsumer(context),
-      eventBusForwarder(context),
-    ])
+    const context = yield* Effect.context<AppConsumersContext>()
+    const { service } = yield* makeOutbox(appConsumers(context))
     return service
   })
 )
@@ -32,16 +25,25 @@ export const CareOnPostgresLive = CareLive.pipe(
 
 export const drainOutbox = Effect.flatMap(Outbox, (outbox) => outbox.drain)
 
+const drainedOn =
+  <ROut, LE, RIn>(outbox: Layer.Layer<ROut, LE, RIn>) =>
+  <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+    effect.pipe(
+      Effect.ensuring(Effect.orDie(drainOutbox)),
+      Effect.provide(Layer.fresh(outbox))
+    )
+
 /**
+ * Runs `effect` with Care and the outbox, then delivers what it appended.
+ *
  * The layer is built fresh on every call. A ManagedRuntime shares built
  * layers across `Effect.provide` calls, and a shared outbox would keep the
  * repositories of the first caller instead of the ones a test swapped in.
  */
-export const delivered = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  effect.pipe(
-    Effect.ensuring(Effect.orDie(drainOutbox)),
-    Effect.provide(Layer.fresh(CareOnPostgresLive))
-  )
+export const delivered = drainedOn(CareOnPostgresLive)
+
+/** `delivered` for an effect that uses no Care command. */
+export const settled = drainedOn(ManualOutboxLive)
 
 export const waterAsCurrentUser = (plantId: string, date?: Date) =>
   Effect.gen(function* () {

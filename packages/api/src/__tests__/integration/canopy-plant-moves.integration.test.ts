@@ -1,4 +1,6 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
@@ -42,6 +44,7 @@ const appAs = (userId: string) =>
   Layer.mergeAll(
     LimitCheckerLive,
     createMockMessageQueue(),
+    createMockEventBus(),
     createMockCurrentUser({ id: userId })
   ).pipe(Layer.provideMerge(ReposLive))
 
@@ -163,6 +166,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.runPromiseExit(
             withPlantAuth(dead.id, 'share').pipe(
               Effect.flatMap((plant) => sharePlantWithCanopy(plant, {})),
+              settled,
               Effect.provide(appAs(alexId))
             )
           )
@@ -191,6 +195,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.runPromiseExit(
             withPlantAuth(dead.id, 'unshare').pipe(
               Effect.flatMap((plant) => unsharePlant(plant, {})),
+              settled,
               Effect.provide(appAs(lilyId))
             )
           )
@@ -207,6 +212,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       Effect.runPromiseExit(
         withPlantAuth(plantId, 'unshare').pipe(
           Effect.flatMap((plant) => unsharePlant(plant, {})),
+          settled,
           Effect.provide(appAs(alexId))
         )
       )

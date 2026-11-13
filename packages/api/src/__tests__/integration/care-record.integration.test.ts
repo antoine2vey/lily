@@ -630,6 +630,74 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       ])
     })
 
+    it('keeps the pending overdue reminder while another care of the plant is still overdue', async () => {
+      const plantId = await seedOverdue()
+      await db.insert(schema.plantCareSchedules).values({
+        plantId,
+        careType: 'misting',
+        frequencyDays: 3,
+        nextCareAt: yesterday(),
+      })
+
+      await run(water(plantId).pipe(Effect.tap(() => drainOutbox)))
+
+      expect(Array.map(await remindersOf(plantId), (r) => r.type)).toEqual([
+        'watering_reminder',
+        'overdue_reminder',
+      ])
+
+      await run(
+        Effect.flatMap(Care, (care) =>
+          care.recordOne({
+            ...waterToday,
+            careType: 'misting',
+            permit: carePermit(plantId, userId),
+          })
+        ).pipe(Effect.tap(() => drainOutbox))
+      )
+
+      expect(Array.map(await remindersOf(plantId), (r) => r.type)).toEqual([
+        'watering_reminder',
+        'misting_reminder',
+      ])
+    })
+
+    it('drops the pending overdue reminder after a care that has no schedule to move', async () => {
+      const plantId = await seedOverdue()
+      await db
+        .delete(schema.plantCareSchedules)
+        .where(eq(schema.plantCareSchedules.plantId, plantId))
+
+      await run(water(plantId).pipe(Effect.tap(() => drainOutbox)))
+
+      expect(await logsOf([plantId])).toHaveLength(1)
+      expect(await remindersOf(plantId)).toEqual([])
+    })
+
+    it('tells achievements that a care answered a reminder sent today', async () => {
+      const plantId = await addPlant('Reminded')
+      await db.insert(schema.notifications).values({
+        userId,
+        plantId,
+        type: 'watering_reminder',
+        scheduledAt: new Date(),
+        sentAt: new Date(),
+        status: 'sent',
+      })
+      const publishedEvents: AppEvent[] = []
+
+      await run(
+        water(plantId).pipe(Effect.tap(() => drainOutbox)),
+        publishedEvents
+      )
+
+      expect(publishedEvents).toContainEqual({
+        _tag: 'ReminderResponded',
+        userId,
+        plantId,
+      })
+    })
+
     it('keeps the care and retries the reminders when their rebuild fails', async () => {
       const plantId = await seedOverdue()
       await db.execute(sql`
@@ -649,7 +717,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       )
 
       expect(await logsOf([plantId])).toHaveLength(1)
-      expect(await pendingEvents()).toBe(1)
+      expect(await pendingEvents()).toBe(2)
       const [stuck] = await db
         .select({
           pendingConsumers: schema.outbox.pendingConsumers,
@@ -737,6 +805,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
 
     it('stops a schedule and drops its pending reminder', async () => {
       const plantId = await addPlant('Paused', new Date(Date.now() + 3 * DAY))
+      await db
+        .insert(schema.careLogs)
+        .values({ plantId, type: 'watering', date: new Date(Date.now() - DAY) })
       await run(
         Effect.andThen(setWatering(plantId, Option.some(4)), drainOutbox)
       )
