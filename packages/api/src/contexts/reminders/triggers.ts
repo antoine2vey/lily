@@ -1,3 +1,4 @@
+import type { AbsenceEvent } from '@lily/api/contexts/absence'
 import type { CanopyEvent } from '@lily/api/contexts/canopy'
 import type { CareEvent } from '@lily/api/contexts/care'
 import { Dirty } from '@lily/api/contexts/reminders/store'
@@ -46,5 +47,15 @@ export const staleAfterCanopy: (event: CanopyEvent) => ReadonlyArray<Dirty> =
       PlantMuted: ({ plantId }) => plant(plantId),
       PlantUnmuted: ({ plantId }) => plant(plantId),
       CanopyDissolved: () => saidByPlantsMoved,
+    })
+  )
+
+export const staleAfterAbsence: (event: AbsenceEvent) => ReadonlyArray<Dirty> =
+  Match.type<AbsenceEvent>().pipe(
+    Match.tagsExhaustive({
+      DelegationStarted: ({ plantIds }) => plants(plantIds),
+      DelegationEnded: ({ plantIds }) => plants(plantIds),
+      VacationStarted: ({ userId }) => recipient(userId),
+      VacationEnded: ({ userId }) => recipient(userId),
     })
   )

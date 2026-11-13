@@ -4,15 +4,8 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import {
-  DelegationRepository,
-  type DelegationRow,
-} from '@lily/api/repositories/delegation.repository'
+import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { respondToDelegation } from '@lily/api/services/delegation/endpoints/respond-delegation'
 import {
@@ -57,22 +50,18 @@ const pendingDelegation = {
 
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
-  delegations: DelegationRow[] = [pendingDelegation]
+  delegations: DelegationRow[] = [{ ...pendingDelegation }]
 ) =>
   Layer.mergeAll(
-    MockSqlClientLive,
     currentUser,
-    createMockNotificationRepository(notifications),
-    createMockMessageQueue(),
-    createMockUserRepository([mockUser1, mockUser2]),
-    createMockDelegationRepository({
-      delegations,
-      users: [
-        { id: mockUser1.id, name: mockUser1.name, image: mockUser1.image },
-        { id: mockUser2.id, name: mockUser2.name, image: mockUser2.image },
-      ],
-      plants: mockDelegationPlants,
-    })
+    createInMemoryAbsence(
+      {
+        delegations,
+        users: [mockUser1, mockUser2],
+        plantDetails: mockDelegationPlants,
+      },
+      { notifications }
+    ).layer
   )
 
 describe('respondToDelegation', () => {
@@ -113,51 +102,15 @@ describe('respondToDelegation', () => {
     expect(result.respondedAt).toBeInstanceOf(Date)
   })
 
-  it('fails with the current status when a cancel lands between the read and the accept', async () => {
+  it('refuses to accept a delegation canceled first, names its status and tells nobody', async () => {
     notifications.length = 0
-    const delegation: DelegationRow = {
-      ...mockDelegation1,
-      status: 'pending' as const,
-    }
-    const delegations = [delegation]
-    const racingCancel = Layer.effect(
-      DelegationRepository,
-      Effect.map(DelegationRepository, (repo) => ({
-        ...repo,
-        findById: (id: string) =>
-          repo.findById(id).pipe(
-            Effect.tap(() =>
-              Effect.sync(() => {
-                delegation.status = 'canceled'
-              })
-            )
-          ),
-      }))
-    ).pipe(
-      Layer.provide(
-        createMockDelegationRepository({
-          delegations,
-          users: [
-            { id: mockUser1.id, name: mockUser1.name, image: mockUser1.image },
-            { id: mockUser2.id, name: mockUser2.name, image: mockUser2.image },
-          ],
-          plants: mockDelegationPlants,
-        })
-      )
-    )
+    const delegations: DelegationRow[] = [
+      { ...mockDelegation1, status: 'canceled' as const },
+    ]
 
     const result = await Effect.runPromiseExit(
       respondToDelegation(mockDelegation1.id, { accept: true }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            MockSqlClientLive,
-            racingCancel,
-            caretakerCurrentUser,
-            createMockNotificationRepository(notifications),
-            createMockMessageQueue(),
-            createMockUserRepository([mockUser1, mockUser2])
-          )
-        )
+        Effect.provide(createLayer(caretakerCurrentUser, delegations))
       )
     )
 

@@ -4,6 +4,9 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import {
   CareReads,
   CareReadsLive,
@@ -311,6 +314,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               WorkerLive,
               createMockMessageQueue(),
               createMockEventBus(),
+              createMockWeatherProvider(),
+              createMockWeatherCache(),
+              createMockWeatherRepository(),
               createMockLimitChecker()
             )
           ),

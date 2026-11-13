@@ -510,7 +510,7 @@ export const CanopyLive = Layer.effect(
             Effect.all([
               noticed(
                 'canopy.leaveForDeletion',
-                { ...ending(userId), delegationsOf: Option.some(userId) },
+                { ...ending(userId), absenceOf: Option.some(userId) },
                 (held) =>
                   leave(held, {
                     by: userId,

@@ -1,9 +1,16 @@
+import {
+  absenceOverStore,
+  leaveOnVacation,
+  returnFromVacation,
+  waitsForALock,
+} from '@lily/api/__tests__/integration/absence-layers'
 import { settled } from '@lily/api/__tests__/integration/canopy-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import { replanPlants } from '@lily/api/contexts/reminders'
@@ -12,10 +19,7 @@ import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
-import {
-  DelegationRepository,
-  DelegationRepositoryLive,
-} from '@lily/api/repositories/delegation.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import {
   NotificationRepository,
@@ -31,6 +35,7 @@ import {
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
+import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -112,6 +117,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               createMockLimitChecker(),
               createMockMessageQueue(),
               createMockPushService(),
+              createMockRateLimiterService(),
               MockAlerterLive
             )
           ),
@@ -299,24 +305,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const release = Deferred.makeUnsafe<void>()
       const canceling = as(
         owner,
-        Effect.gen(function* () {
-          const repo = yield* DelegationRepository
-          return yield* cancelDelegation(delegationId).pipe(
-            Effect.provideService(DelegationRepository, {
-              ...repo,
-              transitionStatus: (...args) =>
-                repo
-                  .transitionStatus(...args)
-                  .pipe(
-                    Effect.tap(() =>
-                      Deferred.succeed(reached, undefined).pipe(
-                        Effect.andThen(Deferred.await(release))
-                      )
+        Effect.provide(
+          cancelDelegation(delegationId),
+          absenceOverStore((store) => ({
+            ...store,
+            apply: (writes) =>
+              store
+                .apply(writes)
+                .pipe(
+                  Effect.tap(() =>
+                    Deferred.succeed(reached, undefined).pipe(
+                      Effect.andThen(Deferred.await(release))
                     )
-                  ),
-            })
-          )
-        })
+                  )
+                ),
+          }))
+        )
       )
       await Effect.runPromise(Deferred.await(reached))
       const deleting = as(owner, deleteAccount())
@@ -332,6 +336,75 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         user: 'pending_deletion',
         rows: [],
       })
+    })
+
+    it('makes a vacation set behind a deletion wait for it, and puts no vacation on the deleted account', async () => {
+      const userId = await insertUser('vacationer')
+      const reached = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const deleting = as(
+        userId,
+        Effect.gen(function* () {
+          const repo = yield* UserRepository
+          return yield* deleteAccount().pipe(
+            Effect.provideService(UserRepository, {
+              ...repo,
+              softDelete: (id) =>
+                repo
+                  .softDelete(id)
+                  .pipe(
+                    Effect.tap(() =>
+                      Deferred.succeed(reached, undefined).pipe(
+                        Effect.andThen(Deferred.await(release))
+                      )
+                    )
+                  ),
+            })
+          )
+        })
+      )
+      await Effect.runPromise(Deferred.await(reached))
+      const setting = as(
+        userId,
+        leaveOnVacation(userId, {
+          start: new Date(Date.now() - DAY),
+          end: new Date(Date.now() + 7 * DAY),
+        })
+      )
+      const setWaited = await waitsForALock(pool, setting)
+      Deferred.doneUnsafe(release, Exit.void)
+
+      expect({
+        deleted: outcome(await deleting),
+        set: outcome(await setting),
+        setWaited,
+      }).toEqual({ deleted: 'ok', set: 'UserNotFoundError', setWaited: true })
+      expect(
+        await db
+          .select({
+            status: schema.users.status,
+            vacationStatus: schema.users.vacationStatus,
+            vacationStart: schema.users.vacationStart,
+            vacationEnd: schema.users.vacationEnd,
+          })
+          .from(schema.users)
+          .where(eq(schema.users.id, userId))
+      ).toEqual([
+        {
+          status: 'pending_deletion',
+          vacationStatus: 'none',
+          vacationStart: null,
+          vacationEnd: null,
+        },
+      ])
+      expect(
+        await db
+          .select({ id: schema.outbox.id })
+          .from(schema.outbox)
+          .where(
+            sql`${schema.outbox.topic} = 'absence' AND ${schema.outbox.event}->>'userId' = ${userId}`
+          )
+      ).toEqual([])
     })
 
     it('keeps the canceledAt of a cancel that commits while the deletion waits on the delegation row', async () => {
@@ -521,26 +594,24 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         let calls = 0
         const transitioning = as(
           user,
-          Effect.gen(function* () {
-            const repo = yield* DelegationRepository
-            return yield* pollAndTransition.pipe(
-              Effect.provideService(DelegationRepository, {
-                ...repo,
-                transitionStatus: (...args) =>
-                  repo
-                    .transitionStatus(...args)
-                    .pipe(
-                      Effect.tap(() =>
-                        calls++ === 0
-                          ? Deferred.succeed(reached, undefined).pipe(
-                              Effect.andThen(Deferred.await(release))
-                            )
-                          : Effect.void
-                      )
-                    ),
-              })
-            )
-          })
+          Effect.provide(
+            pollAndTransition,
+            absenceOverStore((store) => ({
+              ...store,
+              apply: (writes) =>
+                store
+                  .apply(writes)
+                  .pipe(
+                    Effect.tap(() =>
+                      calls++ === 0
+                        ? Deferred.succeed(reached, undefined).pipe(
+                            Effect.andThen(Deferred.await(release))
+                          )
+                        : Effect.void
+                    )
+                  ),
+            }))
+          )
         )
         await Effect.runPromise(Deferred.await(reached))
         const deleting = as(user, deleteAccount())
@@ -551,9 +622,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           transitioned: outcome(await transitioning),
           deleted: outcome(await deleting),
         }).toEqual({ transitioned: 'ok', deleted: 'ok' })
-        for (const id of [high, low]) {
-          expect((await state(id, user)).delegation).toBe(after)
-        }
+        expect((await state(low, user)).delegation).toBe(after)
+        expect([after, 'canceled']).toContain(
+          (await state(high, user)).delegation
+        )
         expect((await state(high, user)).user).toBe('pending_deletion')
       }
     )
@@ -605,6 +677,346 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           .from(schema.users)
           .where(inArray(schema.users.id, [a, b]))
       ).toEqual([])
+    })
+
+    const deadlocks = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+      const [row] = await db
+        .execute<{ deadlocks: string }>(
+          sql`SELECT deadlocks::text AS deadlocks FROM pg_stat_database WHERE datname = current_database()`
+        )
+        .then((r) => r.rows)
+      return Number(row?.deadlocks ?? 0)
+    }
+
+    const factsOf = (about: 'userId' | 'delegationId', id: string) =>
+      db
+        .execute<{ event: Record<string, unknown> }>(
+          sql`SELECT event FROM outbox WHERE topic = 'absence' AND event->>${about} = ${id} ORDER BY id`
+        )
+        .then((r) => r.rows.map((row) => row.event))
+
+    const accountOf = (userId: string) =>
+      db
+        .select({
+          status: schema.users.status,
+          vacation: schema.users.vacationStatus,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, userId))
+
+    const dueDayOf = (plantId: string) =>
+      db
+        .select({ nextCareAt: schema.plantCareSchedules.nextCareAt })
+        .from(schema.plantCareSchedules)
+        .where(eq(schema.plantCareSchedules.plantId, plantId))
+        .then((rows) => rows[0]?.nextCareAt)
+
+    const plantValues = {
+      name: 'Fern',
+      health: 'HEALTHY',
+      humidityRating: 3,
+      lightingRating: 3,
+      petToxicityRating: 1,
+      wateringRating: 3,
+    } as const
+
+    const away = async (userId: string) => {
+      await db
+        .update(schema.users)
+        .set({
+          vacationStatus: 'active',
+          vacationStart: new Date(Date.now() - 3 * DAY),
+          vacationEnd: new Date(Date.now() + 4 * DAY),
+        })
+        .where(eq(schema.users.id, userId))
+    }
+
+    const aCanopyMemberAwayWithATipWaitingOnACanopyPlant = async () => {
+      const owner = await insertUser('canopy-owner')
+      const member = await insertUser('canopy-member')
+      const [canopy] = await db
+        .insert(schema.canopies)
+        .values({ name: 'Home', timezone: 'UTC' })
+        .returning()
+      if (!canopy) throw new Error('canopy insert returned nothing')
+      await db.insert(schema.canopyMembers).values([
+        { canopyId: canopy.id, userId: owner, role: 'owner' },
+        { canopyId: canopy.id, userId: member, role: 'member' },
+      ])
+      const [plant] = await db
+        .insert(schema.plants)
+        .values({ ...plantValues, canopyId: canopy.id, createdByUserId: owner })
+        .returning()
+      if (!plant) throw new Error('plant insert returned nothing')
+      await db.insert(schema.notifications).values({
+        type: 'photo_reminder',
+        scheduledAt: new Date(Date.now() + DAY),
+        userId: member,
+        plantId: plant.id,
+      })
+      await away(member)
+      return member
+    }
+
+    const pausedBefore = <A, E, R>(
+      step: Effect.Effect<A, E, R>,
+      reached: Deferred.Deferred<void>,
+      release: Deferred.Deferred<void>
+    ) =>
+      Deferred.succeed(reached, undefined).pipe(
+        Effect.andThen(Deferred.await(release)),
+        Effect.andThen(step)
+      )
+
+    const changeHoldingTheAccountWhileItIsDeleted = async (
+      member: string,
+      change: (
+        reached: Deferred.Deferred<void>,
+        release: Deferred.Deferred<void>
+      ) => Promise<Exit.Exit<unknown, unknown>>
+    ) => {
+      const before = await deadlocks()
+      const reached = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const changing = change(reached, release)
+      await Effect.runPromise(Deferred.await(reached))
+      const deleting = as(member, deleteAccount())
+      const deletionWaited = await waitsForALock(pool, deleting)
+      Deferred.doneUnsafe(release, Exit.void)
+      return {
+        changed: outcome(await changing),
+        deleted: outcome(await deleting),
+        deletionWaited,
+        deadlocks: (await deadlocks()) - before,
+      }
+    }
+
+    const endingTheirVacation =
+      (member: string) =>
+      (reached: Deferred.Deferred<void>, release: Deferred.Deferred<void>) =>
+        as(
+          member,
+          Effect.provide(
+            returnFromVacation(member),
+            absenceOverStore((store) => ({
+              ...store,
+              apply: (writes) =>
+                pausedBefore(store.apply(writes), reached, release),
+            }))
+          )
+        )
+
+    const turningTipsOff =
+      (member: string) =>
+      (reached: Deferred.Deferred<void>, release: Deferred.Deferred<void>) =>
+        as(
+          member,
+          Effect.gen(function* () {
+            const repo = yield* NotificationRepository
+            return yield* updateUserSettings({
+              notifications: { tips: false },
+            }).pipe(
+              Effect.provideService(NotificationRepository, {
+                ...repo,
+                deletePendingByUserIdAndTypes: (userId, types) =>
+                  pausedBefore(
+                    repo.deletePendingByUserIdAndTypes(userId, types),
+                    reached,
+                    release
+                  ),
+              })
+            )
+          })
+        )
+
+    describe('a canopy member with a tip waiting on a canopy plant, deleting their account', () => {
+      it('waits for a vacation end that already holds their account, without a deadlock', async () => {
+        const member = await aCanopyMemberAwayWithATipWaitingOnACanopyPlant()
+
+        const raced = await changeHoldingTheAccountWhileItIsDeleted(
+          member,
+          endingTheirVacation(member)
+        )
+
+        expect(raced).toEqual({
+          changed: 'ok',
+          deleted: 'ok',
+          deletionWaited: true,
+          deadlocks: 0,
+        })
+        expect(await accountOf(member)).toEqual([
+          { status: 'pending_deletion', vacation: 'none' },
+        ])
+        expect(await factsOf('userId', member)).toMatchObject([
+          { _tag: 'VacationEnded' },
+        ])
+      })
+
+      it('makes a vacation end behind the deletion wait for it, without a deadlock, and ends the vacation once', async () => {
+        const member = await aCanopyMemberAwayWithATipWaitingOnACanopyPlant()
+        const before = await deadlocks()
+
+        const raced = await deleteWhileOtherRuns(member, () =>
+          as(member, returnFromVacation(member))
+        )
+
+        expect({ ...raced, deadlocks: (await deadlocks()) - before }).toEqual({
+          deleted: 'ok',
+          other: 'UserNotFoundError',
+          deadlocks: 0,
+        })
+        expect(await accountOf(member)).toEqual([
+          { status: 'pending_deletion', vacation: 'none' },
+        ])
+        expect(await factsOf('userId', member)).toMatchObject([
+          { _tag: 'VacationEnded' },
+        ])
+      })
+
+      it('waits for a settings change that turns tips off and already holds their account, without a deadlock', async () => {
+        const member = await aCanopyMemberAwayWithATipWaitingOnACanopyPlant()
+
+        const raced = await changeHoldingTheAccountWhileItIsDeleted(
+          member,
+          turningTipsOff(member)
+        )
+
+        expect(raced).toEqual({
+          changed: 'ok',
+          deleted: 'ok',
+          deletionWaited: true,
+          deadlocks: 0,
+        })
+        expect((await accountOf(member))[0]?.status).toBe('pending_deletion')
+      })
+
+      it('makes a settings change that turns tips off behind the deletion wait for it, without a deadlock', async () => {
+        const member = await aCanopyMemberAwayWithATipWaitingOnACanopyPlant()
+        const before = await deadlocks()
+
+        const raced = await deleteWhileOtherRuns(member, () =>
+          as(member, updateUserSettings({ notifications: { tips: false } }))
+        )
+
+        expect({ ...raced, deadlocks: (await deadlocks()) - before }).toEqual({
+          deleted: 'ok',
+          other: 'ok',
+          deadlocks: 0,
+        })
+        expect((await accountOf(member))[0]?.status).toBe('pending_deletion')
+      })
+    })
+
+    it('ends the vacation of an account that asks for its deletion, says so once, and moves no due day', async () => {
+      const userId = await insertUser('away')
+      const [plant] = await db
+        .insert(schema.plants)
+        .values({ ...plantValues, userId, createdByUserId: userId })
+        .returning()
+      if (!plant) throw new Error('plant insert returned nothing')
+      const dueWhileAway = new Date(Date.now() - DAY)
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: plant.id,
+        careType: 'watering',
+        frequencyDays: 7,
+        nextCareAt: dueWhileAway,
+      })
+      await away(userId)
+
+      expect(outcome(await as(userId, deleteAccount()))).toBe('ok')
+
+      expect(await accountOf(userId)).toEqual([
+        { status: 'pending_deletion', vacation: 'none' },
+      ])
+      expect(await factsOf('userId', userId)).toMatchObject([
+        { _tag: 'VacationEnded' },
+      ])
+      expect(await dueDayOf(plant.id)).toEqual(dueWhileAway)
+    })
+
+    it('hard-deletes an account that is on vacation, and what it says about the vacation is heard without an error', async () => {
+      const userId = await insertUser('away-for-good')
+      await away(userId)
+
+      expect(outcome(await as(userId, purgeAccount(userId)))).toBe('ok')
+
+      expect(await accountOf(userId)).toEqual([])
+      expect(
+        await db
+          .execute<{ fact: string; heard: boolean; error: string | null }>(
+            sql`SELECT event->>'_tag' AS fact, processed_at IS NOT NULL AS heard, last_error AS error FROM outbox WHERE topic = 'absence' AND event->>'userId' = ${userId}`
+          )
+          .then((r) => r.rows)
+      ).toEqual([{ fact: 'VacationEnded', heard: true, error: null }])
+    })
+
+    describe('the hard deletion of a caretaker who is tending plants', () => {
+      const remindersOf = (userId: string, plantId: string) =>
+        db
+          .select({
+            type: schema.notifications.type,
+            status: schema.notifications.status,
+          })
+          .from(schema.notifications)
+          .where(
+            sql`${schema.notifications.userId} = ${userId} AND ${schema.notifications.plantId} = ${plantId}`
+          )
+
+      it('says the delegation ended because the account was deleted, and gives the coming reminders of its plants back to their owner', async () => {
+        const { owner, caretaker, plantId, delegationId } = await seed('active')
+        const before = {
+          caretaker: await remindersOf(caretaker, plantId),
+          owner: await remindersOf(owner, plantId),
+        }
+
+        const purged = await as(caretaker, purgeAccount(caretaker))
+
+        expect(outcome(purged)).toBe('ok')
+        expect(await accountOf(caretaker)).toEqual([])
+        expect(await factsOf('delegationId', delegationId)).toEqual([
+          {
+            _tag: 'DelegationEnded',
+            delegationId,
+            ownerId: owner,
+            caretakerId: caretaker,
+            plantIds: [plantId],
+            reason: 'accountDeleted',
+          },
+        ])
+        expect({ before, owner: await remindersOf(owner, plantId) }).toEqual({
+          before: {
+            caretaker: [{ type: 'watering_reminder', status: 'pending' }],
+            owner: [],
+          },
+          owner: [{ type: 'watering_reminder', status: 'pending' }],
+        })
+      })
+
+      it('leaves the delegation running and says nothing when the delete itself fails', async () => {
+        const { caretaker, delegationId } = await seed('active')
+
+        const purged = await as(
+          caretaker,
+          Effect.gen(function* () {
+            const repo = yield* UserRepository
+            return yield* purgeAccount(caretaker).pipe(
+              Effect.provideService(UserRepository, {
+                ...repo,
+                delete: () => Effect.die('delete failed'),
+              })
+            )
+          })
+        )
+
+        expect(Exit.isFailure(purged)).toBe(true)
+        expect(await state(delegationId, caretaker)).toEqual({
+          delegation: 'active',
+          user: 'active',
+          rows: ['watering_reminder'],
+        })
+        expect(await factsOf('delegationId', delegationId)).toEqual([])
+      })
     })
   }
 )

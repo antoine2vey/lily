@@ -1,10 +1,14 @@
+import { type AbsenceEvent, AbsenceTopic } from '@lily/api/contexts/absence'
 import { type CanopyEvent, CanopyTopic } from '@lily/api/contexts/canopy'
 import {
   type Dirty,
   type ReplanContext,
   replan,
 } from '@lily/api/contexts/reminders'
-import { staleAfterCanopy } from '@lily/api/contexts/reminders/triggers'
+import {
+  staleAfterAbsence,
+  staleAfterCanopy,
+} from '@lily/api/contexts/reminders/triggers'
 import { Outbox } from '@lily/api/kernel/outbox'
 import { Array, Effect, Layer } from 'effect'
 
@@ -25,13 +29,16 @@ const asReplanRequests =
           )
         )
       }
+      if (to.name === AbsenceTopic.name) {
+        requested.push(
+          ...Array.flatMap(
+            events as ReadonlyArray<AbsenceEvent>,
+            staleAfterAbsence
+          )
+        )
+      }
     })
 
-/**
- * An outbox that keeps what was appended and delivers nothing. `requested`
- * holds the replans asked for, directly or through a Canopy fact, in the
- * order they were made.
- */
 export const createMockOutbox = (requested: Dirty[] = []) => ({
   requested,
   layer: Layer.succeed(

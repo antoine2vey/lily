@@ -69,7 +69,7 @@ export const plantRoleFor = (
         ? Effect.succeed(personalRole(ownerId, who.userId, false))
         : Effect.map(
             Effect.flatMap(DelegationRepository, (repo) =>
-              repo.hasActiveDelegationForPlant(who.userId, plant.id)
+              repo.tends(who.userId, plant.id)
             ),
             (caretaker) => personalRole(ownerId, who.userId, caretaker)
           )

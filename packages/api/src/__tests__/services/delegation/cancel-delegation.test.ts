@@ -4,13 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { Dirty } from '@lily/api/contexts/reminders'
+import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
@@ -49,33 +43,26 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
 
 const notifications: Notification[] = []
 
-const createLayer = (
-  currentUser: Layer.Layer<CurrentUser>,
-  delegations: DelegationRow[] = [
-    { ...mockDelegation1, status: 'pending' as const },
-  ],
-  requested: Dirty[] = []
-) =>
-  Layer.mergeAll(
-    MockSqlClientLive,
-    currentUser,
-    createMockOutbox(requested).layer,
-    createMockNotificationRepository(notifications),
-    createMockMessageQueue(),
-    createMockUserRepository([mockUser1, mockUser2]),
-    createMockDelegationRepository({
+const inMemory = (delegations: DelegationRow[]) =>
+  createInMemoryAbsence(
+    {
       delegations,
-      users: [
-        { id: mockUser1.id, name: mockUser1.name, image: mockUser1.image },
-        { id: mockUser2.id, name: mockUser2.name, image: mockUser2.image },
-      ],
-      plants: mockDelegationPlants,
+      users: [mockUser1, mockUser2],
+      plantDetails: mockDelegationPlants,
       delegationPlants: [
         { delegationId: mockDelegation1.id, plantId: 'plant-1' },
         { delegationId: mockDelegation1.id, plantId: 'plant-2' },
       ],
-    })
+    },
+    { notifications }
   )
+
+const createLayer = (
+  currentUser: Layer.Layer<CurrentUser>,
+  delegations: DelegationRow[] = [
+    { ...mockDelegation1, status: 'pending' as const },
+  ]
+) => Layer.mergeAll(currentUser, inMemory(delegations).layer)
 
 describe('cancelDelegation', () => {
   it('should cancel a pending delegation', async () => {
@@ -114,44 +101,41 @@ describe('cancelDelegation', () => {
     expect(result.status).toBe('canceled')
   })
 
-  it('asks Reminders to plan the plants again when an active delegation is canceled', async () => {
-    const requested: Dirty[] = []
+  it('publishes that an active delegation ended, with the plants it covered', async () => {
+    const absence = inMemory([
+      { ...mockDelegation1, status: 'active' as const },
+    ])
 
     await Effect.runPromise(
       cancelDelegation(mockDelegation1.id).pipe(
-        Effect.provide(
-          createLayer(
-            ownerCurrentUser,
-            [{ ...mockDelegation1, status: 'active' as const }],
-            requested
-          )
-        )
+        Effect.provide(Layer.mergeAll(ownerCurrentUser, absence.layer))
       )
     )
 
-    expect(requested).toEqual([
-      Dirty.Plants({ plantIds: ['plant-1', 'plant-2'] }),
+    expect(absence.events).toEqual([
+      {
+        _tag: 'DelegationEnded',
+        delegationId: mockDelegation1.id,
+        ownerId: mockDelegation1.ownerId,
+        caretakerId: mockDelegation1.caretakerId,
+        plantIds: ['plant-1', 'plant-2'],
+        reason: 'canceled',
+      },
     ])
   })
 
   it.each(['pending', 'accepted'] as const)(
-    'asks Reminders for nothing when a %s delegation is canceled',
+    'publishes nothing when a %s delegation is canceled',
     async (status) => {
-      const requested: Dirty[] = []
+      const absence = inMemory([{ ...mockDelegation1, status }])
 
       await Effect.runPromise(
         cancelDelegation(mockDelegation1.id).pipe(
-          Effect.provide(
-            createLayer(
-              ownerCurrentUser,
-              [{ ...mockDelegation1, status }],
-              requested
-            )
-          )
+          Effect.provide(Layer.mergeAll(ownerCurrentUser, absence.layer))
         )
       )
 
-      expect(requested).toEqual([])
+      expect(absence.events).toEqual([])
     }
   )
 

@@ -1,3 +1,4 @@
+import { Absence } from '@lily/api/contexts/absence'
 import {
   type Account,
   type CanopyState,
@@ -7,7 +8,6 @@ import {
 } from '@lily/api/contexts/canopy/domain/canopy'
 import { CanopyWrite, RoomMove } from '@lily/api/contexts/canopy/domain/decide'
 import { lockUser } from '@lily/api/kernel/locks'
-import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
   ownedBy,
   ownerColumns,
@@ -81,7 +81,7 @@ export const PlantScope = Data.taggedEnum<PlantScope>()
 export interface LockPlan {
   readonly actor: Option.Option<string>
   readonly canopy: Find
-  readonly delegationsOf: Option.Option<string>
+  readonly absenceOf: Option.Option<string>
   readonly accounts: ReadonlyArray<string>
   readonly invitations: InvitationScope
   /**
@@ -95,7 +95,7 @@ export interface LockPlan {
 const LOCK_NOTHING: LockPlan = {
   actor: Option.none(),
   canopy: Find.None(),
-  delegationsOf: Option.none(),
+  absenceOf: Option.none(),
   accounts: [],
   invitations: InvitationScope.None(),
   rooms: RoomScope.None(),
@@ -178,7 +178,7 @@ export const CanopyStoreLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
     const client = yield* SqlClient.SqlClient
     const notifications = yield* NotificationRepository
-    const delegations = yield* DelegationRepository
+    const absence = yield* Absence
 
     const canopyOf = (userId: string) =>
       Effect.map(
@@ -350,10 +350,10 @@ export const CanopyStoreLive = Layer.effect(
         }
       })
 
-    const delegationsOf: LockClass = (plan, held) =>
-      Option.match(plan.delegationsOf, {
+    const absenceOf: LockClass = (plan, held) =>
+      Option.match(plan.absenceOf, {
         onNone: () => Effect.succeed(held),
-        onSome: (userId) => Effect.as(delegations.lockAllForUser(userId), held),
+        onSome: (userId) => Effect.as(absence.holdForDeletion(userId), held),
       })
 
     const ofHeldCanopy = (
@@ -495,7 +495,7 @@ export const CanopyStoreLive = Layer.effect(
     const IN_LOCK_ORDER: ReadonlyArray<LockClass> = [
       actor,
       canopy,
-      delegationsOf,
+      absenceOf,
       accounts,
       invitations,
       heldRooms,

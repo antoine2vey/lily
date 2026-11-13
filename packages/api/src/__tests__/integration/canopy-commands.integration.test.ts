@@ -21,7 +21,6 @@ import {
 import { CanopyWrite, RoomMove } from '@lily/api/contexts/canopy/domain/decide'
 import {
   CanopyStore,
-  CanopyStoreLive,
   Find,
   InvitationScope,
   type LockPlan,
@@ -83,10 +82,6 @@ const { Pool } = pg
 
 const AppLive = Layer.mergeAll(
   CanopyRepositoryLive,
-  Layer.provide(
-    CanopyStoreLive,
-    Layer.mergeAll(NotificationRepositoryLive, DelegationRepositoryLive)
-  ),
   CareScheduleRepositoryLive,
   CareReadsLive,
   DelegationRepositoryLive,
@@ -101,7 +96,7 @@ const AppLive = Layer.mergeAll(
   createMockWeatherRepository()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
-type App = Layer.Success<typeof AppLive> | Outbox | Canopy
+type App = Layer.Success<typeof AppLive> | Outbox | Canopy | CanopyStore
 
 const exitOf = <A, E>(effect: Effect.Effect<A, E, App>) =>
   Effect.runPromiseExit(Effect.provide(settled(effect), AppLive))
@@ -1944,22 +1939,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
       })
 
-      describe('the delegations of a user', () => {
-        const delegationOf = async (ownerId: string, caretakerId: string) => {
-          const [delegation] = await db
-            .insert(schema.careDelegations)
-            .values({
-              ownerId,
-              caretakerId,
-              status: 'active',
-              startDate: new Date(Date.now() - 86_400_000),
-              endDate: new Date(Date.now() + 86_400_000),
-            })
-            .returning()
-          if (!delegation) throw new Error('delegation insert failed')
-          return delegation.id
-        }
+      const delegationOf = async (ownerId: string, caretakerId: string) => {
+        const [delegation] = await db
+          .insert(schema.careDelegations)
+          .values({
+            ownerId,
+            caretakerId,
+            status: 'active',
+            startDate: new Date(Date.now() - 86_400_000),
+            endDate: new Date(Date.now() + 86_400_000),
+          })
+          .returning()
+        if (!delegation) throw new Error('delegation insert failed')
+        return delegation.id
+      }
 
+      describe('the delegations of a user', () => {
         const delegationIsFree = (delegationId: string) => () =>
           anotherSessionCanLock('care_delegations', delegationId, 'FOR UPDATE')
 
@@ -1974,7 +1969,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 lockAndLoad(
                   lockPlan({
                     canopy: Find.OfMember({ userId: alexId }),
-                    delegationsOf: Option.some(alexId),
+                    absenceOf: Option.some(alexId),
                   })
                 )
               ),
@@ -2006,7 +2001,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 Effect.andThen(
                   lockAndLoad(
                     lockPlan({
-                      delegationsOf: Option.some(alexId),
+                      absenceOf: Option.some(alexId),
                       accounts: [samId],
                     })
                   ),
@@ -2025,6 +2020,101 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             freeUnderTheLock: [false, false, true],
             freeAfter: [true, true, true],
           })
+        })
+      })
+
+      describe('the account of a user being deleted', () => {
+        const alexIsFree = async () => ({
+          forAVacationChange: await anotherSessionCanLock(
+            'users',
+            alexId,
+            'FOR NO KEY UPDATE'
+          ),
+          forACareThatNamesThem: await anotherSessionCanLock(
+            'users',
+            alexId,
+            'FOR KEY SHARE'
+          ),
+        })
+
+        it('waits for a delegation before it touches the account, then holds the account against a vacation change, and not against a care, until the transaction ends', async () => {
+          const given = await delegationOf(alexId, samId)
+
+          const { seen, done } = await whileAnotherSessionHolds(
+            [
+              'SELECT id FROM care_delegations WHERE id = $1 FOR UPDATE',
+              [given],
+            ],
+            1,
+            () =>
+              inOneTransaction(
+                Effect.andThen(
+                  lockAndLoad(lockPlan({ absenceOf: Option.some(alexId) })),
+                  Effect.promise(alexIsFree)
+                )
+              ),
+            alexIsFree
+          )
+
+          expect({
+            whileWaitingForTheDelegation: seen,
+            underTheLock: done,
+            after: await alexIsFree(),
+          }).toEqual({
+            whileWaitingForTheDelegation: {
+              forAVacationChange: true,
+              forACareThatNamesThem: true,
+            },
+            underTheLock: {
+              forAVacationChange: false,
+              forACareThatNamesThem: true,
+            },
+            after: { forAVacationChange: true, forACareThatNamesThem: true },
+          })
+        })
+
+        it('waits for the account before it touches an invitation, a room or a plant of the canopy', async () => {
+          const held = {
+            invitation: await invitationTo(canopyId, samId, lilyId),
+            room: await roomOf({ canopyId }),
+            plant: await plantOf({ canopyId, createdByUserId: alexId }),
+          }
+
+          const { seen } = await whileAnotherSessionHolds(
+            ['SELECT id FROM users WHERE id = $1 FOR NO KEY UPDATE', [alexId]],
+            1,
+            () =>
+              inOneTransaction(
+                lockAndLoad(
+                  lockPlan({
+                    canopy: Find.OfMember({ userId: alexId }),
+                    absenceOf: Option.some(alexId),
+                    invitations: InvitationScope.All(),
+                    rooms: RoomScope.OfCanopy(),
+                    plants: PlantScope.OfCanopy(),
+                  })
+                )
+              ),
+            async () => ({
+              invitation: await anotherSessionCanLock(
+                'canopy_direct_invites',
+                held.invitation,
+                'FOR UPDATE'
+              ),
+              room: await anotherSessionCanLock(
+                'rooms',
+                held.room,
+                'FOR UPDATE'
+              ),
+              plant: await anotherSessionCanLock(
+                'plants',
+                held.plant,
+                'FOR NO KEY UPDATE'
+              ),
+            })
+          )
+
+          expect(seen).toEqual({ invitation: true, room: true, plant: true })
         })
       })
 

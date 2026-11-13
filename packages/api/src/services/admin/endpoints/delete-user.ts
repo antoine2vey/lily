@@ -1,6 +1,5 @@
+import type { Absence } from '@lily/api/contexts/absence'
 import type { Canopy } from '@lily/api/contexts/canopy'
-import type { Outbox } from '@lily/api/kernel/outbox'
-import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
@@ -15,7 +14,7 @@ export const deleteUser = (
 ): Effect.Effect<
   User,
   SqlError | UserNotFoundError | CannotModifySelfError,
-  UserRepository | AdminUser | Canopy | PlantRepository | Outbox
+  UserRepository | AdminUser | Canopy | Absence
 > =>
   Effect.gen(function* () {
     const currentAdmin = yield* AdminUser

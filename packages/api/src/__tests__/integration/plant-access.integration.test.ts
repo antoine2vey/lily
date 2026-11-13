@@ -1,7 +1,18 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
-import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
+import {
+  CarePlanRepository,
+  CarePlanRepositoryLive,
+} from '@lily/api/repositories/care-plan.repository'
+import {
+  CareScheduleRepository,
+  CareScheduleRepositoryLive,
+} from '@lily/api/repositories/care-schedule.repository'
+import {
+  DelegationRepository,
+  DelegationRepositoryLive,
+} from '@lily/api/repositories/delegation.repository'
 import {
   PlantRepository,
   PlantRepositoryLive,
@@ -10,14 +21,18 @@ import {
   RoomRepository,
   RoomRepositoryLive,
 } from '@lily/api/repositories/room.repository'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import { withCarePlanAuth } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
+import {
+  resolvePlantRole,
+  withPlantAuth,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import type { CanopyId, PlantOwner } from '@lily/shared'
+import type { CanopyId, PlantOwner, UserStatus } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Effect, Layer, String } from 'effect'
+import { Array, Effect, Exit, Layer, Option, Record, String } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -27,6 +42,8 @@ const RepositoriesLive = Layer.mergeAll(
   PlantRepositoryLive,
   RoomRepositoryLive,
   CanopyRepositoryLive,
+  CarePlanRepositoryLive,
+  CareScheduleRepositoryLive,
   DelegationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
@@ -304,6 +321,134 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect([renamed, deleted]).toEqual([null, null])
       expect(row?.name).toBe('Canopy room')
+    })
+
+    describe("a caretaker's place on a delegated plant", () => {
+      const DAY = 86_400_000
+
+      const samTendsAPlantOfAlex = async (status: UserStatus) => {
+        const plant = await insertPlant(alexOwner, 'Tended')
+        const [delegation] = await db
+          .insert(schema.careDelegations)
+          .values({
+            ownerId: alexId,
+            caretakerId: samId,
+            status: 'active',
+            startDate: new Date(Date.now() - DAY),
+            endDate: new Date(Date.now() + 7 * DAY),
+          })
+          .returning()
+        if (!delegation) throw new Error('delegation insert returned nothing')
+        await db
+          .insert(schema.delegationPlants)
+          .values({ delegationId: delegation.id, plantId: plant.id })
+        const [plan] = await db
+          .insert(schema.carePlans)
+          .values({ plantId: plant.id, userId: samId, title: 'Repot' })
+          .returning()
+        if (!plan) throw new Error('care plan insert returned nothing')
+        await db
+          .update(schema.users)
+          .set({ status })
+          .where(eq(schema.users.id, samId))
+        return { plantId: plant.id, planId: plan.id }
+      }
+
+      const whatSamHolds = ({
+        plantId,
+        planId,
+      }: {
+        readonly plantId: string
+        readonly planId: string
+      }) =>
+        Effect.runPromise(
+          Effect.gen(function* () {
+            const plantRepo = yield* PlantRepository
+            const planRepo = yield* CarePlanRepository
+            const scheduleRepo = yield* CareScheduleRepository
+            const delegationRepo = yield* DelegationRepository
+            const plant = yield* plantRepo.findById(plantId)
+            if (!plant) return yield* Effect.die('the tended plant is gone')
+            const role = yield* resolvePlantRole(plant)
+            const caretaking = yield* plantRepo.findAll({
+              userId: samId,
+              includeCaretaking: true,
+            })
+            const tasks =
+              yield* delegationRepo.findActiveDelegationsForCaretaker(samId)
+            const ownPlans = yield* planRepo.findByUser(samId)
+            const planAccess = yield* Effect.exit(
+              withCarePlanAuth(planId, 'tick')
+            )
+            const reminded =
+              yield* delegationRepo.findActiveCaretakersForPlants([plantId])
+            const overdueAudience = yield* scheduleRepo.findReminderAudience([
+              plantId,
+            ])
+            const replanned =
+              yield* plantRepo.findPersonalReminderPlantIds(samId)
+            return {
+              role: Option.getOrNull(Option.map(role, (held) => held._tag)),
+              caretakingList: Array.map(caretaking.items, (item) => item.name),
+              delegatedTasks: Array.map(tasks, (task) => task.plantName),
+              ownPlans: Array.map(ownPlans, (own) => own.id),
+              mayTickThePlan: Exit.isSuccess(planAccess),
+              remindedInPlaceOfTheOwner: Array.map(
+                reminded,
+                (caretaker) => caretaker.caretakerId
+              ),
+              toldOfOverdueCare: Array.map(
+                Array.flatten(Record.values(overdueAudience)),
+                (reminded) => reminded.recipientId
+              ),
+              plantsReplannedForSam: replanned,
+            }
+          }).pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                RepositoriesLive,
+                createMockCurrentUser({ id: samId })
+              )
+            )
+          )
+        )
+
+      it('is the Caretaker role, the plant in every caretaker list and the reminders, while their account is active', async () => {
+        const tended = await samTendsAPlantOfAlex('active')
+
+        expect(await whatSamHolds(tended)).toEqual({
+          role: 'Caretaker',
+          caretakingList: ['Tended'],
+          delegatedTasks: ['Tended'],
+          ownPlans: [tended.planId],
+          mayTickThePlan: true,
+          remindedInPlaceOfTheOwner: [samId],
+          toldOfOverdueCare: [samId],
+          plantsReplannedForSam: [tended.plantId],
+        })
+      })
+
+      it.each([
+        'pending_deletion',
+        'suspended',
+        'banned',
+      ] as const satisfies ReadonlyArray<Exclude<UserStatus, 'active'>>)(
+        'is nothing once their account is %s, and the owner is reminded again',
+        async (status) => {
+          const tended = await samTendsAPlantOfAlex(status)
+
+          expect(await whatSamHolds(tended)).toEqual({
+            role: null,
+            caretakingList: [],
+            delegatedTasks: [],
+            ownPlans: [],
+            mayTickThePlan: false,
+            remindedInPlaceOfTheOwner: [],
+            toldOfOverdueCare: [alexId],
+            plantsReplannedForSam: [],
+          })
+        }
+      )
     })
   }
 )

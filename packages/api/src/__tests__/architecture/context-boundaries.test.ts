@@ -32,6 +32,16 @@ const CANOPY_CODE = [
   'services/plants/endpoints/mute-plant.ts',
 ]
 
+const ABSENCE_STORE = 'contexts/absence/store.ts'
+
+const ABSENCE_CODE = [
+  'contexts/absence/',
+  'services/delegation/',
+  'services/delegation-scheduler/',
+  'services/vacation/',
+  'services/vacation-scheduler/',
+]
+
 const walk = (dir: string): ReadonlyArray<string> =>
   readdirSync(dir).flatMap((name) => {
     const path = join(dir, name)
@@ -255,6 +265,75 @@ describe('bounded contexts', () => {
       )
     ).toEqual([])
     expect(askers).toEqual([])
+  })
+
+  it('leave delegations and their plants to the Absence store', () => {
+    const WRITES =
+      /\.(insert|update|delete)\(\s*(schema\.)?(careDelegations|delegationPlants)\s*\)|(insert into|update|delete from)\s+"?(care_delegations|delegation_plants)\b/i
+    const writers = files
+      .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
+      .map(name)
+      .sort()
+
+    expect(writers).toEqual([ABSENCE_STORE])
+  })
+
+  it('lock a delegation row only in the Absence store', () => {
+    const LOCKS =
+      /\.(from|innerJoin|leftJoin|rightJoin|fullJoin)\(\s*(schema\.)?careDelegations\b(?:(?!\n\s*\n|\byield\*|\bconst\b|\breturn\b)[\s\S])*?\.for\(|\bfrom\s+"?care_delegations"?\b[^`;]*?\bfor\s+(no\s+key\s+update|update|key\s+share|share)\b/i
+    const lockers = files
+      .filter((file) => LOCKS.test(readFileSync(file, 'utf8')))
+      .map(name)
+
+    expect(lockers).toEqual([ABSENCE_STORE])
+  })
+
+  it('give a vacation column a value only in the Absence store', () => {
+    const SETS_A_COLUMN =
+      /\bvacation(Status|Start|End)\??\s*:(?!\s*((schema\.)?users\.|VacationStatus\b|Date\b))|\bset\b[^;`]*\bvacation_(status|start|end)\b/i
+    const writers = files
+      .filter((file) => SETS_A_COLUMN.test(readFileSync(file, 'utf8')))
+      .map(name)
+
+    expect(writers).toEqual([ABSENCE_STORE])
+  })
+
+  it('hear about Absence changes through its topic', () => {
+    const absenceCode = files.filter((file) =>
+      ABSENCE_CODE.some((path) => name(file).startsWith(path))
+    )
+    const askers = absenceCode
+      .filter((file) =>
+        (graph.get(file) ?? []).some(
+          (imported) => contextOf(imported.target) === 'reminders'
+        )
+      )
+      .map(name)
+
+    expect(
+      ABSENCE_CODE.filter(
+        (path) => !absenceCode.some((file) => name(file).startsWith(path))
+      )
+    ).toEqual([])
+    expect(askers).toEqual([])
+  })
+
+  it('keep Absence loadable without Canopy or Reminders', () => {
+    const seen = new Set<string>()
+    const visit = (file: string) => {
+      if (seen.has(file)) return
+      seen.add(file)
+      for (const imported of graph.get(file) ?? []) visit(imported.target)
+    }
+    visit(join(CONTEXTS, 'absence', 'index.ts'))
+
+    expect(
+      [...seen]
+        .filter((file) =>
+          ['canopy', 'reminders'].includes(contextOf(file) ?? '')
+        )
+        .map(name)
+    ).toEqual([])
   })
 
   it('keep every write of the notifications table in its repository', () => {

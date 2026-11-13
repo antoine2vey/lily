@@ -1,3 +1,7 @@
+import {
+  returnFromVacation,
+  tickVacations,
+} from '@lily/api/__tests__/integration/absence-layers'
 import { delivered, leave } from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -7,6 +11,11 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import {
+  type Absence,
+  type AbsenceEvent,
+  AbsenceTopic,
+} from '@lily/api/contexts/absence'
 import {
   Canopy,
   type CanopyEvent,
@@ -47,8 +56,6 @@ import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
-import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
-import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { CanopyId, CareDays, type PlantOwner } from '@lily/shared'
@@ -88,7 +95,12 @@ const appAs = (userId: string) =>
     createMockWeatherRepository()
   ).pipe(Layer.provideMerge(ReposLive))
 
-type App = Layer.Success<ReturnType<typeof appAs>> | Outbox | Care | Canopy
+type App =
+  | Layer.Success<ReturnType<typeof appAs>>
+  | Outbox
+  | Care
+  | Canopy
+  | Absence
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
   'What makes reminders stale reaches Reminders - Integration',
@@ -427,19 +439,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       it('someone who leaves on vacation stops being reminded, and the other members are not', async () => {
         await plan(personal, shared)
-        const leaving = await vacationOf(alex, 'scheduled')
+        await vacationOf(alex, 'scheduled')
 
-        await as(alex, activateVacation({ expected: leaving }))
+        await as(alex, tickVacations)
 
         expect(await waiting()).toEqual(['lily:shared:watering_reminder'])
       })
 
       it('someone back from vacation is reminded again of their plants and the Canopy plants', async () => {
-        const away = await vacationOf(alex, 'active')
+        await vacationOf(alex, 'active')
         await plan(personal, shared)
         const whileAway = await waiting()
 
-        await as(alex, endVacation({ user: away, effectiveEnd: new Date() }))
+        await as(alex, returnFromVacation(alex))
 
         expect(whileAway).toEqual(['lily:shared:watering_reminder'])
         expect(await waiting()).toEqual([
@@ -638,6 +650,166 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         expect(await waiting()).toEqual(['alex:shared:watering_reminder'])
       })
+    })
+
+    describe('when Absence says what changed', () => {
+      const handedTo = async (
+        caretakerId: string,
+        plantId: string,
+        status: 'active' | 'completed'
+      ) => {
+        const [delegation] = await db
+          .insert(schema.careDelegations)
+          .values({
+            ownerId: alex,
+            caretakerId,
+            status,
+            startDate: new Date(Date.now() - DAY_MS),
+            endDate: new Date(Date.now() + 7 * DAY_MS),
+          })
+          .returning()
+        if (!delegation) throw new Error('Failed to create delegation')
+        await db
+          .insert(schema.delegationPlants)
+          .values({ delegationId: delegation.id, plantId })
+        return {
+          delegationId: delegation.id,
+          ownerId: alex,
+          caretakerId,
+          plantIds: [plantId],
+        }
+      }
+      const said = (...events: ReadonlyArray<AbsenceEvent>) =>
+        Effect.flatMap(Outbox, (outbox) => outbox.append(AbsenceTopic, events))
+
+      it('a delegation that started hands its plants to the caretaker', async () => {
+        await plan(personal, shared)
+        const handover = await handedTo(lily, personal, 'active')
+
+        await as(
+          alex,
+          transact(said({ _tag: 'DelegationStarted', ...handover }))
+        )
+
+        expect(await waiting()).toEqual([
+          'alex:shared:watering_reminder',
+          'lily:personal:watering_reminder',
+          'lily:shared:watering_reminder',
+        ])
+      })
+
+      it('a delegation that ended hands its plants back to their owner', async () => {
+        const handover = await handedTo(lily, personal, 'active')
+        await plan(personal, shared)
+        await db
+          .update(schema.careDelegations)
+          .set({ status: 'canceled' })
+          .where(eq(schema.careDelegations.id, handover.delegationId))
+
+        await as(
+          alex,
+          transact(
+            said({ _tag: 'DelegationEnded', ...handover, reason: 'canceled' })
+          )
+        )
+
+        expect(await waiting()).toEqual([
+          'alex:personal:watering_reminder',
+          'alex:shared:watering_reminder',
+          'lily:shared:watering_reminder',
+        ])
+      })
+
+      const awayOrBack = (userId: string, vacationStatus: 'active' | 'none') =>
+        db
+          .update(schema.users)
+          .set(
+            vacationStatus === 'active'
+              ? {
+                  vacationStatus,
+                  vacationStart: new Date(Date.now() - DAY_MS),
+                  vacationEnd: new Date(Date.now() + 7 * DAY_MS),
+                }
+              : { vacationStatus, vacationStart: null, vacationEnd: null }
+          )
+          .where(eq(schema.users.id, userId))
+
+      it('a vacation that started stops the reminders of who left, and of nobody else', async () => {
+        await plan(personal, shared)
+        await awayOrBack(alex, 'active')
+
+        await as(
+          alex,
+          transact(said({ _tag: 'VacationStarted', userId: alex }))
+        )
+
+        expect(await waiting()).toEqual(['lily:shared:watering_reminder'])
+      })
+
+      it('a vacation that ended gives who came back their reminders again', async () => {
+        await awayOrBack(alex, 'active')
+        await plan(personal, shared)
+        const whileAway = await waiting()
+        await awayOrBack(alex, 'none')
+
+        await as(
+          alex,
+          transact(
+            said({
+              _tag: 'VacationEnded',
+              userId: alex,
+              start: new Date(Date.now() - DAY_MS),
+              endedAt: new Date(),
+            })
+          )
+        )
+
+        expect(whileAway).toEqual(['lily:shared:watering_reminder'])
+        expect(await waiting()).toEqual([
+          'alex:personal:watering_reminder',
+          'alex:shared:watering_reminder',
+          'lily:shared:watering_reminder',
+        ])
+      })
+
+      it.each(['the fact first', 'the request first'] as const)(
+        'a delegation that ended hands its plants back, with a request for the owner heard too, %s',
+        async (order) => {
+          const handover = await handedTo(lily, personal, 'active')
+          await plan(personal, shared)
+          const whileTended = await waiting()
+          await db
+            .update(schema.careDelegations)
+            .set({ status: 'completed' })
+            .where(eq(schema.careDelegations.id, handover.delegationId))
+          const fact = said({
+            _tag: 'DelegationEnded',
+            ...handover,
+            reason: 'completed',
+          })
+          const request = Reminders.request(Dirty.Recipient({ userId: alex }))
+
+          await as(
+            alex,
+            transact(
+              order === 'the fact first'
+                ? Effect.andThen(fact, request)
+                : Effect.andThen(request, fact)
+            )
+          )
+
+          expect(whileTended).toEqual([
+            'alex:shared:watering_reminder',
+            'lily:personal:watering_reminder',
+            'lily:shared:watering_reminder',
+          ])
+          expect(await waiting()).toEqual([
+            'alex:personal:watering_reminder',
+            'alex:shared:watering_reminder',
+            'lily:shared:watering_reminder',
+          ])
+        }
+      )
     })
 
     describe('when a Canopy and a member part', () => {

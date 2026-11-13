@@ -1,5 +1,6 @@
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { createMockAlerter } from '@lily/api/__tests__/mocks/alerter'
+import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -16,6 +17,7 @@ import {
   createInMemoryRedisQueue,
 } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { AbsenceLive } from '@lily/api/contexts/absence'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -717,14 +719,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           endDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
         }).pipe(
           Effect.provide(
-            Layer.mergeAll(
-              DatabaseLive,
-              DelegationRepositoryLive.pipe(Layer.provide(DatabaseLive)),
-              CanopyRepositoryLive.pipe(Layer.provide(DatabaseLive)),
-              createMockLimitChecker(),
-              createMockCurrentUser({ id: userId, name: 'outbox_user' }),
-              createMockMessageQueue(),
-              MockOutboxLive
+            AbsenceLive.pipe(
+              Layer.provideMerge(
+                Layer.mergeAll(
+                  DatabaseLive,
+                  createMockLimitChecker(),
+                  createMockCurrentUser({ id: userId, name: 'outbox_user' }),
+                  createMockMessageQueue(),
+                  createStubCare().layer,
+                  MockOutboxLive
+                )
+              )
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')

@@ -1,4 +1,5 @@
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
+import { tending } from '@lily/api/repositories/helpers/tending'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   canopyMembers,
@@ -183,7 +184,7 @@ export const CarePlanRepositoryLive = Layer.effect(
               eq(delegationPlants.plantId, plants.id),
               eq(careDelegations.caretakerId, carePlans.userId),
               eq(careDelegations.ownerId, plants.userId),
-              eq(careDelegations.status, 'active')
+              tending()
             )
           )
       )

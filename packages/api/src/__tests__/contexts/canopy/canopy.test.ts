@@ -522,7 +522,7 @@ describe('Canopy', () => {
         {
           actor: Option.some('sam'),
           canopy: Find.ByInvitation({ invitationId: 'invitation-1' }),
-          delegationsOf: Option.none(),
+          absenceOf: Option.none(),
           accounts: ['sam'],
           invitations: InvitationScope.One({ invitationId: 'invitation-1' }),
           rooms: RoomScope.None(),
@@ -531,7 +531,7 @@ describe('Canopy', () => {
         {
           actor: Option.some('sam'),
           canopy: Find.ByLink({ tokenHash: hashInviteToken('cabin-token') }),
-          delegationsOf: Option.none(),
+          absenceOf: Option.none(),
           accounts: ['sam'],
           invitations: InvitationScope.None(),
           rooms: RoomScope.None(),
@@ -1513,7 +1513,7 @@ describe('Canopy', () => {
       ])
       expect(ending('alex')).toMatchObject({
         actor: Option.none(),
-        delegationsOf: Option.none(),
+        absenceOf: Option.none(),
         accounts: [],
       })
     })
@@ -1584,7 +1584,7 @@ describe('Canopy', () => {
 
         expect(deleted).toBe('deleted')
         expect(world.plans).toEqual([
-          { ...ending('sam'), delegationsOf: Option.some('sam') },
+          { ...ending('sam'), absenceOf: Option.some('sam') },
         ])
         expect(world.writes).toEqual([])
       })
@@ -1595,7 +1595,7 @@ describe('Canopy', () => {
         await run(world, deleting('lily', Effect.void))
 
         expect(world.plans).toEqual([
-          { ...ending('lily'), delegationsOf: Option.some('lily') },
+          { ...ending('lily'), absenceOf: Option.some('lily') },
         ])
         expect(Array.map(world.store.members, (m) => m.userId)).toEqual([
           'alex',
@@ -1761,7 +1761,7 @@ describe('Canopy', () => {
       {
         actor: Option.some('sam'),
         canopy: Find.None(),
-        delegationsOf: Option.none(),
+        absenceOf: Option.none(),
         accounts: [],
         invitations: InvitationScope.None(),
         rooms: RoomScope.None(),

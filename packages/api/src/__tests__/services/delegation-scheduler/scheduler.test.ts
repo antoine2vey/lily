@@ -4,20 +4,17 @@ import {
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { Dirty } from '@lily/api/contexts/reminders'
 import {
-  DelegationRepository,
-  type DelegationRow,
-} from '@lily/api/repositories/delegation.repository'
-import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
+  type AbsenceSurroundings,
+  createInMemoryAbsence,
+} from '@lily/api/__tests__/mocks/absence'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
+import {
+  pollAndTransition,
+  startDelegationScheduler,
+} from '@lily/api/services/delegation-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Deferred, Effect, Option, pipe, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const pastDate = new Date('2024-01-01')
@@ -25,32 +22,36 @@ const futureDate = new Date('2099-12-31')
 
 const notifications: Notification[] = []
 
-const requested: Dirty[] = []
+type PlantLink = { delegationId: string; plantId: string }
 
-const RemindersLive = createMockOutbox(requested).layer
-
-const createLayer = (delegations: DelegationRow[]) =>
-  Layer.mergeAll(
-    MockSqlClientLive,
-    RemindersLive,
-    createMockDelegationRepository({
+const inMemory = (
+  delegations: DelegationRow[],
+  delegationPlants: PlantLink[] = pipe(
+    Array.head(delegations),
+    Option.match({
+      onNone: () => [],
+      onSome: (d) => [
+        { delegationId: d.id, plantId: 'plant-1' },
+        { delegationId: d.id, plantId: 'plant-2' },
+      ],
+    })
+  ),
+  store?: AbsenceSurroundings['store']
+) =>
+  createInMemoryAbsence(
+    {
       delegations,
-      plants: mockDelegationPlants,
-      delegationPlants: pipe(
-        Array.head(delegations),
-        Option.match({
-          onNone: () => [],
-          onSome: (d) => [
-            { delegationId: d.id, plantId: 'plant-1' },
-            { delegationId: d.id, plantId: 'plant-2' },
-          ],
-        })
-      ),
-    }),
-    createMockNotificationRepository(notifications),
-    createMockUserRepository([mockUser1, mockUser2]),
-    createMockMessageQueue()
+      delegationPlants,
+      users: [mockUser1, mockUser2],
+      plantDetails: mockDelegationPlants,
+    },
+    { notifications, store }
   )
+
+const createLayer = (
+  delegations: DelegationRow[],
+  delegationPlants?: PlantLink[]
+) => inMemory(delegations, delegationPlants).layer
 
 describe('DelegationScheduler', () => {
   describe('pollAndTransition', () => {
@@ -115,9 +116,8 @@ describe('DelegationScheduler', () => {
       expect(delegations[0]?.status).toBe('active')
     })
 
-    it('leaves a delegation canceled between the read and the activation, and sends nothing', async () => {
+    it('leaves a delegation canceled after it was listed as due, and sends nothing', async () => {
       notifications.length = 0
-      requested.length = 0
       const delegation: DelegationRow = {
         ...mockDelegation1,
         status: 'accepted' as const,
@@ -125,55 +125,33 @@ describe('DelegationScheduler', () => {
         endDate: futureDate,
       }
       const delegations = [delegation]
-      // The owner cancels after the scheduler has read the row but before
-      // it writes the new status.
-      const racingCancel = Layer.effect(
-        DelegationRepository,
-        Effect.map(DelegationRepository, (repo) => ({
-          ...repo,
-          findAcceptedReadyToActivate: (now: Date) =>
-            repo.findAcceptedReadyToActivate(now).pipe(
+      const absence = inMemory(
+        delegations,
+        [{ delegationId: delegation.id, plantId: 'plant-1' }],
+        (store) => ({
+          ...store,
+          dueDelegations: (edge, now) =>
+            store.dueDelegations(edge, now).pipe(
               Effect.tap(() =>
                 Effect.sync(() => {
                   delegation.status = 'canceled'
                 })
               )
             ),
-        }))
-      ).pipe(
-        Layer.provide(
-          createMockDelegationRepository({
-            delegations,
-            plants: mockDelegationPlants,
-            delegationPlants: [
-              { delegationId: delegation.id, plantId: 'plant-1' },
-            ],
-          })
-        )
+        })
       )
 
-      await Effect.runPromise(
-        pollAndTransition.pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              MockSqlClientLive,
-              RemindersLive,
-              racingCancel,
-              createMockNotificationRepository(notifications),
-              createMockUserRepository([mockUser1, mockUser2]),
-              createMockMessageQueue()
-            )
-          )
-        )
+      const tally = await Effect.runPromise(
+        pollAndTransition.pipe(Effect.provide(absence.layer))
       )
 
       expect(delegations[0]?.status).toBe('canceled')
       expect(notifications).toHaveLength(0)
-      expect(requested).toEqual([])
+      expect(absence.events).toEqual([])
+      expect(tally).toEqual({ due: 1, advanced: 0, failed: 0 })
     })
 
-    it('asks Reminders once per batch to plan the plants that changed hands', async () => {
-      requested.length = 0
+    it('publishes one fact per delegation that changed hands, and none for one still waiting', async () => {
       const starting: DelegationRow = {
         ...mockDelegation1,
         id: 'starting',
@@ -195,34 +173,37 @@ describe('DelegationScheduler', () => {
         startDate: futureDate,
         endDate: futureDate,
       }
-
-      await Effect.runPromise(
-        pollAndTransition.pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              MockSqlClientLive,
-              RemindersLive,
-              createMockDelegationRepository({
-                delegations: [starting, ending, waiting],
-                plants: mockDelegationPlants,
-                delegationPlants: [
-                  { delegationId: 'starting', plantId: 'plant-1' },
-                  { delegationId: 'ending', plantId: 'plant-2' },
-                  { delegationId: 'waiting', plantId: 'plant-2' },
-                ],
-              }),
-              createMockNotificationRepository(notifications),
-              createMockUserRepository([mockUser1, mockUser2]),
-              createMockMessageQueue()
-            )
-          )
-        )
+      const absence = inMemory(
+        [starting, ending, waiting],
+        [
+          { delegationId: 'starting', plantId: 'plant-1' },
+          { delegationId: 'ending', plantId: 'plant-2' },
+          { delegationId: 'waiting', plantId: 'plant-2' },
+        ]
       )
 
-      expect(requested).toEqual([
-        Dirty.Plants({ plantIds: ['plant-1'] }),
-        Dirty.Plants({ plantIds: ['plant-2'] }),
+      const tally = await Effect.runPromise(
+        pollAndTransition.pipe(Effect.provide(absence.layer))
+      )
+
+      expect(absence.events).toEqual([
+        {
+          _tag: 'DelegationStarted',
+          delegationId: 'starting',
+          ownerId: starting.ownerId,
+          caretakerId: starting.caretakerId,
+          plantIds: ['plant-1'],
+        },
+        {
+          _tag: 'DelegationEnded',
+          delegationId: 'ending',
+          ownerId: ending.ownerId,
+          caretakerId: ending.caretakerId,
+          plantIds: ['plant-2'],
+          reason: 'completed',
+        },
       ])
+      expect(tally).toEqual({ due: 2, advanced: 2, failed: 0 })
     })
 
     it('should handle empty results gracefully', async () => {
@@ -247,21 +228,10 @@ describe('DelegationScheduler', () => {
         endDate: pastDate,
       }
       const delegations = [toActivate, toComplete]
-      const layer = Layer.mergeAll(
-        MockSqlClientLive,
-        RemindersLive,
-        createMockDelegationRepository({
-          delegations,
-          plants: mockDelegationPlants,
-          delegationPlants: [
-            { delegationId: 'to-activate', plantId: 'plant-1' },
-            { delegationId: 'to-complete', plantId: 'plant-2' },
-          ],
-        }),
-        createMockNotificationRepository(notifications),
-        createMockUserRepository([mockUser1, mockUser2]),
-        createMockMessageQueue()
-      )
+      const layer = createLayer(delegations, [
+        { delegationId: 'to-activate', plantId: 'plant-1' },
+        { delegationId: 'to-complete', plantId: 'plant-2' },
+      ])
 
       notifications.length = 0
       await Effect.runPromise(pollAndTransition.pipe(Effect.provide(layer)))
@@ -329,7 +299,183 @@ describe('DelegationScheduler', () => {
         metadata: { delegationId: delegation.id },
       })
     })
+
+    describe('a request nobody answered', () => {
+      const unanswered = (
+        dates: Pick<DelegationRow, 'startDate' | 'endDate'>
+      ): DelegationRow => ({ ...mockDelegation1, status: 'pending', ...dates })
+
+      it('is canceled at its start, and the owner alone is told, once', async () => {
+        notifications.length = 0
+        const delegation = unanswered({
+          startDate: pastDate,
+          endDate: futureDate,
+        })
+        const absence = inMemory([delegation])
+
+        const first = await Effect.runPromise(
+          pollAndTransition.pipe(Effect.provide(absence.layer))
+        )
+        const second = await Effect.runPromise(
+          pollAndTransition.pipe(Effect.provide(absence.layer))
+        )
+
+        expect(first).toEqual({ due: 1, advanced: 1, failed: 0 })
+        expect(second).toEqual({ due: 0, advanced: 0, failed: 0 })
+        expect(delegation.status).toBe('canceled')
+        expect(delegation.canceledAt).not.toBeNull()
+        expect(absence.events).toEqual([])
+        expect(notifications).toHaveLength(1)
+        expect(notifications[0]).toMatchObject({
+          userId: delegation.ownerId,
+          type: 'delegation_canceled',
+          params: { senderName: mockUser2.name, unanswered: true },
+          status: 'queued',
+          metadata: { delegationId: delegation.id },
+        })
+      })
+
+      it('stays open until its start', async () => {
+        notifications.length = 0
+        const delegation = unanswered({
+          startDate: futureDate,
+          endDate: futureDate,
+        })
+        const absence = inMemory([delegation])
+
+        const tally = await Effect.runPromise(
+          pollAndTransition.pipe(Effect.provide(absence.layer))
+        )
+
+        expect(tally).toEqual({ due: 0, advanced: 0, failed: 0 })
+        expect(delegation.status).toBe('pending')
+        expect(notifications).toEqual([])
+      })
+
+      it('is canceled and never started when its end has passed too', async () => {
+        notifications.length = 0
+        const delegation = unanswered({
+          startDate: pastDate,
+          endDate: pastDate,
+        })
+        const absence = inMemory([delegation])
+
+        const tally = await Effect.runPromise(
+          pollAndTransition.pipe(Effect.provide(absence.layer))
+        )
+
+        expect(tally).toEqual({ due: 1, advanced: 1, failed: 0 })
+        expect(delegation.status).toBe('canceled')
+        expect(delegation.completedAt).toBeNull()
+        expect(Array.map(notifications, (n) => n.type)).toEqual([
+          'delegation_canceled',
+        ])
+      })
+
+      it('starts when the caretaker accepted after the tick listed it', async () => {
+        notifications.length = 0
+        const delegation = unanswered({
+          startDate: pastDate,
+          endDate: futureDate,
+        })
+        const absence = inMemory([delegation], [], (store) => ({
+          ...store,
+          dueDelegations: (edge, now) =>
+            store.dueDelegations(edge, now).pipe(
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  if (edge === 'start') delegation.status = 'accepted'
+                })
+              )
+            ),
+        }))
+
+        const tally = await Effect.runPromise(
+          pollAndTransition.pipe(Effect.provide(absence.layer))
+        )
+
+        expect(tally).toEqual({ due: 1, advanced: 1, failed: 0 })
+        expect(delegation.status).toBe('active')
+        expect(Array.map(notifications, (n) => n.type)).toEqual([
+          'delegation_activated',
+          'delegation_activated',
+        ])
+      })
+    })
+
     describe('error isolation', () => {
+      it('counts a delegation whose write dies and still advances the next', async () => {
+        const dying: DelegationRow = {
+          ...mockDelegation1,
+          id: 'a-dying',
+          status: 'accepted' as const,
+          startDate: pastDate,
+          endDate: futureDate,
+        }
+        const next: DelegationRow = {
+          ...mockDelegation1,
+          id: 'b-next',
+          status: 'accepted' as const,
+          startDate: pastDate,
+          endDate: futureDate,
+        }
+        const absence = inMemory([dying, next], [], (store) => ({
+          ...store,
+          apply: (writes) =>
+            Array.some(
+              writes,
+              (write) =>
+                write._tag === 'MoveDelegation' && write.id === dying.id
+            )
+              ? Effect.die('the write of a-dying broke')
+              : store.apply(writes),
+        }))
+
+        const tally = await Effect.runPromise(
+          pollAndTransition.pipe(Effect.provide(absence.layer))
+        )
+
+        expect(tally).toEqual({ due: 2, advanced: 1, failed: 1 })
+        expect(dying.status).toBe('accepted')
+        expect(next.status).toBe('active')
+        expect(absence.events).toEqual([
+          {
+            _tag: 'DelegationStarted',
+            delegationId: 'b-next',
+            ownerId: next.ownerId,
+            caretakerId: next.caretakerId,
+            plantIds: [],
+          },
+        ])
+      })
+
+      it('dies when the row it locked is not the row it moves', async () => {
+        const delegation: DelegationRow = {
+          ...mockDelegation1,
+          status: 'accepted' as const,
+          startDate: pastDate,
+          endDate: futureDate,
+        }
+        const absence = inMemory([delegation], [], (store) => ({
+          ...store,
+          lockDelegation: (id) =>
+            store.lockDelegation(id).pipe(
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  delegation.status = 'canceled'
+                })
+              )
+            ),
+        }))
+
+        const tally = await Effect.runPromise(
+          pollAndTransition.pipe(Effect.provide(absence.layer))
+        )
+
+        expect(tally).toEqual({ due: 1, advanced: 0, failed: 1 })
+        expect(absence.events).toEqual([])
+      })
+
       it('should process multiple activations independently', async () => {
         notifications.length = 0
         const d1: DelegationRow = {
@@ -347,21 +493,10 @@ describe('DelegationScheduler', () => {
           endDate: futureDate,
         }
         const delegations = [d1, d2]
-        const layer = Layer.mergeAll(
-          MockSqlClientLive,
-          RemindersLive,
-          createMockDelegationRepository({
-            delegations,
-            plants: mockDelegationPlants,
-            delegationPlants: [
-              { delegationId: 'activate-1', plantId: 'plant-1' },
-              { delegationId: 'activate-2', plantId: 'plant-2' },
-            ],
-          }),
-          createMockNotificationRepository(notifications),
-          createMockUserRepository([mockUser1, mockUser2]),
-          createMockMessageQueue()
-        )
+        const layer = createLayer(delegations, [
+          { delegationId: 'activate-1', plantId: 'plant-1' },
+          { delegationId: 'activate-2', plantId: 'plant-2' },
+        ])
 
         await Effect.runPromise(pollAndTransition.pipe(Effect.provide(layer)))
 
@@ -397,18 +532,7 @@ describe('DelegationScheduler', () => {
           endDate: futureDate,
         }
         const delegations = [delegation]
-        const layer = Layer.mergeAll(
-          MockSqlClientLive,
-          RemindersLive,
-          createMockDelegationRepository({
-            delegations,
-            plants: mockDelegationPlants,
-            delegationPlants: [], // No plants linked
-          }),
-          createMockNotificationRepository(notifications),
-          createMockUserRepository([mockUser1, mockUser2]),
-          createMockMessageQueue()
-        )
+        const layer = createLayer(delegations, [])
 
         await Effect.runPromise(pollAndTransition.pipe(Effect.provide(layer)))
 
@@ -416,6 +540,48 @@ describe('DelegationScheduler', () => {
         // Notifications should still be created (with plantCount: 0)
         expect(notifications.length).toBeGreaterThanOrEqual(2)
       })
+    })
+  })
+
+  describe('startDelegationScheduler', () => {
+    it('advances what is due when it starts, without waiting for its interval', async () => {
+      notifications.length = 0
+      const delegation: DelegationRow = {
+        ...mockDelegation1,
+        status: 'pending' as const,
+        startDate: pastDate,
+        endDate: futureDate,
+      }
+      const listed: string[] = []
+      const tickBegan = Deferred.makeUnsafe<void>()
+      const absence = inMemory([delegation], [], (store) => ({
+        ...store,
+        dueDelegations: (edge, now) =>
+          store.dueDelegations(edge, now).pipe(
+            Effect.tap(() => Effect.sync(() => listed.push(edge))),
+            Effect.tap(() => Deferred.succeed(tickBegan, undefined))
+          ),
+      }))
+
+      await Effect.runPromise(
+        Effect.scoped(
+          Effect.andThen(
+            startDelegationScheduler,
+            Deferred.await(tickBegan).pipe(
+              Effect.timeoutOrElse({
+                duration: '2 seconds',
+                orElse: () => Effect.die('no tick ran at startup'),
+              })
+            )
+          )
+        ).pipe(
+          Effect.provide(absence.layer),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(listed).toEqual(['start', 'end'])
+      expect(delegation.status).toBe('canceled')
     })
   })
 })

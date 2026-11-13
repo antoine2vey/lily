@@ -9,7 +9,8 @@ import {
   renderFromParams,
   type SimpleNotificationType,
 } from '@lily/api/services/notification-scheduler/translations'
-import { Array, Option, Record, Result } from 'effect'
+import type { LanguageCode } from '@lily/shared'
+import { Array, Option, Record, Result, Struct } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('buildSimpleContent — new notification translations', () => {
@@ -536,6 +537,60 @@ describe('renderFromParams', () => {
       })
     )
   })
+
+  const CANCELED = {
+    en: {
+      title: '🚫 Plant-sitting canceled',
+      calledOff: 'Ada called off the plant-sitting',
+      unanswered:
+        "Ada didn't answer in time, so the plant-sitting request was canceled",
+      unansweredByNobodyNamed:
+        "Someone didn't answer in time, so the plant-sitting request was canceled",
+    },
+    fr: {
+      title: '🚫 Garde annulée',
+      calledOff: 'Ada a annulé la garde des plantes',
+      unanswered:
+        "Ada n'a pas répondu à temps, la demande de garde a été annulée",
+      unansweredByNobodyNamed:
+        "Quelqu'un n'a pas répondu à temps, la demande de garde a été annulée",
+    },
+  } satisfies {
+    readonly [L in LanguageCode]: {
+      readonly title: string
+      readonly calledOff: string
+      readonly unanswered: string
+      readonly unansweredByNobodyNamed: string
+    }
+  }
+
+  it.each(Struct.keys(CANCELED))(
+    '%s: a canceled plant-sitting says whether it was called off or never answered',
+    (language) => {
+      const rendered = Array.map(
+        [
+          { senderName: 'Ada' },
+          { senderName: 'Ada', unanswered: true },
+          { unanswered: true },
+        ],
+        (params) =>
+          renderFromParams(
+            'delegation_canceled',
+            stored(params),
+            Option.none(),
+            language
+          )
+      )
+
+      const { title, calledOff, unanswered, unansweredByNobodyNamed } =
+        CANCELED[language]
+      expect(rendered).toEqual(
+        Array.map([calledOff, unanswered, unansweredByNobodyNamed], (body) =>
+          Result.succeed({ title, body })
+        )
+      )
+    }
+  )
 
   it('fails on params that do not match the topic', () => {
     expect(

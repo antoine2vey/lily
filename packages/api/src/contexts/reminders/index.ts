@@ -4,6 +4,7 @@ import { request } from './request'
 export type { AddressedPlant } from './audience'
 export { type DriftReport, redriveReminders, repairDrift } from './audit'
 export {
+  absenceConsumer,
   canopyConsumer,
   type RemindersConsumerContext,
   remindersConsumer,

@@ -130,3 +130,57 @@ Canopy publishes seven facts on the outbox topic `canopy`, in the transaction of
 5. **Give-back.** A member who leaves or is removed gets back the plants they shared. When the canopy is dissolved, every member but the heir gets theirs back. A member whose account is deleted leaves their plants in the canopy.
 6. **Limits.** A share asks the canopy's plant limit and an unshare asks the member's. A give-back and the heir's part ask no limit.
 7. **Invitations.** Any member invites an account that is active and not being deleted. Inviting again while the invitation is open, or within 7 days of the invitee declining, succeeds and sends nothing. The sender or the canopy owner withdraws it, and only the invitee accepts or declines it. An invitation is accepted or declined, never both.
+
+## Absence
+
+Absence covers the time a user cannot look after their plants. A delegation hands personal plants to another user for a period. A vacation says the user is away for a period and silences what they would be told. Absence is the only context that opens a delegation, changes its status or changes a vacation.
+
+| Term | Meaning | Avoid |
+| --- | --- | --- |
+| **Delegation** | A request from one user to another to look after some of the first user's personal plants from a start to an end. | "plant-sitting" in code, "share" |
+| **Owner** | The user who asks. Every plant of the delegation is a personal plant of the owner. | "delegator" |
+| **Caretaker** | The user who is asked. The caretaker accepts or declines, and looks after the plants while the delegation is active. | "sitter", "delegate" |
+| **Open delegation** | A delegation that is pending, accepted or active. A plant is in at most one open delegation over any period, and a plant in an open delegation cannot be shared into a canopy. | "live" |
+| **Tending** | What the caretaker of an active delegation does while their account is reachable. The caretaker holds the Caretaker role on the plants and is the audience of their reminders in place of the owner. A caretaker whose account is not active tends nothing: they cannot act on the plants, and the owner is the audience again. | "caring" for the role |
+| **Handover** | The moment the plants change hands: an accepted delegation becomes active, or an active one ends. Only a handover changes who is reminded. | "transfer" |
+| **Vacation** | A period a user says they are away, from a start to an end. A user holds at most one. | "holiday", "absence" for the record |
+| **Scheduled vacation** | A vacation whose start has not come. It changes nothing yet. | "pending vacation" |
+| **Active vacation** | A vacation that has started and not ended. The user is on vacation: they are barred from reminders and what they were waiting for on the muted topics is deleted. It keeps its start, and only its end can move. | "running" in code |
+| **Away** | The start and the end of a vacation. The days away are the whole days from the day it started to the day it ended, counted in the user's timezone. | "duration" |
+| **Lapse** | What happens to a pending delegation at its start: the scheduler cancels it and tells the owner that the caretaker did not answer in time. The caretaker is told nothing, and an answer given after it is refused. | "expiry", "timeout" |
+| **Fact** | What Absence publishes when who is reminded changes. A delegation fact names the delegation, both users and the plants. A vacation fact names the user. Whoever hears it reads the current state again. | "event" for an EventBus message |
+
+### Statuses
+
+| Status | Meaning | Reached from |
+| --- | --- | --- |
+| **Pending** | Asked, not answered yet. It lapses at its start. | A new delegation. |
+| **Accepted** | The caretaker said yes and the start has not come. | Pending, when the caretaker accepts. |
+| **Active** | The caretaker is tending the plants. | Accepted, when the scheduler finds the start has passed. |
+| **Rejected** | The caretaker said no. Final. | Pending, when the caretaker declines. |
+| **Canceled** | The owner called it off, nobody answered by the start, or an account of one of the two was deleted. Final. | Pending, accepted or active. |
+| **Completed** | The period ended, or the owner ended it early. Final. | Active. |
+
+### Facts
+
+Absence publishes four facts on the outbox topic `absence`, in the transaction of the change.
+
+| Fact | Published when | Reminders replans |
+| --- | --- | --- |
+| `DelegationStarted` | An accepted delegation becomes active. | The plants of the delegation. |
+| `DelegationEnded` | An active delegation is completed or canceled. It says why: completed, completed early, canceled or account deleted. | The plants of the delegation. |
+| `VacationStarted` | A vacation becomes active. | Every reminder of the user. |
+| `VacationEnded` | An active vacation ends. It carries the start of the vacation and the instant it ended. | Every reminder of the user. |
+
+### Rules
+
+1. **One writer.** Only Absence opens a delegation or changes its status. Other code reads delegations through `DelegationRepository`.
+2. **Tell, do not plan.** Absence never asks Reminders for a replan. It publishes facts, and Reminders decides what they make stale.
+3. **Who may ask.** The caretaker answers a pending delegation. The owner cancels an open one and completes an active one early. Anyone else is refused, whatever the status.
+4. **Only a change of who is reminded is a fact.** A delegation that is declined, canceled before it started or lapsed publishes nothing, and neither does a vacation that is scheduled, moved or called off before it started.
+5. **Opening.** The owner cannot be the caretaker, the caretaker must exist, the start must not be in the past and the end must be after it. Every plant must be a personal plant of the owner, a plant of the owner's canopy is refused by name, and no plant may already be in an open delegation over the period.
+6. **One at a time.** The scheduler advances each due delegation, and each due vacation, in its own transaction. One it cannot advance waits for the next tick and holds nothing else back. Both schedulers run once when the server starts, then at their interval.
+7. **Setting a vacation.** The end must be after the start and in the future, and the vacation lasts at most 365 days. A start that has already passed makes the vacation active at once. An active vacation refuses another start.
+8. **Ending a vacation.** The scheduler ends an active vacation at its stored end. The user who calls it off ends it now. Either way every care of the user's living personal plants that came due while they were away moves later by the days away, except on a plant a reachable caretaker is tending.
+9. **An account that is not active holds its vacation still.** A set or a cancel answers that the user is not found, and the scheduler leaves the vacation as it is. Deleting the account is the one exception (rule 10).
+10. **A deleted account lets go.** When a user asks for the deletion of their account, and when an account is deleted for good, every open delegation they are a party to is canceled and their vacation ends, in the transaction of the deletion. A running delegation publishes `DelegationEnded` with the reason account deleted, so the owner is reminded again. A running vacation publishes `VacationEnded` and moves no due day. Nobody is told.

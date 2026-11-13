@@ -1,5 +1,10 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
+  absenceOverStore,
+  leaveOnVacation,
+  returnFromVacation,
+} from '@lily/api/__tests__/integration/absence-layers'
+import {
   delivered,
   leaveForDeletion,
 } from '@lily/api/__tests__/integration/canopy-layers'
@@ -66,8 +71,6 @@ import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
-import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
-import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { PushMessage } from '@lily/shared/server'
@@ -526,10 +529,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await db.execute(
           sql`UPDATE users SET vacation_status = 'active', vacation_start = date_trunc('milliseconds', now() - interval '2 days'), vacation_end = date_trunc('milliseconds', now() + interval '2 days') WHERE id = ${lily}`
         )
-        const lilyUser = await runtime.runPromise(
-          Effect.flatMap(UserRepository, (repo) => repo.findById(lily))
-        )
-        if (!lilyUser) throw new Error('lily')
         const backDated = (days: number) => new Date(Date.now() - days * day)
         const jobs = Arr.flatten(
           Arr.map(Arr.range(1, 3), (k) => [
@@ -558,7 +557,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               lily,
               unmutePlant(mintPermit(p2, 'mute', Actor.User({ userId: lily })))
             ),
-            as(lily, endVacation({ user: lilyUser, effectiveEnd: new Date() })),
+            as(lily, returnFromVacation(lily)),
             as(
               alex,
               unsharePlant(
@@ -686,11 +685,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             ),
         }))
       )
-      const samUser = await runtime.runPromise(
-        Effect.flatMap(UserRepository, (repo) => repo.findById(sam))
-      )
-      if (!samUser) throw new Error('sam')
-
       const reconcile = as(
         sam,
         replanPlants([plant.id]).pipe(Effect.provide(PausedBeforeReplace))
@@ -698,12 +692,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await Effect.runPromise(Deferred.await(reached))
       const vacation = as(
         sam,
-        activateVacation({
-          expected: samUser,
-          range: {
-            vacationStart: new Date(Date.now() - day),
-            vacationEnd: new Date(Date.now() + 7 * day),
-          },
+        leaveOnVacation(sam, {
+          start: new Date(Date.now() - day),
+          end: new Date(Date.now() + 7 * day),
         })
       )
       await new Promise((resolve) => setTimeout(resolve, 500))
@@ -750,22 +741,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         status: 'pending',
       })
 
-    const startVacation = async (userId: string) => {
-      const expected = await runtime.runPromise(
-        Effect.flatMap(UserRepository, (repo) => repo.findById(userId))
-      )
-      if (!expected) throw new Error(`no user ${userId}`)
-      return as(
+    const startVacation = (userId: string) =>
+      as(
         userId,
-        activateVacation({
-          expected,
-          range: {
-            vacationStart: new Date(Date.now() - day),
-            vacationEnd: new Date(Date.now() + 7 * day),
-          },
+        leaveOnVacation(userId, {
+          start: new Date(Date.now() - day),
+          end: new Date(Date.now() + 7 * day),
         })
       )
-    }
 
     const overdueLandsAfterKeys = (userId: string, plantId: string) =>
       Layer.effect(
@@ -1352,19 +1335,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       reached: Deferred.Deferred<void>,
       release: Deferred.Deferred<void>
     ) =>
-      Layer.effect(
-        DelegationRepository,
-        Effect.map(DelegationRepository, (repo) => ({
-          ...repo,
-          transitionStatus: (
-            ...args: Parameters<typeof repo.transitionStatus>
-          ): ReturnType<typeof repo.transitionStatus> =>
-            repo.transitionStatus(...args).pipe(
-              Effect.tap(() => Deferred.succeed(reached, undefined)),
-              Effect.tap(() => Deferred.await(release))
-            ),
-        }))
-      )
+      absenceOverStore((store) => ({
+        ...store,
+        apply: (writes) =>
+          store.apply(writes).pipe(
+            Effect.tap(() => Deferred.succeed(reached, undefined)),
+            Effect.tap(() => Deferred.await(release))
+          ),
+      }))
 
     const pausedHoldingItsDelegations = (
       reached: Deferred.Deferred<void>,
@@ -1372,19 +1350,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     ) =>
       Layer.fresh(CanopyLive).pipe(
         Layer.provide(
-          Layer.effect(
-            DelegationRepository,
-            Effect.map(DelegationRepository, (repo) => ({
-              ...repo,
-              lockAllForUser: (userId: string) =>
-                repo
-                  .lockAllForUser(userId)
-                  .pipe(
-                    Effect.andThen(Deferred.succeed(reached, undefined)),
-                    Effect.andThen(Deferred.await(release))
-                  ),
-            }))
-          )
+          absenceOverStore((store) => ({
+            ...store,
+            holdForDeletion: (userId) =>
+              store
+                .holdForDeletion(userId)
+                .pipe(
+                  Effect.andThen(Deferred.succeed(reached, undefined)),
+                  Effect.andThen(Deferred.await(release))
+                ),
+          }))
         )
       )
 
@@ -1617,14 +1592,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).toEqual([])
     }, 60_000)
 
-    const userRow = async (userId: string) => {
-      const row = await runtime.runPromise(
-        Effect.flatMap(UserRepository, (repo) => repo.findById(userId))
-      )
-      if (!row) throw new Error(`no user ${userId}`)
-      return row
-    }
-
     const crossWriters: Record<
       string,
       (round: number) => Promise<{
@@ -1671,12 +1638,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
         await inFlight(v, pu)
         await inFlight(u, pv)
-        const vacationer = await userRow(v)
         return {
           u,
           first: updateUserSettings({ timezone: 'Europe/Paris' }),
-          second: () =>
-            as(v, endVacation({ user: vacationer, effectiveEnd: new Date() })),
+          second: () => as(v, returnFromVacation(v)),
         }
       },
       'a vacation end and a timezone change': async (round: number) => {
@@ -1696,10 +1661,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const pv = await personalPlant(v)
         await pendingWatering(v, pu)
         await pendingWatering(u, pv)
-        const vacationer = await userRow(v)
         return {
           u: v,
-          first: endVacation({ user: vacationer, effectiveEnd: new Date() }),
+          first: returnFromVacation(v),
           second: () => as(u, updateUserSettings({ timezone: 'Asia/Tokyo' })),
         }
       },
@@ -1737,6 +1701,62 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       },
       120_000
     )
+
+    it('a vacation end that holds the account while a bulk care holds the plants it will move never deadlocks', async () => {
+      const before = await deadlocks()
+      const failures: string[] = []
+      for (const round of Arr.range(1, 5)) {
+        const away = await user(`Away${round}`)
+        await db
+          .update(schema.users)
+          .set({
+            vacationStatus: 'active',
+            vacationStart: new Date(Date.now() - 2 * day),
+            vacationEnd: new Date(Date.now() + 2 * day),
+          })
+          .where(sql`${schema.users.id} = ${away}`)
+        const own = [
+          await personalPlant(away),
+          await personalPlant(away),
+          await personalPlant(away),
+        ]
+        const reached = Deferred.makeUnsafe<void>()
+        const release = Deferred.makeUnsafe<void>()
+        const ending = as(
+          away,
+          Effect.provide(
+            returnFromVacation(away),
+            absenceOverStore((store) => ({
+              ...store,
+              lockVacation: (userId, now) =>
+                store.lockVacation(userId, now).pipe(
+                  Effect.tap(() => Deferred.succeed(reached, undefined)),
+                  Effect.tap(() => Deferred.await(release))
+                ),
+            }))
+          )
+        )
+        await Effect.runPromise(Deferred.await(reached))
+        const caring = as(
+          away,
+          careMultiplePlants({
+            plantIds: shuffled(own, round),
+            careType: 'watering',
+          })
+        )
+        await untilBlockedOrSettled(caring)
+        Deferred.doneUnsafe(release, Exit.void)
+        const [ended, cared]: readonly [
+          Exit.Exit<unknown, unknown>,
+          Exit.Exit<unknown, unknown>,
+        ] = await Promise.all([ending, caring])
+        if (Exit.isFailure(ended) || Exit.isFailure(cared)) {
+          failures.push(`round ${round}: ${outcome(ended)}, ${outcome(cared)}`)
+        }
+      }
+      expect(failures).toEqual([])
+      expect((await deadlocks()) - before).toBe(0)
+    }, 120_000)
 
     describe('overdue reminders for a caretaker', () => {
       let delegated: string[]

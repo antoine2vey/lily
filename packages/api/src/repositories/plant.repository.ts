@@ -23,6 +23,7 @@ import {
   withOwnerOrNull,
   withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
+import { tending } from '@lily/api/repositories/helpers/tending'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   canopies,
@@ -190,9 +191,6 @@ export interface IPlantRepository {
     ids: readonly string[]
   ) => Effect.Effect<Array<PlantRow>, SqlError>
   readonly findPersonalReminderPlantIds: (
-    userId: string
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
-  readonly findIdsOwnedBy: (
     userId: string
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly findById: (
@@ -442,7 +440,7 @@ export const PlantRepositoryLive = Layer.effect(
     ) {
       const conditions = and(
         eq(careDelegations.caretakerId, params.userId),
-        eq(careDelegations.status, 'active'),
+        tending(),
         isNotNull(plants.userId),
         ...extraConditions
       )
@@ -638,16 +636,6 @@ export const PlantRepositoryLive = Layer.effect(
         }
       ),
 
-      findIdsOwnedBy: Effect.fn('PlantRepository.findIdsOwnedBy')(function* (
-        userId: string
-      ) {
-        const rows = yield* db
-          .select({ id: plants.id })
-          .from(plants)
-          .where(eq(plants.userId, userId))
-        return Array.map(rows, (row) => row.id)
-      }),
-
       findPersonalReminderPlantIds: Effect.fn(
         'PlantRepository.findPersonalReminderPlantIds'
       )(function* (userId: string) {
@@ -662,12 +650,7 @@ export const PlantRepositoryLive = Layer.effect(
             careDelegations,
             eq(delegationPlants.delegationId, careDelegations.id)
           )
-          .where(
-            and(
-              eq(careDelegations.caretakerId, userId),
-              eq(careDelegations.status, 'active')
-            )
-          )
+          .where(and(eq(careDelegations.caretakerId, userId), tending()))
         return Array.dedupe(Array.map([...owned, ...caredFor], (row) => row.id))
       }),
 

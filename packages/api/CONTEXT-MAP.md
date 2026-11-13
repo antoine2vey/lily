@@ -1,6 +1,6 @@
 # Context map draft: `packages/api`
 
-Status: draft from a read-only pass over the working tree of branch `antoine2vey/ddd-core-business-assessment` (2026-11-12). Updated the same day once the Reminders context was built: every row about reminder planning describes the built code. Updated on 2026-11-13 once the Canopy context was built: every row about canopies, mutes and the owner of a plant or a room describes the built code.
+Status: draft from a read-only pass over the working tree of branch `antoine2vey/ddd-core-business-assessment` (2026-11-12). Updated the same day once the Reminders context was built: every row about reminder planning describes the built code. Updated on 2026-11-13 once the Canopy context was built: every row about canopies, mutes and the owner of a plant or a room describes the built code. Updated again that day once the Absence context was built: every row about delegations and vacations describes the built code. Account deletion is the part of it still to move.
 Paths are relative to `packages/api/src/` unless they start with `packages/`.
 "Inferred" marks a judgement. Everything else comes from a file read or a grep.
 
@@ -14,7 +14,7 @@ Method for sections 1, 2 and 4: a script resolved every `const x = yield* SomeRe
 | **Reminders** | core | Which care reminders exist, for whom and when. Built in `contexts/reminders`. Other contexts call `Reminders.request`, and the plan is rebuilt after their commit. Glossary: `packages/api/CONTEXT.md`. |
 | **Notifications** | core (inferred: delivery is how the main loop reaches the user) | Delivery of every notification, inbox, device tokens, push, Live Activity. It moves reminder rows through their statuses and never plans one. |
 | **Canopy** | core (inferred) | The shared household: members, links, invitations and mutes, and every change of the owner of a plant or a room after insert. Built in `contexts/canopy`. A caller runs a command of the `Canopy` service, and Reminders hears of the change on the outbox topic `canopy`. Glossary: `packages/api/CONTEXT.md`. |
-| **Delegation** | supporting | Temporary caretaker for a set of plants. Vacation is placed here provisionally (see open question 3). |
+| **Absence** | supporting | The time a user cannot look after their plants: a delegation (a temporary caretaker for some personal plants) and a vacation. Built in `contexts/absence`. A caller runs a command of the `Absence` service, and Reminders hears of a change of who is reminded on the outbox topic `absence`. Glossary: `packages/api/CONTEXT.md`. |
 | **Identity & Access** | generic | Magic link, OAuth sign-in, JWT, refresh tokens, user profile and settings, username, account deletion. |
 | **Billing** | supporting | Subscriptions, tiers, limits, usage quotas, gift codes, RevenueCat webhook. Code name: `subscriptions`. |
 | **Assistant** | core (inferred: paid differentiator) | AI chat, diagnosis, RAG retrieval, knowledge ingestion. |
@@ -48,8 +48,8 @@ All 55 directories under `services/` (`ls`), in directory order. "Repos" is ever
 | `care-logs` | CRUD on care logs, recent activity. Publishes care events. | Care | core | CareLog, Plant, Notification |
 | `care-plans` | List, accept, dismiss, delete care plans; complete and uncomplete steps. | Care | core | CarePlan, Plant, CareSchedule, User, Notification, Canopy, Weather, Delegation, CareLog |
 | `care-tasks` | One read endpoint: due cares for the caller, through `CareReads`. | Care | core | User, CareLog, Canopy, Plant |
-| `delegation` | Create, respond, cancel, complete delegations; delegated tasks. | Delegation | supporting | Delegation, User, Plant |
-| `delegation-scheduler` | Activate and complete delegations on their dates every 5 min. | Delegation | supporting | Delegation, User |
+| `delegation` | Endpoints over the `Absence` service: open, answer, cancel, complete a delegation; delegated tasks. They read through `DelegationRepository` and write nothing themselves. | Absence | supporting | Delegation |
+| `delegation-scheduler` | Calls `Absence.advanceDelegations` at startup and every 5 min: starts, completes, and cancels a request still pending at its start. | Absence | supporting | none |
 | `device-tokens` | Register and unregister Expo push tokens. | Notifications | core | DeviceToken |
 | `diagnosis` | One read endpoint: diagnoses of a plant. Writes happen in `ai-chat`. | Assistant | core | Diagnosis |
 | `email` | Email provider (Resend or console), magic-link mail. | Platform | generic | none |
@@ -81,8 +81,8 @@ All 55 directories under `services/` (`ls`), in directory order. "Repos" is ever
 | `tips-scheduler` | Generates the daily tip with RAG and sends it. | Engagement | supporting | DailyTip, Notification, Engagement |
 | `user` | Settings, avatar, account deletion. | Identity & Access | generic | User, CareLog, Notification, Delegation, Plant, RefreshToken, DeviceToken, CareSchedule, Canopy |
 | `username` | Username availability and claim. | Identity & Access | generic | User |
-| `vacation` | Get, set, cancel a vacation; activate and end helpers. | Delegation (provisional) | supporting | User, Notification, Plant, Delegation, CareSchedule, Canopy |
-| `vacation-scheduler` | Activates and ends vacations on their dates every 5 min. | Delegation (provisional) | supporting | User |
+| `vacation` | Endpoints over the `Absence` service: get, set, cancel a vacation. | Absence | supporting | User |
+| `vacation-scheduler` | Calls `Absence.advanceVacations` at startup and every 5 min: starts and ends vacations on their dates. | Absence | supporting | none |
 | `weather` | Weather endpoint, care-adjustment endpoint, providers, cache, algorithm. | Weather; `algorithm*` and `get-care-adjustments.ts` are Care (inferred) | supporting | Weather, User, Plant, CareSchedule |
 | `weather-scheduler` | Hourly weather fetch and snapshot cleanup (`scheduler.ts`); `readjust-care-schedules.ts` moves watering due days. | Weather; `readjust-care-schedules.ts` is Care (inferred) | supporting | User, Plant, Canopy, CareSchedule, Weather, Notification, Delegation |
 | `weekly-recap-scheduler` | Sunday recap push. | Engagement | supporting | Engagement, Achievement |
@@ -91,7 +91,9 @@ All 55 directories under `services/` (`ls`), in directory order. "Repos" is ever
 
 `contexts/reminders` reaches `notifications` only through `NotificationRepository` (`lockReminderPlants`, `findHoldersOfWaitingReminders`, `lockReminders`, `writeReminders`). It reads plants, users, canopies and delegations through their repositories, and due cares through `CareReads` (`contexts/reminders/store.ts`, `contexts/reminders/audience.ts`).
 
-`contexts/canopy` writes `canopies`, `canopyMembers`, `canopyInvites`, `canopyDirectInvites`, `canopyPlantMutes` and the owner columns of `plants` and `rooms` through `PgDrizzle`, in `contexts/canopy/store.ts` and nowhere else. The store is also the only code that locks a canopy row, and it takes every lock of a command in one order (`lockAndLoad`). The context reaches `notifications` through `NotificationRepository` (`deleteUndeliveredNonCareOfNonOwners`, `deleteUndeliveredNonCareForMemberOnCanopy`) and `recordNotification`, delegations through `DelegationRepository` (`lockAllForUser`, `hasOpenDelegationForPlant`), and plant limits through `LimitChecker.checkPlantLimit`. An ending (a leave, a removal, an account deletion, a dissolve) runs the give-back: plants go back to their sharer, and at a dissolve the heir takes the rooms and every plant left. Terms: `packages/api/CONTEXT.md`, section Canopy.
+`contexts/canopy` writes `canopies`, `canopyMembers`, `canopyInvites`, `canopyDirectInvites`, `canopyPlantMutes` and the owner columns of `plants` and `rooms` through `PgDrizzle`, in `contexts/canopy/store.ts` and nowhere else. The store is also the only code that locks a canopy row, and it takes every lock of a command in one order (`lockAndLoad`). The context reaches `notifications` through `NotificationRepository` (`deleteUndeliveredNonCareOfNonOwners`, `deleteUndeliveredNonCareForMemberOnCanopy`) and `recordNotification`, delegations through `DelegationRepository.hasOpenDelegationForPlant` and, for the lock of an account deletion, `Absence.holdForDeletion`, and plant limits through `LimitChecker.checkPlantLimit`. An ending (a leave, a removal, an account deletion, a dissolve) runs the give-back: plants go back to their sharer, and at a dissolve the heir takes the rooms and every plant left. Terms: `packages/api/CONTEXT.md`, section Canopy.
+
+`contexts/absence` writes `careDelegations`, `delegationPlants` and the vacation columns of `users` through `PgDrizzle`, in `contexts/absence/store.ts` and nowhere else, and takes every lock of a command in one order. The context reaches `notifications` through `NotificationRepository` (the sweep of what a vacation mutes) and `recordNotification`, memberships through `CanopyRepository`, and the due days a vacation end moves through `Care.moveDueDays`. It imports neither `contexts/canopy` nor `contexts/reminders`. Terms: `packages/api/CONTEXT.md`, section Absence.
 
 ## 2. Repositories
 
@@ -110,15 +112,15 @@ All 55 directories under `services/` (`ls`), in directory order. "Repos" is ever
 | `chat` | Assistant | `chatConversations`, `chatMessages` | Admin r | |
 | `daily-tip` | Engagement | `dailyTips` | none | |
 | `dead-letter` | Platform (inferred) | `deadLetterMessages` | Notifications W (`notification-scheduler/worker.ts:585`), Assistant W (`knowledge-ingestion/processor.ts:152`) | **MULTI** |
-| `delegation` | Delegation | `careDelegations`, `delegationPlants` | Identity W (`user/endpoints/delete-account.ts:31` `cancelOpenForUser`); Canopy lock (`contexts/canopy/store.ts`, `lockAllForUser`); r: Care, Assistant, Weather, Admin | **MULTI** |
-| `device-token` | Notifications | `deviceTokens` | Identity W (`user/endpoints/delete-account.ts:26`); Admin r | **MULTI** |
+| `delegation` | Absence | none. The Absence store writes `careDelegations` and `delegationPlants` (`contexts/absence/store.ts`). | r: Care, Canopy, Assistant, Weather, Admin | read side of Absence, no write and no lock |
+| `device-token` | Notifications | `deviceTokens` | Identity W (`user/helpers/release-account.ts`); Admin r | **MULTI** |
 | `diagnosis` | Assistant | `diagnoses` | none (`diagnosis` module reads) | |
 | `engagement` | Engagement | none (read model over `careLogs`, `notifications`, `plantCareSchedules`, `plantPhotos`, `plants`, `userSubscriptions`, `users`) | none | reads 5 contexts' tables |
 | `follow` | Social | `userFollows`, `userNudges` | none | reads `plants`, `notifications` |
 | `gift-code` | Billing | `giftCodes`, `giftCodeRedemptions` | Admin W (`admin/endpoints/create-gift-code.ts:33`, `update-gift-code.ts:62`, `delete-gift-code.ts:19`) | **MULTI** |
 | `ingest-job` | Assistant | `ingestJobs` | none | |
 | `magic-link` | Identity & Access | `magicLinks` | none (`auth`, `internal`) | |
-| `notification` | Notifications. Rows of the five reminder types belong to Reminders. | `notifications` | Reminders W (`contexts/reminders/store.ts`, the only caller of `lockReminders` and `writeReminders`); deletes of other topics from Canopy (`contexts/canopy/store.ts`), Identity (`user/endpoints/delete-account.ts:35`, `user/endpoints/update-user-settings.ts:112`) and Delegation(vacation) (`vacation/helpers/activate-vacation.ts:50`, `vacation/helpers/end-vacation.ts:111`); every caller of `helpers/schedule-notification.ts:64`; r: Engagement, Billing, Admin | **MULTI** |
+| `notification` | Notifications. Rows of the five reminder types belong to Reminders. | `notifications` | Reminders W (`contexts/reminders/store.ts`, the only caller of `lockReminders` and `writeReminders`); deletes of other topics from Canopy (`contexts/canopy/store.ts`), Identity (`user/endpoints/delete-account.ts:35`, `user/endpoints/update-user-settings.ts:112`) and Absence (`contexts/absence/store.ts`, the sweep of what a vacation mutes); every caller of `helpers/schedule-notification.ts:64`; r: Engagement, Billing, Admin | **MULTI** |
 | `oauth-identity` | Identity & Access | `oauthIdentities` | none | |
 | `plant-catalog` | Care (inferred) | none (read only) | Content r (`blog-generator/topics.ts:75`) | |
 | `plant` | Care | `plants`, `plantPhotos` | r: Assistant, Canopy, Delegation, Notifications, Weather, Identity, Admin. No write caller outside `services/plants`. | owner columns also written by the Canopy store |
@@ -128,10 +130,10 @@ All 55 directories under `services/` (`ls`), in directory order. "Repos" is ever
 | `room` | Care (inferred) | `rooms` | Admin r | owner columns also written by the Canopy store |
 | `scan` | Care | `plantScans` | none | |
 | `subscription` | Billing | `userSubscriptions`, `subscriptionEvents`, `subscriptionUsage`, `revenuecatWebhookEvents` | Admin W (`admin/endpoints/gift-subscription.ts:55`, `revoke-gift-subscription.ts:35`); Notifications r (`overdue-scheduler/scheduler.ts:220`) | **MULTI** |
-| `user` | Identity & Access | `users` | Delegation(vacation) W (`vacation/endpoints/set-vacation.ts:71` `transitionVacation`); Admin W (`admin/endpoints/update-user.ts:36`, `update-role.ts:26`, `update-status.ts:26`, `delete-user.ts:41`); r: almost every context | **MULTI** |
+| `user` | Identity & Access | `users` | Absence W (`contexts/absence/store.ts`, the vacation columns, not through the repository); Admin W (`admin/endpoints/update-user.ts:36`, `update-role.ts:26`, `update-status.ts:26`, `delete-user.ts:41`); r: almost every context | **MULTI** |
 | `weather` | Weather | `weatherSnapshots` | Care r (`plants`, `care-plans`) | |
 
-**MULTI count: 8** (`care-plan`, `dead-letter`, `delegation`, `device-token`, `gift-code`, `notification`, `subscription`, `user`).
+**MULTI count: 7** (`care-plan`, `dead-letter`, `device-token`, `gift-code`, `notification`, `subscription`, `user`).
 
 Writes that bypass repositories: `internal/endpoints/issue-service-token.ts:60` (`db.update(users)`), `rate-limiter/service.ts:79,118` (`rateLimits`).
 
@@ -180,31 +182,32 @@ Direction is "upstream -> downstream" for events, "caller -> callee" for calls.
 | Care -> Engagement | EventBus `CareLogCreated`, `PlantCreated`, `PhotoUploaded`, `PlantScanned`, `AttentionResponded`, `ReminderResponded`, `CareHistoryViewed`, `PlantShared` | publish `care-logs/endpoints/create-care-log.ts:58`; consume `achievements/checker.ts:235-245` |
 | Care -> Notifications (Live Activity) | EventBus `CareLogCreated`, `PlantLifecycleChanged` | publish `plants/endpoints/mark-plant-dead.ts:69`; consume `live-activity/subscriber.ts:152,159` |
 | Care -> Reminders | Outbox topic of Care events. Reminders replans the plant after `ScheduleChanged`, `CareRecorded` and `PlantLifeChanged`. | consume `contexts/reminders/consumers.ts:36-40`; which event makes what stale in `contexts/reminders/triggers.ts:17-30` |
-| Care endpoints, Delegation, Identity -> Reminders | `Reminders.request(Dirty)`: a row on the outbox topic `reminders`, written in the caller's transaction and planned after its commit by the `reminders-replan` consumer | `plants/endpoints/mark-plant-dead.ts:56`, `delegation/helpers/transition-delegation.ts:89`, `vacation/helpers/end-vacation.ts:115`, `user/endpoints/update-user-settings.ts:123`, `user/helpers/purge-account.ts:23` |
+| Care endpoints, Identity -> Reminders | `Reminders.request(Dirty)`: a row on the outbox topic `reminders`, written in the caller's transaction and planned after its commit by the `reminders-replan` consumer | `plants/endpoints/mark-plant-dead.ts:56`, `user/endpoints/delete-account.ts:39`, `user/endpoints/update-user-settings.ts:117`, `user/helpers/purge-account.ts:23` |
 | Canopy -> Reminders | Outbox topic `canopy`, written in the transaction of the change. Seven facts: `MemberJoined`, `MemberLeft`, `PlantsMoved`, `CanopyTimezoneChanged`, `PlantMuted`, `PlantUnmuted`, `CanopyDissolved`. Reminders replans what each one makes stale. Canopy code never calls `Reminders.request`. | publish `contexts/canopy/canopy.ts`; consume `contexts/reminders/consumers.ts` (`canopyConsumer`); which fact makes what stale in `contexts/reminders/triggers.ts` (`staleAfterCanopy`) |
 | Notifications, Reminders -> Care | `CareReads.due` (the only published Care read) | `notification-scheduler/dispatch-gate.ts:268`, `contexts/reminders/store.ts`, `contexts/reminders/overdue.ts` |
 | Notifications -> Reminders | `Reminders.audienceOf`: who a plant's reminders are addressed to | `notification-scheduler/dispatch-gate.ts:281`, `live-activity/subscriber.ts:125` |
 | Notifications -> Care | Direct `PlantRepository.findById` | `live-activity/subscriber.ts:121` |
 | Notifications internal | MessageQueue: scheduler enqueues, worker delivers; messages `LiveActivityStart/Update/End` | `notification-scheduler/scheduler.ts:237`, `worker.ts:231` |
-| Any context -> Notifications | `recordNotification` / `dispatchNow` helper (writes `notifications`, enqueues) | `helpers/schedule-notification.ts:33,130`; callers e.g. `social/endpoints/send-nudge.ts:66`, `delegation/endpoints/cancel-delegation.ts:72`, `subscriptions/usage-tracker.ts:155`, `engagement-scheduler/scheduler.ts:107` |
+| Any context -> Notifications | `recordNotification` / `dispatchNow` helper (writes `notifications`, enqueues) | `helpers/schedule-notification.ts:33,130`; callers e.g. `social/endpoints/send-nudge.ts:66`, `contexts/absence/absence.ts`, `subscriptions/usage-tracker.ts:155`, `engagement-scheduler/scheduler.ts:107` |
 | Canopy -> Care | The Canopy store sets the owner columns of `plants` and `rooms` (`MovePlants`, `MoveRooms`). No other code changes them after insert. | `contexts/canopy/store.ts`; `__tests__/architecture/context-boundaries.test.ts` |
 | Care -> Canopy | `Canopy.sharePlant`, `Canopy.unsharePlant` and `Canopy.setMute`, each with a `PlantPermit` | `plants/endpoints/share-plant-with-canopy.ts`, `plants/endpoints/unshare-plant.ts`, `plants/endpoints/mute-plant.ts` |
 | Care -> Canopy | Shared table join (`canopyMembers`, `canopyPlantMutes`) for visibility | `repositories/helpers/care-visibility.ts` (imports both tables) |
-| Canopy -> Delegation | `DelegationRepository.lockAllForUser` before an account deletion, `hasOpenDelegationForPlant` before a share | `contexts/canopy/store.ts`, `contexts/canopy/canopy.ts` |
+| Canopy -> Absence | `Absence.holdForDeletion` as a lock class of `Canopy.leaveForDeletion`: the user's delegation rows, then their account row, after the canopy row and before any plant. `DelegationRepository.hasOpenDelegationForPlant` before a share. | `contexts/canopy/store.ts`, `contexts/canopy/canopy.ts` |
 | Canopy -> Billing | `LimitChecker.checkPlantLimit` for a share and an unshare. A give-back and the heir's part ask no limit. | `contexts/canopy/canopy.ts` |
-| Care -> Delegation | Shared table join on `careDelegations` | `repositories/plant.repository.ts:442` |
-| Delegation -> Care | Shared table join on `plants` and `plantCareSchedules`; uses `seePlantCare` | `repositories/delegation.repository.ts:363-366,265` |
-| Delegation(vacation) -> Care | `Care.moveDueDays` with reason `vacation` | `vacation/helpers/end-vacation.ts:97` |
-| Delegation(vacation) -> Identity | Direct `UserRepository.transitionVacation` (vacation columns on `users`, `packages/db/src/schema/users.ts:82-86`) | `vacation/endpoints/set-vacation.ts:71` |
+| Care -> Absence | Shared table join on `careDelegations` | `repositories/plant.repository.ts:442` |
+| Absence -> Care | Shared table join on `plants` and `plantCareSchedules`; uses `seePlantCare` | `repositories/delegation.repository.ts:363-366,265` |
+| Absence -> Care | `Care.moveDueDays` with reason `vacation`, inside the transaction of the vacation end | `contexts/absence/store.ts` |
+| Absence -> Reminders | Four facts on the outbox topic `absence`, consumed by `reminders-absence` through `staleAfterAbsence` | `contexts/absence/domain/events.ts`, `contexts/reminders/triggers.ts` |
+| Absence -> Identity | The vacation columns on `users` (`packages/db/src/schema/users.ts:82-86`), written by the Absence store under a lock of the account row | `contexts/absence/store.ts` |
 | Assistant -> Care | Direct `CarePlanRepository.create` | `ai-chat/tools/create-diagnosis.ts:78` |
 | Assistant -> Care | Direct reads of schedules and care logs for the prompt | `ai-chat/plant-chat.ts:221-222` |
 | Assistant -> Engagement | EventBus `ChatMessageSent`, `DiseaseIdentified` | `ai-chat/persist-chat-completion.ts:157,196` |
 | Care -> Billing | `LimitChecker.checkPlantLimit` | `plants/endpoints/create-plant.ts:61` |
 | Care, Assistant -> Billing | `UsageTracker.withReservation` | `plants/endpoints/ai-identify.ts:49`, `ai-chat/endpoints/stream-chat-message.ts:170` |
-| Delegation -> Billing | `LimitChecker.checkDelegationAccess` | `delegation/endpoints/create-delegation.ts:35` |
+| Absence -> Billing | `LimitChecker.checkDelegationAccess` | `delegation/endpoints/create-delegation.ts:31` |
 | Billing -> Engagement | Direct `AchievementRepository.countLivingPlants` (a plant count kept in the achievements repo) | `subscriptions/limit-checker.ts:116` |
 | Notifications -> Billing | Direct `SubscriptionRepository` reads | `overdue-scheduler/scheduler.ts:220-221` |
-| Identity -> Canopy, Delegation, Notifications, Reminders | Account deletion runs inside `Canopy.leaveForDeletion`, which takes the user out of their canopy in the same transaction. Inside it the endpoint cancels delegations, deletes pending notifications and asks Reminders for a replan. | `user/endpoints/delete-account.ts:26-44`, `user/helpers/purge-account.ts:15` |
+| Identity -> Canopy, Absence, Notifications, Reminders | Account deletion runs inside `Canopy.leaveForDeletion`, which takes the user out of their canopy in the same transaction. Inside it the soft deletion calls `Absence.releaseForDeletion`, deletes pending notifications and asks Reminders for a replan of the recipient. The hard deletion calls `Absence.releaseForDeletion` and deletes the row, in one transaction. | `user/helpers/release-account.ts`, `user/helpers/purge-account.ts` |
 | Weather -> Care | `Care.moveDueDays` with reason `weather` | `weather-scheduler/readjust-care-schedules.ts:277` |
 | Care -> Weather | Direct `WeatherRepository` reads and `weather/algorithm` | `care-plans` and `plants` (grep: `WeatherRepository` in both; `weather/algorithm` import in `plants`) |
 | Social -> Engagement | EventBus `UserFollowed` (consumer ignores it) | `social/endpoints/follow-user.ts:76`, `achievements/checker.ts:246` |
@@ -226,7 +229,7 @@ Event notes:
 
 1. **Who sets a plant's condition?** The glossary says "A diagnosis sets it" (`packages/api/CONTEXT.md:59`). No code writes `plants.health` after creation (section 3). `ai-chat/tools/create-diagnosis.ts:76-78` creates a diagnosis and a care plan and never touches the plant. Either the rule is not implemented, or the glossary is ahead of the code.
 2. **Reminder planning: decided.** It is a context of its own, `contexts/reminders`. Nothing outside it plans, locks or deletes a row of the five reminder types, and delivery only moves their status (`__tests__/architecture/context-boundaries.test.ts`). The glossary still lists reminders in rule 4 of Care (`CONTEXT.md:55`), which is where Care hands over to Reminders. `plants.remindersEnabled` has no writer.
-3. **Vacation has no clear home.** State lives on `users` (`users.ts:82-86`), written through `UserRepository.transitionVacation`. Ending a vacation moves due days through `Care.moveDueDays` (`end-vacation.ts:97`), reads delegations (`:89-96`), deletes the muted notifications that are not reminders (`:111`) and asks Reminders for a replan (`:115`). Candidates: Identity (data), Care (effect), Delegation (same "I am away" intent and the scheduler mirrors the delegation scheduler, `vacation-scheduler/scheduler.ts:31`).
+3. **Vacation: decided.** It lives in Absence with delegations. The state stays on `users` (`users.ts:82-86`) and only `contexts/absence/store.ts` gives it a value (`__tests__/architecture/context-boundaries.test.ts`). Ending a vacation moves due days through `Care.moveDueDays`, deletes the muted notifications that are not reminders and publishes `VacationEnded`. Account deletion goes through Absence: `Absence.releaseForDeletion` cancels the open delegations and ends the vacation in the transaction of the deletion, and moves no due day.
 4. **Plant ownership: decided.** Canopy is the one writer of the owner of a plant or a room after insert, and of mutes (`contexts/canopy/store.ts`, enforced by `__tests__/architecture/context-boundaries.test.ts`). Care creates the row with its first owner. The glossary defines Owner under Care (`CONTEXT.md:16`) and sharer, give-back, heir and ending under Canopy. A give-back and the heir's part ask no plant limit. That is kept as it was. Whether it lets a user pass their own limit has not been tested (inferred).
 5. **Care plans straddle Care and Assistant.** The glossary lists care plans under Care but marks their rules "not decided" (`CONTEXT.md:9,64`). Assistant creates them and links chat messages (`create-diagnosis.ts:78`, `persist-chat-completion.ts:234`); Care completes steps, including as a side effect of a normal care (`CompletePlanStep` in `contexts/care/domain/decide.ts`).
 6. **Weather adjustment split.** The rule is Care (`CONTEXT.md:38`), but the algorithm lives in `services/weather/algorithm*` and `services/weather-scheduler/readjust-care-schedules.ts:277` decides the move and hands it to `Care.moveDueDays`.

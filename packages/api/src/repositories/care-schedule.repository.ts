@@ -8,6 +8,7 @@ import {
   withCanopyOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
 import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
+import { tending } from '@lily/api/repositories/helpers/tending'
 import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -140,8 +141,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
             careDelegations,
             eq(careDelegations.id, delegationPlants.delegationId)
           )
-          .innerJoin(users, eq(users.id, careDelegations.caretakerId))
-          .where(and(eq(careDelegations.status, 'active'), isReachableUser()))
+          .where(tending())
           .as('active_caretakers')
         const personal = yield* db
           .select({

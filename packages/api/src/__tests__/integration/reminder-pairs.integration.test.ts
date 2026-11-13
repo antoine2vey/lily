@@ -1,3 +1,7 @@
+import {
+  returnFromVacation,
+  tickVacations,
+} from '@lily/api/__tests__/integration/absence-layers'
 import { delivered, leave } from '@lily/api/__tests__/integration/canopy-layers'
 import {
   drainOutbox,
@@ -12,6 +16,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import type { Absence } from '@lily/api/contexts/absence'
 import { Canopy, hashInviteToken, JoinVia } from '@lily/api/contexts/canopy'
 import { Care, CareReadsLive, frequencyOfDays } from '@lily/api/contexts/care'
 import { replanPlants } from '@lily/api/contexts/reminders'
@@ -50,8 +55,6 @@ import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
-import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
-import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
@@ -111,6 +114,7 @@ type App =
   | Outbox
   | Care
   | Canopy
+  | Absence
 
 type UserRow = typeof schema.users.$inferSelect
 
@@ -238,16 +242,10 @@ const TRIGGERS: ReadonlyArray<
   ],
   ['delegation start', (w) => [w.alex, pollAndTransition]],
   ['delegation end', (w) => [w.alex, completeDelegation(w.tendedDelegation)]],
-  [
-    'vacation start',
-    (w) => [w.aboutToLeave.id, activateVacation({ expected: w.aboutToLeave })],
-  ],
+  ['vacation start', (w) => [w.aboutToLeave.id, tickVacations]],
   [
     'vacation end',
-    (w) => [
-      w.onVacation.id,
-      endVacation({ user: w.onVacation, effectiveEnd: new Date() }),
-    ],
+    (w) => [w.onVacation.id, returnFromVacation(w.onVacation.id)],
   ],
   [
     'settings change',

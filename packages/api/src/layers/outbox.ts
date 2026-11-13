@@ -1,4 +1,5 @@
 import {
+  absenceConsumer,
   canopyConsumer,
   type RemindersConsumerContext,
   remindersConsumer,
@@ -16,6 +17,7 @@ export const appConsumers = (
 ): ReadonlyArray<Consumer> => [
   remindersConsumer(context),
   canopyConsumer(context),
+  absenceConsumer(context),
   replanConsumer(context),
   eventBusForwarder(context),
 ]

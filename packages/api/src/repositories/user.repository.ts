@@ -5,7 +5,6 @@ import {
   nowAsDate,
   type UserRole,
   type UserStatus,
-  type VacationStatus,
 } from '@lily/shared'
 import {
   and,
@@ -15,7 +14,6 @@ import {
   ilike,
   inArray,
   isNotNull,
-  isNull,
   lte,
   or,
   sql,
@@ -59,9 +57,6 @@ export interface UpdateUserData {
   longitude?: number | null
   firstName?: string | null
   lastName?: string | null
-  vacationStatus?: VacationStatus
-  vacationStart?: Date | null
-  vacationEnd?: Date | null
 }
 
 export interface FindUsersFilters {
@@ -70,17 +65,6 @@ export interface FindUsersFilters {
   role?: UserRole
   status?: UserStatus
   search?: string
-}
-
-export type VacationSnapshot = Pick<
-  typeof users.$inferSelect,
-  'id' | 'vacationStatus' | 'vacationStart' | 'vacationEnd'
->
-
-export interface VacationUpdate {
-  vacationStatus: VacationStatus
-  vacationStart?: Date | null
-  vacationEnd?: Date | null
 }
 
 // Repository service interface
@@ -143,32 +127,7 @@ export interface IUserRepository {
   readonly findExpiredDeletions: (
     cutoffDate: Date
   ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
-  readonly findVacationsToActivate: (
-    now: Date
-  ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
-  readonly findVacationsToEnd: (
-    now: Date
-  ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
-  /**
-   * Compare-and-swap on the vacation columns: the row moves to `next` only
-   * while its status, start and end still equal `expected`. Returns the
-   * updated row, or null when another writer (the scheduler, or the user on
-   * another device) changed any of them since the caller read the row.
-   */
-  readonly transitionVacation: (
-    expected: VacationSnapshot,
-    next: VacationUpdate
-  ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
 }
-
-const sameInstant = (
-  column: typeof users.vacationStart | typeof users.vacationEnd,
-  value: Date | null
-) =>
-  Option.match(Option.fromNullishOr(value), {
-    onNone: () => isNull(column),
-    onSome: (instant) => eq(column, instant),
-  })
 
 const buildUserFilterConditions = (
   filters: Omit<FindUsersFilters, 'page' | 'limit'>
@@ -393,50 +352,6 @@ export const UserRepositoryLive = Layer.effect(
           .from(users)
           .where(eq(users.tips, true))
           .pipe(Effect.withSpan('UserRepository.findTipsEnabled')),
-
-      findVacationsToActivate: (now: Date) =>
-        db
-          .select()
-          .from(users)
-          .where(
-            and(
-              eq(users.vacationStatus, 'scheduled'),
-              lte(users.vacationStart, now),
-              isNull(users.deletedAt)
-            )
-          )
-          .pipe(Effect.withSpan('UserRepository.findVacationsToActivate')),
-
-      findVacationsToEnd: (now: Date) =>
-        db
-          .select()
-          .from(users)
-          .where(
-            and(
-              eq(users.vacationStatus, 'active'),
-              lte(users.vacationEnd, now),
-              isNull(users.deletedAt)
-            )
-          )
-          .pipe(Effect.withSpan('UserRepository.findVacationsToEnd')),
-
-      transitionVacation: Effect.fn('UserRepository.transitionVacation')(
-        function* (expected, next) {
-          const [user] = yield* db
-            .update(users)
-            .set({ ...next, updatedAt: nowAsDate() })
-            .where(
-              and(
-                eq(users.id, expected.id),
-                eq(users.vacationStatus, expected.vacationStatus),
-                sameInstant(users.vacationStart, expected.vacationStart),
-                sameInstant(users.vacationEnd, expected.vacationEnd)
-              )
-            )
-            .returning()
-          return Option.getOrNull(Option.fromNullishOr(user))
-        }
-      ),
     }
   })
 )

@@ -8,7 +8,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
+import { tending } from '@lily/api/repositories/helpers/tending'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careDelegations,
@@ -23,7 +23,7 @@ import type {
   PlantCareSchedule,
   PlantHealthStatus,
 } from '@lily/shared'
-import { and, count, desc, eq, inArray, lte, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -36,14 +36,6 @@ import {
   pipe,
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
-
-export interface CreateDelegationData {
-  ownerId: string
-  caretakerId: string
-  startDate: Date
-  endDate: Date
-  message?: string | undefined
-}
 
 export interface DelegationRow {
   id: string
@@ -103,30 +95,9 @@ export interface DelegationPlantRow {
 }
 
 export interface IDelegationRepository {
-  readonly create: (
-    data: CreateDelegationData
-  ) => Effect.Effect<DelegationRow, SqlError>
-
   readonly findById: (
     id: string
   ) => Effect.Effect<DelegationDetailRow | null, SqlError>
-
-  /**
-   * Compare-and-swap status change: the row moves to `to` only if its
-   * current status is one of `from`. Returns the updated row, or null when
-   * another writer (a user cancel, a second scheduler process) got there
-   * first. Callers send notifications only for a returned row.
-   */
-  readonly transitionStatus: (
-    id: string,
-    from: readonly DelegationStatus[],
-    to: DelegationStatus,
-    timestamps?: {
-      respondedAt?: Date | undefined
-      canceledAt?: Date | undefined
-      completedAt?: Date | undefined
-    }
-  ) => Effect.Effect<DelegationRow | null, SqlError>
 
   readonly findByUser: (params: {
     userId: string
@@ -140,38 +111,10 @@ export interface IDelegationRepository {
     caretakerId: string
   ) => Effect.Effect<DelegatedTaskRow[], SqlError>
 
-  readonly findOverlappingDelegations: (params: {
-    plantIds: readonly string[]
-    startDate: Date
-    endDate: Date
-    excludeDelegationId?: string | undefined
-  }) => Effect.Effect<string[], SqlError>
-
-  readonly findAcceptedReadyToActivate: (
-    now: Date
-  ) => Effect.Effect<DelegationRow[], SqlError>
-
-  readonly findActiveReadyToComplete: (
-    now: Date
-  ) => Effect.Effect<DelegationRow[], SqlError>
-
-  readonly addPlants: (
-    delegationId: string,
-    plantIds: readonly string[]
-  ) => Effect.Effect<void, SqlError>
-
-  readonly getPlantsByDelegation: (
-    delegationId: string
-  ) => Effect.Effect<DelegationPlantRow[], SqlError>
-
-  readonly hasActiveDelegationForPlant: (
+  readonly tends: (
     userId: string,
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
-
-  readonly findActiveCaretakerForPlant: (
-    plantId: string
-  ) => Effect.Effect<string | null, SqlError>
 
   readonly findActiveCaretakersForPlants: (
     plantIds: ReadonlyArray<string>
@@ -183,16 +126,6 @@ export interface IDelegationRepository {
   readonly hasOpenDelegationForPlant: (
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
-
-  readonly lockAllForUser: (userId: string) => Effect.Effect<void, SqlError>
-
-  readonly cancelOpenForUser: (
-    userId: string,
-    canceledAt: Date
-  ) => Effect.Effect<
-    { readonly reassignedPlantIds: ReadonlyArray<string> },
-    SqlError
-  >
 }
 
 export class DelegationRepository extends Context.Service<
@@ -201,15 +134,6 @@ export class DelegationRepository extends Context.Service<
 >()('DelegationRepository') {}
 
 const OPEN_STATUSES: DelegationStatus[] = ['pending', 'accepted', 'active']
-
-const partyTo = (userId: string) =>
-  or(
-    eq(careDelegations.ownerId, userId),
-    eq(careDelegations.caretakerId, userId)
-  )
-
-const openFor = (userId: string) =>
-  and(partyTo(userId), inArray(careDelegations.status, OPEN_STATUSES))
 
 const ownerAlias = sql`owner_user`
 const caretakerAlias = sql`caretaker_user`
@@ -304,20 +228,6 @@ export const DelegationRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      create: Effect.fn('DelegationRepository.create')(function* (data) {
-        const [row] = yield* db
-          .insert(careDelegations)
-          .values({
-            ownerId: data.ownerId,
-            caretakerId: data.caretakerId,
-            startDate: data.startDate,
-            endDate: data.endDate,
-            message: data.message ?? null,
-          })
-          .returning()
-        return row as DelegationRow
-      }),
-
       findById: Effect.fn('DelegationRepository.findById')(function* (id) {
         const [row] = yield* db
           .select({
@@ -373,38 +283,6 @@ export const DelegationRepositoryLive = Layer.effect(
           plants: groupPlantRows(plantRows, yield* DateTime.now),
         } as DelegationDetailRow
       }),
-
-      transitionStatus: Effect.fn('DelegationRepository.transitionStatus')(
-        function* (id, from, to, timestamps) {
-          type StatusValue = typeof careDelegations.$inferSelect.status
-          const [row] = yield* db
-            .update(careDelegations)
-            .set({
-              status: to as StatusValue,
-              ...(timestamps?.respondedAt
-                ? { respondedAt: timestamps.respondedAt }
-                : {}),
-              ...(timestamps?.canceledAt
-                ? { canceledAt: timestamps.canceledAt }
-                : {}),
-              ...(timestamps?.completedAt
-                ? { completedAt: timestamps.completedAt }
-                : {}),
-            })
-            .where(
-              and(
-                eq(careDelegations.id, id),
-                inArray(careDelegations.status, from as readonly StatusValue[])
-              )
-            )
-            .returning()
-          return pipe(
-            Option.fromNullishOr(row),
-            Option.map((r) => r as DelegationRow),
-            Option.getOrNull
-          )
-        }
-      ),
 
       findByUser: Effect.fn('DelegationRepository.findByUser')(
         function* (params) {
@@ -519,7 +397,7 @@ export const DelegationRepositoryLive = Layer.effect(
           .where(
             and(
               eq(careDelegations.caretakerId, caretakerId),
-              eq(careDelegations.status, 'active'),
+              tending(),
               isLivingPlant()
             )
           )
@@ -554,153 +432,6 @@ export const DelegationRepositoryLive = Layer.effect(
         )
       }),
 
-      findOverlappingDelegations: Effect.fn(
-        'DelegationRepository.findOverlappingDelegations'
-      )(function* (params) {
-        if (params.plantIds.length === 0) return []
-
-        const conditions = [
-          inArray(delegationPlants.plantId, [...params.plantIds]),
-          inArray(careDelegations.status, ['pending', 'accepted', 'active']),
-          sql`${careDelegations.startDate} < ${params.endDate}`,
-          sql`${careDelegations.endDate} > ${params.startDate}`,
-        ]
-
-        if (params.excludeDelegationId) {
-          conditions.push(
-            sql`${careDelegations.id} != ${params.excludeDelegationId}`
-          )
-        }
-
-        const rows = yield* db
-          .selectDistinct({ plantId: delegationPlants.plantId })
-          .from(delegationPlants)
-          .innerJoin(
-            careDelegations,
-            eq(delegationPlants.delegationId, careDelegations.id)
-          )
-          .where(and(...conditions))
-
-        return Array.map(rows, (r) => r.plantId)
-      }),
-
-      findAcceptedReadyToActivate: Effect.fn(
-        'DelegationRepository.findAcceptedReadyToActivate'
-      )(function* (now) {
-        const rows = yield* db
-          .select()
-          .from(careDelegations)
-          .where(
-            and(
-              eq(careDelegations.status, 'accepted'),
-              lte(careDelegations.startDate, now)
-            )
-          )
-          .orderBy(careDelegations.id)
-        return rows as DelegationRow[]
-      }),
-
-      findActiveReadyToComplete: Effect.fn(
-        'DelegationRepository.findActiveReadyToComplete'
-      )(function* (now) {
-        const rows = yield* db
-          .select()
-          .from(careDelegations)
-          .where(
-            and(
-              eq(careDelegations.status, 'active'),
-              lte(careDelegations.endDate, now)
-            )
-          )
-          .orderBy(careDelegations.id)
-        return rows as DelegationRow[]
-      }),
-
-      addPlants: Effect.fn('DelegationRepository.addPlants')(
-        function* (delegationId, plantIds) {
-          if (plantIds.length === 0) return
-          const values = Array.map(plantIds, (plantId) => ({
-            delegationId,
-            plantId,
-          }))
-          yield* db.insert(delegationPlants).values(values)
-        }
-      ),
-
-      getPlantsByDelegation: Effect.fn(
-        'DelegationRepository.getPlantsByDelegation'
-      )(function* (delegationId) {
-        const rows = yield* db
-          .select({
-            id: plants.id,
-            name: plants.name,
-            imageUrl: plants.imageUrl,
-            health: plants.health,
-            careTimezone: careTimezoneSql,
-            ...scheduleColumns,
-          })
-          .from(delegationPlants)
-          .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
-          .leftJoin(
-            plantCareSchedules,
-            eq(plants.id, plantCareSchedules.plantId)
-          )
-          .where(
-            and(
-              eq(delegationPlants.delegationId, delegationId),
-              isLivingPlant()
-            )
-          )
-
-        return groupPlantRows(rows, yield* DateTime.now)
-      }),
-
-      lockAllForUser: Effect.fn('DelegationRepository.lockAllForUser')(
-        function* (userId: string) {
-          yield* db
-            .select({ id: careDelegations.id })
-            .from(careDelegations)
-            .where(partyTo(userId))
-            .orderBy(careDelegations.id)
-            .for('update')
-        }
-      ),
-
-      cancelOpenForUser: Effect.fn('DelegationRepository.cancelOpenForUser')(
-        function* (userId: string, canceledAt: Date) {
-          const open = yield* db
-            .select({ id: careDelegations.id, status: careDelegations.status })
-            .from(careDelegations)
-            .where(openFor(userId))
-            .orderBy(careDelegations.id)
-            .for('update')
-          if (!Array.isArrayNonEmpty(open)) return { reassignedPlantIds: [] }
-          yield* db
-            .update(careDelegations)
-            .set({ status: 'canceled', canceledAt })
-            .where(
-              inArray(
-                careDelegations.id,
-                Array.map(open, (d) => d.id)
-              )
-            )
-          const active = Array.filter(open, (d) => d.status === 'active')
-          if (!Array.isArrayNonEmpty(active)) {
-            return { reassignedPlantIds: [] }
-          }
-          const linked = yield* db
-            .selectDistinct({ plantId: delegationPlants.plantId })
-            .from(delegationPlants)
-            .where(
-              inArray(
-                delegationPlants.delegationId,
-                Array.map(active, (d) => d.id)
-              )
-            )
-          return { reassignedPlantIds: Array.map(linked, (l) => l.plantId) }
-        }
-      ),
-
       hasOpenDelegationForPlant: Effect.fn(
         'DelegationRepository.hasOpenDelegationForPlant'
       )(function* (plantId: string) {
@@ -721,55 +452,27 @@ export const DelegationRepositoryLive = Layer.effect(
         return Array.isArrayNonEmpty(rows)
       }),
 
-      hasActiveDelegationForPlant: Effect.fn(
-        'DelegationRepository.hasActiveDelegationForPlant'
-      )(function* (userId, plantId) {
-        const rows = yield* db
-          .select({ id: careDelegations.id })
-          .from(careDelegations)
-          .innerJoin(
-            delegationPlants,
-            eq(careDelegations.id, delegationPlants.delegationId)
-          )
-          .where(
-            and(
-              eq(careDelegations.caretakerId, userId),
-              eq(delegationPlants.plantId, plantId),
-              eq(careDelegations.status, 'active')
+      tends: Effect.fn('DelegationRepository.tends')(
+        function* (userId, plantId) {
+          const rows = yield* db
+            .select({ id: careDelegations.id })
+            .from(careDelegations)
+            .innerJoin(
+              delegationPlants,
+              eq(careDelegations.id, delegationPlants.delegationId)
             )
-          )
-          .limit(1)
-
-        return rows.length > 0
-      }),
-
-      findActiveCaretakerForPlant: Effect.fn(
-        'DelegationRepository.findActiveCaretakerForPlant'
-      )(function* (plantId) {
-        const rows = yield* db
-          .select({ caretakerId: careDelegations.caretakerId })
-          .from(careDelegations)
-          .innerJoin(
-            delegationPlants,
-            eq(careDelegations.id, delegationPlants.delegationId)
-          )
-          .innerJoin(users, eq(users.id, careDelegations.caretakerId))
-          .where(
-            and(
-              eq(delegationPlants.plantId, plantId),
-              eq(careDelegations.status, 'active'),
-              isReachableUser()
+            .where(
+              and(
+                eq(careDelegations.caretakerId, userId),
+                eq(delegationPlants.plantId, plantId),
+                tending()
+              )
             )
-          )
-          .limit(1)
+            .limit(1)
 
-        return pipe(
-          rows,
-          Array.head,
-          Option.map((r) => r.caretakerId),
-          Option.getOrNull
-        )
-      }),
+          return rows.length > 0
+        }
+      ),
 
       findActiveCaretakersForPlants: Effect.fn(
         'DelegationRepository.findActiveCaretakersForPlants'
@@ -785,13 +488,8 @@ export const DelegationRepositoryLive = Layer.effect(
             delegationPlants,
             eq(careDelegations.id, delegationPlants.delegationId)
           )
-          .innerJoin(users, eq(users.id, careDelegations.caretakerId))
           .where(
-            and(
-              inArray(delegationPlants.plantId, [...plantIds]),
-              eq(careDelegations.status, 'active'),
-              isReachableUser()
-            )
+            and(inArray(delegationPlants.plantId, [...plantIds]), tending())
           )
       }),
     }

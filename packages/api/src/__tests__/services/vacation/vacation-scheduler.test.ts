@@ -2,20 +2,9 @@ import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
-import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createStubCare } from '@lily/api/__tests__/mocks/care'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { createVacationWorld } from '@lily/api/__tests__/mocks/vacation-world'
+import type { AbsenceStore, Edge } from '@lily/api/contexts/absence/store'
 import { DueMove } from '@lily/api/contexts/care'
-import {
-  type IUserRepository,
-  UserRepository,
-} from '@lily/api/repositories/user.repository'
 import { pollAndTransitionVacations } from '@lily/api/services/vacation-scheduler/scheduler'
 import { CARE_TYPES, type User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
@@ -23,11 +12,12 @@ import {
   Array,
   DateTime,
   Effect,
-  Layer,
   Option,
   pipe,
   References,
+  Struct,
 } from 'effect'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -40,27 +30,36 @@ const findUser = (users: User[], id: string) =>
     Option.getOrNull
   )
 
-const run = (effect: Effect.Effect<void, unknown, never>): Promise<void> =>
+const run = <A>(effect: Effect.Effect<A, unknown, never>): Promise<A> =>
   Effect.runPromise(
     effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
-  ) as Promise<void>
+  ) as Promise<A>
 
-const withRacingWrite = (
-  users: User[],
-  poll: 'findVacationsToActivate' | 'findVacationsToEnd',
-  afterRead: () => void
-) =>
-  Layer.effect(
-    UserRepository,
-    Effect.map(
-      UserRepository,
-      (repo): IUserRepository => ({
-        ...repo,
-        [poll]: (now: Date) =>
-          repo[poll](now).pipe(Effect.tap(() => Effect.sync(afterRead))),
-      })
-    )
-  ).pipe(Layer.provide(createMockUserRepository(users)))
+const BROKEN_WRITE = {
+  fails: Effect.fail(
+    new SqlError({
+      reason: new UnknownError({
+        cause: new Error('injected'),
+        message: 'the write of user-a failed',
+      }),
+    })
+  ),
+  dies: Effect.die('the write of user-a broke'),
+} as const
+
+const withRacingWrite =
+  (listed: Edge, afterRead: () => void) =>
+  (store: AbsenceStore['Service']): AbsenceStore['Service'] => ({
+    ...store,
+    dueVacations: (edge, now) =>
+      store
+        .dueVacations(edge, now)
+        .pipe(
+          Effect.tap(() =>
+            edge === listed ? Effect.sync(afterRead) : Effect.void
+          )
+        ),
+  })
 
 describe('vacation-scheduler', () => {
   it('leaves a vacation canceled between the read and the activation alone', async () => {
@@ -80,34 +79,24 @@ describe('vacation-scheduler', () => {
       }),
     ]
 
-    await run(
-      pollAndTransitionVacations.pipe(
-        Effect.provide(
-          DeliveringOutboxLive.pipe(
-            Layer.provideMerge(
-              Layer.mergeAll(
-                MockSqlClientLive,
-                createStubCare().layer,
-                withRacingWrite(users, 'findVacationsToActivate', () => {
-                  users[0] = {
-                    ...user,
-                    vacationStatus: 'none',
-                    vacationStart: null,
-                    vacationEnd: null,
-                  }
-                }),
-                createMockNotificationRepository(notifications),
-                createMockCareScheduleRepository({}),
-                createMockPlantRepository({ plants: [] }),
-                createMockCanopyRepository(),
-                createMockDelegationRepository({})
-              )
-            )
-          )
-        )
-      )
+    const world = createVacationWorld({
+      users,
+      notifications,
+      store: withRacingWrite('start', () => {
+        users[0] = {
+          ...user,
+          vacationStatus: 'none',
+          vacationStart: null,
+          vacationEnd: null,
+        }
+      }),
+    })
+
+    const tally = await run(
+      pollAndTransitionVacations.pipe(Effect.provide(world.layer))
     )
 
+    expect(tally).toEqual({ due: 1, advanced: 0, failed: 0 })
     const after = findUser(users, 'user-1')
     expect(after?.vacationStatus).toBe('none')
     expect(after?.vacationEnd).toBeNull()
@@ -124,31 +113,19 @@ describe('vacation-scheduler', () => {
     const extendedEnd = daysFromNow(5)
     const users = [user]
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
-    const care = createStubCare()
+    const { care, layer } = createVacationWorld({
+      users,
+      plants: [plant],
+      store: withRacingWrite('end', () => {
+        users[0] = { ...user, vacationEnd: extendedEnd }
+      }),
+    })
 
-    await run(
-      pollAndTransitionVacations.pipe(
-        Effect.provide(
-          DeliveringOutboxLive.pipe(
-            Layer.provideMerge(
-              Layer.mergeAll(
-                MockSqlClientLive,
-                care.layer,
-                withRacingWrite(users, 'findVacationsToEnd', () => {
-                  users[0] = { ...user, vacationEnd: extendedEnd }
-                }),
-                createMockNotificationRepository([]),
-                createMockCareScheduleRepository({ plants: [plant] }),
-                createMockPlantRepository({ plants: [plant] }),
-                createMockCanopyRepository(),
-                createMockDelegationRepository({})
-              )
-            )
-          )
-        )
-      )
+    const tally = await run(
+      pollAndTransitionVacations.pipe(Effect.provide(layer))
     )
 
+    expect(tally).toEqual({ due: 1, advanced: 0, failed: 0 })
     const after = findUser(users, 'user-1')
     expect(after?.vacationStatus).toBe('active')
     expect(after?.vacationEnd).toEqual(extendedEnd)
@@ -186,35 +163,23 @@ describe('vacation-scheduler', () => {
       }),
     ]
 
-    await run(
-      pollAndTransitionVacations.pipe(
-        Effect.provide(
-          DeliveringOutboxLive.pipe(
-            Layer.provideMerge(
-              Layer.mergeAll(
-                MockSqlClientLive,
-                createStubCare().layer,
-                createMockUserRepository(users),
-                createMockNotificationRepository(notifications),
-                createMockCareScheduleRepository({
-                  plants: [plant],
-                  schedules: [
-                    createTestSchedule({
-                      plantId: plant.id,
-                      nextCareAt: daysFromNow(3),
-                    }),
-                  ],
-                }),
-                createMockPlantRepository({ plants: [plant] }),
-                createMockCanopyRepository(),
-                createMockDelegationRepository({})
-              )
-            )
-          )
-        )
-      )
+    const world = createVacationWorld({
+      users,
+      notifications,
+      plants: [plant],
+      schedules: [
+        createTestSchedule({ plantId: plant.id, nextCareAt: daysFromNow(3) }),
+      ],
+    })
+
+    const tally = await run(
+      pollAndTransitionVacations.pipe(Effect.provide(world.layer))
     )
 
+    expect(tally).toEqual({ due: 1, advanced: 1, failed: 0 })
+    expect(world.events).toEqual([
+      { _tag: 'VacationStarted', userId: 'user-due' },
+    ])
     expect(findUser(users, 'user-due')?.vacationStatus).toBe('active')
     expect(findUser(users, 'user-future')?.vacationStatus).toBe('scheduled')
     expect(Array.map(notifications, (n) => n.id)).toEqual(['n-social'])
@@ -232,28 +197,9 @@ describe('vacation-scheduler', () => {
     })
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
     const users = [user]
-    const care = createStubCare()
+    const { care, layer } = createVacationWorld({ users, plants: [plant] })
 
-    await run(
-      pollAndTransitionVacations.pipe(
-        Effect.provide(
-          DeliveringOutboxLive.pipe(
-            Layer.provideMerge(
-              Layer.mergeAll(
-                MockSqlClientLive,
-                care.layer,
-                createMockUserRepository(users),
-                createMockNotificationRepository([]),
-                createMockCareScheduleRepository({ plants: [plant] }),
-                createMockPlantRepository({ plants: [plant] }),
-                createMockCanopyRepository(),
-                createMockDelegationRepository({})
-              )
-            )
-          )
-        )
-      )
-    )
+    await run(pollAndTransitionVacations.pipe(Effect.provide(layer)))
 
     expect(findUser(users, 'user-1')?.vacationStatus).toBe('none')
     expect(care.moved).toEqual([
@@ -275,27 +221,131 @@ describe('vacation-scheduler', () => {
     const user = createTestUser({ id: 'user-1' })
     const users = [user]
 
-    await run(
-      pollAndTransitionVacations.pipe(
-        Effect.provide(
-          DeliveringOutboxLive.pipe(
-            Layer.provideMerge(
-              Layer.mergeAll(
-                MockSqlClientLive,
-                createStubCare().layer,
-                createMockUserRepository(users),
-                createMockNotificationRepository([]),
-                createMockCareScheduleRepository({}),
-                createMockPlantRepository({ plants: [] }),
-                createMockCanopyRepository(),
-                createMockDelegationRepository({})
-              )
-            )
-          )
-        )
-      )
+    const world = createVacationWorld({ users })
+
+    const tally = await run(
+      pollAndTransitionVacations.pipe(Effect.provide(world.layer))
     )
 
+    expect(tally).toEqual({ due: 0, advanced: 0, failed: 0 })
+    expect(world.writes).toEqual([])
     expect(findUser(users, 'user-1')?.vacationStatus).toBe('none')
+  })
+
+  it.each(Struct.keys(BROKEN_WRITE))(
+    'counts a user whose write %s and still advances the next',
+    async (how) => {
+      const users = Array.map(['user-a', 'user-b'], (id) =>
+        createTestUser({
+          id,
+          vacationStatus: 'scheduled',
+          vacationStart: daysFromNow(-1),
+          vacationEnd: daysFromNow(6),
+        })
+      )
+      const world = createVacationWorld({
+        users,
+        store: (store) => ({
+          ...store,
+          apply: (writes) =>
+            Array.some(
+              writes,
+              (write) =>
+                write._tag === 'SetVacation' && write.userId === 'user-a'
+            )
+              ? BROKEN_WRITE[how]
+              : store.apply(writes),
+        }),
+      })
+
+      const tally = await run(
+        pollAndTransitionVacations.pipe(Effect.provide(world.layer))
+      )
+
+      expect(tally).toEqual({ due: 2, advanced: 1, failed: 1 })
+      expect(findUser(users, 'user-a')?.vacationStatus).toBe('scheduled')
+      expect(findUser(users, 'user-b')?.vacationStatus).toBe('active')
+      expect(world.events).toEqual([
+        { _tag: 'VacationStarted', userId: 'user-b' },
+      ])
+    }
+  )
+
+  it('counts no advance for an account suspended after the tick listed it', async () => {
+    const user = createTestUser({
+      id: 'user-1',
+      vacationStatus: 'scheduled',
+      vacationStart: daysFromNow(-1),
+      vacationEnd: daysFromNow(6),
+    })
+    const users = [user]
+    const world = createVacationWorld({
+      users,
+      store: withRacingWrite('start', () => {
+        users[0] = { ...user, status: 'suspended' }
+      }),
+    })
+
+    const tally = await run(
+      pollAndTransitionVacations.pipe(Effect.provide(world.layer))
+    )
+
+    expect(tally).toEqual({ due: 1, advanced: 0, failed: 0 })
+    expect(users[0]?.vacationStatus).toBe('scheduled')
+    expect(world.writes).toEqual([])
+  })
+
+  it('leaves the vacation of an account that is not active where it is', async () => {
+    const users = [
+      createTestUser({
+        id: 'user-1',
+        status: 'suspended',
+        vacationStatus: 'scheduled',
+        vacationStart: daysFromNow(-1),
+        vacationEnd: daysFromNow(6),
+      }),
+      createTestUser({
+        id: 'user-2',
+        status: 'pending_deletion',
+        vacationStatus: 'active',
+        vacationStart: daysFromNow(-7),
+        vacationEnd: daysFromNow(-1),
+      }),
+    ]
+    const world = createVacationWorld({ users })
+
+    const tally = await run(
+      pollAndTransitionVacations.pipe(Effect.provide(world.layer))
+    )
+
+    expect(tally).toEqual({ due: 0, advanced: 0, failed: 0 })
+    expect(Array.map(users, (user) => user.vacationStatus)).toEqual([
+      'scheduled',
+      'active',
+    ])
+  })
+
+  it('starts and ends in one tick a vacation whose start and end both passed', async () => {
+    const users = [
+      createTestUser({
+        id: 'user-1',
+        timezone: 'UTC',
+        vacationStatus: 'scheduled',
+        vacationStart: daysFromNow(-5),
+        vacationEnd: daysFromNow(-2),
+      }),
+    ]
+    const world = createVacationWorld({ users })
+
+    const tally = await run(
+      pollAndTransitionVacations.pipe(Effect.provide(world.layer))
+    )
+
+    expect(tally).toEqual({ due: 2, advanced: 2, failed: 0 })
+    expect(users[0]?.vacationStatus).toBe('none')
+    expect(Array.map(world.events, (event) => event._tag)).toEqual([
+      'VacationStarted',
+      'VacationEnded',
+    ])
   })
 })

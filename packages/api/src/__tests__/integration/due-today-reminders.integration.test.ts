@@ -1,4 +1,7 @@
-import { delivered, settled } from '@lily/api/__tests__/integration/care-layers'
+import {
+  returnFromVacation,
+  settled,
+} from '@lily/api/__tests__/integration/absence-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
@@ -19,7 +22,6 @@ import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
-import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
@@ -331,7 +333,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       await as(
         vic.id,
-        delivered(endVacation({ user: vic, effectiveEnd: new Date() })).pipe(
+        returnFromVacation(vic.id).pipe(
           Effect.provide(
             Layer.mergeAll(
               createMockEventBus(),

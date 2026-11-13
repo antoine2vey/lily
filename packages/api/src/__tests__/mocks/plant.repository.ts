@@ -297,14 +297,6 @@ export const createMockPlantRepository = (
         )
       ),
 
-    findIdsOwnedBy: (userId: string) =>
-      Effect.succeed(
-        pipe(
-          Array.filter(plantsData, (p) => p.userId === userId),
-          Array.map((p) => p.id)
-        )
-      ),
-
     findPersonalReminderPlantIds: (userId: string) =>
       Effect.succeed(
         pipe(

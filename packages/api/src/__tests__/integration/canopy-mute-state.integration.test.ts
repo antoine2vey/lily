@@ -2,6 +2,9 @@ import { settled } from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -51,6 +54,9 @@ const appAs = (userId: string) =>
     LimitCheckerLive,
     createMockMessageQueue(),
     createMockEventBus(),
+    createMockWeatherProvider(),
+    createMockWeatherCache(),
+    createMockWeatherRepository(),
     createMockCurrentUser({ id: userId })
   ).pipe(Layer.provideMerge(ReposLive))
 

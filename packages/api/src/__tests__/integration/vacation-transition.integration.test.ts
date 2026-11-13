@@ -1,30 +1,63 @@
-import { delivered } from '@lily/api/__tests__/integration/care-layers'
+import {
+  absenceOverStore,
+  leaveOnVacation,
+  returnFromVacation,
+  settled,
+  tickVacations,
+  waitsForALock,
+} from '@lily/api/__tests__/integration/absence-layers'
+import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import {
+  type StoredVacation,
+  Vacation,
+  VacationWrite,
+} from '@lily/api/contexts/absence/domain/vacation'
+import {
+  AbsenceStore,
+  AbsenceStoreLive,
+  storedVacationOf,
+  VacationNotSetDefect,
+} from '@lily/api/contexts/absence/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
-import {
-  UserRepository,
-  UserRepositoryLive,
-} from '@lily/api/repositories/user.repository'
-import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array as Arr, Effect, Layer } from 'effect'
+import {
+  Array as Arr,
+  Cause,
+  DateTime,
+  Deferred,
+  Effect,
+  Exit,
+  Layer,
+  References,
+} from 'effect'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 const { Pool } = pg
 
-const RepositoryLive = UserRepositoryLive.pipe(
+const StoreLive = AbsenceStoreLive.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      CanopyRepositoryLive,
+      NotificationRepositoryLive,
+      createStubCare().layer
+    )
+  ),
   Layer.provideMerge(DrizzleLive),
   Layer.provideMerge(PgLive)
 )
@@ -32,7 +65,7 @@ const RepositoryLive = UserRepositoryLive.pipe(
 const DAY_MS = 24 * 60 * 60 * 1000
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
-  'UserRepository.transitionVacation - Integration',
+  'A vacation write on Postgres - Integration',
   () => {
     let pool: pg.Pool
     let db: ReturnType<typeof drizzle>
@@ -70,7 +103,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const setVacationColumns = async (
       columns: Pick<
-        typeof schema.users.$inferInsert,
+        typeof schema.users.$inferSelect,
         'vacationStatus' | 'vacationStart' | 'vacationEnd'
       >
     ) => {
@@ -80,7 +113,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(eq(schema.users.id, userId))
         .returning()
       if (!row) throw new Error('Failed to set vacation columns')
-      return row
+      return storedVacationOf(row)
     }
 
     const currentVacation = async () => {
@@ -95,29 +128,44 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return row
     }
 
-    it('does not activate a vacation that was canceled after the read', async () => {
-      const snapshot = await setVacationColumns({
-        vacationStatus: 'scheduled',
-        vacationStart: new Date(Date.now() - DAY_MS),
-        vacationEnd: new Date(Date.now() + 6 * DAY_MS),
-      })
-
-      const activated = await Effect.runPromise(
-        Effect.gen(function* () {
-          const repo = yield* UserRepository
-          const canceled = yield* repo.transitionVacation(snapshot, {
-            vacationStatus: 'none',
-            vacationStart: null,
-            vacationEnd: null,
-          })
-          expect(canceled?.vacationStatus).toBe('none')
-          return yield* repo.transitionVacation(snapshot, {
-            vacationStatus: 'active',
-          })
-        }).pipe(Effect.provide(RepositoryLive))
+    const becoming = (expected: StoredVacation, next: Vacation) =>
+      Effect.flatMap(AbsenceStore, (store) =>
+        store.apply([VacationWrite.SetVacation({ userId, expected, next })])
       )
 
-      expect(activated).toBeNull()
+    const defectOf = (exit: Exit.Exit<unknown, unknown>) =>
+      Exit.isFailure(exit) && Cause.squash(exit.cause)
+
+    it('does not activate a vacation that was canceled after the read', async () => {
+      const start = new Date(Date.now() - DAY_MS)
+      const end = new Date(Date.now() + 6 * DAY_MS)
+      const snapshot = await setVacationColumns({
+        vacationStatus: 'scheduled',
+        vacationStart: start,
+        vacationEnd: end,
+      })
+
+      const activated = await Effect.runPromiseExit(
+        Effect.andThen(
+          becoming(snapshot, Vacation.None()),
+          becoming(
+            snapshot,
+            Vacation.Active({
+              start: DateTime.fromDateUnsafe(start),
+              end: DateTime.fromDateUnsafe(end),
+            })
+          )
+        ).pipe(Effect.provide(StoreLive))
+      )
+
+      expect(defectOf(activated)).toEqual(
+        new VacationNotSetDefect({
+          userId,
+          expected: 'scheduled',
+          next: 'Active',
+          set: 0,
+        })
+      )
       expect(await currentVacation()).toEqual({
         vacationStatus: 'none',
         vacationStart: null,
@@ -126,65 +174,171 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('does not end a vacation whose end moved after the read', async () => {
+      const start = new Date(Date.now() - 7 * DAY_MS)
       const snapshot = await setVacationColumns({
         vacationStatus: 'active',
-        vacationStart: new Date(Date.now() - 7 * DAY_MS),
+        vacationStart: start,
         vacationEnd: new Date(Date.now() - DAY_MS),
       })
       const extendedEnd = new Date(Date.now() + 5 * DAY_MS)
 
-      const ended = await Effect.runPromise(
-        Effect.gen(function* () {
-          const repo = yield* UserRepository
-          const extended = yield* repo.transitionVacation(snapshot, {
-            vacationStatus: 'active',
-            vacationEnd: extendedEnd,
-          })
-          expect(extended?.vacationEnd).toEqual(extendedEnd)
-          return yield* repo.transitionVacation(snapshot, {
-            vacationStatus: 'none',
-            vacationStart: null,
-            vacationEnd: null,
-          })
-        }).pipe(Effect.provide(RepositoryLive))
+      const ended = await Effect.runPromiseExit(
+        Effect.andThen(
+          becoming(
+            snapshot,
+            Vacation.Active({
+              start: DateTime.fromDateUnsafe(start),
+              end: DateTime.fromDateUnsafe(extendedEnd),
+            })
+          ),
+          becoming(snapshot, Vacation.None())
+        ).pipe(Effect.provide(StoreLive))
       )
 
-      expect(ended).toBeNull()
+      expect(defectOf(ended)).toEqual(
+        new VacationNotSetDefect({
+          userId,
+          expected: 'active',
+          next: 'None',
+          set: 0,
+        })
+      )
       const current = await currentVacation()
       expect(current?.vacationStatus).toBe('active')
       expect(current?.vacationEnd).toEqual(extendedEnd)
     })
 
-    it('lets exactly one of two concurrent transitions from the same snapshot win', async () => {
+    it('does not start a vacation that was moved to another start after the read', async () => {
+      const start = new Date(Date.now() - DAY_MS)
+      const end = new Date(Date.now() + 6 * DAY_MS)
+      const laterStart = new Date(Date.now() + 2 * DAY_MS)
       const snapshot = await setVacationColumns({
         vacationStatus: 'scheduled',
-        vacationStart: new Date(Date.now() - DAY_MS),
-        vacationEnd: new Date(Date.now() + 6 * DAY_MS),
+        vacationStart: start,
+        vacationEnd: end,
       })
 
-      const results = await Effect.runPromise(
-        Effect.gen(function* () {
-          const repo = yield* UserRepository
-          return yield* Effect.forEach(
-            [
-              {
-                vacationStatus: 'none',
-                vacationStart: null,
-                vacationEnd: null,
-              },
-              { vacationStatus: 'active' },
-            ] as const,
-            (next) => repo.transitionVacation(snapshot, next),
-            { concurrency: 'unbounded' }
+      const started = await Effect.runPromiseExit(
+        Effect.andThen(
+          becoming(
+            snapshot,
+            Vacation.Scheduled({
+              start: DateTime.fromDateUnsafe(laterStart),
+              end: DateTime.fromDateUnsafe(end),
+            })
+          ),
+          becoming(
+            snapshot,
+            Vacation.Active({
+              start: DateTime.fromDateUnsafe(start),
+              end: DateTime.fromDateUnsafe(end),
+            })
           )
-        }).pipe(Effect.provide(RepositoryLive))
+        ).pipe(Effect.provide(StoreLive))
       )
 
-      const winners = Arr.filter(results, (r) => r !== null)
-      expect(winners).toHaveLength(1)
-      expect((await currentVacation())?.vacationStatus).toBe(
-        winners[0]?.vacationStatus
+      expect(defectOf(started)).toEqual(
+        new VacationNotSetDefect({
+          userId,
+          expected: 'scheduled',
+          next: 'Active',
+          set: 0,
+        })
       )
+      expect(await currentVacation()).toEqual({
+        vacationStatus: 'scheduled',
+        vacationStart: laterStart,
+        vacationEnd: end,
+      })
+    })
+
+    it('does not call off a vacation that started after the read', async () => {
+      const start = new Date(Date.now() - DAY_MS)
+      const end = new Date(Date.now() + 6 * DAY_MS)
+      const snapshot = await setVacationColumns({
+        vacationStatus: 'scheduled',
+        vacationStart: start,
+        vacationEnd: end,
+      })
+
+      const calledOff = await Effect.runPromiseExit(
+        Effect.andThen(
+          becoming(
+            snapshot,
+            Vacation.Active({
+              start: DateTime.fromDateUnsafe(start),
+              end: DateTime.fromDateUnsafe(end),
+            })
+          ),
+          becoming(snapshot, Vacation.None())
+        ).pipe(Effect.provide(StoreLive))
+      )
+
+      expect(defectOf(calledOff)).toEqual(
+        new VacationNotSetDefect({
+          userId,
+          expected: 'scheduled',
+          next: 'None',
+          set: 0,
+        })
+      )
+      expect(await currentVacation()).toEqual({
+        vacationStatus: 'active',
+        vacationStart: start,
+        vacationEnd: end,
+      })
+    })
+
+    it('asks Care to move the due days of living plants only', async () => {
+      const rated = {
+        userId,
+        createdByUserId: userId,
+        health: 'HEALTHY' as const,
+        humidityRating: 3,
+        lightingRating: 3,
+        petToxicityRating: 1,
+        wateringRating: 3,
+      }
+      const [living, dead] = await db
+        .insert(schema.plants)
+        .values([
+          { ...rated, name: 'Living' },
+          { ...rated, name: 'Buried', diedAt: new Date('2026-01-01') },
+        ])
+        .returning()
+      if (!living || !dead) throw new Error('Failed to create plants')
+      const care = createStubCare()
+      const endedAt = DateTime.makeUnsafe(Date.now() - DAY_MS)
+
+      await Effect.runPromise(
+        Effect.flatMap(AbsenceStore, (store) =>
+          store.apply([
+            VacationWrite.MoveDueDaysAfterAbsence({ userId, endedAt, days: 7 }),
+          ])
+        ).pipe(
+          Effect.provide(
+            AbsenceStoreLive.pipe(
+              Layer.provide(
+                Layer.mergeAll(
+                  CanopyRepositoryLive,
+                  NotificationRepositoryLive,
+                  care.layer
+                )
+              ),
+              Layer.provideMerge(DrizzleLive),
+              Layer.provideMerge(PgLive)
+            )
+          )
+        )
+      )
+
+      expect(
+        Arr.dedupe(
+          Arr.flatMap(care.moved, (command) =>
+            Arr.map(command.moves, (move) => move.plantId)
+          )
+        )
+      ).toEqual([living.id])
     })
   }
 )
@@ -198,13 +352,26 @@ const VacationServicesLive = Layer.mergeAll(
   CanopyRepositoryLive,
   NotificationRepositoryLive,
   createMockEventBus(),
+  createMockMessageQueue(),
   createMockWeatherProvider(),
   createMockWeatherCache(),
   createMockWeatherRepository()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
+const BROKEN_WRITE = {
+  fails: Effect.fail(
+    new SqlError({
+      reason: new UnknownError({
+        cause: new Error('injected'),
+        message: 'injected write failure',
+      }),
+    })
+  ),
+  dies: Effect.die('injected write defect'),
+} as const
+
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
-  'Ending a vacation rebuilds every reminder the user hears - Integration',
+  'Vacation commands on Postgres - Integration',
   () => {
     let pool: pg.Pool
     let db: ReturnType<typeof drizzle>
@@ -279,12 +446,223 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
-      await resetDb()
     })
+
+    beforeEach(resetDb)
 
     afterAll(async () => {
       await resetDb()
       await pool.end()
+    })
+
+    const run = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+      Effect.runPromiseExit(
+        settled(effect).pipe(
+          Effect.provide(VacationServicesLive),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        ) as Effect.Effect<A, E>
+      )
+
+    const statusOf = async (userId: string) => {
+      const [row] = await db
+        .select({ vacationStatus: schema.users.vacationStatus })
+        .from(schema.users)
+        .where(eq(schema.users.id, userId))
+      return row?.vacationStatus
+    }
+
+    const said = async () => {
+      const rows = await db
+        .select({ event: schema.outbox.event })
+        .from(schema.outbox)
+        .where(eq(schema.outbox.topic, 'absence'))
+        .orderBy(asc(schema.outbox.id))
+      return Arr.map(rows, (row) => {
+        const event = row.event as { _tag: string; userId: string }
+        return `${event._tag} ${names.get(event.userId)}`
+      })
+    }
+
+    const dueToStart = {
+      vacationStatus: 'scheduled',
+      vacationStart: new Date(Date.now() - DAY_MS),
+      vacationEnd: new Date(Date.now() + 6 * DAY_MS),
+    } as const
+
+    it('starts a vacation once when a set and the scheduler reach it at once', async () => {
+      const ann = await user('ann', dueToStart)
+      const reached = Deferred.makeUnsafe<void>()
+      const release = Deferred.makeUnsafe<void>()
+      const setting = run(
+        Effect.provide(
+          leaveOnVacation(ann.id, {
+            start: dueToStart.vacationStart,
+            end: dueToStart.vacationEnd,
+          }),
+          absenceOverStore((store) => ({
+            ...store,
+            lockVacation: (userId, now) =>
+              store
+                .lockVacation(userId, now)
+                .pipe(
+                  Effect.tap(() =>
+                    Effect.andThen(
+                      Deferred.succeed(reached, undefined),
+                      Deferred.await(release)
+                    )
+                  )
+                ),
+          }))
+        )
+      )
+      await Effect.runPromise(Deferred.await(reached))
+      const ticking = run(tickVacations)
+      const tickWaited = await waitsForALock(pool, ticking)
+      Deferred.doneUnsafe(release, Exit.void)
+
+      expect({
+        set: Exit.isSuccess(await setting),
+        tick: await ticking,
+        tickWaited,
+      }).toEqual({
+        set: true,
+        tick: Exit.succeed({ due: 1, advanced: 0, failed: 0 }),
+        tickWaited: true,
+      })
+      expect(await statusOf(ann.id)).toBe('active')
+      expect(await said()).toEqual(['VacationStarted ann'])
+    })
+
+    it.each(['fails', 'dies'] as const)(
+      'counts a user whose vacation write %s and still starts the next',
+      async (how) => {
+        const [first, second] = Arr.sort(
+          [await user('ann', dueToStart), await user('bob', dueToStart)],
+          (a: { id: string }, b: { id: string }) =>
+            a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+        )
+        if (!first || !second) throw new Error('Failed to create users')
+
+        const tally = await run(
+          Effect.provide(
+            tickVacations,
+            absenceOverStore((store) => ({
+              ...store,
+              apply: (writes) =>
+                Arr.some(
+                  writes,
+                  (write) =>
+                    write._tag === 'SetVacation' && write.userId === first.id
+                )
+                  ? BROKEN_WRITE[how]
+                  : store.apply(writes),
+            }))
+          )
+        )
+
+        expect(tally).toEqual(Exit.succeed({ due: 2, advanced: 1, failed: 1 }))
+        expect(await statusOf(first.id)).toBe('scheduled')
+        expect(await statusOf(second.id)).toBe('active')
+        expect(await said()).toEqual([
+          `VacationStarted ${names.get(second.id)}`,
+        ])
+      }
+    )
+
+    it('neither lists nor starts the due vacation of an account that is not active', async () => {
+      const ann = await user('ann', dueToStart)
+      await db
+        .update(schema.users)
+        .set({ status: 'suspended' })
+        .where(eq(schema.users.id, ann.id))
+
+      const tally = await run(tickVacations)
+
+      expect(tally).toEqual(Exit.succeed({ due: 0, advanced: 0, failed: 0 }))
+      expect(await statusOf(ann.id)).toBe('scheduled')
+      expect(await said()).toEqual([])
+    })
+
+    it('moves only the due days of the living plants of who comes back that no reachable caretaker tends', async () => {
+      const ann = await user('ann', {
+        vacationStatus: 'active',
+        vacationStart: new Date(Date.now() - 5 * DAY_MS),
+        vacationEnd: new Date(Date.now() + 2 * DAY_MS),
+      })
+      const bob = await user('bob', { vacationStatus: 'none' })
+      const gone = await user('gone', { vacationStatus: 'none' })
+      await db
+        .update(schema.users)
+        .set({ status: 'pending_deletion' })
+        .where(eq(schema.users.id, gone.id))
+      const dueWhileAway = new Date(Date.now() - 2 * DAY_MS)
+      const dueWhileAwayPlant = async (name: string, ownerId: string) => {
+        const id = await plant(name, ownerId)
+        await db
+          .update(schema.plantCareSchedules)
+          .set({ nextCareAt: dueWhileAway })
+          .where(eq(schema.plantCareSchedules.plantId, id))
+        return id
+      }
+      const handedTo = async (
+        plantId: string,
+        status: 'active' | 'completed',
+        caretakerId = bob.id
+      ) => {
+        const [delegation] = await db
+          .insert(schema.careDelegations)
+          .values({
+            ownerId: ann.id,
+            caretakerId,
+            status,
+            startDate: new Date(Date.now() - 4 * DAY_MS),
+            endDate: new Date(Date.now() + 30 * DAY_MS),
+          })
+          .returning()
+        if (!delegation) throw new Error('Failed to create delegation')
+        await db
+          .insert(schema.delegationPlants)
+          .values({ delegationId: delegation.id, plantId })
+      }
+      await dueWhileAwayPlant('own', ann.id)
+      await handedTo(await dueWhileAwayPlant('tended', ann.id), 'active')
+      await handedTo(
+        await dueWhileAwayPlant('handed back', ann.id),
+        'completed'
+      )
+      await handedTo(
+        await dueWhileAwayPlant('tended by an account that is gone', ann.id),
+        'active',
+        gone.id
+      )
+      const buried = await dueWhileAwayPlant('buried', ann.id)
+      await db
+        .update(schema.plants)
+        .set({ diedAt: new Date() })
+        .where(eq(schema.plants.id, buried))
+      await dueWhileAwayPlant('of a neighbour', bob.id)
+
+      expect(await run(returnFromVacation(ann.id))).toEqual(Exit.void)
+
+      const schedules = await db
+        .select({
+          plantId: schema.plantCareSchedules.plantId,
+          nextCareAt: schema.plantCareSchedules.nextCareAt,
+        })
+        .from(schema.plantCareSchedules)
+      expect(
+        Arr.sort(
+          Arr.map(
+            Arr.filter(
+              schedules,
+              (schedule) =>
+                schedule.nextCareAt?.getTime() !== dueWhileAway.getTime()
+            ),
+            (schedule) => names.get(schedule.plantId) ?? ''
+          ),
+          (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+        )
+      ).toEqual(['handed back', 'own', 'tended by an account that is gone'])
     })
 
     it('gives a caretaker back the reminders of the plants they care for', async () => {
@@ -311,11 +689,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .insert(schema.delegationPlants)
         .values({ delegationId: delegation.id, plantId: fern })
 
-      await Effect.runPromise(
-        delivered(endVacation({ user: ann, effectiveEnd: new Date() })).pipe(
-          Effect.provide(VacationServicesLive)
-        )
-      )
+      expect(await run(returnFromVacation(ann.id))).toEqual(Exit.void)
 
       const rows = await db
         .select({

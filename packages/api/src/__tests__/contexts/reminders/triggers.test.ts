@@ -1,12 +1,15 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
+import type { AbsenceEvent } from '@lily/api/contexts/absence'
 import type { CanopyEvent } from '@lily/api/contexts/canopy'
 import type { CareEvent } from '@lily/api/contexts/care'
 import { Dirty } from '@lily/api/contexts/reminders/store'
 import {
+  staleAfterAbsence,
   staleAfterCanopy,
   staleAfterCare,
 } from '@lily/api/contexts/reminders/triggers'
 import { CareDay } from '@lily/shared'
+import { Struct } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const owner = { _tag: 'User', userId: 'user-1' } as const
@@ -108,5 +111,49 @@ describe('staleAfterCanopy', () => {
     canopyCases.map(([event, stale]) => ({ tag: event._tag, event, stale }))
   )('$tag names what to replan', ({ event, stale }) => {
     expect(staleAfterCanopy(event)).toEqual(stale)
+  })
+})
+
+const handedOver = {
+  delegationId: 'delegation-1',
+  ownerId: 'alex',
+  caretakerId: 'lily',
+  plantIds: ['plant-1', 'plant-2'],
+}
+
+const absenceCases: {
+  readonly [T in AbsenceEvent['_tag']]: readonly [
+    Extract<AbsenceEvent, { readonly _tag: T }>,
+    ReadonlyArray<Dirty>,
+  ]
+} = {
+  DelegationStarted: [
+    { _tag: 'DelegationStarted', ...handedOver },
+    [Dirty.Plants({ plantIds: ['plant-1', 'plant-2'] })],
+  ],
+  DelegationEnded: [
+    { _tag: 'DelegationEnded', ...handedOver, reason: 'completed' },
+    [Dirty.Plants({ plantIds: ['plant-1', 'plant-2'] })],
+  ],
+  VacationStarted: [
+    { _tag: 'VacationStarted', userId: 'alex' },
+    [Dirty.Recipient({ userId: 'alex' })],
+  ],
+  VacationEnded: [
+    {
+      _tag: 'VacationEnded',
+      userId: 'alex',
+      start: new Date('2026-08-09T22:30:00.000Z'),
+      endedAt: new Date('2026-08-17T06:00:00.000Z'),
+    },
+    [Dirty.Recipient({ userId: 'alex' })],
+  ],
+}
+
+describe('staleAfterAbsence', () => {
+  it.each(Struct.keys(absenceCases))('%s names what to replan', (tag) => {
+    const [event, stale] = absenceCases[tag]
+
+    expect(staleAfterAbsence(event)).toEqual(stale)
   })
 })

@@ -1,5 +1,6 @@
 import { CareReads, DueScope, DueWindow } from '@lily/api/contexts/care'
 import {
+  ABSENCE_CONSUMER,
   CANOPY_CONSUMER,
   CARE_CONSUMER,
   REPLAN_CONSUMER,
@@ -22,8 +23,9 @@ const DRIFT_WINDOW_DAYS = 2
  */
 export const redriveReminders: Effect.Effect<number, SqlError, Outbox> =
   Effect.flatMap(Outbox, (outbox) =>
-    Effect.forEach([CARE_CONSUMER, CANOPY_CONSUMER, REPLAN_CONSUMER], (name) =>
-      outbox.redrive(name, REDRIVE_WINDOW)
+    Effect.forEach(
+      [CARE_CONSUMER, CANOPY_CONSUMER, ABSENCE_CONSUMER, REPLAN_CONSUMER],
+      (name) => outbox.redrive(name, REDRIVE_WINDOW)
     )
   ).pipe(Effect.map(Number.sumAll), Effect.withSpan('Reminders.redrive'))
 

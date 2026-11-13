@@ -9,16 +9,9 @@ import {
   mockPlants,
 } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
-import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
-import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createDelegation } from '@lily/api/services/delegation/endpoints/create-delegation'
@@ -79,44 +72,19 @@ const createLayer = (options?: {
     createMockLimitChecker({
       delegationAccessDenied: options?.delegationAccessDenied,
     }),
-    createMockUserRepository([mockUser1, mockUser2]),
-    createMockPlantRepository({ plants: [...mockPlants, canopyPlant] }),
-    createMockCanopyRepository(
-      options?.canopyMember
-        ? [
-            {
-              userId: mockUser1.id,
-              canopyId: mockCanopyId,
-              role: 'member',
-              joinedAt: new Date('2024-01-01'),
-            },
-          ]
-        : []
-    ),
-    createMockNotificationRepository(
-      notifications,
-      options?.timeline?.notificationOptions
-    ),
-    options?.timeline?.queue ?? createMockMessageQueue(),
-    options?.timeline?.sql ?? MockSqlClientLive,
-    MockOutboxLive,
-    createMockDelegationRepository({
-      delegations: options?.delegations ?? [],
-      delegationPlants: options?.delegationPlants ?? [],
-      users: [
-        {
-          id: mockUser1.id,
-          name: mockUser1.name,
-          image: mockUser1.image,
-        },
-        {
-          id: mockUser2.id,
-          name: mockUser2.name,
-          image: mockUser2.image,
-        },
-      ],
-      plants: mockDelegationPlants,
-    })
+    createInMemoryAbsence(
+      {
+        delegations: options?.delegations ?? [],
+        delegationPlants: options?.delegationPlants ?? [],
+        users: [mockUser1, mockUser2],
+        plants: [...mockPlants, canopyPlant],
+        plantDetails: mockDelegationPlants,
+        memberships: options?.canopyMember
+          ? [{ userId: mockUser1.id, canopyId: mockCanopyId }]
+          : [],
+      },
+      { notifications, timeline: options?.timeline }
+    ).layer
   )
 
 describe('createDelegation', () => {
@@ -345,5 +313,57 @@ describe('createDelegation', () => {
 
     expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationDateError)
+  })
+
+  it('answers a caller whose account is gone like a caller who owns none of the plants', async () => {
+    const result = await Effect.runPromiseExit(
+      createDelegation(validRequest).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createLayer(),
+            Layer.succeed(CurrentUser, {
+              id: 'gone',
+              name: null,
+              firstName: null,
+              lastName: null,
+              email: 'gone@example.com',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              role: 'user' as const,
+              status: 'active' as const,
+            })
+          )
+        )
+      )
+    )
+
+    expect(failureOf(result)).toEqual(new PlantNotAuthorizedError())
+  })
+
+  it('answers a date it cannot read as a date error', async () => {
+    const result = await Effect.runPromiseExit(
+      createDelegation({ ...validRequest, startDate: 'next tuesday' }).pipe(
+        Effect.provide(createLayer())
+      )
+    )
+
+    expect(failureOf(result)).toEqual(
+      new DelegationDateError({ message: 'Invalid date format' })
+    )
+  })
+
+  it('writes nothing and tells nobody when it refuses', async () => {
+    notifications.length = 0
+    const delegations: DelegationRow[] = []
+
+    await Effect.runPromiseExit(
+      createDelegation({
+        ...validRequest,
+        plantIds: ['plant-1', 'plant-3'],
+      }).pipe(Effect.provide(createLayer({ delegations })))
+    )
+
+    expect(delegations).toEqual([])
+    expect(notifications).toEqual([])
   })
 })

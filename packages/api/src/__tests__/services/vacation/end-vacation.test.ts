@@ -8,38 +8,30 @@ import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
-  createMockCanopyRepository,
   createTestCanopyRow,
 } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createStubCare } from '@lily/api/__tests__/mocks/care'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { createVacationWorld } from '@lily/api/__tests__/mocks/vacation-world'
+import { Absence } from '@lily/api/contexts/absence'
+import type { AbsenceStore } from '@lily/api/contexts/absence/store'
 import { DueMove } from '@lily/api/contexts/care'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
-import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { CARE_TYPES } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import {
-  Array,
-  DateTime,
-  Effect,
-  Layer,
-  Option,
-  pipe,
-  References,
-} from 'effect'
+import { Array, DateTime, Effect, Option, pipe, References } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const VACATION_START = new Date('2026-08-09T22:30:00.000Z')
 const EFFECTIVE_END = new Date('2026-08-17T06:00:00.000Z')
 
-const buildScenario = () => {
+const endDueVacations = Effect.flatMap(
+  Absence,
+  (absence) => absence.advanceVacations
+)
+
+const buildScenario = (
+  store?: (store: AbsenceStore['Service']) => AbsenceStore['Service']
+) => {
   const owner = createTestUser({
     id: 'owner-1',
     timezone: 'Europe/Paris',
@@ -102,30 +94,20 @@ const buildScenario = () => {
 
   const users = [owner, caretaker]
   const notifications: Notification[] = []
-  const care = createStubCare()
+  const { care, layer, events } = createVacationWorld({
+    users,
+    plants,
+    schedules,
+    notifications,
+    store,
+    delegations: [delegation],
+    delegationPlants: [
+      { delegationId: delegation.id, plantId: plantDelegated.id },
+      { delegationId: delegation.id, plantId: plantDelegatedFuture.id },
+    ],
+  })
 
-  const layer = DeliveringOutboxLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        MockSqlClientLive,
-        care.layer,
-        createMockUserRepository(users),
-        createMockNotificationRepository(notifications),
-        createMockCareScheduleRepository({ schedules, plants }),
-        createMockPlantRepository({ plants }),
-        createMockCanopyRepository(),
-        createMockDelegationRepository({
-          delegations: [delegation],
-          delegationPlants: [
-            { delegationId: delegation.id, plantId: plantDelegated.id },
-            { delegationId: delegation.id, plantId: plantDelegatedFuture.id },
-          ],
-        })
-      )
-    )
-  )
-
-  return { owner, caretaker, notifications, users, care, layer }
+  return { owner, caretaker, notifications, users, care, layer, events }
 }
 
 const run = <A>(effect: Effect.Effect<A, unknown, never>): Promise<A> =>
@@ -133,7 +115,7 @@ const run = <A>(effect: Effect.Effect<A, unknown, never>): Promise<A> =>
     effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
   ) as Promise<A>
 
-describe('endVacation', () => {
+describe('ending a vacation that is over', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(EFFECTIVE_END)
@@ -144,18 +126,14 @@ describe('endVacation', () => {
   })
 
   it('asks Care to move every care type of each undelegated own plant after the days away in the user timezone', async () => {
-    const { owner, care, layer } = buildScenario()
+    const { care, layer } = buildScenario()
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
     expect(care.moved).toEqual([
       {
         reason: 'vacation',
-        moves: Array.flatMap(['plant-mid', 'plant-future'], (plantId) =>
+        moves: Array.flatMap(['plant-future', 'plant-mid'], (plantId) =>
           Array.map(CARE_TYPES, (careType) => ({
             plantId,
             careType,
@@ -172,11 +150,7 @@ describe('endVacation', () => {
   it('should reset the vacation state on the user', async () => {
     const { owner, users, layer } = buildScenario()
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
     const updated = pipe(
       Array.findFirst(users, (u) => u.id === owner.id),
@@ -199,11 +173,7 @@ describe('endVacation', () => {
       })
     )
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
     expect(
       Array.map(notifications, (n) => [n.userId, n.plantId]).sort()
@@ -213,40 +183,56 @@ describe('endVacation', () => {
     ])
   })
 
-  it('should ask for no second move when rerun from the same snapshot after completion', async () => {
-    const { owner, care, layer } = buildScenario()
+  it('should ask for no second move when the tick runs again after completion', async () => {
+    const { care, layer } = buildScenario()
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    const first = await run(endDueVacations.pipe(Effect.provide(layer)))
+    const second = await run(endDueVacations.pipe(Effect.provide(layer)))
 
-    const secondClaim = await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
-
-    expect(secondClaim).toBeNull()
+    expect(first).toEqual({ due: 1, advanced: 1, failed: 0 })
+    expect(second).toEqual({ due: 0, advanced: 0, failed: 0 })
     expect(care.moved).toHaveLength(1)
   })
 
-  it('should ask for no move when the vacation changed since the snapshot was read', async () => {
-    const { owner, users, care, layer } = buildScenario()
+  it('should ask for no move when the vacation was extended after the tick listed it', async () => {
     const extendedEnd = new Date('2026-08-24T06:00:00.000Z')
-    users[0] = { ...owner, vacationEnd: extendedEnd }
+    const { users, care, layer, events } = buildScenario((store) => ({
+      ...store,
+      dueVacations: (edge, now) =>
+        store.dueVacations(edge, now).pipe(
+          Effect.tap(() =>
+            Effect.sync(() => {
+              const listed = users[0]
+              if (edge === 'end' && listed) {
+                users[0] = { ...listed, vacationEnd: extendedEnd }
+              }
+            })
+          )
+        ),
+    }))
 
-    const claim = await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    const tally = await run(endDueVacations.pipe(Effect.provide(layer)))
 
-    expect(claim).toBeNull()
+    expect(tally).toEqual({ due: 1, advanced: 0, failed: 0 })
     expect(care.moved).toEqual([])
     expect(users[0]?.vacationStatus).toBe('active')
     expect(users[0]?.vacationEnd).toEqual(extendedEnd)
+    expect(events).toEqual([])
+  })
+
+  it('says the vacation ended at its stored end, with the start it had', async () => {
+    const { owner, layer, events } = buildScenario()
+
+    await run(endDueVacations.pipe(Effect.provide(layer)))
+
+    expect(events).toEqual([
+      {
+        _tag: 'VacationEnded',
+        userId: owner.id,
+        start: VACATION_START,
+        endedAt: EFFECTIVE_END,
+      },
+    ])
   })
 
   it('asks for no move of a Canopy plant, and rebuilds only the member own future reminder', async () => {
@@ -286,43 +272,26 @@ describe('endVacation', () => {
       }),
     ]
     const notifications: Notification[] = []
-    const care = createStubCare()
-    const layer = DeliveringOutboxLive.pipe(
-      Layer.provideMerge(
-        Layer.mergeAll(
-          MockSqlClientLive,
-          care.layer,
-          createMockUserRepository([owner, housemate]),
-          createMockNotificationRepository(notifications),
-          createMockCareScheduleRepository({
-            schedules,
-            plants: [sharedMid, sharedFuture],
-            memberships: members,
-          }),
-          createMockPlantRepository({ plants: [sharedMid, sharedFuture] }),
-          createMockCanopyRepository(
-            createCanopyStore({
-              canopies: [createTestCanopyRow({ id: mockCanopyId })],
-              members,
-              plants: Array.map([sharedMid, sharedFuture], (p) => ({
-                id: p.id,
-                canopyId: mockCanopyId,
-                userId: null,
-                remindersEnabled: true,
-                diedAt: null,
-              })),
-            })
-          ),
-          createMockDelegationRepository({})
-        )
-      )
-    )
+    const { care, layer } = createVacationWorld({
+      users: [owner, housemate],
+      plants: [sharedMid, sharedFuture],
+      schedules,
+      memberships: members,
+      notifications,
+      canopies: createCanopyStore({
+        canopies: [createTestCanopyRow({ id: mockCanopyId })],
+        members,
+        plants: Array.map([sharedMid, sharedFuture], (p) => ({
+          id: p.id,
+          canopyId: mockCanopyId,
+          userId: null,
+          remindersEnabled: true,
+          diedAt: null,
+        })),
+      }),
+    })
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
     expect(Array.flatMap(care.moved, (command) => command.moves)).toEqual([])
     expect(
@@ -354,46 +323,28 @@ describe('endVacation', () => {
       }),
     ]
     const notifications: Notification[] = []
-    const layer = DeliveringOutboxLive.pipe(
-      Layer.provideMerge(
-        Layer.mergeAll(
-          MockSqlClientLive,
-          createStubCare().layer,
-          createMockUserRepository([owner]),
-          createMockNotificationRepository(notifications),
-          createMockCareScheduleRepository({
-            schedules,
-            plants: [dueToday],
-            memberships: members,
-          }),
-          createMockPlantRepository({ plants: [dueToday] }),
-          createMockCanopyRepository(
-            createCanopyStore({
-              canopies: [
-                createTestCanopyRow({ id: mockCanopyId, timezone: 'UTC' }),
-              ],
-              members,
-              plants: [
-                {
-                  id: dueToday.id,
-                  canopyId: mockCanopyId,
-                  userId: null,
-                  remindersEnabled: true,
-                  diedAt: null,
-                },
-              ],
-            })
-          ),
-          createMockDelegationRepository({})
-        )
-      )
-    )
+    const { layer } = createVacationWorld({
+      users: [owner],
+      plants: [dueToday],
+      schedules,
+      memberships: members,
+      notifications,
+      canopies: createCanopyStore({
+        canopies: [createTestCanopyRow({ id: mockCanopyId, timezone: 'UTC' })],
+        members,
+        plants: [
+          {
+            id: dueToday.id,
+            canopyId: mockCanopyId,
+            userId: null,
+            remindersEnabled: true,
+            diedAt: null,
+          },
+        ],
+      }),
+    })
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
     expect(
       Array.map(notifications, (n) => [n.userId, n.plantId, n.type])

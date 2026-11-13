@@ -4,10 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { Dirty } from '@lily/api/contexts/reminders'
+import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
@@ -45,28 +42,21 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
 
 const activeDelegation = { ...mockDelegation1, status: 'active' as const }
 
+const inMemory = (delegations: DelegationRow[] = [{ ...activeDelegation }]) =>
+  createInMemoryAbsence({
+    delegations,
+    users: [mockUser1, mockUser2],
+    plantDetails: mockDelegationPlants,
+    delegationPlants: [
+      { delegationId: mockDelegation1.id, plantId: 'plant-1' },
+      { delegationId: mockDelegation1.id, plantId: 'plant-2' },
+    ],
+  })
+
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
-  delegations: DelegationRow[] = [activeDelegation],
-  requested: Dirty[] = []
-) =>
-  Layer.mergeAll(
-    MockSqlClientLive,
-    currentUser,
-    createMockOutbox(requested).layer,
-    createMockDelegationRepository({
-      delegations,
-      users: [
-        { id: mockUser1.id, name: mockUser1.name, image: mockUser1.image },
-        { id: mockUser2.id, name: mockUser2.name, image: mockUser2.image },
-      ],
-      plants: mockDelegationPlants,
-      delegationPlants: [
-        { delegationId: mockDelegation1.id, plantId: 'plant-1' },
-        { delegationId: mockDelegation1.id, plantId: 'plant-2' },
-      ],
-    })
-  )
+  delegations?: DelegationRow[]
+) => Layer.mergeAll(currentUser, inMemory(delegations).layer)
 
 describe('completeDelegation', () => {
   it('should complete an active delegation early', async () => {
@@ -79,36 +69,39 @@ describe('completeDelegation', () => {
     expect(result.status).toBe('completed')
   })
 
-  it('asks Reminders to plan the handed-back plants again', async () => {
-    const requested: Dirty[] = []
+  it('publishes that the delegation ended early, with the plants handed back', async () => {
+    const absence = inMemory()
 
     await Effect.runPromise(
       completeDelegation(activeDelegation.id).pipe(
-        Effect.provide(createLayer(ownerCurrentUser, undefined, requested))
+        Effect.provide(Layer.mergeAll(ownerCurrentUser, absence.layer))
       )
     )
 
-    expect(requested).toEqual([
-      Dirty.Plants({ plantIds: ['plant-1', 'plant-2'] }),
+    expect(absence.events).toEqual([
+      {
+        _tag: 'DelegationEnded',
+        delegationId: activeDelegation.id,
+        ownerId: activeDelegation.ownerId,
+        caretakerId: activeDelegation.caretakerId,
+        plantIds: ['plant-1', 'plant-2'],
+        reason: 'completedEarly',
+      },
     ])
   })
 
-  it('asks Reminders for nothing when the delegation is not active', async () => {
-    const requested: Dirty[] = []
+  it('publishes nothing when the delegation is not active', async () => {
+    const absence = inMemory([
+      { ...mockDelegation1, status: 'accepted' as const },
+    ])
 
     await Effect.runPromiseExit(
       completeDelegation(mockDelegation1.id).pipe(
-        Effect.provide(
-          createLayer(
-            ownerCurrentUser,
-            [{ ...mockDelegation1, status: 'accepted' as const }],
-            requested
-          )
-        )
+        Effect.provide(Layer.mergeAll(ownerCurrentUser, absence.layer))
       )
     )
 
-    expect(requested).toEqual([])
+    expect(absence.events).toEqual([])
   })
 
   it('should set completedAt timestamp', async () => {

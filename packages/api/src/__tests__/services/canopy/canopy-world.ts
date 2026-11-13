@@ -1,5 +1,6 @@
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
+import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
 import {
   createInMemoryCanopy,
   type MockCanopySurroundings,
@@ -9,7 +10,6 @@ import {
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
@@ -108,7 +108,7 @@ export const canopyWorld = (
     }),
     plantRepository,
     createMockUserRepository(users),
-    createMockDelegationRepository(),
+    createInMemoryAbsence({ users }, { notifications, timeline }).layer,
     createMockRateLimiterService(),
     timeline.sql,
     createMockCurrentUser({ id: actor.id, name: actor.name ?? actor.id })

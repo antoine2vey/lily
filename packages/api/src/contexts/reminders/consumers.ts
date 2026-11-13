@@ -1,8 +1,10 @@
+import { AbsenceTopic } from '@lily/api/contexts/absence'
 import { CanopyTopic } from '@lily/api/contexts/canopy'
 import { type CareEvent, CareTopic } from '@lily/api/contexts/care'
 import { type ReplanContext, replan } from '@lily/api/contexts/reminders/replan'
 import { RemindersTopic } from '@lily/api/contexts/reminders/request'
 import {
+  staleAfterAbsence,
   staleAfterCanopy,
   staleAfterCare,
 } from '@lily/api/contexts/reminders/triggers'
@@ -19,6 +21,7 @@ export type RemindersConsumerContext = ReplanContext | EventBus
 
 export const CARE_CONSUMER = 'reminders'
 export const CANOPY_CONSUMER = 'reminders-canopy'
+export const ABSENCE_CONSUMER = 'reminders-absence'
 export const REPLAN_CONSUMER = 'reminders-replan'
 
 type Recorded = Extract<CareEvent, { _tag: 'CareRecorded' }>
@@ -72,6 +75,19 @@ export const canopyConsumer = (
       Effect.provide(context),
       Effect.catchTag('SqlError', failed(CANOPY_CONSUMER)),
       Effect.withSpan('Reminders.onCanopyEvent', {
+        attributes: { 'event.tag': event._tag },
+      })
+    )
+  )
+
+export const absenceConsumer = (
+  context: Context.Context<ReplanContext>
+): Consumer =>
+  consumer(ABSENCE_CONSUMER, AbsenceTopic, (event) =>
+    Effect.forEach(staleAfterAbsence(event), replan, { discard: true }).pipe(
+      Effect.provide(context),
+      Effect.catchTag('SqlError', failed(ABSENCE_CONSUMER)),
+      Effect.withSpan('Reminders.onAbsenceEvent', {
         attributes: { 'event.tag': event._tag },
       })
     )
