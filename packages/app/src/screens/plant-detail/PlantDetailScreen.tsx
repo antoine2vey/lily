@@ -1,8 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import {
   type CareType,
-  daysUntilApiDate,
   formatApiDateAsNextDate,
+  getDaysUntilCare,
   getFrequencyDays,
   getLastCareAt,
   getNextCareAt,
@@ -622,10 +622,16 @@ export function PlantDetailScreen() {
       hasFertSchedule,
       hasMistSchedule,
       hasRepotSchedule,
-      daysUntilWater: daysUntilApiDate(nextWaterAt),
-      daysUntilFertilize: hasFertSchedule ? daysUntilApiDate(nextFertAt) : null,
-      daysUntilMist: hasMistSchedule ? daysUntilApiDate(nextMistAt) : null,
-      daysUntilRepot: hasRepotSchedule ? daysUntilApiDate(nextRepotAt) : null,
+      daysUntilWater: getDaysUntilCare(schedules, 'watering') ?? 0,
+      daysUntilFertilize: hasFertSchedule
+        ? (getDaysUntilCare(schedules, 'fertilization') ?? 0)
+        : null,
+      daysUntilMist: hasMistSchedule
+        ? (getDaysUntilCare(schedules, 'misting') ?? 0)
+        : null,
+      daysUntilRepot: hasRepotSchedule
+        ? (getDaysUntilCare(schedules, 'repotting') ?? 0)
+        : null,
       isWaterFirstTime: lastWaterAt === null,
       isFertilizeFirstTime: hasFertSchedule && lastFertAt === null,
       isMistFirstTime: hasMistSchedule && lastMistAt === null,

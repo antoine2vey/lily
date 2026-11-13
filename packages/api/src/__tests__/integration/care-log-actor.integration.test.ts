@@ -1,13 +1,19 @@
-import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
+import { CareOnPostgresLive } from '@lily/api/__tests__/integration/care-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
+import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
-import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import {
-  PlantRepositoryLive,
-  type PlantRow,
-} from '@lily/api/repositories/plant.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import { withPlantPermit } from '@lily/api/services/plants/helpers/with-plant-access'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
@@ -19,9 +25,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 const { Pool } = pg
 
 const RepositoriesLive = Layer.mergeAll(
-  PlantRepositoryLive,
+  CanopyRepositoryLive,
   CareLogRepositoryLive,
-  NotificationRepositoryLive
+  CareReadsLive,
+  CareScheduleRepositoryLive,
+  DelegationRepositoryLive,
+  NotificationRepositoryLive,
+  PlantRepositoryLive,
+  UserRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
@@ -31,27 +42,26 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let db: ReturnType<typeof drizzle<typeof schema>>
     let ownerId: string
     let caretakerId: string
-    let plant: PlantRow
+    let plantId: string
 
     const careAs = (userId: string) =>
       Effect.runPromise(
-        createCareLog(plant, { type: 'watering' }).pipe(
+        withPlantPermit(plantId, 'care').pipe(
+          Effect.flatMap((permit) =>
+            createCareLog(permit, { type: 'watering' })
+          ),
           Effect.provide(
-            Layer.mergeAll(
-              RepositoriesLive,
-              createMockEventBus({ publishedEvents: [] }),
-              createMockCurrentUser({
-                id: userId,
-                name: null,
-                firstName: null,
-                lastName: null,
-                email: `${userId}@example.com`,
-                username: `user-${userId}`,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                role: 'user',
-                status: 'active',
-              })
+            CareOnPostgresLive.pipe(
+              Layer.provideMerge(
+                Layer.mergeAll(
+                  RepositoriesLive,
+                  createMockEventBus({ publishedEvents: [] }),
+                  createMockCurrentUser({ id: userId }),
+                  createMockWeatherProvider(),
+                  createMockWeatherCache(),
+                  createMockWeatherRepository()
+                )
+              )
             )
           )
         )
@@ -95,8 +105,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .returning()
       if (!inserted) throw new Error('plant insert returned nothing')
-      plant = withOwner(inserted)
-      const plantId = plant.id
+      plantId = inserted.id
 
       const [delegation] = await db
         .insert(schema.careDelegations)

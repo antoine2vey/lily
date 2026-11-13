@@ -1,17 +1,18 @@
-import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { mockPlants, noCare } from '@lily/api/__tests__/fixtures/plants'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
+import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
-import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { frequencyOfDays } from '@lily/api/contexts/care'
+import { Actor, mintPermit } from '@lily/api/kernel/permit'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { RoomNotFoundError } from '@lily/shared'
 import { GCSService } from '@lily/shared/services/file/gcs'
-import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
+import { Effect, Exit, Layer, Option } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import { describe, expect, it } from 'vitest'
 
@@ -22,21 +23,10 @@ const toPlantWithRoom = (
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
-  schedules: [],
+  ...noCare,
 })
 
-const findSchedule = (
-  schedules: CareScheduleRow[],
-  plantId: string,
-  careType: string
-) =>
-  pipe(
-    Array.findFirst(
-      schedules,
-      (s) => s.plantId === plantId && s.careType === careType
-    ),
-    Option.getOrNull
-  )
+const permit = mintPermit('plant-1', 'edit', Actor.User({ userId: 'user-1' }))
 
 const strangersRoom = {
   ...mockRooms[0]!,
@@ -47,16 +37,17 @@ const roomsWithStranger = [...mockRooms, strangersRoom]
 
 describe('updatePlant', () => {
   const createTestLayer = (plants = mockPlants) => {
-    const schedules = schedulesFromPlants(plants)
+    const care = createStubCare()
     return {
       layer: Layer.mergeAll(
         createMockRoomRepository(roomsWithStranger),
         createMockPlantRepository({ plants }),
-        createMockCareScheduleRepository({ schedules, plants }),
+        care.layer,
+        MockSqlClientLive,
         Layer.succeed(GCSService, {} as any),
         Layer.succeed(FileSystem, {} as any)
       ),
-      schedules,
+      care,
     }
   }
 
@@ -64,7 +55,7 @@ describe('updatePlant', () => {
     const { layer } = createTestLayer()
     const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      updatePlant(plant, { id: 'plant-1', name: 'Updated Name' }).pipe(
+      updatePlant(plant, permit, { id: 'plant-1', name: 'Updated Name' }).pipe(
         Effect.provide(layer)
       )
     )
@@ -76,7 +67,7 @@ describe('updatePlant', () => {
     const { layer } = createTestLayer()
     const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      updatePlant(plant, { id: 'plant-1', name: 'Updated Name' }).pipe(
+      updatePlant(plant, permit, { id: 'plant-1', name: 'Updated Name' }).pipe(
         Effect.provide(layer)
       )
     )
@@ -86,30 +77,39 @@ describe('updatePlant', () => {
   })
 
   it('should update multiple fields at once', async () => {
-    const { layer, schedules } = createTestLayer()
+    const { layer, care } = createTestLayer()
     const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      updatePlant(plant, {
+      updatePlant(plant, permit, {
         id: 'plant-1',
         name: 'Updated Name',
         description: 'Updated description',
         wateringFrequencyDays: 14,
+        mistingFrequencyDays: null,
       }).pipe(Effect.provide(layer))
     )
 
     expect(result.name).toBe('Updated Name')
     expect(result.description).toBe('Updated description')
-    const wateringSchedule = findSchedule(schedules, 'plant-1', 'watering')
-    expect(wateringSchedule?.frequencyDays).toBe(14)
+    expect(care.scheduled).toEqual([
+      {
+        permit,
+        frequencies: [
+          ['watering', Option.some(frequencyOfDays(14))],
+          ['misting', Option.none()],
+        ],
+      },
+    ])
   })
 
   it('should update health status', async () => {
     const { layer } = createTestLayer()
     const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      updatePlant(plant, { id: 'plant-1', health: 'THRIVING' } as Parameters<
-        typeof updatePlant
-      >[1]).pipe(Effect.provide(layer))
+      updatePlant(plant, permit, {
+        id: 'plant-1',
+        health: 'THRIVING',
+      } as Parameters<typeof updatePlant>[2]).pipe(Effect.provide(layer))
     )
 
     expect(result.health).toBe('THRIVING')
@@ -118,7 +118,7 @@ describe('updatePlant', () => {
   describe('room', () => {
     const move = (roomId: string) =>
       Effect.runPromiseExit(
-        updatePlant(toPlantWithRoom(mockPlants[0]!), {
+        updatePlant(toPlantWithRoom(mockPlants[0]!), permit, {
           id: 'plant-1',
           roomId,
         }).pipe(Effect.provide(createTestLayer().layer))

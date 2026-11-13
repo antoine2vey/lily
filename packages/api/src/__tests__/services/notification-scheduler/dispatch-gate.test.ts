@@ -2,6 +2,10 @@ import { createTestMembership } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { mockDelegation1 } from '@lily/api/__tests__/fixtures/delegations'
 import {
+  createTestPlant,
+  type TestPlant,
+} from '@lily/api/__tests__/fixtures/plants'
+import {
   createCanopyStore,
   createMockCanopyRepository,
 } from '@lily/api/__tests__/mocks/canopy.repository'
@@ -54,7 +58,8 @@ const row = (overrides: Partial<GateRow> = {}): GateRow => ({
 const living = (overrides: Partial<PlantFacts> = {}): PlantFacts => ({
   diedAt: null,
   recipients: ['user-1'],
-  nextCareAt: [new Date(NOW.getTime() - HOUR)],
+  hasOverdueCare: true,
+  nearlyDue: ['watering'],
   ...overrides,
 })
 
@@ -128,32 +133,32 @@ describe('decide', () => {
     ).toEqual(Decision.Send())
   })
 
-  it('drops an overdue row once no schedule of the plant is due', async () => {
-    const caughtUp = plantsOf(
-      living({ nextCareAt: [new Date(NOW.getTime() + HOUR)] })
-    )
+  it('drops an overdue row once no care of the plant is overdue', async () => {
+    const caughtUp = plantsOf(living({ hasOverdueCare: false }))
     const overdue = row({ type: 'overdue_reminder' })
     expect(await run(overdue, undefined, caughtUp)).toEqual(
       Decision.Drop({ reason: 'no-longer-overdue' })
     )
-    expect(
-      await run(overdue, undefined, plantsOf(living({ nextCareAt: [] })))
-    ).toEqual(Decision.Drop({ reason: 'no-longer-overdue' }))
-    expect(
-      await run(
-        overdue,
-        undefined,
-        plantsOf(
-          living({
-            nextCareAt: [
-              new Date(NOW.getTime() + HOUR),
-              new Date(NOW.getTime() - HOUR),
-            ],
-          })
-        )
-      )
-    ).toEqual(Decision.Send())
+    expect(await run(overdue, undefined, plantsOf(living()))).toEqual(
+      Decision.Send()
+    )
     expect(await run(row(), undefined, caughtUp)).toEqual(Decision.Send())
+  })
+
+  it('drops a care reminder once its care is no longer due', async () => {
+    const watered = plantsOf(living({ nearlyDue: ['misting'] }))
+    expect(await run(row(), undefined, watered)).toEqual(
+      Decision.Drop({ reason: 'no-longer-due' })
+    )
+    expect(
+      await run(row({ type: 'misting_reminder' }), undefined, watered)
+    ).toEqual(Decision.Send())
+    expect(
+      await run(row({ type: 'overdue_reminder' }), undefined, watered)
+    ).toEqual(Decision.Send())
+    expect(
+      await run(row({ type: 'nudge_to_water' }), undefined, watered)
+    ).toEqual(Decision.Send())
   })
 
   it('drops care rows when care reminders are off and engagement rows when tips are off', async () => {
@@ -326,10 +331,12 @@ describe('loadPlantFacts', () => {
     plants: Parameters<typeof loadPlantFacts>[0],
     {
       schedules = [],
+      plants: records = [],
       delegation = createMockDelegationRepository(),
       canopy = createMockCanopyRepository([]),
     }: {
       schedules?: CareScheduleRow[]
+      plants?: TestPlant[]
       delegation?: Layer.Layer<DelegationRepository>
       canopy?: Layer.Layer<CanopyRepository>
     } = {}
@@ -338,7 +345,7 @@ describe('loadPlantFacts', () => {
       loadPlantFacts(plants).pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockCareScheduleRepository({ schedules }),
+            createMockCareScheduleRepository({ schedules, plants: records }),
             delegation,
             canopy
           )
@@ -400,31 +407,44 @@ describe('loadPlantFacts', () => {
     expect(facts.get('plant-1')?.recipients).toEqual(['user-2'])
   })
 
-  it('gives a dead plant no recipient and keeps each plant to its own due dates', async () => {
-    const due = new Date(NOW.getTime() - HOUR)
-    const diedAt = new Date(NOW.getTime() - 24 * HOUR)
+  it('gives a dead plant no recipient and tells overdue cares from cares due within a day', async () => {
+    const yesterday = new Date(Date.now() - 24 * HOUR)
+    const tomorrow = new Date(Date.now() + 24 * HOUR)
+    const nextWeek = new Date(Date.now() + 7 * 24 * HOUR)
+    const diedAt = new Date(Date.now() - 24 * HOUR)
     const facts = await load(
       [
         { id: 'plant-1', diedAt: null, owner: userOwned('user-1') },
         { id: 'plant-2', diedAt, owner: canopyOwned },
+        { id: 'plant-3', diedAt: null, owner: userOwned('user-1') },
       ],
       {
+        plants: [
+          createTestPlant({ id: 'plant-1', userId: 'user-1' }),
+          createTestPlant({ id: 'plant-3', userId: 'user-1' }),
+        ],
         schedules: [
-          createTestSchedule({ plantId: 'plant-1', nextCareAt: due }),
+          createTestSchedule({ plantId: 'plant-1', nextCareAt: yesterday }),
+          createTestSchedule({ plantId: 'plant-3', nextCareAt: tomorrow }),
           createTestSchedule({
-            plantId: 'plant-1',
-            careType: 'fertilization',
-            nextCareAt: null,
+            plantId: 'plant-3',
+            careType: 'misting',
+            nextCareAt: nextWeek,
           }),
-          createTestSchedule({ plantId: 'plant-3', nextCareAt: due }),
         ],
       }
     )
-    expect(facts.get('plant-1')?.nextCareAt).toEqual([due])
+    expect(facts.get('plant-1')?.hasOverdueCare).toBe(true)
+    expect(facts.get('plant-1')?.nearlyDue).toContain('watering')
+    expect(facts.get('plant-3')).toMatchObject({
+      hasOverdueCare: false,
+      nearlyDue: ['watering'],
+    })
     expect(facts.get('plant-2')).toEqual({
       diedAt,
       recipients: [],
-      nextCareAt: [],
+      hasOverdueCare: false,
+      nearlyDue: [],
     })
   })
 })

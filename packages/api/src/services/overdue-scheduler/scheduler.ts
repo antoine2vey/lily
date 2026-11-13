@@ -1,7 +1,8 @@
+import { CareReads, DueScope, DueWindow } from '@lily/api/contexts/care'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import {
   CareScheduleRepository,
-  type OverdueRecipientPlant,
+  type ReminderAudiencePlant,
 } from '@lily/api/repositories/care-schedule.repository'
 import { ownerKey } from '@lily/api/repositories/helpers/plant-owner'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -13,7 +14,6 @@ import {
   recordNotification,
   scheduleDeferredCareNotification,
 } from '@lily/api/services/helpers/schedule-notification'
-import { careContext } from '@lily/api/services/plants/helpers/care-context'
 import {
   reminderKeysFor,
   withReminderKeys,
@@ -32,11 +32,9 @@ import {
   nowAsDate,
   type PlantOwner,
   pickNotificationTime,
-  startOfTodayAsDate,
 } from '@lily/shared'
 import {
   Array,
-  DateTime,
   Effect,
   Filter,
   Match,
@@ -47,39 +45,19 @@ import {
   Record,
 } from 'effect'
 
-const dueBeforeTheirOwnersDay = (
-  plants: readonly OverdueRecipientPlant[],
-  userTimezone: string
-) =>
-  Effect.gen(function* () {
-    const canopyDayStarts = Record.fromEntries(
-      yield* Effect.forEach(
-        pipe(
-          plants,
-          Array.filter((p) => p.owner._tag === 'Canopy'),
-          Array.dedupeWith((a, b) => ownerKey(a.owner) === ownerKey(b.owner))
-        ),
-        (p) =>
-          Effect.map(
-            careContext(p.owner),
-            (context) =>
-              [ownerKey(p.owner), startOfTodayAsDate(context.timezone)] as const
-          )
+const overduePlantIds = (scope: DueScope) =>
+  Effect.map(
+    Effect.flatMap(CareReads, (reads) =>
+      reads.due({ scope, upTo: DueWindow.Overdue() })
+    ),
+    (cares) =>
+      pipe(
+        cares,
+        Array.filter((care) => care.plant.remindersEnabled),
+        Array.map((care) => care.plant.id),
+        Array.dedupe
       )
-    )
-    const userDayStart = startOfTodayAsDate(userTimezone)
-    return Array.filter(plants, (p) =>
-      DateTime.isLessThan(
-        DateTime.makeUnsafe(p.overdueAt),
-        DateTime.makeUnsafe(
-          pipe(
-            Record.get(canopyDayStarts, ownerKey(p.owner)),
-            Option.getOrElse(() => userDayStart)
-          )
-        )
-      )
-    )
-  })
+  )
 
 const timezoneOf = (settings: UserNotificationSettings) =>
   pipe(
@@ -113,17 +91,13 @@ const nudgeOverflow = (
 const capAudience = (
   userId: string,
   settings: UserNotificationSettings,
-  plants: readonly OverdueRecipientPlant[],
+  plants: readonly ReminderAudiencePlant[],
   maxPlantsFor: (owner: PlantOwner) => number | null
 ) =>
   Effect.gen(function* () {
-    const strictlyOverdue = yield* dueBeforeTheirOwnersDay(
-      plants,
-      timezoneOf(settings)
-    )
     const sorted = Array.sort(
-      strictlyOverdue,
-      Order.mapInput(Order.Date, (p: OverdueRecipientPlant) => p.dateAdded)
+      plants,
+      Order.mapInput(Order.Date, (p: ReminderAudiencePlant) => p.dateAdded)
     )
     const eligible = pipe(
       sorted,
@@ -156,7 +130,7 @@ const capAudience = (
 export const remindRecipient = (
   recipientId: string,
   settings: UserNotificationSettings,
-  plants: readonly OverdueRecipientPlant[]
+  plants: readonly ReminderAudiencePlant[]
 ) =>
   Effect.gen(function* () {
     const notificationRepo = yield* NotificationRepository
@@ -190,7 +164,7 @@ export const remindRecipient = (
 
     const plantIds = Array.map(plants, (p) => p.id)
     return yield* Effect.gen(function* () {
-      const stillOverdue = yield* scheduleRepo.findOverduePlantIds(plantIds)
+      const stillOverdue = yield* overduePlantIds(DueScope.Plants({ plantIds }))
       yield* Effect.forEach(stillOverdue, (plantId) =>
         scheduleDeferredCareNotification({
           type: 'overdue_reminder',
@@ -216,7 +190,9 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
 
   yield* Effect.log('Running overdue reminder check...')
 
-  const grouped = yield* scheduleRepo.findOverdueByUser()
+  const grouped = yield* scheduleRepo.findReminderAudience(
+    yield* overduePlantIds(DueScope.Everyone())
+  )
 
   if (Record.isEmptyRecord(grouped)) return
 

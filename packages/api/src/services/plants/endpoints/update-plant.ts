@@ -1,12 +1,17 @@
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { Care } from '@lily/api/contexts/care'
+import type { PlantPermit } from '@lily/api/kernel/permit'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
-import type { CareType, RoomNotFoundError } from '@lily/shared'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { frequencyChanges } from '@lily/api/services/plants/helpers/schedule-frequencies'
+import type { RoomNotFoundError } from '@lily/shared'
+import {
+  type PlantIsDeadError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
 import type { PlantUpdateRequest } from '@lily/shared/plant'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type {
@@ -14,44 +19,16 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
-import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
+import { Effect, Option, pipe, Record } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
-
-/**
- * Upsert or delete a single optional care schedule.
- * - `undefined` → no change (skip)
- * - `null` → disable (delete schedule row)
- * - `number` → enable/update (upsert with frequency, seed nextCareAt if missing)
- */
-const syncOptionalSchedule = (
-  scheduleRepo: CareScheduleRepository['Service'],
-  existingSchedules: readonly { careType: string; nextCareAt: Date | null }[],
-  plantId: string,
-  careType: CareType,
-  frequencyDays: number | null | undefined,
-  now: Date
-) =>
-  Effect.gen(function* () {
-    if (frequencyDays === undefined) return
-    if (frequencyDays !== null) {
-      const existing = pipe(
-        Array.findFirst(existingSchedules, (s) => s.careType === careType),
-        Option.getOrNull
-      )
-      yield* scheduleRepo.upsert(plantId, careType, {
-        frequencyDays,
-        ...(!existing?.nextCareAt ? { nextCareAt: now } : {}),
-      })
-    } else {
-      yield* scheduleRepo.deleteByPlantAndType(plantId, careType)
-    }
-  })
 
 export const updatePlant = (
   plant: PlantWithRoom,
+  permit: PlantPermit<'edit'>,
   request: PlantUpdateRequest & { id: string },
   image?: PersistedFile
 ): Effect.Effect<
@@ -61,21 +38,22 @@ export const updatePlant = (
   | InvalidImageError
   | RoomNotFoundError
   | PlantNotFoundError
+  | PlantIsDeadError
   | GCSConfigError
   | PlatformError,
   | PlantRepository
-  | CareScheduleRepository
+  | Care
   | RoomRepository
   | GCSService
   | FileSystem
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const scheduleRepo = yield* CareScheduleRepository
+    const care = yield* Care
+    const sql = yield* SqlClient.SqlClient
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
     yield* assertRoomFits(request.roomId, plant.owner)
-
-    const now = DateTime.toDateUtc(DateTime.nowUnsafe())
 
     // If an image file was uploaded, upload to GCS and use the URL
     const imageUrl = image
@@ -104,51 +82,17 @@ export const updatePlant = (
       Record.filter((value) => value !== undefined)
     ) as Record<string, unknown>
 
-    // Update non-care plant fields
-    const written = yield* repo.update(request.id, plant.owner, data)
-    if (!written) {
-      return yield* new PlantNotFoundError({ plantId: request.id })
-    }
-
-    // Fetch all existing schedules in a single query
-    const existingSchedules = yield* scheduleRepo.findByPlant(request.id)
-
-    // Watering is always-present (non-nullable), handle separately
-    if (request.wateringFrequencyDays !== undefined) {
-      const existing = pipe(
-        Array.findFirst(existingSchedules, (s) => s.careType === 'watering'),
-        Option.getOrNull
-      )
-      yield* scheduleRepo.upsert(request.id, 'watering', {
-        frequencyDays: request.wateringFrequencyDays,
-        ...(!existing?.nextCareAt ? { nextCareAt: now } : {}),
+    yield* sql.withTransaction(
+      Effect.gen(function* () {
+        const written = yield* repo.update(request.id, plant.owner, data)
+        if (!written) {
+          return yield* new PlantNotFoundError({ plantId: request.id })
+        }
+        yield* care.setSchedules({
+          permit,
+          frequencies: frequencyChanges(request),
+        })
       })
-    }
-
-    // Optional care types: null → delete, number → upsert
-    yield* syncOptionalSchedule(
-      scheduleRepo,
-      existingSchedules,
-      request.id,
-      'fertilization',
-      request.fertilizationFrequencyDays,
-      now
-    )
-    yield* syncOptionalSchedule(
-      scheduleRepo,
-      existingSchedules,
-      request.id,
-      'misting',
-      request.mistingFrequencyDays,
-      now
-    )
-    yield* syncOptionalSchedule(
-      scheduleRepo,
-      existingSchedules,
-      request.id,
-      'repotting',
-      request.repottingFrequencyDays,
-      now
     )
 
     const updated = yield* repo.findById(request.id)

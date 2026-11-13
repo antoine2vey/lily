@@ -1,9 +1,15 @@
+import { delivered } from '@lily/api/__tests__/integration/care-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -59,6 +65,7 @@ const RepositoriesLive = Layer.mergeAll(
   CanopyRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   EngagementRepositoryLive,
@@ -206,6 +213,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const PipelineLive = Layer.mergeAll(
         RepositoriesLive,
         MockAlerterLive,
+        createMockEventBus(),
+        createMockWeatherProvider(),
+        createMockWeatherCache(),
+        createMockWeatherRepository(),
         createMockMessageQueue({
           onEnqueue: (_topic, message) => {
             enqueued.push(message)
@@ -739,7 +750,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const { run } = pipeline(owner)
 
         await markStatus(run, caretaker.id, status)
-        await run(endVacation({ user: vacationer, effectiveEnd: new Date() }))
+        await run(
+          delivered(endVacation({ user: vacationer, effectiveEnd: new Date() }))
+        )
 
         const [schedule] = await db
           .select({ nextCareAt: schema.plantCareSchedules.nextCareAt })

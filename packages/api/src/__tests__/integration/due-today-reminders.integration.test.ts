@@ -1,6 +1,12 @@
+import { delivered } from '@lily/api/__tests__/integration/care-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -30,6 +36,7 @@ const ServicesLive = Layer.mergeAll(
   PlantRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   NotificationRepositoryLive,
   UserRepositoryLive,
   CanopyRepositoryLive,
@@ -320,7 +327,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       await remindToday(ann, ivy)
 
-      await as(vic.id, endVacation({ user: vic, effectiveEnd: new Date() }))
+      await as(
+        vic.id,
+        delivered(endVacation({ user: vic, effectiveEnd: new Date() })).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockEventBus(),
+              createMockWeatherProvider(),
+              createMockWeatherCache(),
+              createMockWeatherRepository()
+            )
+          )
+        )
+      )
 
       expect(
         Arr.filter(await dueWithinADay(), (row) => row.startsWith('ivy'))

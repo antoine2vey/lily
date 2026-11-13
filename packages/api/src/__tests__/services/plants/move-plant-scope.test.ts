@@ -9,6 +9,7 @@ import {
   createTestCanopyRow,
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -153,6 +154,7 @@ const world = (options: {
     ),
     createMockNotificationRepository(options.notifications ?? []),
     createMockCareScheduleRepository(),
+    createStubCare().layer,
     createMockUserRepository([
       { ...mockUser1, id: options.actor, email: `${options.actor}@x.y` },
     ]),

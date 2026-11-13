@@ -1,4 +1,5 @@
 import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
+import { seePlantCare } from '@lily/api/contexts/care'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
   ownerColumns,
@@ -11,16 +12,12 @@ import {
   type FindPhotosParams,
   type FindPlantsParams,
   type IPlantRepository,
+  matchesCareFilter,
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db/schema'
-import {
-  endOfDay,
-  type Orientation,
-  type PlantOwner,
-  paginate,
-} from '@lily/shared'
+import { type Orientation, type PlantOwner, paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
@@ -47,6 +44,8 @@ interface MockPlantRepositoryData {
   caretakingPlants?: MockCaretakingPlant[]
   memberships?: MockMembership[]
   schedules?: CareScheduleRow[]
+  /** Care timezone by owner id (user id or canopy id). Defaults to UTC. */
+  timezones?: Readonly<Record<string, string>>
 }
 
 export const createMockPlantRepository = (
@@ -84,25 +83,34 @@ export const createMockPlantRepository = (
       Option.getOrElse(() => 'Canopy')
     )
 
+  // The real care view over in-memory schedules: same rules as the live repo.
+  const careOf = (p: PlantRecord) =>
+    seePlantCare(
+      p,
+      Array.filter(schedulesData, (s) => s.plantId === p.id),
+      data.timezones?.[p.canopyId ?? p.userId ?? ''] ?? 'UTC',
+      DateTime.nowUnsafe()
+    )
+
   const toPlantWithRoom = (p: PlantRecord): PlantWithRoom => {
     if (p.canopyId === null) {
       return {
         ...withUserOwner(p),
+        ...careOf(p),
         room: resolveRoom(p.roomId),
         ownership: 'owned' as const,
         ownerName: null,
-        schedules: [],
       }
     }
     const plant = withCanopyOwner(p)
     return {
       ...plant,
+      ...careOf(p),
       room: resolveRoom(p.roomId),
       ownership: 'canopy' as const,
       ownerName: null,
       canopy: { id: plant.owner.canopyId, name: canopyNameFor(p.canopyId) },
       createdBy: null,
-      schedules: [],
     }
   }
 
@@ -129,25 +137,6 @@ export const createMockPlantRepository = (
       filtered = Array.filter(filtered, (p) => p.diedAt !== null)
     } else if (!params.includeDead) {
       filtered = Array.filter(filtered, (p) => p.diedAt === null)
-    }
-
-    if (params.filter === 'needsAttention') {
-      filtered = Array.filter(filtered, (p) => p.health === 'NEEDS_ATTENTION')
-    }
-
-    if (params.filter === 'overdue') {
-      const endOfTodayDt = endOfDay(DateTime.nowUnsafe(), params.timezone)
-      const endOfTodayMs = DateTime.toEpochMillis(endOfTodayDt)
-      // Check schedule table for overdue plants
-      filtered = Array.filter(filtered, (p) =>
-        Array.some(
-          schedulesData,
-          (s) =>
-            s.plantId === p.id &&
-            s.nextCareAt !== null &&
-            s.nextCareAt.getTime() <= Number(endOfTodayMs)
-        )
-      )
     }
 
     return filtered
@@ -218,6 +207,7 @@ export const createMockPlantRepository = (
               (plants) => applyFilters(plants, params),
               Array.map((p) => ({
                 ...withUserOwner(p),
+                ...careOf(p),
                 room: resolveRoom(p.roomId),
                 ownership: 'caretaking' as const,
                 ownerName: pipe(
@@ -228,7 +218,6 @@ export const createMockPlantRepository = (
                   Option.map((cp) => cp.ownerName),
                   Option.getOrNull
                 ),
-                schedules: [],
               }))
             )
           : []
@@ -254,7 +243,8 @@ export const createMockPlantRepository = (
       const allItems = pipe(
         ownedItems,
         Array.appendAll(caretakingItems),
-        Array.appendAll(canopyItems)
+        Array.appendAll(canopyItems),
+        Array.filter(matchesCareFilter(params.filter))
       )
 
       const sortOrder =
@@ -440,69 +430,6 @@ export const createMockPlantRepository = (
       ),
 
     deletePhotoByPlantId: () => Effect.void,
-
-    markOverduePlantsAsNeedsAttention: () => {
-      const now = new Date()
-
-      const hasOverdue = (plantId: string) =>
-        Array.some(
-          schedulesData,
-          (s) =>
-            s.plantId === plantId &&
-            s.nextCareAt !== null &&
-            s.nextCareAt.getTime() <= now.getTime()
-        )
-
-      const shouldMark = (plant: PlantRecord) =>
-        hasOverdue(plant.id) &&
-        (plant.health === 'HEALTHY' || plant.health === 'THRIVING')
-
-      const matched = Array.filter(plantsData, shouldMark)
-      Array.forEach(matched, (p) => {
-        p.health = 'NEEDS_ATTENTION'
-      })
-
-      // Also mutate original array for tests that check it directly
-      pipe(
-        Array.filter(originalPlantsData, shouldMark),
-        Array.forEach((p) => {
-          p.health = 'NEEDS_ATTENTION'
-        })
-      )
-
-      return Effect.succeed(Array.length(matched))
-    },
-
-    markHealthyPlantsInOrder: () => {
-      const now = new Date()
-
-      const hasOverdue = (plantId: string) =>
-        Array.some(
-          schedulesData,
-          (s) =>
-            s.plantId === plantId &&
-            s.nextCareAt !== null &&
-            s.nextCareAt.getTime() <= now.getTime()
-        )
-
-      const shouldMark = (plant: PlantRecord) =>
-        plant.health === 'NEEDS_ATTENTION' && !hasOverdue(plant.id)
-
-      const matched = Array.filter(plantsData, shouldMark)
-      Array.forEach(matched, (p) => {
-        p.health = 'HEALTHY'
-      })
-
-      // Also mutate original array for tests that check it directly
-      pipe(
-        Array.filter(originalPlantsData, shouldMark),
-        Array.forEach((p) => {
-          p.health = 'HEALTHY'
-        })
-      )
-
-      return Effect.succeed(Array.length(matched))
-    },
   }
 
   return Layer.succeed(PlantRepository, repo)

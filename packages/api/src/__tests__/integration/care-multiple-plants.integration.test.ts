@@ -1,5 +1,13 @@
+import {
+  CareOnPostgresLive,
+  drainOutbox,
+} from '@lily/api/__tests__/integration/care-layers'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -22,13 +30,12 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
   Effect,
+  Exit,
   Layer,
   ManagedRuntime,
-  Option,
   Order,
   pipe,
   Queue,
-  Result,
 } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -39,6 +46,7 @@ const RepositoriesLive = Layer.mergeAll(
   PlantRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   NotificationRepositoryLive,
   UserRepositoryLive,
   DelegationRepositoryLive,
@@ -72,6 +80,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     )
 
     const truncate = async () => {
+      await db.execute(sql`TRUNCATE TABLE outbox RESTART IDENTITY`)
       await db.execute(sql`TRUNCATE TABLE care_logs RESTART IDENTITY CASCADE`)
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
@@ -182,8 +191,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     }
 
-    // Records each published event with the care logs committed at that
-    // moment, then hands it to the Live Activity subscriber.
     const careAll = (
       user: { id: string; name: string; email: string },
       plantIds: ReadonlyArray<string>,
@@ -193,31 +200,39 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         plantIds: [...plantIds],
         careType: 'watering',
       }).pipe(
-        Effect.result,
+        Effect.exit,
+        Effect.tap(() => drainOutbox),
         Effect.provide(
-          Layer.mergeAll(
-            RepositoriesLive,
-            Layer.succeed(EventBus, {
-              publish: (event) =>
-                Effect.promise(async () => {
-                  published.push({
-                    event,
-                    committedLogs: await committedLogs(plantIds),
-                  })
-                  await subscriber.runPromise(processEvent(event))
+          CareOnPostgresLive.pipe(
+            Layer.provideMerge(
+              Layer.mergeAll(
+                RepositoriesLive,
+                createMockWeatherProvider(),
+                createMockWeatherCache(),
+                createMockWeatherRepository(),
+                Layer.succeed(EventBus, {
+                  publish: (event) =>
+                    Effect.promise(async () => {
+                      published.push({
+                        event,
+                        committedLogs: await committedLogs(plantIds),
+                      })
+                      await subscriber.runPromise(processEvent(event))
+                    }),
+                  subscribe: Queue.unbounded<AppEvent>(),
                 }),
-              subscribe: Queue.unbounded<AppEvent>(),
-            }),
-            createMockCurrentUser({
-              ...user,
-              firstName: null,
-              lastName: null,
-              username: user.name,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              role: 'user',
-              status: 'active',
-            })
+                createMockCurrentUser({
+                  ...user,
+                  firstName: null,
+                  lastName: null,
+                  username: user.name,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  role: 'user',
+                  status: 'active',
+                })
+              )
+            )
           )
         )
       )
@@ -225,14 +240,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('publishes nothing and sends no Live Activity push when the transaction rolls back', async () => {
       const { user, plantIds, nextCareAt } = await seed()
       await db.execute(sql`
-        CREATE OR REPLACE FUNCTION fail_bulk_watering_reminder() RETURNS trigger AS $$
-        BEGIN RAISE EXCEPTION 'reminder rebuild failed'; END;
+        CREATE OR REPLACE FUNCTION fail_bulk_schedule_write() RETURNS trigger AS $$
+        BEGIN RAISE EXCEPTION 'schedule write failed'; END;
         $$ LANGUAGE plpgsql
       `)
       await db.execute(sql`
-        CREATE TRIGGER fail_bulk_watering_reminder BEFORE INSERT ON notifications
-        FOR EACH ROW WHEN (NEW.type = 'watering_reminder')
-        EXECUTE FUNCTION fail_bulk_watering_reminder()
+        CREATE TRIGGER fail_bulk_schedule_write BEFORE UPDATE ON plant_care_schedules
+        FOR EACH ROW EXECUTE FUNCTION fail_bulk_schedule_write()
       `)
 
       const published: Published[] = []
@@ -240,18 +254,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careAll(user, plantIds, published)
       ).finally(() =>
         db.execute(
-          sql`DROP TRIGGER fail_bulk_watering_reminder ON notifications`
+          sql`DROP TRIGGER fail_bulk_schedule_write ON plant_care_schedules`
         )
       )
 
-      expect(
-        pipe(
-          Option.some(outcome),
-          Option.filter(Result.isFailure),
-          Option.map((r) => r.failure._tag),
-          Option.getOrNull
-        )
-      ).toBe('SqlError')
+      expect(Exit.isFailure(outcome)).toBe(true)
       expect(published).toEqual([])
       expect(laPushes).toEqual([])
       expect(await committedLogs(plantIds)).toBe(0)
@@ -275,19 +282,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careAll(user, plantIds, published)
       )
 
-      expect(Result.isSuccess(outcome)).toBe(true)
+      expect(Exit.isSuccess(outcome)).toBe(true)
       expect(
-        Arr.map(published, ({ event, committedLogs }) => ({
-          tag: event._tag,
-          plantId: event._tag === 'CareLogCreated' ? event.plantId : null,
-          committedLogs,
-        }))
+        pipe(
+          published,
+          Arr.map(({ event, committedLogs }) => ({
+            tag: event._tag,
+            plantId: 'plantId' in event ? String(event.plantId) : '',
+            committedLogs,
+          })),
+          Arr.sortBy(Order.mapInput(Order.String, (e) => e.plantId))
+        )
       ).toEqual(
-        Arr.map(Arr.sort(plantIds, Order.String), (plantId) => ({
-          tag: 'CareLogCreated',
-          plantId,
-          committedLogs: 2,
-        }))
+        Arr.flatMap(Arr.sort(plantIds, Order.String), (plantId) => [
+          { tag: 'CareLogCreated', plantId, committedLogs: 2 },
+          { tag: 'AttentionResponded', plantId, committedLogs: 2 },
+        ])
       )
       // Both schedules moved past today before the subscriber ran, so the
       // first event ends the activity and the second finds none to update.

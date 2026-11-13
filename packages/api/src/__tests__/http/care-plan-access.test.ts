@@ -6,6 +6,7 @@ import {
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -19,6 +20,7 @@ import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.r
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import type { Api } from '@lily/api/api'
+import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
 import {
   Authentication,
   CurrentUser,
@@ -111,7 +113,10 @@ const RepositoriesLive = Layer.mergeAll(
   createMockSqlClient(),
   createMockWeatherProvider(),
   createMockWeatherCache(),
-  createMockWeatherRepository()
+  createMockWeatherRepository(),
+  createStubCare((plantId) =>
+    RecordOutcome.Skipped({ plantId, reason: Refusal.Dead({ plantId }) })
+  ).layer
 )
 
 const PlatformLive = Layer.mergeAll(

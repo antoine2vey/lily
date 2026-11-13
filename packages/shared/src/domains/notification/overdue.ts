@@ -1,4 +1,4 @@
-import { Array, DateTime, Effect, Filter, Option, Order, pipe } from 'effect'
+import { DateTime, Effect, Option, pipe } from 'effect'
 
 import { DndWindowBlockedError } from './errors'
 import { DEFAULT_TIMEZONE, isInDndWindow, timeToMinutes } from './timezone'
@@ -10,35 +10,6 @@ const MORNING_END = 8 * 60 // 480
 // Evening window: 18:00-22:00 local time (240 minutes)
 const EVENING_START = 18 * 60 // 1080
 const EVENING_END = 22 * 60 // 1320
-
-export type OverduePlant = {
-  id: string
-  name: string
-  userId: string
-  overdueAt: Date
-  dateAdded: Date
-}
-
-/**
- * Given a list of nullable care dates, returns the earliest one that is
- * at or before `now`. Falls back to `now` when no date qualifies.
- */
-export const earliestOverdueDate = (
-  dates: ReadonlyArray<Date | null>,
-  now: Date
-): Date =>
-  pipe(
-    Array.filterMap(
-      dates,
-      Filter.fromPredicateOption((d: Date | null) =>
-        pipe(
-          Option.fromNullishOr(d),
-          Option.filter((date) => date.getTime() <= now.getTime())
-        )
-      )
-    ),
-    Array.reduce(now, Order.min(Order.Date))
-  )
 
 /**
  * Pick a random notification send time within the morning or evening window,

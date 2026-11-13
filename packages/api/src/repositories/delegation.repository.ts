@@ -1,3 +1,8 @@
+import {
+  type StoredSchedule,
+  seeLivingPlantCare,
+} from '@lily/api/contexts/care'
+import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
@@ -16,11 +21,13 @@ import type {
   CareType,
   DelegationStatus,
   PlantCareSchedule,
+  PlantHealthStatus,
 } from '@lily/shared'
 import { and, count, desc, eq, inArray, lte, or, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
+  DateTime,
   Effect,
   Layer,
   Match,
@@ -221,7 +228,7 @@ type ScheduleJoinRow = {
   nextCareAt: Date | null
 }
 
-const toScheduleRef = (r: ScheduleJoinRow): PlantCareSchedule | null =>
+const toScheduleRef = (r: ScheduleJoinRow): StoredSchedule | null =>
   r.careType !== null && r.frequencyDays !== null
     ? {
         careType: r.careType,
@@ -233,7 +240,7 @@ const toScheduleRef = (r: ScheduleJoinRow): PlantCareSchedule | null =>
 
 function groupWithSchedules<
   R extends ScheduleJoinRow,
-  T extends { schedules: PlantCareSchedule[] },
+  T extends { schedules: StoredSchedule[] },
 >(rows: readonly R[], getKey: (r: R) => string, init: (r: R) => T): T[] {
   const grouped = new Map<string, T>()
   Array.forEach(rows, (r) => {
@@ -246,24 +253,49 @@ function groupWithSchedules<
   return [...grouped.values()]
 }
 
+type UnseenCare = {
+  schedules: StoredSchedule[]
+  health: PlantHealthStatus
+  careTimezone: string
+}
+
+const withCareSeen = <T extends UnseenCare>(
+  { careTimezone, ...plant }: T,
+  now: DateTime.DateTime
+) => {
+  const care = seeLivingPlantCare(
+    plant.health,
+    plant.schedules,
+    careTimezone,
+    now
+  )
+  return { ...plant, schedules: care.schedules, health: care.health }
+}
+
 const groupPlantRows = (
   rows: readonly (ScheduleJoinRow & {
     id: string
     name: string
     imageUrl: string | null
-    health: string
-  })[]
+    health: PlantHealthStatus
+    careTimezone: string
+  })[],
+  now: DateTime.DateTime
 ): DelegationPlantRow[] =>
-  groupWithSchedules(
-    rows,
-    (r) => r.id,
-    (r): DelegationPlantRow => ({
-      id: r.id,
-      name: r.name,
-      imageUrl: r.imageUrl,
-      health: r.health,
-      schedules: [],
-    })
+  Array.map(
+    groupWithSchedules(
+      rows,
+      (r) => r.id,
+      (r) => ({
+        id: r.id,
+        name: r.name,
+        imageUrl: r.imageUrl,
+        health: r.health,
+        careTimezone: r.careTimezone,
+        schedules: [] as StoredSchedule[],
+      })
+    ),
+    (plant) => withCareSeen(plant, now)
   )
 
 export const DelegationRepositoryLive = Layer.effect(
@@ -325,6 +357,7 @@ export const DelegationRepositoryLive = Layer.effect(
             name: plants.name,
             imageUrl: plants.imageUrl,
             health: plants.health,
+            careTimezone: careTimezoneSql,
             ...scheduleColumns,
           })
           .from(delegationPlants)
@@ -337,7 +370,7 @@ export const DelegationRepositoryLive = Layer.effect(
 
         return {
           ...row,
-          plants: groupPlantRows(plantRows),
+          plants: groupPlantRows(plantRows, yield* DateTime.now),
         } as DelegationDetailRow
       }),
 
@@ -469,6 +502,7 @@ export const DelegationRepositoryLive = Layer.effect(
             ownerName: users.name,
             ownerImage: users.image,
             health: plants.health,
+            careTimezone: careTimezoneSql,
             ...scheduleColumns,
           })
           .from(careDelegations)
@@ -493,7 +527,7 @@ export const DelegationRepositoryLive = Layer.effect(
         const tasks = groupWithSchedules(
           rows,
           (r) => `${r.delegationId}:${r.plantId}`,
-          (r): DelegatedTaskRow => ({
+          (r) => ({
             delegationId: r.delegationId,
             plantId: r.plantId,
             plantName: r.plantName,
@@ -501,12 +535,14 @@ export const DelegationRepositoryLive = Layer.effect(
             ownerName: r.ownerName,
             ownerImage: r.ownerImage,
             health: r.health,
-            schedules: [],
+            careTimezone: r.careTimezone,
+            schedules: [] as StoredSchedule[],
           })
         )
+        const now = yield* DateTime.now
 
         return Array.sortWith(
-          tasks,
+          Array.map(tasks, (task): DelegatedTaskRow => withCareSeen(task, now)),
           (t) =>
             pipe(
               Array.findFirst(t.schedules, (s) => s.careType === 'watering'),
@@ -600,6 +636,7 @@ export const DelegationRepositoryLive = Layer.effect(
             name: plants.name,
             imageUrl: plants.imageUrl,
             health: plants.health,
+            careTimezone: careTimezoneSql,
             ...scheduleColumns,
           })
           .from(delegationPlants)
@@ -615,7 +652,7 @@ export const DelegationRepositoryLive = Layer.effect(
             )
           )
 
-        return groupPlantRows(rows)
+        return groupPlantRows(rows, yield* DateTime.now)
       }),
 
       lockAllForUser: Effect.fn('DelegationRepository.lockAllForUser')(

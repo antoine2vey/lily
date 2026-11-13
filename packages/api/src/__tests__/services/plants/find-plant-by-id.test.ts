@@ -1,4 +1,4 @@
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { mockPlants, noCare } from '@lily/api/__tests__/fixtures/plants'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
@@ -13,7 +13,7 @@ const toPlantWithRoom = (
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
-  schedules: [],
+  ...noCare,
 })
 
 describe('findPlantById', () => {

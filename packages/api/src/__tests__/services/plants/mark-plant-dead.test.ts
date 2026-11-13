@@ -1,6 +1,6 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
-import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -22,7 +22,7 @@ const asPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
-  schedules: [],
+  ...noCare,
 })
 
 describe('markPlantDead', () => {
@@ -181,7 +181,7 @@ describe('markPlantDead', () => {
           ownerName: null,
           canopy: { id: mockCanopyId, name: 'Home' },
           createdBy: null,
-          schedules: [],
+          ...noCare,
         },
         { cause: 'heat' }
       ).pipe(

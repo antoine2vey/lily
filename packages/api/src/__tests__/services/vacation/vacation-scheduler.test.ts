@@ -1,26 +1,36 @@
-import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { DueMove } from '@lily/api/contexts/care'
 import {
   type IUserRepository,
   UserRepository,
 } from '@lily/api/repositories/user.repository'
 import { pollAndTransitionVacations } from '@lily/api/services/vacation-scheduler/scheduler'
-import type { User } from '@lily/shared'
+import { CARE_TYPES, type User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, pipe, References } from 'effect'
+import {
+  Array,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  pipe,
+  References,
+} from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const daysFromNow = (days: number): Date =>
-  new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+const DAY_MS = 24 * 60 * 60 * 1000
+
+const daysFromNow = (days: number): Date => new Date(Date.now() + days * DAY_MS)
 
 const findUser = (users: User[], id: string) =>
   pipe(
@@ -73,6 +83,7 @@ describe('vacation-scheduler', () => {
         Effect.provide(
           Layer.mergeAll(
             MockSqlClientLive,
+            createStubCare().layer,
             withRacingWrite(users, 'findVacationsToActivate', () => {
               users[0] = {
                 ...user,
@@ -107,21 +118,19 @@ describe('vacation-scheduler', () => {
     const extendedEnd = daysFromNow(5)
     const users = [user]
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
-    const dueMidVacation = daysFromNow(-3)
-    const schedules = [
-      createTestSchedule({ plantId: plant.id, nextCareAt: dueMidVacation }),
-    ]
+    const care = createStubCare()
 
     await run(
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
             MockSqlClientLive,
+            care.layer,
             withRacingWrite(users, 'findVacationsToEnd', () => {
               users[0] = { ...user, vacationEnd: extendedEnd }
             }),
             createMockNotificationRepository([]),
-            createMockCareScheduleRepository({ schedules, plants: [plant] }),
+            createMockCareScheduleRepository({ plants: [plant] }),
             createMockPlantRepository({ plants: [plant] }),
             createMockCanopyRepository(),
             createMockDelegationRepository({})
@@ -133,7 +142,7 @@ describe('vacation-scheduler', () => {
     const after = findUser(users, 'user-1')
     expect(after?.vacationStatus).toBe('active')
     expect(after?.vacationEnd).toEqual(extendedEnd)
-    expect(schedules[0]?.nextCareAt).toEqual(dueMidVacation)
+    expect(care.moved).toEqual([])
   })
 
   it('should activate scheduled vacations whose start has passed and clean muted pending rows', async () => {
@@ -170,6 +179,7 @@ describe('vacation-scheduler', () => {
         Effect.provide(
           Layer.mergeAll(
             MockSqlClientLive,
+            createStubCare().layer,
             createMockUserRepository(users),
             createMockNotificationRepository(notifications),
             createMockCareScheduleRepository({}),
@@ -187,35 +197,29 @@ describe('vacation-scheduler', () => {
     expect(Array.map(notifications, (n) => n.id)).toEqual(['n-social'])
   })
 
-  it('should end active vacations whose end has passed, using the stored vacationEnd for the shift', async () => {
-    // Vacation ran from -10d to -3d; the poll runs "late" (now). The shift
-    // must use the stored end (-3d), giving a 7-day delta — not 10.
+  it('should end active vacations whose end has passed, counting the days away up to the stored vacationEnd', async () => {
+    const vacationEnd = daysFromNow(-3)
     const user = createTestUser({
       id: 'user-1',
       timezone: 'UTC',
       careReminders: true,
       vacationStatus: 'active',
-      vacationStart: daysFromNow(-10),
-      vacationEnd: daysFromNow(-3),
+      vacationStart: new Date(vacationEnd.getTime() - 7 * DAY_MS),
+      vacationEnd,
     })
     const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
-    const dueMidVacation = daysFromNow(-5)
-    const schedules = [
-      createTestSchedule({ plantId: plant.id, nextCareAt: dueMidVacation }),
-    ]
     const users = [user]
+    const care = createStubCare()
 
     await run(
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
             MockSqlClientLive,
+            care.layer,
             createMockUserRepository(users),
             createMockNotificationRepository([]),
-            createMockCareScheduleRepository({
-              schedules,
-              plants: [plant],
-            }),
+            createMockCareScheduleRepository({ plants: [plant] }),
             createMockPlantRepository({ plants: [plant] }),
             createMockCanopyRepository(),
             createMockDelegationRepository({})
@@ -225,16 +229,19 @@ describe('vacation-scheduler', () => {
     )
 
     expect(findUser(users, 'user-1')?.vacationStatus).toBe('none')
-    const shifted = schedules[0]?.nextCareAt
-    expect(shifted).not.toBeNull()
-    // Shifted by the 7-day vacation length (whole local days, UTC tz here),
-    // then clamped to no earlier than the day after the stored end.
-    const sevenDayShift = dueMidVacation.getTime() + 7 * 24 * 60 * 60 * 1000
-    expect(shifted!.getTime()).toBeGreaterThanOrEqual(sevenDayShift)
-    // Well below a 10-day (poll-time) shift
-    expect(shifted!.getTime()).toBeLessThan(
-      dueMidVacation.getTime() + 10 * 24 * 60 * 60 * 1000
-    )
+    expect(care.moved).toEqual([
+      {
+        reason: 'vacation',
+        moves: Array.map(CARE_TYPES, (careType) => ({
+          plantId: plant.id,
+          careType,
+          move: DueMove.AfterAbsence({
+            endedAt: DateTime.makeUnsafe(vacationEnd),
+            days: 7,
+          }),
+        })),
+      },
+    ])
   })
 
   it('should do nothing when no vacations are due', async () => {
@@ -246,6 +253,7 @@ describe('vacation-scheduler', () => {
         Effect.provide(
           Layer.mergeAll(
             MockSqlClientLive,
+            createStubCare().layer,
             createMockUserRepository(users),
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({}),

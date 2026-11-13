@@ -1,16 +1,19 @@
+import { Care, DueMove } from '@lily/api/contexts/care'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import type { PlantRepository } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CarePlanContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
-import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import type { PlantAccessContext } from '@lily/api/services/plants/helpers/with-plant-access'
 import { type CareType, nowAsDate } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import { CarePlanNotProposedError } from '@lily/shared/errors/care-plan'
-import { Array, Effect, Filter, Option, Order, pipe, Record } from 'effect'
-import type * as SqlClient from 'effect/sql/SqlClient'
+import {
+  Array,
+  DateTime,
+  Effect,
+  Filter,
+  Option,
+  Order,
+  pipe,
+  Record,
+} from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 interface DatedCareStep {
@@ -51,21 +54,14 @@ export const scheduleTargetsFromSteps = (
 
 export const acceptCarePlan = ({
   plan,
-  plant,
 }: CarePlanContext): Effect.Effect<
   CarePlan,
   CarePlanNotProposedError | SqlError,
-  | CarePlanRepository
-  | CareScheduleRepository
-  | PlantRepository
-  | NotificationRepository
-  | UserRepository
-  | PlantAccessContext
-  | SqlClient.SqlClient
+  CarePlanRepository | Care
 > =>
   Effect.gen(function* () {
     const repo = yield* CarePlanRepository
-    const scheduleRepo = yield* CareScheduleRepository
+    const care = yield* Care
     if (plan.status !== 'proposed') {
       return yield* new CarePlanNotProposedError({
         planId: plan.id,
@@ -73,28 +69,17 @@ export const acceptCarePlan = ({
       })
     }
 
-    // Move each affected schedule's next date to the step's due date (either
-    // direction). Plants without a schedule of that type are left alone: the
-    // AI asked for a one-off action, not a recurring habit.
-    yield* Effect.forEach(
-      scheduleTargetsFromSteps(plan.steps),
-      ({ careType, dueDate }) =>
-        Effect.gen(function* () {
-          const schedule = yield* scheduleRepo.findByPlantAndType(
-            plan.plantId,
-            careType
-          )
-          if (!schedule) return
-          yield* scheduleRepo.updateByPlantAndType(plan.plantId, careType, {
-            nextCareAt: dueDate,
-          })
-          yield* reconcileCareReminder(
-            plant.id,
-            `${careType}_reminder` as const
-          )
-        }),
-      { discard: true }
-    )
+    yield* care.moveDueDays({
+      reason: 'carePlan',
+      moves: Array.map(
+        scheduleTargetsFromSteps(plan.steps),
+        ({ careType, dueDate }) => ({
+          plantId: plan.plantId,
+          careType,
+          move: DueMove.To({ instant: DateTime.makeUnsafe(dueDate) }),
+        })
+      ),
+    })
 
     const accepted = yield* repo.updateStatus(plan.id, plan.userId, {
       status: 'accepted',

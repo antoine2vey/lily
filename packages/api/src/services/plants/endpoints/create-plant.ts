@@ -1,13 +1,15 @@
+import { Care } from '@lily/api/contexts/care'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
+import { systemPermit } from '@lily/api/kernel/permit'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { requireMembership } from '@lily/api/services/canopy/helpers/membership'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import { frequencyChanges } from '@lily/api/services/plants/helpers/schedule-frequencies'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { RoomNotFoundError } from '@lily/shared'
 import {
@@ -17,7 +19,7 @@ import {
   type PlantOwner,
 } from '@lily/shared'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
-import { DateTime, Effect, Option, pipe } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -29,7 +31,7 @@ export const createPlant = (
   | PlantRepository
   | CanopyRepository
   | RoomRepository
-  | CareScheduleRepository
+  | Care
   | EventBus
   | CurrentUser
   | LimitChecker
@@ -37,7 +39,7 @@ export const createPlant = (
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const scheduleRepo = yield* CareScheduleRepository
+    const care = yield* Care
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
     const limitChecker = yield* LimitChecker
@@ -51,9 +53,6 @@ export const createPlant = (
             canopyId: (yield* requireMembership(userId)).canopyId,
           }
         : { _tag: 'User', userId }
-
-    // Set next care dates to now (due immediately)
-    const now = DateTime.toDateUtc(DateTime.nowUnsafe())
 
     const plantOrNull = yield* withOwnerLock(owner)(
       Effect.gen(function* () {
@@ -117,32 +116,18 @@ export const createPlant = (
 
     const plant = plantOrNull
 
-    // Create schedule rows for the new plant
-    yield* scheduleRepo.upsert(plant.id, 'watering', {
-      frequencyDays: request.wateringFrequencyDays,
-      nextCareAt: now,
-    })
-
-    if (request.fertilizationFrequencyDays) {
-      yield* scheduleRepo.upsert(plant.id, 'fertilization', {
-        frequencyDays: request.fertilizationFrequencyDays,
-        nextCareAt: now,
+    yield* care
+      .setSchedules({
+        permit: systemPermit(plant.id, 'edit', 'create-plant'),
+        frequencies: frequencyChanges({
+          wateringFrequencyDays: request.wateringFrequencyDays,
+          fertilizationFrequencyDays:
+            request.fertilizationFrequencyDays || undefined,
+          mistingFrequencyDays: request.mistingFrequencyDays || undefined,
+          repottingFrequencyDays: request.repottingFrequencyDays || undefined,
+        }),
       })
-    }
-
-    if (request.mistingFrequencyDays) {
-      yield* scheduleRepo.upsert(plant.id, 'misting', {
-        frequencyDays: request.mistingFrequencyDays,
-        nextCareAt: now,
-      })
-    }
-
-    if (request.repottingFrequencyDays) {
-      yield* scheduleRepo.upsert(plant.id, 'repotting', {
-        frequencyDays: request.repottingFrequencyDays,
-        nextCareAt: now,
-      })
-    }
+      .pipe(Effect.orDie)
 
     yield* publishWithRetry(
       eventBus.publish({ _tag: 'PlantCreated', userId, plantId: plant.id })

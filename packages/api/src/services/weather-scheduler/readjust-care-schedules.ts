@@ -1,10 +1,10 @@
+import { Care, DueMove } from '@lily/api/contexts/care'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
-import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import {
   calculateScheduleDelta,
   toIndoorPlantContext,
@@ -19,7 +19,6 @@ import {
 import {
   Array,
   DateTime,
-  Duration,
   Effect,
   Match,
   Option,
@@ -84,6 +83,7 @@ export const weatherLocationKey = (latitude: number, longitude: number) =>
   `${roundCoord(latitude)}_${roundCoord(longitude)}`
 
 type ReadjustContext =
+  | Care
   | PlantRepository
   | CareScheduleRepository
   | NotificationRepository
@@ -125,7 +125,6 @@ const readjustScopePlants = (
       listPlants: Effect.flatMap(PlantRepository, (plantRepo) =>
         plantRepo.findAll({
           userId,
-          timezone: scope.timezone,
           page: 1,
           limit: 1000,
         })
@@ -206,6 +205,7 @@ const readjustPlantSchedule = (
 ): Effect.Effect<void, SqlError, ReadjustContext> =>
   Effect.gen(function* () {
     const scheduleRepo = yield* CareScheduleRepository
+    const care = yield* Care
 
     // Fetch care schedules for this plant
     const schedules = yield* scheduleRepo.findByPlant(plant.id)
@@ -221,11 +221,7 @@ const readjustPlantSchedule = (
     )
 
     // Skip plants without a watering schedule or missing lastCareAt/nextCareAt
-    if (
-      !wateringSchedule ||
-      !wateringSchedule.lastCareAt ||
-      !wateringSchedule.nextCareAt
-    ) {
+    if (!wateringSchedule?.lastCareAt || !wateringSchedule.nextCareAt) {
       yield* Effect.log(
         `[Readjust] Skipping plant "${plant.name}" (${plant.id}) — no watering schedule or missing lastCareAt/nextCareAt`
       )
@@ -268,65 +264,30 @@ const readjustPlantSchedule = (
       `[Readjust] Delta for "${plant.name}": watering=${delta.wateringDaysDelta}d${delta.wateringReason ? ` (${delta.wateringReason})` : ''}, fertilization=${delta.fertilizationDaysDelta}d`
     )
 
-    const oneDayMs = Duration.toMillis(Duration.days(1))
-
-    // Compute schedule changes as immutable result
-    const newNextWateringAt = pipe(
-      Option.fromNullishOr(wateringSchedule.nextCareAt),
-      Option.filter(() => delta.wateringDaysDelta !== 0),
-      Option.map(
-        (wateringDate) =>
-          new Date(wateringDate.getTime() + delta.wateringDaysDelta * oneDayMs)
-      )
+    const moves = Array.filter(
+      [
+        { careType: 'watering' as const, days: delta.wateringDaysDelta },
+        {
+          careType: 'fertilization' as const,
+          days: delta.fertilizationDaysDelta,
+        },
+      ],
+      (move) => move.days !== 0
     )
-
-    const newNextFertilizationAt = pipe(
-      Option.fromNullishOr(fertSchedule),
-      Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
-      Option.filter(() => delta.fertilizationDaysDelta !== 0),
-      Option.map(
-        (fertDate) =>
-          new Date(fertDate.getTime() + delta.fertilizationDaysDelta * oneDayMs)
-      )
-    )
-
-    const wateringChanged = Option.isSome(newNextWateringAt)
-    const fertilizationChanged = Option.isSome(newNextFertilizationAt)
-
-    // Apply updates if anything changed
-    if (wateringChanged || fertilizationChanged) {
-      if (wateringChanged) {
-        yield* scheduleRepo.updateByPlantAndType(plant.id, 'watering', {
-          nextCareAt: newNextWateringAt.value,
-        })
-      }
-
-      if (fertilizationChanged) {
-        yield* scheduleRepo.updateByPlantAndType(plant.id, 'fertilization', {
-          nextCareAt: newNextFertilizationAt.value,
-        })
-      }
-
+    yield* care.moveDueDays({
+      reason: 'weather',
+      moves: Array.map(moves, ({ careType, days }) => ({
+        plantId: plant.id,
+        careType,
+        move: DueMove.By({ days }),
+      })),
+    })
+    if (Array.isReadonlyArrayNonEmpty(moves)) {
       yield* Effect.log(
-        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${String(wateringChanged)}${wateringChanged ? ` (${wateringSchedule.nextCareAt.toISOString()} → ${newNextWateringAt.value.toISOString()})` : ''}, fertilization=${String(fertilizationChanged)}${
-          fertilizationChanged
-            ? ` (${pipe(
-                Option.fromNullishOr(fertSchedule),
-                Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
-                Option.map((d) => d.toISOString()),
-                Option.getOrElse(() => 'none')
-              )} → ${newNextFertilizationAt.value.toISOString()})`
-            : ''
-        }`
+        `[Readjust] MOVED plant "${plant.name}" (${plant.id}): ${Array.join(
+          Array.map(moves, (move) => `${move.careType} by ${move.days}d`),
+          ', '
+        )}`
       )
-
-      // Reschedule notifications
-      if (wateringChanged) {
-        yield* reconcileCareReminder(plant.id, 'watering_reminder')
-      }
-
-      if (fertilizationChanged) {
-        yield* reconcileCareReminder(plant.id, 'fertilization_reminder')
-      }
     }
   })

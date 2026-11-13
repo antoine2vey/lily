@@ -620,54 +620,6 @@ describe('findCareTasks', () => {
   })
 
   describe('edge cases', () => {
-    it('should handle plant with null nextCareAt in schedule', async () => {
-      // A plant whose schedule has nextCareAt = null should be filtered out
-      const plants: TestPlant[] = [
-        {
-          id: 'plant-null-care',
-          name: 'Null Care Plant',
-          description: null,
-          imageUrl: null,
-          category: 'tropical',
-          dateAdded: new Date('2024-01-01'),
-          updatedAt: new Date('2024-01-01'),
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 0,
-          wateringRating: 3,
-          health: 'HEALTHY',
-          scheduleSpecs: [
-            wateringSpec({
-              frequencyDays: 7,
-              lastCareAt: null,
-              nextCareAt: null,
-            }),
-          ],
-          remindersEnabled: true,
-          isFavorite: false,
-          potWidthCm: null,
-          potHeightCm: null,
-          roomId: null,
-          diedAt: null,
-          deathCause: null,
-          deathNote: null,
-          userId: 'user-1',
-          canopyId: null,
-          createdByUserId: 'user-1',
-        },
-      ]
-
-      const result = await Effect.runPromise(
-        findCareTasks(false).pipe(
-          Effect.provide(createTestLayer('user-1', plants))
-        )
-      )
-
-      expect(result.overdue).toEqual([])
-      expect(result.today).toEqual([])
-      expect(result.upcoming).toEqual([])
-    })
-
     it('should handle multiple care types on same plant', async () => {
       // Both watering and fertilization due on the same day
       const yesterday = new Date(REFERENCE_DATE)
@@ -994,7 +946,7 @@ describe('findCareTasks', () => {
       }
     })
 
-    it('annotates a task by the user profile timezone, not UTC (the cross-midnight repro)', async () => {
+    it('annotates a task by the plant care timezone, not UTC (the cross-midnight repro)', async () => {
       // System time 2025-01-29T23:30:00Z. In Europe/Paris (UTC+1) that is already
       // 2025-01-30 00:30, so "today" in Paris is Jan 30.
       vi.setSystemTime(new Date('2025-01-29T23:30:00Z'))
@@ -1048,6 +1000,7 @@ describe('findCareTasks', () => {
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(parisPlants),
           plants: parisPlants,
+          timezones: { 'user-paris': 'Europe/Paris' },
         }),
         createMockCurrentUser({ id: 'user-paris' }),
         createMockUserRepository([...mockUsers, parisUser]),

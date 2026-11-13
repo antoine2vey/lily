@@ -1,6 +1,6 @@
 import { createTestMembership } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
-import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
@@ -43,7 +43,7 @@ const asPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
-  schedules: [],
+  ...noCare,
 })
 
 const deadCanopyPlant = () =>
@@ -64,7 +64,7 @@ const asCanopyPlantWithRoom = (plant: ReturnType<typeof createTestPlant>) => ({
   ownerName: null,
   canopy: { id: 'canopy-1' as CanopyId, name: 'Home' },
   createdBy: null,
-  schedules: [],
+  ...noCare,
 })
 
 const makeLayer = (options: {

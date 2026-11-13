@@ -3,23 +3,19 @@ import {
   createTestCarePlanStep,
 } from '@lily/api/__tests__/fixtures/care-plans'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
-import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { DueMove } from '@lily/api/contexts/care'
 import {
   acceptCarePlan,
   scheduleTargetsFromSteps,
 } from '@lily/api/services/care-plans/endpoints/accept-care-plan'
 import { withCarePlanAuth } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
-import { Effect, Exit, Layer } from 'effect'
+import { DateTime, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const userId = 'user-1'
@@ -28,11 +24,11 @@ const plantId = 'plant-1'
 const wateringDue = new Date('2024-02-01T00:00:00Z')
 const mistingDue = new Date('2024-02-03T00:00:00Z')
 
-const buildLayer = (
+const accept = (
   planOverrides: Parameters<typeof createTestCarePlan>[0] = {},
   currentUserId = userId
 ) => {
-  const plant = createTestPlant({ id: plantId, userId, remindersEnabled: true })
+  const plant = createTestPlant({ id: plantId, userId })
   const plan = createTestCarePlan({
     id: 'plan-1',
     plantId,
@@ -60,84 +56,65 @@ const buildLayer = (
       title: 'Check for new growth',
     }),
   ]
-  const wateringSchedule = {
-    id: 'schedule-water',
-    plantId,
-    careType: 'watering' as const,
-    frequencyDays: 7,
-    lastCareAt: new Date('2024-01-01'),
-    nextCareAt: new Date('2024-01-08'),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
-  const user = createTestUser({ id: userId, timezone: 'UTC' })
+  const care = createStubCare()
 
-  return Layer.mergeAll(
-    MockSqlClientLive,
-    createMockCarePlanRepository({
-      plans: [plan],
-      steps,
-      plants: [{ id: plantId, name: plant.name, imageUrl: null }],
-    }),
-    createMockCareScheduleRepository({
-      schedules: [wateringSchedule],
-      plants: [plant],
-    }),
-    createMockPlantRepository({
-      plants: [plant],
-      schedules: [wateringSchedule],
-    }),
-    createMockNotificationRepository([]),
-    createMockUserRepository([user]),
-    createMockDelegationRepository({}),
-    createMockCanopyRepository(),
-    createMockCurrentUser({ id: currentUserId })
-  )
+  return {
+    care,
+    effect: withCarePlanAuth('plan-1', 'manage').pipe(
+      Effect.flatMap(acceptCarePlan),
+      Effect.provide(
+        Layer.mergeAll(
+          care.layer,
+          createMockCarePlanRepository({
+            plans: [plan],
+            steps,
+            plants: [{ id: plantId, name: plant.name, imageUrl: null }],
+          }),
+          createMockPlantRepository({ plants: [plant] }),
+          createMockDelegationRepository({}),
+          createMockCanopyRepository(),
+          createMockCurrentUser({ id: currentUserId })
+        )
+      )
+    ),
+  }
 }
 
 describe('acceptCarePlan', () => {
   it('flips a proposed plan to accepted', async () => {
-    const result = await Effect.runPromise(
-      withCarePlanAuth('plan-1', 'manage')
-        .pipe(Effect.flatMap(acceptCarePlan))
-        .pipe(Effect.provide(buildLayer()))
-    )
+    const result = await Effect.runPromise(accept().effect)
     expect(result.status).toBe('accepted')
     expect(result.acceptedAt).toBeInstanceOf(Date)
     expect(result.steps).toHaveLength(3)
   })
 
-  it('moves an existing schedule to the dated care-typed step', async () => {
-    const schedule = await Effect.runPromise(
-      Effect.gen(function* () {
-        yield* withCarePlanAuth('plan-1', 'manage').pipe(
-          Effect.flatMap(acceptCarePlan)
-        )
-        const repo = yield* CareScheduleRepository
-        return yield* repo.findByPlantAndType(plantId, 'watering')
-      }).pipe(Effect.provide(buildLayer()))
-    )
-    expect(schedule?.nextCareAt?.toISOString()).toBe(wateringDue.toISOString())
-  })
+  it('moves the due day of each dated care-typed step to its date', async () => {
+    const { care, effect } = accept()
 
-  it('does not create a schedule for a care type the plant does not track', async () => {
-    const schedule = await Effect.runPromise(
-      Effect.gen(function* () {
-        yield* withCarePlanAuth('plan-1', 'manage').pipe(
-          Effect.flatMap(acceptCarePlan)
-        )
-        const repo = yield* CareScheduleRepository
-        return yield* repo.findByPlantAndType(plantId, 'misting')
-      }).pipe(Effect.provide(buildLayer()))
-    )
-    expect(schedule).toBeNull()
+    await Effect.runPromise(effect)
+
+    expect(care.moved).toEqual([
+      {
+        reason: 'carePlan',
+        moves: [
+          {
+            plantId,
+            careType: 'watering',
+            move: DueMove.To({ instant: DateTime.makeUnsafe(wateringDue) }),
+          },
+          {
+            plantId,
+            careType: 'misting',
+            move: DueMove.To({ instant: DateTime.makeUnsafe(mistingDue) }),
+          },
+        ],
+      },
+    ])
   })
 
   it('rejects a plan that is not proposed', async () => {
     const exit = await Effect.runPromiseExit(
-      withCarePlanAuth('plan-1', 'manage')
-        .pipe(Effect.flatMap(acceptCarePlan))
-        .pipe(Effect.provide(buildLayer({ status: 'accepted' })))
+      accept({ status: 'accepted' }).effect
     )
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
@@ -146,11 +123,7 @@ describe('acceptCarePlan', () => {
   })
 
   it('is invisible to another user', async () => {
-    const exit = await Effect.runPromiseExit(
-      withCarePlanAuth('plan-1', 'manage')
-        .pipe(Effect.flatMap(acceptCarePlan))
-        .pipe(Effect.provide(buildLayer({}, 'user-2')))
-    )
+    const exit = await Effect.runPromiseExit(accept({}, 'user-2').effect)
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
       expect(String(exit.cause)).toContain('CarePlanNotFoundError')

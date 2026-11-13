@@ -1,3 +1,4 @@
+import type { Care } from '@lily/api/contexts/care'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
@@ -70,6 +71,7 @@ export const cancelVacation = (): Effect.Effect<
   VacationState,
   SqlError | VacationNotFoundError | UserNotFoundError,
   | UserRepository
+  | Care
   | CareScheduleRepository
   | DelegationRepository
   | NotificationRepository

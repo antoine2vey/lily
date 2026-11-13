@@ -1,5 +1,11 @@
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import {
+  CareReads,
+  CareReadsLive,
+  DueScope,
+  DueWindow,
+} from '@lily/api/contexts/care'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import {
   CanopyRepository,
@@ -12,7 +18,7 @@ import {
 import {
   CareScheduleRepository,
   CareScheduleRepositoryLive,
-  type OverdueRecipientPlant,
+  type ReminderAudiencePlant,
 } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
@@ -52,6 +58,7 @@ const { Pool } = pg
 
 const RepositoriesLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
+  CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
   CareLogRepositoryLive
@@ -62,6 +69,7 @@ const run = <A, E>(
     A,
     E,
     | CareScheduleRepository
+    | CareReads
     | CanopyRepository
     | NotificationRepository
     | CareLogRepository
@@ -70,6 +78,7 @@ const run = <A, E>(
 
 const WorkerLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
+  CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
   CareLogRepositoryLive,
@@ -179,15 +188,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('addresses an overdue Canopy plant to each unmuted member with the Canopy as owner', async () => {
+      const everyPlant = await db
+        .select({ id: schema.plants.id })
+        .from(schema.plants)
       const grouped = await run(
         Effect.flatMap(CareScheduleRepository, (repo) =>
-          repo.findOverdueByUser()
+          repo.findReminderAudience(Arr.map(everyPlant, (p) => p.id))
         )
       )
       const plantsOf = (id: string) =>
         pipe(
           Record.get(grouped, id),
-          Option.getOrElse((): ReadonlyArray<OverdueRecipientPlant> => [])
+          Option.getOrElse((): ReadonlyArray<ReminderAudiencePlant> => [])
         )
       const forUser = (id: string) =>
         pipe(
@@ -217,33 +229,31 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(canopyOwner).toEqual({ _tag: 'Canopy', canopyId })
     })
 
-    it('lists unmuted Canopy plants in the member care tasks only when asked', async () => {
-      const cutoff = new Date(Date.now() + 86_400_000)
-      const [without, withCanopy] = await run(
-        Effect.flatMap(CareScheduleRepository, (repo) =>
-          Effect.all([
-            repo.findPendingByUser(lily, cutoff, null),
-            repo.findPendingByUser(lily, cutoff, canopyId),
-          ])
+    const dueFor = (userId: string, memberOf: string | null) =>
+      run(
+        Effect.flatMap(CareReads, (reads) =>
+          reads.due({
+            scope: DueScope.CaredForBy({ userId, canopyId: memberOf }),
+            upTo: DueWindow.Ahead({ days: 1 }),
+          })
         )
       )
+
+    it('lists unmuted Canopy plants in the member care tasks only when asked', async () => {
+      const without = await dueFor(lily, null)
+      const withCanopy = await dueFor(lily, canopyId)
       expect(without).toEqual([])
-      expect(Arr.map(withCanopy, (s) => s.plant.id)).toEqual([shared])
+      expect(Arr.map(withCanopy, (care) => care.plant.id)).toEqual([shared])
     })
 
-    it('names the sharer of a Canopy plant in findPendingByUser, and nobody for a personal plant', async () => {
-      const cutoff = new Date(Date.now() + 86_400_000)
-      const rows = await run(
-        Effect.flatMap(CareScheduleRepository, (repo) =>
-          repo.findPendingByUser(alex, cutoff, canopyId)
-        )
-      )
+    it('names the sharer of a Canopy plant in due cares, and nobody for a personal plant', async () => {
+      const cares = await dueFor(alex, canopyId)
       const sharerOf = (id: string) =>
         pipe(
-          rows,
-          Arr.findFirst((s) => s.plant.id === id),
-          Option.flatMap((s) => Option.fromNullishOr(s.plant.sharedBy)),
-          Option.map((s) => s.id),
+          cares,
+          Arr.findFirst((care) => care.plant.id === id),
+          Option.flatMap((care) => Option.fromNullishOr(care.plant.sharedBy)),
+          Option.map((sharer) => sharer.id),
           Option.getOrNull
         )
       expect(sharerOf(shared)).toBe(alex)

@@ -1,3 +1,9 @@
+import { delivered } from '@lily/api/__tests__/integration/care-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
@@ -187,9 +193,14 @@ const VacationServicesLive = Layer.mergeAll(
   PlantRepositoryLive,
   UserRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   CanopyRepositoryLive,
-  NotificationRepositoryLive
+  NotificationRepositoryLive,
+  createMockEventBus(),
+  createMockWeatherProvider(),
+  createMockWeatherCache(),
+  createMockWeatherRepository()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
@@ -252,6 +263,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const resetDb = async () => {
       for (const table of [
+        'outbox',
         'notifications',
         'care_delegations',
         'plant_care_schedules',
@@ -300,7 +312,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .values({ delegationId: delegation.id, plantId: fern })
 
       await Effect.runPromise(
-        endVacation({ user: ann, effectiveEnd: new Date() }).pipe(
+        delivered(endVacation({ user: ann, effectiveEnd: new Date() })).pipe(
           Effect.provide(VacationServicesLive)
         )
       )

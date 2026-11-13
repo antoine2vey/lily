@@ -21,7 +21,9 @@
  */
 
 import { BunServices } from '@effect/platform-bun'
+import { CareLive, CareReadsLive } from '@lily/api/contexts/care'
 import { RedisEventBusLive } from '@lily/api/events'
+import { AppOutboxLive } from '@lily/api/layers/outbox'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { AnalyticsRepositoryLive } from '@lily/api/repositories/analytics.repository'
@@ -150,7 +152,8 @@ const RepositoriesGroup2 = Layer.mergeAll(
   ScanRepositoryLive,
   SubscriptionRepositoryLive,
   UserRepositoryLive,
-  WeatherRepositoryLive
+  WeatherRepositoryLive,
+  CareReadsLive
 )
 
 export const AllRepositoriesLive = Layer.mergeAll(
@@ -287,7 +290,10 @@ const AllInfrastructureLive = Layer.mergeAll(
 // Requires: PgDrizzle (from SharedLive = DrizzleLive + PgLive)
 // ============================================================================
 
-export const AppLive = AllInfrastructureLive.pipe(
+const ContextsLive = CareLive.pipe(Layer.provideMerge(AppOutboxLive))
+
+export const AppLive = ContextsLive.pipe(
+  Layer.provideMerge(AllInfrastructureLive),
   Layer.provideMerge(AllRepositoriesLive),
   Layer.provideMerge(KnowledgeDrizzleLive)
 )

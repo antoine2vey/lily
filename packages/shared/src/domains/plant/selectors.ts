@@ -1,4 +1,4 @@
-import { Array, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe } from 'effect'
 import type { CareType } from '../care/types'
 import type { PlantCareSchedule } from './schema'
 
@@ -53,3 +53,24 @@ export const getFrequencyDays = (
   schedules: readonly PlantCareSchedule[],
   careType: CareType
 ): number | null => getScheduleField(schedules, careType, 'frequencyDays')
+
+/**
+ * Days until a care is due on the plant's own care day, as the API decided
+ * it: negative when overdue, 0 when due today, null when unscheduled.
+ */
+export const getDaysUntilCare = (
+  schedules: readonly PlantCareSchedule[],
+  careType: CareType
+): number | null =>
+  pipe(
+    getScheduleByType(schedules, careType),
+    Option.flatMap((schedule) => Option.fromNullishOr(schedule.status)),
+    Option.map((status) =>
+      Match.valueTags(status, {
+        Overdue: ({ daysLate }) => -daysLate,
+        DueToday: () => 0,
+        Upcoming: ({ inDays }) => inDays,
+      })
+    ),
+    Option.getOrNull
+  )

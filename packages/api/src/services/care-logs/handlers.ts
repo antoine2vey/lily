@@ -6,7 +6,10 @@ import { getCareLogs } from '@lily/api/services/care-logs/endpoints/get-care-log
 import { getRecentActivities } from '@lily/api/services/care-logs/endpoints/get-recent-activities'
 import { updateCareLog } from '@lily/api/services/care-logs/endpoints/update-care-log'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import {
+  withPlantAuth,
+  withPlantPermit,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
@@ -36,8 +39,8 @@ export const CareLogsApiLive = (api: Api) =>
         )
       )
       .handle('createCareLog', ({ params: { plantId }, payload }) =>
-        withPlantAuth(plantId, 'care').pipe(
-          Effect.flatMap((plant) => createCareLog(plant, payload)),
+        withPlantPermit(plantId, 'care').pipe(
+          Effect.flatMap((permit) => createCareLog(permit, payload)),
           withInfraErrorsAsDefect
         )
       )
@@ -48,14 +51,14 @@ export const CareLogsApiLive = (api: Api) =>
         )
       )
       .handle('updateCareLog', ({ params: { plantId, logId }, payload }) =>
-        withPlantAuth(plantId, 'care').pipe(
-          Effect.andThen(updateCareLog(plantId, logId, payload)),
+        withPlantPermit(plantId, 'care').pipe(
+          Effect.flatMap((permit) => updateCareLog(permit, logId, payload)),
           withInfraErrorsAsDefect
         )
       )
       .handle('deleteCareLog', ({ params: { plantId, logId } }) =>
-        withPlantAuth(plantId, 'care').pipe(
-          Effect.andThen(deleteCareLog(plantId, logId)),
+        withPlantPermit(plantId, 'care').pipe(
+          Effect.flatMap((permit) => deleteCareLog(permit, logId)),
           withInfraErrorsAsDefect
         )
       )

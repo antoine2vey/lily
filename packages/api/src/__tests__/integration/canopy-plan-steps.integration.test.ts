@@ -1,9 +1,11 @@
+import { CareOnPostgresLive } from '@lily/api/__tests__/integration/care-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
@@ -29,6 +31,7 @@ const RepositoriesLive = Layer.mergeAll(
   CareLogRepositoryLive,
   CarePlanRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
@@ -128,13 +131,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('credits the member who ticked and moves the shared schedule', async () => {
-      const layer = Layer.mergeAll(
-        RepositoriesLive,
-        createMockEventBus(),
-        createMockCurrentUser({ id: lilyId }),
-        createMockWeatherProvider(),
-        createMockWeatherCache(),
-        createMockWeatherRepository()
+      const layer = CareOnPostgresLive.pipe(
+        Layer.provideMerge(
+          Layer.mergeAll(
+            RepositoriesLive,
+            createMockEventBus(),
+            createMockCurrentUser({ id: lilyId }),
+            createMockWeatherProvider(),
+            createMockWeatherCache(),
+            createMockWeatherRepository()
+          )
+        )
       )
 
       const plan = await Effect.runPromise(

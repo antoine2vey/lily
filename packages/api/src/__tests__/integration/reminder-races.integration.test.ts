@@ -1,3 +1,7 @@
+import {
+  delivered,
+  waterAsCurrentUser,
+} from '@lily/api/__tests__/integration/care-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -8,6 +12,11 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import {
+  CareReads,
+  CareReadsLive,
+  type DueQuery,
+} from '@lily/api/contexts/care'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -47,7 +56,6 @@ import {
 } from '@lily/api/services/plants/endpoints/mute-plant'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
-import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
@@ -80,6 +88,7 @@ const BaseLive = Layer.mergeAll(
   PlantRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   NotificationRepositoryLive,
   UserRepositoryLive,
   CarePlanRepositoryLive,
@@ -120,7 +129,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const as = <A, E, R>(userId: string, effect: Effect.Effect<A, E, R>) =>
       runtime.runPromiseExit(
-        effect.pipe(
+        delivered(effect).pipe(
           Effect.provide(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId, name: userId }),
@@ -258,6 +267,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           plantId: row.id,
           careType: 'watering',
           frequencyDays: 7,
+          nextCareAt: new Date(),
         })
       }
     })
@@ -327,16 +337,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 unsharePlant(plant, {})
               )
             ),
-            as(
-              lily,
-              Effect.flatMap(plantNamed(target), (plant) =>
-                executePlantCare(plant, {
-                  plantId: target,
-                  careType: 'watering',
-                  date: new Date(Date.now() - day),
-                })
-              )
-            ),
+            as(lily, waterAsCurrentUser(target, new Date(Date.now() - day))),
             as(
               lily,
               careMultiplePlants({ plantIds: plants, careType: 'watering' })
@@ -388,15 +389,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const target = plants[round % plants.length] as string
         await Promise.all([
           as(sam, acceptCanopyInvite(token)),
-          as(
-            lily,
-            Effect.flatMap(plantNamed(target), (plant) =>
-              executePlantCare(plant, {
-                plantId: target,
-                careType: 'watering',
-              })
-            )
-          ),
+          as(lily, waterAsCurrentUser(target)),
         ])
         const [schedule] = await db
           .select({ next: schema.plantCareSchedules.nextCareAt })
@@ -425,6 +418,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(sql`UPDATE plants SET name = 'Fern' WHERE id = ${mine}`)
       await db.execute(
         sql`UPDATE plants SET name = 'Gone Cactus' WHERE id = ${other}`
+      )
+      await db.execute(
+        sql`UPDATE plant_care_schedules SET next_care_at = now() WHERE plant_id IN (${mine}, ${other})`
       )
       await db
         .insert(schema.deviceTokens)
@@ -522,16 +518,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 careType: 'watering',
               })
             ),
-            as(
-              alex,
-              Effect.flatMap(plantNamed(plants[k] as string), (plant) =>
-                executePlantCare(plant, {
-                  plantId: plant.id,
-                  careType: 'watering',
-                  date: backDated(k),
-                })
-              )
-            ),
+            as(alex, waterAsCurrentUser(plants[k] as string, backDated(k))),
           ])
         )
         const exits: ReadonlyArray<Exit.Exit<unknown, unknown>> =
@@ -573,26 +560,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 careType: 'watering',
               })
             ),
-            as(
-              alex,
-              Effect.flatMap(plantNamed(p4), (plant) =>
-                executePlantCare(plant, {
-                  plantId: p4,
-                  careType: 'watering',
-                  date: backDated(4),
-                })
-              )
-            ),
-            as(
-              lily,
-              Effect.flatMap(plantNamed(p3), (plant) =>
-                executePlantCare(plant, {
-                  plantId: p3,
-                  careType: 'watering',
-                  date: backDated(1),
-                })
-              )
-            ),
+            as(alex, waterAsCurrentUser(p4, backDated(4))),
+            as(lily, waterAsCurrentUser(p3, backDated(1))),
           ])
         expect(exits).toHaveLength(20)
         Arr.forEach(exits, (exit, i) => {
@@ -773,19 +742,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         NotificationRepository,
         Effect.map(NotificationRepository, (repo) => ({
           ...repo,
-          lockReminderKeys: (keys, updatingUserId) =>
-            repo.lockReminderKeys(keys, updatingUserId).pipe(
-              Effect.andThen(
-                Effect.promise(() =>
-                  db.insert(schema.notifications).values({
-                    type: 'overdue_reminder',
-                    scheduledAt: new Date(),
-                    userId,
-                    plantId,
-                    status: 'pending',
-                  })
+          deletePendingByPlantsAndType: (plantIds, type) =>
+            Effect.promise(() =>
+              db.insert(schema.notifications).values({
+                type: 'overdue_reminder',
+                scheduledAt: new Date(),
+                userId,
+                plantId,
+                status: 'pending',
+              })
+            ).pipe(
+              Effect.when(
+                Effect.succeed(
+                  type === 'overdue_reminder' && Arr.contains(plantIds, plantId)
                 )
-              )
+              ),
+              Effect.andThen(repo.deletePendingByPlantsAndType(plantIds, type))
             ),
         }))
       )
@@ -866,10 +838,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         const care = as(
           owner,
-          careMultiplePlants({
-            plantIds: [first, second],
-            careType: 'watering',
-          }).pipe(Effect.provide(PausedAfterFirstReplace))
+          delivered(
+            careMultiplePlants({
+              plantIds: [first, second],
+              careType: 'watering',
+            })
+          ).pipe(Effect.provide(PausedAfterFirstReplace))
         )
         await Effect.runPromise(Deferred.await(reached))
         const vacation = startVacation(caretaker)
@@ -941,10 +915,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         const care = as(
           owner,
-          careMultiplePlants({
-            plantIds: [unscheduled, scheduled],
-            careType: 'watering',
-          }).pipe(
+          delivered(
+            careMultiplePlants({
+              plantIds: [unscheduled, scheduled],
+              careType: 'watering',
+            })
+          ).pipe(
             Effect.provide(
               Layer.mergeAll(OverdueLandsAfterKeys, PausedBeforeCaretakerLock)
             )
@@ -984,9 +960,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const release = Deferred.makeUnsafe<void>()
         const care = as(
           owner,
-          Effect.flatMap(plantNamed(plantId), (plant) =>
-            executePlantCare(plant, { plantId, careType: 'watering' })
-          ).pipe(
+          delivered(waterAsCurrentUser(plantId)).pipe(
             Effect.provide(
               Layer.mergeAll(
                 overdueLandsAfterKeys(owner, plantId),
@@ -1035,9 +1009,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         const care = as(
           owner,
-          Effect.flatMap(plantNamed(plantId), (plant) =>
-            executePlantCare(plant, { plantId, careType: 'watering' })
-          ).pipe(Effect.provide(pausedBeforeLocking(owner, reached, release)))
+          delivered(waterAsCurrentUser(plantId)).pipe(
+            Effect.provide(pausedBeforeLocking(owner, reached, release))
+          )
         )
         await Effect.runPromise(Deferred.await(reached))
         const vacation = startVacation(owner)
@@ -1083,9 +1057,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         const single = as(
           owner,
-          Effect.flatMap(plantNamed(plantId), (plant) =>
-            executePlantCare(plant, { plantId, careType: 'watering' })
-          ).pipe(Effect.provide(PausedBeforeKeys))
+          delivered(waterAsCurrentUser(plantId)).pipe(
+            Effect.provide(PausedBeforeKeys)
+          )
         )
         await Effect.runPromise(Deferred.await(reached))
         const bulk = as(
@@ -1132,9 +1106,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const careAs = (paused: boolean) =>
           as(
             owner,
-            Effect.flatMap(plantNamed(plantId), (plant) =>
-              executePlantCare(plant, { plantId, careType: 'watering' })
-            ).pipe(paused ? Effect.provide(PausedBeforeKeys) : (e) => e)
+            delivered(waterAsCurrentUser(plantId)).pipe(
+              paused ? Effect.provide(PausedBeforeKeys) : (e) => e
+            )
           )
         const first = careAs(true)
         await Effect.runPromise(Deferred.await(reached))
@@ -1634,6 +1608,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             plantId: row.id,
             careType: 'watering',
             frequencyDays: 7,
+            nextCareAt: new Date(),
           })
         }
         const [delegation] = await db
@@ -1691,8 +1666,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 CareScheduleRepository,
                 Effect.map(CareScheduleRepository, (repo) => ({
                   ...repo,
-                  findOverdueByUser: () =>
-                    Effect.tap(repo.findOverdueByUser(), () =>
+                  findReminderAudience: (plantIds: ReadonlyArray<string>) =>
+                    Effect.tap(repo.findReminderAudience(plantIds), () =>
                       Effect.promise(careLands)
                     ),
                 }))
@@ -1718,16 +1693,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         let careExit: Exit.Exit<unknown, unknown> | undefined
         const exit = await runOverdue(async () => {
-          careExit = await as(
-            alex,
-            Effect.flatMap(plantNamed(cared), (plant) =>
-              executePlantCare(plant, {
-                plantId: cared,
-                careType: 'watering',
-                date: new Date(),
-              })
-            )
-          )
+          careExit = await as(alex, waterAsCurrentUser(cared, new Date()))
         })
 
         expect(careExit && Exit.isSuccess(careExit)).toBe(true)
@@ -1770,22 +1736,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           checkAndCreateOverdueReminders.pipe(
             Effect.provide(
               Layer.effect(
-                CareScheduleRepository,
-                Effect.map(CareScheduleRepository, (repo) => ({
-                  ...repo,
-                  findOverduePlantIds: (plantIds: ReadonlyArray<string>) =>
-                    Effect.tap(repo.findOverduePlantIds(plantIds), () =>
+                CareReads,
+                Effect.map(CareReads, (reads) => ({
+                  due: (query: DueQuery) =>
+                    Effect.tap(reads.due(query), () =>
                       Effect.promise(async () => {
-                        care = as(
-                          alex,
-                          Effect.flatMap(plantNamed(cared), (plant) =>
-                            executePlantCare(plant, {
-                              plantId: cared,
-                              careType: 'watering',
-                              date: new Date(),
-                            })
-                          )
-                        )
+                        if (query.scope._tag !== 'Plants') return
+                        care = as(alex, waterAsCurrentUser(cared, new Date()))
                         await Promise.race([
                           care,
                           new Promise((resolve) => setTimeout(resolve, 1500)),

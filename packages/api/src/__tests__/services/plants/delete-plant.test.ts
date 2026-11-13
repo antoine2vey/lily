@@ -1,4 +1,4 @@
-import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
@@ -15,7 +15,7 @@ const asPlantWithRoom = (
   room: null,
   ownership: 'owned',
   ownerName: null,
-  schedules: [],
+  ...noCare,
 })
 
 describe('deletePlant', () => {

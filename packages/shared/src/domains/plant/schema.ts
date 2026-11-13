@@ -1,5 +1,7 @@
 import { Effect, Schema } from 'effect'
 import { CanopyRef } from '../canopy/schema'
+import { CareDay } from '../care/care-day'
+import { CareStatus } from '../care/status'
 import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
@@ -60,6 +62,9 @@ export const PlantCareSchedule = Schema.Struct({
   frequencyDays: Schema.Number,
   lastCareAt: Schema.NullOr(Schema.DateFromString),
   nextCareAt: Schema.NullOr(Schema.DateFromString),
+  /** Due day and status on the plant's own care day. Null when unscheduled. */
+  dueDay: Schema.NullOr(CareDay),
+  status: Schema.NullOr(CareStatus),
 })
 
 export type PlantCareSchedule = typeof PlantCareSchedule.Type
@@ -114,6 +119,9 @@ const plantFields = {
   canopy: Schema.optionalKey(CanopyRef),
   createdBy: Schema.optionalKey(Schema.NullOr(PlantCreator)),
   schedules: Schema.Array(PlantCareSchedule),
+  /** Timezone of the plant's care context, and its current care day. */
+  careTimezone: Schema.String,
+  today: CareDay,
 }
 
 export const Plant = Schema.Struct(plantFields).check(

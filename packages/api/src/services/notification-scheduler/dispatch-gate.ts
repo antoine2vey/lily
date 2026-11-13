@@ -1,4 +1,4 @@
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import { CareReads, DueScope, DueWindow } from '@lily/api/contexts/care'
 import type { NotificationRow } from '@lily/api/repositories/notification.repository'
 import {
   adjustForDoNotDisturb,
@@ -7,11 +7,18 @@ import {
 } from '@lily/api/services/notifications/timezone-scheduler'
 import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import type { users } from '@lily/db/schema'
-import { isOnVacation, type PlantOwner } from '@lily/shared'
+import {
+  CARE_TYPES,
+  type CareType,
+  isOnVacation,
+  type PlantOwner,
+} from '@lily/shared'
 import { TOPIC_CATEGORY } from '@lily/shared/server'
-import { Array, Data, DateTime, Effect, Filter, Option, pipe } from 'effect'
+import { Array, Data, DateTime, Effect, Option, pipe } from 'effect'
 
 const MIN_DEFERRAL = '5 minutes'
+
+const DAYS_A_RECIPIENT_CAN_BE_AHEAD = 1
 
 export type GateRow = Pick<
   NotificationRow,
@@ -49,7 +56,8 @@ export type GateRecipient = Pick<
 export interface PlantFacts {
   readonly diedAt: Date | null
   readonly recipients: ReadonlyArray<string>
-  readonly nextCareAt: ReadonlyArray<Date>
+  readonly hasOverdueCare: boolean
+  readonly nearlyDue: ReadonlyArray<CareType>
 }
 
 export type DropReason =
@@ -59,6 +67,7 @@ export type DropReason =
   | 'plant-gone'
   | 'not-recipient'
   | 'no-longer-overdue'
+  | 'no-longer-due'
   | 'care-reminders-off'
   | 'tips-off'
 
@@ -79,6 +88,7 @@ export const DROP_MESSAGE: Record<DropReason, string> = {
   'plant-gone': 'Dropping notification - plant dead or missing',
   'not-recipient': 'Dropping care reminder - user no longer the recipient',
   'no-longer-overdue': 'Dropping overdue reminder - plant no longer overdue',
+  'no-longer-due': 'Dropping care reminder - care no longer due',
   'care-reminders-off': 'Dropping care reminder - user disabled',
   'tips-off': 'Dropping engagement notification - user disabled tips',
 }
@@ -88,10 +98,12 @@ export const DEFER_MESSAGE: Record<DeferReason, string> = {
   dnd: 'Deferring notification - user in DND',
 }
 
+const remindedCare = (type: GateRow['type']): Option.Option<CareType> =>
+  Array.findFirst(CARE_TYPES, (careType) => `${careType}_reminder` === type)
+
 const plantRule = (
   row: GateRow,
-  plants: ReadonlyMap<string, PlantFacts>,
-  now: Date
+  plants: ReadonlyMap<string, PlantFacts>
 ): Option.Option<DropReason> =>
   Option.flatMap(Option.fromNullishOr(row.plantId), (plantId) =>
     pipe(
@@ -106,11 +118,16 @@ const plantRule = (
           ) {
             return Option.some<DropReason>('not-recipient')
           }
-          if (
-            row.type === 'overdue_reminder' &&
-            !Array.some(plant.nextCareAt, (at) => at <= now)
-          ) {
+          if (row.type === 'overdue_reminder' && !plant.hasOverdueCare) {
             return Option.some<DropReason>('no-longer-overdue')
+          }
+          if (
+            Option.exists(
+              remindedCare(row.type),
+              (careType) => !Array.contains(plant.nearlyDue, careType)
+            )
+          ) {
+            return Option.some<DropReason>('no-longer-due')
           }
           return Option.none()
         },
@@ -170,7 +187,7 @@ export const decide = (
   plants: ReadonlyMap<string, PlantFacts>,
   now: Date
 ): Decision => {
-  const dropped = Option.orElse(plantRule(row, plants, now), () =>
+  const dropped = Option.orElse(plantRule(row, plants), () =>
     Option.flatMap(recipient, (user) => preferenceRule(row, user))
   )
   if (Option.isSome(dropped)) return Decision.Drop({ reason: dropped.value })
@@ -233,9 +250,14 @@ export const loadPlantFacts = (
     if (Array.isReadonlyArrayEmpty(plants)) {
       return new Map<string, PlantFacts>()
     }
-    const schedules = yield* Effect.flatMap(CareScheduleRepository, (repo) =>
-      repo.findByPlantIds(Array.map(plants, (p) => p.id))
+    const due = yield* Effect.flatMap(CareReads, (reads) =>
+      reads.due({
+        scope: DueScope.Plants({ plantIds: Array.map(plants, (p) => p.id) }),
+        upTo: DueWindow.Ahead({ days: DAYS_A_RECIPIENT_CAN_BE_AHEAD }),
+      })
     )
+    const dueOf = (plantId: string) =>
+      Array.filter(due, (care) => care.plant.id === plantId)
     const facts = yield* Effect.forEach(
       plants,
       (plant) =>
@@ -254,14 +276,11 @@ export const loadPlantFacts = (
               {
                 diedAt: plant.diedAt,
                 recipients,
-                nextCareAt: Array.filterMap(
-                  schedules,
-                  Filter.fromPredicateOption((s) =>
-                    s.plantId === plant.id
-                      ? Option.fromNullishOr(s.nextCareAt)
-                      : Option.none()
-                  )
+                hasOverdueCare: Array.some(
+                  dueOf(plant.id),
+                  (care) => care.status._tag === 'Overdue'
                 ),
+                nearlyDue: Array.map(dueOf(plant.id), (care) => care.careType),
               },
             ] as const
         ),

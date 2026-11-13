@@ -1,5 +1,6 @@
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import {
   CanopyRepository,
   CanopyRepositoryLive,
@@ -24,6 +25,7 @@ const { Pool } = pg
 const AppLive = Layer.mergeAll(
   CanopyRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,

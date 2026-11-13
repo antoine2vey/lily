@@ -1,4 +1,16 @@
+import { CareDay, dueDayAndStatus } from '@lily/shared'
 import type { Plant, PlantCareSchedule, PlantPhoto } from '@lily/shared/plant'
+import { DateTime } from 'effect'
+
+/** The plant-level care fields of an API plant. */
+export const careToday = {
+  careTimezone: 'UTC',
+  today: CareDay.make('2024-01-15'),
+}
+
+// Status as the API reports it, decided on a UTC care day.
+const seen = (dueAt: Date | null) =>
+  dueDayAndStatus(dueAt, 'UTC', DateTime.nowUnsafe())
 
 export type PlantRecord = Plant
 
@@ -16,6 +28,7 @@ export const makeSchedules = (opts: {
       frequencyDays: opts.wateringFrequencyDays,
       lastCareAt: opts.lastWateredAt,
       nextCareAt: opts.nextWateringAt,
+      ...seen(opts.nextWateringAt),
     },
   ]
   if (opts.fertilizationFrequencyDays !== null) {
@@ -24,6 +37,7 @@ export const makeSchedules = (opts: {
       frequencyDays: opts.fertilizationFrequencyDays,
       lastCareAt: opts.lastFertilizedAt,
       nextCareAt: opts.nextFertilizationAt,
+      ...seen(opts.nextFertilizationAt),
     })
   }
   return schedules
@@ -55,6 +69,7 @@ export const mockPlants: PlantRecord[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 7,
       lastWateredAt: new Date('2024-01-10'),
@@ -89,6 +104,7 @@ export const mockPlants: PlantRecord[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 14,
       lastWateredAt: null,
@@ -123,6 +139,7 @@ export const mockPlants: PlantRecord[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 10,
       lastWateredAt: new Date('2024-01-01'),
@@ -176,6 +193,7 @@ export const createTestPlant = (
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
+  ...careToday,
   schedules: makeSchedules({
     wateringFrequencyDays: 7,
     lastWateredAt: null,

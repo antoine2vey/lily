@@ -63,11 +63,11 @@ export const drainOnInterrupt =
  *
  * Usage:
  * ```typescript
- * export const startHealthScheduler = createScheduler({
- *   name: 'health-scheduler',
+ * export const startRecapScheduler = createScheduler({
+ *   name: 'recap-scheduler',
  *   interval: '1 hour',
  *   runOnStartup: true,
- *   task: checkOverduePlants,
+ *   task: sendRecaps,
  * })
  * ```
  *

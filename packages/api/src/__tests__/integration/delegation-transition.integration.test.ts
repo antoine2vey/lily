@@ -1,5 +1,6 @@
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import {
@@ -180,6 +181,7 @@ const RebuildAlwaysFails = rebuildFailsWhen(() => true)
 const ReminderServicesLive = Layer.mergeAll(
   PlantRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   NotificationRepositoryLive,
   UserRepositoryLive,
   CanopyRepositoryLive,

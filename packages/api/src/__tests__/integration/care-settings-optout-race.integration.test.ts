@@ -1,4 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import {
+  delivered,
+  waterAsCurrentUser,
+} from '@lily/api/__tests__/integration/care-layers'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -9,6 +13,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -20,14 +25,10 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
-import {
-  PlantRepository,
-  PlantRepositoryLive,
-} from '@lily/api/repositories/plant.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
-import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -53,6 +54,7 @@ const BaseLive = Layer.mergeAll(
   PlantRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   NotificationRepositoryLive,
   UserRepositoryLive,
   CarePlanRepositoryLive,
@@ -84,7 +86,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const as = <A, E, R>(userId: string, effect: Effect.Effect<A, E, R>) =>
       runtime.runPromiseExit(
-        effect.pipe(
+        delivered(effect).pipe(
           Effect.provide(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId, name: userId }),
@@ -244,14 +246,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }))
       )
 
-    const careOne = (plantId: string) =>
-      Effect.gen(function* () {
-        const plants = yield* PlantRepository
-        const plant = yield* plants.findById(plantId)
-        if (plant === null) return yield* Effect.die(`no plant ${plantId}`)
-        return yield* executePlantCare(plant, { plantId, careType: 'watering' })
-      })
-
     beforeAll(async () => {
       pool = new pg.Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
@@ -290,12 +284,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const care: Promise<Exit.Exit<unknown, unknown>> = bulk
           ? as(
               owner,
-              careMultiplePlants({
-                plantIds: [plantId],
-                careType: 'watering',
-              }).pipe(Effect.provide(paused))
+              delivered(
+                careMultiplePlants({
+                  plantIds: [plantId],
+                  careType: 'watering',
+                })
+              ).pipe(Effect.provide(paused))
             )
-          : as(owner, careOne(plantId).pipe(Effect.provide(paused)))
+          : as(
+              owner,
+              delivered(waterAsCurrentUser(plantId)).pipe(
+                Effect.provide(paused)
+              )
+            )
         await Promise.race([
           Effect.runPromise(Deferred.await(careReached)),
           untilBlockedOrSettled(care),

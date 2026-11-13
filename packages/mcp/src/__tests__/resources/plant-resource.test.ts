@@ -1,3 +1,4 @@
+import { careToday, seen } from '@lily/mcp/__tests__/mocks/plant'
 import { readPlantResource } from '@lily/mcp/resources/plant'
 import type { PlantDetail } from '@lily/shared/plant'
 import { Effect } from 'effect'
@@ -35,7 +36,8 @@ const basePlant: PlantDetail = {
   },
   ownership: 'owned',
   ownerName: null,
-  schedules: [
+  ...careToday,
+  schedules: seen([
     {
       careType: 'watering',
       frequencyDays: 7,
@@ -48,7 +50,7 @@ const basePlant: PlantDetail = {
       lastCareAt: null,
       nextCareAt: null,
     },
-  ],
+  ]),
   photos: [],
 }
 

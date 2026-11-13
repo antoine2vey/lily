@@ -9,7 +9,7 @@ import {
 } from '@lily/mcp/widgets/health'
 import { ownershipLabel } from '@lily/mcp/widgets/mappers'
 import type { PlantDetail } from '@lily/mcp/widgets/schemas'
-import { formatIsoDate, isOverdue, isToday } from '@lily/shared'
+import { formatIsoDate } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
 /**
@@ -134,21 +134,13 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       sections.push('', '### Recent Care History', ...logLines)
     }
 
-    // Check if a care type is due (today or overdue)
-    const nowDt = DateTime.nowUnsafe()
     const isCareTypeDue = (careType: string) =>
       Array.some(
         plant.schedules,
         (s) =>
           s.careType === careType &&
-          pipe(
-            Option.fromNullishOr(s.nextCareAt),
-            Option.flatMap((d) => DateTime.make(d)),
-            Option.match({
-              onNone: () => false,
-              onSome: (dt) => isOverdue(dt) || isToday(dt, nowDt, 'UTC'),
-            })
-          )
+          s.status !== null &&
+          s.status._tag !== 'Upcoming'
       )
 
     const plantDetail: PlantDetail = {

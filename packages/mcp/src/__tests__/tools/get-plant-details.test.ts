@@ -1,4 +1,5 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
+import { careToday, seen } from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { getPlantDetailsEffect } from '@lily/mcp/tools/get-plant-details'
 import type { CanopyId } from '@lily/shared'
@@ -35,14 +36,15 @@ const mockPlantDetail: PlantDetail = {
   room: null,
   ownership: 'owned',
   ownerName: null,
-  schedules: [
+  ...careToday,
+  schedules: seen([
     {
       careType: 'watering',
       frequencyDays: 7,
       lastCareAt: new Date('2024-01-01'),
       nextCareAt: new Date('2024-01-08'),
     },
-  ],
+  ]),
   photos: [],
 }
 

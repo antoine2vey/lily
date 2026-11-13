@@ -103,6 +103,10 @@ const check = (
           memberships,
           mutes,
           caretakers: activeCaretakers(delegationData),
+          timezones: Object.fromEntries([
+            ...Arr.map(users, (u) => [u.id, u.timezone ?? 'UTC'] as const),
+            ...Arr.map(canopies, (c) => [c.id, c.timezone] as const),
+          ]),
         }),
         createMockCanopyRepository(
           createCanopyStore({ members: memberships, mutes, canopies })
@@ -134,11 +138,10 @@ const runRemind = (
   const plants = Arr.map(plantsData, (p) => ({
     id: p.id,
     name: p.name,
-    userId,
+    audienceUserId: userId,
     recipientId: userId,
     owner: { _tag: 'User', userId } as PlantOwner,
     dateAdded: p.dateAdded,
-    overdueAt: daysAgo(2),
   }))
 
   return Effect.runPromiseExit(

@@ -1,5 +1,6 @@
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -57,6 +58,7 @@ const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
     PlantRepositoryLive,
     UserRepositoryLive,
     CareScheduleRepositoryLive,
+    CareReadsLive,
     CareLogRepositoryLive,
     DelegationRepositoryLive,
     CanopyRepositoryLive,

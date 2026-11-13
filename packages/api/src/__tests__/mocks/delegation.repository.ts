@@ -1,3 +1,4 @@
+import type { StoredSchedule } from '@lily/api/contexts/care'
 import {
   type DelegatedTaskRow,
   type DelegationDetailRow,
@@ -7,8 +8,8 @@ import {
   type DelegationRow,
   type IDelegationRepository,
 } from '@lily/api/repositories/delegation.repository'
-import type { PlantCareSchedule } from '@lily/shared'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { dueDayAndStatus } from '@lily/shared'
+import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
 
 interface MockUser {
   id: string
@@ -20,7 +21,7 @@ interface MockPlant {
   id: string
   name: string
   imageUrl: string | null
-  schedules: PlantCareSchedule[]
+  schedules: StoredSchedule[]
   health: string
 }
 
@@ -53,6 +54,14 @@ export const createMockDelegationRepository = (
   const findPlant = (id: string) =>
     pipe(
       Array.findFirst(mockPlants, (p) => p.id === id),
+      // Status as the live repository reports it, on a UTC care day.
+      Option.map((p) => ({
+        ...p,
+        schedules: Array.map(p.schedules, (schedule) => ({
+          ...schedule,
+          ...dueDayAndStatus(schedule.nextCareAt, 'UTC', DateTime.nowUnsafe()),
+        })),
+      })),
       Option.getOrNull
     )
 

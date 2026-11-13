@@ -1,4 +1,5 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
+import { careToday, seen } from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { carePlantEffect } from '@lily/mcp/tools/care-plant'
 import type { Plant } from '@lily/shared/plant'
@@ -33,7 +34,8 @@ const mockPlant: Plant = {
   room: null,
   ownership: 'owned',
   ownerName: null,
-  schedules: [
+  ...careToday,
+  schedules: seen([
     {
       careType: 'watering',
       frequencyDays: 7,
@@ -58,7 +60,7 @@ const mockPlant: Plant = {
       lastCareAt: null,
       nextCareAt: null,
     },
-  ],
+  ]),
 }
 
 describe('carePlant MCP tool', () => {

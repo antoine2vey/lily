@@ -2,7 +2,14 @@ import { careLogTypeEnum, scanTypeEnum } from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
-import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  date,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 export const plantPhotos = pgTable('plant_photos', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -28,6 +35,8 @@ export const careLogs = pgTable(
     type: careLogTypeEnum('type').notNull(),
     notes: text('notes'),
     date: timestamp('date', { withTimezone: true }).notNull().defaultNow(),
+    /** The day of the care in the plant's care timezone, fixed when recorded. Null on rows old code wrote. */
+    careDay: date('care_day'),
     photoUrl: text('photo_url'),
     plantId: uuid('plant_id')
       .notNull()

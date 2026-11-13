@@ -1,5 +1,5 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
-import { makePlant } from '@lily/mcp/__tests__/mocks/plant'
+import { makePlant, seen } from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import {
   carePlantEffect,
@@ -23,14 +23,14 @@ const spoofed = makePlant({
   ownership: 'canopy',
   canopy: { id: 'canopy-1' as CanopyId, name: SPOOF },
   room: { id: 'room-1', name: SPOOF, icon: '🪴' } as never,
-  schedules: [
+  schedules: seen([
     {
       careType: 'watering',
       frequencyDays: 7,
       lastCareAt: null,
       nextCareAt: new Date('2024-01-01'),
     },
-  ],
+  ]),
 })
 
 const api = createMockApiClient({

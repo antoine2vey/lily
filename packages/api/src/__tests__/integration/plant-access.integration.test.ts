@@ -133,15 +133,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Effect.gen(function* () {
           const repo = yield* PlantRepository
           return yield* Effect.all([
-            repo.findAll({ userId: alexId, timezone: 'UTC' }),
+            repo.findAll({ userId: alexId }),
             repo.findAll({
               userId: alexId,
-              timezone: 'UTC',
               includeCanopy: true,
             }),
             repo.findAll({
               userId: samId,
-              timezone: 'UTC',
               includeCanopy: true,
             }),
           ])
@@ -200,7 +198,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           const repo = yield* PlantRepository
           return yield* repo.findAll({
             userId: alexId,
-            timezone: 'UTC',
             includeCaretaking: true,
           })
         })

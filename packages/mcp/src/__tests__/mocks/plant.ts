@@ -1,5 +1,22 @@
-import type { CanopyId } from '@lily/shared'
-import type { Plant } from '@lily/shared/plant'
+import { type CanopyId, CareDay, dueDayAndStatus } from '@lily/shared'
+import type { Plant, PlantCareSchedule } from '@lily/shared/plant'
+import { Array, DateTime } from 'effect'
+
+/** Schedules as the API returns them: status decided on a UTC `today`. */
+export const seen = (
+  schedules: ReadonlyArray<Omit<PlantCareSchedule, 'dueDay' | 'status'>>,
+  today: Date = new Date()
+): Array<PlantCareSchedule> =>
+  Array.map(schedules, (schedule) => ({
+    ...schedule,
+    ...dueDayAndStatus(schedule.nextCareAt, 'UTC', DateTime.makeUnsafe(today)),
+  }))
+
+/** The plant-level care fields of an API plant. */
+export const careToday = {
+  careTimezone: 'UTC',
+  today: CareDay.make('2024-01-01'),
+}
 
 export const makePlant = (overrides: Partial<Plant> = {}): Plant => ({
   id: 'plant-1',
@@ -27,6 +44,7 @@ export const makePlant = (overrides: Partial<Plant> = {}): Plant => ({
   ownership: 'owned',
   ownerName: null,
   schedules: [],
+  ...careToday,
   ...overrides,
 })
 

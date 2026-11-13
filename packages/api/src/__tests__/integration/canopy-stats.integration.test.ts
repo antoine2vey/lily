@@ -401,10 +401,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('counts a member’s healthy Canopy plants in their weekly recap', async () => {
-      await db
-        .update(schema.plants)
-        .set({ health: 'NEEDS_ATTENTION' })
-        .where(eq(schema.plants.id, alexsCanopyPlant))
+      // An overdue care is what makes a plant need attention.
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: alexsCanopyPlant,
+        careType: 'misting',
+        frequencyDays: 3,
+        nextCareAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      })
 
       const healthy = await run(
         Effect.gen(function* () {

@@ -29,7 +29,6 @@ import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
 import { DiagnosisApiLive } from '@lily/api/services/diagnosis/handlers'
 import { startEngagementScheduler } from '@lily/api/services/engagement-scheduler/scheduler'
 import { HealthApiLive } from '@lily/api/services/health/handlers'
-import { startHealthScheduler } from '@lily/api/services/health-scheduler/scheduler'
 import { SHUTDOWN_DRAIN_DEADLINE } from '@lily/api/services/helpers/create-scheduler'
 import { InternalApiLive } from '@lily/api/services/internal/handlers'
 import { KnowledgeApiLive } from '@lily/api/services/knowledge/handlers'
@@ -101,8 +100,6 @@ const BlogGeneratorSchedulerLive = Layer.effectDiscard(
   startBlogGeneratorScheduler
 )
 
-const HealthSchedulerLive = Layer.effectDiscard(startHealthScheduler)
-
 const AccountCleanupSchedulerLive = Layer.effectDiscard(
   startAccountCleanupScheduler
 )
@@ -133,7 +130,6 @@ const AllSchedulersLive = Layer.mergeAll(
   AchievementReconciliationSchedulerLive,
   AchievementSubscriberLive,
   DelegationSchedulerLive,
-  HealthSchedulerLive,
   OverdueSchedulerLive,
   WeatherSchedulerLive,
   NotificationSchedulerLive,

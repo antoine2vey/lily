@@ -23,19 +23,12 @@ export const getUserPlants = (
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    // Fetch the user both to 404 on unknown ids and to read the timezone used
-    // for overdue-schedule evaluation (target user's local time, not admin's).
-    const user = yield* getUser(userId)
-    const timezone = Option.getOrElse(
-      Option.fromNullishOr(user.timezone),
-      () => 'UTC'
-    )
+    yield* getUser(userId)
     const { page, limit } = parsePaginationParams(params)
 
     // Admins see the cemetery inline (badge in the table); users never do.
     return yield* repo.findAll({
       userId,
-      timezone,
       page,
       limit,
       includeDead: true,

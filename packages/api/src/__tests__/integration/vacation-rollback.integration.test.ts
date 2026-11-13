@@ -1,3 +1,9 @@
+import { delivered } from '@lily/api/__tests__/integration/care-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
@@ -13,7 +19,7 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Effect, Exit, Layer } from 'effect'
+import { Array, Effect, Exit, Layer } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -42,9 +48,14 @@ const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
     PlantRepositoryLive,
     UserRepositoryLive,
     CareScheduleRepositoryLive,
+    CareReadsLive,
     DelegationRepositoryLive,
     CanopyRepositoryLive,
-    notifications
+    notifications,
+    createMockEventBus(),
+    createMockWeatherProvider(),
+    createMockWeatherCache(),
+    createMockWeatherRepository()
   ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const FailingLive = makeLayer(SweepAlwaysFails)
@@ -57,6 +68,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let db: ReturnType<typeof drizzle>
 
     const resetDb = async () => {
+      await db.execute(sql`TRUNCATE TABLE outbox RESTART IDENTITY`)
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
       )
@@ -94,6 +106,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           role: 'user',
           status: 'active',
           timezone: 'UTC',
+          careReminders: true,
+          preferredNotificationTime: '09:00',
           ...vacation,
         })
         .returning()
@@ -129,7 +143,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect((await currentUser(user.id))?.vacationStatus).toBe('active')
     })
 
-    it('rolls the end claim and the schedule shift back when the sweep fails, and the rerun completes them', async () => {
+    it('rolls the end claim, the schedule shift and its event back when the sweep fails, and the rerun completes them', async () => {
       const user = await insertUser({
         vacationStatus: 'active',
         vacationStart: new Date(Date.now() - 7 * DAY_MS),
@@ -162,25 +176,55 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           .where(eq(schema.plantCareSchedules.plantId, plant.id))
         return row?.nextCareAt
       }
+      const scheduleEvents = async () => {
+        const rows = await db
+          .select({ event: schema.outbox.event })
+          .from(schema.outbox)
+        return Array.map(rows, (row) => row.event)
+      }
+      const pendingReminders = () =>
+        db
+          .select({
+            userId: schema.notifications.userId,
+            type: schema.notifications.type,
+          })
+          .from(schema.notifications)
+          .where(eq(schema.notifications.plantId, plant.id))
       const effectiveEnd = user.vacationEnd ?? new Date()
 
       const failed = await Effect.runPromiseExit(
-        endVacation({ user, effectiveEnd }).pipe(Effect.provide(FailingLive))
+        delivered(endVacation({ user, effectiveEnd })).pipe(
+          Effect.provide(FailingLive)
+        )
       )
       expect(Exit.isFailure(failed)).toBe(true)
       const afterFailure = await currentUser(user.id)
       expect(afterFailure?.vacationStatus).toBe('active')
       expect(afterFailure?.vacationEnd).toEqual(user.vacationEnd)
       expect(await nextCareAt()).toEqual(dueMidVacation)
+      expect(await scheduleEvents()).toEqual([])
 
       const rerun = await Effect.runPromise(
-        endVacation({ user, effectiveEnd }).pipe(Effect.provide(HealthyLive))
+        delivered(endVacation({ user, effectiveEnd })).pipe(
+          Effect.provide(HealthyLive)
+        )
       )
       expect(rerun?.vacationStatus).toBe('none')
       const afterRerun = await currentUser(user.id)
       expect(afterRerun?.vacationStatus).toBe('none')
       expect(afterRerun?.vacationEnd).toBeNull()
       expect((await nextCareAt())?.getTime()).toBeGreaterThan(Date.now())
+      expect(await scheduleEvents()).toMatchObject([
+        {
+          _tag: 'ScheduleChanged',
+          plantId: plant.id,
+          careType: 'watering',
+          reason: 'vacation',
+        },
+      ])
+      expect(await pendingReminders()).toEqual([
+        { userId: user.id, type: 'watering_reminder' },
+      ])
     })
   }
 )

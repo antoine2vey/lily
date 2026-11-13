@@ -26,7 +26,11 @@ import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import {
+  withPermittedPlant,
+  withPlantAuth,
+  withPlantPermit,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
@@ -82,8 +86,10 @@ export const PlantsApiLive = (api: Api) =>
         )
       )
       .handle('updatePlant', ({ params: { id }, payload: { data, image } }) =>
-        withPlantAuth(id, 'edit').pipe(
-          Effect.flatMap((plant) => updatePlant(plant, { ...data, id }, image)),
+        withPermittedPlant(id, 'edit').pipe(
+          Effect.flatMap(({ plant, permit }) =>
+            updatePlant(plant, permit, { ...data, id }, image)
+          ),
           withInfraErrorsAsDefect
         )
       )
@@ -129,8 +135,8 @@ export const PlantsApiLive = (api: Api) =>
         )
       )
       .handle('carePlant', ({ params: { id }, payload }) =>
-        withPlantAuth(id, 'care').pipe(
-          Effect.flatMap((plant) => carePlant(plant, { ...payload, id })),
+        withPlantPermit(id, 'care').pipe(
+          Effect.flatMap((permit) => carePlant(permit, payload)),
           withInfraErrorsAsDefect
         )
       )
@@ -138,10 +144,8 @@ export const PlantsApiLive = (api: Api) =>
         careMultiplePlants(payload).pipe(withInfraErrorsAsDefect)
       )
       .handle('correctCareDates', ({ params: { id }, payload }) =>
-        withPlantAuth(id, 'care').pipe(
-          Effect.flatMap((plant) =>
-            correctCareDates(plant, { ...payload, id })
-          ),
+        withPlantPermit(id, 'care').pipe(
+          Effect.flatMap((permit) => correctCareDates(permit, payload)),
           withInfraErrorsAsDefect
         )
       )

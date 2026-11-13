@@ -1,3 +1,4 @@
+import type { PlantAction } from '@lily/api/kernel/permit'
 import type { CanopyMembership } from '@lily/api/repositories/canopy.repository'
 import { Array, Data, Match, Option, pipe, Struct } from 'effect'
 
@@ -11,20 +12,7 @@ export type PlantRole = Data.TaggedEnum<{
 
 export const PlantRole = Data.taggedEnum<PlantRole>()
 
-export type PlantAction =
-  | 'view'
-  | 'edit'
-  | 'care'
-  | 'photo'
-  | 'diagnose'
-  | 'chat'
-  | 'markDead'
-  | 'revive'
-  | 'delete'
-  | 'share'
-  | 'unshare'
-  | 'mute'
-  | 'delegate'
+export type { PlantAction }
 
 type RoleTag = PlantRole['_tag']
 

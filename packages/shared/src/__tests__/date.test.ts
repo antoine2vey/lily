@@ -31,7 +31,6 @@ import {
   getTimeBasedGreeting,
   isFuture,
   isOverdue,
-  isOverdueByDay,
   isThisWeek,
   isToday,
   isYesterday,
@@ -677,50 +676,6 @@ describe('Date Utilities', () => {
     })
   })
 
-  describe('isOverdueByDay', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
-    it('should return true for dates before today', () => {
-      const yesterday = createFixedDateTime(2024, 6, 14, 23, 59)
-      expect(isOverdueByDay(yesterday, DateTime.nowUnsafe(), 'UTC')).toBe(true)
-    })
-
-    it('should return false for today (even early morning)', () => {
-      const todayMorning = createFixedDateTime(2024, 6, 15, 0, 0)
-      expect(isOverdueByDay(todayMorning, DateTime.nowUnsafe(), 'UTC')).toBe(
-        false
-      )
-    })
-
-    it('should return false for future dates', () => {
-      const tomorrow = createFixedDateTime(2024, 6, 16, 8, 0)
-      expect(isOverdueByDay(tomorrow, DateTime.nowUnsafe(), 'UTC')).toBe(false)
-    })
-
-    it('should use reference date when provided', () => {
-      const date = createFixedDateTime(2024, 6, 14, 12, 0)
-      const reference = createFixedDateTime(2024, 6, 13, 12, 0)
-      // June 14 is not overdue relative to June 13
-      expect(isOverdueByDay(date, reference, 'UTC')).toBe(false)
-    })
-
-    it('should differ from isOverdue for times within same day', () => {
-      // isOverdueByDay checks against start of day, not current time
-      const earlierToday = createFixedDateTime(2024, 6, 15, 8, 0)
-      expect(isOverdueByDay(earlierToday, DateTime.nowUnsafe(), 'UTC')).toBe(
-        false
-      ) // Not overdue by day
-      expect(isOverdue(earlierToday)).toBe(true) // But overdue by time
-    })
-  })
-
   describe('isThisWeek', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -1144,30 +1099,6 @@ describe('Date Utilities', () => {
       expect(partsTokyo.hour).toBe(23)
     })
 
-    it('isOverdueByDay with timezone — different results per timezone', () => {
-      // Task: Jan 29 23:30 UTC
-      // Reference: Jan 30 12:00 UTC
-      const taskDate = createFixedDateTime(2025, 1, 29, 23, 30)
-      const ref = createFixedDateTime(2025, 1, 30, 12, 0)
-
-      // In Paris (UTC+1): ref is Jan 30 13:00 → startOfDay(Paris) = Jan 30 00:00 Paris = Jan 29 23:00 UTC
-      // task Jan 29 23:30 UTC = Jan 30 00:30 Paris → same day as ref → NOT overdue
-      expect(isOverdueByDay(taskDate, ref, 'Europe/Paris')).toBe(false)
-
-      // In UTC: ref is Jan 30 → startOfDay = Jan 30 00:00 UTC
-      // task Jan 29 23:30 UTC < Jan 30 00:00 UTC → overdue
-      expect(isOverdueByDay(taskDate, ref, 'UTC')).toBe(true)
-
-      // Task on the same day as ref in Paris should NOT be overdue
-      const taskSameDay = createFixedDateTime(2025, 1, 30, 5, 0)
-      // In Paris: task is Jan 30 06:00 → same day as ref (Jan 30) → not overdue
-      expect(isOverdueByDay(taskSameDay, ref, 'Europe/Paris')).toBe(false)
-
-      // In LA (UTC-8): ref is Jan 30 04:00 LA → startOfDay(LA) = Jan 30 00:00 LA = Jan 30 08:00 UTC
-      // taskSameDay Jan 30 05:00 UTC = Jan 29 21:00 LA → previous day → overdue
-      expect(isOverdueByDay(taskSameDay, ref, 'America/Los_Angeles')).toBe(true)
-    })
-
     it('isThisWeek with timezone — categorization changes by timezone', () => {
       // Jan 29 2025 is Wednesday. End of week = Sunday Feb 2
       const ref = createFixedDateTime(2025, 1, 29, 12, 0)
@@ -1197,10 +1128,6 @@ describe('Date Utilities', () => {
       const eod = endOfDay(ref, 'UTC')
       const eodParts = DateTime.toParts(eod)
       expect(eodParts.hour).toBe(23)
-
-      // isOverdueByDay with UTC timezone
-      const yesterday = createFixedDateTime(2025, 1, 28, 23, 59)
-      expect(isOverdueByDay(yesterday, ref, 'UTC')).toBe(true)
 
       // isThisWeek with UTC timezone
       const tomorrow = createFixedDateTime(2025, 1, 30, 12, 0)

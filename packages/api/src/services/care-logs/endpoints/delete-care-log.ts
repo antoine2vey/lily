@@ -1,31 +1,17 @@
-import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { CareLogNotFoundError } from '@lily/shared/errors/care-log'
+import { Care } from '@lily/api/contexts/care'
+import type { PlantPermit } from '@lily/api/kernel/permit'
+import type { CareLogNotFoundError } from '@lily/shared/errors/care-log'
 import { Effect } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
 
-// Delete care log
 export const deleteCareLog = (
-  plantId: string,
+  permit: PlantPermit<'care'>,
   logId: string
-): Effect.Effect<
-  { message: string },
-  SqlError | CareLogNotFoundError,
-  CareLogRepository
-> =>
-  Effect.gen(function* () {
-    const repo = yield* CareLogRepository
-
-    // Verify the log exists and belongs to this plant
-    const existing = yield* repo.findById(logId, plantId)
-    if (!existing) {
-      return yield* new CareLogNotFoundError()
-    }
-
-    yield* repo.delete(logId)
-
-    return { message: `Care log ${logId} deleted successfully` }
-  }).pipe(
+): Effect.Effect<{ message: string }, CareLogNotFoundError, Care> =>
+  Effect.flatMap(Care, (care) =>
+    care.remove({ permit, careLogId: logId })
+  ).pipe(
+    Effect.as({ message: `Care log ${logId} deleted successfully` }),
     Effect.withSpan('CareLogsService.deleteCareLog', {
-      attributes: { 'plant.id': plantId, 'careLog.id': logId },
+      attributes: { 'plant.id': permit.plantId, 'careLog.id': logId },
     })
   )

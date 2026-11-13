@@ -112,23 +112,6 @@ export const isFuture = (dateTime: DateTime.DateTime): boolean => {
 }
 
 /**
- * Check if a date is before the start of today (overdue by day).
- * Unlike isOverdue which checks against current time, this checks against start of today.
- *
- * @param dateTime - DateTime to check
- * @param referenceDate - Reference DateTime (defaults to now)
- * @param timezone - IANA timezone string
- * @returns true if the DateTime is before the start of today
- */
-export const isOverdueByDay = (
-  dateTime: DateTime.DateTime,
-  referenceDate: DateTime.DateTime,
-  timezone: string
-): boolean => {
-  return DateTime.isLessThan(dateTime, startOfDay(referenceDate, timezone))
-}
-
-/**
  * Check if a DateTime is this week (after today, before end of week).
  *
  * @param dateTime - DateTime to check

@@ -1,4 +1,7 @@
-import type { ScheduleSpec } from '@lily/api/__tests__/fixtures/plants'
+import {
+  NOT_DUE_YET,
+  type ScheduleSpec,
+} from '@lily/api/__tests__/fixtures/plants'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 
 export const createTestSchedule = (
@@ -9,7 +12,8 @@ export const createTestSchedule = (
   careType: 'watering',
   frequencyDays: 7,
   lastCareAt: null,
-  nextCareAt: null,
+  nextCareAt: NOT_DUE_YET,
+  dueDay: null,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,

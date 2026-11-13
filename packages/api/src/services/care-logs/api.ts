@@ -9,6 +9,9 @@ import {
   RecentActivitiesListResponse,
 } from '@lily/shared/care-log'
 import {
+  AlreadyCaredTodayError,
+  FutureDateNotAllowedError,
+  PlantIsDeadError,
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
@@ -70,6 +73,9 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
       error: [
         PlantNotFoundError,
         PlantNotAuthorizedError,
+        FutureDateNotAllowedError,
+        AlreadyCaredTodayError,
+        PlantIsDeadError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(400)),
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
@@ -98,6 +104,8 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
         CareLogNotFoundError,
         PlantNotFoundError,
         PlantNotAuthorizedError,
+        FutureDateNotAllowedError,
+        AlreadyCaredTodayError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
     })

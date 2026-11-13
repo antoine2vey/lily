@@ -25,7 +25,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         for (const plantId of testPlantIds) {
           await db
             .update(schema.plantCareSchedules)
-            .set({ lastCareAt: null, nextCareAt: null })
+            .set({ lastCareAt: null, nextCareAt: new Date() })
             .where(
               and(
                 eq(schema.plantCareSchedules.plantId, plantId),
@@ -108,11 +108,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           plantId: firstPlantId ?? '',
           careType: 'watering',
           frequencyDays: 3,
+          nextCareAt: new Date(),
         },
         {
           plantId: secondPlantId ?? '',
           careType: 'watering',
           frequencyDays: 7,
+          nextCareAt: new Date(),
         },
       ])
     })

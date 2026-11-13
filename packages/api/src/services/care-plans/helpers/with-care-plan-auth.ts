@@ -1,3 +1,4 @@
+import { Actor, mintPermit, type PlantPermit } from '@lily/api/kernel/permit'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import {
@@ -109,6 +110,7 @@ export const withCarePlanAuth = (
 
 export interface CarePlanStepContext extends CarePlanContext {
   readonly step: CarePlanStep
+  readonly carePermit: PlantPermit<'care'>
 }
 
 /** `withCarePlanAuth` plus the step, which must belong to that plan. */
@@ -124,17 +126,26 @@ export const withCarePlanStep = (
   | SqlError,
   CarePlanRepository | PlantRepository | PlantAccessContext
 > =>
-  withCarePlanAuth(planId, action).pipe(
-    Effect.flatMap((context) =>
-      Option.match(
-        Array.findFirst(context.plan.steps, (s) => s.id === stepId),
-        {
-          onNone: () => new CarePlanStepNotFoundError({ stepId }),
-          onSome: (step) => Effect.succeed({ ...context, step }),
-        }
-      )
+  Effect.gen(function* () {
+    const context = yield* withCarePlanAuth(planId, action)
+    const { id: userId } = yield* CurrentUser
+    return yield* Option.match(
+      Array.findFirst(context.plan.steps, (s) => s.id === stepId),
+      {
+        onNone: () => Effect.fail(new CarePlanStepNotFoundError({ stepId })),
+        onSome: (step) =>
+          Effect.succeed({
+            ...context,
+            step,
+            carePermit: mintPermit(
+              context.plant.id,
+              'care',
+              Actor.User({ userId })
+            ),
+          }),
+      }
     )
-  )
+  })
 
 export const seenByCaller = (
   plan: CarePlan
