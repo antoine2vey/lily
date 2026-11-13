@@ -19,7 +19,7 @@ import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
-import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import {
   Canopy,
   type CanopyChanges,
@@ -116,7 +116,7 @@ const run = <A, E>(
 ) =>
   Effect.runPromise(
     Effect.flatMap(Canopy, command).pipe(
-      assumingTransaction,
+      transactInMemory,
       Effect.provide(world.layer)
     )
   )
@@ -127,7 +127,7 @@ const refused = <A, E>(
 ) =>
   Effect.runPromiseExit(
     Effect.flatMap(Canopy, command).pipe(
-      assumingTransaction,
+      transactInMemory,
       Effect.provide(world.layer)
     )
   ).then(failureOf)
@@ -1193,7 +1193,7 @@ describe('Canopy', () => {
               room: RoomMove.Clear(),
             }),
           ])
-        ).pipe(assumingTransaction, Effect.provide(world.storeLayer))
+        ).pipe(transactInMemory, Effect.provide(world.storeLayer))
       )
 
       expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toEqual(
@@ -1739,7 +1739,7 @@ describe('Canopy', () => {
 
         const exit = await Effect.runPromiseExit(
           Effect.flatMap(CanopyStore, (store) => store.apply([named])).pipe(
-            assumingTransaction,
+            transactInMemory,
             Effect.provide(world.storeLayer)
           )
         )

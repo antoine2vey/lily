@@ -69,6 +69,15 @@ export const PlantCareSchedule = Schema.Struct({
 
 export type PlantCareSchedule = typeof PlantCareSchedule.Type
 
+export const PlantCareScheduleWithLastCareDay = Schema.Struct({
+  ...PlantCareSchedule.fields,
+  /** The day of the last care in the plant's care timezone, as stored. Null when never cared for. */
+  lastCareDay: Schema.NullOr(CareDay),
+})
+
+export type PlantCareScheduleWithLastCareDay =
+  typeof PlantCareScheduleWithLastCareDay.Type
+
 export const PlantCreator = Schema.Struct({
   id: Schema.String,
   name: Schema.NullOr(Schema.String),
@@ -118,7 +127,7 @@ const plantFields = {
   ),
   canopy: Schema.optionalKey(CanopyRef),
   createdBy: Schema.optionalKey(Schema.NullOr(PlantCreator)),
-  schedules: Schema.Array(PlantCareSchedule),
+  schedules: Schema.Array(PlantCareScheduleWithLastCareDay),
   /** Timezone of the plant's care context, and its current care day. */
   careTimezone: Schema.String,
   today: CareDay,

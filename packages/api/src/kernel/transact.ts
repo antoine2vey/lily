@@ -1,5 +1,14 @@
 import { Outbox, type OutboxTopic } from '@lily/api/kernel/outbox'
-import { Context, Effect, type Result, type Schema } from 'effect'
+import {
+  Array,
+  Context,
+  Effect,
+  identity,
+  Option,
+  Ref,
+  type Result,
+  type Schema,
+} from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -23,7 +32,13 @@ export const decision = <W, E, A>(
  */
 export class Transaction extends Context.Service<
   Transaction,
-  Record<never, never>
+  {
+    /**
+     * Runs `effect` once the outermost transaction has committed. It is
+     * dropped when this transaction, or one around it, rolls back.
+     */
+    readonly afterCommit: (effect: Effect.Effect<void>) => Effect.Effect<void>
+  }
 >()('kernel/Transaction') {}
 
 export interface CommandSpec<Agg, W, E, A, Refusal, R> {
@@ -38,7 +53,9 @@ export interface CommandSpec<Agg, W, E, A, Refusal, R> {
 
 /**
  * One transaction (a savepoint when the caller already holds one) with no
- * relay wake, for a body that appends nothing to the outbox.
+ * relay wake, for a body that appends nothing to the outbox. What the body
+ * registered with `afterCommit` runs here when this is the outermost
+ * transaction, and goes to the transaction around it otherwise.
  */
 export const transactQuietly = <A, E, R>(
   body: Effect.Effect<A, E, R>
@@ -47,11 +64,27 @@ export const transactQuietly = <A, E, R>(
   E | SqlError,
   Exclude<R, Transaction> | SqlClient.SqlClient
 > =>
-  Effect.flatMap(SqlClient.SqlClient, (sql) =>
-    sql.withTransaction(
-      Effect.provideService(body, Transaction, Transaction.of({}))
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    const around = yield* Effect.serviceOption(Transaction)
+    const registered = yield* Ref.make<ReadonlyArray<Effect.Effect<void>>>([])
+    const result = yield* sql.withTransaction(
+      Effect.provideService(
+        body,
+        Transaction,
+        Transaction.of({
+          afterCommit: (effect) => Ref.update(registered, Array.append(effect)),
+        })
+      )
     )
-  )
+    const committed = yield* Ref.get(registered)
+    yield* Option.match(around, {
+      onNone: () => Effect.forEach(committed, identity, { discard: true }),
+      onSome: (outer) =>
+        Effect.forEach(committed, outer.afterCommit, { discard: true }),
+    })
+    return result
+  })
 
 /**
  * One transaction (a savepoint when the caller already holds one), then a

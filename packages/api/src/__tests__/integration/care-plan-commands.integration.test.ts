@@ -8,7 +8,7 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
@@ -429,7 +429,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const at = DateTime.nowUnsafe()
       const applied = (write: CareWrite) =>
         Effect.flatMap(CareStore, (store) => store.apply([write])).pipe(
-          assumingTransaction,
+          transactInMemory,
           Effect.exit,
           Effect.provide(
             CareStoreLive.pipe(

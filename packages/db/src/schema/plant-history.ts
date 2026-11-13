@@ -53,6 +53,7 @@ export const careLogs = pgTable(
   },
   (table) => [
     index('care_logs_plant_id_idx').on(table.plantId),
+    index('care_logs_plant_id_date_idx').on(table.plantId, table.date),
     index('care_logs_performed_by_user_id_idx').on(table.performedByUserId),
   ]
 )

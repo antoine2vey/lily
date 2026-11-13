@@ -10,7 +10,7 @@ import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
@@ -473,7 +473,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const dead = await plantOf({ userId: alex }, 'dead')
       const applied = (write: CareWrite) =>
         Effect.flatMap(CareStore, (store) => store.apply([write])).pipe(
-          assumingTransaction,
+          transactInMemory,
           Effect.exit,
           Effect.provide(
             CareStoreLive.pipe(

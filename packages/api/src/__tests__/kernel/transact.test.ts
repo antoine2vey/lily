@@ -1,12 +1,14 @@
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { CanopyStore, lockPlan } from '@lily/api/contexts/canopy/store'
 import {
   Transaction,
   transact,
   transactQuietly,
 } from '@lily/api/kernel/transact'
-import { Effect, Layer } from 'effect'
+import { Data, Effect, Exit, Layer } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'
 
 type RequirementsOf<T> =
@@ -40,4 +42,60 @@ describe('Transaction', () => {
 
     expect([outsideTransact, insideTransact]).toEqual([true, false])
   })
+})
+
+class BodyFailed extends Data.TaggedError('BodyFailed') {}
+
+type Opener = <A, E>(
+  body: Effect.Effect<A, E, Transaction>
+) => Effect.Effect<A, E | SqlError>
+
+describe('Transaction.afterCommit', () => {
+  const OPENERS: Record<'transactQuietly' | 'transactInMemory', Opener> = {
+    transactQuietly: (body) =>
+      transactQuietly(body).pipe(Effect.provide(createMockSqlClient())),
+    transactInMemory,
+  }
+
+  const registering = (log: string[]) =>
+    Effect.flatMap(Transaction, (transaction) =>
+      transaction.afterCommit(
+        Effect.sync(() => {
+          log.push('registered effect')
+        })
+      )
+    ).pipe(
+      Effect.andThen(
+        Effect.sync(() => {
+          log.push('body done')
+        })
+      )
+    )
+
+  it.each(['transactQuietly', 'transactInMemory'] as const)(
+    'under %s runs what the body registered once the body has succeeded',
+    async (opener) => {
+      const log: string[] = []
+
+      await Effect.runPromise(OPENERS[opener](registering(log)))
+
+      expect(log).toEqual(['body done', 'registered effect'])
+    }
+  )
+
+  it.each(['transactQuietly', 'transactInMemory'] as const)(
+    'under %s drops what the body registered when the body fails',
+    async (opener) => {
+      const log: string[] = []
+
+      const exit = await Effect.runPromiseExit(
+        OPENERS[opener](Effect.andThen(registering(log), new BodyFailed()))
+      )
+
+      expect({ failed: Exit.isFailure(exit), log }).toEqual({
+        failed: true,
+        log: ['body done'],
+      })
+    }
+  )
 })

@@ -1,4 +1,5 @@
 import { Canopy } from '@lily/api/contexts/canopy'
+import { transact } from '@lily/api/kernel/transact'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { canopyView } from '@lily/api/services/canopy/helpers/canopy-view'
 import {
@@ -19,6 +20,9 @@ export const sendCanopyInvitation = Effect.fn(
     RATE_LIMITS.CANOPY_INVITATION
   )
 
-  const { canopyId } = yield* canopy.invite({ by, invitee })
-  return yield* canopyView(canopyId, by)
+  return yield* transact(
+    Effect.flatMap(canopy.invite({ by, invitee }), ({ canopyId }) =>
+      canopyView(canopyId, by)
+    )
+  )
 })

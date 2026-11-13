@@ -41,7 +41,7 @@ import {
   commandBody,
   decision,
   type Decision as KernelDecision,
-  type Transaction,
+  Transaction,
   transact,
 } from '@lily/api/kernel/transact'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -409,23 +409,24 @@ export const AbsenceLive = Layer.effect(
       decide: (loaded: Loaded) => Result.Result<Decision<Noticed<A>>, R>
     ) =>
       transact(
-        Effect.flatMap(
-          commandBody({
+        Effect.gen(function* () {
+          const transaction = yield* Transaction
+          const { value, notices } = yield* commandBody({
             name,
             topic: AbsenceTopic,
             load,
             decide,
             apply: store.apply,
-          }),
-          ({ value, notices }) =>
-            Effect.map(
-              Effect.forEach(notices, (notice) => record[notice.kind](notice)),
-              (recorded) => ({ value, recorded })
-            )
-        )
+          })
+          const recorded = yield* Effect.forEach(notices, (notice) =>
+            record[notice.kind](notice)
+          )
+          yield* transaction.afterCommit(
+            Effect.provide(dispatchAll(recorded), context)
+          )
+          return value
+        })
       ).pipe(
-        Effect.tap(({ recorded }) => dispatchAll(recorded)),
-        Effect.map(({ value }) => value),
         Effect.catchTag('SqlError', Effect.die),
         Effect.catchTag('SchemaError', Effect.die),
         Effect.withSpan(name),

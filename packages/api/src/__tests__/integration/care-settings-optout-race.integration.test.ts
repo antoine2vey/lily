@@ -4,7 +4,10 @@ import {
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
-import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
+import {
+  deadlocks,
+  waitsForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -109,14 +112,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.provideService(References.MinimumLogLevel, 'None')
         ) as Effect.Effect<A, E, Layer.Success<typeof BaseLive>>
       )
-
-    const deadlocks = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1200))
-      const { rows } = await pool.query<{ deadlocks: string }>(
-        `SELECT deadlocks::text AS deadlocks FROM pg_stat_database WHERE datname = current_database()`
-      )
-      return Number(rows[0]?.deadlocks ?? 0)
-    }
 
     const user = async (prefix: string) => {
       const name = `${prefix}-${randomUUID().slice(0, 8)}`
@@ -251,7 +246,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     const raceOptOut = async (bulk: boolean) => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 10)) {
         const owner = await user(`OptOutOwner${round}`)
@@ -307,7 +302,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }
 
     it(

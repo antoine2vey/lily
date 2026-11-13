@@ -1,5 +1,4 @@
 import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
-import { seePlantCare } from '@lily/api/contexts/care'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
   ownerColumns,
@@ -15,6 +14,7 @@ import {
   matchesCareFilter,
   PlantRepository,
   type PlantWithRoom,
+  seeCareWithLastDays,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db/schema'
 import { type Orientation, type PlantOwner, paginate } from '@lily/shared'
@@ -86,14 +86,16 @@ export const createMockPlantRepository = (
       Option.getOrElse(() => 'Canopy')
     )
 
-  // The real care view over in-memory schedules: same rules as the live repo.
+  // The real care view over in-memory schedules, which hold no care log.
   const careOf = (p: PlantRecord) =>
-    seePlantCare(
-      p,
-      Array.filter(schedulesData, (s) => s.plantId === p.id),
-      data.timezones?.[p.canopyId ?? p.userId ?? ''] ?? 'UTC',
-      DateTime.nowUnsafe()
-    )
+    seeCareWithLastDays(p, {
+      schedules: pipe(
+        Array.filter(schedulesData, (s) => s.plantId === p.id),
+        Array.map((s) => ({ ...s, lastCareLogDay: null }))
+      ),
+      careTimezone: data.timezones?.[p.canopyId ?? p.userId ?? ''] ?? 'UTC',
+      now: DateTime.nowUnsafe(),
+    })
 
   const toPlantWithRoom = (p: PlantRecord): PlantWithRoom => {
     if (p.canopyId === null) {

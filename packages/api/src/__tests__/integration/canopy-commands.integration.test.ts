@@ -5,7 +5,10 @@ import {
   leave,
   settled,
 } from '@lily/api/__tests__/integration/canopy-layers'
-import { sessionsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
+import {
+  deadlocks,
+  sessionsWaitingForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { carePermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -338,14 +341,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const later = <A>(ms: number, work: () => Promise<A>) =>
       new Promise((resolve) => setTimeout(resolve, ms)).then(work)
-
-    const deadlocksCounted = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1200))
-      const { rows } = await pool.query<{ deadlocks: string }>(
-        `SELECT deadlocks::text AS deadlocks FROM pg_stat_database WHERE datname = current_database()`
-      )
-      return Number(rows[0]?.deadlocks ?? 0)
-    }
 
     const outcomeOf = <A>(exit: Exit.Exit<A, unknown>) =>
       Exit.match(exit, {
@@ -916,7 +911,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
 
       it('ends an accept and a decline of one invitation at once accepted with a seat or declined with none, round after round, with no deadlock', async () => {
-        const before = await deadlocksCounted()
+        const before = await deadlocks(pool)
         const round = async (n: number) => {
           const invitationId = await invitationTo(canopyId, samId, lilyId)
           const exits: ReadonlyArray<Exit.Exit<unknown, unknown>> =
@@ -952,7 +947,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             20
           )
         )
-        expect((await deadlocksCounted()) - before).toBe(0)
+        expect((await deadlocks(pool)) - before).toBe(0)
       }, 30_000)
 
       it('answers UserNotFoundError to an invitation that waited for the hard delete of its invitee to commit', async () => {
@@ -1002,7 +997,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
 
       it('ends an invitation racing the hard delete of its invitee sent or refused, round after round, with no defect and no deadlock', async () => {
-        const before = await deadlocksCounted()
+        const before = await deadlocks(pool)
         const round = async (n: number) => {
           const inviteeId = await anotherUser(`Guest-${n}`)
           const [invited] = await Promise.all([
@@ -1031,7 +1026,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         ).toEqual([])
         expect(await invitations()).toEqual([])
-        expect((await deadlocksCounted()) - before).toBe(0)
+        expect((await deadlocks(pool)) - before).toBe(0)
       }, 30_000)
     })
 
@@ -1261,7 +1256,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
 
       it('ends a mute racing the delete of its plant muted or refused, round after round, with no defect and no deadlock', async () => {
-        const before = await deadlocksCounted()
+        const before = await deadlocks(pool)
         const round = async (n: number) => {
           const plantId = await canopyPlant()
           const [muted] = await Promise.all([
@@ -1295,7 +1290,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         ).toEqual([])
         expect(await mutes()).toEqual([])
-        expect((await deadlocksCounted()) - before).toBe(0)
+        expect((await deadlocks(pool)) - before).toBe(0)
       }, 30_000)
 
       it.each([
@@ -1368,7 +1363,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             handedBackFirst === 'higher' ? [higher, lower] : [lower, higher]
           await plantOf({ id: sharedByLily, canopyId, createdByUserId: lilyId })
           await plantOf({ id: sharedByAlex, canopyId, createdByUserId: alexId })
-          const before = await deadlocksCounted()
+          const before = await deadlocks(pool)
 
           const { seen, done } = await whileAnotherSessionHolds(
             ['SELECT id FROM plants WHERE id = $1 FOR UPDATE', [higher]],
@@ -1387,7 +1382,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             cared: Exit.isSuccess(cared)
               ? Array.map(cared.value, (outcome) => outcome._tag)
               : outcomeOf(cared),
-            deadlocks: (await deadlocksCounted()) - before,
+            deadlocks: (await deadlocks(pool)) - before,
           }).toEqual({
             dissolved: true,
             cared: ['Recorded', 'Recorded'],

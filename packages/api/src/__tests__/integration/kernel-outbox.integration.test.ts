@@ -1,4 +1,4 @@
-import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import {
   type Consumer,
   ConsumerFailed,
@@ -50,7 +50,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Outbox - Integration', () => {
   ) =>
     Effect.runPromise(
       makeOutbox(consumers, { maxAttempts: 3 }).pipe(
-        Effect.flatMap(({ service }) => assumingTransaction(use(service))),
+        Effect.flatMap(({ service }) => transactInMemory(use(service))),
         Effect.provide(DbLive)
       )
     )

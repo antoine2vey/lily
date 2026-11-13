@@ -49,7 +49,7 @@ import {
   type CommandSpec,
   commandBody,
   runCommand,
-  type Transaction,
+  Transaction,
   transact,
 } from '@lily/api/kernel/transact'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
@@ -450,14 +450,17 @@ export const CanopyLive = Layer.effect(
       plan: LockPlan,
       decide: (held: Held) => Result.Result<Decision<Noticed<A>>, R>
     ) =>
-      Effect.flatMap(
-        commandBody(spec(name, store.lockAndLoad(plan), decide)),
-        ({ value, notices }) =>
-          Effect.map(Effect.forEach(notices, record), (recorded) => ({
-            value,
-            recorded,
-          }))
-      ).pipe(Effect.provide(context))
+      Effect.gen(function* () {
+        const transaction = yield* Transaction
+        const { value, notices } = yield* commandBody(
+          spec(name, store.lockAndLoad(plan), decide)
+        )
+        const recorded = yield* Effect.forEach(notices, record)
+        yield* transaction.afterCommit(
+          Effect.provide(dispatchAll(recorded), context)
+        )
+        return value
+      }).pipe(Effect.provide(context))
 
     const runNoticed = <A, R extends Refusal>(
       name: string,
@@ -465,8 +468,6 @@ export const CanopyLive = Layer.effect(
       decide: (held: Held) => Result.Result<Decision<Noticed<A>>, R>
     ) =>
       transact(noticed(name, plan, decide)).pipe(
-        Effect.tap(({ recorded }) => dispatchAll(recorded)),
-        Effect.map(({ value }) => value),
         Effect.catchTag('SqlError', Effect.die),
         Effect.catchTag('SchemaError', Effect.die),
         Effect.mapError(asError),
@@ -513,7 +514,7 @@ export const CanopyLive = Layer.effect(
       leaveForDeletion: (userId) => (deletion) =>
         Effect.flatMap(DateTime.now, (now) =>
           transact(
-            Effect.all([
+            Effect.andThen(
               noticed(
                 'canopy.leaveForDeletion',
                 {
@@ -529,20 +530,13 @@ export const CanopyLive = Layer.effect(
                     reason: 'accountDeleted',
                     now,
                   })
-              ).pipe(
-                Effect.map(({ recorded }) => recorded),
-                Effect.catchTag('NotMember', () => Effect.succeed([]))
-              ),
-              deletion,
-            ])
+              ).pipe(Effect.catchTag('NotMember', () => Effect.void)),
+              deletion
+            )
           )
         ).pipe(
           Effect.provideService(SqlClient.SqlClient, sql),
           Effect.provideService(Outbox, outbox),
-          Effect.tap(([recorded]) =>
-            Effect.provide(dispatchAll(recorded), context)
-          ),
-          Effect.map(([, deleted]) => deleted),
           Effect.catchTag('SchemaError', Effect.die),
           Effect.withSpan('canopy.leaveForDeletion', {
             attributes: { 'user.id': userId },

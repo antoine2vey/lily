@@ -86,6 +86,7 @@ export const createMockCareLogRepository = (
         plantName: `Plant ${log.plantId.slice(-4)}`,
         plantImageUrl: undefined,
         date: log.date,
+        careDay: log.careDay,
         notes: log.notes,
       }))
 

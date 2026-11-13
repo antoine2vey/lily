@@ -11,7 +11,9 @@ import {
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
+import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createDelegation } from '@lily/api/services/delegation/endpoints/create-delegation'
@@ -84,7 +86,9 @@ const createLayer = (options?: {
           : [],
       },
       { notifications, timeline: options?.timeline }
-    ).layer
+    ).layer,
+    options?.timeline?.sql ?? createMockSqlClient(),
+    MockOutboxLive
   )
 
 describe('createDelegation', () => {

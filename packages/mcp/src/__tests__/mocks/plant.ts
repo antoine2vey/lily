@@ -1,19 +1,28 @@
 import { type CanopyId, CareDay, CareDays, careStatus } from '@lily/shared'
-import type { Plant, PlantCareSchedule } from '@lily/shared/plant'
+import type {
+  Plant,
+  PlantCareSchedule,
+  PlantCareScheduleWithLastCareDay,
+} from '@lily/shared/plant'
 import { Array, DateTime } from 'effect'
 
-/** Schedules as the API returns them: status decided on a UTC `today`. */
+/** Schedules as the API returns them: days and status decided in UTC. */
 export const seen = (
   schedules: ReadonlyArray<Omit<PlantCareSchedule, 'dueDay' | 'status'>>,
   today: Date = new Date()
-): Array<PlantCareSchedule> =>
+): Array<PlantCareScheduleWithLastCareDay> =>
   Array.map(schedules, (schedule) => {
+    const lastCareDay =
+      schedule.lastCareAt === null
+        ? null
+        : CareDays.of(DateTime.makeUnsafe(schedule.lastCareAt), 'UTC')
     if (schedule.nextCareAt === null) {
-      return { ...schedule, dueDay: null, status: null }
+      return { ...schedule, lastCareDay, dueDay: null, status: null }
     }
     const dueDay = CareDays.of(DateTime.makeUnsafe(schedule.nextCareAt), 'UTC')
     return {
       ...schedule,
+      lastCareDay,
       dueDay,
       status: careStatus(
         dueDay,

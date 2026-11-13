@@ -1,5 +1,9 @@
 import { CareDay, CareDays, careStatus } from '@lily/shared'
-import type { Plant, PlantCareSchedule, PlantPhoto } from '@lily/shared/plant'
+import type {
+  Plant,
+  PlantCareScheduleWithLastCareDay,
+  PlantPhoto,
+} from '@lily/shared/plant'
 import { DateTime } from 'effect'
 
 /** The plant-level care fields of an API plant. */
@@ -18,6 +22,11 @@ const seen = (dueAt: Date | null) => {
   }
 }
 
+const lastCare = (at: Date | null) => ({
+  lastCareAt: at,
+  lastCareDay: at === null ? null : CareDays.of(DateTime.makeUnsafe(at), 'UTC'),
+})
+
 export type PlantRecord = Plant
 
 export const makeSchedules = (opts: {
@@ -27,12 +36,12 @@ export const makeSchedules = (opts: {
   fertilizationFrequencyDays: number | null
   lastFertilizedAt: Date | null
   nextFertilizationAt: Date | null
-}): PlantCareSchedule[] => {
-  const schedules: PlantCareSchedule[] = [
+}): PlantCareScheduleWithLastCareDay[] => {
+  const schedules: PlantCareScheduleWithLastCareDay[] = [
     {
       careType: 'watering',
       frequencyDays: opts.wateringFrequencyDays,
-      lastCareAt: opts.lastWateredAt,
+      ...lastCare(opts.lastWateredAt),
       nextCareAt: opts.nextWateringAt,
       ...seen(opts.nextWateringAt),
     },
@@ -41,7 +50,7 @@ export const makeSchedules = (opts: {
     schedules.push({
       careType: 'fertilization',
       frequencyDays: opts.fertilizationFrequencyDays,
-      lastCareAt: opts.lastFertilizedAt,
+      ...lastCare(opts.lastFertilizedAt),
       nextCareAt: opts.nextFertilizationAt,
       ...seen(opts.nextFertilizationAt),
     })

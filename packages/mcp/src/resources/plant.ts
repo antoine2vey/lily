@@ -33,7 +33,7 @@ export const readPlantResource = (plant: PlantDetail) =>
         schedules: Array.map(plant.schedules, (s) => ({
           careType: s.careType,
           frequencyDays: s.frequencyDays,
-          lastCareAt: s.lastCareAt ? formatIsoDate(s.lastCareAt) : null,
+          lastCareAt: s.lastCareDay,
           nextCareAt: s.dueDay,
         })),
         dateAdded: formatIsoDate(plant.dateAdded),

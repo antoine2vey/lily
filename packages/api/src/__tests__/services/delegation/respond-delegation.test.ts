@@ -5,6 +5,8 @@ import {
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { respondToDelegation } from '@lily/api/services/delegation/endpoints/respond-delegation'
@@ -61,7 +63,9 @@ const createLayer = (
         plantDetails: mockDelegationPlants,
       },
       { notifications }
-    ).layer
+    ).layer,
+    createMockSqlClient(),
+    MockOutboxLive
   )
 
 describe('respondToDelegation', () => {

@@ -55,6 +55,8 @@ export const RecentActivity = Schema.Struct({
   plantName: Schema.String,
   plantImageUrl: Schema.optional(Schema.String),
   date: Schema.DateFromString,
+  /** The day of the care in the plant's care timezone, as stored. */
+  careDay: CareDay,
   notes: Schema.optional(Schema.String),
 })
 

@@ -1,3 +1,4 @@
+import { absenceOverStore } from '@lily/api/__tests__/integration/absence-layers'
 import {
   canopyOverStore,
   dissolve,
@@ -20,6 +21,7 @@ import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { hashInviteToken } from '@lily/api/contexts/canopy/domain/invitation'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import {
@@ -35,7 +37,10 @@ import {
   CarePlanRepositoryLive,
 } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
-import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
+import {
+  DelegationRepository,
+  DelegationRepositoryLive,
+} from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import {
@@ -45,6 +50,10 @@ import {
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { acceptCanopyInvitation } from '@lily/api/services/canopy/endpoints/accept-canopy-invitation'
+import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
+import { removeCanopyMember } from '@lily/api/services/canopy/endpoints/remove-canopy-member'
+import { sendCanopyInvitation } from '@lily/api/services/canopy/endpoints/send-canopy-invitation'
 import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-canopy'
 import { withdrawCanopyInvitation } from '@lily/api/services/canopy/endpoints/withdraw-canopy-invitation'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
@@ -60,6 +69,10 @@ import {
   withCarePlanAuth,
   withCarePlanStep,
 } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
+import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
+import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
+import { createDelegation } from '@lily/api/services/delegation/endpoints/create-delegation'
+import { respondToDelegation } from '@lily/api/services/delegation/endpoints/respond-delegation'
 import { carePlant } from '@lily/api/services/plants/endpoints/care-plant'
 import { correctCareDates } from '@lily/api/services/plants/endpoints/correct-care-dates'
 import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
@@ -140,6 +153,17 @@ const pausingCanopy =
       }))
     )
 
+const pausingAbsence =
+  ({ holdingItsLocks }: Seams) =>
+  <A, E, R>(endpoint: Effect.Effect<A, E, R>) =>
+    Effect.provide(
+      endpoint,
+      absenceOverStore((store) => ({
+        ...store,
+        apply: (writes) => holdingItsLocks(store.apply(writes)),
+      }))
+    )
+
 const readingThePlantBack =
   ({ behindTheRival }: Seams) =>
   <A, E, R>(endpoint: Effect.Effect<A, E, R>) =>
@@ -175,6 +199,16 @@ const readingTheCanopyBack =
   <A, E, R>(endpoint: Effect.Effect<A, E, R>) =>
     Effect.flatMap(CanopyRepository, (repo) =>
       Effect.provideService(endpoint, CanopyRepository, {
+        ...repo,
+        findById: (id) => behindTheRival(repo.findById(id)),
+      })
+    )
+
+const readingTheDelegationBack =
+  ({ behindTheRival }: Seams) =>
+  <A, E, R>(endpoint: Effect.Effect<A, E, R>) =>
+    Effect.flatMap(DelegationRepository, (repo) =>
+      Effect.provideService(endpoint, DelegationRepository, {
         ...repo,
         findById: (id) => behindTheRival(repo.findById(id)),
       })
@@ -321,9 +355,60 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return canopy.id
     }
 
+    const anInvitationTo = async (
+      canopyId: string,
+      invitee: string,
+      inviter: string
+    ) => {
+      const [invitation] = await db
+        .insert(schema.canopyDirectInvites)
+        .values({
+          canopyId,
+          inviteeUserId: invitee,
+          invitedByUserId: inviter,
+          expiresAt: new Date(Date.now() + 7 * DAY),
+        })
+        .returning()
+      if (!invitation) throw new Error('invitation insert returned nothing')
+      return invitation.id
+    }
+
+    const aDelegationOf = async (
+      status: 'pending' | 'active',
+      startDate: Date
+    ) => {
+      const { owner, plantId } = await aPlantOfItsOwner()
+      const caretaker = await aUser()
+      const [delegation] = await db
+        .insert(schema.careDelegations)
+        .values({
+          ownerId: owner,
+          caretakerId: caretaker,
+          status,
+          startDate,
+          endDate: new Date(Date.now() + 30 * DAY),
+        })
+        .returning()
+      if (!delegation) throw new Error('delegation insert returned nothing')
+      await db
+        .insert(schema.delegationPlants)
+        .values({ delegationId: delegation.id, plantId })
+      return { owner, caretaker, delegationId: delegation.id }
+    }
+
     const deletedByAnotherSession = (plantId: string) =>
       Effect.promise(() =>
         pool.query('DELETE FROM plants WHERE id = $1', [plantId])
+      )
+
+    const delegationDeletedByAnotherSession = (delegationId: string) =>
+      Effect.promise(() =>
+        pool.query('DELETE FROM care_delegations WHERE id = $1', [delegationId])
+      )
+
+    const accountDeletedByAnotherSession = (userId: string) =>
+      Effect.promise(() =>
+        pool.query('DELETE FROM users WHERE id = $1', [userId])
       )
 
     interface Race {
@@ -558,24 +643,139 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const owner = await aUser()
         const invitee = await aUser()
         const canopyId = await aCanopyOf(owner)
-        const [invitation] = await db
-          .insert(schema.canopyDirectInvites)
-          .values({
-            canopyId,
-            inviteeUserId: invitee,
-            invitedByUserId: owner,
-            expiresAt: new Date(Date.now() + 7 * DAY),
-          })
-          .returning()
-        if (!invitation) throw new Error('invitation insert returned nothing')
+        const invitationId = await anInvitationTo(canopyId, invitee, owner)
         return {
           asker: owner,
           endpoint: (seams) =>
-            withdrawCanopyInvitation(invitation.id).pipe(
+            withdrawCanopyInvitation(invitationId).pipe(
               readingTheCanopyBack(seams),
               pausingCanopy(seams)
             ),
           rival: dissolve(owner),
+        }
+      },
+      'a canopy joined by its link': async () => {
+        const owner = await aUser()
+        const joiner = await aUser()
+        const canopyId = await aCanopyOf(owner)
+        const token = `link-${crypto.randomUUID()}`
+        await db.insert(schema.canopyInvites).values({
+          canopyId,
+          tokenHash: hashInviteToken(token),
+          createdByUserId: owner,
+          expiresAt: new Date(Date.now() + 7 * DAY),
+        })
+        return {
+          asker: joiner,
+          endpoint: (seams) =>
+            acceptCanopyInvite(token).pipe(
+              readingTheCanopyBack(seams),
+              pausingCanopy(seams)
+            ),
+          rival: dissolve(owner),
+        }
+      },
+      'a canopy joined by an invitation': async () => {
+        const owner = await aUser()
+        const joiner = await aUser()
+        const canopyId = await aCanopyOf(owner)
+        const invitationId = await anInvitationTo(canopyId, joiner, owner)
+        return {
+          asker: joiner,
+          endpoint: (seams) =>
+            acceptCanopyInvitation(invitationId).pipe(
+              readingTheCanopyBack(seams),
+              pausingCanopy(seams)
+            ),
+          rival: dissolve(owner),
+        }
+      },
+      'a canopy with a removed member': async () => {
+        const owner = await aUser()
+        const member = await aUser()
+        await aCanopyOf(owner, member)
+        return {
+          asker: owner,
+          endpoint: (seams) =>
+            removeCanopyMember(member).pipe(
+              readingTheCanopyBack(seams),
+              pausingCanopy(seams)
+            ),
+          rival: dissolve(owner),
+        }
+      },
+      'a canopy with a new invitation': async () => {
+        const owner = await aUser()
+        const invitee = await aUser()
+        await aCanopyOf(owner)
+        return {
+          asker: owner,
+          endpoint: (seams) =>
+            sendCanopyInvitation(invitee).pipe(
+              readingTheCanopyBack(seams),
+              pausingCanopy(seams)
+            ),
+          rival: dissolve(owner),
+        }
+      },
+      'a new delegation, against the deletion of its caretaker': async () => {
+        const { owner, plantId } = await aPlantOfItsOwner()
+        const caretaker = await aUser()
+        return {
+          asker: owner,
+          endpoint: (seams) =>
+            createDelegation({
+              caretakerId: caretaker,
+              plantIds: [plantId],
+              startDate: new Date(Date.now() + DAY).toISOString(),
+              endDate: new Date(Date.now() + 8 * DAY).toISOString(),
+            }).pipe(readingTheDelegationBack(seams), pausingAbsence(seams)),
+          rival: accountDeletedByAnotherSession(caretaker),
+        }
+      },
+      'a canceled delegation': async () => {
+        const { owner, delegationId } = await aDelegationOf(
+          'pending',
+          new Date(Date.now() + DAY)
+        )
+        return {
+          asker: owner,
+          endpoint: (seams) =>
+            cancelDelegation(delegationId).pipe(
+              readingTheDelegationBack(seams),
+              pausingAbsence(seams)
+            ),
+          rival: delegationDeletedByAnotherSession(delegationId),
+        }
+      },
+      'a delegation its caretaker accepted': async () => {
+        const { caretaker, delegationId } = await aDelegationOf(
+          'pending',
+          new Date(Date.now() + DAY)
+        )
+        return {
+          asker: caretaker,
+          endpoint: (seams) =>
+            respondToDelegation(delegationId, { accept: true }).pipe(
+              readingTheDelegationBack(seams),
+              pausingAbsence(seams)
+            ),
+          rival: delegationDeletedByAnotherSession(delegationId),
+        }
+      },
+      'a delegation completed early': async () => {
+        const { owner, delegationId } = await aDelegationOf(
+          'active',
+          new Date(Date.now() - DAY)
+        )
+        return {
+          asker: owner,
+          endpoint: (seams) =>
+            completeDelegation(delegationId).pipe(
+              readingTheDelegationBack(seams),
+              pausingAbsence(seams)
+            ),
+          rival: delegationDeletedByAnotherSession(delegationId),
         }
       },
     } satisfies Record<string, () => Promise<Race>>

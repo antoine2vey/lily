@@ -5,7 +5,10 @@ import {
   reviveAsCurrentUser,
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
-import { statementsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
+import {
+  deadlocks,
+  statementsWaitingForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { chatPermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -144,14 +147,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
-    }
-
-    const deadlocks = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1200))
-      const { rows } = await pool.query<{ deadlocks: string }>(
-        `SELECT deadlocks::text AS deadlocks FROM pg_stat_database WHERE datname = current_database()`
-      )
-      return Number(rows[0]?.deadlocks ?? 0)
     }
 
     const plantOf = async (life: 'living' | 'dead' = 'living') => {
@@ -295,7 +290,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('a remove racing a care ends as one of the two orders, with no defect, no deadlock and nothing of the plant left', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const seen: string[] = []
 
       for (const round of Array.range(1, ROUNDS)) {
@@ -315,11 +310,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'remove ran, care PlantNotFoundError',
         ])
       ).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('a remove racing a tick of a plan step ends as one of the two orders, with no defect, no deadlock and nothing of the plant left', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const seen: string[] = []
 
       for (const round of Array.range(1, ROUNDS)) {
@@ -340,11 +335,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'remove ran, tick CarePlanNotFoundError',
         ])
       ).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('a remove racing a diagnosis ends as one of the two orders, with no defect, no deadlock and no diagnosis or plan left', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const seen: string[] = []
 
       for (const round of Array.range(1, ROUNDS)) {
@@ -364,7 +359,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'remove ran, diagnosis PlantNotFoundError',
         ])
       ).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('a remove asks for its strongest lock first: behind a session that references the plant, the statement that waits is the lock, not the delete', async () => {
@@ -392,7 +387,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('a bury racing a revive of a dead plant ends as one of the two orders, with no defect and no deadlock', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const seen: string[] = []
 
       for (const round of Array.range(1, ROUNDS)) {
@@ -418,7 +413,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'bury ran, revive ran, ends dead',
         ])
       ).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('a revive racing a create at the last free slot lets one of them take it', async () => {
@@ -427,7 +422,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.subscriptionTiers)
         .where(eq(schema.subscriptionTiers.tier, 'free'))
       const maxPlants = freeTier?.maxPlants ?? 5
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const seen: string[] = []
 
       for (const round of Array.range(1, ROUNDS)) {
@@ -462,7 +457,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'revive LimitExceededError, create ran, full',
         ])
       ).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
   }
 )

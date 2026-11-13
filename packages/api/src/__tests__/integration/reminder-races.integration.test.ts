@@ -15,6 +15,7 @@ import {
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import {
+  deadlocks,
   sessionsWaitingForALock,
   waitsForALock,
 } from '@lily/api/__tests__/integration/lock-waits'
@@ -166,16 +167,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ) as Effect.Effect<A, E, Layer.Success<typeof BaseLive>>
       )
 
-    const deadlocks = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1200))
-      const [row] = await db
-        .execute<{ deadlocks: string }>(
-          sql`SELECT deadlocks::text AS deadlocks FROM pg_stat_database WHERE datname = current_database()`
-        )
-        .then((r) => r.rows)
-      return Number(row?.deadlocks ?? 0)
-    }
-
     const user = async (name: string, timezone = 'UTC') => {
       const [row] = await db
         .insert(schema.users)
@@ -299,7 +290,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).map(([id]) => id)
 
     it('bulk cares over the same plants in different orders never deadlock', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const exits = []
       for (const round of Arr.range(1, 8)) {
         exits.push(
@@ -323,11 +314,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
       expect(Arr.filter(exits, isDeadlock)).toHaveLength(0)
       expect(Arr.filter(exits, Exit.isFailure)).toHaveLength(0)
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('an unshare racing care on the same plant never deadlocks', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const exits = []
       for (const round of Arr.range(1, 20)) {
         await reset()
@@ -359,7 +350,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       }
       expect(Arr.filter(exits, isDeadlock)).toHaveLength(0)
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('an unmute racing an unshare never leaves the former member a row', async () => {
@@ -501,7 +492,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     }, 60_000)
 
     it('a mixed storm leaves one pending row per recipient and no deadlock', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 5)) {
         await reset()
@@ -642,7 +633,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('a vacation that starts while a reconcile runs leaves no care row pending', async () => {
@@ -791,7 +782,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
 
     it('a vacation that starts while a bulk care rebuilds a delegated plant never deadlocks', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 10)) {
         const owner = await user(`Owner${round}`)
@@ -865,11 +856,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it("a vacation that starts while a bulk care clears the caretaker's overdue reminder never deadlocks", async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 10)) {
         const owner = await user(`OverdueOwner${round}`)
@@ -942,11 +933,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it("a vacation that starts while a single care clears the owner's overdue reminder never deadlocks", async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 10)) {
         const owner = await user(`SingleOverdueOwner${round}`)
@@ -984,11 +975,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('a vacation that starts while a single care clears an overdue reminder that was already waiting never deadlocks', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 10)) {
         const owner = await user(`WaitingOverdueOwner${round}`)
@@ -1028,11 +1019,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('a bulk care that lands while a single care on the same plant waits for its replan never deadlocks', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 10)) {
         const owner = await user(`SingleBulkOwner${round}`)
@@ -1077,7 +1068,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('a second care that arrives while the first waits for its replan writes one care log and gets AlreadyCaredTodayError', async () => {
@@ -1135,7 +1126,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     }, 60_000)
 
     it("a vacation that starts while a Canopy dissolves around the member's overdue reminder never deadlocks", async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 10)) {
         const owner = await user(`DissolvingOwner${round}`)
@@ -1217,11 +1208,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it("a vacation that starts while the same user's account deletion clears an overdue reminder never deadlocks", async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 10)) {
         const owner = await user(`StayingOwner${round}`)
@@ -1269,7 +1260,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
     it('a vacation start removes a care reminder another transaction holds locked', async () => {
@@ -1513,7 +1504,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       '%s never deadlock',
       async (_shape, setup) => {
         await db.execute(sql`TRUNCATE TABLE care_delegations CASCADE`)
-        const before = await deadlocks()
+        const before = await deadlocks(pool)
         const failures: string[] = []
         for (const round of Arr.range(1, 10)) {
           const reached = Deferred.makeUnsafe<void>()
@@ -1545,7 +1536,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           }
         }
         expect(failures).toEqual([])
-        expect((await deadlocks()) - before).toBe(0)
+        expect((await deadlocks(pool)) - before).toBe(0)
       },
       120_000
     )
@@ -1656,7 +1647,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it.each(Object.entries(crossWriters))(
       "%s by two users who each hold a reminder on the other's plant never deadlock",
       async (_shape, setup) => {
-        const before = await deadlocks()
+        const before = await deadlocks(pool)
         const failures: string[] = []
         for (const round of Arr.range(1, 10)) {
           const reached = Deferred.makeUnsafe<void>()
@@ -1681,13 +1672,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           }
         }
         expect(failures).toEqual([])
-        expect((await deadlocks()) - before).toBe(0)
+        expect((await deadlocks(pool)) - before).toBe(0)
       },
       120_000
     )
 
     it('a vacation end that holds the account while a bulk care holds the plants it will move never deadlocks', async () => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 5)) {
         const away = await user(`Away${round}`)
@@ -1739,7 +1730,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }, 120_000)
 
     describe('overdue reminders for a caretaker', () => {

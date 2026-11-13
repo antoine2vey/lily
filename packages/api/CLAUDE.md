@@ -63,6 +63,8 @@ Error isolation built-in: catch + log + continue, never crash server.
 
 Use `publishWithRetry()` for event publishing.
 
+A handler that writes a user id outside the contexts (a room, a device token, a chat message) holds no account. When a hard deletion of that account commits under it, the write breaks the foreign key to `users` and the handler dies on a `SqlError`. The `Authentication` middleware in `services/auth/middleware.impl.ts` answers that case for every such handler: when the handler dies on a `SqlError` and the account of `CurrentUser` no longer exists, the request answers the `UnauthorizedError` its next request would get, and the defect is logged at error level. Every other defect still answers 500. Do not add an account hold to such a writer to fix its answer. `AdminAuth` has no such rule.
+
 ## Testing
 
 **Tests are mandatory for new features.**
@@ -81,9 +83,11 @@ const result = await Effect.runPromise(
 
 ## Transactions
 
-An operation that is only right inside its caller's transaction requires the `Transaction` service of `kernel/transact.ts`, so it does not compile outside one. Every store lock and `apply`, `Absence.holdForDeletion` and `releaseForDeletion`, `Canopy.holdAsMember`, `Reminders.request` and `outbox.append` require it. `transact` provides it. So does `transactQuietly`, which wakes no relay and is for a body that appends nothing to the outbox. Do not provide `Transaction` anywhere else, and do not capture it in a layer. A test that calls such an operation on its own wraps it in `assumingTransaction` from `__tests__/mocks/transaction.ts`.
+An operation that is only right inside its caller's transaction requires the `Transaction` service of `kernel/transact.ts`, so it does not compile outside one. Every store lock and `apply`, `Absence.holdForDeletion` and `releaseForDeletion`, `Canopy.holdAsMember`, `Reminders.request` and `outbox.append` require it. `transact` provides it. So does `transactQuietly`, which wakes no relay and is for a body that appends nothing to the outbox. Do not provide `Transaction` anywhere else, and do not capture it in a layer. A test that calls such an operation on its own wraps it in `transactInMemory` from `__tests__/mocks/transaction.ts`.
 
-An endpoint that answers with a row its command wrote reads that row in the same transaction: it wraps the command and the read in `transact`, or reads inside the body of `withOwnerLock`. The command's own transaction becomes a savepoint, so its locks hold until the read is done. A read made after the commit can find the row deleted by a request that waited for the command, and then answers 404 or dies. `__tests__/integration/read-back-races.integration.test.ts` has one race per endpoint. Do not wrap a command that enqueues its notifications after its commit (`Canopy.join`, `invite`, `leave`, `removeMember` and the four delegation commands of `Absence`): the enqueue would run before the notification row is visible to the worker.
+An endpoint that answers with a row its command wrote reads that row in the same transaction: it wraps the command and the read in `transact`, or reads inside the body of `withOwnerLock`. The command's own transaction becomes a savepoint, so its locks hold until the read is done. A read made after the commit can find the row deleted by a request that waited for the command, and then answers 404 or dies. `__tests__/integration/read-back-races.integration.test.ts` has one race per endpoint.
+
+An effect that is only right once the change is committed, such as the enqueue of a notification the worker then reads, is registered inside the transaction with `Transaction.afterCommit`. It runs after the outermost commit, so a caller may wrap the command in its own `transact`, and it is dropped when that transaction or one around it rolls back. Do not run such an effect after `transact` returns. Under a caller's transaction, that is before the commit. `Canopy.join`, `invite`, `leave`, `removeMember` and `leaveForDeletion`, and the delegation commands of `Absence`, enqueue their notifications this way.
 
 ## Reminders
 

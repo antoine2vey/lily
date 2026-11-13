@@ -520,8 +520,6 @@ describe('removeCanopyMember', () => {
       'begin',
       'insert canopy_member_removed lily',
       'commit',
-      'begin',
-      'commit',
       'enqueue canopy_member_removed lily',
     ])
   })

@@ -11,6 +11,7 @@ import {
   waterAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import { deadlocks } from '@lily/api/__tests__/integration/lock-waits'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -283,15 +284,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
-    const deadlocks = async () => {
-      // The counter is flushed at most once a second.
-      await new Promise((resolve) => setTimeout(resolve, 1200))
-      const { rows } = await db.execute<{ deadlocks: string }>(
-        sql`SELECT deadlocks::text AS deadlocks FROM pg_stat_database WHERE datname = current_database()`
-      )
-      return Number(rows[0]?.deadlocks ?? 0)
-    }
-
     const world = async (): Promise<World> => {
       await db.execute(
         sql.raw(
@@ -504,7 +496,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
       runtime = ManagedRuntime.make(ReposLive)
-      deadlocksBefore = await deadlocks()
+      deadlocksBefore = await deadlocks(pool)
     })
 
     afterAll(async () => {
@@ -557,7 +549,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     )
 
     it('Postgres counted no deadlock over the whole table', async () => {
-      expect((await deadlocks()) - deadlocksBefore).toBe(0)
+      expect((await deadlocks(pool)) - deadlocksBefore).toBe(0)
     })
   }
 )

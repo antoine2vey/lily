@@ -5,11 +5,48 @@ import {
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
 import { JWTService, JWTServiceLive } from '@lily/api/services/jwt/service'
 import { UnauthorizedError } from '@lily/shared'
-import { Effect, Layer } from 'effect'
+import { Array, Cause, Effect, Layer, Option, pipe, Result } from 'effect'
+import { isSqlError, type SqlError } from 'effect/sql/SqlError'
 import { Authentication, CurrentUser } from './middleware.types'
 
 // Re-export types for convenience
 export { Authentication, CurrentUser } from './middleware.types'
+
+const sqlDefectOf = <E>(
+  cause: Cause.Cause<E>
+): Result.Result<SqlError, Cause.Cause<E>> =>
+  pipe(
+    cause.reasons,
+    Array.findFirst((reason) =>
+      Cause.isDieReason(reason) && isSqlError(reason.defect)
+        ? Option.some(reason.defect)
+        : Option.none()
+    ),
+    Result.fromOption(() => cause)
+  )
+
+const answeringForAnAccountGone =
+  (users: UserRepository['Service'], userId: string) =>
+  <A, E, R>(
+    handler: Effect.Effect<A, E, R>
+  ): Effect.Effect<A, E | UnauthorizedError, R> =>
+    Effect.catchCauseFilter(handler, sqlDefectOf<E>, (_, died) =>
+      Effect.gen(function* () {
+        const account = yield* Effect.catchTag(
+          users.findById(userId),
+          'SqlError',
+          () => Effect.failCause(died)
+        )
+        if (account !== null) return yield* Effect.failCause(died)
+        yield* Effect.logError(
+          'Request died on a database error after its account was deleted',
+          died
+        ).pipe(Effect.annotateLogs('user.id', userId))
+        return yield* new UnauthorizedError({
+          message: 'Authentication failed',
+        })
+      })
+    )
 
 /**
  * Base layer for Authentication middleware (requires JWTService and UserRepository)
@@ -36,7 +73,11 @@ export const AuthenticationBase = Layer.effect(
           )
         )
 
-        return yield* Effect.provideService(httpEffect, CurrentUser, profile)
+        return yield* Effect.provideService(
+          httpEffect,
+          CurrentUser,
+          profile
+        ).pipe(answeringForAnAccountGone(userRepo, profile.id))
       }),
     })
   })

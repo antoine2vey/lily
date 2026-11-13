@@ -164,6 +164,8 @@ export const CareLogRepositoryLive = Layer.effect(
               id: careLogs.id,
               type: careLogs.type,
               date: careLogs.date,
+              careDay: careLogs.careDay,
+              careTimezone: careTimezoneSql,
               notes: careLogs.notes,
               plantId: careLogs.plantId,
               plantName: plants.name,
@@ -184,6 +186,7 @@ export const CareLogRepositoryLive = Layer.effect(
               Option.fromNullishOr(row.plantImageUrl)
             ),
             date: row.date,
+            careDay: storedDay(row.careDay, row.date, row.careTimezone),
             notes: Option.getOrUndefined(Option.fromNullishOr(row.notes)),
           }))
 

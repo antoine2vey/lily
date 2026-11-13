@@ -6,6 +6,7 @@ import {
   type SeenSchedule,
   type StoredSchedule,
   seePlantCare,
+  storedDay,
 } from '@lily/api/contexts/care'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
@@ -30,6 +31,7 @@ import {
   canopies,
   canopyMembers,
   careDelegations,
+  careLogs,
   delegationPlants,
   plantCareSchedules,
   plantPhotos,
@@ -61,6 +63,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  max,
   sql,
 } from 'drizzle-orm'
 import {
@@ -104,7 +107,9 @@ export type RoomRef = {
   isOutdoor: boolean
 } | null
 
-export type PlantCareScheduleRef = SeenSchedule
+export type PlantCareScheduleRef = SeenSchedule & {
+  readonly lastCareDay: CareDay | null
+}
 
 export type PlantRow = WithOwner<typeof plants.$inferSelect>
 
@@ -289,10 +294,40 @@ type RawPlant = typeof plants.$inferSelect
 const canopySelect = { name: canopies.name }
 const creatorSelect = { id: users.id, name: users.name }
 
+type ScheduleRow = StoredSchedule & {
+  readonly lastCareLogDay: string | null
+}
+
 type CareInput = {
   careTimezone: string
-  schedules: ReadonlyArray<StoredSchedule>
+  schedules: ReadonlyArray<ScheduleRow>
   now: DateTime.DateTime
+}
+
+export const seeCareWithLastDays = (plant: RawPlant, care: CareInput) => {
+  const seen = seePlantCare(plant, care.schedules, care.careTimezone, care.now)
+  const lastCareLogDays = new Map(
+    Array.map(care.schedules, (row) => [row.careType, row.lastCareLogDay])
+  )
+  return {
+    ...seen,
+    schedules: Array.map(
+      seen.schedules,
+      (schedule): PlantCareScheduleRef => ({
+        ...schedule,
+        lastCareDay:
+          schedule.lastCareAt === null
+            ? null
+            : storedDay(
+                Option.getOrNull(
+                  Option.fromNullishOr(lastCareLogDays.get(schedule.careType))
+                ),
+                schedule.lastCareAt,
+                care.careTimezone
+              ),
+      })
+    ),
+  }
 }
 
 // Map a DB row to an owned PlantWithRoom
@@ -302,7 +337,7 @@ function toOwnedPlant(
 ): PlantWithRoom {
   return {
     ...withUserOwner(row.plant),
-    ...seePlantCare(row.plant, care.schedules, care.careTimezone, care.now),
+    ...seeCareWithLastDays(row.plant, care),
     room: row.room,
     ownership: 'owned' as const,
     ownerName: null,
@@ -316,7 +351,7 @@ function toCaretakingPlant(
 ): PlantWithRoom {
   return {
     ...withUserOwner(row.plant),
-    ...seePlantCare(row.plant, care.schedules, care.careTimezone, care.now),
+    ...seeCareWithLastDays(row.plant, care),
     room: row.room,
     ownership: 'caretaking' as const,
     ownerName: row.ownerName,
@@ -335,7 +370,7 @@ function toCanopyPlant(
   const plant = withCanopyOwner(row.plant)
   return {
     ...plant,
-    ...seePlantCare(row.plant, care.schedules, care.careTimezone, care.now),
+    ...seeCareWithLastDays(row.plant, care),
     room: row.room,
     ownership: 'canopy' as const,
     ownerName: null,
@@ -345,10 +380,10 @@ function toCanopyPlant(
 }
 
 const schedulesFor =
-  (scheduleMap: Map<string, StoredSchedule[]>) => (plantId: string) =>
+  (scheduleMap: Map<string, ScheduleRow[]>) => (plantId: string) =>
     pipe(
       Option.fromNullishOr(scheduleMap.get(plantId)),
-      Option.getOrElse(() => [] as StoredSchedule[])
+      Option.getOrElse(() => [] as ScheduleRow[])
     )
 
 // Live implementation using PgDrizzle
@@ -357,30 +392,48 @@ export const PlantRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
+    // The correlating columns sit inside a query drizzle builds. Written flat
+    // in this fragment they would lose their table name, because the select
+    // has one table, and the subquery would match a care log of any plant.
+    const lastCareLogDay = sql<string | null>`(${db
+      .select({ day: max(careLogs.careDay) })
+      .from(careLogs)
+      .where(
+        and(
+          eq(careLogs.plantId, plantCareSchedules.plantId),
+          sql`${careLogs.type}::text = ${plantCareSchedules.careType}::text`,
+          eq(careLogs.date, plantCareSchedules.lastCareAt)
+        )
+      )})`
+
+    const scheduleRow = {
+      plantId: plantCareSchedules.plantId,
+      careType: plantCareSchedules.careType,
+      frequencyDays: plantCareSchedules.frequencyDays,
+      lastCareAt: plantCareSchedules.lastCareAt,
+      nextCareAt: plantCareSchedules.nextCareAt,
+      dueDay: plantCareSchedules.dueDay,
+      lastCareLogDay,
+    }
+
     const fetchSchedulesForPlants = Effect.fn(
       'PlantRepository.fetchSchedulesForPlants'
     )(function* (plantIds: readonly string[]) {
       if (Array.isReadonlyArrayEmpty(plantIds)) {
-        return new Map<string, StoredSchedule[]>()
+        return new Map<string, ScheduleRow[]>()
       }
       const rows = yield* db
-        .select()
+        .select(scheduleRow)
         .from(plantCareSchedules)
         .where(inArray(plantCareSchedules.plantId, [...plantIds]))
 
-      const grouped = new Map<string, StoredSchedule[]>()
+      const grouped = new Map<string, ScheduleRow[]>()
       Array.forEach(rows, (r) => {
         const existing = pipe(
           Option.fromNullishOr(grouped.get(r.plantId)),
-          Option.getOrElse(() => [] as StoredSchedule[])
+          Option.getOrElse(() => [] as ScheduleRow[])
         )
-        existing.push({
-          careType: r.careType,
-          frequencyDays: r.frequencyDays,
-          lastCareAt: r.lastCareAt,
-          nextCareAt: r.nextCareAt,
-          dueDay: r.dueDay,
-        })
+        existing.push(r)
         grouped.set(r.plantId, existing)
       })
       return grouped
@@ -624,7 +677,7 @@ export const PlantRepositoryLive = Layer.effect(
         if (!row) return null
 
         const scheduleRows = yield* db
-          .select()
+          .select(scheduleRow)
           .from(plantCareSchedules)
           .where(eq(plantCareSchedules.plantId, id))
         const care: CareInput = {

@@ -124,6 +124,7 @@ describe('readPlantResource', () => {
           careType: 'watering',
           frequencyDays: 7,
           lastCareAt: null,
+          lastCareDay: null,
           nextCareAt: new Date('2024-03-10T02:30:00.000Z'),
           dueDay: CareDay.make('2024-03-09'),
           status: { _tag: 'Upcoming', inDays: 4 },
@@ -134,6 +135,28 @@ describe('readPlantResource', () => {
     const result = await Effect.runPromise(readPlantResource(plant))
 
     expect(JSON.parse(result).schedules[0].nextCareAt).toBe('2024-03-09')
+  })
+
+  it('gives the stored day of the last care, not the UTC date of its instant', async () => {
+    const plant: PlantDetail = {
+      ...basePlant,
+      careTimezone: 'America/New_York',
+      schedules: [
+        {
+          careType: 'watering',
+          frequencyDays: 7,
+          lastCareAt: new Date('2024-03-10T02:30:00.000Z'),
+          lastCareDay: CareDay.make('2024-03-09'),
+          nextCareAt: new Date('2099-01-01T05:00:00.000Z'),
+          dueDay: CareDay.make('2099-01-01'),
+          status: { _tag: 'Upcoming', inDays: 4 },
+        },
+      ],
+    }
+
+    const result = await Effect.runPromise(readPlantResource(plant))
+
+    expect(JSON.parse(result).schedules[0].lastCareAt).toBe('2024-03-09')
   })
 
   it('should return null for missing schedule dates', async () => {

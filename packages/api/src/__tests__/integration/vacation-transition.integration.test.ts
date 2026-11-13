@@ -10,7 +10,7 @@ import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
@@ -157,7 +157,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               end: DateTime.fromDateUnsafe(end),
             })
           )
-        ).pipe(assumingTransaction, Effect.provide(StoreLive))
+        ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
       expect(defectOf(activated)).toEqual(
@@ -194,7 +194,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             })
           ),
           becoming(snapshot, Vacation.None())
-        ).pipe(assumingTransaction, Effect.provide(StoreLive))
+        ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
       expect(defectOf(ended)).toEqual(
@@ -236,7 +236,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               end: DateTime.fromDateUnsafe(end),
             })
           )
-        ).pipe(assumingTransaction, Effect.provide(StoreLive))
+        ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
       expect(defectOf(started)).toEqual(
@@ -273,7 +273,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             })
           ),
           becoming(snapshot, Vacation.None())
-        ).pipe(assumingTransaction, Effect.provide(StoreLive))
+        ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
       expect(defectOf(calledOff)).toEqual(
@@ -318,7 +318,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             VacationWrite.MoveDueDaysAfterAbsence({ userId, endedAt, days: 7 }),
           ])
         ).pipe(
-          assumingTransaction,
+          transactInMemory,
           Effect.provide(
             AbsenceStoreLive.pipe(
               Layer.provide(

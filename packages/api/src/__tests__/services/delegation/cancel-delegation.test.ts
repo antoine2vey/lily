@@ -5,6 +5,8 @@ import {
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
@@ -43,6 +45,8 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
 
 const notifications: Notification[] = []
 
+const OuterTransactionLive = Layer.merge(createMockSqlClient(), MockOutboxLive)
+
 const inMemory = (delegations: DelegationRow[]) =>
   createInMemoryAbsence(
     {
@@ -62,7 +66,8 @@ const createLayer = (
   delegations: DelegationRow[] = [
     { ...mockDelegation1, status: 'pending' as const },
   ]
-) => Layer.mergeAll(currentUser, inMemory(delegations).layer)
+) =>
+  Layer.mergeAll(currentUser, inMemory(delegations).layer, OuterTransactionLive)
 
 describe('cancelDelegation', () => {
   it('should cancel a pending delegation', async () => {
@@ -108,7 +113,9 @@ describe('cancelDelegation', () => {
 
     await Effect.runPromise(
       cancelDelegation(mockDelegation1.id).pipe(
-        Effect.provide(Layer.mergeAll(ownerCurrentUser, absence.layer))
+        Effect.provide(
+          Layer.mergeAll(ownerCurrentUser, absence.layer, OuterTransactionLive)
+        )
       )
     )
 
@@ -131,7 +138,13 @@ describe('cancelDelegation', () => {
 
       await Effect.runPromise(
         cancelDelegation(mockDelegation1.id).pipe(
-          Effect.provide(Layer.mergeAll(ownerCurrentUser, absence.layer))
+          Effect.provide(
+            Layer.mergeAll(
+              ownerCurrentUser,
+              absence.layer,
+              OuterTransactionLive
+            )
+          )
         )
       )
 

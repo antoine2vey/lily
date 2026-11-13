@@ -1,4 +1,5 @@
 import { Absence } from '@lily/api/contexts/absence'
+import { transact } from '@lily/api/kernel/transact'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { delegationDetail } from '@lily/api/services/delegation/helpers/delegation-detail'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
@@ -31,14 +32,18 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
     yield* limitChecker.checkDelegationAccess(by)
     const { start, end } = yield* parsedPeriod(request)
     const absence = yield* Absence
-    const { delegationId } = yield* absence.openDelegation({
-      by,
-      caretakerId: request.caretakerId,
-      start,
-      end,
-      message: Option.fromNullishOr(request.message),
-      plantIds: request.plantIds,
-    })
-    return yield* delegationDetail(delegationId)
+    return yield* transact(
+      Effect.flatMap(
+        absence.openDelegation({
+          by,
+          caretakerId: request.caretakerId,
+          start,
+          end,
+          message: Option.fromNullishOr(request.message),
+          plantIds: request.plantIds,
+        }),
+        ({ delegationId }) => delegationDetail(delegationId)
+      )
+    )
   }
 )

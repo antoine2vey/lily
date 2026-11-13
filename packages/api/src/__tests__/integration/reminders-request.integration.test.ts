@@ -1,6 +1,6 @@
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { CareReadsLive, CareTopic } from '@lily/api/contexts/care'
 import {
   Dirty,
@@ -69,7 +69,7 @@ const run = <A, E>(
 ) =>
   Effect.runPromise(
     effect.pipe(
-      assumingTransaction,
+      transactInMemory,
       Effect.provide(Layer.fresh(appLayer(relay))),
       Effect.provideService(References.MinimumLogLevel, 'None')
     )

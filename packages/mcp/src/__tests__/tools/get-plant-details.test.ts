@@ -173,6 +173,7 @@ describe('getPlantDetails MCP tool', () => {
               careType: 'watering',
               frequencyDays: 7,
               lastCareAt: null,
+              lastCareDay: null,
               nextCareAt: new Date('2024-03-10T02:30:00.000Z'),
               dueDay: CareDay.make('2024-03-09'),
               status: { _tag: 'Upcoming', inDays: 4 },

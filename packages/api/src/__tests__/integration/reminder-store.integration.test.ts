@@ -1,6 +1,6 @@
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
-import { assumingTransaction } from '@lily/api/__tests__/mocks/transaction'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import {
   Change,
@@ -57,7 +57,7 @@ const StoreLive = Layer.mergeAll(
 const run = <A, E>(effect: Effect.Effect<A, E, StoreContext | Transaction>) =>
   Effect.runPromise(
     effect.pipe(
-      assumingTransaction,
+      transactInMemory,
       Effect.provide(StoreLive),
       Effect.provideService(References.MinimumLogLevel, 'None')
     )
@@ -608,7 +608,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             drop(old, alex),
             put(NOBODY, sendTime(dueDay, 'UTC', 9)),
           ]).pipe(
-            assumingTransaction,
+            transactInMemory,
             Effect.provide(StoreLive),
             Effect.provideService(References.MinimumLogLevel, 'None')
           )
