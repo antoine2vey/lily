@@ -1,6 +1,10 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
-import { LimitExceededError, PaginationParams } from '@lily/shared'
+import {
+  LanguageCode,
+  LimitExceededError,
+  PaginationParams,
+} from '@lily/shared'
 import {
   CHAT_MESSAGE_MAX_LENGTH,
   ChatConversation,
@@ -8,6 +12,7 @@ import {
   ChatConversationListResponse,
   ChatHistoryListResponse,
   ChatStarters,
+  ChatSuggestions,
   ConversationNotFoundError,
   CreateConversationRequest,
 } from '@lily/shared/ai-chat'
@@ -29,6 +34,11 @@ const conversationIdParam = Schema.String.check(Schema.isGUID())
 const StreamChatRequest = Schema.Struct({
   message: Schema.String.check(Schema.isMaxLength(CHAT_MESSAGE_MAX_LENGTH)),
   imageKey: Schema.optional(Schema.String),
+})
+
+const ChatSuggestionsParams = Schema.Struct({
+  plantId: Schema.String,
+  language: LanguageCode,
 })
 
 const ConversationListParams = Schema.Struct({
@@ -65,6 +75,17 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
       error: Schema.Struct({ error: Schema.String }).pipe(
         HttpApiSchema.status(401)
       ),
+    })
+  )
+  .add(
+    HttpApiEndpoint.get('listChatSuggestions', '/chat/suggestions', {
+      query: ChatSuggestionsParams,
+      success: ChatSuggestions,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
     })
   )
   .add(
