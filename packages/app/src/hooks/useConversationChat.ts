@@ -1,4 +1,5 @@
 import { useChat } from '@ai-sdk/react'
+import { API_PREFIX } from '@lily/shared'
 import type { UIMessage } from 'ai'
 import { DefaultChatTransport } from 'ai'
 import { Array, Option, pipe } from 'effect'
@@ -37,7 +38,7 @@ export function useConversationChat({
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: `${API_BASE_URL}/api/chat/conversations/${conversationId}/stream`,
+        api: `${API_BASE_URL}${API_PREFIX}/chat/conversations/${conversationId}/stream`,
         fetch: expoFetch as typeof globalThis.fetch,
         headers: async () => {
           const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)

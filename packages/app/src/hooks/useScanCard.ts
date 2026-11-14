@@ -1,4 +1,4 @@
-import { nowAsEpochMillis } from '@lily/shared'
+import { API_PREFIX, nowAsEpochMillis } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { Array as Arr } from 'effect'
 import { useTranslation } from 'react-i18next'
@@ -23,7 +23,7 @@ export function useScanCard() {
       })
 
       return uploadMultipart<PlantIdentificationResult>(
-        '/api/plants/scan-card',
+        `${API_PREFIX}/plants/scan-card`,
         [file],
         'images',
         { locale: i18n.language }
@@ -51,7 +51,7 @@ export function useScanCardMultiple() {
       )
 
       return uploadMultipart<PlantIdentificationResult>(
-        '/api/plants/scan-card-multiple',
+        `${API_PREFIX}/plants/scan-card-multiple`,
         files,
         'images',
         { locale: i18n.language }

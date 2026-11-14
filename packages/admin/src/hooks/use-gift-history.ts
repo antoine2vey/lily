@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -26,6 +27,6 @@ export const useGiftHistory = (page = 1) =>
     queryKey: ['gift-history', page],
     queryFn: () =>
       apiRequest<PaginatedGiftHistory>(
-        `/api/admin/gift-history?page=${page}&limit=20`
+        `${API_PREFIX}/admin/gift-history?page=${page}&limit=20`
       ),
   })

@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -19,7 +20,7 @@ export const useAdminUsers = (search: string, enabled: boolean) =>
     queryKey: ['admin-users', search],
     queryFn: () =>
       apiRequest<PaginatedUsers>(
-        `/api/admin/users?search=${encodeURIComponent(search)}&limit=10`
+        `${API_PREFIX}/admin/users?search=${encodeURIComponent(search)}&limit=10`
       ),
     enabled: enabled && search.length >= 2,
   })

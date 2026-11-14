@@ -1,4 +1,5 @@
 import type { PaginatedResponse } from '@lily/shared'
+import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -41,7 +42,7 @@ export const useAdminUsersList = (params: UseAdminUsersListParams) =>
       if (params.role) qs.set('role', params.role)
       if (params.status) qs.set('status', params.status)
       return apiRequest<PaginatedResponse<AdminUserListItem>>(
-        `/api/admin/users?${qs.toString()}`
+        `${API_PREFIX}/admin/users?${qs.toString()}`
       )
     },
   })

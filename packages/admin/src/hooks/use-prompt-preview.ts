@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import type { PromptPreviewResponse as PromptPreviewResponseSchema } from '@lily/shared/admin'
 import { useMutation } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
@@ -13,6 +14,6 @@ export const usePromptPreview = () =>
   useMutation({
     mutationFn: (messageId: string) =>
       apiRequest<PromptPreviewResponse>(
-        `/api/admin/prompt-preview/${messageId}`
+        `${API_PREFIX}/admin/prompt-preview/${messageId}`
       ),
   })

@@ -4,7 +4,7 @@ import type { IApiClient } from '@lily/mcp/api-client'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { ToolsLayer } from '@lily/mcp/tools/handlers'
-import { ExternalServiceError } from '@lily/shared'
+import { API_PREFIX, ExternalServiceError } from '@lily/shared'
 import type { EnhancedPlantCreateRequest } from '@lily/shared/plant'
 import { Array, Effect, Layer, Option } from 'effect'
 import { McpSchema, McpServer } from 'effect/ai'
@@ -18,7 +18,7 @@ const apiRefusal = (statusCode: number) =>
   new ExternalServiceError({
     service: 'lily-api',
     method: 'POST',
-    url: 'http://api-withlily.railway.internal:3000/api/plants',
+    url: `http://api-withlily.railway.internal:3000${API_PREFIX}/plants`,
     statusCode,
     message: `StatusCode: non 2xx status code (${statusCode} POST)`,
   })

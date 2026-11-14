@@ -1,4 +1,5 @@
 import type { AchievementWithProgress } from '@lily/shared'
+import { API_PREFIX } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { Array, Option, pipe, String } from 'effect'
 import { fetch as expoFetch } from 'expo/fetch'
@@ -47,7 +48,7 @@ export function useAchievementNotifications(
         const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
         if (!token || abortController.signal.aborted) return
 
-        const url = `${API_BASE_URL}/api/achievements/events`
+        const url = `${API_BASE_URL}${API_PREFIX}/achievements/events`
 
         const response = await expoFetch(url, {
           headers: {

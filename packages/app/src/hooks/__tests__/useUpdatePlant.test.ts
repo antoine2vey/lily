@@ -13,6 +13,7 @@ jest.mock('@/utils/upload', () => ({
   uploadMultipart: jest.fn().mockResolvedValue({}),
 }))
 
+import { API_PREFIX } from '@lily/shared'
 import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 import { useUpdatePlant } from '../useUpdatePlant'
 
@@ -52,7 +53,7 @@ describe('useUpdatePlant', () => {
     })
 
     expect(mockedUploadMultipart).toHaveBeenCalledWith(
-      '/api/plants/plant-1',
+      `${API_PREFIX}/plants/plant-1`,
       [],
       'image',
       { data: JSON.stringify({ name: 'Updated', wateringFrequencyDays: 7 }) },
@@ -82,7 +83,7 @@ describe('useUpdatePlant', () => {
       expect.objectContaining({ type: 'image/jpeg' })
     )
     expect(mockedUploadMultipart).toHaveBeenCalledWith(
-      '/api/plants/plant-1',
+      `${API_PREFIX}/plants/plant-1`,
       [expect.objectContaining({ uri: 'file:///var/mobile/photo.jpg' })],
       'image',
       { data: JSON.stringify({ name: 'Updated' }) },
@@ -109,7 +110,7 @@ describe('useUpdatePlant', () => {
 
     expect(mockedCreateFileFromUri).not.toHaveBeenCalled()
     expect(mockedUploadMultipart).toHaveBeenCalledWith(
-      '/api/plants/plant-1',
+      `${API_PREFIX}/plants/plant-1`,
       [],
       'image',
       {

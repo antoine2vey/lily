@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -21,7 +22,7 @@ export const useGiftSubscription = () =>
   useMutation({
     mutationFn: ({ userId, duration }: GiftSubscriptionRequest) =>
       apiRequest<GiftSubscriptionResponse>(
-        `/api/admin/users/${userId}/gift-subscription`,
+        `${API_PREFIX}/admin/users/${userId}/gift-subscription`,
         {
           method: 'POST',
           body: JSON.stringify({ duration }),

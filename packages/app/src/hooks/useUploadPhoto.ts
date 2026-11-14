@@ -1,4 +1,5 @@
 import {
+  API_PREFIX,
   nowAsEpochMillis,
   type PlantDetail,
   type PlantPhotosListResponse,
@@ -61,7 +62,7 @@ export function useUploadPhoto() {
       // Raw multipart upload bypasses the typed client, so decode the JSON
       // through the schema to get Date-typed `takenAt` (not an ISO string).
       const raw = await uploadMultipart<unknown>(
-        `/api/plants/${plantId}/photos`,
+        `${API_PREFIX}/plants/${plantId}/photos`,
         [file]
       )
       return decodeUploadResponse(raw)
