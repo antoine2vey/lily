@@ -13,7 +13,18 @@ import type {
   ChatMessage,
 } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
-import { and, asc, count, desc, eq, lt, max, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  max,
+  sql,
+} from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -124,6 +135,16 @@ export interface IChatRepository {
     userId: string
     plantId: string
     limit: number
+  }) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  /**
+   * Which of `texts` the user has sent, word for word, in their conversation
+   * about a plant since `since`.
+   */
+  readonly findSentTexts: (params: {
+    userId: string
+    plantId: string
+    since: Date
+    texts: ReadonlyArray<string>
   }) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly deleteConversation: (params: {
     id: string
@@ -326,6 +347,35 @@ export const ChatRepositoryLive = Layer.effect(
             )
             .orderBy(desc(chatMessages.createdAt))
             .limit(params.limit)
+          return Array.map(rows, (row) => row.content)
+        }
+      ),
+
+      findSentTexts: Effect.fn('ChatRepository.findSentTexts')(
+        function* (params: {
+          userId: string
+          plantId: string
+          since: Date
+          texts: ReadonlyArray<string>
+        }) {
+          if (Array.isReadonlyArrayEmpty(params.texts)) return []
+          const rows = yield* db
+            .selectDistinct({ content: chatMessages.content })
+            .from(chatMessages)
+            .innerJoin(
+              chatConversations,
+              eq(chatMessages.conversationId, chatConversations.id)
+            )
+            .where(
+              and(
+                eq(chatConversations.userId, params.userId),
+                eq(chatConversations.plantId, params.plantId),
+                eq(chatConversations.kind, 'plant'),
+                eq(chatMessages.role, 'user'),
+                gte(chatMessages.createdAt, params.since),
+                inArray(chatMessages.content, [...params.texts])
+              )
+            )
           return Array.map(rows, (row) => row.content)
         }
       ),

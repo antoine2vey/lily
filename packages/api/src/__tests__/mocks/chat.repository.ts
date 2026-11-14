@@ -206,6 +206,29 @@ export const createMockChatRepository = (
         )
       ),
 
+    findSentTexts: ({ userId, plantId, since, texts }) =>
+      Effect.succeed(
+        pipe(
+          data.messages,
+          Array.filter(
+            (m) =>
+              m.role === 'user' &&
+              new Date(m.createdAt) >= since &&
+              Array.contains(texts, m.content) &&
+              Array.some(
+                conversations,
+                (c) =>
+                  c.id === m.conversationId &&
+                  c.userId === userId &&
+                  c.kind === 'plant' &&
+                  c.plantId === plantId
+              )
+          ),
+          Array.map((m) => m.content),
+          Array.dedupe
+        )
+      ),
+
     deleteConversation: ({ id, userId }) => {
       const idx = conversations.findIndex(
         (c) => c.id === id && c.userId === userId

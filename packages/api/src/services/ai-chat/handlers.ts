@@ -2,6 +2,7 @@ import type { Api } from '@lily/api/api'
 import { createConversation } from '@lily/api/services/ai-chat/endpoints/create-conversation'
 import { deleteConversation } from '@lily/api/services/ai-chat/endpoints/delete-conversation'
 import { getChatHistory } from '@lily/api/services/ai-chat/endpoints/get-chat-history'
+import { listChatFollowUps } from '@lily/api/services/ai-chat/endpoints/list-chat-follow-ups'
 import { listChatStarters } from '@lily/api/services/ai-chat/endpoints/list-chat-starters'
 import { listChatSuggestions } from '@lily/api/services/ai-chat/endpoints/list-chat-suggestions'
 import { listConversations } from '@lily/api/services/ai-chat/endpoints/list-conversations'
@@ -38,6 +39,9 @@ export const AIChatApiLive = (api: Api) =>
       )
       .handle('listChatSuggestions', ({ query: { plantId, language } }) =>
         listChatSuggestions(plantId, language).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('listChatFollowUps', ({ query: { plantId, language } }) =>
+        listChatFollowUps(plantId, language).pipe(withInfraErrorsAsDefect)
       )
       .handle('requestChatFollowUps', ({ payload: { language } }) =>
         requestChatFollowUps(language).pipe(withInfraErrorsAsDefect)
