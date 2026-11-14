@@ -62,5 +62,16 @@ export const ChatStarters = Schema.Struct({
 })
 export type ChatStarters = typeof ChatStarters.Type
 
+export const ChatSuggestion = Schema.Struct({
+  id: Schema.String,
+  text: Schema.String,
+})
+export type ChatSuggestion = typeof ChatSuggestion.Type
+
+export const ChatSuggestions = Schema.Struct({
+  suggestions: Schema.Array(ChatSuggestion),
+})
+export type ChatSuggestions = typeof ChatSuggestions.Type
+
 // Type exports
 export type ChatMessage = typeof ChatMessage.Type
