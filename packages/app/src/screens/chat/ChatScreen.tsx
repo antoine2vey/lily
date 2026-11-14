@@ -14,15 +14,17 @@ import {
   Text,
   View,
 } from 'react-native'
-import Animated, { FadeIn } from 'react-native-reanimated'
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
+import { useChatStarters } from '@/hooks/useChatStarters'
 import { useConversation } from '@/hooks/useConversation'
 import { useConversationChat } from '@/hooks/useConversationChat'
 import { useConversationMessages } from '@/hooks/useConversationMessages'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
+import { useKeyboardShown } from '@/hooks/useKeyboardShown'
 import { usePlant } from '@/hooks/usePlant'
 import { useUploadConversationImage } from '@/hooks/useUploadConversationImage'
 import { AskLilyHeader } from '@/screens/chat/components/AskLilyHeader'
@@ -30,9 +32,15 @@ import { ChatInput } from '@/screens/chat/components/ChatInput'
 import { ChatMessage } from '@/screens/chat/components/ChatMessage'
 import { ChatMessagesSkeleton } from '@/screens/chat/components/ChatMessagesSkeleton'
 import { ConversationsDrawer } from '@/screens/chat/components/ConversationsDrawer'
+import { PlantCarousel } from '@/screens/chat/components/PlantCarousel'
 import { SuggestionChips } from '@/screens/chat/components/SuggestionChips'
 import { TypingIndicator } from '@/screens/chat/components/TypingIndicator'
 import { toolResultId } from '@/screens/chat/components/tool-renderers'
+import {
+  GENERAL_TARGET,
+  type NewChatTarget,
+  newConversationPayload,
+} from '@/screens/chat/new-chat-target'
 
 function hasNoVisibleContent(msg: UIMessage): boolean {
   const hasText = Array.some(
@@ -118,6 +126,8 @@ export function ChatScreen() {
   const [activeConversationId, setActiveConversationId] = useState<
     string | undefined
   >(paramId)
+  const [newChatTarget, setNewChatTarget] =
+    useState<NewChatTarget>(GENERAL_TARGET)
   const [pendingMessage, setPendingMessage] = useState<{
     content: string
     imageUri?: string | undefined
@@ -128,16 +138,23 @@ export function ChatScreen() {
 
   useEffect(() => {
     setActiveConversationId(paramId)
+    setNewChatTarget(GENERAL_TARGET)
   }, [paramId])
 
   // Plant-bound cards (diagnosis, care plan) need the conversation's plant id
   // to read their server state and to act on it.
   const { data: conversation } = useConversation(activeConversationId)
   const conversationPlantId = conversation?.plantId
-  const isPlantChat = Predicate.isNotNullish(conversationPlantId)
+  const targetPlant = newChatTarget.kind === 'plant' ? newChatTarget : undefined
+  const isPlantChat = Predicate.isUndefined(conversation)
+    ? Predicate.isNotUndefined(targetPlant)
+    : Predicate.isNotNullish(conversationPlantId)
   const { data: plant } = usePlant(
     Option.getOrElse(Option.fromNullishOr(conversationPlantId), () => '')
   )
+  const subjectName = plant?.name ?? targetPlant?.name
+
+  const { data: starters } = useChatStarters(activeConversationId === undefined)
 
   const {
     isLoading: isLoadingHistory,
@@ -210,14 +227,14 @@ export function ChatScreen() {
 
   const openDrawer = useCallback(() => setDrawerOpen(true), [])
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
-  const selectConversation = useCallback(
-    (id: string) => setActiveConversationId(id),
-    []
-  )
-  const resetConversation = useCallback(
-    () => setActiveConversationId(undefined),
-    []
-  )
+  const selectConversation = useCallback((id: string) => {
+    setActiveConversationId(id)
+    setNewChatTarget(GENERAL_TARGET)
+  }, [])
+  const resetConversation = useCallback(() => {
+    setActiveConversationId(undefined)
+    setNewChatTarget(GENERAL_TARGET)
+  }, [])
 
   const displayMessages: UIMessage[] = pipe(
     chatMessages,
@@ -234,6 +251,9 @@ export function ChatScreen() {
     })
     queryClient.invalidateQueries({
       queryKey: ['aiChat', 'listConversations'],
+    })
+    queryClient.invalidateQueries({
+      queryKey: ['aiChat', 'listChatStarters'],
     })
   }, [queryClient])
 
@@ -317,7 +337,7 @@ export function ChatScreen() {
       // No conversation yet — create one lazily, then queue the message to be
       // sent once the chat hooks have re-initialized with the new id.
       createConversation.mutate(
-        { payload: { kind: 'general' } },
+        { payload: newConversationPayload(newChatTarget) },
         {
           onSuccess: (created) => {
             setActiveConversationId(created.id)
@@ -326,7 +346,7 @@ export function ChatScreen() {
         }
       )
     },
-    [activeConversationId, sendInternal, createConversation]
+    [activeConversationId, sendInternal, createConversation, newChatTarget]
   )
 
   // The chat hook's transport URL captures conversationId at init, so the
@@ -371,6 +391,7 @@ export function ChatScreen() {
     })
   )
 
+  const mascotFits = !useKeyboardShown()
   const isInitialLoading = isLoadingHistory && !initialMessages
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
@@ -401,7 +422,7 @@ export function ChatScreen() {
   const header = (
     <AskLilyHeader
       onMenuPress={openDrawer}
-      subtitle={isPlantChat ? plant?.name : undefined}
+      subtitle={isPlantChat ? subjectName : undefined}
     />
   )
 
@@ -467,15 +488,32 @@ export function ChatScreen() {
         <View className="flex-1">
           {isNewChat ? (
             <View
-              className="flex-1"
+              className="flex-1 justify-end"
               style={{
                 paddingTop: headerHeight,
                 paddingBottom: composerHeight,
               }}
             >
-              <EmptyState kind="chatNew" />
+              {mascotFits && (
+                <Animated.View
+                  entering={FadeIn.duration(200)}
+                  exiting={FadeOut.duration(150)}
+                  className="flex-1"
+                >
+                  <EmptyState kind="chatNew" />
+                </Animated.View>
+              )}
+              {activeConversationId === undefined &&
+                starters !== undefined &&
+                Array.isReadonlyArrayNonEmpty(starters.plants) && (
+                  <PlantCarousel
+                    plants={starters.plants}
+                    selected={newChatTarget}
+                    onSelect={setNewChatTarget}
+                  />
+                )}
               <SuggestionChips
-                isPlantChat={isPlantChat}
+                kind={isPlantChat ? 'plant' : 'general'}
                 onSelect={handleSend}
               />
             </View>

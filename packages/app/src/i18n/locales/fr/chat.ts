@@ -40,12 +40,15 @@ export default {
     untitledGeneral: 'Nouvelle conversation',
     untitledPlant: 'Discussion plante',
   },
+  starters: {
+    general: 'Général',
+  },
   suggestions: {
-    default: {
-      leavesYellowing: 'Pourquoi mes feuilles jaunissent-elles ?',
-      wateringFrequency: 'À quelle fréquence arroser ?',
-      lightOkay: 'Cette lumière convient-elle ?',
-      petSafe: 'Est-ce sans danger pour les animaux ?',
+    general: {
+      petSafePlants: 'Quelles plantes sont sans danger pour les animaux ?',
+      lowLight: 'Quelles plantes supportent une faible luminosité ?',
+      fungusGnats: 'Comment se débarrasser des moucherons ?',
+      beginnerPlants: 'Quelles plantes sont faciles pour débuter ?',
     },
     plant: {
       howToCare: 'Comment entretenir cette plante ?',
