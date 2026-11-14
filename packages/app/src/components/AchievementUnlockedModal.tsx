@@ -5,8 +5,10 @@ import type React from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  Keyboard,
   type LayoutChangeEvent,
   Modal,
+  Platform,
   Pressable,
   Text,
   View,
@@ -26,6 +28,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated'
+import { FullWindowOverlay } from 'react-native-screens'
 import { Mascot } from '@/components/Mascot'
 import { useAchievementCopy } from '@/hooks/useAchievementCopy'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -217,6 +220,9 @@ function AchievementModalContent({
   const progress = useSharedValue(0)
 
   useEffect(() => {
+    // The iOS overlay shares the app's window, so an open keyboard would stay
+    // up and cover the button.
+    Keyboard.dismiss()
     progress.value = withTiming(1, {
       duration: ENTER_DURATION,
       easing: Easing.out(Easing.cubic),
@@ -400,6 +406,17 @@ export function AchievementUnlockedModal({
 
   if (!Array.isReadonlyArrayNonEmpty(deck)) return null
 
+  const content = (
+    <AchievementModalContent achievements={deck} onDismiss={handleDismiss} />
+  )
+
+  // A window-level overlay on iOS, where a view controller presents one modal
+  // at a time: a Modal asked to open while a sheet is up is never presented,
+  // and its host view then swallows every touch.
+  if (Platform.OS === 'ios') {
+    return <FullWindowOverlay>{content}</FullWindowOverlay>
+  }
+
   return (
     <Modal
       visible
@@ -407,7 +424,7 @@ export function AchievementUnlockedModal({
       animationType="none"
       onRequestClose={handleDismiss}
     >
-      <AchievementModalContent achievements={deck} onDismiss={handleDismiss} />
+      {content}
     </Modal>
   )
 }
