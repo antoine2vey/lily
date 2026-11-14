@@ -305,7 +305,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           scheduledAt: new Date(Date.now() - 30 * DAY_MS),
           occasionDay: dueDay,
         })
-        const sentYesterday = await seed({
+        await seed({
           userId: sam,
           status: 'sent',
           sentAt: yesterday,
@@ -336,16 +336,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           ])
         )
 
-        expect(rows).toHaveLength(7)
+        expect(rows).toHaveLength(6)
         expect(rows).toEqual(
           expect.arrayContaining([
             [marked, 'Pending', dueDay],
-            [unmarked, 'Pending', dueDay],
+            [unmarked, 'Pending', null],
             [retrying, 'Pending', null],
-            [queued, 'Queued', CareDays.addDays(dueDay, -2)],
-            [inFlight, 'InFlight', CareDays.addDays(dueDay, -2)],
+            [queued, 'Queued', null],
+            [inFlight, 'InFlight', null],
             [sentForDueDay, 'Sent', dueDay],
-            [sentYesterday, 'Sent', CareDays.addDays(dueDay, -4)],
           ])
         )
         expect(

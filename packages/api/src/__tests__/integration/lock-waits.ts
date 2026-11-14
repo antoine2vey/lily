@@ -29,6 +29,17 @@ export const sessionsWaitingForALock = async (
   return 0
 }
 
+export const sleepsBetweenAttempts = async (pool: pg.Pool) => {
+  for (const _ of Array.range(1, IDLE_POLLS)) {
+    const { rowCount } = await pool.query(
+      `SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'PgSleep'`
+    )
+    if (rowCount) return true
+    await pause()
+  }
+  return false
+}
+
 export const statementsWaitingForALock = async (pool: pg.Pool) => {
   for (const _ of Array.range(1, POLLS)) {
     const waiting = await waitingStatements(pool)

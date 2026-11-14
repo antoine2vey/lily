@@ -260,6 +260,19 @@ describe('planPlant, one slot of an entitled recipient', () => {
     ])
   })
 
+  it('reads a row with no occasion as about no day: a pending one is replaced, a delivered one announces nothing', () => {
+    const undated = row('alex', { occasion: null })
+    const delivered = row('alex', {
+      occasion: null,
+      delivery: Delivery.Sent(),
+    })
+    const state = plant({ rows: [undated, delivered] })
+    expect(planPlant(state, justAlex, NOW)).toEqual([
+      Change.Remove({ rowId: undated.id, userId: 'alex', why: 'superseded' }),
+      put(alex, TODAY),
+    ])
+  })
+
   it('removes a pending row for another occasion when nothing replaces it', () => {
     const old = row('alex', { occasion: day('2026-11-05') })
     const state = plant({ lines: [line('watering', YESTERDAY)], rows: [old] })

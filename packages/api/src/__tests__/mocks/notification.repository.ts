@@ -325,9 +325,8 @@ export const createMockNotificationRepository = (
             waiting ||
             n.status === 'pending' ||
             n.status === 'queued' ||
-            (occasionDay === null
-              ? (n.sentAt ?? n.scheduledAt) >= query.unmarkedSince
-              : Array.contains(query.occasionDays, occasionDay))
+            (occasionDay !== null &&
+              Array.contains(query.occasionDays, occasionDay))
           return n.plantId !== undefined &&
             Array.contains(query.plantIds, n.plantId) &&
             isReminderTopic(n.type) &&
@@ -342,7 +341,6 @@ export const createMockNotificationRepository = (
                   inFlight: deliveryClaims.has(n.id),
                   retryCount: n.retryCount,
                   scheduledAt: n.scheduledAt,
-                  sentAt: n.sentAt ?? null,
                   occasionDay,
                 },
               ]

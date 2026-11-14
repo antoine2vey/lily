@@ -537,6 +537,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
       )
+      const [schedule] = await db
+        .select({ dueDay: schema.plantCareSchedules.dueDay })
+        .from(schema.plantCareSchedules)
+        .where(sql`${schema.plantCareSchedules.plantId} = ${shared}`)
       const seeded = await db
         .insert(schema.notifications)
         .values(
@@ -553,6 +557,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               userId,
               plantId: shared,
               status,
+              occasionDay: status === 'pending' ? schedule?.dueDay : null,
             })
           )
         )
