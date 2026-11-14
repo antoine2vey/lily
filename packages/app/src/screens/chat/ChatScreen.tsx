@@ -18,6 +18,10 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
 import { useChatStarters } from '@/hooks/useChatStarters'
+import {
+  useDropChatSuggestionsOnLeave,
+  usePrefetchChatSuggestions,
+} from '@/hooks/useChatSuggestions'
 import { useConversation } from '@/hooks/useConversation'
 import { useConversationChat } from '@/hooks/useConversationChat'
 import { useConversationMessages } from '@/hooks/useConversationMessages'
@@ -37,6 +41,8 @@ import { SuggestionChips } from '@/screens/chat/components/SuggestionChips'
 import { TypingIndicator } from '@/screens/chat/components/TypingIndicator'
 import { toolResultId } from '@/screens/chat/components/tool-renderers'
 import {
+  carouselNeighbours,
+  chipsSubjectOf,
   GENERAL_TARGET,
   type NewChatTarget,
   newConversationPayload,
@@ -155,6 +161,16 @@ export function ChatScreen() {
   const subjectName = plant?.name ?? targetPlant?.name
 
   const { data: starters } = useChatStarters(activeConversationId === undefined)
+  const prefetchSuggestions = usePrefetchChatSuggestions()
+  useDropChatSuggestionsOnLeave()
+
+  useEffect(() => {
+    if (activeConversationId !== undefined || starters === undefined) return
+    Array.forEach(
+      carouselNeighbours(starters.plants, newChatTarget),
+      prefetchSuggestions
+    )
+  }, [activeConversationId, starters, newChatTarget, prefetchSuggestions])
 
   const {
     isLoading: isLoadingHistory,
@@ -163,6 +179,14 @@ export function ChatScreen() {
     refetch: _refetchHistory,
   } = useConversationMessages(activeConversationId)
   const refetchHistory = _refetchHistory as () => void
+
+  const chipsSubject = chipsSubjectOf({
+    target: newChatTarget,
+    conversation: Option.fromUndefinedOr(conversation),
+    isOpened: activeConversationId !== undefined,
+    loadedHistoryIsEmpty:
+      initialMessages !== undefined && Array.isArrayEmpty(initialMessages),
+  })
 
   const {
     messages: chatMessages,
@@ -512,10 +536,12 @@ export function ChatScreen() {
                     onSelect={setNewChatTarget}
                   />
                 )}
-              <SuggestionChips
-                kind={isPlantChat ? 'plant' : 'general'}
-                onSelect={handleSend}
-              />
+              {Option.isSome(chipsSubject) && (
+                <SuggestionChips
+                  subject={chipsSubject.value}
+                  onSelect={handleSend}
+                />
+              )}
             </View>
           ) : (
             <FlatList
