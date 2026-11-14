@@ -1,10 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 import { Option, Result } from 'effect'
 import type { ReactElement } from 'react'
 
@@ -25,6 +20,11 @@ import {
 } from '../new-chat-target'
 
 const mockedRunApiEffect = runApiEffect as jest.Mock
+
+const answer = (byEndpoint: Record<string, unknown>) =>
+  mockedRunApiEffect.mockImplementation((_group: string, name: string) =>
+    Promise.resolve(byEndpoint[name])
+  )
 
 const renderWithQueries = (ui: ReactElement) =>
   render(
@@ -224,30 +224,76 @@ describe('FollowUpChips', () => {
     ])
   })
 
-  it('renders no row while the follow-ups load', () => {
+  it('renders no row while the follow-ups load and asks for no starters', () => {
     mockedRunApiEffect.mockReturnValue(new Promise(() => {}))
     renderWithQueries(<FollowUpChips plantId="fern" onSelect={jest.fn()} />)
 
     expect(screen.queryByTestId('chat-follow-ups')).toBeNull()
+    expect(mockedRunApiEffect.mock.calls).toEqual([
+      [
+        'aiChat',
+        'listChatFollowUps',
+        { query: { plantId: 'fern', language: 'en' } },
+      ],
+    ])
   })
 
-  it('renders no row when the plant has no follow-ups', async () => {
-    mockedRunApiEffect.mockResolvedValue(Result.succeed({ suggestions: [] }))
-    renderWithQueries(<FollowUpChips plantId="fern" onSelect={jest.fn()} />)
+  it('falls back to the starters of the plant when it has no follow-ups', async () => {
+    answer({
+      listChatFollowUps: Result.succeed({ suggestions: [] }),
+      listChatSuggestions: Result.succeed({
+        suggestions: [
+          { id: 'care', text: 'How do I care for Fern?' },
+          { id: 'repot', text: 'When should I repot Fern?' },
+        ],
+      }),
+    })
+    const onSelect = jest.fn()
+    renderWithQueries(<FollowUpChips plantId="fern" onSelect={onSelect} />)
 
-    await waitFor(() => expect(mockedRunApiEffect).toHaveBeenCalled())
-    expect(screen.queryByTestId('chat-follow-ups')).toBeNull()
-    expect(screen.queryAllByRole('button')).toHaveLength(0)
-  })
+    fireEvent.press(await screen.findByText('When should I repot Fern?'))
 
-  it('renders no row and no fallback when the follow-ups fail', async () => {
-    mockedRunApiEffect.mockResolvedValue(
-      Result.fail({ _tag: 'PlantNotFoundError' })
+    expect(onSelect).toHaveBeenCalledWith('When should I repot Fern?', {
+      id: 'repot',
+      source: 'starter',
+    })
+    expect(screen.getByTestId('chat-follow-ups')).toBeTruthy()
+    expect(screen.getAllByRole('button')).toHaveLength(2)
+    expect(mockedRunApiEffect).toHaveBeenCalledWith(
+      'aiChat',
+      'listChatSuggestions',
+      { query: { plantId: 'fern', language: 'en' } }
     )
+  })
+
+  it('falls back to the starters of the plant when the follow-ups fail', async () => {
+    answer({
+      listChatFollowUps: Result.fail({ _tag: 'PlantNotFoundError' }),
+      listChatSuggestions: Result.succeed({
+        suggestions: [{ id: 'care', text: 'How do I care for Fern?' }],
+      }),
+    })
     renderWithQueries(<FollowUpChips plantId="fern" onSelect={jest.fn()} />)
 
-    await waitFor(() => expect(mockedRunApiEffect).toHaveBeenCalled())
-    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(await screen.findByText('How do I care for Fern?')).toBeTruthy()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+  })
+
+  it('falls back to the plant questions when neither follow-ups nor starters come', async () => {
+    answer({
+      listChatFollowUps: Result.succeed({ suggestions: [] }),
+      listChatSuggestions: Result.fail({ _tag: 'PlantNotFoundError' }),
+    })
+    const onSelect = jest.fn()
+    renderWithQueries(<FollowUpChips plantId="fern" onSelect={onSelect} />)
+
+    fireEvent.press(await screen.findByText('How to care for this plant?'))
+
+    expect(onSelect).toHaveBeenCalledWith('How to care for this plant?', {
+      id: 'suggestions.plant.howToCare',
+      source: 'starter',
+    })
+    expect(screen.getAllByRole('button')).toHaveLength(4)
   })
 })
 

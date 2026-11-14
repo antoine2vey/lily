@@ -70,7 +70,70 @@ function PlantChips({
 }) {
   const { t } = useTranslation('chat')
   const suggestions = useChatSuggestions(plantId)
-  const chips = pipe(
+  return (
+    <ChipList
+      chips={starterChips(plantId, suggestions, t)}
+      onSelect={onSelect}
+    />
+  )
+}
+
+export function FollowUpChips({
+  plantId,
+  onSelect,
+}: {
+  plantId: string
+  onSelect: OnSelect
+}) {
+  const followUps = useChatFollowUps(plantId)
+  return pipe(
+    Match.type<PlantSuggestions>(),
+    Match.tag('Loading', () => null),
+    Match.tag('Loaded', ({ suggestions }) =>
+      Array.match(suggestions, {
+        onEmpty: () => <StarterRow plantId={plantId} onSelect={onSelect} />,
+        onNonEmpty: (followUps) => (
+          <ChipRow
+            chips={Array.map(followUps, ({ id, text }) => ({
+              key: `${plantId}:${id}`,
+              text,
+              tap: { id, source: 'follow_up' },
+            }))}
+            onSelect={onSelect}
+          />
+        ),
+      })
+    ),
+    Match.tag('Failed', () => (
+      <StarterRow plantId={plantId} onSelect={onSelect} />
+    )),
+    Match.exhaustive
+  )(followUps)
+}
+
+function StarterRow({
+  plantId,
+  onSelect,
+}: {
+  plantId: string
+  onSelect: OnSelect
+}) {
+  const { t } = useTranslation('chat')
+  const suggestions = useChatSuggestions(plantId)
+  return (
+    <ChipRow
+      chips={starterChips(plantId, suggestions, t)}
+      onSelect={onSelect}
+    />
+  )
+}
+
+const starterChips = (
+  plantId: string,
+  suggestions: PlantSuggestions,
+  t: (key: (typeof PLANT_FALLBACK_KEYS)[number]) => string
+): ReadonlyArray<Chip> =>
+  pipe(
     Match.type<PlantSuggestions>(),
     Match.withReturnType<ReadonlyArray<Chip>>(),
     Match.tag('Loading', () => []),
@@ -90,18 +153,15 @@ function PlantChips({
     ),
     Match.exhaustive
   )(suggestions)
-  return <ChipList chips={chips} onSelect={onSelect} />
-}
 
-export function FollowUpChips({
-  plantId,
+function ChipRow({
+  chips,
   onSelect,
 }: {
-  plantId: string
+  chips: ReadonlyArray<Chip>
   onSelect: OnSelect
 }) {
-  const followUps = useChatFollowUps(plantId)
-  if (Array.isReadonlyArrayEmpty(followUps)) return null
+  if (Array.isReadonlyArrayEmpty(chips)) return null
   return (
     <ScrollView
       horizontal
@@ -110,12 +170,12 @@ export function FollowUpChips({
       testID="chat-follow-ups"
       contentContainerClassName="gap-2 px-3 pb-2"
     >
-      {Array.map(followUps, ({ id, text }, index) => (
+      {Array.map(chips, ({ key, text, tap }, index) => (
         <ChipButton
-          key={`${plantId}:${id}`}
+          key={key}
           text={text}
           index={index}
-          onPress={() => onSelect(text, { id, source: 'follow_up' })}
+          onPress={() => onSelect(text, tap)}
         />
       ))}
     </ScrollView>
