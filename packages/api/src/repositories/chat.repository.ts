@@ -100,6 +100,10 @@ export interface IChatRepository {
   readonly listConversations: (
     params: ListConversationsParams
   ) => Effect.Effect<ChatConversationListResponse, SqlError>
+  /** Plants whose conversation with this user holds at least one message. */
+  readonly findChattedPlantIds: (
+    userId: string
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly deleteConversation: (params: {
     id: string
     userId: string
@@ -229,6 +233,27 @@ export const ChatRepositoryLive = Layer.effect(
             extractCount(countResult),
             page,
             limit
+          )
+        }
+      ),
+
+      findChattedPlantIds: Effect.fn('ChatRepository.findChattedPlantIds')(
+        function* (userId: string) {
+          const rows = yield* db
+            .selectDistinct({ plantId: chatConversations.plantId })
+            .from(chatConversations)
+            .innerJoin(
+              chatMessages,
+              eq(chatMessages.conversationId, chatConversations.id)
+            )
+            .where(
+              and(
+                eq(chatConversations.userId, userId),
+                eq(chatConversations.kind, 'plant')
+              )
+            )
+          return Array.getSomes(
+            Array.map(rows, (row) => Option.fromNullishOr(row.plantId))
           )
         }
       ),

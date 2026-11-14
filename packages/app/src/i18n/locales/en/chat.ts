@@ -40,12 +40,15 @@ export default {
     untitledGeneral: 'New conversation',
     untitledPlant: 'Plant chat',
   },
+  starters: {
+    general: 'General',
+  },
   suggestions: {
-    default: {
-      leavesYellowing: 'Why are my leaves yellowing?',
-      wateringFrequency: 'How often should I water?',
-      lightOkay: 'Is this light okay?',
-      petSafe: 'Is it safe for pets?',
+    general: {
+      petSafePlants: 'Which plants are safe for pets?',
+      lowLight: 'Which plants do well in low light?',
+      fungusGnats: 'How do I get rid of fungus gnats?',
+      beginnerPlants: 'What are easy plants for beginners?',
     },
     plant: {
       howToCare: 'How to care for this plant?',

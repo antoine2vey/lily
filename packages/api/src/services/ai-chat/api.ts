@@ -7,6 +7,7 @@ import {
   ChatConversationKind,
   ChatConversationListResponse,
   ChatHistoryListResponse,
+  ChatStarters,
   ConversationNotFoundError,
   CreateConversationRequest,
 } from '@lily/shared/ai-chat'
@@ -53,6 +54,14 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
     HttpApiEndpoint.get('listConversations', '/chat/conversations', {
       query: ConversationListParams,
       success: ChatConversationListResponse,
+      error: Schema.Struct({ error: Schema.String }).pipe(
+        HttpApiSchema.status(401)
+      ),
+    })
+  )
+  .add(
+    HttpApiEndpoint.get('listChatStarters', '/chat/starters', {
+      success: ChatStarters,
       error: Schema.Struct({ error: Schema.String }).pipe(
         HttpApiSchema.status(401)
       ),

@@ -1,3 +1,4 @@
+import type { ChatConversationKind } from '@lily/shared/ai-chat'
 import { Array } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
@@ -12,49 +13,43 @@ const SUGGESTION_KEYS = {
     'suggestions.plant.whenToRepot',
     'suggestions.plant.propagationTips',
   ],
-  default: [
-    'suggestions.default.leavesYellowing',
-    'suggestions.default.wateringFrequency',
-    'suggestions.default.lightOkay',
-    'suggestions.default.petSafe',
+  general: [
+    'suggestions.general.petSafePlants',
+    'suggestions.general.lowLight',
+    'suggestions.general.fungusGnats',
+    'suggestions.general.beginnerPlants',
   ],
-} as const
+} as const satisfies Record<ChatConversationKind, ReadonlyArray<string>>
 
 interface SuggestionChipsProps {
-  isPlantChat: boolean
+  kind: ChatConversationKind
   onSelect: (text: string) => void
 }
 
-export function SuggestionChips({
-  isPlantChat,
-  onSelect,
-}: SuggestionChipsProps) {
+export function SuggestionChips({ kind, onSelect }: SuggestionChipsProps) {
   const { t } = useTranslation('chat')
 
   return (
     <View className="flex-row flex-wrap justify-center gap-2 px-6 pb-4">
-      {Array.map(
-        SUGGESTION_KEYS[isPlantChat ? 'plant' : 'default'],
-        (key, index) => {
-          const text = t(key)
-          return (
-            <Animated.View key={key} entering={chipEntering(index)}>
-              <PressableScale
-                onPress={() => onSelect(text)}
-                accessibilityRole="button"
-                surfaceClassName="px-4 py-2.5 rounded-full bg-surface dark:bg-white/10 border border-border dark:border-white/10"
+      {Array.map(SUGGESTION_KEYS[kind], (key, index) => {
+        const text = t(key)
+        return (
+          <Animated.View key={key} entering={chipEntering(index)}>
+            <PressableScale
+              onPress={() => onSelect(text)}
+              accessibilityRole="button"
+              surfaceClassName="px-4 py-2.5 rounded-full bg-surface dark:bg-white/10 border border-border dark:border-white/10"
+            >
+              <Text
+                className="text-sm text-text-primary dark:text-white"
+                style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
               >
-                <Text
-                  className="text-sm text-text-primary dark:text-white"
-                  style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-                >
-                  {text}
-                </Text>
-              </PressableScale>
-            </Animated.View>
-          )
-        }
-      )}
+                {text}
+              </Text>
+            </PressableScale>
+          </Animated.View>
+        )
+      })}
     </View>
   )
 }

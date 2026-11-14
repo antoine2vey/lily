@@ -4,7 +4,7 @@ import { Option, pipe, String } from 'effect'
 import * as Haptics from 'expo-haptics'
 import { type ReactNode, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Keyboard, Platform, Pressable, TextInput, View } from 'react-native'
+import { Pressable, TextInput, View } from 'react-native'
 import Animated, {
   Easing,
   interpolateColor,
@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AnimatedImage } from '@/components/AnimatedImage'
 import { PhotoSourceSheet } from '@/components/PhotoSourceSheet'
 import { useIconColors } from '@/hooks/useIconColors'
+import { useKeyboardShown } from '@/hooks/useKeyboardShown'
 import { PressableScale } from '@/screens/chat/components/PressableScale'
 import { iconColorsLight } from '@/theme'
 import { useGlass } from '@/utils/glass'
@@ -108,28 +109,6 @@ function ComposerSurface({ children }: { children: ReactNode }) {
       {children}
     </View>
   )
-}
-
-const KEYBOARD_EVENTS =
-  Platform.OS === 'ios'
-    ? ({ show: 'keyboardWillShow', hide: 'keyboardWillHide' } as const)
-    : ({ show: 'keyboardDidShow', hide: 'keyboardDidHide' } as const)
-
-function useKeyboardShown(): boolean {
-  const [shown, setShown] = useState(false)
-  useEffect(() => {
-    const show = Keyboard.addListener(KEYBOARD_EVENTS.show, () =>
-      setShown(true)
-    )
-    const hide = Keyboard.addListener(KEYBOARD_EVENTS.hide, () =>
-      setShown(false)
-    )
-    return () => {
-      show.remove()
-      hide.remove()
-    }
-  }, [])
-  return shown
 }
 
 interface ChatInputProps {
