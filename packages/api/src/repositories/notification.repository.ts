@@ -272,8 +272,6 @@ export interface ReminderQuery {
   readonly plantIds: ReadonlyArray<string>
   /** Delivered rows are read only when they are about one of these days. */
   readonly occasionDays: ReadonlyArray<string>
-  /** Delivered rows with no occasion are read only when sent or scheduled since then. */
-  readonly unmarkedSince: Date
 }
 
 export interface StoredReminder {
@@ -285,7 +283,6 @@ export interface StoredReminder {
   readonly inFlight: boolean
   readonly retryCount: number
   readonly scheduledAt: Date
-  readonly sentAt: Date | null
   readonly occasionDay: string | null
 }
 
@@ -688,7 +685,6 @@ export const NotificationRepositoryLive = Layer.effect(
             deliveryMessageId: notifications.deliveryMessageId,
             retryCount: notifications.retryCount,
             scheduledAt: notifications.scheduledAt,
-            sentAt: notifications.sentAt,
             occasionDay: notifications.occasionDay,
           }
           const ofThePlants = and(
@@ -723,11 +719,7 @@ export const NotificationRepositoryLive = Layer.effect(
                     ? inArray(notifications.occasionDay, [
                         ...query.occasionDays,
                       ])
-                    : undefined,
-                  and(
-                    isNull(notifications.occasionDay),
-                    sql`coalesce(${notifications.sentAt}, ${notifications.scheduledAt}) >= ${query.unmarkedSince.toISOString()}::timestamptz`
-                  )
+                    : undefined
                 )
               )
             )

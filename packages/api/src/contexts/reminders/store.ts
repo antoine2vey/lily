@@ -1,9 +1,4 @@
-import {
-  CareReads,
-  type DueCare,
-  DueScope,
-  DueWindow,
-} from '@lily/api/contexts/care'
+import { CareReads, DueScope, DueWindow } from '@lily/api/contexts/care'
 import { audiencesOf } from '@lily/api/contexts/reminders/audience'
 import type { OverdueDigest } from '@lily/api/contexts/reminders/domain/overdue'
 import {
@@ -14,7 +9,6 @@ import {
   type PlantState,
   type Recipient,
   type ReminderRow,
-  reminderTypeOf,
 } from '@lily/api/contexts/reminders/domain/plan'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
@@ -199,39 +193,7 @@ const deliveryOf = (stored: StoredReminder): Delivery =>
     })
   )
 
-const dueDayBeforeTheColumn = (
-  stored: StoredReminder,
-  cares: ReadonlyArray<DueCare>
-): Option.Option<CareDay> =>
-  pipe(
-    Array.findFirst(
-      cares,
-      (care) => reminderTypeOf(care.careType) === stored.type
-    ),
-    Option.map((care) =>
-      stored.status === 'pending'
-        ? care.dueDay
-        : CareDays.of(
-            DateTime.makeUnsafe(stored.sentAt ?? stored.scheduledAt),
-            care.careTimezone
-          )
-    )
-  )
-
-const dueDayOf = (
-  stored: StoredReminder,
-  cares: ReadonlyArray<DueCare>
-): Option.Option<CareDay> =>
-  pipe(
-    Option.fromNullishOr(stored.occasionDay),
-    Option.map((day) => CareDay.make(day)),
-    Option.orElse(() => dueDayBeforeTheColumn(stored, cares))
-  )
-
-const rowOf = (
-  stored: StoredReminder,
-  cares: ReadonlyArray<DueCare>
-): ReminderRow => {
+const rowOf = (stored: StoredReminder): ReminderRow => {
   const row = {
     id: stored.id,
     userId: stored.userId,
@@ -243,11 +205,11 @@ const rowOf = (
     : {
         ...row,
         type: stored.type,
-        dueDay: dueDayOf(stored, cares),
+        dueDay: Option.map(Option.fromNullishOr(stored.occasionDay), (day) =>
+          CareDay.make(day)
+        ),
       }
 }
-
-const BEFORE_THE_COLUMN_LOOKBACK_DAYS = 2
 
 const loadWithAccounts = (
   plantIds: ReadonlyArray<string>,
@@ -301,9 +263,6 @@ const loadWithAccounts = (
     const stored = yield* notificationRepo.lockReminders({
       plantIds: ids,
       occasionDays: Array.dedupe(Array.map(cares, (care) => care.dueDay)),
-      unmarkedSince: DateTime.toDateUtc(
-        DateTime.subtract(now, { days: BEFORE_THE_COLUMN_LOOKBACK_DAYS })
-      ),
     })
 
     const loaded: Loaded = {
@@ -331,7 +290,7 @@ const loadWithAccounts = (
           rows: pipe(
             stored,
             Array.filter((row) => row.plantId === plant.id),
-            Array.map((row) => rowOf(row, due))
+            Array.map(rowOf)
           ),
         }
       }),

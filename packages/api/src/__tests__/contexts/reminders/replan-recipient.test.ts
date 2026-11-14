@@ -28,7 +28,7 @@ const run = (
   userId: string,
   plantIds?: ReadonlyArray<string>,
   existing: Notification[] = [],
-  options: { dueToday?: Date } = {}
+  options: { dueToday?: Date; occasionDays?: Record<string, string> } = {}
 ) => {
   const members = [
     createTestMembership({ userId: 'alex', role: 'owner' }),
@@ -87,7 +87,9 @@ const run = (
       Effect.provide(
         Layer.mergeAll(
           MockSqlClientLive,
-          createMockNotificationRepository(existing),
+          createMockNotificationRepository(existing, {
+            occasionDays: options.occasionDays ?? {},
+          }),
           createMockUserRepository([
             createTestUser({
               id: 'alex',
@@ -187,6 +189,7 @@ describe('a replan for one recipient', () => {
     const existing = [sentThisMorning]
     await run('lily', ['due-today'], existing, {
       dueToday: new Date('2099-06-14T22:00:00.000Z'),
+      occasionDays: { 'sent-today': '2099-06-15' },
     })
     expect(Array.map(existing, (n) => n.id)).toEqual(['sent-today'])
   })

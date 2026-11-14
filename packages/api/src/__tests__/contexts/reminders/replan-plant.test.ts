@@ -937,6 +937,7 @@ describe('replanning one plant', () => {
       options: {
         mutes?: { userId: string; plantId: string }[]
         existing?: Notification[]
+        occasionDays?: Record<string, string>
         canopyTimezone?: string
         scheduledDate?: Date
       } = {}
@@ -952,7 +953,9 @@ describe('replanning one plant', () => {
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository(rows),
+              createMockNotificationRepository(rows, {
+                occasionDays: options.occasionDays ?? {},
+              }),
               createMockUserRepository(users),
               createMockCanopyRepository(
                 createCanopyStore({
@@ -1032,15 +1035,20 @@ describe('replanning one plant', () => {
         plantId: 'plant-1',
         createdAt: new Date(),
       })
+      const previousDueDay = createFutureDate(1).toISOString().slice(0, 10)
       const pending = await runCanopy([alex, lily], {
         existing: [stale('alex'), stale('lily')],
+        occasionDays: {
+          'stale-alex': previousDueDay,
+          'stale-lily': previousDueDay,
+        },
       })
       const dueDay = createFutureDate(7).toISOString().slice(0, 10)
       expect(
-        Array.map(pending, (n) => [n.id, n.scheduledAt.toISOString()])
+        Array.map(pending, (n) => [n.userId, n.scheduledAt.toISOString()])
       ).toEqual([
-        ['stale-alex', `${dueDay}T08:00:00.000Z`],
-        ['stale-lily', `${dueDay}T19:00:00.000Z`],
+        ['alex', `${dueDay}T08:00:00.000Z`],
+        ['lily', `${dueDay}T19:00:00.000Z`],
       ])
     })
   })
