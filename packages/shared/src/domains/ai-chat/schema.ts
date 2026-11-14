@@ -68,6 +68,19 @@ export const ChatSuggestion = Schema.Struct({
 })
 export type ChatSuggestion = typeof ChatSuggestion.Type
 
+export const ChatSuggestionSource = Schema.Literals([
+  'general',
+  'starter',
+  'follow_up',
+])
+export type ChatSuggestionSource = typeof ChatSuggestionSource.Type
+
+export const ChatSuggestionTap = Schema.Struct({
+  id: Schema.String,
+  source: ChatSuggestionSource,
+})
+export type ChatSuggestionTap = typeof ChatSuggestionTap.Type
+
 export const ChatSuggestions = Schema.Struct({
   suggestions: Schema.Array(ChatSuggestion),
 })

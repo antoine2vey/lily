@@ -14,6 +14,7 @@ import {
   type TestPlant,
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
+import { recordSpans } from '@lily/api/__tests__/fixtures/spans'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
@@ -34,7 +35,7 @@ import type {
 import type { LanguageCode } from '@lily/shared'
 import type { ChatConversation, ChatMessage } from '@lily/shared/ai-chat'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import { Array, Effect, Layer } from 'effect'
+import { Array, Effect, Layer, type Tracer } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('ai', async (importOriginal) => ({
@@ -107,6 +108,7 @@ const read = (world: {
   readonly diagnoses?: DiagnosisRecord[]
   readonly plans?: CarePlanRow[]
   readonly steps?: CarePlanStepRow[]
+  readonly tracer?: Tracer.Tracer
 }) => {
   const plants = [world.plant ?? healthyFern]
   return Effect.runPromiseExit(
@@ -131,7 +133,10 @@ const read = (world: {
           }),
           createMockDiagnosisRepository(world.diagnoses ?? [])
         )
-      )
+      ),
+      world.tracer === undefined
+        ? (self) => self
+        : Effect.withTracer(world.tracer)
     )
   )
 }
@@ -170,6 +175,18 @@ describe('listChatFollowUps', () => {
     expect(exit.value.suggestions).toEqual(
       Array.map(Array.take(written, 4), ({ id, text }) => ({ id, text }))
     )
+  })
+
+  it('records how many follow-ups it served on its span', async () => {
+    const { tracer, attributesOf } = recordSpans()
+    await read({
+      sets: [setOf([anyTime, wateringLate, nextStep])],
+      tracer,
+    })
+
+    expect(
+      attributesOf('AIChatService.listChatFollowUps')['chat.follow_ups.served']
+    ).toBe(1)
   })
 
   it('serves nothing when the user has no set for the plant', async () => {

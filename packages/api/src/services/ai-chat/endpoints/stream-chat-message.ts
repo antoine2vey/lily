@@ -25,6 +25,7 @@ import {
 } from '@lily/api/services/subscriptions/usage-tracker'
 import {
   type ChatConversation,
+  type ChatSuggestionTap,
   ConversationNotFoundError,
 } from '@lily/shared/ai-chat'
 import type {
@@ -77,7 +78,18 @@ const makeImageParts = (url: string | undefined): UIMessage['parts'] =>
 export interface StreamChatRequest {
   message: string
   imageKey?: string
+  suggestion?: ChatSuggestionTap
 }
+
+const annotateSuggestion = (suggestion: ChatSuggestionTap | undefined) =>
+  Option.match(Option.fromUndefinedOr(suggestion), {
+    onNone: () => Effect.void,
+    onSome: ({ id, source }) =>
+      Effect.annotateCurrentSpan({
+        'chat.suggestion.id': id,
+        'chat.suggestion.source': source,
+      }),
+  })
 
 const encoder = new TextEncoder()
 
@@ -175,6 +187,7 @@ export const streamChatMessage = (
     const { id: userId } = yield* CurrentUser
     const usageTracker = yield* UsageTracker
     const gcs = yield* GCSService
+    yield* annotateSuggestion(request.suggestion)
 
     if (
       request.imageKey !== undefined &&
@@ -338,4 +351,4 @@ export const streamChatMessage = (
     })
 
     return yield* Effect.onError(startStream, () => refund)
-  })
+  }).pipe(Effect.withSpan('AIChatService.streamChatMessage'))

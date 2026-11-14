@@ -1,3 +1,4 @@
+import type { ChatSuggestionTap } from '@lily/shared/ai-chat'
 import { Array, Match, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Text, View } from 'react-native'
@@ -28,11 +29,14 @@ const PLANT_FALLBACK_KEYS = [
 interface Chip {
   readonly key: string
   readonly text: string
+  readonly tap: ChatSuggestionTap
 }
+
+type OnSelect = (text: string, tap: ChatSuggestionTap) => void
 
 interface SuggestionChipsProps {
   subject: ChipsSubject
-  onSelect: (text: string) => void
+  onSelect: OnSelect
 }
 
 export function SuggestionChips({ subject, onSelect }: SuggestionChipsProps) {
@@ -43,11 +47,15 @@ export function SuggestionChips({ subject, onSelect }: SuggestionChipsProps) {
   )
 }
 
-function GeneralChips({ onSelect }: { onSelect: (text: string) => void }) {
+function GeneralChips({ onSelect }: { onSelect: OnSelect }) {
   const { t } = useTranslation('chat')
   return (
     <ChipList
-      chips={Array.map(GENERAL_KEYS, (key) => ({ key, text: t(key) }))}
+      chips={Array.map(GENERAL_KEYS, (key) => ({
+        key,
+        text: t(key),
+        tap: { id: key, source: 'general' },
+      }))}
       onSelect={onSelect}
     />
   )
@@ -58,7 +66,7 @@ function PlantChips({
   onSelect,
 }: {
   plantId: string
-  onSelect: (text: string) => void
+  onSelect: OnSelect
 }) {
   const { t } = useTranslation('chat')
   const suggestions = useChatSuggestions(plantId)
@@ -70,12 +78,14 @@ function PlantChips({
       Array.map(suggestions, ({ id, text }) => ({
         key: `${plantId}:${id}`,
         text,
+        tap: { id, source: 'starter' },
       }))
     ),
     Match.tag('Failed', () =>
       Array.map(PLANT_FALLBACK_KEYS, (key) => ({
         key: `${plantId}:${key}`,
         text: t(key),
+        tap: { id: key, source: 'starter' },
       }))
     ),
     Match.exhaustive
@@ -88,7 +98,7 @@ export function FollowUpChips({
   onSelect,
 }: {
   plantId: string
-  onSelect: (text: string) => void
+  onSelect: OnSelect
 }) {
   const followUps = useChatFollowUps(plantId)
   if (Array.isReadonlyArrayEmpty(followUps)) return null
@@ -105,7 +115,7 @@ export function FollowUpChips({
           key={`${plantId}:${id}`}
           text={text}
           index={index}
-          onPress={() => onSelect(text)}
+          onPress={() => onSelect(text, { id, source: 'follow_up' })}
         />
       ))}
     </ScrollView>
@@ -117,16 +127,16 @@ function ChipList({
   onSelect,
 }: {
   chips: ReadonlyArray<Chip>
-  onSelect: (text: string) => void
+  onSelect: OnSelect
 }) {
   return (
     <View className="flex-row flex-wrap justify-center gap-2 px-6 pb-4">
-      {Array.map(chips, ({ key, text }, index) => (
+      {Array.map(chips, ({ key, text, tap }, index) => (
         <ChipButton
           key={key}
           text={text}
           index={index}
-          onPress={() => onSelect(text)}
+          onPress={() => onSelect(text, tap)}
         />
       ))}
     </View>

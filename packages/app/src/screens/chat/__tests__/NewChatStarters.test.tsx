@@ -209,7 +209,10 @@ describe('FollowUpChips', () => {
     fireEvent.press(await screen.findByText('How much light does it need?'))
 
     expect(onSelect).toHaveBeenCalledTimes(1)
-    expect(onSelect).toHaveBeenCalledWith('How much light does it need?')
+    expect(onSelect).toHaveBeenCalledWith('How much light does it need?', {
+      id: '1:none',
+      source: 'follow_up',
+    })
     expect(screen.getAllByRole('button')).toHaveLength(2)
     expect(screen.getByText('Should I water my Fern now?')).toBeTruthy()
     expect(mockedRunApiEffect.mock.calls).toEqual([
@@ -264,6 +267,20 @@ describe('SuggestionChips', () => {
     expect(mockedRunApiEffect).not.toHaveBeenCalled()
   })
 
+  it('names a general chip as general when it is tapped', () => {
+    const onSelect = jest.fn()
+    renderWithQueries(
+      <SuggestionChips subject={{ kind: 'general' }} onSelect={onSelect} />
+    )
+
+    fireEvent.press(screen.getByText('Which plants are safe for pets?'))
+
+    expect(onSelect).toHaveBeenCalledWith('Which plants are safe for pets?', {
+      id: 'suggestions.general.petSafePlants',
+      source: 'general',
+    })
+  })
+
   it('shows the suggestions the server made for the plant and sends one', async () => {
     mockedRunApiEffect.mockResolvedValue(
       Result.succeed({
@@ -291,7 +308,8 @@ describe('SuggestionChips', () => {
     )
 
     expect(onSelect).toHaveBeenCalledWith(
-      'Fern is 2 days late on watering. What should I do?'
+      'Fern is 2 days late on watering. What should I do?',
+      { id: 'overdue-watering', source: 'starter' }
     )
     expect(screen.getAllByRole('button')).toHaveLength(2)
     expect(screen.queryByText('How to care for this plant?')).toBeNull()

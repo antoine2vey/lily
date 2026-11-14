@@ -1,3 +1,4 @@
+import type { ChatSuggestionTap } from '@lily/shared/ai-chat'
 import { useQueryClient } from '@tanstack/react-query'
 import { isToolUIPart, type UIMessage } from 'ai'
 import { Array, Option, Predicate, pipe } from 'effect'
@@ -141,6 +142,7 @@ export function ChatScreen() {
   const [pendingMessage, setPendingMessage] = useState<{
     content: string
     imageUri?: string | undefined
+    suggestion?: ChatSuggestionTap | undefined
   } | null>(null)
   // Covers the image upload and the ai SDK's await before it pushes the user
   // message, when neither the status nor the message list has changed yet.
@@ -305,7 +307,11 @@ export function ChatScreen() {
   }, [])
 
   const sendInternal = useCallback(
-    async (content: string, imageUri?: string) => {
+    async (
+      content: string,
+      imageUri?: string,
+      suggestion?: ChatSuggestionTap
+    ) => {
       if (isStreaming) return
       sentInSessionRef.current = true
       markSent(activeConversationId)
@@ -347,7 +353,12 @@ export function ChatScreen() {
       )
 
       try {
-        await sendMessage(messagePayload, lastRequestOptionsRef.current)
+        await sendMessage(messagePayload, {
+          body: {
+            ...lastRequestOptionsRef.current.body,
+            ...(suggestion !== undefined ? { suggestion } : {}),
+          },
+        })
       } finally {
         setIsSending(false)
       }
@@ -373,9 +384,13 @@ export function ChatScreen() {
   }, [regenerate, refreshConversationQueries])
 
   const handleSend = useCallback(
-    async (content: string, imageUri?: string) => {
+    async (
+      content: string,
+      imageUri?: string,
+      suggestion?: ChatSuggestionTap
+    ) => {
       if (activeConversationId) {
-        await sendInternal(content, imageUri)
+        await sendInternal(content, imageUri, suggestion)
         return
       }
       // No conversation yet — create one lazily, then queue the message to be
@@ -385,12 +400,18 @@ export function ChatScreen() {
         {
           onSuccess: (created) => {
             setActiveConversationId(created.id)
-            setPendingMessage({ content, imageUri })
+            setPendingMessage({ content, imageUri, suggestion })
           },
         }
       )
     },
     [activeConversationId, sendInternal, createConversation, newChatTarget]
+  )
+
+  const sendSuggestion = useCallback(
+    (text: string, suggestion: ChatSuggestionTap) =>
+      handleSend(text, undefined, suggestion),
+    [handleSend]
   )
 
   // The chat hook's transport URL captures conversationId at init, so the
@@ -399,7 +420,7 @@ export function ChatScreen() {
     if (!activeConversationId || !pendingMessage) return
     const msg = pendingMessage
     setPendingMessage(null)
-    sendInternal(msg.content, msg.imageUri)
+    sendInternal(msg.content, msg.imageUri, msg.suggestion)
   }, [activeConversationId, pendingMessage, sendInternal])
 
   const arrivedInSession = useCallback(
@@ -559,7 +580,7 @@ export function ChatScreen() {
               {chips.kind === 'starter' && (
                 <SuggestionChips
                   subject={chips.subject}
-                  onSelect={handleSend}
+                  onSelect={sendSuggestion}
                 />
               )}
             </View>
@@ -620,7 +641,10 @@ export function ChatScreen() {
             )}
 
             {chips.kind === 'followUp' && (
-              <FollowUpChips plantId={chips.plantId} onSelect={handleSend} />
+              <FollowUpChips
+                plantId={chips.plantId}
+                onSelect={sendSuggestion}
+              />
             )}
 
             <ChatInput
