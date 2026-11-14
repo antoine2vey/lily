@@ -1,7 +1,8 @@
 import { Array, Match, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
-import { Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 import Animated from 'react-native-reanimated'
+import { useChatFollowUps } from '@/hooks/useChatFollowUps'
 import {
   type PlantSuggestions,
   useChatSuggestions,
@@ -82,6 +83,35 @@ function PlantChips({
   return <ChipList chips={chips} onSelect={onSelect} />
 }
 
+export function FollowUpChips({
+  plantId,
+  onSelect,
+}: {
+  plantId: string
+  onSelect: (text: string) => void
+}) {
+  const followUps = useChatFollowUps(plantId)
+  if (Array.isReadonlyArrayEmpty(followUps)) return null
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      testID="chat-follow-ups"
+      contentContainerClassName="gap-2 px-3 pb-2"
+    >
+      {Array.map(followUps, ({ id, text }, index) => (
+        <ChipButton
+          key={`${plantId}:${id}`}
+          text={text}
+          index={index}
+          onPress={() => onSelect(text)}
+        />
+      ))}
+    </ScrollView>
+  )
+}
+
 function ChipList({
   chips,
   onSelect,
@@ -92,21 +122,40 @@ function ChipList({
   return (
     <View className="flex-row flex-wrap justify-center gap-2 px-6 pb-4">
       {Array.map(chips, ({ key, text }, index) => (
-        <Animated.View key={key} entering={chipEntering(index)}>
-          <PressableScale
-            onPress={() => onSelect(text)}
-            accessibilityRole="button"
-            surfaceClassName="px-4 py-2.5 rounded-full bg-surface dark:bg-white/10 border border-border dark:border-white/10"
-          >
-            <Text
-              className="text-sm text-text-primary dark:text-white"
-              style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-            >
-              {text}
-            </Text>
-          </PressableScale>
-        </Animated.View>
+        <ChipButton
+          key={key}
+          text={text}
+          index={index}
+          onPress={() => onSelect(text)}
+        />
       ))}
     </View>
+  )
+}
+
+function ChipButton({
+  text,
+  index,
+  onPress,
+}: {
+  text: string
+  index: number
+  onPress: () => void
+}) {
+  return (
+    <Animated.View entering={chipEntering(index)}>
+      <PressableScale
+        onPress={onPress}
+        accessibilityRole="button"
+        surfaceClassName="px-4 py-2.5 rounded-full bg-surface dark:bg-white/10 border border-border dark:border-white/10"
+      >
+        <Text
+          className="text-sm text-text-primary dark:text-white"
+          style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+        >
+          {text}
+        </Text>
+      </PressableScale>
+    </Animated.View>
   )
 }

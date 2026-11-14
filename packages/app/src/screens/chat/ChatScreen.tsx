@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
 import { useChatStarters } from '@/hooks/useChatStarters'
 import {
-  useDropChatSuggestionsOnLeave,
+  useChatSuggestionsVisit,
   usePrefetchChatSuggestions,
 } from '@/hooks/useChatSuggestions'
 import { useConversation } from '@/hooks/useConversation'
@@ -37,13 +37,17 @@ import { ChatMessage } from '@/screens/chat/components/ChatMessage'
 import { ChatMessagesSkeleton } from '@/screens/chat/components/ChatMessagesSkeleton'
 import { ConversationsDrawer } from '@/screens/chat/components/ConversationsDrawer'
 import { PlantCarousel } from '@/screens/chat/components/PlantCarousel'
-import { SuggestionChips } from '@/screens/chat/components/SuggestionChips'
+import {
+  FollowUpChips,
+  SuggestionChips,
+} from '@/screens/chat/components/SuggestionChips'
 import { TypingIndicator } from '@/screens/chat/components/TypingIndicator'
 import { toolResultId } from '@/screens/chat/components/tool-renderers'
 import {
   carouselNeighbours,
-  chipsSubjectOf,
+  chipsOf,
   GENERAL_TARGET,
+  historyOf,
   type NewChatTarget,
   newConversationPayload,
 } from '@/screens/chat/new-chat-target'
@@ -162,15 +166,26 @@ export function ChatScreen() {
 
   const { data: starters } = useChatStarters(activeConversationId === undefined)
   const prefetchSuggestions = usePrefetchChatSuggestions()
-  useDropChatSuggestionsOnLeave()
+  const { isVisiting, sentIn, markSent } = useChatSuggestionsVisit()
 
   useEffect(() => {
-    if (activeConversationId !== undefined || starters === undefined) return
+    if (
+      !isVisiting ||
+      activeConversationId !== undefined ||
+      starters === undefined
+    )
+      return
     Array.forEach(
       carouselNeighbours(starters.plants, newChatTarget),
       prefetchSuggestions
     )
-  }, [activeConversationId, starters, newChatTarget, prefetchSuggestions])
+  }, [
+    isVisiting,
+    activeConversationId,
+    starters,
+    newChatTarget,
+    prefetchSuggestions,
+  ])
 
   const {
     isLoading: isLoadingHistory,
@@ -179,14 +194,6 @@ export function ChatScreen() {
     refetch: _refetchHistory,
   } = useConversationMessages(activeConversationId)
   const refetchHistory = _refetchHistory as () => void
-
-  const chipsSubject = chipsSubjectOf({
-    target: newChatTarget,
-    conversation: Option.fromUndefinedOr(conversation),
-    isOpened: activeConversationId !== undefined,
-    loadedHistoryIsEmpty:
-      initialMessages !== undefined && Array.isArrayEmpty(initialMessages),
-  })
 
   const {
     messages: chatMessages,
@@ -249,6 +256,16 @@ export function ChatScreen() {
   const uploadImage = useUploadConversationImage(activeConversationId ?? '')
   const isStreaming = status === 'submitted' || status === 'streaming'
 
+  const chips = chipsOf({
+    target: newChatTarget,
+    conversation: Option.fromUndefinedOr(conversation),
+    isOpened: activeConversationId !== undefined,
+    history: historyOf(initialMessages),
+    isReplying: isStreaming,
+    isVisiting,
+    sentIn,
+  })
+
   const openDrawer = useCallback(() => setDrawerOpen(true), [])
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
   const selectConversation = useCallback((id: string) => {
@@ -291,6 +308,7 @@ export function ChatScreen() {
     async (content: string, imageUri?: string) => {
       if (isStreaming) return
       sentInSessionRef.current = true
+      markSent(activeConversationId)
       setIsSending(true)
       scrollToLatestMessage()
 
@@ -339,6 +357,8 @@ export function ChatScreen() {
     },
     [
       isStreaming,
+      activeConversationId,
+      markSent,
       scrollToLatestMessage,
       sendMessage,
       refreshConversationQueries,
@@ -536,9 +556,9 @@ export function ChatScreen() {
                     onSelect={setNewChatTarget}
                   />
                 )}
-              {Option.isSome(chipsSubject) && (
+              {chips.kind === 'starter' && (
                 <SuggestionChips
-                  subject={chipsSubject.value}
+                  subject={chips.subject}
                   onSelect={handleSend}
                 />
               )}
@@ -597,6 +617,10 @@ export function ChatScreen() {
                   </Pressable>
                 </View>
               </View>
+            )}
+
+            {chips.kind === 'followUp' && (
+              <FollowUpChips plantId={chips.plantId} onSelect={handleSend} />
             )}
 
             <ChatInput

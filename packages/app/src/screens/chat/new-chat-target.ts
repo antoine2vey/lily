@@ -73,22 +73,63 @@ export type ChipsSubject =
 const subjectOfPlant = (plantId: string | undefined): ChipsSubject =>
   plantId === undefined ? { kind: 'general' } : { kind: 'plant', plantId }
 
-export const chipsSubjectOf = (chat: {
+export type ChatHistory = 'loading' | 'empty' | 'written'
+
+export const historyOf = (
+  loaded: ReadonlyArray<unknown> | undefined
+): ChatHistory =>
+  loaded === undefined
+    ? 'loading'
+    : Array.isReadonlyArrayEmpty(loaded)
+      ? 'empty'
+      : 'written'
+
+export type Chips =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'starter'; readonly subject: ChipsSubject }
+  | { readonly kind: 'followUp'; readonly plantId: string }
+
+const NO_CHIPS: Chips = { kind: 'none' }
+
+const starterFor = (plantId: string | undefined): Chips => ({
+  kind: 'starter',
+  subject: subjectOfPlant(plantId),
+})
+
+export const chipsOf = (chat: {
   readonly target: NewChatTarget
   readonly conversation: Option.Option<{
+    readonly id: string
     readonly plantId?: string | undefined
   }>
   readonly isOpened: boolean
-  readonly loadedHistoryIsEmpty: boolean
-}): Option.Option<ChipsSubject> =>
-  chat.isOpened
-    ? pipe(
-        chat.conversation,
-        Option.filter(() => chat.loadedHistoryIsEmpty),
-        Option.map(({ plantId }) => subjectOfPlant(plantId))
-      )
-    : Option.some(
-        subjectOfPlant(
+  readonly history: ChatHistory
+  readonly isReplying: boolean
+  readonly isVisiting: boolean
+  readonly sentIn: ReadonlyArray<string>
+}): Chips =>
+  !chat.isVisiting
+    ? NO_CHIPS
+    : chat.isOpened
+      ? pipe(
+          chat.conversation,
+          Option.filter(
+            ({ id }) => !chat.isReplying && !Array.contains(chat.sentIn, id)
+          ),
+          Option.map(({ plantId }) =>
+            Match.value(chat.history).pipe(
+              Match.when('loading', () => NO_CHIPS),
+              Match.when('empty', () => starterFor(plantId)),
+              Match.when('written', () =>
+                plantId === undefined
+                  ? NO_CHIPS
+                  : { kind: 'followUp' as const, plantId }
+              ),
+              Match.exhaustive
+            )
+          ),
+          Option.getOrElse(() => NO_CHIPS)
+        )
+      : starterFor(
           chat.target.kind === 'plant' ? chat.target.plantId : undefined
         )
-      )
