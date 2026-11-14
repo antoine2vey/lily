@@ -24,7 +24,6 @@ export const notificationTypeEnum = pgEnum(
 export const plantHealthEnum = pgEnum('plant_health', [
   'THRIVING',
   'HEALTHY',
-  'NEEDS_ATTENTION',
   'SICK',
   'RECOVERING',
 ])

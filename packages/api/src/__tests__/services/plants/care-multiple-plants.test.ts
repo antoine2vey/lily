@@ -2,8 +2,8 @@ import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
-import { CareDay } from '@lily/shared'
-import { Array, Effect, Layer, Option } from 'effect'
+import { CareDay, CareDays } from '@lily/shared'
+import { Array, DateTime, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { mockPlants, type TestPlant } from '../../fixtures/plants'
 import { createMockCanopyRepository } from '../../mocks/canopy.repository'
@@ -24,7 +24,7 @@ const schedulesFromPlants = (plants: TestPlant[]): CareScheduleRow[] =>
       frequencyDays: s.frequencyDays,
       lastCareAt: s.lastCareAt,
       nextCareAt: s.nextCareAt,
-      dueDay: null,
+      dueDay: CareDays.of(DateTime.makeUnsafe(s.nextCareAt), 'UTC'),
       createdAt: new Date(),
       updatedAt: new Date(),
     }))

@@ -375,7 +375,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         CareDays.of(DateTime.makeUnsafe(dueAt), timezone)
       const occasions = async () =>
         Array.map(await waitingRows(), (row) => row.occasionDay)
-      const inKiritimatiWith = async (dueDay: string | null) => {
+      const inKiritimatiWith = async (dueDay: string) => {
         await db
           .update(schema.canopies)
           .set({ timezone: 'Pacific/Kiritimati' })
@@ -397,19 +397,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Array.replicate(dueDayIn('Pacific/Kiritimati'), 2)
         )
         expect(await occasions()).toEqual(before)
-      })
-
-      it('has its reminders planned for the new care days where no due day is stored', async () => {
-        const before = await inKiritimatiWith(null)
-
-        await as(alex, updateMyCanopy({ timezone: 'Pacific/Niue' }))
-
-        expect(before).toEqual(
-          Array.replicate(dueDayIn('Pacific/Kiritimati'), 2)
-        )
-        expect(await occasions()).toEqual(
-          Array.replicate(dueDayIn('Pacific/Niue'), 2)
-        )
       })
     })
 

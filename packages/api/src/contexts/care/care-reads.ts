@@ -1,4 +1,4 @@
-import { dueOnOrBefore, storedDay } from '@lily/api/contexts/care/stored-day'
+import { dueOnOrBefore } from '@lily/api/contexts/care/stored-day'
 import { caredForBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
@@ -11,7 +11,7 @@ import {
   users,
 } from '@lily/db/schema'
 import {
-  type CareDay,
+  CareDay,
   CareDays,
   type CareStatus,
   type CareType,
@@ -90,7 +90,6 @@ export interface ScheduledCare {
 
 export interface DuePrune {
   readonly day: CareDay
-  readonly undatedBefore: Date
 }
 
 export interface DueQuery {
@@ -145,10 +144,6 @@ export const seeDue = (
     Array.sort(dueCareOrder)
   )
 
-const LONGEST_LOCAL_DAY_HOURS = 25
-const DST_SHIFT_HOURS = 1
-const UNDATED_ROW_SLACK_HOURS = LONGEST_LOCAL_DAY_HOURS + DST_SHIFT_HOURS
-
 // No timezone is ahead of UTC+14, so no plant's today is later than this one.
 const FURTHEST_AHEAD_TIMEZONE = 'Etc/GMT-14'
 
@@ -159,9 +154,6 @@ export const duePrune = (
   day: CareDays.addDays(
     CareDays.today(FURTHEST_AHEAD_TIMEZONE, now),
     daysAhead(upTo)
-  ),
-  undatedBefore: DateTime.toDateUtc(
-    DateTime.add(now, { days: daysAhead(upTo), hours: UNDATED_ROW_SLACK_HOURS })
   ),
 })
 
@@ -240,8 +232,7 @@ export const CareReadsLive = Layer.effect(
               isLivingPlant(),
               Option.match(prune, {
                 onNone: () => undefined,
-                onSome: ({ day, undatedBefore }) =>
-                  dueOnOrBefore(day, undatedBefore),
+                onSome: ({ day }) => dueOnOrBefore(day),
               })
             )
           )
@@ -255,7 +246,7 @@ export const CareReadsLive = Layer.effect(
             careType: row.careType,
             frequencyDays: row.frequencyDays,
             dueAt: row.dueAt,
-            dueDay: storedDay(row.dueDay, row.dueAt, careTimezone),
+            dueDay: CareDay.make(row.dueDay),
             careTimezone,
             plant: {
               id: row.plant.id,

@@ -56,7 +56,7 @@ interface DemoPlantData {
   lightingRating: number
   petToxicityRating: number
   wateringRating: number
-  health: 'HEALTHY' | 'THRIVING' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
+  health: 'HEALTHY' | 'THRIVING' | 'SICK' | 'RECOVERING'
   dateAdded?: Date
   isFavorite?: boolean
   schedules: PlantSchedule[]
@@ -332,7 +332,7 @@ const DEMO_PLANTS: DemoPlantData[] = [
     lightingRating: 3,
     petToxicityRating: 1,
     wateringRating: 3,
-    health: 'NEEDS_ATTENTION',
+    health: 'HEALTHY',
     schedules: [
       {
         careType: 'watering',
@@ -364,7 +364,7 @@ const DEMO_PLANTS: DemoPlantData[] = [
     lightingRating: 2,
     petToxicityRating: 1,
     wateringRating: 4,
-    health: 'NEEDS_ATTENTION',
+    health: 'HEALTHY',
     schedules: [
       {
         careType: 'watering',
@@ -493,7 +493,7 @@ const LILY_PLANTS: DemoPlantData[] = [
     lightingRating: 4,
     petToxicityRating: 3,
     wateringRating: 2,
-    health: 'NEEDS_ATTENTION',
+    health: 'HEALTHY',
     schedules: [
       {
         careType: 'watering',

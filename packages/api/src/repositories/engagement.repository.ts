@@ -18,7 +18,7 @@ import {
   userSubscriptions,
   users,
 } from '@lily/db/schema'
-import type { LanguageCode, VacationStatus } from '@lily/shared'
+import { CareDay, type LanguageCode, type VacationStatus } from '@lily/shared'
 import type { NotificationTopic } from '@lily/shared/server'
 import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import {
@@ -400,12 +400,23 @@ export const EngagementRepositoryLive = Layer.effect(
           Array.filter((plantRows) => {
             const { health } = seeLivingPlantCare(
               plantRows[0].health,
-              Array.filter(
+              Array.flatMap(
                 plantRows,
-                (row): row is typeof row & StoredSchedule =>
+                (row): Array<StoredSchedule> =>
                   row.careType !== null &&
                   row.frequencyDays !== null &&
-                  row.nextCareAt !== null
+                  row.nextCareAt !== null &&
+                  row.dueDay !== null
+                    ? [
+                        {
+                          careType: row.careType,
+                          frequencyDays: row.frequencyDays,
+                          lastCareAt: row.lastCareAt,
+                          nextCareAt: row.nextCareAt,
+                          dueDay: CareDay.make(row.dueDay),
+                        },
+                      ]
+                    : []
               ),
               plantRows[0].careTimezone,
               now

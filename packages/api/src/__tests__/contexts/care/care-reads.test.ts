@@ -71,26 +71,23 @@ const scheduled = (
 }
 
 describe('duePrune', () => {
-  it.each(TIMEZONES)(
-    'cuts no care the window admits in %s, by stored day or by instant',
-    (timezone) => {
-      const cut = Array.flatMap(HOURS, (now) =>
-        Array.flatMap(WINDOWS, (upTo) => {
-          const prune = duePrune(upTo, now)
-          const candidates = Array.makeBy(14, (i) =>
-            scheduled(timezone, now, i - 3)
-          )
-          return Array.flatMap(seeDue(candidates, upTo, now), (care) =>
-            care.dueDay <= prune.day && care.dueAt < prune.undatedBefore
-              ? []
-              : [[DateTime.formatIso(now), upTo._tag, care.dueDay, prune.day]]
-          )
-        })
-      )
+  it.each(TIMEZONES)('cuts no care the window admits in %s', (timezone) => {
+    const cut = Array.flatMap(HOURS, (now) =>
+      Array.flatMap(WINDOWS, (upTo) => {
+        const prune = duePrune(upTo, now)
+        const candidates = Array.makeBy(14, (i) =>
+          scheduled(timezone, now, i - 3)
+        )
+        return Array.flatMap(seeDue(candidates, upTo, now), (care) =>
+          care.dueDay <= prune.day
+            ? []
+            : [[DateTime.formatIso(now), upTo._tag, care.dueDay, prune.day]]
+        )
+      })
+    )
 
-      expect(cut).toEqual([])
-    }
-  )
+    expect(cut).toEqual([])
+  })
 
   it('keeps nothing later than the last day the window admits in the timezone furthest ahead', () => {
     const now = DateTime.makeUnsafe('2026-11-11T23:30:00Z')

@@ -1,17 +1,5 @@
--- GATED: the migrator applies packages/db/drizzle only, so this file does
--- nothing where it is. Follow packages/db/gated/README.md before it moves
--- into packages/db/drizzle as the next numbered migration.
---
--- Must be true before it runs: no process of a release older than 0070 is
--- left, and none will come back. Such a process still runs the health
--- scheduler, which stores NEEDS_ATTENTION, and that write fails once the
--- type no longer has the value.
---
--- It deletes no row. It rewrites the health column of plants under an
--- ACCESS EXCLUSIVE lock, which lock_timeout bounds the wait for.
 SET LOCAL lock_timeout = '5s';
 --> statement-breakpoint
--- A row an older process marked after 0070 goes back to HEALTHY, as in 0070.
 UPDATE "plants" SET "health" = 'HEALTHY' WHERE "health" = 'NEEDS_ATTENTION';
 --> statement-breakpoint
 -- Postgres cannot drop a value from an enum, so the type is replaced.

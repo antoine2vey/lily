@@ -23,8 +23,7 @@ export const plantCareSchedules = pgTable(
     frequencyDays: integer('frequency_days').notNull(),
     lastCareAt: timestamp('last_care_at', { withTimezone: true }),
     nextCareAt: timestamp('next_care_at', { withTimezone: true }).notNull(),
-    /** The due day in the plant's care timezone. Null on rows old code wrote. */
-    dueDay: date('due_day'),
+    dueDay: date('due_day').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -911,7 +911,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
           care.record({ ...waterToday, permits: [carePermit(plantId, userId)] })
         )
       ).then(summary)
-    const addCare = (plantId: string, date: Date, careDay: string | null) =>
+    const addCare = (plantId: string, date: Date, careDay: string) =>
       db
         .insert(schema.careLogs)
         .values({ plantId, type: 'watering', date, careDay })
@@ -926,7 +926,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
           })
         )
       )
-    const storeDueDay = (plantId: string, dueDay: string | null) =>
+    const storeDueDay = (plantId: string, dueDay: string) =>
       db
         .update(schema.plantCareSchedules)
         .set({ dueDay })
@@ -937,16 +937,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       await addCare(plantId, new Date(Date.now() - 2 * DAY), today())
 
       expect(await waterNow(plantId)).toEqual(['AlreadyCared'])
-    })
-
-    it('gives a care log without a stored day the day of its instant', async () => {
-      const caredToday = await addPlant('Unstored today')
-      const caredBefore = await addPlant('Unstored before')
-      await addCare(caredToday, new Date(), null)
-      await addCare(caredBefore, new Date(Date.now() - 2 * DAY), null)
-
-      expect(await waterNow(caredToday)).toEqual(['AlreadyCared'])
-      expect(await waterNow(caredBefore)).toEqual(['Recorded'])
     })
 
     it('moves a schedule from its stored due day, not from the day of its instant', async () => {
@@ -961,18 +951,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
 
       expect((await scheduleOf(plantId))?.dueDay).toBe(
         CareDays.addDays(stored, 3)
-      )
-    })
-
-    it('moves a schedule without a stored due day from the day of its instant', async () => {
-      const dueAt = new Date(Date.now() + 4 * DAY)
-      const plantId = await addPlant('Unstored due', dueAt)
-      await storeDueDay(plantId, null)
-
-      await moveByThreeDays(plantId)
-
-      expect((await scheduleOf(plantId))?.dueDay).toBe(
-        CareDays.addDays(careDayOf(dueAt), 3)
       )
     })
   })

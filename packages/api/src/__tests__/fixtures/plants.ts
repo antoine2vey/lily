@@ -116,7 +116,7 @@ export const mockPlants: TestPlant[] = [
     lightingRating: 4,
     petToxicityRating: 2,
     wateringRating: 4,
-    health: 'NEEDS_ATTENTION',
+    health: 'HEALTHY',
     remindersEnabled: false,
     isFavorite: false,
     potWidthCm: null,

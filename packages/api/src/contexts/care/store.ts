@@ -12,7 +12,6 @@ import {
 } from '@lily/api/contexts/care/domain/decide'
 import type { Plan, PlanStep } from '@lily/api/contexts/care/domain/plan'
 import { seePlantCare } from '@lily/api/contexts/care/plant-care'
-import { storedDay } from '@lily/api/contexts/care/stored-day'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import {
@@ -33,6 +32,7 @@ import {
 } from '@lily/db/schema'
 import {
   CARE_TYPES,
+  CareDay,
   CareDays,
   type CareType,
   type PlantOwner,
@@ -124,7 +124,7 @@ const toSchedule = (row: ScheduleRow, timezone: string): Schedule => {
   const startedOn = CareDays.of(DateTime.makeUnsafe(row.createdAt), timezone)
   return {
     frequency: frequencyOfDays(row.frequencyDays),
-    dueDay: storedDay(row.dueDay, row.nextCareAt, timezone),
+    dueDay: CareDay.make(row.dueDay),
     startedOn,
   }
 }
@@ -138,9 +138,8 @@ const toHistory = (
   rows: ReadonlyArray<{
     readonly id: string
     readonly date: Date
-    readonly careDay: string | null
-  }>,
-  timezone: string
+    readonly careDay: string
+  }>
 ): ReadonlyArray<CareEntry> =>
   pipe(
     rows,
@@ -148,7 +147,7 @@ const toHistory = (
     Array.map(
       (row): CareEntry => ({
         id: row.id,
-        day: storedDay(row.careDay, row.date, timezone),
+        day: CareDay.make(row.careDay),
       })
     )
   )
@@ -595,7 +594,15 @@ export const CareStoreLive = Layer.effect(
             scheduleRows,
             (s) => s.plantId === row.id
           )
-          const seen = seePlantCare(row, schedules, row.timezone, now)
+          const seen = seePlantCare(
+            row,
+            Array.map(schedules, (s) => ({
+              ...s,
+              dueDay: CareDay.make(s.dueDay),
+            })),
+            row.timezone,
+            now
+          )
           const lineOf = (careType: CareType): CareLine => ({
             careType,
             schedule: pipe(
@@ -606,8 +613,7 @@ export const CareStoreLive = Layer.effect(
               Array.filter(
                 careRows,
                 (c) => c.plantId === row.id && c.careType === careType
-              ),
-              row.timezone
+              )
             ),
           })
           return [

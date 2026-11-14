@@ -1,5 +1,3 @@
-import { storedDay } from '@lily/api/contexts/care'
-import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { caredForBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
@@ -9,7 +7,7 @@ import {
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { careLogs, plants, users } from '@lily/db/schema'
 import type { CareType } from '@lily/shared'
-import { paginate } from '@lily/shared'
+import { CareDay, paginate } from '@lily/shared'
 import type {
   CareLog,
   CareLogHistoryItem,
@@ -29,15 +27,12 @@ export interface FindCareLogsParams {
 }
 
 // Helper to map database row to API CareLog type (null -> undefined)
-const mapToCareLog = (
-  row: typeof careLogs.$inferSelect,
-  careTimezone: string
-): CareLog => ({
+const mapToCareLog = (row: typeof careLogs.$inferSelect): CareLog => ({
   id: row.id,
   type: row.type,
   notes: Option.getOrUndefined(Option.fromNullishOr(row.notes)),
   date: row.date,
-  careDay: storedDay(row.careDay, row.date, careTimezone),
+  careDay: CareDay.make(row.careDay),
   photoUrl: Option.getOrUndefined(Option.fromNullishOr(row.photoUrl)),
   plantId: row.plantId,
   createdAt: row.createdAt,
@@ -108,12 +103,10 @@ export const CareLogRepositoryLive = Layer.effect(
         const rows = yield* db
           .select({
             log: careLogs,
-            careTimezone: careTimezoneSql,
             performerId: users.id,
             performerName: users.name,
           })
           .from(careLogs)
-          .innerJoin(plants, eq(plants.id, careLogs.plantId))
           .leftJoin(
             users,
             and(
@@ -129,7 +122,7 @@ export const CareLogRepositoryLive = Layer.effect(
         const items = Array.map(
           rows,
           (row): CareLogHistoryItem => ({
-            ...mapToCareLog(row.log, row.careTimezone),
+            ...mapToCareLog(row.log),
             performedBy: pipe(
               Option.fromNullishOr(row.performerId),
               Option.map((id) => ({ id, name: row.performerName })),
@@ -145,11 +138,10 @@ export const CareLogRepositoryLive = Layer.effect(
         plantId: string
       ) {
         const [row] = yield* db
-          .select({ log: careLogs, careTimezone: careTimezoneSql })
+          .select()
           .from(careLogs)
-          .innerJoin(plants, eq(plants.id, careLogs.plantId))
           .where(and(eq(careLogs.id, id), eq(careLogs.plantId, plantId)))
-        return row ? mapToCareLog(row.log, row.careTimezone) : null
+        return row ? mapToCareLog(row) : null
       }),
 
       findRecentByUserId: Effect.fn('CareLogRepository.findRecentByUserId')(
@@ -165,7 +157,6 @@ export const CareLogRepositoryLive = Layer.effect(
               type: careLogs.type,
               date: careLogs.date,
               careDay: careLogs.careDay,
-              careTimezone: careTimezoneSql,
               notes: careLogs.notes,
               plantId: careLogs.plantId,
               plantName: plants.name,
@@ -186,7 +177,7 @@ export const CareLogRepositoryLive = Layer.effect(
               Option.fromNullishOr(row.plantImageUrl)
             ),
             date: row.date,
-            careDay: storedDay(row.careDay, row.date, row.careTimezone),
+            careDay: CareDay.make(row.careDay),
             notes: Option.getOrUndefined(Option.fromNullishOr(row.notes)),
           }))
 

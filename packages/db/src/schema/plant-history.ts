@@ -35,8 +35,7 @@ export const careLogs = pgTable(
     type: careLogTypeEnum('type').notNull(),
     notes: text('notes'),
     date: timestamp('date', { withTimezone: true }).notNull().defaultNow(),
-    /** The day of the care in the plant's care timezone, fixed when recorded. Null on rows old code wrote. */
-    careDay: date('care_day'),
+    careDay: date('care_day').notNull(),
     photoUrl: text('photo_url'),
     plantId: uuid('plant_id')
       .notNull()

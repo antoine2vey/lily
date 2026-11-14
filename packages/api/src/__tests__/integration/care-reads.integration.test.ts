@@ -72,7 +72,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       name: string,
       owner: { userId: string } | { canopyId: string },
       nextCareAt: string,
-      dueDay: string | null,
+      dueDay: string,
       extra: Partial<typeof schema.plants.$inferInsert> = {}
     ) => {
       const [plant] = await db
@@ -90,19 +90,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     }
 
-    const seedPlants = async (stored: boolean) => {
-      const day = (dueDay: string) => (stored ? dueDay : null)
+    const seedPlants = async () => {
       const paris = { userId: parisUserId }
-      await addPlant(
-        'overdue',
-        paris,
-        '2026-11-10T23:00:00Z',
-        day('2026-11-11')
-      )
-      await addPlant('today', paris, '2026-11-11T23:00:00Z', day('2026-11-12'))
-      await addPlant('soon', paris, '2026-11-14T23:00:00Z', day('2026-11-15'))
-      await addPlant('far', paris, '2026-12-20T23:00:00Z', day('2026-12-21'))
-      await addPlant('dead', paris, '2026-11-01T23:00:00Z', day('2026-11-02'), {
+      await addPlant('overdue', paris, '2026-11-10T23:00:00Z', '2026-11-11')
+      await addPlant('today', paris, '2026-11-11T23:00:00Z', '2026-11-12')
+      await addPlant('soon', paris, '2026-11-14T23:00:00Z', '2026-11-15')
+      await addPlant('far', paris, '2026-12-20T23:00:00Z', '2026-12-21')
+      await addPlant('dead', paris, '2026-11-01T23:00:00Z', '2026-11-02', {
         diedAt: new Date('2026-11-05T00:00:00Z'),
         deathCause: 'unknown',
       })
@@ -110,8 +104,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         'canopy',
         { canopyId },
         '2026-11-11T08:00:00Z',
-        day('2026-11-11'),
-        { createdByUserId: memberId }
+        '2026-11-11',
+        {
+          createdByUserId: memberId,
+        }
       )
     }
 
@@ -175,15 +171,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Array.map(cares, (care) => [care.plant.name, care.status._tag])
       )
 
-    describe.each([
-      { rows: 'a stored due day', stored: true },
-      {
-        rows: 'no stored due day, as an older release wrote them',
-        stored: false,
-      },
-    ])('schedules with $rows', ({ stored }) => {
+    describe('schedules with a stored due day', () => {
       beforeEach(async () => {
-        await seedPlants(stored)
+        await seedPlants()
       })
 
       it('decides status on the owner care day and leaves dead plants out', async () => {
@@ -354,12 +344,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           '2026-11-11T23:00:00Z',
           '2026-11-12'
         )
-        await addPlant(
-          'unstored',
-          { userId: parisUserId },
-          '2026-11-11T23:00:00Z',
-          null
-        )
         const before = await seen('stored')
 
         await db
@@ -378,12 +362,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           due: kept,
           plant: kept,
           listed: kept,
-        })
-        const rederived = ['2026-11-11', '2026-11-11', 'DueToday']
-        expect(await seen('unstored')).toEqual({
-          due: rederived,
-          plant: rederived,
-          listed: rederived,
         })
       })
 
@@ -422,7 +400,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       it('decides the health of a delegated plant and the healthy plant count too', async () => {
         const dueAt = '2026-11-10T23:00:00Z'
         await addPlant('stored', { userId: parisUserId }, dueAt, '2026-11-11')
-        await addPlant('unstored', { userId: parisUserId }, dueAt, null)
         const [delegation] = await db
           .insert(schema.careDelegations)
           .values({
@@ -434,12 +411,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
           .returning()
         if (!delegation) throw new Error('delegation insert failed')
-        await db.insert(schema.delegationPlants).values(
-          Array.map(['stored', 'unstored'], (name) => ({
-            delegationId: delegation.id,
-            plantId: plantIds[name] ?? '',
-          }))
-        )
+        await db.insert(schema.delegationPlants).values({
+          delegationId: delegation.id,
+          plantId: plantIds.stored ?? '',
+        })
         await db
           .update(schema.users)
           .set({ timezone: 'America/Los_Angeles' })
@@ -473,7 +448,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               plant.health,
             ])
           )
-        ).toEqual({ stored: 'HEALTHY', unstored: 'NEEDS_ATTENTION' })
+        ).toEqual({ stored: 'HEALTHY' })
         expect(healthy).toBe(1)
       })
 

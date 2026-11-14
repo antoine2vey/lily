@@ -108,7 +108,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const addLog = async (
       plantId: string,
       date: Date,
-      careDay: string | null,
+      careDay: string,
       type: CareType = 'watering'
     ) => {
       const [log] = await db
@@ -220,33 +220,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     })
 
-    it('gives a row without a stored day the day of its instant in the timezone of the owner', async () => {
-      const userId = await addUser('America/New_York')
-      const plantId = await addPlant({ userId })
-      const logId = await addLog(plantId, LATE_EVENING_IN_NEW_YORK, null)
-
-      expect(await answered(plantId, logId)).toEqual({
-        one: '2024-03-09',
-        list: ['2024-03-09'],
-      })
-    })
-
-    it('gives a row without a stored day on a Canopy plant the day in the timezone of the Canopy', async () => {
-      const createdByUserId = await addUser('America/New_York')
-      const [canopy] = await db
-        .insert(schema.canopies)
-        .values({ name: 'Home', timezone: 'Pacific/Auckland' })
-        .returning()
-      if (!canopy) throw new Error('canopy insert returned nothing')
-      const plantId = await addPlant({ canopyId: canopy.id, createdByUserId })
-      const logId = await addLog(plantId, AFTER_MIDNIGHT_IN_AUCKLAND, null)
-
-      expect(await answered(plantId, logId)).toEqual({
-        one: '2024-03-11',
-        list: ['2024-03-11'],
-      })
-    })
-
     it('gives recent activity and the last care of a schedule the local day of a care recorded when the UTC date is the day before', async () => {
       const userId = await addUser('Pacific/Auckland')
       const plantId = await addPlant({ userId })
@@ -279,20 +252,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     })
 
-    it('gives a care without a stored day, and a last care with no care log, the day of the instant in the timezone of the owner', async () => {
+    it('gives a last care with no care log the day of its instant in the timezone of the owner', async () => {
       const userId = await addUser('America/New_York')
       const plantId = await addPlant({ userId })
-      await addLog(plantId, LATE_EVENING_IN_NEW_YORK, null)
       await addSchedule(plantId, 'watering', LATE_EVENING_IN_NEW_YORK)
-      await addSchedule(plantId, 'fertilization', LATE_EVENING_IN_NEW_YORK)
       await addSchedule(plantId, 'misting', null)
-      const days = {
-        watering: '2024-03-09',
-        fertilization: '2024-03-09',
-        misting: null,
-      }
+      const days = { watering: '2024-03-09', misting: null }
 
-      expect(await recentDays(userId)).toEqual(['2024-03-09'])
       expect(await lastCareDays(userId, plantId)).toEqual({
         one: days,
         list: days,
