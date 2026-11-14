@@ -50,5 +50,17 @@ export const ChatConversationListResponse = PaginatedResponse(ChatConversation)
 export type ChatConversationListResponse =
   typeof ChatConversationListResponse.Type
 
+export const ChatStarterPlant = Schema.Struct({
+  plantId: Schema.String,
+  name: Schema.String,
+  imageUrl: Schema.optional(Schema.String),
+})
+export type ChatStarterPlant = typeof ChatStarterPlant.Type
+
+export const ChatStarters = Schema.Struct({
+  plants: Schema.Array(ChatStarterPlant),
+})
+export type ChatStarters = typeof ChatStarters.Type
+
 // Type exports
 export type ChatMessage = typeof ChatMessage.Type

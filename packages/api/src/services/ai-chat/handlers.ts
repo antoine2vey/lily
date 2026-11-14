@@ -2,6 +2,7 @@ import type { Api } from '@lily/api/api'
 import { createConversation } from '@lily/api/services/ai-chat/endpoints/create-conversation'
 import { deleteConversation } from '@lily/api/services/ai-chat/endpoints/delete-conversation'
 import { getChatHistory } from '@lily/api/services/ai-chat/endpoints/get-chat-history'
+import { listChatStarters } from '@lily/api/services/ai-chat/endpoints/list-chat-starters'
 import { listConversations } from '@lily/api/services/ai-chat/endpoints/list-conversations'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
 import { uploadChatImage } from '@lily/api/services/ai-chat/endpoints/upload-chat-image'
@@ -29,6 +30,9 @@ export const AIChatApiLive = (api: Api) =>
           ...parsePaginationParams(urlParams),
           ...(urlParams.kind !== undefined ? { kind: urlParams.kind } : {}),
         }).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('listChatStarters', () =>
+        listChatStarters.pipe(withInfraErrorsAsDefect)
       )
       .handle('getConversation', ({ params: { conversationId } }) =>
         withConversationAuth(conversationId).pipe(withInfraErrorsAsDefect)
