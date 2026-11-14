@@ -13,7 +13,18 @@ import type {
   ChatMessage,
 } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
-import { and, asc, count, desc, eq, lt, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  max,
+  sql,
+} from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -50,6 +61,11 @@ export interface SavedChatMessage {
   id: string
   messageId: string
   role: string
+}
+
+export interface AskedPlant {
+  readonly plantId: string
+  readonly lastAskedAt: Date
 }
 
 export type ChatMessageRow = typeof chatMessages.$inferSelect
@@ -104,6 +120,32 @@ export interface IChatRepository {
   readonly findChattedPlantIds: (
     userId: string
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  /**
+   * Plants this user has written about in their plant conversation, with the
+   * time of their latest message.
+   */
+  readonly findAskedPlants: (
+    userId: string
+  ) => Effect.Effect<ReadonlyArray<AskedPlant>, SqlError>
+  /**
+   * The text of the user's latest messages in their conversation about a
+   * plant, newest first.
+   */
+  readonly findRecentQuestions: (params: {
+    userId: string
+    plantId: string
+    limit: number
+  }) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  /**
+   * Which of `texts` the user has sent, word for word, in their conversation
+   * about a plant since `since`.
+   */
+  readonly findSentTexts: (params: {
+    userId: string
+    plantId: string
+    since: Date
+    texts: ReadonlyArray<string>
+  }) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly deleteConversation: (params: {
     id: string
     userId: string
@@ -255,6 +297,86 @@ export const ChatRepositoryLive = Layer.effect(
           return Array.getSomes(
             Array.map(rows, (row) => Option.fromNullishOr(row.plantId))
           )
+        }
+      ),
+
+      findAskedPlants: Effect.fn('ChatRepository.findAskedPlants')(function* (
+        userId: string
+      ) {
+        const rows = yield* db
+          .select({
+            plantId: chatConversations.plantId,
+            lastAskedAt: max(chatMessages.createdAt),
+          })
+          .from(chatConversations)
+          .innerJoin(
+            chatMessages,
+            eq(chatMessages.conversationId, chatConversations.id)
+          )
+          .where(
+            and(
+              eq(chatConversations.userId, userId),
+              eq(chatConversations.kind, 'plant'),
+              eq(chatMessages.role, 'user')
+            )
+          )
+          .groupBy(chatConversations.plantId)
+        return Array.flatMap(rows, ({ plantId, lastAskedAt }) =>
+          plantId !== null && lastAskedAt !== null
+            ? [{ plantId, lastAskedAt }]
+            : []
+        )
+      }),
+
+      findRecentQuestions: Effect.fn('ChatRepository.findRecentQuestions')(
+        function* (params: { userId: string; plantId: string; limit: number }) {
+          const rows = yield* db
+            .select({ content: chatMessages.content })
+            .from(chatMessages)
+            .innerJoin(
+              chatConversations,
+              eq(chatMessages.conversationId, chatConversations.id)
+            )
+            .where(
+              and(
+                eq(chatConversations.userId, params.userId),
+                eq(chatConversations.plantId, params.plantId),
+                eq(chatConversations.kind, 'plant'),
+                eq(chatMessages.role, 'user')
+              )
+            )
+            .orderBy(desc(chatMessages.createdAt))
+            .limit(params.limit)
+          return Array.map(rows, (row) => row.content)
+        }
+      ),
+
+      findSentTexts: Effect.fn('ChatRepository.findSentTexts')(
+        function* (params: {
+          userId: string
+          plantId: string
+          since: Date
+          texts: ReadonlyArray<string>
+        }) {
+          if (Array.isReadonlyArrayEmpty(params.texts)) return []
+          const rows = yield* db
+            .selectDistinct({ content: chatMessages.content })
+            .from(chatMessages)
+            .innerJoin(
+              chatConversations,
+              eq(chatMessages.conversationId, chatConversations.id)
+            )
+            .where(
+              and(
+                eq(chatConversations.userId, params.userId),
+                eq(chatConversations.plantId, params.plantId),
+                eq(chatConversations.kind, 'plant'),
+                eq(chatMessages.role, 'user'),
+                gte(chatMessages.createdAt, params.since),
+                inArray(chatMessages.content, [...params.texts])
+              )
+            )
+          return Array.map(rows, (row) => row.content)
         }
       ),
 

@@ -205,3 +205,26 @@ Absence publishes four facts on the outbox topic `absence`, in the transaction o
 8. **Ending a vacation.** The scheduler ends an active vacation at its stored end. The user who calls it off ends it now. Either way every care of the user's living personal plants that came due while they were away moves later by the days away, except on a plant a reachable caretaker is tending.
 9. **An account that is not active holds its vacation still.** A set or a cancel answers that the user is not found, and the scheduler leaves the vacation as it is. Deleting the account is the one exception (rule 10).
 10. **A deleted account lets go.** When a user asks for the deletion of their account, and when an account is deleted for good, every open delegation they are a party to is canceled and their vacation ends, in the transaction of the deletion. A running delegation publishes `DelegationEnded` with the reason account deleted, so the owner is reminded again. A running vacation publishes `VacationEnded` and moves no due day. Nobody is told.
+
+## Chat suggestions
+
+Chat suggestions are the questions the app offers as chips in the assistant chat. They cover the general chat and the conversation a user has about one plant.
+
+| Term | Meaning | Avoid |
+| --- | --- | --- |
+| **Starter suggestions** | The chips of a plant chat that has no message yet. Rules write them from the plant's stored state at the moment the chat opens. | "follow-ups" for the chips of an empty chat |
+| **Follow-up suggestions** | The chips of a plant conversation that has messages. The model writes them in the background from the plant's facts and the user's recent questions. Opening the chat never calls the model. | "starters" for model-written chips |
+| **Follow-up set** | The follow-ups written for one user and one plant, in one language, with the time they were written. A user has at most one set per plant. | "cache" |
+| **Fact** | One piece of a plant's live state that a follow-up can depend on: a care that is overdue, a sick or recovering condition, a recent diagnosis or an open plan step. | "fact" for what a context publishes on the outbox (see Canopy, Absence) |
+| **Basis** | The fact a follow-up depends on, or none. A follow-up whose basis no longer holds is not served. | "tag" |
+| **Request** | What the app sends when it opens: it asks for a new set of each plant the user has written about. A set is requested at most once per cooldown. | "refresh" for the generation itself |
+| **Cooldown** | The 20 hours after a set is written during which it is not requested again. | |
+| **Budget** | The most sets one user can have written or requested within a cooldown: 12. | "quota", which is the monthly AI chat limit |
+
+### Rules
+
+1. **Only where the user wrote.** A set is requested for a living plant the user can reach and has written at least one message about. Other plant chats keep their starter suggestions.
+2. **Most useful first.** Within the budget, plants that need help come first, then the plants the user wrote about most recently.
+3. **A failed generation keeps the old set.** The request is closed and nothing retries it. The next time the app opens, it is requested again.
+4. **Follow-ups do not count against the AI chat quota.** Free-tier users get them.
+5. **A set is served while it still applies.** The chat gets the first four follow-ups of a set written in the app's language within the last 3 days. A follow-up is left out when its basis no longer holds or when the user has sent it since the set was written.

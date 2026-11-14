@@ -1,7 +1,9 @@
+import type { ChatSuggestionTap } from '@lily/shared/ai-chat'
 import { Array, Match, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
-import { Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 import Animated from 'react-native-reanimated'
+import { useChatFollowUps } from '@/hooks/useChatFollowUps'
 import {
   type PlantSuggestions,
   useChatSuggestions,
@@ -27,11 +29,14 @@ const PLANT_FALLBACK_KEYS = [
 interface Chip {
   readonly key: string
   readonly text: string
+  readonly tap: ChatSuggestionTap
 }
+
+type OnSelect = (text: string, tap: ChatSuggestionTap) => void
 
 interface SuggestionChipsProps {
   subject: ChipsSubject
-  onSelect: (text: string) => void
+  onSelect: OnSelect
 }
 
 export function SuggestionChips({ subject, onSelect }: SuggestionChipsProps) {
@@ -42,11 +47,15 @@ export function SuggestionChips({ subject, onSelect }: SuggestionChipsProps) {
   )
 }
 
-function GeneralChips({ onSelect }: { onSelect: (text: string) => void }) {
+function GeneralChips({ onSelect }: { onSelect: OnSelect }) {
   const { t } = useTranslation('chat')
   return (
     <ChipList
-      chips={Array.map(GENERAL_KEYS, (key) => ({ key, text: t(key) }))}
+      chips={Array.map(GENERAL_KEYS, (key) => ({
+        key,
+        text: t(key),
+        tap: { id: key, source: 'general' },
+      }))}
       onSelect={onSelect}
     />
   )
@@ -57,11 +66,74 @@ function PlantChips({
   onSelect,
 }: {
   plantId: string
-  onSelect: (text: string) => void
+  onSelect: OnSelect
 }) {
   const { t } = useTranslation('chat')
   const suggestions = useChatSuggestions(plantId)
-  const chips = pipe(
+  return (
+    <ChipList
+      chips={starterChips(plantId, suggestions, t)}
+      onSelect={onSelect}
+    />
+  )
+}
+
+export function FollowUpChips({
+  plantId,
+  onSelect,
+}: {
+  plantId: string
+  onSelect: OnSelect
+}) {
+  const followUps = useChatFollowUps(plantId)
+  return pipe(
+    Match.type<PlantSuggestions>(),
+    Match.tag('Loading', () => null),
+    Match.tag('Loaded', ({ suggestions }) =>
+      Array.match(suggestions, {
+        onEmpty: () => <StarterRow plantId={plantId} onSelect={onSelect} />,
+        onNonEmpty: (followUps) => (
+          <ChipRow
+            chips={Array.map(followUps, ({ id, text }) => ({
+              key: `${plantId}:${id}`,
+              text,
+              tap: { id, source: 'follow_up' },
+            }))}
+            onSelect={onSelect}
+          />
+        ),
+      })
+    ),
+    Match.tag('Failed', () => (
+      <StarterRow plantId={plantId} onSelect={onSelect} />
+    )),
+    Match.exhaustive
+  )(followUps)
+}
+
+function StarterRow({
+  plantId,
+  onSelect,
+}: {
+  plantId: string
+  onSelect: OnSelect
+}) {
+  const { t } = useTranslation('chat')
+  const suggestions = useChatSuggestions(plantId)
+  return (
+    <ChipRow
+      chips={starterChips(plantId, suggestions, t)}
+      onSelect={onSelect}
+    />
+  )
+}
+
+const starterChips = (
+  plantId: string,
+  suggestions: PlantSuggestions,
+  t: (key: (typeof PLANT_FALLBACK_KEYS)[number]) => string
+): ReadonlyArray<Chip> =>
+  pipe(
     Match.type<PlantSuggestions>(),
     Match.withReturnType<ReadonlyArray<Chip>>(),
     Match.tag('Loading', () => []),
@@ -69,17 +141,86 @@ function PlantChips({
       Array.map(suggestions, ({ id, text }) => ({
         key: `${plantId}:${id}`,
         text,
+        tap: { id, source: 'starter' },
       }))
     ),
     Match.tag('Failed', () =>
       Array.map(PLANT_FALLBACK_KEYS, (key) => ({
         key: `${plantId}:${key}`,
         text: t(key),
+        tap: { id: key, source: 'starter' },
       }))
     ),
     Match.exhaustive
   )(suggestions)
-  return <ChipList chips={chips} onSelect={onSelect} />
+
+interface PlacedChip extends Chip {
+  readonly index: number
+}
+
+interface TwoRows {
+  readonly rows: readonly [ReadonlyArray<PlacedChip>, ReadonlyArray<PlacedChip>]
+  readonly lengths: readonly [number, number]
+}
+
+const NO_ROWS: TwoRows = { rows: [[], []], lengths: [0, 0] }
+
+const intoTwoRows = (chips: ReadonlyArray<Chip>): TwoRows =>
+  Array.reduce(
+    chips,
+    NO_ROWS,
+    (
+      { rows: [top, bottom], lengths: [topLength, bottomLength] },
+      chip,
+      index
+    ) =>
+      topLength <= bottomLength
+        ? {
+            rows: [[...top, { ...chip, index }], bottom],
+            lengths: [topLength + chip.text.length, bottomLength],
+          }
+        : {
+            rows: [top, [...bottom, { ...chip, index }]],
+            lengths: [topLength, bottomLength + chip.text.length],
+          }
+  )
+
+function ChipRow({
+  chips,
+  onSelect,
+}: {
+  chips: ReadonlyArray<Chip>
+  onSelect: OnSelect
+}) {
+  if (Array.isReadonlyArrayEmpty(chips)) return null
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      testID="chat-follow-ups"
+      contentContainerClassName="px-3 pb-2"
+    >
+      <View className="gap-2">
+        {pipe(
+          intoTwoRows(chips).rows,
+          Array.filter(Array.isReadonlyArrayNonEmpty),
+          Array.map((row) => (
+            <View key={row[0].key} className="flex-row gap-2">
+              {Array.map(row, ({ key, text, tap, index }) => (
+                <ChipButton
+                  key={key}
+                  text={text}
+                  index={index}
+                  onPress={() => onSelect(text, tap)}
+                />
+              ))}
+            </View>
+          ))
+        )}
+      </View>
+    </ScrollView>
+  )
 }
 
 function ChipList({
@@ -87,26 +228,45 @@ function ChipList({
   onSelect,
 }: {
   chips: ReadonlyArray<Chip>
-  onSelect: (text: string) => void
+  onSelect: OnSelect
 }) {
   return (
     <View className="flex-row flex-wrap justify-center gap-2 px-6 pb-4">
-      {Array.map(chips, ({ key, text }, index) => (
-        <Animated.View key={key} entering={chipEntering(index)}>
-          <PressableScale
-            onPress={() => onSelect(text)}
-            accessibilityRole="button"
-            surfaceClassName="px-4 py-2.5 rounded-full bg-surface dark:bg-white/10 border border-border dark:border-white/10"
-          >
-            <Text
-              className="text-sm text-text-primary dark:text-white"
-              style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-            >
-              {text}
-            </Text>
-          </PressableScale>
-        </Animated.View>
+      {Array.map(chips, ({ key, text, tap }, index) => (
+        <ChipButton
+          key={key}
+          text={text}
+          index={index}
+          onPress={() => onSelect(text, tap)}
+        />
       ))}
     </View>
+  )
+}
+
+function ChipButton({
+  text,
+  index,
+  onPress,
+}: {
+  text: string
+  index: number
+  onPress: () => void
+}) {
+  return (
+    <Animated.View entering={chipEntering(index)}>
+      <PressableScale
+        onPress={onPress}
+        accessibilityRole="button"
+        surfaceClassName="px-4 py-2.5 rounded-full bg-surface dark:bg-white/10 border border-border dark:border-white/10"
+      >
+        <Text
+          className="text-sm text-text-primary dark:text-white"
+          style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+        >
+          {text}
+        </Text>
+      </PressableScale>
+    </Animated.View>
   )
 }

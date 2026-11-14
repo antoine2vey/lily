@@ -11,23 +11,20 @@ jest.mock('expo-localization', () => ({
   getLocales: jest.fn(() => [{ languageCode: 'en' }]),
 }))
 
-// Mock i18n
+const mockChangeLanguage = jest.fn()
+function mockChangeLanguageOf(language: string) {
+  return mockChangeLanguage(language)
+}
+
 jest.mock('@/i18n', () => ({
   __esModule: true,
-  default: {
-    changeLanguage: jest.fn().mockResolvedValue(undefined),
-    language: 'en',
-  },
+  default: { changeLanguage: mockChangeLanguageOf, language: 'en' },
 }))
 
-// Mock react-i18next
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
-    i18n: {
-      changeLanguage: jest.fn().mockResolvedValue(undefined),
-      language: 'en',
-    },
+    i18n: { changeLanguage: mockChangeLanguageOf, language: 'en' },
   }),
 }))
 
@@ -45,6 +42,7 @@ jest.mock('expo-linking', () => ({
 }))
 
 import * as Localization from 'expo-localization'
+import { LANGUAGE_STORAGE_KEY } from '@/i18n/types'
 import {
   LocalizationProvider,
   useLocalizationContext,
@@ -57,6 +55,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('LocalizationContext', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockChangeLanguage.mockResolvedValue(undefined)
     ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
     ;(AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined)
     ;(Localization.getLocales as jest.Mock).mockReturnValue([
@@ -237,6 +236,30 @@ describe('LocalizationContext', () => {
 
       // Verify AsyncStorage was called (even if state update is complex to verify)
       expect(AsyncStorage.setItem).toHaveBeenCalled()
+    })
+
+    it('switches to the chosen language without reverting to the stored one', async () => {
+      const stored = new Map([[LANGUAGE_STORAGE_KEY, 'en']])
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation(async (key) =>
+        stored.get(key)
+      )
+      ;(AsyncStorage.setItem as jest.Mock).mockImplementation(
+        async (key, value) => {
+          stored.set(key, value)
+        }
+      )
+      const { result } = renderHook(() => useLocalizationContext(), { wrapper })
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+      mockChangeLanguage.mockClear()
+
+      await act(async () => {
+        await result.current.setLanguage('fr')
+      })
+
+      expect(result.current.language).toBe('fr')
+      expect(mockChangeLanguage.mock.calls).toEqual([['fr']])
     })
 
     it('does not throw when AsyncStorage fails', async () => {

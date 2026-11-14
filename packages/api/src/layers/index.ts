@@ -35,6 +35,7 @@ import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repositor
 import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
+import { ChatFollowUpRepositoryLive } from '@lily/api/repositories/chat-follow-up.repository'
 import { DailyTipRepositoryLive } from '@lily/api/repositories/daily-tip.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
@@ -155,7 +156,8 @@ const RepositoriesGroup2 = Layer.mergeAll(
   SubscriptionRepositoryLive,
   UserRepositoryLive,
   WeatherRepositoryLive,
-  CareReadsLive
+  CareReadsLive,
+  ChatFollowUpRepositoryLive
 )
 
 export const AllRepositoriesLive = Layer.mergeAll(

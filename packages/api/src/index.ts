@@ -12,6 +12,7 @@ import { ActivityPushTokensApiLive } from '@lily/api/services/activity-push-toke
 import { startActivityScheduler } from '@lily/api/services/activity-scheduler/scheduler'
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
 import { AdminAnalyticsApiLive } from '@lily/api/services/admin-analytics/handlers'
+import { startChatFollowUpWorker } from '@lily/api/services/ai-chat/follow-up-worker'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { startAnalyticsScheduler } from '@lily/api/services/analytics-scheduler/scheduler'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
@@ -130,6 +131,8 @@ const KnowledgeIngestionWorkerLive = Layer.effectDiscard(
   startKnowledgeIngestionWorker
 )
 
+const ChatFollowUpWorkerLive = Layer.effectDiscard(startChatFollowUpWorker)
+
 // Group all background schedulers into one layer
 const AllSchedulersLive = Layer.mergeAll(
   AchievementReconciliationSchedulerLive,
@@ -144,6 +147,7 @@ const AllSchedulersLive = Layer.mergeAll(
   TipsSchedulerLive,
   BlogGeneratorSchedulerLive,
   KnowledgeIngestionWorkerLive,
+  ChatFollowUpWorkerLive,
   AccountCleanupSchedulerLive,
   WeeklyRecapSchedulerLive,
   AnalyticsSchedulerLive,

@@ -6,6 +6,7 @@ import {
 } from '@lily/api/__tests__/fixtures/chat'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { recordSpans } from '@lily/api/__tests__/fixtures/spans'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
@@ -29,7 +30,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { ChatTurns } from '@lily/api/services/ai-chat/chat-turns'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
 import type { UsageField } from '@lily/shared'
-import type { ChatMessage } from '@lily/shared/ai-chat'
+import type { ChatMessage, ChatSuggestionTap } from '@lily/shared/ai-chat'
 import { ConversationNotFoundError } from '@lily/shared/ai-chat'
 import type { AppEvent } from '@lily/shared/server'
 import {
@@ -174,6 +175,47 @@ describe('streamChatMessage', () => {
       const exit = await streamWithKey(key)
 
       expect(failureOf(exit)).toBeInstanceOf(ConversationNotFoundError)
+    })
+  })
+
+  describe('suggestion', () => {
+    const streamUnderSpan = async (
+      suggestion?: ChatSuggestionTap | undefined
+    ) => {
+      const { tracer, attributesOf } = recordSpans()
+      await Effect.runPromise(
+        streamChatMessage(testConversation, {
+          message: 'Should I water my Fern now?',
+          ...(suggestion !== undefined ? { suggestion } : {}),
+        }).pipe(
+          Effect.withSpan('auth.validateToken'),
+          Effect.provide(createTestLayer()),
+          Effect.withTracer(tracer)
+        )
+      )
+      return {
+        chat: attributesOf('AIChatService.streamChatMessage'),
+        auth: attributesOf('auth.validateToken'),
+      }
+    }
+
+    it('names the tapped chip and its source on the chat span, not the auth span', async () => {
+      const { chat, auth } = await streamUnderSpan({
+        id: '0:late:watering',
+        source: 'follow_up',
+      })
+
+      expect(chat).toMatchObject({
+        'chat.suggestion.id': '0:late:watering',
+        'chat.suggestion.source': 'follow_up',
+      })
+      expect(Object.keys(auth)).not.toContain('chat.suggestion.id')
+    })
+
+    it('names no chip on the span of a typed message', async () => {
+      const { chat } = await streamUnderSpan()
+
+      expect(Object.keys(chat)).not.toContain('chat.suggestion.source')
     })
   })
 

@@ -19,11 +19,13 @@ const NEEDS_HELP: Record<PlantHealthStatus, boolean> = {
   RECOVERING: true,
 }
 
+export const needsHelpFirst: Order.Order<PlantWithRoom> = Order.mapInput(
+  Order.flip(Order.Boolean),
+  (plant) => NEEDS_HELP[plant.health]
+)
+
 const starterOrder = Order.combine(
-  Order.mapInput(
-    Order.flip(Order.Boolean),
-    (plant: PlantWithRoom) => NEEDS_HELP[plant.health]
-  ),
+  needsHelpFirst,
   Order.combine(
     Order.mapInput(Order.flip(Order.Number), (plant: PlantWithRoom) =>
       plant.dateAdded.getTime()
