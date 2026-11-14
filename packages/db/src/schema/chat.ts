@@ -6,6 +6,7 @@ import {
   index,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -71,6 +72,30 @@ export const chatMessages = pgTable(
       table.conversationId,
       table.createdAt
     ),
+  ]
+)
+
+export const chatFollowUpSets = pgTable(
+  'chat_follow_up_sets',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    plantId: uuid('plant_id')
+      .notNull()
+      .references(() => plants.id, { onDelete: 'cascade' }),
+    language: text('language').notNull(),
+    requestedAt: timestamp('requested_at', { withTimezone: true }),
+    claimedUntil: timestamp('claimed_until', { withTimezone: true }),
+    generatedAt: timestamp('generated_at', { withTimezone: true }),
+    followUps: jsonb('follow_ups').notNull().default(sql`'[]'::jsonb`),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.plantId] }),
+    index('chat_follow_up_sets_requested_idx')
+      .on(table.requestedAt)
+      .where(sql`${table.requestedAt} IS NOT NULL`),
+    index('chat_follow_up_sets_plant_idx').on(table.plantId),
   ]
 )
 
