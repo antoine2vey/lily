@@ -10,7 +10,7 @@ import {
 } from '@lily/api/services/plants/helpers/plant-access'
 import { type CareDay, CareDays } from '@lily/shared'
 import type { DiagnosisSeverity } from '@lily/shared/diagnosis'
-import { Array, DateTime, Effect } from 'effect'
+import { Array, DateTime, Effect, Match, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const LATEST_DIAGNOSES = 3
@@ -110,3 +110,24 @@ export const factsOf = ({
       ]
     : []),
 ]
+
+export const basisHolds =
+  ({ situation, latestDiagnoses }: PlantState) =>
+  (basis: FollowUpBasis): boolean =>
+    pipe(
+      Match.value(basis),
+      Match.discriminatorsExhaustive('kind')({
+        none: () => true,
+        late: ({ careType }) =>
+          Array.some(
+            situation.schedules,
+            (schedule) =>
+              schedule.careType === careType &&
+              schedule.status._tag === 'Overdue'
+          ),
+        health: ({ status }) => situation.health === status,
+        diagnosis: ({ diagnosisId }) =>
+          Array.some(latestDiagnoses, ({ id }) => id === diagnosisId),
+        carePlan: () => situation.hasOpenPlanStep,
+      })
+    )

@@ -227,3 +227,4 @@ Chat suggestions are the questions the app offers as chips in the assistant chat
 2. **Most useful first.** Within the budget, plants that need help come first, then the plants the user wrote about most recently.
 3. **A failed generation keeps the old set.** The request is closed and nothing retries it. The next time the app opens, it is requested again.
 4. **Follow-ups do not count against the AI chat quota.** Free-tier users get them.
+5. **A set is served while it still applies.** The chat gets the first four follow-ups of a set written in the app's language within the last 3 days. A follow-up is left out when its basis no longer holds or when the user has sent it since the set was written.

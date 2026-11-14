@@ -93,6 +93,17 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
     })
   )
   .add(
+    HttpApiEndpoint.get('listChatFollowUps', '/chat/follow-ups', {
+      query: ChatSuggestionsParams,
+      success: ChatSuggestions,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
+  )
+  .add(
     HttpApiEndpoint.post('requestChatFollowUps', '/chat/follow-ups/refresh', {
       payload: ChatFollowUpsRefreshRequest,
       error: Schema.Struct({ error: Schema.String }).pipe(

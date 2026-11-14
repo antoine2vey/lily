@@ -292,7 +292,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect((await setOf(fern!)).followUps).toEqual([])
     })
 
-    it('reads the plants the user wrote about and their latest questions', async () => {
+    it('reads the plants the user wrote about, their latest questions and what was sent since', async () => {
       const [asked, onlyAnswered] = plantIds
       const conversations = await db
         .insert(schema.chatConversations)
@@ -361,6 +361,27 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
       expect(await questions(asked!, 1)).toEqual(['second question'])
       expect(await questions(onlyAnswered!, 12)).toEqual([])
+
+      const sentSince = (since: Date, texts: ReadonlyArray<string>) =>
+        runtime.runPromise(
+          Effect.flatMap(ChatRepository, (repo) =>
+            repo.findSentTexts({ userId, plantId: asked!, since, texts })
+          )
+        )
+      const candidates = [
+        'first question',
+        'second question',
+        'an answer',
+        'a general question',
+        'never sent',
+      ]
+      expect(await sentSince(minutesFromNow(-7), candidates)).toEqual([
+        'second question',
+      ])
+      expect(
+        [...(await sentSince(minutesFromNow(-60), candidates))].sort()
+      ).toEqual(['first question', 'second question'])
+      expect(await sentSince(minutesFromNow(-60), [])).toEqual([])
     })
   }
 )
