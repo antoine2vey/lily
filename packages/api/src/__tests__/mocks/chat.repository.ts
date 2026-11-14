@@ -138,6 +138,20 @@ export const createMockChatRepository = (
       return Effect.succeed(paginate(items, sorted.length, page, limit))
     },
 
+    findChattedPlantIds: (userId) =>
+      Effect.succeed(
+        pipe(
+          conversations,
+          Array.filter(
+            (c) =>
+              c.userId === userId &&
+              c.kind === 'plant' &&
+              Array.some(data.messages, (m) => m.conversationId === c.id)
+          ),
+          Array.flatMap((c) => Option.toArray(Option.fromNullishOr(c.plantId)))
+        )
+      ),
+
     deleteConversation: ({ id, userId }) => {
       const idx = conversations.findIndex(
         (c) => c.id === id && c.userId === userId
