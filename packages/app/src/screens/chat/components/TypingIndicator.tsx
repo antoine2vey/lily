@@ -1,83 +1,60 @@
-import { useEffect, useRef } from 'react'
-import { Animated, View } from 'react-native'
-import { Avatar } from '@/components/Avatar'
+import { Array } from 'effect'
+import { useEffect } from 'react'
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated'
+import {
+  typingEntering,
+  typingExiting,
+} from '@/screens/chat/components/chat-motion'
 
-export function TypingIndicator() {
-  const dot1 = useRef(new Animated.Value(0)).current
-  const dot2 = useRef(new Animated.Value(0)).current
-  const dot3 = useRef(new Animated.Value(0)).current
+const DOT_DELAYS = [0, 150, 300] as const
+
+function Dot({ delay }: { delay: number }) {
+  const reducedMotion = useReducedMotion()
+  const progress = useSharedValue(0)
 
   useEffect(() => {
-    const createAnimation = (value: Animated.Value, delay: number) => {
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(value, {
-            toValue: 1,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-          Animated.timing(value, {
-            toValue: 0,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-        ])
+    if (reducedMotion) return
+    progress.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(1, { duration: 400, easing: Easing.inOut(Easing.quad) }),
+        -1,
+        true
       )
-    }
+    )
+    return () => cancelAnimation(progress)
+  }, [delay, progress, reducedMotion])
 
-    const animation = Animated.parallel([
-      createAnimation(dot1, 0),
-      createAnimation(dot2, 200),
-      createAnimation(dot3, 400),
-    ])
-
-    animation.start()
-
-    return () => {
-      animation.stop()
-    }
-  }, [dot1, dot2, dot3])
-
-  const getAnimatedStyle = (value: Animated.Value) => ({
-    transform: [
-      {
-        translateY: value.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, -4],
-        }),
-      },
-    ],
-    opacity: value.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.5, 1],
-    }),
-  })
+  const style = useAnimatedStyle(() => ({
+    opacity: 0.5 + progress.value * 0.5,
+    transform: [{ translateY: progress.value * -4 }],
+  }))
 
   return (
-    <View className="flex-row items-end mb-4">
-      <View className="mr-3 mb-1">
-        <Avatar name="Lily" size="sm" />
-      </View>
-      <View
-        className="h-10 px-4 rounded-2xl flex-row items-center gap-1.5 bg-primary-tint dark:bg-primary/20"
-        style={{
-          borderBottomLeftRadius: 4,
-        }}
-      >
-        <Animated.View
-          className="w-1.5 h-1.5 rounded-full bg-primary/60"
-          style={[getAnimatedStyle(dot1)]}
-        />
-        <Animated.View
-          className="w-1.5 h-1.5 rounded-full bg-primary/60"
-          style={[getAnimatedStyle(dot2)]}
-        />
-        <Animated.View
-          className="w-1.5 h-1.5 rounded-full bg-primary/60"
-          style={[getAnimatedStyle(dot3)]}
-        />
-      </View>
-    </View>
+    <Animated.View className="w-2 h-2 rounded-full bg-primary" style={style} />
+  )
+}
+
+export function TypingIndicator({ visible }: { visible: boolean }) {
+  if (!visible) return null
+  return (
+    <Animated.View
+      entering={typingEntering}
+      exiting={typingExiting}
+      className="flex-row items-center h-6 mb-6 gap-1.5"
+    >
+      {Array.map(DOT_DELAYS, (delay) => (
+        <Dot key={delay} delay={delay} />
+      ))}
+    </Animated.View>
   )
 }

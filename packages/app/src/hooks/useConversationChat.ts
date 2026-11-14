@@ -3,10 +3,10 @@ import type { UIMessage } from 'ai'
 import { DefaultChatTransport } from 'ai'
 import { Array, Option, pipe } from 'effect'
 import { fetch as expoFetch } from 'expo/fetch'
-import * as SecureStore from 'expo-secure-store'
 import type React from 'react'
 import { useEffect, useMemo, useRef } from 'react'
-import { ACCESS_TOKEN_KEY, API_BASE_URL } from '@/utils/client'
+import { withAuthRefresh } from '@/utils/auth-fetch'
+import { API_BASE_URL } from '@/utils/client'
 
 export type { UIMessage }
 
@@ -38,19 +38,7 @@ export function useConversationChat({
     () =>
       new DefaultChatTransport({
         api: `${API_BASE_URL}/api/chat/conversations/${conversationId}/stream`,
-        fetch: expoFetch as typeof globalThis.fetch,
-        headers: async () => {
-          const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
-          return pipe(
-            Option.fromNullishOr(token),
-            Option.match({
-              onNone: (): Record<string, string> => ({}),
-              onSome: (t): Record<string, string> => ({
-                Authorization: `Bearer ${t}`,
-              }),
-            })
-          )
-        },
+        fetch: withAuthRefresh(expoFetch as typeof globalThis.fetch),
         prepareSendMessagesRequest: async ({
           messages,
           body,
@@ -91,9 +79,11 @@ export function useConversationChat({
   useEffect(() => {
     if (syncedIdRef.current === conversationId) return
     if (initialMessages === undefined) return
-    chat.setMessages(initialMessages)
     syncedIdRef.current = conversationId
-  }, [initialMessages, chat.setMessages, conversationId])
+    const sentBeforeHistoryLoaded = Array.isReadonlyArrayNonEmpty(chat.messages)
+    if (sentBeforeHistoryLoaded) return
+    chat.setMessages(initialMessages)
+  }, [initialMessages, chat.messages, chat.setMessages, conversationId])
 
   return {
     ...chat,

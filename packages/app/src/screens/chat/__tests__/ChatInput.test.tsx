@@ -40,6 +40,31 @@ describe('ChatInput', () => {
     expect(screen.getByDisplayValue('Hello')).toBeTruthy()
   })
 
+  it('sends the trimmed text and clears the input', () => {
+    render(<ChatInput onSend={mockOnSend} isPlantChat />)
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('Ask about this plant...'),
+      '  Hello  '
+    )
+    fireEvent.press(screen.getByTestId('chat-send-button'))
+
+    expect(mockOnSend).toHaveBeenCalledWith('Hello', undefined)
+    expect(screen.queryByDisplayValue('Hello')).toBeNull()
+  })
+
+  it('does not send blank text', () => {
+    render(<ChatInput onSend={mockOnSend} isPlantChat />)
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('Ask about this plant...'),
+      '   '
+    )
+    fireEvent.press(screen.getByTestId('chat-send-button'))
+
+    expect(mockOnSend).not.toHaveBeenCalled()
+  })
+
   it('shows disabled state when disabled', () => {
     const { toJSON } = render(
       <ChatInput onSend={mockOnSend} isPlantChat disabled />

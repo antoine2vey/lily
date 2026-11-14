@@ -1,12 +1,136 @@
+import { LiquidGlassView } from '@callstack/liquid-glass'
 import { MaterialIcons } from '@expo/vector-icons'
-import { Option, String } from 'effect'
-import * as ImagePicker from 'expo-image-picker'
-import { useState } from 'react'
+import { Option, pipe, String } from 'effect'
+import * as Haptics from 'expo-haptics'
+import { type ReactNode, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Keyboard, Platform, Pressable, TextInput, View } from 'react-native'
+import Animated, {
+  Easing,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AnimatedImage } from '@/components/AnimatedImage'
+import { PhotoSourceSheet } from '@/components/PhotoSourceSheet'
 import { useIconColors } from '@/hooks/useIconColors'
+import { PressableScale } from '@/screens/chat/components/PressableScale'
+import { iconColorsLight } from '@/theme'
+import { useGlass } from '@/utils/glass'
+
+const SEND_ACTIVE_BG = iconColorsLight.primary
+const SEND_IDLE_BG_DARK = 'rgba(255,255,255,0.1)'
+const SEND_TIMING = { duration: 200, easing: Easing.out(Easing.cubic) }
+
+interface SendButtonProps {
+  canSend: boolean
+  onPress: () => void
+}
+
+function SendButton({ canSend, onPress }: SendButtonProps) {
+  const { t } = useTranslation('chat')
+  const iconColors = useIconColors()
+  const idleBg = iconColors.isDark ? SEND_IDLE_BG_DARK : iconColors.border
+  const progress = useSharedValue(canSend ? 1 : 0)
+  const pop = useSharedValue(1)
+
+  useEffect(() => {
+    progress.value = withTiming(canSend ? 1 : 0, SEND_TIMING)
+    if (canSend) {
+      pop.value = withSequence(
+        withTiming(1.08, { duration: 110, easing: Easing.out(Easing.quad) }),
+        withTiming(1, { duration: 170, easing: Easing.inOut(Easing.quad) })
+      )
+    }
+  }, [canSend, progress, pop])
+
+  const surfaceStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [idleBg, SEND_ACTIVE_BG]
+    ),
+    transform: [{ scale: pop.value }],
+  }))
+  const activeIconStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+  }))
+  const idleIconStyle = useAnimatedStyle(() => ({
+    opacity: 1 - progress.value,
+  }))
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      disabled={!canSend}
+      accessibilityRole="button"
+      accessibilityLabel={t('input.send')}
+      accessibilityState={{ disabled: !canSend }}
+      testID="chat-send-button"
+      surfaceClassName="w-9 h-9"
+    >
+      <Animated.View
+        className="flex-1 rounded-full items-center justify-center"
+        style={surfaceStyle}
+      >
+        <Animated.View className="absolute" style={activeIconStyle}>
+          <MaterialIcons
+            name="arrow-upward"
+            size={20}
+            color={iconColors.white}
+          />
+        </Animated.View>
+        <Animated.View style={idleIconStyle}>
+          <MaterialIcons
+            name="arrow-upward"
+            size={20}
+            color={iconColors.textMuted}
+          />
+        </Animated.View>
+      </Animated.View>
+    </PressableScale>
+  )
+}
+
+function ComposerSurface({ children }: { children: ReactNode }) {
+  if (useGlass) {
+    return (
+      <LiquidGlassView interactive={false} style={{ borderRadius: 28 }}>
+        {children}
+      </LiquidGlassView>
+    )
+  }
+  return (
+    <View className="bg-surface dark:bg-surface-dark rounded-[28px] border border-border/60 dark:border-white/10 shadow-soft dark:shadow-none">
+      {children}
+    </View>
+  )
+}
+
+const KEYBOARD_EVENTS =
+  Platform.OS === 'ios'
+    ? ({ show: 'keyboardWillShow', hide: 'keyboardWillHide' } as const)
+    : ({ show: 'keyboardDidShow', hide: 'keyboardDidHide' } as const)
+
+function useKeyboardShown(): boolean {
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const show = Keyboard.addListener(KEYBOARD_EVENTS.show, () =>
+      setShown(true)
+    )
+    const hide = Keyboard.addListener(KEYBOARD_EVENTS.hide, () =>
+      setShown(false)
+    )
+    return () => {
+      show.remove()
+      hide.remove()
+    }
+  }, [])
+  return shown
+}
 
 interface ChatInputProps {
   onSend: (message: string, imageUri?: string) => void
@@ -18,145 +142,100 @@ export function ChatInput({ onSend, disabled, isPlantChat }: ChatInputProps) {
   const { t } = useTranslation('chat')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
+  const keyboardShown = useKeyboardShown()
   const [message, setMessage] = useState('')
   const [attachedImage, setAttachedImage] = useState<string | null>(null)
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false)
+
+  const trimmedMessage = String.trim(message)
+  const canSend =
+    (!String.isEmpty(trimmedMessage) || attachedImage !== null) && !disabled
 
   const handleSend = () => {
-    const trimmedMessage = String.trim(message)
-    if (!String.isEmpty(trimmedMessage) || attachedImage) {
-      onSend(
-        trimmedMessage,
-        Option.getOrUndefined(Option.fromNullishOr(attachedImage))
-      )
-      setMessage('')
-      setAttachedImage(null)
-    }
+    if (!canSend) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    onSend(
+      trimmedMessage,
+      Option.getOrUndefined(Option.fromNullishOr(attachedImage))
+    )
+    setMessage('')
+    setAttachedImage(null)
   }
-
-  const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    })
-
-    if (!result.canceled && result.assets[0]) {
-      setAttachedImage(result.assets[0].uri)
-    }
-  }
-
-  const handleTakePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync()
-    if (status !== 'granted') return
-
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    })
-
-    if (!result.canceled && result.assets[0]) {
-      setAttachedImage(result.assets[0].uri)
-    }
-  }
-
-  const canSend =
-    (!String.isEmpty(String.trim(message)) || attachedImage) && !disabled
 
   return (
     <View
-      className="px-4 pt-2 border-t bg-background/95 dark:bg-background-dark/95 border-border/30 dark:border-slate-700/30"
-      style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+      pointerEvents="box-none"
+      className="px-3 pt-1"
+      style={{ paddingBottom: keyboardShown ? 8 : Math.max(insets.bottom, 12) }}
     >
-      {/* Attached Image Preview */}
-      {attachedImage && (
-        <View className="mb-3 flex-row items-start p-3 bg-surface dark:bg-surface-dark rounded-xl border border-border/50 dark:border-slate-700/50">
-          <View className="relative">
-            <AnimatedImage
-              source={{ uri: attachedImage }}
-              className="w-20 h-20 rounded-lg"
+      <ComposerSurface>
+        {pipe(
+          Option.fromNullishOr(attachedImage),
+          Option.match({
+            onNone: () => null,
+            onSome: (uri) => (
+              <View className="p-1.5 pb-0 flex-row">
+                <View>
+                  <AnimatedImage
+                    source={{ uri }}
+                    className="w-16 h-16 rounded-lg"
+                  />
+                  <Pressable
+                    onPress={() => setAttachedImage(null)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('input.removeImage')}
+                    hitSlop={8}
+                    className="absolute -top-1.5 -right-1.5 w-[22px] h-[22px] rounded-full items-center justify-center bg-black/60"
+                  >
+                    <MaterialIcons
+                      name="close"
+                      size={14}
+                      color={iconColors.white}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            ),
+          })
+        )}
+
+        <View className="flex-row items-end p-1.5">
+          <PressableScale
+            onPress={() => setPhotoSheetOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('input.attach')}
+            testID="chat-attach-button"
+            surfaceClassName={`w-9 h-9 rounded-full items-center justify-center ${
+              useGlass ? '' : 'bg-surface-tinted dark:bg-white/10'
+            }`}
+          >
+            <MaterialIcons
+              name="add"
+              size={22}
+              color={iconColors.textPrimary}
             />
-            <Pressable
-              onPress={() => setAttachedImage(null)}
-              className="absolute -top-2 -right-2 w-6 h-6 rounded-full items-center justify-center bg-coral border-2 border-white"
-            >
-              <MaterialIcons name="close" size={14} color={iconColors.white} />
-            </Pressable>
-          </View>
-          <View className="ml-3 justify-center h-20">
-            <Text className="text-sm font-semibold text-text-primary dark:text-white">
-              {t('input.imageAttached')}
-            </Text>
-            <View className="flex-row items-center gap-1 mt-1">
-              <MaterialIcons
-                name="auto-awesome"
-                size={14}
-                color={iconColors.primary}
-              />
-              <Text className="text-xs text-primary font-medium">
-                {t('input.analysisReady')}
-              </Text>
-            </View>
-          </View>
+          </PressableScale>
+          <TextInput
+            value={message}
+            onChangeText={setMessage}
+            placeholder={t(
+              isPlantChat ? 'input.placeholderPlant' : 'input.placeholder'
+            )}
+            placeholderTextColor={iconColors.textMuted}
+            multiline
+            className="flex-1 px-3 py-2 max-h-32 font-regular text-base text-text-primary dark:text-white"
+            editable={!disabled}
+          />
+          <SendButton canSend={canSend} onPress={handleSend} />
         </View>
-      )}
+      </ComposerSurface>
 
-      {/* Action Buttons */}
-      <View className="flex-row items-center gap-2 mb-2">
-        <Pressable
-          onPress={handlePickImage}
-          className="flex-row items-center gap-1.5 px-3 h-9 rounded-full bg-surface dark:bg-surface-dark border border-border dark:border-slate-700"
-        >
-          <MaterialIcons
-            name="photo-library"
-            size={18}
-            color={iconColors.textMuted}
-          />
-          <Text className="text-xs text-text-muted dark:text-slate-400 font-medium">
-            Gallery
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={handleTakePhoto}
-          className="flex-row items-center gap-1.5 px-3 h-9 rounded-full bg-surface dark:bg-surface-dark border border-border dark:border-slate-700"
-        >
-          <MaterialIcons
-            name="add-a-photo"
-            size={18}
-            color={iconColors.textMuted}
-          />
-          <Text className="text-xs text-text-muted dark:text-slate-400 font-medium">
-            Photo
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Input Container with Send Button inside */}
-      <View className="flex-row items-end bg-surface dark:bg-surface-dark rounded-3xl border border-border/50 dark:border-slate-700/50 py-1 pl-4 pr-1.5">
-        <TextInput
-          value={message}
-          onChangeText={setMessage}
-          placeholder={t(
-            isPlantChat ? 'input.placeholderPlant' : 'input.placeholder'
-          )}
-          placeholderTextColor={iconColors.textMuted}
-          multiline
-          className="flex-1 font-regular text-base text-text-primary dark:text-white py-3 max-h-32"
-          editable={!disabled}
-        />
-        <Pressable
-          onPress={handleSend}
-          disabled={!canSend}
-          className={`w-10 h-10 rounded-full items-center justify-center ml-2 mb-0.5 ${canSend ? 'bg-primary' : 'bg-border'}`}
-        >
-          <MaterialIcons
-            name="arrow-upward"
-            size={22}
-            color={canSend ? iconColors.white : iconColors.textMuted}
-          />
-        </Pressable>
-      </View>
+      <PhotoSourceSheet
+        visible={photoSheetOpen}
+        onClose={() => setPhotoSheetOpen(false)}
+        onPhoto={setAttachedImage}
+        aspect={[4, 3]}
+      />
     </View>
   )
 }

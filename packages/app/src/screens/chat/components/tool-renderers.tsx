@@ -25,6 +25,7 @@ export interface ToolRenderContext {
   /** Result id (diagnosisId / carePlanId) whose sheet should open on its own. */
   readonly autoOpenToolId?: string | null | undefined
   readonly onAutoOpenHandled?: (() => void) | undefined
+  readonly arrivedInSession?: boolean | undefined
 }
 
 type ToolFullWidthRenderer = (
@@ -52,12 +53,6 @@ export const toolResultId = (part: AnyToolPart): Option.Option<string> => {
     )
   )
 }
-
-/** Tools whose completed output renders as a full-width card below the text. */
-export const FULL_WIDTH_TOOLS: ReadonlyArray<string> = [
-  'createDiagnosis',
-  'proposeCarePlan',
-]
 
 // The tool input carries an explicit "none" care type (the model must decide);
 // the UI only cares about the four real types.
@@ -146,7 +141,7 @@ const createDiagnosisBubble = makeLoadingBubble('analyzing', 'loading')
 const createDiagnosisFullWidth: ToolFullWidthRenderer = (
   part,
   index,
-  { t, plantId, autoOpenToolId, onAutoOpenHandled }
+  { t, plantId, autoOpenToolId, onAutoOpenHandled, arrivedInSession }
 ) => {
   if (part.state !== 'output-available') return Option.none()
   const input = part.input as DiagnosisInput
@@ -190,6 +185,7 @@ const createDiagnosisFullWidth: ToolFullWidthRenderer = (
       sheetTitle={input.diseaseName}
       autoOpen={autoOpenToolId === output.diagnosisId}
       onAutoOpenHandled={onAutoOpenHandled}
+      arrivedInSession={arrivedInSession}
     >
       <DiagnosisCard
         diagnosis={{
@@ -209,7 +205,7 @@ const proposeCarePlanBubble = makeLoadingBubble('planning', 'planning')
 const proposeCarePlanFullWidth: ToolFullWidthRenderer = (
   part,
   index,
-  { t, plantId, autoOpenToolId, onAutoOpenHandled }
+  { t, plantId, autoOpenToolId, onAutoOpenHandled, arrivedInSession }
 ) => {
   if (part.state !== 'output-available') return Option.none()
   const input = part.input as CarePlanInput
@@ -229,6 +225,7 @@ const proposeCarePlanFullWidth: ToolFullWidthRenderer = (
       sheetTitle={input.title}
       autoOpen={autoOpenToolId === output.carePlanId}
       onAutoOpenHandled={onAutoOpenHandled}
+      arrivedInSession={arrivedInSession}
     >
       <CarePlanCard
         carePlanId={output.carePlanId}

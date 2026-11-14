@@ -1,13 +1,14 @@
-import { nowAsIsoString } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { isToolUIPart, type UIMessage } from 'ai'
 import { Array, Option, Predicate, pipe } from 'effect'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   FlatList,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   Platform,
   Pressable,
   Text,
@@ -21,12 +22,15 @@ import { useConversationChat } from '@/hooks/useConversationChat'
 import { useConversationMessages } from '@/hooks/useConversationMessages'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { useIconColors } from '@/hooks/useIconColors'
+import { usePlant } from '@/hooks/usePlant'
 import { useUploadConversationImage } from '@/hooks/useUploadConversationImage'
 import { AskLilyHeader } from '@/screens/chat/components/AskLilyHeader'
 import { ChatInput } from '@/screens/chat/components/ChatInput'
 import { ChatMessage } from '@/screens/chat/components/ChatMessage'
 import { ChatMessagesSkeleton } from '@/screens/chat/components/ChatMessagesSkeleton'
 import { ConversationsDrawer } from '@/screens/chat/components/ConversationsDrawer'
+import { SuggestionChips } from '@/screens/chat/components/SuggestionChips'
 import { TypingIndicator } from '@/screens/chat/components/TypingIndicator'
 import { toolResultId } from '@/screens/chat/components/tool-renderers'
 
@@ -61,6 +65,45 @@ const collectToolResultIds = (
     )
   )
 
+const ESTIMATED_BAR_HEIGHT = 56
+const MID_FADE_ALPHA_HEX = 'B3'
+
+const EDGE_FADE = {
+  top: { start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+  bottom: { start: { x: 0, y: 1 }, end: { x: 0, y: 0 } },
+} as const
+
+function EdgeFade({
+  edge,
+  solidLength,
+  barLength,
+}: {
+  edge: keyof typeof EDGE_FADE
+  solidLength: number
+  barLength: number
+}) {
+  const { background } = useIconColors()
+  const { start, end } = EDGE_FADE[edge]
+  const solidEnd = Math.min(solidLength / Math.max(barLength, 1), 1)
+  const midFade = (solidEnd + 1) / 2
+  return (
+    <View pointerEvents="none" className="absolute inset-0">
+      <LinearGradient
+        colors={[
+          background,
+          background,
+          `${background}${MID_FADE_ALPHA_HEX}`,
+          `${background}00`,
+        ]}
+        locations={[0, solidEnd, midFade, 1]}
+        start={start}
+        end={end}
+        style={{ flex: 1 }}
+      />
+    </View>
+  )
+}
+
 export function ChatScreen() {
   const { t } = useTranslation('chat')
   const insets = useSafeAreaInsets()
@@ -91,6 +134,10 @@ export function ChatScreen() {
   // to read their server state and to act on it.
   const { data: conversation } = useConversation(activeConversationId)
   const conversationPlantId = conversation?.plantId
+  const isPlantChat = Predicate.isNotNullish(conversationPlantId)
+  const { data: plant } = usePlant(
+    Option.getOrElse(Option.fromNullishOr(conversationPlantId), () => '')
+  )
 
   const {
     isLoading: isLoadingHistory,
@@ -103,6 +150,7 @@ export function ChatScreen() {
   const {
     messages: chatMessages,
     sendMessage,
+    regenerate,
     status,
     error: chatError,
     pendingImageUrl,
@@ -116,6 +164,7 @@ export function ChatScreen() {
   // refetch that swaps streamed messages for persisted ones. History loaded
   // for a conversation is seeded as "seen" and never auto-opens.
   const seenToolIdsRef = useRef<Set<string>>(new Set())
+  const historyMessageIdsRef = useRef<Set<string>>(new Set())
   const sentInSessionRef = useRef(false)
   const [autoOpenToolId, setAutoOpenToolId] = useState<string | null>(null)
   const clearAutoOpen = useCallback(() => setAutoOpenToolId(null), [])
@@ -125,6 +174,7 @@ export function ChatScreen() {
     if (trackedConversationRef.current === activeConversationId) return
     trackedConversationRef.current = activeConversationId
     seenToolIdsRef.current = new Set()
+    historyMessageIdsRef.current = new Set()
     sentInSessionRef.current = false
     setAutoOpenToolId(null)
   }, [activeConversationId])
@@ -136,6 +186,9 @@ export function ChatScreen() {
     )
     Array.forEach(collectToolResultIds(history), (id) => {
       seenToolIdsRef.current.add(id)
+    })
+    Array.forEach(history, (msg) => {
+      historyMessageIdsRef.current.add(msg.id)
     })
   }, [initialMessages])
 
@@ -175,11 +228,27 @@ export function ChatScreen() {
     Array.reverse
   )
 
+  const refreshConversationQueries = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: ['aiChat', 'getConversationMessages'],
+    })
+    queryClient.invalidateQueries({
+      queryKey: ['aiChat', 'listConversations'],
+    })
+  }, [queryClient])
+
+  const lastRequestOptionsRef = useRef<{ body?: { imageKey: string } }>({})
+
+  const scrollToLatestMessage = useCallback(() => {
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+  }, [])
+
   const sendInternal = useCallback(
     async (content: string, imageUri?: string) => {
       if (isStreaming) return
       sentInSessionRef.current = true
       setIsSending(true)
+      scrollToLatestMessage()
 
       let uploadedImageKey: string | undefined
       let uploadedImageUrl: string | undefined
@@ -207,39 +276,37 @@ export function ChatScreen() {
         })
       )
 
-      const bodyOption = pipe(
+      lastRequestOptionsRef.current = pipe(
         Option.fromNullishOr(uploadedImageKey),
-        Option.map((key) => ({ imageKey: key }))
+        Option.match({
+          onNone: () => ({}),
+          onSome: (imageKey) => ({ body: { imageKey } }),
+        })
       )
 
       try {
-        await sendMessage(
-          messagePayload,
-          pipe(
-            bodyOption,
-            Option.match({
-              onNone: () => ({}),
-              onSome: (body) => ({ body }),
-            })
-          )
-        )
+        await sendMessage(messagePayload, lastRequestOptionsRef.current)
       } finally {
         setIsSending(false)
       }
 
       pendingImageUrl.current = undefined
-
-      // Refresh both this conversation's history and the conversations list
-      // (so the row's "lastMessageAt" is fresh).
-      queryClient.invalidateQueries({
-        queryKey: ['aiChat', 'getConversationMessages'],
-      })
-      queryClient.invalidateQueries({
-        queryKey: ['aiChat', 'listConversations'],
-      })
+      refreshConversationQueries()
     },
-    [isStreaming, sendMessage, queryClient, uploadImage, pendingImageUrl]
+    [
+      isStreaming,
+      scrollToLatestMessage,
+      sendMessage,
+      refreshConversationQueries,
+      uploadImage,
+      pendingImageUrl,
+    ]
   )
+
+  const retryFailedTurn = useCallback(async () => {
+    await regenerate(lastRequestOptionsRef.current)
+    refreshConversationQueries()
+  }, [regenerate, refreshConversationQueries])
 
   const handleSend = useCallback(
     async (content: string, imageUri?: string) => {
@@ -271,23 +338,25 @@ export function ChatScreen() {
     sendInternal(msg.content, msg.imageUri)
   }, [activeConversationId, pendingMessage, sendInternal])
 
+  const arrivedInSession = useCallback(
+    (messageId: string) =>
+      sentInSessionRef.current &&
+      trackedConversationRef.current === activeConversationId &&
+      !historyMessageIdsRef.current.has(messageId),
+    [activeConversationId]
+  )
+
   const renderMessage = useCallback(
-    ({ item }: { item: UIMessage }) => {
-      const metadata = item.metadata as { createdAt?: string } | undefined
-      return (
-        <ChatMessage
-          message={item}
-          plantId={conversationPlantId}
-          autoOpenToolId={autoOpenToolId}
-          onAutoOpenHandled={clearAutoOpen}
-          createdAt={pipe(
-            Option.fromNullishOr(metadata?.createdAt),
-            Option.getOrElse(() => nowAsIsoString())
-          )}
-        />
-      )
-    },
-    [conversationPlantId, autoOpenToolId, clearAutoOpen]
+    ({ item }: { item: UIMessage }) => (
+      <ChatMessage
+        message={item}
+        plantId={conversationPlantId}
+        autoOpenToolId={autoOpenToolId}
+        onAutoOpenHandled={clearAutoOpen}
+        arrivedInSession={arrivedInSession(item.id)}
+      />
+    ),
+    [conversationPlantId, autoOpenToolId, clearAutoOpen, arrivedInSession]
   )
 
   const showTypingIndicator = pipe(
@@ -302,13 +371,6 @@ export function ChatScreen() {
     })
   )
 
-  const renderListHeader = useCallback(() => {
-    if (showTypingIndicator) {
-      return <TypingIndicator />
-    }
-    return null
-  }, [showTypingIndicator])
-
   const isInitialLoading = isLoadingHistory && !initialMessages
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
@@ -321,13 +383,35 @@ export function ChatScreen() {
     pendingMessage === null &&
     !createConversation.isPending
 
+  const [headerHeight, setHeaderHeight] = useState(
+    insets.top + ESTIMATED_BAR_HEIGHT
+  )
+  const [composerHeight, setComposerHeight] = useState(
+    Math.max(insets.bottom, 12) + ESTIMATED_BAR_HEIGHT
+  )
+  const onHeaderLayout = useCallback(
+    (e: LayoutChangeEvent) => setHeaderHeight(e.nativeEvent.layout.height),
+    []
+  )
+  const onComposerLayout = useCallback(
+    (e: LayoutChangeEvent) => setComposerHeight(e.nativeEvent.layout.height),
+    []
+  )
+
+  const header = (
+    <AskLilyHeader
+      onMenuPress={openDrawer}
+      subtitle={isPlantChat ? plant?.name : undefined}
+    />
+  )
+
   if (historyError) {
     return (
       <View
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <AskLilyHeader onMenuPress={openDrawer} />
+        {header}
         <View className="flex-1 items-center justify-center p-6">
           <Text className="text-lg text-center font-semibold text-text-primary dark:text-white">
             {t('loadError')}
@@ -351,7 +435,7 @@ export function ChatScreen() {
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <AskLilyHeader onMenuPress={openDrawer} />
+        {header}
         <Animated.View entering={FadeIn.duration(300)} className="flex-1">
           <ChatMessagesSkeleton />
         </Animated.View>
@@ -365,7 +449,7 @@ export function ChatScreen() {
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <AskLilyHeader onMenuPress={openDrawer} />
+        {header}
       </View>
     )
   }
@@ -374,47 +458,105 @@ export function ChatScreen() {
     <View
       testID="chat-screen"
       className="flex-1 bg-background dark:bg-background-dark"
-      style={{ paddingTop: insets.top }}
     >
-      <AskLilyHeader onMenuPress={openDrawer} />
-
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
         keyboardVerticalOffset={0}
       >
-        {isNewChat ? (
-          <EmptyState kind="chatNew" />
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={displayMessages}
-            renderItem={renderMessage}
-            keyExtractor={(item) => item.id}
-            inverted
-            contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
-            showsVerticalScrollIndicator={false}
-            ListHeaderComponent={renderListHeader}
-          />
-        )}
-
-        {chatError && (
-          <View className="mx-4 mb-2 rounded-md bg-error/10 px-4 py-3">
-            <Text
-              className="text-sm text-error"
-              style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+        <View className="flex-1">
+          {isNewChat ? (
+            <View
+              className="flex-1"
+              style={{
+                paddingTop: headerHeight,
+                paddingBottom: composerHeight,
+              }}
             >
-              Something went wrong. Please try again.
-            </Text>
-          </View>
-        )}
+              <EmptyState kind="chatNew" />
+              <SuggestionChips
+                isPlantChat={isPlantChat}
+                onSelect={handleSend}
+              />
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={displayMessages}
+              renderItem={renderMessage}
+              keyExtractor={(item) => item.id}
+              inverted
+              // Inverted: paddingTop is the visual bottom.
+              contentContainerStyle={{
+                paddingHorizontal: 16,
+                paddingTop: composerHeight + 4,
+                paddingBottom: headerHeight + 16,
+              }}
+              showsVerticalScrollIndicator={false}
+              ListHeaderComponent={
+                <TypingIndicator visible={showTypingIndicator} />
+              }
+            />
+          )}
 
-        <ChatInput
-          onSend={handleSend}
-          disabled={isStreaming || uploadImage.isPending}
-          isPlantChat={Predicate.isNotNullish(conversationPlantId)}
-        />
+          <View
+            pointerEvents="box-none"
+            className="absolute bottom-0 left-0 right-0"
+            onLayout={onComposerLayout}
+          >
+            <EdgeFade
+              edge="bottom"
+              solidLength={insets.bottom}
+              barLength={composerHeight}
+            />
+            {chatError && (
+              <View className="mx-3 mb-1 rounded-[28px] bg-background dark:bg-background-dark">
+                <View className="flex-row items-center gap-3 rounded-[28px] bg-error/10 py-1.5 pl-4 pr-1.5">
+                  <Text
+                    className="flex-1 text-sm text-error"
+                    style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+                  >
+                    {t('sendError')}
+                  </Text>
+                  <Pressable
+                    onPress={retryFailedTurn}
+                    accessibilityRole="button"
+                    testID="chat-retry-button"
+                    className="rounded-full bg-error px-4 py-2 active:opacity-70"
+                  >
+                    <Text
+                      className="text-sm text-white"
+                      style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+                    >
+                      {t('common:buttons.retry')}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            <ChatInput
+              onSend={handleSend}
+              disabled={isStreaming || uploadImage.isPending}
+              isPlantChat={isPlantChat}
+            />
+          </View>
+        </View>
       </KeyboardAvoidingView>
+
+      <View
+        pointerEvents="box-none"
+        className="absolute top-0 left-0 right-0"
+        style={{ paddingTop: insets.top }}
+        onLayout={onHeaderLayout}
+      >
+        <EdgeFade
+          edge="top"
+          solidLength={insets.top}
+          barLength={headerHeight}
+        />
+        {header}
+      </View>
 
       <ConversationsDrawer
         visible={drawerOpen}

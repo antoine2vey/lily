@@ -1,13 +1,13 @@
 export default {
   header: {
-    assistantName: 'Lily Assistant',
-    online: 'Online',
+    assistantName: 'Lily',
   },
   input: {
     placeholder: 'Ask Lily about your plants...',
     placeholderPlant: 'Ask about this plant...',
-    imageAttached: 'Image attached',
-    analysisReady: 'Analysis ready',
+    attach: 'Add a photo',
+    send: 'Send',
+    removeImage: 'Remove photo',
   },
   quotaExceeded:
     "I'd love to help, but you've reached your monthly AI chat limit. Upgrade to Premium for unlimited conversations about your plants! 🌱",
@@ -33,6 +33,7 @@ export default {
     stepsCount: '{count, plural, one {# step} other {# steps}}',
   },
   loadError: "Couldn't load this chat",
+  sendError: 'Something went wrong. Please try again.',
   drawer: {
     title: 'Conversations',
     newChat: 'New conversation',

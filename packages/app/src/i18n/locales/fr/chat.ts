@@ -1,13 +1,13 @@
 export default {
   header: {
-    assistantName: 'Assistant Lily',
-    online: 'En ligne',
+    assistantName: 'Lily',
   },
   input: {
     placeholder: 'Posez une question à Lily sur vos plantes...',
     placeholderPlant: 'Posez une question sur cette plante...',
-    imageAttached: 'Image jointe',
-    analysisReady: 'Analyse prête',
+    attach: 'Ajouter une photo',
+    send: 'Envoyer',
+    removeImage: 'Retirer la photo',
   },
   quotaExceeded:
     "J'aimerais vous aider, mais vous avez atteint votre limite mensuelle de conversations IA. Passez à Premium pour des conversations illimitées sur vos plantes ! 🌱",
@@ -33,6 +33,7 @@ export default {
     stepsCount: '{count, plural, one {# étape} other {# étapes}}',
   },
   loadError: 'Impossible de charger la discussion',
+  sendError: 'Une erreur est survenue. Veuillez réessayer.',
   drawer: {
     title: 'Conversations',
     newChat: 'Nouvelle conversation',
