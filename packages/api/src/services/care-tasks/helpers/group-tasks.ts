@@ -1,6 +1,6 @@
+import { CareReads, DueScope, DueWindow } from '@lily/api/contexts/care'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { memberCanopyId } from '@lily/api/services/care-tasks/helpers/member-canopy'
 import {
@@ -10,7 +10,6 @@ import {
   buildLiveActivityTitle,
 } from '@lily/api/services/notification-scheduler/translations'
 import type { CareType } from '@lily/shared'
-import { endOfDay } from '@lily/shared'
 import type {
   CareGroupContent,
   LiveActivityContentState,
@@ -21,19 +20,15 @@ import type { SqlError } from 'effect/sql/SqlError'
 // v3 adds server-rendered `title` + per-group `label` (widget can't reach i18next).
 const LIVE_ACTIVITY_SCHEMA_VERSION = 3
 
-// `exclude` strips one (plantId, careType) pair — the `CareLogCreated` event
-// fires BEFORE execute-plant-care updates `next_care_at`, so without this the
-// just-completed task would still count as due.
 export const buildLiveActivityContentState = (
-  userId: string,
-  exclude?: { plantId: string; careType: CareType }
+  userId: string
 ): Effect.Effect<
   LiveActivityContentState | null,
   SqlError,
-  CareLogRepository | CareScheduleRepository | UserRepository | CanopyRepository
+  CareLogRepository | CareReads | UserRepository | CanopyRepository
 > =>
   Effect.gen(function* () {
-    const scheduleRepo = yield* CareScheduleRepository
+    const reads = yield* CareReads
     const userRepo = yield* UserRepository
     const careLogRepo = yield* CareLogRepository
 
@@ -51,41 +46,17 @@ export const buildLiveActivityContentState = (
     )
 
     const now = DateTime.nowUnsafe()
-    // Match find-care-tasks.ts boundary: end of today in user's timezone.
-    const cutoffDt = endOfDay(now, timezone)
-    const cutoffDate = DateTime.toDateUtc(cutoffDt)
-
     const canopyId = yield* memberCanopyId(userId)
-    const schedules = yield* scheduleRepo.findPendingByUser(
-      userId,
-      cutoffDate,
-      canopyId
-    )
-
-    const dueSchedules = Array.filter(schedules, (s) => {
-      const next = s.schedule.nextCareAt
-      if (!next) return false
-      if (!DateTime.isLessThanOrEqualTo(DateTime.makeUnsafe(next), cutoffDt)) {
-        return false
-      }
-      if (
-        exclude &&
-        s.plant.id === exclude.plantId &&
-        s.schedule.careType === exclude.careType
-      ) {
-        return false
-      }
-      return true
+    const dueSchedules = yield* reads.due({
+      scope: DueScope.CaredForBy({ userId, canopyId }),
+      upTo: DueWindow.DueOrOverdue(),
     })
 
     if (Array.isReadonlyArrayEmpty(dueSchedules)) {
       return null
     }
 
-    const byType = Array.groupBy(
-      dueSchedules,
-      (s): string => s.schedule.careType
-    )
+    const byType = Array.groupBy(dueSchedules, (s): string => s.careType)
 
     const groups: CareGroupContent[] = pipe(
       Record.toEntries(byType),

@@ -11,16 +11,13 @@ import {
   type FindPhotosParams,
   type FindPlantsParams,
   type IPlantRepository,
+  matchesCareFilter,
   PlantRepository,
   type PlantWithRoom,
+  seeCareWithLastDays,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db/schema'
-import {
-  endOfDay,
-  type Orientation,
-  type PlantOwner,
-  paginate,
-} from '@lily/shared'
+import { type Orientation, type PlantOwner, paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
@@ -42,18 +39,23 @@ export interface MockCaretakingPlant {
 
 interface MockPlantRepositoryData {
   plants: PlantRecord[]
+  sharesPlantsArray?: boolean
   photos?: PlantPhoto[]
   rooms?: MockRoom[]
   caretakingPlants?: MockCaretakingPlant[]
   memberships?: MockMembership[]
   schedules?: CareScheduleRow[]
+  /** Care timezone by owner id (user id or canopy id). Defaults to UTC. */
+  timezones?: Readonly<Record<string, string>>
 }
 
 export const createMockPlantRepository = (
   data: MockPlantRepositoryData
 ): Layer.Layer<PlantRepository> => {
   // Shallow copy each plant so mutations don't leak between tests
-  const plantsData: PlantRecord[] = Array.map(data.plants, (p) => ({ ...p }))
+  const plantsData: PlantRecord[] = data.sharesPlantsArray
+    ? data.plants
+    : Array.map(data.plants, (p) => ({ ...p }))
   // Keep a reference to the original array for health scheduler mutations
   const originalPlantsData = data.plants
   const photos = Option.getOrElse(
@@ -84,25 +86,36 @@ export const createMockPlantRepository = (
       Option.getOrElse(() => 'Canopy')
     )
 
+  // The real care view over in-memory schedules, which hold no care log.
+  const careOf = (p: PlantRecord) =>
+    seeCareWithLastDays(p, {
+      schedules: pipe(
+        Array.filter(schedulesData, (s) => s.plantId === p.id),
+        Array.map((s) => ({ ...s, lastCareLogDay: null }))
+      ),
+      careTimezone: data.timezones?.[p.canopyId ?? p.userId ?? ''] ?? 'UTC',
+      now: DateTime.nowUnsafe(),
+    })
+
   const toPlantWithRoom = (p: PlantRecord): PlantWithRoom => {
     if (p.canopyId === null) {
       return {
         ...withUserOwner(p),
+        ...careOf(p),
         room: resolveRoom(p.roomId),
         ownership: 'owned' as const,
         ownerName: null,
-        schedules: [],
       }
     }
     const plant = withCanopyOwner(p)
     return {
       ...plant,
+      ...careOf(p),
       room: resolveRoom(p.roomId),
       ownership: 'canopy' as const,
       ownerName: null,
       canopy: { id: plant.owner.canopyId, name: canopyNameFor(p.canopyId) },
       createdBy: null,
-      schedules: [],
     }
   }
 
@@ -131,30 +144,9 @@ export const createMockPlantRepository = (
       filtered = Array.filter(filtered, (p) => p.diedAt === null)
     }
 
-    if (params.filter === 'needsAttention') {
-      filtered = Array.filter(filtered, (p) => p.health === 'NEEDS_ATTENTION')
-    }
-
-    if (params.filter === 'overdue') {
-      const endOfTodayDt = endOfDay(DateTime.nowUnsafe(), params.timezone)
-      const endOfTodayMs = DateTime.toEpochMillis(endOfTodayDt)
-      // Check schedule table for overdue plants
-      filtered = Array.filter(filtered, (p) =>
-        Array.some(
-          schedulesData,
-          (s) =>
-            s.plantId === p.id &&
-            s.nextCareAt !== null &&
-            s.nextCareAt.getTime() <= Number(endOfTodayMs)
-        )
-      )
-    }
-
     return filtered
   }
 
-  // Shared by update/markDead/revive: mutates the working copy and mirrors
-  // the change onto the caller's original array so tests can observe it.
   const patchPlant = (
     id: string,
     owner: PlantOwner,
@@ -218,6 +210,7 @@ export const createMockPlantRepository = (
               (plants) => applyFilters(plants, params),
               Array.map((p) => ({
                 ...withUserOwner(p),
+                ...careOf(p),
                 room: resolveRoom(p.roomId),
                 ownership: 'caretaking' as const,
                 ownerName: pipe(
@@ -228,7 +221,6 @@ export const createMockPlantRepository = (
                   Option.map((cp) => cp.ownerName),
                   Option.getOrNull
                 ),
-                schedules: [],
               }))
             )
           : []
@@ -254,7 +246,8 @@ export const createMockPlantRepository = (
       const allItems = pipe(
         ownedItems,
         Array.appendAll(caretakingItems),
-        Array.appendAll(canopyItems)
+        Array.appendAll(canopyItems),
+        Array.filter(matchesCareFilter(params.filter))
       )
 
       const sortOrder =
@@ -304,14 +297,6 @@ export const createMockPlantRepository = (
         )
       ),
 
-    findIdsOwnedBy: (userId: string) =>
-      Effect.succeed(
-        pipe(
-          Array.filter(plantsData, (p) => p.userId === userId),
-          Array.map((p) => p.id)
-        )
-      ),
-
     findPersonalReminderPlantIds: (userId: string) =>
       Effect.succeed(
         pipe(
@@ -329,69 +314,7 @@ export const createMockPlantRepository = (
         )
       ),
 
-    create: (createData) => {
-      const newPlant: PlantRecord = {
-        id: `plant-${crypto.randomUUID()}`,
-        name: createData.name,
-        description: createData.description,
-        imageUrl: Option.getOrNull(Option.fromNullishOr(createData.imageUrl)),
-        category: createData.category,
-        dateAdded: new Date(),
-        updatedAt: new Date(),
-        humidityRating: createData.humidityRating,
-        lightingRating: createData.lightingRating,
-        petToxicityRating: createData.petToxicityRating,
-        wateringRating: createData.wateringRating,
-        health: createData.health,
-        remindersEnabled: true,
-        isFavorite: false,
-        potWidthCm: null,
-        potHeightCm: null,
-        roomId: Option.getOrNull(Option.fromNullishOr(createData.roomId)),
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        ...ownerColumns(createData.owner),
-        createdByUserId: createData.createdByUserId,
-      }
-      plantsData.push(newPlant)
-      return Effect.succeed(withOwner(newPlant))
-    },
-
     update: (id, owner, updateData) => patchPlant(id, owner, updateData),
-
-    delete: (id, owner) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(
-            plantsData,
-            (p) => p.id === id && sameOwner(withOwner(p).owner, owner)
-          ),
-          Option.map(withOwner),
-          Option.getOrNull
-        )
-      ),
-
-    markDead: (id, owner, data) =>
-      Array.some(plantsData, (p) => p.id === id && p.diedAt === null)
-        ? patchPlant(id, owner, {
-            diedAt: data.diedAt,
-            deathCause: data.cause,
-            deathNote: data.note,
-          })
-        : Effect.succeed(null),
-
-    revive: (id, owner) =>
-      Array.some(plantsData, (p) => p.id === id && p.diedAt !== null)
-        ? patchPlant(id, owner, {
-            diedAt: null,
-            deathCause: null,
-            deathNote: null,
-          })
-        : Effect.succeed(null),
-
-    moveTo: (id, from, to, roomId) =>
-      patchPlant(id, from, { ...ownerColumns(to), roomId }),
 
     findPhotos: (params: FindPhotosParams) => {
       const page = pipe(
@@ -440,69 +363,6 @@ export const createMockPlantRepository = (
       ),
 
     deletePhotoByPlantId: () => Effect.void,
-
-    markOverduePlantsAsNeedsAttention: () => {
-      const now = new Date()
-
-      const hasOverdue = (plantId: string) =>
-        Array.some(
-          schedulesData,
-          (s) =>
-            s.plantId === plantId &&
-            s.nextCareAt !== null &&
-            s.nextCareAt.getTime() <= now.getTime()
-        )
-
-      const shouldMark = (plant: PlantRecord) =>
-        hasOverdue(plant.id) &&
-        (plant.health === 'HEALTHY' || plant.health === 'THRIVING')
-
-      const matched = Array.filter(plantsData, shouldMark)
-      Array.forEach(matched, (p) => {
-        p.health = 'NEEDS_ATTENTION'
-      })
-
-      // Also mutate original array for tests that check it directly
-      pipe(
-        Array.filter(originalPlantsData, shouldMark),
-        Array.forEach((p) => {
-          p.health = 'NEEDS_ATTENTION'
-        })
-      )
-
-      return Effect.succeed(Array.length(matched))
-    },
-
-    markHealthyPlantsInOrder: () => {
-      const now = new Date()
-
-      const hasOverdue = (plantId: string) =>
-        Array.some(
-          schedulesData,
-          (s) =>
-            s.plantId === plantId &&
-            s.nextCareAt !== null &&
-            s.nextCareAt.getTime() <= now.getTime()
-        )
-
-      const shouldMark = (plant: PlantRecord) =>
-        plant.health === 'NEEDS_ATTENTION' && !hasOverdue(plant.id)
-
-      const matched = Array.filter(plantsData, shouldMark)
-      Array.forEach(matched, (p) => {
-        p.health = 'HEALTHY'
-      })
-
-      // Also mutate original array for tests that check it directly
-      pipe(
-        Array.filter(originalPlantsData, shouldMark),
-        Array.forEach((p) => {
-          p.health = 'HEALTHY'
-        })
-      )
-
-      return Effect.succeed(Array.length(matched))
-    },
   }
 
   return Layer.succeed(PlantRepository, repo)

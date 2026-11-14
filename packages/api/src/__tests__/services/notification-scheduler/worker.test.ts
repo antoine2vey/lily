@@ -116,7 +116,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const LaMocksLive = Layer.mergeAll(
   MockSqlClientLive,
   createMockActivityPushTokenRepository(),
-  createMockCareScheduleRepository(),
+  createMockCareScheduleRepository({ dueUnlessScheduled: true }),
   createMockCareLogRepository([]),
   createMockUserRepository([]),
   createMockDelegationRepository(),
@@ -692,7 +692,7 @@ describe('Notification Worker', () => {
               createMockDeviceTokenRepository(devices),
               createMockNotificationRepository(rows),
               createMockActivityPushTokenRepository(),
-              createMockCareScheduleRepository(),
+              createMockCareScheduleRepository({ dueUnlessScheduled: true }),
               createMockCareLogRepository([]),
               createMockDelegationRepository(),
               createMockCanopyRepository([]),

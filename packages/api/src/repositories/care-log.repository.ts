@@ -1,3 +1,5 @@
+import { storedDay } from '@lily/api/contexts/care'
+import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { caredForBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
@@ -7,7 +9,7 @@ import {
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { careLogs, plants, users } from '@lily/db/schema'
 import type { CareType } from '@lily/shared'
-import { nowAsDate, paginate } from '@lily/shared'
+import { paginate } from '@lily/shared'
 import type {
   CareLog,
   CareLogHistoryItem,
@@ -15,25 +17,9 @@ import type {
   RecentActivitiesListResponse,
   RecentActivity,
 } from '@lily/shared/care-log'
-import { and, count, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, isNull, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
-
-// Types for repository methods
-export interface CreateCareLogData {
-  type: CareType
-  notes?: string | undefined
-  date?: Date | undefined
-  photoUrl?: string | undefined
-  plantId: string
-  performedByUserId: string
-}
-
-export interface UpdateCareLogData {
-  notes?: string | undefined
-  date?: Date | undefined
-  photoUrl?: string | undefined
-}
 
 export interface FindCareLogsParams {
   plantId: string
@@ -43,11 +29,15 @@ export interface FindCareLogsParams {
 }
 
 // Helper to map database row to API CareLog type (null -> undefined)
-const mapToCareLog = (row: typeof careLogs.$inferSelect): CareLog => ({
+const mapToCareLog = (
+  row: typeof careLogs.$inferSelect,
+  careTimezone: string
+): CareLog => ({
   id: row.id,
   type: row.type,
   notes: Option.getOrUndefined(Option.fromNullishOr(row.notes)),
   date: row.date,
+  careDay: storedDay(row.careDay, row.date, careTimezone),
   photoUrl: Option.getOrUndefined(Option.fromNullishOr(row.photoUrl)),
   plantId: row.plantId,
   createdAt: row.createdAt,
@@ -71,36 +61,6 @@ export interface ICareLogRepository {
   readonly findRecentByUserId: (
     params: FindRecentParams
   ) => Effect.Effect<RecentActivitiesListResponse, SqlError>
-  readonly createMany: (
-    data: readonly CreateCareLogData[]
-  ) => Effect.Effect<CareLog[], SqlError>
-  readonly create: (
-    data: CreateCareLogData
-  ) => Effect.Effect<CareLog | null, SqlError>
-  readonly update: (
-    id: string,
-    data: UpdateCareLogData
-  ) => Effect.Effect<CareLog | null, SqlError>
-  readonly delete: (id: string) => Effect.Effect<CareLog | null, SqlError>
-  readonly findLatestByPlantAndType: (
-    plantId: string,
-    type: CareType
-  ) => Effect.Effect<CareLog | null, SqlError>
-  readonly existsByPlantAndTypeInRange: (
-    plantId: string,
-    type: CareType,
-    startUtc: Date,
-    endUtc: Date
-  ) => Effect.Effect<boolean, SqlError>
-  /**
-   * Serializes care writes for one plant and care type until the enclosing
-   * transaction ends. Only meaningful inside `SqlClient.withTransaction`:
-   * the lock is `pg_advisory_xact_lock`, released at commit or rollback.
-   */
-  readonly lockPlantCareType: (
-    plantId: string,
-    type: CareType
-  ) => Effect.Effect<void, SqlError>
   readonly countTodayByUser: (
     userId: string,
     timezone: string,
@@ -148,10 +108,12 @@ export const CareLogRepositoryLive = Layer.effect(
         const rows = yield* db
           .select({
             log: careLogs,
+            careTimezone: careTimezoneSql,
             performerId: users.id,
             performerName: users.name,
           })
           .from(careLogs)
+          .innerJoin(plants, eq(plants.id, careLogs.plantId))
           .leftJoin(
             users,
             and(
@@ -167,7 +129,7 @@ export const CareLogRepositoryLive = Layer.effect(
         const items = Array.map(
           rows,
           (row): CareLogHistoryItem => ({
-            ...mapToCareLog(row.log),
+            ...mapToCareLog(row.log, row.careTimezone),
             performedBy: pipe(
               Option.fromNullishOr(row.performerId),
               Option.map((id) => ({ id, name: row.performerName })),
@@ -183,10 +145,11 @@ export const CareLogRepositoryLive = Layer.effect(
         plantId: string
       ) {
         const [row] = yield* db
-          .select()
+          .select({ log: careLogs, careTimezone: careTimezoneSql })
           .from(careLogs)
+          .innerJoin(plants, eq(plants.id, careLogs.plantId))
           .where(and(eq(careLogs.id, id), eq(careLogs.plantId, plantId)))
-        return row ? mapToCareLog(row) : null
+        return row ? mapToCareLog(row.log, row.careTimezone) : null
       }),
 
       findRecentByUserId: Effect.fn('CareLogRepository.findRecentByUserId')(
@@ -201,6 +164,8 @@ export const CareLogRepositoryLive = Layer.effect(
               id: careLogs.id,
               type: careLogs.type,
               date: careLogs.date,
+              careDay: careLogs.careDay,
+              careTimezone: careTimezoneSql,
               notes: careLogs.notes,
               plantId: careLogs.plantId,
               plantName: plants.name,
@@ -221,117 +186,11 @@ export const CareLogRepositoryLive = Layer.effect(
               Option.fromNullishOr(row.plantImageUrl)
             ),
             date: row.date,
+            careDay: storedDay(row.careDay, row.date, row.careTimezone),
             notes: Option.getOrUndefined(Option.fromNullishOr(row.notes)),
           }))
 
           return { items }
-        }
-      ),
-
-      createMany: Effect.fn('CareLogRepository.createMany')(function* (
-        data: readonly CreateCareLogData[]
-      ) {
-        if (data.length === 0) return []
-        const values = Array.map(data, (d) => ({
-          type: d.type,
-          notes: Option.getOrNull(Option.fromNullishOr(d.notes)),
-          date: pipe(
-            Option.fromNullishOr(d.date),
-            Option.getOrElse(() => nowAsDate())
-          ),
-          photoUrl: Option.getOrNull(Option.fromNullishOr(d.photoUrl)),
-          plantId: d.plantId,
-          performedByUserId: d.performedByUserId,
-        }))
-        const rows = yield* db.insert(careLogs).values(values).returning()
-        return Array.map(rows, mapToCareLog)
-      }),
-
-      create: Effect.fn('CareLogRepository.create')(function* (
-        data: CreateCareLogData
-      ) {
-        const [row] = yield* db
-          .insert(careLogs)
-          .values({
-            type: data.type,
-            notes: Option.getOrNull(Option.fromNullishOr(data.notes)),
-            date: pipe(
-              Option.fromNullishOr(data.date),
-              Option.getOrElse(() => nowAsDate())
-            ),
-            photoUrl: Option.getOrNull(Option.fromNullishOr(data.photoUrl)),
-            plantId: data.plantId,
-            performedByUserId: data.performedByUserId,
-          })
-          .returning()
-        return row ? mapToCareLog(row) : null
-      }),
-
-      update: Effect.fn('CareLogRepository.update')(function* (
-        id: string,
-        data: UpdateCareLogData
-      ) {
-        const [row] = yield* db
-          .update(careLogs)
-          .set({
-            notes: Option.getOrNull(Option.fromNullishOr(data.notes)),
-            date: data.date,
-            photoUrl: Option.getOrNull(Option.fromNullishOr(data.photoUrl)),
-            updatedAt: nowAsDate(),
-          })
-          .where(eq(careLogs.id, id))
-          .returning()
-        return row ? mapToCareLog(row) : null
-      }),
-
-      delete: Effect.fn('CareLogRepository.delete')(function* (id: string) {
-        const [row] = yield* db
-          .delete(careLogs)
-          .where(eq(careLogs.id, id))
-          .returning()
-        return row ? mapToCareLog(row) : null
-      }),
-
-      findLatestByPlantAndType: Effect.fn(
-        'CareLogRepository.findLatestByPlantAndType'
-      )(function* (plantId: string, type: CareType) {
-        const [row] = yield* db
-          .select()
-          .from(careLogs)
-          .where(and(eq(careLogs.plantId, plantId), eq(careLogs.type, type)))
-          .orderBy(desc(careLogs.date))
-          .limit(1)
-        return row ? mapToCareLog(row) : null
-      }),
-
-      existsByPlantAndTypeInRange: Effect.fn(
-        'CareLogRepository.existsByPlantAndTypeInRange'
-      )(function* (
-        plantId: string,
-        type: CareType,
-        startUtc: Date,
-        endUtc: Date
-      ) {
-        const [row] = yield* db
-          .select({ id: careLogs.id })
-          .from(careLogs)
-          .where(
-            and(
-              eq(careLogs.plantId, plantId),
-              eq(careLogs.type, type),
-              gte(careLogs.date, startUtc),
-              lt(careLogs.date, endUtc)
-            )
-          )
-          .limit(1)
-        return row !== undefined
-      }),
-
-      lockPlantCareType: Effect.fn('CareLogRepository.lockPlantCareType')(
-        function* (plantId: string, type: CareType) {
-          yield* db.execute(
-            sql`SELECT pg_advisory_xact_lock(hashtext(${plantId}), hashtext(${type}))`
-          )
         }
       ),
 

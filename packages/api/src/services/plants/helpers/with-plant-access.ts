@@ -1,4 +1,10 @@
 import {
+  Actor,
+  mintPermit,
+  type PlantAction,
+  type PlantPermit,
+} from '@lily/api/kernel/permit'
+import {
   type CanopyMembership,
   CanopyRepository,
 } from '@lily/api/repositories/canopy.repository'
@@ -14,7 +20,6 @@ import {
   canopyRole,
   type KnowledgeView,
   knowledgeView,
-  type PlantAction,
   type PlantRole,
   personalRole,
 } from '@lily/api/services/plants/helpers/plant-access'
@@ -22,7 +27,7 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { Effect, Match, Option, pipe } from 'effect'
+import { Array, Effect, Match, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type PlantAccessContext =
@@ -64,7 +69,7 @@ export const plantRoleFor = (
         ? Effect.succeed(personalRole(ownerId, who.userId, false))
         : Effect.map(
             Effect.flatMap(DelegationRepository, (repo) =>
-              repo.hasActiveDelegationForPlant(who.userId, plant.id)
+              repo.tends(who.userId, plant.id)
             ),
             (caretaker) => personalRole(ownerId, who.userId, caretaker)
           )
@@ -141,11 +146,15 @@ export const canPerform = (
  * `Effect.zipRight` or `Effect.andThen` for endpoints that only need the
  * check. Endpoints must not re-fetch a plant received from here.
  */
-export const withPlantKnowledge = (
+export const withPlantKnowledge = <A extends PlantAction>(
   plantId: string,
-  action: PlantAction
+  action: A
 ): Effect.Effect<
-  { readonly plant: PlantWithRoom; readonly view: KnowledgeView },
+  {
+    readonly plant: PlantWithRoom
+    readonly view: KnowledgeView
+    readonly permit: PlantPermit<A>
+  },
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
 > =>
@@ -160,7 +169,11 @@ export const withPlantKnowledge = (
 
     const role = yield* authorizedRole(plantId, plant, action)
 
-    return { plant, view: knowledgeView(role, viewerId) }
+    return {
+      plant,
+      view: knowledgeView(role, viewerId),
+      permit: mintPermit(plant.id, action, Actor.User({ userId: viewerId })),
+    }
   }).pipe(Effect.withSpan('withPlantAuth', { attributes: { action } }))
 
 export const withPlantAuth = (
@@ -171,3 +184,45 @@ export const withPlantAuth = (
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
 > => Effect.map(withPlantKnowledge(plantId, action), ({ plant }) => plant)
+
+export const withPermittedPlant = <A extends PlantAction>(
+  plantId: string,
+  action: A
+): Effect.Effect<
+  { readonly plant: PlantWithRoom; readonly permit: PlantPermit<A> },
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantRepository | PlantAccessContext
+> =>
+  Effect.map(withPlantKnowledge(plantId, action), ({ plant, permit }) => ({
+    plant,
+    permit,
+  }))
+
+export const withPlantPermit = <A extends PlantAction>(
+  plantId: string,
+  action: A
+): Effect.Effect<
+  PlantPermit<A>,
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantRepository | PlantAccessContext
+> => Effect.map(withPermittedPlant(plantId, action), ({ permit }) => permit)
+
+export const plantPermits = <A extends PlantAction>(
+  plantIds: ReadonlyArray<string>,
+  action: A
+): Effect.Effect<
+  ReadonlyArray<PlantPermit<A>>,
+  SqlError,
+  PlantRepository | PlantAccessContext
+> =>
+  Effect.gen(function* () {
+    const repo = yield* PlantRepository
+    const who = yield* caller
+    const allowed = yield* Effect.filter(
+      yield* repo.findByIds(plantIds),
+      (plant) => canPerform(who, plant, action)
+    )
+    return Array.map(allowed, (plant) =>
+      mintPermit(plant.id, action, Actor.User({ userId: who.userId }))
+    )
+  }).pipe(Effect.withSpan('plantPermits', { attributes: { action } }))

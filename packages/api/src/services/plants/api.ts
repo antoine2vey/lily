@@ -14,6 +14,7 @@ import {
   AlreadyCaredTodayError,
   FutureDateNotAllowedError,
   PlantAlreadyDeadError,
+  PlantIsDeadError,
   PlantNotAuthorizedError,
   PlantNotDeadError,
   PlantNotFoundError,
@@ -253,6 +254,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         RoomNotFoundError,
         PlantNotFoundError,
         PlantNotAuthorizedError,
+        PlantIsDeadError,
         InvalidImageError,
         GCSUploadError.pipe(HttpApiSchema.status(500)),
         GCSConfigError.pipe(HttpApiSchema.status(500)),
@@ -355,6 +357,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         PlantNotAuthorizedError,
         FutureDateNotAllowedError,
         AlreadyCaredTodayError,
+        PlantIsDeadError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
     })
@@ -369,6 +372,8 @@ export const PlantsApi = HttpApiGroup.make('plants')
         PlantNotFoundError,
         PlantNotAuthorizedError,
         FutureDateNotAllowedError,
+        AlreadyCaredTodayError,
+        PlantIsDeadError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
     })

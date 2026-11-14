@@ -53,10 +53,6 @@ export const getCareAdjustments = (): Effect.Effect<
     // Get the user's plants
     const plantsResult = yield* plantRepo.findAll({
       userId: id,
-      timezone: pipe(
-        Option.fromNullishOr(user.timezone),
-        Option.getOrElse(() => 'UTC')
-      ),
       page: 1,
       limit: 1000,
     })

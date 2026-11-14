@@ -1,160 +1,95 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
-import {
-  createTestPlant,
-  mockPlants,
-} from '@lily/api/__tests__/fixtures/plants'
+import { carePermit, createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
-import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import type { AppEvent } from '@lily/api/events'
-import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
-import { Effect, Layer } from 'effect'
+import { CareDay } from '@lily/shared'
+import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const plant1 = withOwner(createTestPlant({ id: 'plant-1', userId: 'user-1' }))
+const today = CareDay.make('2026-11-12')
+const existing = pipe(Array.head(mockCareLogs), Option.getOrThrow)
+
+const setup = (outcome: 'Recorded' | 'AlreadyCared' = 'Recorded') => {
+  const care = createStubCare((plantId) =>
+    outcome === 'Recorded'
+      ? RecordOutcome.Recorded({
+          plantId,
+          careLogId: existing.id,
+          careType: 'watering',
+          day: today,
+          dueDay: Option.none(),
+        })
+      : RecordOutcome.Skipped({
+          plantId,
+          reason: Refusal.AlreadyCared({
+            plantId,
+            careType: 'watering',
+            day: today,
+          }),
+        })
+  )
+  return {
+    care,
+    layer: Layer.mergeAll(
+      createMockCareLogRepository(mockCareLogs),
+      care.layer,
+      MockSqlClientLive,
+      MockOutboxLive
+    ),
+  }
+}
 
 describe('createCareLog', () => {
-  const createTestLayer = () =>
-    Layer.mergeAll(
-      createMockCareLogRepository(mockCareLogs),
-      createMockEventBus(),
-      createMockCurrentUser({ id: 'user-1' }),
-      createMockPlantRepository({ plants: mockPlants }),
-      createMockNotificationRepository([])
-    )
+  it('records the care and returns its log', async () => {
+    const test = setup()
 
-  it('should create a new care log', async () => {
-    const result = await Effect.runPromise(
-      createCareLog(plant1, { type: 'watering' }).pipe(
-        Effect.provide(createTestLayer())
-      )
-    )
-
-    expect(result.type).toBe('watering')
-    expect(result.plantId).toBe('plant-1')
-    expect(result.id).toBeDefined()
-  })
-
-  it('should return the created log with an id', async () => {
-    const result = await Effect.runPromise(
-      createCareLog(plant1, { type: 'fertilization' }).pipe(
-        Effect.provide(createTestLayer())
-      )
-    )
-
-    expect(result.id).toBeTruthy()
-    expect(typeof result.id).toBe('string')
-  })
-
-  it('should set notes when provided', async () => {
-    const result = await Effect.runPromise(
-      createCareLog(plant1, {
+    const log = await Effect.runPromise(
+      createCareLog(carePermit(existing.plantId), {
         type: 'watering',
-        notes: 'Test notes',
-      }).pipe(Effect.provide(createTestLayer()))
+        notes: 'Deep soak',
+        photoUrl: 'https://example.com/p.jpg',
+      }).pipe(Effect.provide(test.layer))
     )
 
-    expect(result.notes).toBe('Test notes')
-  })
-
-  it('should set photoUrl when provided', async () => {
-    const result = await Effect.runPromise(
-      createCareLog(plant1, {
-        type: 'fertilization',
-        photoUrl: 'https://example.com/photo.jpg',
-      }).pipe(Effect.provide(createTestLayer()))
-    )
-
-    expect(result.photoUrl).toBe('https://example.com/photo.jpg')
-  })
-
-  it('should use current date when date not provided', async () => {
-    const before = new Date()
-    const result = await Effect.runPromise(
-      createCareLog(plant1, { type: 'watering' }).pipe(
-        Effect.provide(createTestLayer())
-      )
-    )
-    const after = new Date()
-
-    expect(result.date.getTime()).toBeGreaterThanOrEqual(before.getTime())
-    expect(result.date.getTime()).toBeLessThanOrEqual(after.getTime())
-  })
-
-  it('should use provided date when specified', async () => {
-    const customDate = new Date('2024-06-15')
-    const result = await Effect.runPromise(
-      createCareLog(plant1, {
-        type: 'watering',
-        date: customDate,
-      }).pipe(Effect.provide(createTestLayer()))
-    )
-
-    expect(result.date).toEqual(customDate)
-  })
-
-  it('should publish CareLogCreated event', async () => {
-    const publishedEvents: AppEvent[] = []
-    const eventBusMock = createMockEventBus({ publishedEvents })
-
-    const result = await Effect.runPromise(
-      createCareLog(plant1, { type: 'watering' }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            createMockCareLogRepository(mockCareLogs),
-            eventBusMock,
-            createMockCurrentUser({ id: 'user-1' }),
-            createMockPlantRepository({ plants: mockPlants }),
-            createMockNotificationRepository([])
-          )
-        )
-      )
-    )
-
-    expect(publishedEvents.length).toBeGreaterThanOrEqual(1)
-    expect(publishedEvents[0]).toMatchObject({
-      _tag: 'CareLogCreated',
-      userId: 'user-1',
-      plantId: 'plant-1',
-      careLogId: result.id,
-      type: 'watering',
+    expect(log.id).toBe(existing.id)
+    expect(test.care.commands[0]).toMatchObject({
+      careType: 'watering',
+      on: { _tag: 'Today' },
+      notes: Option.some('Deep soak'),
+      photoUrl: Option.some('https://example.com/p.jpg'),
     })
   })
 
-  it('should reset health to HEALTHY and emit AttentionResponded when plant needs attention', async () => {
-    const publishedEvents: AppEvent[] = []
-    const eventBusMock = createMockEventBus({ publishedEvents })
-    // Create a plant that NEEDS_ATTENTION
-    const attentionPlant = createTestPlant({
-      id: 'attention-plant',
-      health: 'NEEDS_ATTENTION',
-      userId: 'user-1',
-    })
-    const plantsWithAttention = [attentionPlant]
+  it('records the care at the date the client sent', async () => {
+    const test = setup()
+    const date = new Date('2026-11-10T08:00:00Z')
 
     await Effect.runPromise(
-      createCareLog(withOwner(attentionPlant), { type: 'watering' }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            createMockCareLogRepository(mockCareLogs),
-            eventBusMock,
-            createMockCurrentUser({ id: 'user-1' }),
-            createMockPlantRepository({ plants: plantsWithAttention }),
-            createMockNotificationRepository([])
-          )
-        )
+      createCareLog(carePermit(existing.plantId), {
+        type: 'watering',
+        date,
+      }).pipe(Effect.provide(test.layer))
+    )
+
+    expect(test.care.commands[0]?.on).toEqual({
+      _tag: 'At',
+      instant: DateTime.makeUnsafe(date),
+    })
+  })
+
+  it('fails when the plant was already cared for that day', async () => {
+    const test = setup('AlreadyCared')
+
+    const failure = await Effect.runPromise(
+      createCareLog(carePermit(existing.plantId), { type: 'watering' }).pipe(
+        Effect.flip,
+        Effect.provide(test.layer)
       )
     )
 
-    // Should have CareLogCreated and AttentionResponded events
-    expect(publishedEvents.length).toBe(2)
-    expect(publishedEvents[1]).toMatchObject({
-      _tag: 'AttentionResponded',
-      userId: 'user-1',
-      plantId: 'attention-plant',
-    })
+    expect(failure._tag).toBe('AlreadyCaredTodayError')
   })
 })

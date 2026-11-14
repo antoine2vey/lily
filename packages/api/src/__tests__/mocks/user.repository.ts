@@ -6,13 +6,6 @@ import {
 import type { User } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
-const instant = (value: Date | null): number | null =>
-  pipe(
-    Option.fromNullishOr(value),
-    Option.map((d) => d.getTime()),
-    Option.getOrNull
-  )
-
 export const createMockUserRepository = (
   users: User[]
 ): Layer.Layer<UserRepository> => {
@@ -30,7 +23,7 @@ export const createMockUserRepository = (
     findByIds: (ids: ReadonlyArray<string>) =>
       Effect.succeed(Array.filter(users, (u) => Array.contains(ids, u.id))),
 
-    findByIdsForShare: (ids: ReadonlyArray<string>) =>
+    findByIdsForKeyShare: (ids: ReadonlyArray<string>) =>
       Effect.succeed(Array.filter(users, (u) => Array.contains(ids, u.id))),
 
     findByEmail: (email: string) =>
@@ -224,67 +217,6 @@ export const createMockUserRepository = (
     },
 
     findExpiredDeletions: () => Effect.succeed([]),
-
-    findVacationsToActivate: (now: Date) =>
-      Effect.succeed(
-        Array.filter(
-          users,
-          (u) =>
-            u.vacationStatus === 'scheduled' &&
-            u.vacationStart !== null &&
-            u.vacationStart.getTime() <= now.getTime() &&
-            u.deletedAt === null
-        )
-      ),
-
-    findVacationsToEnd: (now: Date) =>
-      Effect.succeed(
-        Array.filter(
-          users,
-          (u) =>
-            u.vacationStatus === 'active' &&
-            u.vacationEnd !== null &&
-            u.vacationEnd.getTime() <= now.getTime() &&
-            u.deletedAt === null
-        )
-      ),
-
-    transitionVacation: (expected, next) =>
-      Effect.sync(() =>
-        pipe(
-          Array.findFirstIndex(
-            users,
-            (u) =>
-              u.id === expected.id &&
-              u.vacationStatus === expected.vacationStatus &&
-              instant(u.vacationStart) === instant(expected.vacationStart) &&
-              instant(u.vacationEnd) === instant(expected.vacationEnd)
-          ),
-          Option.flatMap((i) =>
-            pipe(
-              Option.fromNullishOr(users[i]),
-              Option.map((u) => {
-                const updated: User = {
-                  ...u,
-                  vacationStatus: next.vacationStatus,
-                  vacationStart: pipe(
-                    Option.fromUndefinedOr(next.vacationStart),
-                    Option.getOrElse(() => u.vacationStart)
-                  ),
-                  vacationEnd: pipe(
-                    Option.fromUndefinedOr(next.vacationEnd),
-                    Option.getOrElse(() => u.vacationEnd)
-                  ),
-                  updatedAt: new Date(),
-                }
-                users[i] = updated
-                return updated
-              })
-            )
-          ),
-          Option.getOrNull
-        )
-      ),
   }
 
   return Layer.succeed(UserRepository, repo)

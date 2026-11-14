@@ -1,17 +1,16 @@
 import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createMockCareReads } from '@lily/api/__tests__/mocks/care-reads'
+import type { CareReads } from '@lily/api/contexts/care'
 import {
   CareScheduleRepository,
   type CareScheduleRow,
   type CareType,
   type ICareScheduleRepository,
-  type OverdueRecipientPlant,
   type OwnerScheduleRow,
-  type ScheduleWithPlant,
-  type UpsertScheduleData,
+  type ReminderAudiencePlant,
 } from '@lily/api/repositories/care-schedule.repository'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
 import type { plants } from '@lily/db/schema'
-import { earliestOverdueDate } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
@@ -29,11 +28,14 @@ export interface MockCareScheduleData {
   memberships?: MockMembership[]
   mutes?: Array<{ userId: string; plantId: string }>
   caretakers?: Array<{ plantId: string; caretakerId: string }>
+  /** Care timezone by owner id (user id or canopy id). Defaults to UTC. */
+  timezones?: Readonly<Record<string, string>>
+  dueUnlessScheduled?: boolean
 }
 
 export const createMockCareScheduleRepository = (
   data: MockCareScheduleData = {}
-): Layer.Layer<CareScheduleRepository> => {
+): Layer.Layer<CareScheduleRepository | CareReads> => {
   const schedulesData: CareScheduleRow[] = pipe(
     Option.fromNullishOr(data.schedules),
     Option.getOrElse(() => [] as CareScheduleRow[])
@@ -85,15 +87,7 @@ export const createMockCareScheduleRepository = (
           Option.getOrElse(() => userId)
         )
 
-  const isOverdueNow = (now: Date) => (s: CareScheduleRow) =>
-    pipe(
-      Array.findFirst(plantsData, (p) => p.id === s.plantId),
-      Option.exists((p) => p.diedAt === null && p.remindersEnabled)
-    ) &&
-    s.nextCareAt !== null &&
-    s.nextCareAt.getTime() <= now.getTime()
-
-  const resolveRoom = (roomId: string | null) =>
+  const _resolveRoom = (roomId: string | null) =>
     pipe(
       Option.fromNullishOr(roomId),
       Option.flatMap((id) => Array.findFirst(roomsData, (r) => r.id === id)),
@@ -115,112 +109,30 @@ export const createMockCareScheduleRepository = (
     findByPlant: (plantId: string) =>
       Effect.succeed(Array.filter(schedulesData, (s) => s.plantId === plantId)),
 
-    findByPlantIds: (plantIds: ReadonlyArray<string>) =>
-      Effect.succeed(
-        Array.filter(schedulesData, (s) => Array.contains(plantIds, s.plantId))
-      ),
-
-    shiftDueBefore: ({ plantIds, before, shiftMs, floor }) =>
-      Effect.sync(() => {
-        Array.forEach(schedulesData, (s, i) => {
-          if (
-            Array.contains(plantIds, s.plantId) &&
-            s.nextCareAt !== null &&
-            s.nextCareAt.getTime() < before.getTime()
-          ) {
-            schedulesData[i] = {
-              ...s,
-              nextCareAt: new Date(
-                Math.max(s.nextCareAt.getTime() + shiftMs, floor.getTime())
-              ),
-            }
-          }
-        })
-      }),
-
-    // Mirrors the live repository: plants in the cemetery never surface in
-    // care tasks, overdue sweeps, or vacation rebuilds.
-    findPendingByUser: (userId: string, cutoff: Date, canopyId) => {
-      const visible = caredForBy(userId, canopyId)
-      const userPlantIds = pipe(
-        Array.filter(plantsData, (p) => visible(p) && p.diedAt === null),
-        Array.map((p) => p.id)
-      )
-
-      const pending = Array.filter(
-        schedulesData,
-        (s) =>
-          Array.contains(userPlantIds, s.plantId) &&
-          s.nextCareAt !== null &&
-          s.nextCareAt.getTime() <= cutoff.getTime()
-      )
-
-      return Effect.succeed(
-        Array.getSomes(
-          Array.map(pending, (s) =>
-            pipe(
-              Array.findFirst(plantsData, (p) => p.id === s.plantId),
-              Option.map(
-                (plant): ScheduleWithPlant => ({
-                  schedule: s,
-                  plant: {
-                    id: plant.id,
-                    name: plant.name,
-                    imageUrl: plant.imageUrl,
-                    room: resolveRoom(plant.roomId),
-                    sharedBy: null,
-                  },
-                })
-              )
-            )
-          )
-        )
-      )
-    },
-
-    findOverdueByUser: () => {
-      const now = new Date()
-      const overdue = Array.filter(schedulesData, isOverdueNow(now))
-
-      const byPlant = Array.groupBy(overdue, (s) => s.plantId)
-
-      const mapped = pipe(
-        Array.fromRecord(byPlant),
-        Array.flatMap(([plantId, schedules]) =>
-          pipe(
-            Array.findFirst(plantsData, (p) => p.id === plantId),
-            Option.map((plant) =>
-              Array.map(
-                recipientsOf(plant),
-                (userId): OverdueRecipientPlant => ({
-                  id: plant.id,
-                  name: plant.name,
-                  userId,
-                  owner: ownerOf(plant),
-                  recipientId: recipientOf(plant, userId),
-                  dateAdded: plant.dateAdded,
-                  overdueAt: earliestOverdueDate(
-                    Array.map(schedules, (sc) => sc.nextCareAt),
-                    now
-                  ),
-                })
-              )
-            ),
-            Option.getOrElse((): OverdueRecipientPlant[] => [])
-          )
-        )
-      )
-
-      return Effect.succeed(Array.groupBy(mapped, (p) => p.userId))
-    },
-
-    findOverduePlantIds: (plantIds: ReadonlyArray<string>) =>
+    findReminderAudience: (plantIds: ReadonlyArray<string>) =>
       Effect.succeed(
         pipe(
-          Array.filter(schedulesData, isOverdueNow(new Date())),
-          Array.map((s) => s.plantId),
-          Array.filter((id) => Array.contains(plantIds, id)),
-          Array.dedupe
+          plantsData,
+          Array.filter(
+            (p) =>
+              Array.contains(plantIds, p.id) &&
+              p.diedAt === null &&
+              p.remindersEnabled
+          ),
+          Array.flatMap((plant) =>
+            Array.map(
+              recipientsOf(plant),
+              (userId): ReminderAudiencePlant => ({
+                id: plant.id,
+                name: plant.name,
+                audienceUserId: userId,
+                owner: ownerOf(plant),
+                recipientId: recipientOf(plant, userId),
+                dateAdded: plant.dateAdded,
+              })
+            )
+          ),
+          Array.groupBy((p) => p.audienceUserId)
         )
       ),
 
@@ -249,81 +161,17 @@ export const createMockCareScheduleRepository = (
           )
         )
       ),
-
-    upsert: (
-      plantId: string,
-      careType: CareType,
-      upsertData: UpsertScheduleData
-    ) => {
-      const existingIdx = Array.findFirstIndex(
-        schedulesData,
-        (s) => s.plantId === plantId && s.careType === careType
-      )
-
-      if (Option.isSome(existingIdx)) {
-        const existing = schedulesData[existingIdx.value]!
-        const updated: CareScheduleRow = {
-          ...existing,
-          frequencyDays: upsertData.frequencyDays,
-          ...(upsertData.lastCareAt !== undefined
-            ? { lastCareAt: upsertData.lastCareAt }
-            : {}),
-          ...(upsertData.nextCareAt !== undefined
-            ? { nextCareAt: upsertData.nextCareAt }
-            : {}),
-          updatedAt: new Date(),
-        }
-        schedulesData[existingIdx.value] = updated
-        return Effect.succeed(updated)
-      }
-
-      const newSchedule: CareScheduleRow = {
-        id: `schedule-${crypto.randomUUID()}`,
-        plantId,
-        careType,
-        frequencyDays: upsertData.frequencyDays,
-        lastCareAt: upsertData.lastCareAt ?? null,
-        nextCareAt: upsertData.nextCareAt ?? null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      schedulesData.push(newSchedule)
-      return Effect.succeed(newSchedule)
-    },
-
-    updateByPlantAndType: (
-      plantId: string,
-      careType: CareType,
-      updateData: Partial<
-        Pick<CareScheduleRow, 'frequencyDays' | 'lastCareAt' | 'nextCareAt'>
-      >
-    ) => {
-      const idx = Array.findFirstIndex(
-        schedulesData,
-        (s) => s.plantId === plantId && s.careType === careType
-      )
-      if (Option.isNone(idx)) return Effect.succeed(null)
-      const existing = schedulesData[idx.value]!
-      const updated: CareScheduleRow = {
-        ...existing,
-        ...updateData,
-        updatedAt: new Date(),
-      }
-      schedulesData[idx.value] = updated
-      return Effect.succeed(updated)
-    },
-
-    deleteByPlantAndType: (plantId: string, careType: CareType) => {
-      const idx = Array.findFirstIndex(
-        schedulesData,
-        (s) => s.plantId === plantId && s.careType === careType
-      )
-      if (Option.isSome(idx)) {
-        schedulesData.splice(idx.value, 1)
-      }
-      return Effect.void
-    },
   }
 
-  return Layer.succeed(CareScheduleRepository, repo)
+  return Layer.mergeAll(
+    Layer.succeed(CareScheduleRepository, repo),
+    createMockCareReads({
+      schedules: schedulesData,
+      plants: plantsData,
+      rooms: roomsData,
+      mutes,
+      ...(data.timezones ? { timezones: data.timezones } : {}),
+      ...(data.dueUnlessScheduled ? { dueUnlessScheduled: true } : {}),
+    })
+  )
 }

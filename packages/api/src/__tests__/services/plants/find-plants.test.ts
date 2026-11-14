@@ -1,4 +1,7 @@
-import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
+import {
+  createTestSchedule,
+  schedulesFromPlants,
+} from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
   mockOverduePlants,
@@ -18,10 +21,20 @@ import { describe, expect, it } from 'vitest'
 // Helper to create test layer with CurrentUser
 const createTestLayer = (userId = 'user-1') =>
   Layer.mergeAll(
-    createMockPlantRepository({ plants: mockPlants }),
+    createMockPlantRepository({
+      plants: mockPlants,
+      schedules: [overdueWatering('plant-3')],
+    }),
     createMockCurrentUser({ id: userId }),
     createMockUserRepository([...mockUsers])
   )
+
+// "Needs attention" is derived: a plant has it while a care is overdue.
+const overdueWatering = (plantId: string) =>
+  createTestSchedule({
+    plantId,
+    nextCareAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+  })
 
 // Caretaking plants for includeCaretaking tests
 const mockCaretakingPlants: MockCaretakingPlant[] = [
@@ -40,7 +53,7 @@ const mockCaretakingPlants: MockCaretakingPlant[] = [
       id: 'caretaking-plant-2',
       name: 'Delegated Cactus',
       userId: 'user-2',
-      health: 'NEEDS_ATTENTION',
+      health: 'HEALTHY',
       dateAdded: new Date('2024-01-06'),
     }),
     ownerName: 'Bob',
@@ -52,6 +65,7 @@ const createCaretakingTestLayer = (userId = 'user-1') =>
     createMockPlantRepository({
       plants: mockPlants,
       caretakingPlants: mockCaretakingPlants,
+      schedules: [overdueWatering('caretaking-plant-2')],
     }),
     createMockCurrentUser({ id: userId }),
     createMockUserRepository([...mockUsers])
@@ -111,21 +125,20 @@ describe('findPlants', () => {
   })
 
   it('should filter by needsAttention for current user only', async () => {
-    // user-2 has the only NEEDS_ATTENTION plant
+    // user-2 has the only plant with an overdue care
     const result = await Effect.runPromise(
       findPlants({ filter: 'needsAttention' }).pipe(
         Effect.provide(createTestLayer('user-2'))
       )
     )
 
-    expect(
-      Array.every(result.items, (p) => p.health === 'NEEDS_ATTENTION')
-    ).toBe(true)
-    expect(Array.every(result.items, (p) => p.userId === 'user-2')).toBe(true)
+    expect(Array.map(result.items, (p) => [p.id, p.health])).toEqual([
+      ['plant-3', 'NEEDS_ATTENTION'],
+    ])
   })
 
   it('should return empty when filtering needsAttention but user has none', async () => {
-    // user-1 has no NEEDS_ATTENTION plants
+    // user-1 has no overdue care
     const result = await Effect.runPromise(
       findPlants({ filter: 'needsAttention' }).pipe(
         Effect.provide(createTestLayer('user-1'))
@@ -233,8 +246,7 @@ describe('findPlants', () => {
         }).pipe(Effect.provide(createCaretakingTestLayer()))
       )
 
-      // user-1 has no NEEDS_ATTENTION owned plants
-      // caretaking-plant-2 is NEEDS_ATTENTION
+      // user-1 has no overdue owned plant; caretaking-plant-2 has one
       expect(result.total).toBe(1)
       expect(
         Array.every(result.items, (p) => p.ownership === 'caretaking')
@@ -265,19 +277,15 @@ describe('findPlants', () => {
         createMockUserRepository([...mockUsers])
       )
 
-    it('should return only plants with nextWateringAt <= end of today', async () => {
+    it('returns only plants with a care due before today', async () => {
       const result = await Effect.runPromise(
         findPlants({ filter: 'overdue' }).pipe(
           Effect.provide(createOverdueTestLayer())
         )
       )
 
-      // plant-overdue-1 (past) and plant-today-1 (today) should be included
-      // plant-tomorrow-1 (future) and plant-null-water (null) should be excluded
-      expect(result.items.length).toBe(2)
-      const ids = Array.map(result.items, (p) => p.id)
-      expect(ids).toContain('plant-overdue-1')
-      expect(ids).toContain('plant-today-1')
+      // Due today is not overdue; neither is tomorrow or an unscheduled care.
+      expect(Array.map(result.items, (p) => p.id)).toEqual(['plant-overdue-1'])
     })
 
     it('should exclude plants with null nextWateringAt', async () => {
@@ -299,8 +307,8 @@ describe('findPlants', () => {
       )
 
       expect(result.items.length).toBe(1)
-      expect(result.hasMore).toBe(true)
-      expect(result.total).toBe(2)
+      expect(result.hasMore).toBe(false)
+      expect(result.total).toBe(1)
     })
 
     it('should isolate overdue plants by user', async () => {

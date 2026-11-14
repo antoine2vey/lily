@@ -1,5 +1,23 @@
+import { leave, settled } from '@lily/api/__tests__/integration/canopy-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
+import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import {
+  CareReads,
+  CareReadsLive,
+  DueScope,
+  DueWindow,
+} from '@lily/api/contexts/care'
+import { replanPlants } from '@lily/api/contexts/reminders'
+import { Change } from '@lily/api/contexts/reminders/domain/plan'
+import { apply } from '@lily/api/contexts/reminders/store'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import {
   CanopyRepository,
@@ -12,31 +30,26 @@ import {
 import {
   CareScheduleRepository,
   CareScheduleRepositoryLive,
-  type OverdueRecipientPlant,
+  type ReminderAudiencePlant,
 } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import {
-  NotificationRepository,
+  type NotificationRepository,
   NotificationRepositoryLive,
-  ReminderGuard,
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
-import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import {
-  CARE_REMINDER_TYPES,
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { CareDay } from '@lily/shared'
 import type { PushMessage } from '@lily/shared/server'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
+  DateTime,
   Effect,
   Layer,
   Option,
@@ -52,6 +65,7 @@ const { Pool } = pg
 
 const RepositoriesLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
+  CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
   CareLogRepositoryLive
@@ -62,6 +76,7 @@ const run = <A, E>(
     A,
     E,
     | CareScheduleRepository
+    | CareReads
     | CanopyRepository
     | NotificationRepository
     | CareLogRepository
@@ -70,6 +85,7 @@ const run = <A, E>(
 
 const WorkerLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
+  CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
   CareLogRepositoryLive,
@@ -128,11 +144,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .returning()
       if (!row) throw new Error(`Failed to create plant ${name}`)
+      const dueAt = new Date(Date.now() - 2 * 86_400_000)
       await db.insert(schema.plantCareSchedules).values({
         plantId: row.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: new Date(Date.now() - 2 * 86_400_000),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       return row.id
     }
@@ -179,15 +197,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('addresses an overdue Canopy plant to each unmuted member with the Canopy as owner', async () => {
+      const everyPlant = await db
+        .select({ id: schema.plants.id })
+        .from(schema.plants)
       const grouped = await run(
         Effect.flatMap(CareScheduleRepository, (repo) =>
-          repo.findOverdueByUser()
+          repo.findReminderAudience(Arr.map(everyPlant, (p) => p.id))
         )
       )
       const plantsOf = (id: string) =>
         pipe(
           Record.get(grouped, id),
-          Option.getOrElse((): ReadonlyArray<OverdueRecipientPlant> => [])
+          Option.getOrElse((): ReadonlyArray<ReminderAudiencePlant> => [])
         )
       const forUser = (id: string) =>
         pipe(
@@ -217,33 +238,31 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(canopyOwner).toEqual({ _tag: 'Canopy', canopyId })
     })
 
-    it('lists unmuted Canopy plants in the member care tasks only when asked', async () => {
-      const cutoff = new Date(Date.now() + 86_400_000)
-      const [without, withCanopy] = await run(
-        Effect.flatMap(CareScheduleRepository, (repo) =>
-          Effect.all([
-            repo.findPendingByUser(lily, cutoff, null),
-            repo.findPendingByUser(lily, cutoff, canopyId),
-          ])
+    const dueFor = (userId: string, memberOf: string | null) =>
+      run(
+        Effect.flatMap(CareReads, (reads) =>
+          reads.due({
+            scope: DueScope.CaredForBy({ userId, canopyId: memberOf }),
+            upTo: DueWindow.Ahead({ days: 1 }),
+          })
         )
       )
+
+    it('lists unmuted Canopy plants in the member care tasks only when asked', async () => {
+      const without = await dueFor(lily, null)
+      const withCanopy = await dueFor(lily, canopyId)
       expect(without).toEqual([])
-      expect(Arr.map(withCanopy, (s) => s.plant.id)).toEqual([shared])
+      expect(Arr.map(withCanopy, (care) => care.plant.id)).toEqual([shared])
     })
 
-    it('names the sharer of a Canopy plant in findPendingByUser, and nobody for a personal plant', async () => {
-      const cutoff = new Date(Date.now() + 86_400_000)
-      const rows = await run(
-        Effect.flatMap(CareScheduleRepository, (repo) =>
-          repo.findPendingByUser(alex, cutoff, canopyId)
-        )
-      )
+    it('names the sharer of a Canopy plant in due cares, and nobody for a personal plant', async () => {
+      const cares = await dueFor(alex, canopyId)
       const sharerOf = (id: string) =>
         pipe(
-          rows,
-          Arr.findFirst((s) => s.plant.id === id),
-          Option.flatMap((s) => Option.fromNullishOr(s.plant.sharedBy)),
-          Option.map((s) => s.id),
+          cares,
+          Arr.findFirst((care) => care.plant.id === id),
+          Option.flatMap((care) => Option.fromNullishOr(care.plant.sharedBy)),
+          Option.map((sharer) => sharer.id),
           Option.getOrNull
         )
       expect(sharerOf(shared)).toBe(alex)
@@ -261,55 +280,77 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
-    it('drops a leaver pending and queued rows for Canopy plants, and nothing else', async () => {
+    it('drops what a leaver was waiting for on the Canopy plants, and nothing else', async () => {
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      await db
+        .insert(schema.canopyMembers)
+        .values({ canopyId, userId: sam, role: 'member' })
+      const samsOwn = await plant({ userId: sam }, 'Sam Ivy')
+      await db.execute(
+        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '3 days', due_day = ((now() + interval '3 days') AT TIME ZONE 'UTC')::date WHERE plant_id = ${samsOwn}`
       )
       const row = (
         userId: string,
         plantId: string,
-        status: 'pending' | 'queued' | 'sent'
-      ) => ({
-        type: 'watering_reminder' as const,
-        scheduledAt: new Date(),
-        userId,
-        plantId,
-        status,
-      })
+        status: 'pending' | 'queued' | 'sent',
+        type: 'watering_reminder' | 'photo_reminder' = 'watering_reminder'
+      ) => ({ type, scheduledAt: new Date(), userId, plantId, status })
       await db
         .insert(schema.notifications)
         .values([
-          row(lily, shared, 'pending'),
-          row(lily, shared, 'queued'),
-          row(lily, shared, 'sent'),
-          row(lily, personal, 'pending'),
+          row(sam, shared, 'pending'),
+          row(sam, shared, 'queued'),
+          row(sam, shared, 'sent'),
+          row(sam, shared, 'pending', 'photo_reminder'),
+          row(sam, mutedPlant, 'queued'),
+          row(sam, samsOwn, 'pending'),
           row(alex, shared, 'pending'),
+          row(alex, shared, 'pending', 'photo_reminder'),
         ])
-      await run(
-        Effect.flatMap(NotificationRepository, (repo) =>
-          repo.deleteUndeliveredForMemberOnCanopy(lily, canopyId)
+
+      await Effect.runPromise(
+        leave(sam).pipe(
+          settled,
+          Effect.provide(
+            Layer.mergeAll(
+              WorkerLive,
+              createMockMessageQueue(),
+              createMockEventBus(),
+              createMockWeatherProvider(),
+              createMockWeatherCache(),
+              createMockWeatherRepository(),
+              createMockLimitChecker()
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
+
       const left = await db
         .select({
           userId: schema.notifications.userId,
           plantId: schema.notifications.plantId,
           status: schema.notifications.status,
+          type: schema.notifications.type,
         })
         .from(schema.notifications)
+        .where(sql`${schema.notifications.plantId} IS NOT NULL`)
       expect(
         Arr.sort(
           Arr.map(
             left,
             (n) =>
-              `${n.userId === lily ? 'lily' : 'alex'}:${n.plantId === shared ? 'shared' : 'personal'}:${n.status}`
+              `${n.userId === sam ? 'sam' : 'alex'}:${n.plantId === samsOwn ? 'own' : 'shared'}:${n.status}:${n.type}`
           ),
           Order.String
         )
       ).toEqual([
-        'alex:shared:pending',
-        'lily:personal:pending',
-        'lily:shared:sent',
+        'alex:shared:pending:photo_reminder',
+        'alex:shared:pending:watering_reminder',
+        'sam:own:pending:watering_reminder',
+        'sam:shared:sent:watering_reminder',
       ])
     })
 
@@ -332,11 +373,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .update(schema.plants)
         .set({ diedAt: new Date() })
         .where(sql`${schema.plants.id} in (${dead}, ${deadOwn})`)
+      const caredAt = new Date()
       await db.insert(schema.careLogs).values(
         Arr.map([shared, dead, personal, deadOwn], (plantId) => ({
           plantId,
           type: 'watering' as const,
-          date: new Date(),
+          date: caredAt,
+          careDay: careDayOf(caredAt),
         }))
       )
       const [withCanopy, personalOnly] = await run(
@@ -425,38 +468,29 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
       )
-      await db.insert(schema.notifications).values({
-        type: 'watering_reminder',
-        scheduledAt: new Date(Date.now() + 86_400_000),
-        userId: alex,
-        plantId: personal,
-        status: 'pending',
-      })
+      const [old] = await db
+        .insert(schema.notifications)
+        .values({
+          type: 'watering_reminder',
+          scheduledAt: new Date(Date.now() + 86_400_000),
+          userId: alex,
+          plantId: personal,
+          status: 'pending',
+        })
+        .returning()
+      if (!old) throw new Error('Failed to seed the old row')
       const exit = await Effect.runPromiseExit(
-        withReminderKeys(reminderKeysFor([personal], ['watering_reminder']))(
-          Effect.flatMap(NotificationRepository, (repo) =>
-            repo.replaceReminders({
-              onlyUserId: null,
-              plants: [
-                {
-                  plantId: personal,
-                  types: ['watering_reminder'],
-                  recipientIds: [alex],
-                  plantWide: false,
-                },
-              ],
-              rows: [
-                {
-                  type: 'watering_reminder',
-                  scheduledAt: new Date(Date.now() + 7 * 86_400_000),
-                  userId: '00000000-0000-4000-8000-000000000000',
-                  plantId: personal,
-                  guard: ReminderGuard.Always(),
-                },
-              ],
-            })
-          )
-        ).pipe(
+        apply([
+          Change.Remove({ rowId: old.id, userId: alex, why: 'superseded' }),
+          Change.Put({
+            userId: '00000000-0000-4000-8000-000000000000',
+            plantId: personal,
+            type: 'watering_reminder',
+            occasion: CareDay.make('2099-01-01'),
+            scheduledAt: DateTime.makeUnsafe(Date.now() + 7 * 86_400_000),
+          }),
+        ]).pipe(
+          transactInMemory,
           Effect.provide(WorkerLive),
           Effect.provideService(References.MinimumLogLevel, 'None')
         )
@@ -473,9 +507,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
       )
       await db.execute(
-        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days' WHERE plant_id = ${shared}`
+        sql`UPDATE plant_care_schedules SET next_care_at = now() + interval '7 days', due_day = ((now() + interval '7 days') AT TIME ZONE 'UTC')::date WHERE plant_id = ${shared}`
       )
-      const reschedule = reconcileCareReminder(shared, 'watering_reminder')
+      const reschedule = replanPlants([shared])
       await Effect.runPromise(
         Effect.all(
           Arr.makeBy(20, () => reschedule),
@@ -499,50 +533,66 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(Arr.map(rows, (r) => r.metadata)).toEqual([{}, {}])
     })
 
-    it('clears every pending row and the queued rows of former recipients on reschedule', async () => {
+    it('removes the waiting rows of a former recipient and keeps the rows of a current one on reschedule', async () => {
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
       )
-      await db.insert(schema.notifications).values(
-        Arr.map(
-          [
-            [alex, 'pending'],
-            [alex, 'queued'],
-            [lily, 'pending'],
-            [lily, 'queued'],
-          ] as const,
-          ([userId, status]) => ({
-            type: 'watering_reminder' as const,
-            scheduledAt: new Date(),
-            userId,
-            plantId: shared,
-            status,
-          })
+      const seeded = await db
+        .insert(schema.notifications)
+        .values(
+          Arr.map(
+            [
+              [sam, 'pending'],
+              [sam, 'queued'],
+              [lily, 'pending'],
+              [lily, 'queued'],
+            ] as const,
+            ([userId, status]) => ({
+              type: 'watering_reminder' as const,
+              scheduledAt: new Date(),
+              userId,
+              plantId: shared,
+              status,
+            })
+          )
         )
-      )
-      await run(
-        Effect.flatMap(NotificationRepository, (repo) =>
-          repo.replaceReminders({
-            onlyUserId: null,
-            plants: [
-              {
-                plantId: shared,
-                types: CARE_REMINDER_TYPES,
-                recipientIds: [lily],
-                plantWide: true,
-              },
-            ],
-            rows: [],
-          })
+        .returning({
+          id: schema.notifications.id,
+          userId: schema.notifications.userId,
+        })
+      await Effect.runPromise(
+        replanPlants([shared]).pipe(
+          Effect.provide(WorkerLive),
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
       const left = await db
         .select({
+          id: schema.notifications.id,
           userId: schema.notifications.userId,
           status: schema.notifications.status,
         })
         .from(schema.notifications)
-      expect(left).toEqual([{ userId: lily, status: 'queued' }])
+      const kept = Arr.filter(seeded, (row) => row.userId === lily)
+      expect(Arr.filter(left, (row) => row.userId === sam)).toEqual([])
+      expect(
+        pipe(
+          Arr.filter(left, (row) => row.userId === lily),
+          Arr.map((row) => row.id),
+          Arr.sort(Order.String)
+        )
+      ).toEqual(
+        pipe(
+          Arr.map(kept, (row) => row.id),
+          Arr.sort(Order.String)
+        )
+      )
+      expect(
+        pipe(
+          Arr.filter(left, (row) => row.userId === alex),
+          Arr.map((row) => row.status)
+        )
+      ).toEqual(['pending'])
     })
   }
 )

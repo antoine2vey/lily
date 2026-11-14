@@ -1,4 +1,5 @@
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
+import { type CareReads, CareReadsLive } from '@lily/api/contexts/care'
 import {
   ActivityPushTokenRepository,
   ActivityPushTokenRepositoryLive,
@@ -97,6 +98,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       | PlantRepository
       | CanopyRepository
       | CareScheduleRepository
+      | CareReads
       | DelegationRepository,
       Config.ConfigError | SqlError
     >
@@ -167,6 +169,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         PlantRepositoryLive,
         CanopyRepositoryLive,
         CareScheduleRepositoryLive,
+        CareReadsLive,
         DelegationRepositoryLive
       ).pipe(
         Layer.provide(DrizzleLive),

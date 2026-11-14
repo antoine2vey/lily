@@ -1,40 +1,23 @@
-import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
-import type { CarePlanStepContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
-import type { CarePlan } from '@lily/shared/care-plan'
-import { Effect, Option, pipe } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
+import { CarePlans } from '@lily/api/contexts/care'
+import { transact } from '@lily/api/kernel/transact'
+import {
+  type CarePlanStepContext,
+  reloadPlan,
+} from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
+import { Effect } from 'effect'
 
-// Clears the step only. A care log written when the step was completed stays
-// in the plant's history, mirroring the Care tab where undo is a client-side
-// delay rather than a server-side rewind.
-/** `{ plan, step }` come from `withCarePlanStep` in the handler. */
 export const uncompleteCarePlanStep = ({
-  plan,
-  step,
-}: CarePlanStepContext): Effect.Effect<
-  CarePlan,
-  SqlError,
-  CarePlanRepository
-> =>
-  Effect.gen(function* () {
-    const repo = yield* CarePlanRepository
-    yield* repo.uncompleteStep(step.id)
-
-    // A plan that auto-completed reopens when one of its steps is undone.
-    const reopened =
-      plan.status === 'completed'
-        ? yield* repo.updateStatus(plan.id, plan.userId, {
-            status: 'accepted',
-            completedAt: null,
-          })
-        : yield* repo.findById(plan.id)
-
-    return pipe(
-      Option.fromNullishOr(reopened),
-      Option.getOrElse(() => plan)
-    )
-  }).pipe(
+  permit,
+  step: { id: stepId },
+}: CarePlanStepContext<'tick'>) =>
+  transact(
+    Effect.gen(function* () {
+      const carePlans = yield* CarePlans
+      yield* carePlans.untickStep({ permit, stepId })
+      return yield* reloadPlan(permit.planId)
+    })
+  ).pipe(
     Effect.withSpan('CarePlansService.uncompleteCarePlanStep', {
-      attributes: { 'carePlan.id': plan.id, 'carePlanStep.id': step.id },
+      attributes: { 'carePlan.id': permit.planId, 'carePlanStep.id': stepId },
     })
   )

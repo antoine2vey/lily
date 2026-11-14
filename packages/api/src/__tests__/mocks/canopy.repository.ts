@@ -5,9 +5,8 @@ import {
   CanopyRepository,
   type CanopyRow,
   type ICanopyRepository,
-  type MovedPlant,
 } from '@lily/api/repositories/canopy.repository'
-import type { CanopyId, LanguageCode } from '@lily/shared'
+import type { LanguageCode } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
 
 export interface MockMembership extends CanopyMembership {
@@ -25,7 +24,10 @@ export interface MockCanopyInvite {
   revokedAt: Date | null
 }
 
-export interface MockCanopyPlant extends MovedPlant {
+export interface MockCanopyPlant {
+  readonly id: string
+  readonly remindersEnabled: boolean
+  readonly diedAt: Date | null
   canopyId: string | null
   userId: string | null
   createdByUserId?: string | null
@@ -76,14 +78,6 @@ const toMemberRow = (m: MockMembership): CanopyMemberRow => ({
   joinedAt: m.joinedAt,
 })
 
-const remove = <A>(rows: A[], drop: (row: A) => boolean) => {
-  const kept = Array.filter(rows, (row) => !drop(row))
-  const removed = rows.length - kept.length
-  rows.length = 0
-  rows.push(...kept)
-  return removed
-}
-
 export const createMockCanopyRepository = (
   input: ReadonlyArray<MockMembership> | MockCanopyStore = []
 ): Layer.Layer<CanopyRepository> => {
@@ -123,30 +117,6 @@ export const createMockCanopyRepository = (
         )
       ),
     findById: (canopyId) => Effect.sync(() => findCanopy(canopyId)),
-    lock: (canopyId) => Effect.sync(() => findCanopy(canopyId)),
-    create: (data) =>
-      Effect.sync(() => {
-        const row = createTestCanopyRow({
-          ...data,
-          id: `canopy-${crypto.randomUUID()}`,
-        })
-        store.canopies.push(row)
-        return row
-      }),
-    update: (canopyId, data) =>
-      Effect.sync(() => {
-        const existing = findCanopy(canopyId)
-        if (existing === null) return null
-        Object.assign(existing, data, { updatedAt: new Date() })
-        return existing
-      }),
-    delete: (canopyId) =>
-      Effect.sync(() => {
-        remove(store.canopies, (c) => c.id === canopyId)
-        remove(store.members, (m) => m.canopyId === canopyId)
-        remove(store.invites, (i) => i.canopyId === canopyId)
-        remove(store.invitations, (i) => i.canopyId === canopyId)
-      }),
     findMembersByJoinDate: (canopyId) =>
       Effect.sync(() =>
         pipe(
@@ -200,24 +170,6 @@ export const createMockCanopyRepository = (
           Array.map((p) => p.id)
         )
       ),
-    findAudiblePlantIds: (userId, candidates) =>
-      Effect.sync(() =>
-        pipe(
-          candidates,
-          Array.filter(
-            (p) =>
-              Array.some(
-                store.members,
-                (m) => m.userId === userId && m.canopyId === p.canopyId
-              ) &&
-              !Array.some(
-                store.mutes,
-                (mute) => mute.userId === userId && mute.plantId === p.id
-              )
-          ),
-          Array.map((p) => p.id)
-        )
-      ),
     findWithLocation: () =>
       Effect.sync(() =>
         Array.filter(
@@ -225,35 +177,6 @@ export const createMockCanopyRepository = (
           (c) => c.latitude !== null && c.longitude !== null
         )
       ),
-    addMember: (canopyId, userId, role) =>
-      Effect.sync(() => {
-        if (Array.some(store.members, (m) => m.userId === userId)) {
-          return false
-        }
-        store.members.push({
-          canopyId: canopyId as CanopyId,
-          userId,
-          role,
-          joinedAt: new Date(),
-        })
-        return true
-      }),
-    removeMember: (canopyId, userId) =>
-      Effect.sync(
-        () =>
-          remove(
-            store.members,
-            (m) => m.canopyId === canopyId && m.userId === userId
-          ) > 0
-      ),
-    setRole: (canopyId, userId, role) =>
-      Effect.sync(() => {
-        const index = store.members.findIndex(
-          (m) => m.canopyId === canopyId && m.userId === userId
-        )
-        const member = store.members[index]
-        if (member) store.members[index] = { ...member, role }
-      }),
     findActiveInvite: (canopyId) =>
       Effect.sync(() =>
         pipe(
@@ -268,35 +191,6 @@ export const createMockCanopyRepository = (
           Option.getOrNull
         )
       ),
-    replaceInvite: (invite) =>
-      Effect.sync(() => {
-        Array.forEach(store.invites, (i) => {
-          if (i.canopyId === invite.canopyId && i.revokedAt === null) {
-            i.revokedAt = new Date()
-          }
-        })
-        store.invites.push({ ...invite, revokedAt: null })
-      }),
-    revokeInvite: (canopyId) =>
-      Effect.sync(() => {
-        Array.forEach(store.invites, (i) => {
-          if (i.canopyId === canopyId && i.revokedAt === null) {
-            i.revokedAt = new Date()
-          }
-        })
-      }),
-    revokeInviteCreatedBy: (canopyId, userId) =>
-      Effect.sync(() => {
-        Array.forEach(store.invites, (i) => {
-          if (
-            i.canopyId === canopyId &&
-            i.createdByUserId === userId &&
-            i.revokedAt === null
-          ) {
-            i.revokedAt = new Date()
-          }
-        })
-      }),
     findInviteByTokenHash: (tokenHash) =>
       Effect.sync(() =>
         pipe(
@@ -327,8 +221,6 @@ export const createMockCanopyRepository = (
           Option.getOrNull
         )
       ),
-    findInvitation: (id) => Effect.sync(() => findInvitation(id)),
-    lockInvitation: (id) => Effect.sync(() => findInvitation(id)),
     findInvitationPreview: (id) =>
       Effect.sync(() =>
         pipe(
@@ -350,44 +242,6 @@ export const createMockCanopyRepository = (
           Option.getOrNull
         )
       ),
-    findInvitationByPair: (canopyId, inviteeUserId) =>
-      Effect.sync(() =>
-        pipe(
-          Array.findFirst(
-            store.invitations,
-            (i) => i.canopyId === canopyId && i.inviteeUserId === inviteeUserId
-          ),
-          Option.getOrNull
-        )
-      ),
-    upsertInvitation: (invitation) =>
-      Effect.sync(() => {
-        const fresh = {
-          invitedByUserId: invitation.invitedByUserId,
-          status: 'pending' as const,
-          expiresAt: invitation.expiresAt,
-          resolvedAt: null,
-          createdAt: new Date(),
-        }
-        const existing = Array.findFirst(
-          store.invitations,
-          (i) =>
-            i.canopyId === invitation.canopyId &&
-            i.inviteeUserId === invitation.inviteeUserId
-        )
-        if (Option.isSome(existing)) {
-          return Object.assign(existing.value, fresh)
-        }
-        const row = { ...invitation, ...fresh, id: crypto.randomUUID() }
-        store.invitations.push(row)
-        return row
-      }),
-    transitionInvitation: (id, from, to) =>
-      Effect.sync(() => {
-        const invitation = findInvitation(id)
-        if (invitation === null || invitation.status !== from) return null
-        return Object.assign(invitation, { status: to, resolvedAt: new Date() })
-      }),
     findPendingInvitations: (canopyId) =>
       Effect.sync(() =>
         pipe(
@@ -406,33 +260,6 @@ export const createMockCanopyRepository = (
           }))
         )
       ),
-    withdrawInvitationsSentBy: (canopyId, userId) =>
-      Effect.sync(() => {
-        Array.forEach(store.invitations, (i) => {
-          if (
-            i.canopyId === canopyId &&
-            i.invitedByUserId === userId &&
-            i.status === 'pending'
-          ) {
-            Object.assign(i, { status: 'withdrawn', resolvedAt: new Date() })
-          }
-        })
-      }),
-    mute: (userId, plantId) =>
-      Effect.sync(() => {
-        if (
-          !Array.some(
-            store.mutes,
-            (m) => m.userId === userId && m.plantId === plantId
-          )
-        ) {
-          store.mutes.push({ userId, plantId })
-        }
-      }),
-    unmute: (userId, plantId) =>
-      Effect.sync(() => {
-        remove(store.mutes, (m) => m.userId === userId && m.plantId === plantId)
-      }),
     isMuted: (userId, plantId) =>
       Effect.sync(() =>
         Array.some(
@@ -440,62 +267,6 @@ export const createMockCanopyRepository = (
           (m) => m.userId === userId && m.plantId === plantId
         )
       ),
-    deleteMutesForPlant: (plantId) =>
-      Effect.sync(() => {
-        remove(store.mutes, (m) => m.plantId === plantId)
-      }),
-    deleteMemberMutes: (canopyId, userId) =>
-      Effect.sync(() => {
-        const canopyPlantIds = pipe(
-          Array.filter(store.plants, (p) => p.canopyId === canopyId),
-          Array.map((p) => p.id)
-        )
-        remove(
-          store.mutes,
-          (m) =>
-            m.userId === userId && Array.contains(canopyPlantIds, m.plantId)
-        )
-      }),
-    transferToUser: (canopyId, userId) =>
-      Effect.sync(() => {
-        const moved = Array.filter(store.plants, (p) => p.canopyId === canopyId)
-        const movedIds = Array.map(moved, (p) => p.id)
-        remove(store.mutes, (m) => Array.contains(movedIds, m.plantId))
-        Array.forEach(moved, (p) => {
-          p.canopyId = null
-          p.userId = userId
-        })
-        Array.forEach(store.rooms, (r) => {
-          if (r.canopyId === canopyId) {
-            r.canopyId = null
-            r.userId = userId
-          }
-        })
-        return Array.map(moved, ({ id, remindersEnabled, diedAt }) => ({
-          id,
-          remindersEnabled,
-          diedAt,
-        }))
-      }),
-    returnToSharer: (canopyId, sharerId) =>
-      Effect.sync(() => {
-        const returned = Array.filter(
-          store.plants,
-          (p) => p.canopyId === canopyId && p.createdByUserId === sharerId
-        )
-        const returnedIds = Array.map(returned, (p) => p.id)
-        remove(store.mutes, (m) => Array.contains(returnedIds, m.plantId))
-        Array.forEach(returned, (p) => {
-          p.canopyId = null
-          p.userId = sharerId
-          p.roomId = null
-        })
-        return Array.map(returned, ({ id, remindersEnabled, diedAt }) => ({
-          id,
-          remindersEnabled,
-          diedAt,
-        }))
-      }),
   }
 
   return Layer.succeed(CanopyRepository, repo)

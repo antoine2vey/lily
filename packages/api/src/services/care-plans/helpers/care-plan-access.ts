@@ -1,8 +1,9 @@
+import type { PlanAction } from '@lily/api/kernel/permit'
 import type { KnowledgeView } from '@lily/api/services/plants/helpers/plant-access'
 import type { CarePlan, CarePlanStatus } from '@lily/shared/care-plan'
 import { Array, Match, Option, pipe } from 'effect'
 
-export type CarePlanAction = 'manage' | 'tick'
+export type CarePlanAction = PlanAction
 
 type CarePlanRole = 'Author' | 'Steward' | 'Household'
 

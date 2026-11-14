@@ -1,83 +1,55 @@
-import { EventBus, publishWithRetry } from '@lily/api/events'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { PlantLife } from '@lily/api/contexts/care'
+import type { Outbox } from '@lily/api/kernel/outbox'
+import type { PlantPermit } from '@lily/api/kernel/permit'
+import { transact } from '@lily/api/kernel/transact'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
 import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
-import {
-  PlantAlreadyDeadError,
+  type PlantAlreadyDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { PlantDeathRequest } from '@lily/shared/plant'
-import { DateTime, Effect, Option } from 'effect'
+import { Effect, Option } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * "Say goodbye": flag the plant as dead, drop its pending reminders and let
- * the Live Activity subscriber refresh the user's card. Schedule rows are
- * kept on purpose — `revive-plant` rebuilds reminders from them.
- */
 export const markPlantDead = (
   plant: PlantWithRoom,
+  permit: PlantPermit<'markDead'>,
   request: PlantDeathRequest,
   requestedId: string = plant.id
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
-  | PlantRepository
-  | NotificationRepository
-  | EventBus
-  | CurrentUser
-  | SqlClient.SqlClient
+  PlantRepository | PlantLife | SqlClient.SqlClient | Outbox
 > =>
-  Effect.gen(function* () {
-    if (plant.diedAt !== null) {
-      return yield* new PlantAlreadyDeadError()
-    }
+  transact(
+    Effect.gen(function* () {
+      const life = yield* PlantLife
+      const repo = yield* PlantRepository
 
-    const repo = yield* PlantRepository
-    const notificationRepo = yield* NotificationRepository
-    const eventBus = yield* EventBus
-    const { id: userId } = yield* CurrentUser
-
-    yield* withReminderKeys(reminderKeysFor([plant.id]))(
-      Effect.gen(function* () {
-        const updated = yield* repo.markDead(plant.id, plant.owner, {
-          diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
+      yield* life
+        .bury({
+          permit,
+          seenOwner: plant.owner,
           cause: request.cause,
-          note: Option.getOrNull(Option.fromNullishOr(request.note)),
+          note: Option.fromNullishOr(request.note),
         })
-        if (!updated) {
-          const current = yield* reloadOwnedPlant(plant, requestedId)
-          return yield* current.diedAt === null
-            ? new PlantNotFoundError({ plantId: requestedId })
-            : new PlantAlreadyDeadError()
-        }
-        yield* notificationRepo.deletePendingByPlantId(plant.id)
-      })
-    )
+        .pipe(
+          Effect.catchTag('PlantNotFoundError', () =>
+            Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
+          )
+        )
 
-    yield* publishWithRetry(
-      eventBus.publish({
-        _tag: 'PlantLifecycleChanged',
-        userId,
-        plantId: plant.id,
-      })
-    )
-
-    const fresh = yield* repo.findById(plant.id)
-    if (!fresh) {
-      return yield* new PlantNotFoundError({ plantId: requestedId })
-    }
-    return fresh
-  }).pipe(
+      const fresh = yield* repo.findById(plant.id)
+      if (!fresh) {
+        return yield* new PlantNotFoundError({ plantId: requestedId })
+      }
+      return fresh
+    })
+  ).pipe(
     Effect.withSpan('PlantsService.markPlantDead', {
       attributes: { 'plant.id': plant.id, 'plant.death_cause': request.cause },
     })

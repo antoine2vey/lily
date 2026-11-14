@@ -1,3 +1,5 @@
+import { storedDay } from '@lily/api/contexts/care'
+import { CareDay } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 
 export const mockCareLogs: CareLog[] = [
@@ -6,6 +8,7 @@ export const mockCareLogs: CareLog[] = [
     type: 'watering',
     notes: 'Watered thoroughly',
     date: new Date('2024-01-10'),
+    careDay: CareDay.make('2024-01-10'),
     photoUrl: undefined,
     plantId: 'plant-1',
     createdAt: new Date('2024-01-10'),
@@ -16,6 +19,7 @@ export const mockCareLogs: CareLog[] = [
     type: 'fertilization',
     notes: 'Used organic fertilizer',
     date: new Date('2024-01-08'),
+    careDay: CareDay.make('2024-01-08'),
     photoUrl: 'https://example.com/fertilizer.jpg',
     plantId: 'plant-1',
     createdAt: new Date('2024-01-08'),
@@ -26,6 +30,7 @@ export const mockCareLogs: CareLog[] = [
     type: 'watering',
     notes: undefined,
     date: new Date('2024-01-05'),
+    careDay: CareDay.make('2024-01-05'),
     photoUrl: undefined,
     plantId: 'plant-1',
     createdAt: new Date('2024-01-05'),
@@ -36,6 +41,7 @@ export const mockCareLogs: CareLog[] = [
     type: 'watering',
     notes: 'Light watering',
     date: new Date('2024-01-09'),
+    careDay: CareDay.make('2024-01-09'),
     photoUrl: undefined,
     plantId: 'plant-2',
     createdAt: new Date('2024-01-09'),
@@ -45,14 +51,18 @@ export const mockCareLogs: CareLog[] = [
 
 export const createTestCareLog = (
   overrides: Partial<CareLog> = {}
-): CareLog => ({
-  id: `log-${crypto.randomUUID()}`,
-  type: 'watering',
-  notes: undefined,
-  date: new Date(),
-  photoUrl: undefined,
-  plantId: 'plant-1',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  ...overrides,
-})
+): CareLog => {
+  const date = overrides.date ?? new Date()
+  return {
+    id: `log-${crypto.randomUUID()}`,
+    type: 'watering',
+    notes: undefined,
+    date,
+    careDay: storedDay(null, date, 'UTC'),
+    photoUrl: undefined,
+    plantId: 'plant-1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }
+}

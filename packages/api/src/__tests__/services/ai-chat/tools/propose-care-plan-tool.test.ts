@@ -1,6 +1,9 @@
-import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
+import { createTestCarePlant } from '@lily/api/__tests__/fixtures/care-plants'
+import { chatPermit, createInMemoryCare } from '@lily/api/__tests__/mocks/care'
+import { createCarePlanRows } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
+import { LifeState } from '@lily/api/contexts/care/domain/care-plant'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { resolveDueDate } from '@lily/api/services/ai-chat/tools/care-plan-step-schema'
 import { proposeCarePlanTool } from '@lily/api/services/ai-chat/tools/propose-care-plan'
@@ -14,38 +17,44 @@ const stubToolOptions: ToolExecutionOptions<{}> = {
   context: {},
 }
 
-const testLayer = Layer.mergeAll(
-  createMockCarePlanRepository({
+const runtimeOver = (plant = createTestCarePlant('plant-1')) => {
+  const plans = createCarePlanRows({
     plants: [{ id: 'plant-1', name: 'Monstera', imageUrl: null }],
-  }),
-  createMockDiagnosisRepository([]),
-  createMockRagService()
-)
+  })
+  return ManagedRuntime.make(
+    Layer.mergeAll(
+      createInMemoryCare([plant], { plans }).layer,
+      plans.layer,
+      createMockDiagnosisRepository([]),
+      createMockRagService()
+    )
+  )
+}
+
+const overwatered = {
+  title: 'Recover from overwatering',
+  steps: [
+    { title: 'Hold off watering', careType: 'watering', dueInDays: 5 },
+    { title: 'Move away from the window', careType: 'none' },
+  ],
+}
 
 describe('proposeCarePlanTool', () => {
   it('creates a proposed plan with ordered steps and resolved due dates', async () => {
-    const managedRuntime = ManagedRuntime.make(testLayer)
-    const rt = await managedRuntime.context()
+    const managedRuntime = runtimeOver()
     const planTool = proposeCarePlanTool({
-      runtime: rt,
+      runtime: await managedRuntime.context(),
       userId: 'user-1',
-      plantId: 'plant-1',
+      permit: chatPermit('plant-1'),
       plantName: 'Monstera',
       timezone: 'Europe/Paris',
     })
 
-    const result = (await planTool.execute!(
-      {
-        title: 'Recover from overwatering',
-        steps: [
-          { title: 'Hold off watering', careType: 'watering', dueInDays: 5 },
-          { title: 'Move away from the window', careType: 'none' },
-        ],
-      },
-      stubToolOptions
-    )) as { carePlanId: string; plantId: string }
+    const result = (await planTool.execute!(overwatered, stubToolOptions)) as {
+      carePlanId: string
+      plantId: string
+    }
 
-    expect(result.carePlanId).toMatch(/^care-plan-/)
     expect(result.plantId).toBe('plant-1')
 
     const stored = await managedRuntime.runPromise(
@@ -56,6 +65,7 @@ describe('proposeCarePlanTool', () => {
     )
     expect(stored?.status).toBe('proposed')
     expect(stored?.source).toBe('ai')
+    expect(stored?.userId).toBe('user-1')
     expect(Array.map(stored?.steps ?? [], (s) => s.title)).toEqual([
       'Hold off watering',
       'Move away from the window',
@@ -68,12 +78,37 @@ describe('proposeCarePlanTool', () => {
     await managedRuntime.dispose()
   })
 
-  it('rejects more than the maximum number of steps at the schema level', async () => {
-    const managedRuntime = ManagedRuntime.make(testLayer)
+  it('answers that the plant does not exist when it is dead, and writes no plan (a change: it used to write one)', async () => {
+    const managedRuntime = runtimeOver(
+      createTestCarePlant('plant-1', { life: LifeState.Dead() })
+    )
     const planTool = proposeCarePlanTool({
       runtime: await managedRuntime.context(),
       userId: 'user-1',
-      plantId: 'plant-1',
+      permit: chatPermit('plant-1'),
+      plantName: 'Monstera',
+    })
+
+    await expect(
+      planTool.execute!(overwatered, stubToolOptions)
+    ).rejects.toMatchObject({ _tag: 'PlantNotFoundError' })
+
+    expect(
+      await managedRuntime.runPromise(
+        Effect.flatMap(CarePlanRepository, (repo) =>
+          repo.findByPlant('plant-1')
+        )
+      )
+    ).toEqual([])
+    await managedRuntime.dispose()
+  })
+
+  it('rejects more than the maximum number of steps at the schema level', async () => {
+    const managedRuntime = runtimeOver()
+    const planTool = proposeCarePlanTool({
+      runtime: await managedRuntime.context(),
+      userId: 'user-1',
+      permit: chatPermit('plant-1'),
       plantName: 'Monstera',
     })
     const schema = planTool.inputSchema as {

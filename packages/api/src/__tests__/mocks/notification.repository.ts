@@ -1,12 +1,13 @@
 import {
   type FindNotificationsParams,
   type INotificationRepository,
+  isReminderTopic,
   NotificationRepository,
   type NotificationRow,
-  ReminderGuard,
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
+import { CARE_TOPICS } from '@lily/shared/server'
 import {
   Array,
   Effect,
@@ -26,8 +27,12 @@ type MutableNotification = {
 export interface MockNotificationRepositoryOptions {
   queuedAt?: Record<string, Date>
   deliveryClaims?: Record<string, string>
+  /** The occasion day of a seeded row, by notification id. */
+  occasionDays?: Record<string, string>
   /** The ids of a Canopy's plants at call time, like the real subquery. */
   canopyPlants?: (canopyId: string) => ReadonlyArray<string>
+  /** The user who owns a plant at call time, null for a Canopy plant. */
+  plantOwner?: (plantId: string) => string | null
   onCreate?: (notification: Notification) => void
   onRetryLater?: (ids: ReadonlyArray<string>) => void
 }
@@ -40,6 +45,15 @@ export const createMockNotificationRepository = (
   const notificationsState = notifications as MutableNotification[]
   const queuedAt = new Map(Record.toEntries(options.queuedAt ?? {}))
   const deliveryClaims = new Map(Record.toEntries(options.deliveryClaims ?? {}))
+  const occasionDays = new Map(Record.toEntries(options.occasionDays ?? {}))
+
+  const waiting = (n: MutableNotification) =>
+    n.status === 'pending' || n.status === 'queued'
+  const deleteWhere = (covers: (n: MutableNotification) => boolean) => {
+    const toKeep = Array.filter(notificationsState, (n) => !covers(n))
+    notificationsState.length = 0
+    notificationsState.push(...toKeep)
+  }
 
   const repo: INotificationRepository = {
     findByUserId: (params: FindNotificationsParams) => {
@@ -264,24 +278,6 @@ export const createMockNotificationRepository = (
         })
       }),
 
-    deletePendingByPlantsAndType: (
-      plantIds: ReadonlyArray<string>,
-      type: string
-    ) =>
-      Effect.sync(() => {
-        const toKeep = Array.filter(
-          notificationsState,
-          (n) =>
-            !(
-              Array.contains(plantIds, n.plantId) &&
-              n.type === type &&
-              n.status === 'pending'
-            )
-        )
-        notificationsState.length = 0
-        notificationsState.push(...toKeep)
-      }),
-
     deletePendingByUserIdAndTypes: (
       userId: string,
       types: ReadonlyArray<string>
@@ -300,102 +296,165 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
-    deletePendingByPlantId: (plantId: string) =>
-      Effect.sync(() => {
-        const toKeep = Array.filter(
-          notificationsState,
-          (n) => !(n.plantId === plantId && n.status === 'pending')
-        )
-        notificationsState.length = 0
-        notificationsState.push(...toKeep)
-      }),
+    lockReminderPlants: () => Effect.void,
 
-    deleteUndeliveredByUserAndPlant: (userId: string, plantId: string) =>
+    findHoldersOfWaitingReminders: (plantIds) =>
+      Effect.sync(() =>
+        pipe(
+          notificationsState,
+          Array.filter(
+            (n) =>
+              waiting(n) &&
+              n.plantId !== undefined &&
+              Array.contains(plantIds, n.plantId) &&
+              Array.contains(CARE_TOPICS, n.type)
+          ),
+          Array.map((n) => n.userId),
+          Array.dedupe
+        )
+      ),
+
+    lockReminders: (query) =>
+      Effect.sync(() =>
+        Array.flatMap(notificationsState, (n) => {
+          const waiting =
+            (n.status === 'pending' || n.status === 'queued') &&
+            !deliveryClaims.has(n.id)
+          const occasionDay = occasionDays.get(n.id) ?? null
+          const read =
+            waiting ||
+            n.status === 'pending' ||
+            n.status === 'queued' ||
+            (occasionDay === null
+              ? (n.sentAt ?? n.scheduledAt) >= query.unmarkedSince
+              : Array.contains(query.occasionDays, occasionDay))
+          return n.plantId !== undefined &&
+            Array.contains(query.plantIds, n.plantId) &&
+            isReminderTopic(n.type) &&
+            read
+            ? [
+                {
+                  id: n.id,
+                  userId: n.userId,
+                  plantId: n.plantId,
+                  type: n.type,
+                  status: n.status,
+                  inFlight: deliveryClaims.has(n.id),
+                  retryCount: n.retryCount,
+                  scheduledAt: n.scheduledAt,
+                  sentAt: n.sentAt ?? null,
+                  occasionDay,
+                },
+              ]
+            : []
+        })
+      ),
+
+    writeReminders: (writes) =>
       Effect.sync(() => {
         const toKeep = Array.filter(
           notificationsState,
           (n) =>
             !(
-              n.userId === userId &&
-              n.plantId === plantId &&
-              (n.status === 'pending' || n.status === 'queued')
+              Array.contains(writes.removeIds, n.id) &&
+              (n.status === 'pending' || n.status === 'queued') &&
+              !deliveryClaims.has(n.id)
             )
         )
         notificationsState.length = 0
         notificationsState.push(...toKeep)
-      }),
-
-    lockReminderKeys: () => Effect.void,
-
-    replaceReminders: (replacement) =>
-      Effect.sync(() => {
-        const stale = (n: MutableNotification) =>
-          !deliveryClaims.has(n.id) &&
-          (replacement.onlyUserId === null ||
-            n.userId === replacement.onlyUserId) &&
-          Array.some(
-            replacement.plants,
-            (plant) =>
-              n.plantId === plant.plantId &&
-              ((n.status === 'pending' &&
-                Array.contains(plant.types, n.type)) ||
-                ((n.status === 'pending' || n.status === 'queued') &&
-                  (plant.plantWide || Array.contains(plant.types, n.type)) &&
-                  !Array.contains(plant.recipientIds, n.userId)))
+        Array.forEach(writes.retimes, (retime) => {
+          const row = notificationsState.find((n) => n.id === retime.id)
+          if (row?.status !== 'pending' || row.retryCount > 0) return
+          row.scheduledAt = retime.scheduledAt
+          occasionDays.set(row.id, retime.occasionDay)
+        })
+        Array.forEach(writes.inserts, (insert) => {
+          const standing = notificationsState.find(
+            (n) =>
+              n.userId === insert.userId &&
+              n.plantId === insert.plantId &&
+              n.type === insert.type &&
+              occasionDays.get(n.id) === insert.occasionDay
           )
-        const replaced = Array.filter(notificationsState, stale)
-        const toKeep = Array.filter(notificationsState, (n) => !stale(n))
-        notificationsState.length = 0
-        notificationsState.push(...toKeep)
-        Array.forEach(replacement.rows, (row) => {
-          const remindedSince = (since: Date) =>
-            Array.some(
-              notificationsState,
-              (n) =>
-                n.userId === row.userId &&
-                n.plantId === row.plantId &&
-                n.type === row.type &&
-                (n.status === 'queued' ||
-                  deliveryClaims.has(n.id) ||
-                  (n.status === 'sent' &&
-                    n.sentAt !== undefined &&
-                    n.sentAt.getTime() >= since.getTime()))
-            )
-          const skip = ReminderGuard.$match(row.guard, {
-            Always: () => false,
-            NotRemindedSince: ({ since }) => remindedSince(since),
-            ReplacesUndelivered: () =>
-              !Array.some(
-                replaced,
-                (n) => n.plantId === row.plantId && n.type === row.type
-              ),
-          })
-          if (skip) return
+          if (standing !== undefined) {
+            if (standing.status === 'pending' && standing.retryCount === 0) {
+              standing.scheduledAt = insert.scheduledAt
+            }
+            return
+          }
+          const id = `notification-${crypto.randomUUID()}`
+          occasionDays.set(id, insert.occasionDay)
           notificationsState.push({
-            id: `notification-${crypto.randomUUID()}`,
-            type: row.type,
-            scheduledAt: row.scheduledAt,
+            id,
+            type: insert.type,
+            scheduledAt: insert.scheduledAt,
             isRead: false,
             status: 'pending',
             retryCount: 0,
-            userId: row.userId,
-            plantId: row.plantId,
+            userId: insert.userId,
+            plantId: insert.plantId,
             createdAt: new Date(),
           })
         })
       }),
 
-    deleteUndeliveredForMemberOnCanopy: (userId: string, canopyId: string) =>
+    hasOverdueReminderOn: (query) =>
+      Effect.sync(() =>
+        Array.some(notificationsState, (n) => {
+          const occasionDay = occasionDays.get(n.id) ?? null
+          return (
+            n.userId === query.userId &&
+            n.type === 'overdue_reminder' &&
+            (occasionDay === null
+              ? n.createdAt >= query.from && n.createdAt < query.until
+              : occasionDay === query.day)
+          )
+        })
+      ),
+
+    findPlantIdsOfWaitingReminders: (userId: string) =>
+      Effect.sync(() =>
+        pipe(
+          notificationsState,
+          Array.filter(
+            (n) =>
+              n.userId === userId &&
+              waiting(n) &&
+              Array.contains(CARE_TOPICS, n.type)
+          ),
+          Array.flatMap((n) => (n.plantId === undefined ? [] : [n.plantId])),
+          Array.dedupe
+        )
+      ),
+
+    deleteUndeliveredNonCareForMemberOnCanopy: (
+      userId: string,
+      canopyId: string
+    ) =>
       Effect.sync(() => {
         const plantIds = options.canopyPlants?.(canopyId) ?? []
-        const covers = (n: MutableNotification) =>
-          n.userId === userId &&
-          (n.status === 'pending' || n.status === 'queued') &&
-          n.plantId !== undefined &&
-          Array.contains(plantIds, n.plantId)
-        const toKeep = Array.filter(notificationsState, (n) => !covers(n))
-        notificationsState.length = 0
-        notificationsState.push(...toKeep)
+        deleteWhere(
+          (n) =>
+            n.userId === userId &&
+            waiting(n) &&
+            !Array.contains(CARE_TOPICS, n.type) &&
+            n.plantId !== undefined &&
+            Array.contains(plantIds, n.plantId)
+        )
+      }),
+
+    deleteUndeliveredNonCareOfNonOwners: (plantIds: ReadonlyArray<string>) =>
+      Effect.sync(() => {
+        deleteWhere(
+          (n) =>
+            n.plantId !== undefined &&
+            Array.contains(plantIds, n.plantId) &&
+            waiting(n) &&
+            !deliveryClaims.has(n.id) &&
+            !Array.contains(CARE_TOPICS, n.type) &&
+            options.plantOwner?.(n.plantId) !== n.userId
+        )
       }),
 
     deleteByIds: (ids: ReadonlyArray<string>) =>
@@ -418,20 +477,6 @@ export const createMockNotificationRepository = (
           (n) => n.userId === userId && n.status === 'pending'
         )
       ),
-
-    updateScheduledAt: (id: string, scheduledAt: Date) => {
-      const notificationOption = Array.findFirst(
-        notificationsState,
-        (n) => n.id === id
-      )
-      return Option.match(notificationOption, {
-        onNone: () => Effect.succeed(null),
-        onSome: (notification) => {
-          notification.scheduledAt = scheduledAt
-          return Effect.succeed(notification)
-        },
-      })
-    },
 
     // Batch scheduler methods
     markManyAsSent: (rows) =>

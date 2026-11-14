@@ -1,37 +1,53 @@
+import { Care, CareWhen } from '@lily/api/contexts/care'
+import type { Outbox } from '@lily/api/kernel/outbox'
+import type { PlantPermit } from '@lily/api/kernel/permit'
+import { transact } from '@lily/api/kernel/transact'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareLog, CareLogUpdateRequest } from '@lily/shared/care-log'
 import { CareLogNotFoundError } from '@lily/shared/errors/care-log'
-import { Effect } from 'effect'
+import type {
+  AlreadyCaredTodayError,
+  FutureDateNotAllowedError,
+} from '@lily/shared/errors/plant'
+import { DateTime, Effect, Option } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Update care log
 export const updateCareLog = (
-  plantId: string,
+  permit: PlantPermit<'care'>,
   logId: string,
   request: CareLogUpdateRequest
-): Effect.Effect<CareLog, SqlError | CareLogNotFoundError, CareLogRepository> =>
-  Effect.gen(function* () {
-    const repo = yield* CareLogRepository
-
-    // Verify the log exists and belongs to this plant
-    const existing = yield* repo.findById(logId, plantId)
-    if (!existing) {
-      return yield* new CareLogNotFoundError()
-    }
-
-    const log = yield* repo.update(logId, {
-      notes: request.notes,
-      date: request.date,
-      photoUrl: request.photoUrl,
+): Effect.Effect<
+  CareLog,
+  | SqlError
+  | CareLogNotFoundError
+  | AlreadyCaredTodayError
+  | FutureDateNotAllowedError,
+  Care | CareLogRepository | SqlClient.SqlClient | Outbox
+> =>
+  transact(
+    Effect.gen(function* () {
+      const care = yield* Care
+      const careLogs = yield* CareLogRepository
+      yield* care.amend({
+        permit,
+        careLogId: logId,
+        on: Option.map(Option.fromUndefinedOr(request.date), (date) =>
+          CareWhen.At({ instant: DateTime.makeUnsafe(date) })
+        ),
+        notes: Option.map(Option.fromUndefinedOr(request.notes), Option.some),
+        photoUrl: Option.map(
+          Option.fromUndefinedOr(request.photoUrl),
+          Option.some
+        ),
+      })
+      const log = yield* careLogs.findById(logId, permit.plantId)
+      return yield* Effect.fromNullishOr(log).pipe(
+        Effect.mapError(() => new CareLogNotFoundError({ careLogId: logId }))
+      )
     })
-
-    if (!log) {
-      return yield* new CareLogNotFoundError()
-    }
-
-    return log
-  }).pipe(
+  ).pipe(
     Effect.withSpan('CareLogsService.updateCareLog', {
-      attributes: { 'plant.id': plantId, 'careLog.id': logId },
+      attributes: { 'plant.id': permit.plantId, 'careLog.id': logId },
     })
   )

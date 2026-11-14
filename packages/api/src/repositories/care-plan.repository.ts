@@ -1,4 +1,5 @@
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
+import { tending } from '@lily/api/repositories/helpers/tending'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   canopyMembers,
@@ -8,48 +9,17 @@ import {
   delegationPlants,
   plants,
 } from '@lily/db/schema'
-import { type CareType, nowAsDate } from '@lily/shared'
 import type {
   CarePlan,
-  CarePlanSource,
   CarePlanStatus,
   CarePlanStep,
 } from '@lily/shared/care-plan'
-import { and, asc, desc, eq, exists, inArray, isNull, or } from 'drizzle-orm'
+import { and, asc, desc, eq, exists, inArray, or } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, Order, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type CarePlanRow = typeof carePlans.$inferSelect
 export type CarePlanStepRow = typeof carePlanSteps.$inferSelect
-
-export interface CreateCarePlanStepData {
-  readonly title: string
-  readonly description?: string | undefined
-  readonly careType?: CareType | undefined
-  readonly dueDate?: Date | undefined
-}
-
-export interface CreateCarePlanData {
-  readonly plantId: string
-  readonly userId: string
-  readonly title: string
-  readonly source?: CarePlanSource | undefined
-  readonly chatMessageId?: string | undefined
-  readonly diagnosisId?: string | undefined
-  readonly steps: ReadonlyArray<CreateCarePlanStepData>
-}
-
-export interface CompleteStepData {
-  readonly completedAt: Date
-  readonly careLogId?: string | undefined
-}
-
-export interface UpdateCarePlanStatusData {
-  readonly status: CarePlanStatus
-  readonly acceptedAt?: Date | undefined
-  // `null` clears the timestamp (reopening a completed plan).
-  readonly completedAt?: Date | null | undefined
-}
 
 interface PlanPlantInfo {
   readonly name: string
@@ -99,14 +69,7 @@ export const mapToCarePlan = (
   updatedAt: row.updatedAt,
 })
 
-export const isStepOpen = (step: {
-  readonly completedAt: Date | null | undefined
-}): boolean => Option.isNone(Option.fromNullishOr(step.completedAt))
-
 export interface ICarePlanRepository {
-  readonly create: (
-    data: CreateCarePlanData
-  ) => Effect.Effect<CarePlan, SqlError>
   readonly findById: (id: string) => Effect.Effect<CarePlan | null, SqlError>
   readonly findByUser: (
     userId: string,
@@ -115,38 +78,6 @@ export interface ICarePlanRepository {
   readonly findByPlant: (
     plantId: string
   ) => Effect.Effect<ReadonlyArray<CarePlan>, SqlError>
-  readonly updateStatus: (
-    id: string,
-    userId: string,
-    data: UpdateCarePlanStatusData
-  ) => Effect.Effect<CarePlan | null, SqlError>
-  readonly linkChatMessage: (
-    planId: string,
-    chatMessageId: string
-  ) => Effect.Effect<void, SqlError>
-  readonly delete: (id: string, userId: string) => Effect.Effect<void, SqlError>
-  readonly completeStep: (
-    stepId: string,
-    data: CompleteStepData
-  ) => Effect.Effect<CarePlanStep | null, SqlError>
-  readonly uncompleteStep: (
-    stepId: string
-  ) => Effect.Effect<CarePlanStep | null, SqlError>
-  readonly deleteStep: (stepId: string) => Effect.Effect<void, SqlError>
-  /**
-   * Cross-completion: when the plant is cared for through the regular task,
-   * the earliest open step of that care type on an *accepted* plan is marked
-   * done with the resulting care log.
-   */
-  readonly completeEarliestOpenStep: (
-    plantId: string,
-    careType: CareType,
-    data: CompleteStepData
-  ) => Effect.Effect<CarePlanStep | null, SqlError>
-  /** Flips an accepted plan to `completed` once every step is done. */
-  readonly settleCompletion: (
-    planId: string
-  ) => Effect.Effect<CarePlan | null, SqlError>
 }
 
 export class CarePlanRepository extends Context.Service<
@@ -183,7 +114,7 @@ export const CarePlanRepositoryLive = Layer.effect(
               eq(delegationPlants.plantId, plants.id),
               eq(careDelegations.caretakerId, carePlans.userId),
               eq(careDelegations.ownerId, plants.userId),
-              eq(careDelegations.status, 'active')
+              tending()
             )
           )
       )
@@ -228,48 +159,6 @@ export const CarePlanRepositoryLive = Layer.effect(
       })
 
     return {
-      create: Effect.fn('CarePlanRepository.create')(function* (
-        data: CreateCarePlanData
-      ) {
-        const planRows = yield* db
-          .insert(carePlans)
-          .values({
-            plantId: data.plantId,
-            userId: data.userId,
-            title: data.title,
-            source: pipe(
-              Option.fromNullishOr(data.source),
-              Option.getOrElse(() => 'ai' as const)
-            ),
-            chatMessageId: Option.getOrNull(
-              Option.fromNullishOr(data.chatMessageId)
-            ),
-            diagnosisId: Option.getOrNull(
-              Option.fromNullishOr(data.diagnosisId)
-            ),
-          })
-          .returning()
-        const plan = pipe(Array.head(planRows), Option.getOrThrow)
-
-        if (Array.isReadonlyArrayNonEmpty(data.steps)) {
-          yield* db.insert(carePlanSteps).values(
-            Array.map(data.steps, (step, index) => ({
-              planId: plan.id,
-              position: index,
-              title: step.title,
-              description: Option.getOrNull(
-                Option.fromNullishOr(step.description)
-              ),
-              careType: Option.getOrNull(Option.fromNullishOr(step.careType)),
-              dueDate: Option.getOrNull(Option.fromNullishOr(step.dueDate)),
-            }))
-          )
-        }
-
-        const created = yield* findPlan(eq(carePlans.id, plan.id))
-        return pipe(Option.fromNullishOr(created), Option.getOrThrow)
-      }),
-
       findById: Effect.fn('CarePlanRepository.findById')(function* (
         id: string
       ) {
@@ -313,154 +202,6 @@ export const CarePlanRepositoryLive = Layer.effect(
           .orderBy(desc(carePlans.createdAt))
         return yield* hydrate(rows)
       }),
-
-      updateStatus: Effect.fn('CarePlanRepository.updateStatus')(function* (
-        id: string,
-        userId: string,
-        data: UpdateCarePlanStatusData
-      ) {
-        yield* db
-          .update(carePlans)
-          .set({
-            status: data.status,
-            ...(data.acceptedAt !== undefined
-              ? { acceptedAt: data.acceptedAt }
-              : {}),
-            ...(data.completedAt !== undefined
-              ? { completedAt: data.completedAt }
-              : {}),
-          })
-          .where(and(eq(carePlans.id, id), eq(carePlans.userId, userId)))
-        return yield* findPlan(eq(carePlans.id, id))
-      }),
-
-      linkChatMessage: Effect.fn('CarePlanRepository.linkChatMessage')(
-        function* (planId: string, chatMessageId: string) {
-          yield* db
-            .update(carePlans)
-            .set({ chatMessageId })
-            .where(eq(carePlans.id, planId))
-        }
-      ),
-
-      delete: Effect.fn('CarePlanRepository.delete')(function* (
-        id: string,
-        userId: string
-      ) {
-        yield* db
-          .delete(carePlans)
-          .where(and(eq(carePlans.id, id), eq(carePlans.userId, userId)))
-      }),
-
-      completeStep: Effect.fn('CarePlanRepository.completeStep')(function* (
-        stepId: string,
-        data: CompleteStepData
-      ) {
-        const rows = yield* db
-          .update(carePlanSteps)
-          .set({
-            completedAt: data.completedAt,
-            careLogId: Option.getOrNull(Option.fromNullishOr(data.careLogId)),
-          })
-          .where(eq(carePlanSteps.id, stepId))
-          .returning()
-        return pipe(
-          Array.head(rows),
-          Option.map(mapToCarePlanStep),
-          Option.getOrNull
-        )
-      }),
-
-      uncompleteStep: Effect.fn('CarePlanRepository.uncompleteStep')(function* (
-        stepId: string
-      ) {
-        const rows = yield* db
-          .update(carePlanSteps)
-          .set({ completedAt: null, careLogId: null })
-          .where(eq(carePlanSteps.id, stepId))
-          .returning()
-        return pipe(
-          Array.head(rows),
-          Option.map(mapToCarePlanStep),
-          Option.getOrNull
-        )
-      }),
-
-      deleteStep: Effect.fn('CarePlanRepository.deleteStep')(function* (
-        stepId: string
-      ) {
-        yield* db.delete(carePlanSteps).where(eq(carePlanSteps.id, stepId))
-      }),
-
-      completeEarliestOpenStep: Effect.fn(
-        'CarePlanRepository.completeEarliestOpenStep'
-      )(function* (
-        plantId: string,
-        careType: CareType,
-        data: CompleteStepData
-      ) {
-        const candidates = yield* db
-          .select({ step: carePlanSteps })
-          .from(carePlanSteps)
-          .innerJoin(carePlans, eq(carePlanSteps.planId, carePlans.id))
-          .where(
-            and(
-              eq(carePlans.plantId, plantId),
-              eq(carePlans.status, 'accepted'),
-              eq(carePlanSteps.careType, careType),
-              isNull(carePlanSteps.completedAt)
-            )
-          )
-          .orderBy(asc(carePlans.createdAt), asc(carePlanSteps.position))
-          .limit(1)
-
-        const target = pipe(
-          Array.head(candidates),
-          Option.map((c) => c.step),
-          Option.getOrNull
-        )
-        if (!target) return null
-
-        const rows = yield* db
-          .update(carePlanSteps)
-          .set({
-            completedAt: data.completedAt,
-            careLogId: Option.getOrNull(Option.fromNullishOr(data.careLogId)),
-          })
-          .where(eq(carePlanSteps.id, target.id))
-          .returning()
-        return pipe(
-          Array.head(rows),
-          Option.map(mapToCarePlanStep),
-          Option.getOrNull
-        )
-      }),
-
-      settleCompletion: Effect.fn('CarePlanRepository.settleCompletion')(
-        function* (planId: string) {
-          const planRows = yield* db
-            .select({ plan: carePlans, plant: plantSelect })
-            .from(carePlans)
-            .innerJoin(plants, eq(carePlans.plantId, plants.id))
-            .where(eq(carePlans.id, planId))
-          const current = pipe(Array.head(planRows), Option.getOrNull)
-          if (!current) return null
-
-          const steps = yield* stepsForPlans([planId])
-          const allDone =
-            Array.isReadonlyArrayNonEmpty(steps) &&
-            !Array.some(steps, isStepOpen)
-
-          if (current.plan.status === 'accepted' && allDone) {
-            yield* db
-              .update(carePlans)
-              .set({ status: 'completed', completedAt: nowAsDate() })
-              .where(eq(carePlans.id, planId))
-          }
-
-          return yield* findPlan(eq(carePlans.id, planId))
-        }
-      ),
     }
   })
 )

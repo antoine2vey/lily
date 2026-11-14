@@ -1,5 +1,11 @@
+import { settled } from '@lily/api/__tests__/integration/canopy-layers'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -15,7 +21,10 @@ import {
   unmutePlant,
   withMuteState,
 } from '@lily/api/services/plants/endpoints/mute-plant'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import {
+  withPlantAuth,
+  withPlantPermit,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -31,6 +40,7 @@ const ReposLive = Layer.mergeAll(
   AchievementRepositoryLive,
   CanopyRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
@@ -43,6 +53,10 @@ const appAs = (userId: string) =>
   Layer.mergeAll(
     LimitCheckerLive,
     createMockMessageQueue(),
+    createMockEventBus(),
+    createMockWeatherProvider(),
+    createMockWeatherCache(),
+    createMockWeatherRepository(),
     createMockCurrentUser({ id: userId })
   ).pipe(Layer.provideMerge(ReposLive))
 
@@ -89,8 +103,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       run: typeof mutePlant | typeof unmutePlant
     ) =>
       Effect.runPromise(
-        withPlantAuth(plantId, 'mute').pipe(
-          Effect.flatMap((plant) => run(plant)),
+        withPlantPermit(plantId, 'mute').pipe(
+          Effect.flatMap((permit) => run(permit)),
+          settled,
           Effect.provide(appAs(userId))
         )
       )

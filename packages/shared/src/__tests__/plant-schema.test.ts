@@ -42,15 +42,23 @@ const validPlant = {
       careType: 'watering' as const,
       frequencyDays: 7,
       lastCareAt: '2024-01-10T00:00:00.000Z',
+      lastCareDay: '2024-01-10',
       nextCareAt: '2024-01-17T00:00:00.000Z',
+      dueDay: '2024-01-17',
+      status: { _tag: 'Upcoming' as const, inDays: 2 },
     },
     {
       careType: 'fertilization' as const,
       frequencyDays: 30,
       lastCareAt: '2024-01-01T00:00:00.000Z',
+      lastCareDay: '2024-01-01',
       nextCareAt: '2024-01-31T00:00:00.000Z',
+      dueDay: '2024-01-31',
+      status: { _tag: 'Upcoming' as const, inDays: 16 },
     },
   ],
+  careTimezone: 'UTC',
+  today: '2024-01-15',
 }
 
 describe('Plant Schemas', () => {

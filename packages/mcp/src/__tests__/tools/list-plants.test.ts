@@ -1,5 +1,9 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
-import { canopyPlant, delegatedPlant } from '@lily/mcp/__tests__/mocks/plant'
+import {
+  canopyPlant,
+  careToday,
+  delegatedPlant,
+} from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { listPlantsEffect } from '@lily/mcp/tools/list-plants'
 import type { Plant } from '@lily/shared/plant'
@@ -34,6 +38,7 @@ const mockPlant: Plant = {
   room: null,
   ownership: 'owned',
   ownerName: null,
+  ...careToday,
   schedules: [],
 }
 

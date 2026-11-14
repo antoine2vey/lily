@@ -1,6 +1,7 @@
 import {
   mockPlantPhotos,
   mockPlants,
+  noCare,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
@@ -16,7 +17,7 @@ const toPlantWithRoom = (
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
-  schedules: [],
+  ...noCare,
 })
 
 describe('findPlantById (with photos)', () => {

@@ -26,7 +26,11 @@ import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import {
+  withPermittedPlant,
+  withPlantAuth,
+  withPlantPermit,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
@@ -82,26 +86,30 @@ export const PlantsApiLive = (api: Api) =>
         )
       )
       .handle('updatePlant', ({ params: { id }, payload: { data, image } }) =>
-        withPlantAuth(id, 'edit').pipe(
-          Effect.flatMap((plant) => updatePlant(plant, { ...data, id }, image)),
+        withPermittedPlant(id, 'edit').pipe(
+          Effect.flatMap(({ plant, permit }) =>
+            updatePlant(plant, permit, { ...data, id }, image)
+          ),
           withInfraErrorsAsDefect
         )
       )
       .handle('deletePlant', ({ params: { id } }) =>
-        withPlantAuth(id, 'delete').pipe(
-          Effect.flatMap((plant) => deletePlant(plant, id)),
+        withPermittedPlant(id, 'delete').pipe(
+          Effect.flatMap(({ plant, permit }) => deletePlant(plant, permit, id)),
           withInfraErrorsAsDefect
         )
       )
       .handle('markPlantDead', ({ params: { id }, payload }) =>
-        withPlantAuth(id, 'markDead').pipe(
-          Effect.flatMap((plant) => markPlantDead(plant, payload, id)),
+        withPermittedPlant(id, 'markDead').pipe(
+          Effect.flatMap(({ plant, permit }) =>
+            markPlantDead(plant, permit, payload, id)
+          ),
           withInfraErrorsAsDefect
         )
       )
       .handle('revivePlant', ({ params: { id } }) =>
-        withPlantAuth(id, 'revive').pipe(
-          Effect.flatMap((plant) => revivePlant(plant, id)),
+        withPermittedPlant(id, 'revive').pipe(
+          Effect.flatMap(({ plant, permit }) => revivePlant(plant, permit, id)),
           withInfraErrorsAsDefect
         )
       )
@@ -129,8 +137,8 @@ export const PlantsApiLive = (api: Api) =>
         )
       )
       .handle('carePlant', ({ params: { id }, payload }) =>
-        withPlantAuth(id, 'care').pipe(
-          Effect.flatMap((plant) => carePlant(plant, { ...payload, id })),
+        withPlantPermit(id, 'care').pipe(
+          Effect.flatMap((permit) => carePlant(permit, payload)),
           withInfraErrorsAsDefect
         )
       )
@@ -138,10 +146,8 @@ export const PlantsApiLive = (api: Api) =>
         careMultiplePlants(payload).pipe(withInfraErrorsAsDefect)
       )
       .handle('correctCareDates', ({ params: { id }, payload }) =>
-        withPlantAuth(id, 'care').pipe(
-          Effect.flatMap((plant) =>
-            correctCareDates(plant, { ...payload, id })
-          ),
+        withPlantPermit(id, 'care').pipe(
+          Effect.flatMap((permit) => correctCareDates(permit, payload)),
           withInfraErrorsAsDefect
         )
       )
@@ -152,26 +158,26 @@ export const PlantsApiLive = (api: Api) =>
         )
       )
       .handle('sharePlantWithCanopy', ({ params: { id }, payload }) =>
-        withPlantAuth(id, 'share').pipe(
-          Effect.flatMap((plant) => sharePlantWithCanopy(plant, payload, id)),
+        withPlantPermit(id, 'share').pipe(
+          Effect.flatMap((permit) => sharePlantWithCanopy(permit, payload, id)),
           withInfraErrorsAsDefect
         )
       )
       .handle('unsharePlant', ({ params: { id }, payload }) =>
-        withPlantAuth(id, 'unshare').pipe(
-          Effect.flatMap((plant) => unsharePlant(plant, payload, id)),
+        withPlantPermit(id, 'unshare').pipe(
+          Effect.flatMap((permit) => unsharePlant(permit, payload, id)),
           withInfraErrorsAsDefect
         )
       )
       .handle('mutePlant', ({ params: { id } }) =>
-        withPlantAuth(id, 'mute').pipe(
-          Effect.flatMap((plant) => mutePlant(plant, id)),
+        withPlantPermit(id, 'mute').pipe(
+          Effect.flatMap((permit) => mutePlant(permit, id)),
           withInfraErrorsAsDefect
         )
       )
       .handle('unmutePlant', ({ params: { id } }) =>
-        withPlantAuth(id, 'mute').pipe(
-          Effect.flatMap((plant) => unmutePlant(plant)),
+        withPlantPermit(id, 'mute').pipe(
+          Effect.flatMap((permit) => unmutePlant(permit, id)),
           withInfraErrorsAsDefect
         )
       )

@@ -124,7 +124,7 @@ export interface SystemPromptPlantData {
     readonly careType: string
     readonly frequencyDays: number
     readonly lastCareAt: Date | null
-    readonly nextCareAt: Date | null
+    readonly nextCareAt: Date
   }>
 }
 
@@ -173,7 +173,7 @@ const formatScheduleBlock = (
         ${nextLabel}: ${formatDaysUntilHuman(
           pipe(
             opt,
-            Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
+            Option.map((s) => s.nextCareAt),
             Option.getOrNull
           )
         )}`

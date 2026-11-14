@@ -1,3 +1,4 @@
+import type { ProposedStep } from '@lily/api/contexts/care'
 import { CARE_TYPES, startOfDay } from '@lily/shared'
 import { DateTime, Duration, Option, pipe } from 'effect'
 import { z } from 'zod'
@@ -61,13 +62,17 @@ export const resolveDueDate = (
     Option.getOrUndefined
   )
 
-export const toCreateStepData = (
+export const toProposedStep = (
   step: CarePlanStepInput,
   timezone: string,
   now?: DateTime.Utc
-) => ({
+): ProposedStep => ({
   title: step.title,
-  description: step.description,
-  careType: step.careType === 'none' ? undefined : step.careType,
-  dueDate: resolveDueDate(step.dueInDays, timezone, now),
+  description: Option.fromNullishOr(step.description),
+  careType:
+    step.careType === 'none' ? Option.none() : Option.some(step.careType),
+  dueAt: Option.map(
+    Option.fromNullishOr(resolveDueDate(step.dueInDays, timezone, now)),
+    DateTime.makeUnsafe
+  ),
 })

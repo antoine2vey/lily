@@ -1,13 +1,17 @@
+import type { Canopy } from '@lily/api/contexts/canopy'
+import { PlantLife } from '@lily/api/contexts/care'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
-import { EventBus, publishWithRetry } from '@lily/api/events'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { requireMembership } from '@lily/api/services/canopy/helpers/membership'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
-import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
+import {
+  canopyOwnerOf,
+  withOwnerLock,
+} from '@lily/api/services/plants/helpers/owner-lock'
+import { frequencyChanges } from '@lily/api/services/plants/helpers/schedule-frequencies'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { RoomNotFoundError } from '@lily/shared'
 import {
@@ -16,8 +20,9 @@ import {
   luxToSliderValue,
   type PlantOwner,
 } from '@lily/shared'
+import type { UnauthorizedError } from '@lily/shared/errors/user'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
-import { DateTime, Effect, Option, pipe } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -25,20 +30,24 @@ export const createPlant = (
   request: EnhancedPlantCreateRequest
 ): Effect.Effect<
   Plant,
-  SqlError | LimitExceededError | RoomNotFoundError | CanopyNotFoundError,
+  | SqlError
+  | LimitExceededError
+  | RoomNotFoundError
+  | CanopyNotFoundError
+  | UnauthorizedError,
   | PlantRepository
   | CanopyRepository
+  | Canopy
   | RoomRepository
-  | CareScheduleRepository
-  | EventBus
+  | PlantLife
   | CurrentUser
   | LimitChecker
   | SqlClient.SqlClient
+  | Outbox
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const scheduleRepo = yield* CareScheduleRepository
-    const eventBus = yield* EventBus
+    const life = yield* PlantLife
     const { id: userId } = yield* CurrentUser
     const limitChecker = yield* LimitChecker
 
@@ -46,117 +55,60 @@ export const createPlant = (
 
     const owner: PlantOwner =
       request.owner === 'canopy'
-        ? {
-            _tag: 'Canopy',
-            canopyId: (yield* requireMembership(userId)).canopyId,
-          }
+        ? yield* canopyOwnerOf(userId)
         : { _tag: 'User', userId }
 
-    // Set next care dates to now (due immediately)
-    const now = DateTime.toDateUtc(DateTime.nowUnsafe())
-
-    const plantOrNull = yield* withOwnerLock(owner)(
+    return yield* withOwnerLock(owner)((held) =>
       Effect.gen(function* () {
         yield* assertRoomFits(request.roomId, owner)
         yield* limitChecker.checkPlantLimit(owner)
-        return yield* repo.create({
-          name: request.name,
-          description: pipe(
-            Option.fromNullishOr(request.description),
-            Option.getOrNull
-          ),
-          category: pipe(
-            Option.fromNullishOr(request.category),
-            Option.getOrNull
-          ),
-          imageUrl: pipe(
-            Option.fromNullishOr(request.imageUrl),
-            Option.getOrNull
-          ),
-          humidityRating: pipe(
-            Option.fromNullishOr(request.humidityRating),
-            Option.getOrElse(() => 0)
-          ),
-          lightingRating: pipe(
-            Option.fromNullishOr(request.lightingRating),
-            Option.getOrElse(() => luxToSliderValue(request.luxNeeded))
-          ),
-          petToxicityRating: pipe(
-            Option.fromNullishOr(request.petToxicityRating),
-            Option.getOrElse(() => 0)
-          ),
-          wateringRating: pipe(
-            Option.fromNullishOr(request.wateringRating),
-            Option.getOrElse(() => 0)
-          ),
-          health: 'HEALTHY',
-          potWidthCm: pipe(
-            Option.fromNullishOr(request.potWidthCm),
-            Option.getOrNull
-          ),
-          potHeightCm: pipe(
-            Option.fromNullishOr(request.potHeightCm),
-            Option.getOrNull
-          ),
-          owner,
-          createdByUserId: userId,
-          roomId: pipe(Option.fromNullishOr(request.roomId), Option.getOrNull),
+        const { plantId } = yield* life.plant({
+          held,
+          by: userId,
+          draft: {
+            name: request.name,
+            description: Option.fromNullishOr(request.description),
+            category: Option.fromNullishOr(request.category),
+            imageUrl: Option.fromNullishOr(request.imageUrl),
+            humidityRating: pipe(
+              Option.fromNullishOr(request.humidityRating),
+              Option.getOrElse(() => 0)
+            ),
+            lightingRating: pipe(
+              Option.fromNullishOr(request.lightingRating),
+              Option.getOrElse(() => luxToSliderValue(request.luxNeeded))
+            ),
+            petToxicityRating: pipe(
+              Option.fromNullishOr(request.petToxicityRating),
+              Option.getOrElse(() => 0)
+            ),
+            wateringRating: pipe(
+              Option.fromNullishOr(request.wateringRating),
+              Option.getOrElse(() => 0)
+            ),
+            potWidthCm: Option.fromNullishOr(request.potWidthCm),
+            potHeightCm: Option.fromNullishOr(request.potHeightCm),
+            roomId: Option.fromNullishOr(request.roomId),
+          },
+          frequencies: frequencyChanges({
+            wateringFrequencyDays: request.wateringFrequencyDays,
+            fertilizationFrequencyDays:
+              request.fertilizationFrequencyDays || undefined,
+            mistingFrequencyDays: request.mistingFrequencyDays || undefined,
+            repottingFrequencyDays: request.repottingFrequencyDays || undefined,
+          }),
         })
+        const created = yield* repo.findById(plantId)
+        if (!created) {
+          return yield* Effect.die(
+            new EntityMutationDefect({
+              message: 'Created plant not found',
+              entity: 'plant',
+              operation: 'create',
+            })
+          )
+        }
+        return created
       })
     )
-
-    if (!plantOrNull) {
-      return yield* Effect.die(
-        new EntityMutationDefect({
-          message: 'Plant create returned null',
-          entity: 'plant',
-          operation: 'create',
-        })
-      )
-    }
-
-    const plant = plantOrNull
-
-    // Create schedule rows for the new plant
-    yield* scheduleRepo.upsert(plant.id, 'watering', {
-      frequencyDays: request.wateringFrequencyDays,
-      nextCareAt: now,
-    })
-
-    if (request.fertilizationFrequencyDays) {
-      yield* scheduleRepo.upsert(plant.id, 'fertilization', {
-        frequencyDays: request.fertilizationFrequencyDays,
-        nextCareAt: now,
-      })
-    }
-
-    if (request.mistingFrequencyDays) {
-      yield* scheduleRepo.upsert(plant.id, 'misting', {
-        frequencyDays: request.mistingFrequencyDays,
-        nextCareAt: now,
-      })
-    }
-
-    if (request.repottingFrequencyDays) {
-      yield* scheduleRepo.upsert(plant.id, 'repotting', {
-        frequencyDays: request.repottingFrequencyDays,
-        nextCareAt: now,
-      })
-    }
-
-    yield* publishWithRetry(
-      eventBus.publish({ _tag: 'PlantCreated', userId, plantId: plant.id })
-    )
-
-    const created = yield* repo.findById(plant.id)
-    if (!created) {
-      return yield* Effect.die(
-        new EntityMutationDefect({
-          message: 'Created plant not found',
-          entity: 'plant',
-          operation: 'create',
-        })
-      )
-    }
-    return created
   }).pipe(Effect.withSpan('PlantsService.createPlant'))

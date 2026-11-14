@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -158,6 +158,121 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         'applied_log_b_idx',
       ])
       expect(await recordedHashes()).toEqual(['0000_init', '0001_indexes'])
+    }, 30_000)
+
+    it('stops the reminder occasion index on rows that share a key, deletes none, and builds once they differ', async () => {
+      const occasionIndex = await readFile(
+        fileURLToPath(
+          new URL(
+            '../../../../db/drizzle/0076_reminder_occasion_unique.sql',
+            import.meta.url
+          )
+        ),
+        'utf-8'
+      )
+      const [user, plant] = [randomUUID(), randomUUID()]
+      await pool.query(
+        'CREATE TABLE notifications (id serial PRIMARY KEY, user_id uuid NOT NULL, plant_id uuid, type text NOT NULL, occasion_day date)'
+      )
+      await pool.query(
+        `INSERT INTO notifications (user_id, plant_id, type, occasion_day) VALUES
+          ($1, $2, 'watering_reminder', '2026-11-12'),
+          ($1, $2, 'watering_reminder', '2026-11-12'),
+          ($1, $2, 'watering_reminder', NULL),
+          ($1, $2, 'watering_reminder', NULL)`,
+        [user, plant]
+      )
+      await pool
+        .query(
+          'CREATE UNIQUE INDEX CONCURRENTLY notifications_occasion_unique ON notifications (user_id, plant_id, type, occasion_day) WHERE occasion_day IS NOT NULL'
+        )
+        .catch(() => undefined)
+      const indexIsValid = async () => {
+        const result = await pool.query<{ valid: boolean }>(
+          `SELECT i.indisvalid AS valid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = 'notifications_occasion_unique'`
+        )
+        return Array.map(result.rows, (r) => r.valid)
+      }
+      const rowCount = async () =>
+        (await pool.query('SELECT 1 FROM notifications')).rowCount
+      await writeMigrations({
+        '0076_reminder_occasion_unique.sql': occasionIndex,
+      })
+      expect(await indexIsValid()).toEqual([false])
+
+      const refused = await runRunner(workDir, databaseUrl)
+
+      expect(refused.code).toBe(1)
+      expect(refused.output).toContain('2 rows share user')
+      expect(await rowCount()).toBe(4)
+      expect(await recordedHashes()).toEqual([])
+
+      await pool.query(
+        `UPDATE notifications SET occasion_day = '2026-11-13' WHERE id = 2`
+      )
+      const built = await runRunner(workDir, databaseUrl)
+
+      expect(built.code, built.output).toBe(0)
+      expect(await rowCount()).toBe(4)
+      expect(await indexIsValid()).toEqual([true])
+      expect(await recordedHashes()).toEqual(['0076_reminder_occasion_unique'])
+    }, 30_000)
+
+    it('builds the due day index over an invalid one a failed build left, and writes no row', async () => {
+      const dueDayIndex = await readFile(
+        fileURLToPath(
+          new URL(
+            '../../../../db/drizzle/0077_schedule_due_day_index.sql',
+            import.meta.url
+          )
+        ),
+        'utf-8'
+      )
+      await pool.query(
+        'CREATE TABLE plant_care_schedules (id serial PRIMARY KEY, next_care_at timestamptz NOT NULL, due_day date)'
+      )
+      await pool.query(
+        `INSERT INTO plant_care_schedules (next_care_at, due_day) VALUES
+          ('2026-11-12T00:00:00Z', '2026-11-12'),
+          ('2026-11-13T00:00:00Z', NULL)`
+      )
+      await pool.query(
+        'CREATE INDEX plant_care_schedules_due_day_idx ON plant_care_schedules (id)'
+      )
+      await pool.query(
+        `UPDATE pg_index SET indisvalid = false WHERE indexrelid = 'plant_care_schedules_due_day_idx'::regclass`
+      )
+      const index = async () => {
+        const result = await pool.query<{ valid: boolean; definition: string }>(
+          `SELECT i.indisvalid AS valid, pg_get_indexdef(i.indexrelid) AS definition FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = 'plant_care_schedules_due_day_idx'`
+        )
+        return result.rows
+      }
+      const rows = async () =>
+        (
+          await pool.query<{ id: number; day: string | null }>(
+            'SELECT id, due_day::text AS day FROM plant_care_schedules ORDER BY id'
+          )
+        ).rows
+      const before = await rows()
+      await writeMigrations({ '0077_schedule_due_day_index.sql': dueDayIndex })
+
+      const built = await runRunner(workDir, databaseUrl)
+
+      expect(built.code, built.output).toBe(0)
+      expect(await index()).toEqual([
+        {
+          valid: true,
+          definition:
+            'CREATE INDEX plant_care_schedules_due_day_idx ON public.plant_care_schedules USING btree (due_day)',
+        },
+      ])
+      expect(await rows()).toEqual(before)
+      expect(before).toEqual([
+        { id: 1, day: '2026-11-12' },
+        { id: 2, day: null },
+      ])
+      expect(await recordedHashes()).toEqual(['0077_schedule_due_day_index'])
     }, 30_000)
 
     it('keeps running against a migrations table that already holds duplicate hashes', async () => {

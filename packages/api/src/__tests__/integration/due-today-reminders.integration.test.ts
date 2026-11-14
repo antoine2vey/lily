@@ -1,6 +1,17 @@
+import {
+  returnFromVacation,
+  settled,
+} from '@lily/api/__tests__/integration/absence-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
+import { replanPlants } from '@lily/api/contexts/reminders'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -11,9 +22,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
-import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
@@ -30,6 +39,7 @@ const ServicesLive = Layer.mergeAll(
   PlantRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   NotificationRepositoryLive,
   UserRepositoryLive,
   CanopyRepositoryLive,
@@ -57,9 +67,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const as = <A, E, R>(userId: string, effect: Effect.Effect<A, E, R>) =>
       runtime.runPromise(
         effect.pipe(
+          settled,
           Effect.provide(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId }),
+              createMockEventBus(),
               createMockMessageQueue(),
               createMockRateLimiterService()
             )
@@ -112,6 +124,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careType: 'watering',
         frequencyDays: 7,
         nextCareAt: todayStart,
+        dueDay: careDayOf(todayStart),
         lastCareAt: new Date(todayStart.getTime() - 7 * DAY_MS),
       })
       return row.id
@@ -193,7 +206,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('keeps the owner reminder when the plant reminders are rescheduled', async () => {
       await remindToday(owner, fern)
 
-      await as(owner, rescheduleReminders([fern]))
+      await as(owner, replanPlants([fern]))
 
       expect(await dueWithinADay()).toEqual(['fern -> owner'])
     })
@@ -320,7 +333,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       await remindToday(ann, ivy)
 
-      await as(vic.id, endVacation({ user: vic, effectiveEnd: new Date() }))
+      await as(
+        vic.id,
+        returnFromVacation(vic.id).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockEventBus(),
+              createMockWeatherProvider(),
+              createMockWeatherCache(),
+              createMockWeatherRepository()
+            )
+          )
+        )
+      )
 
       expect(
         Arr.filter(await dueWithinADay(), (row) => row.startsWith('ivy'))

@@ -1,5 +1,5 @@
 import type { Plant } from '@lily/shared/plant'
-import { makeSchedules } from '@/__tests__/fixtures/plants'
+import { careToday, makeSchedules } from '@/__tests__/fixtures/plants'
 
 // Helper to get dates relative to now
 const now = new Date()
@@ -46,6 +46,7 @@ export const mockPlantsForCareTasks: Plant[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 7,
       lastWateredAt: new Date('2024-01-10'),
@@ -80,6 +81,7 @@ export const mockPlantsForCareTasks: Plant[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 14,
       lastWateredAt: new Date('2024-01-01'),
@@ -114,6 +116,7 @@ export const mockPlantsForCareTasks: Plant[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 10,
       lastWateredAt: new Date('2024-01-01'),
@@ -148,6 +151,7 @@ export const mockPlantsForCareTasks: Plant[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 30,
       lastWateredAt: new Date('2024-01-01'),
@@ -182,6 +186,7 @@ export const mockPlantsForCareTasks: Plant[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 7,
       lastWateredAt: new Date('2024-01-01'),
@@ -220,6 +225,7 @@ export const mockPlantsNoCare: Plant[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 7,
       lastWateredAt: new Date('2024-01-01'),

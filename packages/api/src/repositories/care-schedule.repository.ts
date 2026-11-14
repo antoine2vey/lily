@@ -6,9 +6,9 @@ import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   ownerOf,
   withCanopyOwner,
-  withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
 import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
+import { tending } from '@lily/api/repositories/helpers/tending'
 import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -21,46 +21,14 @@ import {
   rooms,
   users,
 } from '@lily/db/schema'
-import {
-  type CareType,
-  earliestOverdueDate,
-  nowAsDate,
-  type OverduePlant,
-  type PlantOwner,
-  type PlantSharer,
-} from '@lily/shared'
-import {
-  and,
-  asc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  lte,
-  sql,
-} from 'drizzle-orm'
+import type { CareType, PlantOwner } from '@lily/shared'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Types
 export type CareScheduleRow = typeof plantCareSchedules.$inferSelect
 export type { CareType } from '@lily/shared'
-
-export interface ScheduleWithPlant {
-  schedule: CareScheduleRow
-  plant: {
-    id: string
-    name: string
-    imageUrl: string | null
-    room: {
-      id: string
-      name: string
-      icon: string
-    } | null
-    sharedBy: PlantSharer | null
-  }
-}
 
 export interface OwnerScheduleRow {
   schedule: CareScheduleRow
@@ -71,24 +39,15 @@ export interface OwnerScheduleRow {
   }
 }
 
-export type OverdueRecipientPlant = OverduePlant & {
+export interface ReminderAudiencePlant {
+  id: string
+  name: string
+  audienceUserId: string
   owner: PlantOwner
+  /** Who is addressed: the active caretaker when delegated, else `userId`. */
   recipientId: string
+  dateAdded: Date
 }
-
-export interface UpsertScheduleData {
-  frequencyDays: number
-  lastCareAt?: Date | null
-  nextCareAt?: Date | null
-}
-
-const overdueAt = (now: Date) =>
-  and(
-    isLivingPlant(),
-    eq(plants.remindersEnabled, true),
-    isNotNull(plantCareSchedules.nextCareAt),
-    lte(plantCareSchedules.nextCareAt, now)
-  )
 
 // Repository interface
 export interface ICareScheduleRepository {
@@ -99,46 +58,16 @@ export interface ICareScheduleRepository {
   readonly findByPlant: (
     plantId: string
   ) => Effect.Effect<Array<CareScheduleRow>, SqlError>
-  readonly findByPlantIds: (
+  /**
+   * Who gets care reminders for these plants, grouped by audience member.
+   * Living plants with reminders enabled only; reachable users only.
+   */
+  readonly findReminderAudience: (
     plantIds: ReadonlyArray<string>
-  ) => Effect.Effect<ReadonlyArray<CareScheduleRow>, SqlError>
-  readonly shiftDueBefore: (params: {
-    readonly plantIds: ReadonlyArray<string>
-    readonly before: Date
-    readonly shiftMs: number
-    readonly floor: Date
-  }) => Effect.Effect<void, SqlError>
-  readonly findPendingByUser: (
-    userId: string,
-    cutoff: Date,
-    canopyId: string | null
-  ) => Effect.Effect<Array<ScheduleWithPlant>, SqlError>
-  readonly findOverdueByUser: () => Effect.Effect<
-    Record<string, Array<OverdueRecipientPlant>>,
-    SqlError
-  >
-  readonly findOverduePlantIds: (
-    plantIds: ReadonlyArray<string>
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  ) => Effect.Effect<Record<string, Array<ReminderAudiencePlant>>, SqlError>
   readonly findByOwnerWithPlant: (
     userId: string
   ) => Effect.Effect<Array<OwnerScheduleRow>, SqlError>
-  readonly upsert: (
-    plantId: string,
-    careType: CareType,
-    data: UpsertScheduleData
-  ) => Effect.Effect<CareScheduleRow, SqlError>
-  readonly updateByPlantAndType: (
-    plantId: string,
-    careType: CareType,
-    data: Partial<
-      Pick<CareScheduleRow, 'frequencyDays' | 'lastCareAt' | 'nextCareAt'>
-    >
-  ) => Effect.Effect<CareScheduleRow | null, SqlError>
-  readonly deleteByPlantAndType: (
-    plantId: string,
-    careType: CareType
-  ) => Effect.Effect<void, SqlError>
 }
 
 // Tag for dependency injection
@@ -148,7 +77,7 @@ export class CareScheduleRepository extends Context.Service<
 >()('CareScheduleRepository') {}
 
 // Shared room selection shape for joins
-const roomSelect = {
+const _roomSelect = {
   id: rooms.id,
   name: rooms.name,
   icon: rooms.icon,
@@ -186,203 +115,101 @@ export const CareScheduleRepositoryLive = Layer.effect(
         return rows
       }),
 
-      findByPlantIds: Effect.fn('CareScheduleRepository.findByPlantIds')(
-        function* (plantIds: ReadonlyArray<string>) {
-          if (Array.isReadonlyArrayEmpty(plantIds)) return []
-          return yield* db
-            .select()
-            .from(plantCareSchedules)
-            .where(inArray(plantCareSchedules.plantId, [...plantIds]))
-            .orderBy(asc(plantCareSchedules.id))
-        }
-      ),
+      findReminderAudience: Effect.fn(
+        'CareScheduleRepository.findReminderAudience'
+      )(function* (plantIds: ReadonlyArray<string>) {
+        if (Array.isReadonlyArrayEmpty(plantIds)) return {}
+        const remindable = and(
+          inArray(plants.id, [...plantIds]),
+          isLivingPlant(),
+          eq(plants.remindersEnabled, true),
+          isReachableUser()
+        )
+        const activeCaretakers = db
+          .select({
+            plantId: delegationPlants.plantId,
+            caretakerId: careDelegations.caretakerId,
+          })
+          .from(delegationPlants)
+          .innerJoin(
+            careDelegations,
+            eq(careDelegations.id, delegationPlants.delegationId)
+          )
+          .where(tending())
+          .as('active_caretakers')
+        const personal = yield* db
+          .select({
+            plantId: plants.id,
+            plantName: plants.name,
+            userId: plants.userId,
+            caretakerId: activeCaretakers.caretakerId,
+            dateAdded: plants.dateAdded,
+          })
+          .from(plants)
+          .leftJoin(activeCaretakers, eq(activeCaretakers.plantId, plants.id))
+          .innerJoin(
+            users,
+            eq(
+              users.id,
+              sql`coalesce(${activeCaretakers.caretakerId}, ${plants.userId})`
+            )
+          )
+          .where(remindable)
 
-      shiftDueBefore: Effect.fn('CareScheduleRepository.shiftDueBefore')(
-        function* (params: {
-          readonly plantIds: ReadonlyArray<string>
-          readonly before: Date
-          readonly shiftMs: number
-          readonly floor: Date
-        }) {
-          if (Array.isReadonlyArrayEmpty(params.plantIds)) return
-          yield* db
-            .update(plantCareSchedules)
-            .set({
-              nextCareAt: sql`GREATEST(${plantCareSchedules.nextCareAt} + make_interval(secs => ${params.shiftMs / 1000}), ${params.floor.toISOString()}::timestamptz)`,
-            })
-            .where(
-              and(
-                inArray(plantCareSchedules.plantId, [...params.plantIds]),
-                lt(plantCareSchedules.nextCareAt, params.before)
-              )
+        const shared = yield* db
+          .select({
+            plantId: plants.id,
+            plantName: plants.name,
+            userId: canopyMembers.userId,
+            canopyId: canopyMembers.canopyId,
+            dateAdded: plants.dateAdded,
+          })
+          .from(plants)
+          .innerJoin(canopyMembers, eq(plants.canopyId, canopyMembers.canopyId))
+          .innerJoin(users, eq(users.id, canopyMembers.userId))
+          .leftJoin(
+            canopyPlantMutes,
+            and(
+              eq(canopyPlantMutes.userId, canopyMembers.userId),
+              eq(canopyPlantMutes.plantId, plants.id)
             )
-        }
-      ),
+          )
+          .where(and(remindable, isNull(canopyPlantMutes.userId)))
 
-      findPendingByUser: Effect.fn('CareScheduleRepository.findPendingByUser')(
-        function* (userId: string, cutoff: Date, canopyId: string | null) {
-          const rows = yield* db
-            .select({
-              schedule: plantCareSchedules,
-              plant: {
-                id: plants.id,
-                name: plants.name,
-                imageUrl: plants.imageUrl,
-              },
-              room: roomSelect,
-              sharedBy: { id: users.id, name: users.name, image: users.image },
-            })
-            .from(plantCareSchedules)
-            .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-            .leftJoin(rooms, eq(plants.roomId, rooms.id))
-            .leftJoin(
-              users,
-              and(
-                eq(plants.createdByUserId, users.id),
-                isNotNull(plants.canopyId)
-              )
-            )
-            .where(
-              and(
-                caredForBy(db, userId, canopyId),
-                isLivingPlant(),
-                isNotNull(plantCareSchedules.nextCareAt),
-                lte(plantCareSchedules.nextCareAt, cutoff)
-              )
-            )
-
-          return Array.map(rows, (row) => ({
-            schedule: row.schedule,
-            plant: {
-              id: row.plant.id,
-              name: row.plant.name,
-              imageUrl: row.plant.imageUrl,
-              room: row.room,
-              sharedBy: row.sharedBy,
-            },
-          }))
-        }
-      ),
-
-      findOverdueByUser: Effect.fn('CareScheduleRepository.findOverdueByUser')(
-        function* () {
-          const now = nowAsDate()
-          const overdue = overdueAt(now)
-          const activeCaretakers = db
-            .select({
-              plantId: delegationPlants.plantId,
-              caretakerId: careDelegations.caretakerId,
-            })
-            .from(delegationPlants)
-            .innerJoin(
-              careDelegations,
-              eq(careDelegations.id, delegationPlants.delegationId)
-            )
-            .innerJoin(users, eq(users.id, careDelegations.caretakerId))
-            .where(and(eq(careDelegations.status, 'active'), isReachableUser()))
-            .as('active_caretakers')
-          const personal = yield* db
-            .select({
-              plantId: plants.id,
-              plantName: plants.name,
-              userId: plants.userId,
-              caretakerId: activeCaretakers.caretakerId,
-              nextCareAt: plantCareSchedules.nextCareAt,
-              dateAdded: plants.dateAdded,
-            })
-            .from(plantCareSchedules)
-            .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-            .leftJoin(activeCaretakers, eq(activeCaretakers.plantId, plants.id))
-            .innerJoin(
-              users,
-              eq(
-                users.id,
-                sql`coalesce(${activeCaretakers.caretakerId}, ${plants.userId})`
-              )
-            )
-            .where(and(overdue, isReachableUser()))
-            .orderBy(asc(plants.userId))
-
-          const shared = yield* db
-            .select({
-              plantId: plants.id,
-              plantName: plants.name,
-              userId: canopyMembers.userId,
-              canopyId: canopyMembers.canopyId,
-              nextCareAt: plantCareSchedules.nextCareAt,
-              dateAdded: plants.dateAdded,
-            })
-            .from(plantCareSchedules)
-            .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-            .innerJoin(
-              canopyMembers,
-              eq(plants.canopyId, canopyMembers.canopyId)
-            )
-            .innerJoin(users, eq(users.id, canopyMembers.userId))
-            .leftJoin(
-              canopyPlantMutes,
-              and(
-                eq(canopyPlantMutes.userId, canopyMembers.userId),
-                eq(canopyPlantMutes.plantId, plants.id)
-              )
-            )
-            .where(
-              and(overdue, isReachableUser(), isNull(canopyPlantMutes.userId))
-            )
-            .orderBy(asc(canopyMembers.userId))
-
-          const addressed = Array.appendAll(
-            Array.map(Array.filter(personal, hasUserOwner), (r) => ({
-              ...withUserOwner({ ...r, canopyId: null }),
+        const audience = Array.appendAll(
+          Array.map(
+            Array.filter(personal, hasUserOwner),
+            (r): ReminderAudiencePlant => ({
+              id: r.plantId,
+              name: r.plantName,
+              audienceUserId: r.userId,
+              owner: { _tag: 'User', userId: r.userId },
               recipientId: pipe(
                 Option.fromNullishOr(r.caretakerId),
                 Option.getOrElse(() => r.userId)
               ),
-            })),
-            Array.map(shared, (r) => ({
-              ...withCanopyOwner({ ...r, userId: null }),
-              userId: r.userId,
+              dateAdded: r.dateAdded,
+            })
+          ),
+          Array.map(
+            shared,
+            (r): ReminderAudiencePlant => ({
+              id: r.plantId,
+              name: r.plantName,
+              audienceUserId: r.userId,
+              owner: withCanopyOwner({ ...r, userId: null }).owner,
               recipientId: r.userId,
-            }))
+              dateAdded: r.dateAdded,
+            })
           )
-          const byRecipientPlant = Array.groupBy(
-            addressed,
-            (r) => `${r.userId}:${r.plantId}`
-          )
-          const mapped = Array.map(
-            Array.fromRecord(byRecipientPlant),
-            ([, schedules]): OverdueRecipientPlant => {
-              // biome-ignore lint/style/noNonNullAssertion: groupBy guarantees non-empty groups
-              const first = schedules[0]!
-              return {
-                id: first.plantId,
-                name: first.plantName,
-                userId: first.userId,
-                owner: first.owner,
-                recipientId: first.recipientId,
-                dateAdded: first.dateAdded,
-                overdueAt: earliestOverdueDate(
-                  Array.map(schedules, (s) => s.nextCareAt),
-                  now
-                ),
-              }
-            }
-          )
-
-          return Array.groupBy(mapped, (p) => p.userId)
-        }
-      ),
-
-      findOverduePlantIds: Effect.fn(
-        'CareScheduleRepository.findOverduePlantIds'
-      )(function* (plantIds) {
-        if (Array.isReadonlyArrayEmpty(plantIds)) return []
-        const rows = yield* db
-          .selectDistinct({ id: plants.id })
-          .from(plantCareSchedules)
-          .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-          .where(and(overdueAt(nowAsDate()), inArray(plants.id, [...plantIds])))
-        return Array.map(rows, (r) => r.id)
+        )
+        return Array.groupBy(
+          Array.dedupeWith(
+            audience,
+            (a, b) => a.audienceUserId === b.audienceUserId && a.id === b.id
+          ),
+          (p) => p.audienceUserId
+        )
       }),
 
       findByOwnerWithPlant: Effect.fn(
@@ -410,78 +237,6 @@ export const CareScheduleRepositoryLive = Layer.effect(
             remindersEnabled: row.plant.remindersEnabled,
           },
         }))
-      }),
-
-      upsert: Effect.fn('CareScheduleRepository.upsert')(function* (
-        plantId: string,
-        careType: CareType,
-        data: UpsertScheduleData
-      ) {
-        const [row] = yield* db
-          .insert(plantCareSchedules)
-          .values({
-            plantId,
-            careType,
-            frequencyDays: data.frequencyDays,
-            lastCareAt: pipe(
-              Option.fromNullishOr(data.lastCareAt),
-              Option.getOrNull
-            ),
-            nextCareAt: pipe(
-              Option.fromNullishOr(data.nextCareAt),
-              Option.getOrNull
-            ),
-          })
-          .onConflictDoUpdate({
-            target: [plantCareSchedules.plantId, plantCareSchedules.careType],
-            set: {
-              frequencyDays: data.frequencyDays,
-              ...(data.lastCareAt !== undefined
-                ? { lastCareAt: data.lastCareAt }
-                : {}),
-              ...(data.nextCareAt !== undefined
-                ? { nextCareAt: data.nextCareAt }
-                : {}),
-            },
-          })
-          .returning()
-        // biome-ignore lint/style/noNonNullAssertion: INSERT ... RETURNING always returns a row
-        return row!
-      }),
-
-      updateByPlantAndType: Effect.fn(
-        'CareScheduleRepository.updateByPlantAndType'
-      )(function* (
-        plantId: string,
-        careType: CareType,
-        data: Partial<
-          Pick<CareScheduleRow, 'frequencyDays' | 'lastCareAt' | 'nextCareAt'>
-        >
-      ) {
-        const [row] = yield* db
-          .update(plantCareSchedules)
-          .set(data)
-          .where(
-            and(
-              eq(plantCareSchedules.plantId, plantId),
-              eq(plantCareSchedules.careType, careType)
-            )
-          )
-          .returning()
-        return pipe(Option.fromNullishOr(row), Option.getOrNull)
-      }),
-
-      deleteByPlantAndType: Effect.fn(
-        'CareScheduleRepository.deleteByPlantAndType'
-      )(function* (plantId: string, careType: CareType) {
-        yield* db
-          .delete(plantCareSchedules)
-          .where(
-            and(
-              eq(plantCareSchedules.plantId, plantId),
-              eq(plantCareSchedules.careType, careType)
-            )
-          )
       }),
     }
   })

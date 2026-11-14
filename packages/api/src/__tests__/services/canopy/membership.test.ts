@@ -13,6 +13,8 @@ import {
   pushesOf,
   type WorldServices,
 } from '@lily/api/__tests__/services/canopy/canopy-world'
+import { hashInviteToken } from '@lily/api/contexts/canopy'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
 import { createCanopy } from '@lily/api/services/canopy/endpoints/create-canopy'
 import { createCanopyInvite } from '@lily/api/services/canopy/endpoints/create-canopy-invite'
@@ -21,7 +23,6 @@ import { previewCanopyInvite } from '@lily/api/services/canopy/endpoints/preview
 import { removeCanopyMember } from '@lily/api/services/canopy/endpoints/remove-canopy-member'
 import { revokeCanopyInvite } from '@lily/api/services/canopy/endpoints/revoke-canopy-invite'
 import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-canopy'
-import { hashInviteToken } from '@lily/api/services/canopy/helpers/invite-token'
 import type { CanopyId } from '@lily/shared'
 import {
   AlreadyInCanopyError,
@@ -119,6 +120,34 @@ describe('createCanopy', () => {
       new AlreadyInCanopyError({ canopyName: 'Home' })
     )
     expect(store.canopies).toHaveLength(1)
+  })
+
+  it('reads the new Canopy back before the transaction that created it commits', async () => {
+    const timeline = createOutboxTimeline()
+
+    const exit = await run(
+      createCanopyStore(),
+      'user-1',
+      Effect.flatMap(CanopyRepository, (repo) =>
+        Effect.provideService(
+          createCanopy({ name: 'Our Flat' }),
+          CanopyRepository,
+          {
+            ...repo,
+            findById: (id) =>
+              Effect.andThen(
+                Effect.sync(() => timeline.record('read')),
+                repo.findById(id)
+              ),
+          }
+        )
+      ),
+      [],
+      timeline
+    )
+
+    expect(Exit.isSuccess(exit)).toBe(true)
+    expect(timeline.events).toEqual(['begin', 'read', 'commit'])
   })
 })
 

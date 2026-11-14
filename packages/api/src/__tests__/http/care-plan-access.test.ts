@@ -3,11 +3,13 @@ import {
   createTestCarePlan,
   createTestCarePlanStep,
 } from '@lily/api/__tests__/fixtures/care-plans'
+import { createTestCarePlant } from '@lily/api/__tests__/fixtures/care-plants'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
-import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
+import { createCarePlanRows } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -19,6 +21,7 @@ import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.r
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import type { Api } from '@lily/api/api'
+import { LifeState } from '@lily/api/contexts/care/domain/care-plant'
 import {
   Authentication,
   CurrentUser,
@@ -75,6 +78,30 @@ const leftStep = createTestCarePlanStep(leftBehind.id, {
   title: 'Repot',
 })
 
+const buriedPlant = createTestPlant({
+  id: crypto.randomUUID(),
+  userId: null,
+  canopyId: 'canopy-1',
+  createdByUserId: alex,
+  diedAt: new Date('2026-11-01'),
+})
+const planOfBuried = (id: string) =>
+  createTestCarePlan({ id, plantId: buriedPlant.id, userId: alex })
+const buriedPlans = {
+  accept: planOfBuried(crypto.randomUUID()),
+  dismiss: planOfBuried(crypto.randomUUID()),
+  complete: planOfBuried(crypto.randomUUID()),
+  uncomplete: planOfBuried(crypto.randomUUID()),
+  dropStep: planOfBuried(crypto.randomUUID()),
+  delete: planOfBuried(crypto.randomUUID()),
+}
+const buriedStepOf = (planId: string) => `${planId.slice(0, -4)}0000`
+const proposedTwice = createTestCarePlan({
+  id: crypto.randomUUID(),
+  plantId: plant.id,
+  userId: alex,
+})
+
 const TestApi = HttpApi.make('carePlanAccess').add(CarePlansApi)
 
 const AuthLive = Layer.succeed(
@@ -88,16 +115,29 @@ const AuthLive = Layer.succeed(
   })
 )
 
+const planRows = createCarePlanRows({
+  plans: [shared, leftBehind, proposedTwice, ...Object.values(buriedPlans)],
+  steps: [
+    step,
+    authorStep,
+    leftStep,
+    ...Object.values(buriedPlans).map((plan) =>
+      createTestCarePlanStep(plan.id, {
+        id: buriedStepOf(plan.id),
+        completedAt: plan === buriedPlans.uncomplete ? new Date() : null,
+      })
+    ),
+  ],
+  plants: [
+    { id: plant.id, name: plant.name, imageUrl: null },
+    { id: leftPlant.id, name: leftPlant.name, imageUrl: null },
+    { id: buriedPlant.id, name: buriedPlant.name, imageUrl: null },
+  ],
+})
+
 const RepositoriesLive = Layer.mergeAll(
-  createMockCarePlanRepository({
-    plans: [shared, leftBehind],
-    steps: [step, authorStep, leftStep],
-    plants: [
-      { id: plant.id, name: plant.name, imageUrl: null },
-      { id: leftPlant.id, name: leftPlant.name, imageUrl: null },
-    ],
-  }),
-  createMockPlantRepository({ plants: [plant, leftPlant] }),
+  planRows.layer,
+  createMockPlantRepository({ plants: [plant, leftPlant, buriedPlant] }),
   createMockCanopyRepository([
     createTestMembership({ userId: alex, role: 'owner' }),
     createTestMembership({ userId: lily }),
@@ -111,7 +151,15 @@ const RepositoriesLive = Layer.mergeAll(
   createMockSqlClient(),
   createMockWeatherProvider(),
   createMockWeatherCache(),
-  createMockWeatherRepository()
+  createMockWeatherRepository(),
+  createInMemoryCare(
+    [
+      createTestCarePlant(plant.id),
+      createTestCarePlant(leftPlant.id),
+      createTestCarePlant(buriedPlant.id, { life: LifeState.Dead() }),
+    ],
+    { plans: planRows }
+  ).layer
 )
 
 const PlatformLive = Layer.mergeAll(
@@ -204,5 +252,55 @@ describe('care plan access over HTTP', () => {
     )
     expect(res.status).toBe(200)
     expect(res.body.chatMessageId).toBe(shared.chatMessageId)
+  })
+
+  it('answers 409 to a second accept of the same plan', async () => {
+    const path = `/care-plans/${proposedTwice.id}/accept`
+
+    const first = await call('PATCH', path, alex)
+    const second = await call('PATCH', path, alex)
+
+    expect(first.status).toBe(200)
+    expect(first.body.status).toBe('accepted')
+    expect(second.status).toBe(409)
+    expect(second.body._tag).toBe('CarePlanNotProposedError')
+  })
+
+  it.each([
+    ['accept', 'PATCH', (id: string) => `/care-plans/${id}/accept`],
+    ['dismiss', 'PATCH', (id: string) => `/care-plans/${id}/dismiss`],
+    [
+      'complete',
+      'PATCH',
+      (id: string) => `/care-plans/${id}/steps/${buriedStepOf(id)}/complete`,
+    ],
+    [
+      'uncomplete',
+      'PATCH',
+      (id: string) => `/care-plans/${id}/steps/${buriedStepOf(id)}/uncomplete`,
+    ],
+    [
+      'dropStep',
+      'DELETE',
+      (id: string) => `/care-plans/${id}/steps/${buriedStepOf(id)}`,
+    ],
+  ] as const)(
+    'answers 404 to %s on a plan of a dead plant (a change: it used to run)',
+    async (command, method, pathOf) => {
+      const res = await call(method, pathOf(buriedPlans[command].id), alex)
+
+      expect(res.status).toBe(404)
+      expect(res.body._tag).toBe('CarePlanNotFoundError')
+    }
+  )
+
+  it('still deletes a plan of a dead plant', async () => {
+    const res = await call(
+      'DELETE',
+      `/care-plans/${buriedPlans.delete.id}`,
+      alex
+    )
+
+    expect(res.status).toBe(200)
   })
 })

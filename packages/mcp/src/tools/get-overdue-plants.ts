@@ -2,35 +2,22 @@ import { ApiClient } from '@lily/mcp/api-client'
 import { escapeInlineMarkdown, ownershipSuffix } from '@lily/mcp/tools/markdown'
 import { toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
-import { endOfDay, isOverdueByDay, localDayKey } from '@lily/shared'
 import type { PlantCareSchedule } from '@lily/shared/plant'
-import { Array, DateTime, Effect, Filter, Match, Option, pipe } from 'effect'
+import { Array, Effect, Filter, Match, Option, pipe } from 'effect'
 
-interface UserDay {
-  readonly now: DateTime.DateTime
-  readonly end: DateTime.DateTime
-  readonly timezone: string
-}
-
-const dueLabel = (
-  schedule: PlantCareSchedule,
-  today: UserDay
-): Option.Option<string> =>
-  Option.flatMap(Option.fromNullishOr(schedule.nextCareAt), (date) =>
-    pipe(
-      Match.value(DateTime.makeUnsafe(date)),
-      Match.when(
-        (due) => isOverdueByDay(due, today.now, today.timezone),
-        (due) =>
-          Option.some(
-            `${schedule.careType} overdue since ${localDayKey(due, today.timezone)}`
-          )
-      ),
-      Match.when(
-        (due) => DateTime.isLessThanOrEqualTo(due, today.end),
-        () => Option.some(`${schedule.careType} due today`)
-      ),
-      Match.orElse(() => Option.none())
+const dueLabel = (schedule: PlantCareSchedule): Option.Option<string> =>
+  pipe(
+    Option.all({
+      status: Option.fromNullishOr(schedule.status),
+      dueDay: Option.fromNullishOr(schedule.dueDay),
+    }),
+    Option.flatMap(({ status, dueDay }) =>
+      Match.valueTags(status, {
+        Overdue: () =>
+          Option.some(`${schedule.careType} overdue since ${dueDay}`),
+        DueToday: () => Option.some(`${schedule.careType} due today`),
+        Upcoming: () => Option.none(),
+      })
     )
   )
 
@@ -42,13 +29,10 @@ export const getOverduePlantsEffect = Effect.fn('MCP.getOverduePlants')(
   function* () {
     const apiClient = yield* ApiClient
 
-    const [result, timezone] = yield* Effect.all(
-      [
-        apiClient.listPlants({ filter: 'overdue', limit: '100' }),
-        apiClient.getUserTimezone(),
-      ],
-      { concurrency: 'unbounded' }
-    )
+    const result = yield* apiClient.listPlants({
+      filter: 'overdue',
+      limit: '100',
+    })
 
     if (Array.isReadonlyArrayEmpty(result.items)) {
       return {
@@ -56,9 +40,6 @@ export const getOverduePlantsEffect = Effect.fn('MCP.getOverduePlants')(
         plants: [] as readonly PlantSummary[],
       }
     }
-
-    const now = DateTime.nowUnsafe()
-    const today: UserDay = { now, end: endOfDay(now, timezone), timezone }
 
     const { plants, lines } = Array.reduce(
       result.items,
@@ -74,11 +55,7 @@ export const getOverduePlantsEffect = Effect.fn('MCP.getOverduePlants')(
 
         const scheduleInfo = pipe(
           plant.schedules,
-          Array.filterMap(
-            Filter.fromPredicateOption((s: PlantCareSchedule) =>
-              dueLabel(s, today)
-            )
-          ),
+          Array.filterMap(Filter.fromPredicateOption(dueLabel)),
           Array.join(', ')
         )
 

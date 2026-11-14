@@ -1,3 +1,4 @@
+import { createTestCarePlan } from '@lily/api/__tests__/fixtures/care-plans'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   mockChatMessages,
@@ -7,8 +8,13 @@ import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
-import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
+import {
+  type CarePlanRows,
+  createCarePlanRows,
+  createMockCarePlanRepository,
+} from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
@@ -33,6 +39,7 @@ import {
   Exit,
   Fiber,
   Layer,
+  Option,
   References,
   Stream,
 } from 'effect'
@@ -85,6 +92,7 @@ describe('streamChatMessage', () => {
       userId?: string
       mockSteps?: readonly import('@lily/api/services/ai-chat/plant-chat').StepData[]
       uiChunks?: readonly Record<string, unknown>[]
+      carePlans?: CarePlanRows
     } = {}
   ) =>
     Layer.mergeAll(
@@ -110,7 +118,9 @@ describe('streamChatMessage', () => {
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository([]),
       createMockDiagnosisRepository([]),
-      createMockCarePlanRepository(),
+      opts.carePlans?.layer ?? createMockCarePlanRepository(),
+      createInMemoryCare([], opts.carePlans ? { plans: opts.carePlans } : {})
+        .layer,
       createMockUserRepository([]),
       createMockUsageTracker({
         limitReached: opts.aiChatLimitReached ?? false,
@@ -560,6 +570,47 @@ describe('streamChatMessage', () => {
       const eventTags = publishedEvents.map((e) => e._tag)
       expect(eventTags).toContain('ChatMessageSent')
       expect(eventTags).toContain('DiseaseIdentified')
+    })
+
+    it('links a proposed care plan to the message that asked for it', async () => {
+      const messages: ChatMessage[] = []
+      const carePlans = createCarePlanRows({
+        plans: [createTestCarePlan({ id: 'plan-123' })],
+      })
+
+      const result = await Effect.runPromise(
+        streamChatMessage(testConversation, {
+          message: 'What should I do?',
+        }).pipe(
+          Effect.provide(
+            createTestLayer({
+              messages,
+              carePlans,
+              plantChatResponse: 'Here is a plan.',
+              mockSteps: [
+                {
+                  text: 'Here is a plan.',
+                  toolResults: [
+                    {
+                      toolName: 'proposeCarePlan',
+                      toolCallId: 'call-1',
+                      input: { title: 'Rescue', steps: [] },
+                      output: { carePlanId: 'plan-123' },
+                    },
+                  ],
+                },
+              ],
+            })
+          )
+        )
+      )
+      await drainSseStream(result)
+
+      const asked = Array.findFirst(messages, (m) => m.role === 'user')
+      expect(Option.isSome(asked)).toBe(true)
+      expect(Array.map(carePlans.plans, (plan) => plan.chatMessageId)).toEqual(
+        Array.map(Option.toArray(asked), (m) => m.id)
+      )
     })
   })
 })

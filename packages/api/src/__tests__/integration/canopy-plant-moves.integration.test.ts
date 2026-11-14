@@ -1,6 +1,13 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import { settled } from '@lily/api/__tests__/integration/canopy-layers'
+import { sessionsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -12,7 +19,7 @@ import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-plant-with-canopy'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import { withPlantPermit } from '@lily/api/services/plants/helpers/with-plant-access'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -28,6 +35,7 @@ const ReposLive = Layer.mergeAll(
   AchievementRepositoryLive,
   CanopyRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
@@ -40,6 +48,10 @@ const appAs = (userId: string) =>
   Layer.mergeAll(
     LimitCheckerLive,
     createMockMessageQueue(),
+    createMockEventBus(),
+    createMockWeatherProvider(),
+    createMockWeatherCache(),
+    createMockWeatherRepository(),
     createMockCurrentUser({ id: userId })
   ).pipe(Layer.provideMerge(ReposLive))
 
@@ -77,16 +89,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return row?.n
     }
 
-    const untilALockWait = async () => {
-      for (let waited = 0; waited < 100; waited++) {
-        const blocked = await pool.query(
-          'SELECT count(*)::int AS n FROM pg_locks WHERE NOT granted'
-        )
-        if (blocked.rows[0]?.n > 0) return
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-    }
-
     const reviveWhileMoveWaits = async <A>(
       lock: string,
       plantId: string,
@@ -100,7 +102,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           plantId,
         ])
         const moved = move()
-        await untilALockWait()
+        await sessionsWaitingForALock(pool, 1)
         await client.query('COMMIT')
         return await moved
       } finally {
@@ -159,8 +161,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         dead.id,
         () =>
           Effect.runPromiseExit(
-            withPlantAuth(dead.id, 'share').pipe(
-              Effect.flatMap((plant) => sharePlantWithCanopy(plant, {})),
+            withPlantPermit(dead.id, 'share').pipe(
+              Effect.flatMap((permit) => sharePlantWithCanopy(permit, {})),
+              settled,
               Effect.provide(appAs(alexId))
             )
           )
@@ -187,8 +190,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         dead.id,
         () =>
           Effect.runPromiseExit(
-            withPlantAuth(dead.id, 'unshare').pipe(
-              Effect.flatMap((plant) => unsharePlant(plant, {})),
+            withPlantPermit(dead.id, 'unshare').pipe(
+              Effect.flatMap((permit) => unsharePlant(permit, {})),
+              settled,
               Effect.provide(appAs(lilyId))
             )
           )
@@ -203,8 +207,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const ownerUnshares = (plantId: string) =>
       Effect.runPromiseExit(
-        withPlantAuth(plantId, 'unshare').pipe(
-          Effect.flatMap((plant) => unsharePlant(plant, {})),
+        withPlantPermit(plantId, 'unshare').pipe(
+          Effect.flatMap((permit) => unsharePlant(permit, {})),
+          settled,
           Effect.provide(appAs(alexId))
         )
       )

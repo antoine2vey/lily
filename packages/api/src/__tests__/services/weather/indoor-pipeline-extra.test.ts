@@ -1,7 +1,7 @@
 /**
  * Extra full-pipeline integration tests for the location-aware indoor
  * watering-demand model, driven end-to-end through `readjustCareSchedules` to
- * the persisted `nextCareAt`.
+ * the days it asks Care to move the watering due day by.
  *
  * These complement (do NOT duplicate) the three Paris-centric cases in
  * `weather-scheduler/readjust-care-schedules-integration.test.ts`. The focus
@@ -11,9 +11,9 @@
  *   - SOUTHERN HEMISPHERE: seasons flip end-to-end — an indoor plant waters
  *     SOONER in December (southern summer) than in June (southern winter).
  *   - EQUATOR: ~12h photoperiod year-round, so June and December produce a
- *     near-identical persisted nextCareAt.
+ *     near-identical shift.
  *   - MULTI-PLANT single run: several indoor categories in one room each get
- *     bounded, independent dates.
+ *     a bounded, independent shift.
  *   - LEGACY PATH: an OUTDOOR plant's adjustment never depends on latitude
  *     (the indoor model only engages for indoor plants).
  *
@@ -30,13 +30,14 @@ import {
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { buildWeatherCtx } from '@lily/api/__tests__/fixtures/weather'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import { DueMove } from '@lily/api/contexts/care'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import {
   readjustCareSchedules,
@@ -49,23 +50,16 @@ import { describe, expect, it } from 'vitest'
 
 const oneDayMs = 24 * 60 * 60 * 1000
 
-/** Get timestamp — test setup guarantees non-null dates. */
-const toMs = (date: Date | null | undefined): number => {
-  if (!date) throw new Error('Expected non-null date in test')
-  return date.getTime()
-}
+type Moved = ReturnType<typeof createStubCare>['moved']
 
-const findSchedule = (
-  schedules: CareScheduleRow[],
-  plantId: string,
-  careType: string
-) =>
+const wateringShiftDays = (moved: Moved, plantId: string): number =>
   pipe(
-    Array.findFirst(
-      schedules,
-      (s) => s.plantId === plantId && s.careType === careType
-    ),
-    Option.getOrNull
+    Array.flatMap(moved, (command) => command.moves),
+    Array.filter((m) => m.plantId === plantId && m.careType === 'watering'),
+    Array.map(({ move }) => move),
+    Array.findFirst(DueMove.$is('By')),
+    Option.map((move) => move.days),
+    Option.getOrElse(() => 0)
   )
 
 /** Context map keyed by the user's rounded coordinates (matches production). */
@@ -132,7 +126,7 @@ const threeDaysAgo = new Date(now - 3 * oneDayMs)
 
 // A 14-day base frequency gives the integer-day delta model enough resolution
 // to register the (small but real) seasonal photoperiod swing as a DIFFERENT
-// persisted day between summer and winter. At 7d the swing rounds to the same
+// shift between summer and winter. At 7d the swing rounds to the same
 // day in both seasons; at 14d (cap ±7) it does not. Watered 3d ago, due in 11d
 // → mid-cycle, room to move either direction within the ±ceil(14/2)=7 cap.
 const BASE_FREQ_DAYS = 14
@@ -165,15 +159,17 @@ const indoorPlant = (
 
 /**
  * Run a set of plants for a single user through one weather context and return
- * the persisted schedules array (mutated in place by the scheduler).
+ * the due-day moves the scheduler asked Care for.
  */
 const runScheduler = async (
   user: ReturnType<typeof createTestUser>,
   plants: Array<ReturnType<typeof createTestPlant>>,
   ctx: WeatherContext
-): Promise<CareScheduleRow[]> => {
+): Promise<Moved> => {
   const schedules = schedulesFromPlants(plants)
+  const care = createStubCare()
   const layers = Layer.mergeAll(
+    care.layer,
     MockSqlClientLive,
     createMockUserRepository([user]),
     createMockPlantRepository({ plants, rooms: allRooms }),
@@ -188,18 +184,15 @@ const runScheduler = async (
       contextMapFor(user.latitude ?? 0, user.longitude ?? 0, ctx)
     ).pipe(Effect.provide(layers))
   )
-  return schedules
+  return care.moved
 }
 
-/** Persisted next watering timestamp for a single plant after one run. */
-const runOnceNext = async (
+const runOnceShift = async (
   user: ReturnType<typeof createTestUser>,
   plant: ReturnType<typeof createTestPlant>,
   ctx: WeatherContext
-): Promise<number> => {
-  const schedules = await runScheduler(user, [plant], ctx)
-  return toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt)
-}
+): Promise<number> =>
+  wateringShiftDays(await runScheduler(user, [plant], ctx), plant.id)
 
 describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
   describe('southern hemisphere: seasons flip end-to-end (Sydney)', () => {
@@ -214,7 +207,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
 
     // Same indoor weather both runs — only the date (photoperiod) differs. A
     // Tropical plant (high photoperiod sensitivity) makes the seasonal swing
-    // big enough to flip the persisted day.
+    // big enough to flip the shift.
     const juneCtx = buildWeatherCtx(
       datedForecast('2026-06', { temperatureMean: 18, cloudCover: 40 })
     )
@@ -223,46 +216,45 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
     )
 
     it('waters an indoor plant SOONER in December than in June (southern summer)', async () => {
-      const decNext = await runOnceNext(
+      const decShift = await runOnceShift(
         sydney,
         indoorPlant('syd-dec', sydney.id, 'room-bright', 'Tropical'),
         decemberCtx
       )
-      const juneNext = await runOnceNext(
+      const juneShift = await runOnceShift(
         sydney,
         indoorPlant('syd-jun', sydney.id, 'room-bright', 'Tropical'),
         juneCtx
       )
       // Southern summer (December) = long bright days → active growth → water
-      // sooner → earlier persisted date than southern winter (June).
-      expect(decNext).toBeLessThan(juneNext)
+      // sooner → earlier due day than southern winter (June).
+      expect(decShift).toBeLessThan(juneShift)
     })
 
     it('is the inverse of a northern-hemisphere user at the same coordinates', async () => {
       // Same Sydney coords but with a northern-hemisphere latitude would flip
       // the result; we verify the southern user itself does not behave like the
       // north by checking June (southern winter) waters LATER than December.
-      const decNext = await runOnceNext(
+      const decShift = await runOnceShift(
         sydney,
         indoorPlant('syd-dec2', sydney.id, 'room-bright', 'Tropical'),
         decemberCtx
       )
-      const juneNext = await runOnceNext(
+      const juneShift = await runOnceShift(
         sydney,
         indoorPlant('syd-jun2', sydney.id, 'room-bright', 'Tropical'),
         juneCtx
       )
-      expect(juneNext).toBeGreaterThanOrEqual(decNext)
+      expect(juneShift).toBeGreaterThanOrEqual(decShift)
     })
 
-    it('keeps the persisted date within the ±ceil(freq/2) cap on both runs', async () => {
+    it('keeps the shift within the ±ceil(freq/2) cap on both runs', async () => {
       for (const ctx of [juneCtx, decemberCtx]) {
-        const next = await runOnceNext(
+        const shiftDays = await runOnceShift(
           sydney,
           indoorPlant('syd-cap', sydney.id, 'room-bright', 'Tropical'),
           ctx
         )
-        const shiftDays = Math.round((next - midCycleNext.getTime()) / oneDayMs)
         expect(Math.abs(shiftDays)).toBeLessThanOrEqual(maxShiftDays)
       }
     })
@@ -285,31 +277,30 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       datedForecast('2026-12', { temperatureMean: 28, cloudCover: 50 })
     )
 
-    it('June and December yield a near-identical persisted nextCareAt', async () => {
-      const juneNext = await runOnceNext(
+    it('June and December yield a near-identical shift', async () => {
+      const juneShift = await runOnceShift(
         singapore,
         indoorPlant('sg-jun', singapore.id, 'room-bright', 'Tropical'),
         juneCtx
       )
-      const decNext = await runOnceNext(
+      const decShift = await runOnceShift(
         singapore,
         indoorPlant('sg-dec', singapore.id, 'room-bright', 'Tropical'),
         decemberCtx
       )
       // ~12h day length all year → the seasonal swing is negligible. Allow at
       // most a 1-day rounding wobble between the two seasons.
-      const diffDays = Math.abs(juneNext - decNext) / oneDayMs
-      expect(diffDays).toBeLessThanOrEqual(1)
+      expect(Math.abs(juneShift - decShift)).toBeLessThanOrEqual(1)
     })
 
     it('equator seasonal swing is strictly smaller than the Sydney swing', async () => {
       // Equator swing
-      const sgJune = await runOnceNext(
+      const sgJune = await runOnceShift(
         singapore,
         indoorPlant('sg-jun2', singapore.id, 'room-bright', 'Tropical'),
         juneCtx
       )
-      const sgDec = await runOnceNext(
+      const sgDec = await runOnceShift(
         singapore,
         indoorPlant('sg-dec2', singapore.id, 'room-bright', 'Tropical'),
         decemberCtx
@@ -331,12 +322,12 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       const sydDecCtx = buildWeatherCtx(
         datedForecast('2026-12', { temperatureMean: 18, cloudCover: 40 })
       )
-      const sydJune = await runOnceNext(
+      const sydJune = await runOnceShift(
         sydney,
         indoorPlant('syd-swing-jun', sydney.id, 'room-bright', 'Tropical'),
         sydJuneCtx
       )
-      const sydDec = await runOnceNext(
+      const sydDec = await runOnceShift(
         sydney,
         indoorPlant('syd-swing-dec', sydney.id, 'room-bright', 'Tropical'),
         sydDecCtx
@@ -364,7 +355,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       datedForecast('2026-06', { temperatureMean: 22, cloudCover: 30 })
     )
 
-    it('each plant gets an independent, bounded nextCareAt', async () => {
+    it('each plant gets an independent, bounded shift', async () => {
       const succulent = indoorPlant(
         'multi-succulent',
         paris.id,
@@ -384,7 +375,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         'Tropical'
       )
 
-      const schedules = await runScheduler(
+      const moved = await runScheduler(
         paris,
         [succulent, foliage, tropical],
         summerCtx
@@ -392,12 +383,11 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
 
       const ids = ['multi-succulent', 'multi-foliage', 'multi-tropical']
       for (const id of ids) {
-        const next = toMs(findSchedule(schedules, id, 'watering')?.nextCareAt)
-        const shiftDays = Math.round((next - midCycleNext.getTime()) / oneDayMs)
+        const shiftDays = wateringShiftDays(moved, id)
         // Every plant stays within the ±ceil(freq/2) cap and never lands before
         // lastWatered + 1 day.
         expect(Math.abs(shiftDays)).toBeLessThanOrEqual(maxShiftDays)
-        expect(next).toBeGreaterThanOrEqual(toMs(threeDaysAgo) + oneDayMs)
+        expect(BASE_FREQ_DAYS + shiftDays).toBeGreaterThanOrEqual(1)
       }
     })
 
@@ -415,28 +405,20 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         'Tropical'
       )
 
-      const schedules = await runScheduler(
-        paris,
-        [succulent, tropical],
-        summerCtx
-      )
+      const moved = await runScheduler(paris, [succulent, tropical], summerCtx)
 
-      const succulentNext = toMs(
-        findSchedule(schedules, 'multi2-succulent', 'watering')?.nextCareAt
-      )
-      const tropicalNext = toMs(
-        findSchedule(schedules, 'multi2-tropical', 'watering')?.nextCareAt
-      )
       // Tropical responds more strongly to long summer days → equal or earlier
       // (never later) than the drought-adapted Succulent.
-      expect(tropicalNext).toBeLessThanOrEqual(succulentNext)
+      expect(wateringShiftDays(moved, 'multi2-tropical')).toBeLessThanOrEqual(
+        wateringShiftDays(moved, 'multi2-succulent')
+      )
     })
   })
 
   describe('legacy path: outdoor plant is latitude-independent', () => {
     // The indoor model only engages for indoor plants. An OUTDOOR plant uses
     // the temperature × humidity × wind multiplier regardless of latitude, so
-    // its persisted date must be identical whether the user sits in the
+    // its shift must be identical whether the user sits in the
     // northern or southern hemisphere with otherwise-identical weather.
     const northUser = createTestUser({
       id: 'user-north-outdoor',
@@ -488,28 +470,26 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         ],
       })
 
-    it('produces the same persisted shift in both hemispheres', async () => {
-      const northNext = await runOnceNext(
+    it('produces the same shift in both hemispheres', async () => {
+      const northShift = await runOnceShift(
         northUser,
         outdoorPlant('out-north', northUser.id),
         buildWeatherCtx(outdoorWeather())
       )
-      const southNext = await runOnceNext(
+      const southShift = await runOnceShift(
         southUser,
         outdoorPlant('out-south', southUser.id),
         buildWeatherCtx(outdoorWeather())
       )
-      // Latitude does not enter the legacy outdoor multiplier → identical dates.
-      expect(southNext).toBe(northNext)
+      expect(southShift).toBe(northShift)
     })
 
     it('still runs and stays within the cap (outdoor cold → delay)', async () => {
-      const next = await runOnceNext(
+      const shiftDays = await runOnceShift(
         northUser,
         outdoorPlant('out-cap', northUser.id),
         buildWeatherCtx(outdoorWeather())
       )
-      const shiftDays = Math.round((next - midCycleNext.getTime()) / oneDayMs)
       // Cold outdoor week slows water use → non-negative shift, within cap.
       expect(shiftDays).toBeGreaterThanOrEqual(0)
       expect(shiftDays).toBeLessThanOrEqual(maxShiftDays)
@@ -519,7 +499,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
   describe('null-latitude user is skipped upstream (no crash, no change)', () => {
     // When latitude is null the readjust pipeline skips the whole user before
     // any plant logic runs, so the indoor model never engages and the schedule
-    // is left untouched. We assert it neither throws nor mutates the date.
+    // is left untouched. We assert it neither throws nor asks Care for a move.
     const noLatUser = createTestUser({
       id: 'user-no-lat',
       weatherEnabled: true,
@@ -532,7 +512,9 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
     it('leaves the indoor plant schedule unchanged', async () => {
       const plant = indoorPlant('no-lat-indoor', noLatUser.id, 'room-indoor')
       const schedules = schedulesFromPlants([plant])
+      const care = createStubCare()
       const layers = Layer.mergeAll(
+        care.layer,
         MockSqlClientLive,
         createMockUserRepository([noLatUser]),
         createMockPlantRepository({ plants: [plant], rooms: allRooms }),
@@ -554,11 +536,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         ).pipe(Effect.provide(layers))
       )
 
-      // Date is exactly the original mid-cycle value (no adjustment applied).
-      const next = toMs(
-        findSchedule(schedules, 'no-lat-indoor', 'watering')?.nextCareAt
-      )
-      expect(next).toBe(midCycleNext.getTime())
+      expect(care.moved).toEqual([])
     })
   })
 })

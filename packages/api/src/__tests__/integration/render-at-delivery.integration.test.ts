@@ -1,3 +1,4 @@
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import {
   createMockAlerter,
@@ -9,6 +10,7 @@ import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -52,6 +54,7 @@ const RepositoriesLive = Layer.mergeAll(
   CanopyRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
@@ -276,11 +279,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
           .returning()
         if (!plant) throw new Error('plant insert returned nothing')
+        const dueAt = new Date(Date.now() - 86_400_000)
         await db.insert(schema.plantCareSchedules).values({
           plantId: plant.id,
           careType: 'watering',
           frequencyDays: 7,
-          nextCareAt: new Date(Date.now() - 86_400_000),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         })
         return plant
       }
@@ -476,6 +481,56 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           expect(await rowsOf(user.id)).toEqual([])
         })
       }
+
+      const seedDailyDueToday = async (userId: string) => {
+        const plant = await seedPlant(userId, 'Daily')
+        const dueNow = new Date()
+        await db
+          .update(schema.plantCareSchedules)
+          .set({
+            frequencyDays: 1,
+            nextCareAt: dueNow,
+            dueDay: careDayOf(dueNow),
+          })
+          .where(eq(schema.plantCareSchedules.plantId, plant.id))
+        await db.insert(schema.notifications).values({
+          type: 'watering_reminder',
+          scheduledAt: new Date(Date.now() - 60_000),
+          userId,
+          plantId: plant.id,
+          occasionDay: new Date().toISOString().slice(0, 10),
+        })
+        return plant
+      }
+
+      it('drops a queued reminder for today once a daily care moved the due day to tomorrow, with no push', async () => {
+        const user = await seedUser('daily-cared')
+        const plant = await seedDailyDueToday(user.id)
+
+        const [message] = await enqueueDue()
+        const dueTomorrow = new Date(Date.now() + 86_400_000)
+        await db
+          .update(schema.plantCareSchedules)
+          .set({ nextCareAt: dueTomorrow, dueDay: careDayOf(dueTomorrow) })
+          .where(eq(schema.plantCareSchedules.plantId, plant.id))
+        const result = await consume(message)
+
+        expect(Exit.isSuccess(result.exit)).toBe(true)
+        expect(result.pushes).toEqual([])
+        expect(await rowsOf(user.id)).toEqual([])
+      })
+
+      it('pushes a queued reminder for today while the daily care is still due today', async () => {
+        const user = await seedUser('daily-due')
+        await seedDailyDueToday(user.id)
+
+        const [message] = await enqueueDue()
+        const result = await consume(message)
+
+        expect(Exit.isSuccess(result.exit)).toBe(true)
+        expect(result.pushes).toHaveLength(1)
+        expect(await rowsOf(user.id)).toMatchObject([{ status: 'sent' }])
+      })
 
       it('renders a retried push on redelivery and dead-letters after the last attempt', async () => {
         const user = await seedUser('retry')

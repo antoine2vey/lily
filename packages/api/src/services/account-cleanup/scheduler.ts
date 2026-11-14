@@ -1,6 +1,6 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { leaveCanopyAndDelete } from '@lily/api/services/canopy/helpers/leave-canopy'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
+import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { daysAgoAsDate } from '@lily/shared'
 import { Array, Effect } from 'effect'
 
@@ -22,7 +22,7 @@ export const cleanupExpiredAccounts = Effect.gen(function* () {
     expiredUsers,
     (user) =>
       Effect.gen(function* () {
-        yield* leaveCanopyAndDelete(user.id)(userRepo.delete(user.id))
+        yield* purgeAccount(user.id)
         yield* Effect.log('Account permanently deleted', {
           userId: user.id,
           deletedAt: user.deletedAt,

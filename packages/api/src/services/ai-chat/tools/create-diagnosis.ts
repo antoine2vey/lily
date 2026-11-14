@@ -1,4 +1,6 @@
-import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
+import { CarePlans } from '@lily/api/contexts/care'
+import type { PlantPermit } from '@lily/api/kernel/permit'
+import { transact } from '@lily/api/kernel/transact'
 import {
   type CreateDiagnosisData,
   DiagnosisRepository,
@@ -8,11 +10,10 @@ import { type Tool, tool } from 'ai'
 import { Array, Effect, Option, pipe } from 'effect'
 import { z } from 'zod'
 
-import { carePlanStepSchema, toCreateStepData } from './care-plan-step-schema'
+import { carePlanStepSchema, toProposedStep } from './care-plan-step-schema'
 import type { ToolDeps } from './index'
 
-// Plant-only tool: caller is expected to provide plantId.
-type PlantToolDeps = ToolDeps & { plantId: string }
+type PlantToolDeps = ToolDeps & { permit: PlantPermit<'chat'> }
 
 export const createDiagnosisTool = (deps: PlantToolDeps): Tool =>
   tool({
@@ -47,14 +48,15 @@ export const createDiagnosisTool = (deps: PlantToolDeps): Tool =>
       Effect.runPromiseWith(deps.runtime)(
         Effect.gen(function* () {
           const repo = yield* DiagnosisRepository
-          const carePlanRepo = yield* CarePlanRepository
+          const carePlans = yield* CarePlans
+          const { permit } = deps
           const timezone = pipe(
             Option.fromNullishOr(deps.timezone),
             Option.getOrElse(() => 'UTC')
           )
 
           const data: CreateDiagnosisData = {
-            plantId: deps.plantId,
+            plantId: permit.plantId,
             userId: deps.userId,
             diseaseName: params.diseaseName,
             severity: params.severity,
@@ -73,20 +75,25 @@ export const createDiagnosisTool = (deps: PlantToolDeps): Tool =>
             }),
           }
 
-          const diagnosis = yield* repo.create(data)
-
-          const plan = yield* carePlanRepo.create({
-            plantId: deps.plantId,
-            userId: deps.userId,
-            title: params.diseaseName,
-            source: 'ai',
-            diagnosisId: diagnosis.id,
-            steps: Array.map(params.treatmentSteps, (step) =>
-              toCreateStepData(step, timezone)
-            ),
-          })
-
-          return { diagnosisId: diagnosis.id, carePlanId: plan.id }
+          return yield* transact(
+            Effect.gen(function* () {
+              const { planId } = yield* carePlans.propose({
+                permit,
+                title: params.diseaseName,
+                source: 'ai',
+                steps: Array.map(params.treatmentSteps, (step) =>
+                  toProposedStep(step, timezone)
+                ),
+              })
+              const diagnosis = yield* repo.create(data)
+              yield* carePlans.linkToDiagnosis({
+                permit,
+                planId,
+                diagnosisId: diagnosis.id,
+              })
+              return { diagnosisId: diagnosis.id, carePlanId: planId }
+            })
+          )
         })
       ),
   })

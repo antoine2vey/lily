@@ -1,9 +1,11 @@
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
+import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -28,13 +30,15 @@ const mockAdminContext: UserProfile = {
 
 const mockAdminLayer = Layer.mergeAll(
   Layer.succeed(AdminUser, mockAdminContext),
+  createInMemoryCanopy().layer,
   createMockCanopyRepository(),
   createMockCareScheduleRepository(),
-  createMockDelegationRepository(),
+  createInMemoryAbsence().layer,
   createMockNotificationRepository([]),
   createMockMessageQueue(),
   createMockPlantRepository({ plants: [] }),
-  MockSqlClientLive
+  MockSqlClientLive,
+  MockOutboxLive
 )
 
 describe('deleteUser', () => {

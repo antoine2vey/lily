@@ -1,4 +1,13 @@
 import { randomUUID } from 'node:crypto'
+import {
+  delivered,
+  waterAsCurrentUser,
+} from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import {
+  deadlocks,
+  waitsForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -9,6 +18,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -20,14 +30,13 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
-import {
-  PlantRepository,
-  PlantRepositoryLive,
-} from '@lily/api/repositories/plant.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
-import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import {
+  UserRepository,
+  UserRepositoryLive,
+} from '@lily/api/repositories/user.repository'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
-import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -53,6 +62,7 @@ const BaseLive = Layer.mergeAll(
   PlantRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   NotificationRepositoryLive,
   UserRepositoryLive,
   CarePlanRepositoryLive,
@@ -84,7 +94,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const as = <A, E, R>(userId: string, effect: Effect.Effect<A, E, R>) =>
       runtime.runPromiseExit(
-        effect.pipe(
+        delivered(effect).pipe(
           Effect.provide(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId, name: userId }),
@@ -102,14 +112,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.provideService(References.MinimumLogLevel, 'None')
         ) as Effect.Effect<A, E, Layer.Success<typeof BaseLive>>
       )
-
-    const deadlocks = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1200))
-      const { rows } = await pool.query<{ deadlocks: string }>(
-        `SELECT deadlocks::text AS deadlocks FROM pg_stat_database WHERE datname = current_database()`
-      )
-      return Number(rows[0]?.deadlocks ?? 0)
-    }
 
     const user = async (prefix: string) => {
       const name = `${prefix}-${randomUUID().slice(0, 8)}`
@@ -145,11 +147,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .returning()
       if (!plant) throw new Error('Failed to create plant')
+      const dueAt = new Date(Date.now() - day)
       await db.insert(schema.plantCareSchedules).values({
         plantId: plant.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: new Date(Date.now() - day),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       const [delegation] = await db
         .insert(schema.careDelegations)
@@ -198,21 +202,23 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       ).rows[0]?.n ?? 0
 
-    const untilBlockedOrSettled = async (writer: Promise<unknown>) => {
-      let settled = false
-      void writer.finally(() => {
-        settled = true
-      })
-      for (const _ of Arr.range(1, 60)) {
-        const { rows } = await pool.query<{ waiting: number }>(
-          `SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`
-        )
-        if (settled || (rows[0]?.waiting ?? 0) > 0) return
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-    }
+    const optOutPausedHoldingItsUserRow = (
+      reached: Deferred.Deferred<void>,
+      release: Deferred.Deferred<void>
+    ) =>
+      Layer.effect(
+        UserRepository,
+        Effect.map(UserRepository, (repo) => ({
+          ...repo,
+          update: (id, data) =>
+            repo.update(id, data).pipe(
+              Effect.tap(() => Deferred.succeed(reached, undefined)),
+              Effect.tap(() => Deferred.await(release))
+            ),
+        }))
+      )
 
-    const optOutPausedBeforeDelete = (
+    const carePausedBeforeRowLocks = (
       reached: Deferred.Deferred<void>,
       release: Deferred.Deferred<void>
     ) =>
@@ -220,37 +226,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         NotificationRepository,
         Effect.map(NotificationRepository, (repo) => ({
           ...repo,
-          deletePendingByUserIdAndTypes: (userId, types) =>
+          lockReminders: (query) =>
             Deferred.succeed(reached, undefined).pipe(
               Effect.andThen(Deferred.await(release)),
-              Effect.andThen(repo.deletePendingByUserIdAndTypes(userId, types))
+              Effect.andThen(repo.lockReminders(query))
             ),
         }))
       )
-
-    const carePausedBeforeOverdueDelete = (
-      reached: Deferred.Deferred<void>,
-      release: Deferred.Deferred<void>
-    ) =>
-      Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
-          ...repo,
-          deletePendingByPlantsAndType: (plantIds, type) =>
-            Deferred.succeed(reached, undefined).pipe(
-              Effect.andThen(Deferred.await(release)),
-              Effect.andThen(repo.deletePendingByPlantsAndType(plantIds, type))
-            ),
-        }))
-      )
-
-    const careOne = (plantId: string) =>
-      Effect.gen(function* () {
-        const plants = yield* PlantRepository
-        const plant = yield* plants.findById(plantId)
-        if (plant === null) return yield* Effect.die(`no plant ${plantId}`)
-        return yield* executePlantCare(plant, { plantId, careType: 'watering' })
-      })
 
     beforeAll(async () => {
       pool = new pg.Pool({ connectionString: process.env.DATABASE_URL_TEST })
@@ -264,7 +246,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     const raceOptOut = async (bulk: boolean) => {
-      const before = await deadlocks()
+      const before = await deadlocks(pool)
       const failures: string[] = []
       for (const round of Arr.range(1, 10)) {
         const owner = await user(`OptOutOwner${round}`)
@@ -278,7 +260,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           caretaker,
           updateUserSettings({ notifications: { careReminders: false } }).pipe(
             Effect.provide(
-              optOutPausedBeforeDelete(optOutReached, optOutRelease)
+              optOutPausedHoldingItsUserRow(optOutReached, optOutRelease)
             )
           )
         )
@@ -286,22 +268,29 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         const careReached = Deferred.makeUnsafe<void>()
         const careRelease = Deferred.makeUnsafe<void>()
-        const paused = carePausedBeforeOverdueDelete(careReached, careRelease)
+        const paused = carePausedBeforeRowLocks(careReached, careRelease)
         const care: Promise<Exit.Exit<unknown, unknown>> = bulk
           ? as(
               owner,
-              careMultiplePlants({
-                plantIds: [plantId],
-                careType: 'watering',
-              }).pipe(Effect.provide(paused))
+              delivered(
+                careMultiplePlants({
+                  plantIds: [plantId],
+                  careType: 'watering',
+                })
+              ).pipe(Effect.provide(paused))
             )
-          : as(owner, careOne(plantId).pipe(Effect.provide(paused)))
+          : as(
+              owner,
+              delivered(waterAsCurrentUser(plantId)).pipe(
+                Effect.provide(paused)
+              )
+            )
         await Promise.race([
           Effect.runPromise(Deferred.await(careReached)),
-          untilBlockedOrSettled(care),
+          waitsForALock(pool, care),
         ])
         Deferred.doneUnsafe(optOutRelease, Exit.void)
-        await untilBlockedOrSettled(optOut)
+        await waitsForALock(pool, optOut)
         Deferred.doneUnsafe(careRelease, Exit.void)
         const [optedOut, cared] = await Promise.all([optOut, care])
 
@@ -313,7 +302,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
       expect(failures).toEqual([])
-      expect((await deadlocks()) - before).toBe(0)
+      expect((await deadlocks(pool)) - before).toBe(0)
     }
 
     it(

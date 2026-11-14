@@ -1,9 +1,8 @@
+import { Reminders } from '@lily/api/contexts/reminders'
 import { type AppEvent, EventBus } from '@lily/api/events'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
-import type { CareType } from '@lily/shared'
 import {
   type IPushService,
   type LiveActivityPushMessage,
@@ -48,29 +47,14 @@ const sendWithLogging = (
   )
 }
 
-const refreshLiveActivity = (params: {
-  userId: string
-  exclude?: { plantId: string; careType: CareType }
-}) =>
+const refreshLiveActivity = (userId: string) =>
   Effect.gen(function* () {
     const activityRepo = yield* ActivityPushTokenRepository
     const pushService = yield* PushService
-    const activities = yield* activityRepo.findActiveActivitiesByUserId(
-      params.userId
-    )
+    const activities = yield* activityRepo.findActiveActivitiesByUserId(userId)
     if (Array.isReadonlyArrayEmpty(activities)) return
 
-    // CareLogCreated excludes the just-completed (plantId, careType) pair.
-    // Care publishes after its transaction commits, so the schedule row
-    // usually holds the new nextCareAt already. A backdated care can still
-    // leave that date due today, and the exclusion keeps the done task off
-    // the card. Lifecycle events need no exclusion: the plant row is
-    // committed before they are published and findPendingByUser already
-    // skips dead plants.
-    const contentState = yield* buildLiveActivityContentState(
-      params.userId,
-      params.exclude
-    )
+    const contentState = yield* buildLiveActivityContentState(userId)
 
     yield* Effect.forEach(
       activities,
@@ -110,11 +94,7 @@ const refreshLiveActivity = (params: {
     )
   })
 
-const refreshCardsFor = (params: {
-  actorId: string
-  plantId: string
-  exclude?: { plantId: string; careType: CareType }
-}) =>
+const refreshCardsFor = (params: { actorId: string; plantId: string }) =>
   Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
     const plant = Option.fromNullishOr(
@@ -122,7 +102,7 @@ const refreshCardsFor = (params: {
     )
     const recipients = yield* Option.match(plant, {
       onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
-      onSome: reminderRecipients,
+      onSome: Reminders.audienceOf,
     })
     const owner = pipe(
       plant,
@@ -136,11 +116,7 @@ const refreshCardsFor = (params: {
     )
     yield* Effect.forEach(
       Array.dedupe([params.actorId, ...owner, ...recipients]),
-      (userId) =>
-        refreshLiveActivity({
-          userId,
-          ...(params.exclude ? { exclude: params.exclude } : {}),
-        }),
+      refreshLiveActivity,
       { discard: true }
     )
   })
@@ -149,14 +125,7 @@ const refreshCardsFor = (params: {
 // variants are no-ops.
 export const processEvent = (event: AppEvent) =>
   Match.value(event).pipe(
-    Match.tag('CareLogCreated', (e) =>
-      refreshCardsFor({
-        actorId: e.userId,
-        plantId: e.plantId,
-        exclude: { plantId: e.plantId, careType: e.type },
-      })
-    ),
-    Match.tag('PlantLifecycleChanged', (e) =>
+    Match.tag('CareLogCreated', 'PlantLifecycleChanged', (e) =>
       refreshCardsFor({ actorId: e.userId, plantId: e.plantId })
     ),
     Match.orElse(() => Effect.void)

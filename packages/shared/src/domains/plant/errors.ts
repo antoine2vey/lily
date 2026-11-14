@@ -61,6 +61,22 @@ export class PlantNotAuthorizedError extends Schema.TaggedError<PlantNotAuthoriz
   { httpApiStatus: 403 }
 ) {}
 
+export class PlantIsDeadError extends Schema.TaggedError<PlantIsDeadError>()(
+  'PlantIsDeadError',
+  {
+    plantId: Schema.String,
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed('This plant is in the cemetery')
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed('This plant is in the cemetery')
+      )
+    ),
+  },
+  { httpApiStatus: 409 }
+) {}
+
 export class PlantAlreadyDeadError extends Schema.TaggedError<PlantAlreadyDeadError>()(
   'PlantAlreadyDeadError',
   {

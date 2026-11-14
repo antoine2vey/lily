@@ -2,9 +2,7 @@ import {
   type FindPlantsResult,
   PlantRepository,
 } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
-import { getUserTimezone } from '@lily/api/services/plants/helpers/user-settings'
 import type { PlantFilter, PlantSort } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -18,17 +16,11 @@ export const findPlants = (params: {
   roomId?: string
   includeCaretaking?: boolean
   includeCanopy?: boolean
-}): Effect.Effect<
-  FindPlantsResult,
-  SqlError,
-  PlantRepository | UserRepository | CurrentUser
-> =>
+}): Effect.Effect<FindPlantsResult, SqlError, PlantRepository | CurrentUser> =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     const { id: userId } = yield* CurrentUser
-    const timezone = yield* getUserTimezone(userId)
-
-    return yield* repo.findAll({ ...params, userId, timezone })
+    return yield* repo.findAll({ ...params, userId })
   }).pipe(
     Effect.withSpan('PlantsService.findPlants', {
       attributes: {

@@ -38,14 +38,14 @@ export const CarePlansApiLive = (api: Api) =>
       )
       .handle('dismissCarePlan', ({ params: { planId } }) =>
         withCarePlanAuth(planId, 'manage').pipe(
-          Effect.flatMap(({ plan }) => dismissCarePlan(plan)),
+          Effect.flatMap(dismissCarePlan),
           Effect.flatMap(seenByCaller),
           withInfraErrorsAsDefect
         )
       )
       .handle('deleteCarePlan', ({ params: { planId } }) =>
         withCarePlanAuth(planId, 'manage').pipe(
-          Effect.flatMap(({ plan }) => deleteCarePlan(plan)),
+          Effect.flatMap(deleteCarePlan),
           withInfraErrorsAsDefect
         )
       )

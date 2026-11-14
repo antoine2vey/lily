@@ -1,64 +1,73 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
+import { carePermit, createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { CareWhen } from '@lily/api/contexts/care'
 import { updateCareLog } from '@lily/api/services/care-logs/endpoints/update-care-log'
-import { Effect } from 'effect'
+import type { CareLogUpdateRequest } from '@lily/shared/care-log'
+import { DateTime, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
+const permit = carePermit('plant-1')
+
+const update = (
+  request: CareLogUpdateRequest,
+  logs = mockCareLogs,
+  care = createStubCare()
+) => ({
+  care,
+  effect: updateCareLog(permit, 'log-1', request).pipe(
+    Effect.provide(
+      Layer.mergeAll(
+        care.layer,
+        createMockCareLogRepository(logs),
+        MockSqlClientLive,
+        MockOutboxLive
+      )
+    )
+  ),
+})
+
 describe('updateCareLog', () => {
-  it('should update care log notes', async () => {
-    const result = await Effect.runPromise(
-      updateCareLog('plant-1', 'log-1', { notes: 'Updated notes' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
-      )
-    )
+  it('edits only the fields of the request and returns the log', async () => {
+    const { care, effect } = update({ notes: 'Updated notes' })
 
-    expect(result.notes).toBe('Updated notes')
+    const log = await Effect.runPromise(effect)
+
+    expect(care.amended).toEqual([
+      {
+        permit,
+        careLogId: 'log-1',
+        on: Option.none(),
+        notes: Option.some(Option.some('Updated notes')),
+        photoUrl: Option.none(),
+      },
+    ])
+    expect(log.id).toBe('log-1')
   })
 
-  it('should fail with CareLogNotFoundError when log not found', async () => {
-    const result = await Effect.runPromiseExit(
-      updateCareLog('plant-1', 'non-existent', { notes: 'Test' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
-      )
-    )
+  it('moves the care to the instant of the request', async () => {
+    const date = new Date('2024-12-01T08:30:00.000Z')
+    const { care, effect } = update({
+      date,
+      photoUrl: 'https://example.com/new-photo.jpg',
+    })
 
-    expect(result._tag).toBe('Failure')
+    await Effect.runPromise(effect)
+
+    expect(care.amended[0]).toMatchObject({
+      on: Option.some(CareWhen.At({ instant: DateTime.makeUnsafe(date) })),
+      notes: Option.none(),
+      photoUrl: Option.some(Option.some('https://example.com/new-photo.jpg')),
+    })
   })
 
-  it('should fail when log belongs to different plant', async () => {
-    const result = await Effect.runPromiseExit(
-      updateCareLog('plant-2', 'log-1', { notes: 'Test' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
-      )
-    )
+  it('fails with CareLogNotFoundError when the log is gone after the edit', async () => {
+    const { effect } = update({ notes: 'Late' }, [])
 
-    expect(result._tag).toBe('Failure')
-  })
+    const failure = await Effect.runPromise(Effect.flip(effect))
 
-  it('should preserve other fields when updating', async () => {
-    const result = await Effect.runPromise(
-      updateCareLog('plant-1', 'log-1', { notes: 'Updated notes' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
-      )
-    )
-
-    expect(result.type).toBe(mockCareLogs[0]?.type)
-    expect(result.plantId).toBe('plant-1')
-    expect(result.id).toBe('log-1')
-  })
-
-  it('should update multiple fields at once', async () => {
-    const newDate = new Date('2024-12-01')
-    const result = await Effect.runPromise(
-      updateCareLog('plant-1', 'log-1', {
-        notes: 'Updated notes',
-        date: newDate,
-        photoUrl: 'https://example.com/new-photo.jpg',
-      }).pipe(Effect.provide(createMockCareLogRepository(mockCareLogs)))
-    )
-
-    expect(result.notes).toBe('Updated notes')
-    expect(result.date).toEqual(newDate)
-    expect(result.photoUrl).toBe('https://example.com/new-photo.jpg')
+    expect(failure._tag).toBe('CareLogNotFoundError')
   })
 })

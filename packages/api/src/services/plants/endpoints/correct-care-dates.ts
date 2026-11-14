@@ -1,158 +1,52 @@
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import {
-  CareScheduleRepository,
-  type CareType,
-} from '@lily/api/repositories/care-schedule.repository'
-import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { Care, careWhenOf, type RecordOneError } from '@lily/api/contexts/care'
+import type { Outbox } from '@lily/api/kernel/outbox'
+import type { PlantPermit } from '@lily/api/kernel/permit'
+import { transact } from '@lily/api/kernel/transact'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
-import { careContext } from '@lily/api/services/plants/helpers/care-context'
-import { reconcileCareReminder } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import { startOfDay } from '@lily/shared'
-import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
+import type { CareType } from '@lily/shared'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
-import { DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, Effect, Option } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-const correctSingleCareDate = (
-  plantId: string,
-  correctedDate: Date,
-  careType: CareType,
-  plant: PlantWithRoom,
-  timezone: string
-) =>
-  Effect.gen(function* () {
-    const careLogRepo = yield* CareLogRepository
-    const scheduleRepo = yield* CareScheduleRepository
-
-    const correctedDt = DateTime.makeUnsafe(correctedDate)
-    const nowDt = DateTime.nowUnsafe()
-
-    // Validate that the corrected date is not in the future (1-minute tolerance)
-    if (
-      DateTime.isGreaterThan(
-        correctedDt,
-        DateTime.addDuration(nowDt, Duration.minutes(1))
-      )
-    ) {
-      return yield* new FutureDateNotAllowedError()
-    }
-
-    const careDate = DateTime.toDateUtc(correctedDt)
-
-    // Find the most recent care log of this type and update it if exists
-    const latestLog = yield* careLogRepo.findLatestByPlantAndType(
-      plantId,
-      careType
-    )
-
-    if (latestLog) {
-      yield* careLogRepo.update(latestLog.id, { date: careDate })
-    }
-
-    // Read original and current dates from the schedule
-    const schedule = yield* scheduleRepo.findByPlantAndType(plantId, careType)
-
-    const originalLastCare = schedule?.lastCareAt
-    const currentNextCare = schedule?.nextCareAt
-
-    // Shift nextCareAt by the same delta as the date correction.
-    // This preserves any weather adjustment that was already applied.
-    // e.g. original: lastWatered=Mon, next=Mon+8 (7 base + 1 weather)
-    //      correct to Sun → delta=-1day → next=Mon+8-1=Sun+8
-    const nextCareAt = pipe(
-      Option.all({
-        original: Option.fromNullishOr(originalLastCare),
-        next: Option.fromNullishOr(currentNextCare),
-      }),
-      Option.map(({ original, next }) => {
-        // Truncate to local-midnight (not UTC) so the delta reflects how many
-        // *calendar days* the user shifted the last-care date by — otherwise a
-        // correction within the local day but across the UTC boundary produces
-        // a delta of 0 (or ±1) that disagrees with the visible date change.
-        const originalDayStart = startOfDay(
-          DateTime.makeUnsafe(original),
-          timezone
-        )
-        const correctedDayStart = startOfDay(correctedDt, timezone)
-        // Signed delta in ms (positive = corrected is later, negative = earlier)
-        const deltaMs = Duration.toMillis(
-          DateTime.distance(originalDayStart, correctedDayStart)
-        )
-        const nextMs = DateTime.toEpochMillis(DateTime.makeUnsafe(next))
-        return DateTime.toDateUtc(DateTime.makeUnsafe(Number(nextMs) + deltaMs))
-      }),
-      Option.getOrUndefined
-    )
-
-    // Update schedule table
-    yield* scheduleRepo.updateByPlantAndType(plantId, careType, {
-      lastCareAt: careDate,
-      ...(nextCareAt !== undefined ? { nextCareAt } : {}),
-    })
-
-    // Schedule next reminder if we have a next care date
-    if (nextCareAt) {
-      yield* reconcileCareReminder(plant.id, `${careType}_reminder` as const)
-    }
-  })
+const correction = (careType: CareType, date: Date | undefined) =>
+  Option.map(Option.fromUndefinedOr(date), (on) => ({
+    careType,
+    on: careWhenOf(on),
+  }))
 
 export const correctCareDates = (
-  plant: PlantWithRoom,
-  request: PlantCorrectCareDatesRequest & { id: string }
+  permit: PlantPermit<'care'>,
+  request: PlantCorrectCareDatesRequest
 ): Effect.Effect<
   PlantWithRoom,
-  SqlError | FutureDateNotAllowedError,
-  | PlantRepository
-  | CareLogRepository
-  | CareScheduleRepository
-  | NotificationRepository
-  | UserRepository
-  | DelegationRepository
-  | CanopyRepository
-  | SqlClient.SqlClient
+  SqlError | RecordOneError,
+  Care | PlantRepository | SqlClient.SqlClient | Outbox
 > =>
-  Effect.gen(function* () {
-    const repo = yield* PlantRepository
-    const { timezone } = yield* careContext(plant.owner)
-
-    // Correct watering date if provided
-    if (request.lastWateredAt) {
-      yield* correctSingleCareDate(
-        request.id,
-        request.lastWateredAt,
-        'watering',
-        plant,
-        timezone
+  transact(
+    Effect.gen(function* () {
+      const care = yield* Care
+      const plants = yield* PlantRepository
+      yield* care.correctLastCare({
+        permit,
+        corrections: Array.getSomes([
+          correction('watering', request.lastWateredAt),
+          correction('fertilization', request.lastFertilizedAt),
+        ]),
+      })
+      const plant = yield* plants.findById(permit.plantId)
+      return yield* Effect.fromNullishOr(plant).pipe(
+        Effect.mapError(
+          () => new PlantNotFoundError({ plantId: permit.plantId })
+        )
       )
-    }
-
-    // Correct fertilization date if provided
-    if (request.lastFertilizedAt) {
-      yield* correctSingleCareDate(
-        request.id,
-        request.lastFertilizedAt,
-        'fertilization',
-        plant,
-        timezone
-      )
-    }
-
-    // Re-fetch to get updated plant with room data
-    const updatedPlant = yield* repo.findById(request.id)
-
-    return pipe(
-      Option.fromNullishOr(updatedPlant),
-      Option.getOrElse(() => plant)
-    )
-  }).pipe(
+    })
+  ).pipe(
     Effect.withSpan('PlantsService.correctCareDates', {
-      attributes: { 'plant.id': request.id },
+      attributes: { 'plant.id': permit.plantId },
     })
   )

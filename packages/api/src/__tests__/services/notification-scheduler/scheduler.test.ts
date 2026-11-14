@@ -52,7 +52,13 @@ import { describe, expect, it, vi } from 'vitest'
 
 const gateMocks = (schedules: CareScheduleRow[] = []) =>
   Layer.mergeAll(
-    createMockCareScheduleRepository({ schedules }),
+    createMockCareScheduleRepository({
+      schedules,
+      plants: Arr.map(schedules, (s) =>
+        createTestPlant({ id: s.plantId, userId: 'user-1' })
+      ),
+      dueUnlessScheduled: true,
+    }),
     createMockDelegationRepository(),
     createMockCanopyRepository([])
   )
@@ -60,7 +66,10 @@ const gateMocks = (schedules: CareScheduleRow[] = []) =>
 const GateMocksLive = gateMocks()
 
 const overdueSchedule = (plantId: string) =>
-  createTestSchedule({ plantId, nextCareAt: new Date(Date.now() - 86_400_000) })
+  createTestSchedule({
+    plantId,
+    nextCareAt: new Date(Date.now() - 2 * 86_400_000),
+  })
 
 // Default user with all notifications enabled and DND off
 const defaultUser = createTestUser({

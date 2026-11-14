@@ -1,33 +1,42 @@
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
+import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import {
-  type IUserRepository,
-  UserRepository,
-} from '@lily/api/repositories/user.repository'
+import { createVacationWorld } from '@lily/api/__tests__/mocks/vacation-world'
+import type { AbsenceStore } from '@lily/api/contexts/absence/store'
 import { setVacation } from '@lily/api/services/vacation/endpoints/set-vacation'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Order, pipe, References } from 'effect'
+import { Array, Effect, Order, pipe, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const daysFromNow = (days: number): Date =>
   new Date(Date.now() + days * 24 * 60 * 60 * 1000)
 
+const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+
+const worldOf = (
+  users: User[],
+  notifications: Notification[] = [],
+  currentUserId = 'user-1',
+  store?: (store: AbsenceStore['Service']) => AbsenceStore['Service']
+) =>
+  createVacationWorld({
+    users,
+    notifications,
+    currentUserId,
+    store,
+    plants: [plant],
+    schedules: [
+      createTestSchedule({ plantId: plant.id, nextCareAt: daysFromNow(3) }),
+    ],
+  })
+
 const createLayer = (
   users: User[],
   notifications: Notification[] = [],
   currentUserId = 'user-1'
-) =>
-  Layer.mergeAll(
-    MockSqlClientLive,
-    createMockUserRepository(users),
-    createMockNotificationRepository(notifications),
-    createMockCurrentUser({ id: currentUserId })
-  )
+) => worldOf(users, notifications, currentUserId).layer
 
 const run = <A, E>(effect: Effect.Effect<A, E, never>): Promise<A> =>
   Effect.runPromise(
@@ -126,6 +135,7 @@ describe('setVacation', () => {
         createTestNotification({
           id: 'n-care',
           userId: 'user-1',
+          plantId: plant.id,
           type: 'watering_reminder',
           status: 'pending',
         }),
@@ -189,7 +199,7 @@ describe('setVacation', () => {
       expect(state.startDate).toEqual(start)
     })
 
-    it('should start a new vacation when the scheduler ends the active one between the read and the extend', async () => {
+    it('should start a new vacation when the scheduler ends the active one just before the extend takes the account', async () => {
       const start = daysFromNow(-2)
       const user = activeUser(start, daysFromNow(5))
       const newEnd = daysFromNow(10)
@@ -204,27 +214,15 @@ describe('setVacation', () => {
           }
         }
       })
-      const racingEnd = Layer.effect(
-        UserRepository,
-        Effect.map(
-          UserRepository,
-          (repo): IUserRepository => ({
-            ...repo,
-            findById: (id) => repo.findById(id).pipe(Effect.tap(endOnce)),
-          })
-        )
-      ).pipe(Layer.provide(createMockUserRepository(users)))
+      const world = worldOf(users, [], 'user-1', (store) => ({
+        ...store,
+        lockVacation: (userId, now) =>
+          Effect.andThen(endOnce, store.lockVacation(userId, now)),
+      }))
 
       const state = await run(
         setVacation({ startDate: start, endDate: newEnd }).pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              MockSqlClientLive,
-              racingEnd,
-              createMockNotificationRepository([]),
-              createMockCurrentUser({ id: 'user-1' })
-            )
-          )
+          Effect.provide(world.layer)
         )
       )
 
@@ -248,6 +246,105 @@ describe('setVacation', () => {
       )
 
       expect(error._tag).toBe('VacationDateError')
+    })
+  })
+
+  describe('an account that is not active', () => {
+    it.each(['suspended', 'pending_deletion'] as const)(
+      'answers UserNotFoundError to a %s account and writes nothing',
+      async (status) => {
+        const users = [createTestUser({ id: 'user-1', status })]
+        const world = worldOf(users)
+
+        const error = await run(
+          setVacation({
+            startDate: daysFromNow(-1),
+            endDate: daysFromNow(7),
+          }).pipe(Effect.flip, Effect.provide(world.layer))
+        )
+
+        expect(error._tag).toBe('UserNotFoundError')
+        expect(users[0]?.vacationStatus).toBe('none')
+        expect(world.writes).toEqual([])
+        expect(world.events).toEqual([])
+      }
+    )
+  })
+
+  describe('what a set publishes', () => {
+    it('says the vacation started when it starts at once', async () => {
+      const world = worldOf([createTestUser({ id: 'user-1' })])
+
+      await run(
+        setVacation({
+          startDate: daysFromNow(-1),
+          endDate: daysFromNow(7),
+        }).pipe(Effect.provide(world.layer))
+      )
+
+      expect(world.events).toEqual([
+        { _tag: 'VacationStarted', userId: 'user-1' },
+      ])
+    })
+
+    it('says nothing for a vacation that is only scheduled', async () => {
+      const world = worldOf([createTestUser({ id: 'user-1' })])
+
+      await run(
+        setVacation({
+          startDate: daysFromNow(2),
+          endDate: daysFromNow(7),
+        }).pipe(Effect.provide(world.layer))
+      )
+
+      expect(world.events).toEqual([])
+    })
+
+    it('says nothing when a running vacation only moves its end', async () => {
+      const start = daysFromNow(-2)
+      const world = worldOf([
+        createTestUser({
+          id: 'user-1',
+          vacationStatus: 'active',
+          vacationStart: start,
+          vacationEnd: daysFromNow(5),
+        }),
+      ])
+
+      await run(
+        setVacation({ startDate: start, endDate: daysFromNow(9) }).pipe(
+          Effect.provide(world.layer)
+        )
+      )
+
+      expect(world.events).toEqual([])
+    })
+  })
+
+  it('starts at once a scheduled vacation moved to a start that already passed', async () => {
+    const users = [
+      createTestUser({
+        id: 'user-1',
+        vacationStatus: 'scheduled',
+        vacationStart: daysFromNow(3),
+        vacationEnd: daysFromNow(9),
+      }),
+    ]
+    const start = daysFromNow(-1)
+    const end = daysFromNow(4)
+    const world = worldOf(users)
+
+    const state = await run(
+      setVacation({ startDate: start, endDate: end }).pipe(
+        Effect.provide(world.layer)
+      )
+    )
+
+    expect(state).toEqual({ status: 'active', startDate: start, endDate: end })
+    expect(users[0]).toMatchObject({
+      vacationStatus: 'active',
+      vacationStart: start,
+      vacationEnd: end,
     })
   })
 })

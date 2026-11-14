@@ -1,4 +1,8 @@
 import {
+  type StoredSchedule,
+  seeLivingPlantCare,
+} from '@lily/api/contexts/care'
+import {
   type DelegatedTaskRow,
   type DelegationDetailRow,
   type DelegationListRow,
@@ -7,8 +11,8 @@ import {
   type DelegationRow,
   type IDelegationRepository,
 } from '@lily/api/repositories/delegation.repository'
-import type { PlantCareSchedule } from '@lily/shared'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { CareDays } from '@lily/shared'
+import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
 
 interface MockUser {
   id: string
@@ -20,7 +24,7 @@ interface MockPlant {
   id: string
   name: string
   imageUrl: string | null
-  schedules: PlantCareSchedule[]
+  schedules: Omit<StoredSchedule, 'dueDay'>[]
   health: string
 }
 
@@ -29,7 +33,7 @@ interface MockDelegationPlantLink {
   plantId: string
 }
 
-interface MockDelegationRepositoryData {
+export interface MockDelegationRepositoryData {
   delegations?: DelegationRow[] | undefined
   delegationPlants?: MockDelegationPlantLink[] | undefined
   users?: MockUser[] | undefined
@@ -53,30 +57,26 @@ export const createMockDelegationRepository = (
   const findPlant = (id: string) =>
     pipe(
       Array.findFirst(mockPlants, (p) => p.id === id),
+      // Status as the live repository reports it, on a UTC care day.
+      Option.map((p) => ({
+        ...p,
+        schedules: seeLivingPlantCare(
+          'HEALTHY',
+          Array.map(p.schedules, (schedule) => ({
+            ...schedule,
+            dueDay: CareDays.of(
+              DateTime.makeUnsafe(schedule.nextCareAt),
+              'UTC'
+            ),
+          })),
+          'UTC',
+          DateTime.nowUnsafe()
+        ).schedules,
+      })),
       Option.getOrNull
     )
 
   const repo: IDelegationRepository = {
-    create: (createData) =>
-      Effect.sync(() => {
-        const row: DelegationRow = {
-          id: `delegation-${delegations.length + 1}`,
-          ownerId: createData.ownerId,
-          caretakerId: createData.caretakerId,
-          status: 'pending',
-          message: createData.message ?? null,
-          startDate: createData.startDate,
-          endDate: createData.endDate,
-          respondedAt: null,
-          canceledAt: null,
-          completedAt: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-        delegations.push(row)
-        return row
-      }),
-
     findById: (id) =>
       Effect.succeed(
         pipe(
@@ -111,34 +111,6 @@ export const createMockDelegationRepository = (
               plants: plantRows,
             } as DelegationDetailRow
           }),
-          Option.getOrNull
-        )
-      ),
-
-    transitionStatus: (id, from, to, timestamps) =>
-      Effect.sync(() =>
-        pipe(
-          Array.findFirstIndex(
-            delegations,
-            (d) => d.id === id && Array.contains(from, d.status)
-          ),
-          Option.flatMap((i) =>
-            pipe(
-              Option.fromNullishOr(delegations[i]),
-              Option.map((d) => {
-                const updated: DelegationRow = {
-                  ...d,
-                  status: to,
-                  respondedAt: timestamps?.respondedAt ?? d.respondedAt,
-                  canceledAt: timestamps?.canceledAt ?? d.canceledAt,
-                  completedAt: timestamps?.completedAt ?? d.completedAt,
-                  updatedAt: new Date(),
-                }
-                delegations[i] = updated
-                return updated
-              })
-            )
-          ),
           Option.getOrNull
         )
       ),
@@ -230,76 +202,7 @@ export const createMockDelegationRepository = (
         )
       ),
 
-    findOverlappingDelegations: (params) =>
-      Effect.succeed(
-        pipe(
-          dpLinks,
-          Array.filter((l) => Array.contains(params.plantIds, l.plantId)),
-          Array.map((l) =>
-            pipe(
-              Array.findFirst(
-                delegations,
-                (d) =>
-                  d.id === l.delegationId &&
-                  Array.contains(['pending', 'accepted', 'active'], d.status) &&
-                  d.startDate < params.endDate &&
-                  d.endDate > params.startDate &&
-                  (params.excludeDelegationId
-                    ? d.id !== params.excludeDelegationId
-                    : true)
-              ),
-              Option.map(() => l.plantId)
-            )
-          ),
-          Array.getSomes,
-          Array.dedupe
-        )
-      ),
-
-    findAcceptedReadyToActivate: (now) =>
-      Effect.succeed(
-        Array.filter(
-          delegations,
-          (d) => d.status === 'accepted' && d.startDate <= now
-        )
-      ),
-
-    findActiveReadyToComplete: (now) =>
-      Effect.succeed(
-        Array.filter(
-          delegations,
-          (d) => d.status === 'active' && d.endDate <= now
-        )
-      ),
-
-    addPlants: (delegationId, plantIds) =>
-      Effect.sync(() => {
-        Array.forEach(plantIds, (plantId) => {
-          dpLinks.push({ delegationId, plantId })
-        })
-      }),
-
-    getPlantsByDelegation: (delegationId) =>
-      Effect.succeed(
-        Array.getSomes(
-          Array.map(
-            Array.filter(dpLinks, (l) => l.delegationId === delegationId),
-            (l) =>
-              pipe(
-                Option.fromNullishOr(findPlant(l.plantId)),
-                Option.map((p) => ({
-                  id: p.id,
-                  name: p.name,
-                  imageUrl: p.imageUrl,
-                  schedules: p.schedules,
-                  health: p.health,
-                }))
-              )
-          )
-        )
-      ),
-
-    hasActiveDelegationForPlant: (userId, plantId) =>
+    tends: (userId, plantId) =>
       Effect.succeed(
         pipe(
           dpLinks,
@@ -334,24 +237,6 @@ export const createMockDelegationRepository = (
         )
       ),
 
-    findActiveCaretakerForPlant: (plantId) =>
-      Effect.succeed(
-        pipe(
-          dpLinks,
-          Array.findFirst((link) => link.plantId === plantId),
-          Option.flatMap((link) =>
-            pipe(
-              Array.findFirst(
-                delegations,
-                (d) => d.id === link.delegationId && d.status === 'active'
-              ),
-              Option.map((d) => d.caretakerId)
-            )
-          ),
-          Option.getOrNull
-        )
-      ),
-
     findActiveCaretakersForPlants: (plantIds) =>
       Effect.succeed(
         Array.flatMap(
@@ -368,39 +253,6 @@ export const createMockDelegationRepository = (
             )
         )
       ),
-    lockAllForUser: () => Effect.void,
-    cancelOpenForUser: (userId, canceledAt) =>
-      Effect.sync(() => {
-        const open = Array.filter(
-          delegations,
-          (d) =>
-            (d.ownerId === userId || d.caretakerId === userId) &&
-            Array.contains(['pending', 'accepted', 'active'], d.status)
-        )
-        const activeIds = Array.map(
-          Array.filter(open, (d) => d.status === 'active'),
-          (d) => d.id
-        )
-        delegations.splice(
-          0,
-          delegations.length,
-          ...Array.map(delegations, (d) =>
-            Array.contains(open, d)
-              ? { ...d, status: 'canceled' as const, canceledAt }
-              : d
-          )
-        )
-        return {
-          reassignedPlantIds: Array.dedupe(
-            Array.map(
-              Array.filter(dpLinks, (link) =>
-                Array.contains(activeIds, link.delegationId)
-              ),
-              (link) => link.plantId
-            )
-          ),
-        }
-      }),
   }
 
   return Layer.succeed(DelegationRepository, repo)

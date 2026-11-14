@@ -157,6 +157,12 @@ describe('withCarePlanStep', () => {
     )
     expect(result.plan.id).toBe(plan.id)
     expect(result.step.id).toBe('step-1')
+    expect(result.permit).toEqual({
+      planId: plan.id,
+      plantId: personalPlant.id,
+      action: 'tick',
+      by: alex,
+    })
   })
 
   it('fails with CarePlanStepNotFoundError for a step of another plan', async () => {

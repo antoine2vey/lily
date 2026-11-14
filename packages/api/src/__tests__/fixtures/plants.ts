@@ -1,5 +1,5 @@
 import type { plants } from '@lily/db/schema'
-import type { CareType } from '@lily/shared'
+import { CareDay, type CareType } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 
 export type PlantRecord = typeof plants.$inferSelect
@@ -8,8 +8,11 @@ export interface ScheduleSpec {
   careType: CareType
   frequencyDays: number
   lastCareAt: Date | null
-  nextCareAt: Date | null
+  nextCareAt: Date
+  dueDay?: string
 }
+
+export const NOT_DUE_YET = new Date('2099-01-01T00:00:00.000Z')
 
 // Extended type for test fixtures — includes scheduleSpecs that
 // schedulesFromPlants uses to derive CareScheduleRow entries.
@@ -23,7 +26,7 @@ export const wateringSpec = (
   careType: 'watering',
   frequencyDays: 7,
   lastCareAt: null,
-  nextCareAt: null,
+  nextCareAt: NOT_DUE_YET,
   ...overrides,
 })
 
@@ -33,7 +36,7 @@ export const fertilizationSpec = (
   careType: 'fertilization',
   frequencyDays: 30,
   lastCareAt: null,
-  nextCareAt: null,
+  nextCareAt: NOT_DUE_YET,
   ...overrides,
 })
 
@@ -342,3 +345,10 @@ export const createTestPlant = (
   scheduleSpecs: [wateringSpec()],
   ...overrides,
 })
+
+/** The care fields of a `PlantWithRoom` that has no schedules. */
+export const noCare = {
+  schedules: [],
+  careTimezone: 'UTC',
+  today: CareDay.make('2026-01-01'),
+}

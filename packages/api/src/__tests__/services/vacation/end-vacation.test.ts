@@ -3,37 +3,35 @@ import {
   mockCanopyId,
 } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
-  createMockCanopyRepository,
   createTestCanopyRow,
 } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { createVacationWorld } from '@lily/api/__tests__/mocks/vacation-world'
+import { Absence } from '@lily/api/contexts/absence'
+import type { AbsenceStore } from '@lily/api/contexts/absence/store'
+import { DueMove } from '@lily/api/contexts/care'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
-import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
+import { CARE_TYPES } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, pipe, References } from 'effect'
+import { Array, DateTime, Effect, Option, pipe, References } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Fixed scenario, user timezone Europe/Paris (UTC+2 in August):
-//   vacationStart  = 2026-08-10T00:00:00Z (local day Aug 10)
-//   effectiveEnd   = 2026-08-17T06:00:00Z (local day Aug 17)
-//   day delta      = 7 days
-//   floor          = start of Aug 18 in Paris = 2026-08-17T22:00:00Z
-const VACATION_START = new Date('2026-08-10T00:00:00.000Z')
+const VACATION_START = new Date('2026-08-09T22:30:00.000Z')
 const EFFECTIVE_END = new Date('2026-08-17T06:00:00.000Z')
-const FLOOR = new Date('2026-08-17T22:00:00.000Z')
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 
-const buildScenario = () => {
+const endDueVacations = Effect.flatMap(
+  Absence,
+  (absence) => absence.advanceVacations
+)
+
+const buildScenario = (
+  store?: (store: AbsenceStore['Service']) => AbsenceStore['Service']
+) => {
   const owner = createTestUser({
     id: 'owner-1',
     timezone: 'Europe/Paris',
@@ -44,10 +42,6 @@ const buildScenario = () => {
   })
   const caretaker = createTestUser({ id: 'caretaker-1', careReminders: true })
 
-  const plantOverdue = createTestPlant({
-    id: 'plant-overdue',
-    userId: owner.id,
-  })
   const plantMid = createTestPlant({ id: 'plant-mid', userId: owner.id })
   const plantFuture = createTestPlant({ id: 'plant-future', userId: owner.id })
   const plantDelegated = createTestPlant({
@@ -58,35 +52,24 @@ const buildScenario = () => {
     id: 'plant-delegated-future',
     userId: owner.id,
   })
+  const plants = [plantMid, plantFuture, plantDelegated, plantDelegatedFuture]
 
   const schedules: CareScheduleRow[] = [
-    // Overdue before the vacation even started: clamped to the floor
-    createTestSchedule({
-      plantId: plantOverdue.id,
-      careType: 'watering',
-      nextCareAt: new Date('2026-08-03T00:00:00.000Z'),
-    }),
-    // Fell due mid-vacation: shifted by the full day delta
     createTestSchedule({
       plantId: plantMid.id,
       careType: 'watering',
       nextCareAt: new Date('2026-08-13T00:00:00.000Z'),
     }),
-    // Due after the vacation: untouched, but its reminder is rebuilt
     createTestSchedule({
       plantId: plantFuture.id,
       careType: 'watering',
       nextCareAt: new Date('2026-08-29T00:00:00.000Z'),
     }),
-    // Delegated plant that fell due mid-vacation: the caretaker handled it.
-    // Not shifted, and — being past due at the effective end — not rebuilt
-    // either; the overdue scheduler owns it from here.
     createTestSchedule({
       plantId: plantDelegated.id,
       careType: 'watering',
       nextCareAt: new Date('2026-08-13T00:00:00.000Z'),
     }),
-    // Delegated plant due after the vacation: reminder rebuilt for the caretaker
     createTestSchedule({
       plantId: plantDelegatedFuture.id,
       careType: 'watering',
@@ -111,63 +94,28 @@ const buildScenario = () => {
 
   const users = [owner, caretaker]
   const notifications: Notification[] = []
+  const { care, layer, events } = createVacationWorld({
+    users,
+    plants,
+    schedules,
+    notifications,
+    store,
+    delegations: [delegation],
+    delegationPlants: [
+      { delegationId: delegation.id, plantId: plantDelegated.id },
+      { delegationId: delegation.id, plantId: plantDelegatedFuture.id },
+    ],
+  })
 
-  const layer = Layer.mergeAll(
-    MockSqlClientLive,
-    createMockUserRepository(users),
-    createMockNotificationRepository(notifications),
-    createMockCareScheduleRepository({
-      schedules,
-      plants: [
-        plantOverdue,
-        plantMid,
-        plantFuture,
-        plantDelegated,
-        plantDelegatedFuture,
-      ],
-    }),
-    createMockPlantRepository({
-      plants: [
-        plantOverdue,
-        plantMid,
-        plantFuture,
-        plantDelegated,
-        plantDelegatedFuture,
-      ],
-    }),
-    createMockCanopyRepository(),
-    createMockDelegationRepository({
-      delegations: [delegation],
-      delegationPlants: [
-        { delegationId: delegation.id, plantId: plantDelegated.id },
-        { delegationId: delegation.id, plantId: plantDelegatedFuture.id },
-      ],
-    })
-  )
-
-  return { owner, caretaker, schedules, notifications, users, layer }
+  return { owner, caretaker, notifications, users, care, layer, events }
 }
-
-const findNext = (
-  schedules: ReadonlyArray<CareScheduleRow>,
-  plantId: string
-): Date | null =>
-  pipe(
-    Array.findFirst(schedules, (s) => s.plantId === plantId),
-    Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
-    Option.getOrNull
-  )
 
 const run = <A>(effect: Effect.Effect<A, unknown, never>): Promise<A> =>
   Effect.runPromise(
     effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
   ) as Promise<A>
 
-describe('endVacation', () => {
-  // endVacation rebuilds reminders only for schedules due after the real
-  // clock, so pin "now" to the moment the vacation ends. Without this the
-  // fixed August fixtures silently fall into the past once the calendar
-  // moves on and the reminder assertions stop seeing any rows.
+describe('ending a vacation that is over', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(EFFECTIVE_END)
@@ -177,68 +125,32 @@ describe('endVacation', () => {
     vi.useRealTimers()
   })
 
-  it('should shift mid-vacation schedules by the whole-day delta', async () => {
-    const { owner, schedules, layer } = buildScenario()
+  it('asks Care to move every care type of each undelegated own plant after the days away in the user timezone', async () => {
+    const { care, layer } = buildScenario()
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
-    expect(findNext(schedules, 'plant-mid')).toEqual(
-      new Date(new Date('2026-08-13T00:00:00.000Z').getTime() + SEVEN_DAYS_MS)
-    )
-  })
-
-  it('should clamp pre-vacation overdue schedules to the day after the vacation ends', async () => {
-    const { owner, schedules, layer } = buildScenario()
-
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
-
-    expect(findNext(schedules, 'plant-overdue')).toEqual(FLOOR)
-  })
-
-  it('should leave schedules due after the vacation untouched', async () => {
-    const { owner, schedules, layer } = buildScenario()
-
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
-
-    expect(findNext(schedules, 'plant-future')).toEqual(
-      new Date('2026-08-29T00:00:00.000Z')
-    )
-  })
-
-  it('should not shift schedules of plants with an active caretaker', async () => {
-    const { owner, schedules, layer } = buildScenario()
-
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
-
-    expect(findNext(schedules, 'plant-delegated')).toEqual(
-      new Date('2026-08-13T00:00:00.000Z')
-    )
+    expect(care.moved).toEqual([
+      {
+        reason: 'vacation',
+        moves: Array.flatMap(['plant-future', 'plant-mid'], (plantId) =>
+          Array.map(CARE_TYPES, (careType) => ({
+            plantId,
+            careType,
+            move: DueMove.AfterAbsence({
+              endedAt: DateTime.makeUnsafe(EFFECTIVE_END),
+              days: 7,
+            }),
+          }))
+        ),
+      },
+    ])
   })
 
   it('should reset the vacation state on the user', async () => {
     const { owner, users, layer } = buildScenario()
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
     const updated = pipe(
       Array.findFirst(users, (u) => u.id === owner.id),
@@ -249,69 +161,81 @@ describe('endVacation', () => {
     expect(updated?.vacationEnd).toBeNull()
   })
 
-  it('should rebuild reminders for every future schedule, routing delegated plants to the caretaker', async () => {
+  it('gives the owner back the reminders of their undelegated plants and leaves a delegated plant to its caretaker', async () => {
     const { owner, caretaker, notifications, layer } = buildScenario()
-
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
+    notifications.push(
+      createTestNotification({
+        id: 'caretaker-row',
+        userId: caretaker.id,
+        plantId: 'plant-delegated-future',
+        type: 'watering_reminder',
+        status: 'pending',
+      })
     )
 
-    const byPlant = (plantId: string) =>
-      pipe(
-        Array.findFirst(notifications, (n) => n.plantId === plantId),
-        Option.getOrNull
-      )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
-    expect(byPlant('plant-overdue')?.userId).toBe(owner.id)
-    expect(byPlant('plant-mid')?.userId).toBe(owner.id)
-    expect(byPlant('plant-future')?.userId).toBe(owner.id)
-    expect(byPlant('plant-delegated-future')?.userId).toBe(caretaker.id)
-    // Past due and unshifted: left to the overdue scheduler, no reminder row.
-    expect(byPlant('plant-delegated')).toBeNull()
+    expect(
+      Array.map(notifications, (n) => [n.userId, n.plantId]).sort()
+    ).toEqual([
+      [caretaker.id, 'plant-delegated-future'],
+      [owner.id, 'plant-future'],
+    ])
   })
 
-  it('should do nothing when rerun from the same snapshot after completion', async () => {
-    const { owner, schedules, layer } = buildScenario()
+  it('should ask for no second move when the tick runs again after completion', async () => {
+    const { care, layer } = buildScenario()
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
-    const afterFirstRun = Array.map(schedules, (s) => s.nextCareAt?.getTime())
+    const first = await run(endDueVacations.pipe(Effect.provide(layer)))
+    const second = await run(endDueVacations.pipe(Effect.provide(layer)))
 
-    const secondClaim = await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
-    const afterSecondRun = Array.map(schedules, (s) => s.nextCareAt?.getTime())
-
-    expect(secondClaim).toBeNull()
-    expect(afterSecondRun).toEqual(afterFirstRun)
+    expect(first).toEqual({ due: 1, advanced: 1, failed: 0 })
+    expect(second).toEqual({ due: 0, advanced: 0, failed: 0 })
+    expect(care.moved).toHaveLength(1)
   })
 
-  it('should not touch schedules when the vacation changed since the snapshot was read', async () => {
-    const { owner, users, schedules, layer } = buildScenario()
+  it('should ask for no move when the vacation was extended after the tick listed it', async () => {
     const extendedEnd = new Date('2026-08-24T06:00:00.000Z')
-    users[0] = { ...owner, vacationEnd: extendedEnd }
-    const before = Array.map(schedules, (s) => s.nextCareAt?.getTime())
+    const { users, care, layer, events } = buildScenario((store) => ({
+      ...store,
+      dueVacations: (edge, now) =>
+        store.dueVacations(edge, now).pipe(
+          Effect.tap(() =>
+            Effect.sync(() => {
+              const listed = users[0]
+              if (edge === 'end' && listed) {
+                users[0] = { ...listed, vacationEnd: extendedEnd }
+              }
+            })
+          )
+        ),
+    }))
 
-    const claim = await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    const tally = await run(endDueVacations.pipe(Effect.provide(layer)))
 
-    expect(claim).toBeNull()
-    expect(Array.map(schedules, (s) => s.nextCareAt?.getTime())).toEqual(before)
+    expect(tally).toEqual({ due: 1, advanced: 0, failed: 0 })
+    expect(care.moved).toEqual([])
     expect(users[0]?.vacationStatus).toBe('active')
     expect(users[0]?.vacationEnd).toEqual(extendedEnd)
+    expect(events).toEqual([])
   })
 
-  it('never shifts a Canopy schedule, and rebuilds only the member own future reminder', async () => {
+  it('says the vacation ended at its stored end, with the start it had', async () => {
+    const { owner, layer, events } = buildScenario()
+
+    await run(endDueVacations.pipe(Effect.provide(layer)))
+
+    expect(events).toEqual([
+      {
+        _tag: 'VacationEnded',
+        userId: owner.id,
+        start: VACATION_START,
+        endedAt: EFFECTIVE_END,
+      },
+    ])
+  })
+
+  it('asks for no move of a Canopy plant, and rebuilds only the member own future reminder', async () => {
     const owner = createTestUser({
       id: 'owner-1',
       timezone: 'Europe/Paris',
@@ -335,55 +259,41 @@ describe('endVacation', () => {
       userId: null,
       canopyId: mockCanopyId,
     })
-    const midDue = new Date('2026-08-13T00:00:00.000Z')
-    const futureDue = new Date('2026-08-25T00:00:00.000Z')
     const schedules = [
       createTestSchedule({
         plantId: sharedMid.id,
         careType: 'watering',
-        nextCareAt: midDue,
+        nextCareAt: new Date('2026-08-13T00:00:00.000Z'),
       }),
       createTestSchedule({
         plantId: sharedFuture.id,
         careType: 'watering',
-        nextCareAt: futureDue,
+        nextCareAt: new Date('2026-08-25T00:00:00.000Z'),
       }),
     ]
     const notifications: Notification[] = []
-    const layer = Layer.mergeAll(
-      MockSqlClientLive,
-      createMockUserRepository([owner, housemate]),
-      createMockNotificationRepository(notifications),
-      createMockCareScheduleRepository({
-        schedules,
-        plants: [sharedMid, sharedFuture],
-        memberships: members,
+    const { care, layer } = createVacationWorld({
+      users: [owner, housemate],
+      plants: [sharedMid, sharedFuture],
+      schedules,
+      memberships: members,
+      notifications,
+      canopies: createCanopyStore({
+        canopies: [createTestCanopyRow({ id: mockCanopyId })],
+        members,
+        plants: Array.map([sharedMid, sharedFuture], (p) => ({
+          id: p.id,
+          canopyId: mockCanopyId,
+          userId: null,
+          remindersEnabled: true,
+          diedAt: null,
+        })),
       }),
-      createMockPlantRepository({ plants: [sharedMid, sharedFuture] }),
-      createMockCanopyRepository(
-        createCanopyStore({
-          canopies: [createTestCanopyRow({ id: mockCanopyId })],
-          members,
-          plants: Array.map([sharedMid, sharedFuture], (p) => ({
-            id: p.id,
-            canopyId: mockCanopyId,
-            userId: null,
-            remindersEnabled: true,
-            diedAt: null,
-          })),
-        })
-      ),
-      createMockDelegationRepository({})
-    )
+    })
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
-    expect(findNext(schedules, sharedMid.id)).toEqual(midDue)
-    expect(findNext(schedules, sharedFuture.id)).toEqual(futureDue)
+    expect(Array.flatMap(care.moved, (command) => command.moves)).toEqual([])
     expect(
       Array.map(notifications, (n) => [n.userId, n.plantId]).sort()
     ).toEqual([[owner.id, sharedFuture.id]])
@@ -413,41 +323,28 @@ describe('endVacation', () => {
       }),
     ]
     const notifications: Notification[] = []
-    const layer = Layer.mergeAll(
-      MockSqlClientLive,
-      createMockUserRepository([owner]),
-      createMockNotificationRepository(notifications),
-      createMockCareScheduleRepository({
-        schedules,
-        plants: [dueToday],
-        memberships: members,
+    const { layer } = createVacationWorld({
+      users: [owner],
+      plants: [dueToday],
+      schedules,
+      memberships: members,
+      notifications,
+      canopies: createCanopyStore({
+        canopies: [createTestCanopyRow({ id: mockCanopyId, timezone: 'UTC' })],
+        members,
+        plants: [
+          {
+            id: dueToday.id,
+            canopyId: mockCanopyId,
+            userId: null,
+            remindersEnabled: true,
+            diedAt: null,
+          },
+        ],
       }),
-      createMockPlantRepository({ plants: [dueToday] }),
-      createMockCanopyRepository(
-        createCanopyStore({
-          canopies: [
-            createTestCanopyRow({ id: mockCanopyId, timezone: 'UTC' }),
-          ],
-          members,
-          plants: [
-            {
-              id: dueToday.id,
-              canopyId: mockCanopyId,
-              userId: null,
-              remindersEnabled: true,
-              diedAt: null,
-            },
-          ],
-        })
-      ),
-      createMockDelegationRepository({})
-    )
+    })
 
-    await run(
-      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
-        Effect.provide(layer)
-      )
-    )
+    await run(endDueVacations.pipe(Effect.provide(layer)))
 
     expect(
       Array.map(notifications, (n) => [n.userId, n.plantId, n.type])

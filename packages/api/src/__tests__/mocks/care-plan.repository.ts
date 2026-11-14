@@ -2,15 +2,10 @@ import {
   CarePlanRepository,
   type CarePlanRow,
   type CarePlanStepRow,
-  type CompleteStepData,
-  type CreateCarePlanData,
   type ICarePlanRepository,
-  isStepOpen,
   mapToCarePlan,
-  mapToCarePlanStep,
-  type UpdateCarePlanStatusData,
 } from '@lily/api/repositories/care-plan.repository'
-import type { CarePlanStatus, CareType } from '@lily/shared'
+import type { CarePlanStatus } from '@lily/shared'
 import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 
 export interface MockCarePlanPlant {
@@ -29,13 +24,7 @@ const createdAtDesc: Order.Order<CarePlanRow> = Order.flip(
   Order.mapInput(Order.Date, (p: CarePlanRow) => p.createdAt)
 )
 
-/**
- * In-memory CarePlanRepository. Mutations replace rows in the backing arrays
- * so tests can read back through `findById` after acting on a plan.
- */
-export const createMockCarePlanRepository = (
-  data: MockCarePlanData = {}
-): Layer.Layer<CarePlanRepository> => {
+export const createCarePlanRows = (data: MockCarePlanData = {}) => {
   const plans: CarePlanRow[] = pipe(
     Option.fromNullishOr(data.plans),
     Option.getOrElse(() => [] as CarePlanRow[]),
@@ -64,88 +53,7 @@ export const createMockCarePlanRepository = (
   const toPlan = (row: CarePlanRow) =>
     mapToCarePlan(row, plantInfo(row.plantId), stepsOf(row.id))
 
-  const findRow = (id: string, userId: string) =>
-    Array.findFirst(plans, (p) => p.id === id && p.userId === userId)
-
-  const replacePlan = (updated: CarePlanRow) => {
-    const idx = Array.findFirstIndex(plans, (p) => p.id === updated.id)
-    Option.map(idx, (i) => {
-      plans[i] = updated
-    })
-  }
-
-  const replaceStep = (updated: CarePlanStepRow) => {
-    const idx = Array.findFirstIndex(steps, (s) => s.id === updated.id)
-    Option.map(idx, (i) => {
-      steps[i] = updated
-    })
-  }
-
-  const markStep = (
-    step: CarePlanStepRow,
-    completion: CompleteStepData
-  ): CarePlanStepRow => {
-    const updated: CarePlanStepRow = {
-      ...step,
-      completedAt: completion.completedAt,
-      careLogId: pipe(
-        Option.fromNullishOr(completion.careLogId),
-        Option.getOrNull
-      ),
-      updatedAt: new Date(),
-    }
-    replaceStep(updated)
-    return updated
-  }
-
   const repo: ICarePlanRepository = {
-    create: (input: CreateCarePlanData) => {
-      const now = new Date()
-      const plan: CarePlanRow = {
-        id: `care-plan-${crypto.randomUUID()}`,
-        plantId: input.plantId,
-        userId: input.userId,
-        chatMessageId: pipe(
-          Option.fromNullishOr(input.chatMessageId),
-          Option.getOrNull
-        ),
-        diagnosisId: pipe(
-          Option.fromNullishOr(input.diagnosisId),
-          Option.getOrNull
-        ),
-        title: input.title,
-        source: pipe(
-          Option.fromNullishOr(input.source),
-          Option.getOrElse(() => 'ai' as const)
-        ),
-        status: 'proposed',
-        acceptedAt: null,
-        completedAt: null,
-        createdAt: now,
-        updatedAt: now,
-      }
-      plans.push(plan)
-      Array.forEach(input.steps, (step, index) => {
-        steps.push({
-          id: `care-plan-step-${crypto.randomUUID()}`,
-          planId: plan.id,
-          position: index,
-          title: step.title,
-          description: pipe(
-            Option.fromNullishOr(step.description),
-            Option.getOrNull
-          ),
-          careType: pipe(Option.fromNullishOr(step.careType), Option.getOrNull),
-          dueDate: pipe(Option.fromNullishOr(step.dueDate), Option.getOrNull),
-          completedAt: null,
-          careLogId: null,
-          createdAt: now,
-          updatedAt: now,
-        })
-      })
-      return Effect.succeed(toPlan(plan))
-    },
-
     findById: (id: string) =>
       Effect.succeed(
         pipe(
@@ -184,149 +92,13 @@ export const createMockCarePlanRepository = (
           Array.map(toPlan)
         )
       ),
-
-    updateStatus: (
-      id: string,
-      userId: string,
-      update: UpdateCarePlanStatusData
-    ) =>
-      Effect.succeed(
-        pipe(
-          findRow(id, userId),
-          Option.map((row) => {
-            const updated: CarePlanRow = {
-              ...row,
-              status: update.status,
-              acceptedAt:
-                update.acceptedAt !== undefined
-                  ? update.acceptedAt
-                  : row.acceptedAt,
-              completedAt:
-                update.completedAt !== undefined
-                  ? update.completedAt
-                  : row.completedAt,
-              updatedAt: new Date(),
-            }
-            replacePlan(updated)
-            return toPlan(updated)
-          }),
-          Option.getOrNull
-        )
-      ),
-
-    linkChatMessage: (planId: string, chatMessageId: string) => {
-      pipe(
-        Array.findFirst(plans, (p) => p.id === planId),
-        Option.map((row) => replacePlan({ ...row, chatMessageId }))
-      )
-      return Effect.void
-    },
-
-    delete: (id: string, userId: string) => {
-      const idx = Array.findFirstIndex(
-        plans,
-        (p) => p.id === id && p.userId === userId
-      )
-      Option.map(idx, (i) => {
-        plans.splice(i, 1)
-      })
-      const remaining = Array.filter(steps, (s) => s.planId !== id)
-      steps.splice(0, steps.length, ...remaining)
-      return Effect.void
-    },
-
-    completeStep: (stepId: string, completion: CompleteStepData) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(steps, (s) => s.id === stepId),
-          Option.map((step) => mapToCarePlanStep(markStep(step, completion))),
-          Option.getOrNull
-        )
-      ),
-
-    uncompleteStep: (stepId: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(steps, (s) => s.id === stepId),
-          Option.map((step) => {
-            const updated: CarePlanStepRow = {
-              ...step,
-              completedAt: null,
-              careLogId: null,
-              updatedAt: new Date(),
-            }
-            replaceStep(updated)
-            return mapToCarePlanStep(updated)
-          }),
-          Option.getOrNull
-        )
-      ),
-
-    deleteStep: (stepId: string) => {
-      const idx = Array.findFirstIndex(steps, (s) => s.id === stepId)
-      Option.map(idx, (i) => {
-        steps.splice(i, 1)
-      })
-      return Effect.void
-    },
-
-    completeEarliestOpenStep: (
-      plantId: string,
-      careType: CareType,
-      completion: CompleteStepData
-    ) => {
-      const acceptedPlans = pipe(
-        plans,
-        Array.filter((p) => p.plantId === plantId && p.status === 'accepted'),
-        Array.sort(Order.mapInput(Order.Date, (p: CarePlanRow) => p.createdAt))
-      )
-      const target = pipe(
-        acceptedPlans,
-        Array.flatMap((p) =>
-          pipe(
-            stepsOf(p.id),
-            Array.filter((s) => s.careType === careType && isStepOpen(s)),
-            Array.sort(
-              Order.mapInput(Order.Number, (s: CarePlanStepRow) => s.position)
-            )
-          )
-        ),
-        Array.head
-      )
-      return Effect.succeed(
-        pipe(
-          target,
-          Option.map((step) => mapToCarePlanStep(markStep(step, completion))),
-          Option.getOrNull
-        )
-      )
-    },
-
-    settleCompletion: (planId: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(plans, (p) => p.id === planId),
-          Option.map((row) => {
-            const planSteps = stepsOf(planId)
-            const allDone =
-              Array.isReadonlyArrayNonEmpty(planSteps) &&
-              !Array.some(planSteps, isStepOpen)
-            if (row.status === 'accepted' && allDone) {
-              const updated: CarePlanRow = {
-                ...row,
-                status: 'completed',
-                completedAt: new Date(),
-                updatedAt: new Date(),
-              }
-              replacePlan(updated)
-              return toPlan(updated)
-            }
-            return toPlan(row)
-          }),
-          Option.getOrNull
-        )
-      ),
   }
 
-  return Layer.succeed(CarePlanRepository, repo)
+  return { plans, steps, layer: Layer.succeed(CarePlanRepository, repo) }
 }
+
+export type CarePlanRows = ReturnType<typeof createCarePlanRows>
+
+export const createMockCarePlanRepository = (
+  data: MockCarePlanData = {}
+): Layer.Layer<CarePlanRepository> => createCarePlanRows(data).layer

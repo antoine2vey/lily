@@ -4,7 +4,7 @@ import {
   type FindRecentParams,
   type ICareLogRepository,
 } from '@lily/api/repositories/care-log.repository'
-import { type CareType, paginate } from '@lily/shared'
+import { paginate } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 
@@ -86,68 +86,12 @@ export const createMockCareLogRepository = (
         plantName: `Plant ${log.plantId.slice(-4)}`,
         plantImageUrl: undefined,
         date: log.date,
+        careDay: log.careDay,
         notes: log.notes,
       }))
 
       return Effect.succeed({ items: recentActivities })
     },
-
-    createMany: (data) =>
-      Effect.succeed(
-        Array.map(data, (d) => ({
-          id: `log-${crypto.randomUUID()}`,
-          type: d.type,
-          notes: d.notes,
-          date: pipe(
-            Option.fromNullishOr(d.date),
-            Option.getOrElse(() => new Date())
-          ),
-          photoUrl: d.photoUrl,
-          plantId: d.plantId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }))
-      ),
-
-    create: (data) => {
-      const newLog: CareLog = {
-        id: `log-${crypto.randomUUID()}`,
-        type: data.type,
-        notes: data.notes,
-        date: pipe(
-          Option.fromNullishOr(data.date),
-          Option.getOrElse(() => new Date())
-        ),
-        photoUrl: data.photoUrl,
-        plantId: data.plantId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      return Effect.succeed(newLog)
-    },
-
-    update: (id, data) => {
-      const logOption = Array.findFirst(careLogs, (log) => log.id === id)
-      return Option.match(logOption, {
-        onNone: () => Effect.succeed(null),
-        onSome: (log) =>
-          Effect.succeed({
-            ...log,
-            ...(data.notes !== undefined && { notes: data.notes }),
-            ...(data.date !== undefined && { date: data.date }),
-            ...(data.photoUrl !== undefined && { photoUrl: data.photoUrl }),
-            updatedAt: new Date(),
-          }),
-      })
-    },
-
-    delete: (id) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(careLogs, (log) => log.id === id),
-          Option.getOrNull
-        )
-      ),
 
     countTodayByUser: (userId: string) =>
       Effect.succeed(
@@ -176,37 +120,6 @@ export const createMockCareLogRepository = (
           Option.getOrElse(() => 0)
         )
       ),
-
-    existsByPlantAndTypeInRange: (
-      plantId: string,
-      type: CareType,
-      startUtc: Date,
-      endUtc: Date
-    ) =>
-      Effect.succeed(
-        Array.some(
-          careLogs,
-          (log) =>
-            log.plantId === plantId &&
-            log.type === type &&
-            log.date >= startUtc &&
-            log.date < endUtc
-        )
-      ),
-
-    lockPlantCareType: () => Effect.void,
-
-    findLatestByPlantAndType: (plantId: string, type: CareType) => {
-      const byDateDesc = Order.flip(
-        Order.mapInput(Order.Date, (log: CareLog) => log.date)
-      )
-      const matching = pipe(
-        careLogs,
-        Array.filter((log) => log.plantId === plantId && log.type === type),
-        Array.sort(byDateDesc)
-      )
-      return Effect.succeed(pipe(Array.head(matching), Option.getOrNull))
-    },
   }
 
   return Layer.succeed(CareLogRepository, repo)

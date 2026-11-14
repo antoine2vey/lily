@@ -1,9 +1,25 @@
+import { returnFromVacation } from '@lily/api/__tests__/integration/absence-layers'
+import {
+  delivered,
+  settled,
+} from '@lily/api/__tests__/integration/canopy-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import type { Absence } from '@lily/api/contexts/absence'
+import type { Canopy } from '@lily/api/contexts/canopy'
+import { CareReadsLive } from '@lily/api/contexts/care'
+import { Dirty, Reminders, replan } from '@lily/api/contexts/reminders'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -33,9 +49,7 @@ import { dispatchNow } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
-import { reminderRecipients } from '@lily/api/services/plants/helpers/reminder-recipients'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
-import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import {
@@ -59,6 +73,7 @@ const RepositoriesLive = Layer.mergeAll(
   CanopyRepositoryLive,
   CareLogRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   EngagementRepositoryLive,
@@ -139,6 +154,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careType: 'watering',
         frequencyDays: 7,
         nextCareAt,
+        dueDay: careDayOf(nextCareAt),
       })
       return plant
     }
@@ -206,6 +222,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const PipelineLive = Layer.mergeAll(
         RepositoriesLive,
         MockAlerterLive,
+        createMockEventBus(),
+        createMockLimitChecker(),
+        createMockWeatherProvider(),
+        createMockWeatherCache(),
+        createMockWeatherRepository(),
         createMockMessageQueue({
           onEnqueue: (_topic, message) => {
             enqueued.push(message)
@@ -222,10 +243,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         createMockCurrentUser({ id: actor.id, email: actor.email })
       )
       const run = <A, E>(
-        effect: Effect.Effect<A, E, Layer.Success<typeof PipelineLive>>
+        effect: Effect.Effect<
+          A,
+          E,
+          Layer.Success<typeof PipelineLive> | Outbox | Canopy | Absence
+        >
       ) =>
         Effect.runPromise(
           effect.pipe(
+            settled,
             Effect.provide(PipelineLive),
             Effect.provideService(References.MinimumLogLevel, 'None')
           )
@@ -499,7 +525,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             repo.findById(plant.id)
           ).pipe(
             Effect.flatMap((row) =>
-              row ? reminderRecipients(row) : Effect.die('plant missing')
+              row ? Reminders.audienceOf(row) : Effect.die('plant missing')
             )
           )
         )
@@ -510,6 +536,26 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .set({ status: 'pending_deletion', deletedAt: new Date() })
         .where(eq(schema.users.id, caretaker.id))
       expect(await recipients()).toEqual([owner.id])
+    })
+
+    it('takes the waiting reminders of a caretaker an admin marked pending deletion off the plants they tended, and gives them to the owner', async () => {
+      const owner = await insertUser('owner')
+      const caretaker = await insertUser('caretaker')
+      const plant = await insertPlant(owner.id, new Date(Date.now() + DAY))
+      await delegate(owner.id, caretaker.id, plant.id)
+      const { run } = pipeline(owner)
+      await run(replan(Dirty.Plants({ plantIds: [plant.id] })))
+      expect(await rowsOf(caretaker.id)).toMatchObject([
+        { type: 'watering_reminder', status: 'pending', plantId: plant.id },
+      ])
+
+      await markStatus(run, caretaker.id, 'pending_deletion')
+      await run(replan(Dirty.Recipient({ userId: caretaker.id })))
+
+      expect(await rowsOf(caretaker.id)).toEqual([])
+      expect(await rowsOf(owner.id)).toMatchObject([
+        { type: 'watering_reminder', status: 'pending', plantId: plant.id },
+      ])
     })
 
     const follow = (
@@ -678,7 +724,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               repo.findById(plant.id)
             ).pipe(
               Effect.flatMap((row) =>
-                row ? reminderRecipients(row) : Effect.die('plant missing')
+                row ? Reminders.audienceOf(row) : Effect.die('plant missing')
               )
             )
           )
@@ -739,7 +785,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const { run } = pipeline(owner)
 
         await markStatus(run, caretaker.id, status)
-        await run(endVacation({ user: vacationer, effectiveEnd: new Date() }))
+        await run(delivered(returnFromVacation(vacationer.id)))
 
         const [schedule] = await db
           .select({ nextCareAt: schema.plantCareSchedules.nextCareAt })
@@ -829,11 +875,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
           .returning()
         if (!plant) throw new Error('plant insert returned nothing')
+        const dueAt = new Date(Date.now() - 2 * DAY)
         await db.insert(schema.plantCareSchedules).values({
           plantId: plant.id,
           careType: 'watering',
           frequencyDays: 7,
-          nextCareAt: new Date(Date.now() - 2 * DAY),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         })
         const { run } = pipeline(active)
 

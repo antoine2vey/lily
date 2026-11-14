@@ -1,51 +1,59 @@
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import { Canopy } from '@lily/api/contexts/canopy'
+import { lockUser } from '@lily/api/kernel/locks'
+import type { Outbox } from '@lily/api/kernel/outbox'
+import { mintOwnerHeld, type OwnerHeld } from '@lily/api/kernel/owner'
+import { transact } from '@lily/api/kernel/transact'
+import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
+import type { CanopyOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { lockMyCanopy } from '@lily/api/services/canopy/helpers/membership'
 import { CanopyNotFoundError, type PlantOwner } from '@lily/shared'
 import { Effect, Match } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-const OWNER_LOCK_KEYSPACE = 1
-
-const lockUser = (sql: SqlClient.SqlClient, userId: string) =>
-  Effect.asVoid(
-    sql`SELECT pg_advisory_xact_lock(${OWNER_LOCK_KEYSPACE}, hashtext(${userId}))`
+export const canopyOwnerOf = (
+  userId: string
+): Effect.Effect<
+  CanopyOwner,
+  CanopyNotFoundError | SqlError,
+  CanopyRepository
+> =>
+  Effect.flatMap(CanopyRepository, (repo) =>
+    repo.findMembershipByUser(userId)
+  ).pipe(
+    Effect.flatMap((membership) =>
+      membership === null
+        ? Effect.fail(new CanopyNotFoundError())
+        : Effect.succeed({ _tag: 'Canopy', canopyId: membership.canopyId })
+    )
   )
 
 export const withUserLock =
   (userId: string) =>
   <A, E, R>(
     effect: Effect.Effect<A, E, R>
-  ): Effect.Effect<A, E | SqlError, R | SqlClient.SqlClient> =>
-    Effect.flatMap(SqlClient.SqlClient, (sql) =>
-      sql.withTransaction(Effect.andThen(lockUser(sql, userId), effect))
-    )
+  ): Effect.Effect<A, E | SqlError, R | SqlClient.SqlClient | Outbox> =>
+    transact(Effect.andThen(lockUser(userId), effect))
 
 export const withOwnerLock =
   (owner: PlantOwner) =>
   <A, E, R>(
-    effect: Effect.Effect<A, E, R>
+    body: (held: OwnerHeld) => Effect.Effect<A, E, R>
   ): Effect.Effect<
     A,
     E | SqlError | CanopyNotFoundError,
-    R | SqlClient.SqlClient | CanopyRepository | CurrentUser
+    R | SqlClient.SqlClient | Outbox | Canopy | CurrentUser
   > =>
-    Effect.flatMap(SqlClient.SqlClient, (sql) =>
-      sql.withTransaction(
-        Match.value(owner).pipe(
-          Match.tag('User', ({ userId }) => lockUser(sql, userId)),
-          Match.tag('Canopy', ({ canopyId }) =>
-            Effect.flatMap(CurrentUser, ({ id }) => lockMyCanopy(id)).pipe(
-              Effect.flatMap(({ canopy }) =>
-                canopy.id === canopyId
-                  ? Effect.void
-                  : Effect.fail(new CanopyNotFoundError())
-              )
-            )
-          ),
-          Match.exhaustive,
-          Effect.andThen(effect)
-        )
+    transact(
+      Match.value(owner).pipe(
+        Match.tag('User', ({ userId }) => lockUser(userId)),
+        Match.tag('Canopy', ({ canopyId }) =>
+          Effect.flatMap(
+            Effect.all([Canopy, CurrentUser]),
+            ([canopy, { id }]) => canopy.holdAsMember({ by: id, canopyId })
+          )
+        ),
+        Match.exhaustive,
+        Effect.andThen(() => body(mintOwnerHeld(owner)))
       )
     )

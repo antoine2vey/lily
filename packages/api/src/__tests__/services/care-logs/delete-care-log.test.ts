@@ -1,58 +1,18 @@
-import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
-import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { carePermit, createStubCare } from '@lily/api/__tests__/mocks/care'
 import { deleteCareLog } from '@lily/api/services/care-logs/endpoints/delete-care-log'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('deleteCareLog', () => {
-  it('should delete existing care log', async () => {
+  it('removes the care of the permitted plant and confirms it', async () => {
+    const care = createStubCare()
+    const permit = carePermit('plant-1')
+
     const result = await Effect.runPromise(
-      deleteCareLog('plant-1', 'log-1').pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
-      )
+      deleteCareLog(permit, 'log-1').pipe(Effect.provide(care.layer))
     )
 
-    expect(result.message).toContain('log-1')
-    expect(result.message).toContain('deleted')
-  })
-
-  it('should return success message on deletion', async () => {
-    const result = await Effect.runPromise(
-      deleteCareLog('plant-1', 'log-2').pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
-      )
-    )
-
-    expect(result.message).toBe('Care log log-2 deleted successfully')
-  })
-
-  it('should fail with CareLogNotFoundError when log not found', async () => {
-    const result = await Effect.runPromiseExit(
-      deleteCareLog('plant-1', 'non-existent').pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
-      )
-    )
-
-    expect(result._tag).toBe('Failure')
-  })
-
-  it('should fail when log belongs to different plant', async () => {
-    const result = await Effect.runPromiseExit(
-      deleteCareLog('plant-2', 'log-1').pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
-      )
-    )
-
-    expect(result._tag).toBe('Failure')
-  })
-
-  it('should fail when store is empty', async () => {
-    const result = await Effect.runPromiseExit(
-      deleteCareLog('plant-1', 'log-1').pipe(
-        Effect.provide(createMockCareLogRepository([]))
-      )
-    )
-
-    expect(result._tag).toBe('Failure')
+    expect(care.removed).toEqual([{ permit, careLogId: 'log-1' }])
+    expect(result).toEqual({ message: 'Care log log-1 deleted successfully' })
   })
 })

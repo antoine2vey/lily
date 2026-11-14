@@ -1,9 +1,3 @@
-/**
- * Integration test: verifies the full readjustCareSchedules pipeline
- * with plants in different rooms (indoor, outdoor, no room) and realistic
- * weather forecasts. Checks actual date changes, not just that it runs.
- */
-
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
@@ -16,36 +10,30 @@ import {
   desertSummerForecast,
   hotWeekForecast,
   mockHeatWaveHistory,
-  mockWeatherDataModerate,
   nordicWinterForecast,
   parisWinterForecast,
   tropicalMonsoonForecast,
 } from '@lily/api/__tests__/fixtures/weather'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { DueMove } from '@lily/api/contexts/care'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import {
   readjustCareSchedules,
   weatherScopes,
 } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
-import type { WeatherData } from '@lily/shared'
-import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import type { CareType, WeatherData } from '@lily/shared'
+import { Array, Effect, Layer, Number, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const oneDayMs = 24 * 60 * 60 * 1000
-
-/** Get timestamp — test setup guarantees non-null dates */
-const toMs = (date: Date | null | undefined): number => {
-  if (!date) throw new Error('Expected non-null date in test')
-  return date.getTime()
-}
 
 // ─── Test Setup ──────────────────────────────────────────────────────────
 
@@ -78,51 +66,80 @@ const outdoorRoom = {
   isOutdoor: true,
 }
 
+const dimRoom = {
+  id: 'room-dim',
+  name: 'Dim Hallway',
+  icon: '🌑',
+  luminosity: 80,
+  isOutdoor: false,
+}
+
 const buildContextMap = (
   ctx: WeatherContext
 ): ReadonlyMap<string, WeatherContext> => new Map([['48.86_2.35', ctx]])
 
-const findSchedule = (
-  schedules: CareScheduleRow[],
+type Plant = ReturnType<typeof createTestPlant>
+type MoveCommands = ReturnType<typeof createStubCare>['moved']
+
+const readjust = async (
+  plants: Plant[],
+  ctx: WeatherContext,
+  schedules: CareScheduleRow[] = schedulesFromPlants(plants)
+): Promise<MoveCommands> => {
+  const care = createStubCare()
+  await Effect.runPromise(
+    readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          MockSqlClientLive,
+          care.layer,
+          createMockUserRepository([weatherUser]),
+          createMockPlantRepository({
+            plants,
+            rooms: [indoorRoom, outdoorRoom, dimRoom],
+          }),
+          createMockNotificationRepository([]),
+          createMockCanopyRepository(),
+          createMockDelegationRepository(),
+          createMockCareScheduleRepository({ schedules, plants })
+        )
+      )
+    )
+  )
+  return care.moved
+}
+
+const daysAsked = (
+  commands: MoveCommands,
   plantId: string,
-  careType: string
-) =>
+  careType: CareType = 'watering'
+): number =>
   pipe(
-    Array.findFirst(
-      schedules,
-      (s) => s.plantId === plantId && s.careType === careType
+    commands,
+    Array.flatMap((command) => command.moves),
+    Array.filter(
+      (move) => move.plantId === plantId && move.careType === careType
     ),
-    Option.getOrNull
+    Array.map(({ move }) => move),
+    Array.filter(DueMove.$is('By')),
+    Array.map((move) => move.days),
+    Number.sumAll
   )
 
-const buildLayers = ({
-  plants,
-  notifications = [],
-  schedules,
-}: {
-  plants: Array<ReturnType<typeof createTestPlant>>
-  notifications?: Notification[]
-  schedules?: CareScheduleRow[]
-}) => {
-  const resolvedSchedules = schedules ?? schedulesFromPlants(plants)
-  return {
-    layers: Layer.mergeAll(
-      MockSqlClientLive,
-      createMockUserRepository([weatherUser]),
-      createMockPlantRepository({
-        plants,
-        rooms: [indoorRoom, outdoorRoom],
-      }),
-      createMockNotificationRepository(notifications),
-      createMockCanopyRepository(),
-      createMockDelegationRepository(),
-      createMockCareScheduleRepository({
-        schedules: resolvedSchedules,
-        plants,
-      })
-    ),
-    schedules: resolvedSchedules,
+const readjustAndApply = async (
+  plant: Plant,
+  ctx: WeatherContext,
+  schedules: CareScheduleRow[]
+): Promise<number> => {
+  const days = daysAsked(await readjust([plant], ctx, schedules), plant.id)
+  for (const schedule of schedules) {
+    if (schedule.careType === 'watering' && schedule.nextCareAt) {
+      schedule.nextCareAt = new Date(
+        schedule.nextCareAt.getTime() + days * oneDayMs
+      )
+    }
   }
+  return days
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────
@@ -155,23 +172,13 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
+      const commands = await readjust([plant], ctx)
 
       // Indoor plant: dampened temp factor 0.85 → adjustedDays ~8
       // idealNext = threeDaysAgo + 8d = now + 5d
       // currentNext = now + 4d → delta = 1
       // Verify: change is small (0-2 days)
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
+      const shiftDays = daysAsked(commands, plant.id)
       expect(shiftDays).toBeGreaterThanOrEqual(0)
       expect(shiftDays).toBeLessThanOrEqual(2)
     })
@@ -198,20 +205,10 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
+      const commands = await readjust([plant], ctx)
 
       // Outdoor plant: full cold factor 0.5 → adjustedDays 14 → big positive delta (capped at 4)
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
+      const shiftDays = daysAsked(commands, plant.id)
       expect(shiftDays).toBeGreaterThan(0)
       expect(shiftDays).toBeLessThanOrEqual(4) // capped at ceil(7/2) = 4
     })
@@ -238,20 +235,10 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
+      const commands = await readjust([plant], ctx)
 
       // No room → isOutdoor = false → indoor dampening
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
+      const shiftDays = daysAsked(commands, plant.id)
       expect(shiftDays).toBeGreaterThanOrEqual(0)
       expect(shiftDays).toBeLessThanOrEqual(2)
     })
@@ -296,28 +283,10 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
-      const { layers, schedules } = buildLayers({
-        plants: [indoorPlant, outdoorPlant],
-      })
+      const commands = await readjust([indoorPlant, outdoorPlant], ctx)
 
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      const indoorShift = Math.round(
-        (toMs(findSchedule(schedules, indoorPlant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
-      const outdoorShift = Math.round(
-        (toMs(
-          findSchedule(schedules, outdoorPlant.id, 'watering')?.nextCareAt
-        ) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
+      const indoorShift = daysAsked(commands, indoorPlant.id)
+      const outdoorShift = daysAsked(commands, outdoorPlant.id)
 
       // Outdoor shift should be strictly larger than indoor shift
       expect(outdoorShift).toBeGreaterThan(indoorShift)
@@ -350,26 +319,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
+      const commands = await readjust([plant], ctx)
 
       // Desert: hot + dry + wind → multiplier ~1.9 → adjustedDays ~4
       // idealNext = twoDaysAgo + 4d = now + 2d
       // currentNext = now + 5d → delta = -3
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
+      const shiftDays = daysAsked(commands, plant.id)
       expect(shiftDays).toBeLessThan(0)
     })
 
-    it('should barely adjust indoor plant in desert heat', async () => {
+    it('should not move an indoor plant in desert heat', async () => {
       const plant = createTestPlant({
         id: 'indoor-desert',
         name: 'Indoor Desert Plant',
@@ -390,21 +349,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
+      const commands = await readjust([plant], ctx)
 
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Indoor: dampened temp 1.15, humidity 1.0, wind 1.0 → small effect
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
-      expect(Math.abs(shiftDays)).toBeLessThanOrEqual(1)
+      expect(daysAsked(commands, plant.id)).toBe(0)
     })
   })
 
@@ -434,20 +381,10 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(tropicalMonsoonForecast)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
+      const commands = await readjust([plant], ctx)
 
       // Rain (>6mm each day) × 0.3 dampening → very low multiplier → adjustedDays > 7
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
+      const shiftDays = daysAsked(commands, plant.id)
       expect(shiftDays).toBeGreaterThan(0) // delay because rain waters the plant
     })
 
@@ -472,20 +409,10 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(tropicalMonsoonForecast)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
+      const commands = await readjust([plant], ctx)
 
       // Indoor: no rain effect, temp ~29°C is below hot threshold → delta ≈ 0
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
+      const shiftDays = daysAsked(commands, plant.id)
       expect(Math.abs(shiftDays)).toBeLessThanOrEqual(1)
     })
   })
@@ -517,192 +444,23 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const ctx = buildWeatherCtx(parisWinterForecast)
       const schedules = schedulesFromPlants([plant])
 
-      // Run scheduler 5 times (simulating 5 scheduler invocations)
       const deltas: number[] = []
       for (let i = 0; i < 5; i++) {
-        const prevNext = toMs(
-          findSchedule(schedules, plant.id, 'watering')?.nextCareAt
-        )
-        const layers = Layer.mergeAll(
-          MockSqlClientLive,
-          createMockUserRepository([weatherUser]),
-          createMockPlantRepository({
-            plants: [plant],
-            rooms: [indoorRoom, outdoorRoom],
-          }),
-          createMockNotificationRepository([]),
-          createMockCanopyRepository(),
-          createMockDelegationRepository(),
-          createMockCareScheduleRepository({ schedules, plants: [plant] })
-        )
-
-        await Effect.runPromise(
-          readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-            Effect.provide(layers)
-          )
-        )
-
-        const shift = Math.round(
-          (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-            prevNext) /
-            oneDayMs
-        )
-        deltas.push(shift)
+        deltas.push(await readjustAndApply(plant, ctx, schedules))
       }
 
-      // Eventually converges to 0 (deltas shrink and stabilize)
-      const lastDelta = deltas[deltas.length - 1]
-      expect(lastDelta).toBe(0)
+      expect(deltas[0]).toBeGreaterThan(0)
+      expect(deltas[deltas.length - 1]).toBe(0)
 
-      // Total drift should be bounded by max adjustedDays (14 = 2 × 7)
-      const _totalDrift = deltas.reduce((sum, d) => sum + d, 0)
-      const wateringSchedule = findSchedule(schedules, plant.id, 'watering')
-      const intervalMs =
-        toMs(wateringSchedule?.nextCareAt) - toMs(wateringSchedule?.lastCareAt)
-      const intervalDays = Math.round(intervalMs / oneDayMs)
+      const intervalDays = 7 + Number.sumAll(deltas)
       expect(intervalDays).toBeLessThanOrEqual(14)
       expect(intervalDays).toBeGreaterThanOrEqual(1)
-    })
-
-    it('indoor plant should converge after 1 run in sustained heat wave', async () => {
-      const now = Date.now()
-      const twoDaysAgo = new Date(now - 2 * oneDayMs)
-      const originalNext = new Date(now + 5 * oneDayMs) // 7d freq, watered 2d ago
-
-      const plant = createTestPlant({
-        id: 'stability-indoor-heat',
-        name: 'Stability Indoor Heat Plant',
-        category: 'Foliage',
-        wateringRating: 3,
-        userId: weatherUser.id,
-        roomId: 'room-indoor',
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        scheduleSpecs: [
-          wateringSpec({
-            frequencyDays: 7,
-            lastCareAt: twoDaysAgo,
-            nextCareAt: new Date(originalNext),
-          }),
-        ],
-      })
-
-      const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
-      const schedules = schedulesFromPlants([plant])
-
-      // Run scheduler 5 times simulating sustained heat wave
-      const deltas: number[] = []
-      for (let i = 0; i < 5; i++) {
-        const prevNext = toMs(
-          findSchedule(schedules, plant.id, 'watering')?.nextCareAt
-        )
-        const layers = Layer.mergeAll(
-          MockSqlClientLive,
-          createMockUserRepository([weatherUser]),
-          createMockPlantRepository({
-            plants: [plant],
-            rooms: [indoorRoom, outdoorRoom],
-          }),
-          createMockNotificationRepository([]),
-          createMockCanopyRepository(),
-          createMockDelegationRepository(),
-          createMockCareScheduleRepository({ schedules, plants: [plant] })
-        )
-
-        await Effect.runPromise(
-          readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-            Effect.provide(layers)
-          )
-        )
-
-        const shift = Math.round(
-          (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-            prevNext) /
-            oneDayMs
-        )
-        deltas.push(shift)
-      }
-
-      // Indoor + outdoor heat wave: the location-aware indoor model does NOT
-      // accelerate watering, because a heat wave on the balcony does not change
-      // a climate-controlled room. Demand stays ~1.0 → delta 0 every run (the
-      // old proxy model wrongly read outdoor heat as indoor heat). The point of
-      // this test is stability: no drift across repeated runs.
-      expect(deltas[0]).toBe(0)
-      expect(deltas[1]).toBe(0)
-      expect(deltas[2]).toBe(0)
-
-      // Total shift should be 0 — indoor schedule is unaffected by outdoor heat
-      const totalShift = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
-      expect(totalShift).toBe(0)
-    })
-
-    it('indoor plant should barely move across 5 scheduler runs in cold', async () => {
-      const now = Date.now()
-      const threeDaysAgo = new Date(now - 3 * oneDayMs)
-      const originalNext = new Date(now + 4 * oneDayMs)
-
-      const plant = createTestPlant({
-        id: 'stability-indoor',
-        name: 'Stability Indoor Plant',
-        category: 'Foliage',
-        wateringRating: 3,
-        userId: weatherUser.id,
-        roomId: 'room-indoor',
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        scheduleSpecs: [
-          wateringSpec({
-            frequencyDays: 7,
-            lastCareAt: threeDaysAgo,
-            nextCareAt: new Date(originalNext),
-          }),
-        ],
-      })
-
-      const ctx = buildWeatherCtx(parisWinterForecast)
-      const schedules = schedulesFromPlants([plant])
-
-      for (let i = 0; i < 5; i++) {
-        const layers = Layer.mergeAll(
-          MockSqlClientLive,
-          createMockUserRepository([weatherUser]),
-          createMockPlantRepository({
-            plants: [plant],
-            rooms: [indoorRoom, outdoorRoom],
-          }),
-          createMockNotificationRepository([]),
-          createMockCanopyRepository(),
-          createMockDelegationRepository(),
-          createMockCareScheduleRepository({ schedules, plants: [plant] })
-        )
-        await Effect.runPromise(
-          readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-            Effect.provide(layers)
-          )
-        )
-      }
-
-      // Indoor: dampened cold → total shift should be tiny
-      const totalShift = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
-      expect(totalShift).toBeGreaterThanOrEqual(0)
-      expect(totalShift).toBeLessThanOrEqual(2)
     })
   })
 
   // ─── New location-aware indoor model: signature behaviors end-to-end ─────
   // These assert the NEW indoor light/photoperiod/VPD model all the way through
-  // readjustCareSchedules to the persisted nextCareAt (not just that it runs).
+  // readjustCareSchedules to the move it asks for (not just that it runs).
   describe('indoor model: location-aware behavior (new)', () => {
     const now = Date.now()
     const threeDaysAgo = new Date(now - 3 * oneDayMs)
@@ -737,14 +495,6 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       datedForecast('2026-12', { temperatureMean: 3, cloudCover: 85 })
     )
 
-    const dimRoom = {
-      id: 'room-dim',
-      name: 'Dim Hallway',
-      icon: '🌑',
-      luminosity: 80, // level 1 — vs the default lightingRating 3
-      isOutdoor: false,
-    }
-
     const indoorFoliage = (id: string, roomId: string) =>
       createTestPlant({
         id,
@@ -762,155 +512,43 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         ],
       })
 
-    // Run one plant through one weather context; return its persisted next
-    // watering date (ms).
-    const runOnce = async (
-      plant: ReturnType<typeof createTestPlant>,
-      ctx: WeatherContext
-    ): Promise<number> => {
-      const schedules = schedulesFromPlants([plant])
-      const layers = Layer.mergeAll(
-        MockSqlClientLive,
-        createMockUserRepository([weatherUser]),
-        createMockPlantRepository({
-          plants: [plant],
-          rooms: [indoorRoom, outdoorRoom, dimRoom],
-        }),
-        createMockNotificationRepository([]),
-        createMockCanopyRepository(),
-        createMockDelegationRepository(),
-        createMockCareScheduleRepository({ schedules, plants: [plant] })
-      )
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-      return toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt)
-    }
+    const daysFor = async (plant: Plant, ctx: WeatherContext) =>
+      daysAsked(await readjust([plant], ctx), plant.id)
 
     it('waters an indoor plant SOONER in summer than in winter (photoperiod flows through)', async () => {
-      const juneNext = await runOnce(
+      const juneDays = await daysFor(
         indoorFoliage('indoor-june', 'room-indoor'),
         juneCtx
       )
-      const decemberNext = await runOnce(
+      const decemberDays = await daysFor(
         indoorFoliage('indoor-december', 'room-indoor'),
         decemberCtx
       )
       // Long bright summer days → active growth → water sooner → earlier date.
-      expect(juneNext).toBeLessThan(decemberNext)
+      expect(juneDays).toBeLessThan(decemberDays)
     })
 
     it('waters a dim-room indoor plant LATER than a bright-room one (room luminosity flows through)', async () => {
-      const brightNext = await runOnce(
+      const brightDays = await daysFor(
         indoorFoliage('indoor-bright', 'room-indoor'),
         decemberCtx
       )
-      const dimNext = await runOnce(
+      const dimDays = await daysFor(
         indoorFoliage('indoor-dim', 'room-dim'),
         decemberCtx
       )
       // A dim room slows growth → water less often → later date.
-      expect(dimNext).toBeGreaterThan(brightNext)
+      expect(dimDays).toBeGreaterThan(brightDays)
     })
 
     it('NEVER accelerates a light-starved plant, even in dry heated winter air (dormancy veto)', async () => {
-      const resultNext = await runOnce(
+      const days = await daysFor(
         indoorFoliage('indoor-starved', 'room-dim'),
         decemberCtx
       )
       // The veto: a dormant, light-starved plant must never have its watering
       // pulled earlier — cold dry indoor air cannot shorten its schedule.
-      expect(resultNext).toBeGreaterThanOrEqual(midCycleNext.getTime())
-    })
-  })
-
-  describe('skips plants without dates', () => {
-    it('should skip plant without lastWateredAt', async () => {
-      const plant = createTestPlant({
-        id: 'no-watered-date',
-        name: 'Never Watered',
-        userId: weatherUser.id,
-        roomId: 'room-indoor',
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        scheduleSpecs: [
-          wateringSpec({
-            frequencyDays: 7,
-            lastCareAt: null,
-            nextCareAt: null,
-          }),
-        ],
-      })
-
-      const ctx = buildWeatherCtx(parisWinterForecast)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
-
-      // Should not throw
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Dates unchanged (still null)
-      expect(
-        findSchedule(schedules, plant.id, 'watering')?.nextCareAt
-      ).toBeNull()
-    })
-  })
-
-  describe('zero delta → no DB update', () => {
-    it('should not update plant when moderate weather matches schedule', async () => {
-      const now = Date.now()
-      const threeDaysAgo = new Date(now - 3 * oneDayMs)
-      const correctNext = new Date(threeDaysAgo.getTime() + 7 * oneDayMs) // correct schedule
-
-      const plant = createTestPlant({
-        id: 'no-change',
-        name: 'Already Correct',
-        category: 'Foliage',
-        wateringRating: 3,
-        userId: weatherUser.id,
-        roomId: 'room-indoor',
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        scheduleSpecs: [
-          wateringSpec({
-            frequencyDays: 7,
-            lastCareAt: threeDaysAgo,
-            nextCareAt: new Date(correctNext),
-          }),
-        ],
-      })
-
-      const moderateForecast = [
-        mockWeatherDataModerate,
-        { ...mockWeatherDataModerate, date: '2026-02-11' },
-        { ...mockWeatherDataModerate, date: '2026-02-12' },
-        { ...mockWeatherDataModerate, date: '2026-02-13' },
-        { ...mockWeatherDataModerate, date: '2026-02-14' },
-        { ...mockWeatherDataModerate, date: '2026-02-15' },
-        { ...mockWeatherDataModerate, date: '2026-02-16' },
-      ]
-      const ctx = buildWeatherCtx(moderateForecast)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Moderate weather → multiplier 1.0 → adjustedDays 7 → delta 0
-      const shiftMs = Math.abs(
-        toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          correctNext.getTime()
-      )
-      expect(shiftMs).toBeLessThan(oneDayMs) // less than 1 day difference
+      expect(days).toBeGreaterThanOrEqual(0)
     })
   })
 
@@ -940,19 +578,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
+      const commands = await readjust([plant], ctx)
 
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // adjustedDays can't go below 1 → newNext must be >= lastWateredAt + 1d
-      const wateringSchedule = findSchedule(schedules, plant.id, 'watering')
-      const intervalMs =
-        toMs(wateringSchedule?.nextCareAt) - toMs(wateringSchedule?.lastCareAt)
-      expect(intervalMs).toBeGreaterThanOrEqual(oneDayMs)
+      expect(daysAsked(commands, plant.id)).toBeGreaterThanOrEqual(0)
     })
 
     it('long-frequency succulent (14d) in Nordic cold should cap at ±7', async () => {
@@ -980,19 +608,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(nordicWinterForecast)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
+      const commands = await readjust([plant], ctx)
 
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
+      const shiftDays = daysAsked(commands, plant.id)
       // Cap for 14d plant is ceil(14/2) = 7
       expect(Math.abs(shiftDays)).toBeLessThanOrEqual(7)
     })
@@ -1024,20 +642,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(hotWeekForecast, mockHeatWaveHistory)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
+      const commands = await readjust([plant], ctx)
 
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Hot weather wants to accelerate (negative delta), but plant is already
-      // overdue — newNextWateringAt must not go before now or lastWateredAt + 1d
-      const wateringSchedule = findSchedule(schedules, plant.id, 'watering')
-      expect(toMs(wateringSchedule?.nextCareAt)).toBeGreaterThanOrEqual(
-        toMs(wateringSchedule?.lastCareAt) + oneDayMs
-      )
+      expect(6 + daysAsked(commands, plant.id)).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -1088,28 +695,10 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
-      const { layers, schedules } = buildLayers({
-        plants: [shortFreq, longFreq],
-      })
-      const shortOriginal = toMs(shortNextDate)
-      const longOriginal = toMs(longNextDate)
+      const commands = await readjust([shortFreq, longFreq], ctx)
 
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      const shortShift = Math.round(
-        (toMs(findSchedule(schedules, shortFreq.id, 'watering')?.nextCareAt) -
-          shortOriginal) /
-          oneDayMs
-      )
-      const longShift = Math.round(
-        (toMs(findSchedule(schedules, longFreq.id, 'watering')?.nextCareAt) -
-          longOriginal) /
-          oneDayMs
-      )
+      const shortShift = daysAsked(commands, shortFreq.id)
+      const longShift = daysAsked(commands, longFreq.id)
 
       // Both should be delayed (cold weather → positive delta)
       expect(shortShift).toBeGreaterThanOrEqual(0)
@@ -1145,63 +734,21 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         ],
       })
 
-      // Run 1: cold weather → delays watering
-      const coldCtx = buildWeatherCtx(parisWinterForecast)
       const schedules = schedulesFromPlants([plant])
-      const layers1 = Layer.mergeAll(
-        MockSqlClientLive,
-        createMockUserRepository([weatherUser]),
-        createMockPlantRepository({
-          plants: [plant],
-          rooms: [indoorRoom, outdoorRoom],
-        }),
-        createMockNotificationRepository([]),
-        createMockCanopyRepository(),
-        createMockDelegationRepository(),
-        createMockCareScheduleRepository({ schedules, plants: [plant] })
-      )
 
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(coldCtx)).pipe(
-          Effect.provide(layers1)
-        )
+      const coldShift = await readjustAndApply(
+        plant,
+        buildWeatherCtx(parisWinterForecast),
+        schedules
       )
+      expect(coldShift).toBeGreaterThan(0)
 
-      const afterColdNext = toMs(
-        findSchedule(schedules, plant.id, 'watering')?.nextCareAt
+      const hotShift = await readjustAndApply(
+        plant,
+        buildWeatherCtx(hotWeekForecast, mockHeatWaveHistory),
+        schedules
       )
-      const coldShift = Math.round(
-        (afterColdNext - originalNext.getTime()) / oneDayMs
-      )
-      expect(coldShift).toBeGreaterThan(0) // delayed
-
-      // Run 2: hot weather → pulls watering forward
-      const hotCtx = buildWeatherCtx(hotWeekForecast, mockHeatWaveHistory)
-      const layers2 = Layer.mergeAll(
-        MockSqlClientLive,
-        createMockUserRepository([weatherUser]),
-        createMockPlantRepository({
-          plants: [plant],
-          rooms: [indoorRoom, outdoorRoom],
-        }),
-        createMockNotificationRepository([]),
-        createMockCanopyRepository(),
-        createMockDelegationRepository(),
-        createMockCareScheduleRepository({ schedules, plants: [plant] })
-      )
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(hotCtx)).pipe(
-          Effect.provide(layers2)
-        )
-      )
-
-      const hotShift = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          afterColdNext) /
-          oneDayMs
-      )
-      expect(hotShift).toBeLessThan(0) // pulled back
+      expect(hotShift).toBeLessThan(0)
     })
   })
 
@@ -1231,27 +778,14 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
+      const commands = await readjust([plant], ctx)
 
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Desert + heat wave for outdoor: adjustedDays ~4, idealNext = justNow + 4d ≈ now + 4d
-      // currentNext ≈ now + 7d → delta ≈ -3
-      // BUT: this is valid acceleration (plant genuinely needs water sooner in desert)
-      // The key: newNextWateringAt must never go before lastWateredAt + 1d
-      const wateringSchedule = findSchedule(schedules, plant.id, 'watering')
-      expect(toMs(wateringSchedule?.nextCareAt)).toBeGreaterThanOrEqual(
-        toMs(wateringSchedule?.lastCareAt) + oneDayMs
-      )
+      expect(7 + daysAsked(commands, plant.id)).toBeGreaterThanOrEqual(1)
     })
   })
 
   describe('fertilization readjustment', () => {
-    it('should delay fertilization by 1 day in extreme heat when overdue', async () => {
+    it('should ask Care to delay fertilization by 1 day in extreme heat when overdue', async () => {
       const now = Date.now()
       const thirtyDaysAgo = new Date(now - 30 * oneDayMs)
       const pastDate = new Date(now - 1 * oneDayMs)
@@ -1281,235 +815,26 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast)
-      const { layers, schedules } = buildLayers({ plants: [plant] })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
+      const commands = await readjust([plant], ctx)
 
       // Desert temps > 30°C → skipFertilization → delta = +1
-      const fertShift = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'fertilization')?.nextCareAt) -
-          pastDate.getTime()) /
-          oneDayMs
-      )
-      expect(fertShift).toBe(1)
+      expect(commands).toEqual([
+        {
+          reason: 'weather',
+          moves: expect.arrayContaining([
+            {
+              plantId: plant.id,
+              careType: 'fertilization',
+              move: DueMove.By({ days: 1 }),
+            },
+          ]),
+        },
+      ])
     })
   })
 
-  describe('notification rescheduling', () => {
-    it('should create a new watering notification when date shifts', async () => {
-      const now = Date.now()
-      const threeDaysAgo = new Date(now - 3 * oneDayMs)
-      const originalNext = new Date(now + 4 * oneDayMs)
-
-      const plant = createTestPlant({
-        id: 'notif-water',
-        name: 'Notification Test Plant',
-        category: 'Foliage',
-        wateringRating: 3,
-        remindersEnabled: true,
-        userId: weatherUser.id,
-        roomId: 'room-outdoor',
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        scheduleSpecs: [
-          wateringSpec({
-            frequencyDays: 7,
-            lastCareAt: threeDaysAgo,
-            nextCareAt: new Date(originalNext),
-          }),
-        ],
-      })
-
-      // Shared array the mock will push notifications into
-      const notifications: Notification[] = []
-      const ctx = buildWeatherCtx(parisWinterForecast)
-      const { layers, schedules } = buildLayers({
-        plants: [plant],
-        notifications,
-      })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Outdoor + cold → positive delta → date shifted → notification created
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
-      expect(shiftDays).toBeGreaterThan(0)
-
-      // A watering_reminder notification should have been created
-      const wateringNotifs = notifications.filter(
-        (n) => n.type === 'watering_reminder' && n.plantId === 'notif-water'
-      )
-      expect(wateringNotifs.length).toBe(1)
-      expect(wateringNotifs[0]?.userId).toBe(weatherUser.id)
-    })
-
-    it('should create a fertilization notification when fertilization date shifts', async () => {
-      const now = Date.now()
-      const thirtyDaysAgo = new Date(now - 30 * oneDayMs)
-      const pastDate = new Date(now - 1 * oneDayMs)
-
-      const plant = createTestPlant({
-        id: 'notif-fert',
-        name: 'Fert Notification Plant',
-        category: 'Foliage',
-        wateringRating: 3,
-        remindersEnabled: true,
-        userId: weatherUser.id,
-        roomId: 'room-outdoor',
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        scheduleSpecs: [
-          wateringSpec({
-            frequencyDays: 7,
-            lastCareAt: thirtyDaysAgo,
-            nextCareAt: new Date(thirtyDaysAgo.getTime() + 7 * oneDayMs),
-          }),
-          fertilizationSpec({
-            frequencyDays: 30,
-            lastCareAt: thirtyDaysAgo,
-            nextCareAt: new Date(pastDate),
-          }),
-        ],
-      })
-
-      const notifications: Notification[] = []
-      const ctx = buildWeatherCtx(desertSummerForecast)
-      const { layers } = buildLayers({ plants: [plant], notifications })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Desert heat → fertilization delayed → notification created
-      const fertNotifs = notifications.filter(
-        (n) => n.type === 'fertilization_reminder' && n.plantId === 'notif-fert'
-      )
-      expect(fertNotifs.length).toBe(1)
-    })
-
-    it('should NOT create notification when delta is zero', async () => {
-      const now = Date.now()
-      const threeDaysAgo = new Date(now - 3 * oneDayMs)
-      const correctNext = new Date(threeDaysAgo.getTime() + 7 * oneDayMs)
-
-      const plant = createTestPlant({
-        id: 'notif-zero',
-        name: 'No Change Plant',
-        category: 'Foliage',
-        wateringRating: 3,
-        remindersEnabled: true,
-        userId: weatherUser.id,
-        roomId: 'room-indoor',
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        scheduleSpecs: [
-          wateringSpec({
-            frequencyDays: 7,
-            lastCareAt: threeDaysAgo,
-            nextCareAt: new Date(correctNext),
-          }),
-        ],
-      })
-
-      const notifications: Notification[] = []
-      const moderateForecast = [
-        mockWeatherDataModerate,
-        { ...mockWeatherDataModerate, date: '2026-02-11' },
-        { ...mockWeatherDataModerate, date: '2026-02-12' },
-        { ...mockWeatherDataModerate, date: '2026-02-13' },
-        { ...mockWeatherDataModerate, date: '2026-02-14' },
-        { ...mockWeatherDataModerate, date: '2026-02-15' },
-        { ...mockWeatherDataModerate, date: '2026-02-16' },
-      ]
-      const ctx = buildWeatherCtx(moderateForecast)
-      const { layers } = buildLayers({ plants: [plant], notifications })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Moderate weather → delta = 0 → no notification created
-      expect(notifications.length).toBe(0)
-    })
-
-    it('should delete old pending notification before creating new one', async () => {
-      const now = Date.now()
-      const threeDaysAgo = new Date(now - 3 * oneDayMs)
-      const originalNext = new Date(now + 4 * oneDayMs)
-
-      const plant = createTestPlant({
-        id: 'notif-replace',
-        name: 'Replace Notification Plant',
-        category: 'Foliage',
-        wateringRating: 3,
-        remindersEnabled: true,
-        userId: weatherUser.id,
-        roomId: 'room-outdoor',
-        diedAt: null,
-        deathCause: null,
-        deathNote: null,
-        scheduleSpecs: [
-          wateringSpec({
-            frequencyDays: 7,
-            lastCareAt: threeDaysAgo,
-            nextCareAt: new Date(originalNext),
-          }),
-        ],
-      })
-
-      // Pre-existing pending notification for this plant
-      const existingNotification: Notification = {
-        id: 'old-notif-1',
-        type: 'watering_reminder',
-        title: 'Old reminder',
-        body: 'Old body',
-        scheduledAt: originalNext,
-        isRead: false,
-        status: 'pending',
-        retryCount: 0,
-        userId: weatherUser.id,
-        plantId: 'notif-replace',
-        createdAt: new Date(),
-      }
-
-      const notifications: Notification[] = [existingNotification]
-      const ctx = buildWeatherCtx(parisWinterForecast)
-      const { layers } = buildLayers({ plants: [plant], notifications })
-
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Old notification should be deleted, new one created
-      const wateringNotifs = notifications.filter(
-        (n) => n.type === 'watering_reminder' && n.plantId === 'notif-replace'
-      )
-      // Only the new notification should remain (old was deleted by deletePendingByPlantAndType)
-      expect(wateringNotifs.length).toBe(1)
-      expect(wateringNotifs[0]?.id).not.toBe('old-notif-1')
-    })
-
-    it('should NOT create notification when reminders are disabled', async () => {
+  describe('plant with reminders disabled', () => {
+    it('should still be moved', async () => {
       const now = Date.now()
       const threeDaysAgo = new Date(now - 3 * oneDayMs)
       const originalNext = new Date(now + 4 * oneDayMs)
@@ -1534,29 +859,10 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         ],
       })
 
-      const notifications: Notification[] = []
       const ctx = buildWeatherCtx(parisWinterForecast)
-      const { layers, schedules } = buildLayers({
-        plants: [plant],
-        notifications,
-      })
+      const commands = await readjust([plant], ctx)
 
-      await Effect.runPromise(
-        readjustCareSchedules(userScopes, buildContextMap(ctx)).pipe(
-          Effect.provide(layers)
-        )
-      )
-
-      // Date still shifts (delta applies regardless)
-      const shiftDays = Math.round(
-        (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
-          originalNext.getTime()) /
-          oneDayMs
-      )
-      expect(shiftDays).toBeGreaterThan(0)
-
-      // But no notification was created
-      expect(notifications.length).toBe(0)
+      expect(daysAsked(commands, plant.id)).toBeGreaterThan(0)
     })
   })
 })

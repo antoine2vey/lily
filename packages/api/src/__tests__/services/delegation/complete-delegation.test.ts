@@ -4,13 +4,9 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
-import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
@@ -48,27 +44,24 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
 
 const activeDelegation = { ...mockDelegation1, status: 'active' as const }
 
+const OuterTransactionLive = Layer.merge(createMockSqlClient(), MockOutboxLive)
+
+const inMemory = (delegations: DelegationRow[] = [{ ...activeDelegation }]) =>
+  createInMemoryAbsence({
+    delegations,
+    users: [mockUser1, mockUser2],
+    plantDetails: mockDelegationPlants,
+    delegationPlants: [
+      { delegationId: mockDelegation1.id, plantId: 'plant-1' },
+      { delegationId: mockDelegation1.id, plantId: 'plant-2' },
+    ],
+  })
+
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
-  delegations: DelegationRow[] = [activeDelegation]
+  delegations?: DelegationRow[]
 ) =>
-  Layer.mergeAll(
-    MockSqlClientLive,
-    currentUser,
-    createMockNotificationRepository([]),
-    createMockUserRepository([mockUser1, mockUser2]),
-    createMockPlantRepository({ plants: [] }),
-    createMockCareScheduleRepository(),
-    createMockCanopyRepository(),
-    createMockDelegationRepository({
-      delegations,
-      users: [
-        { id: mockUser1.id, name: mockUser1.name, image: mockUser1.image },
-        { id: mockUser2.id, name: mockUser2.name, image: mockUser2.image },
-      ],
-      plants: mockDelegationPlants,
-    })
-  )
+  Layer.mergeAll(currentUser, inMemory(delegations).layer, OuterTransactionLive)
 
 describe('completeDelegation', () => {
   it('should complete an active delegation early', async () => {
@@ -79,6 +72,45 @@ describe('completeDelegation', () => {
     )
 
     expect(result.status).toBe('completed')
+  })
+
+  it('publishes that the delegation ended early, with the plants handed back', async () => {
+    const absence = inMemory()
+
+    await Effect.runPromise(
+      completeDelegation(activeDelegation.id).pipe(
+        Effect.provide(
+          Layer.mergeAll(ownerCurrentUser, absence.layer, OuterTransactionLive)
+        )
+      )
+    )
+
+    expect(absence.events).toEqual([
+      {
+        _tag: 'DelegationEnded',
+        delegationId: activeDelegation.id,
+        ownerId: activeDelegation.ownerId,
+        caretakerId: activeDelegation.caretakerId,
+        plantIds: ['plant-1', 'plant-2'],
+        reason: 'completedEarly',
+      },
+    ])
+  })
+
+  it('publishes nothing when the delegation is not active', async () => {
+    const absence = inMemory([
+      { ...mockDelegation1, status: 'accepted' as const },
+    ])
+
+    await Effect.runPromiseExit(
+      completeDelegation(mockDelegation1.id).pipe(
+        Effect.provide(
+          Layer.mergeAll(ownerCurrentUser, absence.layer, OuterTransactionLive)
+        )
+      )
+    )
+
+    expect(absence.events).toEqual([])
   })
 
   it('should set completedAt timestamp', async () => {

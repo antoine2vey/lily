@@ -1,90 +1,18 @@
-import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
+import { Absence } from '@lily/api/contexts/absence'
+import { transact } from '@lily/api/kernel/transact'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import {
-  rebuildDelegationReminders,
-  transitionDelegation,
-} from '@lily/api/services/delegation/helpers/transition-delegation'
-import {
-  dispatchNow,
-  recordNotification,
-} from '@lily/api/services/helpers/schedule-notification'
-import {
-  DelegationNotAuthorizedError,
-  DelegationNotFoundError,
-  nowAsDate,
-} from '@lily/shared'
-import { Effect, Option, pipe } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import { delegationDetail } from '@lily/api/services/delegation/helpers/delegation-detail'
+import { Effect } from 'effect'
 
 export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
   function* (delegationId: string) {
-    const { id: currentUserId } = yield* CurrentUser
-    const delegationRepo = yield* DelegationRepository
-    const userRepo = yield* UserRepository
-
-    const delegation = yield* delegationRepo.findById(delegationId)
-    if (!delegation) {
-      return yield* new DelegationNotFoundError({ delegationId })
-    }
-
-    if (delegation.ownerId !== currentUserId) {
-      return yield* new DelegationNotAuthorizedError({
-        message: 'Only the delegation owner can cancel',
-      })
-    }
-
-    const ownerName = pipe(
-      Option.fromNullishOr(delegation.ownerName),
-      Option.getOrElse(() => 'Someone')
+    const { id: by } = yield* CurrentUser
+    const absence = yield* Absence
+    return yield* transact(
+      Effect.andThen(
+        absence.cancelDelegation({ by, delegationId }),
+        delegationDetail(delegationId)
+      )
     )
-
-    const caretaker = yield* userRepo.findById(delegation.caretakerId)
-    const caretakerLanguage = Option.getOrElse(
-      Option.fromNullishOr(caretaker?.language),
-      () => 'en' as const
-    )
-
-    const sql = yield* SqlClient.SqlClient
-    const canceledAt = nowAsDate()
-    const notification = yield* sql.withTransaction(
-      Effect.gen(function* () {
-        const canceledBeforeStart =
-          delegation.status === 'active'
-            ? null
-            : yield* delegationRepo.transitionStatus(
-                delegationId,
-                ['pending', 'accepted'],
-                'canceled',
-                { canceledAt }
-              )
-        if (canceledBeforeStart === null) {
-          const canceled = yield* transitionDelegation({
-            delegationId,
-            from: ['active'],
-            to: 'canceled',
-            expectedStatus: 'pending, accepted, or active',
-            message: 'This delegation cannot be canceled in its current state',
-            timestamps: { canceledAt },
-          })
-          yield* rebuildDelegationReminders([canceled])
-        }
-        return yield* recordNotification(
-          'delegation_canceled',
-          delegation.caretakerId,
-          { senderName: ownerName },
-          caretakerLanguage,
-          { delegationId }
-        )
-      })
-    )
-
-    yield* dispatchNow(notification)
-
-    const updated = yield* delegationRepo.findById(delegationId)
-    if (!updated) {
-      return yield* new DelegationNotFoundError({ delegationId })
-    }
-    return updated
   }
 )

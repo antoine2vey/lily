@@ -11,6 +11,7 @@ import type {
   userAchievements,
   userSubscriptions,
 } from '@lily/db/schema'
+import { CareDay } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import type { DeviceToken } from '@lily/shared/device-token'
 import { Effect, Exit, Layer } from 'effect'
@@ -77,7 +78,8 @@ const makeCareLog = (id: string): CareLog => ({
   id,
   type: 'watering',
   notes: undefined,
-  date: new Date(),
+  date: new Date('2026-11-12T08:00:00Z'),
+  careDay: CareDay.make('2026-11-12'),
   photoUrl: undefined,
   plantId: 'plant-1',
   createdAt: new Date(),

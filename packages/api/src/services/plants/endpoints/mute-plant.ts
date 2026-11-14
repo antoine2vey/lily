@@ -1,54 +1,30 @@
+import { Canopy } from '@lily/api/contexts/canopy'
+import type { PlantPermit } from '@lily/api/kernel/permit'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { withOwnerLock } from '@lily/api/services/plants/helpers/owner-lock'
-import { rebuildMemberReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
-import { reloadOwnedPlant } from '@lily/api/services/plants/helpers/reload-owned-plant'
-import {
-  reminderKeysFor,
-  withReminderKeys,
-} from '@lily/api/services/plants/helpers/reminder-keys'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const mutePlant = Effect.fn('PlantsService.mutePlant')(function* (
-  plant: PlantWithRoom,
-  requestedId: string = plant.id
-) {
-  const { id: userId } = yield* CurrentUser
-  const repo = yield* CanopyRepository
-  const notificationRepo = yield* NotificationRepository
-  yield* withOwnerLock(plant.owner)(
-    withReminderKeys(reminderKeysFor([plant.id]))(
-      Effect.andThen(
-        reloadOwnedPlant(plant, requestedId),
-        Effect.andThen(
-          repo.mute(userId, plant.id),
-          notificationRepo.deleteUndeliveredByUserAndPlant(userId, plant.id)
-        )
-      )
-    )
-  ).pipe(
-    Effect.catchTag('CanopyNotFoundError', () =>
-      Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
-    )
+const setMute = (
+  permit: PlantPermit<'mute'>,
+  muted: boolean,
+  requestedId: string
+) =>
+  Effect.flatMap(Canopy, (canopy) => canopy.setMute({ permit, muted })).pipe(
+    Effect.mapError(() => new PlantNotFoundError({ plantId: requestedId }))
   )
-})
 
-export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(function* (
-  plant: PlantWithRoom
-) {
-  const { id: userId } = yield* CurrentUser
-  const repo = yield* CanopyRepository
-  yield* withReminderKeys(reminderKeysFor([plant.id]))(
-    Effect.andThen(
-      repo.unmute(userId, plant.id),
-      rebuildMemberReminders(userId, [plant.id])
-    )
-  )
-})
+export const mutePlant = Effect.fn('PlantsService.mutePlant')(
+  (permit: PlantPermit<'mute'>, requestedId: string = permit.plantId) =>
+    setMute(permit, true, requestedId)
+)
+
+export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(
+  (permit: PlantPermit<'mute'>, requestedId: string = permit.plantId) =>
+    setMute(permit, false, requestedId)
+)
 
 // Muting is per member, so only the caller's own state is reported, and only
 // on Canopy plants.

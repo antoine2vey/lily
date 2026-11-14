@@ -1,98 +1,42 @@
+import { Care, careWhenOf, PlanStepChoice } from '@lily/api/contexts/care'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
-import { EventBus, publishWithRetry } from '@lily/api/events'
+import type { PlantPermit } from '@lily/api/kernel/permit'
+import { transact } from '@lily/api/kernel/transact'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import {
-  PlantRepository,
-  type PlantRow,
-} from '@lily/api/repositories/plant.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import type { CareLog, CareLogCreateRequest } from '@lily/shared/care-log'
-import { Effect } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
+import type { CareLogCreateRequest } from '@lily/shared/care-log'
+import { Effect, Option } from 'effect'
 
 export const createCareLog = (
-  plant: PlantRow,
+  permit: PlantPermit<'care'>,
   request: CareLogCreateRequest
-): Effect.Effect<
-  CareLog,
-  SqlError,
-  | CareLogRepository
-  | EventBus
-  | CurrentUser
-  | PlantRepository
-  | NotificationRepository
-> =>
-  Effect.gen(function* () {
-    const repo = yield* CareLogRepository
-    const plantRepo = yield* PlantRepository
-    const notificationRepo = yield* NotificationRepository
-    const eventBus = yield* EventBus
-    const { id: userId } = yield* CurrentUser
-    const plantId = plant.id
-
-    const logOrNull = yield* repo.create({
-      type: request.type,
-      notes: request.notes,
-      date: request.date,
-      photoUrl: request.photoUrl,
-      plantId,
-      performedByUserId: userId,
-    })
-
-    if (!logOrNull) {
-      return yield* Effect.die(
-        new EntityMutationDefect({
-          message: 'Care log create returned null',
-          entity: 'care-log',
-          operation: 'create',
-        })
-      )
-    }
-
-    const log = logOrNull
-
-    // Emit CareLogCreated event
-    yield* publishWithRetry(
-      eventBus.publish({
-        _tag: 'CareLogCreated',
-        userId,
-        plantId,
-        careLogId: log.id,
-        type: request.type,
+) =>
+  transact(
+    Effect.gen(function* () {
+      const care = yield* Care
+      const careLogs = yield* CareLogRepository
+      const recorded = yield* care.recordOne({
+        permit,
+        careType: request.type,
+        on: careWhenOf(request.date),
+        notes: Option.fromNullishOr(request.notes),
+        photoUrl: Option.fromNullishOr(request.photoUrl),
+        planStep: PlanStepChoice.Auto(),
       })
-    )
-
-    // If plant needed attention, reset health to HEALTHY and emit event
-    if (plant.health === 'NEEDS_ATTENTION') {
-      yield* plantRepo.update(plantId, plant.owner, { health: 'HEALTHY' })
-      yield* publishWithRetry(
-        eventBus.publish({
-          _tag: 'AttentionResponded',
-          userId,
-          plantId,
-        })
-      )
-    }
-
-    // Emit ReminderResponded if there's a notification today
-    const hasNotificationToday = yield* notificationRepo.hasNotificationToday(
-      userId,
-      plantId
-    )
-    if (hasNotificationToday) {
-      yield* publishWithRetry(
-        eventBus.publish({
-          _tag: 'ReminderResponded',
-          userId,
-          plantId,
-        })
-      )
-    }
-
-    return log
-  }).pipe(
+      const log = yield* careLogs.findById(recorded.careLogId, permit.plantId)
+      return yield* Option.match(Option.fromNullishOr(log), {
+        onNone: () =>
+          Effect.die(
+            new EntityMutationDefect({
+              message: 'Recorded care log could not be read back',
+              entity: 'care-log',
+              operation: 'create',
+            })
+          ),
+        onSome: Effect.succeed,
+      })
+    })
+  ).pipe(
     Effect.withSpan('CareLogsService.createCareLog', {
-      attributes: { 'plant.id': plant.id, 'careLog.type': request.type },
+      attributes: { 'plant.id': permit.plantId, 'careLog.type': request.type },
     })
   )

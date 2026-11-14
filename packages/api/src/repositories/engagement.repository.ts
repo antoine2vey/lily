@@ -1,3 +1,8 @@
+import {
+  type StoredSchedule,
+  seeLivingPlantCare,
+} from '@lily/api/contexts/care'
+import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { heldBy } from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
@@ -7,6 +12,7 @@ import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careLogs,
   notifications,
+  plantCareSchedules,
   plantPhotos,
   plants,
   userSubscriptions,
@@ -15,7 +21,16 @@ import {
 import type { LanguageCode, VacationStatus } from '@lily/shared'
 import type { NotificationTopic } from '@lily/shared/server'
 import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import {
+  Array,
+  Context,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  pipe,
+  Record,
+} from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface UserWithSettings {
@@ -361,17 +376,44 @@ export const EngagementRepositoryLive = Layer.effect(
       getHealthyPlantCountForUser: Effect.fn(
         'EngagementRepository.getHealthyPlantCountForUser'
       )(function* (userId: string) {
-        const result = yield* db
-          .select({ value: count() })
+        const rows = yield* db
+          .select({
+            id: plants.id,
+            health: plants.health,
+            careTimezone: careTimezoneSql,
+            careType: plantCareSchedules.careType,
+            frequencyDays: plantCareSchedules.frequencyDays,
+            lastCareAt: plantCareSchedules.lastCareAt,
+            nextCareAt: plantCareSchedules.nextCareAt,
+            dueDay: plantCareSchedules.dueDay,
+          })
           .from(plants)
-          .where(
-            and(
-              heldBy(userId),
-              isLivingPlant(),
-              inArray(plants.health, ['THRIVING', 'HEALTHY'])
-            )
+          .leftJoin(
+            plantCareSchedules,
+            eq(plantCareSchedules.plantId, plants.id)
           )
-        return extractCount(result)
+          .where(and(heldBy(userId), isLivingPlant()))
+        const now = yield* DateTime.now
+        return pipe(
+          Array.groupBy(rows, (row) => row.id),
+          Record.values,
+          Array.filter((plantRows) => {
+            const { health } = seeLivingPlantCare(
+              plantRows[0].health,
+              Array.filter(
+                plantRows,
+                (row): row is typeof row & StoredSchedule =>
+                  row.careType !== null &&
+                  row.frequencyDays !== null &&
+                  row.nextCareAt !== null
+              ),
+              plantRows[0].careTimezone,
+              now
+            )
+            return health === 'THRIVING' || health === 'HEALTHY'
+          }),
+          Array.length
+        )
       }),
 
       getCareLogsCountForWeek: Effect.fn(

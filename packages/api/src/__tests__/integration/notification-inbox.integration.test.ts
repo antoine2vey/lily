@@ -1,3 +1,4 @@
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { createMockAlerter } from '@lily/api/__tests__/mocks/alerter'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
@@ -6,6 +7,7 @@ import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
@@ -43,6 +45,7 @@ const { Pool } = pg
 const DatabaseLive = Layer.mergeAll(
   CanopyRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
@@ -143,11 +146,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .returning()
       if (!plant) throw new Error('plant insert returned nothing')
+      const dueAt = new Date(Date.now() - 86_400_000)
       await db.insert(schema.plantCareSchedules).values({
         plantId: plant.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: new Date(Date.now() - 86_400_000),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       await db.insert(schema.notifications).values({
         type: 'watering_reminder',

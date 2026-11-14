@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -173,6 +174,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           await db.insert(schema.careLogs).values({
             type: 'watering',
             date: new Date(log.at),
+            careDay: careDayOf(new Date(log.at)),
             plantId: plantIds[scenario.name] ?? '',
             notes: label,
           })

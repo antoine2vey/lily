@@ -1,3 +1,14 @@
+import {
+  DueWindow,
+  dueOnOrBefore,
+  duePrune,
+  hasOverdueCare,
+  type SeenSchedule,
+  type StoredSchedule,
+  seePlantCare,
+  storedDay,
+} from '@lily/api/contexts/care'
+import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
@@ -14,11 +25,13 @@ import {
   withOwnerOrNull,
   withUserOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
+import { tending } from '@lily/api/repositories/helpers/tending'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   canopies,
   canopyMembers,
   careDelegations,
+  careLogs,
   delegationPlants,
   plantCareSchedules,
   plantPhotos,
@@ -28,8 +41,7 @@ import {
 } from '@lily/db/schema'
 import {
   type CanopyRef,
-  type CareType,
-  endOfDay,
+  type CareDay,
   nowAsDate,
   type Orientation,
   type PaginatedResponse,
@@ -50,9 +62,8 @@ import {
   inArray,
   isNotNull,
   isNull,
-  lte,
-  notInArray,
-  or,
+  lt,
+  max,
   sql,
 } from 'drizzle-orm'
 import {
@@ -78,7 +89,6 @@ export interface FindPlantsParams {
   sort?: PlantSort
   roomId?: string
   userId: string
-  timezone: string
   includeCaretaking?: boolean
   includeCanopy?: boolean
   /**
@@ -97,11 +107,8 @@ export type RoomRef = {
   isOutdoor: boolean
 } | null
 
-export type PlantCareScheduleRef = {
-  careType: CareType
-  frequencyDays: number
-  lastCareAt: Date | null
-  nextCareAt: Date | null
+export type PlantCareScheduleRef = SeenSchedule & {
+  readonly lastCareDay: CareDay | null
 }
 
 export type PlantRow = WithOwner<typeof plants.$inferSelect>
@@ -121,26 +128,11 @@ export type PlantWithRoom = RawPlant &
   PlantScope & {
     room: RoomRef
     schedules: PlantCareScheduleRef[]
+    careTimezone: string
+    today: CareDay
   }
 
 export type FindPlantsResult = PaginatedResponse<PlantWithRoom>
-
-export interface CreatePlantData {
-  name: string
-  description: string | null
-  category: string | null
-  imageUrl?: string | null
-  humidityRating: number
-  lightingRating: number
-  petToxicityRating: number
-  wateringRating: number
-  health: PlantHealthStatus
-  potWidthCm?: number | null
-  potHeightCm?: number | null
-  owner: PlantOwner
-  createdByUserId: string
-  roomId?: string | null
-}
 
 export interface UpdatePlantData {
   name?: string
@@ -155,12 +147,6 @@ export interface UpdatePlantData {
   potWidthCm?: number | null
   potHeightCm?: number | null
   roomId?: string | null
-}
-
-export interface MarkPlantDeadData {
-  diedAt: Date
-  cause: PlantDeathCause
-  note: string | null
 }
 
 export interface FindPhotosParams {
@@ -190,38 +176,13 @@ export interface IPlantRepository {
   readonly findPersonalReminderPlantIds: (
     userId: string
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
-  readonly findIdsOwnedBy: (
-    userId: string
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly findById: (
     id: string
   ) => Effect.Effect<PlantWithRoom | null, SqlError>
-  readonly create: (
-    data: CreatePlantData
-  ) => Effect.Effect<PlantRow | null, SqlError>
   readonly update: (
     id: string,
     owner: PlantOwner,
     data: UpdatePlantData
-  ) => Effect.Effect<PlantRow | null, SqlError>
-  readonly delete: (
-    id: string,
-    owner: PlantOwner
-  ) => Effect.Effect<PlantRow | null, SqlError>
-  readonly markDead: (
-    id: string,
-    owner: PlantOwner,
-    data: MarkPlantDeadData
-  ) => Effect.Effect<PlantRow | null, SqlError>
-  readonly revive: (
-    id: string,
-    owner: PlantOwner
-  ) => Effect.Effect<PlantRow | null, SqlError>
-  readonly moveTo: (
-    id: string,
-    from: PlantOwner,
-    to: PlantOwner,
-    roomId: string | null
   ) => Effect.Effect<PlantRow | null, SqlError>
   readonly findPhotos: (
     params: FindPhotosParams
@@ -240,11 +201,6 @@ export interface IPlantRepository {
     plantId: string,
     photoId: string
   ) => Effect.Effect<void, SqlError>
-  readonly markOverduePlantsAsNeedsAttention: () => Effect.Effect<
-    number,
-    SqlError
-  >
-  readonly markHealthyPlantsInOrder: () => Effect.Effect<number, SqlError>
 }
 
 // Tag for dependency injection
@@ -263,35 +219,50 @@ const roomSelect = {
   isOutdoor: rooms.isOutdoor,
 }
 
+// Filters decided per plant on its own care day, after the rows are loaded.
+// SQL only prunes to plants with a care due soon.
+const careFilters: Partial<
+  Record<PlantFilter, (plant: PlantWithRoom) => boolean>
+> = {
+  overdue: hasOverdueCare,
+  needsAttention: (plant) => plant.health === 'NEEDS_ATTENTION',
+}
+
+const careFilterOf = (filter: FindPlantsParams['filter']) =>
+  Option.flatMap(Option.fromNullishOr(filter), (f) =>
+    Option.fromNullishOr(careFilters[f])
+  )
+
+export const matchesCareFilter =
+  (filter: FindPlantsParams['filter']) =>
+  (plant: PlantWithRoom): boolean =>
+    Option.match(careFilterOf(filter), {
+      onNone: () => true,
+      onSome: (matches) => matches(plant),
+    })
+
 // Build where-clause conditions from filter and room params
 function buildPlantFilters(
   params: FindPlantsParams,
-  db: Db
+  db: Db,
+  now: DateTime.DateTime
 ): ReturnType<typeof and>[] {
+  const overdue = duePrune(DueWindow.Overdue(), now)
   const filterCondition = pipe(
     Match.value(params.filter),
-    Match.when('needsAttention', () =>
-      Option.some(eq(plants.health, 'NEEDS_ATTENTION'))
-    ),
-    Match.when('overdue', () => {
-      const endOfTodayDate = DateTime.toDateUtc(
-        endOfDay(DateTime.nowUnsafe(), params.timezone)
-      )
-      return Option.some(
-        inArray(
-          plants.id,
-          db
-            .select({ plantId: plantCareSchedules.plantId })
-            .from(plantCareSchedules)
-            .where(
-              and(
-                isNotNull(plantCareSchedules.nextCareAt),
-                lte(plantCareSchedules.nextCareAt, endOfTodayDate)
-              )
-            )
+    Match.when(
+      (filter) => Option.isSome(careFilterOf(filter)),
+      () =>
+        Option.some(
+          inArray(
+            plants.id,
+            db
+              .select({ plantId: plantCareSchedules.plantId })
+              .from(plantCareSchedules)
+              .where(dueOnOrBefore(overdue.day, overdue.undatedBefore))
+          )
         )
-      )
-    }),
+    ),
     Match.when('dead', () => Option.some(isNotNull(plants.diedAt))),
     Match.orElse(() => Option.none())
   )
@@ -323,38 +294,67 @@ type RawPlant = typeof plants.$inferSelect
 const canopySelect = { name: canopies.name }
 const creatorSelect = { id: users.id, name: users.name }
 
+type ScheduleRow = StoredSchedule & {
+  readonly lastCareLogDay: string | null
+}
+
+type CareInput = {
+  careTimezone: string
+  schedules: ReadonlyArray<ScheduleRow>
+  now: DateTime.DateTime
+}
+
+export const seeCareWithLastDays = (plant: RawPlant, care: CareInput) => {
+  const seen = seePlantCare(plant, care.schedules, care.careTimezone, care.now)
+  const lastCareLogDays = new Map(
+    Array.map(care.schedules, (row) => [row.careType, row.lastCareLogDay])
+  )
+  return {
+    ...seen,
+    schedules: Array.map(
+      seen.schedules,
+      (schedule): PlantCareScheduleRef => ({
+        ...schedule,
+        lastCareDay:
+          schedule.lastCareAt === null
+            ? null
+            : storedDay(
+                Option.getOrNull(
+                  Option.fromNullishOr(lastCareLogDays.get(schedule.careType))
+                ),
+                schedule.lastCareAt,
+                care.careTimezone
+              ),
+      })
+    ),
+  }
+}
+
 // Map a DB row to an owned PlantWithRoom
 function toOwnedPlant(
-  row: {
-    plant: RawPlant
-    room: RoomRef
-  },
-  schedules: PlantCareScheduleRef[] = []
+  row: { plant: RawPlant; room: RoomRef },
+  care: CareInput
 ): PlantWithRoom {
   return {
     ...withUserOwner(row.plant),
+    ...seeCareWithLastDays(row.plant, care),
     room: row.room,
     ownership: 'owned' as const,
     ownerName: null,
-    schedules,
   }
 }
 
 // Map a DB row to a caretaking PlantWithRoom
 function toCaretakingPlant(
-  row: {
-    plant: RawPlant
-    room: RoomRef
-    ownerName: string | null
-  },
-  schedules: PlantCareScheduleRef[] = []
+  row: { plant: RawPlant; room: RoomRef; ownerName: string | null },
+  care: CareInput
 ): PlantWithRoom {
   return {
     ...withUserOwner(row.plant),
+    ...seeCareWithLastDays(row.plant, care),
     room: row.room,
     ownership: 'caretaking' as const,
     ownerName: row.ownerName,
-    schedules,
   }
 }
 
@@ -365,25 +365,25 @@ function toCanopyPlant(
     canopy: { name: string }
     creator: PlantCreator | null
   },
-  schedules: PlantCareScheduleRef[] = []
+  care: CareInput
 ): PlantWithRoom {
   const plant = withCanopyOwner(row.plant)
   return {
     ...plant,
+    ...seeCareWithLastDays(row.plant, care),
     room: row.room,
     ownership: 'canopy' as const,
     ownerName: null,
     canopy: { id: plant.owner.canopyId, name: row.canopy.name },
     createdBy: row.creator,
-    schedules,
   }
 }
 
 const schedulesFor =
-  (scheduleMap: Map<string, PlantCareScheduleRef[]>) => (plantId: string) =>
+  (scheduleMap: Map<string, ScheduleRow[]>) => (plantId: string) =>
     pipe(
       Option.fromNullishOr(scheduleMap.get(plantId)),
-      Option.getOrElse(() => [] as PlantCareScheduleRef[])
+      Option.getOrElse(() => [] as ScheduleRow[])
     )
 
 // Live implementation using PgDrizzle
@@ -392,29 +392,48 @@ export const PlantRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
+    // The correlating columns sit inside a query drizzle builds. Written flat
+    // in this fragment they would lose their table name, because the select
+    // has one table, and the subquery would match a care log of any plant.
+    const lastCareLogDay = sql<string | null>`(${db
+      .select({ day: max(careLogs.careDay) })
+      .from(careLogs)
+      .where(
+        and(
+          eq(careLogs.plantId, plantCareSchedules.plantId),
+          sql`${careLogs.type}::text = ${plantCareSchedules.careType}::text`,
+          eq(careLogs.date, plantCareSchedules.lastCareAt)
+        )
+      )})`
+
+    const scheduleRow = {
+      plantId: plantCareSchedules.plantId,
+      careType: plantCareSchedules.careType,
+      frequencyDays: plantCareSchedules.frequencyDays,
+      lastCareAt: plantCareSchedules.lastCareAt,
+      nextCareAt: plantCareSchedules.nextCareAt,
+      dueDay: plantCareSchedules.dueDay,
+      lastCareLogDay,
+    }
+
     const fetchSchedulesForPlants = Effect.fn(
       'PlantRepository.fetchSchedulesForPlants'
     )(function* (plantIds: readonly string[]) {
       if (Array.isReadonlyArrayEmpty(plantIds)) {
-        return new Map<string, PlantCareScheduleRef[]>()
+        return new Map<string, ScheduleRow[]>()
       }
       const rows = yield* db
-        .select()
+        .select(scheduleRow)
         .from(plantCareSchedules)
         .where(inArray(plantCareSchedules.plantId, [...plantIds]))
 
-      const grouped = new Map<string, PlantCareScheduleRef[]>()
+      const grouped = new Map<string, ScheduleRow[]>()
       Array.forEach(rows, (r) => {
         const existing = pipe(
           Option.fromNullishOr(grouped.get(r.plantId)),
-          Option.getOrElse(() => [] as PlantCareScheduleRef[])
+          Option.getOrElse(() => [] as ScheduleRow[])
         )
-        existing.push({
-          careType: r.careType,
-          frequencyDays: r.frequencyDays,
-          lastCareAt: r.lastCareAt,
-          nextCareAt: r.nextCareAt,
-        })
+        existing.push(r)
         grouped.set(r.plantId, existing)
       })
       return grouped
@@ -425,30 +444,22 @@ export const PlantRepositoryLive = Layer.effect(
     )(function* (
       params: FindPlantsParams,
       extraConditions: ReturnType<typeof and>[],
-      orderBy: ReturnType<typeof buildPlantOrderBy>
+      orderBy: ReturnType<typeof buildPlantOrderBy>,
+      now: DateTime.DateTime
     ) {
       const conditions = and(
         eq(careDelegations.caretakerId, params.userId),
-        eq(careDelegations.status, 'active'),
+        tending(),
         isNotNull(plants.userId),
         ...extraConditions
       )
-
-      const countResult = yield* db
-        .select({ value: count() })
-        .from(careDelegations)
-        .innerJoin(
-          delegationPlants,
-          eq(careDelegations.id, delegationPlants.delegationId)
-        )
-        .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
-        .where(conditions)
 
       const rows = yield* db
         .select({
           plant: plants,
           room: roomSelect,
           ownerName: users.name,
+          careTimezone: careTimezoneSql,
         })
         .from(careDelegations)
         .innerJoin(
@@ -464,30 +475,26 @@ export const PlantRepositoryLive = Layer.effect(
       const schedules = schedulesFor(
         yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
       )
-      return {
-        items: Array.map(rows, (row) =>
-          toCaretakingPlant(row, schedules(row.plant.id))
-        ),
-        total: extractCount(countResult),
-      }
+      return Array.map(rows, (row) =>
+        toCaretakingPlant(row, {
+          careTimezone: row.careTimezone,
+          schedules: schedules(row.plant.id),
+          now,
+        })
+      )
     })
 
     const findCanopyPlants = Effect.fn('PlantRepository.findCanopyPlants')(
       function* (
         params: FindPlantsParams,
         extraConditions: ReturnType<typeof and>[],
-        orderBy: ReturnType<typeof buildPlantOrderBy>
+        orderBy: ReturnType<typeof buildPlantOrderBy>,
+        now: DateTime.DateTime
       ) {
         const conditions = and(
           eq(canopyMembers.userId, params.userId),
           ...extraConditions
         )
-
-        const countResult = yield* db
-          .select({ value: count() })
-          .from(plants)
-          .innerJoin(canopyMembers, eq(plants.canopyId, canopyMembers.canopyId))
-          .where(conditions)
 
         const rows = yield* db
           .select({
@@ -495,6 +502,7 @@ export const PlantRepositoryLive = Layer.effect(
             room: roomSelect,
             canopy: canopySelect,
             creator: creatorSelect,
+            careTimezone: careTimezoneSql,
           })
           .from(plants)
           .innerJoin(canopyMembers, eq(plants.canopyId, canopyMembers.canopyId))
@@ -507,12 +515,13 @@ export const PlantRepositoryLive = Layer.effect(
         const schedules = schedulesFor(
           yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
         )
-        return {
-          items: Array.map(rows, (row) =>
-            toCanopyPlant(row, schedules(row.plant.id))
-          ),
-          total: extractCount(countResult),
-        }
+        return Array.map(rows, (row) =>
+          toCanopyPlant(row, {
+            careTimezone: row.careTimezone,
+            schedules: schedules(row.plant.id),
+            now,
+          })
+        )
       }
     )
 
@@ -521,56 +530,46 @@ export const PlantRepositoryLive = Layer.effect(
         params: FindPlantsParams
       ) {
         const { page, limit, offset } = getPaginationParams(params)
-        const extraConditions = buildPlantFilters(params, db)
+        const now = yield* DateTime.now
+        const extraConditions = buildPlantFilters(params, db, now)
         const orderBy = buildPlantOrderBy(params.sort)
 
-        // Owned plants query
-        const ownedConditions = and(
-          eq(plants.userId, params.userId),
-          ...extraConditions
-        )
-
-        const ownedCountResult = yield* db
-          .select({ value: count() })
-          .from(plants)
-          .where(ownedConditions)
-        const ownedTotal = extractCount(ownedCountResult)
-
         const ownedRows = yield* db
-          .select({ plant: plants, room: roomSelect })
+          .select({
+            plant: plants,
+            room: roomSelect,
+            careTimezone: careTimezoneSql,
+          })
           .from(plants)
           .leftJoin(rooms, eq(plants.roomId, rooms.id))
-          .where(ownedConditions)
+          .where(and(eq(plants.userId, params.userId), ...extraConditions))
           .orderBy(...orderBy)
 
-        const ownedPlantIds = Array.map(ownedRows, (r) => r.plant.id)
         const ownedSchedules = schedulesFor(
-          yield* fetchSchedulesForPlants(ownedPlantIds)
+          yield* fetchSchedulesForPlants(
+            Array.map(ownedRows, (r) => r.plant.id)
+          )
         )
         const ownedItems = Array.map(ownedRows, (row) =>
-          toOwnedPlant(row, ownedSchedules(row.plant.id))
+          toOwnedPlant(row, {
+            careTimezone: row.careTimezone,
+            schedules: ownedSchedules(row.plant.id),
+            now,
+          })
         )
 
-        if (!params.includeCaretaking && !params.includeCanopy) {
-          const paginated = pipe(
-            ownedItems,
-            Array.drop(offset),
-            Array.take(limit)
-          )
-          return paginate(paginated, ownedTotal, page, limit)
-        }
-
         const caretaking = params.includeCaretaking
-          ? yield* findCaretakingPlants(params, extraConditions, orderBy)
-          : { items: [], total: 0 }
+          ? yield* findCaretakingPlants(params, extraConditions, orderBy, now)
+          : []
         const canopy = params.includeCanopy
-          ? yield* findCanopyPlants(params, extraConditions, orderBy)
-          : { items: [], total: 0 }
+          ? yield* findCanopyPlants(params, extraConditions, orderBy, now)
+          : []
 
         const allItems = pipe(
           ownedItems,
-          Array.appendAll(caretaking.items),
-          Array.appendAll(canopy.items)
+          Array.appendAll(caretaking),
+          Array.appendAll(canopy),
+          Array.filter(matchesCareFilter(params.filter))
         )
         const sortOrder = Order.combine(
           pipe(
@@ -588,20 +587,21 @@ export const PlantRepositoryLive = Layer.effect(
         )
         const sorted = Array.sort(allItems, sortOrder)
 
-        const total = ownedTotal + caretaking.total + canopy.total
         const paginated = pipe(sorted, Array.drop(offset), Array.take(limit))
 
-        return paginate(paginated, total, page, limit)
+        return paginate(paginated, Array.length(sorted), page, limit)
       }),
 
       findLivingByCanopy: Effect.fn('PlantRepository.findLivingByCanopy')(
         function* (canopyId: string) {
+          const now = yield* DateTime.now
           const rows = yield* db
             .select({
               plant: plants,
               room: roomSelect,
               canopy: canopySelect,
               creator: creatorSelect,
+              careTimezone: careTimezoneSql,
             })
             .from(plants)
             .innerJoin(canopies, eq(plants.canopyId, canopies.id))
@@ -612,7 +612,11 @@ export const PlantRepositoryLive = Layer.effect(
             yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
           )
           return Array.map(rows, (row) =>
-            toCanopyPlant(row, schedules(row.plant.id))
+            toCanopyPlant(row, {
+              careTimezone: row.careTimezone,
+              schedules: schedules(row.plant.id),
+              now,
+            })
           )
         }
       ),
@@ -641,16 +645,6 @@ export const PlantRepositoryLive = Layer.effect(
         }
       ),
 
-      findIdsOwnedBy: Effect.fn('PlantRepository.findIdsOwnedBy')(function* (
-        userId: string
-      ) {
-        const rows = yield* db
-          .select({ id: plants.id })
-          .from(plants)
-          .where(eq(plants.userId, userId))
-        return Array.map(rows, (row) => row.id)
-      }),
-
       findPersonalReminderPlantIds: Effect.fn(
         'PlantRepository.findPersonalReminderPlantIds'
       )(function* (userId: string) {
@@ -665,18 +659,17 @@ export const PlantRepositoryLive = Layer.effect(
             careDelegations,
             eq(delegationPlants.delegationId, careDelegations.id)
           )
-          .where(
-            and(
-              eq(careDelegations.caretakerId, userId),
-              eq(careDelegations.status, 'active')
-            )
-          )
+          .where(and(eq(careDelegations.caretakerId, userId), tending()))
         return Array.dedupe(Array.map([...owned, ...caredFor], (row) => row.id))
       }),
 
       findById: Effect.fn('PlantRepository.findById')(function* (id: string) {
         const [row] = yield* db
-          .select({ plant: plants, room: roomSelect })
+          .select({
+            plant: plants,
+            room: roomSelect,
+            careTimezone: careTimezoneSql,
+          })
           .from(plants)
           .leftJoin(rooms, eq(plants.roomId, rooms.id))
           .where(eq(plants.id, id))
@@ -684,20 +677,16 @@ export const PlantRepositoryLive = Layer.effect(
         if (!row) return null
 
         const scheduleRows = yield* db
-          .select()
+          .select(scheduleRow)
           .from(plantCareSchedules)
           .where(eq(plantCareSchedules.plantId, id))
-        const schedules: PlantCareScheduleRef[] = Array.map(
-          scheduleRows,
-          (r) => ({
-            careType: r.careType,
-            frequencyDays: r.frequencyDays,
-            lastCareAt: r.lastCareAt,
-            nextCareAt: r.nextCareAt,
-          })
-        )
+        const care: CareInput = {
+          careTimezone: row.careTimezone,
+          schedules: scheduleRows,
+          now: yield* DateTime.now,
+        }
 
-        if (row.plant.canopyId === null) return toOwnedPlant(row, schedules)
+        if (row.plant.canopyId === null) return toOwnedPlant(row, care)
 
         const [scope] = yield* db
           .select({ canopy: canopySelect, creator: creatorSelect })
@@ -710,18 +699,7 @@ export const PlantRepositoryLive = Layer.effect(
           )
           .where(eq(canopies.id, row.plant.canopyId))
         if (!scope) return null
-        return toCanopyPlant({ ...row, ...scope }, schedules)
-      }),
-
-      create: Effect.fn('PlantRepository.create')(function* (
-        data: CreatePlantData
-      ) {
-        const { owner, ...fields } = data
-        const [plant] = yield* db
-          .insert(plants)
-          .values({ ...fields, ...ownerColumns(owner) })
-          .returning()
-        return withOwnerOrNull(plant)
+        return toCanopyPlant({ ...row, ...scope }, care)
       }),
 
       update: Effect.fn('PlantRepository.update')(function* (
@@ -733,72 +711,6 @@ export const PlantRepositoryLive = Layer.effect(
           .update(plants)
           .set({ ...data, updatedAt: nowAsDate() })
           .where(and(eq(plants.id, id), ownedBy(plants, owner)))
-          .returning()
-        return withOwnerOrNull(plant)
-      }),
-
-      delete: Effect.fn('PlantRepository.delete')(function* (
-        id: string,
-        owner: PlantOwner
-      ) {
-        const [plant] = yield* db
-          .delete(plants)
-          .where(and(eq(plants.id, id), ownedBy(plants, owner)))
-          .returning()
-        return withOwnerOrNull(plant)
-      }),
-
-      markDead: Effect.fn('PlantRepository.markDead')(function* (
-        id: string,
-        owner: PlantOwner,
-        data: MarkPlantDeadData
-      ) {
-        const [plant] = yield* db
-          .update(plants)
-          .set({
-            diedAt: data.diedAt,
-            deathCause: data.cause,
-            deathNote: data.note,
-          })
-          .where(
-            and(
-              eq(plants.id, id),
-              ownedBy(plants, owner),
-              isNull(plants.diedAt)
-            )
-          )
-          .returning()
-        return withOwnerOrNull(plant)
-      }),
-
-      revive: Effect.fn('PlantRepository.revive')(function* (
-        id: string,
-        owner: PlantOwner
-      ) {
-        const [plant] = yield* db
-          .update(plants)
-          .set({ diedAt: null, deathCause: null, deathNote: null })
-          .where(
-            and(
-              eq(plants.id, id),
-              ownedBy(plants, owner),
-              isNotNull(plants.diedAt)
-            )
-          )
-          .returning()
-        return withOwnerOrNull(plant)
-      }),
-
-      moveTo: Effect.fn('PlantRepository.moveTo')(function* (
-        id: string,
-        from: PlantOwner,
-        to: PlantOwner,
-        roomId: string | null
-      ) {
-        const [plant] = yield* db
-          .update(plants)
-          .set({ ...ownerColumns(to), roomId, updatedAt: nowAsDate() })
-          .where(and(eq(plants.id, id), ownedBy(plants, from)))
           .returning()
         return withOwnerOrNull(plant)
       }),
@@ -862,65 +774,6 @@ export const PlantRepositoryLive = Layer.effect(
             )
         }
       ),
-
-      markOverduePlantsAsNeedsAttention: Effect.fn(
-        'PlantRepository.markOverduePlantsAsNeedsAttention'
-      )(function* () {
-        const now = nowAsDate()
-        const result = yield* db
-          .update(plants)
-          .set({ health: 'NEEDS_ATTENTION' })
-          .where(
-            and(
-              isLivingPlant(),
-              or(eq(plants.health, 'HEALTHY'), eq(plants.health, 'THRIVING')),
-              inArray(
-                plants.id,
-                db
-                  .select({ plantId: plantCareSchedules.plantId })
-                  .from(plantCareSchedules)
-                  .where(
-                    and(
-                      isNotNull(plantCareSchedules.nextCareAt),
-                      lte(plantCareSchedules.nextCareAt, now)
-                    )
-                  )
-              )
-            )
-          )
-          .returning()
-        return Array.length(result)
-      }),
-
-      markHealthyPlantsInOrder: Effect.fn(
-        'PlantRepository.markHealthyPlantsInOrder'
-      )(function* () {
-        const now = nowAsDate()
-        // Plants that are NEEDS_ATTENTION but have no overdue schedules
-        const result = yield* db
-          .update(plants)
-          .set({ health: 'HEALTHY' })
-          .where(
-            and(
-              isLivingPlant(),
-              eq(plants.health, 'NEEDS_ATTENTION'),
-              notInArray(
-                plants.id,
-                db
-                  .select({ plantId: plantCareSchedules.plantId })
-                  .from(plantCareSchedules)
-                  .where(
-                    and(
-                      isNotNull(plantCareSchedules.nextCareAt),
-                      lte(plantCareSchedules.nextCareAt, now)
-                    )
-                  )
-              )
-            )
-          )
-          .returning()
-        return Array.length(result)
-      }),
     }
   })
 )

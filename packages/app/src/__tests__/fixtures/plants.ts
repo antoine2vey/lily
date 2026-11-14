@@ -1,4 +1,31 @@
-import type { Plant, PlantCareSchedule, PlantPhoto } from '@lily/shared/plant'
+import { CareDay, CareDays, careStatus } from '@lily/shared'
+import type {
+  Plant,
+  PlantCareScheduleWithLastCareDay,
+  PlantPhoto,
+} from '@lily/shared/plant'
+import { DateTime } from 'effect'
+
+/** The plant-level care fields of an API plant. */
+export const careToday = {
+  careTimezone: 'UTC',
+  today: CareDay.make('2024-01-15'),
+}
+
+// Status as the API reports it, decided on a UTC care day.
+const seen = (dueAt: Date | null) => {
+  if (dueAt === null) return { dueDay: null, status: null }
+  const dueDay = CareDays.of(DateTime.makeUnsafe(dueAt), 'UTC')
+  return {
+    dueDay,
+    status: careStatus(dueDay, CareDays.today('UTC', DateTime.nowUnsafe())),
+  }
+}
+
+const lastCare = (at: Date | null) => ({
+  lastCareAt: at,
+  lastCareDay: at === null ? null : CareDays.of(DateTime.makeUnsafe(at), 'UTC'),
+})
 
 export type PlantRecord = Plant
 
@@ -9,21 +36,23 @@ export const makeSchedules = (opts: {
   fertilizationFrequencyDays: number | null
   lastFertilizedAt: Date | null
   nextFertilizationAt: Date | null
-}): PlantCareSchedule[] => {
-  const schedules: PlantCareSchedule[] = [
+}): PlantCareScheduleWithLastCareDay[] => {
+  const schedules: PlantCareScheduleWithLastCareDay[] = [
     {
       careType: 'watering',
       frequencyDays: opts.wateringFrequencyDays,
-      lastCareAt: opts.lastWateredAt,
+      ...lastCare(opts.lastWateredAt),
       nextCareAt: opts.nextWateringAt,
+      ...seen(opts.nextWateringAt),
     },
   ]
   if (opts.fertilizationFrequencyDays !== null) {
     schedules.push({
       careType: 'fertilization',
       frequencyDays: opts.fertilizationFrequencyDays,
-      lastCareAt: opts.lastFertilizedAt,
+      ...lastCare(opts.lastFertilizedAt),
       nextCareAt: opts.nextFertilizationAt,
+      ...seen(opts.nextFertilizationAt),
     })
   }
   return schedules
@@ -55,6 +84,7 @@ export const mockPlants: PlantRecord[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 7,
       lastWateredAt: new Date('2024-01-10'),
@@ -89,6 +119,7 @@ export const mockPlants: PlantRecord[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 14,
       lastWateredAt: null,
@@ -123,6 +154,7 @@ export const mockPlants: PlantRecord[] = [
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    ...careToday,
     schedules: makeSchedules({
       wateringFrequencyDays: 10,
       lastWateredAt: new Date('2024-01-01'),
@@ -176,6 +208,7 @@ export const createTestPlant = (
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
+  ...careToday,
   schedules: makeSchedules({
     wateringFrequencyDays: 7,
     lastWateredAt: null,

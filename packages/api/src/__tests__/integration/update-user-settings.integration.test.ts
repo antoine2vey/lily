@@ -1,5 +1,11 @@
+import { settled } from '@lily/api/__tests__/integration/care-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { CareReadsLive } from '@lily/api/contexts/care'
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -10,12 +16,11 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
-import { rescheduleReminders } from '@lily/api/services/plants/helpers/reconcile-reminders'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { UserSettingsUpdateRequest } from '@lily/shared/user'
-import { eq, sql } from 'drizzle-orm'
+import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Exit, Layer, References } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
@@ -33,11 +38,11 @@ const injected = (message: string) =>
     })
   )
 
-const RebuildAlwaysFails = Layer.effect(
+const RemindersCannotBePlanned = Layer.effect(
   NotificationRepository,
   Effect.map(NotificationRepository, (repo) => ({
     ...repo,
-    replaceReminders: () => injected('injected rebuild failure'),
+    lockReminders: () => injected('injected replan failure'),
   }))
 ).pipe(Layer.provide(NotificationRepositoryLive))
 
@@ -57,14 +62,16 @@ const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
     PlantRepositoryLive,
     UserRepositoryLive,
     CareScheduleRepositoryLive,
+    CareReadsLive,
     CareLogRepositoryLive,
     DelegationRepositoryLive,
     CanopyRepositoryLive,
-    notifications
+    notifications,
+    createMockEventBus()
   ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const HealthyLive = makeLayer(NotificationRepositoryLive)
-const FailingLive = makeLayer(RebuildAlwaysFails)
+const UnplannableLive = makeLayer(RemindersCannotBePlanned)
 const EngagementFailingLive = makeLayer(EngagementDeleteFails)
 
 const localHour = (date: Date, timeZone: string) =>
@@ -75,7 +82,7 @@ const localHour = (date: Date, timeZone: string) =>
   }).format(date)
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
-  'Settings changes rebuild reminders in their transaction - Integration',
+  'Settings changes ask for their reminders to be planned again - Integration',
   () => {
     let pool: pg.Pool
     let db: ReturnType<typeof drizzle>
@@ -84,6 +91,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const resetDb = async () => {
       for (const table of [
+        'outbox',
         'notifications',
         'plant_care_schedules',
         'plants',
@@ -100,7 +108,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       layer: typeof HealthyLive = HealthyLive
     ) =>
       Effect.runPromiseExit(
-        updateUserSettings(request).pipe(
+        settled(updateUserSettings(request)).pipe(
           Effect.provide(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId }),
@@ -121,6 +129,21 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.notifications)
         .where(sql`${schema.notifications.status} = 'pending'`)
         .orderBy(schema.notifications.type)
+
+    const requests = () =>
+      db
+        .select({
+          event: schema.outbox.event,
+          pendingConsumers: schema.outbox.pendingConsumers,
+          processed: sql<boolean>`${schema.outbox.processedAt} is not null`,
+        })
+        .from(schema.outbox)
+        .orderBy(asc(schema.outbox.id))
+
+    const retryNow = () =>
+      db.execute(
+        sql`UPDATE outbox SET available_at = to_timestamp(0), claimed_until = NULL`
+      )
 
     const storedTimezone = async () => {
       const [row] = await db
@@ -178,17 +201,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .returning()
       if (!plant) throw new Error('Failed to create plant')
       plantId = plant.id
+      const dueAt = new Date(Date.now() + 3 * DAY_MS)
       await db.insert(schema.plantCareSchedules).values(
         (['watering', 'misting', 'repotting'] as const).map((careType) => ({
           plantId,
           careType,
           frequencyDays: 7,
-          nextCareAt: new Date(Date.now() + 3 * DAY_MS),
+          nextCareAt: dueAt,
+          dueDay: careDayOf(dueAt),
         }))
       )
       await Effect.runPromise(
-        rescheduleReminders([plantId]).pipe(Effect.provide(HealthyLive))
+        settled(
+          transact(Reminders.request(Dirty.Plants({ plantIds: [plantId] })))
+        ).pipe(Effect.provide(HealthyLive))
       )
+      await db.execute(sql`TRUNCATE TABLE outbox RESTART IDENTITY`)
     })
 
     afterAll(async () => {
@@ -196,17 +224,42 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await pool.end()
     })
 
-    it('keeps the old timezone and reminders when the rebuild fails', async () => {
+    it('stores the new timezone when the reminders cannot be planned, and moves them on a later drain', async () => {
       const before = await pending()
+      const request = { _tag: 'Recipient', userId }
 
-      const exit = await update({ timezone: 'America/New_York' }, FailingLive)
+      const exit = await update(
+        { timezone: 'America/New_York' },
+        UnplannableLive
+      )
 
-      expect(Exit.isFailure(exit)).toBe(true)
-      expect(await storedTimezone()).toBe('UTC')
+      expect(Exit.isSuccess(exit)).toBe(true)
+      expect(await storedTimezone()).toBe('America/New_York')
       expect(await pending()).toEqual(before)
+      expect(await requests()).toEqual([
+        {
+          event: request,
+          pendingConsumers: ['reminders-replan'],
+          processed: false,
+        },
+      ])
+
+      await retryNow()
+      await Effect.runPromise(
+        settled(Effect.void).pipe(Effect.provide(HealthyLive))
+      )
+
+      expect(
+        (await pending()).map((row) =>
+          localHour(row.scheduledAt, 'America/New_York')
+        )
+      ).toEqual(['09', '09', '09'])
+      expect(await requests()).toEqual([
+        { event: request, pendingConsumers: [], processed: true },
+      ])
     })
 
-    it('keeps both switches and every pending row when the tips delete fails', async () => {
+    it('keeps both switches, every pending row and asks for nothing when the tips delete fails', async () => {
       await db.insert(schema.notifications).values(
         (['daily_tip', 'inactivity_nudge'] as const).map((type) => ({
           userId,
@@ -237,6 +290,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         tips: true,
       })
       expect(await pending()).toEqual(before)
+      expect(await requests()).toEqual([])
     })
 
     it('moves every reminder to the new timezone outside do-not-disturb', async () => {

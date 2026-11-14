@@ -31,19 +31,20 @@ appear on the Care tab, where each step can be checked off.
 
 ### Schedule bridging (Q9 / Q10 / Q18 / Q19)
 
-- **On accept**: for each step with a care type **and** a due date **and** an
-  existing schedule of that type, set the schedule's `nextCareAt` to the due date
-  (either direction) and reschedule the reminder through the existing
-  `scheduleCareReminder`. No schedule of that type: no adjustment, no creation.
-- **On step completion** (care-typed): run `executePlantCare` (care log, schedule
-  advance, weather adjustment, next reminder). The care log id is stored on the
+- **On accept**: for each open step with a care type **and** a due date **and** an
+  existing schedule of that type, set the schedule's due day to the due date
+  (either direction). `CarePlans.accept` publishes a `ScheduleChanged` fact on the
+  outbox topic `care`, and Reminders replans the plant from it. No schedule of
+  that type: no adjustment, no creation.
+- **On step completion** (care-typed): `CarePlans.tickStep` records the care (care
+  log, schedule advance, weather adjustment). The care log id is stored on the
   step. If the plant was already cared for that day (`AlreadyCaredTodayError`),
   the step is marked done without a new log.
 - **Cross-completion**: completing the normal schedule-derived task marks the
   **earliest** open step of that care type on that plant as done (with the log
-  id). Both live inside `executePlantCare`, which takes an optional
-  `carePlanStepId` so a step-initiated completion marks *that* step instead of
-  the earliest one.
+  id). Both are decided by `recordCare` in `contexts/care/domain/decide.ts`, which
+  takes a `PlanStepChoice` so a step-initiated completion marks *that* step
+  instead of the earliest one.
 - **Show both**: the plan step and the schedule-derived task can coexist in the
   UI; completing either completes the other via the rule above.
 

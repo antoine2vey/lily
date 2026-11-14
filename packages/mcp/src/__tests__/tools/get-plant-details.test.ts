@@ -1,7 +1,8 @@
 import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
+import { careToday, seen } from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { getPlantDetailsEffect } from '@lily/mcp/tools/get-plant-details'
-import type { CanopyId } from '@lily/shared'
+import { type CanopyId, CareDay } from '@lily/shared'
 import type { CareLogHistoryItem } from '@lily/shared/care-log'
 import type { PlantDetail } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
@@ -35,30 +36,32 @@ const mockPlantDetail: PlantDetail = {
   room: null,
   ownership: 'owned',
   ownerName: null,
-  schedules: [
+  ...careToday,
+  schedules: seen([
     {
       careType: 'watering',
       frequencyDays: 7,
       lastCareAt: new Date('2024-01-01'),
       nextCareAt: new Date('2024-01-08'),
     },
-  ],
+  ]),
   photos: [],
 }
 
-const mockCareLogs: CareLogHistoryItem[] = [
-  {
-    id: 'log-1',
-    type: 'watering',
-    notes: 'Watered thoroughly',
-    date: new Date('2024-01-05'),
-    photoUrl: undefined,
-    plantId: 'plant-1',
-    createdAt: new Date('2024-01-05'),
-    updatedAt: new Date('2024-01-05'),
-    performedBy: null,
-  },
-]
+const wateredLog: CareLogHistoryItem = {
+  id: 'log-1',
+  type: 'watering',
+  notes: 'Watered thoroughly',
+  date: new Date('2024-01-05'),
+  careDay: CareDay.make('2024-01-05'),
+  photoUrl: undefined,
+  plantId: 'plant-1',
+  createdAt: new Date('2024-01-05'),
+  updatedAt: new Date('2024-01-05'),
+  performedBy: null,
+}
+
+const mockCareLogs: CareLogHistoryItem[] = [wateredLog]
 
 const createLayer = () =>
   createMockApiClient({
@@ -156,5 +159,73 @@ describe('getPlantDetails MCP tool', () => {
 
     expect(result.text).not.toMatch(/Canopy|Caretaking/)
     expect(result.plant.ownershipLabel).toBeNull()
+  })
+
+  it('prints the stored due day, not the UTC date of the due instant', async () => {
+    const layer = createMockApiClient({
+      getPlant: () =>
+        Effect.succeed({
+          ...mockPlantDetail,
+          careTimezone: 'America/New_York',
+          today: CareDay.make('2024-03-05'),
+          schedules: [
+            {
+              careType: 'watering',
+              frequencyDays: 7,
+              lastCareAt: null,
+              lastCareDay: null,
+              nextCareAt: new Date('2024-03-10T02:30:00.000Z'),
+              dueDay: CareDay.make('2024-03-09'),
+              status: { _tag: 'Upcoming', inDays: 4 },
+            },
+          ],
+        }),
+    })
+
+    const result = await Effect.runPromise(
+      getPlantDetailsEffect({ plantId: 'plant-1' }).pipe(
+        Effect.provide(Layer.merge(layer, JwtLayer))
+      )
+    )
+
+    expect(result.text).toContain('(next: 2024-03-09)')
+    expect(result.plant.schedules).toEqual([
+      { careType: 'watering', frequencyDays: 7, nextCareAt: '2024-03-09' },
+    ])
+  })
+
+  it('prints the stored care day of a care, not the UTC date of its instant', async () => {
+    const layer = createMockApiClient({
+      getPlant: () =>
+        Effect.succeed({
+          ...mockPlantDetail,
+          careTimezone: 'America/New_York',
+        }),
+      getCareLogs: () =>
+        Effect.succeed({
+          items: [
+            {
+              ...wateredLog,
+              date: new Date('2024-03-10T02:30:00.000Z'),
+              careDay: CareDay.make('2024-03-09'),
+            },
+          ],
+          hasMore: false,
+          total: 1,
+          page: 1,
+          limit: 5,
+        }),
+    })
+
+    const result = await Effect.runPromise(
+      getPlantDetailsEffect({ plantId: 'plant-1' }).pipe(
+        Effect.provide(Layer.merge(layer, JwtLayer))
+      )
+    )
+
+    expect(result.text).toContain('- 2024-03-09: watering')
+    expect(result.plant.recentCare).toEqual([
+      { date: '2024-03-09', type: 'watering', notes: 'Watered thoroughly' },
+    ])
   })
 })

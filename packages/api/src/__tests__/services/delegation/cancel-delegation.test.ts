@@ -4,14 +4,9 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
-import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
@@ -50,30 +45,29 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
 
 const notifications: Notification[] = []
 
+const OuterTransactionLive = Layer.merge(createMockSqlClient(), MockOutboxLive)
+
+const inMemory = (delegations: DelegationRow[]) =>
+  createInMemoryAbsence(
+    {
+      delegations,
+      users: [mockUser1, mockUser2],
+      plantDetails: mockDelegationPlants,
+      delegationPlants: [
+        { delegationId: mockDelegation1.id, plantId: 'plant-1' },
+        { delegationId: mockDelegation1.id, plantId: 'plant-2' },
+      ],
+    },
+    { notifications }
+  )
+
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
   delegations: DelegationRow[] = [
     { ...mockDelegation1, status: 'pending' as const },
   ]
 ) =>
-  Layer.mergeAll(
-    MockSqlClientLive,
-    currentUser,
-    createMockPlantRepository({ plants: [] }),
-    createMockCareScheduleRepository(),
-    createMockCanopyRepository(),
-    createMockNotificationRepository(notifications),
-    createMockMessageQueue(),
-    createMockUserRepository([mockUser1, mockUser2]),
-    createMockDelegationRepository({
-      delegations,
-      users: [
-        { id: mockUser1.id, name: mockUser1.name, image: mockUser1.image },
-        { id: mockUser2.id, name: mockUser2.name, image: mockUser2.image },
-      ],
-      plants: mockDelegationPlants,
-    })
-  )
+  Layer.mergeAll(currentUser, inMemory(delegations).layer, OuterTransactionLive)
 
 describe('cancelDelegation', () => {
   it('should cancel a pending delegation', async () => {
@@ -111,6 +105,52 @@ describe('cancelDelegation', () => {
 
     expect(result.status).toBe('canceled')
   })
+
+  it('publishes that an active delegation ended, with the plants it covered', async () => {
+    const absence = inMemory([
+      { ...mockDelegation1, status: 'active' as const },
+    ])
+
+    await Effect.runPromise(
+      cancelDelegation(mockDelegation1.id).pipe(
+        Effect.provide(
+          Layer.mergeAll(ownerCurrentUser, absence.layer, OuterTransactionLive)
+        )
+      )
+    )
+
+    expect(absence.events).toEqual([
+      {
+        _tag: 'DelegationEnded',
+        delegationId: mockDelegation1.id,
+        ownerId: mockDelegation1.ownerId,
+        caretakerId: mockDelegation1.caretakerId,
+        plantIds: ['plant-1', 'plant-2'],
+        reason: 'canceled',
+      },
+    ])
+  })
+
+  it.each(['pending', 'accepted'] as const)(
+    'publishes nothing when a %s delegation is canceled',
+    async (status) => {
+      const absence = inMemory([{ ...mockDelegation1, status }])
+
+      await Effect.runPromise(
+        cancelDelegation(mockDelegation1.id).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              ownerCurrentUser,
+              absence.layer,
+              OuterTransactionLive
+            )
+          )
+        )
+      )
+
+      expect(absence.events).toEqual([])
+    }
+  )
 
   it('records one queued delegation_canceled for the caretaker', async () => {
     notifications.length = 0

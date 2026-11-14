@@ -1,18 +1,18 @@
+import { Canopy, JoinVia } from '@lily/api/contexts/canopy'
+import { transact } from '@lily/api/kernel/transact'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { findLiveInvite } from '@lily/api/services/canopy/helpers/invite-token'
-import { joinCanopy } from '@lily/api/services/canopy/helpers/join-canopy'
+import { canopyView } from '@lily/api/services/canopy/helpers/canopy-view'
 import { Effect } from 'effect'
 
 export const acceptCanopyInvite = Effect.fn('CanopyService.acceptCanopyInvite')(
   function* (token: string) {
-    const { id, name } = yield* CurrentUser
-    return yield* joinCanopy(
-      { id, name },
-      {
-        findBeforeLock: findLiveInvite(token),
-        findUnderLock: findLiveInvite(token),
-        markUsed: Effect.void,
-      }
+    const { id: joiner } = yield* CurrentUser
+    const canopy = yield* Canopy
+    return yield* transact(
+      Effect.flatMap(
+        canopy.join({ joiner, via: JoinVia.Link({ token }) }),
+        ({ canopyId }) => canopyView(canopyId, joiner)
+      )
     )
   }
 )

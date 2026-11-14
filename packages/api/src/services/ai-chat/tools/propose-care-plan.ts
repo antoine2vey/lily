@@ -1,14 +1,14 @@
-import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
+import { CarePlans } from '@lily/api/contexts/care'
+import type { PlantPermit } from '@lily/api/kernel/permit'
 import { CARE_PLAN_MAX_STEPS } from '@lily/shared'
 import { type Tool, tool } from 'ai'
 import { Array, Effect, Option, pipe } from 'effect'
 import { z } from 'zod'
 
-import { carePlanStepSchema, toCreateStepData } from './care-plan-step-schema'
+import { carePlanStepSchema, toProposedStep } from './care-plan-step-schema'
 import type { ToolDeps } from './index'
 
-// Plant-only tool: caller is expected to provide plantId.
-type PlantToolDeps = ToolDeps & { plantId: string }
+type PlantToolDeps = ToolDeps & { permit: PlantPermit<'chat'> }
 
 export const proposeCarePlanTool = (deps: PlantToolDeps): Tool =>
   tool({
@@ -30,23 +30,22 @@ export const proposeCarePlanTool = (deps: PlantToolDeps): Tool =>
     execute: async (params) =>
       Effect.runPromiseWith(deps.runtime)(
         Effect.gen(function* () {
-          const repo = yield* CarePlanRepository
+          const carePlans = yield* CarePlans
           const timezone = pipe(
             Option.fromNullishOr(deps.timezone),
             Option.getOrElse(() => 'UTC')
           )
 
-          const plan = yield* repo.create({
-            plantId: deps.plantId,
-            userId: deps.userId,
+          const { planId } = yield* carePlans.propose({
+            permit: deps.permit,
             title: params.title,
             source: 'ai',
             steps: Array.map(params.steps, (step) =>
-              toCreateStepData(step, timezone)
+              toProposedStep(step, timezone)
             ),
           })
 
-          return { carePlanId: plan.id, plantId: plan.plantId }
+          return { carePlanId: planId, plantId: deps.permit.plantId }
         })
       ),
   })

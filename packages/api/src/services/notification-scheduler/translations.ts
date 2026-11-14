@@ -72,7 +72,10 @@ export const NOTIFICATION_PARAMS = {
   delegation_request: Sender,
   delegation_accepted: Sender,
   delegation_rejected: Sender,
-  delegation_canceled: Sender,
+  delegation_canceled: Schema.Struct({
+    senderName: OptionalString,
+    unanswered: Schema.optional(Schema.Literal(true)),
+  }),
   delegation_activated: PlantCount,
   delegation_completed: PlantCount,
   canopy_member_joined: CanopyEvent,
@@ -121,6 +124,7 @@ export type ParamsOf<T extends SimpleNotificationType> =
 // All fields optional because each translation only reads its own subset.
 type InternalNotificationParams = {
   readonly senderName?: string
+  readonly unanswered?: true
   readonly canopyName?: string
   readonly plantCount?: number
   readonly plantName?: string
@@ -177,8 +181,15 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     },
     delegation_canceled: {
       title: () => '🚫 Plant-sitting canceled',
-      body: (p) =>
-        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} called off the plant-sitting`,
+      body: (p) => {
+        const name = Option.getOrElse(
+          Option.fromNullishOr(p.senderName),
+          () => 'Someone'
+        )
+        return p.unanswered
+          ? `${name} didn't answer in time, so the plant-sitting request was canceled`
+          : `${name} called off the plant-sitting`
+      },
     },
     delegation_activated: {
       title: () => '🌱 Plant-sitting has begun',
@@ -462,8 +473,15 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     },
     delegation_canceled: {
       title: () => '🚫 Garde annulée',
-      body: (p) =>
-        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} a annulé la garde des plantes`,
+      body: (p) => {
+        const name = Option.getOrElse(
+          Option.fromNullishOr(p.senderName),
+          () => "Quelqu'un"
+        )
+        return p.unanswered
+          ? `${name} n'a pas répondu à temps, la demande de garde a été annulée`
+          : `${name} a annulé la garde des plantes`
+      },
     },
     delegation_activated: {
       title: () => '🌱 La garde commence',

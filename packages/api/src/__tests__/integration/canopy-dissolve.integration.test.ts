@@ -1,6 +1,25 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import {
+  dissolve,
+  leave,
+  leaveForDeletion,
+  settled,
+} from '@lily/api/__tests__/integration/canopy-layers'
+import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import { chatPermit } from '@lily/api/__tests__/mocks/care'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { type Canopy, hashInviteToken } from '@lily/api/contexts/canopy'
+import { CanopyWrite } from '@lily/api/contexts/canopy/domain/decide'
+import { CanopyStore } from '@lily/api/contexts/canopy/store'
+import { CarePlans, CareReadsLive } from '@lily/api/contexts/care'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import {
   CanopyRepository,
   CanopyRepositoryLive,
@@ -19,12 +38,6 @@ import {
 } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
-import { dissolveCanopy } from '@lily/api/services/canopy/helpers/dissolve-canopy'
-import { hashInviteToken } from '@lily/api/services/canopy/helpers/invite-token'
-import {
-  leaveCanopy,
-  leaveCanopyAndDelete,
-} from '@lily/api/services/canopy/helpers/leave-canopy'
 import { listPlantCarePlans } from '@lily/api/services/care-plans/endpoints/list-plant-care-plans'
 import { withCarePlanAuth } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
@@ -33,13 +46,14 @@ import * as schema from '@lily/db/schema'
 import {
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
+  CanopyId,
   UserNotFoundError,
 } from '@lily/shared'
 import { CarePlanNotFoundError } from '@lily/shared/errors/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Effect, Exit, Layer } from 'effect'
+import { Array, DateTime, Effect, Exit, Layer } from 'effect'
 import pg from 'pg'
 import {
   afterAll,
@@ -57,16 +71,36 @@ const AppLive = Layer.mergeAll(
   CanopyRepositoryLive,
   CarePlanRepositoryLive,
   CareScheduleRepositoryLive,
+  CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
   UserRepositoryLive,
-  createMockMessageQueue()
+  createMockMessageQueue(),
+  createMockEventBus(),
+  createMockWeatherProvider(),
+  createMockWeatherCache(),
+  createMockWeatherRepository(),
+  createMockLimitChecker()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const run = <A, E>(
-  effect: Effect.Effect<A, E, Layer.Success<typeof AppLive>>
-) => Effect.runPromise(Effect.provide(effect, AppLive))
+  effect: Effect.Effect<
+    A,
+    E,
+    Layer.Success<typeof AppLive> | Outbox | Canopy | CanopyStore | CarePlans
+  >
+) => Effect.runPromise(Effect.provide(settled(effect), AppLive))
+
+const proposeRescue = (plantId: string, authorId: string) =>
+  Effect.flatMap(CarePlans, (carePlans) =>
+    carePlans.propose({
+      permit: chatPermit(plantId, authorId),
+      title: 'Rescue',
+      source: 'ai',
+      steps: [],
+    })
+  )
 
 const plantValues = {
   name: 'Monstera',
@@ -103,6 +137,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       db
         .insert(schema.canopyMembers)
         .values({ canopyId, userId, role, joinedAt: new Date(joinedAt) })
+
+    const requestCount = async () =>
+      (await db.select({ id: schema.outbox.id }).from(schema.outbox)).length
 
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
@@ -168,11 +205,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         userId: lilyId,
         createdByUserId: lilyId,
       })
+      const dueAt = inDays(3)
       await db.insert(schema.plantCareSchedules).values({
         plantId: living.id,
         careType: 'watering',
         frequencyDays: 7,
-        nextCareAt: inDays(3),
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
       })
       await db.insert(schema.notifications).values({
         userId: lilyId,
@@ -190,7 +229,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expiresAt: inDays(7),
       })
 
-      await run(dissolveCanopy(canopyId, alexId))
+      await run(dissolve(alexId))
 
       const plants = await db
         .select()
@@ -241,6 +280,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         userId: alexId,
         createdByUserId: alexId,
       })
+      const dueAt = inDays(1)
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: alexsOwn.id,
+        careType: 'watering',
+        frequencyDays: 7,
+        nextCareAt: dueAt,
+        dueDay: careDayOf(dueAt),
+      })
       await db.insert(schema.notifications).values([
         {
           userId: alexId,
@@ -256,9 +303,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         },
       ])
 
-      const outcome = await run(leaveCanopy(alexId))
+      const outcome = await run(leave(alexId))
 
-      expect(outcome._tag).toBe('Left')
+      expect(outcome).toBe('left')
       const members = await db
         .select({
           userId: schema.canopyMembers.userId,
@@ -288,9 +335,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await join(lilyId, 'owner', '2024-01-01')
       const fern = await insertPlant({ canopyId, createdByUserId: alexId })
 
-      const outcome = await run(leaveCanopy(lilyId))
+      const outcome = await run(leave(lilyId))
 
-      expect(outcome._tag).toBe('Dissolved')
+      expect(outcome).toBe('dissolved')
       const [plant] = await db
         .select()
         .from(schema.plants)
@@ -304,24 +351,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await join(lilyId, 'member', '2024-02-01')
       const fern = await insertPlant({ canopyId, createdByUserId: alexId })
       const asLily = <A, E>(
-        effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | CurrentUser>
+        effect: Effect.Effect<
+          A,
+          E,
+          Layer.Success<typeof AppLive> | CurrentUser | Outbox
+        >
       ) =>
         Effect.runPromiseExit(
           Effect.provide(
-            effect,
+            settled(effect),
             Layer.merge(AppLive, createMockCurrentUser({ id: lilyId }))
           )
         )
-      const lilysPlan = await run(
-        Effect.flatMap(CarePlanRepository, (repo) =>
-          repo.create({
-            plantId: fern.id,
-            userId: lilyId,
-            title: 'Rescue',
-            steps: [],
-          })
-        )
-      )
+      const lilysPlan = await run(proposeRescue(fern.id, lilyId))
       const plansOnFern = () =>
         asLily(
           withPlantKnowledge(fern.id, 'view').pipe(
@@ -335,20 +377,20 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
 
       const before = await plansOnFern()
-      expect(Exit.isSuccess(before) && before.value).toEqual([lilysPlan.id])
+      expect(Exit.isSuccess(before) && before.value).toEqual([lilysPlan.planId])
       expect(await lilysPlans()).toHaveLength(1)
 
-      await run(leaveCanopy(lilyId))
+      await run(leave(lilyId))
 
       expect(failureOf(await plansOnFern())).toBeInstanceOf(PlantNotFoundError)
       expect(await lilysPlans()).toEqual([])
       expect(
-        failureOf(await asLily(withCarePlanAuth(lilysPlan.id, 'manage')))
+        failureOf(await asLily(withCarePlanAuth(lilysPlan.planId, 'manage')))
       ).toBeInstanceOf(CarePlanNotFoundError)
       const kept = await db
         .select({ id: schema.carePlans.id })
         .from(schema.carePlans)
-      expect(kept).toEqual([{ id: lilysPlan.id }])
+      expect(kept).toEqual([{ id: lilysPlan.planId }])
     })
 
     it("shows a caretaker's plan only while their delegation of the owner's plant is active", async () => {
@@ -372,16 +414,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db
         .insert(schema.delegationPlants)
         .values({ delegationId: delegation.id, plantId: fern.id })
-      await run(
-        Effect.flatMap(CarePlanRepository, (repo) =>
-          repo.create({
-            plantId: fern.id,
-            userId: lilyId,
-            title: 'Rescue',
-            steps: [],
-          })
-        )
-      )
+      await run(proposeRescue(fern.id, lilyId))
       const lilysPlans = () =>
         run(
           Effect.flatMap(CarePlanRepository, (repo) => repo.findByUser(lilyId))
@@ -406,39 +439,38 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await lilysPlans()).toEqual([])
     })
 
-    it('returns a new care plan even when its author can no longer reach the plant', async () => {
+    it('proposes a care plan even when its author can no longer reach the plant', async () => {
       const fern = await insertPlant({
         userId: alexId,
         createdByUserId: alexId,
       })
 
-      const plan = await run(
-        Effect.flatMap(CarePlanRepository, (repo) =>
-          repo.create({
-            plantId: fern.id,
-            userId: lilyId,
-            title: 'Rescue',
-            steps: [],
-          })
-        )
-      )
+      const { planId } = await run(proposeRescue(fern.id, lilyId))
 
-      expect(plan).toMatchObject({ plantId: fern.id, title: 'Rescue' })
+      expect(
+        await run(
+          Effect.flatMap(CarePlanRepository, (repo) => repo.findById(planId))
+        )
+      ).toMatchObject({ plantId: fern.id, title: 'Rescue' })
     })
 
     it('rolls the Canopy exit back when the account write after it fails', async () => {
       await join(alexId, 'owner', '2024-01-01')
       await join(lilyId, 'member', '2024-02-01')
       const fern = await insertPlant({ canopyId, createdByUserId: alexId })
+      const requestsBefore = await requestCount()
 
       const exit = await Effect.runPromiseExit(
         Effect.provide(
-          leaveCanopyAndDelete(alexId)(Effect.fail(new UserNotFoundError())),
+          settled(
+            leaveForDeletion(alexId)(Effect.fail(new UserNotFoundError()))
+          ),
           AppLive
         )
       )
 
       expect(failureOf(exit)).toEqual(new UserNotFoundError())
+      expect(await requestCount()).toBe(requestsBefore)
       const members = await db
         .select({
           userId: schema.canopyMembers.userId,
@@ -485,11 +517,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       })
 
+      const requestsBefore = await requestCount()
+
       const exit = await Effect.runPromiseExit(
-        Effect.provide(leaveCanopy(lilyId), AppLive)
+        Effect.provide(settled(leave(lilyId)), AppLive)
       )
 
       expect(Exit.isFailure(exit)).toBe(true)
+      expect(await requestCount()).toBe(requestsBefore)
       const members = await db
         .select({ userId: schema.canopyMembers.userId })
         .from(schema.canopyMembers)
@@ -504,14 +539,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await join(alexId, 'owner', '2024-01-01')
       const replace = (tokenHash: string) =>
         run(
-          Effect.flatMap(CanopyRepository, (repo) =>
-            repo.replaceInvite({
-              canopyId,
-              tokenHash,
-              createdByUserId: alexId,
-              expiresAt: inDays(7),
-            })
-          )
+          Effect.flatMap(CanopyStore, (store) =>
+            store.apply([
+              CanopyWrite.ReplaceLink({
+                canopyId: CanopyId.make(canopyId),
+                tokenHash,
+                createdBy: alexId,
+                expiresAt: DateTime.makeUnsafe(inDays(7)),
+                at: DateTime.nowUnsafe(),
+              }),
+            ])
+          ).pipe(transactInMemory)
         )
 
       await replace('first')
@@ -552,7 +590,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.insert(schema.rooms).values({ name: 'Kitchen', canopyId })
 
       await run(
-        leaveCanopyAndDelete(lilyId)(
+        leaveForDeletion(lilyId)(
           Effect.flatMap(UserRepository, (repo) => repo.delete(lilyId))
         )
       )
@@ -577,19 +615,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const fern = await insertPlant({ canopyId, createdByUserId: null })
 
       const outcomes = await Promise.all([
-        run(leaveCanopy(alexId)),
-        run(leaveCanopy(lilyId)),
+        run(leave(alexId)),
+        run(leave(lilyId)),
       ])
 
-      expect(Array.map(outcomes, (o) => o._tag).sort()).toEqual([
-        'Dissolved',
-        'Left',
-      ])
+      expect([...outcomes].sort()).toEqual(['dissolved', 'left'])
       const [plant] = await db
         .select()
         .from(schema.plants)
         .where(eq(schema.plants.id, fern.id))
-      const dissolvedBy = outcomes[0]?._tag === 'Dissolved' ? alexId : lilyId
+      const dissolvedBy = outcomes[0] === 'dissolved' ? alexId : lilyId
       expect(plant).toMatchObject({ canopyId: null, userId: dissolvedBy })
       expect(await db.select().from(schema.canopies)).toEqual([])
       expect(await db.select().from(schema.canopyMembers)).toEqual([])
@@ -622,6 +657,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const accept = (userId: string) =>
         Effect.runPromiseExit(
           acceptCanopyInvite(token).pipe(
+            settled,
             Effect.provide(
               Layer.merge(AppLive, createMockCurrentUser({ id: userId }))
             )

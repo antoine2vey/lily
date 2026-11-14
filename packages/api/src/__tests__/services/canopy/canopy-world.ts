@@ -1,12 +1,17 @@
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
+import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
+import {
+  createInMemoryCanopy,
+  type MockCanopySurroundings,
+} from '@lily/api/__tests__/mocks/canopy'
 import {
   createMockCanopyRepository,
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
@@ -17,7 +22,7 @@ import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, pipe } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export const memberUsers = (store: MockCanopyStore): User[] =>
   Array.map(store.members, (m) => ({
@@ -32,7 +37,9 @@ export const canopyWorld = (
   actor: { readonly id: string; readonly name?: string },
   notifications: Notification[] = [],
   schedules: CareScheduleRow[] = [],
-  timeline = createOutboxTimeline()
+  timeline = createOutboxTimeline(),
+  around: MockCanopySurroundings = {},
+  outsiders: ReadonlyArray<User> = []
 ) => {
   const plantsNow = () =>
     Array.map(store.plants, (p) =>
@@ -48,17 +55,17 @@ export const canopyWorld = (
   // Reminders read each plant's owner when they are rebuilt, after a move.
   const plantRepository = Layer.effect(
     PlantRepository,
-    Effect.map(PlantRepository, (repo) => ({
-      ...repo,
-      findByIdsForKeyShare: (ids: ReadonlyArray<string>) =>
+    Effect.map(PlantRepository, (repo) => {
+      const findNow = (ids: ReadonlyArray<string>) =>
         Effect.succeed(
           pipe(
             plantsNow(),
             Array.filter((p) => Array.contains(ids, p.id)),
             Array.map(withOwner)
           )
-        ),
-    }))
+        )
+      return { ...repo, findByIds: findNow, findByIdsForKeyShare: findNow }
+    })
   ).pipe(Layer.provide(createMockPlantRepository({ plants })))
   const canopyPlants = (canopyId: string) =>
     pipe(
@@ -66,26 +73,51 @@ export const canopyWorld = (
       Array.filter((p) => p.canopyId === canopyId),
       Array.map((p) => p.id)
     )
+  const plantOwner = (plantId: string) =>
+    pipe(
+      Array.findFirst(store.plants, (p) => p.id === plantId),
+      Option.flatMapNullishOr((p) => p.userId),
+      Option.getOrNull
+    )
+  const users = [
+    ...memberUsers(store),
+    ...Array.filter(outsiders, (user) => user.id !== actor.id),
+    ...(Array.some(store.members, (m) => m.userId === actor.id)
+      ? []
+      : [
+          {
+            ...mockUser1,
+            id: actor.id,
+            name: actor.name ?? null,
+            email: `${actor.id}@example.com`,
+          },
+        ]),
+  ]
+  const repositories = Layer.mergeAll(
+    createMockCanopyRepository(store),
+    createMockNotificationRepository(notifications, {
+      ...timeline.notificationOptions,
+      canopyPlants,
+      plantOwner,
+    }),
+    timeline.queue,
+    createMockCareScheduleRepository({
+      schedules,
+      plants,
+      memberships: store.members,
+    }),
+    plantRepository,
+    createMockUserRepository(users),
+    createInMemoryAbsence({ users }, { notifications, timeline }).layer,
+    createMockRateLimiterService(),
+    timeline.sql,
+    createMockCurrentUser({ id: actor.id, name: actor.name ?? actor.id })
+  )
   return {
     notifications,
-    layer: Layer.mergeAll(
-      createMockCanopyRepository(store),
-      createMockNotificationRepository(notifications, {
-        ...timeline.notificationOptions,
-        canopyPlants,
-      }),
-      timeline.queue,
-      createMockCareScheduleRepository({
-        schedules,
-        plants,
-        memberships: store.members,
-      }),
-      plantRepository,
-      createMockUserRepository(memberUsers(store)),
-      createMockDelegationRepository(),
-      createMockRateLimiterService(),
-      timeline.sql,
-      createMockCurrentUser({ id: actor.id, name: actor.name ?? actor.id })
+    layer: createInMemoryCanopy(store, users, around).service.pipe(
+      Layer.provideMerge(DeliveringOutboxLive),
+      Layer.provideMerge(repositories)
     ),
   }
 }

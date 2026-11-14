@@ -1,9 +1,9 @@
 import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
+import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
 import {
   createMockLimitChecker,
   MockLimitCheckerLive,
@@ -11,26 +11,11 @@ import {
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import type { AppEvent } from '@lily/api/events'
-import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
+import type { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { RoomNotFoundError } from '@lily/shared'
-import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
-
-const findSchedule = (
-  schedules: CareScheduleRow[],
-  plantId: string,
-  careType: string
-) =>
-  pipe(
-    Array.findFirst(
-      schedules,
-      (s) => s.plantId === plantId && s.careType === careType
-    ),
-    Option.getOrNull
-  )
 
 const strangersRoom = {
   ...mockRooms[0]!,
@@ -50,22 +35,41 @@ describe('createPlant', () => {
     petToxicityRating: 1,
   }
 
-  const createTestLayer = () => {
-    const schedules: CareScheduleRow[] = []
+  const createTestLayer = (
+    limits: Layer.Layer<LimitChecker> = MockLimitCheckerLive,
+    goneAccounts: ReadonlyArray<string> = []
+  ) => {
+    const rows = Array.map(mockPlants, (plant) => ({ ...plant }))
+    const care = createInMemoryCare([], { plantRows: rows, goneAccounts })
     return {
       layer: Layer.mergeAll(
         createMockRoomRepository(roomsWithStranger),
-        createMockPlantRepository({ plants: mockPlants }),
-        createMockEventBus(),
+        createMockPlantRepository({ plants: rows, sharesPlantsArray: true }),
         createMockCurrentUser({ id: 'user-1' }),
-        MockLimitCheckerLive,
-        MockSqlClientLive,
+        limits,
         createMockCanopyRepository(),
-        createMockCareScheduleRepository({ schedules })
+        createInMemoryCanopy().layer,
+        care.layer
       ),
-      schedules,
+      care,
+      rows,
     }
   }
+
+  const frequenciesOf = (
+    care: ReturnType<typeof createInMemoryCare>,
+    plantId: string
+  ) =>
+    Array.flatMap(
+      [...(care.plants.get(plantId)?.lines.values() ?? [])],
+      (line) =>
+        Option.toArray(
+          Option.map(
+            line.schedule,
+            (schedule) => [line.careType, schedule.frequency] as const
+          )
+        )
+    )
 
   it('should create a new plant', async () => {
     const { layer } = createTestLayer()
@@ -75,6 +79,21 @@ describe('createPlant', () => {
 
     expect(result.name).toBe('New Plant')
     expect(result.id).toBeDefined()
+  })
+
+  it('answers a creator whose account is gone as a request with no account, and writes nothing', async () => {
+    const { layer, care } = createTestLayer(MockLimitCheckerLive, ['user-1'])
+
+    const failure = await Effect.runPromise(
+      createPlant(validRequest).pipe(Effect.flip, Effect.provide(layer))
+    )
+
+    expect(failure).toMatchObject({
+      _tag: 'UnauthorizedError',
+      message: 'Authentication failed',
+    })
+    expect(care.writes).toEqual([])
+    expect(care.events).toEqual([])
   })
 
   it('should return the created plant with an id', async () => {
@@ -110,14 +129,32 @@ describe('createPlant', () => {
     expect(result.description).toBeNull()
   })
 
-  it('should set watering frequency correctly', async () => {
-    const { layer, schedules } = createTestLayer()
+  it('schedules only watering when the request names no other frequency', async () => {
+    const { layer, care } = createTestLayer()
     const result = await Effect.runPromise(
       createPlant(validRequest).pipe(Effect.provide(layer))
     )
 
-    const wateringSchedule = findSchedule(schedules, result.id, 'watering')
-    expect(wateringSchedule?.frequencyDays).toBe(7)
+    expect(frequenciesOf(care, result.id)).toEqual([['watering', 7]])
+  })
+
+  it('schedules every care type whose frequency the request names', async () => {
+    const { layer, care } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant({
+        ...validRequest,
+        fertilizationFrequencyDays: 14,
+        mistingFrequencyDays: 3,
+        repottingFrequencyDays: 180,
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(frequenciesOf(care, result.id)).toEqual([
+      ['watering', 7],
+      ['fertilization', 14],
+      ['misting', 3],
+      ['repotting', 180],
+    ])
   })
 
   it('should set imageUrl when provided', async () => {
@@ -152,19 +189,6 @@ describe('createPlant', () => {
     expect(result.wateringRating).toBe(0)
   })
 
-  it('should set fertilizationFrequencyDays when provided', async () => {
-    const { layer, schedules } = createTestLayer()
-    const result = await Effect.runPromise(
-      createPlant({
-        ...validRequest,
-        fertilizationFrequencyDays: 14,
-      }).pipe(Effect.provide(layer))
-    )
-
-    const fertSchedule = findSchedule(schedules, result.id, 'fertilization')
-    expect(fertSchedule?.frequencyDays).toBe(14)
-  })
-
   it('should default imageUrl to null when not provided', async () => {
     const { layer } = createTestLayer()
     const result = await Effect.runPromise(
@@ -172,16 +196,6 @@ describe('createPlant', () => {
     )
 
     expect(result.imageUrl).toBeNull()
-  })
-
-  it('should default fertilizationFrequencyDays to null when not provided', async () => {
-    const { layer, schedules } = createTestLayer()
-    const result = await Effect.runPromise(
-      createPlant(validRequest).pipe(Effect.provide(layer))
-    )
-
-    const fertSchedule = findSchedule(schedules, result.id, 'fertilization')
-    expect(fertSchedule).toBeNull()
   })
 
   it('should convert luxNeeded to lightingRating', async () => {
@@ -222,110 +236,28 @@ describe('createPlant', () => {
     expect(result.lightingRating).toBe(75)
   })
 
-  it('should publish PlantCreated event', async () => {
-    const publishedEvents: AppEvent[] = []
-    const schedules: CareScheduleRow[] = []
-    const eventBusMock = createMockEventBus({ publishedEvents })
-
-    const result = await Effect.runPromise(
-      createPlant(validRequest).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            createMockRoomRepository(roomsWithStranger),
-            createMockPlantRepository({ plants: mockPlants }),
-            eventBusMock,
-            createMockCurrentUser({ id: 'user-1' }),
-            MockLimitCheckerLive,
-            MockSqlClientLive,
-            createMockCanopyRepository(),
-            createMockCareScheduleRepository({ schedules })
-          )
-        )
-      )
-    )
-
-    expect(publishedEvents.length).toBe(1)
-    expect(publishedEvents[0]).toMatchObject({
-      _tag: 'PlantCreated',
-      userId: 'user-1',
-      plantId: result.id,
-    })
-  })
-
-  it('should create schedule for misting when mistingFrequencyDays is set', async () => {
-    const { layer, schedules } = createTestLayer()
-    const result = await Effect.runPromise(
-      createPlant({
-        ...validRequest,
-        mistingFrequencyDays: 3,
-      }).pipe(Effect.provide(layer))
-    )
-
-    const mistingSchedule = findSchedule(schedules, result.id, 'misting')
-    expect(mistingSchedule?.frequencyDays).toBe(3)
-  })
-
-  it('should create schedule for repotting when repottingFrequencyDays is set', async () => {
-    const { layer, schedules } = createTestLayer()
-    const result = await Effect.runPromise(
-      createPlant({
-        ...validRequest,
-        repottingFrequencyDays: 180,
-      }).pipe(Effect.provide(layer))
-    )
-
-    const repottingSchedule = findSchedule(schedules, result.id, 'repotting')
-    expect(repottingSchedule?.frequencyDays).toBe(180)
-  })
-
-  it('should create all four schedules when all frequencies are set', async () => {
-    const { layer, schedules } = createTestLayer()
-    const result = await Effect.runPromise(
-      createPlant({
-        ...validRequest,
-        fertilizationFrequencyDays: 14,
-        mistingFrequencyDays: 3,
-        repottingFrequencyDays: 180,
-      }).pipe(Effect.provide(layer))
-    )
-
-    expect(findSchedule(schedules, result.id, 'watering')).not.toBeNull()
-    expect(findSchedule(schedules, result.id, 'fertilization')).not.toBeNull()
-    expect(findSchedule(schedules, result.id, 'misting')).not.toBeNull()
-    expect(findSchedule(schedules, result.id, 'repotting')).not.toBeNull()
-  })
-
-  it('should not create misting schedule when mistingFrequencyDays is undefined', async () => {
-    const { layer, schedules } = createTestLayer()
+  it('publishes that the caller planted it', async () => {
+    const { layer, care } = createTestLayer()
     const result = await Effect.runPromise(
       createPlant(validRequest).pipe(Effect.provide(layer))
     )
 
-    const mistingSchedule = findSchedule(schedules, result.id, 'misting')
-    expect(mistingSchedule).toBeNull()
-  })
-
-  it('should not create repotting schedule when repottingFrequencyDays is undefined', async () => {
-    const { layer, schedules } = createTestLayer()
-    const result = await Effect.runPromise(
-      createPlant(validRequest).pipe(Effect.provide(layer))
-    )
-
-    const repottingSchedule = findSchedule(schedules, result.id, 'repotting')
-    expect(repottingSchedule).toBeNull()
+    expect(
+      Array.filter(care.events, (event) => event._tag === 'PlantLifeChanged')
+    ).toEqual([
+      {
+        _tag: 'PlantLifeChanged',
+        plantId: result.id,
+        owner: { _tag: 'User', userId: 'user-1' },
+        life: 'Planted',
+        by: 'user-1',
+      },
+    ])
   })
 
   it('should fail with LimitExceededError when plant limit is reached', async () => {
-    const schedules: CareScheduleRow[] = []
-    const layer = Layer.mergeAll(
-      createMockRoomRepository(roomsWithStranger),
-      createMockPlantRepository({ plants: mockPlants }),
-      createMockEventBus(),
-      createMockCurrentUser({ id: 'user-1' }),
-      createMockLimitChecker({ plantLimitReached: true }),
-      MockSqlClientLive,
-      createMockCanopyRepository(),
-      createMockCareScheduleRepository({ schedules })
+    const { layer, care, rows } = createTestLayer(
+      createMockLimitChecker({ plantLimitReached: true })
     )
 
     const result = await Effect.runPromiseExit(
@@ -333,6 +265,8 @@ describe('createPlant', () => {
     )
 
     expect(result._tag).toBe('Failure')
+    expect(rows).toHaveLength(mockPlants.length)
+    expect(care.events).toEqual([])
   })
 
   describe('room', () => {

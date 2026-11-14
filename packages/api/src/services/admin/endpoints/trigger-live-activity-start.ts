@@ -1,7 +1,7 @@
+import type { CareReads } from '@lily/api/contexts/care'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
@@ -28,7 +28,7 @@ export const triggerLiveActivityStart = (
   | DeviceTokenRepository
   | PushService
   | CareLogRepository
-  | CareScheduleRepository
+  | CareReads
   | CanopyRepository
 > =>
   Effect.gen(function* () {

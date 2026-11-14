@@ -4,14 +4,12 @@ import {
 } from '@callstack/liquid-glass'
 import { MaterialIcons } from '@expo/vector-icons'
 import {
-  type DateInput,
-  daysUntil,
   getFertilizationSchedule,
   getMistingSchedule,
   getRepottingSchedule,
   getWateringSchedule,
+  type PlantCareSchedule,
   type PlantOwnership,
-  parseApiDate,
 } from '@lily/shared'
 import { Array, Match, Option, Order, pipe, String } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -75,23 +73,36 @@ interface PlantCardData {
   canopyName?: string | undefined
 }
 
-const getDaysUntil = (date: DateInput): Option.Option<number> =>
+const getCareStatus = (
+  schedule: Option.Option<PlantCareSchedule>
+): CareStatus =>
   pipe(
-    parseApiDate(date),
-    Option.map((dt) => daysUntil(dt))
+    schedule,
+    Option.flatMap((s) => Option.fromNullishOr(s.status)),
+    Option.match({
+      onNone: (): CareStatus => ({ isOverdue: false }),
+      onSome: (status) =>
+        pipe(
+          Match.value(status),
+          Match.tag(
+            'Overdue',
+            (): CareStatus => ({ daysUntil: 0, isOverdue: true })
+          ),
+          Match.tag(
+            'DueToday',
+            (): CareStatus => ({ daysUntil: 0, isOverdue: false })
+          ),
+          Match.tag(
+            'Upcoming',
+            ({ inDays }): CareStatus => ({
+              daysUntil: inDays,
+              isOverdue: false,
+            })
+          ),
+          Match.exhaustive
+        ),
+    })
   )
-
-const getCareStatus = (nextDate: DateInput): CareStatus => {
-  const daysOption = getDaysUntil(nextDate)
-  if (Option.isNone(daysOption)) {
-    return { isOverdue: false }
-  }
-  const days = daysOption.value
-  return {
-    daysUntil: Math.max(0, days),
-    isOverdue: days < 0,
-  }
-}
 
 const plantNameOrder: Order.Order<PlantCardData> = Order.mapInput(
   Order.String,
@@ -275,39 +286,15 @@ export function PlantsScreen() {
       () => [] as NonNullable<typeof plantsData>['items']
     )
     return Array.map(items, (plant) => {
-      const nextWateringAt = pipe(
-        getWateringSchedule(plant.schedules),
-        Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
-      )
-      const nextFertilizationAt = pipe(
-        getFertilizationSchedule(plant.schedules),
-        Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
-      )
-      const nextMistingAt = pipe(
-        getMistingSchedule(plant.schedules),
-        Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
-      )
-      const nextRepottingAt = pipe(
-        getRepottingSchedule(plant.schedules),
-        Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
-      )
       return {
         id: plant.id,
         name: plant.name,
         imageUrl: Option.getOrUndefined(Option.fromNullishOr(plant.imageUrl)),
         health: mapApiHealthToCardHealth(plant.health),
-        watering: getCareStatus(
-          Option.getOrElse(nextWateringAt, () => null as DateInput)
-        ),
-        fertilization: getCareStatus(
-          Option.getOrElse(nextFertilizationAt, () => null as DateInput)
-        ),
-        misting: getCareStatus(
-          Option.getOrElse(nextMistingAt, () => null as DateInput)
-        ),
-        repotting: getCareStatus(
-          Option.getOrElse(nextRepottingAt, () => null as DateInput)
-        ),
+        watering: getCareStatus(getWateringSchedule(plant.schedules)),
+        fertilization: getCareStatus(getFertilizationSchedule(plant.schedules)),
+        misting: getCareStatus(getMistingSchedule(plant.schedules)),
+        repotting: getCareStatus(getRepottingSchedule(plant.schedules)),
         isFavorite: plant.isFavorite,
         roomId: Option.getOrUndefined(Option.fromNullishOr(plant.roomId)),
         roomName: Option.getOrUndefined(Option.fromNullishOr(plant.room?.name)),

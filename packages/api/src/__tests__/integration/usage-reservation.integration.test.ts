@@ -1,15 +1,24 @@
+import { delivered } from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { CareReadsLive } from '@lily/api/contexts/care'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { GiftCodeRepositoryLive } from '@lily/api/repositories/gift-code.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import {
   SubscriptionRepository,
   SubscriptionRepositoryLive,
 } from '@lily/api/repositories/subscription.repository'
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
 import { redeemGiftCode } from '@lily/api/services/subscriptions/endpoints/redeem-gift-code'
@@ -73,14 +82,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         GiftCodeRepositoryLive,
         PlantRepositoryLive,
         CareScheduleRepositoryLive,
+        CareReadsLive,
         AchievementRepositoryLive,
         RateLimiterServiceLive,
         RoomRepositoryLive,
-        CanopyRepositoryLive
+        CanopyRepositoryLive,
+        NotificationRepositoryLive,
+        UserRepositoryLive,
+        DelegationRepositoryLive
       ).pipe(Layer.provideMerge(DbLive))
       return Layer.mergeAll(
         LimitCheckerLive,
         createMockEventBus(),
+        createMockMessageQueue(),
+        createMockWeatherProvider(),
+        createMockWeatherCache(),
+        createMockWeatherRepository(),
         createMockCurrentUser({ id: currentUserId })
       ).pipe(Layer.provideMerge(ReposLive))
     }
@@ -310,15 +327,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
 
         const results = await runtime.runPromise(
-          inParallel(
-            createPlant({
-              name: 'Last slot',
-              wateringFrequencyDays: 7,
-              luxNeeded: 2000,
-              humidityRating: 3,
-              petToxicityRating: 1,
-            }),
-            10
+          delivered(
+            inParallel(
+              createPlant({
+                name: 'Last slot',
+                wateringFrequencyDays: 7,
+                luxNeeded: 2000,
+                humidityRating: 3,
+                petToxicityRating: 1,
+              }),
+              10
+            )
           )
         )
 

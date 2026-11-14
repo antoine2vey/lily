@@ -1,6 +1,6 @@
+import { statusAt } from '@lily/api/contexts/canopy'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { statusAt } from '@lily/api/services/canopy/helpers/invitation'
 import {
   type CanopyId,
   type CanopyInvitationView,
