@@ -1,3 +1,4 @@
+import type { ChatSuggestionTap } from '@lily/shared/ai-chat'
 import { useQueryClient } from '@tanstack/react-query'
 import { isToolUIPart, type UIMessage } from 'ai'
 import { Array, Option, Predicate, pipe } from 'effect'
@@ -19,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
 import { useChatStarters } from '@/hooks/useChatStarters'
 import {
-  useDropChatSuggestionsOnLeave,
+  useChatSuggestionsVisit,
   usePrefetchChatSuggestions,
 } from '@/hooks/useChatSuggestions'
 import { useConversation } from '@/hooks/useConversation'
@@ -37,13 +38,17 @@ import { ChatMessage } from '@/screens/chat/components/ChatMessage'
 import { ChatMessagesSkeleton } from '@/screens/chat/components/ChatMessagesSkeleton'
 import { ConversationsDrawer } from '@/screens/chat/components/ConversationsDrawer'
 import { PlantCarousel } from '@/screens/chat/components/PlantCarousel'
-import { SuggestionChips } from '@/screens/chat/components/SuggestionChips'
+import {
+  FollowUpChips,
+  SuggestionChips,
+} from '@/screens/chat/components/SuggestionChips'
 import { TypingIndicator } from '@/screens/chat/components/TypingIndicator'
 import { toolResultId } from '@/screens/chat/components/tool-renderers'
 import {
   carouselNeighbours,
-  chipsSubjectOf,
+  chipsOf,
   GENERAL_TARGET,
+  historyOf,
   type NewChatTarget,
   newConversationPayload,
 } from '@/screens/chat/new-chat-target'
@@ -137,6 +142,7 @@ export function ChatScreen() {
   const [pendingMessage, setPendingMessage] = useState<{
     content: string
     imageUri?: string | undefined
+    suggestion?: ChatSuggestionTap | undefined
   } | null>(null)
   // Covers the image upload and the ai SDK's await before it pushes the user
   // message, when neither the status nor the message list has changed yet.
@@ -162,15 +168,26 @@ export function ChatScreen() {
 
   const { data: starters } = useChatStarters(activeConversationId === undefined)
   const prefetchSuggestions = usePrefetchChatSuggestions()
-  useDropChatSuggestionsOnLeave()
+  const { isVisiting, sentIn, markSent } = useChatSuggestionsVisit()
 
   useEffect(() => {
-    if (activeConversationId !== undefined || starters === undefined) return
+    if (
+      !isVisiting ||
+      activeConversationId !== undefined ||
+      starters === undefined
+    )
+      return
     Array.forEach(
       carouselNeighbours(starters.plants, newChatTarget),
       prefetchSuggestions
     )
-  }, [activeConversationId, starters, newChatTarget, prefetchSuggestions])
+  }, [
+    isVisiting,
+    activeConversationId,
+    starters,
+    newChatTarget,
+    prefetchSuggestions,
+  ])
 
   const {
     isLoading: isLoadingHistory,
@@ -179,14 +196,6 @@ export function ChatScreen() {
     refetch: _refetchHistory,
   } = useConversationMessages(activeConversationId)
   const refetchHistory = _refetchHistory as () => void
-
-  const chipsSubject = chipsSubjectOf({
-    target: newChatTarget,
-    conversation: Option.fromUndefinedOr(conversation),
-    isOpened: activeConversationId !== undefined,
-    loadedHistoryIsEmpty:
-      initialMessages !== undefined && Array.isArrayEmpty(initialMessages),
-  })
 
   const {
     messages: chatMessages,
@@ -249,6 +258,16 @@ export function ChatScreen() {
   const uploadImage = useUploadConversationImage(activeConversationId ?? '')
   const isStreaming = status === 'submitted' || status === 'streaming'
 
+  const chips = chipsOf({
+    target: newChatTarget,
+    conversation: Option.fromUndefinedOr(conversation),
+    isOpened: activeConversationId !== undefined,
+    history: historyOf(initialMessages),
+    isReplying: isStreaming,
+    isVisiting,
+    sentIn,
+  })
+
   const openDrawer = useCallback(() => setDrawerOpen(true), [])
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
   const selectConversation = useCallback((id: string) => {
@@ -288,9 +307,14 @@ export function ChatScreen() {
   }, [])
 
   const sendInternal = useCallback(
-    async (content: string, imageUri?: string) => {
+    async (
+      content: string,
+      imageUri?: string,
+      suggestion?: ChatSuggestionTap
+    ) => {
       if (isStreaming) return
       sentInSessionRef.current = true
+      markSent(activeConversationId)
       setIsSending(true)
       scrollToLatestMessage()
 
@@ -329,7 +353,12 @@ export function ChatScreen() {
       )
 
       try {
-        await sendMessage(messagePayload, lastRequestOptionsRef.current)
+        await sendMessage(messagePayload, {
+          body: {
+            ...lastRequestOptionsRef.current.body,
+            ...(suggestion !== undefined ? { suggestion } : {}),
+          },
+        })
       } finally {
         setIsSending(false)
       }
@@ -339,6 +368,8 @@ export function ChatScreen() {
     },
     [
       isStreaming,
+      activeConversationId,
+      markSent,
       scrollToLatestMessage,
       sendMessage,
       refreshConversationQueries,
@@ -353,9 +384,13 @@ export function ChatScreen() {
   }, [regenerate, refreshConversationQueries])
 
   const handleSend = useCallback(
-    async (content: string, imageUri?: string) => {
+    async (
+      content: string,
+      imageUri?: string,
+      suggestion?: ChatSuggestionTap
+    ) => {
       if (activeConversationId) {
-        await sendInternal(content, imageUri)
+        await sendInternal(content, imageUri, suggestion)
         return
       }
       // No conversation yet — create one lazily, then queue the message to be
@@ -365,12 +400,18 @@ export function ChatScreen() {
         {
           onSuccess: (created) => {
             setActiveConversationId(created.id)
-            setPendingMessage({ content, imageUri })
+            setPendingMessage({ content, imageUri, suggestion })
           },
         }
       )
     },
     [activeConversationId, sendInternal, createConversation, newChatTarget]
+  )
+
+  const sendSuggestion = useCallback(
+    (text: string, suggestion: ChatSuggestionTap) =>
+      handleSend(text, undefined, suggestion),
+    [handleSend]
   )
 
   // The chat hook's transport URL captures conversationId at init, so the
@@ -379,7 +420,7 @@ export function ChatScreen() {
     if (!activeConversationId || !pendingMessage) return
     const msg = pendingMessage
     setPendingMessage(null)
-    sendInternal(msg.content, msg.imageUri)
+    sendInternal(msg.content, msg.imageUri, msg.suggestion)
   }, [activeConversationId, pendingMessage, sendInternal])
 
   const arrivedInSession = useCallback(
@@ -536,10 +577,10 @@ export function ChatScreen() {
                     onSelect={setNewChatTarget}
                   />
                 )}
-              {Option.isSome(chipsSubject) && (
+              {chips.kind === 'starter' && (
                 <SuggestionChips
-                  subject={chipsSubject.value}
-                  onSelect={handleSend}
+                  subject={chips.subject}
+                  onSelect={sendSuggestion}
                 />
               )}
             </View>
@@ -597,6 +638,13 @@ export function ChatScreen() {
                   </Pressable>
                 </View>
               </View>
+            )}
+
+            {chips.kind === 'followUp' && (
+              <FollowUpChips
+                plantId={chips.plantId}
+                onSelect={sendSuggestion}
+              />
             )}
 
             <ChatInput

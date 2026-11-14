@@ -11,7 +11,7 @@ import {
   useMemo,
   useState,
 } from 'react'
-import { useTranslation } from 'react-i18next'
+import i18n from '@/i18n'
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_STORAGE_KEY,
@@ -63,7 +63,6 @@ interface LocalizationProviderProps {
 export function LocalizationProvider({ children }: LocalizationProviderProps) {
   const [language, setLanguageState] = useState<LanguageCode>(DEFAULT_LANGUAGE)
   const [isLoading, setIsLoading] = useState(true)
-  const { i18n: i18nInstance } = useTranslation()
 
   // Load stored preference on mount
   useEffect(() => {
@@ -78,33 +77,28 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
         )
 
         setLanguageState(resolvedLanguage)
-        await i18nInstance.changeLanguage(resolvedLanguage)
+        await i18n.changeLanguage(resolvedLanguage)
       } catch {
         // Use device language on error
         const deviceLang = getDeviceLanguage()
         setLanguageState(deviceLang)
-        await i18nInstance.changeLanguage(deviceLang)
+        await i18n.changeLanguage(deviceLang)
       } finally {
         setIsLoading(false)
       }
     }
 
     loadPreference()
-  }, [i18nInstance])
+  }, [])
 
-  const setLanguage = useCallback(
-    async (newLanguage: LanguageCode) => {
-      setLanguageState(newLanguage)
-      await i18nInstance.changeLanguage(newLanguage)
+  const setLanguage = useCallback(async (newLanguage: LanguageCode) => {
+    setLanguageState(newLanguage)
+    await i18n.changeLanguage(newLanguage)
 
-      try {
-        await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, newLanguage)
-      } catch {
-        // Ignore storage errors
-      }
-    },
-    [i18nInstance]
-  )
+    try {
+      await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, newLanguage)
+    } catch {}
+  }, [])
 
   // Let Maestro / manual testing pin locale via deep link (e.g.
   // `lily://?e2e_locale=fr`). Persists like any user-selected locale.

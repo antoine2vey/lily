@@ -2,9 +2,11 @@ import type { Api } from '@lily/api/api'
 import { createConversation } from '@lily/api/services/ai-chat/endpoints/create-conversation'
 import { deleteConversation } from '@lily/api/services/ai-chat/endpoints/delete-conversation'
 import { getChatHistory } from '@lily/api/services/ai-chat/endpoints/get-chat-history'
+import { listChatFollowUps } from '@lily/api/services/ai-chat/endpoints/list-chat-follow-ups'
 import { listChatStarters } from '@lily/api/services/ai-chat/endpoints/list-chat-starters'
 import { listChatSuggestions } from '@lily/api/services/ai-chat/endpoints/list-chat-suggestions'
 import { listConversations } from '@lily/api/services/ai-chat/endpoints/list-conversations'
+import { requestChatFollowUps } from '@lily/api/services/ai-chat/endpoints/request-chat-follow-ups'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
 import { uploadChatImage } from '@lily/api/services/ai-chat/endpoints/upload-chat-image'
 import { withConversationAuth } from '@lily/api/services/ai-chat/helpers/assert-can-access-conversation'
@@ -38,6 +40,12 @@ export const AIChatApiLive = (api: Api) =>
       .handle('listChatSuggestions', ({ query: { plantId, language } }) =>
         listChatSuggestions(plantId, language).pipe(withInfraErrorsAsDefect)
       )
+      .handle('listChatFollowUps', ({ query: { plantId, language } }) =>
+        listChatFollowUps(plantId, language).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('requestChatFollowUps', ({ payload: { language } }) =>
+        requestChatFollowUps(language).pipe(withInfraErrorsAsDefect)
+      )
       .handle('getConversation', ({ params: { conversationId } }) =>
         withConversationAuth(conversationId).pipe(withInfraErrorsAsDefect)
       )
@@ -69,6 +77,9 @@ export const AIChatApiLive = (api: Api) =>
                 message: payload.message,
                 ...(payload.imageKey !== undefined
                   ? { imageKey: payload.imageKey }
+                  : {}),
+                ...(payload.suggestion !== undefined
+                  ? { suggestion: payload.suggestion }
                   : {}),
               })
             ),

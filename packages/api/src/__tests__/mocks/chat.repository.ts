@@ -152,6 +152,83 @@ export const createMockChatRepository = (
         )
       ),
 
+    findAskedPlants: (userId) =>
+      Effect.succeed(
+        pipe(
+          conversations,
+          Array.filter((c) => c.userId === userId && c.kind === 'plant'),
+          Array.flatMap((c) => {
+            const askedAt = pipe(
+              data.messages,
+              Array.filter(
+                (m) => m.conversationId === c.id && m.role === 'user'
+              ),
+              Array.map((m) => new Date(m.createdAt))
+            )
+            return c.plantId !== undefined && Array.isArrayNonEmpty(askedAt)
+              ? [
+                  {
+                    plantId: c.plantId,
+                    lastAskedAt: Array.max(askedAt, Order.Date),
+                  },
+                ]
+              : []
+          })
+        )
+      ),
+
+    findRecentQuestions: ({ userId, plantId, limit }) =>
+      Effect.succeed(
+        pipe(
+          data.messages,
+          Array.filter(
+            (m) =>
+              m.role === 'user' &&
+              Array.some(
+                conversations,
+                (c) =>
+                  c.id === m.conversationId &&
+                  c.userId === userId &&
+                  c.kind === 'plant' &&
+                  c.plantId === plantId
+              )
+          ),
+          Array.sort(
+            Order.flip(
+              Order.mapInput(
+                Order.Date,
+                (m: ChatMessage) => new Date(m.createdAt)
+              )
+            )
+          ),
+          Array.take(limit),
+          Array.map((m) => m.content)
+        )
+      ),
+
+    findSentTexts: ({ userId, plantId, since, texts }) =>
+      Effect.succeed(
+        pipe(
+          data.messages,
+          Array.filter(
+            (m) =>
+              m.role === 'user' &&
+              new Date(m.createdAt) >= since &&
+              Array.contains(texts, m.content) &&
+              Array.some(
+                conversations,
+                (c) =>
+                  c.id === m.conversationId &&
+                  c.userId === userId &&
+                  c.kind === 'plant' &&
+                  c.plantId === plantId
+              )
+          ),
+          Array.map((m) => m.content),
+          Array.dedupe
+        )
+      ),
+
     deleteConversation: ({ id, userId }) => {
       const idx = conversations.findIndex(
         (c) => c.id === id && c.userId === userId
