@@ -154,6 +154,37 @@ const starterChips = (
     Match.exhaustive
   )(suggestions)
 
+interface PlacedChip extends Chip {
+  readonly index: number
+}
+
+interface TwoRows {
+  readonly rows: readonly [ReadonlyArray<PlacedChip>, ReadonlyArray<PlacedChip>]
+  readonly lengths: readonly [number, number]
+}
+
+const NO_ROWS: TwoRows = { rows: [[], []], lengths: [0, 0] }
+
+const intoTwoRows = (chips: ReadonlyArray<Chip>): TwoRows =>
+  Array.reduce(
+    chips,
+    NO_ROWS,
+    (
+      { rows: [top, bottom], lengths: [topLength, bottomLength] },
+      chip,
+      index
+    ) =>
+      topLength <= bottomLength
+        ? {
+            rows: [[...top, { ...chip, index }], bottom],
+            lengths: [topLength + chip.text.length, bottomLength],
+          }
+        : {
+            rows: [top, [...bottom, { ...chip, index }]],
+            lengths: [topLength, bottomLength + chip.text.length],
+          }
+  )
+
 function ChipRow({
   chips,
   onSelect,
@@ -168,16 +199,26 @@ function ChipRow({
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       testID="chat-follow-ups"
-      contentContainerClassName="gap-2 px-3 pb-2"
+      contentContainerClassName="px-3 pb-2"
     >
-      {Array.map(chips, ({ key, text, tap }, index) => (
-        <ChipButton
-          key={key}
-          text={text}
-          index={index}
-          onPress={() => onSelect(text, tap)}
-        />
-      ))}
+      <View className="gap-2">
+        {pipe(
+          intoTwoRows(chips).rows,
+          Array.filter(Array.isReadonlyArrayNonEmpty),
+          Array.map((row) => (
+            <View key={row[0].key} className="flex-row gap-2">
+              {Array.map(row, ({ key, text, tap, index }) => (
+                <ChipButton
+                  key={key}
+                  text={text}
+                  index={index}
+                  onPress={() => onSelect(text, tap)}
+                />
+              ))}
+            </View>
+          ))
+        )}
+      </View>
     </ScrollView>
   )
 }
