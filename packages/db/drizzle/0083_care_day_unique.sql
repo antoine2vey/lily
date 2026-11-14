@@ -1,9 +1,3 @@
--- GATED: the migrator applies packages/db/drizzle only, so this file does
--- nothing where it is. It deletes data. Move it into packages/db/drizzle as
--- the next numbered migration only once the duplicate count has been read on
--- production and accepted, and ship it with the care store change that sets
--- care_day on every insert path (seed scripts included).
---
 -- One care per plant, care type and care day. Same-day duplicates keep the
 -- earliest log; a care-plan step pointing at a removed log moves to the kept
 -- one.

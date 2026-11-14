@@ -371,22 +371,6 @@ describe('Care', () => {
       expect(tags(world.writes)).toEqual(['ReplaceCare'])
     })
 
-    it('edits a care that shares its day with another', async () => {
-      const world = createInMemoryCare([
-        plant('plant-1', {
-          lines: new Map([
-            ['watering', watering(['2026-11-05', '2026-11-05'])],
-          ]),
-        }),
-      ])
-
-      await Effect.runPromise(
-        amend(world, 'care-1', { notes: Option.some(Option.some('Twice')) })
-      )
-
-      expect(tags(world.writes)).toEqual(['ReplaceCare'])
-    })
-
     it.each([
       [
         'a move onto a day that already has a care',

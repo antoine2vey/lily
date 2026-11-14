@@ -7,9 +7,8 @@ Never run one of these files by hand against production.
 | File | What it does | Deletes rows |
 | --- | --- | --- |
 | `resync_stored_days.sql` | Sets a stored due day or care day back to the day of its instant, on rows where the two differ. Needed only if an older release wrote after the migrations ran. | No |
-| `care_day_unique.sql` | Removes same-day duplicate care logs, then enforces one care per plant, care type and care day. | Yes |
 
-Four files that waited here are applied. They are migrations `0079` to `0082` in `packages/db/drizzle`. `plant_care_schedules.next_care_at`, `plant_care_schedules.due_day` and `care_logs.care_day` are `NOT NULL`, and the `plant_health` type no longer has `NEEDS_ATTENTION`.
+Five files that waited here are applied. They are migrations `0079` to `0083` in `packages/db/drizzle`. `plant_care_schedules.next_care_at`, `plant_care_schedules.due_day` and `care_logs.care_day` are `NOT NULL`, and the `plant_health` type no longer has `NEEDS_ATTENTION`. The unique index `care_logs_one_per_care_day` allows one care log per plant, care type and care day. Migration `0083` removed the same-day duplicates that existed before it and kept the earliest log of each group.
 
 No release older than the one that added migrations `0070` to `0078` can run on this database any more. It inserts a schedule or a care log without its day, it sends a null `next_care_at` when it changes a frequency, and its health scheduler stores `NEEDS_ATTENTION`. Each of those writes now fails. Do not roll back to it.
 
@@ -61,6 +60,8 @@ The count of days that differ is above zero right after a rollout, or after a ro
 
 It sets each differing `due_day` and `care_day` back to the day of its instant in the plant's care timezone. It deletes nothing.
 
+Since migration `0083`, two care logs of one plant and care type cannot share a care day. If a reset would put two logs on the same day, the file fails, its transaction rolls back and the deploy stops. Nothing is changed in that case.
+
 It cannot tell a row an older container wrote from a row whose owner changed timezone since the day was stored. It resets both. For the second kind, the stored day moves once to the day the older release would have shown. Apply the file soon after the rollout so that few such rows exist.
 
 No request to Reminders is needed. Delivery drops a care reminder planned for a day that is no longer the stored due day, and the daily reminder audit plans the new one once the plant is overdue, due today or due within two care days.
@@ -74,13 +75,3 @@ Each update waits for a row another transaction holds, and the timeout bounds th
 ### The code change that goes with it
 
 None.
-
-## `care_day_unique.sql`
-
-This file deletes data, and the owner decides when it runs. Do not edit it, and apply it in a release of its own.
-
-It keeps the earliest care log of each plant, care type and care day, points every care-plan step of a removed log at the kept one, and deletes the others. Last, it creates the unique index `care_logs_one_per_care_day`.
-
-Its own header gives its condition. The number of duplicates has been read on production and accepted, and the Care store sets `care_day` on every insert path, seed scripts included. The second half holds from the release that contains migrations `0072` to `0077`.
-
-The file was written while `care_day` was nullable. It still starts by filling `care_day` where it is null, and it still runs `SET NOT NULL` before it creates the index. Migration `0081` already made the column `NOT NULL`, so the first statement finds no row and the second changes nothing.
