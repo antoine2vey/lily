@@ -1,4 +1,5 @@
 import {
+  type PlantCondition,
   type StoredSchedule,
   seeLivingPlantCare,
 } from '@lily/api/contexts/care'
@@ -17,11 +18,11 @@ import {
   plants,
   users,
 } from '@lily/db/schema'
-import type {
-  CareType,
-  DelegationStatus,
-  PlantCareSchedule,
-  PlantHealthStatus,
+import {
+  CareDay,
+  type CareType,
+  type DelegationStatus,
+  type PlantCareSchedule,
 } from '@lily/shared'
 import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import {
@@ -155,13 +156,16 @@ type ScheduleJoinRow = {
 }
 
 const toScheduleRef = (r: ScheduleJoinRow): StoredSchedule | null =>
-  r.careType !== null && r.frequencyDays !== null && r.nextCareAt !== null
+  r.careType !== null &&
+  r.frequencyDays !== null &&
+  r.nextCareAt !== null &&
+  r.dueDay !== null
     ? {
         careType: r.careType,
         frequencyDays: r.frequencyDays,
         lastCareAt: r.lastCareAt,
         nextCareAt: r.nextCareAt,
-        dueDay: r.dueDay,
+        dueDay: CareDay.make(r.dueDay),
       }
     : null
 
@@ -182,7 +186,7 @@ function groupWithSchedules<
 
 type UnseenCare = {
   schedules: StoredSchedule[]
-  health: PlantHealthStatus
+  health: PlantCondition
   careTimezone: string
 }
 
@@ -204,7 +208,7 @@ const groupPlantRows = (
     id: string
     name: string
     imageUrl: string | null
-    health: PlantHealthStatus
+    health: PlantCondition
     careTimezone: string
   })[],
   now: DateTime.DateTime

@@ -17,7 +17,12 @@ import {
   seeCareWithLastDays,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db/schema'
-import { type Orientation, type PlantOwner, paginate } from '@lily/shared'
+import {
+  CareDay,
+  type Orientation,
+  type PlantOwner,
+  paginate,
+} from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
@@ -91,7 +96,11 @@ export const createMockPlantRepository = (
     seeCareWithLastDays(p, {
       schedules: pipe(
         Array.filter(schedulesData, (s) => s.plantId === p.id),
-        Array.map((s) => ({ ...s, lastCareLogDay: null }))
+        Array.map((s) => ({
+          ...s,
+          dueDay: CareDay.make(s.dueDay),
+          lastCareLogDay: null,
+        }))
       ),
       careTimezone: data.timezones?.[p.canopyId ?? p.userId ?? ''] ?? 'UTC',
       now: DateTime.nowUnsafe(),

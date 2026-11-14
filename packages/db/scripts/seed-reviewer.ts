@@ -138,7 +138,7 @@ const DEMO_PLANTS = [
     lightingRating: 4,
     petToxicityRating: 2,
     wateringRating: 4,
-    health: 'NEEDS_ATTENTION' as const,
+    health: 'HEALTHY' as const,
     wateringFrequencyDays: 7,
     fertilizationFrequencyDays: 14,
     lastWateredAt: daysAgo(10),

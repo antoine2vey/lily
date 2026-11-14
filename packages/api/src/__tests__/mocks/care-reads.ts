@@ -4,11 +4,10 @@ import {
   makeCareReads,
   type ScheduledCare,
 } from '@lily/api/contexts/care'
-import { storedDay } from '@lily/api/contexts/care/stored-day'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
 import type { plants } from '@lily/db/schema'
-import { CARE_TYPES, CareDays, type CareType } from '@lily/shared'
+import { CARE_TYPES, CareDay, CareDays, type CareType } from '@lily/shared'
 import {
   Array,
   DateTime,
@@ -111,13 +110,10 @@ export const createMockCareReads = (
                 Option.flatMap((plant) =>
                   pipe(
                     Option.some(schedule.nextCareAt),
-                    Option.filter((dueAt) =>
+                    Option.filter(() =>
                       Option.match(prune, {
                         onNone: () => true,
-                        onSome: ({ day, undatedBefore }) =>
-                          schedule.dueDay === null
-                            ? dueAt < undatedBefore
-                            : schedule.dueDay <= day,
+                        onSome: ({ day }) => schedule.dueDay <= day,
                       })
                     ),
                     Option.map((dueAt): ScheduledCare => {
@@ -129,7 +125,7 @@ export const createMockCareReads = (
                         careType: schedule.careType,
                         frequencyDays: schedule.frequencyDays,
                         dueAt,
-                        dueDay: storedDay(schedule.dueDay, dueAt, careTimezone),
+                        dueDay: CareDay.make(schedule.dueDay),
                         careTimezone,
                         plant: {
                           id: plant.id,

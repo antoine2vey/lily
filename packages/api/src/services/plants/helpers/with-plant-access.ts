@@ -58,9 +58,11 @@ export const caller: Effect.Effect<
   return { userId, membership }
 })
 
+type RoleInput = Pick<PlantRow, 'id' | 'owner' | 'createdByUserId'>
+
 export const plantRoleFor = (
   who: Caller,
-  plant: PlantRow
+  plant: RoleInput
 ): Effect.Effect<Option.Option<PlantRole>, SqlError, DelegationRepository> =>
   pipe(
     Match.value(plant.owner),
@@ -87,7 +89,7 @@ export const plantRoleFor = (
   ).pipe(Effect.withSpan('plantRoleFor'))
 
 export const resolvePlantRole = (
-  plant: PlantRow
+  plant: RoleInput
 ): Effect.Effect<Option.Option<PlantRole>, SqlError, PlantAccessContext> =>
   Effect.flatMap(caller, (who) => plantRoleFor(who, plant))
 
@@ -99,7 +101,7 @@ export const resolvePlantRole = (
  */
 const authorizedRole = (
   requestedId: string,
-  plant: PlantRow,
+  plant: RoleInput,
   action: PlantAction
 ): Effect.Effect<
   PlantRole,

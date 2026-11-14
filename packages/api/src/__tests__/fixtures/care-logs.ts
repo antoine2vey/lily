@@ -1,6 +1,6 @@
-import { storedDay } from '@lily/api/contexts/care'
-import { CareDay } from '@lily/shared'
+import { CareDay, CareDays } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
+import { DateTime } from 'effect'
 
 export const mockCareLogs: CareLog[] = [
   {
@@ -58,7 +58,7 @@ export const createTestCareLog = (
     type: 'watering',
     notes: undefined,
     date,
-    careDay: storedDay(null, date, 'UTC'),
+    careDay: CareDays.of(DateTime.makeUnsafe(date), 'UTC'),
     photoUrl: undefined,
     plantId: 'plant-1',
     createdAt: new Date(),

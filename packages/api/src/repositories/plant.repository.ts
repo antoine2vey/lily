@@ -3,10 +3,10 @@ import {
   dueOnOrBefore,
   duePrune,
   hasOverdueCare,
+  type PlantCondition,
   type SeenSchedule,
   type StoredSchedule,
   seePlantCare,
-  storedDay,
 } from '@lily/api/contexts/care'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
@@ -41,7 +41,8 @@ import {
 } from '@lily/db/schema'
 import {
   type CanopyRef,
-  type CareDay,
+  CareDay,
+  CareDays,
   nowAsDate,
   type Orientation,
   type PaginatedResponse,
@@ -124,8 +125,9 @@ export type PlantScope =
       createdBy: PlantCreator | null
     }
 
-export type PlantWithRoom = RawPlant &
+export type PlantWithRoom = Omit<RawPlant, 'health'> &
   PlantScope & {
+    health: PlantHealthStatus
     room: RoomRef
     schedules: PlantCareScheduleRef[]
     careTimezone: string
@@ -143,7 +145,7 @@ export interface UpdatePlantData {
   lightingRating?: number
   petToxicityRating?: number
   wateringRating?: number
-  health?: PlantHealthStatus
+  health?: PlantCondition
   potWidthCm?: number | null
   potHeightCm?: number | null
   roomId?: string | null
@@ -259,7 +261,7 @@ function buildPlantFilters(
             db
               .select({ plantId: plantCareSchedules.plantId })
               .from(plantCareSchedules)
-              .where(dueOnOrBefore(overdue.day, overdue.undatedBefore))
+              .where(dueOnOrBefore(overdue.day))
           )
         )
     ),
@@ -304,6 +306,19 @@ type CareInput = {
   now: DateTime.DateTime
 }
 
+const lastCareDayOf = (
+  dayOfItsCareLog: string | null | undefined,
+  lastCareAt: Date,
+  timezone: string
+): CareDay =>
+  pipe(
+    Option.fromNullishOr(dayOfItsCareLog),
+    Option.match({
+      onNone: () => CareDays.of(DateTime.makeUnsafe(lastCareAt), timezone),
+      onSome: (day) => CareDay.make(day),
+    })
+  )
+
 export const seeCareWithLastDays = (plant: RawPlant, care: CareInput) => {
   const seen = seePlantCare(plant, care.schedules, care.careTimezone, care.now)
   const lastCareLogDays = new Map(
@@ -318,10 +333,8 @@ export const seeCareWithLastDays = (plant: RawPlant, care: CareInput) => {
         lastCareDay:
           schedule.lastCareAt === null
             ? null
-            : storedDay(
-                Option.getOrNull(
-                  Option.fromNullishOr(lastCareLogDays.get(schedule.careType))
-                ),
+            : lastCareDayOf(
+                lastCareLogDays.get(schedule.careType),
                 schedule.lastCareAt,
                 care.careTimezone
               ),
@@ -433,7 +446,7 @@ export const PlantRepositoryLive = Layer.effect(
           Option.fromNullishOr(grouped.get(r.plantId)),
           Option.getOrElse(() => [] as ScheduleRow[])
         )
-        existing.push(r)
+        existing.push({ ...r, dueDay: CareDay.make(r.dueDay) })
         grouped.set(r.plantId, existing)
       })
       return grouped
@@ -682,7 +695,10 @@ export const PlantRepositoryLive = Layer.effect(
           .where(eq(plantCareSchedules.plantId, id))
         const care: CareInput = {
           careTimezone: row.careTimezone,
-          schedules: scheduleRows,
+          schedules: Array.map(scheduleRows, (r) => ({
+            ...r,
+            dueDay: CareDay.make(r.dueDay),
+          })),
           now: yield* DateTime.now,
         }
 

@@ -1,4 +1,3 @@
-import { storedDay } from '@lily/api/contexts/care/stored-day'
 import {
   type CareDay,
   CareDays,
@@ -14,11 +13,10 @@ export interface StoredSchedule {
   readonly frequencyDays: number
   readonly lastCareAt: Date | null
   readonly nextCareAt: Date
-  readonly dueDay: string | null
+  readonly dueDay: CareDay
 }
 
 export interface SeenSchedule extends StoredSchedule {
-  readonly dueDay: CareDay
   readonly status: CareStatus
 }
 
@@ -38,9 +36,6 @@ export const hasOverdueCare = (plant: {
 
 export type PlantCondition = Exclude<PlantHealthStatus, 'NEEDS_ATTENTION'>
 
-const storedCondition = (health: PlantHealthStatus): PlantCondition =>
-  health === 'NEEDS_ATTENTION' ? 'HEALTHY' : health
-
 const seenHealth = (
   condition: PlantCondition,
   living: boolean,
@@ -51,38 +46,34 @@ const seenHealth = (
     : condition
 
 const see = (
-  health: PlantHealthStatus,
+  condition: PlantCondition,
   living: boolean,
   schedules: ReadonlyArray<StoredSchedule>,
   careTimezone: string,
   now: DateTime.DateTime
 ): PlantCare => {
   const today = CareDays.today(careTimezone, now)
-  const seen = Array.map(schedules, (schedule): SeenSchedule => {
-    const dueDay = storedDay(schedule.dueDay, schedule.nextCareAt, careTimezone)
-    return {
+  const seen = Array.map(
+    schedules,
+    (schedule): SeenSchedule => ({
       careType: schedule.careType,
       frequencyDays: schedule.frequencyDays,
       lastCareAt: schedule.lastCareAt,
       nextCareAt: schedule.nextCareAt,
-      dueDay,
-      status: careStatus(dueDay, today),
-    }
-  })
+      dueDay: schedule.dueDay,
+      status: careStatus(schedule.dueDay, today),
+    })
+  )
   return {
     careTimezone,
     today,
     schedules: seen,
-    health: seenHealth(
-      storedCondition(health),
-      living,
-      Array.some(seen, isOverdue)
-    ),
+    health: seenHealth(condition, living, Array.some(seen, isOverdue)),
   }
 }
 
 export const seePlantCare = (
-  plant: { readonly health: PlantHealthStatus; readonly diedAt: Date | null },
+  plant: { readonly health: PlantCondition; readonly diedAt: Date | null },
   schedules: ReadonlyArray<StoredSchedule>,
   careTimezone: string,
   now: DateTime.DateTime
@@ -90,8 +81,8 @@ export const seePlantCare = (
   see(plant.health, plant.diedAt === null, schedules, careTimezone, now)
 
 export const seeLivingPlantCare = (
-  health: PlantHealthStatus,
+  condition: PlantCondition,
   schedules: ReadonlyArray<StoredSchedule>,
   careTimezone: string,
   now: DateTime.DateTime
-): PlantCare => see(health, true, schedules, careTimezone, now)
+): PlantCare => see(condition, true, schedules, careTimezone, now)

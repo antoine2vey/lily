@@ -45,13 +45,14 @@ export type { ProposedStep } from './domain/plan'
 export {
   hasOverdueCare,
   type PlantCare,
+  type PlantCondition,
   type SeenSchedule,
   type StoredSchedule,
   seeLivingPlantCare,
   seePlantCare,
 } from './plant-care'
 export { PlantLife } from './plant-life'
-export { dueOnOrBefore, storedDay } from './stored-day'
+export { dueOnOrBefore } from './stored-day'
 
 export const CareLive = Layer.mergeAll(
   CareServiceLive,
