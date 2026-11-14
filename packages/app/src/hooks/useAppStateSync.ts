@@ -1,6 +1,8 @@
 import { DateTime } from 'effect'
 import { useEffect, useRef } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
+import { requestChatFollowUps } from '@/hooks/useChatFollowUps'
+import { useLocalization } from '@/hooks/useLocalization'
 import { useSubscriptionSync } from '@/hooks/useSubscriptionSync'
 import * as RevenueCatService from '@/services/revenuecat'
 
@@ -8,11 +10,17 @@ const SYNC_THROTTLE_MS = 30 * 1000 // 30 seconds
 
 export function useAppStateSync(isAuthenticated: boolean) {
   const { syncSubscription } = useSubscriptionSync()
+  const { language, isLoading: isLanguageLoading } = useLocalization()
+  const knowsLanguage = !isLanguageLoading
   const lastSyncRef = useRef<number>(0)
   // RN 0.88 types `currentState` as a bare string; it only ever holds a status.
   const appStateRef = useRef<AppStateStatus>(
     AppState.currentState as AppStateStatus
   )
+
+  useEffect(() => {
+    if (isAuthenticated && knowsLanguage) void requestChatFollowUps(language)
+  }, [isAuthenticated, knowsLanguage, language])
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -28,6 +36,7 @@ export function useAppStateSync(isAuthenticated: boolean) {
         const now = DateTime.toEpochMillis(DateTime.nowUnsafe())
         if (now - lastSyncRef.current >= SYNC_THROTTLE_MS) {
           lastSyncRef.current = now
+          if (knowsLanguage) void requestChatFollowUps(language)
           // Wake RevenueCat SDK (fetches latest from cache/network)
           await RevenueCatService.getCustomerInfo()
           // Invalidate subscription query to refresh UI
@@ -42,5 +51,5 @@ export function useAppStateSync(isAuthenticated: boolean) {
       void handleAppStateChange(nextAppState)
     })
     return () => subscription.remove()
-  }, [isAuthenticated, syncSubscription])
+  }, [isAuthenticated, syncSubscription, knowsLanguage, language])
 }
