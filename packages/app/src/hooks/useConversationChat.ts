@@ -1,7 +1,8 @@
 import { useChat } from '@ai-sdk/react'
+import { ChatSuggestionTap } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
 import { DefaultChatTransport } from 'ai'
-import { Array, Option, pipe } from 'effect'
+import { Array, Option, pipe, Schema } from 'effect'
 import { fetch as expoFetch } from 'expo/fetch'
 import type React from 'react'
 import { useEffect, useMemo, useRef } from 'react'
@@ -25,6 +26,8 @@ const getMessageText = (msg: UIMessage): string =>
     Option.map((p) => p.text),
     Option.getOrElse(() => '')
   )
+
+const decodeSuggestion = Schema.decodeUnknownOption(ChatSuggestionTap)
 
 export function useConversationChat({
   conversationId,
@@ -55,15 +58,20 @@ export function useConversationChat({
           )
 
           const imageKey = body?.imageKey as string | undefined
+          const suggestion = decodeSuggestion(body?.suggestion)
 
           return {
-            body: pipe(
-              Option.fromNullishOr(imageKey),
-              Option.match({
-                onNone: () => ({ message }),
-                onSome: (key) => ({ message, imageKey: key }),
-              })
-            ),
+            body: {
+              message,
+              ...Option.match(Option.fromNullishOr(imageKey), {
+                onNone: () => ({}),
+                onSome: (key) => ({ imageKey: key }),
+              }),
+              ...Option.match(suggestion, {
+                onNone: () => ({}),
+                onSome: (tap) => ({ suggestion: tap }),
+              }),
+            },
           }
         },
       }),

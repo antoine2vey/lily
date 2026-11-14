@@ -101,4 +101,9 @@ export const listChatFollowUps = (
         Array.map(({ id, text }) => ({ id, text }))
       ),
     }
-  }).pipe(Effect.withSpan('AIChatService.listChatFollowUps'))
+  }).pipe(
+    Effect.tap(({ suggestions }) =>
+      Effect.annotateCurrentSpan('chat.follow_ups.served', suggestions.length)
+    ),
+    Effect.withSpan('AIChatService.listChatFollowUps')
+  )

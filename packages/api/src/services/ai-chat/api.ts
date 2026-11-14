@@ -13,6 +13,7 @@ import {
   ChatHistoryListResponse,
   ChatStarters,
   ChatSuggestions,
+  ChatSuggestionTap,
   ConversationNotFoundError,
   CreateConversationRequest,
 } from '@lily/shared/ai-chat'
@@ -34,6 +35,7 @@ const conversationIdParam = Schema.String.check(Schema.isGUID())
 const StreamChatRequest = Schema.Struct({
   message: Schema.String.check(Schema.isMaxLength(CHAT_MESSAGE_MAX_LENGTH)),
   imageKey: Schema.optional(Schema.String),
+  suggestion: Schema.optional(ChatSuggestionTap),
 })
 
 const ChatSuggestionsParams = Schema.Struct({

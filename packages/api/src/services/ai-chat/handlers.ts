@@ -78,6 +78,9 @@ export const AIChatApiLive = (api: Api) =>
                 ...(payload.imageKey !== undefined
                   ? { imageKey: payload.imageKey }
                   : {}),
+                ...(payload.suggestion !== undefined
+                  ? { suggestion: payload.suggestion }
+                  : {}),
               })
             ),
             withInfraErrorsAsDefect
