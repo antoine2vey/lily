@@ -177,6 +177,35 @@ export const createMockChatRepository = (
         )
       ),
 
+    findRecentQuestions: ({ userId, plantId, limit }) =>
+      Effect.succeed(
+        pipe(
+          data.messages,
+          Array.filter(
+            (m) =>
+              m.role === 'user' &&
+              Array.some(
+                conversations,
+                (c) =>
+                  c.id === m.conversationId &&
+                  c.userId === userId &&
+                  c.kind === 'plant' &&
+                  c.plantId === plantId
+              )
+          ),
+          Array.sort(
+            Order.flip(
+              Order.mapInput(
+                Order.Date,
+                (m: ChatMessage) => new Date(m.createdAt)
+              )
+            )
+          ),
+          Array.take(limit),
+          Array.map((m) => m.content)
+        )
+      ),
+
     deleteConversation: ({ id, userId }) => {
       const idx = conversations.findIndex(
         (c) => c.id === id && c.userId === userId

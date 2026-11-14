@@ -116,6 +116,15 @@ export interface IChatRepository {
   readonly findAskedPlants: (
     userId: string
   ) => Effect.Effect<ReadonlyArray<AskedPlant>, SqlError>
+  /**
+   * The text of the user's latest messages in their conversation about a
+   * plant, newest first.
+   */
+  readonly findRecentQuestions: (params: {
+    userId: string
+    plantId: string
+    limit: number
+  }) => Effect.Effect<ReadonlyArray<string>, SqlError>
   readonly deleteConversation: (params: {
     id: string
     userId: string
@@ -297,6 +306,29 @@ export const ChatRepositoryLive = Layer.effect(
             : []
         )
       }),
+
+      findRecentQuestions: Effect.fn('ChatRepository.findRecentQuestions')(
+        function* (params: { userId: string; plantId: string; limit: number }) {
+          const rows = yield* db
+            .select({ content: chatMessages.content })
+            .from(chatMessages)
+            .innerJoin(
+              chatConversations,
+              eq(chatMessages.conversationId, chatConversations.id)
+            )
+            .where(
+              and(
+                eq(chatConversations.userId, params.userId),
+                eq(chatConversations.plantId, params.plantId),
+                eq(chatConversations.kind, 'plant'),
+                eq(chatMessages.role, 'user')
+              )
+            )
+            .orderBy(desc(chatMessages.createdAt))
+            .limit(params.limit)
+          return Array.map(rows, (row) => row.content)
+        }
+      ),
 
       deleteConversation: Effect.fn('ChatRepository.deleteConversation')(
         function* (params: { id: string; userId: string }) {
