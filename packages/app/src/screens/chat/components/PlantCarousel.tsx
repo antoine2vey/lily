@@ -21,20 +21,14 @@ import { AnimatedImage } from '@/components/AnimatedImage'
 import { useIconColors } from '@/hooks/useIconColors'
 import { PressableScale } from '@/screens/chat/components/PressableScale'
 import {
-  GENERAL_TARGET,
+  type CarouselItem,
+  carouselItems,
   type NewChatTarget,
+  targetKey,
 } from '@/screens/chat/new-chat-target'
 
 const ITEM_WIDTH = 88
 const OFF_CENTER_SCALE = 0.78
-
-interface CarouselItem {
-  readonly target: NewChatTarget
-  readonly imageUrl: string | undefined
-}
-
-const targetKey = (target: NewChatTarget): string =>
-  target.kind === 'plant' ? target.plantId : 'general'
 
 interface PlantCarouselProps {
   plants: ReadonlyArray<ChatStarterPlant>
@@ -52,20 +46,7 @@ export function PlantCarousel({
   const scrollX = useSharedValue(0)
   const reduceMotion = useReducedMotion()
 
-  const items: ReadonlyArray<CarouselItem> = useMemo(
-    () => [
-      { target: GENERAL_TARGET, imageUrl: undefined },
-      ...Array.map(plants, (plant) => ({
-        target: {
-          kind: 'plant' as const,
-          plantId: plant.plantId,
-          name: plant.name,
-        },
-        imageUrl: plant.imageUrl,
-      })),
-    ],
-    [plants]
-  )
+  const items = useMemo(() => carouselItems(plants), [plants])
   const lastIndex = items.length - 1
 
   const selectedIndex = pipe(
