@@ -80,8 +80,10 @@ export function useConversationChat({
     if (syncedIdRef.current === conversationId) return
     if (initialMessages === undefined) return
     syncedIdRef.current = conversationId
+    const sentBeforeHistoryLoaded = Array.isReadonlyArrayNonEmpty(chat.messages)
+    if (sentBeforeHistoryLoaded) return
     chat.setMessages(initialMessages)
-  }, [initialMessages, chat.setMessages, conversationId])
+  }, [initialMessages, chat.messages, chat.setMessages, conversationId])
 
   return {
     ...chat,
