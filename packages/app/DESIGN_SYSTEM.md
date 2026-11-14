@@ -292,21 +292,60 @@ Padding: 12px
 
 #### Assistant Message
 ```
-Background: #E8F5E8
-Border Radius: 16px 16px 16px 4px
-Padding: 12px 16px
-Max Width: 80%
+Background: none (text on the screen background)
+Avatar: none
+Width: full content width
+Text: Markdown, 16px / 24px line height
 Align: Left
 ```
 
 #### User Message
 ```
-Background: #F3F4F6
-Border Radius: 16px 16px 4px 16px
-Padding: 12px 16px
-Max Width: 80%
+Background: Primary Tint (dark: white 10%)
+Border: none
+Border Radius: 24px (uniform)
+Padding: 10px 16px
+Max Width: 82%
+Text: Body Large, 24px line height
 Align: Right
 ```
+
+Messages are 24px apart. Images render outside the bubble at 224px, radius 24px.
+
+### Chat Bars and Composer
+
+The chat follows iOS 26 Messages. Both bars float over the message list, which fills the screen behind them. Each glass element checks `useGlass` and falls back to a solid surface when liquid glass is unavailable.
+
+#### Header
+```
+Background: none (floats over the list)
+Back / Menu: GlassBackButton, GlassIconButton (40px circles)
+Title pill: liquid glass, non-interactive, sized to its text
+  Height: 40px (title only), 44px (title + subtitle)
+  Radius: half the height
+  Padding: 0 16px
+  Title: Body Large, SemiBold
+  Subtitle: Body Small, Text Muted (dark: slate-400), one line
+Fallback pill: Surface (dark: Surface Dark), rounded-full
+```
+
+#### Composer
+```
+Container: liquid glass, radius 28px, 12px side margins
+Fallback: Surface (dark: Surface Dark), radius 28px, 1px Border 60%
+          (dark: white 10%), shadow-soft (dark: none)
+Attach (+): no fill under glass; Surface Tinted (dark: white 10%) in the fallback
+Send: 36px solid Primary circle; idle is Border (dark: white 10%)
+Photo thumbnail: inside the capsule, above the text row
+Bottom gap: home indicator inset (min 12px); 8px while the keyboard is open
+```
+
+#### Layout
+- The header and composer report their heights with `onLayout`. The list uses them as insets, so the first and last messages clear both bars. The list is inverted, so `paddingTop` is the visual bottom.
+- A scroll-edge fade sits under each bar. It is solid Background over the system inset (status bar, home indicator), drops to 70% halfway through the bar, and clears at the bar's inner edge.
+- The error banner and its Retry pill sit directly above the composer, on an opaque Background base so the error tint reads over any message. The typing indicator is the list's first row, so it also sits above the composer.
+- The empty state and suggestion chips are centred in the space between the two bars.
+- Both bars use `pointerEvents="box-none"`, so a drag in the gaps beside the title pill scrolls the list.
 
 ### Avatars
 

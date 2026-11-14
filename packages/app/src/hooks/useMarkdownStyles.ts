@@ -10,8 +10,8 @@ export function useMarkdownStyles() {
       body: {
         fontFamily: fonts.regular,
         color: textPrimary,
-        fontSize: 14,
-        lineHeight: 22,
+        fontSize: 16,
+        lineHeight: 24,
       },
       heading1: {
         fontFamily: fonts.bold,
@@ -53,7 +53,7 @@ export function useMarkdownStyles() {
       },
       paragraph: {
         marginTop: 0,
-        marginBottom: 4,
+        marginBottom: 8,
       },
       bullet_list: {
         marginVertical: 2,

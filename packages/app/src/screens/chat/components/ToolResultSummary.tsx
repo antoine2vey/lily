@@ -1,9 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
+import Animated from 'react-native-reanimated'
 import { BottomSheet } from '@/components/BottomSheet'
 import { useIconColors } from '@/hooks/useIconColors'
+import { toolCardEntering } from '@/screens/chat/components/chat-motion'
 
 interface ToolResultSummaryProps {
   testID: string
@@ -23,6 +26,7 @@ interface ToolResultSummaryProps {
    */
   autoOpen?: boolean | undefined
   onAutoOpenHandled?: (() => void) | undefined
+  arrivedInSession?: boolean | undefined
 }
 
 /**
@@ -41,6 +45,7 @@ export function ToolResultSummary({
   children,
   autoOpen = false,
   onAutoOpenHandled,
+  arrivedInSession = false,
 }: ToolResultSummaryProps) {
   const iconColors = useIconColors()
   const [open, setOpen] = useState(autoOpen)
@@ -49,6 +54,10 @@ export function ToolResultSummary({
     if (autoOpen) setOpen(true)
   }, [autoOpen])
 
+  useEffect(() => {
+    if (arrivedInSession) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  }, [arrivedInSession])
+
   const handleClose = () => {
     setOpen(false)
     if (autoOpen) onAutoOpenHandled?.()
@@ -56,8 +65,9 @@ export function ToolResultSummary({
 
   return (
     <>
-      <View
+      <Animated.View
         testID={testID}
+        {...(arrivedInSession ? { entering: toolCardEntering } : {})}
         className="bg-surface dark:bg-surface-dark rounded-lg p-3 border border-border dark:border-slate-700 my-2"
       >
         <View className="flex-row items-center">
@@ -100,7 +110,7 @@ export function ToolResultSummary({
             {buttonLabel}
           </Text>
         </Pressable>
-      </View>
+      </Animated.View>
 
       <BottomSheet
         visible={open}

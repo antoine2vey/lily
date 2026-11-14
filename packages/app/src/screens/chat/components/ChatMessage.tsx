@@ -1,4 +1,3 @@
-import { formatApiTime } from '@lily/shared'
 import {
   type DynamicToolUIPart,
   getToolName,
@@ -6,22 +5,23 @@ import {
   type ToolUIPart,
   type UIMessage,
 } from 'ai'
-import { Array, Match, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe, String } from 'effect'
 import type { ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
+import Animated from 'react-native-reanimated'
 import { AnimatedImage } from '@/components/AnimatedImage'
-import { Avatar } from '@/components/Avatar'
 import { MarkdownText } from '@/components/MarkdownText'
-import { useAuth } from '@/contexts/AuthContext'
-
+import { messageEntering } from '@/screens/chat/components/chat-motion'
 import {
-  FULL_WIDTH_TOOLS,
   toolBubbleRenderers,
   toolFullWidthRenderers,
-} from './tool-renderers'
+} from '@/screens/chat/components/tool-renderers'
 
 const QUOTA_EXCEEDED_KEY = '__QUOTA_EXCEEDED__'
+
+export const USER_BUBBLE_CLASSES =
+  'max-w-[82%] rounded-xl px-4 bg-primary-tint dark:bg-white/10'
 
 type Part = UIMessage['parts'][number]
 type TextPart = Extract<Part, { type: 'text' }>
@@ -31,43 +31,27 @@ type AnyToolPart = ToolUIPart | DynamicToolUIPart
 interface ChatMessageProps {
   message: UIMessage
   plantId?: string | undefined
-  createdAt?: string
   autoOpenToolId?: string | null | undefined
   onAutoOpenHandled?: (() => void) | undefined
+  arrivedInSession?: boolean | undefined
 }
 
 export function ChatMessage({
   message,
   plantId,
-  createdAt,
   autoOpenToolId,
   onAutoOpenHandled,
+  arrivedInSession = false,
 }: ChatMessageProps) {
   const isUser = message.role === 'user'
   const { t } = useTranslation('chat')
-  const { state } = useAuth()
 
-  const userName = pipe(
-    Match.value(state),
-    Match.when({ _tag: 'Authenticated' }, (s) =>
-      Option.getOrElse(Option.fromNullishOr(s.user.username), () => 'You')
-    ),
-    Match.orElse(() => 'You')
-  )
-
-  // Check if this message has a completed full-width tool (diagnosis or
-  // care plan): its text then renders above the card instead of in a bubble.
-  const hasCompletedDiagnosis = Array.some(
+  const hasText = Array.some(
     message.parts,
-    (p) =>
-      isToolUIPart(p) &&
-      Array.contains(FULL_WIDTH_TOOLS, getToolName(p)) &&
-      p.state === 'output-available'
+    (p) => p.type === 'text' && p.text !== ''
   )
 
-  // Bubble parts: text + files + tool loading states
-  // When a completed diagnosis exists, text moves to the full-width section
-  const bubbleParts = pipe(
+  const inlineParts = pipe(
     message.parts,
     Array.map(
       (part, index): Option.Option<ReactElement> =>
@@ -77,56 +61,52 @@ export function ChatMessage({
             { type: 'text' },
             (p: TextPart): Option.Option<ReactElement> => {
               if (p.text === '') return Option.none()
-              // When diagnosis is complete, text renders in full-width section
-              if (hasCompletedDiagnosis) return Option.none()
               const displayText =
                 p.text === QUOTA_EXCEEDED_KEY ? t('quotaExceeded') : p.text
               return Option.some(
-                <View
-                  // biome-ignore lint/suspicious/noArrayIndexKey: message parts carry no id and only ever append, so the index is stable
-                  key={`text-${index}`}
-                >
-                  {isUser ? (
-                    <Text className="text-md text-text-primary dark:text-white leading-relaxed font-regular">
+                isUser ? (
+                  <View
+                    // biome-ignore lint/suspicious/noArrayIndexKey: message parts carry no id and only ever append, so the index is stable
+                    key={`text-${index}`}
+                    className={`${USER_BUBBLE_CLASSES} py-2.5`}
+                  >
+                    <Text className="text-base leading-6 font-regular text-text-primary dark:text-white">
                       {displayText}
                     </Text>
-                  ) : (
-                    <MarkdownText>{displayText}</MarkdownText>
-                  )}
-                </View>
+                  </View>
+                ) : (
+                  <MarkdownText
+                    // biome-ignore lint/suspicious/noArrayIndexKey: message parts carry no id and only ever append, so the index is stable
+                    key={`text-${index}`}
+                  >
+                    {displayText}
+                  </MarkdownText>
+                )
               )
             }
           ),
           Match.when(
             { type: 'file' },
-            (p: FilePart): Option.Option<ReactElement> => {
-              if (p.mediaType.startsWith('image/')) {
-                return Option.some(
-                  <View
-                    // biome-ignore lint/suspicious/noArrayIndexKey: message parts carry no id and only ever append, so the index is stable
-                    key={`file-${index}`}
-                    className="mb-2 rounded-md overflow-hidden"
-                  >
+            (p: FilePart): Option.Option<ReactElement> =>
+              pipe(p.mediaType, String.startsWith('image/'))
+                ? Option.some(
                     <AnimatedImage
+                      // biome-ignore lint/suspicious/noArrayIndexKey: message parts carry no id and only ever append, so the index is stable
+                      key={`file-${index}`}
                       source={{ uri: p.url }}
-                      className="w-56 h-56 rounded-md"
+                      className={`w-56 h-56 rounded-xl ${hasText ? 'mb-2' : ''}`}
                       contentFit="cover"
                     />
-                  </View>
-                )
-              }
-              return Option.none()
-            }
+                  )
+                : Option.none()
           ),
           Match.when(
             (p: Part): p is AnyToolPart => isToolUIPart(p),
-            (p: AnyToolPart): Option.Option<ReactElement> => {
-              const toolName = getToolName(p)
-              return pipe(
-                Option.fromNullishOr(toolBubbleRenderers[toolName]),
+            (p: AnyToolPart): Option.Option<ReactElement> =>
+              pipe(
+                Option.fromNullishOr(toolBubbleRenderers[getToolName(p)]),
                 Option.flatMap((renderer) => renderer(p, index, t))
               )
-            }
           ),
           Match.orElse((): Option.Option<ReactElement> => Option.none())
         )
@@ -134,70 +114,19 @@ export function ChatMessage({
     Array.getSomes
   )
 
-  // Text bubble rendered above diagnosis cards when tool is complete
-  const diagnosisTextBubble: ReactElement | null = pipe(
-    hasCompletedDiagnosis,
-    Match.value,
-    Match.when(true, (): ReactElement | null => {
-      const texts = pipe(
-        message.parts,
-        Array.map(
-          (part, index): Option.Option<ReactElement> =>
-            pipe(
-              Match.value(part),
-              Match.when(
-                { type: 'text' },
-                (p: TextPart): Option.Option<ReactElement> => {
-                  if (p.text === '') return Option.none()
-                  return Option.some(
-                    <View
-                      // biome-ignore lint/suspicious/noArrayIndexKey: message parts carry no id and only ever append, so the index is stable
-                      key={`diag-text-${index}`}
-                    >
-                      <MarkdownText>{p.text}</MarkdownText>
-                    </View>
-                  )
-                }
-              ),
-              Match.orElse((): Option.Option<ReactElement> => Option.none())
-            )
-        ),
-        Array.getSomes
-      )
-      if (!Array.isReadonlyArrayNonEmpty(texts)) return null
-      return (
-        <View className="flex-row items-start justify-start mb-2">
-          <View className="mr-3 mt-3">
-            <Avatar name="Lily" size="sm" />
-          </View>
-          <View className="flex-1 items-start">
-            <View
-              className="px-4 py-3 rounded-md bg-primary-tint dark:bg-primary/20"
-              style={{ borderBottomLeftRadius: 4, borderBottomRightRadius: 16 }}
-            >
-              {texts}
-            </View>
-          </View>
-        </View>
-      )
-    }),
-    Match.orElse((): ReactElement | null => null)
-  )
-
-  // Full-width parts: completed tool output rendered outside the bubble
   const fullWidthParts = pipe(
     message.parts,
     Array.map((part, index): Option.Option<ReactElement> => {
       if (!isToolUIPart(part)) return Option.none()
-      const toolName = getToolName(part)
       return pipe(
-        Option.fromNullishOr(toolFullWidthRenderers[toolName]),
+        Option.fromNullishOr(toolFullWidthRenderers[getToolName(part)]),
         Option.flatMap((renderer) =>
           renderer(part, index, {
             t,
             plantId,
             autoOpenToolId,
             onAutoOpenHandled,
+            arrivedInSession,
           })
         )
       )
@@ -205,61 +134,19 @@ export function ChatMessage({
     Array.getSomes
   )
 
-  const hasBubbleParts = Array.isReadonlyArrayNonEmpty(bubbleParts)
-  const hasFullWidthParts = Array.isReadonlyArrayNonEmpty(fullWidthParts)
-  const hasDiagnosisContent = diagnosisTextBubble !== null || hasFullWidthParts
+  const hasInlineParts = Array.isReadonlyArrayNonEmpty(inlineParts)
 
   return (
-    <View className="mb-4">
-      {/* Bubble row (text + files + loading states) */}
-      {hasBubbleParts && (
-        <View
-          className={`flex-row items-start ${isUser ? 'justify-end' : 'justify-start'}`}
-        >
-          {!isUser && (
-            <View className="mr-3 mt-3">
-              <Avatar name="Lily" size="sm" />
-            </View>
-          )}
-          <View className={`flex-1 ${isUser ? 'items-end' : 'items-start'}`}>
-            <View
-              className={`px-4 py-3 rounded-md ${
-                isUser
-                  ? 'bg-surface dark:bg-surface-dark border border-border dark:border-slate-700'
-                  : 'bg-primary-tint dark:bg-primary/20'
-              }`}
-              style={{
-                borderBottomLeftRadius: isUser ? 16 : 4,
-                borderBottomRightRadius: isUser ? 4 : 16,
-              }}
-            >
-              {bubbleParts}
-            </View>
-          </View>
-          {isUser && (
-            <View className="ml-3 mt-3">
-              <Avatar name={userName} size="sm" />
-            </View>
-          )}
-        </View>
+    <Animated.View
+      className="mb-6"
+      {...(arrivedInSession ? { entering: messageEntering } : {})}
+    >
+      {hasInlineParts && (
+        <View className={isUser ? 'items-end' : ''}>{inlineParts}</View>
       )}
-
-      {/* Diagnosis text bubble + full-width tool cards */}
-      {hasDiagnosisContent && (
-        <View className={hasBubbleParts ? 'mt-2' : ''}>
-          {diagnosisTextBubble}
-          {fullWidthParts}
-        </View>
+      {Array.isReadonlyArrayNonEmpty(fullWidthParts) && (
+        <View className={hasInlineParts ? 'mt-3' : ''}>{fullWidthParts}</View>
       )}
-
-      {/* Timestamp */}
-      {createdAt && (
-        <Text
-          className={`text-xs mt-1 font-regular text-text-muted dark:text-slate-400 ${isUser ? 'text-right mr-12' : 'ml-12'}`}
-        >
-          {formatApiTime(createdAt)}
-        </Text>
-      )}
-    </View>
+    </Animated.View>
   )
 }
