@@ -41,6 +41,10 @@ const ChatSuggestionsParams = Schema.Struct({
   language: LanguageCode,
 })
 
+const ChatFollowUpsRefreshRequest = Schema.Struct({
+  language: LanguageCode,
+})
+
 const ConversationListParams = Schema.Struct({
   ...PaginationParams.fields,
   kind: Schema.optional(ChatConversationKind),
@@ -86,6 +90,14 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
         PlantNotAuthorizedError,
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],
+    })
+  )
+  .add(
+    HttpApiEndpoint.post('requestChatFollowUps', '/chat/follow-ups/refresh', {
+      payload: ChatFollowUpsRefreshRequest,
+      error: Schema.Struct({ error: Schema.String }).pipe(
+        HttpApiSchema.status(401)
+      ),
     })
   )
   .add(
