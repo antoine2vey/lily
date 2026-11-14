@@ -13,7 +13,7 @@ import type {
   ChatMessage,
 } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
-import { and, asc, count, desc, eq, lt, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, lt, max, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -50,6 +50,11 @@ export interface SavedChatMessage {
   id: string
   messageId: string
   role: string
+}
+
+export interface AskedPlant {
+  readonly plantId: string
+  readonly lastAskedAt: Date
 }
 
 export type ChatMessageRow = typeof chatMessages.$inferSelect
@@ -104,6 +109,13 @@ export interface IChatRepository {
   readonly findChattedPlantIds: (
     userId: string
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  /**
+   * Plants this user has written about in their plant conversation, with the
+   * time of their latest message.
+   */
+  readonly findAskedPlants: (
+    userId: string
+  ) => Effect.Effect<ReadonlyArray<AskedPlant>, SqlError>
   readonly deleteConversation: (params: {
     id: string
     userId: string
@@ -257,6 +269,34 @@ export const ChatRepositoryLive = Layer.effect(
           )
         }
       ),
+
+      findAskedPlants: Effect.fn('ChatRepository.findAskedPlants')(function* (
+        userId: string
+      ) {
+        const rows = yield* db
+          .select({
+            plantId: chatConversations.plantId,
+            lastAskedAt: max(chatMessages.createdAt),
+          })
+          .from(chatConversations)
+          .innerJoin(
+            chatMessages,
+            eq(chatMessages.conversationId, chatConversations.id)
+          )
+          .where(
+            and(
+              eq(chatConversations.userId, userId),
+              eq(chatConversations.kind, 'plant'),
+              eq(chatMessages.role, 'user')
+            )
+          )
+          .groupBy(chatConversations.plantId)
+        return Array.flatMap(rows, ({ plantId, lastAskedAt }) =>
+          plantId !== null && lastAskedAt !== null
+            ? [{ plantId, lastAskedAt }]
+            : []
+        )
+      }),
 
       deleteConversation: Effect.fn('ChatRepository.deleteConversation')(
         function* (params: { id: string; userId: string }) {
