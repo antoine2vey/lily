@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -54,6 +55,11 @@ export const careLogs = pgTable(
     index('care_logs_plant_id_idx').on(table.plantId),
     index('care_logs_plant_id_date_idx').on(table.plantId, table.date),
     index('care_logs_performed_by_user_id_idx').on(table.performedByUserId),
+    uniqueIndex('care_logs_one_per_care_day').on(
+      table.plantId,
+      table.type,
+      table.careDay
+    ),
   ]
 )
 

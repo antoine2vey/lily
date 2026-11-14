@@ -472,30 +472,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       expect(await dueDayOf(plantId)).toBe(dayOf(daysAgo(-2)))
     })
 
-    it('edits one of two cares that already share a day', async () => {
-      const plantId = await addPlant('Twice', daysAgo(-2))
-      const noon = new Date(`${dayOf(daysAgo(5))}T12:00:00.000Z`)
-      await addCare(plantId, new Date(noon.getTime() - 3_600_000))
-      const second = await addCare(plantId, noon)
-
-      await run(
-        Effect.flatMap(Care, (care) =>
-          care.amend({
-            ...unchanged,
-            permit: carePermit(plantId, userId),
-            careLogId: second,
-            notes: Option.some(Option.some('Second pass')),
-          })
-        )
-      )
-
-      expect(Array.map(await careRows(plantId), (row) => row.notes)).toEqual([
-        'Seeded',
-        'Second pass',
-      ])
-      expect(await dueDayOf(plantId)).toBe(dayOf(daysAgo(-2)))
-    })
-
     it('counts the due day and the last care from the care before a removed one', async () => {
       const plantId = await addPlant('Removed', daysAgo(-2))
       const earlier = daysAgo(9)
@@ -937,6 +913,23 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       await addCare(plantId, new Date(Date.now() - 2 * DAY), today())
 
       expect(await waterNow(plantId)).toEqual(['AlreadyCared'])
+    })
+
+    it('refuses a second care log of one type on one care day, also from a writer that skips the store', async () => {
+      const plantId = await addPlant('Once a day')
+      await addCare(plantId, new Date(Date.now() - 3_600_000), today())
+
+      await expect(addCare(plantId, new Date(), today())).rejects.toMatchObject(
+        {
+          cause: { constraint: 'care_logs_one_per_care_day' },
+        }
+      )
+      await db.insert(schema.careLogs).values({
+        plantId,
+        type: 'misting',
+        date: new Date(),
+        careDay: today(),
+      })
     })
 
     it('moves a schedule from its stored due day, not from the day of its instant', async () => {

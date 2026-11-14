@@ -167,12 +167,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const plantIds: Record<string, string> = {}
     let ids: Record<Actor, string>
 
-    const insertLogs = async (prefix: string) => {
+    const insertLogs = async (prefix: string, type: 'watering' | 'misting') => {
       for (const scenario of scenarios) {
         for (const log of scenario.logs) {
           const label = `${prefix}${scenario.name} @ ${log.at}`
           await db.insert(schema.careLogs).values({
-            type: 'watering',
+            type,
             date: new Date(log.at),
             careDay: careDayOf(new Date(log.at)),
             plantId: plantIds[scenario.name] ?? '',
@@ -261,10 +261,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }
       }
 
-      await insertLogs('')
+      await insertLogs('', 'watering')
       await applyMigration('0063_canopy.sql')
       await applyMigration('0064_canopy_actor_backfill_rerun.sql')
-      await insertLogs('inserted after 0064: ')
+      await insertLogs('inserted after 0064: ', 'misting')
 
       const rows = await db
         .select({

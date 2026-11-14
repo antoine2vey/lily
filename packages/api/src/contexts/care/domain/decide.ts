@@ -494,9 +494,7 @@ const amendEntry = (
       Option.map((resolved) => resolved.day),
       Option.getOrElse(() => entry.day)
     )
-    if (day !== entry.day) {
-      yield* refuseIfCaredOn(plant, line, day, Option.some(entry.id))
-    }
+    yield* refuseIfCaredOn(plant, line, day, Option.some(entry.id))
 
     const after: CareLine = {
       ...line,
