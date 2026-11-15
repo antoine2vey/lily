@@ -2,7 +2,7 @@
 
 The camera view of Lily's add-plant flow on iOS. It is an Expo module written in Swift. While the camera is open, it does four things:
 
-- It detects a potted plant or a vase with an on-device TensorFlow Lite model (EfficientDet Lite0).
+- It detects a potted plant with an on-device TensorFlow Lite model (EfficientDet Lite0). [Detection](CLAUDE.md#detection) names the classes it accepts.
 - It estimates the ambient light from the camera image, on Lily's five luminosity levels.
 - It measures a pot's width and height by AR raycast, with SceneKit lines that follow the phone between taps.
 - It captures a photo of the current frame for the app to identify.

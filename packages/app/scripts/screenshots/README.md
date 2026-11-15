@@ -2,7 +2,7 @@
 
 Builds the App Store and Google Play screenshots in English and French. `run.ts` runs two stages for each platform and locale.
 
-1. **Capture.** Maestro runs `.maestro/capture.yaml` on the booted simulator or emulator. The flow logs in as the demo account, switches the app language in Settings, opens each screen by deep link and saves a raw PNG to `screenshots/sources/<platform>/<locale>`.
+1. **Capture.** Maestro runs `.maestro/capture.yaml` on the booted simulator or emulator. The flow logs in as the demo account, switches the app language in Settings, reaches each screen by deep link or by tapping through from the plants grid, and saves a raw PNG to `screenshots/sources/<platform>/<locale>`.
 2. **Compose.** `compose.ts` draws the background, the headline from `copy.ts` and a phone frame around each capture, and writes the store PNG to `screenshots/output/<platform>/<locale>`. The iOS canvas is 1284 by 2778, and the Android canvas is 1080 by 1920.
 
 Both output folders sit under `packages/app` and are gitignored.
@@ -10,6 +10,7 @@ Both output folders sit under `packages/app` and are gitignored.
 ## Before you run it
 
 - **Maestro CLI.** Install it with `curl -Ls "https://get.maestro.mobile.dev" | bash`.
+- **Phone frame.** Compose reads `mockup.png` from the `app-store-screenshots` skill in `.agents/` at the monorepo root. `.agents/` is gitignored, so restore that skill from `skills-lock.json` first. Without it, compose exits with `Compose failed for <phone-frame>`.
 - **Demo data.** Run `bun run --filter=@lily/db seed:demo` once. Before each capture, `run.ts` runs `seed:demo-chat` in the capture's locale, so the chat screenshot shows bubbles in that language. `DEMO_EMAIL` in `.maestro/capture.yaml` must be the account that `seed:demo` creates.
 - **API.** Run it with `DISABLE_MAGIC_LINK_VERIFICATION=true`. `packages/api/src/services/auth/endpoints/send-magic-link.ts` then returns an instant code, and the app signs in with no email step. Without the flag the flow stops on the check-email screen.
 - **iOS.** Boot a large iPhone simulator, such as a Pro Max, with a dev or release build installed. Compose scales each capture into the phone frame, so a smaller capture comes out soft.
@@ -33,7 +34,7 @@ From the monorepo root:
 
 - **Headlines.** Edit `copy.ts`.
 - **Layout.** Edit `layoutFor()` in `compose.ts`, which sets the phone width, the headline position and the font sizes.
-- **Screens.** Add the name to `SCREENS` in `copy.ts`, then add a step to `.maestro/capture.yaml` that opens the screen and saves `${OUTPUT_DIR}/<name>`. The flow finds every element by `testID`, so give the new screen's root a `testID` and wait for it before the screenshot.
+- **Screens.** Add the name to `SCREENS` in `copy.ts`, then add a step to `.maestro/capture.yaml` that opens the screen and saves `${OUTPUT_DIR}/<name>`. The flow finds the app's screens by `testID`, so give the new screen's root a `testID` and wait for it before the screenshot.
 
 ## Troubleshooting
 
