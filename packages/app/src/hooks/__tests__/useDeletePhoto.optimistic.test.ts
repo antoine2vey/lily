@@ -38,7 +38,7 @@ const makeClient = () =>
   new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
-      mutations: { retry: false },
+      mutations: { retry: false, gcTime: 0 },
     },
   })
 

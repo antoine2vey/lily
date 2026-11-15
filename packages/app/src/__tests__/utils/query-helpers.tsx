@@ -5,6 +5,7 @@ import {
 } from '@testing-library/react-native'
 import { Result } from 'effect'
 import type { ReactNode } from 'react'
+import { createQueryClient } from '@/utils/query-client'
 import { mockEpochMillis } from './dates'
 
 /**
@@ -38,6 +39,21 @@ export function createTestQueryClient(): QueryClient {
         gcTime: 0,
       },
     },
+  })
+  testQueryClients.push(client)
+  return client
+}
+
+/**
+ * The app's createQueryClient with cache GC off. Its 5-minute GC timers outlive
+ * the test, and clear() does not cancel the ones on mutations.
+ */
+export function createTestAppQueryClient(): QueryClient {
+  const client = createQueryClient()
+  const defaults = client.getDefaultOptions()
+  client.setDefaultOptions({
+    queries: { ...defaults.queries, gcTime: 0 },
+    mutations: { ...defaults.mutations, gcTime: 0 },
   })
   testQueryClients.push(client)
   return client
