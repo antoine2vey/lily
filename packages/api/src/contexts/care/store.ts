@@ -494,6 +494,7 @@ export const CareStoreLive = Layer.effect(
               potWidthCm: Option.getOrNull(w.draft.potWidthCm),
               potHeightCm: Option.getOrNull(w.draft.potHeightCm),
               roomId: Option.getOrNull(w.draft.roomId),
+              remindersEnabled: w.draft.remindersEnabled,
             })
           ),
         BuryPlant: (w) =>

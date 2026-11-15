@@ -118,6 +118,7 @@ const draft: PlantDraft = {
   potWidthCm: Option.none(),
   potHeightCm: Option.none(),
   roomId: Option.none(),
+  remindersEnabled: true,
 }
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
