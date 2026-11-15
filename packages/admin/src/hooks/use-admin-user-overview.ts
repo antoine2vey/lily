@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -94,6 +95,6 @@ export const useAdminUserOverview = (id: string) =>
   useQuery({
     queryKey: ['admin-user-overview', id],
     queryFn: () =>
-      apiRequest<AdminUserOverview>(`/api/admin/users/${id}/overview`),
+      apiRequest<AdminUserOverview>(`${API_PREFIX}/admin/users/${id}/overview`),
     enabled: !!id,
   })

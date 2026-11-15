@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import type { NotificationToCareActionResponse } from '@lily/shared/admin/analytics'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
@@ -13,7 +14,7 @@ export const useNotificationToCareAction = () => {
     queryFn: () => {
       const { from, to } = resolvePresetRange(preset)
       return apiRequest<NotificationToCareActionResponse>(
-        `/api/admin/analytics/notification-to-care-action?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+        `${API_PREFIX}/admin/analytics/notification-to-care-action?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
       )
     },
     staleTime: 5 * 60 * 1000,

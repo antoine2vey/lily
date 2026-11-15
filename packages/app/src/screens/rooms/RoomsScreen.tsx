@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import {
+  API_PREFIX,
   LUMINOSITY_LEVELS,
   luxToLuminosityLevel,
   type Orientation,
@@ -142,7 +143,7 @@ export function RoomsScreen() {
       const updates = [
         ...Array.map(added, (plantId) =>
           uploadMultipart(
-            `/api/plants/${plantId}`,
+            `${API_PREFIX}/plants/${plantId}`,
             [],
             'image',
             { data: JSON.stringify({ roomId }) },
@@ -151,7 +152,7 @@ export function RoomsScreen() {
         ),
         ...Array.map(removed, (plantId) =>
           uploadMultipart(
-            `/api/plants/${plantId}`,
+            `${API_PREFIX}/plants/${plantId}`,
             [],
             'image',
             { data: JSON.stringify({ roomId: null }) },

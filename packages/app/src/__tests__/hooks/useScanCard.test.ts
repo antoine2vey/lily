@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 import { useScanCard, useScanCardMultiple } from '@/hooks/useScanCard'
@@ -92,7 +93,7 @@ describe('useScanCard', () => {
       })
 
       expect(mockUploadMultipart).toHaveBeenCalledWith(
-        '/api/plants/scan-card',
+        `${API_PREFIX}/plants/scan-card`,
         expect.any(Array),
         'images',
         expect.objectContaining({ locale: expect.any(String) })
@@ -222,7 +223,7 @@ describe('useScanCardMultiple', () => {
       })
 
       expect(mockUploadMultipart).toHaveBeenCalledWith(
-        '/api/plants/scan-card-multiple',
+        `${API_PREFIX}/plants/scan-card-multiple`,
         expect.any(Array),
         'images',
         expect.objectContaining({ locale: expect.any(String) })
@@ -249,7 +250,7 @@ describe('useScanCardMultiple', () => {
 
       expect(mockCreateFileFromUri).not.toHaveBeenCalled()
       expect(mockUploadMultipart).toHaveBeenCalledWith(
-        '/api/plants/scan-card-multiple',
+        `${API_PREFIX}/plants/scan-card-multiple`,
         [],
         'images',
         expect.objectContaining({ locale: expect.any(String) })

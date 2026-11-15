@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
@@ -26,7 +27,7 @@ export const useTriggerLiveActivity = () =>
   useMutation({
     mutationFn: (userId: string) =>
       apiRequest<TriggerLiveActivityResponse>(
-        `/api/admin/users/${userId}/live-activity/trigger-start`,
+        `${API_PREFIX}/admin/users/${userId}/live-activity/trigger-start`,
         { method: 'POST' }
       ),
   })

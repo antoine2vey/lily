@@ -1,4 +1,4 @@
-import { nowAsEpochMillis } from '@lily/shared'
+import { API_PREFIX, nowAsEpochMillis } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { createFileFromUri, uploadMultipart } from '@/utils/upload'
@@ -45,7 +45,7 @@ export function useDetectPlant() {
       })
 
       return uploadMultipart<DetectPlantResult>(
-        '/api/plants/detect',
+        `${API_PREFIX}/plants/detect`,
         [file],
         'images',
         { locale: i18n.language }

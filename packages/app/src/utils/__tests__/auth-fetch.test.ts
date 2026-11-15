@@ -2,8 +2,8 @@ import * as SecureStore from 'expo-secure-store'
 
 const ACCESS_TOKEN_KEY = 'lily_access_token'
 const REFRESH_TOKEN_KEY = 'lily_refresh_token'
-const STREAM_URL = 'http://localhost:3000/api/chat/conversations/c1/stream'
-const REFRESH_URL = 'http://localhost:3000/api/auth/refresh'
+const STREAM_URL = 'http://localhost:3000/api/v1/chat/conversations/c1/stream'
+const REFRESH_URL = 'http://localhost:3000/api/v1/auth/refresh'
 
 const mockedSecureStore = SecureStore as jest.Mocked<typeof SecureStore>
 

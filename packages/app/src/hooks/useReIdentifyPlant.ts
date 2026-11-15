@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import * as SecureStore from 'expo-secure-store'
 import { useTranslation } from 'react-i18next'
@@ -25,7 +26,7 @@ export function useReIdentifyPlant() {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/api/plants/ai-re-identify`,
+        `${API_BASE_URL}${API_PREFIX}/plants/ai-re-identify`,
         {
           method: 'POST',
           headers,

@@ -83,7 +83,7 @@ describe('readCareScheduleResource over the live API client', () => {
     vi.unstubAllGlobals()
   })
 
-  it('reads the JSON body GET /api/care-tasks sends, where dueDate is a string', async () => {
+  it('reads the JSON body GET /api/v1/care-tasks sends, where dueDate is a string', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>

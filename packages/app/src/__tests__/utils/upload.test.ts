@@ -1,3 +1,4 @@
+import { API_PREFIX } from '@lily/shared'
 import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
 describe('uploadMultipart', () => {
@@ -41,7 +42,7 @@ describe('uploadMultipart', () => {
     }) as typeof fetch
 
     await uploadMultipart(
-      '/api/plants/detect',
+      `${API_PREFIX}/plants/detect`,
       [createFileFromUri('file:///tmp/a.jpg', { name: 'detect-1.jpg' })],
       'images'
     )
