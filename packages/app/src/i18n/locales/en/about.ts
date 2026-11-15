@@ -5,7 +5,7 @@ export default {
   description:
     'We believe every leaf tells a story. Our mission is to help your indoor jungle thrive, one drop of water at a time. Thank you for growing with us.',
   links: {
-    licenses: 'Open Source Licenses',
+    licenses: 'License',
     guidelines: 'Community Guidelines',
     instagram: 'Follow us on Instagram',
   },
