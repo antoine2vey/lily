@@ -96,14 +96,34 @@ describe('withScanPhoto', () => {
     })
   })
 
-  it('leaves a public URL as the request gave it', async () => {
-    const url = mockPublicUrl('1700000000000-detect/scan.png')
-
+  it.each([
+    ['a URL on another host', 'https://tracker.example/pixel.jpg'],
+    [
+      "another account's public photo",
+      mockPublicUrl('users/user-2/avatars/face.png'),
+    ],
+    [
+      'a public photo from before scopes',
+      mockPublicUrl('1700000000000-detect/scan.png'),
+    ],
+  ])('creates the plant without an image for %s', async (_case, url) => {
     const result = await createFrom(url, [])
 
     expect(result).toMatchObject({
-      askedFor: [url],
-      answered: url,
+      askedFor: [undefined],
+      answered: null,
+      published: [],
+    })
+  })
+
+  it('stores the path of a file on the device as an older build sent it', async () => {
+    const uri = 'file:///var/mobile/Containers/Data/tmp/photo.jpg'
+
+    const result = await createFrom(uri, [])
+
+    expect(result).toMatchObject({
+      askedFor: [uri],
+      answered: uri,
       published: [],
     })
   })

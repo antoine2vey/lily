@@ -15,7 +15,8 @@ import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import type { Notification } from '@lily/shared/notification'
-import { Array as Arr, Effect, Layer } from 'effect'
+import { UserSettingsUpdateRequest } from '@lily/shared/user'
+import { Array as Arr, Effect, Layer, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('updateUserSettings', () => {
@@ -96,7 +97,6 @@ describe('updateUserSettings', () => {
       updateUserSettings({
         name: 'new_name',
         bio: 'New bio',
-        image: 'https://new-image.com/avatar.png',
         notifications: {
           ads: true,
         },
@@ -105,8 +105,25 @@ describe('updateUserSettings', () => {
 
     expect(result.name).toBe('new_name')
     expect(result.bio).toBe('New bio')
-    expect(result.image).toBe('https://new-image.com/avatar.png')
     expect(result.notifications.ads).toBe(true)
+  })
+
+  it('leaves the avatar alone when the request names an image URL', async () => {
+    const request = Schema.decodeUnknownSync(UserSettingsUpdateRequest)({
+      bio: 'New bio',
+      image: 'https://tracker.example/pixel.png',
+    })
+
+    const result = await Effect.runPromise(
+      updateUserSettings(request).pipe(
+        Effect.provide(createTestLayer('user-2'))
+      )
+    )
+
+    expect({ bio: result.bio, image: result.image }).toEqual({
+      bio: 'New bio',
+      image: 'https://example.com/avatar.png',
+    })
   })
 
   it('should fail with UserNotFoundError when user does not exist', async () => {

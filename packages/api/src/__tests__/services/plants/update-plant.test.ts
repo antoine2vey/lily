@@ -120,6 +120,54 @@ describe('updatePlant', () => {
     expect(result.health).toBe('THRIVING')
   })
 
+  describe('image', () => {
+    const edit = async (stored: string | null, imageUrl: string) => {
+      const [first] = mockPlants
+      if (!first) throw new Error('no plant fixture')
+      const row = { ...first, imageUrl: stored }
+      const { layer } = createTestLayer([row])
+      const result = await Effect.runPromise(
+        updatePlant(toPlantWithRoom(row), permit, {
+          id: 'plant-1',
+          name: 'Renamed',
+          imageUrl,
+        }).pipe(Effect.provide(layer))
+      )
+      return { name: result.name, imageUrl: result.imageUrl }
+    }
+
+    it.each([
+      ['a URL on another host', 'https://tracker.example/pixel.jpg'],
+      [
+        "another account's public photo",
+        'https://storage.googleapis.com/mock-bucket/users/user-2/avatars/face.png',
+      ],
+    ])('keeps the stored image for %s', async (_case, imageUrl) => {
+      const stored =
+        'https://storage.googleapis.com/mock-bucket/plants/plant-1/own.jpg'
+
+      expect(await edit(stored, imageUrl)).toEqual({
+        name: 'Renamed',
+        imageUrl: stored,
+      })
+    })
+
+    it('keeps the stored image when the edit screen sends it back', async () => {
+      const stored = 'https://example.com/from-before.jpg'
+
+      expect(await edit(stored, stored)).toEqual({
+        name: 'Renamed',
+        imageUrl: stored,
+      })
+    })
+
+    it('stores the path of a file on the device as an older build sent it', async () => {
+      const uri = 'file:///var/mobile/Containers/Data/tmp/photo.jpg'
+
+      expect(await edit(null, uri)).toEqual({ name: 'Renamed', imageUrl: uri })
+    })
+  })
+
   describe('reminders', () => {
     it('stores the switch and asks Reminders to plan the plant again', async () => {
       const { layer, outbox } = createTestLayer()
