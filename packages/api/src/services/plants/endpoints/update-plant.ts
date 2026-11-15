@@ -8,6 +8,7 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
+import { deviceFile } from '@lily/api/services/helpers/client-image'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import { frequencyChanges } from '@lily/api/services/plants/helpers/schedule-frequencies'
 import type { RoomNotFoundError } from '@lily/shared'
@@ -59,7 +60,8 @@ export const updatePlant = (
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
     yield* assertRoomFits(request.roomId, plant.owner)
 
-    // If an image file was uploaded, upload to GCS and use the URL
+    // An uploaded file becomes the image. A URL in the request is dropped:
+    // the edit screen only sends back the one the plant already has.
     const imageUrl = image
       ? yield* Effect.gen(function* () {
           const gcs = yield* GCSService
@@ -71,7 +73,7 @@ export const updatePlant = (
           })
           return url
         })
-      : Option.getOrUndefined(Option.fromNullishOr(request.imageUrl))
+      : Option.getOrUndefined(deviceFile(request.imageUrl))
 
     // Build update data from request, excluding care-related fields
     const data = pipe(

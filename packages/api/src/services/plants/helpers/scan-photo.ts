@@ -1,19 +1,20 @@
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import {
+  ClientImage,
+  readClientImage,
+} from '@lily/api/services/helpers/client-image'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { GCSService } from '@lily/shared/services/file/gcs'
-import {
-  plantFolder,
-  scopePrefix,
-} from '@lily/shared/services/file/stored-object'
-import { Effect, Option, pipe, String, Struct } from 'effect'
+import { plantFolder } from '@lily/shared/services/file/stored-object'
+import { Effect, Struct } from 'effect'
 
 /**
  * Creates a plant from a request whose image may be a scan photo. A scan
  * answers with a signed URL of the private bucket, which expires, so the
- * plant gets a public copy of the caller's own scan photo instead. Any other
- * private object is not the caller's to show and the plant gets no image.
+ * plant gets a public copy of the caller's own scan photo instead. A device
+ * file is stored as sent. Any other reference is not the caller's to show and
+ * the plant gets no image.
  */
 export const withScanPhoto = <E, R>(
   request: EnhancedPlantCreateRequest,
@@ -22,40 +23,35 @@ export const withScanPhoto = <E, R>(
   Effect.gen(function* () {
     const gcs = yield* GCSService
     const repo = yield* PlantRepository
-    const { id: userId } = yield* CurrentUser
+    if (request.imageUrl === undefined) return yield* create(request)
 
-    const privateKey = pipe(
-      Option.fromNullishOr(request.imageUrl),
-      Option.flatMap(gcs.locate),
-      Option.filter((object) => object.bucket === 'ai'),
-      Option.map((object) => object.key)
-    )
-    if (Option.isNone(privateKey)) return yield* create(request)
+    const withoutImage = Struct.omit(request, ['imageUrl'])
+    const image = yield* readClientImage(request.imageUrl)
 
-    const plant = yield* create(Struct.omit(request, ['imageUrl']))
-    const stored = yield* repo.findById(plant.id)
-    if (
-      !stored ||
-      !String.startsWith(scopePrefix({ _tag: 'User', userId }))(
-        privateKey.value
-      )
-    ) {
-      return plant
-    }
+    return yield* ClientImage.$match(image, {
+      DeviceFile: () => create(request),
+      Untrusted: () => create(withoutImage),
+      OwnUpload: ({ key }) =>
+        Effect.gen(function* () {
+          const plant = yield* create(withoutImage)
+          const stored = yield* repo.findById(plant.id)
+          if (!stored) return plant
 
-    return yield* gcs.publish(privateKey.value, plantFolder(plant.id)).pipe(
-      Effect.tap(({ url }) =>
-        repo.update(plant.id, ownerOf(stored), { imageUrl: url })
-      ),
-      Effect.map(({ url }) => ({ ...plant, imageUrl: url })),
-      Effect.catchTag('GCSPublishError', (error) =>
-        Effect.as(
-          Effect.logError('Plant created without its scan photo', {
-            plantId: plant.id,
-            error,
-          }),
-          plant
-        )
-      )
-    )
+          return yield* gcs.publish(key, plantFolder(plant.id)).pipe(
+            Effect.tap(({ url }) =>
+              repo.update(plant.id, ownerOf(stored), { imageUrl: url })
+            ),
+            Effect.map(({ url }) => ({ ...plant, imageUrl: url })),
+            Effect.catchTag('GCSPublishError', (error) =>
+              Effect.as(
+                Effect.logError('Plant created without its scan photo', {
+                  plantId: plant.id,
+                  error,
+                }),
+                plant
+              )
+            )
+          )
+        }),
+    })
   }).pipe(Effect.withSpan('PlantsService.withScanPhoto'))
