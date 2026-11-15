@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-router'
 import { Option } from 'effect'
 import { type ReactNode, useEffect } from 'react'
-import { ConsentBanner } from '@/components/site/ConsentBanner'
+import { ConsentBanner, ConsentSettings } from '@/components/site/ConsentBanner'
 import { defaultLocale, isLocale } from '@/i18n'
 import { setAnalytics } from '@/lib/analytics'
 import { onChoice } from '@/lib/consent'
@@ -65,6 +65,7 @@ function RootDocument() {
     <Html lang={Option.getOrElse(known, () => defaultLocale)}>
       <ConsentBanner locale={known} />
       <Outlet />
+      {Option.isNone(known) && <ConsentSettings />}
     </Html>
   )
 }

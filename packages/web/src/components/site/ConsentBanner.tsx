@@ -1,11 +1,12 @@
 import { Link } from '@tanstack/react-router'
-import { Option, String } from 'effect'
-import { useEffect, useRef } from 'react'
+import { Option } from 'effect'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { type Locale, messagesFor } from '@/i18n'
-import { decide, useConsent } from '@/lib/consent'
+import { askAgain, decide, useConsent } from '@/lib/consent'
 
+// Native string methods on purpose: see the Effect rule in packages/web/CLAUDE.md.
 const browserLocale = (): Locale =>
-  String.startsWith('fr')(navigator.language) ? 'fr' : 'en'
+  navigator.language.startsWith('fr') ? 'fr' : 'en'
 
 export function ConsentBanner({ locale }: { locale: Option.Option<Locale> }) {
   const { asking, choice } = useConsent()
@@ -14,6 +15,25 @@ export function ConsentBanner({ locale }: { locale: Option.Option<Locale> }) {
       locale={Option.getOrElse(locale, browserLocale)}
       reopened={Option.isSome(choice)}
     />
+  ) : null
+}
+
+const neverChanges = () => () => {}
+const useHydrated = () =>
+  useSyncExternalStore(
+    neverChanges,
+    () => true,
+    () => false
+  )
+
+// A page outside a locale has no footer, so the root route gives it this way back to the banner.
+export function ConsentSettings() {
+  return useHydrated() ? (
+    <p className="m-consent-settings">
+      <button type="button" onClick={askAgain}>
+        {messagesFor(browserLocale()).Consent.settings}
+      </button>
+    </p>
   ) : null
 }
 

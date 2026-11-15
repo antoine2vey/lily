@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Array, Option } from 'effect'
 import { en } from '../src/i18n/en'
+import { fr } from '../src/i18n/fr'
 
 // usage: bun scripts/consent-check.ts [base=http://127.0.0.1:8088]
 // Drives headless Chrome over CDP against the prerendered build (`preview`) and fails when the site contacts Google
@@ -238,6 +239,19 @@ try {
   await evaluate(`localStorage.clear()`)
   await open('/join/abc')
   await step('fresh visit to the join page', { banner: true, ...NONE })
+
+  // The join page has no locale in its path, so it follows the browser language.
+  const join = (await evaluate<string>('navigator.language')).startsWith('fr')
+    ? fr
+    : en
+  await clickButton(join.Consent.refuse)
+  await until('banner closed', `!(${BANNER})`)
+  await clickButton(join.Consent.settings)
+  await until('banner', BANNER)
+  await step('join page, banner reopened from its own button', {
+    banner: true,
+    ...NONE,
+  })
 } catch (error) {
   failed = true
   console.log(`FAIL ${error instanceof Error ? error.message : String(error)}`)
