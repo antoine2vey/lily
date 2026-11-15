@@ -24,7 +24,7 @@ const defaultPlant: PlantForAdjustment = {
   id: 'plant-1',
   category: 'Foliage',
   wateringFrequencyDays: 7,
-  wateringRating: 3,
+  wateringRating: 50,
   isOutdoor: false,
 }
 
@@ -40,7 +40,7 @@ describe('calculatePlantAdjustment', () => {
   describe('crop coefficient mapping', () => {
     it('should use category-specific Kc for known categories', () => {
       const result = calculatePlantAdjustment(
-        { ...defaultPlant, category: 'Succulent', wateringRating: 3 },
+        { ...defaultPlant, category: 'Succulent', wateringRating: 50 },
         mockWeatherDataModerate,
         []
       )
@@ -67,12 +67,12 @@ describe('calculatePlantAdjustment', () => {
 
     it('should modify Kc based on wateringRating', () => {
       const lowRating = calculatePlantAdjustment(
-        { ...defaultPlant, wateringRating: 1 },
+        { ...defaultPlant, wateringRating: 10 },
         mockWeatherDataModerate,
         []
       )
       const highRating = calculatePlantAdjustment(
-        { ...defaultPlant, wateringRating: 5 },
+        { ...defaultPlant, wateringRating: 90 },
         mockWeatherDataModerate,
         []
       )

@@ -1123,7 +1123,7 @@ export const makeSchedulePlant = (
   return {
     id: 'test-plant',
     category: 'Foliage',
-    wateringRating: 3,
+    wateringRating: 50,
     lastWateredAt: new Date(now - 3 * oneDayMs),
     nextWateringAt: new Date(now + (freq - 3) * oneDayMs),
     nextFertilizationAt: null,
@@ -1137,7 +1137,7 @@ export const indoorFoliage7d = makeSchedulePlant({
   id: 'indoor-foliage-7d',
   category: 'Foliage',
   wateringFrequencyDays: 7,
-  wateringRating: 3,
+  wateringRating: 50,
   isOutdoor: false,
 })
 
@@ -1146,7 +1146,7 @@ export const indoorSucculent14d = makeSchedulePlant({
   id: 'indoor-succulent-14d',
   category: 'Succulent',
   wateringFrequencyDays: 14,
-  wateringRating: 1,
+  wateringRating: 10,
   isOutdoor: false,
 })
 
@@ -1155,7 +1155,7 @@ export const indoorTropical3d = makeSchedulePlant({
   id: 'indoor-tropical-3d',
   category: 'Tropical',
   wateringFrequencyDays: 3,
-  wateringRating: 5,
+  wateringRating: 90,
   isOutdoor: false,
 })
 
@@ -1164,7 +1164,7 @@ export const outdoorFoliage7d = makeSchedulePlant({
   id: 'outdoor-foliage-7d',
   category: 'Foliage',
   wateringFrequencyDays: 7,
-  wateringRating: 3,
+  wateringRating: 50,
   isOutdoor: true,
 })
 
@@ -1173,7 +1173,7 @@ export const outdoorHerbs5d = makeSchedulePlant({
   id: 'outdoor-herbs-5d',
   category: 'Herb',
   wateringFrequencyDays: 5,
-  wateringRating: 3,
+  wateringRating: 50,
   isOutdoor: true,
 })
 
@@ -1182,7 +1182,7 @@ export const outdoorTropical3d = makeSchedulePlant({
   id: 'outdoor-tropical-3d',
   category: 'Tropical',
   wateringFrequencyDays: 3,
-  wateringRating: 5,
+  wateringRating: 90,
   isOutdoor: true,
 })
 
@@ -1191,6 +1191,6 @@ export const noRoomFoliage7d = makeSchedulePlant({
   id: 'no-room-foliage-7d',
   category: 'Foliage',
   wateringFrequencyDays: 7,
-  wateringRating: 3,
+  wateringRating: 50,
   isOutdoor: false,
 })

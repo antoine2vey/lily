@@ -144,23 +144,23 @@ describe('orientationFactor', () => {
 
 describe('roomFitFactor', () => {
   it('null luminosity is neutral with gap 0', () => {
-    expect(roomFitFactor(null, 3, 'Foliage')).toEqual({ factor: 1, gap: 0 })
+    expect(roomFitFactor(null, 50, 'Foliage')).toEqual({ factor: 1, gap: 0 })
   })
 
   it('matched room/plant level → neutral; dimmer → lower; brighter → higher', () => {
-    // lightingRating 3 → need level 3 (2000 lux)
-    expect(roomFitFactor(2000, 3, 'Foliage').factor).toBeCloseTo(1, 5)
-    expect(roomFitFactor(100, 3, 'Foliage').factor).toBeLessThan(1) // dim
-    expect(roomFitFactor(40000, 3, 'Foliage').factor).toBeGreaterThan(1) // bright
+    // lightingRating 50 → need level 3 (2000 lux)
+    expect(roomFitFactor(2000, 50, 'Foliage').factor).toBeCloseTo(1, 5)
+    expect(roomFitFactor(100, 50, 'Foliage').factor).toBeLessThan(1) // dim
+    expect(roomFitFactor(40000, 50, 'Foliage').factor).toBeGreaterThan(1) // bright
   })
 
   it('dim room two+ levels below need flags the veto gap', () => {
-    // lightingRating 4 → need level 4; room 100 lux → level 1; gap = -3
-    expect(roomFitFactor(100, 4, 'Foliage').gap).toBeLessThanOrEqual(-2)
+    // lightingRating 70 → need level 4; room 100 lux → level 1; gap = -3
+    expect(roomFitFactor(100, 70, 'Foliage').gap).toBeLessThanOrEqual(-2)
   })
 
   it('CAM plants (succulent/cactus) are capped — a bright room cannot accelerate', () => {
-    const succulent = roomFitFactor(40000, 2, 'Succulent').factor
+    const succulent = roomFitFactor(40000, 30, 'Succulent').factor
     expect(succulent).toBeLessThanOrEqual(1.05)
   })
 })
@@ -185,21 +185,21 @@ describe('skyFactor', () => {
 
 describe('indoorVpdFactor', () => {
   it('cold outdoors (heating → dry air) raises demand above warm shoulder weather', () => {
-    const cold = indoorVpdFactor(-5, 3)
-    const mild = indoorVpdFactor(18, 3)
+    const cold = indoorVpdFactor(-5, 50)
+    const mild = indoorVpdFactor(18, 50)
     expect(cold).toBeGreaterThan(mild)
     expect(cold).toBeGreaterThan(1)
   })
 
   it('high-humidity-loving plants (high humidityRating) are penalised more by dry air', () => {
-    const fern = indoorVpdFactor(-5, 5)
-    const cactus = indoorVpdFactor(-5, 1)
+    const fern = indoorVpdFactor(-5, 90)
+    const cactus = indoorVpdFactor(-5, 10)
     expect(fern).toBeGreaterThan(cactus)
   })
 
   it('stays within [0.85, 1.25]', () => {
     for (const temp of [-15, 0, 15, 30, 40]) {
-      for (const rating of [1, 3, 5]) {
+      for (const rating of [10, 50, 90]) {
         const f = indoorVpdFactor(temp, rating)
         expect(f).toBeGreaterThanOrEqual(0.85)
         expect(f).toBeLessThanOrEqual(1.25)
@@ -217,8 +217,8 @@ describe('calculateIndoorDemandFactor', () => {
     category: 'Foliage',
     roomLuminosity: 2000,
     roomOrientation: null,
-    lightingRating: 3,
-    humidityRating: 3,
+    lightingRating: 50,
+    humidityRating: 50,
     ...overrides,
   })
 
@@ -238,8 +238,8 @@ describe('calculateIndoorDemandFactor', () => {
     const demand = calculateIndoorDemandFactor(
       base({
         day: makeDay({ date: '2026-02-10', temperatureMean: -5 }), // dry heated air
-        roomLuminosity: 80, // level 1, vs lightingRating 4 → veto
-        lightingRating: 4,
+        roomLuminosity: 80, // level 1, vs lightingRating 70 → veto
+        lightingRating: 70,
       })
     )
     expect(demand).toBeLessThanOrEqual(1)

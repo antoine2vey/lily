@@ -59,8 +59,8 @@ const baseInput = (
   category: 'Foliage',
   roomLuminosity: 2000,
   roomOrientation: null,
-  lightingRating: 3,
-  humidityRating: 3,
+  lightingRating: 50,
+  humidityRating: 50,
   ...overrides,
 })
 
@@ -117,14 +117,14 @@ describe('calculateIndoorDemandFactor — composition properties', () => {
   })
 
   it('brighter room raises demand below the veto (gap -1 vs gap 0)', () => {
-    // lightingRating 1 → need level 1. Room at level 1 (gap 0) vs level 2
+    // lightingRating 10 → need level 1. Room at level 1 (gap 0) vs level 2
     // (gap +1) — both above the veto, brighter must not lower demand.
     const day = makeDay({ date: JUNE, temperatureMean: 20 })
     const matched = calculateIndoorDemandFactor(
-      baseInput({ day, lightingRating: 1, roomLuminosity: 100 })
+      baseInput({ day, lightingRating: 10, roomLuminosity: 100 })
     )
     const brighter = calculateIndoorDemandFactor(
-      baseInput({ day, lightingRating: 1, roomLuminosity: 500 })
+      baseInput({ day, lightingRating: 10, roomLuminosity: 500 })
     )
     expect(brighter).toBeGreaterThanOrEqual(matched)
   })
@@ -132,13 +132,13 @@ describe('calculateIndoorDemandFactor — composition properties', () => {
   it('dim gap<=-2 room is capped <=1.0 while a gap==-1 room may exceed it', () => {
     // Bright summer day + dry heated air would normally push demand > 1.
     const day = makeDay({ date: JUNE, temperatureMean: -5 })
-    // lightingRating 4 → need level 4. Room level 2 (gap -2) → veto.
+    // lightingRating 70 → need level 4. Room level 2 (gap -2) → veto.
     const vetoed = calculateIndoorDemandFactor(
-      baseInput({ day, lightingRating: 4, roomLuminosity: 500 })
+      baseInput({ day, lightingRating: 70, roomLuminosity: 500 })
     )
-    // lightingRating 3 → need level 3. Room level 2 (gap -1) → no veto.
+    // lightingRating 50 → need level 3. Room level 2 (gap -1) → no veto.
     const mildDim = calculateIndoorDemandFactor(
-      baseInput({ day, lightingRating: 3, roomLuminosity: 500 })
+      baseInput({ day, lightingRating: 50, roomLuminosity: 500 })
     )
     expect(vetoed).toBeLessThanOrEqual(1)
     expect(mildDim).toBeGreaterThan(vetoed)
@@ -233,10 +233,10 @@ const basePlant = (
   id: 'plant-1',
   category: 'Foliage',
   wateringFrequencyDays: 7,
-  wateringRating: 3,
+  wateringRating: 50,
   isOutdoor: false,
-  lightingRating: 3,
-  humidityRating: 3,
+  lightingRating: 50,
+  humidityRating: 50,
   roomLuminosity: 40000,
   roomOrientation: 'S',
   ...overrides,
