@@ -88,38 +88,44 @@ describe('eraseAccountPhotos', () => {
     const gcs = createInMemoryGCS()
     stored(gcs, {
       plant: [
-        '1700-avatars/alex/a.png',
-        '1700-plants/fern/a.png',
-        '1700-detect/scan.png',
-        '1699-IMG_0042.jpg',
-        '1700-detect/somebody-else.png',
+        '1700000000000-avatars/alex/a.png',
+        '1700000000000-plants/fern/a.png',
+        '1700000000000-detect/scan.png',
+        '1699000000000-IMG_0042.jpg',
+        '1700000000000-detect/somebody-else.png',
       ],
-      ai: ['1700-chat/c1/a.png', '1700-scan-card/unreferenced.png'],
+      ai: [
+        '1700000000000-chat/c1/a.png',
+        '1700000000000-scan-card/unreferenced.png',
+      ],
     })
 
     const exit = await erase(gcs, {
       plantIds: ['fern'],
-      uploaded: [mockPublicUrl('1700-plants/fern/a.png'), '1700-chat/c1/a.png'],
+      uploaded: [
+        mockPublicUrl('1700000000000-plants/fern/a.png'),
+        '1700000000000-chat/c1/a.png',
+      ],
       claimed: [
-        mockPublicUrl('1700-avatars/alex/a.png'),
-        mockPublicUrl('1700-detect/scan.png'),
-        mockPublicUrl('1699-IMG_0042.jpg'),
+        mockPublicUrl('1700000000000-avatars/alex/a.png'),
+        mockPublicUrl('1700000000000-detect/scan.png'),
+        mockPublicUrl('1699000000000-IMG_0042.jpg'),
       ],
     })
 
     expect(Exit.isSuccess(exit)).toBe(true)
     expect(left(gcs)).toEqual({
-      plant: ['1700-detect/somebody-else.png'],
-      ai: ['1700-scan-card/unreferenced.png'],
+      plant: ['1700000000000-detect/somebody-else.png'],
+      ai: ['1700000000000-scan-card/unreferenced.png'],
     })
   })
 
   it('keeps an object that the account only claims in a column the client writes', async () => {
     const gcs = createInMemoryGCS()
     const theirs = [
-      '1700-avatars/sam/a.png',
-      '1700-plants/sams-ficus/a.png',
-      '1700-detect/sams-scan.png',
+      '1700000000000-avatars/sam/a.png',
+      '1700000000000-plants/sams-ficus/a.png',
+      '1700000000000-detect/sams-scan.png',
       'users/sam/avatars/a.png',
       'plants/sams-ficus/a.png',
       'catalog/monstera.png',
@@ -135,7 +141,7 @@ describe('eraseAccountPhotos', () => {
           'https://lh3.googleusercontent.com/a/oauth-avatar',
         ],
       },
-      [mockPublicUrl('1700-detect/sams-scan.png')]
+      [mockPublicUrl('1700000000000-detect/sams-scan.png')]
     )
 
     expect(Exit.isSuccess(exit)).toBe(true)

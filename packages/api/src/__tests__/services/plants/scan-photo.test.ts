@@ -85,7 +85,7 @@ describe('withScanPhoto', () => {
 
   it.each([
     ["another user's scan photo", 'users/user-2/detect/scan.png'],
-    ['a private photo from before scopes', '1700-scan-card/scan.png'],
+    ['a private photo from before scopes', '1700000000000-scan-card/scan.png'],
   ])('creates the plant without an image for %s', async (_case, key) => {
     const result = await createFrom(signed(key), [key])
 
@@ -97,7 +97,7 @@ describe('withScanPhoto', () => {
   })
 
   it('leaves a public URL as the request gave it', async () => {
-    const url = mockPublicUrl('1700-detect/scan.png')
+    const url = mockPublicUrl('1700000000000-detect/scan.png')
 
     const result = await createFrom(url, [])
 

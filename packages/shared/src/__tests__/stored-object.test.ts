@@ -22,8 +22,8 @@ describe('locateStoredObject', () => {
     ],
     [
       'a bare key, which only the ai bucket is stored as',
-      '1700-chat/c1/a.png',
-      { bucket: 'ai', key: '1700-chat/c1/a.png' },
+      '1700000000000-chat/c1/a.png',
+      { bucket: 'ai', key: '1700000000000-chat/c1/a.png' },
     ],
     [
       'a percent-encoded key',
@@ -42,7 +42,7 @@ describe('locateStoredObject', () => {
     ['an empty string', ''],
     [
       'a malformed escape',
-      'https://storage.googleapis.com/lily-plants/1700-detect/%E0%A4%A.png',
+      'https://storage.googleapis.com/lily-plants/1700000000000-detect/%E0%A4%A.png',
     ],
   ])('finds nothing for %s', (_case, ref) => {
     expect(locate(ref)).toEqual(Option.none())
@@ -51,17 +51,17 @@ describe('locateStoredObject', () => {
 
 describe('legacyOwnerOf', () => {
   it.each([
-    ['1700-avatars/u1/a.png', { _tag: 'Avatar', userId: 'u1' }],
-    ['1700-avatars/u1-1699.png', { _tag: 'Avatar', userId: 'u1' }],
+    ['1700000000000-avatars/u1/a.png', { _tag: 'Avatar', userId: 'u1' }],
+    ['1700000000000-avatars/u1-1699.png', { _tag: 'Avatar', userId: 'u1' }],
     [
-      '1700-avatars/3f0c8a52-1b7e-4d0a-9c1e-123456789012-1699.jpg',
+      '1700000000000-avatars/3f0c8a52-1b7e-4d0a-9c1e-123456789012-1699.jpg',
       { _tag: 'Avatar', userId: '3f0c8a52-1b7e-4d0a-9c1e-123456789012' },
     ],
-    ['1700-plants/p1/a.png', { _tag: 'Plant', plantId: 'p1' }],
-    ['1700-detect/a.png', { _tag: 'Unnamed' }],
-    ['1700-chat/c1/a.png', { _tag: 'Unnamed' }],
-    ['1700-IMG_0042.jpg', { _tag: 'Unnamed' }],
-    ['1700-scan-card-1699.jpg', { _tag: 'Unnamed' }],
+    ['1700000000000-plants/p1/a.png', { _tag: 'Plant', plantId: 'p1' }],
+    ['1700000000000-detect/a.png', { _tag: 'Unnamed' }],
+    ['1700000000000-chat/c1/a.png', { _tag: 'Unnamed' }],
+    ['1700000000000-IMG_0042.jpg', { _tag: 'Unnamed' }],
+    ['1700000000000-scan-card-1699.jpg', { _tag: 'Unnamed' }],
   ])('reads the owner of %s', (key, owner) => {
     expect(legacyOwnerOf(key)).toEqual(Option.some(owner))
   })
@@ -71,6 +71,8 @@ describe('legacyOwnerOf', () => {
     'plants/p1/a.png',
     'avatars/u1/a.png',
     'catalog/monstera.png',
+    '1-detect/a.png',
+    '170000000000-detect/a.png',
   ])('is not a legacy upload: %s', (key) => {
     expect(legacyOwnerOf(key)).toEqual(Option.none())
   })

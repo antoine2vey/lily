@@ -8,6 +8,7 @@ import {
   plants,
   users,
 } from '@lily/db/schema'
+import { STAMP_DISGUISE } from '@lily/shared/services/file/stored-object'
 import {
   and,
   type Column,
@@ -55,9 +56,6 @@ export class AccountPhotoRepository extends Context.Service<
   AccountPhotoRepository,
   IAccountPhotoRepository
 >()('AccountPhotoRepository') {}
-
-// A URL that percent-encodes a digit hides the stamp from a `like`.
-const ENCODED_DIGIT = '%3[0-9]'
 
 const present = <A>(values: readonly (A | null)[]): A[] =>
   Array.getSomes(Array.map(values, Option.fromNullishOr))
@@ -141,8 +139,10 @@ export const AccountPhotoRepositoryLive = Layer.effect(
             Array.map(stamps, (stamp) => sql`${`%${stamp}%`}`),
             sql`, `
           )
+          const readable = (column: Column) =>
+            sql`translate(${column}, ${STAMP_DISGUISE.ignored}, '')`
           const maySpell = (column: Column) =>
-            sql<boolean>`(${column} like any (array[${patterns}]::text[]) or ${column} ~ ${ENCODED_DIGIT})`
+            sql<boolean>`(${readable(column)} like any (array[${patterns}]::text[]) or ${readable(column)} ~ ${STAMP_DISGUISE.encodedDigit})`
           const notTheirPlant = or(
             isNull(plants.userId),
             ne(plants.userId, userId)

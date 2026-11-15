@@ -17,13 +17,16 @@ import {
 } from '@lily/shared/services/file/stored-object'
 import { Array, Effect, Layer } from 'effect'
 
-const BUCKET_NAMES = { plant: 'mock-bucket', ai: 'mock-private-bucket' }
+export const MOCK_BUCKET_NAMES = {
+  plant: 'mock-bucket',
+  ai: 'mock-private-bucket',
+}
 
 export const mockPublicUrl = (key: string) =>
-  `https://storage.googleapis.com/${BUCKET_NAMES.plant}/${key}`
+  `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.plant}/${key}`
 
 const signedUrl = (key: string, query: string) =>
-  `https://storage.googleapis.com/${BUCKET_NAMES.ai}/${key}?${query}`
+  `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/${key}?${query}`
 
 /**
  * GCS held in memory: uploads land in `objects`, deletes remove them, and
@@ -57,7 +60,7 @@ export const createInMemoryGCS = (
       Effect.map(save('plant', request), ({ key }) => ({
         key,
         url: mockPublicUrl(key),
-        bucketName: BUCKET_NAMES.plant,
+        bucketName: MOCK_BUCKET_NAMES.plant,
         uploadedAt: new Date(),
       })),
 
@@ -86,12 +89,12 @@ export const createInMemoryGCS = (
         ({ key }) => ({
           key,
           url: signedUrl(key, 'signed=true'),
-          bucketName: BUCKET_NAMES.ai,
+          bucketName: MOCK_BUCKET_NAMES.ai,
           uploadedAt: new Date(),
         })
       ),
 
-    locate: locateStoredObject(BUCKET_NAMES),
+    locate: locateStoredObject(MOCK_BUCKET_NAMES),
 
     publish: (
       key: string,

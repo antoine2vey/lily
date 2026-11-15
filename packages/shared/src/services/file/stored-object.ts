@@ -79,13 +79,23 @@ export type LegacyOwner =
   | { readonly _tag: 'Plant'; readonly plantId: string }
   | { readonly _tag: 'Unnamed' }
 
-const LEGACY_STAMP = /^(\d+)-/
+const LEGACY_STAMP = /^(\d{13,})-/
 const LEGACY_NAMED = /^\d+-(avatars|plants)\/(.+?)(?:\/|-\d+\.)/
 
 /**
- * The epoch digits an older key starts with. Percent-encoding leaves digits
- * as they are, so every spelling of a URL of that key contains them.
+ * How a URL can hide the stamp of an older key from a text search, although
+ * `locateStoredObject` still reads the key out of it. The URL parser drops
+ * `ignored` characters wherever they are, and a digit may be percent-encoded.
+ * Search for the stamp with `ignored` removed, and take any URL that matches
+ * `encodedDigit` as well. The spellings table in
+ * `account-photo-refs-outside.integration.test.ts` holds both sides to this.
  */
+export const STAMP_DISGUISE = {
+  ignored: '\t\n\r',
+  encodedDigit: '%3[0-9]',
+} as const
+
+/** The epoch millis an older key starts with. */
 export const legacyStampOf = (key: string): Option.Option<string> =>
   pipe(
     key,

@@ -190,24 +190,24 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         `users/${alex}/avatars/replaced.png`,
         `plants/${fern}/hero.png`,
         `plants/${fern}/replaced.png`,
-        `1700-plants/${fern}/old.png`,
-        `1700-avatars/${alex}/old.png`,
-        '1700-detect/alex-scan.png',
-        '1699-IMG_0042.jpg',
+        `1700000000000-plants/${fern}/old.png`,
+        `1700000000000-avatars/${alex}/old.png`,
+        '1700000000000-detect/alex-scan.png',
+        '1699000000000-IMG_0042.jpg',
       ]
       const alexPrivate = [
         `users/${alex}/detect/never-kept.png`,
         `users/${alex}/identify/never-kept.png`,
         `users/${alex}/scan-card/never-kept.png`,
         `users/${alex}/chat/${conversation.id}/sent.png`,
-        `1700-chat/${conversation.id}/old.png`,
-        `1700-chat/${conversation.id}/diagnosed.png`,
+        `1700000000000-chat/${conversation.id}/old.png`,
+        `1700000000000-chat/${conversation.id}/diagnosed.png`,
       ]
       const othersPublic = [
         `plants/${ficus}/hero.png`,
         `users/${sam}/avatars/now.png`,
         `plants/${samsPlant}/hero.png`,
-        '1700-detect/sam-scan.png',
+        '1700000000000-detect/sam-scan.png',
       ]
       const othersPrivate = [`users/${sam}/detect/never-kept.png`]
       store('plant', [...alexPublic, ...othersPublic])
@@ -215,11 +215,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       await db
         .update(schema.users)
-        .set({ image: mockPublicUrl(`1700-avatars/${alex}/old.png`) })
+        .set({ image: mockPublicUrl(`1700000000000-avatars/${alex}/old.png`) })
         .where(eq(schema.users.id, alex))
       await db
         .update(schema.plants)
-        .set({ imageUrl: mockPublicUrl('1700-detect/alex-scan.png') })
+        .set({ imageUrl: mockPublicUrl('1700000000000-detect/alex-scan.png') })
         .where(eq(schema.plants.id, fern))
       await db
         .update(schema.plants)
@@ -227,20 +227,23 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(eq(schema.plants.id, ficus))
       await db
         .update(schema.plants)
-        .set({ imageUrl: mockPublicUrl('1700-detect/sam-scan.png') })
+        .set({ imageUrl: mockPublicUrl('1700000000000-detect/sam-scan.png') })
         .where(eq(schema.plants.id, samsPlant))
       await db
         .update(schema.plants)
-        .set({ imageUrl: mockPublicUrl('1700-detect/sam-scan.png') })
+        .set({ imageUrl: mockPublicUrl('1700000000000-detect/sam-scan.png') })
         .where(eq(schema.plants.id, cactus))
       await db.insert(schema.plantPhotos).values([
-        { plantId: fern, url: mockPublicUrl(`1700-plants/${fern}/old.png`) },
-        { plantId: fern, url: mockPublicUrl('1699-IMG_0042.jpg') },
+        {
+          plantId: fern,
+          url: mockPublicUrl(`1700000000000-plants/${fern}/old.png`),
+        },
+        { plantId: fern, url: mockPublicUrl('1699000000000-IMG_0042.jpg') },
       ])
       await db.insert(schema.chatMessages).values({
         role: 'user',
         content: 'What is this?',
-        imageKey: `1700-chat/${conversation.id}/old.png`,
+        imageKey: `1700000000000-chat/${conversation.id}/old.png`,
         userId: alex,
         conversationId: conversation.id,
       })
@@ -252,7 +255,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         confidence: 80,
         symptoms: [],
         treatmentSteps: [],
-        imageKey: `1700-chat/${conversation.id}/diagnosed.png`,
+        imageKey: `1700000000000-chat/${conversation.id}/diagnosed.png`,
       })
 
       return {
@@ -346,7 +349,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ],
       [
         'a percent-encoded key',
-        (url: string) => url.replace('1700-detect', '1700%2Ddetect'),
+        (url: string) =>
+          url.replace('1700000000000-detect', '1700000000000%2Ddetect'),
       ],
     ])(
       "keeps another account's plant image that a plant of the account points at with %s",
@@ -355,15 +359,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const sam = await user('sam')
         const samsPlant = await plant({ userId: sam }, sam)
         const alexPlant = await plant({ userId: alex }, alex)
-        const samsImage = mockPublicUrl('1700-detect/sam-scan.png')
-        store('plant', ['1700-detect/sam-scan.png'])
+        const samsImage = mockPublicUrl('1700000000000-detect/sam-scan.png')
+        store('plant', ['1700000000000-detect/sam-scan.png'])
         await setPlantImage(samsPlant, samsImage)
         await setPlantImage(alexPlant, variant(samsImage))
 
         const purged = await purge(alex)
 
         expect(outcome(purged)).toBe('ok')
-        expect(stored().plant).toEqual(['1700-detect/sam-scan.png'])
+        expect(stored().plant).toEqual(['1700000000000-detect/sam-scan.png'])
       }
     )
 
@@ -377,7 +381,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .values({ userId: sam, kind: 'plant', plantId: ficus })
         .returning()
       if (!conversation) throw new Error('Failed to create conversation')
-      const key = `1700-chat/${conversation.id}/sick.png`
+      const key = `1700000000000-chat/${conversation.id}/sick.png`
       store('ai', [key])
       await db.insert(schema.chatMessages).values({
         role: 'user',
@@ -441,7 +445,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           .values({ userId: sam, kind: 'general' })
           .returning()
         if (!conversation) throw new Error('Failed to create conversation')
-        const key = `1700-chat/${conversation.id}/sick.png`
+        const key = `1700000000000-chat/${conversation.id}/sick.png`
         store('ai', [key])
         await hold(key, sam, conversation.id, samsPlant)
         await setAvatar(alex, privateUrl(key))
@@ -458,16 +462,44 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const sam = await user('sam')
       const samsPlant = await plant({ userId: sam }, sam)
       const fern = await plant({ userId: alex }, alex)
-      const image = mockPublicUrl('1700-detect/sam-scan.png')
-      store('plant', ['1700-detect/sam-scan.png'])
-      await setPlantImage(samsPlant, image.replace('1700-', '1%3700-'))
+      const image = mockPublicUrl('1700000000000-detect/sam-scan.png')
+      store('plant', ['1700000000000-detect/sam-scan.png'])
+      await setPlantImage(
+        samsPlant,
+        image.replace('1700000000000-', '1%3700000000000-')
+      )
       await setPlantImage(fern, image)
 
       const purged = await purge(alex)
 
       expect(outcome(purged)).toBe('ok')
-      expect(stored().plant).toEqual(['1700-detect/sam-scan.png'])
+      expect(stored().plant).toEqual(['1700000000000-detect/sam-scan.png'])
     })
+
+    it.each([
+      ['a tab', '\t'],
+      ['a line feed', '\n'],
+      ['a carriage return', '\r'],
+    ])(
+      'keeps an older photo that another account points at with %s inside the URL',
+      async (_case, ignored) => {
+        const alex = await user('alex')
+        const sam = await user('sam')
+        const samsPlant = await plant({ userId: sam }, sam)
+        const key = '1700000000000-detect/sam-scan.png'
+        store('plant', [key])
+        await setPlantImage(
+          samsPlant,
+          mockPublicUrl(key).replace('17000', `17${ignored}000`)
+        )
+        await setAvatar(alex, mockPublicUrl(key))
+
+        const purged = await purge(alex)
+
+        expect(outcome(purged)).toBe('ok')
+        expect(stored().plant).toEqual([key])
+      }
+    )
 
     it('keeps an older photo that a canopy plant shows', async () => {
       const alex = await user('alex')
@@ -475,15 +507,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const canopy = await canopyOf(sam, alex)
       const ficus = await plant({ canopyId: canopy }, sam)
       const fern = await plant({ userId: alex }, alex)
-      const shared = mockPublicUrl('1700-detect/ficus-scan.png')
-      store('plant', ['1700-detect/ficus-scan.png'])
+      const shared = mockPublicUrl('1700000000000-detect/ficus-scan.png')
+      store('plant', ['1700000000000-detect/ficus-scan.png'])
       await setPlantImage(ficus, shared)
       await setPlantImage(fern, shared)
 
       const purged = await purge(alex)
 
       expect(outcome(purged)).toBe('ok')
-      expect(stored().plant).toEqual(['1700-detect/ficus-scan.png'])
+      expect(stored().plant).toEqual(['1700000000000-detect/ficus-scan.png'])
     })
 
     it('purges every expired account when one of them has an avatar URL with a malformed escape', async () => {
@@ -494,7 +526,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db
         .update(schema.users)
         .set({ status: 'pending_deletion', deletedAt: longAgo })
-      await setAvatar(ids[0] ?? '', mockPublicUrl('1700-detect/%E0%A4%A.png'))
+      await setAvatar(
+        ids[0] ?? '',
+        mockPublicUrl('1700000000000-detect/%E0%A4%A.png')
+      )
 
       const swept = await sweep()
 
