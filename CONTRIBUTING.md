@@ -1,29 +1,29 @@
 # Contributing to Lily
 
-Thanks for your interest in contributing! This guide covers the dev setup, conventions, and the pull-request process. By participating you agree to our [Code of Conduct](CODE_OF_CONDUCT.md).
+Thanks for your interest in contributing. This guide covers the dev setup, the conventions and the pull request process. By taking part you agree to our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Ways to contribute
 
-- 🐛 **Report a bug** — [open a bug report](https://github.com/antoine2vey/lily/issues/new?template=bug_report.md).
-- 💡 **Suggest a feature** — [open a feature request](https://github.com/antoine2vey/lily/issues/new?template=feature_request.md).
-- 🔒 **Report a vulnerability** — privately, please: see [SECURITY.md](SECURITY.md). Do **not** open a public issue.
-- 🛠 **Send a pull request** — see the workflow below. For anything non-trivial, open an issue first so we can agree on the approach.
+- 🐛 **Report a bug.** [Open a bug report](https://github.com/antoine2vey/lily/issues/new?template=bug_report.md).
+- 💡 **Suggest a feature.** [Open a feature request](https://github.com/antoine2vey/lily/issues/new?template=feature_request.md).
+- 🔒 **Report a vulnerability** privately, as [SECURITY.md](SECURITY.md) explains. Do **not** open a public issue.
+- 🛠 **Send a pull request** with the workflow below. For anything non-trivial, open an issue first so we can agree on the approach.
 
 ## Prerequisites
 
-- [Bun 1.4.3](https://bun.sh) (pinned — match it exactly)
-- Docker (for local Postgres + Redis)
+- [Bun 1.4.3](https://bun.sh). Match the pinned version exactly.
+- Docker, for local Postgres and Redis.
 
 ## Getting started
 
 ```bash
-# 1. Fork & clone, then start local infrastructure
+# 1. Fork and clone, then start local infrastructure
 docker compose up -d postgres postgres-test redis
 
 # 2. Install all workspaces
 bun install
 
-# 3. Create your env file (placeholders only — fill in what you need)
+# 3. Create your env file (placeholders only; fill in what you need)
 cp .env.example .env
 
 # 4. Apply the database schema
@@ -44,11 +44,11 @@ bun run test       # Run all unit tests
 bun run dev        # Start development servers
 ```
 
-**Always run commands from the repository root** — never `cd` into a package. Turbo handles per-package execution.
+**Always run commands from the repository root.** Turbo runs each package's scripts, so you never `cd` into a package.
 
 ## Database
 
-Local credentials (dev-only, defined in `docker-compose.yml`): user `lily`, password `lily123`, database `lily` (dev) / `lily_test` (test).
+The local credentials are dev-only and defined in `docker-compose.yml`: user `lily`, password `lily123`, database `lily` for dev and `lily_test` for tests.
 
 ```bash
 docker compose exec postgres psql -U lily -d lily   # Connect
@@ -56,23 +56,23 @@ bun run --filter=@lily/db db:push                   # Push schema (local dev)
 bun run --filter=@lily/db db:studio                 # Drizzle Studio
 ```
 
-> **Migrations are hand-authored SQL** in `packages/db/drizzle/`. Do **not** run `drizzle-kit generate` — the migration journal is intentionally out of sync, and generating will corrupt it. Write the SQL by hand; production migrations run via `db:migrate:prod`.
+> **Migrations are hand-authored SQL** in `packages/db/drizzle/`. Do **not** run `drizzle-kit generate`. The migration journal is out of sync on purpose, and generating corrupts it. Production applies new migrations on each API deploy.
 
 ## Coding conventions
 
-This is an **Effect-first** codebase. Before writing code, read [`CODING_STANDARDS.md`](CODING_STANDARDS.md) — it's the authoritative guide. The essentials:
+Lily is an **Effect-first** codebase. Before writing code, read [`CODING_STANDARDS.md`](CODING_STANDARDS.md). It is the authoritative guide. The essentials:
 
-- Use Effect modules everywhere; native JS equivalents (`arr.map`, `Object.keys`, `switch`, `??`, `new Date()`) are forbidden.
-- Typed errors via `Schema.TaggedError`, handled by tag — never `catchAll`. Union types use `Match.exhaustive`.
-- Imports: cross-package use the package name (`@lily/shared`); within the app use the `@/` alias.
-- Formatting is enforced by Biome (2-space indent, single quotes, no semicolons, 80-col, ES5 trailing commas) — run `bun run lint:fix`.
-- New features require tests. Mock at the repository level, not the DB level.
+- Use Effect modules everywhere. Native JS equivalents such as `arr.map`, `Object.keys`, `switch`, `??` and `new Date()` are not allowed.
+- Define typed errors with `Schema.TaggedError` and handle them by tag, never with `catchAll`. Match unions with `Match.exhaustive`.
+- Import across packages by package name (`@lily/shared`). Inside the app, use the `@/` alias.
+- Biome enforces formatting: 2-space indent, single quotes, semicolons only where needed, 80 columns and ES5 trailing commas. Run `bun run lint:fix`.
+- New features need tests. Mock at the repository level, not the database level.
 
-Each package also has its own `CLAUDE.md` / `README.md` with package-specific rules.
+Each package also has its own `CLAUDE.md` and `README.md` with package-specific rules. [`CONTEXT-MAP.md`](CONTEXT-MAP.md) points to each package's glossary, so you can name things the way the code does.
 
 ## Commit messages
 
-We follow [Conventional Commits](https://www.conventionalcommits.org): `type(scope): summary`. Common types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `blog`.
+We follow [Conventional Commits](https://www.conventionalcommits.org): `type(scope): summary`. Common types are `feat`, `fix`, `docs`, `refactor`, `chore`, `test` and `blog`.
 
 ```
 feat(plants): add bulk watering action
@@ -82,15 +82,17 @@ docs(readme): clarify knowledge-db setup
 
 ## Pull request process
 
-1. **Branch** from `main` (e.g. `feat/bulk-watering`), or work from your fork.
-2. Make focused changes and **add or update tests** for new behavior.
+1. **Branch** from `main` (for example `feat/bulk-watering`), or work from your fork.
+2. Keep changes focused, and **add or update tests** for new behavior.
 3. Make sure the CI gates pass locally:
    ```bash
-   bun run tsc && bun run lint && bun run test
+   bash scripts/check-docs.sh && bun run lint && bun run tsc && bun run test
    ```
-   These run on every push (`tsc` is also a pre-push hook).
+   The pre-push hook runs the same four checks, and CI runs them on every push.
 4. Open a PR against `main` and fill in the [PR template](.github/pull_request_template.md). Link any related issue (`Closes #123`).
-5. A maintainer will review. Keep the PR scoped — smaller PRs are reviewed faster.
+5. A maintainer reviews it. Keep the PR scoped. Smaller PRs get reviewed faster.
+
+`scripts/check-docs.sh` fails when a doc links to a file that does not exist or quotes an outdated Bun, Effect or TypeScript version. If you move or rename a file, update the docs that point at it.
 
 ### Developer Certificate of Origin
 

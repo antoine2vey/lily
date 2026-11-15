@@ -38,7 +38,7 @@ Category: **Reference, News, or Educational** or **Utility** (plant care). Key a
 ## 6. Data safety
 **Security practices:**
 - **Encrypted in transit?** **Yes** (HTTPS enforced; cleartext disabled; OAuth tokens in `expo-secure-store`).
-- **Way to request data deletion?** **Yes — in-app account deletion** (`packages/api/.../user/endpoints/delete-account.ts`, cascades related data). You can also offer the deletion URL.
+- **Way to request data deletion?** **Yes — in-app account deletion** (`packages/api/src/services/user/endpoints/delete-account.ts`, cascades related data). You can also offer the deletion URL.
 - **Committed to Play Families Policy?** **No** (not targeting children).
 
 **Data collected/shared** — declare each as **Collected = Yes, Shared = No** (service-provider exception) unless noted. Mark "encrypted in transit" + "can be deleted" for all.

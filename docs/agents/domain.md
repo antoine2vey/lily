@@ -1,52 +1,46 @@
-# Domain Docs
+# Domain docs
 
-How the engineering skills should consume this repo's domain documentation when exploring the codebase.
+How the engineering skills read this repo's domain documentation while exploring the code.
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root, or
-- **`CONTEXT-MAP.md`** at the repo root if it exists — it points at one `CONTEXT.md` per package. Read each one relevant to the topic.
-- **`docs/adr/`** — read ADRs that touch the area you're about to work in. In this multi-context repo, also check `packages/<package>/docs/adr/` for package-scoped decisions.
+- **`CONTEXT-MAP.md`** at the repo root. It points to one `CONTEXT.md` per package. Read each one that touches your topic.
+- **`packages/api/CONTEXT-MAP.md`** when the work is in the api. It maps the bounded contexts under `packages/api/src/contexts`.
+- **Architecture decision records** that touch the area. System-wide ones go in an `adr` folder under `docs`, and package-scoped ones in an `adr` folder under that package's `docs`.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
+No ADR folder exists yet. When a file is missing, proceed silently. Don't flag its absence, and don't suggest creating it upfront. The producer skill (`/grill-with-docs`) creates ADRs lazily when a decision actually gets resolved.
 
 ## File structure
 
-This is a multi-context monorepo (presence of `CONTEXT-MAP.md` at the root):
+This is a multi-context monorepo, so the root holds a `CONTEXT-MAP.md` and each package holds its own glossary:
 
 ```
 /
-├── CONTEXT-MAP.md                     ← points at each package's CONTEXT.md
-├── docs/adr/                          ← system-wide decisions
+├── CONTEXT-MAP.md            ← points at each package's CONTEXT.md
+├── docs/adr/                 ← system-wide decisions, created on first use
 └── packages/
     ├── api/
     │   ├── CONTEXT.md
-    │   └── docs/adr/                  ← package-specific decisions
-    ├── db/
-    │   └── CONTEXT.md
-    ├── shared/
-    │   └── CONTEXT.md
-    ├── app/
-    │   ├── CONTEXT.md
-    │   └── docs/adr/
-    ├── web/
-    │   └── CONTEXT.md
-    ├── admin/
-    │   └── CONTEXT.md
-    ├── mcp/
-    │   └── CONTEXT.md
-    └── knowledge-db/
-        └── CONTEXT.md
+    │   ├── CONTEXT-MAP.md    ← the api's bounded contexts
+    │   └── docs/adr/         ← package decisions, created on first use
+    ├── app/CONTEXT.md
+    ├── plant-scanner/CONTEXT.md
+    ├── shared/CONTEXT.md
+    ├── db/CONTEXT.md
+    ├── knowledge-db/CONTEXT.md
+    ├── mcp/CONTEXT.md
+    ├── admin/CONTEXT.md
+    └── web/CONTEXT.md
 ```
 
 ## Use the glossary's vocabulary
 
-When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in the relevant package's `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
+When your output names a domain concept (an issue title, a refactor proposal, a hypothesis, a test name), use the term the owning package's `CONTEXT.md` defines. Don't drift to a synonym its `Avoid` column lists.
 
-If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/grill-with-docs`).
+A concept missing from every glossary is a signal. Either you are inventing language the project doesn't use, so reconsider, or there is a real gap, so note it for `/grill-with-docs`.
 
 ## Flag ADR conflicts
 
-If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
+If your output contradicts an existing ADR, say so explicitly rather than silently overriding it:
 
-> _Contradicts ADR-0007 (event-sourced orders) — but worth reopening because…_
+> _Contradicts ADR-0007 (event-sourced orders), but worth reopening because…_
