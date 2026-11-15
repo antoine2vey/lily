@@ -9,6 +9,7 @@ The primary Postgres database. This package holds the Drizzle schema in `src/sch
 | `bun run --filter=@lily/db db:push` | Syncs a local database to the Drizzle schema. Read **Local database** first. |
 | `bun run --filter=@lily/db db:migrate:prod` | Applies `drizzle/` to `DATABASE_URL` with `src/migrator.ts`, the runner production uses |
 | `bun run db:setup-test` | Root script. Loads `.env.test.local`, applies `drizzle/` to `DATABASE_URL_TEST` and seeds the tiers. Safe to rerun. |
+| `bun run --filter=@lily/db db:check-time-zones` | Runs `AT TIME ZONE` on `DATABASE_URL_TEST` for every zone Bun's `Intl` lists and every alias in the IANA `backward` file, and fails on any it rejects. CI runs it. |
 | `bun run --filter=@lily/db test` | The pool config tests, which need no database, and the bridge tests against `TEST_DATABASE_URL`, which skip when it is unset. |
 | `bun run --filter=@lily/db tsc` | Typecheck |
 | `bun run --filter=@lily/db lint` | Biome |
@@ -43,6 +44,7 @@ The primary Postgres database. This package holds the Drizzle schema in `src/sch
 
 ### Local database
 
+- **One Postgres image.** `Dockerfile.postgres` at the repository root builds the database for CI and for `docker-compose.yml`. It adds `tzdata-legacy` to `postgres-ssl:17`, the image Railway runs, so Postgres accepts the IANA `backward` aliases that Bun lists, such as `Asia/Calcutta`. Change the image there and nowhere else.
 - **Keep each database on one path.** `db:push` syncs a database to the Drizzle schema but creates none of the SQL-only objects. `db:migrate:prod` builds a fresh database the way production and `db:setup-test` do.
 - **Never mix them on one database.** On a database `db:push` built, `db:migrate:prod` finds no record and replays from `0000`, which fails on the first type that exists. On a database the migrator built, `db:push` finds the migrator's `__drizzle_migrations` table, which the schema does not declare (`drizzle.config.ts` has no `tablesFilter`), and offers to drop it.
 - **Test database.** `db:setup-test` builds it from `drizzle/`, so it has every trigger and index production has. A test database from the older `db:push` setup has no migration record and fails on the first file. Drop it, create it again and rerun `db:setup-test`.

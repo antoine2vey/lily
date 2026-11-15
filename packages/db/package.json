@@ -43,7 +43,8 @@
     "seed:demo": "bun run scripts/seed-demo-data.ts",
     "seed:demo-chat": "bun run scripts/seed-demo-chat.ts",
     "db:migrate:test": "DATABASE_URL=$DATABASE_URL_TEST bun run scripts/migrate.ts",
-    "db:setup-test": "bun run db:migrate:test && bun run scripts/setup-test-db.ts"
+    "db:setup-test": "bun run db:migrate:test && bun run scripts/setup-test-db.ts",
+    "db:check-time-zones": "bun run scripts/check-time-zones.ts"
   },
   "dependencies": {
     "@effect/sql-pg": "^4.0.5",
