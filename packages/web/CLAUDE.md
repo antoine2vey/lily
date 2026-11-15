@@ -17,6 +17,7 @@ Run every command from the monorepo root.
 | `bun packages/web/scripts/seo-check.ts packages/web/dist/client --baseline <old dist>` | Diffs URLs, canonical, hreflang, og, robots and JSON-LD types against an earlier build |
 | `bun packages/web/scripts/page-bytes.ts` | Checks the gzipped JS and CSS that each page in its `PAGES` sample loads up front against the budgets at the top of the script. Other pages are not measured. Run it after `build`. CI runs it from `scripts/check-bundle-sizes.sh` |
 | `bun packages/web/scripts/lighthouse.ts` | Mobile Lighthouse, three runs per page, against `preview` on port 8088. It exits 1 on a budget breach, and 2 when the machine was too slow for it to judge the timing metrics. Set `CHROME_PATH` if Chrome is not in `/Applications` |
+| `bun packages/web/scripts/consent-check.ts` | Drives headless Chrome against `preview` on port 8088. It fails when a page contacts Google or holds a Google Analytics cookie before the visitor accepts, or after the visitor refuses. It needs network access to Google |
 
 ## Layout
 
@@ -42,7 +43,7 @@ Run every command from the monorepo root.
 - **Head data comes from the loader.** `head()` is synchronous, so anything it needs must come from `loaderData`.
 - **Phone mockups copy the real app.** Every phone on the site, the hero included, is static and front-facing, with no tilt, bob or incline. It shows real app screens and behaves as the app does, so it never shows UI the app lacks.
 - **Lighthouse gates performance work.** After each step, build, run `preview`, then `scripts/lighthouse.ts` on the prerendered pages, and keep every budget in that script green. `scripts/page-bytes.ts` holds the byte budgets.
-- **Analytics.** Google Analytics loads from an idle callback after the window `load` event in `__root.tsx`. Loading it earlier starves hydration and competes with the hero bytes.
+- **Analytics needs consent.** Nothing from Google loads until the visitor accepts in the consent banner (`src/components/site/ConsentBanner.tsx`). `src/lib/consent.ts` holds the choice, which the browser keeps in local storage for 180 days. `src/lib/analytics.ts` then loads Google Analytics from an idle callback after the window `load` event, because loading it earlier starves hydration and competes with the hero bytes. Do not add a preconnect, a tag or a cookie for a third party outside that path. After a change to any of these files, run `scripts/consent-check.ts`.
 
 ## Blog
 
