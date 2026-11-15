@@ -1,514 +1,183 @@
-# Lily Design System
+# Lily design system
 
-A comprehensive design system extracted from the Lily app mockups for consistent UI implementation.
+How the app looks, and the components that carry the look. The tokens live in two files. `tailwind.config.js` defines the classes. `src/theme/index.ts` holds the same colors as hex values (`iconColorsLight`, `iconColorsDark`) for props that take a color, which read them through `useIconColors()`. This page names the roles and points to those files for the values. The styling rules for code live in `CLAUDE.md`.
 
----
+## Color roles
 
-## Color Palette
+| Role | Classes |
+| --- | --- |
+| Brand and primary actions | `primary`, pressed `primary-dark`. Primary text pairs `text-primary` with `dark:text-primary-light`. `primary-tint` fills the user's chat bubble and the success badge |
+| Destructive actions | `coral`, pressed `coral-dark` |
+| Screen background | `bg-background` with `dark:bg-background-dark` |
+| Cards, sheets and modals | `bg-white` or `bg-surface` with `dark:bg-surface-dark` |
+| Inputs and filled cards | `bg-surface-tinted` with `dark:bg-surface-dark` |
+| Text | `text-text-primary` with `dark:text-white`, then `text-text-secondary` and `text-text-muted` |
+| Borders | `border-border` with `dark:border-slate-700` |
+| Status | `success` (the primary green), `warning`, `error`, `info` |
+| Achievements | `achievement-gold` |
 
-### Primary Colors
-| Name | Hex | Usage |
-|------|-----|-------|
-| **Primary Green** | `#5B8C5A` | Primary buttons, active states, icons, navigation |
-| **Primary Green Dark** | `#4A7A49` | Button pressed states, emphasis |
-| **Primary Green Light** | `#6B9C6A` | Hover states |
+`background-light`, `surface-light` and `text-main` are legacy aliases of `background`, `surface` and `text-primary`. The config also extends the `slate`, `amber`, `blue`, `orange`, `teal` and `purple` scales with the shades the badges and care states use.
 
-### Secondary Colors
-| Name | Hex | Usage |
-|------|-----|-------|
-| **Coral/Salmon** | `#E8997E` | Destructive actions, delete buttons |
-| **Coral Dark** | `#D88A6F` | Destructive button pressed states |
+Dark mode is class-based. Every background, text and border class carries its `dark:` pair. `iconColorsDark` holds brighter variants of the icon colors so they read on dark surfaces.
 
-### Background Colors
-| Name | Hex | Usage |
-|------|-----|-------|
-| **Background** | `#F8FAF8` | Main app background |
-| **Surface** | `#FFFFFF` | Cards, modals, sheets |
-| **Surface Tinted** | `#F0F5F0` | Subtle green-tinted backgrounds |
-| **Input Background** | `#E8F0E8` | Input fields, dropdowns |
+### Care type colors
 
-### Text Colors
-| Name | Hex | Usage |
-|------|-----|-------|
-| **Text Primary** | `#1A1A1A` | Headlines, important text |
-| **Text Secondary** | `#4A5568` | Body text, descriptions |
-| **Text Muted** | `#9CA3AF` | Timestamps, placeholders |
-| **Text Inverse** | `#FFFFFF` | Text on dark/colored backgrounds |
-
-### Status Colors
-| Name | Hex | Usage |
-|------|-----|-------|
-| **Success** | `#5B8C5A` | Healthy status, success states |
-| **Warning** | `#F59E0B` | Attention needed, overdue |
-| **Error** | `#EF4444` | Errors, critical alerts |
-| **Info** | `#3B82F6` | Informational, water-related |
-
-### Semantic Colors
-| Name | Hex | Usage |
-|------|-----|-------|
-| **Water Blue** | `#60A5FA` | Watering actions, hydration |
-| **Fertilizer Orange** | `#F59E0B` | Fertilization actions |
-| **Prune Red** | `#F87171` | Pruning actions |
-| **Mist Teal** | `#5EEAD4` | Misting actions |
-| **Achievement Gold** | `#FCD34D` | Achievement badges, rewards |
-
----
+Each care type has an icon color in `iconColors`: `waterBlue` for watering, `fertilizerOrange` for fertilization, `mistTeal` for misting and `repotBrown` for repotting. `src/screens/care/components/care-type-config.ts`, which the Care tab task and plan cards use, draws misting in `waterBlue`.
 
 ## Typography
 
-### Font Family
-- **Primary**: System font (SF Pro on iOS, Roboto on Android)
-- **Fallback**: `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
+The font is Space Grotesk, loaded in `app/_layout.tsx`. The classes `font-regular`, `font-medium`, `font-semibold` and `font-bold` select its four faces, and `font-extrabold` falls back to bold. Font sizes are Tailwind's defaults (`text-base` is 16px).
 
-### Type Scale
-| Name | Size | Weight | Line Height | Usage |
-|------|------|--------|-------------|-------|
-| **Display** | 32px | 700 | 1.2 | Splash screen title |
-| **H1** | 28px | 700 | 1.3 | Page titles ("Good morning, Alex") |
-| **H2** | 24px | 600 | 1.3 | Section headers, modal titles |
-| **H3** | 20px | 600 | 1.4 | Card titles, plant names |
-| **H4** | 18px | 600 | 1.4 | Subsection headers |
-| **Body Large** | 16px | 400 | 1.5 | Primary body text |
-| **Body** | 14px | 400 | 1.5 | Standard body text |
-| **Body Small** | 12px | 400 | 1.4 | Secondary info, timestamps |
-| **Caption** | 11px | 500 | 1.3 | Labels, section headers (uppercase) |
-| **Button** | 16px | 600 | 1 | Button text |
+| Use | Classes |
+| --- | --- |
+| Sheet title | `text-2xl font-bold tracking-tight` |
+| Section header | `text-lg font-semibold`, with its action in `text-sm text-primary` |
+| Body | `text-base font-regular` |
+| Button label | `text-base font-semibold` |
+| Secondary text and captions | `text-sm` or `text-xs`, in `text-text-muted` |
 
-### Special Styles
-- **Section Headers**: 11px, uppercase, letter-spacing: 0.5px, color: Text Muted (e.g., "ACCOUNT", "APPEARANCE")
-- **Links**: Primary Green, underline on hover
-- **Tagline**: 14px, 400 weight, Text Muted ("Your plants, thriving")
+## Radius and shadows
 
----
+The radius scale is custom, so `rounded-xl` is 24px and `rounded-2xl` is 32px. Read `borderRadius` in `tailwind.config.js` for the full scale.
 
-## Spacing
+| Element | Radius |
+| --- | --- |
+| Buttons and inputs | `rounded-xl`, or `rounded-full` for the pill form |
+| Cards | `rounded-2xl` |
+| Bottom sheets | 32px |
+| Modals | `rounded-3xl` |
+| Chips | `rounded-full`, or `rounded-lg` for the input chip |
 
-### Base Unit
-8px grid system
-
-### Spacing Scale
-| Token | Value | Usage |
-|-------|-------|-------|
-| `space-1` | 4px | Tight spacing, icon gaps |
-| `space-2` | 8px | Small gaps, inline elements |
-| `space-3` | 12px | List item padding |
-| `space-4` | 16px | Standard padding, card padding |
-| `space-5` | 20px | Section spacing |
-| `space-6` | 24px | Large gaps |
-| `space-8` | 32px | Section margins |
-| `space-10` | 40px | Page margins |
-| `space-12` | 48px | Large section spacing |
-
-### Screen Padding
-- **Horizontal**: 16px (mobile standard)
-- **Safe area**: Respect device safe areas
-
----
-
-## Border Radius
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `radius-sm` | 8px | Small elements, chips |
-| `radius-md` | 12px | Input fields, small cards |
-| `radius-lg` | 16px | Cards, images |
-| `radius-xl` | 24px | Buttons, large cards |
-| `radius-full` | 9999px | Avatars, circular buttons |
-
----
-
-## Shadows
-
-| Name | Value | Usage |
-|------|-------|-------|
-| **Shadow SM** | `0 1px 2px rgba(0,0,0,0.05)` | Subtle elevation |
-| **Shadow MD** | `0 4px 6px rgba(0,0,0,0.07)` | Cards, dropdowns |
-| **Shadow LG** | `0 10px 25px rgba(0,0,0,0.1)` | Modals, bottom sheets |
-
----
+The shadow scale adds `shadow-soft`, `shadow-nav` and `shadow-sheet` to the usual sizes. The elevated card sets its shadow and Android `elevation` through `style`, because those have no class.
 
 ## Components
 
-### Buttons
+The base controls live in `src/components/ui/`. The shared components live in `src/components/`. A component with variants maps each one to class strings with `Match`, so read the component for the exact classes.
 
-#### Primary Button
-```
-Background: Primary Green (#5B8C5A)
-Text: White
-Border Radius: 24px (radius-xl)
-Padding: 16px 32px
-Font: 16px, 600 weight
-Height: 52px
-```
+### Button
 
-#### Secondary Button
-```
-Background: Transparent
-Border: 1px solid Primary Green
-Text: Primary Green
-Border Radius: 24px
-Padding: 16px 32px
-```
+`src/components/ui/Button.tsx`. It is 56px tall (`h-14`) with `px-8` and a 0.98 scale while pressed. Its one optional 20px icon sits right of the label unless `iconPosition` is `left`. `pill` makes it fully round, `loading` swaps the label for a spinner, and `disabled` drops it to 50% opacity.
 
-#### Destructive Button
-```
-Background: Coral (#E8997E)
-Text: White
-Border Radius: 24px
-```
+| Variant | Look |
+| --- | --- |
+| `primary` | Solid primary with white text |
+| `secondary` | Primary border and text on a clear fill |
+| `destructive` | Solid coral with white text |
+| `ghost` | Primary text with no fill |
+| `glass` | Translucent white fill and border with white text. It is the secondary action on the green mesh background, where the outline of `secondary` disappears |
 
-#### Text Button
-```
-Background: Transparent
-Text: Primary Green
-No border
-```
+### Icon buttons
 
-#### Icon Button
-```
-Size: 40px x 40px
-Border Radius: radius-full
-Background: Surface Tinted or transparent
-```
+`src/components/ui/IconButton.tsx` is a 40px circle with no fill and a faint pressed fill. Its icon defaults to `slate900`. `src/components/GlassIconButton.tsx` and `src/components/GlassBackButton.tsx` are the 40px liquid glass versions, with a solid fallback.
 
-### Cards
+### Input
 
-#### Standard Card
-```
-Background: White
-Border Radius: 16px
-Padding: 16px
-Shadow: Shadow MD (optional)
-```
+`src/components/ui/Input.tsx`. It is 56px tall, `rounded-xl` (or `rounded-full` as a pill), `bg-surface-tinted`, with `px-5` and `text-base` text. An error adds a 2px `border-error`.
 
-#### Plant Card (Grid)
-```
-Background: White
-Border Radius: 16px
-Image: Top, border-radius 12px
-Padding: 12px
-```
+### Chip
 
-#### Stat Card
-```
-Background: White
-Border Radius: 12px
-Padding: 16px
-Text: Centered
-Border: 1px solid #E5E7EB (optional)
-```
+`src/components/Chip.tsx`. A selected chip is solid primary with white text. An unselected chip is white with a `slate-200` border. The label is `text-sm font-medium`.
 
-### Input Fields
+| Variant | Shape |
+| --- | --- |
+| `filter` | `px-4 py-2 rounded-full` |
+| `input` | `px-3 py-1.5 rounded-lg` |
+| `suggestion` | `px-3.5 py-2.5 rounded-full` |
 
-#### Text Input
-```
-Background: #E8F0E8
-Border: none (or 1px solid transparent)
-Border Radius: 12px
-Padding: 14px 16px
-Font: 16px
-Focus: Border 1px solid Primary Green
-```
+### Badge
 
-#### Dropdown/Select
-```
-Same as Text Input
-Chevron icon on right
-```
+`src/components/Badge.tsx`. A tinted fill with colored `font-semibold` text, `rounded-md`. The variants are `success`, `warning`, `error`, `info` and `neutral`. The `sm` size uses 10px text, and `md` uses `text-xs`.
 
-### Chips/Pills
+### Card
 
-#### Filter Chip
-```
-Background: Transparent (inactive), Primary Green (active)
-Text: Text Secondary (inactive), White (active)
-Border Radius: 20px
-Padding: 8px 16px
-Font: 14px, 500 weight
-```
+`src/components/Card.tsx`. Every card is `rounded-2xl`. Padding is `none`, `sm`, `md` (the default) or `lg`, which map to `p-0`, `p-2`, `p-4` and `p-6`.
 
-#### Status Badge
-```
-Background: Status color with 20% opacity
-Text: Status color
-Border Radius: 12px
-Padding: 4px 10px
-Font: 12px, 600 weight
-```
+| Variant | Look |
+| --- | --- |
+| `elevated` (default) | White with a soft native shadow |
+| `outlined` | White with a `border-border` outline |
+| `filled` | `bg-surface-tinted` |
 
-### Navigation
+### Avatar
 
-#### Bottom Tab Bar
-```
-Background: White
-Height: 64px (+ safe area)
-Border Top: 1px solid #E5E7EB
-Icon Size: 24px
-Label: 10px
-Active: Primary Green
-Inactive: Text Muted
-```
+`src/components/Avatar.tsx`. Sizes `xs`, `sm`, `md`, `lg` and `xl` are 20, 32, 40, 56 and 80px. Without an image it shows initials in white on primary.
 
-#### FAB (Floating Action Button)
-```
-Size: 56px
-Background: Primary Green
-Icon: White, 24px
-Border Radius: radius-full
-Shadow: Shadow LG
-Position: Center of tab bar
-```
+### Bottom sheet
 
-### Bottom Sheet
+`src/components/BottomSheet.tsx`. A 32px top radius on the surface color, a `text-2xl font-bold` title with a 32px close button, and `px-5` content padded for the home indicator.
 
-```
-Background: White
-Border Radius: 24px 24px 0 0 (top corners only)
-Handle: 36px x 4px, #D1D5DB, centered, margin-top 8px
-Padding: 24px
-```
+### Confirmation modal
 
-### List Items
+`src/components/ConfirmationModal.tsx`. A 320px wide card, `rounded-3xl` with `p-6`, over a 50% black overlay. A 56px icon circle sits above the title.
 
-#### Settings List Item
-```
-Padding: 16px
-Icon Container: 40px, Border Radius full, Background Surface Tinted
-Icon: 20px, Primary Green
-Text: Body Large
-Chevron: 16px, Text Muted
-Divider: 1px solid #F3F4F6
-```
+### Skeletons
 
-#### Plant List Item
-```
-Avatar: 56px, Border Radius 12px
-Title: H4
-Subtitle: Body Small, Text Muted
-Padding: 12px
-```
+`src/components/skeletons/index.ts` exports `SkeletonBox` and `SkeletonCircle`. A screen's skeleton mirrors its real layout. `CLAUDE.md` covers when a screen shows one.
 
-### Chat Bubbles
+## Chat bubbles
 
-#### Assistant Message
+### Assistant message
+
 ```
 Background: none (text on the screen background)
 Avatar: none
 Width: full content width
 Text: Markdown, 16px / 24px line height
-Align: Left
+Align: left
 ```
 
-#### User Message
+### User message
+
 ```
-Background: Primary Tint (dark: white 10%)
+Background: primary-tint (dark: white 10%)
 Border: none
-Border Radius: 24px (uniform)
+Radius: rounded-xl (24px)
 Padding: 10px 16px
-Max Width: 82%
-Text: Body Large, 24px line height
-Align: Right
+Max width: 82%
+Text: text-base, 24px line height
+Align: right
 ```
 
-Messages are 24px apart. Images render outside the bubble at 224px, radius 24px.
+Messages are 24px apart. Images render outside the bubble at 224px, `rounded-xl`.
 
-### Chat Bars and Composer
+## Chat bars and composer
 
 The chat follows iOS 26 Messages. Both bars float over the message list, which fills the screen behind them. Each glass element checks `useGlass` and falls back to a solid surface when liquid glass is unavailable.
 
-#### Header
+### Header
+
 ```
 Background: none (floats over the list)
-Back / Menu: GlassBackButton, GlassIconButton (40px circles)
+Back and menu: GlassBackButton, GlassIconButton (40px circles)
 Title pill: liquid glass, non-interactive, sized to its text
-  Height: 40px (title only), 44px (title + subtitle)
+  Height: 40px (title only), 44px (title and subtitle)
   Radius: half the height
   Padding: 0 16px
-  Title: Body Large, SemiBold
-  Subtitle: Body Small, Text Muted (dark: slate-400), one line
-Fallback pill: Surface (dark: Surface Dark), rounded-full
+  Title: text-base, SemiBold
+  Subtitle: text-xs, text-muted (dark: slate-400), one line
+Fallback pill: white (dark: surface-dark), rounded-full
 ```
 
-#### Composer
+### Composer
+
 ```
 Container: liquid glass, radius 28px, 12px side margins
-Fallback: Surface (dark: Surface Dark), radius 28px, 1px Border 60%
+Fallback: surface (dark: surface-dark), radius 28px, 1px border at 60%
           (dark: white 10%), shadow-soft (dark: none)
-Attach (+): no fill under glass; Surface Tinted (dark: white 10%) in the fallback
-Send: 36px solid Primary circle; idle is Border (dark: white 10%)
+Attach (+): no fill under glass; surface-tinted (dark: white 10%) in the fallback
+Send: 36px solid primary circle; idle is border (dark: white 10%)
 Photo thumbnail: inside the capsule, above the text row
 Bottom gap: home indicator inset (min 12px); 8px while the keyboard is open
 ```
 
-#### Layout
+### Layout
+
 - The header and composer report their heights with `onLayout`. The list uses them as insets, so the first and last messages clear both bars. The list is inverted, so `paddingTop` is the visual bottom.
-- A scroll-edge fade sits under each bar. It is solid Background over the system inset (status bar, home indicator), drops to 70% halfway through the bar, and clears at the bar's inner edge.
-- The error banner and its Retry pill sit directly above the composer, on an opaque Background base so the error tint reads over any message. The typing indicator is the list's first row, so it also sits above the composer.
-- The empty state and suggestion chips are centred in the space between the two bars.
+- A scroll-edge fade sits under each bar. It is solid background over the system inset (status bar, home indicator), drops to 70% halfway through the bar, and clears at the bar's inner edge.
+- The error banner and its Retry pill sit directly above the composer, on an opaque background base so the error tint reads over any message. The follow-up chips sit there too. The typing indicator is the list's first row, so it also sits above the composer.
+- A new chat fills the space between the two bars. The mascot empty state takes the free height, and the plant carousel and starter chips sit at its bottom.
 - Both bars use `pointerEvents="box-none"`, so a drag in the gaps beside the title pill scrolls the list.
 
-### Avatars
+## Icons and motion
 
-| Size | Dimensions | Usage |
-|------|------------|-------|
-| XS | 32px | Small indicators |
-| SM | 40px | List items, settings |
-| MD | 56px | Plant cards, chat |
-| LG | 80px | Profile, detail views |
-| XL | 120px | Hero images |
-
-### Modals
-
-```
-Background: White
-Border Radius: 24px
-Padding: 24px
-Max Width: 320px
-Shadow: Shadow LG
-Overlay: rgba(0,0,0,0.5)
-```
-
-### Timeline
-
-```
-Line: 2px solid #E5E7EB
-Dot: 32px circle, colored by action type
-Card: Standard card, connected to dot
-Spacing: 16px between entries
-```
-
-### Achievement Badge
-
-#### Unlocked
-```
-Size: 80px
-Background: Gradient (lighter to Primary Green)
-Icon: 40px, White
-Border: 3px solid Achievement Gold
-```
-
-#### Locked
-```
-Same size
-Background: #E5E7EB
-Icon: Text Muted
-Border: none
-Opacity: 0.6
-```
-
----
-
-## Icons
-
-### Icon Sizes
-| Size | Dimensions | Usage |
-|------|------------|-------|
-| XS | 16px | Inline, badges |
-| SM | 20px | List items |
-| MD | 24px | Navigation, buttons |
-| LG | 32px | Feature icons |
-| XL | 40px | Illustrations |
-
-### Icon Style
-- **Style**: Rounded/outlined (not sharp)
-- **Stroke**: 1.5-2px
-- **Color**: Inherits from text or specified semantic color
-
----
-
-## Animation
-
-### Durations
-| Name | Duration | Usage |
-|------|----------|-------|
-| Fast | 150ms | Hover, focus states |
-| Normal | 250ms | Transitions, toggles |
-| Slow | 350ms | Page transitions, modals |
-
-### Easing
-- **Default**: `ease-out` / `cubic-bezier(0.0, 0.0, 0.2, 1)`
-- **Enter**: `ease-out`
-- **Exit**: `ease-in`
-
----
-
-## Implementation Notes
-
-### Files to Create/Modify
-- `packages/app/src/theme/colors.ts` - Color tokens
-- `packages/app/src/theme/typography.ts` - Typography scale
-- `packages/app/src/theme/spacing.ts` - Spacing tokens
-- `packages/app/src/theme/index.ts` - Theme export
-- `packages/app/src/components/ui/` - Reusable components
-
-### React Native Considerations
-- Use `StyleSheet.create()` for performance
-- Consider using a theme provider (React Context or styled-components)
-- Use `react-native-safe-area-context` for safe areas
-- Platform-specific font weights may be needed
-
----
-
-## Quick Reference - Most Used Values
-
-```typescript
-// Colors
-const colors = {
-  primary: '#5B8C5A',
-  primaryDark: '#4A7A49',
-  primaryLight: '#6B9C6A',
-  coral: '#E8997E',
-  coralDark: '#D88A6F',
-  background: '#F8FAF8',
-  surface: '#FFFFFF',
-  surfaceTinted: '#F0F5F0',
-  inputBackground: '#E8F0E8',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#4A5568',
-  textMuted: '#9CA3AF',
-  textInverse: '#FFFFFF',
-  success: '#5B8C5A',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
-  waterBlue: '#60A5FA',
-  fertilizerOrange: '#F59E0B',
-  pruneRed: '#F87171',
-  mistTeal: '#5EEAD4',
-  achievementGold: '#FCD34D',
-}
-
-// Spacing (8px grid)
-const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  '2xl': 40,
-  '3xl': 48,
-}
-
-// Border Radius
-const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  full: 9999,
-}
-
-// Typography
-const typography = {
-  display: { size: 32, weight: '700', lineHeight: 1.2 },
-  h1: { size: 28, weight: '700', lineHeight: 1.3 },
-  h2: { size: 24, weight: '600', lineHeight: 1.3 },
-  h3: { size: 20, weight: '600', lineHeight: 1.4 },
-  h4: { size: 18, weight: '600', lineHeight: 1.4 },
-  bodyLarge: { size: 16, weight: '400', lineHeight: 1.5 },
-  body: { size: 14, weight: '400', lineHeight: 1.5 },
-  bodySmall: { size: 12, weight: '400', lineHeight: 1.4 },
-  caption: { size: 11, weight: '500', lineHeight: 1.3 },
-  button: { size: 16, weight: '600', lineHeight: 1 },
-}
-```
+Icons come from `MaterialIcons` in `@expo/vector-icons`, at 20px inside buttons. Screens and sections enter with Reanimated's `FadeIn.duration(300)`.

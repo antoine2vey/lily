@@ -6,13 +6,10 @@ We take the security of Lily seriously. Thank you for helping keep the project a
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Report privately through either channel:
-
-1. **GitHub Security Advisories** (preferred) — go to the
-   [**Security** tab](https://github.com/antoine2vey/lily/security/advisories/new)
-   and choose **Report a vulnerability**. This keeps the report private until a
-   fix is released.
-2. **Email** — `[email protected]` (the maintainer's public contact).
+Report it privately through GitHub Security Advisories. Open the
+[**Security** tab](https://github.com/antoine2vey/lily/security/advisories/new)
+and choose **Report a vulnerability**. The report stays private until a fix is
+released.
 
 Please include:
 
@@ -50,8 +47,8 @@ The following are **out of scope** (report upstream instead):
 
 ## Good to know
 
-- Secrets are provided via environment variables (`Config` / `process.env`) — see
-  [`.env.example`](.env.example). No production secret is committed to this repo,
+- Secrets come from environment variables (`Config` / `process.env`).
+  [`.env.example`](.env.example) lists them. No production secret is committed to this repo,
   and its history has been kept clean of credentials.
 - Client-embedded values (RevenueCat public SDK keys, Sentry DSN, OAuth client
   IDs, EAS project IDs) are public by design and are not considered secrets.

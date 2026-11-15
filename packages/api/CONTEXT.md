@@ -59,7 +59,7 @@ Every schedule of a living plant has exactly one status, derived from its due da
 
 ### Health
 
-- **Condition.** The stored health of a plant: thriving, healthy, sick or recovering. A new plant is healthy. No code changes the condition afterwards yet; which context sets it is open.
+- **Condition.** The stored health of a plant: thriving, healthy, sick or recovering. A new plant is healthy. Nothing changes the condition after the plant is created. Which context should set it is an open question.
 - **Needs attention.** Not stored. A living plant in good condition (thriving or healthy) needs attention exactly while one of its cares is overdue. A sick or recovering plant keeps its condition. A dead plant never needs attention.
 
 ### Plant life
@@ -94,12 +94,12 @@ Reminders decides which care reminders exist, for whom and when. It plans them f
 | **Reminder** | A notification that tells one user about one plant: a care reminder for a care type that comes due, or the overdue reminder for a plant with an overdue care. | "notification" for the plan, "reminder" for the care schedule |
 | **Audience** | The users a plant's reminders are addressed to, before their own settings apply. A personal plant addresses its active caretaker, or its owner when nobody tends it. A canopy plant addresses every member who has not muted it. | "recipients" for the audience |
 | **Entitled recipient** | A member of the audience of a living plant with reminders on, whose account is active, who has care reminders on and who is not on vacation. Everyone else is **barred** and loses every reminder that is still waiting. | "subscriber" |
-| **Occasion** | The day a reminder is about. For a care reminder it is the due day. For an overdue reminder it is the recipient's own calendar day. A care reminder stored without an occasion is about no day: it announces nothing, and planning replaces it while it is still pending. | "scheduled date" |
+| **Occasion** | The day a reminder is about. For a care reminder it is the due day. For an overdue reminder it is the recipient's own calendar day. A care reminder stored without an occasion is about no day. It announces nothing, and planning replaces it while it is still pending. | "scheduled date" |
 | **Slot** | One recipient, one plant and one care type. A slot holds at most one waiting reminder, for the current occasion. | |
 | **Send time** | When a recipient is reminded of an occasion: their preferred time on that day in their own timezone, moved out of their quiet hours. | |
 | **Waiting** | A reminder that no delivery worker holds yet. Planning may re-time or remove it. A reminder a worker holds is left alone. | "pending" when queued reminders are meant too |
-| **Hand-over** | On a personal plant, a waiting reminder of someone who left the audience passes to whoever tends the plant now, at the time it already had. | "reassign" |
-| **No catch-up** | Someone who becomes an entitled recipient after their send time for an occasion gets no reminder for that occasion. A hand-over is not a catch-up: it only moves a reminder that was still waiting. | |
+| **Hand-over** | On a personal plant, a waiting reminder of someone who left the audience passes to whoever tends the plant now, at the time it already had. It is not the Absence **Handover**, which is one change that leads to a hand-over. | "reassign" |
+| **No catch-up** | Someone who becomes an entitled recipient after their send time for an occasion gets no reminder for that occasion. A hand-over is not a catch-up. It only moves a reminder that was still waiting. | |
 | **Replan** | Making the stored reminders of some plants match the rule. It reads current state, so running it twice changes nothing the second time. | "reschedule", "reconcile" |
 | **Request** | What another context sends when it changes something reminders are planned from: the plants, the canopy or the recipient whose reminders are stale. It commits with the change and is replanned after it. | |
 
@@ -159,16 +159,16 @@ Absence covers the time a user cannot look after their plants. A delegation hand
 | Term | Meaning | Avoid |
 | --- | --- | --- |
 | **Delegation** | A request from one user to another to look after some of the first user's personal plants from a start to an end. | "plant-sitting" in code, "share" |
-| **Owner** | The user who asks. Every plant of the delegation is a personal plant of the owner. | "delegator" |
+| **Owner** | The user who asks, the owner of the delegation. Every plant of the delegation is a personal plant of the owner, so the owner is also the Care **Owner** of each plant. | "delegator" |
 | **Caretaker** | The user who is asked. The caretaker accepts or declines, and looks after the plants while the delegation is active. | "sitter", "delegate" |
 | **Open delegation** | A delegation that is pending, accepted or active. A plant is in at most one open delegation over any period, and a plant in an open delegation cannot be shared into a canopy. | "live" |
-| **Tending** | What the caretaker of an active delegation does while their account is reachable. The caretaker holds the Caretaker role on the plants and is the audience of their reminders in place of the owner. A caretaker whose account is not active tends nothing: they cannot act on the plants, and the owner is the audience again. | "caring" for the role |
-| **Handover** | The moment the plants change hands: an accepted delegation becomes active, or an active one ends. Only a handover changes who is reminded. | "transfer" |
+| **Tending** | What the caretaker of an active delegation does while their account is reachable. The caretaker holds the Caretaker role on the plants and is the audience of their reminders in place of the owner. A caretaker whose account is not active tends nothing. They cannot act on the plants, and the owner is the audience again. | "caring" for the role |
+| **Handover** | The moment the plants change hands, when an accepted delegation becomes active or an active one ends. Of the status changes, only a handover changes who is reminded. The replan that follows can pass a waiting reminder to the new audience, which Reminders calls a **Hand-over**. | "transfer" |
 | **Vacation** | A period a user says they are away, from a start to an end. A user holds at most one. | "holiday", "absence" for the record |
 | **Scheduled vacation** | A vacation whose start has not come. It changes nothing yet. | "pending vacation" |
-| **Active vacation** | A vacation that has started and not ended. The user is on vacation: they are barred from reminders and what they were waiting for on the muted topics is deleted. It keeps its start, and only its end can move. | "running" in code |
+| **Active vacation** | A vacation that has started and not ended. The user is on vacation. They are barred from reminders, and what they were waiting for on the muted topics is deleted. It keeps its start, and only its end can move. | "running" in code |
 | **Away** | The start and the end of a vacation. The days away are the whole days from the day it started to the day it ended, counted in the user's timezone. | "duration" |
-| **Lapse** | What happens to a pending delegation at its start: the scheduler cancels it and tells the owner that the caretaker did not answer in time. The caretaker is told nothing, and an answer given after it is refused. | "expiry", "timeout" |
+| **Lapse** | What happens to a pending delegation at its start. The scheduler cancels it and tells the owner that the caretaker did not answer in time. The caretaker is told nothing, and an answer given after it is refused. | "expiry", "timeout" |
 | **Fact** | What Absence publishes when who is reminded changes. A delegation fact names the delegation, both users and the plants. A vacation fact names the user. Whoever hears it reads the current state again. | "event" for an EventBus message |
 
 ### Statuses
@@ -217,7 +217,7 @@ Chat suggestions are the questions the app offers as chips in the assistant chat
 | **Follow-up set** | The follow-ups written for one user and one plant, in one language, with the time they were written. A user has at most one set per plant. | "cache" |
 | **Fact** | One piece of a plant's live state that a follow-up can depend on: a care that is overdue, a sick or recovering condition, a recent diagnosis or an open plan step. | "fact" for what a context publishes on the outbox (see Canopy, Absence) |
 | **Basis** | The fact a follow-up depends on, or none. A follow-up whose basis no longer holds is not served. | "tag" |
-| **Request** | What the app sends when it opens: it asks for a new set of each plant the user has written about. A set is requested at most once per cooldown. | "refresh" for the generation itself |
+| **Follow-up request** | What the app sends when it opens. It asks for a new set of each plant the user has written about. A set is requested at most once per cooldown. | "refresh" for the generation itself, "request" alone (see Reminders) |
 | **Cooldown** | The 20 hours after a set is written during which it is not requested again. | |
 | **Budget** | The most sets one user can have written or requested within a cooldown: 12. | "quota", which is the monthly AI chat limit |
 
@@ -225,6 +225,35 @@ Chat suggestions are the questions the app offers as chips in the assistant chat
 
 1. **Only where the user wrote.** A set is requested for a living plant the user can reach and has written at least one message about. Other plant chats keep their starter suggestions.
 2. **Most useful first.** Within the budget, plants that need help come first, then the plants the user wrote about most recently.
-3. **A failed generation keeps the old set.** The request is closed and nothing retries it. The next time the app opens, it is requested again.
+3. **A failed generation keeps the old set.** The follow-up request is closed and nothing retries it. The next time the app opens, it is requested again.
 4. **Follow-ups do not count against the AI chat quota.** Free-tier users get them.
 5. **A set is served while it still applies.** The chat gets the first four follow-ups of a set written in the app's language within the last 3 days. A follow-up is left out when its basis no longer holds or when the user has sent it since the set was written.
+
+## Social
+
+Social lets users follow each other, open each other's profiles and nudge the people they follow to water. `src/services/social/` serves it, and `src/repositories/follow.repository.ts` reads and writes it.
+
+| Term | Meaning | Avoid |
+| --- | --- | --- |
+| **Public profile** | An account whose `public_profile` is true. Accounts are public by default. | "open account" |
+| **Private account** | An account whose `public_profile` is false. Nobody can start following it or open its profile. | "hidden", "blocked" |
+| **Shown plants** | The plants a profile counts: the living plants the user created and still holds. The cemetery is never counted. | "plants" for every plant the user can reach |
+| **Nudge** | A push from a follower that asks the user to water. Its notification type is `nudge_to_water`. | "reminder", which Reminders plans |
+
+### Rules
+
+1. **A private account is closed.** Following it, opening its profile and listing its followers or the users it follows answer `UserNotPublicError`. Unfollowing has no check, so a follower can always leave.
+2. **Lists hold public accounts.** A list of followers, a list of the users someone follows, and the total each list reports hold only public accounts. Your own list of the users you follow is the exception. It keeps the private accounts you follow, so you can still unfollow them.
+3. **A profile's counts hold every account.** The follower and following counts on a profile include private accounts, so they can be higher than the totals of rule 2.
+4. **Search finds a private account only by its handle.** A search matches a private account only when the query equals its handle, ignoring case, and shows its plant count as 0. A `%` or `_` in the query matches itself, not any character. A query shorter than `MIN_QUERY_LENGTH` in `src/services/social/endpoints/search-users.ts` answers an empty page before the rate limit and before any database read.
+5. **Only a follower nudges.** A nudge to a user you do not follow answers `NudgeNotAllowedError`. A nudge within 24 hours of your last nudge to the same user answers `NudgeRateLimitError`.
+6. **A nudge commits with its notification.** `recordNudge` and the `nudge_to_water` notification are written in one transaction. The push goes out after the commit, through `dispatchNow`.
+7. **Your own id is not exempt.** The by-id lists, `getUserFollowers` and `getUserFollowing`, check privacy even when the id is yours. A private user who asks for their own list by id gets `UserNotPublicError`. The own lists, `getFollowers` and `getFollowing`, have no privacy check, and the app reads its own lists through them.
+
+## Relationships
+
+- **db** owns the stored form of these terms: the tables, the enums and the migrations. The contexts and repositories read and write them through `DrizzleLive`. See [packages/db/CONTEXT.md](../db/CONTEXT.md).
+- **shared** owns the schemas, the typed errors and `API_PREFIX` that the routes serve. `packages/shared/src/domains/care/` implements the care day, care type and care status rules, and the api reads them from there. See [packages/shared/CONTEXT.md](../shared/CONTEXT.md).
+- **knowledge-db** holds the care knowledge that a chat retrieves with `searchPlantKnowledge`, and the ingest jobs that fill it. The api reaches it through `KnowledgeDrizzleLive`. See [packages/knowledge-db/CONTEXT.md](../knowledge-db/CONTEXT.md).
+- **app**, **admin**, **mcp** and **web** call the routes over HTTP and use these terms with these meanings. See [packages/app/CONTEXT.md](../app/CONTEXT.md), [packages/admin/CONTEXT.md](../admin/CONTEXT.md), [packages/mcp/CONTEXT.md](../mcp/CONTEXT.md) and [packages/web/CONTEXT.md](../web/CONTEXT.md).
+- [CONTEXT-MAP.md](CONTEXT-MAP.md) maps each context and module of this package to the tables, events and repositories it owns.

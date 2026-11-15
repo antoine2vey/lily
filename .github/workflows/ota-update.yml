@@ -10,6 +10,8 @@ on:
       - 'packages/shared/**'
       - '!packages/app/eas.json'
       - '!packages/app/app.json'
+      - '!packages/app/**/*.md'
+      - '!packages/shared/**/*.md'
   # Manual trigger to publish the current HEAD on demand — e.g. to ship
   # app/shared changes that a server-only push left unpublished.
   workflow_dispatch:
@@ -64,6 +66,7 @@ jobs:
           if git diff --name-only $RANGE \
             | grep -E '^packages/(app|shared)/' \
             | grep -vE '^packages/app/(eas|app)\.json$' \
+            | grep -vE '\.md$' \
             | grep -q .; then
             echo "result=true" >> "$GITHUB_OUTPUT"
           else

@@ -60,6 +60,10 @@ A change under one of these packages also follows that package's `CLAUDE.md`. Re
 
 - **`packages/api/`**: service layout, handlers, `withPlantAuth`, schedulers, naming, tests, dead-plant filtering: `packages/api/CLAUDE.md`.
 - **`packages/app/`**: NativeWind styling, theme tokens, component variants, loading states: `packages/app/CLAUDE.md`.
-- **`packages/db/`**: tables, keys, timestamps, enums, relations: `packages/db/CLAUDE.md`.
+- **`packages/plant-scanner/`**: props and events across Swift and TypeScript, the lux bands, frame analysis, measurement: `packages/plant-scanner/CLAUDE.md`.
+- **`packages/db/`**: hand-written migrations, local databases, schema conventions, the Effect bridge, seeds: `packages/db/CLAUDE.md`.
+- **`packages/knowledge-db/`**: migrations and their journal, vectors and search, the layer and its pool: `packages/knowledge-db/CLAUDE.md`.
 - **`packages/shared/`**: domain schemas, errors, service interfaces, exports: `packages/shared/CLAUDE.md`.
+- **`packages/mcp/`**: the import alias, `API_PREFIX`, tool errors and input schemas, escaping, widgets, sessions, CORS: `packages/mcp/CLAUDE.md`.
+- **`packages/admin/`**: `API_PREFIX`, typing responses with shared schemas, the `@/` alias, Effect for data shaping: `packages/admin/CLAUDE.md`.
 - **`packages/web/`**: Effect in a static build, SEO metadata, i18n, blog posts, components: `packages/web/CLAUDE.md`.

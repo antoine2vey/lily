@@ -1,99 +1,88 @@
 # @lily/mcp
 
-> A Model Context Protocol (MCP) server that exposes Lily's plant-care tools and data to AI assistants like ChatGPT, over OAuth 2.1.
+A Model Context Protocol server that lets AI assistants such as ChatGPT work with a user's Lily account over OAuth 2.1.
 
-## Overview
+An assistant connected to it can list and add plants, read a plant's details and care history, record a care, fetch the care schedule and ask the knowledge base a question. ChatGPT renders plant cards and task lists as HTML widgets. The server runs on Bun with `effect/ai` `McpServer` at `/mcp`, on port 3001 by default.
 
-`@lily/mcp` lets AI clients act on a user's Lily account: list and add plants, look up a plant's details and care history, record care, fetch the care schedule, and ask the RAG-backed knowledge base questions. It implements the MCP HTTP transport on Bun (`@effect/platform-bun`, default port 3001, `/mcp` endpoint), authenticates clients with OAuth 2.1 bearer tokens, and returns rich HTML widgets so ChatGPT can render plant cards and task lists. It is **decoupled from the backend** — every operation is an HTTP call to [`@lily/api`](../api); the only direct workspace dependency is [`@lily/db`](../db) for its own OAuth tables.
-
-## Architecture
+## How it fits
 
 ```
-ChatGPT / MCP client
-        │  Bearer (OAuth 2.1)
+ChatGPT or another MCP client
+        │  OAuth 2.1 bearer
         ▼
-  CORS → MCP endpoint guard (bearer check, GET /mcp probe)
+  CORS, security headers, endpoint guard
         │
    McpServer (/mcp)
-   ├── tools/      ─▶ api-client.ts ─▶ @lily/api (HTTP)
-   ├── resources/  ─▶ plant + care-schedule JSON
-   └── widgets/    ─▶ HTML templates (_meta.ui.resourceUri) for ChatGPT rendering
+   ├── tools       ─▶ src/api-client.ts ─▶ @lily/api  /api/v1/*
+   ├── resources   ─▶ src/api-client.ts ─▶ @lily/api  /api/v1/*
+   └── widgets     ─▶ HTML templates for ChatGPT
 
-OAuth state (codes/tokens) ─▶ @lily/db (own tables)
+OAuth routes ─▶ @lily/api  /internal/*  (magic link, service token)
+OAuth state  ─▶ @lily/db   OAuth tables, rate_limits
 ```
 
-One global router middleware runs **CORS → endpoint guard** before routing, so preflights skip auth and 401 responses carry CORS headers. The guard also answers `GET /mcp` with 200, because ChatGPT probes it before `tools/call` and stops on the 405 that `McpServer.layerHttp` registers. Widget tools carry a `Tool.Meta` annotation, which the server emits as `_meta` (`ui.resourceUri`, `openai/outputTemplate`) on the tool in `tools/list` and on each `tools/call` result.
-
-`McpServer.layerHttp` is stateful: `initialize` returns an `Mcp-Session-Id` that later requests must send, and sessions live in process memory, so clients re-initialize after a restart (unknown session ids get 404). It also rejects JSON-RPC batches (400), requests whose `Accept` lacks `application/json` or `text/event-stream` (406), and requests whose `Origin` is not in `MCP_ALLOWED_ORIGINS` (403).
-
-## Project Structure
-
-```
-src/
-├── index.ts                 # Server launch, layer composition, middleware stack
-├── config.ts                # MCP_PORT, MCP_SERVER_URL, MCP_ALLOWED_ORIGINS
-├── api-client.ts            # HTTP client for @lily/api
-├── layers.ts                # Effect layer composition (DB, OAuth, API)
-├── auth/                    # OAuth 2.1 routes, repository, bearer→JWT resolution
-├── tools/                   # Tool schemas + handlers (one file per tool)
-├── resources/               # Plant + care-schedule MCP resources
-└── widgets/                 # HTML widget templates and their resource URIs
-```
+The server is a client of [`@lily/api`](../api/README.md). It calls the public routes under `/api/v1` with the user's API token, and the unprefixed `/internal` routes with the service secret during login. It connects to the main database through [`@lily/db`](../db/README.md) and uses only its own OAuth tables, plus the API's `rate_limits` table to limit client registrations per IP. [`@lily/shared`](../shared/README.md) gives it `API_PREFIX` and the API response types.
 
 ## Tools
 
 | Tool | Description |
 | --- | --- |
-| `list_plants` | List the user's plants, the plants delegated to them, and their Canopy's plants (filter: all / needsAttention / overdue / dead). Widget. |
-| `get_plant_details` | A plant's details plus recent care logs. Widget. |
-| `care_plant` | Record a care action (watering / fertilization / misting / repotting). Widget. |
-| `create_plant` | Add a plant with a watering schedule, to the user's Canopy when `canopy` is true. Text-only. |
-| `get_care_tasks` | Pending tasks grouped overdue / today / upcoming. Widget. |
-| `get_overdue_plants` | Overdue-only plants. Widget. |
-| `ask_plant_question` | RAG knowledge-base query. Text-only. |
+| `list_plants` | The user's living plants, the plants they look after for someone else and their canopy's plants. A filter narrows it to the plants that need attention or are overdue, or lists the dead plants instead. Widget. |
+| `get_plant_details` | A plant's details and its recent care logs. Widget. |
+| `care_plant` | Records a watering, fertilization, misting or repotting. Widget. |
+| `create_plant` | Adds a plant with a watering schedule, to the user's canopy when `canopy` is true. Text only. |
+| `get_care_tasks` | Pending tasks grouped as overdue, today and upcoming. Widget. |
+| `get_overdue_plants` | Only the overdue plants. Widget. |
+| `ask_plant_question` | A question to the knowledge base. Text only. |
 
-## Key Concepts
+The server also exposes two resources, `plant://{plantId}` and `care-schedule://today`.
 
-### Auth boundary
+## Signing in
 
-Clients present an OAuth 2.1 bearer token; `auth/resolve-user.ts` exchanges it for a user JWT that `api-client.ts` forwards to the API. The MCP server never reads the primary database directly — it owns only its OAuth tables and calls the API for everything else.
+1. The client finds the server's metadata under `/.well-known/` and registers itself at `/oauth/register`.
+2. `/oauth/authorize` sends the user to a consent page, where they enter their email. The server asks the API to email a magic link.
+3. The link opens `/verify` in the same browser. The server trades the link's code for an API token, stores it, and redirects to the client with an authorization code.
+4. The client exchanges the code at `/oauth/token` with PKCE (S256 only).
 
-### CORS fails closed
+Each connection holds the scopes it asked for, among `plants:read`, `plants:write` and `knowledge:read`.
 
-`MCP_ALLOWED_ORIGINS` is an explicit allowlist. When unset, the server denies all cross-origin browser requests (rather than reflecting any origin with credentials). Non-browser MCP clients use bearer auth and are unaffected.
+## Protocol behavior
 
-## Development Workflow
+- `initialize` returns an `Mcp-Session-Id` that later requests must send. Sessions live in the process memory, so after a restart the server answers an old id with 404 and the client initializes again.
+- The server rejects JSON-RPC batches with 400, an `Accept` header without `application/json` or `text/event-stream` with 406, and an `Origin` outside `MCP_ALLOWED_ORIGINS` with 403.
+- `GET /mcp` with a bearer answers 200, because ChatGPT probes it before calling a tool.
+- CORS fails closed. With `MCP_ALLOWED_ORIGINS` empty, the server denies every cross-origin browser request. Clients outside a browser use their bearer and are unaffected.
+
+## Commands
+
+Run these from the repository root.
 
 ```bash
-# From the repository root:
-bun run --filter=@lily/mcp dev      # bun --watch src/index.ts (port 3001)
+bun run --filter=@lily/mcp dev      # watch mode on port 3001
+bun run --filter=@lily/mcp start    # the same server without watch mode
 bun run --filter=@lily/mcp test     # vitest
+bun run --filter=@lily/mcp tsc
+bun run --filter=@lily/mcp lint     # lint:fix to apply fixes
 
-# Container image (from repo root):
 docker build -f Dockerfile.mcp -t lily-mcp .
 ```
 
-## Quick Reference
-
-| Command | What it does |
-| --- | --- |
-| `dev` | `bun --watch src/index.ts` |
-| `start` | `bun run src/index.ts` |
-| `build` | `tsc` |
-| `tsc` | `tsc --noEmit` |
-| `test` | `vitest run` |
-| `lint` / `lint:fix` | Biome check / autofix |
-
-### Environment
+## Environment
 
 ```bash
 MCP_PORT=3001
-MCP_SERVER_URL=http://localhost:3001
-MCP_ALLOWED_ORIGINS=                 # Comma-separated allowlist; empty = deny all cross-origin
+MCP_SERVER_URL=http://localhost:3001   # public URL, used in the OAuth metadata
+MCP_ALLOWED_ORIGINS=                   # comma-separated allowlist, empty denies every origin
+API_BASE_URL=http://localhost:3000     # API origin, without /api/v1
+SERVICE_TOKEN_SECRET=                  # same value as the API's
+DATABASE_URL=                          # the main database, for the OAuth and rate limit tables
 ```
 
-## Related Documentation
+See [`.env.example`](../../.env.example).
 
-- [Root README](../../README.md) — monorepo overview
-- [`@lily/api`](../api/README.md) — the backend this server calls
-- [Model Context Protocol](https://modelcontextprotocol.io) · `effect/ai` (`McpServer`, `Tool`)
+## Related documentation
+
+- [`CLAUDE.md`](CLAUDE.md) has the conventions for this package.
+- [`CONTEXT.md`](CONTEXT.md) defines its terms.
+- [Root README](../../README.md) covers the monorepo.
+- [Model Context Protocol](https://modelcontextprotocol.io).

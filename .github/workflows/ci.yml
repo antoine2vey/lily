@@ -63,6 +63,14 @@ jobs:
       - name: Check the AASA and assetlinks.json
         run: bun packages/web/scripts/check-well-known.ts
 
+  docs:
+    name: Docs references
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check doc links, paths and package coverage
+        run: bash scripts/check-docs.sh
+
   integration:
     name: Integration tests (${{ matrix.shard }}/4)
     needs: changes
@@ -111,21 +119,26 @@ jobs:
   summary:
     name: CI summary
     if: always()
-    needs: [checks, universal-links, integration]
+    needs: [checks, universal-links, docs, integration]
     runs-on: ubuntu-latest
     steps:
       - name: Verify required jobs
         run: |
           checks='${{ needs.checks.result }}'
           universal_links='${{ needs.universal-links.result }}'
+          docs='${{ needs.docs.result }}'
           integration='${{ needs.integration.result }}'
-          echo "checks=$checks universal-links=$universal_links integration=$integration"
+          echo "checks=$checks universal-links=$universal_links docs=$docs integration=$integration"
           if [ "$checks" != 'success' ]; then
             echo '::error::checks job did not succeed'
             exit 1
           fi
           if [ "$universal_links" != 'success' ]; then
             echo '::error::universal-links job did not succeed'
+            exit 1
+          fi
+          if [ "$docs" != 'success' ]; then
+            echo '::error::docs job did not succeed'
             exit 1
           fi
           if [ "$integration" != 'success' ] && [ "$integration" != 'skipped' ]; then

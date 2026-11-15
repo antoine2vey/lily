@@ -1,0 +1,23 @@
+# Releases
+
+How a change on `main` reaches users. Read this before you promise that a change ships, add a migration, or edit `.github/workflows/`, `packages/app/app.json`, `packages/app/eas.json` or a Bun version.
+
+## Server services
+
+- **Railway deploys `main`.** The API, MCP and web services are defined in `.railway/railway.ts`. Each one rebuilds only when a path in its `watchPatterns` changed. Railway waits for the commit's GitHub check suites (`checkSuites: true`), so a red CI run on `main` skips the deploy.
+- **The API migrates itself.** `Dockerfile.prod` runs `db:migrate:prod` for `packages/db` and `packages/knowledge-db`, then `db:seed:prod`, before it starts the server. Push the migration and the deploy applies it. Never run `db:migrate:prod` against production by hand. How to write a migration is in `packages/db/CLAUDE.md`.
+- **Infrastructure lives in code.** Change services, volumes and domains in `.railway/railway.ts`. A pull request that touches `.railway/` gets a plan comment, and the plan applies on merge. Read `.railway/README.md` before running the Railway CLI.
+
+## Mobile app
+
+- **OTA publishes on every push to `main` that touches the app.** `.github/workflows/ota-update.yml` runs when `packages/app` or `packages/shared` changed, except `app.json`, `eas.json` and markdown. A manual run of the workflow republishes the current `main`.
+- **OTA does not wait for the API.** The OTA workflow ignores CI and the Railway deploy. An app change that calls a new endpoint can reach phones before the API serves it, and stays live when a red CI run skips the API deploy. Ship the API change first, or keep the app working against the old API.
+- **An OTA reaches only builds with the same fingerprint.** `app.json` sets `runtimeVersion.policy` to `fingerprint`. Besides native code and config plugins, the fingerprint hashes `eas.json`, including its `bun` version, and the autolinked module paths under `node_modules/.bun/`. Those paths carry a peer-hash suffix that moves when a dependency's peer set changes. So a JS-only dependency bump can still need a store build. Before you promise that an app change ships by OTA, compare the `hash` field of `bun --cwd packages/app node_modules/expo/bin/fingerprint fingerprint:generate --platform ios` on `main` and on your branch.
+- **Store builds start from a `v*` tag.** `build-ios.yml` submits to TestFlight and `build-android.yml` to the Play internal track. Each then publishes a seed OTA for the new fingerprint. Build numbers increment remotely (`appVersionSource: remote` in `eas.json`).
+- **Bump the marketing version after each App Store approval.** An approved version closes its TestFlight train, and the next upload fails. Raise `expo.version` in `packages/app/app.json` before the next tag. The `withLiveActivity` plugin copies it to the widget target.
+- **A new iOS entitlement with an identifier needs one local build.** The CI API key cannot link an App Group or iCloud container to the App ID. Run one `eas build -p ios --profile production` signed in with the Apple ID, and CI reuses the profiles after that. A capability without an identifier, such as Associated Domains, only needs enabling on the App ID in the Apple portal, then a rerun of the tag build.
+- **App env vars live in EAS environments.** `eas.json` has no `env` block, and the OTA and seed publishes pass `--environment production`. Add a new `EXPO_PUBLIC_*` key with `eas env` to both the `preview` and `production` environments.
+
+## Bun version
+
+Pin one Bun version everywhere. The root `packageManager` field is the source. The same string is repeated in `eas.json`, the CI setup action, the Android build and the Dockerfiles that Railway builds, so find every pin with `git grep -nF <version>`. `Dockerfile.dev`, which the compose `api` service builds, uses the floating `oven/bun:1-alpine` tag and carries no pin. A Bun bump moves the app fingerprint, so pair it with a planned store build.

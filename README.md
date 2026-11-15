@@ -4,7 +4,7 @@
 
 **Never let a houseplant die from neglect again.**
 
-Lily gives every plant you own a personalized, species-aware care schedule — backed by AI diagnosis, a 10,000-species camera scanner, and smart reminders that know your plant, your room, and your local weather.
+Lily gives every plant you own a personalized, species-aware care schedule. AI diagnosis, a 10,000-species camera scanner and smart reminders know your plant, your room and your local weather.
 
 [![CI](https://github.com/antoine2vey/lily/actions/workflows/ci.yml/badge.svg)](https://github.com/antoine2vey/lily/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
@@ -17,128 +17,139 @@ Lily gives every plant you own a personalized, species-aware care schedule — b
 
 ## What is Lily
 
-Lily is a cross-platform (iOS/Android) plant-care app for houseplant owners who keep killing their plants by forgetting to care for them. Each plant gets its own profile — photo, species, room, health — plus a personalized watering, fertilizing, and misting schedule that fires push notifications based on species, location, and local conditions. You identify plants with the camera (10,000+ species), log care actions, and chat with an AI that has full context on *your* specific plant for diagnosis like yellowing leaves or root rot.
+Lily is an iOS and Android plant care app for houseplant owners who keep killing their plants by forgetting them. Each plant gets a profile with its photo, species, room and health. It also gets a watering, fertilizing and misting schedule that sends push notifications based on the species, the room and local conditions. You identify plants with the camera, log care, and chat with an AI that knows the history of *your* plant when you ask about yellow leaves or root rot.
 
-This repository is the full TypeScript/Bun monorepo behind Lily: backend, mobile app, marketing site, admin dashboard, and supporting AI services.
+This repository is the whole TypeScript and Bun monorepo behind Lily: the backend, the mobile app, the marketing site, the admin dashboard and the AI services.
 
 ## Engineering highlights
 
-If you're here to read code, these are the parts worth a look:
+If you are here to read code, these parts are worth a look.
 
-- **Effect-first, end to end.** The entire stack — backend, mobile app, web, admin — is built on [Effect](https://effect.website) 3.x. Typed errors (`Schema.TaggedError`), dependency injection via layers, and `Match.exhaustive` over union types, with native JS escape hatches (`Array.map`, `switch`, `??`, `new Date()`) deliberately avoided.
-- **Type-safe client/server contract.** [`shared`](packages/shared) defines the domain with Effect Schema; both the API and its clients import the same schemas, so the wire contract is checked at compile time.
-- **RAG-grounded AI diagnosis.** [`knowledge-db`](packages/knowledge-db) is a pgvector knowledge base (3,072-dim `halfvec` embeddings, HNSW + full-text hybrid search) that grounds per-plant AI answers in retrieved care knowledge.
-- **Native AR/ML scanning.** [`plant-scanner`](packages/plant-scanner) is an iOS Expo native module using ARKit + TensorFlow Lite for on-device plant/pot detection, AR distance measurement, and ambient-light (lux) estimation.
-- **Agentic MCP server.** [`mcp`](packages/mcp) exposes Lily to AI assistants (ChatGPT) over the Model Context Protocol with OAuth 2.1 and rich HTML widgets.
-- **Monorepo discipline.** Turborepo over Bun workspaces, Biome for format + lint, strict TypeScript project references, and CI gates (`tsc` + `lint` + `test`) enforced on every push.
+- **Effect everywhere.** The backend, the mobile app, the web site and the admin dashboard are all built on [Effect](https://effect.website) 4. Errors are typed (`Schema.TaggedError`), dependencies are injected through layers, unions are matched exhaustively, and native JS shortcuts such as `arr.map`, `switch`, `??` and `new Date()` are replaced by Effect modules.
+- **One contract for client and server.** [`shared`](packages/shared) defines the domain with Effect Schema. The API and every client import the same schemas, and the app derives its HTTP client from the API definition, so the compiler checks the wire contract.
+- **Bounded contexts in the backend.** The care, reminders, canopy and absence contexts under [`packages/api/src/contexts`](packages/api/src/contexts) each own their tables, and an architecture test fails the build when one reaches into another.
+- **Retrieval-grounded AI diagnosis.** [`knowledge-db`](packages/knowledge-db) is a pgvector knowledge base with 3,072-dimension `halfvec` embeddings and hybrid HNSW plus full-text search. It grounds each answer about a plant in retrieved care knowledge.
+- **Native AR and ML scanning.** [`plant-scanner`](packages/plant-scanner) is an iOS Expo module that uses ARKit and TensorFlow Lite for on-device plant and pot detection, AR distance measurement and light estimation.
+- **An MCP server for AI assistants.** [`mcp`](packages/mcp) exposes Lily to assistants such as ChatGPT over the Model Context Protocol, with OAuth 2.1 and HTML widgets.
+- **Monorepo discipline.** Turborepo runs over Bun workspaces, Biome formats and lints, and TypeScript uses strict project references. Docs, lint, `tsc` and tests gate every push through the pre-push hook, and every pull request and push to `main` through CI.
 
 ## Packages
 
 | Package | Description |
 | --- | --- |
-| [`api`](packages/api) | Effect-based backend API server on Bun with Postgres, Redis, and schedulers |
-| [`app`](packages/app) | React Native (Expo) mobile app for plant care management |
-| [`web`](packages/web) | Next.js 16 static-export marketing site with i18n (en/fr) and an MDX blog |
-| [`admin`](packages/admin) | Vite + React 19 internal admin dashboard for operating Lily |
-| [`shared`](packages/shared) | Effect Schema domain types, typed errors, and service interfaces shared across packages |
-| [`db`](packages/db) | Primary PostgreSQL schema, migrations, and Drizzle client wired into Effect |
-| [`knowledge-db`](packages/knowledge-db) | Pgvector RAG knowledge base: Drizzle schema plus Effect Postgres client layer |
-| [`mcp`](packages/mcp) | MCP server exposing Lily plant data and tools to AI clients |
-| [`plant-scanner`](packages/plant-scanner) | iOS-only Expo native module for AR plant/pot scanning and measurement |
+| [`api`](packages/api) | Effect backend on Bun with Postgres, Redis and schedulers |
+| [`app`](packages/app) | React Native and Expo mobile app |
+| [`web`](packages/web) | TanStack Start marketing site and blog in English and French, prerendered to static HTML |
+| [`admin`](packages/admin) | Vite and React internal dashboard for operating Lily |
+| [`shared`](packages/shared) | Effect Schema domain types, typed errors and service interfaces shared across packages |
+| [`db`](packages/db) | Primary PostgreSQL schema, migrations and the Drizzle client wired into Effect |
+| [`knowledge-db`](packages/knowledge-db) | pgvector knowledge base: Drizzle schema plus its Effect client layer |
+| [`mcp`](packages/mcp) | MCP server that exposes Lily plant data and tools to AI clients |
+| [`plant-scanner`](packages/plant-scanner) | iOS-only Expo native module for AR plant and pot scanning |
+
+How the packages depend on each other, and which one owns each domain term, is in [`CONTEXT-MAP.md`](CONTEXT-MAP.md).
 
 ## Tech stack
 
-Bun 1.4.3 · Node 24 LTS · TypeScript 7.0 (with @effect/tsgo) · Effect 4.0 · Turborepo ^2.11 · Biome 2.6 · Vitest 5 · Drizzle ORM ^0.45 · PostgreSQL 15 + pgvector (pg17) · Redis 7 · Expo ~58 / React Native 0.88 · React 19.3 · Next.js ^16 · Vite ^8
+Bun · TypeScript 7 with `@effect/tsgo` · Effect 4 · Turborepo · Biome · Vitest · Drizzle ORM · PostgreSQL with pgvector · Redis · Expo and React Native · React · TanStack Start · Vite. Exact versions are in each `package.json`.
 
 ## Quickstart
 
-All commands run from the repository **root** — never `cd` into a package (Turbo + Bun workspaces handle per-package execution).
+Run every command from the repository **root**. Turbo and Bun workspaces run each package's scripts, so you never `cd` into a package.
 
 ```bash
-# 1. Start local infra: postgres, postgres-test, knowledge-db, knowledge-db-test, redis
-docker compose up -d
+# 1. Start local infra. Name the services, because a bare `up` also starts
+#    the compose `api` on port 3000, which `bun run dev` needs
+docker compose up -d postgres postgres-test knowledge-db knowledge-db-test redis
 
 # 2. Install all workspaces (also runs `prepare`: Husky hooks + `effect-tsgo patch`)
 bun install
 
-# 3. Provide env: copy the example and fill in the blanks
+# 3. Provide env. A package script reads the .env in its own folder, and Turbo
+#    passes nothing from the root, so link the root file into each package that reads it
 cp .env.example .env
+for p in api db knowledge-db mcp; do ln -s ../../.env packages/$p/.env; done
 
 # 4. Apply the Drizzle schema to local Postgres
-#    (dev push — do NOT run `drizzle-kit generate`; migrations are hand-authored)
+#    (a dev push; migrations are hand-authored, never generated)
 bun run --filter=@lily/db db:push
 
-# 5. (RAG/knowledge features only) Apply the pgvector knowledge-base schema
-bun run --filter=@lily/knowledge-db db:push
+# 5. (RAG and knowledge features only) Create the pgvector extension and apply
+#    the knowledge-base migrations
+bun run --filter=@lily/knowledge-db db:migrate:prod
 
 # 6. Start everything in watch mode via Turbo
-#    (api serves at http://localhost:3000 with Swagger/OpenAPI)
+#    (the api serves at http://localhost:3000 with Swagger/OpenAPI). The web dev
+#    server and mcp both use port 3001 by default, so set MCP_PORT and
+#    MCP_SERVER_URL in .env to a free port first
 bun run dev
 ```
 
-**Prerequisites:** [Bun 1.4.3](https://bun.sh) and Docker. The local Postgres/Redis defaults in `.env.example` match `docker-compose.yml`, so the core stack works out of the box.
+**Prerequisites.** [Bun 1.4.3](https://bun.sh) and Docker. The local Postgres and Redis defaults in `.env.example` match `docker-compose.yml`, so the core stack works out of the box.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `bun run dev` | Watch mode across all packages that define `dev` (Turbo, persistent) |
+| `bun run dev` | Watch mode across every package that defines `dev` |
 | `bun run build` | Build all packages |
-| `bun run test` | Run unit tests across all packages (Vitest in `api`/`shared`/`mcp`) |
-| `bun run test:integration` | Run `api` integration tests against a real Postgres (loads `.env.test.local`) |
-| `bun run db:setup-test` | Provision the test database (apply the SQL migrations to `DATABASE_URL_TEST` + seed tiers) |
-| `bun run lint` | Biome lint/check across all packages |
-| `bun run lint:fix` | Biome lint + autofix across all packages |
-| `bun run tsc` | TypeScript typecheck (`tsc --noEmit`) — CI + pre-push gate |
-| `bun run tsc:build` | Exercise the full TypeScript project-reference (composite) build graph |
+| `bun run test` | Run unit tests across all packages |
+| `bun run test:integration` | Run the `api` integration tests against a real Postgres (loads `.env.test.local`) |
+| `bun run db:setup-test` | Provision the test database: apply the SQL migrations to `DATABASE_URL_TEST` and seed tiers |
+| `bun run lint` | Biome lint and format check across all packages |
+| `bun run lint:fix` | Biome lint with autofix across all packages |
+| `bun run tsc` | TypeScript typecheck, also a CI and pre-push gate |
+| `bun run tsc:build` | Exercise the full TypeScript project-reference build graph |
 | `bun run clean` | Remove build artifacts across all packages |
 
-Git hooks: `pre-commit` runs `lint:fix` on staged files; `pre-push` runs `lint`, `tsc`, then `test`.
+Git hooks. `pre-commit` runs `lint:fix` and re-stages the files you had staged. `pre-push` runs `scripts/check-docs.sh`, `lint`, `tsc`, then `test`.
 
 ## Architecture
 
-Lily is a TypeScript/Bun monorepo on Effect 3.x, orchestrated by Turborepo over Bun workspaces. The backend [`api`](packages/api) is built on Effect Platform (`HttpApi`/`HttpApiBuilder`) serving REST endpoints with OpenAPI/Swagger on a Bun HTTP runtime (port 3000), layered as endpoints → handlers → services → repositories. The [`app`](packages/app) (React Native/Expo) and [`admin`](packages/admin) dashboard are the two HTTP clients; both depend on [`shared`](packages/shared) for domain schemas, types, and typed errors so the client/server contract stays type-safe. [`db`](packages/db) owns the primary PostgreSQL schema via Drizzle, which `api` reads and writes through the `PgDrizzle` repository layer.
+The backend [`api`](packages/api) is built on Effect's `HttpApi`. It serves REST endpoints under `/api/v1`, with OpenAPI and Swagger, on a Bun HTTP runtime. Requests flow from endpoints to handlers, services and repositories. The core domain is split into bounded contexts that own their tables. The [`app`](packages/app), the [`admin`](packages/admin) dashboard and the [`mcp`](packages/mcp) server are HTTP clients of the api, and all three depend on [`shared`](packages/shared) for domain schemas and typed errors. [`db`](packages/db) owns the primary PostgreSQL schema through Drizzle.
 
-For AI: [`knowledge-db`](packages/knowledge-db) is a *separate* pgvector PostgreSQL database (raw documents → processed chunks → ingest jobs) exposed via its own `KnowledgeDrizzle` tag; `api`'s ai-chat service queries it with vector similarity search to ground per-plant diagnosis in retrieved care knowledge. [`plant-scanner`](packages/plant-scanner) is a native Expo module consumed by the app's add-plant flow (plant/pot detection, lux, AR distance, captured photos). [`mcp`](packages/mcp) is a standalone Effect MCP server that calls `api` over HTTP to expose agentic tools (list-plants, get-care-tasks, ask-plant-question, …). [`web`](packages/web) is the public Next.js marketing funnel, decoupled from the runtime backend.
+For AI, [`knowledge-db`](packages/knowledge-db) is a *separate* pgvector PostgreSQL database of raw documents, processed chunks and ingest jobs. The api's chat service searches it to ground each answer about a plant in retrieved care knowledge. [`plant-scanner`](packages/plant-scanner) is a native Expo module that the app's add-plant flow uses for plant and pot detection, light, AR distance and photos. [`web`](packages/web) is the public marketing site. It calls the api only for invite previews.
 
 ```
-app / plant-scanner ─┐
-                     ├─▶ api ─┬─▶ db            (primary state)
-admin ───────────────┘        ├─▶ knowledge-db  (pgvector RAG)
-                              └─▶ push           (notifications)
-mcp ─────────────────▶ api
-web  (static marketing, no runtime backend)
+app ────┐
+admin ──┼─▶ api ─┬─▶ db            (primary state)
+mcp ────┤        ├─▶ knowledge-db  (pgvector RAG)
+web ────┘        └─▶ push          (notifications)
+
+app ─▶ plant-scanner   (on-device scanning, iOS)
+mcp ─▶ db              (its own OAuth tables)
 ```
+
+How each package reaches production, from Railway deploys to OTA updates and store builds, is in [`docs/agents/releases.md`](docs/agents/releases.md).
 
 ## Conventions
 
-- **Effect-first.** Use Effect modules everywhere; native JS equivalents (`arr.map`, `Object.keys`, `switch`, `??`, `new Date()`, …) are forbidden. See [`CODING_STANDARDS.md`](CODING_STANDARDS.md) for the full mapping.
-- **Run from root.** Never `cd` into a package — all scripts go through Turbo from the monorepo root.
-- **Drizzle, not Prisma.** Database access is Drizzle ORM via `@effect/sql-drizzle`. Migrations are **hand-authored SQL** (`packages/db/drizzle/`); never run `drizzle-kit generate` (the journal is intentionally out of sync). Prod migrations run via `db:migrate:prod`.
-- **Typed errors.** Errors are `Schema.TaggedError` propagated through the Effect system and handled by tag — never `catchAll`. Union types use `Match.exhaustive`.
-- **Monorepo discipline.** Every package `extends` the root `tsconfig.json`, declares `sideEffects`, and pins the exact root `typescript` version. Use `@ts-expect-error` (with a rationale), never `@ts-ignore`.
+- **Effect-first.** Use Effect modules everywhere. Native JS equivalents such as `arr.map`, `Object.keys`, `switch`, `??` and `new Date()` are not allowed. [`CODING_STANDARDS.md`](CODING_STANDARDS.md) has the full mapping.
+- **Run from root.** All scripts go through Turbo from the monorepo root.
+- **Drizzle, not Prisma.** Database access is Drizzle ORM through Effect. Migrations are **hand-authored SQL** in `packages/db/drizzle/`, and production applies them on each API deploy.
+- **Typed errors.** Errors are tagged classes that travel through Effect and are handled by tag. Unions are matched with `Match.exhaustive`.
+- **Monorepo discipline.** Every package except the Expo app `extends` the root `tsconfig.json`. The app extends `expo/tsconfig.base` and mirrors the root's strict flags. Every package declares `sideEffects` and pins the exact root `typescript` version. Use `@ts-expect-error` with a reason, never `@ts-ignore`.
 
-Full coding rules live in [`CODING_STANDARDS.md`](CODING_STANDARDS.md); package rules in [`docs/agents/monorepo.md`](docs/agents/monorepo.md).
+The full coding rules are in [`CODING_STANDARDS.md`](CODING_STANDARDS.md), and the package rules are in [`docs/agents/monorepo.md`](docs/agents/monorepo.md).
 
 ## Contributing
 
-Contributions are welcome! Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev workflow, coding conventions, and PR process. Please also read our [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev workflow, the coding conventions and the PR process. Please also read our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 - 🐛 **Found a bug?** [Open an issue](https://github.com/antoine2vey/lily/issues/new?template=bug_report.md).
 - 💡 **Have an idea?** [Request a feature](https://github.com/antoine2vey/lily/issues/new?template=feature_request.md).
-- 🔒 **Found a vulnerability?** Please report it privately — see [`SECURITY.md`](SECURITY.md).
+- 🔒 **Found a vulnerability?** Please report it privately. [`SECURITY.md`](SECURITY.md) explains how.
 
 ## License
 
-Lily is licensed under the [GNU Affero General Public License v3.0](LICENSE). In short: you're free to use, study, modify, and share the code, but if you run a modified version as a network service you must make your source available under the same license.
+Lily is licensed under the [GNU Affero General Public License v3.0](LICENSE). You are free to use, study, modify and share the code. If you run a modified version as a network service, you must make its source available under the same license.
 
 ## Docs
 
-- [`CODING_STANDARDS.md`](CODING_STANDARDS.md) — authoritative Effect-first coding rules, plus pointers to each package's own rules.
-- [`CLAUDE.md`](CLAUDE.md) (also `AGENTS.md`) — entry point for coding agents: routes to the coding standards and the docs in `docs/agents/`.
-- [`packages/api/README.md`](packages/api/README.md) — backend request flow and the endpoints → handlers → services → repositories layering.
-- [`packages/db/README.md`](packages/db/README.md) — primary PostgreSQL schema map (users, plants, auth, chat, notifications, achievements).
-- [`packages/shared/README.md`](packages/shared/README.md) — the domain model and cross-package contract: schemas, validation, and typed errors.
-- [`docs/knowledge-pipeline-architecture.md`](docs/knowledge-pipeline-architecture.md) — design of the pgvector knowledge-db RAG pipeline (ingest → chunk → embed → retrieve).
-- [`docs/rag-implementation-plan.md`](docs/rag-implementation-plan.md) — RAG implementation plan backing the `api` ai-chat grounding.
-- [`docs/agents/domain.md`](docs/agents/domain.md) — convention for the `CONTEXT-MAP.md` / per-package `CONTEXT.md` + `docs/adr` layout.
+- [`CODING_STANDARDS.md`](CODING_STANDARDS.md) holds the Effect-first coding rules and points to each package's own rules.
+- [`CLAUDE.md`](CLAUDE.md), also `AGENTS.md`, is the entry point for coding agents. Each package has its own `CLAUDE.md` too.
+- [`CONTEXT-MAP.md`](CONTEXT-MAP.md) maps the packages, their relationships and each package's glossary.
+- [`packages/README.md`](packages/README.md) lists the packages and how to add one.
+- [`docs/agents/releases.md`](docs/agents/releases.md) explains deploys, migrations, OTA updates and store builds.
+- [`packages/knowledge-db/README.md`](packages/knowledge-db/README.md) describes the knowledge base from ingest to search.
+- [`docs/seo/strategy.md`](docs/seo/strategy.md) is the working SEO plan for the marketing site.

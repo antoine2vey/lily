@@ -1,90 +1,94 @@
-# Play Console — "App content" declarations (fill-in sheet)
+# Play Console app content
 
-Evidence-based answers derived from a codebase audit (2026-06-07). **You** enter/submit these — they are legal attestations. Each answer cites why. Verify before submitting.
+This sheet lists the facts in the code that each answer in the Play Console **App content** section depends on. The answers are legal attestations, and the owner submits them. Check each fact against the code before a new submission. Update this sheet when a change adds a data type, an SDK, a permission or a way for users to reach each other.
 
-> **Key definition — "Collected" vs "Shared":** Google treats data sent to a **service provider that only processes it on your behalf** as *collected*, **not shared**. OpenAI (API, no training by default), Sentry, RevenueCat, and Expo Push are service providers → declare as **collected, not shared**. Only mark "shared" if a third party uses the data for its *own* purposes. Confirm OpenAI's API data-use terms still say "no training on API data."
+## Collected or shared
 
----
+Google counts data sent to a service provider that processes it only on your behalf as collected, not shared. Mark data as shared only when a third party uses it for its own purposes. These providers receive user data as processors:
 
-## 1. Set privacy policy
-- **URL:** `https://withlily.app/en/privacy`
-- Source: `packages/app/src/constants/urls.ts`; page served from `packages/web/src/app/[locale]/privacy/page.tsx`.
-- ⚠️ **Action before submitting:** the policy should explicitly state that **plant photos and AI-chat text are sent to OpenAI** for processing, and that **Sentry** receives crash diagnostics. If it doesn't, update the web page first.
+- OpenAI receives plant photos and chat text (`packages/api/src/services/ai/`). Confirm that the OpenAI API terms still exclude API data from training.
+- Google Cloud Storage stores plant photos and profile pictures (`packages/shared/src/services/file/gcs.ts`).
+- Resend sends the magic link and other emails to the user's address (`packages/api/src/services/email/resend.provider.ts`).
+- OpenWeatherMap receives the coordinates of a user or a Canopy for the weather signal.
+- RevenueCat receives the Lily user ID and the store purchases (`packages/app/src/services/revenuecat.ts`).
+- Sentry receives crash reports, performance traces and auth events (`packages/app/src/sentry.ts`, `packages/app/src/utils/auth-telemetry.ts`).
+- Expo delivers push notifications to the device token.
 
-## 2. Sign in details (App access)
-- All core functionality is **behind login** (Google / Apple OAuth only — no email/password).
-- Choose **"All or some functionality is restricted"** → provide reviewer access.
-- ⚠️ OAuth-only is awkward for reviewers. Options: (a) add a **demo/test account** path, or (b) provide a test Google account credential + instructions. You'll likely need to set this up — reviewers can't use arbitrary OAuth.
+## Privacy policy
 
-## 3. Ads
-- **Answer: No, my app does not contain ads.**
-- No ad SDKs found (no AdMob/Meta/etc.). The `ads` boolean in the user schema is an *email* marketing preference, not in-app ads.
+- The app links to `https://withlily.app/<locale>/privacy`, built by `privacyUrl` in `packages/app/src/constants/urls.ts`.
+- The page is `packages/web/src/routes/$locale/privacy.tsx`. Its English copy is in `packages/web/src/i18n/en.ts` and its French copy in `packages/web/src/i18n/fr.ts`.
+- Section 5 of the policy names Railway, Google Analytics, an unnamed AI provider for photos, Expo and the stores. It does not name Sentry, RevenueCat, Google Cloud Storage, Resend or OpenWeatherMap. It does not say that chat text goes to the AI provider. Update the policy before you declare these processors.
 
-## 4. Content rating (IARC questionnaire)
-Category: **Reference, News, or Educational** or **Utility** (plant care). Key answers:
-- Violence / Sexual / Profanity / Controlled substances / Gambling / Horror: **No** to all.
-- **Does the app let users interact / communicate?** **Yes** — social follow, care delegation/nudges, opt-in **public profiles** (`get-public-profile`). No direct user-to-user messaging.
-- **User-generated content shared with others?** **Yes (limited)** — public profile shows username/bio/plant count when opted in.
-- **Shares user's current location with other users?** **No** (location used only for weather, never shared between users).
-- **AI-generated content?** **Yes** — AI chat (OpenAI). Answer the AI-content question truthfully; for a plant assistant the content is non-objectionable.
-- **Digital purchases?** **Yes** (subscriptions).
-- **Expected outcome:** ESRB **Everyone** / PEGI **3** / "Users interact" + "Digital purchases" flags.
+## App access
 
-## 5. Target audience and content
-- **Target age groups:** **13–17 and 18+** (do **NOT** include under-13 — that triggers the Families policy and stricter requirements; the app isn't child-directed).
-- **"Is your app designed for children?"** **No.**
-- **Appeals to children?** **No** (utility app, no child-oriented design).
+- Every core feature needs an account. The login screen (`packages/app/app/(auth)/login.tsx`) offers an email magic link and Google sign-in. Apple sign-in appears only on iOS (`useAppleSignInAvailable` in `packages/app/src/components/auth/AppleSignInButton.tsx`). There is no password.
+- Give the reviewer an account. `bun run --filter=@lily/db seed:android-reviewer` creates the account named by `ANDROID_REVIEWER_EMAIL`. An address listed in `REVIEWER_EMAILS` signs in without the magic link email. Keep `REVIEWER_EMAILS` empty when no review is in progress.
 
-## 6. Data safety
-**Security practices:**
-- **Encrypted in transit?** **Yes** (HTTPS enforced; cleartext disabled; OAuth tokens in `expo-secure-store`).
-- **Way to request data deletion?** **Yes — in-app account deletion** (`packages/api/.../user/endpoints/delete-account.ts`, cascades related data). You can also offer the deletion URL.
-- **Committed to Play Families Policy?** **No** (not targeting children).
+## Ads
 
-**Data collected/shared** — declare each as **Collected = Yes, Shared = No** (service-provider exception) unless noted. Mark "encrypted in transit" + "can be deleted" for all.
+The app contains no ads. `packages/app/package.json` has no ad SDK. The `ads` column in `packages/db/src/schema/users.ts` is a notification preference for marketing messages, not an in-app ad.
 
-| Play data type | Collected | Required/Optional | Purposes | Evidence |
-|---|---|---|---|---|
-| **Name** | Yes | Optional | App functionality, Account management | users.firstName/lastName/name (OAuth) |
-| **Email address** | Yes | Required | Account management, App functionality | users.email |
-| **User IDs** | Yes | Required | App functionality, Account management, Analytics, Fraud prevention/security | auth user id; RevenueCat app-user-id; Sentry user context |
-| **Purchase history** | Yes | Optional | App functionality | RevenueCat (subscription mgmt). Payment card info NOT collected (store handles it) |
-| **Approximate location** | Yes | Optional | App functionality | `useLocationPermission.ts` uses **Balanced** accuracy (~±2km) → **approximate, not precise**; for weather-based care |
-| **Photos** | Yes | Optional | App functionality | Plant photos; sent to OpenAI for identification (processor) |
-| **Other user-generated content** | Yes | Optional | App functionality | Plants, notes, care logs, room names, **AI chat text** (also sent to OpenAI) |
-| **App interactions** | Yes | Optional | Analytics, App functionality | internal analytics schema |
-| **Crash logs** | Yes | — | Analytics (diagnostics) | Sentry |
-| **Diagnostics** | Yes | — | Analytics | Sentry; OpenTelemetry (only if `OTEL_ENABLED`) |
-| **Device or other IDs** | Yes | Required | App functionality (push), Analytics | Expo push tokens; device tokens table |
+## Content rating
 
-**Not collected:** Audio (RECORD_AUDIO is declared but **unused** — see cleanup note), precise location, contacts, SMS, web browsing, health/fitness, payment card numbers.
+- Users interact. They follow each other, open public profiles, send nudges, share a Canopy and delegate care.
+- A care delegation can carry a free-text message from the owner to the delegate (`message` in `packages/db/src/schema/delegation.ts`). This is user-to-user text.
+- Profiles are public by default. `public_profile` defaults to true. A public profile shows the name, image, bio, follower counts, the count of living plants, and the names and photos of the most recent living plants (`getPublicProfile` in `packages/api/src/repositories/follow.repository.ts`).
+- Location reaches other users inside a Canopy. The owner can set the Canopy location from their device. The API returns the coordinates to every member, and the app shows members only whether a location is set (`packages/app/src/screens/canopy/components/CanopyPlaceCard.tsx`).
+- The app generates content with AI. Plant chat, identification and diagnosis call OpenAI.
+- The app sells digital goods. Subscriptions go through the App Store or Google Play, with RevenueCat.
 
-> The "AI chat text" classification is a judgment call — Play's "Messages" type is meant for user-to-user messaging, so user↔AI content fits better under **"Other user-generated content."** Stated above accordingly.
+## Target audience
 
-## 7. Government apps
-- **Answer: No** — not a government app.
+The app is not designed for children. Leave the under-13 age groups out, because including them brings the Families policy and its requirements.
 
-## 8. Financial features
-- **Answer: No / "My app doesn't have any of these financial features."**
-- Subscriptions are **not** "financial features" (that section = banking, loans, crypto, investing, insurance). None present.
+## Data safety
 
-## 9. Health
-- **Answer: No health features / not a health app.**
-- Plant care, not human health; no health data accessed. (Only declare health if you picked a Health/Medical category — you shouldn't.)
+### Security practices
 
-## 10. App category + contact details
-- **Category:** **House & Home** (gardening fit) or **Lifestyle** — either is defensible; House & Home is more specific for plant care.
-- **Contact email:** your support address (e.g. `support@withlily.app`) — must be monitored.
-- **Website:** `https://withlily.app`
-- **Store listing:** ✅ already done (en-US + fr-FR title/desc, icon, 8 screenshots). Still missing **feature graphic 1024×500** for production.
+- **Encryption in transit.** The app reaches the API over HTTPS. Android builds still allow cleartext traffic (`usesCleartextTraffic` in `packages/app/app.json`). Answer yes only while every production URL the app calls is HTTPS.
+- **Tokens.** The access and refresh tokens are in `expo-secure-store` (`packages/app/src/utils/storage.ts`).
+- **Deletion.** The user deletes the account in the app. `releaseAccount` in `packages/api/src/services/user/helpers/release-account.ts` marks it pending deletion, revokes its refresh tokens and removes its device tokens. The account-cleanup scheduler (`packages/api/src/services/account-cleanup/scheduler.ts`) purges it after `GRACE_PERIOD_DAYS`. The scheduler runs once a day, and its first run comes a day after each API start, so a purge lands after the grace period ends. An API that restarts more often than once a day never runs it. The privacy policy promises deletion within 30 days, so keep the two in step.
+- **Export.** The app and the API have no data export. The privacy policy offers a JSON export to a user who emails the privacy address, so a request is answered by hand.
 
----
+### Data types
 
-## Recommended code cleanups (improve declaration accuracy)
-These reduce permission scrutiny and make the data-safety form truthful:
-1. **Remove `RECORD_AUDIO`** (Android manifest) + `NSMicrophoneUsageDescription` (iOS) — declared, never used.
-2. **Remove `NSFaceIDUsageDescription`** (iOS) — declared, never used.
-3. **Sentry PII:** add a `beforeSend` hook to scrub user IDs / sensitive strings from error payloads (currently minimal scrubbing).
-4. Consider a **data export** mechanism (deletion exists; export is good-practice for GDPR though not required by Play data safety).
+| Play data type | Where the code collects it | Notes |
+| --- | --- | --- |
+| Name | `name`, `firstName` and `lastName` in `packages/db/src/schema/users.ts` | `name` is the public username. `firstName` and `lastName` come from Google or Apple sign-in or from the user's settings. |
+| Email address | `email` in `users` | Required. Resend receives it. |
+| User IDs | The Lily user ID | RevenueCat receives it through `Purchases.logIn`. The app sets no Sentry user. |
+| Purchase history | `user_subscriptions` and `subscription_events` in `packages/db/src/schema/subscriptions.ts`, and RevenueCat | The stores handle payment cards |
+| Location | `latitude` and `longitude` in `users` and in `canopy` | See the location note below |
+| Photos | Plant photos and the profile picture (`packages/api/src/services/user/endpoints/upload-avatar.ts`) | Both are stored in Google Cloud Storage. Only plant photos go to OpenAI. |
+| Other in-app messages | The delegation `message` | User-to-user free text |
+| Other user-generated content | Plants, notes, care logs, rooms, bio and chat text | Chat text goes to OpenAI |
+| Crash logs and diagnostics | Sentry | The app sets no Sentry user |
+| Device or other IDs | The Expo push token from `getExpoPushTokenAsync` in `packages/app/src/utils/notifications.ts` | Stored in `device_tokens` |
 
-Keep `ACCESS_FINE/COARSE_LOCATION`, `CAMERA`, `VIBRATE`, motion (AR pot measurement) — all actually used.
+**Location.** `packages/app/src/hooks/useLocationPermission.ts` asks for `Location.Accuracy.Balanced`, which expo-location documents as about 100 m. The API stores the raw coordinates. The app also requests `ACCESS_FINE_LOCATION`. Play's form defines precise location as an area under 3 km², so these coordinates read as precise location. Check the form's current definition, or round the coordinates before upload to declare approximate location.
+
+**App interactions.** The app has no analytics SDK in `packages/app/package.json`. These per-user signals exist:
+
+- The API counts each user's care history opens in `historyViewCount` on `users`, for an achievement (`incrementHistoryViews` in `packages/api/src/repositories/achievement.repository.ts`).
+- `Sentry.wrap` in `packages/app/app/_layout.tsx` records touch breadcrumbs, and `packages/app/src/utils/auth-telemetry.ts` adds auth breadcrumbs. Both travel with Sentry error reports.
+
+The API also keeps daily aggregate counts with no user ID (`analyticsDailySnapshots` in `packages/db/src/schema/analytics.ts`). The privacy policy says that in-app analytics also go to Google Analytics, but the app sends nothing to Google Analytics.
+
+**Not collected.** Audio, contacts, SMS, web browsing, health and fitness data, and payment card numbers.
+
+**Permissions.** The app uses the managed workflow, so prebuild generates the Android manifest and the iOS `Info.plist`. Run `bun --cwd packages/app node_modules/expo/bin/cli config --type introspect` to list the permissions it generates. Libraries can add more when their manifests merge at build time.
+
+- Prebuild adds `RECORD_AUDIO` on Android and `NSMicrophoneUsageDescription` on iOS, and the app never records audio. They come from the expo-camera and expo-image-picker config plugins, which Expo applies by default although `packages/app/app.json` does not list them.
+- The expo-secure-store plugin adds `NSFaceIDUsageDescription`, and the app uses no biometrics.
+- Plugin options such as `recordAudioAndroid`, `microphonePermission` and `faceIDPermission`, or `android.blockedPermissions` in `packages/app/app.json`, remove them.
+- The AR pot measurement and its motion permission exist only on iOS (`packages/plant-scanner/expo-module.config.json`). The Android manifest asks for no motion permission.
+
+## Government, financial and health features
+
+None apply. Subscriptions are not a financial feature in Play's sense, which covers banking, loans, payments between users, crypto and insurance. Plant care is not a health feature.
+
+## Category and contact
+
+- **House & Home** fits plant care. **Lifestyle** also fits.
+- The website is `https://withlily.app`. The contact email must be an inbox someone reads.

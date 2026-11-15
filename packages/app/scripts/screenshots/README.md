@@ -1,134 +1,45 @@
 # Store screenshot pipeline
 
-Generates App Store (6.9" / 1290×2796) and Google Play (phone / 1080×1920)
-marketing screenshots for Lily, localized en + fr.
+Builds the App Store and Google Play screenshots in English and French. `run.ts` runs two stages for each platform and locale.
 
-Three stages:
+1. **Capture.** Maestro runs `.maestro/capture.yaml` on the booted simulator or emulator. The flow logs in as the demo account, switches the app language in Settings, reaches each screen by deep link or by tapping through from the plants grid, and saves a raw PNG to `screenshots/sources/<platform>/<locale>`.
+2. **Compose.** `compose.ts` draws the background, the headline from `copy.ts` and a phone frame around each capture, and writes the store PNG to `screenshots/output/<platform>/<locale>`. The iOS canvas is 1284 by 2778, and the Android canvas is 1080 by 1920.
 
-1. **Seed** — `bun --cwd packages/db run seed:demo` creates user
-   `antoine@lily.app` (Alex) with 12 plants, overdue care, history.
-2. **Capture** — Maestro drives the simulator, logs Alex in via the
-   `DISABLE_MAGIC_LINK_VERIFICATION` instant-code path, and writes raw
-   screenshots to `screenshots/sources/{platform}/{locale}/`.
-3. **Compose** — `compose.ts` overlays a Lily-branded gradient + Space
-   Grotesk headline + rounded phone frame onto each source, writing
-   store-spec PNGs to `screenshots/output/{platform}/{locale}/`.
+Both output folders sit under `packages/app` and are gitignored.
 
-## Prerequisites
+## Before you run it
 
-- **Maestro CLI** —
-  `curl -Ls "https://get.maestro.mobile.dev" | bash`
-- **iOS Simulator** — an iPhone 16 or 17 Pro Max booted. 17 Pro Max
-  captures at 1320×2868 (pipeline's target), 16 Pro Max at 1290×2796
-  (dropped in via `fit: 'cover'` — invisible mismatch).
-- **Android Emulator** — an **arm64** phone-size AVD booted. Verify
-  with `adb shell getprop ro.product.cpu.abi` — must print
-  `arm64-v8a` (x86 emulators under Rosetta on Apple Silicon are 3-5×
-  slower and will ANR).
-- **Builds installed on each device, built with `EXPO_PUBLIC_E2E=1`:**
-
-  - **iOS: dev build OR release** — dev build is fine (Metro + fast
-    iteration works). Release build also works if you want to avoid
-    Metro dependency.
-  - **Android: release build REQUIRED.** Dev-mode Android bundles are
-    too slow on the emulator's JS thread — trigger ANRs during
-    navigation. Hermes-compiled release APK loads near-instantly.
-
-  ```bash
-  # iOS (dev is fine)
-  EXPO_PUBLIC_E2E=1 bun --cwd packages/app run ios
-
-  # Android (MUST be release — dev build will ANR)
-  EXPO_PUBLIC_E2E=1 bunx expo run:android --cwd packages/app --variant=release
-  ```
-
-  Why the `EXPO_PUBLIC_E2E` env var: `@callstack/liquid-glass` on
-  iOS 26+ creates an accessibility container around the tab bar that
-  hides the rest of the app's hierarchy from XCTest / Maestro.
-  `LiquidGlassTabBar` reads this env var at build time and falls back
-  to the plain `BottomTabBar` when set — restoring a traversable
-  a11y tree. Android doesn't use liquid glass, but the env var is
-  free insurance.
-
-  Don't ship these builds to production — the screenshots will miss
-  the liquid-glass tab bar (~3% of the frame). For actual App Store
-  submission, rebuild without the env var.
-- **Metro bundler running** on `http://localhost:8081` (default Expo
-  start). Set `METRO_URL` in your shell if it's on a different port or
-  a LAN IP:
-
-  ```bash
-  export METRO_URL=http://192.168.1.20:8081
-  ```
-- **API running** with `DISABLE_MAGIC_LINK_VERIFICATION=true`. Without
-  this the flow stalls on the check-email screen.
+- **Maestro CLI.** Install it with `curl -Ls "https://get.maestro.mobile.dev" | bash`.
+- **Phone frame.** Compose reads `mockup.png` from the `app-store-screenshots` skill in `.agents/` at the monorepo root. `.agents/` is gitignored, so restore that skill from `skills-lock.json` first. Without it, compose exits with `Compose failed for <phone-frame>`.
+- **Demo data.** Run `bun run --filter=@lily/db seed:demo` once. Before each capture, `run.ts` runs `seed:demo-chat` in the capture's locale, so the chat screenshot shows bubbles in that language. `DEMO_EMAIL` in `.maestro/capture.yaml` must be the account that `seed:demo` creates.
+- **API.** Run it with `DISABLE_MAGIC_LINK_VERIFICATION=true`. `packages/api/src/services/auth/endpoints/send-magic-link.ts` then returns an instant code, and the app signs in with no email step. Without the flag the flow stops on the check-email screen.
+- **iOS.** Boot a large iPhone simulator, such as a Pro Max, with a dev or release build installed. Compose scales each capture into the phone frame, so a smaller capture comes out soft.
+- **Android.** Boot an arm64 phone AVD (`adb shell getprop ro.product.cpu.abi` prints `arm64-v8a`). An x86 image under Rosetta is slow enough to trigger ANRs. Install a release build, because a dev bundle is too slow on the emulator's JS thread and also ANRs during navigation.
+- **Metro.** Keep it running for a dev build. The flow opens the dev client on `METRO_URL`, which defaults to `http://localhost:8081` on iOS and `http://10.0.2.2:8081` on Android. Export `METRO_URL` to point at another host or port.
 
 ## Run
 
 From the monorepo root:
 
-```bash
-# Seed demo data
-bun --cwd packages/db run seed:demo
+| Command | What it does |
+| --- | --- |
+| `bun run --filter=@lily/app screenshots` | Captures and composes both platforms and both locales |
+| `bun run --filter=@lily/app screenshots:ios` | iOS only |
+| `bun run --filter=@lily/app screenshots:android` | Android only |
+| `bun run --filter=@lily/app screenshots:compose` | Composes the existing captures again, with no capture, to iterate on layout or copy |
 
-# Capture + compose everything (iOS + Android, en + fr)
-bun --cwd packages/app run screenshots
+`run.ts` also takes `--en` or `--fr` for one locale, and `--no-compose` to capture only. Pass them to `bun packages/app/scripts/screenshots/run.ts`.
 
-# Subsets
-bun --cwd packages/app run screenshots:ios
-bun --cwd packages/app run screenshots:android
+## Change the screenshots
 
-# Skip capture, re-run compose only (fast iteration on layout/copy)
-bun --cwd packages/app run screenshots:compose
-```
-
-Outputs land in `packages/app/screenshots/output/{ios,android}/{en,fr}/*.png`.
-
-## How the locale override works
-
-`LocalizationContext` listens for deep links in `__DEV__`. Maestro sends
-`lily://?e2e_locale=fr` at the start of each flow; the context reads the
-query param and calls `setLanguage`. No rebuild, no native bridge.
-
-## How auth bypasses email
-
-`api/src/services/auth/endpoints/send-magic-link.ts` returns an
-`instantCode` field when `DISABLE_MAGIC_LINK_VERIFICATION` is set.
-`AuthContext.login()` detects it and auto-verifies. Works for any email
-when the flag is on — we reuse the demo user from `seed-demo-data.ts`.
-
-## Customizing
-
-- **Headlines** — edit `copy.ts`.
-- **Layout** — tweak `layoutFor()` in `compose.ts` (phone width %,
-  headline Y offset, font size).
-- **Screens** — add to `SCREENS` in `copy.ts` and extend `capture.yaml`.
+- **Headlines.** Edit `copy.ts`.
+- **Layout.** Edit `layoutFor()` in `compose.ts`, which sets the phone width, the headline position and the font sizes.
+- **Screens.** Add the name to `SCREENS` in `copy.ts`, then add a step to `.maestro/capture.yaml` that opens the screen and saves `${OUTPUT_DIR}/<name>`. The flow finds the app's screens by `testID`, so give the new screen's root a `testID` and wait for it before the screenshot.
 
 ## Troubleshooting
 
-- **"iOS driver not ready in time"** — Maestro is compiling + sideloading
-  its XCTest runner into the simulator (one-off per sim state, 60–120s).
-  The orchestrator raises `MAESTRO_DRIVER_STARTUP_TIMEOUT` to 180s by
-  default. If your machine is slower, export a higher value before
-  running:
-
-  ```bash
-  export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000   # 5 minutes
-  ```
-
-  Second run will be instant — the runner is cached in the simulator.
-- **Dev client server-picker screen appears** — `clearState` wipes the
-  dev client's remembered Metro URL. The flow sends a
-  `lily://expo-development-client/?url=${METRO_URL}` deep link right
-  after launch to auto-load the bundle. If you see the picker anyway,
-  confirm Metro is running at `METRO_URL` (default
-  `http://localhost:8081`).
-- **"element not found: My Plants"** — the deep-link locale override
-  didn't fire. Check that the dev build was installed recently enough
-  to include `LocalizationContext` with the Linking hook.
-- **Login stalls** — the API isn't running, or
-  `DISABLE_MAGIC_LINK_VERIFICATION` is not set.
-- **Blank phone frame** — source PNG is missing. Re-run capture or
-  check `screenshots/sources/` to confirm Maestro wrote it.
-- **Soft / pixelated output** — the simulator isn't the expected size.
-  iOS source must be 1290×2796; Android emulator should be 1080px wide.
+- **"iOS driver not ready in time".** Maestro compiles and installs its XCTest runner on the first run against a simulator. `run.ts` raises `MAESTRO_DRIVER_STARTUP_TIMEOUT` to 360000 ms. Export a higher value on a slow machine. Later runs reuse the runner.
+- **The dev client shows its server picker.** Metro is not reachable at `METRO_URL`.
+- **A wait for a `testID` times out.** The screen changed. Find the `testID` the flow waits for in the app code, and update the flow or the screen.
+- **Login stalls.** The API is not running, or `DISABLE_MAGIC_LINK_VERIFICATION` is unset.
+- **Compose skips a screen.** Its capture is missing from the sources folder, so run the capture again for that platform and locale.
