@@ -35,8 +35,8 @@ export const startOfDay = (
   dateTime: DateTime.DateTime,
   timezone: string
 ): DateTime.DateTime => {
-  const zoned = withTimeZone(dateTime, timezone)
-  const parts = DateTime.toParts(zoned)
+  const zone = DateTime.zoneMakeNamedUnsafe(timezone)
+  const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
   return DateTime.makeZonedUnsafe(
     {
       year: parts.year,
@@ -47,7 +47,7 @@ export const startOfDay = (
       second: 0,
       millisecond: 0,
     },
-    { timeZone: timezone, adjustForTimeZone: true }
+    { timeZone: zone, adjustForTimeZone: true }
   )
 }
 
@@ -75,6 +75,35 @@ export const endOfDay = (
       millisecond: 999,
     },
     { timeZone: timezone, adjustForTimeZone: true }
+  )
+}
+
+/**
+ * Get start of week (Monday 00:00:00.000) for a DateTime.
+ *
+ * @param dateTime - DateTime to get start of week for
+ * @param timezone - IANA timezone string
+ * @returns DateTime at Monday 00:00:00.000 of the same week
+ */
+export const startOfWeek = (
+  dateTime: DateTime.DateTime,
+  timezone: string
+): DateTime.DateTime => {
+  const zone = DateTime.zoneMakeNamedUnsafe(timezone)
+  const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
+  const daysSinceMonday = (parts.weekDay + 6) % 7
+
+  return DateTime.makeZonedUnsafe(
+    {
+      year: parts.year,
+      month: parts.month,
+      day: parts.day - daysSinceMonday,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+    },
+    { timeZone: zone, adjustForTimeZone: true }
   )
 }
 

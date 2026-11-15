@@ -34,6 +34,15 @@ export const TimeString = Schema.String.pipe(
 
 export type TimeString = typeof TimeString.Type
 
+/** A time zone this runtime resolves, so the date helpers accept it. */
+export const KnownTimezone = Schema.String.check(
+  Schema.makeFilter(
+    (zone) =>
+      Option.isSome(DateTime.zoneMakeNamed(zone)) || 'a known time zone',
+    { identifier: 'KnownTimezone' }
+  )
+)
+
 // Validate an IANA timezone string using Effect's DateTime module
 export const validateTimezone = (
   timezone: string

@@ -90,6 +90,30 @@ describe('oauthSignIn', () => {
     expect(result.user.email).toBe('merge@example.com')
   })
 
+  const signUpFrom = async (timezone: string) => {
+    const { layer, createdUsers } = buildLayer({
+      users: [],
+      verifier: { google: verifiedGoogle },
+    })
+    await Effect.runPromise(
+      oauthSignIn({ provider: 'google', idToken: 'token', timezone }).pipe(
+        Effect.provide(layer)
+      )
+    )
+    return createdUsers
+  }
+
+  it('stores the zone a new device reports, alias included', async () => {
+    expect(await signUpFrom('Eire')).toMatchObject([{ timezone: 'Eire' }])
+  })
+
+  it('stores no zone when the device reports one that does not resolve', async () => {
+    const created = await signUpFrom('Not/AZone')
+
+    expect(created).toHaveLength(1)
+    expect(created[0]).not.toHaveProperty('timezone')
+  })
+
   it('merges into existing verified user with same email', async () => {
     const existing: User = {
       ...mockUser1,

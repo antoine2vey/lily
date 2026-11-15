@@ -40,6 +40,7 @@ import {
   parseApiDate,
   plainDateDayOfMonth,
   startOfDay,
+  startOfWeek,
   withTimeZone,
 } from '../domains/common/date'
 
@@ -623,6 +624,51 @@ describe('Date Utilities', () => {
       expect(parts.hour).toBe(23)
       expect(parts.minute).toBe(59)
       expect(parts.second).toBe(59)
+    })
+  })
+
+  describe('startOfWeek', () => {
+    const instantOf = (dateTime: DateTime.DateTime) =>
+      DateTime.formatIso(DateTime.toUtc(dateTime))
+
+    it('returns Monday 00:00 for a Sunday, the last day of the week', () => {
+      const sunday = DateTime.makeUnsafe('2026-11-15T16:15:00.000Z')
+
+      expect(instantOf(startOfWeek(sunday, 'UTC'))).toBe(
+        '2026-11-09T00:00:00.000Z'
+      )
+    })
+
+    it('returns the same instant for a Monday at midnight', () => {
+      const monday = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
+
+      expect(instantOf(startOfWeek(monday, 'UTC'))).toBe(
+        '2026-11-09T00:00:00.000Z'
+      )
+    })
+
+    it('uses the local week when the zone is already on Monday', () => {
+      const sundayInUtc = DateTime.makeUnsafe('2026-11-15T16:15:00.000Z')
+
+      expect(instantOf(startOfWeek(sundayInUtc, 'Pacific/Auckland'))).toBe(
+        '2026-11-15T11:00:00.000Z'
+      )
+    })
+
+    it('crosses a month boundary', () => {
+      const wednesday = DateTime.makeUnsafe('2026-07-01T12:00:00.000Z')
+
+      expect(instantOf(startOfWeek(wednesday, 'Europe/Paris'))).toBe(
+        '2026-06-28T22:00:00.000Z'
+      )
+    })
+
+    it('resolves a zone alias like the zone it names', () => {
+      const instant = DateTime.makeUnsafe('2026-07-01T12:00:00.000Z')
+
+      expect(instantOf(startOfWeek(instant, 'Eire'))).toBe(
+        instantOf(startOfWeek(instant, 'Europe/Dublin'))
+      )
     })
   })
 

@@ -20,6 +20,10 @@ import {
   createMockRefreshTokenRepository,
 } from '@lily/api/__tests__/mocks/refresh-token.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import {
+  type CreateUserData,
+  UserRepository,
+} from '@lily/api/repositories/user.repository'
 import { verifyMagicLink } from '@lily/api/services/auth/endpoints/verify-magic-link'
 import { Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -34,6 +38,7 @@ describe('verifyMagicLink', () => {
     options: {
       magicLinks?: (typeof mockMagicLink)[]
       users?: typeof mockUsers
+      userRepository?: Layer.Layer<UserRepository>
       shouldExceedRateLimit?: boolean
       jwtOptions?: Parameters<typeof createMockJWTService>[0]
     } = {}
@@ -43,7 +48,8 @@ describe('verifyMagicLink', () => {
         magicLinks: options.magicLinks ?? [mockMagicLink],
       }),
       createMockRefreshTokenRepository({ tokens: [] }),
-      createMockUserRepository(options.users ?? mockUsers),
+      options.userRepository ??
+        createMockUserRepository(options.users ?? mockUsers),
       createMockJWTService(options.jwtOptions ?? {}),
       createMockRateLimiterService(
         options.shouldExceedRateLimit !== undefined
@@ -64,6 +70,37 @@ describe('verifyMagicLink', () => {
     expect(result.refreshToken).toBeDefined()
     expect(result.expiresIn).toBe(15 * 60) // 15 minutes in seconds
     expect(result.user).toBeDefined()
+  })
+
+  const signUpFrom = async (timezone: string) => {
+    const created: Array<CreateUserData> = []
+    const recordingUsers = Layer.effect(
+      UserRepository,
+      Effect.map(UserRepository, (repo) => ({
+        ...repo,
+        create: (data: CreateUserData) => {
+          created.push(data)
+          return repo.create(data)
+        },
+      }))
+    ).pipe(Layer.provide(createMockUserRepository([])))
+    await Effect.runPromise(
+      verifyMagicLink({ code: mockMagicLink.token, timezone }).pipe(
+        Effect.provide(createTestLayer({ userRepository: recordingUsers }))
+      )
+    )
+    return created
+  }
+
+  it('stores the zone a new device reports, alias included', async () => {
+    expect(await signUpFrom('Eire')).toMatchObject([{ timezone: 'Eire' }])
+  })
+
+  it('stores no zone when the device reports one that does not resolve', async () => {
+    const created = await signUpFrom('Not/AZone')
+
+    expect(created).toHaveLength(1)
+    expect(created[0]).not.toHaveProperty('timezone')
   })
 
   it('should fail with invalid code format (not UUID)', async () => {

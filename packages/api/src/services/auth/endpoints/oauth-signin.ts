@@ -2,6 +2,7 @@ import { OAuthIdentityRepository } from '@lily/api/repositories/oauth-identity.r
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { normalizeEmail } from '@lily/api/services/auth/helpers/create-magic-link'
 import { issueSession } from '@lily/api/services/auth/helpers/issue-session'
+import { deviceTimezone } from '@lily/api/services/helpers/resolve-timezone'
 import {
   OAuthVerifierService,
   type OAuthIdentity as VerifiedIdentity,
@@ -130,7 +131,7 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
                   emailVerified: true,
                   ...(firstName ? { firstName } : {}),
                   ...(lastName ? { lastName } : {}),
-                  ...(payload.timezone ? { timezone: payload.timezone } : {}),
+                  ...deviceTimezone(payload.timezone),
                   ...(payload.language ? { language: payload.language } : {}),
                 }),
               onSome: (existing) =>

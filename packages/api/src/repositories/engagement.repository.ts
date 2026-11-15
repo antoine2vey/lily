@@ -18,9 +18,14 @@ import {
   userSubscriptions,
   users,
 } from '@lily/db/schema'
-import { CareDay, type LanguageCode, type VacationStatus } from '@lily/shared'
+import {
+  CareDay,
+  type LanguageCode,
+  startOfWeek,
+  type VacationStatus,
+} from '@lily/shared'
 import type { NotificationTopic } from '@lily/shared/server'
-import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, or, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -430,14 +435,14 @@ export const EngagementRepositoryLive = Layer.effect(
       getCareLogsCountForWeek: Effect.fn(
         'EngagementRepository.getCareLogsCountForWeek'
       )(function* (userId: string, timezone: string) {
-        const startOfWeek = sql`date_trunc('week', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
+        const monday = startOfWeek(yield* DateTime.now, timezone)
         const result = yield* db
           .select({ value: count() })
           .from(careLogs)
           .where(
             and(
               eq(careLogs.performedByUserId, userId),
-              sql`${careLogs.date} >= ${startOfWeek}`
+              gte(careLogs.date, DateTime.toDateUtc(monday))
             )
           )
         return extractCount(result)
