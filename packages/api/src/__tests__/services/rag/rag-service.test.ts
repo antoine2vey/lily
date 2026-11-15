@@ -120,8 +120,6 @@ describe('RagService', () => {
         (await import('@lily/api/repositories/processed-chunk.repository'))
           .ProcessedChunkRepository,
         {
-          create: () => Effect.void,
-          createMany: () => Effect.void,
           search: () =>
             Effect.fail(
               new SqlError({

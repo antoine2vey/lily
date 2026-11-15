@@ -1,11 +1,12 @@
 import { createTestIngestJob } from '@lily/api/__tests__/fixtures/knowledge'
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockIngestJobRepository } from '@lily/api/__tests__/mocks/ingest-job.repository'
-import { createMockProcessedChunkRepository } from '@lily/api/__tests__/mocks/processed-chunk.repository'
 import { createMockRawDocumentRepository } from '@lily/api/__tests__/mocks/raw-document.repository'
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
-import type { CreateProcessedChunkData } from '@lily/api/repositories/processed-chunk.repository'
-import { RawDocumentRepository } from '@lily/api/repositories/raw-document.repository'
+import {
+  type CreateChunkData,
+  RawDocumentRepository,
+} from '@lily/api/repositories/raw-document.repository'
 import type { RawDocumentInput } from '@lily/api/services/knowledge-ingestion/adapters/types'
 import { processIngestJob } from '@lily/api/services/knowledge-ingestion/processor'
 import { AdapterError } from '@lily/shared/errors/knowledge'
@@ -96,15 +97,14 @@ const makeRedditDocWithComments = (commentCount = 2): RawDocumentInput => ({
 const buildLayers = (opts: {
   jobs: IngestJob[]
   documents?: RawDocument[]
-  insertedChunks?: CreateProcessedChunkData[]
+  insertedChunks?: CreateChunkData[]
 }) => {
   const documents = opts.documents ?? []
   const insertedChunks = opts.insertedChunks ?? []
 
   return Layer.mergeAll(
     createMockIngestJobRepository({ jobs: opts.jobs }),
-    createMockRawDocumentRepository({ documents }),
-    createMockProcessedChunkRepository({ insertedChunks }),
+    createMockRawDocumentRepository({ documents, insertedChunks }),
     createMockDeadLetterRepository()
   )
 }
@@ -114,7 +114,7 @@ describe('processIngestJob', () => {
     const doc = makeTestDoc()
     const job = createTestIngestJob({ id: 'test-job-1' })
     const jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -138,7 +138,7 @@ describe('processIngestJob', () => {
     const doc = makeRedditDocWithComments(2)
     const job = createTestIngestJob({ id: 'test-job-reddit-parent-child' })
     const jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -182,7 +182,7 @@ describe('processIngestJob', () => {
     const doc = makeTestDoc() // source: 'reddit', no comments in metadata
     const job = createTestIngestJob({ id: 'test-job-reddit-no-comments' })
     const jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -256,7 +256,6 @@ describe('processIngestJob', () => {
           Layer.mergeAll(
             recordingJobs,
             createMockRawDocumentRepository({ documents: [existingDoc] }),
-            createMockProcessedChunkRepository({ insertedChunks: [] }),
             createMockDeadLetterRepository()
           )
         )
@@ -268,11 +267,10 @@ describe('processIngestJob', () => {
     expect(jobs[0]?.status).toBe('completed')
   })
 
-  it('does not store chunks for a document another worker inserted first', async () => {
+  it('does not count a document another worker inserted first', async () => {
     const doc = makeTestDoc({ sourceId: 'raced' })
     const job = createTestIngestJob({ id: 'test-job-race' })
     const jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
 
     // The pre-check misses the row and the insert hits the unique index.
     const racingDocs = Layer.succeed(RawDocumentRepository, {
@@ -295,16 +293,17 @@ describe('processIngestJob', () => {
           Layer.mergeAll(
             createMockIngestJobRepository({ jobs }),
             racingDocs,
-            createMockProcessedChunkRepository({ insertedChunks }),
             createMockDeadLetterRepository()
           )
         )
       )
     )
 
-    expect(insertedChunks).toHaveLength(0)
-    expect(jobs[0]?.status).toBe('completed')
-    expect(jobs[0]?.documentsFetched).toBe(0)
+    expect(jobs[0]).toMatchObject({
+      status: 'completed',
+      documentsFetched: 0,
+      chunksCreated: 0,
+    })
   })
 
   it('should skip duplicate documents by sourceId', async () => {
@@ -328,7 +327,7 @@ describe('processIngestJob', () => {
     const job = createTestIngestJob({ id: 'test-job-dedup' })
     const jobs = [job]
     const documents = [existingDoc]
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -356,7 +355,7 @@ describe('processIngestJob', () => {
     const job = createTestIngestJob({ id: 'test-job-no-source' })
     const jobs = [job]
     const documents: RawDocument[] = []
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -380,7 +379,7 @@ describe('processIngestJob', () => {
     const doc = makeTestDoc()
     const job = createTestIngestJob({ id: 'test-job-embed-fail' })
     const jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -436,7 +435,7 @@ describe('processIngestJob', () => {
   it('should complete with 0 docs and 0 chunks for empty stream', async () => {
     const job = createTestIngestJob({ id: 'test-job-empty' })
     const jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -461,7 +460,7 @@ describe('processIngestJob', () => {
     const shortDoc = makeTestDoc({ source: 'web', content: 'Short content' })
     const job = createTestIngestJob({ id: 'test-job-short' })
     const jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -515,7 +514,7 @@ describe('processIngestJob', () => {
     })
     const job = createTestIngestJob({ id: 'test-job-metadata' })
     const jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -550,7 +549,7 @@ describe('processIngestJob', () => {
     const doc = makeTestDoc()
     const job = createTestIngestJob({ id: 'test-job-keywords' })
     const jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
+    const insertedChunks: CreateChunkData[] = []
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({

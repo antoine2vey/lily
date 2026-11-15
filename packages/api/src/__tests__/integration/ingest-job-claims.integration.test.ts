@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
+import {
+  claimsMigration,
+  knowledgeTables,
+} from '@lily/api/__tests__/integration/knowledge-tables'
 import {
   IngestJobRepository,
   IngestJobRepositoryLive,
@@ -22,46 +25,6 @@ import {
 } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-
-const claimsMigration = fileURLToPath(
-  new URL(
-    '../../../../knowledge-db/drizzle/0005_ingest_job_claims.sql',
-    import.meta.url
-  )
-)
-
-// The pieces of knowledge-db migration 0000 that the claim and dedup paths
-// touch. The real file also creates processed_chunks with a halfvec column,
-// which needs pgvector, and CI's Postgres has none.
-const baseTables = `
-  CREATE TYPE "ingest_job_status" AS ENUM('pending', 'in_progress', 'completed', 'failed');
-  CREATE TABLE "ingest_jobs" (
-    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-    "adapter" text NOT NULL,
-    "config" jsonb NOT NULL,
-    "status" "ingest_job_status" DEFAULT 'pending' NOT NULL,
-    "documents_fetched" integer DEFAULT 0 NOT NULL,
-    "chunks_created" integer DEFAULT 0 NOT NULL,
-    "cursor" text,
-    "error" text,
-    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
-  );
-  CREATE TABLE "raw_documents" (
-    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-    "source" text NOT NULL,
-    "source_url" text,
-    "source_id" text,
-    "title" text NOT NULL,
-    "content" text NOT NULL,
-    "author" text,
-    "score" integer,
-    "metadata" jsonb,
-    "ingest_job_id" uuid NOT NULL REFERENCES "ingest_jobs"("id") ON DELETE cascade,
-    "fetched_at" timestamp with time zone DEFAULT now() NOT NULL
-  );
-  CREATE INDEX "raw_documents_source_id_idx" ON "raw_documents" ("source_id");
-`
 
 const makeRuntime = (knowledgeDatabaseUrl: string) =>
   ManagedRuntime.make(
@@ -125,7 +88,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       databaseUrl = url.toString()
       pool = new pg.Pool({ connectionString: databaseUrl })
 
-      await pool.query(baseTables)
+      await pool.query(knowledgeTables)
       // Duplicates from before the migration must not make it fail.
       const oldJob = await pool.query<{ id: string }>(
         `INSERT INTO ingest_jobs (adapter, config) VALUES ('reddit', '{}') RETURNING id`
@@ -259,13 +222,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.forEach(
             ['first', 'second'],
             (title) =>
-              repo.createIfNew({
-                source: 'reddit',
-                sourceId: 'reddit_raced',
-                title,
-                content: title,
-                ingestJobId: job,
-              }),
+              repo.createIfNew(
+                {
+                  source: 'reddit',
+                  sourceId: 'reddit_raced',
+                  title,
+                  content: title,
+                  ingestJobId: job,
+                },
+                []
+              ),
             { concurrency: 'unbounded' }
           )
         )

@@ -13,11 +13,7 @@ import {
   IngestJobRepositoryLive,
 } from '@lily/api/repositories/ingest-job.repository'
 import {
-  type ProcessedChunkRepository,
-  ProcessedChunkRepositoryLive,
-} from '@lily/api/repositories/processed-chunk.repository'
-import {
-  type RawDocumentRepository,
+  RawDocumentRepository,
   RawDocumentRepositoryLive,
 } from '@lily/api/repositories/raw-document.repository'
 import type { RawDocumentInput } from '@lily/api/services/knowledge-ingestion/adapters/types'
@@ -107,11 +103,9 @@ const redditPost = (sourceId: string): RawDocumentInput => ({
 const makeRuntime = (knowledgeDatabaseUrl: string, databaseUrl: string) =>
   ManagedRuntime.make(
     Layer.mergeAll(
-      Layer.mergeAll(
-        IngestJobRepositoryLive,
-        RawDocumentRepositoryLive,
-        ProcessedChunkRepositoryLive
-      ).pipe(Layer.provide(KnowledgeDrizzleLive)),
+      Layer.mergeAll(IngestJobRepositoryLive, RawDocumentRepositoryLive).pipe(
+        Layer.provide(KnowledgeDrizzleLive)
+      ),
       DeadLetterRepositoryLive.pipe(Layer.provide(DrizzleLive))
     ).pipe(
       Layer.provide(
@@ -128,7 +122,6 @@ const makeRuntime = (knowledgeDatabaseUrl: string, databaseUrl: string) =>
 type Services =
   | IngestJobRepository
   | RawDocumentRepository
-  | ProcessedChunkRepository
   | DeadLetterRepository
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
@@ -316,5 +309,39 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(stored.documents).toBe(1)
       expect(stored.chunks).toHaveLength(3)
     }, 30_000)
+
+    it('stores neither the document nor its chunks when one chunk is rejected', async () => {
+      const jobId = await enqueueJob()
+      const sourceId = `reddit_${randomUUID()}`
+
+      const exit = await runtime.runPromiseExit(
+        Effect.flatMap(RawDocumentRepository, (repo) =>
+          repo.createIfNew(
+            {
+              source: 'reddit',
+              sourceId,
+              title: 'Monstera',
+              content: 'Water it weekly.',
+              ingestJobId: jobId,
+            },
+            [
+              { content: 'Water it weekly.', chunkIndex: 0, source: 'reddit' },
+              {
+                parentChunkId: randomUUID(),
+                content: 'Points at a parent that does not exist.',
+                chunkIndex: 1,
+                source: 'reddit',
+              },
+            ]
+          )
+        )
+      )
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      const stored = await storedDocument(sourceId)
+      expect(stored.documents).toBe(0)
+      const chunks = await pool.query('SELECT 1 FROM processed_chunks')
+      expect(chunks.rowCount).toBe(0)
+    })
   }
 )
