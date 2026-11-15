@@ -87,21 +87,12 @@ export const SearchPage = () => {
   const search = useSearchKnowledge()
 
   const [query, setQuery] = useState('')
-  const [plantType, setPlantType] = useState('')
   const [limit, setLimit] = useState(5)
   const [minSimilarity, setMinSimilarity] = useState(0.7)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const trimmedPlantType = pipe(plantType, String.trim)
-    search.mutate({
-      query,
-      ...(String.isNonEmpty(trimmedPlantType)
-        ? { plantType: trimmedPlantType }
-        : {}),
-      limit,
-      minSimilarity,
-    })
+    search.mutate({ query, limit, minSimilarity })
   }
 
   const results = pipe(
@@ -134,23 +125,7 @@ export const SearchPage = () => {
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label
-              htmlFor="plantType"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Plant type filter
-            </label>
-            <input
-              id="plantType"
-              type="text"
-              value={plantType}
-              onChange={(e) => setPlantType(e.target.value)}
-              placeholder="Optional — e.g. monstera"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
-            />
-          </div>
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label
               htmlFor="limit"
