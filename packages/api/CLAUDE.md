@@ -1,173 +1,151 @@
-# API Package Architecture
+# packages/api
 
-## Service Structure
+The Lily backend is an Effect `HttpApi` on Bun. One process, started by `src/index.ts`, serves the HTTP API on port 3000 and runs every scheduler, worker and subscriber. The core tables belong to the four bounded contexts in `src/contexts/`. Every change to a care, a schedule, a plan, a plant's life, a reminder, a canopy, a delegation or a vacation goes through its context, and `src/__tests__/architecture/context-boundaries.test.ts` fails on a direct write from anywhere else.
 
-```
-services/{domain}/
-├── api.ts          # HttpApiEndpoint definitions
-├── handlers.ts     # HttpApiBuilder.group — imports endpoints directly
-├── helpers/        # Domain helpers (if needed)
-└── endpoints/      # Individual endpoint functions
-```
+## Commands
 
-**No `service.ts` files.** Handlers call endpoint functions directly. 27 HTTP domains, 16 schedulers, 8 infrastructure services (`ai`, `email`, `event-bus`, `jwt`, `message-queue`, `push`, `rag`, `rate-limiter`), 31 repositories.
+Run every command from the monorepo root.
 
-## Handlers
+| Command | What it does |
+|---|---|
+| `bun run --filter=@lily/api dev` | Starts the server on port 3000 and restarts it on every change |
+| `bun run --filter=@lily/api tsc` | Typecheck |
+| `bun run --filter=@lily/api test` | Vitest over `src/__tests__`. The integration suites skip themselves unless `DATABASE_URL_TEST` is set |
+| `bun run --filter=@lily/api test src/__tests__/services/plants` | One directory or file |
+| `bun run --filter=@lily/api lint` | Biome check |
+| `bun run --filter=@lily/api lint:fix` | Biome with autofix |
+| `bun run db:setup-test` | Applies the migrations to the test database and seeds the tiers |
+| `bun run test:integration` | Every integration suite against the test database, one file at a time |
+| `bun --env-file=.env.test.local run --filter=@lily/api test src/__tests__/integration/<file>` | One integration suite |
 
-```typescript
-export const PlantsApiLive = (api: Api) =>
-  HttpApiBuilder.group(api, 'plants', (handlers) =>
-    handlers
-      .handle('getPlant', ({ params: { id } }) =>
-        withPlantAuth(id, 'view').pipe(
-          Effect.flatMap((plant) => findPlantById(plant)),
-          withInfraErrorsAsDefect,
+The last three read `.env.test.local` at the repo root. Set both `DATABASE_URL_TEST` and `DATABASE_URL` to the test database there. A suite runs only when `DATABASE_URL_TEST` is set, and `PgLive` from `@lily/db` connects with `DATABASE_URL`, so a suite with only the first fails on a `ConfigError`.
+
+## Layout
+
+- `src/index.ts` registers every handler group and launches every scheduler, worker and subscriber as a `Layer.effectDiscard`. A new scheduler runs only after you add it there.
+- `src/api.ts` composes the `HttpApi`. Add each group with `.prefix(API_PREFIX)` from `@lily/shared`, so it serves under `/api/v1`. `HealthApiGroup` and `InternalApi` stay at the root. `src/middleware/legacy-api-prefix.ts` keeps `/api/...` as a permanent alias of `/api/v1/...`, because installed app builds and the RevenueCat webhook still call it.
+- `src/services/<domain>/` has one shape, as in `src/services/plants/`. `src/services/plants/api.ts` defines the `HttpApiEndpoint`s, `src/services/plants/handlers.ts` is the `HttpApiBuilder.group`, `src/services/plants/endpoints/` has one function per endpoint and `src/services/plants/helpers/` the rest. A domain with routes has no `service.ts`, and its handlers call endpoint functions directly. Only an infrastructure service with no routes, such as `src/services/ai/service.ts`, defines one.
+- `src/contexts/` holds `care`, `reminders`, `canopy` and `absence`, each in a section below. Import a context only through its index, `@lily/api/contexts/<name>` (`src/contexts/care/index.ts` for Care), and never from a module that context loads. The boundary test fails on a deep import and on a load cycle.
+- `src/kernel/` holds what the contexts share: `src/kernel/transact.ts` (the `Transaction` service), `src/kernel/permit.ts` (permits), `src/kernel/owner.ts` (`OwnerHeld`), `src/kernel/outbox.ts` and `src/kernel/locks.ts`. Only `src/kernel/permit.ts`, `src/services/plants/helpers/with-plant-access.ts` and `src/services/care-plans/helpers/with-care-plan-auth.ts` mint a permit. Only `src/services/plants/helpers/owner-lock.ts` imports `mintOwnerHeld`. No context imports `CurrentUser` from `src/services/auth/middleware.types.ts`, so a context learns its actor from the permit or the user id it is given.
+- `src/layers/index.ts` builds `AppLive` from every repository, context and infrastructure layer. `CODING_STANDARDS.md` has the rule that the program root provides it once. `src/layers/outbox.ts` lists every outbox consumer in `appConsumers`. A consumer runs only when `appConsumers` lists it, and the tests build their outbox from the same list.
+- `src/repositories/` is the read side, plus the writes no context owns. A repository returns `null` for a missing row, and the endpoint turns that into its not-found error. Every write to the `notifications` table is in `src/repositories/notification.repository.ts`. Only delivery (`src/services/notification-scheduler/` and `src/services/helpers/schedule-notification.ts`) moves a notification by id or drops it, with methods such as `claimForDelivery`, `deferUntil` and `deleteByIds`.
+- `src/events/` holds the EventBus events. `src/events/care-forwarder.ts` turns Care facts into the events the app listens to.
+- `src/__tests__/` mirrors `src/`, so the tests of `src/services/plants/` are in `src/__tests__/services/plants/`. `src/__tests__/architecture/` holds the boundary test, `src/__tests__/integration/` the suites that run on a real Postgres, `src/__tests__/mocks/` the repository mocks and `src/__tests__/fixtures/` the test data.
+
+## Rules
+
+- **Handlers call endpoints.** A handler checks access and passes what it got to the endpoint function.
+
+  ```typescript
+  export const PlantsApiLive = (api: Api) =>
+    HttpApiBuilder.group(api, 'plants', (handlers) =>
+      handlers
+        .handle('getPlant', ({ params: { id } }) =>
+          withPlantAuth(id, 'view').pipe(
+            Effect.flatMap((plant) => findPlantById(plant)),
+            withInfraErrorsAsDefect,
+          )
+        )
+    )
+  ```
+
+- **`withPlantAuth`.** `withPlantAuth(id, action)` returns the plant when the caller's `PlantRole` may perform `action` per the table in `src/services/plants/helpers/plant-access.ts`. No role answers `PlantNotFoundError` with the same body as a missing plant. A role without the action answers `PlantNotAuthorizedError`. `withPermittedPlant` returns the plant and a `PlantPermit`, and `withPlantPermit` returns the permit alone. Use `Effect.flatMap` when the endpoint needs the plant and `Effect.andThen` for an auth-only check. An endpoint uses the plant it received and never fetches it again.
+- **Schedulers use `createScheduler()`** from `src/services/helpers/create-scheduler.ts`. It logs a failed tick and keeps going, so a scheduler never crashes the server.
+
+  ```typescript
+  export const startMyScheduler = createScheduler({
+    name: 'my-scheduler',
+    interval: '1 hour',
+    runOnStartup: true,
+    task: myTask,
+  })
+  ```
+
+- **Background fibers in a layer fork with `Effect.forkScoped`.** A `forkChild` fiber is interrupted as soon as the layer finishes building, so the loop never runs. Wrap each step of a worker loop in `drainOnInterrupt`, so a shutdown lets the step in flight finish.
+- **Naming.** Requests are `{Entity}CreateRequest` and `{Entity}UpdateRequest`. Responses are `{Entity}ListResponse` and `{Entity}Response`. Data types are `Create{Entity}Data` and `Update{Entity}Data`.
+- **EventBus or MessageQueue.** EventBus (Redis pub/sub) is for fire-and-forget events, such as achievements. MessageQueue (Redis lists) is for work that must happen at least once, such as notification delivery. Publish an event with `publishWithRetry()` from `src/events/retry-policy.ts`.
+- **A write that names a user outside the contexts holds no account.** A room, a device token or a chat message is such a write. When a hard deletion of that account commits under it, the write breaks the foreign key to `users` and the handler dies on a `SqlError`. The `Authentication` middleware in `src/services/auth/middleware.impl.ts` answers that case for every such handler. When the handler dies on a `SqlError` and the account of `CurrentUser` no longer exists, the request answers the `UnauthorizedError` its next request would get, and the defect is logged at error level. Every other defect still answers 500. The middleware fixes the answer, so such a writer needs no account hold. `AdminAuth` has no such rule.
+- **Tests are mandatory for new features.** Mock at the repository level, not the database. Read a typed failure with `Effect.runPromiseExit` and `failureOf` from `src/__tests__/fixtures/exit.ts`. It throws when the effect succeeded or died, so the assertion cannot pass by skipping.
+
+  ```typescript
+  const exit = await Effect.runPromiseExit(
+    getUserSettings().pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          createMockUserRepository([...mockUsers]),
+          createMockCareLogRepository([]),
+          createMockCurrentUser({ id: 'non-existent' })
         )
       )
+    )
   )
-```
-
-## Layer Composition
-
-`AppLive` in `src/layers/index.ts` merges all repositories + infrastructure. Provided once at server root in `src/index.ts`.
-
-- **EventBus** (Redis pub/sub): ephemeral, fire-and-forget (achievement events)
-- **MessageQueue** (Redis lists): reliable, at-least-once (notification delivery)
-
-## `withPlantAuth`
-
-`withPlantAuth(id, action)` returns the plant when the caller's `PlantRole` may perform `action` per the table in `services/plants/helpers/plant-access.ts`. No role answers `PlantNotFoundError` with the same body as a missing plant; a role without the action answers `PlantNotAuthorizedError`. Use `Effect.flatMap` when the endpoint needs the plant, `Effect.zipRight` for auth-only. **Endpoints must not re-fetch a plant received from `withPlantAuth`.**
-
-## Schedulers
-
-Use `createScheduler()` from `services/helpers/create-scheduler.ts`:
-
-```typescript
-export const startMyScheduler = createScheduler({
-  name: 'my-scheduler',
-  interval: '1 hour',
-  runOnStartup: true,
-  task: myTask,
-})
-```
-
-Error isolation built-in: catch + log + continue, never crash server.
-
-## Naming Conventions
-
-- Requests: `{Entity}CreateRequest`, `{Entity}UpdateRequest`
-- Responses: `{Entity}ListResponse`, `{Entity}Response`
-- Data types: `Create{Entity}Data`, `Update{Entity}Data`
-
-## Error Handling
-
-Use `publishWithRetry()` for event publishing.
-
-A handler that writes a user id outside the contexts (a room, a device token, a chat message) holds no account. When a hard deletion of that account commits under it, the write breaks the foreign key to `users` and the handler dies on a `SqlError`. The `Authentication` middleware in `services/auth/middleware.impl.ts` answers that case for every such handler: when the handler dies on a `SqlError` and the account of `CurrentUser` no longer exists, the request answers the `UnauthorizedError` its next request would get, and the defect is logged at error level. Every other defect still answers 500. Do not add an account hold to such a writer to fix its answer. `AdminAuth` has no such rule.
-
-## Testing
-
-**Tests are mandatory for new features.**
-
-- Mock at **repository level**, not DB level
-- Tests live in `src/__tests__/services/{domain}/`
-- Fixtures in `src/__tests__/fixtures/`, mocks in `src/__tests__/mocks/`
-
-```typescript
-const result = await Effect.runPromise(
-  findUserById('user-1').pipe(
-    Effect.provide(createMockUserRepository(mockUsers))
-  )
-)
-```
+  expect(failureOf(exit)).toBeInstanceOf(UserNotFoundError)
+  ```
 
 ## Transactions
 
-An operation that is only right inside its caller's transaction requires the `Transaction` service of `kernel/transact.ts`, so it does not compile outside one. Every store lock and `apply`, `Absence.holdForDeletion` and `releaseForDeletion`, `Canopy.holdAsMember`, `Reminders.request` and `outbox.append` require it. `transact` provides it. So does `transactQuietly`, which wakes no relay and is for a body that appends nothing to the outbox. Do not provide `Transaction` anywhere else, and do not capture it in a layer. A test that calls such an operation on its own wraps it in `transactInMemory` from `__tests__/mocks/transaction.ts`.
+An operation that is only right inside its caller's transaction requires the `Transaction` service of `src/kernel/transact.ts`, so it does not compile outside one. Every store lock and `apply`, `Absence.holdForDeletion` and `releaseForDeletion`, `Canopy.holdAsMember`, `Reminders.request` and `outbox.append` require it. `transact` provides it. So does `transactQuietly`, which wakes no relay and is for a body that appends nothing to the outbox. Do not provide `Transaction` anywhere else, and do not capture it in a layer. A test that calls such an operation on its own wraps it in `transactInMemory` from `src/__tests__/mocks/transaction.ts`.
 
-An endpoint that answers with a row its command wrote reads that row in the same transaction: it wraps the command and the read in `transact`, or reads inside the body of `withOwnerLock`. The command's own transaction becomes a savepoint, so its locks hold until the read is done. A read made after the commit can find the row deleted by a request that waited for the command, and then answers 404 or dies. `__tests__/integration/read-back-races.integration.test.ts` has one race per endpoint.
+An endpoint that answers with a row its command wrote reads that row in the same transaction. It wraps the command and the read in `transact`, or reads inside the body of `withOwnerLock`. The command's own transaction becomes a savepoint, so its locks hold until the read is done. A read made after the commit can find the row deleted by a request that waited for the command, and then answers 404 or dies. `src/__tests__/integration/read-back-races.integration.test.ts` has one race per endpoint.
 
 An effect that is only right once the change is committed, such as the enqueue of a notification the worker then reads, is registered inside the transaction with `Transaction.afterCommit`. It runs after the outermost commit, so a caller may wrap the command in its own `transact`, and it is dropped when that transaction or one around it rolls back. Do not run such an effect after `transact` returns. Under a caller's transaction, that is before the commit. `Canopy.join`, `invite`, `leave`, `removeMember` and `leaveForDeletion`, and the delegation commands of `Absence`, enqueue their notifications this way.
 
 ## Reminders
 
-Care and overdue reminders are planned in `contexts/reminders` and nowhere else. Code that changes what they are planned from (a recipient's settings, the release of an account) calls `Reminders.request(Dirty.Plants | Dirty.Canopy | Dirty.Recipient)` inside its own transaction, opened with `transact` from `kernel/transact.ts`. The request commits with the change and is replanned after it, with retries, so a failed replan never rolls the change back. A change made through a `Care`, `Canopy` or `Absence` command needs no request. The context publishes a fact on its outbox topic, and Reminders replans what the fact makes stale.
+Care and overdue reminders are planned in `src/contexts/reminders` and nowhere else. Code that changes what they are planned from (a recipient's settings, the release of an account) calls `Reminders.request(Dirty.Plants | Dirty.Canopy | Dirty.Recipient)` inside its own transaction, opened with `transact` from `src/kernel/transact.ts`. The request commits with the change and is replanned after it, with retries, so a failed replan never rolls the change back. A change made through a `Care`, `Canopy` or `Absence` command needs no request. The context publishes a fact on its outbox topic, and Reminders replans what the fact makes stale.
 
-Do not create, re-time, lock or delete a row of a reminder type outside the context. `NotificationRepository.create` and `deletePendingByUserIdAndTypes` reject those types at compile time, and `__tests__/architecture/context-boundaries.test.ts` fails on a new writer. Terms: `CONTEXT.md`, section Reminders.
+Do not create, re-time, lock or delete a row of a reminder type outside the context. `NotificationRepository.create` and `deletePendingByUserIdAndTypes` reject those types at compile time, and `src/__tests__/architecture/context-boundaries.test.ts` fails on a new writer. Terms are in `CONTEXT.md`, section Reminders.
 
 ## Canopy
 
-A canopy, its members, links, invitations and mutes are changed in `contexts/canopy` and nowhere else. The same holds for the owner of a plant or a room once the row exists. A caller runs one command of the `Canopy` service from `@lily/api/contexts/canopy`: `create`, `update`, `leave`, `removeMember`, `dissolve`, `leaveForDeletion`, `createLink`, `revokeLink`, `join`, `invite`, `withdrawInvitation`, `declineInvitation`, `sharePlant`, `unsharePlant` or `setMute`. The plant commands take a `PlantPermit` from `withPlantPermit`. The others take the id of the acting user.
+A canopy, its members, links, invitations and mutes are changed in `src/contexts/canopy` and nowhere else. The same holds for the owner of a plant or a room once the row exists. A caller runs one command of the `Canopy` service from `@lily/api/contexts/canopy`: `create`, `update`, `leave`, `removeMember`, `dissolve`, `leaveForDeletion`, `createLink`, `revokeLink`, `join`, `invite`, `withdrawInvitation`, `declineInvitation`, `sharePlant`, `unsharePlant` or `setMute`. The plant commands take a `PlantPermit` from `withPlantPermit`. The others take the id of the acting user.
 
-Each command opens its own transaction, takes its locks in the one order of `CanopyStore.lockAndLoad`, applies the rules of `domain/decide.ts`, writes, records the notifications it owes and publishes what happened on the outbox topic `canopy`. Reminders consumes that topic and replans by itself, so no caller of a Canopy command calls `Reminders.request`. `CanopyRepository` is the read side. It has no write and no lock.
+Each command opens its own transaction, takes its locks in the one order of `CanopyStore.lockAndLoad`, applies the rules of `src/contexts/canopy/domain/decide.ts`, writes, records the notifications it owes and publishes what happened on the outbox topic `canopy`. Reminders consumes that topic and replans by itself, so no caller of a Canopy command calls `Reminders.request`. `CanopyRepository` is the read side. It has no write and no lock.
 
-A command holds the account of every user its rows name until it commits, so a hard deletion of that account waits for it or the command finds no account. A member of the canopy the command holds is held by the canopy row. `leaveForDeletion` takes the per-user key of `lockUser` first, as `create` and `join` do, so the deletion always finds the canopy of a member and waits for its row. A user who is not a member yet is named in the `accounts` of the lock plan and read `FOR KEY SHARE`: the creator of `create`, the joiner of `join` and the invitee of `invite`. `create` then takes no other lock, and the other two take only invitation rows of a canopy they already hold. A missing account is a refusal. `create` answers the `UnauthorizedError` of a request with no account behind it, `join` answers `CanopyInviteNotFoundError` and `invite` answers `UserNotFoundError`. A new command that writes the id of a user who may not be a member names that user in `accounts`.
+A command holds the account of every user its rows name until it commits, so a hard deletion of that account waits for it or the command finds no account. A member of the canopy the command holds is held by the canopy row. `leaveForDeletion` takes the per-user key of `lockUser` first, as `create` and `join` do, so the deletion always finds the canopy of a member and waits for its row. A user who is not a member yet is named in the `accounts` of the lock plan and read `FOR KEY SHARE`. Those users are the creator of `create`, the joiner of `join` and the invitee of `invite`. `create` then takes no other lock, and the other two take only invitation rows of a canopy they already hold. A missing account is a refusal. `create` answers the `UnauthorizedError` of a request with no account behind it, `join` answers `CanopyInviteNotFoundError` and `invite` answers `UserNotFoundError`. A new command that writes the id of a user who may not be a member names that user in `accounts`.
 
-Do not write `canopies`, `canopy_members`, `canopy_invites`, `canopy_direct_invites` or `canopy_plant_mutes` outside `contexts/canopy/store.ts`, do not set `user_id` or `canopy_id` on an existing plant or room there either, and do not lock a canopy row. `__tests__/architecture/context-boundaries.test.ts` fails on each of these, and on an import of `contexts/reminders` from Canopy code. A new refusal does not compile until `errorOf` in `contexts/canopy/canopy.ts` gives it an error, and a new fact does not compile until `staleAfterCanopy` in `contexts/reminders/triggers.ts` says what it makes stale. Terms: `CONTEXT.md`, section Canopy.
+Do not write `canopies`, `canopy_members`, `canopy_invites`, `canopy_direct_invites` or `canopy_plant_mutes` outside `src/contexts/canopy/store.ts`, do not set `user_id` or `canopy_id` on an existing plant or room there either, and do not lock a canopy row. `src/__tests__/architecture/context-boundaries.test.ts` fails on each of these, and on an import of `src/contexts/reminders` from Canopy code. A new refusal does not compile until `errorOf` in `src/contexts/canopy/canopy.ts` gives it an error, and a new fact does not compile until `staleAfterCanopy` in `src/contexts/reminders/triggers.ts` says what it makes stale. Terms are in `CONTEXT.md`, section Canopy.
 
 ## Absence
 
-A delegation is opened and changed, and a vacation is set, called off, started and ended, in `contexts/absence` and nowhere else. A caller runs one command of the `Absence` service from `@lily/api/contexts/absence`: `openDelegation`, `respondToDelegation`, `cancelDelegation`, `completeDelegation`, `setVacation`, `cancelVacation`, `advanceDelegations` or `advanceVacations`. The first six take the id of the acting user. The two schedulers call the last two at startup and then at their interval. An account deletion calls two more, `holdForDeletion` and `releaseForDeletion`, which open no transaction and run in the one `Canopy.leaveForDeletion` opened. Each due delegation or vacation gets a transaction of its own, so one that fails is counted and the next still runs. A delegation still pending at its start is due too: the tick cancels it and tells the owner with `delegation_canceled` and the param `unanswered`.
+A delegation is opened and changed, and a vacation is set, called off, started and ended, in `src/contexts/absence` and nowhere else. A caller runs one command of the `Absence` service from `@lily/api/contexts/absence`: `openDelegation`, `respondToDelegation`, `cancelDelegation`, `completeDelegation`, `setVacation`, `cancelVacation`, `advanceDelegations` or `advanceVacations`. The first six take the id of the acting user. The two schedulers call the last two at startup and then at their interval. An account deletion calls two more, `holdForDeletion` and `releaseForDeletion`, which open no transaction and run in the one `Canopy.leaveForDeletion` opened. Each due delegation or vacation gets a transaction of its own, so one that fails is counted and the next still runs. A delegation still pending at its start is due too. The tick cancels it and tells the owner with `delegation_canceled` and the param `unanswered`.
 
-Each command opens its own transaction, takes its locks in the one order of `AbsenceStore` (the per-user keys of the owner and the caretaker of a new delegation, both in one statement and in key order, the delegation row, the account row of a vacation, the accounts and the plants a new delegation names, then the plants a vacation end moves, then the waiting notifications a vacation sweeps), applies the table `RULES` of `domain/delegation.ts` or `domain/vacation.ts`, writes, records the notifications it owes and publishes what happened on the outbox topic `absence`. Reminders consumes that topic and replans by itself, so no caller of an Absence command calls `Reminders.request`. `DelegationRepository` is the read side.
+Opening a delegation is a paid feature. `src/services/delegation/endpoints/create-delegation.ts` calls `LimitChecker.checkDelegationAccess` before it runs `openDelegation`, and a free account gets a `LimitExceededError` for the feature `care_delegation`.
 
-Do not write `care_delegations` or `delegation_plants` outside `contexts/absence/store.ts`, do not lock a delegation row outside it, and do not give `vacation_status`, `vacation_start` or `vacation_end` a value there either. Absence must not import `contexts/canopy` or `contexts/reminders`; it reads memberships through `CanopyRepository`. `__tests__/architecture/context-boundaries.test.ts` fails on each of these. Canopy imports `contexts/absence` for `holdForDeletion` only, so `CanopyLive` is built over `AbsenceLive`. A new command or status does not compile until `RULES` has its cell, a new refusal until `absence.ts` gives it an error, and a new fact until `staleAfterAbsence` in `contexts/reminders/triggers.ts` says what it makes stale. Terms: `CONTEXT.md`, section Absence.
+Each command opens its own transaction, takes its locks in the one order of `AbsenceStore`, applies the table `RULES` of `src/contexts/absence/domain/delegation.ts` or `src/contexts/absence/domain/vacation.ts`, writes, records the notifications it owes and publishes what happened on the outbox topic `absence`. The lock order is the per-user keys of the owner and the caretaker of a new delegation (both in one statement and in key order), the delegation row, the account row of a vacation, the accounts and the plants a new delegation names, then the plants a vacation end moves, then the waiting notifications a vacation sweeps. Reminders consumes that topic and replans by itself, so no caller of an Absence command calls `Reminders.request`. `DelegationRepository` is the read side.
 
-A vacation command locks the account row `FOR NO KEY UPDATE`, so it never waits on a care that only references the account. An account deletion takes the per-user key of `lockUser` first. An opening takes the key of each of its two users, so the deletion finds every delegation that names the account, and an opening behind it finds no account and is refused. The deletion then takes the same lock through `holdForDeletion`, right after the user's delegation rows and before any plant or notification row. A command on an existing delegation holds its row, which the deletion of either party waits for, so the notifications it records for them never name a deleted account. It then takes every plant its delete writes, in one statement in id order (`PlantScope.Leaver` in `contexts/canopy/store.ts`): the plants of the canopy, the user's own, those the user created and those with a plan the user wrote. A new path that updates an account row and then deletes that user's waiting notifications must take the account row first too, or it can deadlock with a deletion.
+Do not write `care_delegations` or `delegation_plants` outside `src/contexts/absence/store.ts`, do not lock a delegation row outside it, and do not give `vacation_status`, `vacation_start` or `vacation_end` a value there either. Absence reads memberships through `CanopyRepository` and imports neither `src/contexts/canopy` nor `src/contexts/reminders`. `src/__tests__/architecture/context-boundaries.test.ts` fails on each of these. Canopy imports `src/contexts/absence` for `holdForDeletion` only, so `CanopyLive` is built over `AbsenceLive`. A new command or status does not compile until `RULES` has its cell, a new refusal until `src/contexts/absence/absence.ts` gives it an error, and a new fact until `staleAfterAbsence` in `src/contexts/reminders/triggers.ts` says what it makes stale. Terms are in `CONTEXT.md`, section Absence.
 
-Whether a caretaker tends a plant is one SQL condition, `tending()` in `repositories/helpers/tending.ts`: the delegation is active and the caretaker's account is reachable. Use it in every query that gives a caretaker access to a plant or picks who is reminded. Do not compare `careDelegations.status` with `'active'` for that.
+A vacation command locks the account row `FOR NO KEY UPDATE`, so it never waits on a care that only references the account. An account deletion takes the per-user key of `lockUser` first. An opening takes the key of each of its two users, so the deletion finds every delegation that names the account, and an opening behind it finds no account and is refused. The deletion then takes the same lock through `holdForDeletion`, right after the user's delegation rows and before any plant or notification row. A command on an existing delegation holds its row, which the deletion of either party waits for, so the notifications it records for them never name a deleted account. It then takes every plant its delete writes, in one statement in id order (`PlantScope.Leaver` in `src/contexts/canopy/store.ts`). Those are the plants of the canopy, the user's own, those the user created and those with a plan the user wrote. A new path that updates an account row and then deletes that user's waiting notifications must take the account row first too, or it can deadlock with a deletion.
+
+Whether a caretaker tends a plant is one SQL condition, `tending()` in `src/repositories/helpers/tending.ts`. The delegation is active and the caretaker's account is reachable. Use it in every query that gives a caretaker access to a plant or picks who is reminded, in place of a comparison of `careDelegations.status` with `'active'`.
 
 ## Care
 
-A care, a care schedule, a care plan and the life of a plant are changed in `contexts/care` and nowhere else. A caller runs one command of one of three services from `@lily/api/contexts/care`. All three write through one `CareStore` and publish on one outbox topic, `care`.
+A care, a care schedule, a care plan and the life of a plant are changed in `src/contexts/care` and nowhere else. A caller runs one command of one of three services from `@lily/api/contexts/care`. All three write through one `CareStore` and publish on one outbox topic, `care`.
 
 - `Care` records and edits cares and schedules: `record`, `recordOne`, `amend`, `remove`, `correctLastCare`, `setSchedules` or `moveDueDays`.
-- `PlantLife` creates, buries, revives and removes a plant: `plant`, `bury`, `revive` or `remove`. The cemetery section below has its rules.
+- `PlantLife` creates, buries, revives and removes a plant: `plant`, `bury`, `revive` or `remove`. Dead plants, below, has its rules.
 - `CarePlans` proposes and runs a care plan: `propose`, `accept`, `dismiss`, `delete`, `tickStep`, `untickStep`, `dropStep`, `linkToDiagnosis` or `linkToMessage`.
 
 A command on a plant takes a `PlantPermit` from `withPlantPermit` or `withPermittedPlant`. A command on a plan takes a `PlanPermit` from `withCarePlanAuth`. Two commands take no permit. `moveDueDays` serves the weather readjustment and Absence, and `linkToMessage` serves the chat save. No Care code reads the current user.
 
-Each command opens its own transaction and locks the plant row, `FOR NO KEY UPDATE` in every command except `PlantLife.remove`, which takes it `FOR UPDATE`. A command on several plants locks them in id order. A plan command locks the plant of its plan, so no command locks a plan row. A command whose rows name the acting user (`Care.record`, `recordOne`, `correctLastCare`, `CarePlans.propose` and `tickStep`) loads through `CareStore.lockAndLoadFor`, which reads that user's account row `FOR KEY SHARE` after the plant rows, never before. The foreign key of the row takes that lock at the write anyway, so the order against an account deletion is the same: the delete of the account waits for the command, or the command waits for the delete and then finds no account. It is then refused as `ActorGone` and answers `PlantNotFoundError`, as someone with no role on the plant. `PlantLife.plant` has no plant row to lock, so `CareStore.lockAndLoadForPlanting` reads the accounts the new row names (its creator, and its owner when a user owns it) `FOR KEY SHARE` right after the owner lock. A missing one is refused as `CreatorGone` and answers the `UnauthorizedError` of a request with no account behind it. The command then applies the rules of `domain/decide.ts`, `domain/life.ts` or `domain/plan-decide.ts`, writes, and publishes what happened on the topic `care`. Reminders consumes that topic and replans by itself, and `events/care-forwarder.ts` turns the facts the app listens to into EventBus events. So no caller of a Care command calls `Reminders.request` or publishes a care event. `linkToMessage` is the one exception to the shape. It is a single statement on a column no rule reads, with no plant lock and no fact. `CareReads.due` is the read side for due cares. `CareLogRepository`, `CareScheduleRepository` and `CarePlanRepository` only read.
+Each command opens its own transaction and locks the plant row, `FOR NO KEY UPDATE` in every command except `PlantLife.remove`, which takes it `FOR UPDATE`. A command on several plants locks them in id order. A plan command locks the plant of its plan, so no command locks a plan row. A command whose rows name the acting user (`Care.record`, `recordOne`, `correctLastCare`, `CarePlans.propose` and `tickStep`) loads through `CareStore.lockAndLoadFor`, which reads that user's account row `FOR KEY SHARE` after the plant rows, never before. The foreign key of the row takes that lock at the write anyway, so the order against an account deletion is the same. The delete of the account waits for the command, or the command waits for the delete and then finds no account. It is then refused as `ActorGone` and answers `PlantNotFoundError`, as someone with no role on the plant. `PlantLife.plant` has no plant row to lock, so `CareStore.lockAndLoadForPlanting` reads the accounts the new row names (its creator, and its owner when a user owns it) `FOR KEY SHARE` right after the owner lock. A missing one is refused as `CreatorGone` and answers the `UnauthorizedError` of a request with no account behind it. The command then applies the rules of `src/contexts/care/domain/decide.ts`, `src/contexts/care/domain/life.ts` or `src/contexts/care/domain/plan-decide.ts`, writes, and publishes what happened on the topic `care`. Reminders consumes that topic and replans by itself, and `src/events/care-forwarder.ts` turns the facts the app listens to into EventBus events. So no caller of a Care command calls `Reminders.request` or publishes a care event. `linkToMessage` is the one exception to the shape. It is a single statement on a column no rule reads, with no plant lock and no fact. `CareReads.due` is the read side for due cares. `CareLogRepository`, `CareScheduleRepository` and `CarePlanRepository` only read.
 
-A dead plant takes part in nothing. It accepts no new care, no correction, no schedule change, no due-day move and no plan command except `CarePlans.delete`, and a proposal for it answers as a plant that does not exist. Its past cares can still be edited or removed.
+A day is stored, not derived. The due day of a schedule is `plant_care_schedules.due_day` and the day of a care is `care_logs.care_day`. The store writes both in the plant's care timezone, and a stored day stays put when the owner changes timezone. Read a day from its column with `CareDay.make` instead of computing it from `next_care_at` or from `date`, and filter due days with `dueOnOrBefore` in `src/contexts/care/stored-day.ts`. Both columns are `NOT NULL` since migrations `0080` and `0081`, so an insert into either table names its day column, in a test and in a seed script too.
 
-A day is stored, not derived. The due day of a schedule is `plant_care_schedules.due_day` and the day of a care is `care_logs.care_day`. The store writes both in the plant's care timezone, and a stored day stays put when the owner changes timezone. Do not compute a day from `next_care_at` or from `date`. Both columns are `NOT NULL` since migrations `0080` and `0081`. Read a day from its column with `CareDay.make`, and filter due days with `dueOnOrBefore` in `contexts/care/stored-day.ts`. An insert into either table names its day column, in a test and in a seed script too.
+The health of a plant is stored as a condition: `THRIVING`, `HEALTHY`, `SICK` or `RECOVERING`. Since migration `0082` the `plant_health` type has no `NEEDS_ATTENTION`. `seePlantCare` in `src/contexts/care/plant-care.ts` derives it from overdue care when a plant is read, so only an answer carries it. Type a stored health as `PlantCondition` and an answered one as `PlantHealthStatus`.
 
-The health of a plant is stored as a condition: `THRIVING`, `HEALTHY`, `SICK` or `RECOVERING`. Since migration `0082` the `plant_health` type has no `NEEDS_ATTENTION`. `seePlantCare` in `contexts/care/plant-care.ts` derives it from overdue care when a plant is read, so only an answer carries it. Type a stored health as `PlantCondition` and an answered one as `PlantHealthStatus`.
+The assistant reaches `CarePlans.propose` through its chat tools in `src/services/ai-chat/tools/index.ts`. `buildPlantChatTools` gives a chat about one plant `createDiagnosis`, `proposeCarePlan` and `searchPlantKnowledge`, with a `PlantPermit<'chat'>`. A general chat gets only `searchPlantKnowledge` from `buildGeneralChatTools`, because a plan needs a plant. The treatment steps of `createDiagnosis` become a proposed plan linked by `diagnosisId`. A plan has at most `CARE_PLAN_MAX_STEPS` steps (`packages/shared/src/domains/care-plan/schema.ts`). A step's `dueInDays` resolves from the user's local midnight in `ToolDeps.timezone`. Its `careType` moves a real schedule when the plan is accepted, so `src/services/ai-chat/tools/care-plan-step-schema.ts` makes the model choose `none` for every step that is not literally a watering, feeding, misting or repotting.
 
-Do not write `care_logs`, `plant_care_schedules`, `care_plans` or `care_plan_steps` outside `contexts/care/store.ts`. Care must not load `contexts/canopy`, `contexts/absence` or `contexts/reminders`, directly or through a module it imports. `__tests__/architecture/context-boundaries.test.ts` fails on each of these. A new refusal does not compile until `errorOf` in `contexts/care/refusals.ts` gives it an error. A new life state does not compile until `LIFE` in `domain/life.ts` has its cell, and a new plan command or status until `RULES` and `DEAD_PLANT_TAKES` in `domain/plan.ts` have theirs. A new fact does not compile until `staleAfterCare` in `contexts/reminders/triggers.ts` says what it makes stale and `events/care-forwarder.ts` says what the app hears. Terms: `CONTEXT.md`, section Care.
+Do not write `care_logs`, `plant_care_schedules`, `care_plans` or `care_plan_steps`, insert or delete a `plants` row, or give `died_at` a value, outside `src/contexts/care/store.ts`. Care must not load `src/contexts/canopy`, `src/contexts/absence` or `src/contexts/reminders`, directly or through a module it imports. `src/__tests__/architecture/context-boundaries.test.ts` fails on each of these, and on an import of `src/contexts/reminders` or `src/events/index.ts` from a plant life endpoint. A new refusal does not compile until `errorOf` in `src/contexts/care/refusals.ts` gives it an error. A new life state does not compile until `LIFE` in `src/contexts/care/domain/life.ts` has its cell, and a new plan command or status until `RULES` and `DEAD_PLANT_TAKES` in `src/contexts/care/domain/plan.ts` have theirs. A new fact does not compile until `staleAfterCare` in `src/contexts/reminders/triggers.ts` says what it makes stale and `src/events/care-forwarder.ts` says what the app hears. Terms are in `CONTEXT.md`, section Care.
 
-## Dead plants (the cemetery)
+### Dead plants
 
-A plant with `died_at IS NOT NULL` is in the user's cemetery. It keeps every
-row (schedules, photos, care logs) but must not take part in care tasks,
-reminders, digests, nudges, health updates, user-facing counts, or the Live
-Activity.
+A plant with `died_at IS NOT NULL` is in the user's cemetery. It keeps every row (schedules, photos, care logs) and takes part in no care task, reminder, digest, nudge, user-facing count or Live Activity. It accepts no new care, no correction, no schedule change, no due-day move and no plan command except `CarePlans.delete`, and a proposal for it answers as a plant that does not exist. Its past cares can still be edited or removed.
 
-- Apply `isLivingPlant()` / `livingPlantSql` from
-  `src/repositories/helpers/living-plant.ts` to every new query that joins or
-  counts `plants` for one of those paths. For a `leftJoin` put the predicate in
-  the join condition, not the WHERE, or rows without plants disappear.
-- `PlantRepository.findAll`: `filter: 'dead'` lists the cemetery; every other
-  filter is living-only unless the caller passes `includeDead: true` (admin).
-- A plant is created, buried, revived and removed by one command of
-  `PlantLife` from `@lily/api/contexts/care`: `plant`, `bury`, `revive` or
-  `remove`. The lifecycle endpoints (`markPlantDead`, `revivePlant`,
-  `deletePlant`) take the plant and a permit from
-  `withPermittedPlant(id, 'markDead' | 'revive' | 'delete')`. Each command
-  publishes `PlantLifeChanged` on the Care topic in its own transaction.
-  Reminders replans from that fact, and the EventBus forwarder turns it into
-  `PlantCreated` or `PlantLifecycleChanged`, which the Live Activity
-  subscriber uses to refresh the card. So no lifecycle endpoint calls
-  `Reminders.request` or publishes an event. Delivery drops any other
-  notification of a dead plant (`plant-gone`).
-- `plant` and `revive` add a living plant to an owner, a user or a Canopy.
-  They take the `OwnerHeld` proof that `withOwnerLock` gives its body, and
-  the endpoint asks `LimitChecker.checkPlantLimit` under that lock. Revive
-  restarts every due day at today plus the schedule's frequency, in the
-  plant's care timezone.
-- Do not insert or delete a `plants` row, or give `died_at` a value, outside
-  `contexts/care/store.ts`. `__tests__/architecture/context-boundaries.test.ts`
-  fails on it.
-- Deliberately unfiltered: achievements (`countPlants`), admin analytics, and
-  care-log history/streaks (past care stays history).
+- Apply `isLivingPlant()` or `livingPlantSql` from `src/repositories/helpers/living-plant.ts` to every new query that joins or counts `plants` for one of those paths. For a `leftJoin`, put the predicate in the join condition, because in the `WHERE` it drops the rows without plants.
+- `PlantRepository.findAll` with `filter: 'dead'` lists the cemetery. Every other filter is living-only unless the caller passes `includeDead: true` (admin).
+- The lifecycle endpoints (`markPlantDead`, `revivePlant`, `deletePlant`) take the plant and a permit from `withPermittedPlant(id, 'markDead' | 'revive' | 'delete')`. Their `PlantLife` command publishes `PlantLifeChanged`. Reminders replans from it, and the forwarder turns it into `PlantCreated` or `PlantLifecycleChanged`, which the Live Activity subscriber uses to refresh the card. Delivery drops any other notification of a dead plant (`plant-gone`).
+- `plant` and `revive` add a living plant to an owner, a user or a Canopy. They take the `OwnerHeld` proof that `withOwnerLock` gives its body, and the endpoint asks `LimitChecker.checkPlantLimit` under that lock. Revive restarts every due day at today plus the schedule's frequency, in the plant's care timezone.
+- Achievements (`countPlants`), admin analytics, and care-log history and streaks count dead plants on purpose. Past care stays history.
