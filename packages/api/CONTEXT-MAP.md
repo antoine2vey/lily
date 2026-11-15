@@ -29,7 +29,7 @@ One row per directory of `src/services/`, in directory order. "Repositories" nam
 
 | Module | What it does | Context | Class | Repositories |
 | --- | --- | --- | --- | --- |
-| `account-cleanup` | Daily hard delete of users past the deletion grace period (`cleanupExpiredAccounts`, through `purgeAccount`). | Identity & Access | generic | User |
+| `account-cleanup` | Hourly hard delete of users past the deletion grace period (`cleanupExpiredAccounts`, through `purgeAccount`). | Identity & Access | generic | User |
 | `achievement-scheduler` | Reconciles threshold achievements every 12 hours. | Engagement | supporting | Achievement |
 | `achievements` | Lists and unlocks achievements. `src/services/achievements/checker.ts` is the EventBus subscriber, and `src/services/achievements/notifier.ts` pushes unlocks over SSE. | Engagement | supporting | Achievement |
 | `activity-push-tokens` | Registers Live Activity start and activity tokens, and ends an activity. | Notifications | core | ActivityPushToken, DeviceToken |
