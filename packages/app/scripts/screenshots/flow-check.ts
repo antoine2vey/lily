@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { Array, pipe, String } from 'effect'
+import { Array, type Option, pipe, String } from 'effect'
 import { SCREENS } from './copy'
 
 export interface FlowFinding {
@@ -37,14 +37,27 @@ const flowMatches = (
   )
 
 // `(group)` folders and `index` add no URL segment, and `[param]` takes any.
-const routePattern = (appDir: string, file: string): RegExp =>
+const routePattern = (file: string): RegExp =>
   pipe(
-    path.relative(appDir, file).replace(SOURCE_FILE, ''),
+    file.replace(SOURCE_FILE, ''),
     String.split(path.sep),
     Array.filter((part) => !/^\(.*\)$/.test(part) && part !== 'index'),
     Array.map((part) => (/^\[.*\]$/.test(part) ? '[^/]+' : part)),
     (parts) => new RegExp(`^${Array.join(parts, '/')}$`)
   )
+
+/** Finds the route file, relative to `app/`, that a `lily:///` link opens. */
+export const findRoute = (
+  routeFiles: ReadonlyArray<string>,
+  link: string
+): Option.Option<string> => {
+  const urlPath = link.slice(APP_LINK.length).replace(/\?.*$/, '')
+  return pipe(
+    routeFiles,
+    Array.filter((file) => !path.basename(file).startsWith('_')),
+    Array.findFirst((file) => routePattern(file).test(urlPath))
+  )
+}
 
 // A `${...}` hole stands for any value, on both sides of the comparison:
 // in the app it is the interpolated id, in the flow it is a Maestro `--env`.
@@ -72,10 +85,8 @@ export const checkFlow = (packageRoot: string): ReadonlyArray<FlowFinding> => {
   const appDir = path.join(packageRoot, 'app')
   const relative = (file: string) => path.relative(packageRoot, file)
 
-  const routes = pipe(
-    listFiles(appDir),
-    Array.filter((file) => !path.basename(file).startsWith('_')),
-    Array.map((file) => ({ file, pattern: routePattern(appDir, file) }))
+  const routeFiles = Array.map(listFiles(appDir), (file) =>
+    path.relative(appDir, file)
   )
   const testIDs = renderedTestIDs([
     ...listFiles(appDir),
@@ -89,10 +100,7 @@ export const checkFlow = (packageRoot: string): ReadonlyArray<FlowFinding> => {
       flowMatches(flow, /openLink:\s*"([^"]+)"/),
       Array.filter(({ value }) => value.startsWith(APP_LINK)),
       Array.map(({ value, line }): FlowFinding => {
-        const urlPath = value.slice(APP_LINK.length).replace(/\?.*$/, '')
-        const route = Array.findFirst(routes, ({ pattern }) =>
-          pattern.test(urlPath)
-        )
+        const route = findRoute(routeFiles, value)
         return {
           kind: 'route',
           value,
@@ -100,7 +108,7 @@ export const checkFlow = (packageRoot: string): ReadonlyArray<FlowFinding> => {
           ok: route._tag === 'Some',
           evidence:
             route._tag === 'Some'
-              ? relative(route.value.file)
+              ? path.join('app', route.value)
               : 'no route file',
         }
       })
