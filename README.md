@@ -31,7 +31,7 @@ If you are here to read code, these parts are worth a look.
 - **Retrieval-grounded AI diagnosis.** [`knowledge-db`](packages/knowledge-db) is a pgvector knowledge base with 3,072-dimension `halfvec` embeddings and hybrid HNSW plus full-text search. It grounds each answer about a plant in retrieved care knowledge.
 - **Native AR and ML scanning.** [`plant-scanner`](packages/plant-scanner) is an iOS Expo module that uses ARKit and TensorFlow Lite for on-device plant and pot detection, AR distance measurement and light estimation.
 - **An MCP server for AI assistants.** [`mcp`](packages/mcp) exposes Lily to assistants such as ChatGPT over the Model Context Protocol, with OAuth 2.1 and HTML widgets.
-- **Monorepo discipline.** Turborepo runs over Bun workspaces, Biome formats and lints, TypeScript uses strict project references, and CI plus the pre-push hook gate every push on docs, lint, `tsc` and tests.
+- **Monorepo discipline.** Turborepo runs over Bun workspaces, Biome formats and lints, and TypeScript uses strict project references. Docs, lint, `tsc` and tests gate every push through the pre-push hook, and every pull request and push to `main` through CI.
 
 ## Packages
 
@@ -58,8 +58,9 @@ Bun · TypeScript 7 with `@effect/tsgo` · Effect 4 · Turborepo · Biome · Vit
 Run every command from the repository **root**. Turbo and Bun workspaces run each package's scripts, so you never `cd` into a package.
 
 ```bash
-# 1. Start local infra: postgres, postgres-test, knowledge-db, knowledge-db-test, redis
-docker compose up -d
+# 1. Start local infra. Name the services, because a bare `up` also starts
+#    the compose `api` on port 3000, which `bun run dev` needs
+docker compose up -d postgres postgres-test knowledge-db knowledge-db-test redis
 
 # 2. Install all workspaces (also runs `prepare`: Husky hooks + `effect-tsgo patch`)
 bun install
@@ -78,7 +79,9 @@ bun run --filter=@lily/db db:push
 bun run --filter=@lily/knowledge-db db:migrate:prod
 
 # 6. Start everything in watch mode via Turbo
-#    (the api serves at http://localhost:3000 with Swagger/OpenAPI)
+#    (the api serves at http://localhost:3000 with Swagger/OpenAPI). The web dev
+#    server and mcp both use port 3001 by default, so set MCP_PORT and
+#    MCP_SERVER_URL in .env to a free port first
 bun run dev
 ```
 
@@ -125,7 +128,7 @@ How each package reaches production, from Railway deploys to OTA updates and sto
 - **Run from root.** All scripts go through Turbo from the monorepo root.
 - **Drizzle, not Prisma.** Database access is Drizzle ORM through Effect. Migrations are **hand-authored SQL** in `packages/db/drizzle/`, and production applies them on each API deploy.
 - **Typed errors.** Errors are tagged classes that travel through Effect and are handled by tag. Unions are matched with `Match.exhaustive`.
-- **Monorepo discipline.** Every package `extends` the root `tsconfig.json`, declares `sideEffects`, and pins the exact root `typescript` version. Use `@ts-expect-error` with a reason, never `@ts-ignore`.
+- **Monorepo discipline.** Every package except the Expo app `extends` the root `tsconfig.json`. The app extends `expo/tsconfig.base` and mirrors the root's strict flags. Every package declares `sideEffects` and pins the exact root `typescript` version. Use `@ts-expect-error` with a reason, never `@ts-ignore`.
 
 The full coding rules are in [`CODING_STANDARDS.md`](CODING_STANDARDS.md), and the package rules are in [`docs/agents/monorepo.md`](docs/agents/monorepo.md).
 

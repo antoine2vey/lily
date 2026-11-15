@@ -46,7 +46,7 @@ docs(readme): clarify knowledge-db setup
    ```bash
    bash scripts/check-docs.sh && bun run lint && bun run tsc && bun run test
    ```
-   The pre-push hook runs the same four checks, and CI runs them on every push.
+   The pre-push hook runs the same four checks before every push. CI runs them on every pull request and on every push to `main`.
 4. Open a PR against `main` and fill in the [PR template](.github/pull_request_template.md). Link any related issue (`Closes #123`).
 5. A maintainer reviews it. Keep the PR scoped. Smaller PRs get reviewed faster.
 

@@ -20,4 +20,4 @@ How a change on `main` reaches users. Read this before you promise that a change
 
 ## Bun version
 
-Pin one Bun version everywhere. The root `packageManager` field is the source. The same string is repeated in `eas.json`, the CI setup action, the Android build and the Dockerfiles, so find every pin with `git grep -nF <version>`. A Bun bump moves the app fingerprint, so pair it with a planned store build.
+Pin one Bun version everywhere. The root `packageManager` field is the source. The same string is repeated in `eas.json`, the CI setup action, the Android build and the Dockerfiles that Railway builds, so find every pin with `git grep -nF <version>`. `Dockerfile.dev`, which the compose `api` service builds, uses the floating `oven/bun:1-alpine` tag and carries no pin. A Bun bump moves the app fingerprint, so pair it with a planned store build.
