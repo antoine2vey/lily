@@ -115,6 +115,30 @@ describe('refreshAccessTokenAsync', () => {
     expect(store.get(REFRESH_TOKEN_KEY)).toBe('refresh-new')
   })
 
+  it('stores rotated tokens so a background launch on a locked device can read them', async () => {
+    const { refreshAccessTokenAsync } = loadClient()
+
+    fetchMock.mockResolvedValue(
+      jsonResponse({ accessToken: 'access-new', refreshToken: 'refresh-new' })
+    )
+
+    await refreshAccessTokenAsync()
+
+    const readableWhileLocked = {
+      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+    }
+    expect(mockedSecureStore.setItemAsync).toHaveBeenCalledWith(
+      ACCESS_TOKEN_KEY,
+      'access-new',
+      readableWhileLocked
+    )
+    expect(mockedSecureStore.setItemAsync).toHaveBeenCalledWith(
+      REFRESH_TOKEN_KEY,
+      'refresh-new',
+      readableWhileLocked
+    )
+  })
+
   it('reuses a just-completed refresh instead of rotating again', async () => {
     const { refreshAccessTokenAsync } = loadClient()
 
