@@ -20,6 +20,8 @@ Run every command from the monorepo root.
 
 The last three read `.env.test.local` at the repo root. Set both `DATABASE_URL_TEST` and `DATABASE_URL` to the test database there. A suite runs only when `DATABASE_URL_TEST` is set, and `PgLive` from `@lily/db` connects with `DATABASE_URL`, so a suite with only the first fails on a `ConfigError`.
 
+The knowledge search suite, `src/__tests__/integration/knowledge-search.integration.test.ts`, needs pgvector, so it runs only when `KNOWLEDGE_DATABASE_URL_TEST` is set instead. Point it at the compose `knowledge-db-test` service. The suite creates its own database there and migrates it with `packages/knowledge-db/scripts/migrate.ts`.
+
 ## Layout
 
 - `src/index.ts` registers every handler group and launches every scheduler, worker and subscriber as a `Layer.effectDiscard`. A new scheduler runs only after you add it there.
