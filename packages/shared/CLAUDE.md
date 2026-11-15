@@ -1,116 +1,41 @@
-# Shared Package Architecture
+# packages/shared
 
-## Domain Structure
+This package holds the Effect schemas, typed errors, domain helpers and service interfaces that the api, app, admin, mcp and db packages import as `@lily/shared`. Nothing runs it. Every `exports` entry in `package.json` points at a `.ts` file under `src/`, so each consumer compiles the source itself and Metro bundles it into the app. Code here ships to phones as well as to servers. Most service tags here are interfaces only, and their providers live in `packages/api/src/services/`.
 
-Each domain follows this structure:
+## Commands
 
-```
-src/domains/{domain}/
-├── schema.ts      # Effect Schema definitions (types + validation)
-├── errors.ts      # Domain-specific typed errors
-└── selectors.ts   # Data projection functions (optional)
-```
+| Command | What it does |
+|---|---|
+| `bun run --filter=@lily/shared tsc` | Typecheck this package |
+| `bun run --filter=@lily/shared test` | Vitest over `src/__tests__/` |
+| `bun run --filter=@lily/shared lint` | Biome |
+| `bun run --filter=@lily/shared lint:fix` | Biome, writing the fixes |
 
-## Schema Definitions
+## Layout
 
-Use Effect Schema for type definitions with runtime validation:
+- `src/index.ts` is the client-safe entry, `@lily/shared`. The app and admin bundle everything it reaches, so all of that code must run in a phone or a browser. Put code that needs Node or a server SDK behind `src/server.ts`.
+- `src/server.ts` is the server-only entry, `@lily/shared/server`. It exports email, the event bus, file storage, `clientIp`, the message queue and push. The app imports only types from it, with `import type` (`packages/app/src/utils/notifications.ts`).
+- `package.json` adds narrower subpaths. A domain subpath narrows an import to one domain, as `@lily/shared/plant` does for `src/domains/plant/schema.ts`. `@lily/shared/services/*` maps to `src/services/*.ts`. The api imports the AI SDK calls, such as `src/services/ai/plant-recognition.ts`, through it.
+- `src/domains/<domain>/` holds one area. `schema.ts` has its schemas and `errors.ts` its typed errors. Helpers sit beside them, such as `src/domains/plant/rating.ts` and `src/domains/username/rules.ts`.
+- `src/domains/care/` implements the care day, today, care type and care status of `packages/api/CONTEXT.md` as `CareDay`, `CareDays`, `CareType` and `careStatus`. Keep their meaning in step with that file.
+- `src/domains/common/api.ts` holds `API_PREFIX`, the versioned path every client calls. Build API URLs from it.
+- `src/services/file/` holds the two services that build themselves, `FileService` and `GCSService`. Every other tag in `src/services/` is an interface, implemented by a `*.provider.ts` file in `packages/api/src/services/`.
+- `src/services/push/types.ts` holds the Live Activity payloads. `CareTasksAttributes` mirrors `packages/app/modules/expo-live-activity-lily/ios/CareTasksAttributes.swift` in name and shape. The widget extension has no i18n catalog, so the server sends every visible string already localized.
+- `src/__tests__/` holds every test. Vitest collects only `src/__tests__/**/*.test.ts`.
 
-```typescript
-// schema.ts
-import { Schema, Struct } from 'effect'
+## Rules
 
-export class Plant extends Schema.Class<Plant>('Plant')({
-  id: Schema.String,
-  name: Schema.String,
-  health: PlantHealthSchema,
-  userId: Schema.String,
-  createdAt: Schema.DateFromString,
-}) {}
-
-export const PlantCreateRequest = Schema.Struct(Plant.fields).mapFields(
-  Struct.omit(['id', 'createdAt'])
-)
-```
-
-## Error Definitions
-
-Each domain declares its errors in `errors.ts`:
-
-```typescript
-// errors.ts
-import { Schema } from 'effect'
-
-export class PlantNotFoundError extends Schema.TaggedError<PlantNotFoundError>()(
-  'PlantNotFoundError',
-  { id: Schema.String }
-) {}
-
-export class LimitExceededError extends Schema.TaggedError<LimitExceededError>()(
-  'LimitExceededError',
-  {
-    feature: Schema.String,
-    limit: Schema.Number,
-    current: Schema.Number,
-    message: Schema.String,
-  }
-) {}
-```
-
-## Service Abstractions
-
-Service abstractions define interfaces implemented by the API package:
-
-```
-src/services/
-├── ai/service.ts           # AI chat service interface
-├── email/service.ts        # Email sending interface
-├── event-bus/service.ts    # Event publishing interface
-├── file/fileservice.ts     # File storage interface
-├── message-queue/service.ts # Message queue interface
-└── push/service.ts         # Push notification interface
-```
-
-## Date Utilities
-
-The `domains/common/date.ts` file provides Effect DateTime utilities:
-
-```typescript
-import {
-  parseApiDate,           // Parse ISO string → Option<DateTime>
-  now,                    // Current time as DateTime.Utc
-  nowAsDate,              // Current time as native Date
-  nowAsEpochMillis,       // Current time as epoch milliseconds
-  nowAsIsoString,         // Current time as ISO string
-  daysUntil,              // Days until a DateTime
-  daysUntilApiDate,       // Parse + calculate days
-  formatDayOfWeek,        // "Monday"
-  formatDayOfWeekShort,   // "Mon"
-  formatRelativeTime,     // "2h ago", "Yesterday"
-  formatTime,             // "2:30 PM"
-  formatShortDate,        // "Mon, Jan 15"
-  isToday,                // Check if today
-  isOverdue,              // Check if in the past
-  isFuture,               // Check if in the future
-} from '@lily/shared'
-```
-
-## Export Pattern
-
-All public exports go through `src/index.ts`:
-
-```typescript
-// Re-export all domains
-export * from './domains/plant/schema'
-export * from './domains/plant/errors'
-export * from './domains/user/schema'
-// ... etc
-
-// Re-export services
-export * from './services/ai/service'
-export * from './services/email/service'
-// ... etc
-
-// Re-export common utilities
-export * from './domains/common/date'
-export * from './domains/common/pagination'
-```
+- **A push to `main` ships to phones.** Any change under `packages/shared/` other than Markdown publishes an OTA update to production (`.github/workflows/ota-update.yml`). The update waits neither for CI nor for the API deploy, so phones can run the new schemas against the old API. `docs/agents/releases.md` has the whole release path.
+- **Installed app builds keep decoding.** The app decodes every API response with these schemas through `HttpApiClient` (`packages/app/src/utils/client.tsx`), and an installed build keeps the schemas it shipped with. Give a new response field `Schema.optionalKey` or a decoding default. Make a new request field optional or give it a default, because installed builds do not send it. Prefer an existing union literal or error code over a new one, because an installed build fails to decode a value it does not know. `callOpenAI` reports a timeout as the existing `server_error` code for this reason.
+- **Typecheck the consumers.** `bun run tsc` from the root checks every package. The shared `tsc` alone never sees the api or app code that a schema change breaks.
+- **Schemas are structs.** Declare a domain schema with `Schema.Struct` and export its type beside it as `export type X = typeof X.Type`.
+- **Errors the API returns carry their status.** Declare them with `Schema.TaggedError` and `{ httpApiStatus }` in the domain's `errors.ts`. The ai-chat errors are the exception. Their endpoints set the status with `HttpApiSchema.status`, as `packages/api/src/services/ai-chat/api.ts` does. An error that never reaches a client can use `Data.TaggedError` beside its service, as the queue, push and event bus errors do.
+- **Field defaults are a pair.** Give a field a default with `Schema.withDecodingDefaultType(Effect.succeed(x))` and `Schema.withConstructorDefault(Effect.succeed(x))`, as `src/domains/plant/errors.ts` does. The first fills the field when the decoded input lacks it. The second fills it when code constructs the value.
+- **New export.** Re-export a new domain file from `src/index.ts`, or from `src/server.ts` when it needs Node or a server SDK. Add a `package.json` subpath only when a consumer needs a narrower import.
+- **New notification topic.** Append it to the end of `NOTIFICATION_TOPICS` and give it a category in `TOPIC_CATEGORY`. `tsc` fails on a topic without one. The db builds its `notification_type` enum from the list (`packages/db/src/schema/enums.ts`), so the topic also needs a migration that appends it with `ALTER TYPE ... ADD VALUE`, in list order. `packages/api/src/__tests__/integration/schema-parity.integration.test.ts` checks the order. `VACATION_MUTED_TOPICS`, `CARE_TOPICS` and `ENGAGEMENT_TOPICS` follow from the categories.
+- **Plant ratings run from 0 to 100.** That holds for `wateringRating`, `lightingRating`, `humidityRating` and `petToxicityRating`. Read them with `ratingLevel` for the five levels and `isPetSafe` for pet safety, both in `src/domains/plant/rating.ts`.
+- **Wrap a new OpenAI call in `callOpenAI`** (`src/services/ai/call-openai.ts`). It applies a deadline from `OPENAI_TIMEOUTS`, cancels the HTTP request when the deadline fires, and takes a permit from one bulkhead per process. `OPENAI_MAX_CONCURRENT_CALLS` sizes the bulkhead, and the default is 8.
+- **Text bound for Postgres.** Postgres `text` and `jsonb` reject NUL and unpaired surrogates. Clean a string with `toPostgresText` or validate it with `PostgresText`, both in `src/services/message-queue/types.ts`.
+- **Rate-limit keys come from `clientIp(headers)`** (`src/services/http/client-ip.ts`). It believes `cf-connecting-ip` only when `x-real-ip` is a Cloudflare address, so a caller who reaches the origin directly cannot choose their own key.
+- **Upload keys come from the bytes.** `planImageUpload` (`src/services/file/image-upload.ts`) derives the object key and the stored content type from the file's bytes. The client's file name and declared type never reach the bucket.
+- **Effect conventions live in `CODING_STANDARDS.md`.** That covers service declarations, `Schema.TaggedError`, the singular `DateTime` part keys and the date helpers in `src/domains/common/date/`.
