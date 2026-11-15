@@ -184,6 +184,23 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(await storedRows(collectorId, url)).toHaveLength(1)
     })
 
+    it('records the same rare photo twice without an error', async () => {
+      const identification = {
+        userId: collectorId,
+        imageUrl: `${imageUrl}-recorded-twice`,
+      }
+
+      await Effect.gen(function* () {
+        const repo = yield* RareIdentificationRepository
+        yield* repo.record(identification)
+        yield* repo.record(identification)
+      }).pipe(Effect.provide(ReposLive), Effect.runPromise)
+
+      expect(
+        await storedRows(identification.userId, identification.imageUrl)
+      ).toHaveLength(1)
+    })
+
     it('lets a later answer that is not rare win for the same photo', async () => {
       const url = `${imageUrl}-changed-mind`
 
