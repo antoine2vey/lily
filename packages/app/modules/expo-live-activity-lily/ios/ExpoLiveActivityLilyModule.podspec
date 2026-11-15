@@ -7,9 +7,9 @@ Pod::Spec.new do |s|
   s.version        = package['version']
   s.summary        = package['description']
   s.description    = package['description']
-  s.license        = 'MIT'
+  s.license        = package['license']
   s.author         = 'Lily'
-  s.homepage       = 'https://lilyapp.com'
+  s.homepage       = 'https://github.com/antoine2vey/lily'
   # Match the app's deployment target (15.1). Swift code is gated with
   # `@available(iOS 16.2, *)` / `if #available(iOS 17.2, *)` so ActivityKit
   # is only touched on OS versions that ship it. A higher deployment-target
@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
   # targets — we want the module available on every iOS build.
   s.platforms      = { :ios => '16.4' }
   s.swift_version  = '5.9'
-  s.source         = { git: '' }
+  s.source         = { git: 'https://github.com/antoine2vey/lily.git' }
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'

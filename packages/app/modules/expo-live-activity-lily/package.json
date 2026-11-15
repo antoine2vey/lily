@@ -5,6 +5,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "private": true,
+  "license": "AGPL-3.0-only",
   "sideEffects": false,
   "keywords": [
     "expo",
