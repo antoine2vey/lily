@@ -71,10 +71,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Succulent',
     imageUrl:
       'https://images.unsplash.com/photo-1764249454220-ce25a9153805?w=400',
-    humidityRating: 2,
-    lightingRating: 3,
-    petToxicityRating: 3,
-    wateringRating: 2,
+    humidityRating: 30,
+    lightingRating: 50,
+    petToxicityRating: 50,
+    wateringRating: 30,
     health: 'HEALTHY',
     schedules: [
       {
@@ -97,10 +97,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Vine',
     imageUrl:
       'https://images.unsplash.com/photo-1764271728253-d381475517bb?w=400',
-    humidityRating: 3,
-    lightingRating: 2,
-    petToxicityRating: 3,
-    wateringRating: 3,
+    humidityRating: 50,
+    lightingRating: 30,
+    petToxicityRating: 50,
+    wateringRating: 50,
     health: 'HEALTHY',
     schedules: [
       {
@@ -117,10 +117,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Fern',
     imageUrl:
       'https://images.unsplash.com/photo-1528789283076-808070b2dae6?w=400',
-    humidityRating: 5,
-    lightingRating: 2,
-    petToxicityRating: 1,
-    wateringRating: 5,
+    humidityRating: 90,
+    lightingRating: 30,
+    petToxicityRating: 10,
+    wateringRating: 90,
     health: 'HEALTHY',
     schedules: [
       {
@@ -144,10 +144,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Tree',
     imageUrl:
       'https://images.unsplash.com/photo-1602648707943-94aff309c088?w=400',
-    humidityRating: 4,
-    lightingRating: 4,
-    petToxicityRating: 3,
-    wateringRating: 3,
+    humidityRating: 70,
+    lightingRating: 70,
+    petToxicityRating: 50,
+    wateringRating: 50,
     health: 'HEALTHY',
     schedules: [
       {
@@ -176,10 +176,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Succulent',
     imageUrl:
       'https://images.unsplash.com/photo-1763784436630-629fd9a4e0e2?w=400',
-    humidityRating: 1,
-    lightingRating: 5,
-    petToxicityRating: 2,
-    wateringRating: 1,
+    humidityRating: 10,
+    lightingRating: 90,
+    petToxicityRating: 30,
+    wateringRating: 10,
     health: 'HEALTHY',
     dateAdded: daysFromNow(-1), // Yesterday
     schedules: [
@@ -197,10 +197,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Succulent',
     imageUrl:
       'https://images.unsplash.com/photo-1501597392671-6eee5525a294?w=400',
-    humidityRating: 2,
-    lightingRating: 4,
-    petToxicityRating: 2,
-    wateringRating: 2,
+    humidityRating: 30,
+    lightingRating: 70,
+    petToxicityRating: 30,
+    wateringRating: 30,
     health: 'HEALTHY',
     schedules: [
       {
@@ -217,10 +217,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Tropical',
     imageUrl:
       'https://images.unsplash.com/photo-1603095859718-b6300a0aad18?w=400',
-    humidityRating: 4,
-    lightingRating: 3,
-    petToxicityRating: 3,
-    wateringRating: 3,
+    humidityRating: 70,
+    lightingRating: 50,
+    petToxicityRating: 50,
+    wateringRating: 50,
     health: 'HEALTHY',
     schedules: [
       {
@@ -255,10 +255,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Flowering',
     imageUrl:
       'https://images.unsplash.com/photo-1567465645848-b765281eca3c?w=400',
-    humidityRating: 4,
-    lightingRating: 2,
-    petToxicityRating: 4,
-    wateringRating: 4,
+    humidityRating: 70,
+    lightingRating: 30,
+    petToxicityRating: 70,
+    wateringRating: 70,
     health: 'HEALTHY',
     schedules: [
       {
@@ -287,10 +287,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Grass',
     imageUrl:
       'https://images.unsplash.com/photo-1763690792636-b13187f67bd7?w=400',
-    humidityRating: 3,
-    lightingRating: 3,
-    petToxicityRating: 1,
-    wateringRating: 3,
+    humidityRating: 50,
+    lightingRating: 50,
+    petToxicityRating: 10,
+    wateringRating: 50,
     health: 'HEALTHY',
     schedules: [
       {
@@ -307,10 +307,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Tree',
     imageUrl:
       'https://images.unsplash.com/photo-1616138984641-ae05293798c6?w=400',
-    humidityRating: 3,
-    lightingRating: 3,
-    petToxicityRating: 3,
-    wateringRating: 3,
+    humidityRating: 50,
+    lightingRating: 50,
+    petToxicityRating: 50,
+    wateringRating: 50,
     health: 'HEALTHY',
     schedules: [
       {
@@ -328,10 +328,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Flowering',
     imageUrl:
       'https://images.unsplash.com/photo-1639374593182-88b49b80a688?w=400',
-    humidityRating: 5,
-    lightingRating: 3,
-    petToxicityRating: 1,
-    wateringRating: 3,
+    humidityRating: 90,
+    lightingRating: 50,
+    petToxicityRating: 10,
+    wateringRating: 50,
     health: 'HEALTHY',
     schedules: [
       {
@@ -360,10 +360,10 @@ const DEMO_PLANTS: DemoPlantData[] = [
     category: 'Tropical',
     imageUrl:
       'https://images.unsplash.com/photo-1580018550304-def91943abdd?w=400',
-    humidityRating: 5,
-    lightingRating: 2,
-    petToxicityRating: 1,
-    wateringRating: 4,
+    humidityRating: 90,
+    lightingRating: 30,
+    petToxicityRating: 10,
+    wateringRating: 70,
     health: 'HEALTHY',
     schedules: [
       {
@@ -389,10 +389,10 @@ const LILY_PLANTS: DemoPlantData[] = [
     category: 'Tropical',
     imageUrl:
       'https://images.unsplash.com/photo-1767106323400-c99aeb793cee?w=400',
-    humidityRating: 4,
-    lightingRating: 5,
-    petToxicityRating: 3,
-    wateringRating: 3,
+    humidityRating: 70,
+    lightingRating: 90,
+    petToxicityRating: 50,
+    wateringRating: 50,
     health: 'THRIVING',
     isFavorite: true,
     schedules: [
@@ -422,10 +422,10 @@ const LILY_PLANTS: DemoPlantData[] = [
     category: 'Vine',
     imageUrl:
       'https://images.unsplash.com/photo-1771814121130-a06205709279?w=400',
-    humidityRating: 3,
-    lightingRating: 2,
-    petToxicityRating: 3,
-    wateringRating: 3,
+    humidityRating: 50,
+    lightingRating: 30,
+    petToxicityRating: 50,
+    wateringRating: 50,
     health: 'HEALTHY',
     isFavorite: true,
     schedules: [
@@ -443,10 +443,10 @@ const LILY_PLANTS: DemoPlantData[] = [
     category: 'Succulent',
     imageUrl:
       'https://images.unsplash.com/photo-1741817068110-f44ef1f169be?w=400',
-    humidityRating: 2,
-    lightingRating: 4,
-    petToxicityRating: 3,
-    wateringRating: 2,
+    humidityRating: 30,
+    lightingRating: 70,
+    petToxicityRating: 50,
+    wateringRating: 30,
     health: 'HEALTHY',
     schedules: [
       {
@@ -469,10 +469,10 @@ const LILY_PLANTS: DemoPlantData[] = [
     category: 'Herb',
     imageUrl:
       'https://images.unsplash.com/photo-1765418145389-15cd5a5de9a3?w=400',
-    humidityRating: 2,
-    lightingRating: 5,
-    petToxicityRating: 2,
-    wateringRating: 2,
+    humidityRating: 30,
+    lightingRating: 90,
+    petToxicityRating: 30,
+    wateringRating: 30,
     health: 'HEALTHY',
     schedules: [
       {
@@ -489,10 +489,10 @@ const LILY_PLANTS: DemoPlantData[] = [
     category: 'Succulent',
     imageUrl:
       'https://images.unsplash.com/photo-1765041425888-39e09e148a80?w=400',
-    humidityRating: 2,
-    lightingRating: 4,
-    petToxicityRating: 3,
-    wateringRating: 2,
+    humidityRating: 30,
+    lightingRating: 70,
+    petToxicityRating: 50,
+    wateringRating: 30,
     health: 'HEALTHY',
     schedules: [
       {
@@ -509,10 +509,10 @@ const LILY_PLANTS: DemoPlantData[] = [
     category: 'Vine',
     imageUrl:
       'https://images.unsplash.com/photo-1769346442881-b63ba7476b77?w=400',
-    humidityRating: 3,
-    lightingRating: 3,
-    petToxicityRating: 1,
-    wateringRating: 2,
+    humidityRating: 50,
+    lightingRating: 50,
+    petToxicityRating: 10,
+    wateringRating: 30,
     health: 'THRIVING',
     isFavorite: true,
     schedules: [

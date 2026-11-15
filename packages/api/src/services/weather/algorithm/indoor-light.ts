@@ -78,11 +78,7 @@ import {
   VPD_REFERENCE_KPA,
 } from '@lily/api/services/weather/algorithm/coefficients'
 import type { WeatherData } from '@lily/shared'
-import {
-  LUMINOSITY_LUX_VALUES,
-  luxToLuminosityLevel,
-  parseApiDate,
-} from '@lily/shared'
+import { luxToLuminosityLevel, parseApiDate, ratingLevel } from '@lily/shared'
 import {
   Array,
   DateTime,
@@ -278,7 +274,7 @@ export const orientationFactor = (
 
 export interface RoomFitResult {
   readonly factor: number
-  /** roomLevel - plantLevel (1-5 scale). <= ROOMFIT_DIM_VETO_GAP => dormant. */
+  /** roomLevel - plantLevel, both levels 1-5. <= ROOMFIT_DIM_VETO_GAP => dormant. */
   readonly gap: number
 }
 
@@ -293,11 +289,7 @@ export const roomFitFactor = (
       onNone: () => ({ factor: FACTOR_NEUTRAL, gap: 0 }),
       onSome: (lux) => {
         const roomLevel = luxToLuminosityLevel(lux)
-        const plantLevel = luxToLuminosityLevel(
-          LUMINOSITY_LUX_VALUES[
-            clamp(lightingRating, 1, 5) as 1 | 2 | 3 | 4 | 5
-          ]
-        )
+        const plantLevel = ratingLevel(lightingRating)
         const gap = roomLevel - plantLevel
         const raw = clamp(
           1 + ROOMFIT_STEP * gap,
@@ -379,7 +371,7 @@ export const indoorVpdFactor = (
   )
   const vpd = saturationVaporPressureKpa(INDOOR_TEMP_C) * (1 - rhIndoor / 100)
   const rawFactor = vpd / VPD_REFERENCE_KPA
-  const humSens = 1 + HUM_RATING_STEP * (humidityRating - 3)
+  const humSens = 1 + HUM_RATING_STEP * (ratingLevel(humidityRating) - 3)
   return clamp(
     1 + INDOOR_VPD_AMP * humSens * (rawFactor - 1),
     INDOOR_VPD_FACTOR_MIN,

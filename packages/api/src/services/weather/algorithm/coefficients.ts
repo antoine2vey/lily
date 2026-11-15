@@ -5,21 +5,11 @@
  * referenced and maintained from a single location.
  */
 
-import { CROP_COEFFICIENTS, DEFAULT_KC } from '@lily/shared'
-import { Duration, Option, pipe } from 'effect'
+import { Duration } from 'effect'
 
 // ─── Time Constants ──────────────────────────────────────────────────────────
 
 export const MS_PER_DAY = Duration.toMillis(Duration.days(1))
-
-// ─── Crop Coefficient Rating Modifier ────────────────────────────────────────
-// Maps wateringRating (1-5) to a multiplier:
-// rating 1 = very low water needs -> 0.7x
-// rating 3 = average -> 1.0x
-// rating 5 = very high -> 1.3x
-
-export const RATING_MODIFIER_BASE = 0.7
-export const RATING_MODIFIER_STEP = 0.15
 
 // ─── Default Fallback Values ─────────────────────────────────────────────────
 // Used when weather data fields are null (sensor/API gaps)
@@ -77,9 +67,9 @@ export const FACTOR_NEUTRAL = 1.0
 // missing data collapses to no change. Higher demand => fewer days => water
 // sooner. These are horticulture judgement calls — tune from care-log feedback.
 
-// Neutral fallbacks for plant ratings (1-5) when a field is absent
-export const DEFAULT_LIGHTING_RATING = 3
-export const DEFAULT_HUMIDITY_RATING = 3
+// Neutral fallbacks for plant ratings (0-100) when a field is absent
+export const DEFAULT_LIGHTING_RATING = 50
+export const DEFAULT_HUMIDITY_RATING = 50
 
 // Photoperiod × solar-intensity growth term (day length fused with sun angle)
 export const PHOTO_AMP = 0.22 // max seasonal swing of the light-energy term
@@ -152,60 +142,8 @@ export const VPD_REFERENCE_KPA = 1.12 // VPD that = neutral demand
 export const INDOOR_VPD_AMP = 0.18
 export const INDOOR_VPD_FACTOR_MIN = 0.85
 export const INDOOR_VPD_FACTOR_MAX = 1.25
-export const HUM_RATING_STEP = 0.12 // per step of humidityRating away from 3
+export const HUM_RATING_STEP = 0.12 // per humidity level away from the middle one
 
 // Final indoor demand bounds (post dormancy veto + clamp)
 export const INDOOR_DEMAND_MIN = 0.62
 export const INDOOR_DEMAND_MAX = 1.4
-
-// ─── Crop Coefficient Lookup ─────────────────────────────────────────────────
-
-/**
- * Look up the crop coefficient (Kc) for a plant.
- *
- * WHAT IS Kc?
- *   The crop coefficient is the ratio of a specific crop's water use to the
- *   water use of a standardized reference grass surface. It captures how a
- *   plant's physical characteristics (leaf area, stomatal behavior, root
- *   depth, growth stage) affect its water consumption relative to the
- *   reference.
- *
- * WHY DO DIFFERENT PLANTS HAVE DIFFERENT Kc VALUES?
- *   - Succulents/Cacti (Kc = 0.2): Use CAM photosynthesis -- they open their
- *     stomata at night (when it's cool) and close them during the day,
- *     resulting in minimal daytime transpiration. Thick, waxy cuticles
- *     further reduce water loss.
- *   - Tropical plants (Kc = 1.0): Large leaf area with high transpiration
- *     rates. Many tropical species have thin, broad leaves optimized for
- *     light capture in canopy environments, which also means high water loss.
- *   - Trees (Kc = 1.1): Deep root systems and large canopies mean high
- *     overall water consumption, though per-leaf-area rates may be moderate.
- *   - Aquatic plants (Kc = 1.2): Adapted to waterlogged conditions, these
- *     plants transpire freely and often have high stomatal conductance.
- *
- * HOW DOES wateringRating MODIFY Kc?
- *   The wateringRating (1-5 scale) is a user-facing indicator of how much
- *   water a plant needs. We use it as a secondary modifier:
- *   rating 1 = very low water needs -> multiply Kc by 0.7
- *   rating 3 = average -> multiply Kc by 1.0
- *   rating 5 = very high water needs -> multiply Kc by 1.3
- *   This linear interpolation gives: modifier = 0.7 + (rating - 1) * 0.15
- *
- * Source: FAO-56 Paper, Chapter 6 -- "ETc - Single crop coefficient"
- */
-export function getCropCoefficient(
-  category: string | null,
-  wateringRating: number
-): number {
-  const baseKc = pipe(
-    Option.fromNullishOr(category),
-    Option.flatMap((cat) => Option.fromNullishOr(CROP_COEFFICIENTS[cat])),
-    Option.getOrElse(() => DEFAULT_KC)
-  )
-
-  // wateringRating modifier: 1->0.7, 2->0.85, 3->1.0, 4->1.15, 5->1.3
-  const ratingModifier =
-    RATING_MODIFIER_BASE + (wateringRating - 1) * RATING_MODIFIER_STEP
-
-  return baseKc * ratingModifier
-}

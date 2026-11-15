@@ -18,12 +18,10 @@ import {
   DEFAULT_LIGHTING_RATING,
   DEFAULT_TEMPERATURE_MAX_C,
   DEFAULT_TEMPERATURE_MIN_C,
-  getCropCoefficient,
   MS_PER_DAY,
   PRECIP_DAMPENING_FACTOR,
 } from '@lily/api/services/weather/algorithm/coefficients'
 import {
-  calculateETc,
   calculateHumidityFactor,
   calculateTemperatureFactor,
   calculateWindFactor,
@@ -341,15 +339,10 @@ export function calculatePlantAdjustment(
   forecast: ReadonlyArray<WeatherData> = [],
   latitude: number | null = null
 ): CareAdjustment {
-  // Step 1: Determine crop coefficient
-  const kc = getCropCoefficient(plant.category, plant.wateringRating)
-
-  // Step 2: Calculate actual crop ET (for factors output)
   const et0Value = pipe(
     Option.fromNullishOr(currentWeather.et0),
     Option.getOrElse(() => DEFAULT_ET0_MM_PER_DAY)
   )
-  const _etc = calculateETc(et0Value, kc)
 
   // Step 3: Temperature factor (dampened for indoor plants)
   const temperatureFactor = calculateTemperatureFactor(

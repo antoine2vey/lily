@@ -4,6 +4,7 @@ import {
   CareDays,
   type CareStatus,
   type CareType,
+  isPetSafe,
   type LanguageCode,
   type PlantHealthStatus,
 } from '@lily/shared'
@@ -14,7 +15,6 @@ export const MAX_CHAT_SUGGESTIONS = 4
 const MAX_OVERDUE_SUGGESTIONS = 2
 const SETTLING_IN_DAYS = 14
 const REPOT_SOON_DAYS = 30
-const PET_SAFE_UP_TO = 50
 
 export interface PlantSituation {
   readonly name: string
@@ -139,8 +139,9 @@ const settleInRule: SuggestionRule = ({ name, addedOn, today }) =>
     : []
 
 const petToxicityRule: SuggestionRule = ({ name, petToxicityRating }) =>
-  petToxicityRating > PET_SAFE_UP_TO
-    ? [
+  isPetSafe(petToxicityRating)
+    ? []
+    : [
         {
           id: 'pet-toxicity',
           covers: [],
@@ -150,7 +151,6 @@ const petToxicityRule: SuggestionRule = ({ name, petToxicityRating }) =>
           },
         },
       ]
-    : []
 
 const isRepotDueSoon = (status: CareStatus): boolean =>
   pipe(

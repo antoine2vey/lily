@@ -183,11 +183,11 @@ ${themeScript}
     }
 
     function ratingRow(label, value, color) {
-      var pct = (value / 5 * 100);
+      var pct = value;
       return '<div class="rating-row">'
         + '<span class="rating-label">' + label + '</span>'
         + '<div class="rating-bar"><div class="rating-fill" style="width:'+pct+'%;background:'+color+'"></div></div>'
-        + '<span class="rating-val">' + value + '/5</span>'
+        + '<span class="rating-val">' + value + '/100</span>'
         + '</div>';
     }
 

@@ -3,7 +3,7 @@
  *
  * Companion to `indoor-light.test.ts` — that file covers the headline cases
  * (Paris winter<summer, Sydney flip, CAM cap, dim veto). This file pushes on
- * the EDGES: every CROP_COEFFICIENTS category, the full 8-point compass, the
+ * the EDGES: every plant category, the full 8-point compass, the
  * gap == -2 veto boundary, lightingRating bucketing, the solar-radiation
  * fallback path of skyFactor, the recent-day averaging window, and strict
  * monotonic sweeps for the VPD term.

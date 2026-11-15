@@ -1,4 +1,4 @@
-import { formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
+import { formatDaysUntilHuman, formatIsoDate, isPetSafe } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import { Array, Filter, Option, Order, pipe } from 'effect'
 
@@ -212,11 +212,11 @@ export const buildPlantSystemPrompt = (
         Current health status: ${plant.health}
         In collection for: ${daysSinceAdded} days
 
-      Care Requirements (1-5 scale, 5 = highest needs):
-        Humidity needs: ${plant.humidityRating}/5
-        Light requirements: ${plant.lightingRating}/5
-        Watering needs: ${plant.wateringRating}/5
-        Pet toxicity: ${plant.petToxicityRating}/5 (5 = highly toxic)
+      Care Requirements (0-100 scale, 100 = highest needs):
+        Humidity needs: ${plant.humidityRating}/100
+        Light requirements: ${plant.lightingRating}/100
+        Watering needs: ${plant.wateringRating}/100
+        Pet toxicity: ${plant.petToxicityRating}/100 (${isPetSafe(plant.petToxicityRating) ? 'safe for pets' : 'may be toxic to pets'})
 
       ${formatScheduleBlock('Watering', 'Last watered', 'Next watering', byType.watering)}
 

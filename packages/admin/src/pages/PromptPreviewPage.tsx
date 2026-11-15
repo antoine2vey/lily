@@ -1,3 +1,4 @@
+import { ratingLevel } from '@lily/shared'
 import { Array, Match, Option, pipe, String } from 'effect'
 import { useState } from 'react'
 import {
@@ -110,30 +111,26 @@ const healthColor = (health: string) =>
 const RatingBar = ({
   label,
   value,
-  max = 5,
 }: {
   readonly label: string
   readonly value: number
-  readonly max?: number
 }) => (
   <div className="flex items-center gap-2">
     <span className="w-28 text-xs text-gray-600">{label}</span>
     <div className="flex gap-0.5">
       {pipe(
-        Array.range(1, max),
+        Array.range(1, 5),
         Array.map((i) => (
           <div
             key={i}
             className={`h-2 w-4 rounded-xs ${
-              i <= value ? 'bg-primary-500' : 'bg-gray-200'
+              i <= ratingLevel(value) ? 'bg-primary-500' : 'bg-gray-200'
             }`}
           />
         ))
       )}
     </div>
-    <span className="text-xs text-gray-500">
-      {value}/{max}
-    </span>
+    <span className="text-xs text-gray-500">{value}/100</span>
   </div>
 )
 
