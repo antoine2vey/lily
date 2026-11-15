@@ -77,12 +77,14 @@ The API also keeps daily aggregate counts with no user ID (`analyticsDailySnapsh
 
 **Not collected.** Audio, contacts, SMS, web browsing, health and fitness data, and payment card numbers.
 
-**Permissions.** The app uses the managed workflow, so prebuild generates the Android manifest and the iOS `Info.plist`. Run `bun --cwd packages/app node_modules/expo/bin/cli config --type introspect` to list the permissions it generates. Libraries can add more when their manifests merge at build time.
+**Permissions.** The app uses the managed workflow, so prebuild generates the Android manifest and the iOS `Info.plist`. Run `bun --cwd packages/app node_modules/expo/bin/cli config --type introspect` to list the permissions it generates. Libraries can add more when their manifests merge at build time. `packages/app/src/__tests__/app-config/permissions.test.ts` fails when the generated set changes, so update this sheet with that test.
 
-- Prebuild adds `RECORD_AUDIO` on Android and `NSMicrophoneUsageDescription` on iOS, and the app never records audio. They come from the expo-camera and expo-image-picker config plugins, which Expo applies by default although `packages/app/app.json` does not list them.
-- The expo-secure-store plugin adds `NSFaceIDUsageDescription`, and the app uses no biometrics.
-- Plugin options such as `recordAudioAndroid`, `microphonePermission` and `faceIDPermission`, or `android.blockedPermissions` in `packages/app/app.json`, remove them.
-- The AR pot measurement and its motion permission exist only on iOS (`packages/plant-scanner/expo-module.config.json`). The Android manifest asks for no motion permission.
+- Expo applies the expo-camera, expo-image-picker, expo-secure-store and expo-location config plugins, and each one adds permissions by default. `packages/app/app.json` passes options to each plugin to turn off the permissions the app does not use.
+- `microphonePermission: false` on expo-camera and expo-image-picker, and `recordAudioAndroid: false` on expo-camera, remove `RECORD_AUDIO` and `NSMicrophoneUsageDescription`. The app records no audio and no video. expo-image-picker also marks `RECORD_AUDIO` as removed, so no library manifest can add it back.
+- `faceIDPermission: false` on expo-secure-store removes `NSFaceIDUsageDescription`. On Android, its `androidx.biometric` dependency merges `USE_BIOMETRIC` and `USE_FINGERPRINT`, so `android.blockedPermissions` removes them. The app never passes `requireAuthentication`, the only SecureStore option that uses biometrics.
+- `locationAlwaysAndWhenInUsePermission: false` and `locationAlwaysPermission: false` on expo-location remove the iOS background location strings. The app calls only `requestForegroundPermissionsAsync`, and the generated Android manifest does not ask for `ACCESS_BACKGROUND_LOCATION`.
+- The AR pot measurement and its motion permission exist only on iOS (`packages/plant-scanner/expo-module.config.json`). Its `NSMotionUsageDescription` text is the `motionUsagePermission` option of expo-location. The Android manifest asks for no motion permission.
+- The generated Android manifest marks `RECORD_AUDIO`, `USE_BIOMETRIC` and `USE_FINGERPRINT` with `tools:node="remove"`, so the build drops them from every library manifest it merges.
 
 ## Government, financial and health features
 

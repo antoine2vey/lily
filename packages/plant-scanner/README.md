@@ -11,7 +11,7 @@ It runs on iOS only, because it is built on ARKit. On Android the app shows its 
 
 ## How it builds
 
-The module has no build of its own. The app's native build compiles the Swift code through the Expo Modules API, and `packages/app/app.json` registers the config plugin in `app.plugin.js`, which adds the motion permission string. The podspec pulls in TensorFlow Lite and bundles the model.
+The module has no build of its own. The app's native build compiles the Swift code through the Expo Modules API. The motion permission string for the AR measurement is the `motionUsagePermission` option of the `expo-location` plugin in `packages/app/app.json`. The podspec pulls in TensorFlow Lite and bundles the model.
 
 ## Usage
 

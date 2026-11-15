@@ -1,6 +1,6 @@
 # packages/plant-scanner
 
-The native camera view of the iOS add-plant flow. It is an Expo module in Swift that runs an ARKit session, finds a potted plant with an on-device TensorFlow Lite model, estimates the ambient light and measures the pot by AR raycast. The app's native build compiles it, and `packages/app/app.json` registers its config plugin. It has no build of its own and no Android code, because `expo-module.config.json` lists `ios` alone. On Android the app renders `packages/app/src/screens/add-plant/components/AndroidScannerCamera.tsx` instead, which imports only the types from this package. `UnifiedScannerScreen.tsx` still imports `ExpoPlantScannerView` as a value on every platform, so the module-level code in `src/`, such as the `requireNativeViewManager` call, also runs on Android.
+The native camera view of the iOS add-plant flow. It is an Expo module in Swift that runs an ARKit session, finds a potted plant with an on-device TensorFlow Lite model, estimates the ambient light and measures the pot by AR raycast. The app's native build compiles it. It has no build of its own and no Android code, because `expo-module.config.json` lists `ios` alone. On Android the app renders `packages/app/src/screens/add-plant/components/AndroidScannerCamera.tsx` instead, which imports only the types from this package. `UnifiedScannerScreen.tsx` still imports `ExpoPlantScannerView` as a value on every platform, so the module-level code in `src/`, such as the `requireNativeViewManager` call, also runs on Android.
 
 ## Commands
 
@@ -19,7 +19,7 @@ The Swift code compiles only inside the app's native build, with `bun run --filt
 - `ios/ExpoPlantScannerModule.swift` declares the props and events. `ios/ExpoPlantScannerView.swift` owns the AR session, runs the frame analysis and dispatches every event.
 - `ios/PlantDetector.swift`, `ios/LuxAnalyzer.swift` and `ios/PotMeasurer.swift` hold the detection, light and measurement logic. The sections below cover each one.
 - `ios/efficientdet_lite0.tflite` is the detection model. `ios/ExpoPlantScanner.podspec` bundles every `.tflite` file in `ios/` as a resource.
-- `app.plugin.js` sets a default `NSMotionUsageDescription` in the app's Info.plist.
+- The package has no config plugin. The AR measurement's `NSMotionUsageDescription` is the `motionUsagePermission` option of the `expo-location` plugin in `packages/app/app.json`, because that plugin always writes the key, with its own generic default when the option is missing.
 - The root `.gitignore` ignores the generated native folders only at the root and in `packages/app`. No rule matches `packages/plant-scanner/ios/`, so the Swift source and the model are tracked. The `!/packages/plant-scanner/ios/` line there re-includes a folder that no rule ignores.
 
 ## Rules
