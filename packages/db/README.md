@@ -33,7 +33,7 @@ Run them from the monorepo root. A command that reaches a database reads `DATABA
 
 ## Local setup
 
-1. Start Postgres with `docker compose up -d postgres`. The test database is the `postgres-test` service. Both build `Dockerfile.postgres` at the repository root, the image CI runs.
+1. Start Postgres with `docker compose up -d postgres`. The test database is the `postgres-test` service. Both build `Dockerfile.postgres` at the repository root, the image production and CI run.
 2. Link the root `.env` into `packages/db` for `DATABASE_URL`, as the [Quickstart](../../README.md#quickstart) does. Put `DATABASE_URL_TEST` in `.env.test.local`, the file `db:setup-test` loads.
 3. Build the database with `db:push` or with `db:migrate:prod`, and keep it on that one path. [CLAUDE.md](CLAUDE.md) explains why the two do not mix.
 4. Run `bun run db:setup-test` for the test database.
