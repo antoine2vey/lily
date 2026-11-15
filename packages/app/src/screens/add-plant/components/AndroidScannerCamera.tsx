@@ -25,7 +25,7 @@ import { useIconColors } from '@/hooks/useIconColors'
 
 interface Props {
   isActive: boolean
-  captureRequested?: boolean
+  captureGeneration?: number
   onFrameAnalysis?: (event: FrameAnalysisEvent) => void
   onPhotoCaptured?: (event: PhotoCapturedEvent) => void
   onCaptureFailed?: (event: CaptureFailedEvent) => void
@@ -67,7 +67,7 @@ const averageLuma = (frame: Frame): number => {
 
 export function AndroidScannerCamera({
   isActive,
-  captureRequested,
+  captureGeneration = 0,
   onFrameAnalysis,
   onPhotoCaptured,
   onCaptureFailed,
@@ -141,10 +141,16 @@ export function AndroidScannerCamera({
     if (!hasPermission) requestPermission()
   }, [hasPermission, requestPermission])
 
-  // Photo capture: edge-triggered on captureRequested flipping true.
+  // Photo capture: one per increase of captureGeneration, like the iOS view.
+  const lastCaptureGenerationRef = useRef(0)
   const isCapturingRef = useRef(false)
   useEffect(() => {
-    if (!captureRequested || isCapturingRef.current) return
+    if (captureGeneration <= lastCaptureGenerationRef.current) return
+    lastCaptureGenerationRef.current = captureGeneration
+    if (isCapturingRef.current) {
+      onCaptureFailed?.({ reason: 'busy' })
+      return
+    }
     isCapturingRef.current = true
     photoOutput
       .capturePhotoToFile({ flashMode: 'off' }, {})
@@ -155,7 +161,7 @@ export function AndroidScannerCamera({
         (photo) => onPhotoCaptured?.({ path: `file://${photo.filePath}` }),
         () => onCaptureFailed?.({ reason: 'camera' })
       )
-  }, [captureRequested, onPhotoCaptured, onCaptureFailed, photoOutput])
+  }, [captureGeneration, onPhotoCaptured, onCaptureFailed, photoOutput])
 
   if (!hasPermission) {
     return (

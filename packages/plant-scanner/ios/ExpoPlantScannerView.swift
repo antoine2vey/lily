@@ -34,6 +34,7 @@ public class ExpoPlantScannerView: ExpoView, ARSessionDelegate, ARSCNViewDelegat
   private var isCapturingPhoto = false
   var lastTapId: Double = -1
   var lastResetGeneration: Int = 0
+  var lastCaptureGeneration: Int = 0
   private var isLiveUpdatePending = false
 
   private let analysisQueue = DispatchQueue(label: "com.lily.plant-scanner.analysis")

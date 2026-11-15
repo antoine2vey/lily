@@ -21,7 +21,7 @@ import { ExpoPlantScannerView } from '@lily/plant-scanner'
 <ExpoPlantScannerView
   isActive                            // runs or pauses the AR session
   measureMode={measureMode}           // turns tap to measure on
-  captureRequested={captureRequested} // true takes one photo; set it back to false on either capture event
+  captureGeneration={captureGeneration} // increment it to take one photo
   resetGeneration={resetGeneration}   // increment it to clear the measurement
   tapPoint={tapPoint}                 // { x, y, id }; each new id places a point at the view centre
   onFrameAnalysis={(e) => {}}         // detection, streak, lux and luxLevel, every 0.3 seconds

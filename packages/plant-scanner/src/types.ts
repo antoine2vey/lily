@@ -55,7 +55,7 @@ export interface CaptureFailedEvent {
 export interface ExpoPlantScannerViewProps {
   isActive: boolean
   measureMode: boolean
-  captureRequested?: boolean
+  captureGeneration?: number
   resetGeneration?: number
   tapPoint?: { x: number; y: number; id: number } | null
   onFrameAnalysis?: (event: FrameAnalysisEvent) => void
@@ -76,7 +76,7 @@ export interface NativeEvent<T> {
 export interface NativeExpoPlantScannerViewProps {
   isActive: boolean
   measureMode: boolean
-  captureRequested?: boolean
+  captureGeneration?: number
   resetGeneration?: number
   tapPoint?: { x: number; y: number; id: number } | null
   onFrameAnalysis?: (event: NativeEvent<FrameAnalysisEvent>) => void

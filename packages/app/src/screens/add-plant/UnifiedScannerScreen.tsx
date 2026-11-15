@@ -124,6 +124,14 @@ export function UnifiedScannerScreen() {
     setScanPhase(phase)
   }, [])
 
+  // Each request is a new number, so one that follows a failure inside the
+  // same render still reaches the camera. A boolean would stay true there.
+  const [captureGeneration, setCaptureGeneration] = useState(0)
+  const requestCapture = useCallback(() => {
+    enterPhase('capturing')
+    setCaptureGeneration((g) => g + 1)
+  }, [enterPhase])
+
   const handleFrameAnalysis = useCallback(
     (event: FrameAnalysisEvent) => {
       plantVisibleSV.value = event.plantDetected
@@ -140,10 +148,10 @@ export function UnifiedScannerScreen() {
         event.detectionStreak >= AUTO_CAPTURE_STREAK &&
         !measureMode
       ) {
-        enterPhase('capturing')
+        requestCapture()
       }
     },
-    [enterPhase, measureMode, plantVisibleSV, streakSV]
+    [requestCapture, measureMode, plantVisibleSV, streakSV]
   )
 
   const handleARMeasurement = useCallback((event: ARMeasurementEvent) => {
@@ -212,8 +220,8 @@ export function UnifiedScannerScreen() {
 
   const handleForceCapture = useCallback(() => {
     if (scanPhaseRef.current !== 'idle' || measureModeRef.current) return
-    enterPhase('capturing')
-  }, [enterPhase])
+    requestCapture()
+  }, [requestCapture])
 
   const handleReanalyze = useCallback(async () => {
     if (!capturedPhotoUri) return
@@ -412,7 +420,7 @@ export function UnifiedScannerScreen() {
             style={{ flex: 1 }}
             isActive
             measureMode={measureMode}
-            captureRequested={scanPhase === 'capturing'}
+            captureGeneration={captureGeneration}
             onFrameAnalysis={handleFrameAnalysis}
             onPhotoCaptured={handlePhotoCaptured}
             onCaptureFailed={handleCaptureFailed}
@@ -429,7 +437,7 @@ export function UnifiedScannerScreen() {
           <AndroidScannerCamera
             style={{ flex: 1 }}
             isActive
-            captureRequested={scanPhase === 'capturing'}
+            captureGeneration={captureGeneration}
             onFrameAnalysis={handleFrameAnalysis}
             onPhotoCaptured={handlePhotoCaptured}
             onCaptureFailed={handleCaptureFailed}
