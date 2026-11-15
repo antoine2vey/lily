@@ -1,10 +1,13 @@
 import type { Absence } from '@lily/api/contexts/absence'
 import type { Canopy } from '@lily/api/contexts/canopy'
+import type { AccountPhotoRepository } from '@lily/api/repositories/account-photo.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
+import type { GCSService } from '@lily/shared/services/file/gcs'
+import type { GCSDeleteError } from '@lily/shared/services/file/gcs-errors'
 import type { User } from '@lily/shared/user'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -13,8 +16,13 @@ export const deleteUser = (
   id: string
 ): Effect.Effect<
   User,
-  SqlError | UserNotFoundError | CannotModifySelfError,
-  UserRepository | AdminUser | Canopy | Absence
+  SqlError | GCSDeleteError | UserNotFoundError | CannotModifySelfError,
+  | UserRepository
+  | AccountPhotoRepository
+  | GCSService
+  | AdminUser
+  | Canopy
+  | Absence
 > =>
   Effect.gen(function* () {
     const currentAdmin = yield* AdminUser

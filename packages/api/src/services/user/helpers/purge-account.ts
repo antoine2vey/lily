@@ -1,6 +1,7 @@
 import { Absence } from '@lily/api/contexts/absence'
 import { Canopy } from '@lily/api/contexts/canopy'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { eraseAccountPhotos } from '@lily/api/services/user/helpers/erase-account-photos'
 import { Effect } from 'effect'
 
 export const purgeAccount = (userId: string) =>
@@ -10,9 +11,9 @@ export const purgeAccount = (userId: string) =>
     const userRepo = yield* UserRepository
 
     return yield* canopy.leaveForDeletion(userId)(
-      Effect.andThen(
-        absence.releaseForDeletion(userId),
-        userRepo.delete(userId)
+      eraseAccountPhotos(userId).pipe(
+        Effect.andThen(absence.releaseForDeletion(userId)),
+        Effect.andThen(userRepo.delete(userId))
       )
     )
   }).pipe(

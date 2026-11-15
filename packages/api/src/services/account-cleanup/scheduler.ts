@@ -35,7 +35,7 @@ export const cleanupExpiredAccounts = Effect.gen(function* () {
           deletedAt: user.deletedAt,
         })
       }).pipe(
-        Effect.catchTag('SqlError', (error) =>
+        Effect.catchTag(['SqlError', 'GCSDeleteError'], (error) =>
           Effect.logError('Account deletion failed, retried next run', {
             userId: user.id,
             error,

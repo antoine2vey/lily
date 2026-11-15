@@ -12,6 +12,7 @@ import {
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { deadlocks } from '@lily/api/__tests__/integration/lock-waits'
+import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -101,6 +102,7 @@ const mocksAs = (userId: string) =>
   Layer.mergeAll(
     createMockCurrentUser({ id: userId }),
     createMockEventBus(),
+    NoStoredPhotosLive,
     createMockLimitChecker(),
     createMockMessageQueue(),
     createMockRateLimiterService(),

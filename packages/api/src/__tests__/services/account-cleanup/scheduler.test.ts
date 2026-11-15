@@ -1,4 +1,5 @@
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
+import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { Absence } from '@lily/api/contexts/absence'
 import { Canopy } from '@lily/api/contexts/canopy'
@@ -67,15 +68,15 @@ const accounts = (failedPurges = 0) => {
             }),
     }),
     Layer.mock(Canopy, { leaveForDeletion: () => transactInMemory }),
-    Layer.mock(Absence, { releaseForDeletion: () => Effect.void })
+    Layer.mock(Absence, { releaseForDeletion: () => Effect.void }),
+    NoStoredPhotosLive
   )
 
   return { layer, purgedAt: () => purgedAt }
 }
 
 const runApi =
-  (layer: Layer.Layer<UserRepository | Canopy | Absence>) =>
-  (lifetime: Duration.Input) =>
+  (layer: ReturnType<typeof accounts>['layer']) => (lifetime: Duration.Input) =>
     Effect.scoped(
       Effect.andThen(
         Layer.build(
