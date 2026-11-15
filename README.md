@@ -140,5 +140,4 @@ Lily is licensed under the [GNU Affero General Public License v3.0](LICENSE). In
 - [`packages/db/README.md`](packages/db/README.md) — primary PostgreSQL schema map (users, plants, auth, chat, notifications, achievements).
 - [`packages/shared/README.md`](packages/shared/README.md) — the domain model and cross-package contract: schemas, validation, and typed errors.
 - [`docs/knowledge-pipeline-architecture.md`](docs/knowledge-pipeline-architecture.md) — design of the pgvector knowledge-db RAG pipeline (ingest → chunk → embed → retrieve).
-- [`docs/rag-implementation-plan.md`](docs/rag-implementation-plan.md) — RAG implementation plan backing the `api` ai-chat grounding.
 - [`docs/agents/domain.md`](docs/agents/domain.md) — convention for the `CONTEXT-MAP.md` / per-package `CONTEXT.md` + `docs/adr` layout.
