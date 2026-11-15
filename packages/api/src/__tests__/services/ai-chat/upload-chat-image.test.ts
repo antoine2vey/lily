@@ -71,7 +71,9 @@ describe('uploadChatImage', () => {
       }).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(result.imageKey).toMatch(/^\d+-chat\/conv-1\/[0-9a-f-]{36}\.png$/)
+    expect(result.imageKey).toMatch(
+      /^users\/user-1\/chat\/conv-1\/[0-9a-f-]{36}\.png$/
+    )
   })
 
   it('refuses a file that is not an image, whatever it claims to be', async () => {

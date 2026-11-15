@@ -12,6 +12,7 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { userFolder } from '@lily/shared/services/file/stored-object'
 import { Effect } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -42,7 +43,7 @@ export const uploadAvatar = (
 
     const { url } = yield* gcs.uploadFile({
       fileBuffer: Buffer.from(file.buffer),
-      folder: `avatars/${userId}`,
+      folder: userFolder(userId, 'avatars'),
     })
 
     const updated = yield* repo.update(userId, { image: url })

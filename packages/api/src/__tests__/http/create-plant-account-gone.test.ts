@@ -2,6 +2,7 @@ import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
@@ -41,6 +42,7 @@ const care = createInMemoryCare([], {
 })
 
 const DependenciesLive = Layer.mergeAll(
+  createMockGCSService(),
   createMockRoomRepository([]),
   createMockPlantRepository({ plants: rows, sharesPlantsArray: true }),
   createMockCanopyRepository(),

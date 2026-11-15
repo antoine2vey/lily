@@ -16,6 +16,7 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { userFolder } from '@lily/shared/services/file/stored-object'
 import { Effect } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -62,7 +63,7 @@ export const scanCard = (
 
         const { url } = yield* gcs.uploadPrivateFile({
           fileBuffer: Buffer.from(file.buffer),
-          folder: 'scan-card',
+          folder: userFolder(userId, 'scan-card'),
         })
 
         const result = yield* ai.plantCardScan(url, locale)

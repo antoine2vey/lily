@@ -18,6 +18,7 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { userFolder } from '@lily/shared/services/file/stored-object'
 import { Array as Arr, Effect, Option, pipe } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -68,9 +69,9 @@ export const scanCardMultiple = (
 
         const uploadResults = yield* Effect.all(
           Arr.map(files, (file) =>
-            gcs.uploadFile({
+            gcs.uploadPrivateFile({
               fileBuffer: Buffer.from(file.buffer),
-              folder: 'scan-card',
+              folder: userFolder(userId, 'scan-card'),
             })
           ),
           { concurrency: 'unbounded' }
