@@ -8,7 +8,7 @@ The vocabulary of the public site and its blog. The SEO plan in `docs/seo/strate
 | --- | --- | --- |
 | **Locale** | `en` or `fr`. It is the first path segment of every page except the language redirect at `/` and the join page. | |
 | **Indexable page** | A page without `noindex` in its robots meta. It is listed in `src/lib/sitemap.ts` and must pass the SEO lint. | |
-| **Static path** | A page that is not a post, such as the home, the team page or the legal pages. Each one is an entry of `STATIC_PATHS`. | |
+| **Static path** | An indexable page whose path is an entry of `STATIC_PATHS`, such as the home, the team page or the legal pages. Posts and the numbered blog index pages are not static paths. | |
 
 ## Blog
 

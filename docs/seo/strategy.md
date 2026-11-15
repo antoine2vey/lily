@@ -44,7 +44,7 @@ Volumes are rough public estimates. Positions are from live SERPs read on 2026-1
 
 ## Content architecture
 
-The posts are merged into hubs, one per search intent. `scripts/blog-check.ts` enforces the rules below, and the plan lives in each post's frontmatter:
+The posts are merged into hubs, one per search intent. `packages/web/scripts/blog-check.ts` enforces the mechanical rules below, and the plan lives in each post's frontmatter:
 
 - `redirectFrom` lists the old slugs a hub replaced. The build turns them into `dist/redirects.map`, and nginx answers each old URL with a 301 to its hub. Never delete a `redirectFrom` entry. Old URLs keep receiving links for years.
 - `date` is the day the content first went live (from git history). `updated` is the day of the last substantive revision. Both feed the Article schema, `article:modified_time` and the sitemap.
@@ -52,14 +52,14 @@ The posts are merged into hubs, one per search intent. `scripts/blog-check.ts` e
 
 ### Editorial rules
 
-`bun run --filter=@lily/web build` runs the gate in strict mode, so a post that breaks a rule fails the build.
+`bun run --filter=@lily/web build` runs the gate in strict mode. A post fails the build on the rules the gate can check, which the [web package blog rules](../../packages/web/CLAUDE.md#blog) list. Check the rest by hand, such as the keyword placement, the sources and the internal link count.
 
 - Title at most 53 characters (the page adds ` | Lily`), keyword first. Description 120 to 160 characters.
 - Category is one of `care-guides`, `watering`, `plant-problems`, `pests`, `houseplant-basics`.
 - The keyword appears in the title, the first sentence and one H2. The first two or three sentences answer the query with numbers.
 - Every factual claim that matters is checked against an extension service, RHS, Missouri Botanical Garden, ASPCA or a paper, and 1 to 3 of those are linked.
 - No invented experience, statistics or anecdotes. The author is named, so the text has to be true.
-- No em dashes and no stock AI phrasing. The banned list is in `scripts/blog-check.ts`.
+- No em dashes and no stock AI phrasing. The banned list is in `packages/web/scripts/blog-check.ts`.
 - 3 to 6 internal links to other hubs, same locale.
 - French is written for French readers, with U+00A0 before `? ! : ;`.
 
@@ -71,9 +71,9 @@ Check that no hub already covers the intent. If one does, improve that hub and s
 
 - Prerendered static HTML, served by nginx (`packages/web/nginx.conf`) behind Cloudflare.
 - Trailing-slash URLs return a 301 to the bare path. Blog pagination beyond the last page returns a 301 to the blog index.
-- Each page has a self-canonical, en/fr/x-default hreflang, Open Graph tags and JSON-LD. `scripts/seo-check.ts` fails the build when a page lacks its title, description, self-canonical, `og:url` or one of the three hreflang links, has other than one `h1`, or is indexable and missing from the sitemap. It compares JSON-LD types and `og:locale` only in a `--baseline` diff.
+- Each indexable page has a self-canonical, en/fr/x-default hreflang, Open Graph tags and JSON-LD. `packages/web/scripts/seo-check.ts` lints every prerendered page in the build. The [web package rules](../../packages/web/CLAUDE.md#rules) list what fails it.
 - The author is a `Person` entity with `@id` `https://withlily.app/#antoine-de-veyrac`, described on `/en/team` and referenced by every Article and by the Organization as `founder`.
-- `PLAY_STORE_LIVE` in `src/lib/site.ts` hides every Play Store link until the Android listing is public. Flip it on release day and add "Android" back to `operatingSystem`.
+- `PLAY_STORE_LIVE` in `packages/web/src/lib/site.ts` hides every Play Store link until the Android listing is public. Flip it on release day and add "Android" back to `operatingSystem` in `packages/web/src/routes/$locale/route.tsx`.
 
 ## Google-side checklist
 
