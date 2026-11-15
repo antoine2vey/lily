@@ -82,7 +82,9 @@ jobs:
         shard: [1, 2, 3, 4]
     services:
       postgres:
-        image: postgres:17-alpine
+        # Debian, as in production: its tzdata has no `backward` aliases
+        # (Eire, Asia/Calcutta), which the Alpine image accepts.
+        image: postgres:17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

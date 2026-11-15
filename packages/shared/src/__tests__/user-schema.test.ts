@@ -389,6 +389,22 @@ describe('User Schemas', () => {
       expect(result.privacy?.shareGrowthData).toBeUndefined()
     })
 
+    it('accepts a time zone alias', () => {
+      const result = Schema.decodeSync(UserSettingsUpdateRequest)({
+        timezone: 'Eire',
+      })
+
+      expect(result.timezone).toBe('Eire')
+    })
+
+    it('rejects a time zone that does not resolve', () => {
+      const result = Schema.decodeUnknownExit(UserSettingsUpdateRequest)({
+        timezone: 'Not/AZone',
+      })
+
+      expect(Exit.isFailure(result)).toBe(true)
+    })
+
     it('should decode timezone and notification time update', () => {
       const request = {
         timezone: 'Europe/London',
