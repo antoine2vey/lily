@@ -8,6 +8,7 @@ import { type PlantAIResult, plantSchema } from './plant-schema'
 import {
   careInstructions,
   nullCareResponse,
+  rarityInstructions,
   safetyInstructions,
 } from './prompts'
 import { withQualityRetry } from './quality-check'
@@ -31,6 +32,8 @@ Provide up to 3 alternative plant suggestions, each with its common name and con
 For each alternative, provide the url a generated image of the alternative.
 
 ${careInstructions}
+
+${rarityInstructions}
 
 If you are not confident about a care field, set it to null.
 

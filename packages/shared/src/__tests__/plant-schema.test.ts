@@ -12,6 +12,7 @@ import {
   PlantsListResponse,
   PlantUpdateRequest,
 } from '../domains/plant/schema'
+import { detectSchema, plantSchema } from '../services/ai/plant-schema'
 
 // Test fixtures - use ISO strings for dates as that's what the schema expects for decoding
 const validPlant = {
@@ -285,6 +286,26 @@ describe('Plant Schemas', () => {
   })
 
   describe('AIIdentifyResponse', () => {
+    const identifiedMonstera = {
+      name: 'Monstera obliqua',
+      family: 'Araceae',
+      confidence: 0.9,
+      alternatives: [],
+      wateringFrequencyDays: 7,
+      luxNeeded: 2000,
+      humidityRating: 5,
+      petToxicityRating: 3,
+      fertilizationFrequencyDays: 30,
+      mistingFrequencyDays: 2,
+      repottingFrequencyDays: 365,
+      category: 'Tropical',
+      description: 'A collector aroid with more hole than leaf',
+      wateringTips: 'Keep evenly moist.',
+      potSizeCm: 15,
+      potSize: 'S',
+      imageUrl: 'https://example.com/identified.jpg',
+    }
+
     it('should decode a successful identification', () => {
       const response = {
         name: 'Monstera deliciosa',
@@ -341,6 +362,21 @@ describe('Plant Schemas', () => {
 
       expect(result.name).toBeNull()
       expect(result.alternatives).toHaveLength(0)
+    })
+
+    it('should decode the rarity answer', () => {
+      const result = Schema.decodeSync(AIIdentifyResponse)({
+        ...identifiedMonstera,
+        isRareHouseplant: true,
+      })
+
+      expect(result.isRareHouseplant).toBe(true)
+    })
+
+    it('should read a response without the rarity answer as not rare', () => {
+      const result = Schema.decodeSync(AIIdentifyResponse)(identifiedMonstera)
+
+      expect(result.isRareHouseplant).toBe(false)
     })
 
     it('should require imageUrl', () => {
@@ -519,6 +555,43 @@ describe('Plant Schemas', () => {
 
       expect(decoded.success).toBe(false)
       expect(decoded.plant).toBeUndefined()
+    })
+  })
+
+  describe('AI output schema rarity answer', () => {
+    const modelOutput = {
+      name: 'Pothos',
+      family: 'Araceae',
+      confidence: 0.92,
+      alternatives: [],
+      wateringFrequencyDays: 7,
+      luxNeeded: 1000,
+      humidityRating: 3,
+      petToxicityRating: 3,
+      fertilizationFrequencyDays: 30,
+      mistingFrequencyDays: null,
+      repottingFrequencyDays: 365,
+      category: 'Tropical',
+      description: 'A trailing vine',
+      wateringTips: 'Water when the top soil is dry.',
+      potSizeCm: 15,
+      potSize: 'S',
+      isRareHouseplant: false,
+    }
+
+    it('should parse the boolean from the model', () => {
+      expect(plantSchema.parse(modelOutput).isRareHouseplant).toBe(false)
+      expect(
+        plantSchema.parse({ ...modelOutput, isRareHouseplant: true })
+          .isRareHouseplant
+      ).toBe(true)
+    })
+
+    it('should require the answer on every identify schema', () => {
+      const { isRareHouseplant: _, ...withoutAnswer } = modelOutput
+
+      expect(plantSchema.safeParse(withoutAnswer).success).toBe(false)
+      expect(detectSchema.shape.isRareHouseplant).toBeDefined()
     })
   })
 })

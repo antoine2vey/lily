@@ -1,7 +1,9 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
+import type { RareIdentificationRepository } from '@lily/api/repositories/rare-identification.repository'
 import { ScanRepository } from '@lily/api/repositories/scan.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { rememberRareIdentification } from '@lily/api/services/plants/helpers/rare-identification'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { LimitExceededError, OpenAIError } from '@lily/shared'
 import type { AIIdentifyResponse } from '@lily/shared/plant'
@@ -49,6 +51,7 @@ export const scanCardMultiple = (
   | CurrentUser
   | ScanRepository
   | UsageTracker
+  | RareIdentificationRepository
 > =>
   Effect.gen(function* () {
     const ai = yield* AiService
@@ -92,13 +95,16 @@ export const scanCardMultiple = (
         )
 
         // Use first uploaded image as the plant imageUrl
-        return {
+        const identification = {
           ...result,
           imageUrl: pipe(
             Arr.head(urls),
             Option.getOrElse(() => '')
           ),
         }
+        yield* rememberRareIdentification(identification)
+
+        return identification
       })
     )
   }).pipe(

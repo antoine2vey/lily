@@ -8,6 +8,7 @@ import { detectSchema, type PlantDetectResult } from './plant-schema'
 import {
   careInstructions,
   nullCareResponse,
+  rarityInstructions,
   safetyInstructions,
 } from './prompts'
 import { withQualityRetry } from './quality-check'
@@ -44,6 +45,8 @@ If detectedType is "unknown":
 - Attempt identification from whatever is visible.
 
 ${careInstructions}
+
+${rarityInstructions}
 
 If you are not confident about a care field, set it to null.
 

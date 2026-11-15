@@ -1,4 +1,5 @@
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
+import { createMockRareIdentificationRepository } from '@lily/api/__tests__/mocks/rare-identification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
 import { AiService } from '@lily/api/services/ai/service'
@@ -13,6 +14,7 @@ describe('aiReIdentify', () => {
     Layer.mergeAll(
       createMockAiService(),
       createMockCurrentUser({ id: 'user-1' }),
+      createMockRareIdentificationRepository(),
       createMockUsageTracker({ limitReached })
     )
 
@@ -80,6 +82,7 @@ describe('aiReIdentify', () => {
           Layer.mergeAll(
             countingAi,
             createMockCurrentUser({ id: 'user-1' }),
+            createMockRareIdentificationRepository(),
             createMockUsageTracker({ limitReached: true })
           )
         )

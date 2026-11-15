@@ -23,6 +23,7 @@ export interface MockAiServiceData {
   completesAfter?: Duration.Input
   consumeStreamRejects?: string
   chatStreamCalls?: ChatStreamCall[]
+  isRareHouseplant?: boolean
 }
 
 export interface ChatStreamCall {
@@ -65,6 +66,11 @@ export const createMockAiService = (
     ])
   )
 
+  const isRareHouseplant = pipe(
+    Option.fromNullishOr(data.isRareHouseplant),
+    Option.getOrElse(() => false)
+  )
+
   const mockService = {
     plantRecognition: (_urls: string | readonly string[], _locale?: string) =>
       Effect.succeed({
@@ -80,12 +86,7 @@ export const createMockAiService = (
         category: 'Tropical',
         description: 'A mock plant for testing',
         wateringTips: 'Water when top soil is dry.',
-      }),
-    classifyAndIdentify: (_url: string, _locale?: string) =>
-      Effect.succeed({
-        name: 'Mock Plant',
-        confidence: 0.95,
-        detectedType: 'plant' as const,
+        isRareHouseplant,
       }),
     chatStream: (
       _conversation: ChatConversation,
@@ -178,6 +179,24 @@ export const createMockAiService = (
         category: 'Tropical',
         description: 'A mock plant description',
         wateringTips: 'Water when top soil is dry.',
+        isRareHouseplant,
+      }),
+    classifyAndIdentify: (_url: string, _locale?: string) =>
+      Effect.succeed({
+        name: 'Mock Plant',
+        family: 'Mockaceae',
+        confidence: 0.9,
+        alternatives: [],
+        wateringFrequencyDays: 7,
+        luxNeeded: 2000,
+        humidityRating: 50,
+        petToxicityRating: 20,
+        fertilizationFrequencyDays: 30,
+        category: 'Tropical',
+        description: 'A mock plant detected from a photo',
+        wateringTips: 'Water when top soil is dry.',
+        isRareHouseplant,
+        detectedType: 'plant' as const,
       }),
     generateConversationTitle: (_input: {
       userMessage: string
@@ -197,6 +216,7 @@ export const createMockAiService = (
         category: 'Tropical',
         description: 'A mock plant identified from multiple images',
         wateringTips: 'Water when top soil is dry.',
+        isRareHouseplant,
       }),
   }
 

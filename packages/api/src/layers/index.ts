@@ -52,6 +52,7 @@ import { OAuthIdentityRepositoryLive } from '@lily/api/repositories/oauth-identi
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { PlantCatalogRepositoryLive } from '@lily/api/repositories/plant-catalog.repository'
 import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
+import { RareIdentificationRepositoryLive } from '@lily/api/repositories/rare-identification.repository'
 import { RawDocumentRepositoryLive } from '@lily/api/repositories/raw-document.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
@@ -155,6 +156,7 @@ const RepositoriesGroup2 = Layer.mergeAll(
   GiftCodeRepositoryLive,
   OAuthIdentityRepositoryLive,
   ScanRepositoryLive,
+  RareIdentificationRepositoryLive,
   SubscriptionRepositoryLive,
   UserRepositoryLive,
   WeatherRepositoryLive,

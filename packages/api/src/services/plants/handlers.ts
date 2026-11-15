@@ -26,6 +26,7 @@ import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
+import { awardRareIdentification } from '@lily/api/services/plants/helpers/rare-identification'
 import { withScanPhoto } from '@lily/api/services/plants/helpers/scan-photo'
 import {
   withPermittedPlant,
@@ -62,7 +63,12 @@ export const PlantsApiLive = (api: Api) =>
         }).pipe(withInfraErrorsAsDefect)
       )
       .handle('createPlant', ({ payload }) =>
-        withScanPhoto(payload, createPlant).pipe(withInfraErrorsAsDefect)
+        withScanPhoto(payload, createPlant).pipe(
+          Effect.tap((plant) =>
+            awardRareIdentification(plant.id, payload.imageUrl)
+          ),
+          withInfraErrorsAsDefect
+        )
       )
       .handle('detect', ({ payload: { images, locale } }) =>
         detect(images, locale).pipe(withInfraErrorsAsDefect)

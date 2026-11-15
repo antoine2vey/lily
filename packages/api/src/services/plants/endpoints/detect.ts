@@ -1,5 +1,7 @@
+import type { RareIdentificationRepository } from '@lily/api/repositories/rare-identification.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { rememberRareIdentification } from '@lily/api/services/plants/helpers/rare-identification'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { LimitExceededError, OpenAIError } from '@lily/shared'
 import type { DetectResponse } from '@lily/shared/plant'
@@ -35,7 +37,13 @@ export const detect = (
   | OpenAIError
   | SqlError
   | LimitExceededError,
-  AiService | GCSService | FileService | FileSystem | CurrentUser | UsageTracker
+  | AiService
+  | GCSService
+  | FileService
+  | FileSystem
+  | CurrentUser
+  | UsageTracker
+  | RareIdentificationRepository
 > =>
   Effect.gen(function* () {
     const ai = yield* AiService
@@ -56,8 +64,10 @@ export const detect = (
         })
 
         const aiResult = yield* ai.classifyAndIdentify(url, locale)
+        const identification = { ...aiResult, imageUrl: url }
+        yield* rememberRareIdentification(identification)
 
-        return { ...aiResult, imageUrl: url }
+        return identification
       })
     )
   }).pipe(Effect.withSpan('PlantsService.detect'))

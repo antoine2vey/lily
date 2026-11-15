@@ -90,6 +90,26 @@ export const plantScans = pgTable(
   (table) => [index('plant_scans_user_id_idx').on(table.userId)]
 )
 
+export const rarePlantIdentifications = pgTable(
+  'rare_plant_identifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    imageUrl: text('image_url').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('rare_plant_identifications_user_image_idx').on(
+      table.userId,
+      table.imageUrl
+    ),
+  ]
+)
+
 export const plantScansRelations = relations(plantScans, ({ one }) => ({
   user: one(users, {
     fields: [plantScans.userId],

@@ -23,6 +23,7 @@ const makeResult = (overrides: Partial<PlantAIResult> = {}): PlantAIResult => ({
   wateringTips: 'Water weekly',
   potSizeCm: null,
   potSize: null,
+  isRareHouseplant: false,
   ...overrides,
 })
 

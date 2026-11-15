@@ -202,6 +202,10 @@ export const AIIdentifyResponse = Schema.Struct({
   wateringTips: Schema.NullOr(Schema.String),
   potSizeCm: Schema.NullOr(Schema.Number),
   potSize: Schema.NullOr(Schema.String),
+  isRareHouseplant: Schema.Boolean.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(false)),
+    Schema.withConstructorDefault(Effect.succeed(false))
+  ),
   imageUrl: Schema.String,
 })
 
