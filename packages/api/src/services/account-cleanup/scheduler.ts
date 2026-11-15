@@ -3,7 +3,9 @@ import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { Array, DateTime, Effect } from 'effect'
 
-const GRACE_PERIOD_DAYS = 30
+// The privacy policy promises deletion within 30 days. The day of margin
+// covers the wait for the next hourly run and the retries of a failed purge.
+const GRACE_PERIOD_DAYS = 29
 
 export const cleanupExpiredAccounts = Effect.gen(function* () {
   const userRepo = yield* UserRepository
@@ -43,7 +45,7 @@ export const cleanupExpiredAccounts = Effect.gen(function* () {
 
 export const startAccountCleanupScheduler = createScheduler({
   name: 'account-cleanup',
-  interval: '1 day',
-  runOnStartup: false,
+  interval: '1 hour',
+  runOnStartup: true,
   task: cleanupExpiredAccounts,
 })

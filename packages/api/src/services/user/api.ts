@@ -56,7 +56,7 @@ export const UsersApi = HttpApiGroup.make('users')
     })
   )
   .add(
-    // DELETE /users/account - Soft-delete account (30-day grace period)
+    // DELETE /users/account - Soft-delete account (purged within 30 days)
     HttpApiEndpoint.delete('deleteAccount', '/account', {
       success: Schema.Struct({ message: Schema.String }),
       error: [UserNotFoundError, UnauthorizedError],
