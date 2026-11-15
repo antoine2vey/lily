@@ -44,7 +44,7 @@ Volumes are rough public estimates. Positions are from live SERPs read on 2026-1
 
 ## Content architecture
 
-On 2026-11-06 the 289 posts per locale were merged into 125 hubs, one per search intent. `scripts/blog-check.ts` enforces the rules below, and the plan lives in each post's frontmatter:
+The posts are merged into hubs, one per search intent. `scripts/blog-check.ts` enforces the rules below, and the plan lives in each post's frontmatter:
 
 - `redirectFrom` lists the old slugs a hub replaced. The build turns them into `dist/redirects.map`, and nginx answers each old URL with a 301 to its hub. Never delete a `redirectFrom` entry. Old URLs keep receiving links for years.
 - `date` is the day the content first went live (from git history). `updated` is the day of the last substantive revision. Both feed the Article schema, `article:modified_time` and the sitemap.
@@ -71,7 +71,7 @@ Check that no hub already covers the intent. If one does, improve that hub and s
 
 - Prerendered static HTML, served by nginx (`packages/web/nginx.conf`) behind Cloudflare.
 - Trailing-slash URLs return a 301 to the bare path. Blog pagination beyond the last page returns a 301 to the blog index.
-- Each page has a self-canonical, en/fr/x-default hreflang, Open Graph tags and JSON-LD. The build fails on missing tags (`scripts/seo-check.ts`).
+- Each page has a self-canonical, en/fr/x-default hreflang, Open Graph tags and JSON-LD. `scripts/seo-check.ts` fails the build when a page lacks its title, description, self-canonical, `og:url` or one of the three hreflang links, has other than one `h1`, or is indexable and missing from the sitemap. It compares JSON-LD types and `og:locale` only in a `--baseline` diff.
 - The author is a `Person` entity with `@id` `https://withlily.app/#antoine-de-veyrac`, described on `/en/team` and referenced by every Article and by the Organization as `founder`.
 - `PLAY_STORE_LIVE` in `src/lib/site.ts` hides every Play Store link until the Android listing is public. Flip it on release day and add "Android" back to `operatingSystem`.
 
