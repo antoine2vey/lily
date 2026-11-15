@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import {
+  isPetSafe,
   LUMINOSITY_LEVELS,
   LUMINOSITY_LUX_VALUES,
   type LuminosityLevel,
@@ -74,7 +75,7 @@ export function ManualAddCareNeedsScreen() {
       Option.flatMap((p) =>
         Option.fromNullishOr(p.petToxicityRating as number)
       ),
-      Option.map((rating) => rating <= 50),
+      Option.map(isPetSafe),
       Option.getOrElse(() => false)
     )
   )

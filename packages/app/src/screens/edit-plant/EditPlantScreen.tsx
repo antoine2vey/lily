@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { getFrequencyDays } from '@lily/shared'
+import { getFrequencyDays, isPetSafe } from '@lily/shared'
 import { Option } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -148,7 +148,7 @@ export function EditPlantScreen() {
       setHumidity(
         Option.getOrElse(Option.fromNullishOr(plant.humidityRating), () => 50)
       )
-      setPetSafe(plant.petToxicityRating === 0)
+      setPetSafe(isPetSafe(plant.petToxicityRating))
       setWateringFrequencyDays(originalScheduleData.wateringFreq)
       setFertilizationFrequencyDays(originalScheduleData.fertilizationFreq)
       setMistingFrequencyDays(originalScheduleData.mistingFreq)
@@ -273,7 +273,7 @@ export function EditPlantScreen() {
       Option.getOrElse(Option.fromNullishOr(plant.lightingRating), () => 50) ||
     humidity !==
       Option.getOrElse(Option.fromNullishOr(plant.humidityRating), () => 50) ||
-    petSafe !== (plant.petToxicityRating === 0) ||
+    petSafe !== isPetSafe(plant.petToxicityRating) ||
     photo !== Option.getOrUndefined(Option.fromNullishOr(plant.imageUrl)) ||
     wateringFrequencyDays !== originalScheduleData.wateringFreq ||
     (fertilizationEnabled ? fertilizationFrequencyDays : null) !==

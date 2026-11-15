@@ -116,10 +116,10 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       `- **Added**: ${formatIsoDate(plant.dateAdded)}`,
       '',
       '### Care Ratings',
-      `- Water needs: ${plant.wateringRating}/5`,
-      `- Light needs: ${plant.lightingRating}/5`,
-      `- Humidity needs: ${plant.humidityRating}/5`,
-      `- Pet toxicity: ${plant.petToxicityRating}/5`,
+      `- Water needs: ${plant.wateringRating}/100`,
+      `- Light needs: ${plant.lightingRating}/100`,
+      `- Humidity needs: ${plant.humidityRating}/100`,
+      `- Pet toxicity: ${plant.petToxicityRating}/100`,
     ]
 
     const scheduleLines = Array.map(scheduleMapped, (m) => m.line)

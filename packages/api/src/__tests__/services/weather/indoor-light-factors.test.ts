@@ -3,8 +3,8 @@
  *
  * Companion to `indoor-light.test.ts` — that file covers the headline cases
  * (Paris winter<summer, Sydney flip, CAM cap, dim veto). This file pushes on
- * the EDGES: every CROP_COEFFICIENTS category, the full 8-point compass, the
- * gap == -2 veto boundary, lightingRating clamping, the solar-radiation
+ * the EDGES: every plant category, the full 8-point compass, the
+ * gap == -2 veto boundary, lightingRating bucketing, the solar-radiation
  * fallback path of skyFactor, the recent-day averaging window, and strict
  * monotonic sweeps for the VPD term.
  *
@@ -179,60 +179,58 @@ describe('orientationFactor — the full compass at Paris winter', () => {
 
 describe('roomFitFactor — brightness monotonicity and gap boundary', () => {
   it('is non-decreasing as the room gets brighter for a fixed plant', () => {
-    // lightingRating 3 (need level 3). Lux sweep spans all five room levels.
+    // lightingRating 50 (need level 3). Lux sweep spans all five room levels.
     const luxLadder = [100, 300, 1200, 6000, 30000]
     let prev = Number.NEGATIVE_INFINITY
     for (const lux of luxLadder) {
-      const f = roomFitFactor(lux, 3, 'Foliage').factor
+      const f = roomFitFactor(lux, 50, 'Foliage').factor
       expect(f).toBeGreaterThanOrEqual(prev)
       prev = f
     }
   })
 
-  it('lightingRating is clamped: 0 behaves like 1, 6 behaves like 5', () => {
+  it('lightingRating 0-100 splits into five levels of 20 points', () => {
     const room = 2000 // level 3
-    expect(roomFitFactor(room, 0, 'Foliage')).toEqual(
-      roomFitFactor(room, 1, 'Foliage')
-    )
-    expect(roomFitFactor(room, 6, 'Foliage')).toEqual(
-      roomFitFactor(room, 5, 'Foliage')
-    )
+    const gapAt = (rating: number) => roomFitFactor(room, rating, 'Foliage').gap
+    expect([0, 20, 21, 40, 41, 60, 61, 80, 81, 100].map(gapAt)).toEqual([
+      2, 2, 1, 1, 0, 0, -1, -1, -2, -2,
+    ])
   })
 
   it('gap is exactly -2 at a dim room two levels below the plant need', () => {
-    // room 100 lux => level 1; lightingRating 3 => plant level 3; gap = -2.
-    const result = roomFitFactor(100, 3, 'Foliage')
+    // room 100 lux => level 1; lightingRating 50 => plant level 3; gap = -2.
+    const result = roomFitFactor(100, 50, 'Foliage')
     expect(result.gap).toBe(-2)
   })
 
   it('gap is exactly 0 when room level matches plant need exactly', () => {
-    // lightingRating 4 => need 10000 lux => level 4; room 12000 => level 4.
-    expect(roomFitFactor(12000, 4, 'Foliage').gap).toBe(0)
+    // lightingRating 70 => need 10000 lux => level 4; room 12000 => level 4.
+    expect(roomFitFactor(12000, 70, 'Foliage').gap).toBe(0)
   })
 
   it('a positive gap raises the factor above neutral, a negative gap lowers it', () => {
-    expect(roomFitFactor(40000, 1, 'Foliage').factor).toBeGreaterThan(1)
-    expect(roomFitFactor(100, 5, 'Foliage').factor).toBeLessThan(1)
+    expect(roomFitFactor(40000, 10, 'Foliage').factor).toBeGreaterThan(1)
+    expect(roomFitFactor(100, 90, 'Foliage').factor).toBeLessThan(1)
   })
 
   it('Cactus is capped at 1.05 even in a very bright over-lit room', () => {
     // Huge positive gap would push a normal plant to 1.15; CAM caps at 1.05.
-    const cactus = roomFitFactor(100000, 1, 'Cactus')
-    const foliage = roomFitFactor(100000, 1, 'Foliage')
+    const cactus = roomFitFactor(100000, 10, 'Cactus')
+    const foliage = roomFitFactor(100000, 10, 'Foliage')
     expect(cactus.factor).toBeLessThanOrEqual(1.05)
     expect(foliage.factor).toBeGreaterThan(cactus.factor)
   })
 
   it('the CAM cap never lowers a dim-room factor (only caps the upside)', () => {
     // A dim room already pulls the factor below 1; the cap must not touch it.
-    const dim = roomFitFactor(100, 5, 'Cactus')
+    const dim = roomFitFactor(100, 90, 'Cactus')
     expect(dim.factor).toBeLessThan(1)
     expect(dim.factor).toBeGreaterThanOrEqual(0.85)
   })
 
   it('factor stays within [0.85, 1.15] across the lux/rating grid', () => {
     for (const lux of [50, 100, 500, 2000, 10000, 40000, 100000]) {
-      for (const rating of [1, 2, 3, 4, 5]) {
+      for (const rating of [10, 30, 50, 70, 90]) {
         const f = roomFitFactor(lux, rating, 'Foliage').factor
         expect(f).toBeGreaterThanOrEqual(0.85)
         expect(f).toBeLessThanOrEqual(1.15)
@@ -316,8 +314,8 @@ describe('skyFactor — fallback, averaging and saturation', () => {
 
 describe('indoorVpdFactor — monotonic dryness response', () => {
   it('null outdoor temp lands near neutral (uses the 20°C default)', () => {
-    const def = indoorVpdFactor(null, 3)
-    const twenty = indoorVpdFactor(20, 3)
+    const def = indoorVpdFactor(null, 50)
+    const twenty = indoorVpdFactor(20, 50)
     expect(def).toBe(twenty)
   })
 
@@ -328,7 +326,7 @@ describe('indoorVpdFactor — monotonic dryness response', () => {
     const sweep = [3, 8, 13, 18, 21]
     let prev = Number.POSITIVE_INFINITY
     for (const temp of sweep) {
-      const f = indoorVpdFactor(temp, 3)
+      const f = indoorVpdFactor(temp, 50)
       expect(f).toBeLessThan(prev)
       prev = f
     }
@@ -340,16 +338,16 @@ describe('indoorVpdFactor — monotonic dryness response', () => {
     const sweep = [-30, -20, -10, 0, 10, 20, 30, 40]
     let prev = Number.POSITIVE_INFINITY
     for (const temp of sweep) {
-      const f = indoorVpdFactor(temp, 3)
+      const f = indoorVpdFactor(temp, 50)
       expect(f).toBeLessThanOrEqual(prev)
       prev = f
     }
   })
 
-  it('orders humidity ratings 1 < 3 < 5 in cold (dry) air', () => {
-    const low = indoorVpdFactor(-10, 1)
-    const mid = indoorVpdFactor(-10, 3)
-    const high = indoorVpdFactor(-10, 5)
+  it('orders humidity ratings 10 < 50 < 90 in cold (dry) air', () => {
+    const low = indoorVpdFactor(-10, 10)
+    const mid = indoorVpdFactor(-10, 50)
+    const high = indoorVpdFactor(-10, 90)
     expect(low).toBeLessThan(mid)
     expect(mid).toBeLessThan(high)
   })
@@ -357,14 +355,14 @@ describe('indoorVpdFactor — monotonic dryness response', () => {
   it('reverses the humidity ordering in warm (humid) air', () => {
     // Warm outdoor => indoor RH high => VPD < reference => factor < 1.
     // A high-humidity plant is then helped MORE (further below 1).
-    const lowRating = indoorVpdFactor(35, 1)
-    const highRating = indoorVpdFactor(35, 5)
+    const lowRating = indoorVpdFactor(35, 10)
+    const highRating = indoorVpdFactor(35, 90)
     expect(highRating).toBeLessThan(lowRating)
   })
 
   it('clamps to the [0.85, 1.25] band at temperature extremes', () => {
     for (const temp of [-40, -20, 0, 25, 50, 80]) {
-      for (const rating of [1, 2, 3, 4, 5]) {
+      for (const rating of [10, 30, 50, 70, 90]) {
         const f = indoorVpdFactor(temp, rating)
         expect(f).toBeGreaterThanOrEqual(0.85)
         expect(f).toBeLessThanOrEqual(1.25)
@@ -373,7 +371,7 @@ describe('indoorVpdFactor — monotonic dryness response', () => {
   })
 
   it('saturates above 1 in deep cold and below 1 in warm air', () => {
-    expect(indoorVpdFactor(-30, 5)).toBeGreaterThan(1)
-    expect(indoorVpdFactor(40, 5)).toBeLessThan(1)
+    expect(indoorVpdFactor(-30, 90)).toBeGreaterThan(1)
+    expect(indoorVpdFactor(40, 90)).toBeLessThan(1)
   })
 })

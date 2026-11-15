@@ -38,36 +38,6 @@ import {
 } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 
-// ─── Step 2: Actual Crop ET (ETc) ───────────────────────────────────────────
-
-/**
- * Calculate actual crop evapotranspiration: ETc = ET0 x Kc
- *
- * WHAT IS ET0 (Reference Evapotranspiration)?
- *   ET0 is the rate of water loss from a standardized reference surface -- a
- *   hypothetical grass crop 12cm tall, actively growing, completely shading
- *   the ground, and with adequate water. It is computed from weather data
- *   using the Penman-Monteith equation (FAO-56, equation 6), which takes as
- *   inputs: temperature, humidity, wind speed, and solar radiation.
- *
- *   We use the ET0 value directly from the Open-Meteo API, which computes it
- *   using the full Penman-Monteith equation with satellite-derived radiation
- *   models. This is more accurate than computing it ourselves.
- *
- * WHAT IS ETc (Crop Evapotranspiration)?
- *   ETc is the actual water need for THIS specific plant. By multiplying ET0
- *   by the crop coefficient Kc, we scale the reference water loss to match
- *   the plant's real transpiration characteristics.
- *
- * UNIT: mm/day means "millimeters of water depth that evapotranspires per
- *   day." Practically, 1mm of ET over 1m2 of area = 1 liter of water lost.
- *
- * Source: FAO-56, Allen et al. 1998, Chapter 6
- */
-export function calculateETc(et0: number, kc: number): number {
-  return et0 * kc
-}
-
 // ─── Step 3: Temperature Factor ─────────────────────────────────────────────
 
 /**

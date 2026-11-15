@@ -101,7 +101,7 @@ describe('readjustCareSchedules', () => {
       id: 'plant-adjust-1',
       name: 'Test Monstera',
       category: 'tropical',
-      wateringRating: 3,
+      wateringRating: 50,
       userId: weatherUser.id,
       scheduleSpecs: [
         wateringSpec({
@@ -138,7 +138,7 @@ describe('readjustCareSchedules', () => {
       id: 'plant-no-change',
       name: 'Correct Schedule Plant',
       category: 'tropical',
-      wateringRating: 3,
+      wateringRating: 50,
       userId: weatherUser.id,
       scheduleSpecs: [
         wateringSpec({
@@ -221,7 +221,7 @@ describe('readjustCareSchedules', () => {
         id: 'plant-multi-1',
         name: 'Plant A',
         category: 'tropical',
-        wateringRating: 3,
+        wateringRating: 50,
         userId: weatherUser.id,
         scheduleSpecs: [
           wateringSpec({
@@ -235,7 +235,7 @@ describe('readjustCareSchedules', () => {
         id: 'plant-multi-2',
         name: 'Plant B',
         category: 'succulent',
-        wateringRating: 1,
+        wateringRating: 10,
         userId: weatherUser.id,
         scheduleSpecs: [
           wateringSpec({
@@ -279,7 +279,7 @@ describe('readjustCareSchedules for a Canopy', () => {
           id: 'canopy-plant',
           name: 'Shared Fern',
           category: 'Foliage',
-          wateringRating: 3,
+          wateringRating: 50,
           userId: null,
           canopyId: mockCanopyId,
           createdByUserId: weatherUser.id,

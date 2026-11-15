@@ -19,10 +19,10 @@ const mockPlantDetail: PlantDetail = {
   category: 'tropical',
   dateAdded: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
-  humidityRating: 4,
-  lightingRating: 3,
-  petToxicityRating: 2,
-  wateringRating: 3,
+  humidityRating: 70,
+  lightingRating: 50,
+  petToxicityRating: 30,
+  wateringRating: 50,
   health: 'HEALTHY',
   remindersEnabled: true,
   isFavorite: false,
@@ -97,10 +97,10 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result.text).toContain('Water needs: 3/5')
-    expect(result.text).toContain('Light needs: 3/5')
-    expect(result.text).toContain('Humidity needs: 4/5')
-    expect(result.text).toContain('Pet toxicity: 2/5')
+    expect(result.text).toContain('Water needs: 50/100')
+    expect(result.text).toContain('Light needs: 50/100')
+    expect(result.text).toContain('Humidity needs: 70/100')
+    expect(result.text).toContain('Pet toxicity: 30/100')
     expect(result.text).toContain('Care Schedule')
     expect(result.text).toContain('watering')
   })
@@ -127,7 +127,7 @@ describe('getPlantDetails MCP tool', () => {
     expect(result.plant.id).toBe('plant-1')
     expect(result.plant.name).toBe('Monstera Deliciosa')
     expect(result.plant.healthLabel).toBe('Healthy')
-    expect(result.plant.wateringRating).toBe(3)
+    expect(result.plant.wateringRating).toBe(50)
   })
 
   it('names the Canopy of a Canopy plant', async () => {

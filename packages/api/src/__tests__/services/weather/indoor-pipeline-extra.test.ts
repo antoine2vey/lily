@@ -96,7 +96,7 @@ const datedForecast = (
 const indoorRoom = {
   id: 'room-indoor',
   name: 'Living Room',
-  // Bright indirect (level 3) — matches lightingRating 3 so room-fit is neutral
+  // Bright indirect (level 3) — matches lightingRating 50 so room-fit is neutral
   // and the photoperiod term is the dominant seasonal driver.
   luminosity: 2000,
   icon: '🏠',
@@ -145,7 +145,7 @@ const indoorPlant = (
     id,
     name: id,
     category,
-    wateringRating: 3,
+    wateringRating: 50,
     userId,
     roomId,
     scheduleSpecs: [
@@ -455,7 +455,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         id,
         name: id,
         category: 'Foliage',
-        wateringRating: 3,
+        wateringRating: 50,
         userId,
         roomId: 'room-outdoor',
         diedAt: null,

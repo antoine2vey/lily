@@ -104,7 +104,7 @@ describe('calculateScheduleDelta', () => {
         id: 'outdoor-tropical-3d-mid',
         category: 'Tropical',
         wateringFrequencyDays: 3,
-        wateringRating: 5,
+        wateringRating: 90,
         isOutdoor: true,
         lastWateredAt: new Date(nowMs - 1 * oneDayMs),
         nextWateringAt: new Date(nowMs + 2 * oneDayMs),
@@ -333,7 +333,7 @@ describe('calculateScheduleDelta', () => {
       const plant = makeSchedulePlant({
         category: 'Succulent',
         wateringFrequencyDays: 14,
-        wateringRating: 1,
+        wateringRating: 10,
         isOutdoor: true,
       })
       const ctx = buildWeatherCtx(nordicWinterForecast)
@@ -430,7 +430,7 @@ describe('calculateScheduleDelta', () => {
       const plant = makeSchedulePlant({
         category: 'Succulent',
         wateringFrequencyDays: 30,
-        wateringRating: 1,
+        wateringRating: 10,
         isOutdoor: true,
         lastWateredAt: new Date(nowMs - 10 * oneDayMs),
         nextWateringAt: new Date(nowMs + 20 * oneDayMs),
