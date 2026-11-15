@@ -1,18 +1,21 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
-import { Array, DateTime, Effect } from 'effect'
+import { Array, DateTime, Duration, Effect } from 'effect'
 
-// The privacy policy promises deletion within 30 days. The day of margin
-// covers the wait for the next hourly run and the retries of a failed purge.
-const GRACE_PERIOD_DAYS = 29
+const PRIVACY_POLICY_DELETION_WINDOW = Duration.days(30)
+const MARGIN_FOR_NEXT_RUN_AND_RETRIES = Duration.days(1)
+const GRACE_PERIOD = Duration.subtract(
+  PRIVACY_POLICY_DELETION_WINDOW,
+  MARGIN_FOR_NEXT_RUN_AND_RETRIES
+)
 
 export const cleanupExpiredAccounts = Effect.gen(function* () {
   const userRepo = yield* UserRepository
 
   const now = yield* DateTime.now
   const cutoff = DateTime.toDateUtc(
-    DateTime.subtract(now, { days: GRACE_PERIOD_DAYS })
+    DateTime.subtractDuration(now, GRACE_PERIOD)
   )
   const expiredUsers = yield* userRepo.findExpiredDeletions(cutoff)
 

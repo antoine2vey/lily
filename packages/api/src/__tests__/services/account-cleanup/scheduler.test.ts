@@ -1,4 +1,5 @@
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { Absence } from '@lily/api/contexts/absence'
 import { Canopy } from '@lily/api/contexts/canopy'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -18,9 +19,7 @@ import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { TestClock } from 'effect/testing'
 import { describe, expect, it } from 'vitest'
 
-// The privacy policy in packages/web/src/i18n/en.ts promises deletion within
-// 30 days of the request.
-const PROMISE = Duration.days(30)
+const PRIVACY_POLICY_DELETION_WINDOW = Duration.days(30)
 
 const deletedAt = DateTime.makeUnsafe('2026-03-01T09:00:00Z')
 const at = (since: Duration.Input) => DateTime.addDuration(deletedAt, since)
@@ -67,14 +66,13 @@ const accounts = (failedPurges = 0) => {
               return null
             }),
     }),
-    Layer.mock(Canopy, { leaveForDeletion: () => (deletion) => deletion }),
+    Layer.mock(Canopy, { leaveForDeletion: () => transactInMemory }),
     Layer.mock(Absence, { releaseForDeletion: () => Effect.void })
   )
 
   return { layer, purgedAt: () => purgedAt }
 }
 
-// One API process: the scheduler starts with the server and stops with it.
 const runApi =
   (layer: Layer.Layer<UserRepository | Canopy | Absence>) =>
   (lifetime: Duration.Input) =>
@@ -141,7 +139,9 @@ describe('account-cleanup scheduler', () => {
           Duration.toHours(DateTime.distance(deletedAt, purged)),
       })
       expect(hoursUntilPurge).toBeGreaterThanOrEqual(29 * 24)
-      expect(hoursUntilPurge).toBeLessThanOrEqual(Duration.toHours(PROMISE))
+      expect(hoursUntilPurge).toBeLessThanOrEqual(
+        Duration.toHours(PRIVACY_POLICY_DELETION_WINDOW)
+      )
     }
   )
 })
