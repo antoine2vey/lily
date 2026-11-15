@@ -229,9 +229,12 @@
       "name": "@lily/plant-scanner",
       "version": "1.0.0",
       "devDependencies": {
+        "@types/bun": "^1.4.3",
         "@types/react": "^19.0.0",
+        "effect": "^4.0.5",
         "expo-modules-core": "~58.0.23",
         "typescript": "7.0.2",
+        "vitest": "^5.0.5",
       },
       "peerDependencies": {
         "expo": "~58.0.0",
