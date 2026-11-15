@@ -105,7 +105,7 @@ const SSE_HEADERS = {
   connection: 'keep-alive',
 }
 
-// ai@6.0.82 clients parse chunks with z.strictObject and reject providerMetadata (#89)
+// ai@6.0.82 clients parse chunks with z.strictObject and reject providerMetadata (#216)
 const toSseEvent = (chunk: Record.ReadonlyRecord<string, unknown>) =>
   encoder.encode(
     `data: ${JSON.stringify(Record.remove(chunk, 'providerMetadata'))}\n\n`
