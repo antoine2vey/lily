@@ -10,6 +10,7 @@ Run every command from the monorepo root.
 |---|---|
 | `bun run --filter=@lily/plant-scanner tsc` | Typechecks the TypeScript wrapper and types |
 | `bun run --filter=@lily/plant-scanner lint` | Biome. `lint:fix` writes the fixes |
+| `bun run --filter=@lily/plant-scanner test` | Vitest. Checks `targetClassIds` against the model's label map |
 
 The Swift code compiles only inside the app's native build, with `bun run --filter=@lily/app ios` or an EAS build.
 
@@ -41,7 +42,7 @@ The Swift code compiles only inside the app's native build, with `bun run --filt
 ### Detection
 
 - The model is EfficientDet Lite0, a COCO detector with a 320 by 320 input. It runs on two threads, with the Core ML delegate when the device provides one.
-- It accepts class indices 63 and 58 (`targetClassIds`). The label map embedded in the model names 63 potted plant and 58 pizza. The comment in `PlantDetector.swift` calls 58 a vase, but that map puts vase at 85. A score above 0.3 counts as a plant. `detectionStreak` counts consecutive analyses with a plant, and a miss resets it to 0.
+- It accepts class indices 63 (potted plant) and 85 (vase) (`targetClassIds`). The model's class output is the zero-based line of the `labelmap.txt` embedded in the model, which lists the 91 COCO ids from 1 with `???` for the unused ones. `src/__tests__/target-class-ids.test.ts` reads that label map and fails when an index names another class. A score above 0.3 counts as a plant. `detectionStreak` counts consecutive analyses with a plant, and a miss resets it to 0.
 - Above 0.4 the best box also yields `potBbox`, normalized from 0 to 1, and the size estimate.
 - The size estimate has no depth data. It guesses the camera distance from the box width (25, 35, 40 or 55 cm), then applies a 5.6 mm sensor width and a 4.2 mm focal length. `cmToCategory` buckets the width as XS below 10 cm, S below 15, M below 25, L below 35 and XL above that. The `careInstructions` fragment in `packages/shared/src/services/ai/prompts.ts` uses the same bands for `potSize`, and the detect, recognition and card scan prompts include it.
 

@@ -30,8 +30,8 @@ class PlantDetector {
   private let sensorWidthMm: Double = 5.6
   private let focalLengthMm: Double = 4.2
 
-  // COCO class IDs: 63 = potted plant, 58 = vase
-  private let targetClassIds: Set<Int> = [63, 58]
+  // Zero-based lines of the labelmap.txt embedded in the model: 63 = potted plant, 85 = vase
+  private let targetClassIds: Set<Int> = [63, 85]
 
   init() {
     loadModel()
