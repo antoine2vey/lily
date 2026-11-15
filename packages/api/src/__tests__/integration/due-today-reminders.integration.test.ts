@@ -155,6 +155,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         scheduledAt: new Date(Date.now() + 60 * 60 * 1000),
         userId,
         plantId,
+        occasionDay: careDayOf(todayStart),
         status: 'pending',
       })
 
