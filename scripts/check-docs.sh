@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Checks that the markdown docs point at things that exist.
-#   1. Relative links resolve from the linking file.
+#   1. Relative links resolve from the linking file, and a #fragment names a
+#      heading in the target markdown file.
 #   2. Backticked file paths resolve from the doc's directory, its package,
 #      the package's src/ or the repo root, or match the tail of a repo file.
 #   3. Every package has CLAUDE.md, README.md, CONTEXT.md and an AGENTS.md
@@ -15,6 +16,23 @@ errors=0
 fail() {
 	echo "$1"
 	errors=$((errors + 1))
+}
+
+# GitHub's heading anchors: lowercase, punctuation dropped, spaces to
+# hyphens, and a -N suffix on repeats.
+slugs() {
+	awk '
+		/^[[:space:]]*(```|~~~)/ { fence = !fence; next }
+		fence || !/^#+ / { next }
+		{
+			s = tolower($0)
+			sub(/^#+ +/, "", s)
+			gsub(/[^a-z0-9 _-]/, "", s)
+			gsub(/ /, "-", s)
+			n = seen[s]++
+			print (n ? s "-" n : s)
+		}
+	' "$1"
 }
 
 docs=$(git ls-files --cached --others --exclude-standard '*.md' | grep -v '^packages/web/content/posts/' | sort -u)
@@ -52,11 +70,23 @@ while IFS=$'\t' read -r doc line kind target; do
 	case "$kind" in
 	link)
 		target="${target%% *}"
+		anchor=""
+		[[ "$target" == *#* ]] && anchor="${target#*#}"
 		target="${target%%#*}"
 		case "$target" in
-		'' | http:* | https:* | mailto:* | /* | \<*) continue ;;
+		http:* | https:* | mailto:* | /* | \<*) continue ;;
 		esac
-		[ -e "$dir/$target" ] || fail "$doc:$line: broken link -> $target"
+		file="$doc"
+		if [ -n "$target" ]; then
+			file="$dir/$target"
+			[ -e "$file" ] || {
+				fail "$doc:$line: broken link -> $target"
+				continue
+			}
+		fi
+		if [ -n "$anchor" ] && [[ "$file" == *.md && -f "$file" ]]; then
+			grep -qxF -- "$anchor" <<<"$(slugs "$file")" || fail "$doc:$line: broken anchor -> $target#$anchor"
+		fi
 		;;
 	code)
 		[[ "$target" =~ $path_like ]] || continue
