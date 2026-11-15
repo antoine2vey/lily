@@ -1,3 +1,7 @@
+// The home page stylesheets live here, not in the route file, whose imports land in the stylesheet of every page.
+// story.css must follow home.css: `.m-lk .status` overrides `.wc .status` at equal specificity.
+import './home.css'
+import './story.css'
 import { Array, Option, pipe } from 'effect'
 import { useEffect, useRef } from 'react'
 import { useI18n } from '@/i18n'

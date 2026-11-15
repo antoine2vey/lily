@@ -1,8 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Array } from 'effect'
 import { useRef } from 'react'
-import '@/components/home/home.css'
-import '@/components/home/story.css'
 import { Bits } from '@/components/home/bits/Bits'
 import { Faq } from '@/components/home/Faq'
 import { LatestPosts } from '@/components/home/LatestPosts'
