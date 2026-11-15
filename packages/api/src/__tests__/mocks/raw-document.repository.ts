@@ -1,4 +1,5 @@
 import {
+  type CreateChunkData,
   type CreateRawDocumentData,
   type IRawDocumentRepository,
   RawDocumentRepository,
@@ -8,9 +9,13 @@ import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export const createMockRawDocumentRepository = (data: {
   documents: RawDocument[]
+  insertedChunks?: CreateChunkData[]
 }): Layer.Layer<RawDocumentRepository> => {
   const repo: IRawDocumentRepository = {
-    createIfNew: (input: CreateRawDocumentData) => {
+    createIfNew: (
+      input: CreateRawDocumentData,
+      chunks: ReadonlyArray<CreateChunkData>
+    ) => {
       const taken =
         input.sourceId !== undefined &&
         Array.some(data.documents, (d) => d.sourceId === input.sourceId)
@@ -31,6 +36,7 @@ export const createMockRawDocumentRepository = (data: {
         fetchedAt: new Date(),
       }
       data.documents.push(doc)
+      data.insertedChunks?.push(...chunks)
       return Effect.succeed(doc)
     },
 

@@ -1,5 +1,9 @@
-import { KnowledgeDrizzle, rawDocuments } from '@lily/knowledge-db'
-import type { RawDocument } from '@lily/shared/knowledge'
+import {
+  KnowledgeDrizzle,
+  processedChunks,
+  rawDocuments,
+} from '@lily/knowledge-db'
+import type { ContentCategory, RawDocument } from '@lily/shared/knowledge'
 import { count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -20,6 +24,32 @@ export interface CreateRawDocumentData {
   ingestJobId: string
 }
 
+export interface CreateChunkData {
+  id?: string | undefined
+  parentChunkId?: string | undefined
+  content: string
+  embeddingContent?: string | undefined
+  chunkIndex: number
+  source: string
+  plantType?: string | undefined
+  category?: ContentCategory | undefined
+  plantMentions?: string[] | undefined
+  metadata?: Record<string, unknown> | undefined
+  embedding?: number[] | undefined
+}
+
+const toNull = <T>(value: T | undefined): T | null =>
+  Option.getOrNull(Option.fromNullishOr(value))
+
+const toChunkValues = (documentId: string) => (chunk: CreateChunkData) => ({
+  ...chunk,
+  documentId,
+  embeddingContent: toNull(chunk.embeddingContent),
+  plantMentions: toNull(chunk.plantMentions),
+  metadata: toNull(chunk.metadata),
+  embedding: toNull(chunk.embedding),
+})
+
 const mapToRawDocument = (row: RawDocumentRow): RawDocument => ({
   id: row.id,
   source: row.source,
@@ -36,12 +66,14 @@ const mapToRawDocument = (row: RawDocumentRow): RawDocument => ({
 
 export interface IRawDocumentRepository {
   /**
-   * Inserts the document, or returns null when a row with the same
-   * source_id was stored since the caller last looked (the partial unique
-   * index `raw_documents_source_id_unique` rejects the insert).
+   * Inserts the document with its chunks in one statement, so a failure
+   * stores neither. Returns null when a row with the same source_id was
+   * stored since the caller last looked (the partial unique index
+   * `raw_documents_source_id_unique` rejects the insert).
    */
   readonly createIfNew: (
-    data: CreateRawDocumentData
+    data: CreateRawDocumentData,
+    chunks: ReadonlyArray<CreateChunkData>
   ) => Effect.Effect<RawDocument | null, SqlError>
   readonly findBySourceId: (
     sourceId: string
@@ -61,20 +93,37 @@ export const RawDocumentRepositoryLive = Layer.effect(
 
     return {
       createIfNew: Effect.fn('RawDocumentRepository.createIfNew')(function* (
-        data: CreateRawDocumentData
+        data: CreateRawDocumentData,
+        chunks: ReadonlyArray<CreateChunkData>
       ) {
-        const rows = yield* db
-          .insert(rawDocuments)
-          .values(data)
-          .returning()
-          .pipe(
-            Effect.catchIf(
-              (error) =>
-                error.reason._tag === 'UniqueViolation' &&
-                error.reason.constraint === SOURCE_ID_UNIQUE_INDEX,
-              () => Effect.succeed([])
+        const document = { ...data, id: crypto.randomUUID() }
+        const insertDocument = db.insert(rawDocuments).values(document)
+        const insert = Array.match(chunks, {
+          onEmpty: () => insertDocument.returning(),
+          onNonEmpty: (nonEmpty) => {
+            const storedDocument = db
+              .$with('stored_document')
+              .as(insertDocument.returning())
+            const storedChunks = db.$with('stored_chunks').as(
+              db
+                .insert(processedChunks)
+                .values(Array.map(nonEmpty, toChunkValues(document.id)))
+                .returning({ id: processedChunks.id })
             )
+            return db
+              .with(storedDocument, storedChunks)
+              .select()
+              .from(storedDocument)
+          },
+        })
+        const rows = yield* insert.pipe(
+          Effect.catchIf(
+            (error) =>
+              error.reason._tag === 'UniqueViolation' &&
+              error.reason.constraint === SOURCE_ID_UNIQUE_INDEX,
+            () => Effect.succeed([])
           )
+        )
 
         return pipe(
           Array.head(rows),

@@ -1,10 +1,9 @@
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
 import {
-  type CreateProcessedChunkData,
-  ProcessedChunkRepository,
-} from '@lily/api/repositories/processed-chunk.repository'
-import { RawDocumentRepository } from '@lily/api/repositories/raw-document.repository'
+  type CreateChunkData,
+  RawDocumentRepository,
+} from '@lily/api/repositories/raw-document.repository'
 import { getAdapter } from '@lily/api/services/knowledge-ingestion/adapters'
 import type { RedditCommentData } from '@lily/api/services/knowledge-ingestion/adapters/reddit.adapter'
 import type { RawDocumentInput } from '@lily/api/services/knowledge-ingestion/adapters/types'
@@ -14,16 +13,19 @@ import { enrichChunk } from '@lily/api/services/knowledge-ingestion/processing/e
 import { extractPlantMentions } from '@lily/api/services/knowledge-ingestion/processing/plant-extractor'
 import { chunkRedditDocument } from '@lily/api/services/knowledge-ingestion/processing/reddit-chunker'
 import { embedTexts } from '@lily/api/services/rag/embedding.service'
-import type {
-  AdapterConfig,
-  IngestJob,
-  RawDocument,
-} from '@lily/shared/knowledge'
+import type { AdapterConfig, IngestJob } from '@lily/shared/knowledge'
 import { Array, Effect, Match, Option, pipe, Record, Ref, Stream } from 'effect'
 
 interface ChunkInput {
   readonly content: string
   readonly metadata: Record<string, unknown> | undefined
+}
+
+interface EnrichedChunk {
+  readonly content: string
+  readonly embeddingContent: string | undefined
+  readonly metadata: Record<string, unknown> | undefined
+  readonly enrichmentError: Option.Option<string>
 }
 
 interface ChunkDocumentResult {
@@ -32,7 +34,7 @@ interface ChunkDocumentResult {
 }
 
 export const chunkDocumentWithParent = (
-  doc: RawDocument
+  doc: RawDocumentInput
 ): ChunkDocumentResult =>
   pipe(
     Match.value(doc.source),
@@ -85,13 +87,13 @@ export const chunkDocumentWithParent = (
   )
 
 /**
- * Process a single document: deduplicate, store, chunk, enrich, embed, and insert chunks.
+ * Process a single document: deduplicate, chunk, enrich, embed, then store the
+ * document and its chunks in one statement.
  * Returns the number of chunks created, or 0 if the document was a duplicate.
  */
 const processDocument = (doc: RawDocumentInput, jobId: string) =>
   Effect.gen(function* () {
     const docRepo = yield* RawDocumentRepository
-    const chunkRepo = yield* ProcessedChunkRepository
 
     // Skip documents stored by an earlier job. A document stored by another
     // worker between this check and the insert is caught by createIfNew.
@@ -102,154 +104,153 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
       }
     }
 
-    const insertedDoc = yield* docRepo.createIfNew({
-      ...doc,
-      ingestJobId: jobId,
-    })
-    if (!insertedDoc) {
-      return { inserted: false, chunksCreated: 0 } as const
-    }
-
-    // Chunk content with parent-child structure
-    const chunkResult = chunkDocumentWithParent(insertedDoc)
+    const document = { ...doc, ingestJobId: jobId }
+    const chunkResult = chunkDocumentWithParent(doc)
 
     if (Array.isArrayEmpty(chunkResult.children)) {
-      return { inserted: true, chunksCreated: 0 } as const
+      const stored = yield* docRepo.createIfNew(document, [])
+      return { inserted: stored !== null, chunksCreated: 0 } as const
     }
 
-    // Insert parent if present (no embedding — stored for LLM context only)
-    const parentOption = Option.fromNullishOr(chunkResult.parent)
-    const parentId: string | undefined = Option.isSome(parentOption)
-      ? yield* Effect.gen(function* () {
-          const parent = parentOption.value
-          const id = crypto.randomUUID()
-          const plantMentions = extractPlantMentions(parent.content)
-          yield* chunkRepo.create({
-            id,
-            documentId: insertedDoc.id,
-            content: parent.content,
-            chunkIndex: 0,
-            source: insertedDoc.source,
-            plantType: pipe(Array.head(plantMentions), Option.getOrUndefined),
-            category: categorize(parent.content),
-            plantMentions,
-            metadata: parent.metadata,
-            embedding: undefined,
-          })
-          return id
-        })
-      : undefined
+    const parentChunk = pipe(
+      Option.fromNullishOr(chunkResult.parent),
+      Option.map((parent) => {
+        const plantMentions = extractPlantMentions(parent.content)
+        return {
+          id: crypto.randomUUID(),
+          content: parent.content,
+          chunkIndex: 0,
+          source: doc.source,
+          plantType: pipe(Array.head(plantMentions), Option.getOrUndefined),
+          category: categorize(parent.content),
+          plantMentions,
+          metadata: parent.metadata,
+        }
+      })
+    )
 
     // Enrich child chunks with keywords, up to 5 in parallel
     const enrichedChildren = yield* Effect.forEach(
       chunkResult.children,
       (child) =>
-        Effect.gen(function* () {
-          const enrichment = yield* enrichChunk(child.content).pipe(
-            Effect.catchTag('EnrichmentError', (error) =>
-              Effect.gen(function* () {
-                const dlqRepo = yield* DeadLetterRepository
-                yield* dlqRepo
-                  .create({
-                    originalMessageId: `${jobId}:${insertedDoc.id}:${child.content.slice(0, 32)}`,
-                    topic: 'enrichment.chunk_failed',
-                    payload: {
-                      ingestJobId: jobId,
-                      documentId: insertedDoc.id,
-                      chunkContent: child.content,
-                    },
-                    error: error.message,
-                    retryCount: 3,
-                  })
-                  .pipe(Effect.ignore)
-                return undefined
-              })
-            )
-          )
-
-          return pipe(
-            Option.fromNullishOr(enrichment),
-            Option.match({
-              onNone: () => ({
-                content: child.content,
-                embeddingContent: undefined as string | undefined,
-                metadata: child.metadata,
-              }),
-              onSome: (e) => ({
-                content: child.content,
-                embeddingContent: `keywords: ${Array.join(e.keywords, ', ')}\n\n${child.content}`,
-                metadata: pipe(
-                  Array.appendAll(Record.toEntries(child.metadata ?? {}), [
-                    ['keywords', e.keywords],
-                  ] as [string, unknown][]),
-                  Record.fromEntries
-                ),
-              }),
+        enrichChunk(child.content).pipe(
+          Effect.map(
+            (e): EnrichedChunk => ({
+              content: child.content,
+              embeddingContent: `keywords: ${Array.join(e.keywords, ', ')}\n\n${child.content}`,
+              metadata: pipe(
+                Array.appendAll(Record.toEntries(child.metadata ?? {}), [
+                  ['keywords', e.keywords],
+                ] as [string, unknown][]),
+                Record.fromEntries
+              ),
+              enrichmentError: Option.none(),
+            })
+          ),
+          Effect.catchTag(['EnrichmentError', 'OpenAIError'], (error) =>
+            Effect.succeed<EnrichedChunk>({
+              content: child.content,
+              embeddingContent: undefined,
+              metadata: child.metadata,
+              enrichmentError: Option.some(error.message),
             })
           )
-        }),
+        ),
       { concurrency: 5 }
     )
 
-    // Extract metadata for each child chunk
-    const childData = Array.map(enrichedChildren, (child, index) => {
-      const plantMentions = extractPlantMentions(child.content)
-      return {
-        ...child,
-        chunkIndex: index,
-        source: insertedDoc.source,
-        plantType: pipe(Array.head(plantMentions), Option.getOrUndefined),
-        category: categorize(child.content),
-        plantMentions,
-      }
-    })
-
     // Batch embed all chunks in one request
-    const texts = Array.map(childData, (c) => c.embeddingContent ?? c.content)
+    const texts = Array.map(
+      enrichedChildren,
+      (c) => c.embeddingContent ?? c.content
+    )
     const embeddings = yield* embedTexts(texts).pipe(
       Effect.catchTag('EmbeddingError', (error) =>
         Effect.logWarning(
           'Embedding failed for batch, storing without embeddings',
-          { error: error.message, documentId: insertedDoc.id }
+          { error: error.message, jobId, sourceId: doc.sourceId }
         ).pipe(Effect.map(() => Array.map(texts, () => undefined)))
       )
     )
 
-    // Insert all chunks in one statement
-    const chunksToInsert: CreateProcessedChunkData[] = pipe(
-      childData,
-      Array.map((child, i) => ({
-        documentId: insertedDoc.id,
-        parentChunkId: parentId,
-        content: child.content,
-        embeddingContent: child.embeddingContent,
-        chunkIndex: child.chunkIndex,
-        source: child.source,
-        plantType: child.plantType,
-        category: child.category,
-        plantMentions: child.plantMentions,
-        metadata: child.metadata,
-        embedding: pipe(Array.get(embeddings, i), Option.getOrUndefined) as
-          | number[]
-          | undefined,
-      }))
+    const parentChunkId = pipe(
+      parentChunk,
+      Option.map((parent) => parent.id),
+      Option.getOrUndefined
+    )
+    const childChunks = Array.map(
+      enrichedChildren,
+      (child, index): CreateChunkData => {
+        const plantMentions = extractPlantMentions(child.content)
+        return {
+          parentChunkId,
+          content: child.content,
+          embeddingContent: child.embeddingContent,
+          chunkIndex: index,
+          source: doc.source,
+          plantType: pipe(Array.head(plantMentions), Option.getOrUndefined),
+          category: categorize(child.content),
+          plantMentions,
+          metadata: child.metadata,
+          embedding: pipe(
+            Array.get(embeddings, index),
+            Option.getOrUndefined
+          ) as number[] | undefined,
+        }
+      }
     )
 
-    yield* chunkRepo.createMany(chunksToInsert)
+    const stored = yield* docRepo.createIfNew(document, [
+      ...Option.toArray(parentChunk),
+      ...childChunks,
+    ])
+    if (!stored) {
+      return { inserted: false, chunksCreated: 0 } as const
+    }
 
-    return { inserted: true, chunksCreated: chunksToInsert.length } as const
+    const dlqRepo = yield* DeadLetterRepository
+    yield* Effect.forEach(
+      enrichedChildren,
+      (child) =>
+        Option.match(child.enrichmentError, {
+          onNone: () => Effect.void,
+          onSome: (error) =>
+            dlqRepo
+              .create({
+                originalMessageId: `${jobId}:${stored.id}:${child.content.slice(0, 32)}`,
+                topic: 'enrichment.chunk_failed',
+                payload: {
+                  ingestJobId: jobId,
+                  documentId: stored.id,
+                  chunkContent: child.content,
+                },
+                error,
+                retryCount: 3,
+              })
+              .pipe(Effect.ignore),
+        }),
+      { discard: true }
+    )
+
+    return { inserted: true, chunksCreated: childChunks.length } as const
   })
 
 /**
  * Process a job the worker has already claimed:
  * 1. Fetch documents via adapter
- * 2. For each document: deduplicate, store, chunk, enrich, embed, store chunks
+ * 2. For each document: deduplicate, chunk, enrich, embed, then store it whole
  * 3. Record progress after every document, which also refreshes the claim
  *
  * Documents are processed one by one so that if the job crashes,
  * previously processed documents and their chunks are already persisted.
  */
-export const processIngestJob = (job: IngestJob) =>
+export const processIngestJob = (
+  job: IngestJob
+): Effect.Effect<
+  void,
+  never,
+  IngestJobRepository | RawDocumentRepository | DeadLetterRepository
+> =>
   Effect.gen(function* () {
     const jobRepo = yield* IngestJobRepository
 

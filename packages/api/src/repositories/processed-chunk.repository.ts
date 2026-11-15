@@ -9,21 +9,6 @@ import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 import { unwrapPgRows } from './helpers/pagination'
 
-export interface CreateProcessedChunkData {
-  id?: string | undefined
-  documentId: string
-  parentChunkId?: string | undefined
-  content: string
-  embeddingContent?: string | undefined
-  chunkIndex: number
-  source: string
-  plantType?: string | undefined
-  category?: ContentCategory | undefined
-  plantMentions?: string[] | undefined
-  metadata?: Record<string, unknown> | undefined
-  embedding?: number[] | undefined
-}
-
 export interface SearchChunksParams {
   embedding: number[]
   queryText: string
@@ -43,12 +28,6 @@ interface SearchRow {
 }
 
 export interface IProcessedChunkRepository {
-  readonly create: (
-    data: CreateProcessedChunkData
-  ) => Effect.Effect<void, SqlError>
-  readonly createMany: (
-    chunks: CreateProcessedChunkData[]
-  ) => Effect.Effect<void, SqlError>
   readonly search: (
     params: SearchChunksParams
   ) => Effect.Effect<ChunkSearchResult[], SqlError>
@@ -65,19 +44,8 @@ export class ProcessedChunkRepository extends Context.Service<
   IProcessedChunkRepository
 >()('ProcessedChunkRepository') {}
 
-const toNull = <T>(value: T | undefined): T | null =>
-  Option.getOrNull(Option.fromNullishOr(value))
-
 const toUndefined = <T>(value: T | null): T | undefined =>
   Option.getOrUndefined(Option.fromNullishOr(value))
-
-const toInsertValues = (chunk: CreateProcessedChunkData) => ({
-  ...chunk,
-  embeddingContent: toNull(chunk.embeddingContent),
-  plantMentions: toNull(chunk.plantMentions),
-  metadata: toNull(chunk.metadata),
-  embedding: toNull(chunk.embedding),
-})
 
 export const ProcessedChunkRepositoryLive = Layer.effect(
   ProcessedChunkRepository,
@@ -85,27 +53,6 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
     const db = yield* KnowledgeDrizzle
 
     return {
-      create: (data: CreateProcessedChunkData) =>
-        db
-          .insert(processedChunks)
-          .values(toInsertValues(data))
-          .pipe(
-            Effect.asVoid,
-            Effect.withSpan('ProcessedChunkRepository.create')
-          ),
-
-      createMany: Effect.fn('ProcessedChunkRepository.createMany')(function* (
-        chunks: CreateProcessedChunkData[]
-      ) {
-        if (Array.isArrayEmpty(chunks)) {
-          return
-        }
-
-        yield* db
-          .insert(processedChunks)
-          .values(Array.map(chunks, toInsertValues))
-      }),
-
       search: Effect.fn('ProcessedChunkRepository.search')(function* (
         params: SearchChunksParams
       ) {

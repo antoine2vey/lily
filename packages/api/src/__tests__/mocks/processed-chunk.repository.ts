@@ -1,29 +1,17 @@
 import {
-  type CreateProcessedChunkData,
   type IProcessedChunkRepository,
   ProcessedChunkRepository,
 } from '@lily/api/repositories/processed-chunk.repository'
+import type { CreateChunkData } from '@lily/api/repositories/raw-document.repository'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
 import { Effect, Layer } from 'effect'
 
 export const createMockProcessedChunkRepository = (data: {
-  insertedChunks: CreateProcessedChunkData[]
+  insertedChunks: CreateChunkData[]
   searchResults?: ChunkSearchResult[]
   sourceBreakdown?: { source: string; count: number }[]
 }): Layer.Layer<ProcessedChunkRepository> => {
   const repo: IProcessedChunkRepository = {
-    create: (chunk: CreateProcessedChunkData) => {
-      data.insertedChunks.push(chunk)
-      return Effect.void
-    },
-
-    createMany: (chunks: CreateProcessedChunkData[]) => {
-      for (const chunk of chunks) {
-        data.insertedChunks.push(chunk)
-      }
-      return Effect.void
-    },
-
     search: () => Effect.succeed(data.searchResults ?? []),
 
     count: () => Effect.succeed(data.insertedChunks.length),
