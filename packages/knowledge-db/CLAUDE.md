@@ -33,7 +33,7 @@ The plant knowledge base for retrieval. This package holds the Drizzle schema fo
 - **Keep each database on one runner.** drizzle-kit records applied files in `drizzle.__drizzle_migrations`. The production migrator records them in the public `__drizzle_migrations`. A database that switches runner replays from `0000` and fails on the first type that exists.
 - **Create the extension before `db:migrate` on a fresh database.** No migration creates it, and `0000` uses the `halfvec` type. Run `CREATE EXTENSION IF NOT EXISTS vector` once, or start the database with `db:migrate:prod`, which runs it for you.
 - **Keep `db:push` off a migrated database.** `search_vector`, the HNSW index and the GIN index come from SQL in `drizzle/0002_hnsw_embedding_index.sql` and `drizzle/0003_parent_chunk_and_fts.sql`, and the schema does not declare them. A push compares the database to the schema and offers to drop them.
-- **Production applies `drizzle/` on every deploy from `main`**, after the primary database. Never run `db:migrate:prod` against production by hand.
+- **Production applies `drizzle/` on every deploy from `main`**, after the primary database. Never run `db:migrate:prod` against production by hand. [`docs/agents/releases.md`](../../docs/agents/releases.md) describes the deploy.
 - **The cutoff in `raw_documents_source_id_unique` differs per database.** `drizzle/0005_ingest_job_claims.sql` builds the partial unique index with the time it ran, because rows fetched before it may repeat a `source_id`. The constant in `src/schema/raw-documents.ts` only approximates it, because an index predicate in the schema must be a constant. Leave the index as each database built it.
 
 ### Vectors and search
