@@ -8,7 +8,7 @@ The schemas, typed errors, domain helpers and service interfaces that the Lily a
 |---|---|---|
 | `@lily/shared` | `src/index.ts` | Schemas, errors and helpers safe to bundle into the app and admin |
 | `@lily/shared/server` | `src/server.ts` | Email, event bus, file storage, client IP, message queue and push, for server code only |
-| `@lily/shared/<domain>` | `src/domains/<domain>/` | One domain's schemas, such as `@lily/shared/plant` |
+| `@lily/shared/<domain>` | `src/domains/<domain>/` | One domain's schemas, for the domains that `package.json` lists, such as `@lily/shared/plant` |
 | `@lily/shared/services/<path>` | `src/services/` | One service file, such as the AI SDK calls the api makes |
 
 ## How it builds

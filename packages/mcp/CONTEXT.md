@@ -20,7 +20,7 @@ The vocabulary of the MCP server. It names what an AI client sees through the pr
 | **Access token** | The OAuth bearer an AI client sends to this server. It lasts 1 hour and its refresh token 365 days. The API never sees it. | |
 | **API credentials** | The API JWT and API refresh token stored per user in `oauth_user_api_credentials`. The server sends the API JWT to the API on the user's behalf and refreshes it when it expires. | |
 | **Pending authorization** | An OAuth request that waits for the user to open the magic link. It travels in the signed `lily_mcp_pending` cookie for 10 minutes. | |
-| **Service secret** | `SERVICE_TOKEN_SECRET`, which the server shares with the API and sends as `X-Service-Secret` on the API's internal routes. | |
+| **Service secret** | `SERVICE_TOKEN_SECRET`, which the server shares with the API and sends as `X-Service-Secret` on the API's internal routes. It also signs the `lily_mcp_pending` cookie, so changing it voids every pending authorization. | |
 
 ## Plants
 

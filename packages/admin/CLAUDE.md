@@ -15,7 +15,7 @@ Run every command from the monorepo root.
 
 ## Layout
 
-- `src/App.tsx` declares every route and lazy-loads every page, so Recharts ships only with the analytics page. Add a new page the same way, inside the `AuthGate` route.
+- `src/App.tsx` declares every route and lazy-loads every page, so Recharts ships only with the analytics page. Add a new page the same way, inside the `Layout` route under `AuthGate`. For a page the sidebar links to, add an entry to `navItems` in `src/components/Layout.tsx`.
 - `src/lib/api-client.ts` is the only way a hook calls an authenticated route. `apiRequest<T>(path)` prepends the API origin, adds the bearer token and refreshes it 30 seconds before it expires. Concurrent requests share one refresh. A 401 retries once after a refresh. A failed refresh or a 403 clears the tokens and sends the browser to `/login`.
 - `src/lib/auth.ts` holds the tokens in `localStorage` and reads `VITE_API_URL`. That variable is the bare API origin, with no prefix, and defaults to `http://localhost:3000`.
 - `src/hooks/use-auth.ts` runs the magic-link and code login with plain `fetch`, because no token exists yet. It rejects a user whose role is not `admin` before storing any token.

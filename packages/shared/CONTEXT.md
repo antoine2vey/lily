@@ -17,7 +17,7 @@ The terms `@lily/shared` defines for itself: its two entry points, the service v
 | **Provider** | The layer that implements a service interface. Providers live in the api as `*.provider.ts` files, such as `RedisMessageQueueLive`. | |
 | **App event** | One member of `AppEvent`, published on the `EventBus`, such as `PlantCreated` or `CareLogCreated`. Delivery is fire-and-forget, so a subscriber that is not listening misses it. The api's achievements and Live Activities listen for them. | "fact", which is what an api context publishes on the outbox |
 | **Queue message** | A `QueueMessage` on the `MessageQueue`. It asks for the delivery of the notifications it names under one notification topic, and the queue delivers it at least once. | |
-| **Claim** | The handle `dequeue` returns with a queue message. `ack` finishes it, `refreshClaim` keeps it alive, and `requeueStale` puts back every message whose claim is older than a given duration. | |
+| **Claim** | The handle `dequeue` returns with a queue message. `ack` finishes it, `refreshClaim` keeps it alive, and `requeueStale` puts back every message whose claim is older than a given duration. The [knowledge-db Claim](../knowledge-db/CONTEXT.md#ingestion) is a different mechanism, on ingest jobs. | |
 
 ## Notifications
 
@@ -39,6 +39,6 @@ The terms `@lily/shared` defines for itself: its two entry points, the service v
 ## Relationships
 
 - [packages/api/CONTEXT.md](../api/CONTEXT.md) owns the concepts most schemas here are named after. It defines [care day, today](../api/CONTEXT.md#time), care type, [care status](../api/CONTEXT.md#care-status), [reminders](../api/CONTEXT.md#reminders), the [canopy](../api/CONTEXT.md#canopy), delegation and vacation under [absence](../api/CONTEXT.md#absence), and the plant itself. `src/domains/care/` implements the care day, care type and care status rules in code, and the api reads them from there.
-- The app and admin bundle the client-safe entry. The app decodes every API response with its schemas through `HttpApiClient`.
+- The app and admin bundle the client-safe entry. The app decodes most API responses with its schemas through `HttpApiClient`. A few calls skip it, such as multipart uploads and the chat stream.
 - The db builds its `notification_type` enum from `NOTIFICATION_TOPICS` in `packages/db/src/schema/enums.ts`.
 - The mcp server imports the schemas and `clientIp`.

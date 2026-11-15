@@ -17,7 +17,7 @@ The vocabulary of the operations dashboard. Each term names something an admin r
 | **Gift duration** | `7d`, `1m`, `1y` or `infinite`, from `GiftDuration` in `packages/shared/src/domains/admin/schema.ts`. `GIFT_DURATION_LABELS` holds the display names. | |
 | **Gift code** | A code that grants a gift of its duration to each user who redeems it. It works while it is active, until `expiresAt`, and until `currentUsages` reaches `maxUsages`. | |
 | **Redemption** | One user's use of one gift code. | |
-| **Gift history** | The log of gift events per user, `subscription_gifted` and `subscription_gift_revoked`. | |
+| **Gift history** | The log of every gift event across all users, `subscription_gifted` and `subscription_gift_revoked`, newest first. An admin can revoke a gift from a `subscription_gifted` row. | |
 
 ## Knowledge
 
@@ -31,7 +31,7 @@ The vocabulary of the operations dashboard. Each term names something an admin r
 
 | Term | Meaning | Avoid |
 | --- | --- | --- |
-| **Live Activity trigger** | A push-to-start sent to every start token a user has. It returns one outcome per device token, `accepted`, `send-error`, `config-error` or `token-invalidated`. | |
+| **Live Activity trigger** | A push-to-start sent to every start token a user has. It sends nothing, and returns no outcomes, when the user has no care due or no start token. Otherwise it returns one outcome per start token, `accepted`, `send-error`, `config-error` or `token-invalidated`. | |
 | **KPI** | One metric on the analytics page. Each has its own hook in `src/hooks/analytics/` and its own API route. | |
 | **Range preset** | `7d`, `30d` or `90d`, the window a range-aware KPI covers. It defaults to `30d` and lives in the `?range=` query param. | |
 
