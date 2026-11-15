@@ -1,4 +1,4 @@
-import { Option, pipe } from 'effect'
+import { DateTime, Option, pipe } from 'effect'
 import { useSyncExternalStore } from 'react'
 
 export type Choice = 'granted' | 'denied'
@@ -14,9 +14,9 @@ const MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
 
 const isChoice = (s: string): s is Choice => s === 'granted' || s === 'denied'
 
-const now = () => Date.now()
+const now = () => DateTime.toEpochMillis(DateTime.nowUnsafe())
 
-// Native string methods on purpose: see the Effect rule in packages/web/CLAUDE.md.
+// Native `split` in place of Effect's `String` module only: see the Effect rule in packages/web/CLAUDE.md.
 const parseStored = (raw: string | null): Option.Option<Choice> =>
   pipe(
     Option.fromNullishOr(raw),
