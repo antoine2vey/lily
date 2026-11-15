@@ -151,6 +151,7 @@ export const PlantUpdateRequest = Schema.Struct({
   petToxicityRating: Schema.optional(Schema.Number),
   wateringRating: Schema.optional(Schema.Number),
   isFavorite: Schema.optional(Schema.Boolean),
+  remindersEnabled: Schema.optional(Schema.Boolean),
   potWidthCm: Schema.optional(Schema.NullOr(Schema.Number)),
   potHeightCm: Schema.optional(Schema.NullOr(Schema.Number)),
   roomId: Schema.optional(Schema.NullOr(Schema.String)),
