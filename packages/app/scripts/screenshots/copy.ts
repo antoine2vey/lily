@@ -9,7 +9,6 @@ export const SCREENS = [
   'rooms',
   'chat',
   'care-history',
-  'ai-results',
 ] as const
 export type Screen = (typeof SCREENS)[number]
 
@@ -126,18 +125,6 @@ const copy: Record<Screen, Record<Locale, ScreenCopy>> = {
       eyebrow: 'Le journal',
       headline: 'Chaque goutte.\nChaque note.',
       subtitle: 'Un récit discret de tout ce que vous avez fait.',
-    },
-  },
-  'ai-results': {
-    en: {
-      eyebrow: 'The reveal',
-      headline: 'Meet your plant,\nin seconds.',
-      subtitle: 'One photo. Species, care, and common pitfalls.',
-    },
-    fr: {
-      eyebrow: 'La révélation',
-      headline: 'Identifiez votre plante,\nen quelques secondes.',
-      subtitle: 'Une photo. Espèce, soins, et pièges courants.',
     },
   },
 }
