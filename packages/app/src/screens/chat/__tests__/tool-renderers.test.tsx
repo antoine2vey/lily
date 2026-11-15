@@ -55,10 +55,23 @@ describe('proposeCarePlan tool part', () => {
 
     expect(screen.getByText('Recover from overwatering')).toBeTruthy()
     expect(screen.queryByText('Preparing a care plan...')).toBeNull()
+    expect(screen.queryByText('Let the soil dry out')).toBeNull()
 
     fireEvent.press(screen.getByText('View plan'))
 
     expect(screen.getByText('Let the soil dry out')).toBeTruthy()
+  })
+
+  it('opens the care plan sheet on its own when it is the result to auto-open', () => {
+    render(
+      <ChatMessage
+        message={toolReply(carePlanToolParts['output-available'])}
+        autoOpenToolId="d4bc2aa7-722f-439c-85ba-296a0981f629"
+      />
+    )
+
+    expect(screen.getByText('Let the soil dry out')).toBeTruthy()
+    expect(screen.getByText('Add to tasks')).toBeTruthy()
   })
 
   it('shows only the reply text when the tool failed', () => {
@@ -98,6 +111,7 @@ describe('createDiagnosis tool part', () => {
 
     expect(screen.getByText('Yellow leaves')).toBeTruthy()
     expect(screen.getByText('Repot in fresh soil')).toBeTruthy()
+    expect(screen.getByText('Add to tasks')).toBeTruthy()
   })
 
   it('shows only the reply text when the tool failed', () => {
