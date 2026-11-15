@@ -64,15 +64,18 @@ docker compose up -d
 # 2. Install all workspaces (also runs `prepare`: Husky hooks + `effect-tsgo patch`)
 bun install
 
-# 3. Provide env: copy the example and fill in the blanks
+# 3. Provide env. A package script reads the .env in its own folder, and Turbo
+#    passes nothing from the root, so link the root file into each package that reads it
 cp .env.example .env
+for p in api db knowledge-db mcp; do ln -s ../../.env packages/$p/.env; done
 
 # 4. Apply the Drizzle schema to local Postgres
 #    (a dev push; migrations are hand-authored, never generated)
 bun run --filter=@lily/db db:push
 
-# 5. (RAG and knowledge features only) Apply the pgvector knowledge-base schema
-bun run --filter=@lily/knowledge-db db:push
+# 5. (RAG and knowledge features only) Create the pgvector extension and apply
+#    the knowledge-base migrations
+bun run --filter=@lily/knowledge-db db:migrate:prod
 
 # 6. Start everything in watch mode via Turbo
 #    (the api serves at http://localhost:3000 with Swagger/OpenAPI)
@@ -145,5 +148,5 @@ Lily is licensed under the [GNU Affero General Public License v3.0](LICENSE). Yo
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) maps the packages, their relationships and each package's glossary.
 - [`packages/README.md`](packages/README.md) lists the packages and how to add one.
 - [`docs/agents/releases.md`](docs/agents/releases.md) explains deploys, migrations, OTA updates and store builds.
-- [`docs/knowledge-pipeline-architecture.md`](docs/knowledge-pipeline-architecture.md) describes the knowledge-db pipeline from ingest to retrieval.
+- [`packages/knowledge-db/README.md`](packages/knowledge-db/README.md) describes the knowledge base from ingest to search.
 - [`docs/seo/strategy.md`](docs/seo/strategy.md) is the working SEO plan for the marketing site.

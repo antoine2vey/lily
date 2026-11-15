@@ -6,6 +6,8 @@ Plant care app. TypeScript monorepo (Bun 1.4.3, Effect 4.0.5, TypeScript 7).
 
 **Run every command from the monorepo root**: `bun run <script>` for all packages, `bun run --filter=@lily/<pkg> <script>` for one.
 
+**Env files are per package.** A package script reads the `.env` in its own folder. The root `.env` reaches it only through the links the `README.md` Quickstart creates, and Turbo tasks drop variables set in the shell.
+
 **Docs are checked.** `scripts/check-docs.sh` runs in the pre-push hook and in CI. It fails when a doc links to a missing file, names a backticked path that does not exist, or quotes a Bun, Effect or TypeScript version that no longer matches `package.json`. When you move, rename or delete a file, update the docs that name it.
 
 ## Situational docs
