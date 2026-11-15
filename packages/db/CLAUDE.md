@@ -9,7 +9,7 @@ The primary Postgres database. This package holds the Drizzle schema in `src/sch
 | `bun run --filter=@lily/db db:push` | Syncs a local database to the Drizzle schema. Read **Local database** first. |
 | `bun run --filter=@lily/db db:migrate:prod` | Applies `drizzle/` to `DATABASE_URL` with `src/migrator.ts`, the runner production uses |
 | `bun run db:setup-test` | Root script. Loads `.env.test.local`, applies `drizzle/` to `DATABASE_URL_TEST` and seeds the tiers. Safe to rerun. |
-| `bun run --filter=@lily/db test` | The bridge tests, against `TEST_DATABASE_URL`. They skip when it is unset. |
+| `bun run --filter=@lily/db test` | The pool config tests, which need no database, and the bridge tests against `TEST_DATABASE_URL`, which skip when it is unset. |
 | `bun run --filter=@lily/db tsc` | Typecheck |
 | `bun run --filter=@lily/db lint` | Biome |
 | `bun run --filter=@lily/db db:studio` | Drizzle Studio on `DATABASE_URL` |
@@ -32,6 +32,7 @@ The primary Postgres database. This package holds the Drizzle schema in `src/sch
 
 - **Write each migration by hand** as a new file in `drizzle/`, and change the schema file to match. drizzle-kit's `db:generate` and `db:migrate` read `drizzle/meta/`, whose journal and snapshots stop at an old migration. Generate would diff against a stale snapshot, and migrate would skip every newer file.
 - **Numbering.** The migrator records a file by its name without `.sql`. Give a new file the next unused number, and keep every existing name as it is, because production runs a renamed file again on the next deploy. The duplicate `0025_` prefix and the missing `0059_` are harmless and stay.
+- **Migrations only go forward.** No file has a down step. To undo a schema change, write a new migration that reverses it. The migrator skips a recorded name without reading the file, so an edit to a merged migration never reaches a database that already applied it.
 - **A migration merged to `main` reaches production on the next deploy**, before the new api starts. Never run `db:migrate:prod` against production by hand. [`docs/agents/releases.md`](../../docs/agents/releases.md) describes the deploy and what skips it.
 - **The previous release keeps serving while a migration runs.** Write each migration so the code already running still works against it. A step that would break that code, such as a new `NOT NULL`, a dropped column or a removed enum value, goes in a later release, or in `gated/` when it waits on a condition.
 - **Bound lock waits.** A migration that updates or alters a busy table starts with `SET LOCAL lock_timeout = '5s'` and a `--> statement-breakpoint`, as in `drizzle/0079_schedule_next_care_at_not_null.sql`. A statement waiting for a lock blocks every query queued behind it. With the timeout, the file gives up after five seconds, rolls back and stops the deploy, and the queued queries go on.
@@ -48,7 +49,7 @@ The primary Postgres database. This package holds the Drizzle schema in `src/sch
 
 ### Schema
 
-- **Primary keys.** A table whose rows have their own identity uses `uuid('id').primaryKey().defaultRandom()`. A table keyed by the pair it relates, such as a user and a plant, uses `primaryKey({ columns: [...] })`.
+- **Primary keys.** A table whose rows have their own identity uses `uuid('id').primaryKey().defaultRandom()`. A table with one row per value of a natural key, such as an OAuth token or a RevenueCat event id, uses that column as its key. A table keyed by the pair it relates, such as a user and a plant, uses `primaryKey({ columns: [...] })`. `outbox` uses a `bigserial` id.
 - **Timestamps.** Every timestamp column takes `{ withTimezone: true }`. `created_at` takes `.notNull().defaultNow()`. `updated_at` takes `.$onUpdate(() => new Date())` so every Drizzle update sets it. Tables without it, such as `users` and `rooms`, rely on each caller to set `updatedAt`.
 - **Days are `date` columns.** A care day, due day or occasion is stored as a `date` (`care_logs.care_day`, `plant_care_schedules.due_day`, `notifications.occasion_day`), next to any instant the row also keeps. [packages/api/CONTEXT.md](../api/CONTEXT.md) defines these days.
 - **Every foreign key states `onDelete`**, so the behavior on delete is a choice and not Postgres's default.

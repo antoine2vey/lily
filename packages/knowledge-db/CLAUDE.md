@@ -8,7 +8,7 @@ The plant knowledge base for retrieval. This package holds the Drizzle schema fo
 |---|---|
 | `bun run --filter=@lily/knowledge-db db:migrate` | drizzle-kit migrate, the runner local databases use. It reads `drizzle/meta/_journal.json`. |
 | `bun run --filter=@lily/knowledge-db db:migrate:prod` | `scripts/migrate.ts`, the runner production uses. It creates the `vector` extension, then applies `drizzle/`. |
-| `bun run --filter=@lily/knowledge-db test` | The journal test, plus a `halfvec` round trip against `TEST_DATABASE_URL` that skips when it is unset |
+| `bun run --filter=@lily/knowledge-db test` | The journal test, plus a `halfvec` round trip against `TEST_DATABASE_URL` that skips when it is unset. The round trip needs a database with the `vector` extension, such as the `knowledge-db-test` service after `CREATE EXTENSION IF NOT EXISTS vector`. |
 | `bun run --filter=@lily/knowledge-db tsc` | Typecheck |
 | `bun run --filter=@lily/knowledge-db lint` | Biome |
 | `bun run --filter=@lily/knowledge-db db:studio` | Drizzle Studio on `KNOWLEDGE_DATABASE_URL` |

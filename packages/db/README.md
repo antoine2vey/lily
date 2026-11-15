@@ -21,7 +21,7 @@ Run them from the monorepo root. A command that reaches a database reads `DATABA
 | `bun run --filter=@lily/db db:migrate:prod` | Applies `drizzle/` to `DATABASE_URL` with the production migrator |
 | `bun run db:setup-test` | Applies `drizzle/` to the test database and seeds the tiers. Safe to rerun. |
 | `bun run --filter=@lily/db db:studio` | Opens Drizzle Studio on `DATABASE_URL` |
-| `bun run --filter=@lily/db test` | Runs the bridge tests against `TEST_DATABASE_URL`. They skip when it is unset. |
+| `bun run --filter=@lily/db test` | Runs the pool config tests, and the bridge tests against `TEST_DATABASE_URL`. The bridge tests skip when it is unset. |
 | `bun run --filter=@lily/db tsc` | Typechecks the package |
 | `bun run --filter=@lily/db seed:admin --email=<email>` | Gives an existing user the admin role |
 | `bun run --filter=@lily/db seed:tiers` | Upserts the free and paid subscription tiers |
