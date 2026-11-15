@@ -7,7 +7,7 @@ import {
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { careLogs, plants, users } from '@lily/db/schema'
 import type { CareType } from '@lily/shared'
-import { CareDay, paginate } from '@lily/shared'
+import { CareDay, paginate, startOfDay } from '@lily/shared'
 import type {
   CareLog,
   CareLogHistoryItem,
@@ -16,7 +16,7 @@ import type {
   RecentActivity,
 } from '@lily/shared/care-log'
 import { and, count, desc, eq, gte, isNull, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Context, DateTime, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface FindCareLogsParams {
@@ -187,7 +187,7 @@ export const CareLogRepositoryLive = Layer.effect(
 
       countTodayByUser: Effect.fn('CareLogRepository.countTodayByUser')(
         function* (userId: string, timezone: string, canopyId: string | null) {
-          const startOfDay = sql`date_trunc('day', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
+          const today = startOfDay(yield* DateTime.now, timezone)
           const result = yield* db
             .select({ value: count() })
             .from(careLogs)
@@ -196,7 +196,7 @@ export const CareLogRepositoryLive = Layer.effect(
               and(
                 caredForBy(db, userId, canopyId),
                 isLivingPlant(),
-                gte(careLogs.date, startOfDay)
+                gte(careLogs.date, DateTime.toDateUtc(today))
               )
             )
           return extractCount(result)
@@ -206,14 +206,14 @@ export const CareLogRepositoryLive = Layer.effect(
       countTodayPerformedByUser: Effect.fn(
         'CareLogRepository.countTodayPerformedByUser'
       )(function* (userId: string, timezone: string) {
-        const startOfDay = sql`date_trunc('day', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
+        const today = startOfDay(yield* DateTime.now, timezone)
         const result = yield* db
           .select({ value: count() })
           .from(careLogs)
           .where(
             and(
               eq(careLogs.performedByUserId, userId),
-              gte(careLogs.date, startOfDay)
+              gte(careLogs.date, DateTime.toDateUtc(today))
             )
           )
         return extractCount(result)

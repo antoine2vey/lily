@@ -1,4 +1,6 @@
-import { DateTime, Option, Schema } from 'effect'
+import { Schema } from 'effect'
+
+import { KnownTimezone } from '../notification/timezone'
 
 export const CANOPY_MAX_MEMBERS = 10
 export const CANOPY_NAME_MAX_LENGTH = 50
@@ -87,14 +89,6 @@ export const CreateCanopyRequest = Schema.Struct({
 })
 export type CreateCanopyRequest = typeof CreateCanopyRequest.Type
 
-export const CanopyTimezone = Schema.String.check(
-  Schema.makeFilter(
-    (zone) =>
-      Option.isSome(DateTime.zoneMakeNamed(zone)) || 'an IANA time zone',
-    { identifier: 'CanopyTimezone' }
-  )
-)
-
 export const Latitude = Schema.Number.check(
   Schema.isBetween({ minimum: -90, maximum: 90 })
 )
@@ -105,7 +99,7 @@ export const Longitude = Schema.Number.check(
 /** Any member renames; the timezone and location need the owner. */
 export const UpdateCanopyRequest = Schema.Struct({
   name: Schema.optional(CanopyName),
-  timezone: Schema.optional(CanopyTimezone),
+  timezone: Schema.optional(KnownTimezone),
   latitude: Schema.optional(Schema.NullOr(Latitude)),
   longitude: Schema.optional(Schema.NullOr(Longitude)),
 })

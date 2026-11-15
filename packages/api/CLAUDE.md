@@ -63,6 +63,7 @@ The knowledge search suite, `src/__tests__/integration/knowledge-search.integrat
   })
   ```
 
+- **A stored time zone never reaches Postgres.** `users.timezone` and `canopies.timezone` hold the zone a device reports. JavaScript resolves it, and production Postgres may not: its tzdata has no alias such as `Eire` or `Asia/Calcutta`, so `AT TIME ZONE` fails the query. Compute the boundary with the date helpers of `@lily/shared` and bind the instant, as `countTodayByUser` does in `src/repositories/care-log.repository.ts`.
 - **Background fibers in a layer fork with `Effect.forkScoped`.** A `forkChild` fiber is interrupted as soon as the layer finishes building, so the loop never runs. Wrap each step of a worker loop in `drainOnInterrupt`, so a shutdown lets the step in flight finish.
 - **Naming.** Requests are `{Entity}CreateRequest` and `{Entity}UpdateRequest`. Responses are `{Entity}ListResponse` and `{Entity}Response`. Data types are `Create{Entity}Data` and `Update{Entity}Data`.
 - **EventBus or MessageQueue.** EventBus (Redis pub/sub) is for fire-and-forget events, such as achievements. MessageQueue (Redis lists) is for work that must happen at least once, such as notification delivery. Publish an event with `publishWithRetry()` from `src/events/retry-policy.ts`.

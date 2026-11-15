@@ -2,6 +2,7 @@ import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repositor
 import type { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { issueSession } from '@lily/api/services/auth/helpers/issue-session'
+import { deviceTimezone } from '@lily/api/services/helpers/resolve-timezone'
 import type { JWTService } from '@lily/api/services/jwt/service'
 import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import {
@@ -62,7 +63,7 @@ export const verifyMagicLink = ({
           userRepo.create({
             email: magicLink.email,
             emailVerified: true,
-            ...(timezone ? { timezone } : {}),
+            ...deviceTimezone(timezone),
             ...(language ? { language } : {}),
           }),
         onSome: (existing) =>
