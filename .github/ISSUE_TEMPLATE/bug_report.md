@@ -36,4 +36,4 @@ What actually happened. Include error output / logs if available.
 
 ## Additional context
 
-Anything else that might help — screenshots, related issues, etc.
+Anything else that might help, such as screenshots or related issues.
