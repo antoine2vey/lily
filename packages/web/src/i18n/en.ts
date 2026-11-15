@@ -919,7 +919,7 @@ export const en = {
             title: 'Information collected automatically',
             list: [
               'Device information (device model, operating system, app version)',
-              'Usage data (features used, session duration, interactions)',
+              'Usage data: how many times you open your care history, which counts toward an achievement, and the screens and taps that come before a crash. Our servers also keep daily totals across all users, with no user ID',
               'IP address, which our servers use to limit repeated sign-in requests',
               'Your location, if you allow it. The app reads the coordinates of your device to within about 100 m and stores them for the weather forecast. A Canopy owner can also set the location of the Canopy',
               'Crash reports and performance data',
@@ -973,6 +973,7 @@ export const en = {
           {
             list: [
               'Railway hosts our servers, our databases and this website in its European Union region, in the Netherlands. Our databases hold your account and plant data.',
+              'Cloudflare (Cloudflare, Inc.) relays the requests that reach our website and our servers. It sees your IP address and the address of each page or request.',
               'Google Cloud Storage (Google LLC) stores your plant photos, your profile picture, and the photos you send for identification, diagnosis, plant tag scans or chat.',
               "OpenAI runs the AI features. It receives the photos you send for identification, diagnosis or plant tag scans, and the messages and photos you send in the chat. It also receives the details and care history of the plant you chat about, including your care notes. OpenAI's published API terms say that OpenAI does not use API data to train its models by default, and that it keeps API data for up to 30 days unless zero data retention applies.",
               'Resend sends the sign-in links we email you. It receives your email address.',
@@ -997,8 +998,8 @@ export const en = {
           {
             list: [
               'Account data (name, email): Retained while your account is active, and deleted within 30 days of account deletion',
-              'Plant data (collection, care logs, photos): Retained while your account is active. Exported to you upon request before deletion',
-              'Photos sent for identification, diagnosis, plant tag scans or chat: Stored in Google Cloud Storage and kept like the rest of your plant data. Section 5 describes how long OpenAI keeps them',
+              'Plant data (collection, care logs): Retained while your account is active. Exported to you upon request before deletion',
+              'Photos (your plant photos, your profile picture, and the photos you send for identification, diagnosis, plant tag scans or chat): Stored in Google Cloud Storage. They stay there after you delete your account, until we remove them at your request. To ask, write to privacy@withlily.app. Section 5 describes how long OpenAI keeps the photos it receives',
               'Website analytics: Google Analytics keeps visit data for up to 14 months, the longest period that a standard Google Analytics property allows',
               'App usage totals: Daily counts across all users. They hold no user ID',
               'Support correspondence: Retained for up to 2 years after resolution',
@@ -1019,13 +1020,13 @@ export const en = {
               'Automated backups with encryption',
             ],
           },
-          'While we implement robust security measures, no system is completely secure. We encourage you to use a strong, unique password for your Lily account.',
+          'While we implement robust security measures, no system is completely secure. Lily has no passwords. You sign in with a link that we email you, or with your Apple or Google account. That account and your device give access to your Lily account, so keep them secure.',
         ],
       },
       {
         heading: '8. International Data Transfers',
         blocks: [
-          'Our databases run on Railway in the European Union. Several providers in section 5 are based in the United States, including Google, OpenAI, Resend, RevenueCat, Sentry, Expo and Discord, so your data may be processed there. For transfers of personal data from the European Economic Area (EEA), the United Kingdom, or Switzerland to the US, we rely on Standard Contractual Clauses (SCCs) approved by the European Commission, or other valid transfer mechanisms as required by applicable law. You can request a copy of the applicable SCCs by contacting us at privacy@withlily.app.',
+          'Our databases run on Railway in the European Union. Several providers in section 5 are based in the United States, including Cloudflare, Google, OpenAI, Resend, RevenueCat, Sentry, Expo and Discord, so your data may be processed there. For transfers of personal data from the European Economic Area (EEA), the United Kingdom, or Switzerland to the US, we rely on Standard Contractual Clauses (SCCs) approved by the European Commission, or other valid transfer mechanisms as required by applicable law. You can request a copy of the applicable SCCs by contacting us at privacy@withlily.app.',
         ],
       },
       {

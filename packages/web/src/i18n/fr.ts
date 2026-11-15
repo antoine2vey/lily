@@ -936,7 +936,7 @@ export const fr = {
             title: 'Données collectées automatiquement',
             list: [
               "Informations sur l'appareil (modèle, système d'exploitation, version de l'application)",
-              "Données d'utilisation (fonctionnalités utilisées, durée des sessions, interactions)",
+              "Données d'utilisation : le nombre de fois où vous ouvrez votre historique de soins, qui compte pour un succès, et les écrans et appuis qui précèdent un plantage. Nos serveurs conservent aussi des totaux quotidiens sur l'ensemble des utilisateurs, sans identifiant utilisateur",
               'Adresse IP, que nos serveurs utilisent pour limiter les demandes de connexion répétées',
               "Votre position, si vous l'autorisez. L'application lit les coordonnées de votre appareil à environ 100 m près et les enregistre pour les prévisions météo. Le propriétaire d'une Canopy peut aussi définir la position de la Canopy",
               'Rapports de plantage et données de performance',
@@ -990,6 +990,7 @@ export const fr = {
           {
             list: [
               'Railway héberge nos serveurs, nos bases de données et ce site dans sa région Union européenne, aux Pays-Bas. Nos bases de données contiennent les données de votre compte et de vos plantes.',
+              "Cloudflare (Cloudflare, Inc.) relaie les requêtes qui arrivent sur notre site et nos serveurs. Cloudflare voit votre adresse IP et l'adresse de chaque page ou requête.",
               "Google Cloud Storage (Google LLC) stocke les photos de vos plantes, votre photo de profil, et les photos que vous envoyez pour une identification, un diagnostic, la lecture d'une étiquette de plante ou dans le chat.",
               "OpenAI fournit les fonctionnalités d'IA. OpenAI reçoit les photos que vous envoyez pour une identification, un diagnostic ou la lecture d'une étiquette de plante, ainsi que les messages et les photos que vous envoyez dans le chat. OpenAI reçoit aussi les informations et l'historique de soins de la plante dont vous parlez, y compris vos notes de soin. Selon les conditions publiées de son API, OpenAI n'utilise pas les données de l'API pour entraîner ses modèles par défaut, et les conserve jusqu'à 30 jours, sauf si la conservation zéro des données s'applique.",
               'Resend envoie les liens de connexion que nous vous adressons par e-mail. Resend reçoit votre adresse e-mail.',
@@ -1014,8 +1015,8 @@ export const fr = {
           {
             list: [
               'Données de compte (nom, e-mail) : Conservées tant que votre compte est actif, supprimées dans les 30 jours suivant la suppression du compte',
-              'Données de plantes (collection, journaux de soins, photos) : Conservées tant que votre compte est actif. Exportées sur demande avant suppression',
-              "Photos envoyées pour une identification, un diagnostic, la lecture d'une étiquette de plante ou dans le chat : Stockées dans Google Cloud Storage et conservées comme le reste de vos données de plantes. La section 5 indique combien de temps OpenAI les conserve",
+              'Données de plantes (collection, journaux de soins) : Conservées tant que votre compte est actif. Exportées sur demande avant suppression',
+              "Photos (les photos de vos plantes, votre photo de profil, et les photos que vous envoyez pour une identification, un diagnostic, la lecture d'une étiquette de plante ou dans le chat) : Stockées dans Google Cloud Storage. Elles y restent après la suppression de votre compte, jusqu'à ce que nous les supprimions à votre demande. Pour le demander, écrivez à privacy@withlily.app. La section 5 indique combien de temps OpenAI conserve les photos qu'il reçoit",
               "Statistiques du site : Google Analytics conserve les données de visite jusqu'à 14 mois, la durée maximale d'une propriété Google Analytics standard",
               "Totaux d'utilisation de l'application : Des comptages quotidiens sur l'ensemble des utilisateurs, sans identifiant utilisateur",
               "Correspondance d'assistance : Conservée jusqu'à 2 ans après résolution",
@@ -1036,13 +1037,13 @@ export const fr = {
               'Sauvegardes automatiques chiffrées',
             ],
           },
-          "Bien que nous mettions en œuvre des mesures de sécurité robustes, aucun système n'est totalement sûr. Nous vous encourageons à utiliser un mot de passe fort et unique pour votre compte Lily.",
+          "Bien que nous mettions en œuvre des mesures de sécurité robustes, aucun système n'est totalement sûr. Lily n'utilise pas de mot de passe. Vous vous connectez avec un lien que nous vous envoyons par e-mail, ou avec votre compte Apple ou Google. Ce compte et votre appareil donnent accès à votre compte Lily : protégez-les.",
         ],
       },
       {
         heading: '8. Transferts internationaux de données',
         blocks: [
-          "Nos bases de données sont hébergées par Railway dans l'Union européenne. Plusieurs prestataires de la section 5 sont basés aux États-Unis, notamment Google, OpenAI, Resend, RevenueCat, Sentry, Expo et Discord, et vos données peuvent donc y être traitées. Pour les transferts de données personnelles depuis l'Espace Économique Européen (EEE), le Royaume-Uni ou la Suisse vers les États-Unis, nous nous appuyons sur les Clauses Contractuelles Types (CCT) approuvées par la Commission européenne, ou d'autres mécanismes de transfert valides requis par la loi applicable. Vous pouvez demander une copie des CCT applicables en nous contactant à privacy@withlily.app.",
+          "Nos bases de données sont hébergées par Railway dans l'Union européenne. Plusieurs prestataires de la section 5 sont basés aux États-Unis, notamment Cloudflare, Google, OpenAI, Resend, RevenueCat, Sentry, Expo et Discord, et vos données peuvent donc y être traitées. Pour les transferts de données personnelles depuis l'Espace Économique Européen (EEE), le Royaume-Uni ou la Suisse vers les États-Unis, nous nous appuyons sur les Clauses Contractuelles Types (CCT) approuvées par la Commission européenne, ou d'autres mécanismes de transfert valides requis par la loi applicable. Vous pouvez demander une copie des CCT applicables en nous contactant à privacy@withlily.app.",
         ],
       },
       {
