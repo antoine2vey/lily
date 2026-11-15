@@ -137,7 +137,6 @@ export type IngestJobListResponse = typeof IngestJobListResponse.Type
 
 export const KnowledgeSearchRequest = Schema.Struct({
   query: Schema.String,
-  plantType: Schema.optional(Schema.String),
   limit: Schema.Number.pipe(
     Schema.withDecodingDefaultType(Effect.succeed(5)),
     Schema.withConstructorDefault(Effect.succeed(5))

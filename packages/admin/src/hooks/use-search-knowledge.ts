@@ -4,7 +4,6 @@ import { apiRequest } from '@/lib/api-client'
 
 export interface SearchKnowledgeRequest {
   readonly query: string
-  readonly plantType?: string
   readonly limit?: number
   readonly minSimilarity?: number
 }
