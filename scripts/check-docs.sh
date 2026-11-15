@@ -10,7 +10,7 @@
 #   4. Bun, Effect and TypeScript versions quoted in docs match package.json.
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
+cd "$(dirname "$0")/.."
 
 errors=0
 fail() {
