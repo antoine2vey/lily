@@ -1,5 +1,6 @@
 import { Option } from 'effect'
 import { describe, expect, it } from 'vitest'
+import { storageFailureMessage } from '../services/file/gcs-errors'
 import {
   legacyOwnerOf,
   locateStoredObject,
@@ -39,6 +40,10 @@ describe('locateStoredObject', () => {
     ['a bucket with no key', 'https://storage.googleapis.com/lily-plants/'],
     ['a local file', 'file:///var/mobile/photo.jpg'],
     ['an empty string', ''],
+    [
+      'a malformed escape',
+      'https://storage.googleapis.com/lily-plants/1700-detect/%E0%A4%A.png',
+    ],
   ])('finds nothing for %s', (_case, ref) => {
     expect(locate(ref)).toEqual(Option.none())
   })
@@ -68,5 +73,13 @@ describe('legacyOwnerOf', () => {
     'catalog/monstera.png',
   ])('is not a legacy upload: %s', (key) => {
     expect(legacyOwnerOf(key)).toEqual(Option.none())
+  })
+})
+
+describe('storageFailureMessage', () => {
+  it('names every error of a prefix delete, which rejects with a list', () => {
+    expect(
+      storageFailureMessage([new Error('403 on a.png'), new Error('timeout')])
+    ).toBe('403 on a.png; timeout')
   })
 })

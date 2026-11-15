@@ -7,7 +7,7 @@ import {
   plantFolder,
   scopePrefix,
 } from '@lily/shared/services/file/stored-object'
-import { Effect, Option, pipe, Struct } from 'effect'
+import { Effect, Option, pipe, String, Struct } from 'effect'
 
 /**
  * Creates a plant from a request whose image may be a scan photo. A scan
@@ -36,7 +36,9 @@ export const withScanPhoto = <E, R>(
     const stored = yield* repo.findById(plant.id)
     if (
       !stored ||
-      !privateKey.value.startsWith(scopePrefix({ _tag: 'User', userId }))
+      !String.startsWith(scopePrefix({ _tag: 'User', userId }))(
+        privateKey.value
+      )
     ) {
       return plant
     }

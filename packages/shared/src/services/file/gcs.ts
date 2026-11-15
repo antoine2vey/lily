@@ -6,8 +6,11 @@ import {
   Duration,
   Effect,
   Layer,
+  Option,
+  pipe,
   Redacted,
   Schema,
+  String,
 } from 'effect'
 import { nowAsDate, nowAsEpochMillis } from '../../domains/common/date'
 import {
@@ -15,6 +18,7 @@ import {
   GCSDeleteError,
   GCSPublishError,
   GCSUploadError,
+  storageFailureMessage,
 } from './gcs-errors'
 import { type InvalidImageError, planImageUpload } from './image-upload'
 import {
@@ -127,7 +131,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
 
     const deleteFailed = (error: unknown) =>
       new GCSDeleteError({
-        message: `Failed to delete from GCS: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Failed to delete from GCS: ${storageFailureMessage(error)}`,
       })
 
     const save = (bucket: Bucket, request: GCSUploadRequest) =>
@@ -260,13 +264,20 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
         key: string,
         folder: string
       ): Effect.Effect<{ readonly url: string }, GCSPublishError> => {
-        const extension = key.slice(key.lastIndexOf('.'))
+        const extension = pipe(
+          key,
+          String.lastIndexOf('.'),
+          Option.match({
+            onNone: () => '',
+            onSome: (dot) => String.slice(dot)(key),
+          })
+        )
         const publicKey = `${folder}/${crypto.randomUUID()}${extension}`
         return Effect.tryPromise({
           try: () => buckets.ai.file(key).copy(buckets.plant.file(publicKey)),
           catch: (error) =>
             new GCSPublishError({
-              message: `Failed to publish ${key}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              message: `Failed to publish ${key}: ${storageFailureMessage(error)}`,
             }),
         }).pipe(
           Effect.as({

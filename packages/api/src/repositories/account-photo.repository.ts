@@ -8,8 +8,18 @@ import {
   plants,
   users,
 } from '@lily/db/schema'
-import { and, eq, inArray, isNotNull, isNull, ne, or } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option } from 'effect'
+import {
+  and,
+  type Column,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  or,
+  sql,
+} from 'drizzle-orm'
+import { Array, Context, Duration, Effect, Layer, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /** The photo references on the rows that an account's deletion cascades to. */
@@ -26,17 +36,28 @@ export interface IAccountPhotoRepository {
   readonly findRefs: (
     userId: string
   ) => Effect.Effect<AccountPhotoRefs, SqlError>
-  /** Of `urls`, those that a row outside the account also points at. */
-  readonly findShownElsewhere: (
+  /**
+   * Every photo reference on a row outside the account that may spell a key
+   * with one of `stamps`. The caller locates each one: a URL has many
+   * spellings, so only located objects compare.
+   */
+  readonly findRefsOutside: (
     userId: string,
-    urls: readonly string[]
+    stamps: readonly string[]
   ) => Effect.Effect<readonly string[], SqlError>
+  /** Lets the current transaction sit idle for `duration` while storage answers. */
+  readonly allowIdleInTransaction: (
+    duration: Duration.Duration
+  ) => Effect.Effect<void, SqlError>
 }
 
 export class AccountPhotoRepository extends Context.Service<
   AccountPhotoRepository,
   IAccountPhotoRepository
 >()('AccountPhotoRepository') {}
+
+// A URL that percent-encodes a digit hides the stamp from a `like`.
+const ENCODED_DIGIT = '%3[0-9]'
 
 const present = <A>(values: readonly (A | null)[]): A[] =>
   Array.getSomes(Array.map(values, Option.fromNullishOr))
@@ -113,47 +134,85 @@ export const AccountPhotoRepositoryLive = Layer.effect(
         }
       }),
 
-      findShownElsewhere: Effect.fn(
-        'AccountPhotoRepository.findShownElsewhere'
-      )(function* (userId: string, urls: readonly string[]) {
-        if (Array.isReadonlyArrayEmpty(urls)) return []
-        const asked = [...urls]
-        const notTheirs = or(isNull(plants.userId), ne(plants.userId, userId))
-
-        const plantImages = yield* db
-          .select({ ref: plants.imageUrl })
-          .from(plants)
-          .where(and(inArray(plants.imageUrl, asked), notTheirs))
-        const plantPhotoUrls = yield* db
-          .select({ ref: plantPhotos.url })
-          .from(plantPhotos)
-          .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
-          .where(and(inArray(plantPhotos.url, asked), notTheirs))
-        const carePhotos = yield* db
-          .select({ ref: careLogs.photoUrl })
-          .from(careLogs)
-          .innerJoin(plants, eq(careLogs.plantId, plants.id))
-          .where(and(inArray(careLogs.photoUrl, asked), notTheirs))
-        const avatars = yield* db
-          .select({ ref: users.image })
-          .from(users)
-          .where(and(inArray(users.image, asked), ne(users.id, userId)))
-        const catalogImages = yield* db
-          .select({ ref: plantCatalog.imageUrl })
-          .from(plantCatalog)
-          .where(inArray(plantCatalog.imageUrl, asked))
-
-        return present(
-          Array.map(
-            [
-              ...plantImages,
-              ...plantPhotoUrls,
-              ...carePhotos,
-              ...avatars,
-              ...catalogImages,
-            ],
-            (row) => row.ref
+      findRefsOutside: Effect.fn('AccountPhotoRepository.findRefsOutside')(
+        function* (userId: string, stamps: readonly string[]) {
+          if (Array.isReadonlyArrayEmpty(stamps)) return []
+          const patterns = sql.join(
+            Array.map(stamps, (stamp) => sql`${`%${stamp}%`}`),
+            sql`, `
           )
+          const maySpell = (column: Column) =>
+            sql<boolean>`(${column} like any (array[${patterns}]::text[]) or ${column} ~ ${ENCODED_DIGIT})`
+          const notTheirPlant = or(
+            isNull(plants.userId),
+            ne(plants.userId, userId)
+          )
+
+          const plantImages = yield* db
+            .select({ ref: plants.imageUrl })
+            .from(plants)
+            .where(and(maySpell(plants.imageUrl), notTheirPlant))
+          const plantPhotoUrls = yield* db
+            .select({ ref: plantPhotos.url })
+            .from(plantPhotos)
+            .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
+            .where(and(maySpell(plantPhotos.url), notTheirPlant))
+          const carePhotos = yield* db
+            .select({ ref: careLogs.photoUrl })
+            .from(careLogs)
+            .innerJoin(plants, eq(careLogs.plantId, plants.id))
+            .where(and(maySpell(careLogs.photoUrl), notTheirPlant))
+          const avatars = yield* db
+            .select({ ref: users.image })
+            .from(users)
+            .where(and(maySpell(users.image), ne(users.id, userId)))
+          const catalogImages = yield* db
+            .select({ ref: plantCatalog.imageUrl })
+            .from(plantCatalog)
+            .where(maySpell(plantCatalog.imageUrl))
+          const chatImages = yield* db
+            .select({ ref: chatMessages.imageKey })
+            .from(chatMessages)
+            .where(
+              and(
+                maySpell(chatMessages.imageKey),
+                ne(chatMessages.userId, userId)
+              )
+            )
+          const diagnosisImages = yield* db
+            .select({ ref: diagnoses.imageKey })
+            .from(diagnoses)
+            .innerJoin(plants, eq(diagnoses.plantId, plants.id))
+            .where(
+              and(
+                maySpell(diagnoses.imageKey),
+                ne(diagnoses.userId, userId),
+                notTheirPlant
+              )
+            )
+
+          return present(
+            Array.map(
+              [
+                ...plantImages,
+                ...plantPhotoUrls,
+                ...carePhotos,
+                ...avatars,
+                ...catalogImages,
+                ...chatImages,
+                ...diagnosisImages,
+              ],
+              (row) => row.ref
+            )
+          )
+        }
+      ),
+
+      allowIdleInTransaction: Effect.fn(
+        'AccountPhotoRepository.allowIdleInTransaction'
+      )(function* (duration: Duration.Duration) {
+        yield* db.execute(
+          sql`select set_config('idle_in_transaction_session_timeout', ${`${Duration.toMillis(duration)}`}, true)`
         )
       }),
     }

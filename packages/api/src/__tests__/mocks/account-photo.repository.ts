@@ -10,7 +10,8 @@ export const createMockAccountPhotoRepository = (
 ): Layer.Layer<AccountPhotoRepository> =>
   Layer.succeed(AccountPhotoRepository, {
     findRefs: () => Effect.succeed(refs),
-    findShownElsewhere: () => Effect.succeed([]),
+    findRefsOutside: () => Effect.succeed([]),
+    allowIdleInTransaction: () => Effect.void,
   })
 
 /** What `purgeAccount` needs from storage when the account has no photos. */

@@ -8,7 +8,9 @@ import {
   AccountPhotoRepository,
 } from '@lily/api/repositories/account-photo.repository'
 import { eraseAccountPhotos } from '@lily/api/services/user/helpers/erase-account-photos'
-import { Effect, Exit, Layer } from 'effect'
+import { GCSService } from '@lily/shared/services/file/gcs'
+import { Cause, Effect, Exit, Fiber, Layer } from 'effect'
+import { TestClock } from 'effect/testing'
 import { describe, expect, it } from 'vitest'
 
 const stored = (
@@ -38,7 +40,7 @@ const erase = (
             AccountPhotoRepository,
             Effect.map(AccountPhotoRepository, (repo) => ({
               ...repo,
-              findShownElsewhere: () => Effect.succeed(shownByOtherPlants),
+              findRefsOutside: () => Effect.succeed(shownByOtherPlants),
             }))
           ).pipe(
             Layer.provide(
@@ -156,5 +158,40 @@ describe('eraseAccountPhotos', () => {
 
     expect(Exit.isSuccess(again)).toBe(true)
     expect(left(gcs).plant).toEqual([])
+  })
+
+  it('gives up with a GCSDeleteError when storage hangs for 2 minutes', async () => {
+    const hanging = Layer.effect(
+      GCSService,
+      Effect.map(GCSService, (service) => ({
+        ...service,
+        deleteScope: () => Effect.never,
+      }))
+    ).pipe(Layer.provide(createInMemoryGCS().layer))
+
+    const exit = await Effect.runPromise(
+      Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(
+          Effect.exit(eraseAccountPhotos('alex'))
+        )
+        yield* TestClock.adjust('119 seconds')
+        const before = fiber.pollUnsafe()
+        yield* TestClock.adjust('2 seconds')
+        return { before, exit: yield* Fiber.join(fiber) }
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            hanging,
+            createMockAccountPhotoRepository(),
+            TestClock.layer()
+          )
+        )
+      )
+    )
+
+    expect(exit.before).toBeUndefined()
+    expect(
+      Exit.isFailure(exit.exit) && Cause.squash(exit.exit.cause)
+    ).toMatchObject({ _tag: 'GCSDeleteError' })
   })
 })

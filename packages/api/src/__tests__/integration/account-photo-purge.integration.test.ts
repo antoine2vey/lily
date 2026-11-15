@@ -22,6 +22,7 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { cleanupExpiredAccounts } from '@lily/api/services/account-cleanup/scheduler'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -75,6 +76,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             Layer.mergeAll(
               gcs.layer,
               createMockCurrentUser({ id: userId, name: userId }),
+              createMockEventBus(),
+              createMockLimitChecker(),
+              createMockMessageQueue(),
+              MockAlerterLive
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        ) as Effect.Effect<unknown, unknown, Layer.Success<typeof BaseLive>>
+      )
+
+    const sweep = () =>
+      runtime.runPromiseExit(
+        delivered(cleanupExpiredAccounts).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              gcs.layer,
               createMockEventBus(),
               createMockLimitChecker(),
               createMockMessageQueue(),
@@ -306,6 +323,183 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect([outcome(retried), outcome(repeated)]).toEqual(['ok', 'ok'])
       expect(stored()).toEqual(others)
       expect(await usersLeft()).toEqual([sam])
+    })
+
+    const privateUrl = (key: string) =>
+      `https://storage.googleapis.com/mock-private-bucket/${key}?X-Goog-Signature=abc`
+
+    const setPlantImage = (id: string, url: string) =>
+      db
+        .update(schema.plants)
+        .set({ imageUrl: url })
+        .where(eq(schema.plants.id, id))
+
+    const setAvatar = (id: string, url: string) =>
+      db.update(schema.users).set({ image: url }).where(eq(schema.users.id, id))
+
+    it.each([
+      ['a query string', (url: string) => `${url}?v=1`],
+      ['a fragment', (url: string) => `${url}#x`],
+      [
+        'another host',
+        (url: string) => url.replace('storage.googleapis.com', 'evil.example'),
+      ],
+      [
+        'a percent-encoded key',
+        (url: string) => url.replace('1700-detect', '1700%2Ddetect'),
+      ],
+    ])(
+      "keeps another account's plant image that a plant of the account points at with %s",
+      async (_case, variant) => {
+        const alex = await user('alex')
+        const sam = await user('sam')
+        const samsPlant = await plant({ userId: sam }, sam)
+        const alexPlant = await plant({ userId: alex }, alex)
+        const samsImage = mockPublicUrl('1700-detect/sam-scan.png')
+        store('plant', ['1700-detect/sam-scan.png'])
+        await setPlantImage(samsPlant, samsImage)
+        await setPlantImage(alexPlant, variant(samsImage))
+
+        const purged = await purge(alex)
+
+        expect(outcome(purged)).toBe('ok')
+        expect(stored().plant).toEqual(['1700-detect/sam-scan.png'])
+      }
+    )
+
+    it("keeps another member's diagnosis photo that the account set as its avatar", async () => {
+      const alex = await user('alex')
+      const sam = await user('sam')
+      const canopy = await canopyOf(sam, alex)
+      const ficus = await plant({ canopyId: canopy }, sam)
+      const [conversation] = await db
+        .insert(schema.chatConversations)
+        .values({ userId: sam, kind: 'plant', plantId: ficus })
+        .returning()
+      if (!conversation) throw new Error('Failed to create conversation')
+      const key = `1700-chat/${conversation.id}/sick.png`
+      store('ai', [key])
+      await db.insert(schema.chatMessages).values({
+        role: 'user',
+        content: 'Is it sick?',
+        imageKey: key,
+        userId: sam,
+        conversationId: conversation.id,
+      })
+      await db.insert(schema.diagnoses).values({
+        plantId: ficus,
+        userId: sam,
+        diseaseName: 'Root rot',
+        severity: 'LOW',
+        confidence: 80,
+        symptoms: [],
+        treatmentSteps: [],
+        imageKey: key,
+      })
+      await setAvatar(alex, privateUrl(key))
+
+      const purged = await purge(alex)
+
+      expect(outcome(purged)).toBe('ok')
+      expect(stored().ai).toEqual([key])
+    })
+
+    it.each([
+      [
+        'a chat message',
+        (key: string, sam: string, conversationId: string) =>
+          db.insert(schema.chatMessages).values({
+            role: 'user',
+            content: 'Is it sick?',
+            imageKey: key,
+            userId: sam,
+            conversationId,
+          }),
+      ],
+      [
+        'a diagnosis',
+        (key: string, sam: string, _conversationId: string, plantId: string) =>
+          db.insert(schema.diagnoses).values({
+            plantId,
+            userId: sam,
+            diseaseName: 'Root rot',
+            severity: 'LOW',
+            confidence: 80,
+            symptoms: [],
+            treatmentSteps: [],
+            imageKey: key,
+          }),
+      ],
+    ])(
+      'keeps a photo that only %s of another account holds',
+      async (_case, hold) => {
+        const alex = await user('alex')
+        const sam = await user('sam')
+        const samsPlant = await plant({ userId: sam }, sam)
+        const [conversation] = await db
+          .insert(schema.chatConversations)
+          .values({ userId: sam, kind: 'general' })
+          .returning()
+        if (!conversation) throw new Error('Failed to create conversation')
+        const key = `1700-chat/${conversation.id}/sick.png`
+        store('ai', [key])
+        await hold(key, sam, conversation.id, samsPlant)
+        await setAvatar(alex, privateUrl(key))
+
+        const purged = await purge(alex)
+
+        expect(outcome(purged)).toBe('ok')
+        expect(stored().ai).toEqual([key])
+      }
+    )
+
+    it('keeps an older photo that another account points at with a percent-encoded digit', async () => {
+      const alex = await user('alex')
+      const sam = await user('sam')
+      const samsPlant = await plant({ userId: sam }, sam)
+      const fern = await plant({ userId: alex }, alex)
+      const image = mockPublicUrl('1700-detect/sam-scan.png')
+      store('plant', ['1700-detect/sam-scan.png'])
+      await setPlantImage(samsPlant, image.replace('1700-', '1%3700-'))
+      await setPlantImage(fern, image)
+
+      const purged = await purge(alex)
+
+      expect(outcome(purged)).toBe('ok')
+      expect(stored().plant).toEqual(['1700-detect/sam-scan.png'])
+    })
+
+    it('keeps an older photo that a canopy plant shows', async () => {
+      const alex = await user('alex')
+      const sam = await user('sam')
+      const canopy = await canopyOf(sam, alex)
+      const ficus = await plant({ canopyId: canopy }, sam)
+      const fern = await plant({ userId: alex }, alex)
+      const shared = mockPublicUrl('1700-detect/ficus-scan.png')
+      store('plant', ['1700-detect/ficus-scan.png'])
+      await setPlantImage(ficus, shared)
+      await setPlantImage(fern, shared)
+
+      const purged = await purge(alex)
+
+      expect(outcome(purged)).toBe('ok')
+      expect(stored().plant).toEqual(['1700-detect/ficus-scan.png'])
+    })
+
+    it('purges every expired account when one of them has an avatar URL with a malformed escape', async () => {
+      const longAgo = new Date('2026-01-01T00:00:00Z')
+      const names = ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8']
+      const ids: string[] = []
+      for (const name of names) ids.push(await user(name))
+      await db
+        .update(schema.users)
+        .set({ status: 'pending_deletion', deletedAt: longAgo })
+      await setAvatar(ids[0] ?? '', mockPublicUrl('1700-detect/%E0%A4%A.png'))
+
+      const swept = await sweep()
+
+      expect(outcome(swept)).toBe('ok')
+      expect(await usersLeft()).toEqual([])
     })
   }
 )

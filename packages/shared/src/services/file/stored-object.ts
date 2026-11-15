@@ -1,4 +1,4 @@
-import { Match, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe, String } from 'effect'
 
 /**
  * Who an object is erased with. A user's objects go when the account is
@@ -33,31 +33,38 @@ export interface StoredObject {
   readonly key: string
 }
 
+export const sameObject = (a: StoredObject, b: StoredObject): boolean =>
+  a.bucket === b.bucket && a.key === b.key
+
+const decodeKey = Option.liftThrowable(decodeURIComponent)
+
 /**
  * Reads a stored reference back into an object. The plant bucket is stored as
  * a public URL, the ai bucket as a bare key or a signed URL. A URL outside
- * both buckets, such as an OAuth avatar, is nobody's object.
+ * both buckets, such as an OAuth avatar, is nobody's object, and so is a URL
+ * whose path does not decode.
  */
 export const locateStoredObject =
   (bucketNames: Record<BucketRole, string>) =>
   (ref: string): Option.Option<StoredObject> => {
     if (!URL.canParse(ref)) {
-      return ref === ''
+      return String.isEmpty(ref)
         ? Option.none()
         : Option.some({ bucket: 'ai', key: ref })
     }
-    const [, bucketName, ...segments] = new URL(ref).pathname.split('/')
-    const key = decodeURIComponent(segments.join('/'))
-    if (key === '') return Option.none()
-    return pipe(
+    const [, bucketName, ...segments] = pipe(
+      new URL(ref).pathname,
+      String.split('/')
+    )
+    const bucket = pipe(
       Match.value(bucketName),
-      Match.when(bucketNames.plant, () =>
-        Option.some<StoredObject>({ bucket: 'plant', key })
-      ),
-      Match.when(bucketNames.ai, () =>
-        Option.some<StoredObject>({ bucket: 'ai', key })
-      ),
-      Match.orElse(() => Option.none())
+      Match.when(bucketNames.plant, () => Option.some<BucketRole>('plant')),
+      Match.when(bucketNames.ai, () => Option.some<BucketRole>('ai')),
+      Match.orElse(() => Option.none<BucketRole>())
+    )
+    return pipe(
+      Option.all({ bucket, key: decodeKey(Array.join(segments, '/')) }),
+      Option.filter(({ key }) => String.isNonEmpty(key))
     )
   }
 
@@ -72,19 +79,31 @@ export type LegacyOwner =
   | { readonly _tag: 'Plant'; readonly plantId: string }
   | { readonly _tag: 'Unnamed' }
 
-const LEGACY_UPLOAD = /^\d+-/
+const LEGACY_STAMP = /^(\d+)-/
 const LEGACY_NAMED = /^\d+-(avatars|plants)\/(.+?)(?:\/|-\d+\.)/
 
-export const legacyOwnerOf = (key: string): Option.Option<LegacyOwner> => {
-  if (!LEGACY_UPLOAD.test(key)) return Option.none()
-  return pipe(
-    Option.fromNullishOr(LEGACY_NAMED.exec(key)),
-    Option.map(
-      ([, folder, id = '']): LegacyOwner =>
-        folder === 'avatars'
-          ? { _tag: 'Avatar', userId: id }
-          : { _tag: 'Plant', plantId: id }
-    ),
-    Option.orElseSome((): LegacyOwner => ({ _tag: 'Unnamed' }))
+/**
+ * The epoch digits an older key starts with. Percent-encoding leaves digits
+ * as they are, so every spelling of a URL of that key contains them.
+ */
+export const legacyStampOf = (key: string): Option.Option<string> =>
+  pipe(
+    key,
+    String.match(LEGACY_STAMP),
+    Option.flatMapNullishOr((match) => match[1])
   )
-}
+
+export const legacyOwnerOf = (key: string): Option.Option<LegacyOwner> =>
+  Option.map(legacyStampOf(key), () =>
+    pipe(
+      key,
+      String.match(LEGACY_NAMED),
+      Option.map(
+        ([, folder, id = '']): LegacyOwner =>
+          folder === 'avatars'
+            ? { _tag: 'Avatar', userId: id }
+            : { _tag: 'Plant', plantId: id }
+      ),
+      Option.getOrElse((): LegacyOwner => ({ _tag: 'Unnamed' }))
+    )
+  )
