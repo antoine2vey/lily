@@ -7,6 +7,7 @@ import {
   getExpoPushToken,
   getPlatform,
 } from '@/utils/notifications'
+import { KEYCHAIN_OPTIONS } from '@/utils/storage'
 
 const DEVICE_TOKEN_ID_KEY = 'lily_device_token_id'
 
@@ -19,7 +20,8 @@ const storeDeviceTokenId = (
   tokenId: string
 ): Effect.Effect<void, DeviceTokenStorageError> =>
   Effect.tryPromise({
-    try: () => SecureStore.setItemAsync(DEVICE_TOKEN_ID_KEY, tokenId),
+    try: () =>
+      SecureStore.setItemAsync(DEVICE_TOKEN_ID_KEY, tokenId, KEYCHAIN_OPTIONS),
     catch: (error) =>
       new DeviceTokenStorageError({
         message: `Failed to store device token ID: ${String(error)}`,

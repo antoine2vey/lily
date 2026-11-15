@@ -12,6 +12,15 @@ const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 const USER_EMAIL_KEY = 'lily_user_email'
 const USER_PROFILE_KEY = 'lily_user_profile'
 
+// iOS launches the app in the background while the phone is locked (a Live
+// Activity started by push, a notification). The default WHEN_UNLOCKED class
+// makes every keychain read throw then, and the startup check reads that as
+// signed out for the rest of the process. Rewriting an item with these options
+// also moves it off the old class.
+export const KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+}
+
 // JSON codec for the cached profile — encodes/decodes through the schema
 // so Date fields round-trip as real Dates, not strings
 const UserProfileJson = Schema.fromJsonString(UserProfile)
@@ -21,7 +30,8 @@ export const storeAccessToken = (
   token: string
 ): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
-    try: () => SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token),
+    try: () =>
+      SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token, KEYCHAIN_OPTIONS),
     catch: (cause) =>
       new StorageError({ message: 'Failed to store access token', cause }),
   })
@@ -51,7 +61,8 @@ export const storeRefreshToken = (
   token: string
 ): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
-    try: () => SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token),
+    try: () =>
+      SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token, KEYCHAIN_OPTIONS),
     catch: (cause) =>
       new StorageError({ message: 'Failed to store refresh token', cause }),
   })
@@ -68,7 +79,8 @@ export const storeUserEmail = (
   email: string
 ): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
-    try: () => SecureStore.setItemAsync(USER_EMAIL_KEY, email),
+    try: () =>
+      SecureStore.setItemAsync(USER_EMAIL_KEY, email, KEYCHAIN_OPTIONS),
     catch: (cause) =>
       new StorageError({ message: 'Failed to store email', cause }),
   })
@@ -107,7 +119,8 @@ export const storeUserProfile = (
     ),
     Effect.flatMap((json) =>
       Effect.tryPromise({
-        try: () => SecureStore.setItemAsync(USER_PROFILE_KEY, json),
+        try: () =>
+          SecureStore.setItemAsync(USER_PROFILE_KEY, json, KEYCHAIN_OPTIONS),
         catch: (cause) =>
           new StorageError({ message: 'Failed to store user profile', cause }),
       })
