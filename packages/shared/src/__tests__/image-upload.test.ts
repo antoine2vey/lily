@@ -27,7 +27,7 @@ describe('planImageUpload', () => {
       if (Exit.isSuccess(exit)) {
         expect(exit.value.contentType).toBe(contentType)
         expect(exit.value.key).toMatch(
-          new RegExp(`^\\d+-avatars/user-1/[0-9a-f-]{36}\\.${extension}$`)
+          new RegExp(`^avatars/user-1/[0-9a-f-]{36}\\.${extension}$`)
         )
       }
     }

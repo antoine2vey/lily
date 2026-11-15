@@ -11,3 +11,13 @@ export class GCSConfigError extends Schema.Class<GCSConfigError>(
 )({
   message: Schema.String,
 }) {}
+
+export class GCSDeleteError extends Schema.TaggedError<GCSDeleteError>()(
+  'GCSDeleteError',
+  { message: Schema.String }
+) {}
+
+export class GCSPublishError extends Schema.TaggedError<GCSPublishError>()(
+  'GCSPublishError',
+  { message: Schema.String }
+) {}
