@@ -113,6 +113,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(sql`${schema.notifications.status} = 'pending'`)
         .orderBy(asc(schema.notifications.type))
 
+    const reminderRequests = () =>
+      db
+        .select({ event: schema.outbox.event })
+        .from(schema.outbox)
+        .where(eq(schema.outbox.topic, 'reminders'))
+
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
@@ -199,6 +205,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(await stored()).toBe(true)
       expect(await pending()).toEqual(before)
+    })
+
+    it('keeps reminders off through an edit that does not carry the switch', async () => {
+      await edit({ remindersEnabled: false })
+      await db.execute(sql.raw('TRUNCATE TABLE outbox RESTART IDENTITY'))
+
+      await edit({ name: 'Renamed', isFavorite: true })
+
+      expect(await stored()).toBe(false)
+      expect(await reminderRequests()).toEqual([])
+      expect(await pending()).toEqual([])
     })
   }
 )
