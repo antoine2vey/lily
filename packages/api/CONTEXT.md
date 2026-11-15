@@ -217,7 +217,7 @@ Chat suggestions are the questions the app offers as chips in the assistant chat
 | **Follow-up set** | The follow-ups written for one user and one plant, in one language, with the time they were written. A user has at most one set per plant. | "cache" |
 | **Fact** | One piece of a plant's live state that a follow-up can depend on: a care that is overdue, a sick or recovering condition, a recent diagnosis or an open plan step. | "fact" for what a context publishes on the outbox (see Canopy, Absence) |
 | **Basis** | The fact a follow-up depends on, or none. A follow-up whose basis no longer holds is not served. | "tag" |
-| **Request** | What the app sends when it opens. It asks for a new set of each plant the user has written about. A set is requested at most once per cooldown. | "refresh" for the generation itself |
+| **Follow-up request** | What the app sends when it opens. It asks for a new set of each plant the user has written about. A set is requested at most once per cooldown. | "refresh" for the generation itself, "request" alone (see Reminders) |
 | **Cooldown** | The 20 hours after a set is written during which it is not requested again. | |
 | **Budget** | The most sets one user can have written or requested within a cooldown: 12. | "quota", which is the monthly AI chat limit |
 
@@ -225,9 +225,29 @@ Chat suggestions are the questions the app offers as chips in the assistant chat
 
 1. **Only where the user wrote.** A set is requested for a living plant the user can reach and has written at least one message about. Other plant chats keep their starter suggestions.
 2. **Most useful first.** Within the budget, plants that need help come first, then the plants the user wrote about most recently.
-3. **A failed generation keeps the old set.** The request is closed and nothing retries it. The next time the app opens, it is requested again.
+3. **A failed generation keeps the old set.** The follow-up request is closed and nothing retries it. The next time the app opens, it is requested again.
 4. **Follow-ups do not count against the AI chat quota.** Free-tier users get them.
 5. **A set is served while it still applies.** The chat gets the first four follow-ups of a set written in the app's language within the last 3 days. A follow-up is left out when its basis no longer holds or when the user has sent it since the set was written.
+
+## Social
+
+Social lets users follow each other, open each other's profiles and nudge the people they follow to water. `src/services/social/` serves it, and `src/repositories/follow.repository.ts` reads and writes it.
+
+| Term | Meaning | Avoid |
+| --- | --- | --- |
+| **Public profile** | An account whose `public_profile` is true. Accounts are public by default. | "open account" |
+| **Private account** | An account whose `public_profile` is false. Nobody can start following it or open its profile. | "hidden", "blocked" |
+| **Shown plants** | The plants a profile counts: the living plants the user created and still holds. The cemetery is never counted. | "plants" for every plant the user can reach |
+| **Nudge** | A push from a follower that asks the user to water. Its notification type is `nudge_to_water`. | "reminder", which Reminders plans |
+
+### Rules
+
+1. **A private account is closed.** Following it, opening its profile and listing its followers or the users it follows answer `UserNotPublicError`. Unfollowing has no check, so a follower can always leave.
+2. **Lists hold public accounts.** A list of followers, a list of the users someone follows, and the total each list reports hold only public accounts. Your own list of the users you follow is the exception. It keeps the private accounts you follow, so you can still unfollow them.
+3. **A profile's counts hold every account.** The follower and following counts on a profile include private accounts, so they can be higher than the totals of rule 2.
+4. **Search finds a private account only by its handle.** A search matches a private account only when the query equals its handle, ignoring case, and shows its plant count as 0.
+5. **Only a follower nudges.** A nudge to a user you do not follow answers `NudgeNotAllowedError`. A nudge within 24 hours of your last nudge to the same user answers `NudgeRateLimitError`.
+6. **A nudge commits with its notification.** `recordNudge` and the `nudge_to_water` notification are written in one transaction. The push goes out after the commit, through `dispatchNow`.
 
 ## Relationships
 
