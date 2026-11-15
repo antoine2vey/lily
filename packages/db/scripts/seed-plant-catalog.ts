@@ -73,7 +73,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 365,
     humidityRating: 60,
     lightingRating: 70,
-    petToxicityRating: 50,
+    petToxicityRating: 60,
     wateringRating: 60,
     luxNeeded: 5000,
     translations: {
@@ -98,7 +98,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 730,
     humidityRating: 50,
     lightingRating: 90,
-    petToxicityRating: 40,
+    petToxicityRating: 60,
     wateringRating: 60,
     luxNeeded: 8000,
     translations: {
@@ -171,7 +171,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 730,
     humidityRating: 40,
     lightingRating: 50,
-    petToxicityRating: 50,
+    petToxicityRating: 60,
     wateringRating: 40,
     luxNeeded: 2500,
     translations: {
@@ -223,7 +223,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 730,
     humidityRating: 20,
     lightingRating: 50,
-    petToxicityRating: 40,
+    petToxicityRating: 60,
     wateringRating: 20,
     luxNeeded: 2500,
     translations: {
@@ -248,7 +248,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 730,
     humidityRating: 20,
     lightingRating: 70,
-    petToxicityRating: 30,
+    petToxicityRating: 60,
     wateringRating: 20,
     luxNeeded: 5000,
     translations: {
@@ -273,7 +273,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 730,
     humidityRating: 20,
     lightingRating: 70,
-    petToxicityRating: 40,
+    petToxicityRating: 60,
     wateringRating: 20,
     luxNeeded: 5000,
     translations: {
@@ -371,7 +371,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 365,
     humidityRating: 40,
     lightingRating: 30,
-    petToxicityRating: 50,
+    petToxicityRating: 60,
     wateringRating: 40,
     luxNeeded: 1500,
     translations: {
@@ -573,7 +573,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 730,
     humidityRating: 30,
     lightingRating: 10,
-    petToxicityRating: 50,
+    petToxicityRating: 60,
     wateringRating: 20,
     luxNeeded: 500,
     translations: {
@@ -622,7 +622,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 730,
     humidityRating: 40,
     lightingRating: 50,
-    petToxicityRating: 50,
+    petToxicityRating: 60,
     wateringRating: 40,
     luxNeeded: 2500,
     translations: {
@@ -669,7 +669,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 180,
     humidityRating: 50,
     lightingRating: 70,
-    petToxicityRating: 10,
+    petToxicityRating: 60,
     wateringRating: 70,
     luxNeeded: 5000,
     translations: {
@@ -690,7 +690,7 @@ const CATALOG: CatalogEntry[] = [
     repottingFrequencyDays: 365,
     humidityRating: 20,
     lightingRating: 90,
-    petToxicityRating: 10,
+    petToxicityRating: 60,
     wateringRating: 20,
     luxNeeded: 10000,
     translations: {
