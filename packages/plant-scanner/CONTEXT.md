@@ -9,7 +9,7 @@ A term listed under **Avoid** is a synonym that means something else in this cod
 | Term | Meaning | Avoid |
 | --- | --- | --- |
 | **Frame analysis** | One analysis of the camera feed, every 0.3 seconds on iOS, and the `onFrameAnalysis` event (`FrameAnalysisEvent`) that reports it. The app's Android camera emits the same event with only the light fields set. | |
-| **Detection** | The model finding a potted plant in a frame analysis, reported as `plantDetected`. The detector also accepts class index 58, which the model's label map names pizza. | "plant", which elsewhere means a user's [Plant](../api/CONTEXT.md) |
+| **Detection** | The model finding a potted plant or a vase in a frame analysis, reported as `plantDetected`. | "plant", which elsewhere means a user's [Plant](../api/CONTEXT.md) |
 | **Detection streak** | The number of consecutive frame analyses with a detection. A miss resets it to 0. The app captures a photo when it reaches `AUTO_CAPTURE_STREAK`. | |
 | **Lux** | The ambient light of a frame in lux, estimated from the brightness of the camera image and smoothed across analyses. No light sensor is involved. | |
 | **Lux level** | The [Luminosity level](../shared/CONTEXT.md) of the smoothed lux, reported as `luxLevel`. | |

@@ -43,6 +43,7 @@ Run them from the monorepo root.
 | --- | --- |
 | `bun run --filter=@lily/plant-scanner tsc` | Typecheck |
 | `bun run --filter=@lily/plant-scanner lint` | Biome. `lint:fix` applies the fixes |
+| `bun run --filter=@lily/plant-scanner test` | Vitest |
 
 ## In the monorepo
 
