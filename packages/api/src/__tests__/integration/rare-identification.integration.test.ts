@@ -36,6 +36,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let collectorId: string
     let strangerId: string
     let holderId: string
+    let changerId: string
 
     const imageUrl = `https://storage.googleapis.com/lily/identify/${Date.now()}.jpg`
 
@@ -113,7 +114,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const users = await db
         .insert(schema.users)
         .values(
-          ['collector', 'stranger', 'holder'].map((role) => ({
+          ['collector', 'stranger', 'holder', 'changer'].map((role) => ({
             email: `rare-${role}-${stamp}@example.com`,
             name: `rare_${role}_${stamp}`,
             emailVerified: true,
@@ -123,12 +124,20 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       collectorId = users[0]!.id
       strangerId = users[1]!.id
       holderId = users[2]!.id
+      changerId = users[3]!.id
     })
 
     afterAll(async () => {
       await db
         .delete(schema.users)
-        .where(inArray(schema.users.id, [collectorId, strangerId, holderId]))
+        .where(
+          inArray(schema.users.id, [
+            collectorId,
+            strangerId,
+            holderId,
+            changerId,
+          ])
+        )
       await pool.end()
     })
 
@@ -178,12 +187,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('lets a later answer that is not rare win for the same photo', async () => {
       const url = `${imageUrl}-changed-mind`
 
-      await reIdentify(strangerId, url, true)
-      await reIdentify(strangerId, url, false)
-      const achievements = await saveAndProcess(strangerId, url)
+      await reIdentify(changerId, url, true)
+      await reIdentify(changerId, url, false)
+      const achievements = await saveAndProcess(changerId, url)
 
       expect({
-        rows: await storedRows(strangerId, url),
+        rows: await storedRows(changerId, url),
         rareCollector: hasRareCollector(achievements),
       }).toEqual({ rows: [], rareCollector: false })
     })
