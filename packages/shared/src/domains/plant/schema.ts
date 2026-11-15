@@ -162,7 +162,6 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   description: Schema.optional(Schema.String),
   category: Schema.optional(Schema.String),
   imageUrl: Schema.optional(Schema.String),
-  plantingDate: Schema.optional(Schema.DateFromString),
   wateringFrequencyDays: Schema.Number,
   fertilizationFrequencyDays: Schema.optional(Schema.Number),
   mistingFrequencyDays: Schema.optional(Schema.Number),

@@ -268,7 +268,6 @@ describe('Plant Schemas', () => {
         description: 'A delicate fern',
         category: 'Indoor',
         imageUrl: 'https://example.com/fern.jpg',
-        plantingDate: '2024-01-01T00:00:00.000Z',
         wateringFrequencyDays: 3,
         fertilizationFrequencyDays: 60,
         luxNeeded: 2000,

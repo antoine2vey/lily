@@ -58,6 +58,7 @@ export interface PlantDraft {
   readonly potWidthCm: Option.Option<number>
   readonly potHeightCm: Option.Option<number>
   readonly roomId: Option.Option<string>
+  readonly remindersEnabled: boolean
 }
 
 export type CareWhen = Data.TaggedEnum<{

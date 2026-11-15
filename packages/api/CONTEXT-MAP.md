@@ -157,11 +157,11 @@ The schema is `plants` in `packages/db/src/schema/plants.ts`. These are the only
 | `description` | Care | create, update. |
 | `imageUrl` | Care | create, update (the GCS upload happens inside `src/services/plants/endpoints/update-plant.ts`). `src/services/plants/endpoints/upload-plant-photo.ts` writes `plantPhotos`, not this column. |
 | `category` | Care | create, update. |
-| `dateAdded` | Care | The DB default only. `EnhancedPlantCreateRequest.plantingDate` exists but no api code reads it. |
+| `dateAdded` | Care | The DB default only. |
 | `updatedAt` | Care | update and MovePlants set it, and the Drizzle `$onUpdate` covers the rest. |
 | `humidityRating`, `lightingRating`, `petToxicityRating`, `wateringRating` | Care | create, update. |
 | `health` | Care (the condition) | create only, with the constant `'HEALTHY'`. Nothing updates it, because `PlantUpdateRequest` has no `health` key and no `ai-chat` code calls a `PlantRepository` write. Migration `packages/db/drizzle/0070_health_is_derived.sql` rewrites `NEEDS_ATTENTION` rows to `HEALTHY`, and `packages/db/drizzle/0082_plant_health_stored_condition.sql` removes the value from the type. See open question 1. |
-| `remindersEnabled` | Notifications policy stored on a Care row (inferred) | No writer. `EnhancedPlantCreateRequest` accepts it, but the insert of the Care store and `PlantUpdateRequest` leave it out, so it keeps the column default `true`. `src/contexts/care/care-reads.ts`, `src/contexts/reminders/domain/plan.ts` and `src/repositories/care-schedule.repository.ts` read it. |
+| `remindersEnabled` | Notifications policy stored on a Care row (inferred) | create only. The insert of the Care store writes `EnhancedPlantCreateRequest.remindersEnabled`, or `true` when the request leaves it out. `PlantUpdateRequest` has no such key, so nothing changes it after create. `src/contexts/care/care-reads.ts`, `src/contexts/reminders/domain/plan.ts` and `src/repositories/care-schedule.repository.ts` read it. |
 | `isFavorite` | Care | update only (a key of `PlantUpdateRequest`, not of the `UpdatePlantData` type). |
 | `userId` | Care stores it, and Canopy changes it | create, MovePlants. The FK from `users` cascades on delete, so deleting a user deletes their plants. |
 | `canopyId` | Care stores it, and Canopy changes it | create, MovePlants. The check `plants_one_owner` allows exactly one owner. |

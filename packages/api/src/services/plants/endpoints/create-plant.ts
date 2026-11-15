@@ -89,6 +89,10 @@ export const createPlant = (
             potWidthCm: Option.fromNullishOr(request.potWidthCm),
             potHeightCm: Option.fromNullishOr(request.potHeightCm),
             roomId: Option.fromNullishOr(request.roomId),
+            remindersEnabled: pipe(
+              Option.fromNullishOr(request.remindersEnabled),
+              Option.getOrElse(() => true)
+            ),
           },
           frequencies: frequencyChanges({
             wateringFrequencyDays: request.wateringFrequencyDays,

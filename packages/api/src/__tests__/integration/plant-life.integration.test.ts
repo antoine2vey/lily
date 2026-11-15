@@ -118,6 +118,7 @@ const draft: PlantDraft = {
   potWidthCm: Option.none(),
   potHeightCm: Option.none(),
   roomId: Option.none(),
+  remindersEnabled: true,
 }
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
@@ -340,6 +341,28 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(Exit.isFailure(exit)).toBe(true)
         expect(await db.select().from(schema.plants)).toEqual([])
         expect(await published()).toEqual([])
+      })
+
+      it('stores reminders off when the request turns them off', async () => {
+        const created = await done(
+          alex,
+          createPlant({ ...request, remindersEnabled: false })
+        )
+
+        const rows = await db.select().from(schema.plants)
+        expect(
+          Array.map(rows, (row) => [row.id, row.remindersEnabled])
+        ).toEqual([[created.id, false]])
+        expect(created.remindersEnabled).toBe(false)
+      })
+
+      it('turns reminders on when the request does not say', async () => {
+        const created = await done(alex, createPlant(request))
+
+        const rows = await db.select().from(schema.plants)
+        expect(
+          Array.map(rows, (row) => [row.id, row.remindersEnabled])
+        ).toEqual([[created.id, true]])
       })
 
       it('puts a Canopy plant in the Canopy and records who created it', async () => {

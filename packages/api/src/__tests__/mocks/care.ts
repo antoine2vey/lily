@@ -369,7 +369,7 @@ export const createInMemoryCare = (
         potHeightCm: Option.getOrNull(w.draft.potHeightCm),
         roomId: Option.getOrNull(w.draft.roomId),
         health: 'HEALTHY',
-        remindersEnabled: true,
+        remindersEnabled: w.draft.remindersEnabled,
         isFavorite: false,
         dateAdded: new Date(),
         updatedAt: new Date(),
