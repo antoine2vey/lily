@@ -39,6 +39,18 @@ export interface PhotoCapturedEvent {
   path: string
 }
 
+export type CaptureFailureReason =
+  | 'busy'
+  | 'noFrame'
+  | 'imageConversion'
+  | 'jpegEncoding'
+  | 'fileWrite'
+  | 'camera'
+
+export interface CaptureFailedEvent {
+  reason: CaptureFailureReason
+}
+
 /** Props accepted by the public ExpoPlantScannerView component. */
 export interface ExpoPlantScannerViewProps {
   isActive: boolean
@@ -52,6 +64,7 @@ export interface ExpoPlantScannerViewProps {
   onPointPlaced?: (event: ARMeasurePoint) => void
   onMeasurement?: (event: ARMeasurementEvent) => void
   onPhotoCaptured?: (event: PhotoCapturedEvent) => void
+  onCaptureFailed?: (event: CaptureFailedEvent) => void
   style?: StyleProp<ViewStyle>
 }
 
@@ -72,5 +85,6 @@ export interface NativeExpoPlantScannerViewProps {
   onPointPlaced?: (event: NativeEvent<ARMeasurePoint>) => void
   onMeasurement?: (event: NativeEvent<ARMeasurementEvent>) => void
   onPhotoCaptured?: (event: NativeEvent<PhotoCapturedEvent>) => void
+  onCaptureFailed?: (event: NativeEvent<CaptureFailedEvent>) => void
   style?: StyleProp<ViewStyle>
 }

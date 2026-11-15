@@ -1,4 +1,5 @@
 import type {
+  CaptureFailedEvent,
   FrameAnalysisEvent,
   PhotoCapturedEvent,
 } from '@lily/plant-scanner'
@@ -27,6 +28,7 @@ interface Props {
   captureRequested?: boolean
   onFrameAnalysis?: (event: FrameAnalysisEvent) => void
   onPhotoCaptured?: (event: PhotoCapturedEvent) => void
+  onCaptureFailed?: (event: CaptureFailedEvent) => void
   style?: StyleProp<ViewStyle>
 }
 
@@ -68,6 +70,7 @@ export function AndroidScannerCamera({
   captureRequested,
   onFrameAnalysis,
   onPhotoCaptured,
+  onCaptureFailed,
   style,
 }: Props) {
   const { t } = useTranslation('addPlant')
@@ -145,13 +148,14 @@ export function AndroidScannerCamera({
     isCapturingRef.current = true
     photoOutput
       .capturePhotoToFile({ flashMode: 'off' }, {})
-      .then((photo) => {
-        onPhotoCaptured?.({ path: `file://${photo.filePath}` })
-      })
       .finally(() => {
         isCapturingRef.current = false
       })
-  }, [captureRequested, onPhotoCaptured, photoOutput])
+      .then(
+        (photo) => onPhotoCaptured?.({ path: `file://${photo.filePath}` }),
+        () => onCaptureFailed?.({ reason: 'camera' })
+      )
+  }, [captureRequested, onPhotoCaptured, onCaptureFailed, photoOutput])
 
   if (!hasPermission) {
     return (

@@ -11,7 +11,8 @@ public class ExpoPlantScannerModule: Module {
         "onSessionError",
         "onPointPlaced",
         "onMeasurement",
-        "onPhotoCaptured"
+        "onPhotoCaptured",
+        "onCaptureFailed"
       )
 
       Prop("isActive") { (view: ExpoPlantScannerView, isActive: Bool) in

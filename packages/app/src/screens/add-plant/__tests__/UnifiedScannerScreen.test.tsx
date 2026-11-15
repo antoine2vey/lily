@@ -9,7 +9,9 @@ jest.mock('expo-router', () => ({
 }))
 
 jest.mock('@/hooks/useDetectPlant', () => ({
-  useDetectPlant: () => ({ mutateAsync: jest.fn() }),
+  useDetectPlant: () => ({
+    mutateAsync: jest.fn().mockResolvedValue({ name: 'Monstera' }),
+  }),
 }))
 
 jest.mock('@/hooks/useCreatePlant', () => ({
@@ -63,6 +65,21 @@ describe('UnifiedScannerScreen', () => {
 
     fireEvent(nativeScanner(), 'frameAnalysis', frame(5))
     expect(nativeScanner().props.captureRequested).toBe(true)
+  })
+
+  it('lowers the capture request once the photo is captured', async () => {
+    render(<UnifiedScannerScreen />)
+
+    fireEvent(nativeScanner(), 'frameAnalysis', frame(5))
+    await act(async () => {
+      fireEvent(nativeScanner(), 'photoCaptured', {
+        nativeEvent: { path: 'file://capture.jpg' },
+      })
+    })
+    expect(nativeScanner().props.captureRequested).toBe(false)
+
+    fireEvent(nativeScanner(), 'frameAnalysis', frame(5))
+    expect(nativeScanner().props.captureRequested).toBe(false)
   })
 
   it('opens the gallery after the native capture fails', async () => {

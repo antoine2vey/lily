@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import {
   type ARMeasurementEvent,
   type ARMeasurePoint,
+  type CaptureFailedEvent,
   ExpoPlantScannerView,
   type FrameAnalysisEvent,
   type MeasureAxis,
@@ -110,15 +111,18 @@ export function UnifiedScannerScreen() {
     widthCm: number
     heightCm: number
   } | null>(null)
-  const [captureRequested, setCaptureRequested] = useState(false)
-  const isCapturingRef = useRef(false)
 
   // Hooks
   const { mutateAsync: detectPlant } = useDetectPlant()
   const { mutate: createPlant, isPending: isCreating } = useCreatePlant()
 
+  // Handlers read the phase before React re-renders, so the ref is the source
+  // and the state mirrors it for rendering.
   const scanPhaseRef = useRef<ScanPhase>('idle')
-  scanPhaseRef.current = scanPhase
+  const enterPhase = useCallback((phase: ScanPhase) => {
+    scanPhaseRef.current = phase
+    setScanPhase(phase)
+  }, [])
 
   const handleFrameAnalysis = useCallback(
     (event: FrameAnalysisEvent) => {
@@ -134,14 +138,12 @@ export function UnifiedScannerScreen() {
       if (
         scanPhaseRef.current === 'idle' &&
         event.detectionStreak >= AUTO_CAPTURE_STREAK &&
-        !isCapturingRef.current &&
         !measureMode
       ) {
-        isCapturingRef.current = true
-        setCaptureRequested(true)
+        enterPhase('capturing')
       }
     },
-    [measureMode, plantVisibleSV, streakSV]
+    [enterPhase, measureMode, plantVisibleSV, streakSV]
   )
 
   const handleARMeasurement = useCallback((event: ARMeasurementEvent) => {
@@ -163,22 +165,28 @@ export function UnifiedScannerScreen() {
 
   const handlePhotoCaptured = useCallback(
     async (event: PhotoCapturedEvent) => {
-      setCaptureRequested(false)
       setCapturedPhotoUri(event.path)
-      setScanPhase('uploading')
+      enterPhase('uploading')
 
       try {
         const aiResult = await detectPlant(event.path)
         setResult(aiResult)
-        setScanPhase('result')
+        enterPhase('result')
       } catch (error) {
         setCapturedPhotoUri(null)
-        setScanPhase('idle')
-        isCapturingRef.current = false
+        enterPhase('idle')
         handleDetectionError(error, t)
       }
     },
-    [detectPlant, t]
+    [detectPlant, enterPhase, t]
+  )
+
+  const handleCaptureFailed = useCallback(
+    (event: CaptureFailedEvent) => {
+      console.warn('[Scanner] capture failed:', event.reason)
+      enterPhase('idle')
+    },
+    [enterPhase]
   )
 
   const handleConfirmMeasure = useCallback(() => {
@@ -203,44 +211,36 @@ export function UnifiedScannerScreen() {
   }, [resetAR])
 
   const handleForceCapture = useCallback(() => {
-    if (
-      scanPhaseRef.current !== 'idle' ||
-      isCapturingRef.current ||
-      measureModeRef.current
-    )
-      return
-    isCapturingRef.current = true
-    setCaptureRequested(true)
-  }, [])
+    if (scanPhaseRef.current !== 'idle' || measureModeRef.current) return
+    enterPhase('capturing')
+  }, [enterPhase])
 
   const handleReanalyze = useCallback(async () => {
     if (!capturedPhotoUri) return
-    setScanPhase('analyzing')
+    enterPhase('analyzing')
     setResult(null)
     try {
       const aiResult = await detectPlant(capturedPhotoUri)
       setResult(aiResult)
-      setScanPhase('result')
+      enterPhase('result')
     } catch (error) {
-      setScanPhase('idle')
+      enterPhase('idle')
       setCapturedPhotoUri(null)
-      isCapturingRef.current = false
       handleDetectionError(error, t)
     }
-  }, [capturedPhotoUri, detectPlant, t])
+  }, [capturedPhotoUri, detectPlant, enterPhase, t])
 
   const handleDismissResult = useCallback(() => {
-    setScanPhase('idle')
+    enterPhase('idle')
     setResult(null)
     setCapturedPhotoUri(null)
     setDetection((prev) => ({ ...prev, streak: 0 }))
-    isCapturingRef.current = false
-  }, [])
+  }, [enterPhase])
 
   // MARK: - Shared Handlers
 
   const handlePickFromGallery = useCallback(async () => {
-    if (scanPhaseRef.current !== 'idle' || isCapturingRef.current) return
+    if (scanPhaseRef.current !== 'idle') return
 
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -249,8 +249,7 @@ export function UnifiedScannerScreen() {
 
     if (pickerResult.canceled || !pickerResult.assets[0]) return
 
-    isCapturingRef.current = true
-    setScanPhase('uploading')
+    enterPhase('uploading')
 
     try {
       const image = ImageManipulator.manipulate(pickerResult.assets[0].uri)
@@ -263,14 +262,13 @@ export function UnifiedScannerScreen() {
       setCapturedPhotoUri(jpeg.uri)
       const aiResult = await detectPlant(jpeg.uri)
       setResult(aiResult)
-      setScanPhase('result')
+      enterPhase('result')
     } catch (error) {
       setCapturedPhotoUri(null)
-      setScanPhase('idle')
-      isCapturingRef.current = false
+      enterPhase('idle')
       handleDetectionError(error, t)
     }
-  }, [detectPlant, t])
+  }, [detectPlant, enterPhase, t])
 
   const handleAddToCollection = useCallback(() => {
     if (!result?.name) return
@@ -414,9 +412,10 @@ export function UnifiedScannerScreen() {
             style={{ flex: 1 }}
             isActive
             measureMode={measureMode}
-            captureRequested={captureRequested}
+            captureRequested={scanPhase === 'capturing'}
             onFrameAnalysis={handleFrameAnalysis}
             onPhotoCaptured={handlePhotoCaptured}
+            onCaptureFailed={handleCaptureFailed}
             tapPoint={tapPoint}
             resetGeneration={resetGeneration}
             onMeasurement={handleARMeasurement}
@@ -430,9 +429,10 @@ export function UnifiedScannerScreen() {
           <AndroidScannerCamera
             style={{ flex: 1 }}
             isActive
-            captureRequested={captureRequested}
+            captureRequested={scanPhase === 'capturing'}
             onFrameAnalysis={handleFrameAnalysis}
             onPhotoCaptured={handlePhotoCaptured}
+            onCaptureFailed={handleCaptureFailed}
           />
         )}
 
