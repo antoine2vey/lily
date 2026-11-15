@@ -12,7 +12,8 @@ src/lib/sitemap.ts ──────────┤
                 vite build (TanStack Start prerender)
                              │
                              ├─▶ dist/client/<locale>/... .html, sitemap.xml, robots.txt
-                             └─▶ scripts/seo-check.ts lint over every page
+                             ├─▶ scripts/seo-check.ts lint over every page
+                             └─▶ scripts/blog-check.ts blog gate, writes dist/redirects.map
                              ▼
                 nginx (Dockerfile + nginx.conf)
 ```
@@ -21,7 +22,7 @@ src/lib/sitemap.ts ──────────┤
 - The client hydrates for navigation, the hero animations, blog search and the theme toggle.
 - Blog posts are compiled from markdown at build time by `vite/posts.ts`. Each post is its own chunk, so client navigation fetches only the post it opens.
 - Search uses [Fuse.js](https://fusejs.io) over the post index, loaded on first keystroke.
-- The package makes no API calls and imports no other workspace package.
+- The package imports no other workspace package. Its one API call is the invite preview on the `/join/<token>` page, in `src/lib/canopy-invite.ts`.
 
 ## Commands
 
@@ -29,7 +30,7 @@ Run these from the repository root.
 
 ```bash
 bun run --filter=@lily/web dev        # http://localhost:3001
-bun run --filter=@lily/web build      # prerender to dist/client, then SEO lint
+bun run --filter=@lily/web build      # prerender to dist/client, then SEO lint and blog gate
 bun run --filter=@lily/web preview    # serve dist/client with the production nginx config on :8088
 bun run --filter=@lily/web tsc
 bun run --filter=@lily/web lint
@@ -38,15 +39,17 @@ bun run --filter=@lily/web lint
 | Script | What it does |
 | --- | --- |
 | `dev` | Vite dev server |
-| `build` | `vite build`, then `scripts/seo-check.ts dist/client` |
+| `build` | `vite build`, then `scripts/seo-check.ts dist/client`, then `scripts/blog-check.ts --strict --map dist/redirects.map` |
 | `preview` | `scripts/serve-dist.sh`, nginx in Docker |
 | `seo-check` | SEO lint only. Add `--baseline <dir>` to diff against another build |
 | `tsc` | Typecheck, including en/fr catalog parity |
 | `lint` / `lint:fix` | Biome |
-| `optimize-images` | Resize and compress images in `public/` |
+| `optimize-images` | Resize the WebP files in `public/screenshots` to 576px wide |
 
 ## Related documentation
 
-- [`CLAUDE.md`](CLAUDE.md) has the SEO, i18n and layout rules for this package.
+- [`CLAUDE.md`](CLAUDE.md) has the SEO, i18n, blog, layout and performance rules for this package.
+- [`CONTEXT.md`](CONTEXT.md) defines the site's terms.
+- [`docs/seo/strategy.md`](../../docs/seo/strategy.md) is the SEO plan and keyword map for the blog.
 - [Root README](../../README.md) covers the monorepo.
 - [TanStack Start](https://tanstack.com/start) documents static prerendering.
