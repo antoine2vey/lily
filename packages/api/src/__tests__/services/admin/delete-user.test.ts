@@ -1,5 +1,6 @@
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
+import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -38,7 +39,8 @@ const mockAdminLayer = Layer.mergeAll(
   createMockMessageQueue(),
   createMockPlantRepository({ plants: [] }),
   MockSqlClientLive,
-  MockOutboxLive
+  MockOutboxLive,
+  NoStoredPhotosLive
 )
 
 describe('deleteUser', () => {

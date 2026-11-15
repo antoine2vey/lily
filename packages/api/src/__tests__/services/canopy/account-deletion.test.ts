@@ -1,5 +1,6 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { mockAdminUser } from '@lily/api/__tests__/fixtures/users'
+import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
 import type { MockCanopySurroundings } from '@lily/api/__tests__/mocks/canopy'
 import {
   createCanopyStore,
@@ -147,6 +148,7 @@ describe('account deletion', () => {
         Effect.provide(
           Layer.mergeAll(
             world.layer,
+            NoStoredPhotosLive,
             createMockUserRepository(users),
             Layer.succeed(AdminUser, {
               id: mockAdminUser.id,
@@ -217,6 +219,7 @@ describe('account deletion', () => {
               undefined,
               canopyFailingFor('alex')
             ).layer,
+            NoStoredPhotosLive,
             recordingUsers(users, writes, expired)
           )
         )

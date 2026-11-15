@@ -173,6 +173,7 @@ describe('streamChatMessage', () => {
     it.each([
       `1770000000000-chat/${testConversation.id}/1770000000000-chat.jpg`,
       `chat/${testConversation.id}/1770000000000-a1b2.jpg`,
+      `users/user-1/chat/${testConversation.id}/a1b2.jpg`,
     ])('accepts a key uploaded to this conversation: %s', async (key) => {
       expect(Exit.isSuccess(await streamWithKey(key))).toBe(true)
     })
@@ -181,6 +182,7 @@ describe('streamChatMessage', () => {
       '1770000000000-chat/another-conversation/1770000000000-chat.jpg',
       '1792786787517-scan-card-1792786787400.jpg',
       `../chat/${testConversation.id}/x.jpg`,
+      `users/someone-else/chat/${testConversation.id}/a1b2.jpg`,
     ])('refuses a key from elsewhere in the bucket: %s', async (key) => {
       const exit = await streamWithKey(key)
 

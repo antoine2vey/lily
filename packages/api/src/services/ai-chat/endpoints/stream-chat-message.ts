@@ -37,6 +37,7 @@ import type {
 } from '@lily/shared/errors/plant'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
+import { chatFolder } from '@lily/shared/services/file/stored-object'
 import type { UIMessage } from 'ai'
 import {
   Array,
@@ -144,8 +145,13 @@ const makeSseResponse = (
     HttpServerResponse.setHeaders(SSE_HEADERS)
   )
 
-// Upload keys are `chat/<conversationId>/...`, older ones with an epoch prefix
-const isKeyOfConversation = (key: string, conversationId: string) =>
+// Older upload keys are `<epoch>-chat/<conversationId>/...`
+const isKeyOfConversation = (
+  key: string,
+  userId: string,
+  conversationId: string
+) =>
+  key.startsWith(`${chatFolder(userId, conversationId)}/`) ||
   key.replace(/^\d+-/, '').startsWith(`chat/${conversationId}/`)
 
 /** How a chat turn ended once it got past the quota check. */
@@ -223,7 +229,7 @@ export const streamChatMessage = (
 
     if (
       request.imageKey !== undefined &&
-      !isKeyOfConversation(request.imageKey, conversation.id)
+      !isKeyOfConversation(request.imageKey, userId, conversation.id)
     ) {
       return yield* new ConversationNotFoundError({ id: conversation.id })
     }

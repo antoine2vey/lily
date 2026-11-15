@@ -37,6 +37,7 @@ import {
 } from '@lily/shared/errors/gift-code'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { PlantsListResponse } from '@lily/shared/plant'
+import { GCSDeleteError } from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
@@ -107,7 +108,12 @@ export const AdminApi = HttpApiGroup.make('admin')
     HttpApiEndpoint.delete('deleteUser', '/users/:id', {
       params: { id: userIdParam },
       success: AdminUser,
-      error: [UserNotFoundError, CannotModifySelfError, ForbiddenError],
+      error: [
+        UserNotFoundError,
+        CannotModifySelfError,
+        ForbiddenError,
+        GCSDeleteError.pipe(HttpApiSchema.status(500)),
+      ],
     })
   )
   .add(

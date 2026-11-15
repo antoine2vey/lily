@@ -10,6 +10,7 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { chatFolder } from '@lily/shared/services/file/stored-object'
 import { Array, Effect } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -50,7 +51,7 @@ export const uploadChatImage = ({
 
     const { key } = yield* gcs.uploadPrivateFile({
       fileBuffer: Buffer.from(buffer),
-      folder: `chat/${conversationId}`,
+      folder: chatFolder(user.id, conversationId),
     })
 
     const signedUrl = yield* gcs.getSignedUrl(key)

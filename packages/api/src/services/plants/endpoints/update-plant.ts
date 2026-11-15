@@ -22,6 +22,7 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { plantFolder } from '@lily/shared/services/file/stored-object'
 import { Effect, Option, pipe, Record } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -66,7 +67,7 @@ export const updatePlant = (
           const buffer = yield* fileSystem.readFile(image.path)
           const { url } = yield* gcs.uploadFile({
             fileBuffer: Buffer.from(buffer),
-            folder: `plants/${request.id}`,
+            folder: plantFolder(request.id),
           })
           return url
         })

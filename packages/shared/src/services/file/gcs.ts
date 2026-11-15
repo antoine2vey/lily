@@ -6,12 +6,27 @@ import {
   Duration,
   Effect,
   Layer,
+  Option,
+  pipe,
   Redacted,
   Schema,
+  String,
 } from 'effect'
 import { nowAsDate, nowAsEpochMillis } from '../../domains/common/date'
-import { GCSConfigError, GCSUploadError } from './gcs-errors'
+import {
+  GCSConfigError,
+  GCSDeleteError,
+  GCSPublishError,
+  GCSUploadError,
+  storageFailureMessage,
+} from './gcs-errors'
 import { type InvalidImageError, planImageUpload } from './image-upload'
+import {
+  locateStoredObject,
+  type ObjectScope,
+  type StoredObject,
+  scopePrefix,
+} from './stored-object'
 
 export const GCSCredentialsSchema = Schema.Struct({
   type: Schema.String,
@@ -113,6 +128,11 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
       plant: storage.bucket(yield* Config.String('GCS_PLANT_BUCKET')),
       ai: storage.bucket(yield* Config.String('GCS_AI_BUCKET')),
     }
+
+    const deleteFailed = (error: unknown) =>
+      new GCSDeleteError({
+        message: `Failed to delete from GCS: ${storageFailureMessage(error)}`,
+      })
 
     const save = (bucket: Bucket, request: GCSUploadRequest) =>
       Effect.gen(function* () {
@@ -233,6 +253,75 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
             uploadedAt: nowAsDate(),
           }
         }).pipe(Effect.withSpan('GCS.uploadPrivateFile')),
+
+      locate: locateStoredObject({
+        plant: buckets.plant.name,
+        ai: buckets.ai.name,
+      }),
+
+      /** Copies an ai-bucket object into the plant bucket, where it is public. */
+      publish: (
+        key: string,
+        folder: string
+      ): Effect.Effect<{ readonly url: string }, GCSPublishError> => {
+        const extension = pipe(
+          key,
+          String.lastIndexOf('.'),
+          Option.match({
+            onNone: () => '',
+            onSome: (dot) => String.slice(dot)(key),
+          })
+        )
+        const publicKey = `${folder}/${crypto.randomUUID()}${extension}`
+        return Effect.tryPromise({
+          try: () => buckets.ai.file(key).copy(buckets.plant.file(publicKey)),
+          catch: (error) =>
+            new GCSPublishError({
+              message: `Failed to publish ${key}: ${storageFailureMessage(error)}`,
+            }),
+        }).pipe(
+          Effect.as({
+            url: `https://storage.googleapis.com/${buckets.plant.name}/${publicKey}`,
+          }),
+          Effect.withSpan('GCS.publish')
+        )
+      },
+
+      /** Deletes everything a scope holds in both buckets. Safe to repeat. */
+      deleteScope: (scope: ObjectScope): Effect.Effect<void, GCSDeleteError> =>
+        Effect.forEach(
+          [buckets.plant, buckets.ai],
+          (bucket) =>
+            Effect.tryPromise({
+              try: () =>
+                bucket.deleteFiles({ prefix: scopePrefix(scope), force: true }),
+              catch: deleteFailed,
+            }),
+          { discard: true }
+        ).pipe(
+          Effect.withSpan('GCS.deleteScope', {
+            attributes: { 'gcs.prefix': scopePrefix(scope) },
+          })
+        ),
+
+      /** Deletes the given objects. One that is already gone counts as deleted. */
+      deleteObjects: (
+        objects: readonly StoredObject[]
+      ): Effect.Effect<void, GCSDeleteError> =>
+        Effect.forEach(
+          objects,
+          ({ bucket, key }) =>
+            Effect.tryPromise({
+              try: () =>
+                buckets[bucket].file(key).delete({ ignoreNotFound: true }),
+              catch: deleteFailed,
+            }),
+          { concurrency: 10, discard: true }
+        ).pipe(
+          Effect.withSpan('GCS.deleteObjects', {
+            attributes: { 'gcs.objectCount': objects.length },
+          })
+        ),
     }
   }),
 }) {

@@ -19,6 +19,7 @@ import {
   sessionsWaitingForALock,
   waitsForALock,
 } from '@lily/api/__tests__/integration/lock-waits'
+import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -154,6 +155,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId, name: userId }),
               createMockEventBus(),
+              NoStoredPhotosLive,
               createMockLimitChecker(),
               createMockMessageQueue(),
               createMockWeatherProvider(),

@@ -9,6 +9,7 @@ import {
   reviveAsCurrentUser,
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
+import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -90,6 +91,7 @@ const appAs = (userId: string) =>
   Layer.mergeAll(
     createMockCurrentUser({ id: userId }),
     createMockEventBus(),
+    NoStoredPhotosLive,
     createMockLimitChecker(),
     createMockMessageQueue(),
     createMockRateLimiterService(),

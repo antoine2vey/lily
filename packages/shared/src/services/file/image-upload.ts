@@ -1,5 +1,4 @@
 import { Array, Effect, Option, Schema } from 'effect'
-import { nowAsEpochMillis } from '../../domains/common/date'
 import { MAX_FILE_SIZE_BYTES } from '../../domains/plant/constants'
 
 export class InvalidImageError extends Schema.TaggedError<InvalidImageError>()(
@@ -75,7 +74,7 @@ export const planImageUpload = (
       ),
     onSome: (type) =>
       Effect.succeed({
-        key: `${nowAsEpochMillis()}-${folder}/${crypto.randomUUID()}.${type.extension}`,
+        key: `${folder}/${crypto.randomUUID()}.${type.extension}`,
         contentType: type.contentType,
       }),
   })

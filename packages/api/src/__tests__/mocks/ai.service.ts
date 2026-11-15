@@ -81,6 +81,12 @@ export const createMockAiService = (
         description: 'A mock plant for testing',
         wateringTips: 'Water when top soil is dry.',
       }),
+    classifyAndIdentify: (_url: string, _locale?: string) =>
+      Effect.succeed({
+        name: 'Mock Plant',
+        confidence: 0.95,
+        detectedType: 'plant' as const,
+      }),
     chatStream: (
       _conversation: ChatConversation,
       messages: UIMessage[],

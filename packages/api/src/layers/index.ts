@@ -26,6 +26,7 @@ import { CanopyLive } from '@lily/api/contexts/canopy'
 import { CareLive, CareReadsLive } from '@lily/api/contexts/care'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AppOutboxLive } from '@lily/api/layers/outbox'
+import { AccountPhotoRepositoryLive } from '@lily/api/repositories/account-photo.repository'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { AnalyticsRepositoryLive } from '@lily/api/repositories/analytics.repository'
@@ -122,6 +123,7 @@ export { GCSService } from '@lily/shared/services/file/gcs'
 
 // Split into two groups to stay under Layer.mergeAll's 20-argument overload limit
 const RepositoriesGroup1 = Layer.mergeAll(
+  AccountPhotoRepositoryLive,
   AchievementRepositoryLive,
   BlogPostRepositoryLive,
   CareLogRepositoryLive,
