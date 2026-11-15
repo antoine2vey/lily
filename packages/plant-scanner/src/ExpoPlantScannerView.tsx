@@ -5,6 +5,7 @@ import type {
   ARMeasurementEvent,
   ARMeasurePoint,
   ARSessionErrorEvent,
+  CaptureFailedEvent,
   ExpoPlantScannerViewProps,
   FrameAnalysisEvent,
   NativeEvent,
@@ -22,6 +23,7 @@ export function ExpoPlantScannerView({
   onPointPlaced,
   onMeasurement,
   onPhotoCaptured,
+  onCaptureFailed,
   ...rest
 }: ExpoPlantScannerViewProps) {
   const handleFrameAnalysis = useCallback(
@@ -54,6 +56,11 @@ export function ExpoPlantScannerView({
     [onPhotoCaptured]
   )
 
+  const handleCaptureFailed = useCallback(
+    (e: NativeEvent<CaptureFailedEvent>) => onCaptureFailed?.(e.nativeEvent),
+    [onCaptureFailed]
+  )
+
   return (
     <NativeView
       {...rest}
@@ -63,6 +70,7 @@ export function ExpoPlantScannerView({
       onPointPlaced={handlePointPlaced}
       onMeasurement={handleMeasurement}
       onPhotoCaptured={handlePhotoCaptured}
+      onCaptureFailed={handleCaptureFailed}
     />
   )
 }

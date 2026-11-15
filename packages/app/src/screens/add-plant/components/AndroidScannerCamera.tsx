@@ -1,4 +1,5 @@
 import type {
+  CaptureFailedEvent,
   FrameAnalysisEvent,
   PhotoCapturedEvent,
 } from '@lily/plant-scanner'
@@ -24,9 +25,10 @@ import { useIconColors } from '@/hooks/useIconColors'
 
 interface Props {
   isActive: boolean
-  captureRequested?: boolean
+  captureGeneration?: number
   onFrameAnalysis?: (event: FrameAnalysisEvent) => void
   onPhotoCaptured?: (event: PhotoCapturedEvent) => void
+  onCaptureFailed?: (event: CaptureFailedEvent) => void
   style?: StyleProp<ViewStyle>
 }
 
@@ -65,9 +67,10 @@ const averageLuma = (frame: Frame): number => {
 
 export function AndroidScannerCamera({
   isActive,
-  captureRequested,
+  captureGeneration = 0,
   onFrameAnalysis,
   onPhotoCaptured,
+  onCaptureFailed,
   style,
 }: Props) {
   const { t } = useTranslation('addPlant')
@@ -138,20 +141,27 @@ export function AndroidScannerCamera({
     if (!hasPermission) requestPermission()
   }, [hasPermission, requestPermission])
 
-  // Photo capture: edge-triggered on captureRequested flipping true.
+  // Photo capture: one per increase of captureGeneration, like the iOS view.
+  const lastCaptureGenerationRef = useRef(0)
   const isCapturingRef = useRef(false)
   useEffect(() => {
-    if (!captureRequested || isCapturingRef.current) return
+    if (captureGeneration <= lastCaptureGenerationRef.current) return
+    lastCaptureGenerationRef.current = captureGeneration
+    if (isCapturingRef.current) {
+      onCaptureFailed?.({ reason: 'busy' })
+      return
+    }
     isCapturingRef.current = true
     photoOutput
       .capturePhotoToFile({ flashMode: 'off' }, {})
-      .then((photo) => {
-        onPhotoCaptured?.({ path: `file://${photo.filePath}` })
-      })
       .finally(() => {
         isCapturingRef.current = false
       })
-  }, [captureRequested, onPhotoCaptured, photoOutput])
+      .then(
+        (photo) => onPhotoCaptured?.({ path: `file://${photo.filePath}` }),
+        () => onCaptureFailed?.({ reason: 'camera' })
+      )
+  }, [captureGeneration, onPhotoCaptured, onCaptureFailed, photoOutput])
 
   if (!hasPermission) {
     return (

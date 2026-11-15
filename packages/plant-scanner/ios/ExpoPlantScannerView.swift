@@ -11,6 +11,7 @@ public class ExpoPlantScannerView: ExpoView, ARSessionDelegate, ARSCNViewDelegat
   let onPointPlaced = EventDispatcher()
   let onMeasurement = EventDispatcher()
   let onPhotoCaptured = EventDispatcher()
+  let onCaptureFailed = EventDispatcher()
 
   // MARK: - Subviews
 
@@ -33,6 +34,7 @@ public class ExpoPlantScannerView: ExpoView, ARSessionDelegate, ARSCNViewDelegat
   private var isCapturingPhoto = false
   var lastTapId: Double = -1
   var lastResetGeneration: Int = 0
+  var lastCaptureGeneration: Int = 0
   private var isLiveUpdatePending = false
 
   private let analysisQueue = DispatchQueue(label: "com.lily.plant-scanner.analysis")
@@ -144,43 +146,60 @@ public class ExpoPlantScannerView: ExpoView, ARSessionDelegate, ARSCNViewDelegat
 
   // MARK: - Photo Capture
 
+  private enum CaptureFailure: String, Error {
+    case busy, noFrame, imageConversion, jpegEncoding, fileWrite
+  }
+
+  // Each call ends in exactly one event: onPhotoCaptured or onCaptureFailed.
   func capturePhoto() {
-    guard !isCapturingPhoto,
-          let frame = arSCNView.session.currentFrame else { return }
+    guard !isCapturingPhoto else {
+      onCaptureFailed(["reason": CaptureFailure.busy.rawValue])
+      return
+    }
+    guard let pixelBuffer = arSCNView.session.currentFrame?.capturedImage else {
+      onCaptureFailed(["reason": CaptureFailure.noFrame.rawValue])
+      return
+    }
 
     isCapturingPhoto = true
 
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-      let pixelBuffer = frame.capturedImage
-      let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-      let context = CIContext()
+      let result = Self.writeJPEG(from: pixelBuffer)
 
-      guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
-        DispatchQueue.main.async { self?.isCapturingPhoto = false }
-        return
-      }
-
-      // ARKit capturedImage is always sensor-native landscape; container VC
-      // locks display to portrait, so .right bakes the 90° rotation into JPEG.
-      let uiImage = UIImage(cgImage: cgImage, scale: 1, orientation: .right)
-      guard let jpegData = uiImage.jpegData(compressionQuality: 0.8) else {
-        DispatchQueue.main.async { self?.isCapturingPhoto = false }
-        return
-      }
-
-      let tempDir = NSTemporaryDirectory()
-      let fileName = "plant-capture-\(UUID().uuidString).jpg"
-      let filePath = (tempDir as NSString).appendingPathComponent(fileName)
-
-      do {
-        try jpegData.write(to: URL(fileURLWithPath: filePath))
-        DispatchQueue.main.async {
-          self?.onPhotoCaptured(["path": "file://\(filePath)"])
-          self?.isCapturingPhoto = false
+      DispatchQueue.main.async {
+        guard let self = self else { return }
+        self.isCapturingPhoto = false
+        switch result {
+        case .success(let path):
+          self.onPhotoCaptured(["path": path])
+        case .failure(let failure):
+          self.onCaptureFailed(["reason": failure.rawValue])
         }
-      } catch {
-        DispatchQueue.main.async { self?.isCapturingPhoto = false }
       }
+    }
+  }
+
+  private static func writeJPEG(from pixelBuffer: CVPixelBuffer) -> Result<String, CaptureFailure> {
+    let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+    guard let cgImage = CIContext().createCGImage(ciImage, from: ciImage.extent) else {
+      return .failure(.imageConversion)
+    }
+
+    // ARKit capturedImage is always sensor-native landscape; container VC
+    // locks display to portrait, so .right bakes the 90° rotation into JPEG.
+    let uiImage = UIImage(cgImage: cgImage, scale: 1, orientation: .right)
+    guard let jpegData = uiImage.jpegData(compressionQuality: 0.8) else {
+      return .failure(.jpegEncoding)
+    }
+
+    let fileName = "plant-capture-\(UUID().uuidString).jpg"
+    let filePath = (NSTemporaryDirectory() as NSString).appendingPathComponent(fileName)
+
+    do {
+      try jpegData.write(to: URL(fileURLWithPath: filePath))
+      return .success("file://\(filePath)")
+    } catch {
+      return .failure(.fileWrite)
     }
   }
 

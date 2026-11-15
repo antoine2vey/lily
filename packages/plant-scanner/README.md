@@ -21,13 +21,14 @@ import { ExpoPlantScannerView } from '@lily/plant-scanner'
 <ExpoPlantScannerView
   isActive                            // runs or pauses the AR session
   measureMode={measureMode}           // turns tap to measure on
-  captureRequested={captureRequested} // true takes one photo; set it back to false in onPhotoCaptured
+  captureGeneration={captureGeneration} // increment it to take one photo
   resetGeneration={resetGeneration}   // increment it to clear the measurement
   tapPoint={tapPoint}                 // { x, y, id }; each new id places a point at the view centre
   onFrameAnalysis={(e) => {}}         // detection, streak, lux and luxLevel, every 0.3 seconds
   onPointPlaced={(e) => {}}           // a measure point with its axis and index
   onMeasurement={(e) => {}}           // { distanceCm, axis } once an axis has two points
   onPhotoCaptured={(e) => {}}         // { path }, a file:// URL to the JPEG
+  onCaptureFailed={(e) => {}}         // { reason }, the request took no photo
   onSessionReady={() => {}}
   onSessionError={(e) => {}}          // { message }
 />

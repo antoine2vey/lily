@@ -29,7 +29,7 @@ A term listed under **Avoid** is a synonym that means something else in this cod
 
 | Term | Meaning | Avoid |
 | --- | --- | --- |
-| **Capture request** | The `captureRequested` prop. Each change to `true` takes one JPEG of the current AR frame and reports its path in `onPhotoCaptured`. | |
+| **Capture request** | One increase of the `captureGeneration` counter. It takes one JPEG of the current AR frame and ends in one event: `onPhotoCaptured` with the path, or `onCaptureFailed` with the reason no photo was taken. | |
 
 ## Relationships
 

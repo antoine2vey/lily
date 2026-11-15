@@ -11,7 +11,8 @@ public class ExpoPlantScannerModule: Module {
         "onSessionError",
         "onPointPlaced",
         "onMeasurement",
-        "onPhotoCaptured"
+        "onPhotoCaptured",
+        "onCaptureFailed"
       )
 
       Prop("isActive") { (view: ExpoPlantScannerView, isActive: Bool) in
@@ -22,9 +23,10 @@ public class ExpoPlantScannerModule: Module {
         view.setMeasureMode(measureMode)
       }
 
-      // Trigger photo capture by setting this prop to true
-      Prop("captureRequested") { (view: ExpoPlantScannerView, requested: Bool) in
-        if requested {
+      // Capture a photo when generation counter increments
+      Prop("captureGeneration") { (view: ExpoPlantScannerView, generation: Int) in
+        if generation > view.lastCaptureGeneration {
+          view.lastCaptureGeneration = generation
           view.capturePhoto()
         }
       }
