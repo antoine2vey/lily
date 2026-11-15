@@ -5,16 +5,16 @@ import {
   Scripts,
   useParams,
 } from '@tanstack/react-router'
+import { Option } from 'effect'
 import { type ReactNode, useEffect } from 'react'
-import { isLocale } from '@/i18n'
+import { ConsentBanner, ConsentSettings } from '@/components/site/ConsentBanner'
+import { defaultLocale, isLocale } from '@/i18n'
+import { setAnalytics } from '@/lib/analytics'
+import { onChoice } from '@/lib/consent'
 import { useSmoothAnchors } from '@/lib/smooth-anchors'
 import css from '../styles.css?url'
 
-const GA_ID = import.meta.env.VITE_GA_ID ?? 'G-YX8RMN49KD'
-
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}})()`
-
-const GA_SCRIPT = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${GA_ID}')`
 
 export const Route = createRootRoute({
   head: () => ({
@@ -49,38 +49,23 @@ export const Route = createRootRoute({
   component: RootDocument,
 })
 
-// Effects run after hydration commits, so analytics never competes with it for the main thread.
-const useIdleAnalytics = () =>
-  useEffect(() => {
-    const inject = () => {
-      const s = document.createElement('script')
-      s.async = true
-      s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`
-      document.head.appendChild(s)
-    }
-    const idle = 'requestIdleCallback' in window
-    let id = 0
-    const schedule = () => {
-      id = idle
-        ? requestIdleCallback(inject, { timeout: 5000 })
-        : window.setTimeout(inject, 3000)
-    }
-    if (document.readyState === 'complete') schedule()
-    else addEventListener('load', schedule, { once: true })
-    return () => {
-      removeEventListener('load', schedule)
-      if (idle) cancelIdleCallback(id)
-      else clearTimeout(id)
-    }
-  }, [])
+const useAnalytics = () =>
+  useEffect(
+    () =>
+      onChoice((choice) => setAnalytics(Option.contains(choice, 'granted'))),
+    []
+  )
 
 function RootDocument() {
-  const { locale = 'en' } = useParams({ strict: false })
-  useIdleAnalytics()
+  const { locale } = useParams({ strict: false })
+  const known = Option.filter(Option.fromNullishOr(locale), isLocale)
+  useAnalytics()
   useSmoothAnchors()
   return (
-    <Html lang={isLocale(locale) ? locale : 'en'}>
+    <Html lang={Option.getOrElse(known, () => defaultLocale)}>
+      <ConsentBanner locale={known} />
       <Outlet />
+      {Option.isNone(known) && <ConsentSettings />}
     </Html>
   )
 }
@@ -95,8 +80,6 @@ function Html({ lang, children }: { lang: string; children: ReactNode }) {
       </head>
       <body>
         {children}
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static analytics queue; the tag itself loads at idle after the window load event */}
-        <script dangerouslySetInnerHTML={{ __html: GA_SCRIPT }} />
         <Scripts />
       </body>
     </html>

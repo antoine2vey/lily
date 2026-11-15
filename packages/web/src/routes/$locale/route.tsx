@@ -60,14 +60,6 @@ export const Route = createFileRoute('/$locale')({
       jsonLd(organization(locale)),
       jsonLd(webSite),
     ],
-    links: [
-      { rel: 'dns-prefetch', href: 'https://www.googletagmanager.com' },
-      {
-        rel: 'preconnect',
-        href: 'https://www.googletagmanager.com',
-        crossOrigin: 'anonymous',
-      },
-    ],
   }),
   component: LocaleLayout,
 })

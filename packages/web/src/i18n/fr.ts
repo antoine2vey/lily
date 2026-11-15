@@ -800,6 +800,14 @@ export const fr = {
     googlePlay: 'Google Play',
     copyright: '© 2026 Lily. Fait pour les plantes et ceux qui les oublient.',
   },
+  Consent: {
+    label: 'Consentement aux cookies',
+    body: 'Pouvons-nous utiliser Google Analytics pour compter les visites ? Il dépose des cookies, donc nous ne le chargeons que si vous acceptez. Vous pouvez changer d’avis à tout moment avec « Gestion des cookies » en bas de page.',
+    policy: 'Politique de confidentialité',
+    accept: 'Accepter',
+    refuse: 'Refuser',
+    settings: 'Gestion des cookies',
+  },
   BlogIndex: {
     back: '← Retour à Lily',
     heading: 'Blog Soins des Plantes',
@@ -1052,8 +1060,8 @@ export const fr = {
           'Notre site web (withlily.app) utilise les technologies de suivi suivantes :',
           {
             list: [
-              "Google Analytics : Collecte les pages vues, la durée des sessions, les sources de référence, et le type d'appareil et de navigateur. Google Analytics dépose des cookies propriétaires qui expirent au bout de 2 ans. Vous pouvez les bloquer dans les réglages de votre navigateur ou avec le module complémentaire de désactivation de Google Analytics",
-              "Stockage local : Si vous choisissez un thème clair ou sombre, le site enregistre ce choix dans votre navigateur. Ce stockage ne requiert pas de consentement. La langue vient de l'adresse de la page, pas d'un cookie",
+              "Google Analytics : Collecte les pages vues, la durée des sessions, les sources de référence, et le type d'appareil et de navigateur. Google Analytics dépose des cookies propriétaires qui expirent au bout de 2 ans. Le site ne le charge qu'après votre accord, et vous pouvez changer d'avis à tout moment avec « Gestion des cookies » en pied de page. Le site enregistre ce choix dans votre navigateur, ce qui ne requiert pas de consentement. Vous pouvez aussi bloquer ces cookies dans les réglages de votre navigateur ou avec le module complémentaire de désactivation de Google Analytics",
+              "Stockage local : Si vous choisissez un thème clair ou sombre, le site enregistre ce choix dans votre navigateur. Ce stockage ne requiert pas de consentement. La langue vient de l'adresse de la page, pas d'un cookie",
             ],
           },
           "L'application mobile Lily n'utilise pas de cookies et ne contient aucun SDK d'analytique ou de publicité. Elle envoie les rapports de plantage à Sentry, comme le décrit la section 5. Nos serveurs conservent des totaux d'utilisation quotidiens sur l'ensemble des utilisateurs, sans identifiant utilisateur.",

@@ -783,6 +783,14 @@ export const en = {
     googlePlay: 'Google Play',
     copyright: '© 2026 Lily. Made for plants and the people who forget them.',
   },
+  Consent: {
+    label: 'Cookie consent',
+    body: 'May we use Google Analytics to count visits? It sets cookies, so we load it only if you accept. You can change your choice at any time with “Cookie settings” at the bottom of the page.',
+    policy: 'Privacy policy',
+    accept: 'Accept',
+    refuse: 'Refuse',
+    settings: 'Cookie settings',
+  },
   BlogIndex: {
     back: '← Back to Lily',
     heading: 'Plant Care Blog',
@@ -1035,7 +1043,7 @@ export const en = {
           'Our website (withlily.app) uses the following tracking technologies:',
           {
             list: [
-              'Google Analytics: Collects page views, session length, referral sources, and the type of device and browser. It sets first-party cookies that expire after 2 years. You can block them in your browser settings or with the Google Analytics opt-out browser add-on',
+              'Google Analytics: Collects page views, session length, referral sources, and the type of device and browser. It sets first-party cookies that expire after 2 years. The website loads it only after you accept, and you can change your choice at any time with “Cookie settings” in the footer. The website stores that choice in your browser, which needs no consent. You can also block the cookies in your browser settings or with the Google Analytics opt-out browser add-on',
               'Local storage: If you pick a light or dark theme, the website stores that choice in your browser. It needs no consent. The language comes from the page address, not from a cookie',
             ],
           },

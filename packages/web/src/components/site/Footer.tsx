@@ -1,5 +1,6 @@
 import { Link, useLocation } from '@tanstack/react-router'
 import { locales, useI18n } from '@/i18n'
+import { askAgain } from '@/lib/consent'
 import { swapLocale } from './Header'
 
 export function Footer() {
@@ -52,6 +53,9 @@ export function Footer() {
             <Link to="/$locale/terms" params={{ locale }}>
               {m.Footer.terms}
             </Link>
+            <button type="button" onClick={askAgain}>
+              {m.Consent.settings}
+            </button>
           </nav>
         </div>
         <div className="m-foot-bot">

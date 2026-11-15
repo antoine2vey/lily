@@ -9,6 +9,8 @@ import { Array, Option, Order } from 'effect'
 
 const JS_BUDGET = 250 * 1024
 const CSS_BUDGET = 32 * 1024
+// The sampled pages load 13 to 16 scripts. When the bundler regroups the chunks, every page loads 18 or more and its LCP grows.
+const JS_FILES_BUDGET = 17
 const [dist = 'packages/web/dist/client'] = process.argv.slice(2)
 
 const post = existsSync(join(dist, 'en/blog'))
@@ -46,13 +48,13 @@ const kb = (b: number) => `${(b / 1024).toFixed(1)} KB`
 
 let failed = false
 console.log(
-  `${'Page'.padEnd(50)} ${'JS gz'.padEnd(10)} ${'CSS gz'.padEnd(10)} Status`
+  `${'Page'.padEnd(50)} ${'JS gz'.padEnd(10)} ${'CSS gz'.padEnd(10)} ${'JS files'.padEnd(9)} Status`
 )
 for (const page of PAGES) {
   const file = join(dist, page)
   if (!existsSync(file)) {
     console.log(
-      `${page.padEnd(50)} ${'—'.padEnd(10)} ${'—'.padEnd(10)} FAIL (not built)`
+      `${page.padEnd(50)} ${'—'.padEnd(10)} ${'—'.padEnd(10)} ${'—'.padEnd(9)} FAIL (not built)`
     )
     failed = true
     continue
@@ -62,13 +64,14 @@ for (const page of PAGES) {
     Array.reduce(assets(html, ext), 0, (sum, c) => sum + gz(join(dist, c)))
   const js = size('js')
   const css = size('css')
-  const ok = js <= JS_BUDGET && css <= CSS_BUDGET
+  const files = assets(html, 'js').length
+  const ok = js <= JS_BUDGET && css <= CSS_BUDGET && files <= JS_FILES_BUDGET
   if (!ok) failed = true
   console.log(
-    `${page.padEnd(50)} ${kb(js).padEnd(10)} ${kb(css).padEnd(10)} ${ok ? 'OK' : 'FAIL'}`
+    `${page.padEnd(50)} ${kb(js).padEnd(10)} ${kb(css).padEnd(10)} ${String(files).padEnd(9)} ${ok ? 'OK' : 'FAIL'}`
   )
 }
 console.log(
-  `Budgets per page: JS ${kb(JS_BUDGET)}, CSS ${kb(CSS_BUDGET)} gzipped.`
+  `Budgets per page: JS ${kb(JS_BUDGET)}, CSS ${kb(CSS_BUDGET)} gzipped, ${JS_FILES_BUDGET} JS files.`
 )
 if (failed) process.exit(1)
