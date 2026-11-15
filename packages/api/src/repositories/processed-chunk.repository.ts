@@ -28,6 +28,7 @@ export interface SearchChunksParams {
   embedding: number[]
   queryText: string
   limit?: number | undefined
+  /** Filters the vector candidates only. A full-text match below it still returns. */
   minSimilarity?: number | undefined
 }
 
@@ -122,7 +123,6 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
         const vectorStr = `'[${params.embedding.join(',')}]'`
 
         const distanceThresholdRaw = sql.raw(String(distanceThreshold))
-        const similarityThresholdRaw = sql.raw(String(threshold))
         const candidateLimitRaw = sql.raw(String(candidateLimit))
         const limitRaw = sql.raw(String(limit))
 
@@ -152,8 +152,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               fused AS (
                 SELECT
                   COALESCE(v.id, f.id) AS id,
-                  COALESCE(1.0 / (60.0 + v.vrank), 0) + COALESCE(1.0 / (60.0 + f.frank), 0) AS rrf_score,
-                  v.vdist
+                  COALESCE(1.0 / (60.0 + v.vrank), 0) + COALESCE(1.0 / (60.0 + f.frank), 0) AS rrf_score
                 FROM vector_candidates v
                 FULL OUTER JOIN fts_candidates f ON v.id = f.id
               ),
@@ -167,7 +166,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
                   pc.category,
                   pc.metadata,
                   fused.rrf_score,
-                  COALESCE(1.0 - fused.vdist, 0.0) AS vector_similarity,
+                  1.0 - (pc.embedding <=> ${sql.raw(vectorStr)}::halfvec) AS vector_similarity,
                   COALESCE(pc.parent_chunk_id, pc.id) AS dedup_key
                 FROM fused
                 JOIN processed_chunks pc ON pc.id = fused.id AND pc.embedding IS NOT NULL
@@ -183,8 +182,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               SELECT id, content, source, source_url, plant_type, category, metadata,
                      vector_similarity AS similarity
               FROM deduped
-              WHERE vector_similarity >= ${similarityThresholdRaw}
-              ORDER BY rrf_score DESC LIMIT ${limitRaw}
+              ORDER BY rrf_score DESC, vector_similarity DESC LIMIT ${limitRaw}
             `)
 
         const rawRows = unwrapPgRows<SearchRow>(dbResult)
