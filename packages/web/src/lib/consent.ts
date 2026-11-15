@@ -1,4 +1,4 @@
-import { Option } from 'effect'
+import { DateTime, Option, pipe, String } from 'effect'
 import { useSyncExternalStore } from 'react'
 
 export type Choice = 'granted' | 'denied'
@@ -12,22 +12,25 @@ const KEY = 'analytics-consent'
 // The CNIL recommends asking again after about six months, for a refusal as for a consent.
 const MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
 
-const parseStored = (
-  raw: string | null,
-  now: number
-): Option.Option<Choice> => {
-  const [choice, at] = (raw ?? '').split(':')
-  const age = now - Number(at)
-  return (choice === 'granted' || choice === 'denied') &&
-    age >= 0 &&
-    age < MAX_AGE_MS
-    ? Option.some(choice)
-    : Option.none()
-}
+const isChoice = (s: string): s is Choice => s === 'granted' || s === 'denied'
+
+const now = () => DateTime.toEpochMillis(DateTime.nowUnsafe())
+
+const parseStored = (raw: string | null): Option.Option<Choice> =>
+  pipe(
+    Option.fromNullishOr(raw),
+    Option.map(String.split(':')),
+    Option.filter(([, at]) => {
+      const age = now() - Number(at)
+      return age >= 0 && age < MAX_AGE_MS
+    }),
+    Option.map(([choice]) => choice),
+    Option.filter(isChoice)
+  )
 
 const stored = (): Option.Option<Choice> => {
   try {
-    return parseStored(localStorage.getItem(KEY), Date.now())
+    return parseStored(localStorage.getItem(KEY))
   } catch {
     return Option.none()
   }
@@ -53,7 +56,7 @@ const set = (next: Consent) => {
 
 export const decide = (choice: Choice) => {
   try {
-    localStorage.setItem(KEY, `${choice}:${Date.now()}`)
+    localStorage.setItem(KEY, `${choice}:${now()}`)
   } catch {
     // Storage is blocked: the choice holds for this page and the next page asks again.
   }
@@ -67,6 +70,15 @@ const subscribe = (listener: () => void) => {
   return () => {
     listeners.delete(listener)
   }
+}
+
+// React hydrates with the prerendered state, so anything that must act on the stored choice from the first moment subscribes here.
+export const onChoice = (
+  listener: (choice: Option.Option<Choice>) => void
+): (() => void) => {
+  const notify = () => listener(snapshot().choice)
+  notify()
+  return subscribe(notify)
 }
 
 export const useConsent = (): Consent =>

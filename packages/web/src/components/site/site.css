@@ -337,6 +337,13 @@
   }
 }
 
+/* The banner covers the bottom of the viewport. This space lets every focused element scroll clear of it. */
+html {
+  scroll-padding-bottom: var(--consent-space, 0px);
+}
+body {
+  padding-bottom: var(--consent-space, 0px);
+}
 .m-consent {
   position: fixed;
   z-index: 60;

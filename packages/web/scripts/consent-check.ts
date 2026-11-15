@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Array } from 'effect'
+import { Array, Option } from 'effect'
 import { en } from '../src/i18n/en'
 
 // usage: bun scripts/consent-check.ts [base=http://127.0.0.1:8088]
@@ -100,15 +100,17 @@ const googleRequests = () =>
   Array.filter(requests, (url) => GOOGLE.test(new URL(url).hostname))
 const gaCookies = async () =>
   Array.filter(
-    Array.map(
-      (
-        await send<{ cookies: Array<{ name: string }> }>(
-          'Network.getAllCookies'
-        )
-      ).cookies,
-      (c) => c.name
-    ),
-    (name) => name.startsWith('_ga')
+    (
+      await send<{ cookies: Array<{ name: string; value: string }> }>(
+        'Network.getAllCookies'
+      )
+    ).cookies,
+    (c) => c.name.startsWith('_ga')
+  )
+const clientId = async () =>
+  Array.findFirst(await gaCookies(), (c) => c.name === '_ga').pipe(
+    Option.map((c) => c.value),
+    Option.getOrElse(() => '(no _ga cookie)')
   )
 
 const BANNER = `document.querySelector('.m-consent') !== null`
@@ -139,7 +141,7 @@ const step = async (
   const seen = {
     banner: await evaluate<boolean>(BANNER),
     google: googleRequests(),
-    cookies: await gaCookies(),
+    cookies: Array.map(await gaCookies(), (c) => c.name),
   }
   const ok =
     seen.banner === expected.banner &&
@@ -199,8 +201,14 @@ try {
   await clickButton(en.Consent.accept)
   await step('changed to Accept', { banner: false, ...LOADED })
 
+  const accepted = await clientId()
   await reload()
   await step('Accept, after a reload', { banner: false, ...LOADED })
+  const reloaded = await clientId()
+  if (reloaded !== accepted) failed = true
+  console.log(
+    `${reloaded === accepted ? 'ok  ' : 'FAIL'} Accept, the _ga client id survives the reload\n     before=${accepted}  after=${reloaded}`
+  )
 
   await hydrated()
   await clickButton(en.Consent.settings)
@@ -208,6 +216,13 @@ try {
   requests = []
   await clickButton(en.Consent.refuse)
   await step('changed back to Refuse', { banner: false, ...NONE })
+
+  requests = []
+  await evaluate(`gtag('event', 'consent_check')`)
+  await step('Refuse again, after a Google Analytics event on the same page', {
+    banner: false,
+    ...NONE,
+  })
 
   requests = []
   await evaluate(`document.querySelector('footer a[href="/en/blog"]').click()`)

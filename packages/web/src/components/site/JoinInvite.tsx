@@ -9,6 +9,7 @@ import {
   loading,
   tokenFromPath,
 } from '@/lib/canopy-invite'
+import { askAgain } from '@/lib/consent'
 import { APP_STORE_URL, PLAY_STORE_LIVE, PLAY_STORE_URL } from '@/lib/site'
 import { AppleIcon, GooglePlayIcon, LilyMark } from './icons'
 
@@ -43,13 +44,20 @@ export function JoinInvite() {
   }, [])
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-16">
+    <main className="flex min-h-screen flex-col items-center justify-center px-6 py-16">
       <div className="w-full max-w-md rounded-3xl bg-surface p-8 text-center shadow-[0_20px_60px_-20px_rgb(0_0_0/0.18)] ring-1 ring-line sm:p-10">
         <a href="/" className="mb-8 inline-flex" aria-label="Lily">
           <LilyMark size={56} />
         </a>
         <InviteCard view={view} token={token} t={messagesFor(locale).Join} />
       </div>
+      <button
+        type="button"
+        onClick={askAgain}
+        className="mt-6 cursor-pointer text-sm text-ink-2 underline underline-offset-2"
+      >
+        {messagesFor(locale).Consent.settings}
+      </button>
     </main>
   )
 }

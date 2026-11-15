@@ -8,9 +8,9 @@ import {
 import { Option } from 'effect'
 import { type ReactNode, useEffect } from 'react'
 import { ConsentBanner } from '@/components/site/ConsentBanner'
-import { isLocale } from '@/i18n'
-import { startAnalytics, stopAnalytics } from '@/lib/analytics'
-import { useConsent } from '@/lib/consent'
+import { defaultLocale, isLocale } from '@/i18n'
+import { setAnalytics } from '@/lib/analytics'
+import { onChoice } from '@/lib/consent'
 import { useSmoothAnchors } from '@/lib/smooth-anchors'
 import css from '../styles.css?url'
 
@@ -49,24 +49,22 @@ export const Route = createRootRoute({
   component: RootDocument,
 })
 
-const useAnalytics = () => {
-  const granted = Option.contains(useConsent().choice, 'granted')
-  useEffect(() => {
-    if (granted) return startAnalytics()
-    stopAnalytics()
-    return undefined
-  }, [granted])
-}
+const useAnalytics = () =>
+  useEffect(
+    () =>
+      onChoice((choice) => setAnalytics(Option.contains(choice, 'granted'))),
+    []
+  )
 
 function RootDocument() {
   const { locale } = useParams({ strict: false })
-  const known = locale !== undefined && isLocale(locale) ? locale : undefined
+  const known = Option.filter(Option.fromNullishOr(locale), isLocale)
   useAnalytics()
   useSmoothAnchors()
   return (
-    <Html lang={known ?? 'en'}>
-      <Outlet />
+    <Html lang={Option.getOrElse(known, () => defaultLocale)}>
       <ConsentBanner locale={known} />
+      <Outlet />
     </Html>
   )
 }
