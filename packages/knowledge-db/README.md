@@ -1,87 +1,56 @@
 # @lily/knowledge-db
 
-> The pgvector RAG knowledge base behind Lily's AI plant diagnosis — a Drizzle schema plus an Effect Postgres client layer, on its own PostgreSQL instance.
+The plant care knowledge base that grounds Lily's AI answers. It holds the Drizzle schema, the SQL migrations and the `KnowledgeDrizzle` layer for a separate Postgres database with pgvector.
 
-## Overview
+The api fills the database with ingest jobs and searches it when the assistant needs care knowledge. The package has no server of its own. It reuses the migrator, the Drizzle bridge and the pool config from [`@lily/db`](../db/README.md), and it shares no tables with the primary database.
 
-`@lily/knowledge-db` owns the vector knowledge base that grounds Lily's AI answers. It stores ingested plant-care content as raw documents, splits them into embedded chunks, and tracks the ingestion jobs that produce them. It runs as a **separate PostgreSQL database** (default `localhost:5434`, `KNOWLEDGE_DATABASE_URL`) with its own connection pool, exposed to the rest of the system through the `KnowledgeDrizzle` Effect tag. [`@lily/api`](../api)'s ai-chat service queries it with vector similarity search to retrieve relevant care knowledge per plant.
+## How it runs
 
-## Architecture
+- `src/schema/` declares three tables. `ingest_jobs` holds one row per ingestion run. `raw_documents` holds each fetched post or page. `processed_chunks` holds the pieces search reads, with their embeddings.
+- `src/index.ts` exports `KnowledgeDrizzleLive`, the layer the api provides. It connects to `KNOWLEDGE_DATABASE_URL`.
+- `drizzle/` holds the hand-written migrations. Production applies them on every deploy from `Dockerfile.prod`, through `scripts/migrate.ts`, right after the primary database's migrations.
 
-```
-ingest job (adapter: reddit / web / …)
-        │
-        ▼
-raw_documents ──split──▶ processed_chunks ──embed──▶ halfvec(3072)
-                              │                          │
-                       full-text (tsvector, GIN)   HNSW (cosine)
-                              └──────────┬───────────────┘
-                                  hybrid retrieval ─▶ @lily/api ai-chat (RAG)
-```
+## Ingestion
 
-The Effect layer (`KnowledgeDrizzleLive`) binds the Postgres pool to the layer's scope, so the connection lifecycle is managed by Effect rather than the request scope.
+An admin queues a job from the admin dashboard, or with `POST /api/v1/knowledge/jobs`. The body names an adapter and its config. `reddit` reads posts and comments from subreddits. `web` reads a list of URLs, such as one batch from [sources/houseplants.md](sources/houseplants.md).
 
-## Data Model
+A worker in the api polls every 30 seconds and claims pending jobs one at a time. For each document the adapter returns, it:
 
-| Table | Purpose |
-| --- | --- |
-| `ingest_jobs` | Stateful job per adapter run: `status` (pending/in_progress/completed/failed), counters, a `cursor` for resumable pagination, and `error`. |
-| `raw_documents` | Ingested source content (title, content, source URL/id, author, score, metadata). FK → `ingest_jobs` (cascade delete). |
-| `processed_chunks` | Embedded chunks: `content` (clean, for the LLM), `embedding_content` (keyword-enriched, for the embedder), `embedding halfvec(3072)`, `category`, `plant_type`/`plant_mentions`, and a self-referential `parent_chunk_id` for hierarchical chunking. |
+1. Skips the document when its source ID is already stored.
+2. Stores the document in `raw_documents`.
+3. Splits it into chunks of about 500 characters. A document with several chunks also gets a parent chunk with its full text. A Reddit thread becomes a parent with the question and its top answers, and one child per answer.
+4. Tags each child chunk with a category and the plants it mentions, and asks a model for search keywords.
+5. Embeds the children with OpenAI's `text-embedding-3-large` and stores them in `processed_chunks`.
 
-### Notable details
+## Search
 
-- **3,072-dim `halfvec` embeddings** indexed with **HNSW** (cosine, m=16, ef_construction=64) for fast semantic search.
-- **Hybrid search** — a generated `tsvector` (`search_vector`, GIN-indexed, English) complements vector similarity.
-- **Embedding vs. output text are separated** — `embedding_content` (enriched) is what gets vectorized; `content` (clean) is what the LLM reads, so formatting artifacts don't distort retrieval.
-- **Resumable ingestion** — `ingest_jobs.cursor` lets adapters resume after a failure; cascade deletes keep documents/chunks consistent with their job.
+A search embeds the question and ranks the embedded chunks two ways, by cosine distance to the embedding and by Postgres full-text match. Reciprocal rank fusion merges the two rankings. A result must still pass a minimum embedding similarity. Each thread or page appears once, and a chunk with a parent returns the parent's full text. The chat tool `searchPlantKnowledge`, the daily tip generator and the MCP server's knowledge query all read these results.
 
-## Project Structure
+The knowledge routes sit under `/api/v1/knowledge`. Admins use `/jobs`, `/stats` and `/search`. The MCP server calls `/query` with the signed-in user's token.
 
-```
-src/
-├── index.ts                 # KnowledgeDrizzle tag + KnowledgeDrizzleLive layer (pool lifecycle)
-└── schema/
-    ├── enums.ts             # Job status + content categories
-    ├── ingest-jobs.ts
-    ├── raw-documents.ts
-    └── processed-chunks.ts  # Vectors, FTS, parent/child relations
-drizzle/                     # SQL migrations (enums → tables → HNSW → parent chunks + FTS → embedding_content)
-scripts/migrate.ts           # Production migration runner (enables pgvector, applies SQL)
-```
+## Commands
 
-## Development Workflow
-
-```bash
-# From the repository root:
-# Apply the schema to your local knowledge DB (dev push):
-bun run --filter=@lily/knowledge-db db:push
-
-# Production migrations are applied with the dedicated runner:
-bun run --filter=@lily/knowledge-db db:migrate:prod
-```
-
-> Like the primary [`@lily/db`](../db), production schema changes are applied through SQL migrations rather than ad-hoc generation. Use `db:push` for local iteration and `scripts/migrate.ts` (`db:migrate:prod`) for deploys.
-
-## Quick Reference
+Run them from the monorepo root. A command that reaches the database reads `KNOWLEDGE_DATABASE_URL` from `packages/knowledge-db/.env`, which the [Quickstart](../../README.md#quickstart) links to the root `.env`.
 
 | Command | What it does |
-| --- | --- |
-| `db:push` | Push the schema to the local knowledge DB (dev) |
-| `db:migrate:prod` | Enable pgvector + apply SQL migrations (production runner) |
-| `db:studio` | Open Drizzle Studio |
-| `build` / `typecheck` | `tsc` / `tsc --noEmit` |
-| `lint` / `lint:fix` | Biome check / autofix |
+|---|---|
+| `bun run --filter=@lily/knowledge-db db:migrate:prod` | Creates the `vector` extension and applies `drizzle/` with the production migrator |
+| `bun run --filter=@lily/knowledge-db db:migrate` | Applies `drizzle/` with drizzle-kit |
+| `bun run --filter=@lily/knowledge-db db:studio` | Opens Drizzle Studio |
+| `bun run --filter=@lily/knowledge-db test` | Runs the migration journal test and the `halfvec` round trip |
+| `bun run --filter=@lily/knowledge-db tsc` | Typechecks the package |
 
-### Environment
+Keep each database on one of the two migration commands. [CLAUDE.md](CLAUDE.md) explains why, and why `db:push` and `db:generate` stay unused.
 
-```bash
-KNOWLEDGE_DATABASE_URL=postgresql://lily:lily123@localhost:5434/lily_knowledge
-```
+## Local setup
 
-## Related Documentation
+1. Start the database with `docker compose up -d knowledge-db`. It listens on port 5434.
+2. Link the root `.env` into `packages/knowledge-db`, as the [Quickstart](../../README.md#quickstart) does. `.env.example` has the local `KNOWLEDGE_DATABASE_URL`.
+3. Run `db:migrate:prod` on a fresh database. It creates the `vector` extension, which no migration creates.
 
-- [Root README](../../README.md) — monorepo overview
-- [`@lily/db`](../db/README.md) — the primary application database
-- [`docs/knowledge-pipeline-architecture.md`](../../docs/knowledge-pipeline-architecture.md) — the full ingest → chunk → embed → retrieve design
-- [pgvector](https://github.com/pgvector/pgvector) · [Drizzle ORM](https://orm.drizzle.team)
+## Related docs
+
+- [CLAUDE.md](CLAUDE.md) has the migration, vector and layer rules.
+- [CONTEXT.md](CONTEXT.md) defines jobs, documents and chunks.
+- [packages/db/README.md](../db/README.md) covers the primary database.
+- [pgvector](https://github.com/pgvector/pgvector) documents the `halfvec` type and its indexes.

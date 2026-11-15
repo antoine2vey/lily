@@ -1,12 +1,16 @@
-# Houseplant RAG Knowledge Base — Plant-Specific Sources
+# Houseplant care sources
 
-Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been verified as live and contains **detailed care data** (watering schedules, light requirements, soil, fertilization, propagation, common problems) for the specific plant.
+URLs for the `web` adapter, grouped into batches. Batches 1 to 12 each cover a plant family, with pages on the care of one plant. Batch 13 covers problems and techniques that apply across plants.
 
-> **How to use**: Feed these URLs to the web adapter grouped by batch. The ingestion pipeline will automatically chunk, categorize, extract plant mentions, enrich with keywords, and generate embeddings.
+Queue one `web` ingest job per batch, from the admin dashboard's new job page or with `POST /api/v1/knowledge/jobs`:
 
----
+```json
+{ "adapter": "web", "config": { "type": "web", "urls": ["https://..."] } }
+```
 
-## Batch 1 — Tropical Foliage (Popular)
+The worker skips a URL whose page is already stored, so a batch can run again. A URL that fails to fetch, or whose page has under 200 characters of text, is skipped and the job still completes. Compare a job's `documents_fetched` with its URL count to see how many pages it stored.
+
+## Batch 1. Popular tropical foliage
 
 ### Monstera Deliciosa (Swiss Cheese Plant)
 - https://www.thesill.com/blogs/plants-101/how-to-care-for-monstera-monstera-deliciosa
@@ -76,7 +80,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 2 — Ficus, Rubber & Fig Family
+## Batch 2. Ficus, rubber plant and fig family
 
 ### Fiddle Leaf Fig (Ficus lyrata)
 - https://bloomscape.com/plant-care-guide/fiddle-leaf-fig/
@@ -97,7 +101,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 3 — Low-Maintenance Favorites
+## Batch 3. Low-maintenance favorites
 
 ### Snake Plant (Sansevieria / Dracaena trifasciata)
 - https://bloomscape.com/plant-care-guide/sansevieria/
@@ -131,7 +135,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 4 — Prayer Plants & Marantaceae
+## Batch 4. Prayer plants and Marantaceae
 
 ### Calathea (multiple varieties)
 - https://bloomscape.com/plant-care-guide/calathea/
@@ -151,7 +155,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 5 — Ferns
+## Batch 5. Ferns
 
 ### Boston Fern (Nephrolepis exaltata)
 - https://www.gardeningknowhow.com/houseplants/boston-fern/boston-fern-care.htm
@@ -184,7 +188,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 6 — Succulents & Cacti
+## Batch 6. Succulents and cacti
 
 ### Aloe Vera
 - https://www.almanac.com/plant/aloe-vera
@@ -228,13 +232,13 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 - https://soltech.com/products/christmas-cactus-care
 - https://www.canr.msu.edu/news/how_to_care_for_and_reflower_your_christmas_cactus
 
-### Cactus (General Care)
+### Cactus (general care)
 - https://planetdesert.com/blogs/news/cactus-care-types-and-growing-guide
 - https://extension.umn.edu/houseplants/cacti-and-succulents
 - https://www.rhs.org.uk/plants/types/cacti-succulents/houseplants/growing-guide
 - https://succulentsbox.com/blogs/blog/cactus-101
 
-### Succulent (General Care)
+### Succulent (general care)
 - https://btarboretum.org/succulent-care-tips/
 - https://www.gardenia.net/guide/how-to-care-for-succulents-mistakes-to-avoid
 - https://www.gardenia.net/guide/indoor-succulent-plants-best-varieties-for-your-home
@@ -248,7 +252,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 7 — Flowering Houseplants
+## Batch 7. Flowering houseplants
 
 ### Peace Lily (Spathiphyllum)
 - https://www.almanac.com/plant/peace-lilies
@@ -305,7 +309,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 8 — Palms & Large Indoor Trees
+## Batch 8. Palms and large indoor trees
 
 ### Areca Palm (Dypsis lutescens)
 - https://bloomscape.com/plant-care-guide/areca-palm/
@@ -360,7 +364,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 9 — Vining, Trailing & Climbing Plants
+## Batch 9. Vining, trailing and climbing plants
 
 ### Hoya (Wax Plant)
 - https://bloomscape.com/plant-care-guide/hoya/
@@ -386,7 +390,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 10 — Peperomia, Schefflera & Other Foliage
+## Batch 10. Peperomia, Schefflera and other foliage
 
 ### Peperomia (multiple varieties)
 - https://bloomscape.com/plant-care-guide/peperomia/
@@ -429,7 +433,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 11 — Bromeliads, Air Plants & Specialty
+## Batch 11. Bromeliads, air plants and specialty plants
 
 ### Bromeliad
 - https://bloomscape.com/plant-care-guide/bromeliad/
@@ -450,7 +454,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 
 ---
 
-## Batch 12 — Indoor Herbs & Edibles
+## Batch 12. Indoor herbs and edibles
 
 ### Rosemary
 - https://www.almanac.com/plant/rosemary
@@ -467,16 +471,16 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 - https://www.gardeningknowhow.com/edible/fruits/lemon/growing-lemon-trees-in-containers.htm
 - https://www.gardenersworld.com/how-to/grow-plants/how-to-grow-citrus-plants/
 
-### Indoor Herbs (General)
+### Indoor herbs (general)
 - https://yardandgarden.extension.iastate.edu/how-to/growing-herbs-indoors
 - https://www.chicagobotanic.org/plant-information/tips/growing-herbs-your-windowsill
 - https://www.gardeners.com/how-to/herbs-indoors/8920.html
 
 ---
 
-## Batch 13 — Cross-Species Problem-Solving & Techniques
+## Batch 13. Problems and techniques across species
 
-### Pests & Diseases
+### Pests and diseases
 - https://ipm.ucanr.edu/PMG/PESTNOTES/pn74172.html
 - https://extension.psu.edu/preventing-diagnosing-and-correcting-common-houseplant-problems
 - https://extension.psu.edu/pest-and-disease-problems-of-indoor-plants
@@ -484,7 +488,7 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 - https://www.uaf.edu/ces/publications/database/insects-pests/houseplant-pests.php
 - https://extension.sdstate.edu/troubleshooting-common-problems-houseplant-how
 
-### Soil, Repotting & Fertilization
+### Soil, repotting and fertilization
 - https://extension.umd.edu/resource/potting-and-repotting-indoor-plants
 - https://extension.psu.edu/potting-media-and-plant-propagation
 - https://extension.psu.edu/repotting-houseplants
@@ -496,28 +500,21 @@ Species-centric URL list for the Lily RAG ingestion pipeline. Every URL has been
 - https://gardenerspath.com/plants/houseplants/propagate-stem-leaf-cuttings/
 - https://extension.psu.edu/potting-media-and-plant-propagation
 
-### Light Requirements
+### Light requirements
 - https://gardeningsolutions.ifas.ufl.edu/plants/houseplants/light-for-houseplants/
 - https://soltech.com/blogs/blog/understanding-light-levels-a-guide-to-full-sun-bright-indirect-medium-and-low-light-houseplants
 - https://www.gardeners.com/how-to/houseplant-lighting-guide/9385.html
 
-### Watering Guidance
+### Watering guidance
 - https://bloomscape.com/plant-care/telltale-signs-of-overwatered-plants-according-to-plant-mom/
 - https://costafarms.com/blogs/get-growing/fix-overwatering-and-root-rot-on-your-houseplants
 - https://wallygrow.com/blogs/feature/essential-watering-guide
 
 ---
 
-## Summary
+## Source domains
 
-| Metric | Count |
-|--------|-------|
-| **Unique plant species/types covered** | 70+ |
-| **Total URLs** | ~230 |
-| **Batches for ingestion** | 13 |
-| **Source types** | University extensions, botanical gardens, specialty nurseries, care platforms |
-
-### Verified Source Domains (consistently live, high-quality content)
+The domains these batches draw on, for finding more pages.
 
 | Domain | Type | Strength |
 |--------|------|----------|
