@@ -3,6 +3,10 @@ import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import {
+  createInMemoryGCS,
+  MOCK_BUCKET_NAMES,
+} from '@lily/api/__tests__/mocks/gcs.service'
 import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRareIdentificationRepository } from '@lily/api/__tests__/mocks/rare-identification.repository'
@@ -25,6 +29,11 @@ const alex = 'user-alex'
 const rareUrl = 'https://storage.googleapis.com/mock-bucket/identify/rare.jpg'
 const commonUrl =
   'https://storage.googleapis.com/mock-bucket/identify/common.jpg'
+const scanKey = `users/${alex}/detect/rare-scan.jpg`
+const scanUrl = `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/${scanKey}?X-Goog-Signature=abc`
+
+const gcs = createInMemoryGCS()
+gcs.objects.ai.add(scanKey)
 
 const TestApi = HttpApi.make('createPlantRareCollector').add(PlantsApi)
 
@@ -49,7 +58,9 @@ const DependenciesLive = Layer.mergeAll(
   createMockRareIdentificationRepository([
     { userId: alex, imageUrl: rareUrl },
     { userId: alex, imageUrl: '' },
+    { userId: alex, imageUrl: scanUrl },
   ]),
+  gcs.layer,
   createMockEventBus({ publishedEvents }),
   createInMemoryCanopy().layer,
   MockLimitCheckerLive,
@@ -97,6 +108,7 @@ describe('saving an identified plant over HTTP', () => {
     return {
       status: res.status,
       plantId: body.id,
+      imageUrl: body.imageUrl,
       rare: Array.filter(
         publishedEvents,
         (event) => event._tag === 'RarePlantIdentified'
@@ -124,6 +136,24 @@ describe('saving an identified plant over HTTP', () => {
     expect(saved.rare).toEqual([
       { _tag: 'RarePlantIdentified', userId: alex, plantId: saved.plantId },
     ])
+  })
+
+  it('publishes RarePlantIdentified for a rare scan photo the plant gets a public copy of', async () => {
+    const saved = await save(scanUrl)
+
+    expect({
+      status: saved.status,
+      imageUrl: saved.imageUrl,
+      rare: saved.rare,
+    }).toEqual({
+      status: 201,
+      imageUrl: expect.stringContaining(
+        `/${MOCK_BUCKET_NAMES.plant}/plants/${saved.plantId}/`
+      ),
+      rare: [
+        { _tag: 'RarePlantIdentified', userId: alex, plantId: saved.plantId },
+      ],
+    })
   })
 
   it('publishes nothing for a photo that was not identified as rare', async () => {

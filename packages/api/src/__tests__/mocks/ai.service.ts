@@ -88,12 +88,6 @@ export const createMockAiService = (
         wateringTips: 'Water when top soil is dry.',
         isRareHouseplant,
       }),
-    classifyAndIdentify: (_url: string, _locale?: string) =>
-      Effect.succeed({
-        name: 'Mock Plant',
-        confidence: 0.95,
-        detectedType: 'plant' as const,
-      }),
     chatStream: (
       _conversation: ChatConversation,
       messages: UIMessage[],
