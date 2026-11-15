@@ -5,6 +5,8 @@ process.env.EXPO_PUBLIC_API_URL =
 
 module.exports = {
   preset: 'jest-expo',
+  // jest-expo forces one worker under Turbo (TURBO_HASH).
+  maxWorkers: '50%',
   // Reanimated 4.7 / worklets 0.13 ship `.native.ts` files that need the
   // native TurboModule; their resolver routes Jest to the JS mock variants.
   resolver: 'react-native-reanimated/jest/resolver.js',
