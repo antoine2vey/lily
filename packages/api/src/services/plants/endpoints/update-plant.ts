@@ -1,5 +1,8 @@
 import { Care } from '@lily/api/contexts/care'
+import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { PlantPermit } from '@lily/api/kernel/permit'
+import { transact } from '@lily/api/kernel/transact'
 import {
   PlantRepository,
   type PlantWithRoom,
@@ -23,7 +26,7 @@ import { Effect, Option, pipe, Record } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'
-import * as SqlClient from 'effect/sql/SqlClient'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const updatePlant = (
@@ -47,11 +50,11 @@ export const updatePlant = (
   | GCSService
   | FileSystem
   | SqlClient.SqlClient
+  | Outbox
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     const care = yield* Care
-    const sql = yield* SqlClient.SqlClient
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
     yield* assertRoomFits(request.roomId, plant.owner)
 
@@ -82,7 +85,7 @@ export const updatePlant = (
       Record.filter((value) => value !== undefined)
     ) as Record<string, unknown>
 
-    yield* sql.withTransaction(
+    yield* transact(
       Effect.gen(function* () {
         const written = yield* repo.update(request.id, plant.owner, data)
         if (!written) {
@@ -92,6 +95,9 @@ export const updatePlant = (
           permit,
           frequencies: frequencyChanges(request),
         })
+        if (request.remindersEnabled !== undefined) {
+          yield* Reminders.request(Dirty.Plants({ plantIds: [request.id] }))
+        }
       })
     )
 

@@ -2,10 +2,12 @@ import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants, noCare } from '@lily/api/__tests__/fixtures/plants'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
+import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { frequencyOfDays } from '@lily/api/contexts/care'
+import { Dirty } from '@lily/api/contexts/reminders'
 import { Actor, mintPermit } from '@lily/api/kernel/permit'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
@@ -38,16 +40,19 @@ const roomsWithStranger = [...mockRooms, strangersRoom]
 describe('updatePlant', () => {
   const createTestLayer = (plants = mockPlants) => {
     const care = createStubCare()
+    const outbox = createMockOutbox()
     return {
       layer: Layer.mergeAll(
         createMockRoomRepository(roomsWithStranger),
         createMockPlantRepository({ plants }),
         care.layer,
+        outbox.layer,
         MockSqlClientLive,
         Layer.succeed(GCSService, {} as any),
         Layer.succeed(FileSystem, {} as any)
       ),
       care,
+      outbox,
     }
   }
 
@@ -113,6 +118,35 @@ describe('updatePlant', () => {
     )
 
     expect(result.health).toBe('THRIVING')
+  })
+
+  describe('reminders', () => {
+    it('stores the switch and asks Reminders to plan the plant again', async () => {
+      const { layer, outbox } = createTestLayer()
+      const result = await Effect.runPromise(
+        updatePlant(toPlantWithRoom(mockPlants[0]!), permit, {
+          id: 'plant-1',
+          remindersEnabled: false,
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(result.remindersEnabled).toBe(false)
+      expect(outbox.requested).toEqual([
+        Dirty.Plants({ plantIds: ['plant-1'] }),
+      ])
+    })
+
+    it('asks Reminders nothing for an edit that leaves the switch alone', async () => {
+      const { layer, outbox } = createTestLayer()
+      await Effect.runPromise(
+        updatePlant(toPlantWithRoom(mockPlants[0]!), permit, {
+          id: 'plant-1',
+          name: 'Updated Name',
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(outbox.requested).toEqual([])
+    })
   })
 
   describe('room', () => {

@@ -105,6 +105,7 @@ export function EditPlantScreen() {
   const fertilizationEnabled = fertilizationFrequencyDays !== null
   const mistingEnabled = mistingFrequencyDays !== null
   const repottingEnabled = repottingFrequencyDays !== null
+  const [remindersEnabled, setRemindersEnabled] = useState(true)
   const [potWidthCm, setPotWidthCm] = useState<string>('')
   const [potHeightCm, setPotHeightCm] = useState<string>('')
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
@@ -153,6 +154,7 @@ export function EditPlantScreen() {
       setFertilizationFrequencyDays(originalScheduleData.fertilizationFreq)
       setMistingFrequencyDays(originalScheduleData.mistingFreq)
       setRepottingFrequencyDays(originalScheduleData.repottingFreq)
+      setRemindersEnabled(plant.remindersEnabled)
       setSelectedRoomId(Option.getOrNull(Option.fromNullishOr(plant.roomId)))
       setPotWidthCm(
         Option.getOrElse(
@@ -213,6 +215,7 @@ export function EditPlantScreen() {
           repottingFrequencyDays: repottingEnabled
             ? repottingFrequencyDays
             : null,
+          remindersEnabled,
           roomId: selectedRoomId,
           potWidthCm: parsedWidth,
           potHeightCm: parsedHeight,
@@ -282,6 +285,7 @@ export function EditPlantScreen() {
       originalScheduleData.mistingFreq ||
     (repottingEnabled ? repottingFrequencyDays : null) !==
       originalScheduleData.repottingFreq ||
+    remindersEnabled !== plant.remindersEnabled ||
     selectedRoomId !== Option.getOrNull(Option.fromNullishOr(plant.roomId)) ||
     potWidthCm !==
       Option.getOrElse(
@@ -314,6 +318,7 @@ export function EditPlantScreen() {
           onPress={handleSave}
           disabled={!hasChanges || isUpdating}
           className="py-2"
+          testID="edit-plant-save"
         >
           {isUpdating ? (
             <ActivityIndicator size="small" color={iconColors.primary} />
@@ -631,6 +636,28 @@ export function EditPlantScreen() {
                     </Text>
                   </View>
                 )}
+              </View>
+
+              <View className="bg-white dark:bg-surface-dark p-4 px-5 rounded-xl shadow-sm border border-border dark:border-slate-700 flex-row items-center justify-between">
+                <View>
+                  <Text className="text-base font-bold text-text-primary dark:text-white">
+                    {t('addPlant:schedule.careReminders')}
+                  </Text>
+                  <Text className="text-xs text-text-muted dark:text-slate-400 mt-1">
+                    {t('addPlant:schedule.careRemindersDescription')}
+                  </Text>
+                </View>
+                <Switch
+                  testID="edit-reminders-switch"
+                  value={remindersEnabled}
+                  onValueChange={setRemindersEnabled}
+                  trackColor={{
+                    false: iconColors.border,
+                    true: iconColors.primary,
+                  }}
+                  thumbColor={iconColors.white}
+                  ios_backgroundColor={iconColors.border}
+                />
               </View>
             </View>
           </View>
