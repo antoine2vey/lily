@@ -151,7 +151,7 @@ export const AchievementRepositoryLive = Layer.effect(
           .returning()
         return pipe(
           Option.fromNullishOr(achievement),
-          Option.filter(isLive),
+          Option.map((row) => ({ ...row, achievement: key })),
           Option.getOrNull
         )
       }),

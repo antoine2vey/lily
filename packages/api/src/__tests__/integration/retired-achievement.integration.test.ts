@@ -76,6 +76,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).toEqual(['FIRST_PLANT_ADDED'])
     })
 
+    it('leaves the retired row out of the stored achievements it reads', async () => {
+      const rows = await Effect.runPromise(
+        Effect.flatMap(AchievementRepository, (repo) =>
+          repo.findByUserId(userId)
+        ).pipe(Effect.provide(AppLive))
+      )
+
+      expect(Array.map(rows, (row) => row.achievement)).toEqual([
+        'FIRST_PLANT_ADDED',
+      ])
+    })
+
     it('leaves the retired row out of the admin achievement count', async () => {
       const count = await Effect.runPromise(
         Effect.flatMap(AchievementRepository, (repo) =>
