@@ -9,16 +9,18 @@ Google counts data sent to a service provider that processes it only on your beh
 - OpenAI receives plant photos and chat text (`packages/api/src/services/ai/`). Confirm that the OpenAI API terms still exclude API data from training.
 - Google Cloud Storage stores plant photos and profile pictures (`packages/shared/src/services/file/gcs.ts`).
 - Resend sends the magic link and other emails to the user's address (`packages/api/src/services/email/resend.provider.ts`).
-- OpenWeatherMap receives the coordinates of a user or a Canopy for the weather signal.
+- Open-Meteo receives the coordinates of a user or a Canopy for the weather signal (`packages/api/src/services/weather/providers/open-meteo.provider.ts`). OpenWeatherMap is the backup provider and receives the same coordinates when `OPENWEATHERMAP_API_KEY` is set (`packages/api/src/services/weather/providers/openweathermap.provider.ts`).
 - RevenueCat receives the Lily user ID and the store purchases (`packages/app/src/services/revenuecat.ts`).
 - Sentry receives crash reports, performance traces and auth events (`packages/app/src/sentry.ts`, `packages/app/src/utils/auth-telemetry.ts`).
-- Expo delivers push notifications to the device token.
+- Honeycomb receives the API's traces, which carry the user ID and plant IDs (`packages/api/src/telemetry/otel.ts`).
+- Discord receives the API's error alerts, which carry the user ID and the failed URL (`packages/api/src/services/alerting/discord.provider.ts`).
+- Expo delivers push notifications to the device token. The API sends Live Activity updates to APNs directly (`packages/api/src/services/push/apns-live-activity.ts`).
 
 ## Privacy policy
 
 - The app links to `https://withlily.app/<locale>/privacy`, built by `privacyUrl` in `packages/app/src/constants/urls.ts`.
 - The page is `packages/web/src/routes/$locale/privacy.tsx`. Its English copy is in `packages/web/src/i18n/en.ts` and its French copy in `packages/web/src/i18n/fr.ts`.
-- Section 5 of the policy names Railway, Google Analytics, an unnamed AI provider for photos, Expo and the stores. It does not name Sentry, RevenueCat, Google Cloud Storage, Resend or OpenWeatherMap. It does not say that chat text goes to the AI provider. Update the policy before you declare these processors.
+- Section 5 of the policy names every processor in the list above, plus Railway, Google Analytics for the website and the stores. When a change adds a processor, add it to this list and to section 5 in both locales.
 
 ## App access
 
@@ -73,7 +75,7 @@ The app is not designed for children. Leave the under-13 age groups out, because
 - The API counts each user's care history opens in `historyViewCount` on `users`, for an achievement (`incrementHistoryViews` in `packages/api/src/repositories/achievement.repository.ts`).
 - `Sentry.wrap` in `packages/app/app/_layout.tsx` records touch breadcrumbs, and `packages/app/src/utils/auth-telemetry.ts` adds auth breadcrumbs. Both travel with Sentry error reports.
 
-The API also keeps daily aggregate counts with no user ID (`analyticsDailySnapshots` in `packages/db/src/schema/analytics.ts`). The privacy policy says that in-app analytics also go to Google Analytics, but the app sends nothing to Google Analytics.
+The API also keeps daily aggregate counts with no user ID (`analyticsDailySnapshots` in `packages/db/src/schema/analytics.ts`). Only the website loads Google Analytics (`packages/web/src/routes/__root.tsx`).
 
 **Not collected.** Audio, contacts, SMS, web browsing, health and fitness data, and payment card numbers.
 
