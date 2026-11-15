@@ -15,7 +15,7 @@ import type {
   RecentActivitiesListResponse,
   RecentActivity,
 } from '@lily/shared/care-log'
-import { and, count, desc, eq, gte, isNull, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, isNull } from 'drizzle-orm'
 import { Array, Context, DateTime, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
