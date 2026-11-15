@@ -98,7 +98,7 @@ Reminders decides which care reminders exist, for whom and when. It plans them f
 | **Slot** | One recipient, one plant and one care type. A slot holds at most one waiting reminder, for the current occasion. | |
 | **Send time** | When a recipient is reminded of an occasion: their preferred time on that day in their own timezone, moved out of their quiet hours. | |
 | **Waiting** | A reminder that no delivery worker holds yet. Planning may re-time or remove it. A reminder a worker holds is left alone. | "pending" when queued reminders are meant too |
-| **Hand-over** | On a personal plant, a waiting reminder of someone who left the audience passes to whoever tends the plant now, at the time it already had. | "reassign" |
+| **Hand-over** | On a personal plant, a waiting reminder of someone who left the audience passes to whoever tends the plant now, at the time it already had. It is not the Absence **Handover**, which is one change that leads to a hand-over. | "reassign" |
 | **No catch-up** | Someone who becomes an entitled recipient after their send time for an occasion gets no reminder for that occasion. A hand-over is not a catch-up. It only moves a reminder that was still waiting. | |
 | **Replan** | Making the stored reminders of some plants match the rule. It reads current state, so running it twice changes nothing the second time. | "reschedule", "reconcile" |
 | **Request** | What another context sends when it changes something reminders are planned from: the plants, the canopy or the recipient whose reminders are stale. It commits with the change and is replanned after it. | |
@@ -159,11 +159,11 @@ Absence covers the time a user cannot look after their plants. A delegation hand
 | Term | Meaning | Avoid |
 | --- | --- | --- |
 | **Delegation** | A request from one user to another to look after some of the first user's personal plants from a start to an end. | "plant-sitting" in code, "share" |
-| **Owner** | The user who asks. Every plant of the delegation is a personal plant of the owner. | "delegator" |
+| **Owner** | The user who asks, the owner of the delegation. Every plant of the delegation is a personal plant of the owner, so the owner is also the Care **Owner** of each plant. | "delegator" |
 | **Caretaker** | The user who is asked. The caretaker accepts or declines, and looks after the plants while the delegation is active. | "sitter", "delegate" |
 | **Open delegation** | A delegation that is pending, accepted or active. A plant is in at most one open delegation over any period, and a plant in an open delegation cannot be shared into a canopy. | "live" |
 | **Tending** | What the caretaker of an active delegation does while their account is reachable. The caretaker holds the Caretaker role on the plants and is the audience of their reminders in place of the owner. A caretaker whose account is not active tends nothing. They cannot act on the plants, and the owner is the audience again. | "caring" for the role |
-| **Handover** | The moment the plants change hands: an accepted delegation becomes active, or an active one ends. Only a handover changes who is reminded. | "transfer" |
+| **Handover** | The moment the plants change hands, when an accepted delegation becomes active or an active one ends. Of the status changes, only a handover changes who is reminded. The replan that follows can pass a waiting reminder to the new audience, which Reminders calls a **Hand-over**. | "transfer" |
 | **Vacation** | A period a user says they are away, from a start to an end. A user holds at most one. | "holiday", "absence" for the record |
 | **Scheduled vacation** | A vacation whose start has not come. It changes nothing yet. | "pending vacation" |
 | **Active vacation** | A vacation that has started and not ended. The user is on vacation. They are barred from reminders, and what they were waiting for on the muted topics is deleted. It keeps its start, and only its end can move. | "running" in code |
@@ -245,9 +245,10 @@ Social lets users follow each other, open each other's profiles and nudge the pe
 1. **A private account is closed.** Following it, opening its profile and listing its followers or the users it follows answer `UserNotPublicError`. Unfollowing has no check, so a follower can always leave.
 2. **Lists hold public accounts.** A list of followers, a list of the users someone follows, and the total each list reports hold only public accounts. Your own list of the users you follow is the exception. It keeps the private accounts you follow, so you can still unfollow them.
 3. **A profile's counts hold every account.** The follower and following counts on a profile include private accounts, so they can be higher than the totals of rule 2.
-4. **Search finds a private account only by its handle.** A search matches a private account only when the query equals its handle, ignoring case, and shows its plant count as 0.
+4. **Search finds a private account only by its handle.** A search matches a private account only when the query equals its handle, ignoring case, and shows its plant count as 0. A `%` or `_` in the query matches itself, not any character. A query shorter than `MIN_QUERY_LENGTH` in `src/services/social/endpoints/search-users.ts` answers an empty page before the rate limit and before any database read.
 5. **Only a follower nudges.** A nudge to a user you do not follow answers `NudgeNotAllowedError`. A nudge within 24 hours of your last nudge to the same user answers `NudgeRateLimitError`.
 6. **A nudge commits with its notification.** `recordNudge` and the `nudge_to_water` notification are written in one transaction. The push goes out after the commit, through `dispatchNow`.
+7. **Your own id is not exempt.** The by-id lists, `getUserFollowers` and `getUserFollowing`, check privacy even when the id is yours. A private user who asks for their own list by id gets `UserNotPublicError`. The own lists, `getFollowers` and `getFollowing`, have no privacy check, and the app reads its own lists through them.
 
 ## Relationships
 
