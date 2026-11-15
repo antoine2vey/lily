@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-// Achievement key enum - synced with DB achievementKeyEnum
+// The live keys. The DB achievementKeyEnum also keeps retired ones.
 export const AchievementKey = Schema.Literals([
   'FIRST_PLANT_ADDED',
   'WATERING_NOVICE',
@@ -8,7 +8,6 @@ export const AchievementKey = Schema.Literals([
   'DEDICATED_CARETAKER',
   'ATTENTION_ALERT',
   'PHOTO_PRO',
-  'RARE_COLLECTOR',
   'SCAN_CHAMP',
   'FERTILIZER_GURU',
   'HISTORY_HERO',

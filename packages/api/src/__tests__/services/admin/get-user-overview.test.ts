@@ -5,12 +5,9 @@ import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/devic
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import type { UserAchievement } from '@lily/api/repositories/achievement.repository'
 import { getUserOverview } from '@lily/api/services/admin/endpoints/get-user-overview'
-import type {
-  rooms,
-  userAchievements,
-  userSubscriptions,
-} from '@lily/db/schema'
+import type { rooms, userSubscriptions } from '@lily/db/schema'
 import { CareDay } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import type { DeviceToken } from '@lily/shared/device-token'
@@ -18,7 +15,6 @@ import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 type SubRow = typeof userSubscriptions.$inferSelect
-type AchievementRow = typeof userAchievements.$inferSelect
 type RoomRow = typeof rooms.$inferSelect
 
 const makeSubRow = (overrides: Partial<SubRow> = {}): SubRow => ({
@@ -42,8 +38,8 @@ const makeSubRow = (overrides: Partial<SubRow> = {}): SubRow => ({
 })
 
 const makeAchievement = (
-  achievement: AchievementRow['achievement']
-): AchievementRow => ({
+  achievement: UserAchievement['achievement']
+): UserAchievement => ({
   id: `ach-${achievement}`,
   userId: 'user-1',
   achievement,

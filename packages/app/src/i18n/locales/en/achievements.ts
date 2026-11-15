@@ -54,10 +54,6 @@ export default {
       name: 'Photo Pro',
       description: 'Uploaded 10 plant photos',
     },
-    RARE_COLLECTOR: {
-      name: 'Rare Collector',
-      description: 'Added a rare plant to your collection',
-    },
     SCAN_CHAMP: {
       name: 'Scan Champion',
       description: 'Scanned 5 plant cards',

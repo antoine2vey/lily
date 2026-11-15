@@ -1,6 +1,4 @@
-import type { userAchievements } from '@lily/db/schema'
-
-type UserAchievement = typeof userAchievements.$inferSelect
+import type { UserAchievement } from '@lily/api/repositories/achievement.repository'
 
 export const mockUserAchievements: UserAchievement[] = [
   {

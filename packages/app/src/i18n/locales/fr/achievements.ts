@@ -53,10 +53,6 @@ export default {
       name: 'Pro de la photo',
       description: 'Vous avez ajouté 10 photos de plantes',
     },
-    RARE_COLLECTOR: {
-      name: 'Trésor rare',
-      description: 'Vous avez ajouté une plante rare à votre collection',
-    },
     SCAN_CHAMP: {
       name: 'As du scan',
       description: 'Vous avez scanné 5 cartes de plantes',

@@ -49,14 +49,6 @@ export const DiseaseIdentifiedEvent = Schema.TaggedStruct('DiseaseIdentified', {
   plantId: Schema.String,
 })
 
-export const RarePlantIdentifiedEvent = Schema.TaggedStruct(
-  'RarePlantIdentified',
-  {
-    userId: Schema.String,
-    plantId: Schema.String,
-  }
-)
-
 export const ReminderRespondedEvent = Schema.TaggedStruct('ReminderResponded', {
   userId: Schema.String,
   plantId: Schema.String,
@@ -92,7 +84,6 @@ export const AppEvent = Schema.Union([
   AttentionRespondedEvent,
   CareHistoryViewedEvent,
   DiseaseIdentifiedEvent,
-  RarePlantIdentifiedEvent,
   ReminderRespondedEvent,
   PlantSharedEvent,
   UserFollowedEvent,
@@ -108,7 +99,6 @@ export type PlantScannedEvent = typeof PlantScannedEvent.Type
 export type AttentionRespondedEvent = typeof AttentionRespondedEvent.Type
 export type CareHistoryViewedEvent = typeof CareHistoryViewedEvent.Type
 export type DiseaseIdentifiedEvent = typeof DiseaseIdentifiedEvent.Type
-export type RarePlantIdentifiedEvent = typeof RarePlantIdentifiedEvent.Type
 export type PlantLifecycleChangedEvent = typeof PlantLifecycleChangedEvent.Type
 export type ReminderRespondedEvent = typeof ReminderRespondedEvent.Type
 export type PlantSharedEvent = typeof PlantSharedEvent.Type

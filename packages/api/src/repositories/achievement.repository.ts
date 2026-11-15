@@ -7,18 +7,28 @@ import {
   userAchievements,
   users,
 } from '@lily/db/schema'
-import type { AchievementKey, CareType, PlantOwner } from '@lily/shared'
-import { and, count, eq, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { CareType, PlantOwner } from '@lily/shared'
+import { ACHIEVEMENT_KEYS, AchievementKey } from '@lily/shared'
+import { and, count, eq, inArray, sql } from 'drizzle-orm'
+import { Array, Context, Effect, Layer, Option, pipe, Schema } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 import { isLivingPlant } from './helpers/living-plant'
 import { unwrapPgRows } from './helpers/pagination'
 import { ownedBy } from './helpers/plant-owner'
 
+type UserAchievementRow = typeof userAchievements.$inferSelect
+
+export type UserAchievement = Omit<UserAchievementRow, 'achievement'> & {
+  readonly achievement: AchievementKey
+}
+
+const isLive = (row: UserAchievementRow): row is UserAchievement =>
+  Schema.is(AchievementKey)(row.achievement)
+
 export interface IAchievementRepository {
   readonly findByUserId: (
     userId: string
-  ) => Effect.Effect<Array<typeof userAchievements.$inferSelect>, SqlError>
+  ) => Effect.Effect<Array<UserAchievement>, SqlError>
 
   readonly countByUserId: (userId: string) => Effect.Effect<number, SqlError>
 
@@ -30,7 +40,7 @@ export interface IAchievementRepository {
   readonly unlock: (
     userId: string,
     key: AchievementKey
-  ) => Effect.Effect<typeof userAchievements.$inferSelect | null, SqlError>
+  ) => Effect.Effect<UserAchievement | null, SqlError>
 
   readonly countCareLogsByType: (
     userId: string,
@@ -85,14 +95,22 @@ export const AchievementRepositoryLive = Layer.effect(
           .select()
           .from(userAchievements)
           .where(eq(userAchievements.userId, userId))
-          .pipe(Effect.withSpan('AchievementRepository.findByUserId')),
+          .pipe(
+            Effect.map(Array.filter(isLive)),
+            Effect.withSpan('AchievementRepository.findByUserId')
+          ),
 
       countByUserId: Effect.fn('AchievementRepository.countByUserId')(
         function* (userId: string) {
           const [result] = yield* db
             .select({ count: count() })
             .from(userAchievements)
-            .where(eq(userAchievements.userId, userId))
+            .where(
+              and(
+                eq(userAchievements.userId, userId),
+                inArray(userAchievements.achievement, ACHIEVEMENT_KEYS)
+              )
+            )
           return pipe(
             Option.fromNullishOr(result),
             Option.flatMap((r) => Option.fromNullishOr(r.count)),
@@ -131,7 +149,11 @@ export const AchievementRepositoryLive = Layer.effect(
           .values({ userId, achievement: key })
           .onConflictDoNothing()
           .returning()
-        return Option.getOrNull(Option.fromNullishOr(achievement))
+        return pipe(
+          Option.fromNullishOr(achievement),
+          Option.filter(isLive),
+          Option.getOrNull
+        )
       }),
 
       countCareLogsByType: Effect.fn(

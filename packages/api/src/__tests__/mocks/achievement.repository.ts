@@ -1,12 +1,10 @@
 import {
   AchievementRepository,
   type IAchievementRepository,
+  type UserAchievement,
 } from '@lily/api/repositories/achievement.repository'
-import type { userAchievements } from '@lily/db/schema'
 import type { AchievementKey, CareType, PlantOwner } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
-
-type UserAchievement = typeof userAchievements.$inferSelect
 
 export interface MockAchievementRepositoryData {
   achievements: UserAchievement[]

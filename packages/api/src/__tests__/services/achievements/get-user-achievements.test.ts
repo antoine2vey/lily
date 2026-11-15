@@ -34,13 +34,13 @@ describe('getUserAchievements', () => {
       createCurrentUserLayer(userId)
     )
 
-  it('should return all 15 achievements with progress', async () => {
+  it('should return all 14 achievements with progress', async () => {
     const result = await Effect.runPromise(
       getUserAchievements().pipe(Effect.provide(createTestLayer('user-1')))
     )
 
-    expect(result.achievements.length).toBe(15)
-    expect(result.totalCount).toBe(15)
+    expect(result.achievements.length).toBe(14)
+    expect(result.totalCount).toBe(14)
   })
 
   it('should mark unlocked achievements correctly', async () => {

@@ -90,7 +90,6 @@ describe('reconcileAchievements', () => {
 
     const eventBased: ReadonlyArray<AchievementKey> = [
       'ATTENTION_ALERT',
-      'RARE_COLLECTOR',
       'AI_CONVERSATIONALIST',
       'DISEASE_DETECTIVE',
       'GROWTH_TRACKER',

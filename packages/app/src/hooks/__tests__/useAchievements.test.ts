@@ -35,8 +35,8 @@ jest.mock('@/utils/client', () => ({
         },
         {
           id: 'ach-4',
-          name: 'Rare Collector',
-          description: 'Collect a rare plant',
+          name: 'Disease Detective',
+          description: 'Identified a plant disease',
           category: 'special',
           icon: '⭐',
           unlocked: false,

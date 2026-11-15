@@ -47,6 +47,8 @@ export const achievementKeyEnum = pgEnum('achievement_key', [
   'DEDICATED_CARETAKER',
   'ATTENTION_ALERT',
   'PHOTO_PRO',
+  // Retired. Rows unlocked between 2026-01-08 and 2026-02-12 keep it, and
+  // the api reads past them (`isLive` in achievement.repository.ts).
   'RARE_COLLECTOR',
   'SCAN_CHAMP',
   'FERTILIZER_GURU',

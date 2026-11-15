@@ -199,16 +199,6 @@ const onDiseaseIdentified = (event: { userId: string }) =>
     )
   )
 
-const onRarePlantIdentified = (event: { userId: string }) =>
-  unlock(event.userId, 'RARE_COLLECTOR').pipe(
-    Effect.tap((result) =>
-      Effect.when(
-        notify(event.userId, 'RARE_COLLECTOR'),
-        Effect.succeed(!!result)
-      )
-    )
-  )
-
 const onReminderResponded = (event: { userId: string }) =>
   unlock(event.userId, 'REMINDER_RESCUER').pipe(
     Effect.tap((result) =>
@@ -240,7 +230,6 @@ export const processEvent = (event: AppEvent) =>
     Match.tag('AttentionResponded', onAttentionResponded),
     Match.tag('CareHistoryViewed', onCareHistoryViewed),
     Match.tag('DiseaseIdentified', onDiseaseIdentified),
-    Match.tag('RarePlantIdentified', onRarePlantIdentified),
     Match.tag('ReminderResponded', onReminderResponded),
     Match.tag('PlantShared', onPlantShared),
     Match.tag('UserFollowed', () => Effect.void),

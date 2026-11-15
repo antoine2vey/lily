@@ -68,14 +68,6 @@ export const ACHIEVEMENTS: Record<AchievementKey, AchievementDefinition> = {
     rarity: 'rare',
     threshold: 10,
   },
-  RARE_COLLECTOR: {
-    name: 'Rare Collector',
-    description: 'Added a rare plant to your collection',
-    iconUrl: '/achievements/rare.png',
-    icon: 'star',
-    category: 'plants',
-    rarity: 'epic',
-  },
   SCAN_CHAMP: {
     name: 'Scan Champion',
     description: 'Scanned 5 plant cards',

@@ -34,7 +34,6 @@ const getProgressForKey = (
     Match.when('HISTORY_HERO', () => counts.historyViews),
     Match.when('FIRST_PLANT_ADDED', () => null),
     Match.when('ATTENTION_ALERT', () => null),
-    Match.when('RARE_COLLECTOR', () => null),
     Match.when('AI_CONVERSATIONALIST', () => null),
     Match.when('DISEASE_DETECTIVE', () => null),
     Match.when('GROWTH_TRACKER', () => null),
