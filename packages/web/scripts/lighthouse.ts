@@ -5,6 +5,11 @@ import { Array, Order } from 'effect'
 
 // usage: bun scripts/lighthouse.ts [base=http://127.0.0.1:8088] [paths...]
 // Runs mobile Lighthouse 3 times per page against the prerendered build (`preview`) and fails on a budget breach.
+// Throttling is applied in Chrome (`--throttling-method=devtools`), not simulated. The simulation charges every request
+// that ends before the paint on the unthrottled load to LCP, and against a local server that is every hydration module,
+// so it reported 2.6 to 2.9 s for pages that paint at 1.5 to 1.9 s with the throttling applied. Lighthouse's own
+// docs/throttling.md says the simulation "suffers from edge cases" and sends a deep investigation to applied throttling.
+// Sample the URL a page is served at: a redirect adds a round trip that belongs to the old URL.
 
 const RUNS = 3
 const CHROME =
@@ -71,12 +76,7 @@ const BUDGETS: ReadonlyArray<Budget> = [
 const [base = 'http://127.0.0.1:8088', ...rest] = process.argv.slice(2)
 const paths = Array.isReadonlyArrayNonEmpty(rest)
   ? rest
-  : [
-      '/en',
-      '/en/blog',
-      '/en/blog/advanced-pothos-pruning-techniques',
-      '/en/about',
-    ]
+  : ['/en', '/en/blog', '/en/blog/pothos-care-guide', '/en/about']
 const outDir = join(tmpdir(), 'lily-lighthouse')
 mkdirSync(outDir, { recursive: true })
 
@@ -90,6 +90,7 @@ const run = async (path: string, i: number): Promise<Report> => {
       `${base}${path}`,
       '--quiet',
       '--only-categories=performance,seo,accessibility,best-practices',
+      '--throttling-method=devtools',
       '--chrome-flags=--headless=new --use-mock-keychain --password-store=basic',
       '--output=json',
       `--output-path=${out}`,
