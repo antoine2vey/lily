@@ -187,6 +187,23 @@ export const createMockAiService = (
         wateringTips: 'Water when top soil is dry.',
         isRareHouseplant,
       }),
+    classifyAndIdentify: (_url: string, _locale?: string) =>
+      Effect.succeed({
+        name: 'Mock Plant',
+        family: 'Mockaceae',
+        confidence: 0.9,
+        alternatives: [],
+        wateringFrequencyDays: 7,
+        luxNeeded: 2000,
+        humidityRating: 50,
+        petToxicityRating: 20,
+        fertilizationFrequencyDays: 30,
+        category: 'Tropical',
+        description: 'A mock plant detected from a photo',
+        wateringTips: 'Water when top soil is dry.',
+        isRareHouseplant,
+        detectedType: 'plant' as const,
+      }),
     generateConversationTitle: (_input: {
       userMessage: string
       assistantReply: string

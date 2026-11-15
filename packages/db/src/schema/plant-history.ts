@@ -102,7 +102,12 @@ export const rarePlantIdentifications = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index('rare_plant_identifications_user_id_idx').on(table.userId)]
+  (table) => [
+    uniqueIndex('rare_plant_identifications_user_image_idx').on(
+      table.userId,
+      table.imageUrl
+    ),
+  ]
 )
 
 export const plantScansRelations = relations(plantScans, ({ one }) => ({

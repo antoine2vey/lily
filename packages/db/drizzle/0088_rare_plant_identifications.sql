@@ -5,4 +5,4 @@ CREATE TABLE IF NOT EXISTS "rare_plant_identifications" (
   "created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "rare_plant_identifications_user_id_idx" ON "rare_plant_identifications" ("user_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "rare_plant_identifications_user_image_idx" ON "rare_plant_identifications" ("user_id", "image_url");

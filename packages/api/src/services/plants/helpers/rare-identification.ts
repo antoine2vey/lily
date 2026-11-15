@@ -19,9 +19,19 @@ export const rememberRareIdentification = (identification: {
       onSome: (imageUrl) =>
         identification.isRareHouseplant
           ? repo.record({ userId, imageUrl })
-          : Effect.void,
+          : repo.forget({ userId, imageUrl }),
     })
-  })
+  }).pipe(
+    Effect.catchTag('SqlError', (error) =>
+      Effect.logWarning(
+        '[rare-identification] Remember failed after identify',
+        {
+          error,
+        }
+      )
+    ),
+    Effect.withSpan('PlantsService.rememberRareIdentification')
+  )
 
 export const awardRareIdentification = (
   plantId: string,

@@ -1,5 +1,7 @@
+import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import type { AppEvent } from '@lily/api/events'
 import {
   AchievementRepository,
@@ -11,13 +13,14 @@ import {
 } from '@lily/api/repositories/rare-identification.repository'
 import { processEvent } from '@lily/api/services/achievements/checker'
 import { AchievementNotifier } from '@lily/api/services/achievements/notifier'
+import { aiReIdentify } from '@lily/api/services/plants/endpoints/ai-re-identify'
 import {
   awardRareIdentification,
   rememberRareIdentification,
 } from '@lily/api/services/plants/helpers/rare-identification'
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, ConfigProvider, Effect, Layer } from 'effect'
 import pg from 'pg'
@@ -72,6 +75,33 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         return yield* repo.findByUserId(userId)
       }).pipe(Effect.provide(as(userId, publishedEvents)), Effect.runPromise)
     }
+
+    const reIdentify = (
+      userId: string,
+      url: string,
+      isRareHouseplant: boolean
+    ) =>
+      aiReIdentify([url], 'en').pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            as(userId),
+            createMockAiService({ isRareHouseplant }),
+            MockUsageTrackerLive
+          )
+        ),
+        Effect.runPromise
+      )
+
+    const storedRows = (userId: string, url: string) =>
+      db
+        .select({ id: schema.rarePlantIdentifications.id })
+        .from(schema.rarePlantIdentifications)
+        .where(
+          and(
+            eq(schema.rarePlantIdentifications.userId, userId),
+            eq(schema.rarePlantIdentifications.imageUrl, url)
+          )
+        )
 
     const hasRareCollector = (rows: { readonly achievement: string }[]) =>
       Array.some(rows, (row) => row.achievement === 'RARE_COLLECTOR')
@@ -133,6 +163,29 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }).pipe(Effect.provide(ReposLive), Effect.runPromise)
 
       expect(stored).toBe(false)
+    })
+
+    it('keeps one row when the same photo is identified as rare again', async () => {
+      const url = `${imageUrl}-repeat`
+
+      await reIdentify(collectorId, url, true)
+      await reIdentify(collectorId, url, true)
+      await reIdentify(collectorId, url, true)
+
+      expect(await storedRows(collectorId, url)).toHaveLength(1)
+    })
+
+    it('lets a later answer that is not rare win for the same photo', async () => {
+      const url = `${imageUrl}-changed-mind`
+
+      await reIdentify(strangerId, url, true)
+      await reIdentify(strangerId, url, false)
+      const achievements = await saveAndProcess(strangerId, url)
+
+      expect({
+        rows: await storedRows(strangerId, url),
+        rareCollector: hasRareCollector(achievements),
+      }).toEqual({ rows: [], rareCollector: false })
     })
 
     it('does not unlock for a user who saves a photo someone else identified as rare', async () => {
