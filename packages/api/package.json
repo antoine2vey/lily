@@ -25,8 +25,7 @@
     "test:integration": "vitest run src/__tests__/integration --no-file-parallelism",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write .",
-    "clean": "rm -rf dist",
-    "seed:knowledge": "bun run scripts/seed-houseplant-knowledge.ts"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.109",
