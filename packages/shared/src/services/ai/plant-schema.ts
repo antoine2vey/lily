@@ -81,6 +81,11 @@ export const plantSchema = z.object({
     .enum(['XS', 'S', 'M', 'L', 'XL'])
     .describe('Pot size category based on diameter')
     .nullable(),
+  isRareHouseplant: z
+    .boolean()
+    .describe(
+      'Whether the plant is rare among houseplants: hard to find in the houseplant trade and in home collections. Not conservation status.'
+    ),
 })
 
 /**

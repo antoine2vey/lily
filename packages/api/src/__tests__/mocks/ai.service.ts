@@ -23,6 +23,7 @@ export interface MockAiServiceData {
   completesAfter?: Duration.Input
   consumeStreamRejects?: string
   chatStreamCalls?: ChatStreamCall[]
+  isRareHouseplant?: boolean
 }
 
 export interface ChatStreamCall {
@@ -65,6 +66,11 @@ export const createMockAiService = (
     ])
   )
 
+  const isRareHouseplant = pipe(
+    Option.fromNullishOr(data.isRareHouseplant),
+    Option.getOrElse(() => false)
+  )
+
   const mockService = {
     plantRecognition: (_urls: string | readonly string[], _locale?: string) =>
       Effect.succeed({
@@ -80,6 +86,7 @@ export const createMockAiService = (
         category: 'Tropical',
         description: 'A mock plant for testing',
         wateringTips: 'Water when top soil is dry.',
+        isRareHouseplant,
       }),
     classifyAndIdentify: (_url: string, _locale?: string) =>
       Effect.succeed({
@@ -178,6 +185,7 @@ export const createMockAiService = (
         category: 'Tropical',
         description: 'A mock plant description',
         wateringTips: 'Water when top soil is dry.',
+        isRareHouseplant,
       }),
     generateConversationTitle: (_input: {
       userMessage: string
@@ -197,6 +205,7 @@ export const createMockAiService = (
         category: 'Tropical',
         description: 'A mock plant identified from multiple images',
         wateringTips: 'Water when top soil is dry.',
+        isRareHouseplant,
       }),
   }
 

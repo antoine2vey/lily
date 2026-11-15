@@ -4,6 +4,7 @@ import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
+import { createMockRareIdentificationRepository } from '@lily/api/__tests__/mocks/rare-identification.repository'
 import { createMockScanRepository } from '@lily/api/__tests__/mocks/scan.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
@@ -31,6 +32,7 @@ describe('scanCardMultiple', () => {
       createMockFileSystem(),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
+      createMockRareIdentificationRepository(),
       createMockScanRepository(),
       MockLimitCheckerLive,
       MockUsageTrackerLive
@@ -68,6 +70,7 @@ describe('scanCardMultiple', () => {
       createMockFileSystem(),
       createMockEventBus({ publishedEvents }),
       createMockCurrentUser({ id: 'user-1' }),
+      createMockRareIdentificationRepository(),
       createMockScanRepository(),
       MockLimitCheckerLive,
       MockUsageTrackerLive

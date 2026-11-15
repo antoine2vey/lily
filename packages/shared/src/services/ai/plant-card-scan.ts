@@ -9,6 +9,7 @@ import { plantSchema } from './plant-schema'
 import {
   careInstructions,
   nullCareResponse,
+  rarityInstructions,
   safetyInstructions,
 } from './prompts'
 import { withQualityRetry } from './quality-check'
@@ -28,6 +29,8 @@ Your tasks are:
 4. Provide up to 3 alternative plant suggestions if unsure, each with common name and confidence.
 
 ${careInstructions}
+
+${rarityInstructions}
 
 If you cannot find or infer a care field, set it to null.
 
@@ -54,6 +57,8 @@ Your tasks are:
 4. Provide up to 3 alternative plant suggestions if unsure, each with common name and confidence.
 
 ${careInstructions}
+
+${rarityInstructions}
 
 If you cannot find or infer a care field, set it to null.
 

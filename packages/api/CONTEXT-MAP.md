@@ -129,6 +129,7 @@ One row per file in `src/repositories/`. "Tables written" comes from the `.inser
 | `plant-catalog` | Care (inferred) | none (read only) | Content r (`src/services/blog-generator/topics.ts`) | |
 | `plant` | Care | `plants` (the details of a plant, through `update`) and `plantPhotos`. The Care store inserts and deletes a plant and writes its death and its revival. | r from Assistant, Reminders, Notifications, Weather and Admin. No write caller outside `src/services/plants`. | the Canopy store also writes the owner columns |
 | `processed-chunk` | Assistant | `processedChunks` | none | |
+| `rare-identification` | Care | `rarePlantIdentifications` | none | |
 | `raw-document` | Assistant | `rawDocuments` | none | |
 | `refresh-token` | Identity & Access | `refreshTokens` | none (`auth`, `internal`, `user`) | |
 | `room` | Care (inferred) | `rooms` | Admin r | the Canopy store also writes the owner columns |
@@ -181,7 +182,7 @@ An event goes from its publisher to its consumer, and a call goes from the calle
 
 | From | To | Mechanism | Evidence |
 | --- | --- | --- | --- |
-| Care | Engagement | EventBus `CareLogCreated`, `PlantCreated`, `AttentionResponded`, `PhotoUploaded`, `PlantScanned`, `CareHistoryViewed` and `PlantShared` | `src/events/care-forwarder.ts` publishes the first three from the outbox topic `care`. An endpoint publishes each of the others, for example `src/services/plants/endpoints/upload-plant-photo.ts`. `src/services/achievements/checker.ts` consumes them. |
+| Care | Engagement | EventBus `CareLogCreated`, `PlantCreated`, `AttentionResponded`, `PhotoUploaded`, `PlantScanned`, `CareHistoryViewed`, `PlantShared` and `RarePlantIdentified` | `src/events/care-forwarder.ts` publishes the first three from the outbox topic `care`. An endpoint publishes each of the others, for example `src/services/plants/endpoints/upload-plant-photo.ts`. `src/services/achievements/checker.ts` consumes them. |
 | Reminders | Engagement | EventBus `ReminderResponded`, when a recorded care answers a reminder sent that day | `acknowledgeCare` in `src/contexts/reminders/consumers.ts` publishes it, and `src/services/achievements/checker.ts` consumes it. |
 | Care | Notifications (Live Activity) | EventBus `CareLogCreated` and `PlantLifecycleChanged` | `src/events/care-forwarder.ts` publishes them from the outbox topic `care`, and `src/services/live-activity/subscriber.ts` consumes them. |
 | Care | Reminders | Outbox topic `care`, written in the transaction of the change. Reminders replans the plant after `ScheduleChanged`, `CareRecorded` and `PlantLifeChanged`. `CareAmended` and `CareRemoved` add nothing, because a `ScheduleChanged` comes with them. Care code never calls `Reminders.request`. | The `reminders` consumer in `src/contexts/reminders/consumers.ts`. `staleAfterCare` in `src/contexts/reminders/triggers.ts` says which event makes what stale. |
@@ -225,7 +226,7 @@ An event goes from its publisher to its consumer, and a call goes from the calle
 Notes on events:
 
 - `packages/shared/src/services/event-bus/types.ts` defines the EventBus event tags.
-- `RarePlantIdentified` has a consumer in `src/services/achievements/checker.ts` and no publisher in `packages/api/src`.
+- `RarePlantIdentified` is published when a user saves a plant whose photo the identification model answered as rare for that user. The identify endpoints record the rare answer, and the `createPlant` handler in `src/services/plants/handlers.ts` publishes after the commit (`src/services/plants/helpers/rare-identification.ts`).
 - Care events, Canopy and Absence facts and replan requests skip the EventBus. They are rows in the `outbox` table, written in the transaction of the writer, delivered after the commit, retried, then dead-lettered (`src/kernel/outbox.ts`, `src/kernel/transact.ts`). `appConsumers` in `src/layers/outbox.ts` lists every consumer.
 - The EventBus is fire-and-forget. `src/services/activity-scheduler/scheduler.ts` is a safety net for a dropped `CareLogCreated`.
 
