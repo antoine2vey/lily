@@ -9,8 +9,8 @@ jest.mock('@/utils/client', () => ({
   apiEffectRunner: jest.fn(),
 }))
 
+import { createTestAppQueryClient } from '@/__tests__/utils/query-helpers'
 import { apiEffectRunner } from '@/utils/client'
-import { createQueryClient } from '@/utils/query-client'
 import { queryKeys } from '@/utils/query-keys'
 import {
   useAcceptCanopyInvite,
@@ -28,7 +28,7 @@ describe('Canopy mutations', () => {
     jest
       .mocked(apiEffectRunner)
       .mockRejectedValue(new CanopyFullError({ limit: 10 }))
-    const client = createQueryClient()
+    const client = createTestAppQueryClient()
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client }, children)
 
@@ -38,7 +38,6 @@ describe('Canopy mutations', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error).toBeInstanceOf(CanopyFullError)
     expect(apiEffectRunner).toHaveBeenCalledTimes(1)
-    client.clear()
   })
 
   // Leaving, removal and dissolving hand shared plants back to whoever shared
@@ -80,7 +79,7 @@ describe('Canopy mutations', () => {
     'refreshes plants, the cemetery and rooms after %s',
     async (_, useCase) => {
       jest.mocked(apiEffectRunner).mockResolvedValue({ canopy: null })
-      const client = createQueryClient()
+      const client = createTestAppQueryClient()
       const invalidate = jest.spyOn(client, 'invalidateQueries')
       const wrapper = ({ children }: { children: ReactNode }) =>
         createElement(QueryClientProvider, { client }, children)
@@ -93,7 +92,6 @@ describe('Canopy mutations', () => {
         queryKey: queryKeys.plants.all,
       })
       expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.rooms.all })
-      client.clear()
     }
   )
 })

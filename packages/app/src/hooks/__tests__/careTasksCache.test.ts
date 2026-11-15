@@ -54,7 +54,7 @@ const makeClient = () =>
         gcTime: Number.POSITIVE_INFINITY,
         staleTime: Number.POSITIVE_INFINITY,
       },
-      mutations: { retry: false },
+      mutations: { retry: false, gcTime: 0 },
     },
   })
 

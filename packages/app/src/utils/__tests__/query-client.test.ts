@@ -1,13 +1,13 @@
 import { QueryClientProvider, useMutation } from '@tanstack/react-query'
 import { renderHook } from '@testing-library/react-native'
 import { createElement, type ReactNode } from 'react'
-import { createQueryClient } from '@/utils/query-client'
+import { createTestAppQueryClient } from '@/__tests__/utils/query-helpers'
 
 // Long enough that a reintroduced retry fails on the call count, not on the timeout.
 const REGRESSION_TIMEOUT_MS = 15_000
 
 const renderWithAppClient = <T>(hook: () => T) => {
-  const queryClient = createQueryClient()
+  const queryClient = createTestAppQueryClient()
   return renderHook(hook, {
     wrapper: ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children),
