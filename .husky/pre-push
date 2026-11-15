@@ -1,5 +1,13 @@
 echo "🔍 Running pre-push checks..."
 
+echo "📚 Checking doc references..."
+bash scripts/check-docs.sh
+if [ $? -ne 0 ]; then
+    echo "❌ A doc points at a file or link that does not exist. Fix the paths listed above."
+    exit 1
+fi
+echo "✅ Docs passed!"
+
 # Run linting
 echo "📝 Running lint..."
 bun run lint
