@@ -64,10 +64,14 @@ jobs:
         run: bun packages/web/scripts/check-well-known.ts
 
   integration:
-    name: Integration tests
+    name: Integration tests (${{ matrix.shard }}/4)
     needs: changes
     if: needs.changes.outputs.api_db == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       postgres:
         image: postgres:17-alpine
@@ -102,7 +106,7 @@ jobs:
       - name: Setup test database
         run: bun run db:setup-test
       - name: Run integration tests
-        run: bun run test:integration
+        run: bun run test:integration --shard=${{ matrix.shard }}/4
 
   summary:
     name: CI summary
