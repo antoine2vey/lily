@@ -16,6 +16,7 @@ Google counts data sent to a service provider that processes it only on your beh
 - Honeycomb receives the API's traces, which carry the user ID and plant IDs (`packages/api/src/telemetry/otel.ts`).
 - Discord receives the API's error alerts, which carry the user ID and the failed URL (`packages/api/src/services/alerting/discord.provider.ts`).
 - Expo delivers push notifications to the device token. The API sends Live Activity updates to APNs directly (`packages/api/src/services/push/apns-live-activity.ts`).
+- Expo serves OTA updates. On each launch and each return to the foreground, expo-updates asks `u.expo.dev` for an update (`updates` in `packages/app/app.json`, `packages/app/src/hooks/useOTAUpdates.tsx`). The request carries the IP address, the platform, the runtime version, the channel, the current update IDs, the EAS client ID (a random UUID stored on the device) and, after a failed update, the error message.
 
 ## Privacy policy
 
@@ -67,12 +68,13 @@ The app is not designed for children. Leave the under-13 age groups out, because
 | Other in-app messages | The delegation `message` | User-to-user free text |
 | Other user-generated content | Plants, notes, care logs, rooms, bio and chat text | Chat text goes to OpenAI |
 | Crash logs and diagnostics | Sentry | The app sets no Sentry user |
-| Device or other IDs | The Expo push token from `getExpoPushTokenAsync` in `packages/app/src/utils/notifications.ts` | Stored in `device_tokens` |
+| Device or other IDs | The Expo push token from `getExpoPushTokenAsync` in `packages/app/src/utils/notifications.ts`, and the EAS client ID that expo-updates sends to Expo | The push token is stored in `device_tokens` |
 
 **Location.** `packages/app/src/hooks/useLocationPermission.ts` asks for `Location.Accuracy.Balanced`, which expo-location documents as about 100 m. The API stores the raw coordinates. The app also requests `ACCESS_FINE_LOCATION`. Play's form defines precise location as an area under 3 km², so these coordinates read as precise location. Check the form's current definition, or round the coordinates before upload to declare approximate location.
 
 **App interactions.** The app has no analytics SDK in `packages/app/package.json`. These per-user signals exist:
 
+- The API counts each user's chat messages, plant identifications and card scans per month in `subscription_usage`, to enforce plan limits (`packages/api/src/services/subscriptions/usage-tracker.ts`).
 - The API counts each user's care history opens in `historyViewCount` on `users`, for an achievement (`incrementHistoryViews` in `packages/api/src/repositories/achievement.repository.ts`).
 - `Sentry.wrap` in `packages/app/app/_layout.tsx` records touch breadcrumbs, and `packages/app/src/utils/auth-telemetry.ts` adds auth breadcrumbs. Both travel with Sentry error reports.
 
