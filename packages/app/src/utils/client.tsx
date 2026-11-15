@@ -70,6 +70,7 @@ import {
   trackAuthAnomaly,
   trackForcedLogout,
 } from '@/utils/auth-telemetry'
+import { KEYCHAIN_OPTIONS } from '@/utils/storage'
 
 export const ACCESS_TOKEN_KEY = 'lily_access_token'
 export const REFRESH_TOKEN_KEY = 'lily_refresh_token'
@@ -509,9 +510,17 @@ const performRefresh = (
       const newRefreshToken = data.refreshToken as string
 
       // Store both tokens (server rotates refresh tokens)
-      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, newAccessToken)
+      await SecureStore.setItemAsync(
+        ACCESS_TOKEN_KEY,
+        newAccessToken,
+        KEYCHAIN_OPTIONS
+      )
       if (newRefreshToken) {
-        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, newRefreshToken)
+        await SecureStore.setItemAsync(
+          REFRESH_TOKEN_KEY,
+          newRefreshToken,
+          KEYCHAIN_OPTIONS
+        )
       }
 
       addAuthBreadcrumb('refresh_succeeded')

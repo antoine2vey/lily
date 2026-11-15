@@ -50,6 +50,7 @@ import {
   getStoredAccessToken,
   getStoredUserEmail,
   getStoredUserProfile,
+  KEYCHAIN_OPTIONS,
   removeStoredAccessToken,
   storeAccessToken,
   storeRefreshToken,
@@ -84,7 +85,11 @@ async function registerDeviceForPush(): Promise<string | null> {
     )
 
     // Store the token ID for later unregistration
-    await SecureStore.setItemAsync(DEVICE_TOKEN_ID_KEY, result.id)
+    await SecureStore.setItemAsync(
+      DEVICE_TOKEN_ID_KEY,
+      result.id,
+      KEYCHAIN_OPTIONS
+    )
 
     // Wire up Live Activity push-to-start + per-activity token streams.
     // Listeners live for the rest of the process — iOS re-emits rotated

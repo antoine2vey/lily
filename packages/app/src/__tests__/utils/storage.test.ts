@@ -39,7 +39,8 @@ describe('Storage Utilities', () => {
       expect(Exit.isSuccess(result)).toBe(true)
       expect(mockSetItemAsync).toHaveBeenCalledWith(
         'lily_access_token',
-        'test-access-token'
+        'test-access-token',
+        { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK }
       )
     })
 
@@ -113,7 +114,8 @@ describe('Storage Utilities', () => {
       expect(Exit.isSuccess(result)).toBe(true)
       expect(mockSetItemAsync).toHaveBeenCalledWith(
         'lily_refresh_token',
-        'test-refresh-token'
+        'test-refresh-token',
+        { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK }
       )
     })
   })
@@ -140,7 +142,8 @@ describe('Storage Utilities', () => {
       expect(Exit.isSuccess(result)).toBe(true)
       expect(mockSetItemAsync).toHaveBeenCalledWith(
         'lily_user_email',
-        'user@example.com'
+        'user@example.com',
+        { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK }
       )
     })
   })

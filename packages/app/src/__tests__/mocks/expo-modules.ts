@@ -34,6 +34,7 @@ jest.mock('expo-image-picker', () => ({
 
 // expo-secure-store
 jest.mock('expo-secure-store', () => ({
+  AFTER_FIRST_UNLOCK: 0,
   getItemAsync: jest.fn().mockResolvedValue(null),
   setItemAsync: jest.fn().mockResolvedValue(undefined),
   deleteItemAsync: jest.fn().mockResolvedValue(undefined),
