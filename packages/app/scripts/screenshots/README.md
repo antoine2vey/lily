@@ -34,12 +34,12 @@ From the monorepo root:
 
 - **Headlines.** Edit `copy.ts`.
 - **Layout.** Edit `layoutFor()` in `compose.ts`, which sets the phone width, the headline position and the font sizes.
-- **Screens.** Add the name to `SCREENS` in `copy.ts`, then add a step to `.maestro/capture.yaml` that opens the screen and saves `${OUTPUT_DIR}/<name>`. The flow finds the app's screens by `testID`, so give the new screen's root a `testID` and wait for it before the screenshot.
+- **Screens.** Add the name to `SCREENS` in `copy.ts`, then add a step to `.maestro/capture.yaml` that opens the screen and saves `${OUTPUT_DIR}/<name>`. The flow finds the app's screens by `testID`, so give the new screen's root a `testID` and wait for it before the screenshot. `scripts/screenshots/__tests__/flow-check.test.ts` runs with the app tests and needs no device. It fails when the flow opens a `lily:///` link with no route file under `app/`, waits for a `testID` that no component sets, saves a screenshot whose name is not in `SCREENS`, or leaves a `SCREENS` entry with no screenshot step.
 
 ## Troubleshooting
 
 - **"iOS driver not ready in time".** Maestro compiles and installs its XCTest runner on the first run against a simulator. `run.ts` raises `MAESTRO_DRIVER_STARTUP_TIMEOUT` to 360000 ms. Export a higher value on a slow machine. Later runs reuse the runner.
 - **The dev client shows its server picker.** Metro is not reachable at `METRO_URL`.
-- **A wait for a `testID` times out.** The screen changed. Find the `testID` the flow waits for in the app code, and update the flow or the screen.
+- **A wait for a `testID` times out.** The screen changed. Find the `testID` the flow waits for in the app code, and update the flow or the screen. A deleted route or `testID` also fails `flow-check.test.ts`. A `testID` that still exists on another screen passes that test, so only a capture run proves the wait.
 - **Login stalls.** The API is not running, or `DISABLE_MAGIC_LINK_VERIFICATION` is unset.
 - **Compose skips a screen.** Its capture is missing from the sources folder, so run the capture again for that platform and locale.

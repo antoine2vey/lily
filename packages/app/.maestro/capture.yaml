@@ -210,24 +210,6 @@ env:
 - waitForAnimationToEnd
 - takeScreenshot: "${OUTPUT_DIR}/care-history"
 
-# 10c. AI identification results — deep link with a `?demo=1` switch.
-#      The screen reads `demo=1` and renders a hardcoded fixture
-#      (DEMO_RESULT in AIIdentificationResultsScreen.tsx). Previously
-#      the result was passed inline as a URL-encoded JSON query string,
-#      but on Android `am start` (which Maestro uses for openLink)
-#      silently drops or mis-routes intents with URLs over ~500 chars
-#      containing `%` + `+` mixes — the result was the previous screen
-#      (care-history) staying in place and being screenshotted by
-#      mistake. The `ai-results-screen` testID assertion catches that
-#      class of regression now.
-- openLink: "lily:///add-plant/ai-results?demo=1"
-- extendedWaitUntil:
-    visible:
-      id: "ai-results-screen"
-    timeout: 15000
-- waitForAnimationToEnd
-- takeScreenshot: "${OUTPUT_DIR}/ai-results"
-
 # 11. Care tab — two captures at different scroll positions so the
 #     "care" and "reminders" composites show distinct content:
 #     - care.png: top of tab (Overdue section — urgent)
