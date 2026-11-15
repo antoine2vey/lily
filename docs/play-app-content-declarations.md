@@ -6,19 +6,23 @@ This sheet lists the facts in the code that each answer in the Play Console **Ap
 
 Google counts data sent to a service provider that processes it only on your behalf as collected, not shared. Mark data as shared only when a third party uses it for its own purposes. These providers receive user data as processors:
 
+- Cloudflare relays every request to `withlily.app` and `api.withlily.app`, so it sees the client IP address and the requested URL. The API reads the client IP from the `cf-connecting-ip` header (`packages/shared/src/services/http/client-ip.ts`).
 - OpenAI receives plant photos and chat text (`packages/api/src/services/ai/`). Confirm that the OpenAI API terms still exclude API data from training.
 - Google Cloud Storage stores plant photos and profile pictures (`packages/shared/src/services/file/gcs.ts`).
 - Resend sends the magic link and other emails to the user's address (`packages/api/src/services/email/resend.provider.ts`).
-- OpenWeatherMap receives the coordinates of a user or a Canopy for the weather signal.
+- Open-Meteo receives the coordinates of a user or a Canopy for the weather signal (`packages/api/src/services/weather/providers/open-meteo.provider.ts`). OpenWeatherMap is the backup provider and receives the same coordinates when `OPENWEATHERMAP_API_KEY` is set (`packages/api/src/services/weather/providers/openweathermap.provider.ts`).
 - RevenueCat receives the Lily user ID and the store purchases (`packages/app/src/services/revenuecat.ts`).
 - Sentry receives crash reports, performance traces and auth events (`packages/app/src/sentry.ts`, `packages/app/src/utils/auth-telemetry.ts`).
-- Expo delivers push notifications to the device token.
+- Honeycomb receives the API's traces, which carry the user ID and plant IDs (`packages/api/src/telemetry/otel.ts`).
+- Discord receives the API's error alerts, which carry the user ID and the failed URL (`packages/api/src/services/alerting/discord.provider.ts`).
+- Expo delivers push notifications to the device token. The API sends Live Activity updates to APNs directly (`packages/api/src/services/push/apns-live-activity.ts`).
+- Expo serves OTA updates. On each launch and each return to the foreground, expo-updates asks `u.expo.dev` for an update (`updates` in `packages/app/app.json`, `packages/app/src/hooks/useOTAUpdates.tsx`). The request carries the IP address, the platform, the runtime version, the channel, the current update IDs, the EAS client ID (a random UUID stored on the device) and, after a failed update, the error message.
 
 ## Privacy policy
 
 - The app links to `https://withlily.app/<locale>/privacy`, built by `privacyUrl` in `packages/app/src/constants/urls.ts`.
 - The page is `packages/web/src/routes/$locale/privacy.tsx`. Its English copy is in `packages/web/src/i18n/en.ts` and its French copy in `packages/web/src/i18n/fr.ts`.
-- Section 5 of the policy names Railway, Google Analytics, an unnamed AI provider for photos, Expo and the stores. It does not name Sentry, RevenueCat, Google Cloud Storage, Resend or OpenWeatherMap. It does not say that chat text goes to the AI provider. Update the policy before you declare these processors.
+- Section 5 of the policy names every processor in the list above, plus Railway, Google Analytics for the website and the stores. When a change adds a processor, add it to this list and to section 5 in both locales.
 
 ## App access
 
@@ -64,16 +68,17 @@ The app is not designed for children. Leave the under-13 age groups out, because
 | Other in-app messages | The delegation `message` | User-to-user free text |
 | Other user-generated content | Plants, notes, care logs, rooms, bio and chat text | Chat text goes to OpenAI |
 | Crash logs and diagnostics | Sentry | The app sets no Sentry user |
-| Device or other IDs | The Expo push token from `getExpoPushTokenAsync` in `packages/app/src/utils/notifications.ts` | Stored in `device_tokens` |
+| Device or other IDs | The Expo push token from `getExpoPushTokenAsync` in `packages/app/src/utils/notifications.ts`, and the EAS client ID that expo-updates sends to Expo | The push token is stored in `device_tokens` |
 
 **Location.** `packages/app/src/hooks/useLocationPermission.ts` asks for `Location.Accuracy.Balanced`, which expo-location documents as about 100 m. The API stores the raw coordinates. The app also requests `ACCESS_FINE_LOCATION`. Play's form defines precise location as an area under 3 km², so these coordinates read as precise location. Check the form's current definition, or round the coordinates before upload to declare approximate location.
 
 **App interactions.** The app has no analytics SDK in `packages/app/package.json`. These per-user signals exist:
 
+- The API counts each user's chat messages, plant identifications and card scans per month in `subscription_usage`, to enforce plan limits (`packages/api/src/services/subscriptions/usage-tracker.ts`).
 - The API counts each user's care history opens in `historyViewCount` on `users`, for an achievement (`incrementHistoryViews` in `packages/api/src/repositories/achievement.repository.ts`).
 - `Sentry.wrap` in `packages/app/app/_layout.tsx` records touch breadcrumbs, and `packages/app/src/utils/auth-telemetry.ts` adds auth breadcrumbs. Both travel with Sentry error reports.
 
-The API also keeps daily aggregate counts with no user ID (`analyticsDailySnapshots` in `packages/db/src/schema/analytics.ts`). The privacy policy says that in-app analytics also go to Google Analytics, but the app sends nothing to Google Analytics.
+The API also keeps daily aggregate counts with no user ID (`analyticsDailySnapshots` in `packages/db/src/schema/analytics.ts`). Only the website loads Google Analytics (`packages/web/src/routes/__root.tsx`).
 
 **Not collected.** Audio, contacts, SMS, web browsing, health and fitness data, and payment card numbers.
 

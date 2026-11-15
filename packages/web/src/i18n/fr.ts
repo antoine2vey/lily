@@ -909,7 +909,7 @@ export const fr = {
     heading: 'Politique de confidentialité',
     metaDescription:
       'Comment Lily collecte, utilise et protège vos données personnelles selon le RGPD : vos droits, la durée de conservation, les cookies et les tiers.',
-    lastUpdated: 'Dernière mise à jour : mars 2026',
+    lastUpdated: 'Dernière mise à jour : novembre 2026',
     intro:
       "Cette Politique de confidentialité explique comment Lily (« nous » ou « notre ») collecte, utilise, stocke et protège vos données personnelles lorsque vous utilisez l'application mobile Lily (l'« Application ») et notre site web withlily.app. Nous nous engageons à protéger votre vie privée et à respecter le Règlement Général sur la Protection des Données (RGPD), la loi Informatique et Libertés, et toute autre législation applicable en matière de protection des données.",
     sections: [
@@ -936,8 +936,9 @@ export const fr = {
             title: 'Données collectées automatiquement',
             list: [
               "Informations sur l'appareil (modèle, système d'exploitation, version de l'application)",
-              "Données d'utilisation (fonctionnalités utilisées, durée des sessions, interactions)",
-              'Adresse IP et localisation approximative (pays/région, pour les paramètres de langue et fuseau horaire)',
+              "Données d'utilisation : chaque mois, nous comptons vos messages dans le chat, vos identifications de plantes et vos lectures d'étiquettes de plantes pour appliquer les limites de votre offre. Nous comptons aussi le nombre de fois où vous ouvrez votre historique de soins, qui compte pour un succès, et nous recevons les écrans et appuis qui précèdent un plantage. Nos serveurs conservent aussi des totaux quotidiens sur l'ensemble des utilisateurs, sans identifiant utilisateur",
+              'Adresse IP, que nos serveurs utilisent pour limiter les requêtes répétées, comme les tentatives de connexion',
+              "Votre position, si vous l'autorisez. L'application lit les coordonnées de votre appareil à environ 100 m près et les enregistre pour les prévisions météo. Le propriétaire d'une Canopy peut aussi définir la position de la Canopy",
               'Rapports de plantage et données de performance',
             ],
           },
@@ -971,7 +972,7 @@ export const fr = {
           {
             list: [
               "Fournir et maintenir l'Application, y compris les rappels de soins personnalisés et les plannings",
-              "Traiter les photos de plantes via des modèles d'IA pour l'identification d'espèces et le diagnostic de maladies",
+              "Traiter les photos de plantes et les messages du chat avec des modèles d'OpenAI pour l'identification d'espèces, le diagnostic de maladies et le chat sur l'entretien des plantes",
               "Envoyer des notifications push pour l'arrosage, la fertilisation et autres soins (avec votre consentement)",
               "Analyser des données d'utilisation agrégées et anonymisées pour améliorer les fonctionnalités et l'expérience utilisateur",
               "Répondre à vos demandes d'assistance et retours",
@@ -985,16 +986,25 @@ export const fr = {
       {
         heading: '5. Partage des données et tiers',
         blocks: [
-          'Nous partageons vos données uniquement avec les catégories de prestataires suivantes, chacun étant lié par un accord de traitement des données :',
+          'Nous partageons vos données uniquement avec les prestataires suivants, qui les traitent pour notre compte :',
           {
             list: [
-              "Hébergement cloud : Nos serveurs sont hébergés sur Railway (fournisseur d'infrastructure), qui traite les données pour notre compte dans des centres de données situés aux États-Unis",
-              "Analytique : Nous utilisons Google Analytics (Google LLC) pour collecter des statistiques d'utilisation anonymisées. Google Analytics utilise des cookies et peut transférer des données aux États-Unis dans le cadre de Clauses Contractuelles Types. Vous pouvez vous désinscrire à tout moment via les paramètres de l'application",
-              "Services d'IA : Les photos de plantes soumises pour identification ou diagnostic sont traitées par des modèles d'IA tiers. Les photos sont transmises de manière sécurisée, utilisées uniquement pour l'analyse demandée et ne sont pas conservées par le fournisseur d'IA au-delà du traitement",
-              'Notifications push : Nous utilisons Expo (Expo Inc.) pour envoyer les notifications push sur votre appareil',
-              "Traitement des paiements : Les abonnements sont gérés entièrement par l'App Store d'Apple ou Google Play. Nous recevons uniquement votre statut d'abonnement, pas vos informations de paiement",
+              'Railway héberge nos serveurs, nos bases de données et ce site dans sa région Union européenne, aux Pays-Bas. Nos bases de données contiennent les données de votre compte et de vos plantes.',
+              "Cloudflare (Cloudflare, Inc.) relaie les requêtes qui arrivent sur notre site et nos serveurs. Cloudflare voit votre adresse IP et l'adresse de chaque page ou requête.",
+              "Google Cloud Storage (Google LLC) stocke les photos de vos plantes, votre photo de profil, et les photos que vous envoyez pour une identification, un diagnostic, la lecture d'une étiquette de plante ou dans le chat.",
+              "OpenAI fournit les fonctionnalités d'IA. OpenAI reçoit les photos que vous envoyez pour une identification, un diagnostic ou la lecture d'une étiquette de plante, ainsi que les messages et les photos que vous envoyez dans le chat. OpenAI reçoit aussi les informations et l'historique de soins de la plante dont vous parlez, y compris vos notes de soin. Selon les conditions publiées de son API, OpenAI n'utilise pas les données de l'API pour entraîner ses modèles par défaut, et les conserve jusqu'à 30 jours, sauf si la conservation zéro des données s'applique.",
+              'Resend envoie les liens de connexion que nous vous adressons par e-mail. Resend reçoit votre adresse e-mail.',
+              "Open-Meteo, et OpenWeatherMap en secours, fournissent les prévisions météo pour les conseils d'arrosage. Ils reçoivent les coordonnées de votre position ou de votre Canopy, et aucune autre donnée de votre compte.",
+              "RevenueCat gère les abonnements. RevenueCat reçoit votre identifiant utilisateur Lily et vos achats sur l'App Store ou Google Play.",
+              "Sentry reçoit les rapports de plantage et les traces de performance de l'application. Un rapport contient le modèle de votre appareil, son système d'exploitation et la version de l'application, l'erreur, et les écrans et appuis qui l'ont précédée. L'application n'y joint ni votre nom ni votre adresse e-mail.",
+              "Honeycomb reçoit les traces des requêtes que l'application envoie à nos serveurs, pour que nous trouvions les erreurs et les requêtes lentes. Une trace peut contenir votre identifiant utilisateur Lily et les identifiants de vos plantes.",
+              "Discord reçoit nos alertes d'erreur. Une alerte peut contenir votre identifiant utilisateur Lily et l'adresse de la requête en échec.",
+              "Expo envoie les notifications push. Expo reçoit le jeton push de votre appareil et le texte de la notification, qui peut nommer vos plantes. Expo transmet chaque notification à Apple Push Notification service ou à Firebase Cloud Messaging pour la livraison. Sur iPhone, nous envoyons aussi les mises à jour des Live Activities directement à Apple Push Notification service. Chaque fois que vous ouvrez Lily ou y revenez, l'application demande aussi à Expo si une mise à jour est disponible. Cette requête transmet à Expo votre adresse IP, votre plateforme, la version de l'application, le canal de mise à jour, un identifiant aléatoire créé à l'installation de l'application et, après l'échec d'une mise à jour, son message d'erreur.",
+              "Google Analytics (Google LLC) mesure les visites de notre site, comme le décrit la section 9. L'application n'utilise pas Google Analytics.",
+              "L'App Store d'Apple et Google Play gèrent le paiement des abonnements. Nous recevons votre statut d'abonnement, pas vos informations de paiement.",
             ],
           },
+          "Si vous connectez un assistant IA comme ChatGPT à votre compte Lily, cet assistant reçoit les données de plantes qu'il demande. La politique de confidentialité du fournisseur de l'assistant couvre ces données.",
           "Nous pouvons également divulguer vos données si la loi, une décision de justice ou la protection de nos droits légaux l'exige.",
         ],
       },
@@ -1005,9 +1015,10 @@ export const fr = {
           {
             list: [
               'Données de compte (nom, e-mail) : Conservées tant que votre compte est actif, supprimées dans les 30 jours suivant la suppression du compte',
-              'Données de plantes (collection, journaux de soins, photos) : Conservées tant que votre compte est actif. Exportées sur demande avant suppression',
-              "Photos de diagnostic IA : Traitées en temps réel et non stockées sur nos serveurs après l'analyse",
-              "Analytique d'utilisation : Les données agrégées et anonymisées sont conservées jusqu'à 26 mois (durée par défaut de Google Analytics)",
+              'Données de plantes (collection, journaux de soins) : Conservées tant que votre compte est actif. Exportées sur demande avant suppression',
+              "Photos (les photos de vos plantes, votre photo de profil, et les photos que vous envoyez pour une identification, un diagnostic, la lecture d'une étiquette de plante ou dans le chat) : Stockées dans Google Cloud Storage. Elles y restent après la suppression de votre compte, jusqu'à ce que nous les supprimions à votre demande. Pour le demander, écrivez à privacy@withlily.app. La section 5 indique combien de temps OpenAI conserve les photos qu'il reçoit",
+              "Statistiques du site : Google Analytics conserve les données de visite jusqu'à 14 mois, la durée maximale d'une propriété Google Analytics standard",
+              "Totaux d'utilisation de l'application : Des comptages quotidiens sur l'ensemble des utilisateurs, sans identifiant utilisateur",
               "Correspondance d'assistance : Conservée jusqu'à 2 ans après résolution",
               'Données de paiement : Conservées conformément aux obligations fiscales et comptables applicables (généralement 5 à 7 ans)',
             ],
@@ -1026,13 +1037,13 @@ export const fr = {
               'Sauvegardes automatiques chiffrées',
             ],
           },
-          "Bien que nous mettions en œuvre des mesures de sécurité robustes, aucun système n'est totalement sûr. Nous vous encourageons à utiliser un mot de passe fort et unique pour votre compte Lily.",
+          "Bien que nous mettions en œuvre des mesures de sécurité robustes, aucun système n'est totalement sûr. Lily n'utilise pas de mot de passe. Vous vous connectez avec un lien que nous vous envoyons par e-mail, ou avec votre compte Apple ou Google. Ce compte et votre appareil donnent accès à votre compte Lily : protégez-les.",
         ],
       },
       {
         heading: '8. Transferts internationaux de données',
         blocks: [
-          "Vos données peuvent être transférées et traitées aux États-Unis, où notre infrastructure est hébergée. Pour les transferts de données personnelles depuis l'Espace Économique Européen (EEE), le Royaume-Uni ou la Suisse vers les États-Unis, nous nous appuyons sur les Clauses Contractuelles Types (CCT) approuvées par la Commission européenne, ou d'autres mécanismes de transfert valides requis par la loi applicable. Vous pouvez demander une copie des CCT applicables en nous contactant à privacy@withlily.app.",
+          "Nos bases de données sont hébergées par Railway dans l'Union européenne. Plusieurs prestataires de la section 5 sont basés aux États-Unis, notamment Cloudflare, Google, OpenAI, Resend, RevenueCat, Sentry, Expo et Discord, et vos données peuvent donc y être traitées. Pour les transferts de données personnelles depuis l'Espace Économique Européen (EEE), le Royaume-Uni ou la Suisse vers les États-Unis, nous nous appuyons sur les Clauses Contractuelles Types (CCT) approuvées par la Commission européenne, ou d'autres mécanismes de transfert valides requis par la loi applicable. Vous pouvez demander une copie des CCT applicables en nous contactant à privacy@withlily.app.",
         ],
       },
       {
@@ -1041,11 +1052,11 @@ export const fr = {
           'Notre site web (withlily.app) utilise les technologies de suivi suivantes :',
           {
             list: [
-              'Google Analytics : Collecte des pages vues, la durée des sessions et les sources de référence de manière anonymisée. Utilise des cookies propriétaires avec une expiration de 2 ans. Vous pouvez vous désinscrire via les extensions de navigateur ou les paramètres de cookies',
-              'Cookies essentiels : Utilisés pour la préférence de langue (locale) et le choix du thème. Ces cookies sont strictement nécessaires et ne requièrent pas de consentement',
+              "Google Analytics : Collecte les pages vues, la durée des sessions, les sources de référence, et le type d'appareil et de navigateur. Google Analytics dépose des cookies propriétaires qui expirent au bout de 2 ans. Vous pouvez les bloquer dans les réglages de votre navigateur ou avec le module complémentaire de désactivation de Google Analytics",
+              "Stockage local : Si vous choisissez un thème clair ou sombre, le site enregistre ce choix dans votre navigateur. Ce stockage ne requiert pas de consentement. La langue vient de l'adresse de la page, pas d'un cookie",
             ],
           },
-          "L'application mobile Lily n'utilise pas de cookies. Les analyses intégrées sont collectées via notre propre infrastructure et Google Analytics avec des identifiants anonymisés.",
+          "L'application mobile Lily n'utilise pas de cookies et ne contient aucun SDK d'analytique ou de publicité. Elle envoie les rapports de plantage à Sentry, comme le décrit la section 5. Nos serveurs conservent des totaux d'utilisation quotidiens sur l'ensemble des utilisateurs, sans identifiant utilisateur.",
         ],
       },
       {
@@ -1166,7 +1177,7 @@ export const fr = {
       },
       {
         q: 'Mes photos de plantes sont-elles privées ?',
-        a: 'Oui. Les photos soumises pour identification ou diagnostic IA sont traitées en temps réel et ne sont pas conservées après analyse. Consultez notre Politique de confidentialité pour plus de détails.',
+        a: "Les photos que vous envoyez pour une identification, un diagnostic ou dans le chat partent chez OpenAI pour l'analyse, et nous les stockons dans Google Cloud Storage avec vos données de plantes. Selon les conditions de son API, OpenAI n'entraîne pas ses modèles sur ces photos par défaut. Les photos de vos plantes apparaissent sur votre profil public, sauf si vous le désactivez dans Paramètres → Confidentialité. Notre Politique de confidentialité donne tous les détails.",
       },
       {
         q: 'Quelle est la fiabilité du diagnostic IA ?',
