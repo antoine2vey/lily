@@ -1,15 +1,17 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
-import { daysAgoAsDate } from '@lily/shared'
-import { Array, Effect } from 'effect'
+import { Array, DateTime, Effect } from 'effect'
 
 const GRACE_PERIOD_DAYS = 30
 
 export const cleanupExpiredAccounts = Effect.gen(function* () {
   const userRepo = yield* UserRepository
 
-  const cutoff = daysAgoAsDate(GRACE_PERIOD_DAYS)
+  const now = yield* DateTime.now
+  const cutoff = DateTime.toDateUtc(
+    DateTime.subtract(now, { days: GRACE_PERIOD_DAYS })
+  )
   const expiredUsers = yield* userRepo.findExpiredDeletions(cutoff)
 
   if (Array.isArrayEmpty(expiredUsers)) return
