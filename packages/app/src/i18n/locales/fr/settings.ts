@@ -120,7 +120,7 @@ export default {
     version: 'Version',
     termsOfService: "Conditions d'utilisation",
     privacyPolicy: 'Politique de confidentialité',
-    licenses: 'Licences open source',
+    licenses: 'Licence',
   },
   deleteAccount: {
     title: 'Supprimer le compte',

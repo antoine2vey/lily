@@ -115,7 +115,7 @@ export default {
     version: 'Version',
     termsOfService: 'Terms of Service',
     privacyPolicy: 'Privacy Policy',
-    licenses: 'Open Source Licenses',
+    licenses: 'License',
   },
   deleteAccount: {
     title: 'Delete Account',

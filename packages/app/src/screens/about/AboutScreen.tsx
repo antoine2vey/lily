@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { ListRow } from '@/components/ListRow'
-import { WEBSITE_BASE_URL } from '@/constants/urls'
+import { LICENSE_URL, WEBSITE_BASE_URL } from '@/constants/urls'
 import { useIconColors } from '@/hooks/useIconColors'
 import { openExternalUrl } from '@/utils/linking'
 
@@ -64,12 +64,7 @@ export function AboutScreen() {
             }
             title={t('links.licenses')}
             showChevron
-            onPress={() => {
-              // TODO: Replace with a dedicated licenses screen
-              openExternalUrl(
-                'https://github.com/lily-app/lily/blob/main/LICENSES.md'
-              )
-            }}
+            onPress={() => openExternalUrl(LICENSE_URL)}
           />
           <ListRow
             leftIcon={
