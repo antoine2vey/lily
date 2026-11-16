@@ -92,8 +92,10 @@ describe('verifyMagicLink', () => {
     return created
   }
 
-  it('stores the zone a new device reports, alias included', async () => {
-    expect(await signUpFrom('Eire')).toMatchObject([{ timezone: 'Eire' }])
+  it('stores the canonical zone of an alias a new device reports', async () => {
+    expect(await signUpFrom('Eire')).toMatchObject([
+      { timezone: 'Europe/Dublin' },
+    ])
   })
 
   it('stores no zone when the device reports one that does not resolve', async () => {

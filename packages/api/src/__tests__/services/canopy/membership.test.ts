@@ -34,6 +34,7 @@ import {
   CanopyInviteNotFoundError,
   CanopyMemberNotFoundError,
   NotCanopyOwnerError,
+  TimeZone,
 } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Exit, String } from 'effect'
@@ -436,7 +437,7 @@ describe('updateMyCanopy', () => {
     const exit = await run(
       store,
       'lily',
-      updateMyCanopy({ name: 'Nest', timezone: 'Asia/Tokyo' })
+      updateMyCanopy({ name: 'Nest', timezone: TimeZone.make('Asia/Tokyo') })
     )
     expect(failureOf(exit)).toEqual(new NotCanopyOwnerError())
     expect(store.canopies[0]).toMatchObject({

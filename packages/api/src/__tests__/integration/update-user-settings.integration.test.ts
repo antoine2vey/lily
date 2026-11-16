@@ -19,6 +19,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { TimeZone } from '@lily/shared'
 import type { UserSettingsUpdateRequest } from '@lily/shared/user'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -229,7 +230,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const request = { _tag: 'Recipient', userId }
 
       const exit = await update(
-        { timezone: 'America/New_York' },
+        { timezone: TimeZone.make('America/New_York') },
         UnplannableLive
       )
 
@@ -303,7 +304,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .where(eq(schema.users.id, userId))
 
-      const exit = await update({ timezone: 'America/New_York' })
+      const exit = await update({ timezone: TimeZone.make('America/New_York') })
 
       expect(Exit.isSuccess(exit)).toBe(true)
       const rows = await pending()

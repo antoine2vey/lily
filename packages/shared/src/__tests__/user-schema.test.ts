@@ -389,12 +389,12 @@ describe('User Schemas', () => {
       expect(result.privacy?.shareGrowthData).toBeUndefined()
     })
 
-    it('accepts a time zone alias', () => {
+    it('decodes a time zone alias to its canonical zone', () => {
       const result = Schema.decodeSync(UserSettingsUpdateRequest)({
         timezone: 'Eire',
       })
 
-      expect(result.timezone).toBe('Eire')
+      expect(result.timezone).toBe('Europe/Dublin')
     })
 
     it('rejects a time zone that does not resolve', () => {

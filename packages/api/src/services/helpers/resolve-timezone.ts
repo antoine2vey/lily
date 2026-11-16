@@ -1,4 +1,4 @@
-import { DEFAULT_TIMEZONE, KnownTimezone } from '@lily/shared'
+import { DEFAULT_TIMEZONE, TimeZone } from '@lily/shared'
 import { Option, pipe, Schema } from 'effect'
 
 /** Resolve a nullable user timezone setting to an IANA string. */
@@ -6,16 +6,16 @@ export const resolveTimezone = (tz: string | null): string =>
   Option.getOrElse(Option.fromNullishOr(tz), () => DEFAULT_TIMEZONE)
 
 /**
- * The `timezone` field to store for a device that signs in. Empty when the
- * device reports no zone or one this runtime cannot resolve, so the account
- * keeps the column default.
+ * The `timezone` field to store for a device that signs in, in canonical form.
+ * Empty when the device reports no zone or one outside the canonical set and
+ * its aliases, so the account keeps the column default.
  */
 export const deviceTimezone = (
   reported: string | undefined
-): { readonly timezone?: string } =>
+): { readonly timezone?: TimeZone } =>
   pipe(
     Option.fromUndefinedOr(reported),
-    Option.filter(Schema.is(KnownTimezone)),
+    Option.flatMap(Schema.decodeUnknownOption(TimeZone)),
     Option.match({
       onNone: () => ({}),
       onSome: (timezone) => ({ timezone }),

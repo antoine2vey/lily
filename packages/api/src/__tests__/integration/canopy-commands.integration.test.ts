@@ -60,6 +60,7 @@ import {
   CanopyNotFoundError,
   type PlantOwner,
   RoomNotFoundError,
+  TimeZone,
   UnauthorizedError,
   UserNotFoundError,
 } from '@lily/shared'
@@ -513,7 +514,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             canopy.update({
               by: alexId,
               changes: changes({
-                timezone: Option.some('Asia/Tokyo'),
+                timezone: Option.some(TimeZone.make('Asia/Tokyo')),
                 latitude: Option.some(null),
               }),
             })

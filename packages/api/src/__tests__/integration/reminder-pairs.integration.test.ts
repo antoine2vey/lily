@@ -61,6 +61,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { TimeZone } from '@lily/shared'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -215,7 +216,10 @@ const TRIGGERS: ReadonlyArray<
   ],
   [
     'canopy timezone',
-    (w) => [w.alex, updateMyCanopy({ timezone: 'Pacific/Niue' })],
+    (w) => [
+      w.alex,
+      updateMyCanopy({ timezone: TimeZone.make('Pacific/Niue') }),
+    ],
   ],
   ['leave', (w) => [w.aboutToLeave.id, leave(w.aboutToLeave.id)]],
   [

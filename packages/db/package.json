@@ -36,6 +36,7 @@
     "db:migrate:prod": "bun run scripts/migrate.ts",
     "db:seed:prod": "bun run scripts/seed-tiers-prod.ts",
     "db:studio": "drizzle-kit studio",
+    "generate:time-zones": "bun run scripts/generate-time-zones.ts",
     "seed:admin": "bun run scripts/seed-admin.ts",
     "seed:apple-reviewer": "bun run scripts/seed-apple-reviewer.ts",
     "seed:android-reviewer": "bun run scripts/seed-android-reviewer.ts",

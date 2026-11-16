@@ -55,6 +55,7 @@ import {
   PlantInDelegationError,
   type PlantOwner,
   RoomNotFoundError,
+  TimeZone,
   UnauthorizedError,
   UserNotFoundError,
 } from '@lily/shared'
@@ -234,7 +235,7 @@ describe('Canopy', () => {
           by: 'lily',
           changes: changes({
             name: Option.some('Nest'),
-            timezone: Option.some('Asia/Tokyo'),
+            timezone: Option.some(TimeZone.make('Asia/Tokyo')),
           }),
         })
       )
@@ -272,7 +273,7 @@ describe('Canopy', () => {
         canopy.update({
           by: 'alex',
           changes: changes({
-            timezone: Option.some('Asia/Tokyo'),
+            timezone: Option.some(TimeZone.make('Asia/Tokyo')),
             latitude: Option.some(35.68),
             longitude: Option.some(139.69),
           }),

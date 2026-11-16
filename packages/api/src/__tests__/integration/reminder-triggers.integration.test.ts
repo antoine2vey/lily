@@ -62,7 +62,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CanopyId, CareDays, type PlantOwner } from '@lily/shared'
+import { CanopyId, CareDays, type PlantOwner, TimeZone } from '@lily/shared'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Layer, References } from 'effect'
@@ -393,7 +393,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       it('keeps its reminders on the stored due days (declared change: they moved to the days of the new timezone before)', async () => {
         const before = await inKiritimatiWith(dueDayIn('Pacific/Kiritimati'))
 
-        await as(alex, updateMyCanopy({ timezone: 'Pacific/Niue' }))
+        await as(
+          alex,
+          updateMyCanopy({ timezone: TimeZone.make('Pacific/Niue') })
+        )
 
         expect(before).toEqual(
           Array.replicate(dueDayIn('Pacific/Kiritimati'), 2)

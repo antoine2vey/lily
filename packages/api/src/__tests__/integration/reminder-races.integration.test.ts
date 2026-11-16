@@ -79,6 +79,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { TimeZone } from '@lily/shared'
 import type { PushMessage } from '@lily/shared/server'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -1586,8 +1587,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await pendingWatering(u, pv)
         return {
           u,
-          first: updateUserSettings({ timezone: 'Europe/Paris' }),
-          second: () => as(v, updateUserSettings({ timezone: 'Asia/Tokyo' })),
+          first: updateUserSettings({
+            timezone: TimeZone.make('Europe/Paris'),
+          }),
+          second: () =>
+            as(
+              v,
+              updateUserSettings({ timezone: TimeZone.make('Asia/Tokyo') })
+            ),
         }
       },
       'a timezone change and a vacation end': async (round: number) => {
@@ -1617,7 +1624,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await inFlight(u, pv)
         return {
           u,
-          first: updateUserSettings({ timezone: 'Europe/Paris' }),
+          first: updateUserSettings({
+            timezone: TimeZone.make('Europe/Paris'),
+          }),
           second: () => as(v, returnFromVacation(v)),
         }
       },
@@ -1641,7 +1650,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         return {
           u: v,
           first: returnFromVacation(v),
-          second: () => as(u, updateUserSettings({ timezone: 'Asia/Tokyo' })),
+          second: () =>
+            as(
+              u,
+              updateUserSettings({ timezone: TimeZone.make('Asia/Tokyo') })
+            ),
         }
       },
     }

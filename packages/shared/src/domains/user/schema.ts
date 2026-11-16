@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { KnownTimezone, TimeString } from '../notification/timezone'
+import { TimeString, TimeZone } from '../notification/timezone'
 import { VacationStatus } from '../vacation/schema'
 
 // Role, status, and language literals
@@ -132,7 +132,7 @@ export const UserSettingsUpdateRequest = Schema.Struct({
       personalizedTips: Schema.optional(Schema.Boolean),
     })
   ),
-  timezone: Schema.optional(KnownTimezone),
+  timezone: Schema.optional(TimeZone),
   preferredNotificationTime: Schema.optional(Schema.String),
   language: Schema.optional(LanguageCode),
   temperatureUnit: Schema.optional(TemperatureUnit),
