@@ -16,63 +16,54 @@ on:
   # app/shared changes that a server-only push left unpublished.
   workflow_dispatch:
 
+# Every run publishes to the one EAS branch `production`, so all runs share
+# one group and go one at a time. GitHub keeps one pending run per group and
+# drops older pending ones; that is safe because the surviving run builds the
+# newest commit and its diff starts at the last published commit, not at its
+# own push.
+# Never cancel: a cancelled run can leave a commit unpublished.
+concurrency:
+  group: ota-update-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
   update:
     # Skip if this is a version tag commit
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     name: Publish OTA Update
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.affected.outputs.result }}
+      last: ${{ steps.affected.outputs.last }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # Full history so the affected-check can diff the entire push range
-          # (github.event.before..after), which may span many commits.
+          # Full history so the affected-check can diff from the last
+          # published commit, which may be many commits back.
           fetch-depth: 0
+          # This job installs dependencies and runs the bundler. It gets no
+          # token it could push with.
+          persist-credentials: false
+
+      - name: Fetch the last published commit
+        run: |
+          # fetch-depth 0 fetches branches and tags only. A missing ref is
+          # fine: the next step then publishes (bootstrap).
+          git fetch --no-tags origin "+refs/ota/production:refs/ota/production" \
+            || echo "::notice::No refs/ota/production yet."
 
       - name: Check if app/shared was actually affected
         id: affected
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.event.after }}
-        run: |
-          # A manual run is an explicit operator request — always publish the
-          # current bundle (the escape hatch for shipping changes an earlier
-          # push left unpublished).
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "result=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Manual dispatch — publishing OTA from current HEAD."
-            exit 0
-          fi
-
-          # Diff the WHOLE push range, not just HEAD^1..HEAD. A multi-commit
-          # push whose tip is server-only (e.g. an api commit on top of an app
-          # fix) would otherwise read as "no app changes" and silently skip the
-          # OTA, stranding the app/shared changes on main. The all-zeros SHA
-          # (new branch / some force-pushes) isn't a real ref — fall back to the
-          # tip commit's diff in that case.
-          if [ -z "$BEFORE_SHA" ] \
-            || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] \
-            || ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
-            RANGE="HEAD^1 HEAD"
-          else
-            RANGE="$BEFORE_SHA $AFTER_SHA"
-          fi
-
-          # Defense in depth: the YAML `paths:` filter above has misfired at
-          # least once (run 26509635618 published an OTA for a blog-only diff).
-          # Confirm with a real git diff before paying for an EAS publish.
-          if git diff --name-only $RANGE \
-            | grep -E '^packages/(app|shared)/' \
-            | grep -vE '^packages/app/(eas|app)\.json$' \
-            | grep -vE '\.md$' \
-            | grep -q .; then
-            echo "result=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "result=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No packages/app or packages/shared changes in this push; skipping EAS publish."
-          fi
+          AFTER_SHA: ${{ github.sha }}
+        # Only key=value lines may reach $GITHUB_OUTPUT: the runner fails the
+        # step on anything else. The script sends its notices to stderr.
+        run: bash scripts/ota-should-publish.sh >> "$GITHUB_OUTPUT"
 
       - name: Setup
         if: steps.affected.outputs.result == 'true'
@@ -108,3 +99,30 @@ jobs:
             --environment production \
             --message "$SUBJECT" \
             --non-interactive
+
+  record:
+    # Its own job so that only these two steps hold a token that can write to
+    # the repository. Runs only after a publish that succeeded.
+    name: Record the published commit
+    needs: update
+    if: ${{ needs.update.result == 'success' && needs.update.outputs.result == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Move refs/ota/production
+        env:
+          AFTER_SHA: ${{ github.sha }}
+          LAST: ${{ needs.update.outputs.last }}
+        run: |
+          # The lease moves the ref only while it still holds the commit the
+          # publish job diffed from (empty: the ref must not exist yet). A
+          # re-run of this job after a newer run recorded its commit therefore
+          # cannot move the ref back. A failed push leaves the ref behind, so
+          # the next run diffs a wider range and publishes again.
+          git push --force-with-lease="refs/ota/production:${LAST}" \
+            origin "${AFTER_SHA}:refs/ota/production" \
+            || echo "::warning::Could not move refs/ota/production from '${LAST}'; the next run will diff from the commit it holds."

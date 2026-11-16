@@ -73,6 +73,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Check doc links, paths and package coverage
         run: bash scripts/check-docs.sh
+      - name: Check the OTA publish decision
+        run: bash scripts/test-ota-should-publish.sh
 
   integration:
     name: Integration tests (${{ matrix.shard }}/4)
