@@ -40,7 +40,7 @@ const advance = (steps: number, step: Duration.Input) =>
     discard: true,
   })
 
-// Built the way src/index.ts wires schedulers (Layer.mergeAll builds each
+// Built the way src/server.ts wires schedulers (Layer.mergeAll builds each
 // member in its own fiber), so a loop forked with forkChild, which dies when
 // that build fiber ends, shows up here as a scheduler that never ticks.
 const startAsLayer = <R>(scheduler: Effect.Effect<void, never, R>) =>

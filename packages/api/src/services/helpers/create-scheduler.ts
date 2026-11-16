@@ -10,7 +10,7 @@ import {
 
 /**
  * How long each shutdown phase waits for in-flight work. The HTTP server and
- * the schedulers drain in parallel (see `src/index.ts`), then `ChatTurns`
+ * the schedulers drain in parallel (see `src/server.ts`), then `ChatTurns`
  * drains the turns still saving a reply. `drainingSeconds` on the API service
  * in `.railway/railway.ts` covers both phases.
  */
