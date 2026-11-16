@@ -60,6 +60,19 @@ describe('readClientImage', () => {
       'users/user-1/../user-2/identify/photo.jpg',
     ],
     [
+      'a bare key with backslash parent segments',
+      'users/user-1/identify/..\\..\\photo.jpg',
+    ],
+    [
+      'a bare key with an encoded slash',
+      'users/user-1/identify/..%2F..%2Fphoto.jpg',
+    ],
+    [
+      'a URL with a twice-encoded slash',
+      privateUrl('users/user-1/identify/..%252F..%252Fphoto.jpg'),
+    ],
+    ['a key with an empty segment', 'users/user-1//photo.jpg'],
+    [
       "a user whose id starts with the caller's",
       privateUrl('users/user-10/identify/photo.jpg'),
     ],

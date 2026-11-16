@@ -13,7 +13,10 @@ import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.reposit
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
+import {
+  createMockGCSService,
+  MOCK_BUCKET_NAMES,
+} from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockRagServiceLive } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
@@ -63,6 +66,8 @@ const PlatformLive = Layer.mergeAll(
 
 const messages: ChatMessage[] = []
 const chatStreamCalls: ChatStreamCall[] = []
+const signedKeys: string[] = []
+const ownFolder = `users/${userId}/chat/${conversation.id}`
 
 const ServicesLive = Layer.mergeAll(
   createMockChatRepository({ messages, conversations: [conversation] }),
@@ -79,7 +84,7 @@ const ServicesLive = Layer.mergeAll(
     schedules: schedulesFromPlants(mockPlants),
     plants: mockPlants,
   }),
-  createMockGCSService(),
+  createMockGCSService({ signedKeys }),
   createMockDelegationRepository({}),
   createMockCanopyRepository(),
   ChatTurns.layer
@@ -126,6 +131,7 @@ describe('chat stream image source over HTTP', () => {
   beforeEach(() => {
     messages.length = 0
     chatStreamCalls.length = 0
+    signedKeys.length = 0
   })
 
   afterAll(async () => {
@@ -135,16 +141,48 @@ describe('chat stream image source over HTTP', () => {
   it('sends the model the signed URL of an uploaded imageKey', async () => {
     const res = await stream({
       message: 'What is this?',
-      imageKey: `chat/${conversation.id}/photo.jpg`,
+      imageKey: `${ownFolder}/photo.jpg`,
     })
     await res.text()
 
     expect(res.status).toBe(200)
+    expect(signedKeys).toEqual([`${ownFolder}/photo.jpg`])
     expect(chatStreamCalls[0]?.imageOptions?.imageKey).toBe(
-      `chat/${conversation.id}/photo.jpg`
+      `${ownFolder}/photo.jpg`
     )
     expect(fileParts(chatStreamCalls[0])).toHaveLength(1)
   })
+
+  it.each([
+    [
+      "parent segments into another user's folder",
+      `${ownFolder}/../../../user-2/chat/${conversation.id}/photo.jpg`,
+    ],
+    [
+      'parent segments behind an unscoped chat prefix',
+      `chat/${conversation.id}/../../users/user-2/identify/photo.jpg`,
+    ],
+    ['a current-folder segment', `${ownFolder}/./photo.jpg`],
+    [
+      'a URL whose encoded slash hides parent segments',
+      `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/${ownFolder}/..%2F..%2F..%2Fuser-2/identify/photo.jpg`,
+    ],
+    ['backslash parent segments', `${ownFolder}/..\\..\\photo.jpg`],
+    ['a literal encoded slash', `${ownFolder}/..%2F..%2Fphoto.jpg`],
+  ])(
+    'answers 404 to %s without signing, calling the model or saving',
+    async (_case, imageKey) => {
+      const res = await stream({ message: 'What is this?', imageKey })
+      await res.text()
+
+      expect({
+        status: res.status,
+        signedKeys,
+        modelCalls: chatStreamCalls.length,
+        saved: messages.length,
+      }).toEqual({ status: 404, signedKeys: [], modelCalls: 0, saved: 0 })
+    }
+  )
 
   it('ignores a client imageUrl and calls the model with no image', async () => {
     const res = await stream({
