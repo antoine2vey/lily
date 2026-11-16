@@ -290,6 +290,7 @@ export function RoomsScreen() {
 
   return (
     <View
+      testID="rooms-screen"
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >

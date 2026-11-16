@@ -243,5 +243,9 @@ env:
 #     realistic distribution so the screen isn't empty. Deep link
 #     goes directly to /rooms.
 - openLink: "lily:///rooms"
+- extendedWaitUntil:
+    visible:
+      id: "rooms-screen"
+    timeout: 15000
 - waitForAnimationToEnd
 - takeScreenshot: "${OUTPUT_DIR}/rooms"
