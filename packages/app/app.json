@@ -99,13 +99,6 @@
         }
       ],
       [
-        "expo-camera",
-        {
-          "microphonePermission": false,
-          "recordAudioAndroid": false
-        }
-      ],
-      [
         "expo-image-picker",
         {
           "photosPermission": "Lily uses your photo library so you can add pictures of your plants and choose a profile photo.",

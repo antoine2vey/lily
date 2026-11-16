@@ -61,25 +61,6 @@ jest.mock('expo-notifications', () => ({
   setBadgeCountAsync: jest.fn().mockResolvedValue(undefined),
 }))
 
-// expo-camera
-jest.mock('expo-camera', () => ({
-  Camera: {
-    requestCameraPermissionsAsync: jest
-      .fn()
-      .mockResolvedValue({ status: 'granted' }),
-    Constants: {
-      Type: { back: 0, front: 1 },
-      FlashMode: { off: 0, on: 1, auto: 2 },
-    },
-  },
-  useCameraPermissions: jest
-    .fn()
-    .mockReturnValue([
-      { status: 'granted', granted: true },
-      jest.fn().mockResolvedValue({ status: 'granted' }),
-    ]),
-}))
-
 // expo-device
 jest.mock('expo-device', () => ({
   isDevice: false, // Tests should not attempt push registration
