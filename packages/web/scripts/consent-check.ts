@@ -15,6 +15,9 @@ const CHROME =
 const [base = 'http://127.0.0.1:8088'] = process.argv.slice(2)
 // The tag loads from an idle callback with a 5 s timeout, so a quiet page has settled after this.
 const SETTLE_MS = 6500
+// Every page bundle is held until the prerendered page has painted this many frames, so no load hydrates before the paint probe has seen it.
+const PRERENDERED_FRAMES = 10
+const DAY_MS = 24 * 60 * 60 * 1000
 const GOOGLE =
   /(^|\.)(googletagmanager\.com|google-analytics\.com|analytics\.google\.com|doubleclick\.net)$/
 
@@ -63,23 +66,26 @@ await new Promise((resolve) => socket.addEventListener('open', resolve))
 let nextId = 0
 const pending = new Map<number, (result: unknown) => void>()
 let requests: Array<string> = []
-socket.addEventListener('message', (event) => {
-  const message = JSON.parse(String(event.data)) as {
-    id?: number
-    result?: unknown
-    method?: string
-    params?: { request?: { url: string } }
-  }
-  if (message.id !== undefined) pending.get(message.id)?.(message.result)
-  if (message.method === 'Network.requestWillBeSent' && message.params?.request)
-    requests.push(message.params.request.url)
-})
+let bundles: 'held' | 'blocked' = 'held'
 const send = <T>(method: string, params: object = {}): Promise<T> =>
   new Promise((resolve) => {
     const id = ++nextId
     pending.set(id, (result) => resolve(result as T))
     socket.send(JSON.stringify({ id, method, params }))
   })
+socket.addEventListener('message', (event) => {
+  const message = JSON.parse(String(event.data)) as {
+    id?: number
+    result?: unknown
+    method?: string
+    params?: { requestId?: string; request?: { url: string } }
+  }
+  if (message.id !== undefined) pending.get(message.id)?.(message.result)
+  if (message.method === 'Network.requestWillBeSent' && message.params?.request)
+    requests.push(message.params.request.url)
+  if (message.method === 'Fetch.requestPaused' && message.params?.requestId)
+    void onBundle(message.params.requestId)
+})
 
 const evaluate = async <T>(expression: string): Promise<T> =>
   (
@@ -95,6 +101,27 @@ const until = async (what: string, expression: string) => {
     await sleep(100)
   }
   throw new Error(`timed out waiting for ${what}`)
+}
+
+let failed = false
+const onBundle = async (requestId: string) => {
+  if (bundles === 'blocked')
+    return send('Fetch.failRequest', {
+      requestId,
+      errorReason: 'BlockedByClient',
+    })
+  try {
+    await until(
+      'the prerendered page to paint',
+      `window.consentFrames >= ${PRERENDERED_FRAMES}`
+    )
+  } catch (error) {
+    failed = true
+    console.log(
+      `FAIL ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+  return send('Fetch.continueRequest', { requestId })
 }
 
 const googleRequests = () =>
@@ -115,7 +142,7 @@ const clientId = async () =>
   )
 
 const BANNER = `(b => b !== null && b.getClientRects().length > 0)(document.querySelector('.m-consent'))`
-const PAINT_PROBE = `(function probe(){if(${BANNER})window.consentPainted=true;requestAnimationFrame(probe)})()`
+const PAINT_PROBE = `(function probe(){window.consentFrames=(window.consentFrames||0)+1;if(${BANNER})window.consentPainted=true;requestAnimationFrame(probe)})()`
 const hydrated = () =>
   until('hydration', `document.querySelector('footer button') !== null`)
 const clickButton = (label: string) =>
@@ -134,7 +161,6 @@ const reload = async () => {
   await until('load', `document.readyState === 'complete'`)
 }
 
-let failed = false
 const step = async (
   name: string,
   expected: { banner: boolean; google: boolean; cookies: boolean }
@@ -173,6 +199,9 @@ const LOADED = { google: true, cookies: true }
 try {
   await send('Network.enable')
   await send('Page.enable')
+  // A cached bundle skips the Fetch domain, so nothing would hold it.
+  await send('Network.setCacheDisabled', { cacheDisabled: true })
+  await send('Fetch.enable', { patterns: [{ urlPattern: '*/assets/*.js' }] })
   await send('Page.addScriptToEvaluateOnNewDocument', { source: PAINT_PROBE })
 
   const html = await (await fetch(`${base}/en`)).text()
@@ -248,7 +277,32 @@ try {
   await reload()
   await step('Refuse again, after a reload', { banner: false, ...NONE })
 
+  await evaluate(
+    `localStorage.setItem('analytics-consent', 'granted:' + (Date.now() - ${400 * DAY_MS}))`
+  )
+  await reload()
+  await step('an Accept older than 180 days, after a reload', {
+    banner: true,
+    ...NONE,
+  })
+
   await evaluate(`localStorage.clear()`)
+  bundles = 'blocked'
+  await open('/en/blog')
+  await step('fresh visit to /en/blog, bundles blocked so it never hydrates', {
+    banner: true,
+    ...NONE,
+  })
+  bundles = 'held'
+
+  await send('Emulation.setScriptExecutionDisabled', { value: true })
+  await open('/en/blog')
+  await step('fresh visit to /en/blog with JavaScript disabled', {
+    banner: false,
+    ...NONE,
+  })
+  await send('Emulation.setScriptExecutionDisabled', { value: false })
+
   await open('/join/abc')
   await step('fresh visit to the join page', { banner: true, ...NONE })
 
