@@ -307,6 +307,7 @@
   color: var(--a-text);
   font:
     400 16px / 24px "Space Grotesk Variable",
+    "Space Grotesk Fallback",
     system-ui,
     sans-serif;
   text-align: left;
