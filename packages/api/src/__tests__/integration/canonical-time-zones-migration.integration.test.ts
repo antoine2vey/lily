@@ -298,6 +298,35 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
     })
 
+    it('leaves the days the api wrote before the owner moved to an alias', async () => {
+      const traveller = await user(`la-${Date.now()}@example.com`, 'US/Pacific')
+      const bonsai = await plant('Bonsai', { userId: traveller })
+      const tokyoMorning = new Date('2026-11-10T21:00:00Z')
+      const tokyoDue = new Date('2026-11-17T15:00:00Z')
+      await db.insert(schema.careLogs).values({
+        plantId: bonsai,
+        type: 'watering',
+        date: tokyoMorning,
+        careDay: '2026-11-11',
+        performedByUserId: traveller,
+      })
+      await db.insert(schema.plantCareSchedules).values({
+        plantId: bonsai,
+        careType: 'watering',
+        frequencyDays: 7,
+        nextCareAt: tokyoDue,
+        dueDay: '2026-11-18',
+      })
+
+      await migrate()
+
+      expect(await careDays()).toContainEqual([
+        tokyoMorning.toISOString(),
+        '2026-11-11',
+      ])
+      expect(await dueDays()).toContainEqual([bonsai, '2026-11-18'])
+    })
+
     it('changes nothing when it runs again', async () => {
       await migrate()
       const once = {
