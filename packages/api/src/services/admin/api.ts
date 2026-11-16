@@ -38,6 +38,7 @@ import {
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { PlantsListResponse } from '@lily/shared/plant'
 import { GCSDeleteError } from '@lily/shared/services/file/gcs-errors'
+import { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
@@ -82,6 +83,7 @@ export const AdminApi = HttpApiGroup.make('admin')
         CannotModifySelfError,
         ForbiddenError,
         AuthError,
+        InvalidImageError,
       ],
     })
   )

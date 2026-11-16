@@ -9,7 +9,12 @@ import {
   plants,
   users,
 } from '@lily/db/schema'
-import { and, eq, inArray, isNotNull } from 'drizzle-orm'
+import {
+  KEY_DISGUISE,
+  type StoredObject,
+  searchRunOf,
+} from '@lily/shared/services/file/stored-object'
+import { and, type Column, eq, isNotNull, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, Stream } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -53,9 +58,12 @@ export interface IStoredRefRepository {
   readonly lockAvatar: (
     userId: string
   ) => Effect.Effect<Option.Option<string>, SqlError>
-  /** The references in `refs` that a row still points at. */
+  /**
+   * The references on rows that may name one of `objects`. A row is found by
+   * text, so the caller reads each reference to learn what it names.
+   */
   readonly stillHeld: (
-    refs: readonly string[]
+    objects: readonly StoredObject[]
   ) => Effect.Effect<string[], SqlError>
   /**
    * Every reference any row holds, streamed so no table is read into memory.
@@ -87,7 +95,7 @@ export const StoredRefRepositoryLive = Layer.effect(
   StoredRefRepository,
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
-    const sql = yield* SqlClient.SqlClient
+    const client = yield* SqlClient.SqlClient
 
     return {
       ofPlant: Effect.fn('StoredRefRepository.ofPlant')(function* (
@@ -173,44 +181,52 @@ export const StoredRefRepositoryLive = Layer.effect(
       }),
 
       stillHeld: Effect.fn('StoredRefRepository.stillHeld')(function* (
-        refs: readonly string[]
+        objects: readonly StoredObject[]
       ) {
-        if (Array.isReadonlyArrayEmpty(refs)) return []
-        const wanted = [...refs]
+        if (Array.isReadonlyArrayEmpty(objects)) return []
+        const patterns = sql.join(
+          Array.map(
+            Array.dedupe(Array.map(objects, ({ key }) => searchRunOf(key))),
+            (run) => sql`${`%${run}%`}`
+          ),
+          sql`, `
+        )
+        const mayName = (column: Column) =>
+          sql<boolean>`(${column} like any (array[${patterns}]::text[]) or ${column} ~ ${KEY_DISGUISE.unsafe} or (strpos(${column}, '%') > 0 and ${column} ~ ${KEY_DISGUISE.escape}))`
         const held = [
           ...(yield* db
             .select({ ref: plants.imageUrl })
             .from(plants)
-            .where(inArray(plants.imageUrl, wanted))),
+            .where(mayName(plants.imageUrl))),
           ...(yield* db
             .select({ ref: plantPhotos.url })
             .from(plantPhotos)
-            .where(inArray(plantPhotos.url, wanted))),
+            .where(mayName(plantPhotos.url))),
           ...(yield* db
             .select({ ref: careLogs.photoUrl })
             .from(careLogs)
-            .where(inArray(careLogs.photoUrl, wanted))),
+            .where(mayName(careLogs.photoUrl))),
           ...(yield* db
             .select({ ref: users.image })
             .from(users)
-            .where(inArray(users.image, wanted))),
+            .where(mayName(users.image))),
           ...(yield* db
             .select({ ref: plantCatalog.imageUrl })
             .from(plantCatalog)
-            .where(inArray(plantCatalog.imageUrl, wanted))),
+            .where(mayName(plantCatalog.imageUrl))),
           ...(yield* db
             .select({ ref: chatMessages.imageKey })
             .from(chatMessages)
-            .where(inArray(chatMessages.imageKey, wanted))),
+            .where(mayName(chatMessages.imageKey))),
           ...(yield* db
             .select({ ref: diagnoses.imageKey })
             .from(diagnoses)
-            .where(inArray(diagnoses.imageKey, wanted))),
+            .where(mayName(diagnoses.imageKey))),
         ]
         return Array.dedupe(refsOf(held))
       }),
 
-      everyRef: sql<StoredRef>`
+      everyRef: client<StoredRef>`
         SELECT 'plants.image_url' AS source, image_url AS ref
           FROM plants WHERE image_url IS NOT NULL
         UNION ALL SELECT 'plant_photos.url', url FROM plant_photos

@@ -4,18 +4,43 @@ import { AuthError } from '@lily/shared'
 import type { AdminUserUpdateRequest } from '@lily/shared/admin'
 import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
+import { GCSService } from '@lily/shared/services/file/gcs'
+import {
+  InvalidImageError,
+  isPlannedKey,
+} from '@lily/shared/services/file/image-upload'
+import {
+  publicUrlOf,
+  userFolder,
+} from '@lily/shared/services/file/stored-object'
 import type { User } from '@lily/shared/user'
 import { usernameProblem } from '@lily/shared/username'
-import { Effect, Option } from 'effect'
+import { Effect, Option, String } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
+
+/** Whether `image` is the URL the avatar upload flow stores for the user. */
+const isIssuedAvatar = (bucketName: string, userId: string, image: string) => {
+  const base = publicUrlOf(bucketName, '')
+  return (
+    String.startsWith(base)(image) &&
+    isPlannedKey(
+      userFolder(userId, 'avatars'),
+      String.slice(base.length)(image)
+    )
+  )
+}
 
 export const updateUser = (
   id: string,
   data: AdminUserUpdateRequest
 ): Effect.Effect<
   User,
-  SqlError | UserNotFoundError | CannotModifySelfError | AuthError,
-  UserRepository | AdminUser
+  | SqlError
+  | UserNotFoundError
+  | CannotModifySelfError
+  | AuthError
+  | InvalidImageError,
+  UserRepository | AdminUser | GCSService
 > =>
   Effect.gen(function* () {
     const repo = yield* UserRepository
@@ -31,6 +56,15 @@ export const updateUser = (
         onNone: () => Effect.void,
         onSome: (message) => Effect.fail(new AuthError({ message })),
       })
+    }
+
+    if (typeof data.image === 'string') {
+      const gcs = yield* GCSService
+      if (!isIssuedAvatar(gcs.bucketNames.plant, id, data.image)) {
+        return yield* new InvalidImageError({
+          message: 'Image must be an avatar uploaded for this user, or null',
+        })
+      }
     }
 
     const updated = yield* repo.update(id, {

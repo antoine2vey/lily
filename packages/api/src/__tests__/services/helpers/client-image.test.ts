@@ -78,6 +78,14 @@ describe('readClientImage', () => {
     ['a file URL with a host', 'file://fileserver.example/share/photo.jpg'],
     ['a data URL', 'data:image/png;base64,iVBORw0KGgo='],
     ['an empty string', ''],
+    [
+      "a URL that names two of the caller's uploads",
+      privateUrl(`users/user-1/identify/${MOCK_BUCKET_NAMES.ai}/${ownKey}`),
+    ],
+    [
+      'a reference too long to read',
+      privateUrl(`${ownKey}?${'a'.repeat(2048)}`),
+    ],
   ])('reads %s as untrusted', async (_case, ref) => {
     expect(await read(ref)).toEqual(ClientImage.Untrusted())
   })

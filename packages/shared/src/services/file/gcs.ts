@@ -31,8 +31,9 @@ import { type InvalidImageError, planImageUpload } from './image-upload'
 import {
   type BucketRole,
   type ListedObject,
-  locateStoredObject,
   type ObjectScope,
+  publicUrlOf,
+  readStoredRef,
   type StoredObject,
   scopePrefix,
 } from './stored-object'
@@ -177,7 +178,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
         save(buckets.plant, request).pipe(
           Effect.map((key) => ({
             key,
-            url: `https://storage.googleapis.com/${buckets.plant.name}/${key}`,
+            url: publicUrlOf(buckets.plant.name, key),
             bucketName: buckets.plant.name,
             uploadedAt: nowAsDate(),
           })),
@@ -271,7 +272,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
 
       bucketNames,
 
-      locate: locateStoredObject(bucketNames),
+      readRef: readStoredRef(bucketNames),
 
       /**
        * Every object of a bucket, a page at a time. An object whose creation
@@ -338,7 +339,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
             }),
         }).pipe(
           Effect.as({
-            url: `https://storage.googleapis.com/${buckets.plant.name}/${publicKey}`,
+            url: publicUrlOf(buckets.plant.name, publicKey),
           }),
           Effect.withSpan('GCS.publish')
         )

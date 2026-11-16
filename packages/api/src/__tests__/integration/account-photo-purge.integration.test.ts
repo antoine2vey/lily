@@ -501,6 +501,61 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     )
 
+    it.each([
+      ['a #', '1699000000000-my#pic.jpg'],
+      ['a ?', '1699000000000-what?.jpg'],
+      ['a backslash', '1699000000000-my\\pic.jpg'],
+    ])(
+      'deletes an older photo of the account whose file name has %s',
+      async (_case, key) => {
+        const alex = await user('alex')
+        const fern = await plant({ userId: alex }, alex)
+        store('plant', [key])
+        await setPlantImage(fern, mockPublicUrl(key))
+
+        const purged = await purge(alex)
+
+        expect({ outcome: outcome(purged), plant: stored().plant }).toEqual({
+          outcome: 'ok',
+          plant: [],
+        })
+      }
+    )
+
+    it('deletes an older plant photo whose file name has a #', async () => {
+      const alex = await user('alex')
+      const fern = await plant({ userId: alex }, alex)
+      store('plant', ['1699000000000-my#pic.jpg'])
+      await db.insert(schema.plantPhotos).values({
+        plantId: fern,
+        url: mockPublicUrl('1699000000000-my#pic.jpg'),
+      })
+
+      const purged = await purge(alex)
+
+      expect({ outcome: outcome(purged), plant: stored().plant }).toEqual({
+        outcome: 'ok',
+        plant: [],
+      })
+    })
+
+    it('keeps the photo of another account that the URL parser reads out of a file name with a backslash', async () => {
+      const alex = await user('alex')
+      const sam = await user('sam')
+      const samsPlant = await plant({ userId: sam }, sam)
+      const fern = await plant({ userId: alex }, alex)
+      store('plant', ['1699000000000-my/pic.jpg', '1699000000000-my\\pic.jpg'])
+      await setPlantImage(samsPlant, mockPublicUrl('1699000000000-my/pic.jpg'))
+      await setPlantImage(fern, mockPublicUrl('1699000000000-my\\pic.jpg'))
+
+      const purged = await purge(alex)
+
+      expect({ outcome: outcome(purged), plant: stored().plant }).toEqual({
+        outcome: 'ok',
+        plant: ['1699000000000-my/pic.jpg'],
+      })
+    })
+
     it('keeps an older photo that a canopy plant shows', async () => {
       const alex = await user('alex')
       const sam = await user('sam')

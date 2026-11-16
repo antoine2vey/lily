@@ -3,52 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { storageFailureMessage } from '../services/file/gcs-errors'
 import {
   legacyOwnerOf,
-  locateStoredObject,
   namedObjects,
+  readStoredRef,
+  searchRunOf,
 } from '../services/file/stored-object'
-
-const locate = locateStoredObject({ plant: 'lily-plants', ai: 'lily-ai' })
-
-describe('locateStoredObject', () => {
-  it.each([
-    [
-      'a public URL of the plant bucket',
-      'https://storage.googleapis.com/lily-plants/plants/p1/a.png',
-      { bucket: 'plant', key: 'plants/p1/a.png' },
-    ],
-    [
-      'a signed URL of the ai bucket',
-      'https://storage.googleapis.com/lily-ai/users/u1/detect/a.png?X-Goog-Signature=abc',
-      { bucket: 'ai', key: 'users/u1/detect/a.png' },
-    ],
-    [
-      'a bare key, which only the ai bucket is stored as',
-      '1700000000000-chat/c1/a.png',
-      { bucket: 'ai', key: '1700000000000-chat/c1/a.png' },
-    ],
-    [
-      'a percent-encoded key',
-      'https://storage.googleapis.com/lily-plants/plants/p1/a%20b.png',
-      { bucket: 'plant', key: 'plants/p1/a b.png' },
-    ],
-  ])('finds %s', (_case, ref, object) => {
-    expect(locate(ref)).toEqual(Option.some(object))
-  })
-
-  it.each([
-    ['an OAuth avatar', 'https://lh3.googleusercontent.com/a/photo'],
-    ['another bucket', 'https://storage.googleapis.com/other/plants/p1/a.png'],
-    ['a bucket with no key', 'https://storage.googleapis.com/lily-plants/'],
-    ['a local file', 'file:///var/mobile/photo.jpg'],
-    ['an empty string', ''],
-    [
-      'a malformed escape',
-      'https://storage.googleapis.com/lily-plants/1700000000000-detect/%E0%A4%A.png',
-    ],
-  ])('finds nothing for %s', (_case, ref) => {
-    expect(locate(ref)).toEqual(Option.none())
-  })
-})
 
 const named = namedObjects({ plant: 'lily-plants', ai: 'lily-ai' })
 
@@ -272,5 +230,37 @@ describe('storageFailureMessage', () => {
     expect(
       storageFailureMessage([new Error('403 on a.png'), new Error('timeout')])
     ).toBe('403 on a.png; timeout')
+  })
+})
+
+describe('readStoredRef', () => {
+  const read = readStoredRef({ plant: 'lily-plants', ai: 'lily-ai' })
+
+  it('reads a reference the server could have written', () => {
+    expect(
+      read('https://storage.googleapis.com/lily-plants/plants/p1/a.png')
+    ).toEqual(Option.some([{ bucket: 'plant', key: 'plants/p1/a.png' }]))
+  })
+
+  it('refuses a reference too long to read in time', () => {
+    expect(
+      read(
+        `https://storage.googleapis.com/lily-plants/plants/p1/a.png?${'a'.repeat(2048)}`
+      )
+    ).toEqual(Option.none())
+  })
+})
+
+describe('searchRunOf', () => {
+  it.each([
+    [
+      'a plant photo, the plant',
+      'plants/0b9d3c1e-aaaa/1c2d3e4f-bbbb.png',
+      '0b9d3c1e-aaaa',
+    ],
+    ['a stamped key', '1700000000000-detect/sam.png', '1700000000000-detect'],
+    ['a key with no run', '/./', ''],
+  ])('finds the longest run of %s', (_case, key, run) => {
+    expect(searchRunOf(key)).toBe(run)
   })
 })

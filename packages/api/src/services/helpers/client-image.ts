@@ -2,6 +2,7 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import {
   chatFolder,
+  type StoredObject,
   scopePrefix,
 } from '@lily/shared/services/file/stored-object'
 import { Array, Data, Effect, Option, pipe, String } from 'effect'
@@ -42,19 +43,24 @@ export const readClientImage = (
     const { id: userId } = yield* CurrentUser
     const ownFolder = scopePrefix({ _tag: 'User', userId })
 
-    return pipe(
-      gcs.locate(ref),
-      Option.filter(
+    const owned = pipe(
+      Option.getOrElse(gcs.readRef(ref), Array.empty<StoredObject>),
+      Array.filter(
         ({ bucket, key }) =>
           bucket === 'ai' &&
           String.startsWith(ownFolder)(key) &&
           isServerMadeKey(key)
       ),
-      Option.match({
-        onNone: () => ClientImage.Untrusted(),
-        onSome: ({ key }) => ClientImage.OwnUpload({ key }),
-      })
+      Array.map(({ key }) => key),
+      Array.dedupe
     )
+    return Array.match(owned, {
+      onEmpty: () => ClientImage.Untrusted(),
+      onNonEmpty: ([key, ...others]) =>
+        Array.isReadonlyArrayEmpty(others)
+          ? ClientImage.OwnUpload({ key })
+          : ClientImage.Untrusted(),
+    })
   })
 
 /**
