@@ -1,5 +1,13 @@
+import { transactQuietly } from '@lily/api/kernel/transact'
+import type { StoredRefRepository } from '@lily/api/repositories/stored-ref.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import {
+  avatarHeld,
+  Holder,
+  releaseUpload,
+  releasing,
+} from '@lily/api/services/helpers/release-objects'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import {
   FileService,
@@ -17,6 +25,7 @@ import { Effect } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const uploadAvatar = (
@@ -31,7 +40,13 @@ export const uploadAvatar = (
   | MultipleFilesError
   | NoFilesError
   | UserNotFoundError,
-  UserRepository | GCSService | FileService | FileSystem | CurrentUser
+  | UserRepository
+  | StoredRefRepository
+  | GCSService
+  | FileService
+  | FileSystem
+  | CurrentUser
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const repo = yield* UserRepository
@@ -46,11 +61,17 @@ export const uploadAvatar = (
       folder: userFolder(userId, 'avatars'),
     })
 
-    const updated = yield* repo.update(userId, { image: url })
-
-    if (!updated) {
-      return yield* new UserNotFoundError({ userId })
-    }
+    yield* transactQuietly(
+      releasing(
+        avatarHeld(userId),
+        Effect.gen(function* () {
+          const updated = yield* repo.update(userId, { image: url })
+          if (!updated) {
+            return yield* new UserNotFoundError({ userId })
+          }
+        })
+      )
+    ).pipe(Effect.tapError(() => releaseUpload(Holder.Avatar({ userId }), url)))
 
     return { url }
   }).pipe(Effect.withSpan('UserService.uploadAvatar'))

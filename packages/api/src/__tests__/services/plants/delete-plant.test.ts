@@ -6,11 +6,13 @@ import {
   permitTo,
   toldToTheApp,
 } from '@lily/api/__tests__/mocks/care'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 type Row = ReturnType<typeof createTestPlant>
@@ -26,7 +28,15 @@ const asPlantWithRoom = (plant: Row): PlantWithRoom => ({
 const world = (stored: ReadonlyArray<Row>) => {
   const rows = stored.map((row) => ({ ...row }))
   const care = createInMemoryCare([], { plantRows: rows })
-  return { care, rows, layer: care.layer }
+  return {
+    care,
+    rows,
+    layer: Layer.mergeAll(
+      care.layer,
+      createMockGCSService(),
+      createMockStoredRefRepository()
+    ),
+  }
 }
 
 const remove = (seen: PlantWithRoom, requestedId?: string) =>

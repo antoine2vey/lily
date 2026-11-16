@@ -2,14 +2,25 @@ import {
   mockPlantPhotos,
   mockPlants,
 } from '@lily/api/__tests__/fixtures/plants'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { deletePlantPhoto } from '@lily/api/services/plants/endpoints/delete-plant-photo'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('deletePlantPhoto', () => {
   const createTestLayer = () =>
-    createMockPlantRepository({ plants: mockPlants, photos: mockPlantPhotos })
+    Layer.mergeAll(
+      createMockPlantRepository({
+        plants: mockPlants,
+        photos: mockPlantPhotos,
+      }),
+      createMockGCSService(),
+      createMockStoredRefRepository(),
+      MockSqlClientLive
+    )
 
   it('should delete photo successfully', async () => {
     await Effect.runPromise(

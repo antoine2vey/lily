@@ -11,6 +11,7 @@ import {
 } from '@lily/api/__tests__/integration/lock-waits'
 import { chatPermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
@@ -39,6 +40,7 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import type { ToolContext } from '@lily/api/services/ai-chat/tools'
@@ -71,6 +73,7 @@ const RepositoriesLive = Layer.mergeAll(
   DiagnosisRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
+  StoredRefRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
   SubscriptionRepositoryLive,
@@ -81,6 +84,7 @@ const RepositoriesLive = Layer.mergeAll(
 
 const appAs = (userId: string) =>
   Layer.mergeAll(
+    createMockGCSService(),
     LimitCheckerLive,
     createMockCurrentUser({ id: userId }),
     createMockEventBus(),

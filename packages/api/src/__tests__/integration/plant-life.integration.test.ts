@@ -6,6 +6,7 @@ import {
 } from '@lily/api/__tests__/integration/care-layers'
 import { ownerHeld, permitTo } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
@@ -36,6 +37,7 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -70,6 +72,7 @@ const ReposLive = Layer.mergeAll(
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
+  StoredRefRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
   UserRepositoryLive
@@ -77,6 +80,7 @@ const ReposLive = Layer.mergeAll(
 
 const appAs = (userId: string) =>
   Layer.mergeAll(
+    createMockGCSService(),
     createMockCurrentUser({ id: userId }),
     createMockEventBus(),
     createMockLimitChecker(),

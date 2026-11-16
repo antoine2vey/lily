@@ -1,14 +1,33 @@
 import { Care } from '@lily/api/contexts/care'
+import type { Outbox } from '@lily/api/kernel/outbox'
 import type { PlantPermit } from '@lily/api/kernel/permit'
+import { transact } from '@lily/api/kernel/transact'
+import type { StoredRefRepository } from '@lily/api/repositories/stored-ref.repository'
+import {
+  plantHeld,
+  releasing,
+} from '@lily/api/services/helpers/release-objects'
 import type { CareLogNotFoundError } from '@lily/shared/errors/care-log'
+import type { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const deleteCareLog = (
   permit: PlantPermit<'care'>,
   logId: string
-): Effect.Effect<{ message: string }, CareLogNotFoundError, Care> =>
+): Effect.Effect<
+  { message: string },
+  CareLogNotFoundError | SqlError,
+  Care | StoredRefRepository | GCSService | SqlClient.SqlClient | Outbox
+> =>
   Effect.flatMap(Care, (care) =>
-    care.remove({ permit, careLogId: logId })
+    transact(
+      releasing(
+        plantHeld(permit.plantId),
+        care.remove({ permit, careLogId: logId })
+      )
+    )
   ).pipe(
     Effect.as({ message: `Care log ${logId} deleted successfully` }),
     Effect.withSpan('CareLogsService.deleteCareLog', {

@@ -8,6 +8,7 @@ import {
 } from '@lily/api/__tests__/mocks/gcs.service'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
 import {
   createCareLog,
@@ -57,7 +58,8 @@ const setup = (outcome: 'Recorded' | 'AlreadyCared' = 'Recorded') => {
       gcs.layer,
       createMockFileSystem(),
       MockSqlClientLive,
-      MockOutboxLive
+      MockOutboxLive,
+      createMockStoredRefRepository()
     ),
   }
 }
@@ -133,5 +135,28 @@ describe('createCareLog', () => {
     )
 
     expect(failure._tag).toBe('AlreadyCaredTodayError')
+  })
+
+  it('deletes the uploaded photo when the care is refused', async () => {
+    const test = setup('AlreadyCared')
+
+    const outcome = await Effect.runPromise(
+      createCareLogWithPhoto(
+        carePermit(existing.plantId),
+        { type: 'watering' },
+        image
+      ).pipe(
+        Effect.as('recorded'),
+        Effect.catchTag('AlreadyCaredTodayError', () =>
+          Effect.succeed('refused')
+        ),
+        Effect.provide(test.layer)
+      )
+    )
+
+    expect({ outcome, stored: [...test.gcs.objects.plant] }).toEqual({
+      outcome: 'refused',
+      stored: [],
+    })
   })
 })

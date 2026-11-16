@@ -48,6 +48,7 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-canopy'
@@ -82,6 +83,7 @@ const ReposLive = Layer.mergeAll(
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
+  StoredRefRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
   UserRepositoryLive

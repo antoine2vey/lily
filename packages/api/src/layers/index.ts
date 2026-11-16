@@ -57,6 +57,7 @@ import { RawDocumentRepositoryLive } from '@lily/api/repositories/raw-document.r
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
+import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository'
@@ -161,7 +162,8 @@ const RepositoriesGroup2 = Layer.mergeAll(
   UserRepositoryLive,
   WeatherRepositoryLive,
   CareReadsLive,
-  ChatFollowUpRepositoryLive
+  ChatFollowUpRepositoryLive,
+  StoredRefRepositoryLive
 )
 
 export const AllRepositoriesLive = Layer.mergeAll(
