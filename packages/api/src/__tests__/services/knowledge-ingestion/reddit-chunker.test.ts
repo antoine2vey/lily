@@ -143,6 +143,40 @@ describe('chunkRedditDocument', () => {
     expect(result.children[0]?.metadata.topCommentScore).toBe(0)
   })
 
+  it('splits a selftext too long for one embedding into children under a parent that holds the whole question', () => {
+    const selftext = globalThis.Array.from(
+      { length: 300 },
+      (_, i) =>
+        `Paragraph ${i}: the lower leaves of my monstera turned yellow after I moved it next to the north window last month.`
+    ).join('\n\n')
+
+    const result = chunkRedditDocument({
+      title: 'Why is my monstera dying?',
+      content: selftext,
+      postScore: 8,
+      subreddit: 'houseplants',
+      comments: [],
+    })
+
+    expect(result.parent?.content).toBe(
+      `Q: Why is my monstera dying?\n\n${selftext}`
+    )
+    expect(result.parent?.metadata.chunkType).toBe('reddit_question_only')
+    expect(result.children.length).toBeGreaterThan(1)
+    expect(
+      Math.max(...result.children.map((child) => child.content.length))
+    ).toBeLessThanOrEqual(1000)
+    for (const child of result.children) {
+      expect(child.content.startsWith('Q: Why is my monstera dying?\n\n')).toBe(
+        true
+      )
+      expect(child.metadata.chunkType).toBe('reddit_question_only')
+      expect(child.metadata.subreddit).toBe('houseplants')
+    }
+    expect(result.children[0]?.content).toContain('Paragraph 0:')
+    expect(result.children.at(-1)?.content).toContain('Paragraph 299:')
+  })
+
   it('should handle post with no selftext (title-only question)', () => {
     const result = chunkRedditDocument({
       title: 'Best soil for pothos?',
