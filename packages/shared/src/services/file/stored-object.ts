@@ -51,6 +51,9 @@ export interface ListedObject extends StoredObject {
 }
 
 const VIRTUAL_HOST_SUFFIX = '.storage.googleapis.com'
+const USER_INFO = /^.*@/s
+const PORT = /:\d*$/
+const TRAILING_DOTS = /\.+$/
 const JSON_API_PATH = /(?:^|\/)b\/([^/]+)\/o\/(.+)$/s
 const HAS_AUTHORITY = /^\s*[a-z][a-z0-9+.-]*:\/\//i
 const ESCAPE_RUNS = /((?:%[0-9a-f]{2})+)/i
@@ -62,6 +65,16 @@ const unescaped = (text: string): string =>
     String.split(text, ESCAPE_RUNS),
     Array.map((piece) => Option.getOrElse(decodeKey(piece), () => piece)),
     Array.join('')
+  )
+
+const hostOf = (authority: string): string =>
+  pipe(
+    authority,
+    String.replace(USER_INFO, ''),
+    String.replace(PORT, ''),
+    (host) => Option.getOrElse(decodeKey(host), () => host),
+    String.toLowerCase,
+    String.replace(TRAILING_DOTS, '')
   )
 
 const unescapings = (key: string): ReadonlyArray<string> =>
@@ -129,12 +142,14 @@ export const namedObjects = (bucketNames: Record<BucketRole, string>) => {
     )
 
   const inVirtualHost = (
-    host: string,
+    authority: string,
     key: string
-  ): ReadonlyArray<StoredObject> =>
-    String.endsWith(VIRTUAL_HOST_SUFFIX)(host)
+  ): ReadonlyArray<StoredObject> => {
+    const host = hostOf(authority)
+    return String.endsWith(VIRTUAL_HOST_SUFFIX)(host)
       ? inBucket(String.slice(0, -VIRTUAL_HOST_SUFFIX.length)(host), key)
       : []
+  }
 
   const afterBucketSegment = (path: string): ReadonlyArray<StoredObject> => {
     const segments = String.split(path, '/')
@@ -220,13 +235,13 @@ const SEARCH_RUN = /[A-Za-z0-9-]+/g
  * How to find, with a text search, every reference that `namedObjects` may
  * read a key out of. Such a reference holds the key's search run unless it
  * holds an `unsafe` character or an `escape`. An unsafe character is one the
- * URL parser drops or escapes into hex digits, or one outside ASCII, which
- * NFD can split into a letter. An escape decodes to a run character, to `%`,
- * or to a byte outside ASCII. Revisit both when `namedObjects` reads a key a
- * new way.
+ * URL parser drops or escapes into hex digits, such as `^`, or one outside
+ * ASCII, which NFD can split into a letter. An escape decodes to a run
+ * character, to `%`, or to a byte outside ASCII. Revisit both when
+ * `namedObjects` reads a key a new way.
  */
 export const KEY_DISGUISE = {
-  unsafe: '[^!#-;=?-_a-z|~]',
+  unsafe: '[^!#-;=?-\\]_a-z|~]',
   escape:
     '%(2[5dD]|3[0-9]|4[1-9a-fA-F]|5[0-9aA]|6[1-9a-fA-F]|7[0-9aA]|[89a-fA-F][0-9a-fA-F])',
 } as const
@@ -242,6 +257,20 @@ export const searchRunOf = (key: string): string =>
     '',
     (longest, [run]) => (run.length > longest.length ? run : longest)
   )
+
+const UNSAFE = new RegExp(KEY_DISGUISE.unsafe)
+const ESCAPE = new RegExp(KEY_DISGUISE.escape)
+
+/**
+ * Whether `ref` matches the text search for `key` that `KEY_DISGUISE`
+ * describes. When it does not, `namedObjects` reads no such key out of `ref`.
+ */
+export const mayNameKey =
+  (ref: string) =>
+  (key: string): boolean =>
+    String.includes(searchRunOf(key))(ref) ||
+    UNSAFE.test(ref) ||
+    (String.includes('%')(ref) && ESCAPE.test(ref))
 
 /**
  * What a key written before the scoped layout says about its owner. Those
@@ -260,14 +289,15 @@ const LEGACY_NAMED = /^\d+-(avatars|plants)\/(.+?)(?:\/|-\d+\.)/
 /**
  * How a URL can hide the stamp of an older key from a text search, although
  * `namedObjects` still reads the key out of it. The URL parser drops
- * `ignored` characters wherever they are, and a digit may be percent-encoded.
- * Search for the stamp with `ignored` removed, and take any URL that matches
- * `encodedDigit` as well. The spellings table in
+ * `ignored` characters wherever they are, and a digit may be percent-encoded,
+ * with the `%` of its escape encoded again any number of times. Search for
+ * the stamp with `ignored` removed, and take any URL that matches `escape` as
+ * well. The spellings table in
  * `account-photo-refs-outside.integration.test.ts` holds both sides to this.
  */
 export const STAMP_DISGUISE = {
   ignored: '\t\n\r',
-  encodedDigit: '%3[0-9]',
+  escape: '%(3[0-9]|25)',
 } as const
 
 /** The epoch millis an older key starts with. */

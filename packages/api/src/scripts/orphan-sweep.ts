@@ -8,7 +8,7 @@ import {
   type BucketRole,
   type ListedObject,
   legacyStampOf,
-  namedObjects,
+  readStoredRef,
 } from '@lily/shared/services/file/stored-object'
 import {
   Array,
@@ -182,7 +182,7 @@ export const sweepOrphans = Effect.fn('sweepOrphans')(function* (
 ) {
   const gcs = yield* GCSService
   const refs = yield* StoredRefRepository
-  const named = namedObjects(gcs.bucketNames)
+  const read = readStoredRef(gcs.bucketNames)
 
   const listed = new Map<string, ListedObject>()
   for (const bucket of BUCKET_ROLES) {
@@ -194,17 +194,27 @@ export const sweepOrphans = Effect.fn('sweepOrphans')(function* (
   const referenced = new Set<string>()
   const refsBySource = new Map<RefSource, number>()
   const unread: string[] = []
+  let tooLong = 0
   yield* Stream.runForEach(refs.everyRef, ({ source, ref }) =>
     Effect.sync(() => {
       refsBySource.set(source, (refsBySource.get(source) ?? 0) + 1)
-      const objects = named(ref)
-      for (const object of objects) {
-        if (listed.has(idOf(object))) referenced.add(idOf(object))
-      }
-      const namesBucket = Array.some(Record.values(gcs.bucketNames), (name) =>
-        String.includes(name)(ref)
-      )
-      if (Array.isReadonlyArrayEmpty(objects) && namesBucket) unread.push(ref)
+      Option.match(read(ref), {
+        onNone: () => {
+          tooLong++
+        },
+        onSome: (objects) => {
+          for (const object of objects) {
+            if (listed.has(idOf(object))) referenced.add(idOf(object))
+          }
+          const namesBucket = Array.some(
+            Record.values(gcs.bucketNames),
+            (name) => String.includes(name)(ref)
+          )
+          if (Array.isReadonlyArrayEmpty(objects) && namesBucket) {
+            unread.push(ref)
+          }
+        },
+      })
     })
   )
 
@@ -261,6 +271,11 @@ export const sweepOrphans = Effect.fn('sweepOrphans')(function* (
     ...(Array.isReadonlyArrayNonEmpty(unread)
       ? [
           `${unread.length} references mention a bucket but name no object, e.g. ${Array.join(Array.take(unread, SAMPLE_SIZE), ', ')}`,
+        ]
+      : []),
+    ...(tooLong > 0
+      ? [
+          `${tooLong} references are too long to read, so any object may be one they name`,
         ]
       : []),
   ]
