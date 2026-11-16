@@ -91,7 +91,7 @@ describe('useUpdatePlant', () => {
     )
   })
 
-  it('passes GCS URL as imageUrl in data field without uploading', async () => {
+  it('sends the edit without the image URL the plant already has', async () => {
     mockedUploadMultipart.mockResolvedValue({})
 
     const { result } = renderHook(() => useUpdatePlant(), {
@@ -113,12 +113,7 @@ describe('useUpdatePlant', () => {
       `${API_PREFIX}/plants/plant-1`,
       [],
       'image',
-      {
-        data: JSON.stringify({
-          name: 'Updated',
-          imageUrl: 'https://storage.googleapis.com/photo.jpg',
-        }),
-      },
+      { data: JSON.stringify({ name: 'Updated' }) },
       'PUT'
     )
   })

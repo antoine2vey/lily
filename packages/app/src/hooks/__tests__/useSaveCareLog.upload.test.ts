@@ -51,33 +51,18 @@ describe('useSaveCareLog through the real upload', () => {
     }
   }
 
-  it('sends the path as JSON when the API answers 415 to the upload', async () => {
-    expect(
-      await saveAgainst(415, 'Unsupported content-type: multipart/form-data')
-    ).toEqual({
-      outcome: 'saved',
-      sentAsJson: [
-        [
-          'careLogs',
-          'createCareLog',
-          expect.objectContaining({
-            payload: expect.objectContaining({ photoUrl: pickedPhoto }),
-          }),
-        ],
-      ],
-    })
-  })
-
   it.each([
-    ['a plain 400', ''],
+    ['a plain 400', 400, ''],
     [
       'a typed 400',
+      400,
       JSON.stringify({ _tag: 'InvalidImageError', message: 'Not an image' }),
     ],
+    ['a 415', 415, 'Unsupported content-type: multipart/form-data'],
   ])(
     'fails without a JSON request when the API answers %s',
-    async (_case, body) => {
-      expect(await saveAgainst(400, body)).toEqual({
+    async (_case, status, body) => {
+      expect(await saveAgainst(status, body)).toEqual({
         outcome: 'failed',
         sentAsJson: [],
       })

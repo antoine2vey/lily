@@ -207,7 +207,7 @@ An event goes from its publisher to its consumer, and a call goes from the calle
 | Assistant | Care | Direct reads of the schedules, care logs and plans of a plant for the prompt | `src/services/ai-chat/plant-chat.ts` |
 | Assistant | Engagement | EventBus `ChatMessageSent` and `DiseaseIdentified` | `src/services/ai-chat/persist-chat-completion.ts` |
 | Care | Billing | `LimitChecker.checkPlantLimit` | `createPlant` and `revivePlant` in `src/services/plants/endpoints/` |
-| Care | Billing | `UsageTracker.withReservation` around each AI call | `aiIdentify`, `aiReIdentify`, `detect`, `scanCard` and `scanCardMultiple` in `src/services/plants/endpoints/` |
+| Care | Billing | `UsageTracker.withReservation` around each AI call | `aiIdentify`, `detect`, `scanCard` and `scanCardMultiple` in `src/services/plants/endpoints/` |
 | Assistant | Billing | `UsageTracker.withDetachedReservation` for the `aiChats` quota of a streamed reply | `src/services/ai-chat/endpoints/stream-chat-message.ts` |
 | Absence | Billing | `LimitChecker.checkDelegationAccess` | `src/services/delegation/endpoints/create-delegation.ts` |
 | Billing | Engagement | Direct `AchievementRepository.countLivingPlants`, a plant count kept in the achievements repository | `src/services/subscriptions/limit-checker.ts` |

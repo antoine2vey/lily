@@ -12,9 +12,8 @@ import { Effect, Struct } from 'effect'
 /**
  * Creates a plant from a request whose image may be a scan photo. A scan
  * answers with a signed URL of the private bucket, which expires, so the
- * plant gets a public copy of the caller's own scan photo instead. A device
- * file is stored as sent. Any other reference is not the caller's to show and
- * the plant gets no image.
+ * plant gets a public copy of the caller's own scan photo instead. Any other
+ * reference is not the caller's to show and the plant gets no image.
  */
 export const withScanPhoto = <E, R>(
   request: EnhancedPlantCreateRequest,
@@ -29,7 +28,6 @@ export const withScanPhoto = <E, R>(
     const image = yield* readClientImage(request.imageUrl)
 
     return yield* ClientImage.$match(image, {
-      DeviceFile: () => create(request),
       Untrusted: () => create(withoutImage),
       OwnUpload: ({ key }) =>
         Effect.gen(function* () {

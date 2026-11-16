@@ -3,7 +3,6 @@ import type { Outbox } from '@lily/api/kernel/outbox'
 import type { PlantPermit } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { deviceFile } from '@lily/api/services/helpers/client-image'
 import type { CareLog, CareLogUpdateRequest } from '@lily/shared/care-log'
 import { CareLogNotFoundError } from '@lily/shared/errors/care-log'
 import type {
@@ -37,7 +36,6 @@ export const updateCareLog = (
           CareWhen.At({ instant: DateTime.makeUnsafe(date) })
         ),
         notes: Option.map(Option.fromUndefinedOr(request.notes), Option.some),
-        photoUrl: Option.map(deviceFile(request.photoUrl), Option.some),
       })
       const log = yield* careLogs.findById(logId, permit.plantId)
       return yield* Effect.fromNullishOr(log).pipe(

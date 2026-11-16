@@ -5,10 +5,9 @@ import {
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import {
   ClientImage,
-  deviceFile,
   readClientImage,
 } from '@lily/api/services/helpers/client-image'
-import { Effect, Layer, Option } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const privateUrl = (path: string, host = 'storage.googleapis.com') =>
@@ -28,7 +27,6 @@ const read = (ref: string) =>
   )
 
 const ownKey = 'users/user-1/identify/photo.jpg'
-const deviceUri = 'file:///var/mobile/Containers/Data/tmp/photo.jpg'
 
 describe('readClientImage', () => {
   it.each([
@@ -40,12 +38,6 @@ describe('readClientImage', () => {
     ],
   ])("reads %s of the caller's upload as its key", async (_case, ref) => {
     expect(await read(ref)).toEqual(ClientImage.OwnUpload({ key: ownKey }))
-  })
-
-  it('reads a file on the device as its path', async () => {
-    expect(await read(deviceUri)).toEqual(
-      ClientImage.DeviceFile({ uri: deviceUri })
-    )
   })
 
   it.each([
@@ -79,20 +71,14 @@ describe('readClientImage', () => {
     ['a private photo from before scopes', privateUrl('1700000000000-x.jpg')],
     ["the caller's own public photo", publicUrl('users/user-1/avatars/a.png')],
     ["a plant's public photo", publicUrl('plants/plant-1/cover.jpg')],
+    [
+      'a file on the device',
+      'file:///var/mobile/Containers/Data/tmp/photo.jpg',
+    ],
     ['a file URL with a host', 'file://fileserver.example/share/photo.jpg'],
     ['a data URL', 'data:image/png;base64,iVBORw0KGgo='],
     ['an empty string', ''],
   ])('reads %s as untrusted', async (_case, ref) => {
     expect(await read(ref)).toEqual(ClientImage.Untrusted())
-  })
-})
-
-describe('deviceFile', () => {
-  it.each([
-    ['a file on the device', deviceUri, Option.some(deviceUri)],
-    ['a URL', 'https://tracker.example/pixel.jpg', Option.none()],
-    ['no reference', undefined, Option.none()],
-  ])('reads %s', (_case, ref, expected) => {
-    expect(deviceFile(ref)).toEqual(expected)
   })
 })

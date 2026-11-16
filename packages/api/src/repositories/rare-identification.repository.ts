@@ -13,9 +13,6 @@ export interface IRareIdentificationRepository {
   readonly record: (
     identification: RareIdentification
   ) => Effect.Effect<void, SqlError>
-  readonly forget: (
-    identification: RareIdentification
-  ) => Effect.Effect<void, SqlError>
   readonly exists: (
     identification: RareIdentification
   ) => Effect.Effect<boolean, SqlError>
@@ -50,14 +47,6 @@ export const RareIdentificationRepositoryLive = Layer.effect(
               rarePlantIdentifications.imageUrl,
             ],
           })
-      }),
-
-      forget: Effect.fn('RareIdentificationRepository.forget')(function* (
-        identification: RareIdentification
-      ) {
-        yield* db
-          .delete(rarePlantIdentifications)
-          .where(matches(identification))
       }),
 
       exists: Effect.fn('RareIdentificationRepository.exists')(function* (

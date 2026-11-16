@@ -488,7 +488,6 @@ describe('amendCare', () => {
   const moveTo = (value: string) => ({
     on: Option.some(CareWhen.Day({ day: day(value) })),
     notes: Option.none(),
-    photoUrl: Option.none(),
   })
 
   it('moves the due day when the latest care moves', () => {
@@ -508,7 +507,6 @@ describe('amendCare', () => {
         {
           on: Option.none(),
           notes: Option.some(Option.some('repotted too')),
-          photoUrl: Option.none(),
         },
         env()
       ),
@@ -742,7 +740,6 @@ describe('any sequence of care commands', () => {
                 {
                   on: Option.some(target),
                   notes: Option.none(),
-                  photoUrl: Option.none(),
                 },
                 e
               )

@@ -14,22 +14,11 @@ import { Array, Data, Effect, Option, pipe, String } from 'effect'
 export type ClientImage = Data.TaggedEnum<{
   /** A private object in the caller's own folder: a scan, identify or chat photo. */
   OwnUpload: { readonly key: string }
-  /** A file on the device that sent it, which other devices cannot load. */
-  DeviceFile: { readonly uri: string }
   /** Another host, another account's object, or an object in no account's folder. */
   Untrusted: {}
 }>
 
 export const ClientImage = Data.taggedEnum<ClientImage>()
-
-/**
- * The path of a picked photo that a build sends when it has no upload for it:
- * the care log photo of builds from before November 2026, and the plant photo
- * of builds from before March 2026.
- * https://github.com/antoine2vey/lily/issues/246 removes it.
- */
-export const deviceFile = (ref: string | undefined): Option.Option<string> =>
-  pipe(Option.fromNullishOr(ref), Option.filter(String.startsWith('file:///')))
 
 const SERVER_MADE_SEGMENT = /^[\w.-]+$/
 
@@ -54,21 +43,17 @@ export const readClientImage = (
     const ownFolder = scopePrefix({ _tag: 'User', userId })
 
     return pipe(
-      deviceFile(ref),
-      Option.map((uri) => ClientImage.DeviceFile({ uri })),
-      Option.orElse(() =>
-        pipe(
-          gcs.locate(ref),
-          Option.filter(
-            ({ bucket, key }) =>
-              bucket === 'ai' &&
-              String.startsWith(ownFolder)(key) &&
-              isServerMadeKey(key)
-          ),
-          Option.map(({ key }) => ClientImage.OwnUpload({ key }))
-        )
+      gcs.locate(ref),
+      Option.filter(
+        ({ bucket, key }) =>
+          bucket === 'ai' &&
+          String.startsWith(ownFolder)(key) &&
+          isServerMadeKey(key)
       ),
-      Option.getOrElse(() => ClientImage.Untrusted())
+      Option.match({
+        onNone: () => ClientImage.Untrusted(),
+        onSome: ({ key }) => ClientImage.OwnUpload({ key }),
+      })
     )
   })
 

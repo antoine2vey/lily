@@ -59,7 +59,6 @@ export type CareWrite = Data.TaggedEnum<{
       readonly at: DateTime.Utc
     }>
     readonly notes: Option.Option<Option.Option<string>>
-    readonly photoUrl: Option.Option<Option.Option<string>>
   }
   DeleteCare: { readonly id: string }
   PutSchedule: {
@@ -465,7 +464,6 @@ export const recordCareOnAll = (
 export interface AmendInput {
   readonly on: Option.Option<CareWhen>
   readonly notes: Option.Option<Option.Option<string>>
-  readonly photoUrl: Option.Option<Option.Option<string>>
 }
 
 const findCare = (
@@ -516,7 +514,6 @@ const amendEntry = (
           id: entry.id,
           when,
           notes: input.notes,
-          photoUrl: input.photoUrl,
         }),
         ...recomputed.writes,
       ],
@@ -608,7 +605,6 @@ export const correctLastCare = (
             {
               on: Option.some(on),
               notes: Option.none(),
-              photoUrl: Option.none(),
             },
             env
           ),

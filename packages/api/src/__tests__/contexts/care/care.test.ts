@@ -321,7 +321,6 @@ describe('Care', () => {
           careLogId,
           on: Option.none(),
           notes: Option.none(),
-          photoUrl: Option.none(),
           ...change,
         })
       ).pipe(Effect.provide(world.layer))
@@ -859,7 +858,6 @@ describe('Care', () => {
                 careLogId: 'care-1',
                 on: Option.some(day('2026-11-02')),
                 notes: Option.none(),
-                photoUrl: Option.none(),
               })
             ).pipe(Effect.provide(world.layer))
           )

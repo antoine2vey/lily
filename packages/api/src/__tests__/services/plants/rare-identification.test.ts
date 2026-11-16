@@ -181,7 +181,6 @@ describe('Rare Collector from the identification answer', () => {
   it('keeps the save successful when the lookup fails', async () => {
     const failing = Layer.succeed(RareIdentificationRepository, {
       record: () => Effect.void,
-      forget: () => Effect.void,
       exists: () =>
         Effect.fail(
           new SqlError({

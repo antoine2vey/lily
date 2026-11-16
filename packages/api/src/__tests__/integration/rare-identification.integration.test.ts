@@ -1,11 +1,6 @@
-import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import {
-  createMockGCSService,
-  MOCK_BUCKET_NAMES,
-} from '@lily/api/__tests__/mocks/gcs.service'
+import { MOCK_BUCKET_NAMES } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import type { AppEvent } from '@lily/api/events'
 import {
   AchievementRepository,
@@ -17,7 +12,6 @@ import {
 } from '@lily/api/repositories/rare-identification.repository'
 import { processEvent } from '@lily/api/services/achievements/checker'
 import { AchievementNotifier } from '@lily/api/services/achievements/notifier'
-import { aiReIdentify } from '@lily/api/services/plants/endpoints/ai-re-identify'
 import {
   awardRareIdentification,
   rememberRareIdentification,
@@ -40,7 +34,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let collectorId: string
     let strangerId: string
     let holderId: string
-    let changerId: string
 
     const imageUrl = `https://storage.googleapis.com/lily/identify/${Date.now()}.jpg`
 
@@ -81,20 +74,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }).pipe(Effect.provide(as(userId, publishedEvents)), Effect.runPromise)
     }
 
-    const reIdentify = (
-      userId: string,
-      url: string,
-      isRareHouseplant: boolean
-    ) =>
-      aiReIdentify([url], 'en').pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            as(userId),
-            createMockAiService({ isRareHouseplant }),
-            createMockGCSService(),
-            MockUsageTrackerLive
-          )
-        ),
+    const identify = (userId: string, url: string, isRareHouseplant: boolean) =>
+      rememberRareIdentification({ isRareHouseplant, imageUrl: url }).pipe(
+        Effect.provide(as(userId)),
         Effect.runPromise
       )
 
@@ -122,7 +104,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const users = await db
         .insert(schema.users)
         .values(
-          ['collector', 'stranger', 'holder', 'changer'].map((role) => ({
+          ['collector', 'stranger', 'holder'].map((role) => ({
             email: `rare-${role}-${stamp}@example.com`,
             name: `rare_${role}_${stamp}`,
             emailVerified: true,
@@ -132,20 +114,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       collectorId = users[0]!.id
       strangerId = users[1]!.id
       holderId = users[2]!.id
-      changerId = users[3]!.id
     })
 
     afterAll(async () => {
       await db
         .delete(schema.users)
-        .where(
-          inArray(schema.users.id, [
-            collectorId,
-            strangerId,
-            holderId,
-            changerId,
-          ])
-        )
+        .where(inArray(schema.users.id, [collectorId, strangerId, holderId]))
       await pool.end()
     })
 
@@ -185,9 +159,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('keeps one row when the same photo is identified as rare again', async () => {
       const url = uploadOf(collectorId, 'repeat')
 
-      await reIdentify(collectorId, url, true)
-      await reIdentify(collectorId, url, true)
-      await reIdentify(collectorId, url, true)
+      await identify(collectorId, url, true)
+      await identify(collectorId, url, true)
+      await identify(collectorId, url, true)
 
       expect(await storedRows(collectorId, url)).toHaveLength(1)
     })
@@ -207,19 +181,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(
         await storedRows(identification.userId, identification.imageUrl)
       ).toHaveLength(1)
-    })
-
-    it('lets a later answer that is not rare win for the same photo', async () => {
-      const url = uploadOf(changerId, 'changed-mind')
-
-      await reIdentify(changerId, url, true)
-      await reIdentify(changerId, url, false)
-      const achievements = await saveAndProcess(changerId, url)
-
-      expect({
-        rows: await storedRows(changerId, url),
-        rareCollector: hasRareCollector(achievements),
-      }).toEqual({ rows: [], rareCollector: false })
     })
 
     it('does not unlock for a user who saves a photo someone else identified as rare', async () => {
