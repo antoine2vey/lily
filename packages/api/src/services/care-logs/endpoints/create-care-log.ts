@@ -4,12 +4,29 @@ import type { PlantPermit } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { deviceFile } from '@lily/api/services/helpers/client-image'
+import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
 import type { CareLogCreateRequest } from '@lily/shared/care-log'
 import { Effect, Option } from 'effect'
+import type { PersistedFile } from 'effect/http/Multipart'
 
 export const createCareLog = (
   permit: PlantPermit<'care'>,
   request: CareLogCreateRequest
+) => recordCareLog(permit, request, deviceFile(request.photoUrl))
+
+export const createCareLogWithPhoto = (
+  permit: PlantPermit<'care'>,
+  request: CareLogCreateRequest,
+  photo: PersistedFile
+) =>
+  Effect.flatMap(uploadToPlantFolder(permit.plantId, photo), (url) =>
+    recordCareLog(permit, request, Option.some(url))
+  )
+
+const recordCareLog = (
+  permit: PlantPermit<'care'>,
+  request: CareLogCreateRequest,
+  photoUrl: Option.Option<string>
 ) =>
   transact(
     Effect.gen(function* () {
@@ -20,7 +37,7 @@ export const createCareLog = (
         careType: request.type,
         on: careWhenOf(request.date),
         notes: Option.fromNullishOr(request.notes),
-        photoUrl: deviceFile(request.photoUrl),
+        photoUrl,
         planStep: PlanStepChoice.Auto(),
       })
       const log = yield* careLogs.findById(recorded.careLogId, permit.plantId)

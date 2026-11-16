@@ -123,7 +123,7 @@ export function LogCareSheet({
         notes: String.isNonEmpty(String.trim(notes))
           ? String.trim(notes)
           : undefined,
-        photoUrl: Option.getOrUndefined(Option.fromNullishOr(photo)),
+        photoUri: Option.getOrUndefined(Option.fromNullishOr(photo)),
       },
       {
         onSuccess: () => {

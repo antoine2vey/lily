@@ -1,16 +1,16 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
 import { nowAsDate, type PlantPhotoUploadResponse } from '@lily/shared'
-import { GCSService } from '@lily/shared/services/file/gcs'
+import type { GCSService } from '@lily/shared/services/file/gcs'
 import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
-import { plantFolder } from '@lily/shared/services/file/stored-object'
 import { Effect } from 'effect'
-import { FileSystem } from 'effect/FileSystem'
+import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -32,22 +32,15 @@ export const uploadPlantPhoto = ({
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const fileSystem = yield* FileSystem
-    const gcs = yield* GCSService
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
 
     const photos = yield* Effect.forEach(files, (file) =>
-      Effect.gen(function* () {
-        const buffer = yield* fileSystem.readFile(file.path)
-
-        const { url } = yield* gcs.uploadFile({
-          fileBuffer: Buffer.from(buffer),
-          folder: plantFolder(plantId),
-        })
-
-        return { plantId, url, takenAt: nowAsDate() }
-      })
+      Effect.map(uploadToPlantFolder(plantId, file), (url) => ({
+        plantId,
+        url,
+        takenAt: nowAsDate(),
+      }))
     )
 
     const createdPhotos = yield* repo.addPhotos(photos)

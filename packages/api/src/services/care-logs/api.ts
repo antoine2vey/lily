@@ -15,7 +15,10 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
+import { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
+import { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Effect, Schema } from 'effect'
+import { Multipart } from 'effect/http'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Path parameters
@@ -38,6 +41,11 @@ export const RecentActivitiesQueryParams = Schema.Struct({
     Schema.withConstructorDefault(Effect.succeed('10'))
   ),
 })
+
+const CareLogCreateUpload = Schema.Struct({
+  data: Schema.fromJsonString(CareLogCreateRequest),
+  image: Multipart.SingleFileSchema,
+}).pipe(HttpApiSchema.asMultipart())
 
 // Define the Care Logs API group - nested under plants
 export const CareLogsApi = HttpApiGroup.make('careLogs')
@@ -65,10 +73,11 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
     })
   )
   .add(
-    // POST /plants/:plantId/logs - Add a log entry
+    // POST /plants/:plantId/logs - Add a log entry, as JSON or as multipart
+    // with the photo. Builds from before the upload send JSON only.
     HttpApiEndpoint.post('createCareLog', '/plants/:plantId/logs', {
       params: { plantId: plantIdParam },
-      payload: CareLogCreateRequest,
+      payload: [CareLogCreateRequest, CareLogCreateUpload],
       success: CareLog.pipe(HttpApiSchema.status(201)),
       error: [
         PlantNotFoundError,
@@ -76,6 +85,8 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
         FutureDateNotAllowedError,
         AlreadyCaredTodayError,
         PlantIsDeadError,
+        InvalidImageError,
+        GCSUploadError.pipe(HttpApiSchema.status(500)),
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(400)),
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],

@@ -9,7 +9,10 @@ import {
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
-import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import {
+  createCareLog,
+  createCareLogWithPhoto,
+} from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { CareDay } from '@lily/shared'
 import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -85,7 +88,7 @@ describe('createCareLog', () => {
     const test = setup()
 
     await Effect.runPromise(
-      createCareLog(
+      createCareLogWithPhoto(
         carePermit(existing.plantId),
         { type: 'watering', photoUrl: deviceFile },
         image
