@@ -1,9 +1,9 @@
 -- Rewrites tzdata aliases in users.timezone and canopies.timezone to the zones
 -- they name, so day math never depends on the tzdata build a runtime ships.
 -- The rows come from `bun run --filter=@lily/db generate:time-zones -- --sql`.
--- 0072, 0074, 0080, 0081 and 0083 ran when Postgres knew no alias and computed
--- the day columns of an alias's plants in UTC, so a day still on its UTC day is
--- recomputed here first. A day the api wrote under an earlier zone stays put.
+-- care_logs.care_day and plant_care_schedules.due_day are left as they are. A
+-- care day is fixed once recorded, and no row tells a day an earlier migration
+-- computed in UTC from a day the api wrote under an earlier zone.
 -- A zone outside the map is left as it is.
 SET LOCAL lock_timeout = '5s';
 --> statement-breakpoint
@@ -160,77 +160,6 @@ INSERT INTO "time_zone_aliases" ("alias", "zone") VALUES
   ('W-SU', 'Europe/Moscow'),
   ('WET', 'Europe/Lisbon'),
   ('Zulu', 'UTC');
---> statement-breakpoint
-CREATE TEMPORARY TABLE "alias_plants" ON COMMIT DROP AS
-SELECT p."id" AS "plant_id", a."zone"
-FROM "plants" p
-LEFT JOIN "canopies" c ON c."id" = p."canopy_id"
-LEFT JOIN "users" u ON u."id" = p."user_id"
-JOIN "time_zone_aliases" a ON a."alias" = coalesce(c."timezone", u."timezone");
---> statement-breakpoint
-CREATE TEMPORARY TABLE "care_day_moves" ON COMMIT DROP AS
-SELECT
-  cl."id",
-  cl."plant_id",
-  cl."type",
-  cl."care_day" AS "old_day",
-  (cl."date" AT TIME ZONE ap."zone")::date AS "new_day",
-  row_number() OVER (
-    PARTITION BY cl."plant_id", cl."type", (cl."date" AT TIME ZONE ap."zone")::date
-    ORDER BY cl."date", cl."created_at", cl."id"
-  ) AS "rank"
-FROM "care_logs" cl
-JOIN "alias_plants" ap ON ap."plant_id" = cl."plant_id"
-WHERE cl."care_day" = (cl."date" AT TIME ZONE 'UTC')::date
-  AND cl."care_day" <> (cl."date" AT TIME ZONE ap."zone")::date;
---> statement-breakpoint
--- A log keeps its day when its new day ends up held by a log that does not
--- move: one this migration does not recompute, an earlier log landing on the
--- same day, or a log kept in place for either reason.
-WITH RECURSIVE "kept" AS (
-  SELECT m."id", m."plant_id", m."type", m."old_day"
-  FROM "care_day_moves" m
-  WHERE m."rank" > 1
-    OR EXISTS (
-      SELECT 1
-      FROM "care_logs" held
-      WHERE held."plant_id" = m."plant_id"
-        AND held."type" = m."type"
-        AND held."care_day" = m."new_day"
-        AND NOT EXISTS (
-          SELECT 1 FROM "care_day_moves" o WHERE o."id" = held."id"
-        )
-    )
-  UNION
-  SELECT m."id", m."plant_id", m."type", m."old_day"
-  FROM "care_day_moves" m
-  JOIN "kept" k
-    ON k."plant_id" = m."plant_id"
-    AND k."type" = m."type"
-    AND k."old_day" = m."new_day"
-)
-DELETE FROM "care_day_moves" m
-USING "kept" k
-WHERE m."id" = k."id";
---> statement-breakpoint
--- Postgres checks a unique index row by row, so a run of consecutive days that
--- each move by one would collide midway through a single UPDATE.
-DROP INDEX "care_logs_one_per_care_day";
---> statement-breakpoint
-UPDATE "care_logs" cl
-SET "care_day" = m."new_day"
-FROM "care_day_moves" m
-WHERE cl."id" = m."id";
---> statement-breakpoint
-CREATE UNIQUE INDEX "care_logs_one_per_care_day"
-  ON "care_logs" ("plant_id", "type", "care_day");
---> statement-breakpoint
-UPDATE "plant_care_schedules" s
-SET "due_day" = (s."next_care_at" AT TIME ZONE ap."zone")::date
-FROM "alias_plants" ap
-WHERE ap."plant_id" = s."plant_id"
-  AND s."due_day" = (s."next_care_at" AT TIME ZONE 'UTC')::date
-  AND s."due_day" <> (s."next_care_at" AT TIME ZONE ap."zone")::date;
 --> statement-breakpoint
 UPDATE "users" u
 SET "timezone" = a."zone"
