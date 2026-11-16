@@ -21,7 +21,7 @@ Run every command from the monorepo root.
 
 ## Layout
 
-- `src/routes/` holds file-based routes. `$locale/route.tsx` validates the locale and injects the site-wide JSON-LD (`SoftwareApplication`, `Organization`, `WebSite`) once. `index.tsx` is the language redirect at `/`. `join.tsx` is the noindex invite page. nginx serves it for every `/join/<token>` path.
+- `src/routes/` holds file-based routes. `$locale/route.tsx` validates the locale and injects the site-wide JSON-LD (`SoftwareApplication`, `Organization`, `WebSite`) once. `index.tsx` is the language redirect at `/`. `join.tsx` is the noindex invite page. nginx serves it for every `/join/<token>` path. The `rewrite` in `src/router.tsx` makes the router read such a path as `/join`, so it hydrates the page that was prerendered. Keep it in step with the `/join/` location in `nginx.conf`.
 - `src/i18n/en.ts` is the source of truth for every visible string. `fr.ts` is typed against it, so a missing or extra key fails `tsc`. Read strings with `useI18n()` in components and `messagesFor(locale)` in `head()`. Use `fmt` for `{var}` interpolation and `plural` for counts.
 - `src/lib/seo.ts` builds the `head()` of every indexable page. It covers the title, description, canonical, en/fr/x-default hreflang, Open Graph, the Twitter card and JSON-LD. `src/lib/page-seo.ts` wraps it for the plain document pages. The noindex `/` and `/join` routes write their head by hand.
 - `src/lib/sitemap.ts` is the single list of indexable URLs. The prerender page list in `vite.config.ts`, `sitemap.xml` and the SEO check all derive from it.
