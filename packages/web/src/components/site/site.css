@@ -361,6 +361,10 @@ body {
   font-size: 15px;
   line-height: 1.5;
 }
+/* A stored choice hides the prerendered banner until hydration removes it. */
+html[data-consent] .m-consent:not([data-reopened]) {
+  display: none;
+}
 .m-consent:focus-visible,
 .m-consent :focus-visible {
   outline: 3px solid var(--water);

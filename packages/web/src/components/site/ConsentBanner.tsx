@@ -8,16 +8,6 @@ import { askAgain, decide, useConsent } from '@/lib/consent'
 const browserLocale = (): Locale =>
   navigator.language.startsWith('fr') ? 'fr' : 'en'
 
-export function ConsentBanner({ locale }: { locale: Option.Option<Locale> }) {
-  const { asking, choice } = useConsent()
-  return asking ? (
-    <Banner
-      locale={Option.getOrElse(locale, browserLocale)}
-      reopened={Option.isSome(choice)}
-    />
-  ) : null
-}
-
 const neverChanges = () => () => {}
 const useHydrated = () =>
   useSyncExternalStore(
@@ -25,6 +15,18 @@ const useHydrated = () =>
     () => true,
     () => false
   )
+
+// A page outside a locale takes the browser language, which the prerender cannot know.
+export function ConsentBanner({ locale }: { locale: Option.Option<Locale> }) {
+  const { asking, choice } = useConsent()
+  const hydrated = useHydrated()
+  const lang = Option.orElse(locale, () =>
+    hydrated ? Option.some(browserLocale()) : Option.none()
+  )
+  return asking && Option.isSome(lang) ? (
+    <Banner locale={lang.value} reopened={Option.isSome(choice)} />
+  ) : null
+}
 
 // A page outside a locale has no footer, so the root route gives it this way back to the banner.
 export function ConsentSettings() {
@@ -65,6 +67,7 @@ function Banner({ locale, reopened }: { locale: Locale; reopened: boolean }) {
       tabIndex={-1}
       lang={locale}
       className="m-consent"
+      data-reopened={reopened || undefined}
       aria-label={m.label}
     >
       <p>
