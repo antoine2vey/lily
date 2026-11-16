@@ -10,12 +10,13 @@ import {
 } from '@lily/shared/services/file/image-upload'
 import {
   type BucketRole,
+  type ListedObject,
   locateStoredObject,
   type ObjectScope,
   type StoredObject,
   scopePrefix,
 } from '@lily/shared/services/file/stored-object'
-import { Array, Effect, Layer } from 'effect'
+import { Array, DateTime, Effect, Layer, Stream } from 'effect'
 
 export const MOCK_BUCKET_NAMES = {
   plant: 'mock-bucket',
@@ -29,7 +30,8 @@ const signedUrl = (key: string, query: string) =>
   `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/${key}?${query}`
 
 /**
- * GCS held in memory: uploads land in `objects`, deletes remove them,
+ * GCS held in memory: uploads land in `objects`, `put` stores an object with
+ * a chosen size and creation time, deletes remove them,
  * `outage.deletes` makes every delete fail the way an unreachable bucket does,
  * and `outage.defect` makes it die the way a bug in the client does.
  */
@@ -40,7 +42,17 @@ export const createInMemoryGCS = (
     plant: new Set(),
     ai: new Set(),
   }
+  const created = new Map<string, { size: number; createdAt: DateTime.Utc }>()
   const outage = { deletes: false, defect: false }
+
+  const put = (
+    bucket: BucketRole,
+    key: string,
+    meta: { size: number; createdAt: DateTime.Utc }
+  ) => {
+    objects[bucket].add(key)
+    created.set(`${bucket}/${key}`, meta)
+  }
 
   const save = (bucket: BucketRole, request: GCSUploadRequest) =>
     Effect.tap(planImageUpload(request.fileBuffer, request.folder), ({ key }) =>
@@ -99,7 +111,23 @@ export const createInMemoryGCS = (
         })
       ),
 
+    bucketNames: MOCK_BUCKET_NAMES,
+
     locate: locateStoredObject(MOCK_BUCKET_NAMES),
+
+    listObjects: (bucket: BucketRole): Stream.Stream<ListedObject> =>
+      Stream.suspend(() =>
+        Stream.fromIterable(
+          Array.map([...objects[bucket]], (key) => ({
+            bucket,
+            key,
+            ...(created.get(`${bucket}/${key}`) ?? {
+              size: 0,
+              createdAt: DateTime.nowUnsafe(),
+            }),
+          }))
+        )
+      ),
 
     publish: (
       key: string,
@@ -135,6 +163,7 @@ export const createInMemoryGCS = (
 
   return {
     objects,
+    put,
     outage,
     layer: Layer.succeed(
       GCSService,
