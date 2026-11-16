@@ -1,8 +1,12 @@
-import type { CareTasksResponse, CareType } from '@lily/shared'
+import type { CareType } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Array, Effect, Result } from 'effect'
-import { CARE_TASKS_QUERY_KEY } from '@/hooks/useCareTasks'
-import { type ApiResult, apiEffectRunner } from '@/utils/client'
+import { Effect } from 'effect'
+import { completeCachedCareTasks } from '@/hooks/useCareTasks'
+import { apiEffectRunner } from '@/utils/client'
+import {
+  type CacheSnapshot,
+  restoreCachedResults,
+} from '@/utils/optimistic-cache'
 import { queryKeys } from '@/utils/query-keys'
 import { recordPositiveMoment } from '@/utils/rating-prompt'
 
@@ -10,10 +14,6 @@ interface CompleteTaskParams {
   taskId: string
   plantId: string
   type: CareType
-}
-
-interface CompleteTaskContext {
-  previous: ApiResult<CareTasksResponse> | undefined
 }
 
 async function completeTaskApi(params: CompleteTaskParams): Promise<void> {
@@ -30,39 +30,10 @@ export function useCompleteTask() {
 
   return useMutation({
     mutationFn: completeTaskApi,
-    onMutate: async (params): Promise<CompleteTaskContext> => {
-      await queryClient.cancelQueries({ queryKey: CARE_TASKS_QUERY_KEY })
-
-      const previous =
-        queryClient.getQueryData<ApiResult<CareTasksResponse>>(
-          CARE_TASKS_QUERY_KEY
-        )
-
-      const removeTask = (tasks: CareTasksResponse['overdue']) =>
-        Array.filter(tasks, (t) => t.id !== params.taskId)
-
-      // The cache stores an Either (ApiResult), so map inside the Right to drop
-      // the completed task from the overdue/today buckets instantly.
-      queryClient.setQueryData<ApiResult<CareTasksResponse>>(
-        CARE_TASKS_QUERY_KEY,
-        (old) => {
-          if (!old) return old
-          return Result.map(old, (data) => ({
-            ...data,
-            overdue: removeTask(data.overdue),
-            today: removeTask(data.today),
-            completedToday: data.completedToday + 1,
-          }))
-        }
-      )
-
-      return { previous }
-    },
-    onError: (_err, _params, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(CARE_TASKS_QUERY_KEY, context.previous)
-      }
-    },
+    onMutate: (params): CacheSnapshot =>
+      completeCachedCareTasks(queryClient, (task) => task.id === params.taskId),
+    onError: (_err, _params, snapshot) =>
+      restoreCachedResults(queryClient, snapshot),
     onSuccess: () => {
       Effect.runFork(recordPositiveMoment)
     },
