@@ -11,7 +11,6 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
 import { useIconColors } from '@/hooks/useIconColors'
 
@@ -52,7 +51,6 @@ export function TimezonePickerModal({
   onTimezoneChange,
 }: TimezonePickerModalProps) {
   const { t } = useTranslation('notifications')
-  const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
   const [search, setSearch] = useState('')
 
@@ -81,10 +79,7 @@ export function TimezonePickerModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View
-        className="flex-1 bg-background dark:bg-background-dark"
-        style={{ paddingTop: insets.top }}
-      >
+      <View className="flex-1 bg-background dark:bg-background-dark">
         {/* Modal Header */}
         <View className="flex-row items-center px-4 py-3">
           <Pressable
@@ -111,7 +106,7 @@ export function TimezonePickerModal({
               color={iconColors.textMuted}
             />
             <TextInput
-              className="flex-1 py-3 px-2 text-base text-text-primary dark:text-white"
+              className="flex-1 py-3.5 px-2 text-[14px] text-text-primary dark:text-white"
               placeholder={t('timezone.search')}
               placeholderTextColor={iconColors.textMuted}
               value={search}
