@@ -5,6 +5,7 @@ set -euo pipefail
 
 MODE="${1:-new}"
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/ota-should-publish.sh"
+WORKFLOW="${OTA_WORKFLOW:-$(cd "$(dirname "$0")/.." && pwd)/.github/workflows/ota-update.yml}"
 fails=0
 
 legacy() {
@@ -57,6 +58,66 @@ expect() { # expect <name> <want> <got>
 		fails=$((fails + 1))
 	fi
 }
+
+# Workflow guards. awk keeps this free of yq, which the docs job does not install.
+# workflow_facts prints one normalized line per `permissions:` or `concurrency:`
+# entry: "P <scope> <key>=<value>" or "C <scope> <key>=<value>", where scope is
+# the job name or @top. Trailing comments and quotes are stripped, and block,
+# flow ({ a: b }) and scalar forms read the same. A scalar concurrency is a group
+# that never cancels.
+workflow_facts() {
+	awk '
+		function trim(v) { sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); return v }
+		function norm(v) {
+			v = trim(v)
+			sub(/[ \t]+#.*$/, "", v)
+			v = trim(v)
+			if (v ~ /^".*"$/ || v ~ /^'"'"'.*'"'"'$/) v = substr(v, 2, length(v) - 2)
+			return v
+		}
+		function emit(kind, k, v) { print kind " " bscope " " trim(k) "=" norm(v) }
+		{
+			sub(/\015$/, "")
+			if ($0 ~ /^[ \t]*(#|$)/) next
+			indent = match($0, /[^ ]/) - 1
+			line = substr($0, indent + 1)
+			c = index(line, ":")
+			key = c ? substr(line, 1, c - 1) : line
+			val = c ? substr(line, c + 1) : ""
+			if (indent == 0) { top = key; job = ""; block = "" }
+			if (top == "jobs" && indent == 2) { job = key; block = "" }
+			scope = (top == "jobs") ? job : "@top"
+			if (block != "" && indent > bindent) { emit(kind, key, val); next }
+			block = ""
+			if ((key != "permissions" && key != "concurrency") ||
+			    !((top != "jobs" && indent == 0) || (top == "jobs" && indent == 4))) next
+			kind = (key == "permissions") ? "P" : "C"
+			bscope = scope; bindent = indent
+			v = norm(val)
+			if (v == "") { block = key }
+			else if (v ~ /^\{/) {
+				sub(/^\{/, "", v); sub(/\}$/, "", v)
+				n = split(v, parts, ",")
+				for (i = 1; i <= n; i++) {
+					c = index(parts[i], ":")
+					if (c) emit(kind, substr(parts[i], 1, c - 1), substr(parts[i], c + 1))
+				}
+			}
+			else if (kind == "P") emit(kind, "all", v)
+			else { emit(kind, "group", v); emit(kind, "cancel-in-progress", "false") }
+		}
+	' "$1"
+}
+if [ "$MODE" = new ]; then
+	facts="$(workflow_facts "$WORKFLOW")"
+	expect "only the record job holds a write grant" "P record contents=write" \
+		"$(grep -E '(=write|=write-all|all=.*)$' <<<"$facts" | grep '^P ' | paste -sd, -)"
+	expect "workflow permissions are contents: read" "P @top contents=read" \
+		"$(grep '^P @top ' <<<"$facts" | paste -sd, -)"
+	expect "one constant concurrency group, never cancelled" \
+		"C @top cancel-in-progress=false,C @top group=ota-update-production" \
+		"$(grep '^C ' <<<"$facts" | sort | paste -sd, -)"
+fi
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
