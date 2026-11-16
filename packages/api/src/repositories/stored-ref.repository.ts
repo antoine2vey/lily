@@ -4,7 +4,6 @@ import {
   chatConversations,
   chatMessages,
   diagnoses,
-  plantCatalog,
   plantPhotos,
   plants,
   users,
@@ -14,8 +13,8 @@ import {
   type StoredObject,
   searchRunOf,
 } from '@lily/shared/services/file/stored-object'
-import { and, type Column, eq, isNotNull, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, Stream } from 'effect'
+import { and, eq, isNotNull } from 'drizzle-orm'
+import { Array, Context, Effect, Layer, Option, Record, Stream } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -25,17 +24,38 @@ export interface ChatRef {
   readonly ref: string
 }
 
+/**
+ * Each column that can point at a stored object, as the query of the
+ * references it holds. The orphan sweep and the release check both read this
+ * list, so an object a row holds is never swept nor released.
+ */
+const REF_HOLDERS = {
+  'plants.image_url': 'SELECT image_url FROM plants',
+  'plant_photos.url': 'SELECT url FROM plant_photos',
+  'care_logs.photo_url': 'SELECT photo_url FROM care_logs',
+  'users.image': 'SELECT image FROM users',
+  'plant_catalog.image_url': 'SELECT image_url FROM plant_catalog',
+  'chat_messages.image_key': 'SELECT image_key FROM chat_messages',
+  'chat_messages.parts': `SELECT part #>> '{}' FROM chat_messages,
+      jsonb_path_query(parts, '$[*] ? (@.type == "file").url') AS part
+      WHERE jsonb_typeof(part) = 'string'`,
+  'diagnoses.image_key': 'SELECT image_key FROM diagnoses',
+  'rare_plant_identifications.image_url':
+    'SELECT image_url FROM rare_plant_identifications',
+} as const
+
 /** A column that can point at a stored object. */
-export type RefSource =
-  | 'plants.image_url'
-  | 'plant_photos.url'
-  | 'care_logs.photo_url'
-  | 'users.image'
-  | 'plant_catalog.image_url'
-  | 'chat_messages.image_key'
-  | 'chat_messages.parts'
-  | 'diagnoses.image_key'
-  | 'rare_plant_identifications.image_url'
+export type RefSource = keyof typeof REF_HOLDERS
+
+/** Every reference a row holds, with the column that holds it. */
+const HELD_REFS = Array.join(
+  Array.map(
+    Record.toEntries(REF_HOLDERS),
+    ([source, select]) =>
+      `SELECT '${source}' AS source, ref FROM (${select}) AS holder(ref) WHERE ref IS NOT NULL`
+  ),
+  ' UNION ALL '
+)
 
 export interface StoredRef {
   readonly source: RefSource
@@ -184,68 +204,22 @@ export const StoredRefRepositoryLive = Layer.effect(
         objects: readonly StoredObject[]
       ) {
         if (Array.isReadonlyArrayEmpty(objects)) return []
-        const patterns = sql.join(
-          Array.map(
-            Array.dedupe(Array.map(objects, ({ key }) => searchRunOf(key))),
-            (run) => sql`${`%${run}%`}`
-          ),
-          sql`, `
+        const patterns = Array.map(
+          Array.dedupe(Array.map(objects, ({ key }) => searchRunOf(key))),
+          (run) => client`${`%${run}%`}`
         )
-        const mayName = (column: Column) =>
-          sql<boolean>`(${column} like any (array[${patterns}]::text[]) or ${column} ~ ${KEY_DISGUISE.unsafe} or (strpos(${column}, '%') > 0 and ${column} ~ ${KEY_DISGUISE.escape}))`
-        const held = [
-          ...(yield* db
-            .select({ ref: plants.imageUrl })
-            .from(plants)
-            .where(mayName(plants.imageUrl))),
-          ...(yield* db
-            .select({ ref: plantPhotos.url })
-            .from(plantPhotos)
-            .where(mayName(plantPhotos.url))),
-          ...(yield* db
-            .select({ ref: careLogs.photoUrl })
-            .from(careLogs)
-            .where(mayName(careLogs.photoUrl))),
-          ...(yield* db
-            .select({ ref: users.image })
-            .from(users)
-            .where(mayName(users.image))),
-          ...(yield* db
-            .select({ ref: plantCatalog.imageUrl })
-            .from(plantCatalog)
-            .where(mayName(plantCatalog.imageUrl))),
-          ...(yield* db
-            .select({ ref: chatMessages.imageKey })
-            .from(chatMessages)
-            .where(mayName(chatMessages.imageKey))),
-          ...(yield* db
-            .select({ ref: diagnoses.imageKey })
-            .from(diagnoses)
-            .where(mayName(diagnoses.imageKey))),
-        ]
-        return Array.dedupe(refsOf(held))
+        const held = yield* client<{ ref: string }>`
+          SELECT DISTINCT ref FROM (${client.literal(HELD_REFS)}) AS held
+          WHERE ref LIKE ANY (ARRAY[${client.csv(patterns)}]::text[])
+            OR ref ~ ${KEY_DISGUISE.unsafe}
+            OR (strpos(ref, '%') > 0 AND ref ~ ${KEY_DISGUISE.escape})
+        `
+        return Array.map(held, ({ ref }) => ref)
       }),
 
-      everyRef: client<StoredRef>`
-        SELECT 'plants.image_url' AS source, image_url AS ref
-          FROM plants WHERE image_url IS NOT NULL
-        UNION ALL SELECT 'plant_photos.url', url FROM plant_photos
-        UNION ALL SELECT 'care_logs.photo_url', photo_url
-          FROM care_logs WHERE photo_url IS NOT NULL
-        UNION ALL SELECT 'users.image', image FROM users WHERE image IS NOT NULL
-        UNION ALL SELECT 'plant_catalog.image_url', image_url
-          FROM plant_catalog WHERE image_url IS NOT NULL
-        UNION ALL SELECT 'chat_messages.image_key', image_key
-          FROM chat_messages WHERE image_key IS NOT NULL
-        UNION ALL SELECT 'chat_messages.parts', part #>> '{}'
-          FROM chat_messages,
-            jsonb_path_query(parts, '$[*] ? (@.type == "file").url') AS part
-          WHERE jsonb_typeof(part) = 'string'
-        UNION ALL SELECT 'diagnoses.image_key', image_key
-          FROM diagnoses WHERE image_key IS NOT NULL
-        UNION ALL SELECT 'rare_plant_identifications.image_url', image_url
-          FROM rare_plant_identifications
-      `.stream.pipe(Stream.withSpan('StoredRefRepository.everyRef')),
+      everyRef: client<StoredRef>`${client.literal(HELD_REFS)}`.stream.pipe(
+        Stream.withSpan('StoredRefRepository.everyRef')
+      ),
     }
   })
 )
