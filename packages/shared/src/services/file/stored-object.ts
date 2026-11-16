@@ -77,16 +77,54 @@ export interface ListedObject extends StoredObject {
 }
 
 const VIRTUAL_HOST_SUFFIX = '.storage.googleapis.com'
-const JSON_API_PATH = /(?:^|\/)b\/([^/]+)\/o\/(.+)$/
+const JSON_API_PATH = /(?:^|\/)b\/([^/]+)\/o\/(.+)$/s
+const HAS_AUTHORITY = /^\s*[a-z][a-z0-9+.-]*:\/\//i
+const ESCAPE_RUNS = /((?:%[0-9a-f]{2})+)/i
+const QUERY_OR_FRAGMENT = /([?#])/
+
+/** Decodes each run of escapes that decodes, and leaves the rest as written. */
+const unescaped = (text: string): string =>
+  pipe(
+    String.split(text, ESCAPE_RUNS),
+    Array.map((piece) => Option.getOrElse(decodeKey(piece), () => piece)),
+    Array.join('')
+  )
+
+const unescapings = (key: string): ReadonlyArray<string> =>
+  Array.unfold(key, (current) => {
+    const next = unescaped(current)
+    return next === current ? Option.none() : Option.some([next, next])
+  })
+
+/**
+ * The text itself, then the text up to each `?` or `#`. Either character can
+ * start a query or a fragment, or belong to the key.
+ */
+const cuts = (text: string): ReadonlyArray<string> =>
+  pipe(
+    String.split(text, QUERY_OR_FRAGMENT),
+    Array.scan('', (read, piece) => read + piece),
+    Array.filter((_, index) => index % 2 === 1),
+    Array.reverse
+  )
 
 /**
  * Every object a stored reference may name, read generously so a reference
- * is never missed. A reference can be a bare key, a bucket-prefixed key, or a
- * URL of any form GCS serves: path style on any host, virtual-host style, the
- * JSON and Firebase download paths, or `gs://`. The query and fragment are
- * dropped, and a percent-encoded key yields both spellings. A bare key names
- * that key in both buckets, because older rows may store either bucket's key
- * without its URL.
+ * is never missed. Naming an object nobody stored costs nothing. Missing one
+ * lets the orphan sweep delete a live photo.
+ *
+ * A reference can be a bare key, a bucket-prefixed key, or a URL of any form
+ * GCS serves: path style on any host, virtual-host style, the JSON and
+ * Firebase download paths, or `gs://`. A bare key names that key in both
+ * buckets, because older rows may store either bucket's key without its URL.
+ *
+ * The API writes public URLs without encoding the key, and older keys end in
+ * the client's file name. So the reference is read twice, once as a URL and
+ * once as plain text. The URL parser alone would cut a key at `?` or `#`,
+ * drop tabs, resolve dot segments and turn `\` into `/`. Each key then yields
+ * every spelling it may be stored under: cut or not at each `?` and `#`,
+ * escapes decoded or not, `+` as itself or a space, composed or decomposed
+ * accents.
  */
 export const namedObjects = (bucketNames: Record<BucketRole, string>) => {
   const roleOf = (name: string): Option.Option<BucketRole> =>
@@ -94,7 +132,14 @@ export const namedObjects = (bucketNames: Record<BucketRole, string>) => {
 
   const spellings = (key: string): ReadonlyArray<string> =>
     pipe(
-      [key, ...Option.toArray(decodeKey(key))],
+      cuts(key),
+      Array.flatMap((cut) => [cut, ...unescapings(cut)]),
+      Array.flatMap((k) => [k, String.replaceAll('+', ' ')(k)]),
+      Array.flatMap((k) => [
+        k,
+        String.normalize('NFC')(k),
+        String.normalize('NFD')(k),
+      ]),
       Array.filter(String.isNonEmpty),
       Array.dedupe
     )
@@ -109,11 +154,20 @@ export const namedObjects = (bucketNames: Record<BucketRole, string>) => {
       })
     )
 
+  const inVirtualHost = (
+    host: string,
+    key: string
+  ): ReadonlyArray<StoredObject> =>
+    String.endsWith(VIRTUAL_HOST_SUFFIX)(host)
+      ? inBucket(String.slice(0, -VIRTUAL_HOST_SUFFIX.length)(host), key)
+      : []
+
   const afterBucketSegment = (path: string): ReadonlyArray<StoredObject> => {
     const segments = String.split(path, '/')
-    return Array.flatMap(segments, (segment, index) =>
-      inBucket(segment, Array.join(Array.drop(segments, index + 1), '/'))
-    )
+    return Array.flatMap(segments, (segment, index) => {
+      const rest = Array.join(Array.drop(segments, index + 1), '/')
+      return [...inBucket(segment, rest), ...inVirtualHost(segment, rest)]
+    })
   }
 
   const jsonApi = (path: string): ReadonlyArray<StoredObject> =>
@@ -132,37 +186,39 @@ export const namedObjects = (bucketNames: Record<BucketRole, string>) => {
 
   const fromUrl = (url: URL): ReadonlyArray<StoredObject> => {
     const path = String.slice(1)(url.pathname)
-    const host = url.hostname
     return [
-      ...inBucket(host, path),
-      ...(String.endsWith(VIRTUAL_HOST_SUFFIX)(host)
-        ? inBucket(String.slice(0, -VIRTUAL_HOST_SUFFIX.length)(host), path)
-        : []),
+      ...inBucket(url.hostname, path),
+      ...inVirtualHost(url.hostname, path),
       ...afterBucketSegment(path),
       ...jsonApi(path),
     ]
   }
 
-  const fromText = (text: string): ReadonlyArray<StoredObject> => {
-    const key = pipe(
-      String.split(text, /[?#]/),
-      Array.head,
-      Option.getOrElse(() => text),
-      String.replace(/^\/+/, '')
-    )
-    return [
-      ...Array.flatMap(BUCKET_ROLES, (bucket) =>
-        Array.map(spellings(key), (k) => ({ bucket, key: k }))
-      ),
-      ...afterBucketSegment(key),
-    ]
-  }
+  const bareKey = (text: string): ReadonlyArray<StoredObject> =>
+    HAS_AUTHORITY.test(text)
+      ? []
+      : Array.flatMap(BUCKET_ROLES, (bucket) =>
+          pipe(
+            [text, String.replace(/^\/+/, '')(text)],
+            Array.flatMap(spellings),
+            Array.map((key) => ({ bucket, key }))
+          )
+        )
+
+  const fromText = (text: string): ReadonlyArray<StoredObject> => [
+    ...bareKey(text),
+    ...afterBucketSegment(text),
+    ...jsonApi(text),
+  ]
 
   return (ref: string): ReadonlyArray<StoredObject> => {
     const text = String.trim(ref)
     if (String.isEmpty(text)) return []
     return Array.dedupeWith(
-      URL.canParse(text) ? fromUrl(new URL(text)) : fromText(text),
+      [
+        ...(URL.canParse(text) ? fromUrl(new URL(text)) : []),
+        ...Array.flatMap(Array.dedupe([text, ref]), fromText),
+      ],
       sameObject
     )
   }

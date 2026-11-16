@@ -184,8 +184,8 @@ describe('sweepOrphans', () => {
     ])
     expect(held(gcs.objects)).toEqual({
       plant: [
-        LEGACY_KEY,
         HASH_KEY,
+        LEGACY_KEY,
         QUERY_KEY,
         'exports/backup.csv',
         'plants/p1/kept.jpg',

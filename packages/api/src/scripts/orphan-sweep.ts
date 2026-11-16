@@ -73,7 +73,11 @@ export interface SweepResult {
 
 export class SweepRefused extends Data.TaggedError('SweepRefused')<{
   readonly blockers: ReadonlyArray<string>
-}> {}
+}> {
+  override get message() {
+    return `nothing was deleted: ${Array.join(this.blockers, '; ')}`
+  }
+}
 
 /** Some deletes failed. A rerun with `apply` retries them. */
 export class DeletesFailed extends Data.TaggedError('DeletesFailed')<{
