@@ -7,14 +7,12 @@ import {
   createQueryWrapper,
 } from '@/__tests__/utils/query-helpers'
 
-// Stubbed at the network so the hook runs through the real API client.
 const fetchMock = jest.spyOn(globalThis, 'fetch')
 afterEach(() => fetchMock.mockReset())
 
 import type { ApiResult } from '@/utils/client'
 import { useUpdateUserSettings } from '../useUpdateUserSettings'
 
-// The key useUser and the settings screens read.
 const settingsKey = ['users', 'getUserSettings', {}]
 
 const seed = () => {

@@ -7,7 +7,6 @@ import {
   createQueryWrapper,
 } from '@/__tests__/utils/query-helpers'
 
-// Stubbed at the network so the hook runs through the real API client.
 const fetchMock = jest.spyOn(globalThis, 'fetch')
 afterEach(() => fetchMock.mockReset())
 

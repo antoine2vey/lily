@@ -12,7 +12,6 @@ import {
   waitFor,
 } from '@/__tests__/utils/render'
 
-// Stubbed at the network so the screen runs through the real API client.
 const fetchMock = jest.spyOn(globalThis, 'fetch')
 afterEach(() => fetchMock.mockReset())
 
