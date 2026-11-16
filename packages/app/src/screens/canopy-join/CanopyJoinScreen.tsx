@@ -201,7 +201,7 @@ function JoinFlow({ source }: { source: Option.Option<JoinSource> }) {
   })
 
   if (screen._tag === 'PickPlants') {
-    return <BringPlantsScreen canopyName={screen.canopyName} />
+    return <BringPlantsScreen canopyName={screen.canopyName} arrival="joined" />
   }
 
   const invitedLine = (p: CanopyInvitePreview) =>

@@ -163,6 +163,7 @@ export default {
     submit:
       '{count, plural, =0 {Continue} one {Bring # plant} other {Bring # plants}}',
     joined: 'You joined {name}',
+    created: 'You created {name}',
     brought:
       '{count, plural, one {# plant moved in} other {# plants moved in}}',
     limit:

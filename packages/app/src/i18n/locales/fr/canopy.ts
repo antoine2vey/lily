@@ -166,6 +166,7 @@ export default {
     submit:
       '{count, plural, =0 {Continuer} one {Partager # plante} other {Partager # plantes}}',
     joined: 'Vous avez rejoint {name}',
+    created: 'Vous avez créé {name}',
     brought:
       '{count, plural, one {# plante partagée} other {# plantes partagées}}',
     limit:

@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { CANOPY_NAME_MAX_LENGTH } from '@lily/shared'
-import { Array as Arr, String as Str } from 'effect'
+import { Array as Arr, Option, String as Str } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -18,6 +18,7 @@ import { GlassBackButton } from '@/components/GlassBackButton'
 import { Button } from '@/components/ui'
 import { useCreateCanopy } from '@/hooks/useCanopyMutations'
 import { useIconColors } from '@/hooks/useIconColors'
+import { BringPlantsScreen } from '@/screens/canopy-join/BringPlantsScreen'
 import type { ApiFailure } from '@/utils/client'
 
 const POINTS = [
@@ -32,12 +33,13 @@ export function CanopyCreateScreen() {
   const iconColors = useIconColors()
   const create = useCreateCanopy()
   const [name, setName] = useState('')
+  const [created, setCreated] = useState<Option.Option<string>>(Option.none())
   const trimmed = Str.trim(name)
   const canSubmit = Str.isNonEmpty(trimmed) && !create.isPending
 
   const submit = () =>
     create.mutate(trimmed, {
-      onSuccess: () => router.replace('/canopy'),
+      onSuccess: (canopy) => setCreated(Option.some(canopy.name)),
       onError: (error: ApiFailure) => {
         if (error._tag === 'AlreadyInCanopyError') {
           toast.error(t('create.alreadyIn'))
@@ -47,6 +49,10 @@ export function CanopyCreateScreen() {
         toast.error(t('create.failed'))
       },
     })
+
+  if (Option.isSome(created)) {
+    return <BringPlantsScreen canopyName={created.value} arrival="created" />
+  }
 
   return (
     <View
