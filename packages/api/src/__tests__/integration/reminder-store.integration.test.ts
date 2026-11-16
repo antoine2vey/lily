@@ -12,6 +12,7 @@ import {
   apply,
   Dirty,
   load,
+  loadDigest,
   type StoreContext,
 } from '@lily/api/contexts/reminders/store'
 import type { Transaction } from '@lily/api/kernel/transact'
@@ -399,6 +400,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         expect(rows).toEqual([])
       })
+    })
+
+    describe('loadDigest', () => {
+      it.each(['GMT', 'GMT0', 'Etc/GMT', 'Etc/UTC'])(
+        'loads the digest of a recipient stored with the zone %s',
+        async (zone) => {
+          const gmt = await user('Gmt', zone, '09:00')
+          const digest = await run(loadDigest(gmt, [personal], 0.5))
+          expect(Option.isSome(digest)).toBe(true)
+        }
+      )
     })
 
     describe('apply', () => {
