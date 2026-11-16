@@ -41,23 +41,21 @@ export const withTimeZone = (
   timezone ? DateTime.setZone(dateTime, zoneFromNameOrUtc(timezone)) : dateTime
 
 /**
- * Get start of day (00:00:00.000) for a DateTime.
- *
- * @param dateTime - DateTime to get start of day for
- * @param timezone - IANA timezone string, UTC when unknown
- * @returns DateTime at 00:00:00.000 of the same day
+ * Local midnight of the day `dateTime` falls on in `zone`, shifted by
+ * `daysLater` calendar days. When a clock change skips midnight, this is the
+ * first instant of that day.
  */
-export const startOfDay = (
+const localMidnight = (
   dateTime: DateTime.DateTime,
-  timezone: string
-): DateTime.DateTime => {
-  const zone = zoneFromNameOrUtc(timezone)
+  zone: DateTime.TimeZone,
+  daysLater: number
+): DateTime.Zoned => {
   const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
   return DateTime.makeZonedUnsafe(
     {
       year: parts.year,
       month: parts.month,
-      day: parts.day,
+      day: parts.day + daysLater,
       hour: 0,
       minute: 0,
       second: 0,
@@ -67,32 +65,39 @@ export const startOfDay = (
   )
 }
 
+const weekDay = (dateTime: DateTime.DateTime, zone: DateTime.TimeZone) =>
+  DateTime.toParts(DateTime.setZone(dateTime, zone)).weekDay
+
 /**
- * Get end of day (23:59:59.999) for a DateTime.
+ * Get start of day (00:00:00.000) for a DateTime.
+ *
+ * @param dateTime - DateTime to get start of day for
+ * @param timezone - IANA timezone string, UTC when unknown
+ * @returns DateTime at 00:00:00.000 of the same day
+ */
+export const startOfDay = (
+  dateTime: DateTime.DateTime,
+  timezone: string
+): DateTime.DateTime => localMidnight(dateTime, zoneFromNameOrUtc(timezone), 0)
+
+/**
+ * Get the last millisecond of the local day a DateTime falls on.
+ *
+ * The result is one millisecond before the next local midnight, not the wall
+ * clock 23:59:59.999. A clock change in the last hour of the day makes that
+ * wall clock happen twice or not at all.
  *
  * @param dateTime - DateTime to get end of day for
  * @param timezone - IANA timezone string, UTC when unknown
- * @returns DateTime at 23:59:59.999 of the same day
+ * @returns DateTime at the last millisecond of the same local day
  */
 export const endOfDay = (
   dateTime: DateTime.DateTime,
   timezone: string
-): DateTime.DateTime => {
-  const zone = zoneFromNameOrUtc(timezone)
-  const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
-  return DateTime.makeZonedUnsafe(
-    {
-      year: parts.year,
-      month: parts.month,
-      day: parts.day,
-      hour: 23,
-      minute: 59,
-      second: 59,
-      millisecond: 999,
-    },
-    { timeZone: zone, adjustForTimeZone: true }
-  )
-}
+): DateTime.DateTime =>
+  DateTime.subtract(localMidnight(dateTime, zoneFromNameOrUtc(timezone), 1), {
+    milliseconds: 1,
+  })
 
 /**
  * Get start of week (Monday 00:00:00.000) for a DateTime.
@@ -106,52 +111,27 @@ export const startOfWeek = (
   timezone: string
 ): DateTime.DateTime => {
   const zone = zoneFromNameOrUtc(timezone)
-  const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
-  const daysSinceMonday = (parts.weekDay + 6) % 7
-
-  return DateTime.makeZonedUnsafe(
-    {
-      year: parts.year,
-      month: parts.month,
-      day: parts.day - daysSinceMonday,
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-    },
-    { timeZone: zone, adjustForTimeZone: true }
-  )
+  const daysSinceMonday = (weekDay(dateTime, zone) + 6) % 7
+  return localMidnight(dateTime, zone, -daysSinceMonday)
 }
 
 /**
- * Get end of week (Sunday 23:59:59.999) for a DateTime.
+ * Get end of week for a DateTime.
  * Week ends on Sunday.
  *
  * @param dateTime - DateTime to get end of week for
  * @param timezone - IANA timezone string, UTC when unknown
- * @returns DateTime at Sunday 23:59:59.999 of the same week
+ * @returns DateTime at the last millisecond of that Sunday
  */
 export const endOfWeek = (
   dateTime: DateTime.DateTime,
   timezone: string
 ): DateTime.DateTime => {
   const zone = zoneFromNameOrUtc(timezone)
-  const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
-  const dayOfWeek = parts.weekDay
-  const daysUntilSunday = 7 - dayOfWeek
-
-  return DateTime.makeZonedUnsafe(
-    {
-      year: parts.year,
-      month: parts.month,
-      day: parts.day + daysUntilSunday,
-      hour: 23,
-      minute: 59,
-      second: 59,
-      millisecond: 999,
-    },
-    { timeZone: zone, adjustForTimeZone: true }
-  )
+  const daysUntilSunday = 7 - weekDay(dateTime, zone)
+  return DateTime.subtract(localMidnight(dateTime, zone, daysUntilSunday + 1), {
+    milliseconds: 1,
+  })
 }
 
 /**
