@@ -69,10 +69,6 @@ export const createDiagnosisTool = (deps: PlantToolDeps): Tool =>
               onNone: () => ({}),
               onSome: (tips) => ({ preventionTips: tips }),
             }),
-            ...Option.match(Option.fromNullishOr(deps.imageKey), {
-              onNone: () => ({}),
-              onSome: (key) => ({ imageKey: key }),
-            }),
           }
 
           return yield* transact(
@@ -85,7 +81,19 @@ export const createDiagnosisTool = (deps: PlantToolDeps): Tool =>
                   toProposedStep(step, timezone)
                 ),
               })
-              const diagnosis = yield* repo.create(data)
+              // After `propose`: removing the plant locks the plant and
+              // then its conversations, so this takes them in that order.
+              const shown = yield* Option.match(
+                Option.fromNullishOr(deps.image),
+                {
+                  onNone: () => Effect.succeed({}),
+                  onSome: ({ key, conversationId }) =>
+                    Effect.map(repo.holdConversation(conversationId), (held) =>
+                      held ? { imageKey: key } : {}
+                    ),
+                }
+              )
+              const diagnosis = yield* repo.create({ ...data, ...shown })
               yield* carePlans.linkToDiagnosis({
                 permit,
                 planId,

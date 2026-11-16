@@ -5,7 +5,7 @@ import { transact } from '@lily/api/kernel/transact'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import {
   Holder,
-  releaseUpload,
+  releasingRefusedUpload,
 } from '@lily/api/services/helpers/release-objects'
 import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
 import type { CareLogCreateRequest } from '@lily/shared/care-log'
@@ -24,9 +24,7 @@ export const createCareLogWithPhoto = (
 ) =>
   Effect.flatMap(uploadToPlantFolder(permit.plantId, photo), (url) =>
     recordCareLog(permit, request, Option.some(url)).pipe(
-      Effect.tapError(() =>
-        releaseUpload(Holder.Plant({ plantId: permit.plantId }), url)
-      )
+      releasingRefusedUpload(Holder.Plant({ plantId: permit.plantId }), url)
     )
   )
 

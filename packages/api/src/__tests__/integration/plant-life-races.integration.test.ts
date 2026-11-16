@@ -219,7 +219,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Effect.flatMap(completeCarePlanStep)
       )
 
-    const diagnose = (plantId: string) =>
+    const conversationAbout = async (plantId: string) => {
+      const [row] = await db
+        .insert(schema.chatConversations)
+        .values({ userId: alex, kind: 'plant', plantId })
+        .returning()
+      if (!row) throw new Error('conversation insert returned nothing')
+      return row.id
+    }
+
+    const diagnose = (plantId: string, conversationId: string) =>
       Effect.flatMap(Effect.context<ToolContext>(), (runtime) =>
         Effect.tryPromise({
           try: async () =>
@@ -228,6 +237,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               userId: alex,
               permit: chatPermit(plantId, alex),
               plantName: 'Fern',
+              image: {
+                key: `users/${alex}/chat/${conversationId}/leaf.jpg`,
+                conversationId,
+              },
             }).execute?.(
               {
                 diseaseName: 'Root rot',
@@ -342,7 +355,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
-    it('a remove racing a diagnosis ends as one of the two orders, with no defect, no deadlock and no diagnosis or plan left', async () => {
+    it('a remove racing a diagnosis that shows a chat photo ends as one of the two orders, with no defect, no deadlock and no diagnosis or plan left', async () => {
       const before = await deadlocks(pool)
       const seen: string[] = []
 
@@ -351,7 +364,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const [removed, diagnosed] = await atOnce(
           round,
           removeAsCurrentUser(plantId),
-          diagnose(plantId)
+          diagnose(plantId, await conversationAbout(plantId))
         )
         seen.push(`remove ${how(removed)}, diagnosis ${how(diagnosed)}`)
         expect(await whatIsLeftOf(plantId)).toEqual(NOTHING_OF_THE_PLANT)

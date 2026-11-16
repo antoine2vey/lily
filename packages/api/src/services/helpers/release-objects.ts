@@ -14,7 +14,7 @@ import {
   userFolder,
 } from '@lily/shared/services/file/stored-object'
 import { Array, Data, Duration, Effect, Option, pipe, String } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
+import { isSqlError, type SqlError } from 'effect/sql/SqlError'
 
 const STORAGE_TIME_LIMIT = Duration.seconds(20)
 
@@ -91,7 +91,9 @@ const withinTimeLimit = (
 /**
  * Deletes the objects a committed write let go of. Storage failing does not
  * fail the write: the objects stay until the account purge deletes the
- * owner's scope, and the error is logged with what was left.
+ * owner's scope, and the error is logged with what was left. Nothing storage
+ * does may fail the caller, whose write is already committed, so a defect of
+ * the storage client is logged here as well.
  */
 export const releaseObjects = ({
   scopes,
@@ -114,33 +116,40 @@ export const releaseObjects = ({
       Array.dedupeWith(sameObject)
     )
 
-    yield* Effect.forEach(
-      scopes,
-      (scope) =>
-        withinTimeLimit(gcs.deleteScope(scope)).pipe(
-          Effect.catchTag('GCSDeleteError', (error) =>
-            Effect.logError('Could not delete a scope', error).pipe(
-              Effect.annotateLogs({ prefix: scopePrefix(scope) })
-            )
-          )
-        ),
-      { discard: true }
-    )
-    if (Array.isReadonlyArrayNonEmpty(objects)) {
-      yield* withinTimeLimit(gcs.deleteObjects(objects)).pipe(
+    const deleteScopes = Array.map(scopes, (scope) =>
+      withinTimeLimit(gcs.deleteScope(scope)).pipe(
         Effect.catchTag('GCSDeleteError', (error) =>
-          Effect.logError('Could not delete released objects', error).pipe(
-            Effect.annotateLogs({
-              objects: Array.map(
-                objects,
-                ({ bucket, key }) => `${bucket}:${key}`
-              ),
-            })
+          Effect.logError('Could not delete a scope', error).pipe(
+            Effect.annotateLogs({ prefix: scopePrefix(scope) })
           )
         )
       )
-    }
-  }).pipe(Effect.withSpan('releaseObjects'))
+    )
+    const deleteObjects = Array.isReadonlyArrayNonEmpty(objects)
+      ? withinTimeLimit(gcs.deleteObjects(objects)).pipe(
+          Effect.catchTag('GCSDeleteError', (error) =>
+            Effect.logError('Could not delete released objects', error).pipe(
+              Effect.annotateLogs({
+                objects: Array.map(
+                  objects,
+                  ({ bucket, key }) => `${bucket}:${key}`
+                ),
+              })
+            )
+          )
+        )
+      : Effect.void
+
+    yield* Effect.all([...deleteScopes, deleteObjects], {
+      concurrency: 'unbounded',
+      discard: true,
+    })
+  }).pipe(
+    Effect.catchDefect((defect) =>
+      Effect.logError('Releasing stored objects died', defect)
+    ),
+    Effect.withSpan('releaseObjects')
+  )
 
 /**
  * Runs `write` in the caller's transaction and, once it commits, deletes the
@@ -211,6 +220,20 @@ export const avatarHeld = (userId: string) =>
     )
   )
 
-/** Deletes an upload that no committed row came to point at. */
-export const releaseUpload = (holder: Holder, ref: string) =>
-  releaseObjects({ scopes: [], dropped: [{ holder, ref }], kept: [] })
+/**
+ * Deletes the upload behind `ref` when `write`, which would have stored the
+ * reference, is refused. A `SqlError` keeps the upload: it can come from a
+ * commit that went through without an answer, and then a row points at the
+ * object. An object no row points at can be swept later, and a row that
+ * points at a deleted object cannot be repaired.
+ */
+export const releasingRefusedUpload =
+  (holder: Holder, ref: string) =>
+  <A, E, R>(
+    write: Effect.Effect<A, E, R>
+  ): Effect.Effect<A, E, R | GCSService> =>
+    Effect.tapError(write, (error) =>
+      isSqlError(error)
+        ? Effect.void
+        : releaseObjects({ scopes: [], dropped: [{ holder, ref }], kept: [] })
+    )

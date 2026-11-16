@@ -3,7 +3,7 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { diagnoses } from '@lily/db/schema'
+import { chatConversations, diagnoses } from '@lily/db/schema'
 import { paginate } from '@lily/shared'
 import type { Diagnosis, DiagnosisListResponse } from '@lily/shared/diagnosis'
 import { and, count, desc, eq } from 'drizzle-orm'
@@ -49,6 +49,16 @@ const mapToDiagnosis = (row: typeof diagnoses.$inferSelect): Diagnosis => ({
 })
 
 export interface IDiagnosisRepository {
+  /**
+   * Locks the conversation against deletion until the transaction ends, and
+   * tells whether it is still there. A diagnosis that shows a photo of the
+   * conversation is written under this lock. A deletion of the conversation
+   * then waits for the diagnosis and keeps the photo, or has already
+   * committed, and the diagnosis is written without the photo.
+   */
+  readonly holdConversation: (
+    conversationId: string
+  ) => Effect.Effect<boolean, SqlError>
   readonly create: (
     data: CreateDiagnosisData
   ) => Effect.Effect<Diagnosis, SqlError>
@@ -73,6 +83,17 @@ export const DiagnosisRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
+      holdConversation: Effect.fn('DiagnosisRepository.holdConversation')(
+        function* (conversationId: string) {
+          const rows = yield* db
+            .select({ id: chatConversations.id })
+            .from(chatConversations)
+            .where(eq(chatConversations.id, conversationId))
+            .for('key share')
+          return Array.isArrayNonEmpty(rows)
+        }
+      ),
+
       create: Effect.fn('DiagnosisRepository.create')(function* (
         data: CreateDiagnosisData
       ) {

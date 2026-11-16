@@ -97,7 +97,9 @@ An effect that is only right once the change is committed, such as the enqueue o
 
 ## Stored objects
 
-A write that drops a photo reference (a plant image, plant photo, care photo, avatar or chat image) runs inside `releasing` from `src/services/helpers/release-objects.ts`. It reads the references before the write, and after the commit it deletes each object that no photo column of `src/repositories/stored-ref.repository.ts` still points at and that its `Holder` owns. A storage failure is logged and does not fail the request. The account purge deletes the owner's folder later. An endpoint that uploads before its write deletes the upload with `releaseUpload` when the write fails. `src/__tests__/integration/released-objects.integration.test.ts` covers each endpoint.
+A write that drops a photo reference (a plant image, plant photo, care photo, avatar or chat image) runs inside `releasing` from `src/services/helpers/release-objects.ts`. It reads the references before the write, and after the commit it deletes each object that no photo column of `src/repositories/stored-ref.repository.ts` still points at and that its `Holder` owns. A storage failure is logged and does not fail the request. The account purge deletes the owner's folder later. An endpoint that uploads before its write wraps the write in `releasingRefusedUpload`, which deletes the upload when the write is refused. It keeps the upload on a `SqlError`, because the commit may have gone through. `src/__tests__/integration/released-objects.integration.test.ts` covers each endpoint.
+
+A write that copies an existing reference into another row first locks the row it copies from, in the same transaction. Otherwise a deletion of that row can commit and delete the object before the copy is visible to it. `createDiagnosisTool` copies a chat photo this way: it calls `DiagnosisRepository.holdConversation` after `CarePlans.propose`, because removing a plant locks the plant before its conversations.
 
 ## Reminders
 

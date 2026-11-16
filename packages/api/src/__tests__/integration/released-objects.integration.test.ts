@@ -250,11 +250,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     }
 
-    const diagnose = (
-      plantId: string,
-      imageKey: string,
-      _conversationId: string
-    ) =>
+    const diagnose = (plantId: string, key: string, conversationId: string) =>
       Effect.flatMap(Effect.context<ToolContext>(), (runtime) =>
         Effect.promise(async () => {
           await createDiagnosisTool({
@@ -262,7 +258,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             userId: alex,
             permit: chatPermit(plantId, alex),
             plantName: 'Fern',
-            imageKey,
+            image: { key, conversationId },
           }).execute?.(
             {
               diseaseName: 'Root rot',
@@ -306,9 +302,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const rows = await db
         .select({ key: schema.diagnoses.imageKey })
         .from(schema.diagnoses)
-      return rows.map(({ key }) =>
-        key === null || gcs.objects.ai.has(key) ? 'shown' : 'missing'
-      )
+      return rows.map(({ key }) => {
+        if (key === null) return 'none'
+        return gcs.objects.ai.has(key) ? 'stored' : 'missing'
+      })
     }
 
     beforeAll(async () => {
@@ -636,10 +633,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect({
           conversations: await db.select().from(schema.chatConversations),
           diagnosisImages: await diagnosisImages(),
-        }).toEqual({ conversations: [], diagnosisImages: ['shown'] })
+        }).toEqual({ conversations: [], diagnosisImages: ['stored'] })
       })
 
-      it('keeps the image of a diagnosis that is written once the conversation is gone', async () => {
+      it('writes a diagnosis without the image once its conversation is gone', async () => {
         const fern = await plantOf(alex)
         const leaf = `users/${alex}/chat/c1/leaf.jpg`
         const conversation = await conversationOf(alex, fern, [leaf])
@@ -669,7 +666,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect({
           conversations: await db.select().from(schema.chatConversations),
           diagnosisImages: await diagnosisImages(),
-        }).toEqual({ conversations: [], diagnosisImages: ['shown'] })
+        }).toEqual({ conversations: [], diagnosisImages: ['none'] })
       })
 
       it('leaves the images of a conversation the caller does not own', async () => {

@@ -5,8 +5,8 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
   avatarHeld,
   Holder,
-  releaseUpload,
   releasing,
+  releasingRefusedUpload,
 } from '@lily/api/services/helpers/release-objects'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import {
@@ -71,7 +71,7 @@ export const uploadAvatar = (
           }
         })
       )
-    ).pipe(Effect.tapError(() => releaseUpload(Holder.Avatar({ userId }), url)))
+    ).pipe(releasingRefusedUpload(Holder.Avatar({ userId }), url))
 
     return { url }
   }).pipe(Effect.withSpan('UserService.uploadAvatar'))

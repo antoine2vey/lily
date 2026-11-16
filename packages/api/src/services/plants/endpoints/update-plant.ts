@@ -12,8 +12,8 @@ import type { StoredRefRepository } from '@lily/api/repositories/stored-ref.repo
 import {
   Holder,
   plantHeld,
-  releaseUpload,
   releasing,
+  releasingRefusedUpload,
 } from '@lily/api/services/helpers/release-objects'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import { frequencyChanges } from '@lily/api/services/plants/helpers/schedule-frequencies'
@@ -102,9 +102,7 @@ export const updatePlant = (
       onNone: () => transact(write),
       onSome: (url) =>
         transact(releasing(plantHeld(request.id), write)).pipe(
-          Effect.tapError(() =>
-            releaseUpload(Holder.Plant({ plantId: request.id }), url)
-          )
+          releasingRefusedUpload(Holder.Plant({ plantId: request.id }), url)
         ),
     })
 

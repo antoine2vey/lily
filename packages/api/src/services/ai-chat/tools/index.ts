@@ -17,10 +17,16 @@ export type ToolContext =
   | SqlClient.SqlClient
   | Outbox
 
+/** A photo the user sent in the conversation the tools run for. */
+export interface ChatImage {
+  readonly key: string
+  readonly conversationId: string
+}
+
 export interface ToolDeps {
   readonly runtime: Context.Context<ToolContext>
   readonly userId: string
-  readonly imageKey?: string | undefined
+  readonly image?: ChatImage | undefined
   // Present only when the conversation is anchored to a specific plant.
   readonly permit?: PlantPermit<'chat'> | undefined
   readonly plantName?: string | undefined

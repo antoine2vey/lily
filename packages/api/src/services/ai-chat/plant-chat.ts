@@ -12,6 +12,7 @@ import {
 import {
   buildGeneralChatTools,
   buildPlantChatTools,
+  type ChatImage,
   type ToolContext,
 } from '@lily/api/services/ai-chat/tools'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -130,23 +131,17 @@ export const chatStream = (
 
     const isPlant =
       conversation.kind === 'plant' && Boolean(conversation.plantId)
+    const image = pipe(
+      Option.fromNullishOr(imageOptions?.imageKey),
+      Option.map((key) => ({ key, conversationId: conversation.id })),
+      Option.getOrUndefined
+    )
 
     const { systemPrompt, tools } = isPlant
-      ? yield* buildPlantContext(
-          conversation.plantId!,
-          imageOptions?.imageKey,
-          runtime,
-          userId
-        )
+      ? yield* buildPlantContext(conversation.plantId!, image, runtime, userId)
       : {
           systemPrompt: buildGeneralSystemPrompt(),
-          tools: buildGeneralChatTools({
-            runtime,
-            userId,
-            ...(imageOptions?.imageKey
-              ? { imageKey: imageOptions.imageKey }
-              : {}),
-          }),
+          tools: buildGeneralChatTools({ runtime, userId, image }),
         }
 
     const modelMessages = yield* Effect.promise(() =>
@@ -201,7 +196,7 @@ export const chatStream = (
 
 const buildPlantContext = (
   plantId: string,
-  imageKey: string | undefined,
+  image: ChatImage | undefined,
   runtime: ReturnType<typeof Effect.context<ToolContext>> extends Effect.Effect<
     infer R,
     unknown,
@@ -245,7 +240,7 @@ const buildPlantContext = (
       runtime,
       userId,
       permit,
-      ...(imageKey ? { imageKey } : {}),
+      image,
       plantName: plant.name,
       timezone,
     })
