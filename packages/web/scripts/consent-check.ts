@@ -114,7 +114,8 @@ const clientId = async () =>
     Option.getOrElse(() => '(no _ga cookie)')
   )
 
-const BANNER = `document.querySelector('.m-consent') !== null`
+const BANNER = `(b => b !== null && b.getClientRects().length > 0)(document.querySelector('.m-consent'))`
+const PAINT_PROBE = `(function probe(){if(${BANNER})window.consentPainted=true;requestAnimationFrame(probe)})()`
 const hydrated = () =>
   until('hydration', `document.querySelector('footer button') !== null`)
 const clickButton = (label: string) =>
@@ -158,12 +159,21 @@ const step = async (
     console.log(`     -> ${url}`)
 }
 
+const neverPainted = async (name: string) => {
+  const painted = await evaluate<boolean>('window.consentPainted === true')
+  if (painted) failed = true
+  console.log(
+    `${painted ? 'FAIL' : 'ok  '} ${name}, the banner showed in no frame`
+  )
+}
+
 const NONE = { google: false, cookies: false }
 const LOADED = { google: true, cookies: true }
 
 try {
   await send('Network.enable')
   await send('Page.enable')
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: PAINT_PROBE })
 
   const html = await (await fetch(`${base}/en`)).text()
   const inHtml = /googletagmanager|google-analytics/.test(html)
@@ -189,6 +199,7 @@ try {
 
   await reload()
   await step('Refuse, after a reload', { banner: false, ...NONE })
+  await neverPainted('Refuse, after a reload')
 
   await hydrated()
   await clickButton(en.Consent.settings)
@@ -205,6 +216,7 @@ try {
   const accepted = await clientId()
   await reload()
   await step('Accept, after a reload', { banner: false, ...LOADED })
+  await neverPainted('Accept, after a reload')
   const reloaded = await clientId()
   if (reloaded !== accepted) failed = true
   console.log(
