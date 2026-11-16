@@ -72,6 +72,16 @@ export default {
         "Autorisez l'accès à la position pour définir le lieu de la Canopy.",
       updated: 'Canopy mise à jour',
     },
+    plants: {
+      title: 'Plantes',
+      count:
+        '{shared, plural, one {# plante partagée sur {total}} other {# plantes partagées sur {total}}}',
+      limit:
+        'La Canopy a atteint sa limite de plantes gratuite, cette plante reste personnelle.',
+      delegated:
+        'Cette plante est en délégation de soin. Terminez-la avant de la partager.',
+      failed: "La plante n'a pas pu être déplacée. Réessayez.",
+    },
     leave: 'Quitter la Canopy',
     leaveTitle: 'Quitter {name} ?',
     leaveMessageMember:

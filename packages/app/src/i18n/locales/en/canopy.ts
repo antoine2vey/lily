@@ -69,6 +69,15 @@ export default {
       locationDenied: 'Allow location access to set the Canopy location.',
       updated: 'Canopy updated',
     },
+    plants: {
+      title: 'Plants',
+      count: '{shared} of {total} shared',
+      limit:
+        'The Canopy reached its free plant limit, so this plant stays personal.',
+      delegated:
+        'This plant is in a care delegation. End it before sharing it.',
+      failed: 'Could not move the plant. Try again.',
+    },
     leave: 'Leave Canopy',
     leaveTitle: 'Leave {name}?',
     leaveMessageMember:
