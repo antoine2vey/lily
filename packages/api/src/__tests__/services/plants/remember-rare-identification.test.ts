@@ -32,7 +32,7 @@ const photo = (name: string) =>
   }) as unknown as PersistedFile
 
 const reIdentifiedUrl =
-  'https://storage.googleapis.com/mock-bucket/plants/a.jpg'
+  'https://storage.googleapis.com/mock-private-bucket/users/user-1/identify/a.jpg?X-Goog-Signature=abc'
 
 const layerFor = (
   isRareHouseplant: boolean,

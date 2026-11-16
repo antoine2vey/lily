@@ -71,7 +71,6 @@ export const updateUserSettings = (
       name,
       firstName: trimmedFirst,
       lastName: lastNameUpdate,
-      image: data.image,
       bio: data.bio,
       careReminders: data.notifications?.careReminders,
       weeklyDigest: data.notifications?.weeklyDigest,

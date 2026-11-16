@@ -1,5 +1,9 @@
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import {
+  createMockGCSService,
+  MOCK_BUCKET_NAMES,
+} from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import type { AppEvent } from '@lily/api/events'
@@ -87,11 +91,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Layer.mergeAll(
             as(userId),
             createMockAiService({ isRareHouseplant }),
+            createMockGCSService(),
             MockUsageTrackerLive
           )
         ),
         Effect.runPromise
       )
+
+    const uploadOf = (userId: string, name: string) =>
+      `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/users/${userId}/identify/${name}.jpg?X-Goog-Signature=abc`
 
     const storedRows = (userId: string, url: string) =>
       db
@@ -175,7 +183,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('keeps one row when the same photo is identified as rare again', async () => {
-      const url = `${imageUrl}-repeat`
+      const url = uploadOf(collectorId, 'repeat')
 
       await reIdentify(collectorId, url, true)
       await reIdentify(collectorId, url, true)
@@ -202,7 +210,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('lets a later answer that is not rare win for the same photo', async () => {
-      const url = `${imageUrl}-changed-mind`
+      const url = uploadOf(changerId, 'changed-mind')
 
       await reIdentify(changerId, url, true)
       await reIdentify(changerId, url, false)

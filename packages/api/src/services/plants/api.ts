@@ -213,6 +213,8 @@ export const PlantsApi = HttpApiGroup.make('plants')
       success: AIIdentifyResponse,
       error: [
         LimitExceededError,
+        InvalidImageError,
+        GCSUploadError.pipe(HttpApiSchema.status(500)),
         OpenAIError.pipe(HttpApiSchema.status(500)),
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],

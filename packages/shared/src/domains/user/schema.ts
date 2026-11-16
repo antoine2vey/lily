@@ -111,7 +111,6 @@ export const UserSettingsUpdateRequest = Schema.Struct({
   firstName: Schema.optional(Schema.String),
   // Fully optional. Set to null to clear, omit to leave unchanged.
   lastName: Schema.optional(Schema.NullOr(Schema.String)),
-  image: Schema.optional(Schema.String),
   bio: Schema.optional(Schema.String),
   notifications: Schema.optional(
     Schema.Struct({
