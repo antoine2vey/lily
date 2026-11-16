@@ -1,6 +1,7 @@
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { Api } from '@lily/api/api'
 import { AppLive } from '@lily/api/layers'
+import { ZoneRulesLive } from '@lily/api/layers/zone-rules'
 import { LoggerLayer } from '@lily/api/logger'
 import { ObservabilityMiddleware } from '@lily/api/middleware/observability'
 import { GlobalRouterMiddleware } from '@lily/api/middleware/router'
@@ -224,7 +225,8 @@ const ServerLive = Layer.mergeAll(
       idleTimeout: 120,
       gracefulShutdownTimeout: SHUTDOWN_DRAIN_DEADLINE,
     })
-  )
+  ),
+  Layer.provide(ZoneRulesLive)
 )
 
 // Launch the server with optional telemetry
