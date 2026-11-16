@@ -1,6 +1,6 @@
 import type { ProposedStep } from '@lily/api/contexts/care'
-import { CARE_TYPES, startOfDay } from '@lily/shared'
-import { DateTime, Duration, Option, pipe } from 'effect'
+import { CARE_TYPES, CareDays } from '@lily/shared'
+import { DateTime, Option, pipe } from 'effect'
 import { z } from 'zod'
 
 /**
@@ -43,9 +43,9 @@ export const carePlanStepSchema = z.object({
 export type CarePlanStepInput = z.infer<typeof carePlanStepSchema>
 
 /**
- * Resolves a relative day offset to the user's local midnight of that day,
- * so a step "due in 2 days" lands on the same calendar day the care tasks
- * bucket it under.
+ * Resolves a relative day offset to the first instant of that care day in
+ * `timezone`, so a step "due in 2 days" lands on the same calendar day the
+ * care tasks bucket it under.
  */
 export const resolveDueDate = (
   dueInDays: number | undefined,
@@ -56,7 +56,10 @@ export const resolveDueDate = (
     Option.fromNullishOr(dueInDays),
     Option.map((days) =>
       DateTime.toDateUtc(
-        DateTime.addDuration(startOfDay(now, timezone), Duration.days(days))
+        CareDays.startOf(
+          CareDays.addDays(CareDays.today(timezone, now), days),
+          timezone
+        )
       )
     ),
     Option.getOrUndefined
