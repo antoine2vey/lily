@@ -55,6 +55,7 @@ jobs:
       - name: Check bundle sizes
         run: bash scripts/check-bundle-sizes.sh
       - name: Check prerendered web pages hydrate cleanly
+        timeout-minutes: 5
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: |

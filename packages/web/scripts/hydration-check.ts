@@ -28,6 +28,8 @@ type Head = Record<HeadTag, ReadonlyArray<string>>
 const sameValues = Array.makeEquivalence<string>((x, y) => x === y)
 
 const WAIT_MS = 10_000
+// A cold CI runner took about 8 s to serve the sitemap and start Chrome, so startup gets its own wide budget.
+const STARTUP_MS = 60_000
 const HYDRATED = `Object.keys(document.body).some((key) => key.startsWith('__reactFiber$'))`
 // After a mismatch React throws the prerendered nodes away and renders the page again on the client, some time after
 // the first commit. The page counts as settled once no node has been added or removed for QUIET_MS.
@@ -46,7 +48,7 @@ const INVITE_PREVIEW = { canopyName: 'Probe canopy', inviterName: 'Sam' }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const served = async () => {
-  for (let i = 0; i < 50; i++) {
+  for (let waited = 0; waited < STARTUP_MS; waited += 200) {
     try {
       const response = await fetch(`${base}/sitemap.xml`)
       if (response.ok) return await response.text()
@@ -94,7 +96,7 @@ const chrome = Bun.spawn(
 )
 
 const debugPort = async (): Promise<string> => {
-  for (let i = 0; i < 100; i++) {
+  for (let waited = 0; waited < STARTUP_MS; waited += 100) {
     try {
       const [port = ''] = readFileSync(
         join(profile, 'DevToolsActivePort'),
@@ -119,13 +121,22 @@ const socket = new WebSocket(target.webSocketDebuggerUrl)
 await new Promise((resolve) => socket.addEventListener('open', resolve))
 
 let nextId = 0
-const pending = new Map<number, (result: unknown) => void>()
+const pending = new Map<
+  number,
+  { resolve: (result: unknown) => void; reject: (error: Error) => void }
+>()
+const closed = () => new Error('Chrome closed the debugging connection')
 const send = <T>(method: string, params: object = {}): Promise<T> =>
-  new Promise((resolve) => {
+  new Promise((resolve, reject) => {
+    if (socket.readyState !== WebSocket.OPEN) return reject(closed())
     const id = ++nextId
-    pending.set(id, (result) => resolve(result as T))
+    pending.set(id, { resolve: (result) => resolve(result as T), reject })
     socket.send(JSON.stringify({ id, method, params }))
   })
+socket.addEventListener('close', () => {
+  for (const { reject } of pending.values()) reject(closed())
+  pending.clear()
+})
 
 const evaluate = async <T>(expression: string): Promise<T> =>
   (
@@ -202,7 +213,7 @@ type CdpMessage =
 
 socket.addEventListener('message', (event) => {
   const message = JSON.parse(event.data as string) as CdpMessage
-  if ('id' in message) return pending.get(message.id)?.(message.result)
+  if ('id' in message) return pending.get(message.id)?.resolve(message.result)
   if (message.method === 'Page.loadEventFired') return onLoad()
   if (message.method === 'Fetch.requestPaused')
     return void onRequest(
