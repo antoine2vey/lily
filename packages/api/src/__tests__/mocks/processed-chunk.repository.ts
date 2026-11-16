@@ -4,7 +4,7 @@ import {
 } from '@lily/api/repositories/processed-chunk.repository'
 import type { CreateChunkData } from '@lily/api/repositories/raw-document.repository'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export const createMockProcessedChunkRepository = (data: {
   insertedChunks: CreateChunkData[]
@@ -19,6 +19,38 @@ export const createMockProcessedChunkRepository = (data: {
     countBySource: () => Effect.succeed(data.sourceBreakdown ?? []),
 
     countByJobId: () => Effect.succeed(data.insertedChunks.length),
+
+    findUnembedded: (limit) =>
+      Effect.sync(() =>
+        pipe(
+          data.insertedChunks,
+          Array.filter(
+            (chunk) =>
+              chunk.embedding === undefined &&
+              !Array.some(
+                data.insertedChunks,
+                (other) =>
+                  chunk.id !== undefined && other.parentChunkId === chunk.id
+              )
+          ),
+          Array.take(limit),
+          Array.map((chunk) => ({
+            id: chunk.id ?? '',
+            text: chunk.embeddingContent ?? chunk.content,
+          }))
+        )
+      ),
+
+    setEmbedding: (id, embedding) =>
+      Effect.sync(() =>
+        pipe(
+          Array.findFirst(data.insertedChunks, (chunk) => chunk.id === id),
+          Option.map((chunk) => {
+            chunk.embedding = embedding
+          }),
+          Option.getOrUndefined
+        )
+      ),
   }
 
   return Layer.succeed(ProcessedChunkRepository, repo)

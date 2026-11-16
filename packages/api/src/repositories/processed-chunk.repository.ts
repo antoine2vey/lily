@@ -28,6 +28,12 @@ interface SearchRow {
   similarity: string | number
 }
 
+/** A chunk search cannot return yet, with the text its embedding is made from. */
+export interface UnembeddedChunk {
+  readonly id: string
+  readonly text: string
+}
+
 export interface IProcessedChunkRepository {
   readonly search: (
     params: SearchChunksParams
@@ -38,6 +44,19 @@ export interface IProcessedChunkRepository {
     SqlError
   >
   readonly countByJobId: (jobId: string) => Effect.Effect<number, SqlError>
+  /**
+   * Up to `limit` chunks that should have an embedding and have none. A
+   * parent chunk has none on purpose and is left out: a parent is a chunk
+   * another chunk names in `parent_chunk_id`. The order is random, so a chunk
+   * the model always rejects cannot keep the others from being returned.
+   */
+  readonly findUnembedded: (
+    limit: number
+  ) => Effect.Effect<ReadonlyArray<UnembeddedChunk>, SqlError>
+  readonly setEmbedding: (
+    id: string,
+    embedding: number[]
+  ) => Effect.Effect<void, SqlError>
 }
 
 export class ProcessedChunkRepository extends Context.Service<
@@ -193,6 +212,33 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
             ),
             Effect.withSpan('ProcessedChunkRepository.countByJobId')
           ),
+
+      findUnembedded: Effect.fn('ProcessedChunkRepository.findUnembedded')(
+        function* (limit: number) {
+          const dbResult = yield* db.execute(sql`
+            SELECT pc.id, COALESCE(pc.embedding_content, pc.content) AS text
+            FROM processed_chunks pc
+            WHERE pc.embedding IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM processed_chunks child
+                WHERE child.parent_chunk_id = pc.id
+              )
+            ORDER BY random()
+            LIMIT ${limit}
+          `)
+
+          return unwrapPgRows<UnembeddedChunk>(dbResult)
+        }
+      ),
+
+      setEmbedding: Effect.fn('ProcessedChunkRepository.setEmbedding')(
+        function* (id: string, embedding: number[]) {
+          yield* db
+            .update(processedChunks)
+            .set({ embedding })
+            .where(eq(processedChunks.id, id))
+        }
+      ),
     }
   })
 )
