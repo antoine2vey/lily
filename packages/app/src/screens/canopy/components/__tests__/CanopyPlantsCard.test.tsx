@@ -135,20 +135,48 @@ describe('CanopyPlantsCard', () => {
     expect(mockUnshare).toHaveBeenCalledWith('shared-by-me')
   })
 
-  it('ignores taps on a plant whose request is in flight', async () => {
+  it('shows the new state while the request is in flight and ignores taps', async () => {
     mockShare.mockImplementationOnce(() => new Promise(() => {}))
+    mockUnshare.mockImplementationOnce(() => new Promise(() => {}))
+    renderCard()
+    fireEvent.press(tile('personal'))
+    fireEvent.press(tile('shared-by-me'))
+    await waitFor(() =>
+      expect(tile('personal').props.accessibilityState).toMatchObject({
+        checked: true,
+        busy: true,
+      })
+    )
+    expect(tile('shared-by-me').props.accessibilityState).toMatchObject({
+      checked: false,
+      busy: true,
+    })
+    expect(screen.getByText('1 of 2 shared')).toBeTruthy()
+    fireEvent.press(tile('personal'))
+    expect(mockShare).toHaveBeenCalledTimes(1)
+    expect(mockUnshare).not.toHaveBeenCalledWith('personal')
+  })
+
+  it('reverts the tile when the request fails', async () => {
+    let reject: (error: unknown) => void = () => {}
+    mockShare.mockImplementationOnce(
+      () => new Promise((_, rej) => (reject = rej))
+    )
     renderCard()
     fireEvent.press(tile('personal'))
     await waitFor(() =>
       expect(tile('personal').props.accessibilityState).toMatchObject({
-        busy: true,
+        checked: true,
       })
     )
-    fireEvent.press(tile('personal'))
-    expect(mockShare).toHaveBeenCalledTimes(1)
-    expect(tile('shared-by-me').props.accessibilityState).toMatchObject({
-      busy: false,
-    })
+    reject(new PlantInDelegationError({ plantId: 'personal' }))
+    await waitFor(() =>
+      expect(tile('personal').props.accessibilityState).toMatchObject({
+        checked: false,
+        busy: false,
+      })
+    )
+    expect(screen.getByText('1 of 2 shared')).toBeTruthy()
   })
 
   it('shows the limit toast when the Canopy is full', async () => {

@@ -1,16 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { Canopy, Plant } from '@lily/shared'
-import { Array as Arr, Match, Option, pipe } from 'effect'
+import { Array as Arr, Match, Option, pipe, Record } from 'effect'
 import type { TFunction } from 'i18next'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import { toast } from 'sonner-native'
 import { Avatar } from '@/components/Avatar'
 import {
@@ -46,7 +40,9 @@ export function CanopyPlantsCard({ canopy, myUserId }: CanopyPlantsCardProps) {
   const { data } = usePlants({ limit: '100' })
   const share = useSharePlantWithCanopy()
   const unshare = useUnsharePlant()
-  const [pending, setPending] = useState<ReadonlyArray<string>>([])
+  const [pending, setPending] = useState<
+    Record.ReadonlyRecord<string, boolean>
+  >({})
 
   const plants = pipe(
     Option.fromNullishOr(data?.items),
@@ -63,19 +59,22 @@ export function CanopyPlantsCard({ canopy, myUserId }: CanopyPlantsCardProps) {
 
   if (Arr.isReadonlyArrayEmpty(plants)) return null
 
-  const isShared = (plant: Plant) => plant.ownership === 'canopy'
+  const isShared = (plant: Plant) =>
+    Option.getOrElse(
+      Record.get(pending, plant.id),
+      () => plant.ownership === 'canopy'
+    )
 
   // Per-call mutate callbacks fire for the latest call only, so two plants
   // in flight at once each need their own promise.
   const toggle = (plant: Plant) => {
-    setPending((prev) => [...prev, plant.id])
-    const mutation = isShared(plant) ? unshare : share
+    const target = !isShared(plant)
+    setPending((prev) => Record.set(prev, plant.id, target))
+    const mutation = target ? share : unshare
     mutation
       .mutateAsync(plant.id)
       .catch((error: ApiFailure) => toastFailure(error, t))
-      .finally(() =>
-        setPending((prev) => Arr.filter(prev, (id) => id !== plant.id))
-      )
+      .finally(() => setPending((prev) => Record.remove(prev, plant.id)))
   }
 
   return (
@@ -97,7 +96,7 @@ export function CanopyPlantsCard({ canopy, myUserId }: CanopyPlantsCardProps) {
             key={plant.id}
             plant={plant}
             shared={isShared(plant)}
-            busy={Arr.contains(pending, plant.id)}
+            busy={Record.has(pending, plant.id)}
             onPress={() => toggle(plant)}
           />
         ))}
@@ -138,11 +137,6 @@ function PlantTile({ plant, shared, busy, onPress }: PlantTileProps) {
           name={plant.name}
           size="lg"
         />
-        {busy && (
-          <View className="absolute inset-0 items-center justify-center rounded-full bg-black/30">
-            <ActivityIndicator size="small" color="white" />
-          </View>
-        )}
         {shared && (
           <View className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full items-center justify-center bg-primary border-2 border-surface dark:border-surface-dark">
             <MaterialIcons name="check" size={12} color="white" />
