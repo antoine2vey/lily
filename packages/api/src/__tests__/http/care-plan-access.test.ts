@@ -26,7 +26,6 @@ import {
   Authentication,
   CurrentUser,
 } from '@lily/api/services/auth/middleware.types'
-import { CarePlansApi } from '@lily/api/services/care-plans/api'
 import { CarePlansApiLive } from '@lily/api/services/care-plans/handlers'
 import { API_PREFIX } from '@lily/shared'
 import { Effect, FileSystem, Layer, Path, Redacted } from 'effect'

@@ -9,7 +9,6 @@ import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-lim
 import { createMockRefreshTokenRepository } from '@lily/api/__tests__/mocks/refresh-token.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { Api } from '@lily/api/api'
-import { AuthApi } from '@lily/api/services/auth/api'
 import { MagicLinkConfig } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import {

@@ -22,10 +22,10 @@ import {
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockRagServiceLive } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { Api } from '@lily/api/api'
-import { AIChatApi } from '@lily/api/services/ai-chat/api'
 import { ChatTurns } from '@lily/api/services/ai-chat/chat-turns'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import {
@@ -74,6 +74,7 @@ const signedKeys: string[] = []
 const ownFolder = `users/${userId}/chat/${conversation.id}`
 
 const ServicesLive = Layer.mergeAll(
+  createMockStoredRefRepository(),
   createMockChatRepository({ messages, conversations: [conversation] }),
   createMockAiService({ chatStreamCalls }),
   createMockEventBus(),

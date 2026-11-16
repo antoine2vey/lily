@@ -15,6 +15,7 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockRareIdentificationRepository } from '@lily/api/__tests__/mocks/rare-identification.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockScanRepository } from '@lily/api/__tests__/mocks/scan.repository'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
 import { Api } from '@lily/api/api'
 import type { AppEvent } from '@lily/api/events'
@@ -22,7 +23,6 @@ import {
   Authentication,
   CurrentUser,
 } from '@lily/api/services/auth/middleware.types'
-import { PlantsApi } from '@lily/api/services/plants/api'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import type { plants } from '@lily/db/schema'
 import { API_PREFIX } from '@lily/shared'
@@ -58,6 +58,7 @@ const rows: Array<typeof plants.$inferSelect> = []
 const publishedEvents: AppEvent[] = []
 
 const DependenciesLive = Layer.mergeAll(
+  createMockStoredRefRepository(),
   createMockRoomRepository([]),
   createMockPlantRepository({ plants: rows, sharesPlantsArray: true }),
   createMockCanopyRepository(),

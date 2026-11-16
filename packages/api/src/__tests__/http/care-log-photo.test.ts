@@ -15,13 +15,13 @@ import {
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { Api } from '@lily/api/api'
 import { RecordOutcome } from '@lily/api/contexts/care'
 import {
   Authentication,
   CurrentUser,
 } from '@lily/api/services/auth/middleware.types'
-import { CareLogsApi } from '@lily/api/services/care-logs/api'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { API_PREFIX, CareDay } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe, Redacted } from 'effect'
@@ -74,6 +74,7 @@ const makeHandler = () =>
       Layer.provide(AuthLive),
       HttpRouter.provideRequest(
         Layer.mergeAll(
+          createMockStoredRefRepository(),
           createMockPlantRepository({ plants: [plant] }),
           createMockCanopyRepository([]),
           createMockDelegationRepository({}),

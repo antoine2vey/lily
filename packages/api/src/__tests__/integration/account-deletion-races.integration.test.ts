@@ -74,7 +74,6 @@ import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
-import { RoomsApi } from '@lily/api/services/rooms/api'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
@@ -1752,8 +1751,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         userId: string,
         seam: (repo: IRoomRepository) => IRoomRepository = Function.identity
       ) => {
-        // The rooms group captures RoomRepository when it is built and the
-        // request markers need it again per request, so the seam goes in both.
+        // The handler sees the copy the rooms group captures when it is built.
+        // The request copy only satisfies the request markers in the type.
         const seamedRooms = Layer.effect(
           RoomRepository,
           Effect.map(RoomRepository, seam)

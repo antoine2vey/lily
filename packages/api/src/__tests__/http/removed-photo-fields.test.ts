@@ -21,6 +21,7 @@ import { createMockRareIdentificationRepository } from '@lily/api/__tests__/mock
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockScanRepository } from '@lily/api/__tests__/mocks/scan.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
 import { Api } from '@lily/api/api'
 import { RecordOutcome } from '@lily/api/contexts/care'
@@ -90,6 +91,7 @@ describe('a care log from a build that still sends photoUrl', () => {
         Layer.provide(AuthLive),
         HttpRouter.provideRequest(
           Layer.mergeAll(
+            createMockStoredRefRepository(),
             createMockPlantRepository({ plants: [plant] }),
             createMockCanopyRepository([]),
             createMockDelegationRepository({}),
@@ -177,6 +179,7 @@ describe('a plant edit from a build that still sends imageUrl', () => {
         Layer.provide(AuthLive),
         HttpRouter.provideRequest(
           Layer.mergeAll(
+            createMockStoredRefRepository(),
             createMockRoomRepository([]),
             createMockPlantRepository({
               plants: rows,
