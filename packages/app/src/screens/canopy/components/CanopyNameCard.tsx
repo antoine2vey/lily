@@ -43,7 +43,7 @@ export function CanopyNameCard({ name }: { name: string }) {
           returnKeyType="done"
           onSubmitEditing={() => canSave && save()}
           placeholderTextColor={iconColors.textMuted}
-          className="flex-1 py-2 text-lg text-text-primary dark:text-white"
+          className="flex-1 py-2.5 text-[16px] text-text-primary dark:text-white"
           style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
           testID="canopy-rename-input"
         />
