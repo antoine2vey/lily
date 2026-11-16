@@ -30,7 +30,7 @@ const run = <A, E>(
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000)
 
 // An alias of Europe/Dublin from the IANA `backward` file. JavaScript accepts
-// it, and a Debian Postgres without tzdata-legacy rejects it.
+// it, and postgres-ssl:17, which ships no tzdata-legacy, rejects it.
 const ALIAS = 'Eire'
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(

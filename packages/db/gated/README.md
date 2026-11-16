@@ -4,74 +4,8 @@ The migrator applies the files in `packages/db/drizzle` and no others, and produ
 
 Never run one of these files by hand against production.
 
-| File | What it does | Deletes rows |
-| --- | --- | --- |
-| `resync_stored_days.sql` | Sets a stored due day or care day back to the day of its instant, on rows where the two differ. Needed only if an older release wrote after the migrations ran. | No |
+No file waits here now.
 
 Five files that waited here are applied. They are migrations `0079` to `0083` in `packages/db/drizzle`. `plant_care_schedules.next_care_at`, `plant_care_schedules.due_day` and `care_logs.care_day` are `NOT NULL`, and the `plant_health` type no longer has `NEEDS_ATTENTION`. The unique index `care_logs_one_per_care_day` allows one care log per plant, care type and care day. Migration `0083` removed the same-day duplicates that existed before it and kept the earliest log of each group.
 
 No release older than the one that added migrations `0070` to `0078` can run on this database any more. It inserts a schedule or a care log without its day, it sends a null `next_care_at` when it changes a frequency, and its health scheduler stores `NEEDS_ATTENTION`. Each of those writes now fails. Do not roll back to it.
-
-## `resync_stored_days.sql`
-
-### Why it is gated
-
-Most deploys never need it. It repairs the rows a container of an older release wrote after migrations `0072` and `0074` ran.
-
-Those migrations add the day columns `care_logs.care_day` and `plant_care_schedules.due_day`, and their release is the first whose code fills them. The release before it moves `next_care_at` when it records a care, ends a vacation, readjusts for the weather or accepts a care plan, and it moves `care_logs.date` when it edits a care. It does not know the day columns, so the stored day stays where it was. The new release then reads that plant as due on the old day.
-
-### Read-only check to run first
-
-The query reads and writes nothing. It counts the stored days that differ from the day of their instant:
-
-```sql
-SELECT
-  (SELECT count(*)
-     FROM plant_care_schedules s
-     JOIN plants p ON p.id = s.plant_id
-     LEFT JOIN canopies c ON c.id = p.canopy_id
-     LEFT JOIN users u ON u.id = p.user_id
-     LEFT JOIN pg_timezone_names ctz ON ctz.name = c.timezone
-     LEFT JOIN pg_timezone_names utz ON utz.name = u.timezone
-    WHERE s.due_day <> (s.next_care_at AT TIME ZONE coalesce(ctz.name, utz.name, 'UTC'))::date
-  ) AS due_days_that_differ,
-  (SELECT count(*)
-     FROM care_logs cl
-     JOIN plants p ON p.id = cl.plant_id
-     LEFT JOIN canopies c ON c.id = p.canopy_id
-     LEFT JOIN users u ON u.id = p.user_id
-     LEFT JOIN pg_timezone_names ctz ON ctz.name = c.timezone
-     LEFT JOIN pg_timezone_names utz ON utz.name = u.timezone
-    WHERE cl.care_day <> (cl.date AT TIME ZONE coalesce(ctz.name, utz.name, 'UTC'))::date
-  ) AS care_days_that_differ;
-```
-
-A stored day stays put when its owner changes timezone, so a row differs when the owner, or the canopy, has changed timezone since the day was written. That is a behavior the release chose, and it needs no repair.
-
-A row also differs when a container of an older release wrote it after the migrations ran. Run the query right after a rollout, and again after any rollback to an older release. A count above zero at that point comes from such writes, because no owner has had time to change timezone.
-
-Later, a count far above the number of owners who changed timezone points at a writer that sets a day and an instant that do not match. Find it before you go on.
-
-### The condition
-
-The count of days that differ is above zero right after a rollout, or after a rollback to an older release has ended. No container of an older release is running.
-
-### What it changes
-
-It sets each differing `due_day` and `care_day` back to the day of its instant in the plant's care timezone. It deletes nothing.
-
-Since migration `0083`, two care logs of one plant and care type cannot share a care day. If a reset would put two logs on the same day, the file fails, its transaction rolls back and the deploy stops. Nothing is changed in that case.
-
-It cannot tell a row an older container wrote from a row whose owner changed timezone since the day was stored. It resets both. For the second kind, the stored day moves once to the day the older release would have shown. Apply the file soon after the rollout so that few such rows exist.
-
-No request to Reminders is needed. Delivery drops a care reminder planned for a day that is no longer the stored due day, and the daily reminder audit plans the new one once the plant is overdue, due today or due within two care days.
-
-### What `lock_timeout` does
-
-The file starts with `SET LOCAL lock_timeout = '5s'`. The migrator runs a file in one transaction, so the setting lasts for that file only.
-
-Each update waits for a row another transaction holds, and the timeout bounds that wait. After five seconds the file fails, its transaction rolls back, the migrator records nothing and the deploy stops. The containers of the running release keep serving. Deploy again to retry.
-
-### The code change that goes with it
-
-None.

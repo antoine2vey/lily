@@ -23,9 +23,10 @@ This project defines its Railway infrastructure in code.
   them in the Railway dashboard.
 - Postgres is pinned with `database(...)` to `postgres-ssl:17`. The
   `postgres()` helper defaults to v18, which can't boot the v17 data
-  directory. Railway builds the running image from `Dockerfile.postgres`,
-  which adds `tzdata-legacy` on top, and redeploys Postgres only when that
-  file changes.
+  directory. Railway runs that stock image and redeploys Postgres when the
+  `:17` tag moves to a new digest, between 02:00 and 05:00 UTC. A redeploy
+  restarts the database. `packages/db/CLAUDE.md` says what to do when the
+  nightly Time zones workflow finds a new image that rejects a zone.
 - Check for drift: `./node_modules/.bin/railway config plan --detailed-exit-code`
   (exit 0 = in sync, 2 = pending changes).
 

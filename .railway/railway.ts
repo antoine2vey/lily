@@ -20,15 +20,19 @@ export default defineRailway(() => {
     defaultMountPath: '/var/lib/postgresql/data',
     region: 'europe-west4-drams3a',
   })
-  // Railway builds the image from Dockerfile.postgres, which adds the time zone
-  // aliases. Only a change to that file redeploys Postgres.
-  Postgres.source = lily
-  Postgres.build = {
-    buildEnvironment: 'V3',
-    builder: 'DOCKERFILE',
-    dockerfilePath: '/Dockerfile.postgres',
-    watchPatterns: ['/Dockerfile.postgres'],
-  }
+  // tagMode 'sha' redeploys when the :17 tag moves to a new digest, inside a
+  // 02:00-05:00 UTC window. The Time zones workflow checks the newest digest at 01:17.
+  Postgres.source = image('ghcr.io/railwayapp-templates/postgres-ssl:17', {
+    autoUpdates: {
+      type: 'minor',
+      tagMode: 'sha',
+      schedule: [0, 1, 2, 3, 4, 5, 6].map((day) => ({
+        day,
+        startHour: 2,
+        endHour: 5,
+      })),
+    },
+  })
   Postgres.networking = {
     privateNetworkEndpoint: 'postgres',
     tcpProxies: { '5432': {} },
