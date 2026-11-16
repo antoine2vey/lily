@@ -20,7 +20,7 @@ const sweep = Effect.gen(function* () {
       ...Array.map(result.decided, decisionLine),
       ...summaryLines(result, gcs.bucketNames),
     ],
-    Console.log,
+    (line) => Console.log(line),
     { discard: true }
   )
   const failed = Array.filter(result.outcomes, (o) => o._tag === 'Failed')
