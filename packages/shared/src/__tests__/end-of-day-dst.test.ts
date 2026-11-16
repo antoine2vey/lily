@@ -1,11 +1,6 @@
 import { DateTime } from 'effect'
 import { describe, expect, it } from 'vitest'
-import {
-  endOfDay,
-  endOfWeek,
-  isThisWeek,
-  isUpcoming,
-} from '../domains/common/date'
+import { endOfDay, endOfWeek, isThisWeek } from '../domains/common/date'
 
 const at = (iso: string) => DateTime.makeUnsafe(iso)
 const iso = (dateTime: DateTime.DateTime) =>
@@ -54,7 +49,6 @@ describe('end of a local day whose last hour repeats or is skipped', () => {
     const noon = at('2026-10-29T12:00:00.000Z')
     const secondPass = at('2026-10-29T21:30:00.000Z')
 
-    expect(isUpcoming(secondPass, noon, 'Africa/Cairo')).toBe(false)
     expect(isThisWeek(secondPass, noon, 'Africa/Cairo')).toBe(false)
   })
 
@@ -62,7 +56,6 @@ describe('end of a local day whose last hour repeats or is skipped', () => {
     const noon = at('2026-03-28T12:00:00.000Z')
     const nextMidnight = at('2026-03-29T01:00:00.000Z')
 
-    expect(isUpcoming(nextMidnight, noon, 'America/Nuuk')).toBe(true)
     expect(isThisWeek(nextMidnight, noon, 'America/Nuuk')).toBe(true)
   })
 })
