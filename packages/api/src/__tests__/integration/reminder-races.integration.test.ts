@@ -57,6 +57,7 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import {
   UserRepository,
@@ -116,7 +117,8 @@ const BaseLive = Layer.mergeAll(
   RoomRepositoryLive,
   DeviceTokenRepositoryLive,
   ActivityPushTokenRepositoryLive,
-  SubscriptionRepositoryLive
+  SubscriptionRepositoryLive,
+  StoredRefRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const outcome = (exit: Exit.Exit<unknown, unknown>) =>

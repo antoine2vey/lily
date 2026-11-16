@@ -16,6 +16,7 @@ import {
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { carePermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
@@ -49,6 +50,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { acceptCanopyInvitation } from '@lily/api/services/canopy/endpoints/accept-canopy-invitation'
 import { acceptCanopyInvite } from '@lily/api/services/canopy/endpoints/accept-canopy-invite'
@@ -114,7 +116,8 @@ const BaseLive = Layer.mergeAll(
   PlantRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
-  UserRepositoryLive
+  UserRepositoryLive,
+  StoredRefRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const outcome = (exit: Exit.Exit<unknown, unknown>) =>
@@ -244,6 +247,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId, email: `${userId}@x.test` }),
               createMockEventBus(),
+              createMockGCSService(),
               createMockLimitChecker(),
               createMockMessageQueue(),
               createMockPushService(),
