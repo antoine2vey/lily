@@ -1,17 +1,33 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { carePermit, createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
+import {
+  createInMemoryGCS,
+  mockPublicUrl,
+} from '@lily/api/__tests__/mocks/gcs.service'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
-import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import {
+  createCareLog,
+  createCareLogWithPhoto,
+} from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { CareDay } from '@lily/shared'
 import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
+import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
 
 const today = CareDay.make('2026-11-12')
 const existing = pipe(Array.head(mockCareLogs), Option.getOrThrow)
 const deviceFile = 'file:///var/mobile/Containers/Data/tmp/photo.jpg'
+const image = {
+  _tag: 'PersistedFile',
+  key: 'image',
+  name: 'photo.png',
+  contentType: 'image/png',
+  path: '/tmp/photo.png',
+} as unknown as PersistedFile
 
 const setup = (outcome: 'Recorded' | 'AlreadyCared' = 'Recorded') => {
   const care = createStubCare((plantId) =>
@@ -32,11 +48,15 @@ const setup = (outcome: 'Recorded' | 'AlreadyCared' = 'Recorded') => {
           }),
         })
   )
+  const gcs = createInMemoryGCS()
   return {
     care,
+    gcs,
     layer: Layer.mergeAll(
       createMockCareLogRepository(mockCareLogs),
       care.layer,
+      gcs.layer,
+      createMockFileSystem(),
       MockSqlClientLive,
       MockOutboxLive
     ),
@@ -61,6 +81,29 @@ describe('createCareLog', () => {
       on: { _tag: 'Today' },
       notes: Option.some('Deep soak'),
       photoUrl: Option.some(deviceFile),
+    })
+  })
+
+  it('stores an uploaded photo under the plant and records its URL', async () => {
+    const test = setup()
+
+    await Effect.runPromise(
+      createCareLogWithPhoto(
+        carePermit(existing.plantId),
+        { type: 'watering', photoUrl: deviceFile },
+        image
+      ).pipe(Effect.provide(test.layer))
+    )
+
+    const stored = [...test.gcs.objects.plant]
+    expect({
+      stored: Array.map(stored, (key) =>
+        key.replace(/[0-9a-f-]{36}(?=\.)/, '<uuid>')
+      ),
+      recorded: test.care.commands[0]?.photoUrl,
+    }).toEqual({
+      stored: [`plants/${existing.plantId}/<uuid>.png`],
+      recorded: Option.map(Array.head(stored), mockPublicUrl),
     })
   })
 

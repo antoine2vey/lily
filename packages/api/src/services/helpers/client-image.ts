@@ -23,9 +23,10 @@ export type ClientImage = Data.TaggedEnum<{
 export const ClientImage = Data.taggedEnum<ClientImage>()
 
 /**
- * The path of a picked photo that the app sends when it has no upload for it:
- * every care log photo, and the plant photo of builds from before March 2026.
- * https://github.com/antoine2vey/lily/issues/235 removes it.
+ * The path of a picked photo that a build sends when it has no upload for it:
+ * the care log photo of builds from before November 2026, and the plant photo
+ * of builds from before March 2026.
+ * https://github.com/antoine2vey/lily/issues/246 removes it.
  */
 export const deviceFile = (ref: string | undefined): Option.Option<string> =>
   pipe(Option.fromNullishOr(ref), Option.filter(String.startsWith('file:///')))

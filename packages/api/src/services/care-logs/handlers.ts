@@ -1,5 +1,8 @@
 import type { Api } from '@lily/api/api'
-import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import {
+  createCareLog,
+  createCareLogWithPhoto,
+} from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { deleteCareLog } from '@lily/api/services/care-logs/endpoints/delete-care-log'
 import { getCareLog } from '@lily/api/services/care-logs/endpoints/get-care-log'
 import { getCareLogs } from '@lily/api/services/care-logs/endpoints/get-care-logs'
@@ -40,7 +43,11 @@ export const CareLogsApiLive = (api: Api) =>
       )
       .handle('createCareLog', ({ params: { plantId }, payload }) =>
         withPlantPermit(plantId, 'care').pipe(
-          Effect.flatMap((permit) => createCareLog(permit, payload)),
+          Effect.flatMap((permit) =>
+            'data' in payload
+              ? createCareLogWithPhoto(permit, payload.data, payload.image)
+              : createCareLog(permit, payload)
+          ),
           withInfraErrorsAsDefect
         )
       )

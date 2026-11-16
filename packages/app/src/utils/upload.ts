@@ -12,11 +12,13 @@ import {
  */
 export class UploadError extends Error {
   readonly apiError?: ApiFailure | undefined
+  readonly status?: number | undefined
 
-  constructor(message: string, apiError?: ApiFailure) {
+  constructor(message: string, apiError?: ApiFailure, status?: number) {
     super(message)
     this.name = 'UploadError'
     this.apiError = apiError
+    this.status = status
   }
 }
 
@@ -100,13 +102,18 @@ export async function uploadMultipart<T>(
                 Option.fromNullishOr(errorBody.message as string | undefined),
                 Option.getOrElse(() => 'Request failed')
               ),
-              errorBody as ApiFailure
+              errorBody as ApiFailure,
+              retryResponse.status
             )
           }
         } catch (parseError) {
           if (parseError instanceof UploadError) throw parseError
         }
-        throw new UploadError(`Upload failed: ${retryResponse.status}`)
+        throw new UploadError(
+          `Upload failed: ${retryResponse.status}`,
+          undefined,
+          retryResponse.status
+        )
       }
       return retryResponse.json()
     }
@@ -123,14 +130,19 @@ export async function uploadMultipart<T>(
             Option.fromNullishOr(errorBody.message as string | undefined),
             Option.getOrElse(() => 'Request failed')
           ),
-          errorBody as ApiFailure
+          errorBody as ApiFailure,
+          response.status
         )
       }
     } catch (parseError) {
       // If parsing fails, throw generic error
       if (parseError instanceof UploadError) throw parseError
     }
-    throw new UploadError(`Upload failed: ${response.status}`)
+    throw new UploadError(
+      `Upload failed: ${response.status}`,
+      undefined,
+      response.status
+    )
   }
 
   // Check if response has content

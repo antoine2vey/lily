@@ -11,21 +11,21 @@ import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import { deviceFile } from '@lily/api/services/helpers/client-image'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import { frequencyChanges } from '@lily/api/services/plants/helpers/schedule-frequencies'
+import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
 import type { RoomNotFoundError } from '@lily/shared'
 import {
   type PlantIsDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { PlantUpdateRequest } from '@lily/shared/plant'
-import { GCSService } from '@lily/shared/services/file/gcs'
+import type { GCSService } from '@lily/shared/services/file/gcs'
 import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
-import { plantFolder } from '@lily/shared/services/file/stored-object'
 import { Effect, Option, pipe, Record } from 'effect'
-import { FileSystem } from 'effect/FileSystem'
+import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'
 import type * as SqlClient from 'effect/sql/SqlClient'
@@ -63,16 +63,7 @@ export const updatePlant = (
     // An uploaded file becomes the image. A URL in the request is dropped:
     // the edit screen only sends back the one the plant already has.
     const imageUrl = image
-      ? yield* Effect.gen(function* () {
-          const gcs = yield* GCSService
-          const fileSystem = yield* FileSystem
-          const buffer = yield* fileSystem.readFile(image.path)
-          const { url } = yield* gcs.uploadFile({
-            fileBuffer: Buffer.from(buffer),
-            folder: plantFolder(request.id),
-          })
-          return url
-        })
+      ? yield* uploadToPlantFolder(request.id, image)
       : Option.getOrUndefined(deviceFile(request.imageUrl))
 
     // Build update data from request, excluding care-related fields
