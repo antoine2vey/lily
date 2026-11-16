@@ -7,8 +7,9 @@ import { LifeState } from '@lily/api/contexts/care/domain/care-plant'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { resolveDueDate } from '@lily/api/services/ai-chat/tools/care-plan-step-schema'
 import { proposeCarePlanTool } from '@lily/api/services/ai-chat/tools/propose-care-plan'
+import { CareDays } from '@lily/shared'
 import type { ToolExecutionOptions } from 'ai'
-import { Array, DateTime, Effect, Layer, ManagedRuntime } from 'effect'
+import { Array, DateTime, Effect, Layer, ManagedRuntime, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const stubToolOptions: ToolExecutionOptions<{}> = {
@@ -137,6 +138,61 @@ describe('resolveDueDate', () => {
     // Paris is UTC+2 in June: local midnight on June 12 is 22:00 UTC on June 11.
     expect(due?.toISOString()).toBe('2024-06-11T22:00:00.000Z')
   })
+
+  it.each([
+    {
+      timezone: 'Europe/Paris',
+      clock: 'clocks go back on 2026-10-25',
+      now: '2026-10-24T10:00:00.000Z',
+      dueInDays: 2,
+      dueDay: '2026-10-26',
+      dueAt: '2026-10-25T23:00:00.000Z',
+    },
+    {
+      timezone: 'Europe/Paris',
+      clock: 'clocks go forward on 2026-03-29',
+      now: '2026-03-28T10:00:00.000Z',
+      dueInDays: 2,
+      dueDay: '2026-03-30',
+      dueAt: '2026-03-29T22:00:00.000Z',
+    },
+    {
+      timezone: 'Australia/Sydney',
+      clock: 'clocks go back on 2026-04-05',
+      now: '2026-04-04T01:00:00.000Z',
+      dueInDays: 2,
+      dueDay: '2026-04-06',
+      dueAt: '2026-04-05T14:00:00.000Z',
+    },
+    {
+      timezone: 'Australia/Sydney',
+      clock: 'clocks go forward on 2026-10-04',
+      now: '2026-10-03T01:00:00.000Z',
+      dueInDays: 14,
+      dueDay: '2026-10-17',
+      dueAt: '2026-10-16T13:00:00.000Z',
+    },
+    {
+      timezone: 'America/Santiago',
+      clock: 'the due day starts at 01:00 on 2026-09-06',
+      now: '2026-09-04T16:00:00.000Z',
+      dueInDays: 2,
+      dueDay: '2026-09-06',
+      dueAt: '2026-09-06T04:00:00.000Z',
+    },
+  ])(
+    'starts the due day in $timezone when $clock',
+    ({ timezone, now, dueInDays, dueDay, dueAt }) => {
+      const due = resolveDueDate(dueInDays, timezone, DateTime.makeUnsafe(now))
+
+      expect(due?.toISOString()).toBe(dueAt)
+      expect(
+        Option.map(Option.fromNullishOr(due), (date) =>
+          CareDays.of(DateTime.makeUnsafe(date), timezone)
+        )
+      ).toEqual(Option.some(dueDay))
+    }
+  )
 
   it('returns undefined when no offset is given', () => {
     expect(resolveDueDate(undefined, 'UTC')).toBeUndefined()
