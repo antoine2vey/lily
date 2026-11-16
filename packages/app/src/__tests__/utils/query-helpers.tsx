@@ -26,6 +26,15 @@ export function cleanupQueryClients(): void {
 /**
  * Create a test query client with sensible defaults
  */
+/**
+ * `waitFor` options for a render that follows a request through the real API
+ * client. Each request builds the client and captures stack traces
+ * synchronously, which holds the event loop for over a second under Jest and
+ * longer under load, and a re-render scheduled by a cache write waits behind
+ * it. The default 1s window flakes there.
+ */
+export const afterApiRequest = { timeout: 10000 }
+
 export function createTestQueryClient(): QueryClient {
   const client = new QueryClient({
     defaultOptions: {

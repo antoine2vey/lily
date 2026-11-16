@@ -1,6 +1,9 @@
 import { Result } from 'effect'
 import { mockUserSettings } from '@/__tests__/fixtures'
-import { createCacheTestQueryClient } from '@/__tests__/utils/query-helpers'
+import {
+  afterApiRequest,
+  createCacheTestQueryClient,
+} from '@/__tests__/utils/query-helpers'
 import {
   act,
   fireEvent,
@@ -97,9 +100,12 @@ describe('NotificationSettingsScreen', () => {
       fireEvent.press(screen.getByText('Auto-detect Timezone'))
     })
 
-    await waitFor(() => expect(screen.getByText('Paris (CET)')).toBeTruthy())
+    await waitFor(
+      () => expect(screen.getByText('Paris (CET)')).toBeTruthy(),
+      afterApiRequest
+    )
     expect(screen.queryByText('New York (ET)')).toBeNull()
-  })
+  }, 15000)
 
   it('restores the saved timezone and says so when saving fails', async () => {
     // The save fails; the refetch that follows returns the saved settings.
@@ -118,12 +124,17 @@ describe('NotificationSettingsScreen', () => {
       fireEvent.press(screen.getByText('Auto-detect Timezone'))
     })
 
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(
-        "Couldn't save your change. Try again."
-      )
+    await waitFor(
+      () =>
+        expect(toast.error).toHaveBeenCalledWith(
+          "Couldn't save your change. Try again."
+        ),
+      afterApiRequest
     )
     expect(fetchMock).toHaveBeenCalled()
-    await waitFor(() => expect(screen.getByText('New York (ET)')).toBeTruthy())
-  })
+    await waitFor(
+      () => expect(screen.getByText('New York (ET)')).toBeTruthy(),
+      afterApiRequest
+    )
+  }, 15000)
 })

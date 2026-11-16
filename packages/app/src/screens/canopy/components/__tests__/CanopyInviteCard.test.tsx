@@ -1,7 +1,10 @@
 import { Result } from 'effect'
 import { Alert, type AlertButton } from 'react-native'
 import { canopyIds, mockCanopy } from '@/__tests__/fixtures'
-import { createCacheTestQueryClient } from '@/__tests__/utils/query-helpers'
+import {
+  afterApiRequest,
+  createCacheTestQueryClient,
+} from '@/__tests__/utils/query-helpers'
 import {
   fireEvent,
   renderWithQuery,
@@ -68,7 +71,10 @@ describe('CanopyInviteCard withdrawing an invitation', () => {
       screen.getByTestId(`canopy-withdraw-${canopyIds.invitation}`)
     )
 
-    await waitFor(() => expect(screen.queryByTestId(invitationRow)).toBeNull())
+    await waitFor(
+      () => expect(screen.queryByTestId(invitationRow)).toBeNull(),
+      afterApiRequest
+    )
     expect(toast.success).not.toHaveBeenCalled()
 
     answer(
@@ -78,11 +84,12 @@ describe('CanopyInviteCard withdrawing an invitation', () => {
       })
     )
 
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith('Invitation withdrawn')
+    await waitFor(
+      () => expect(toast.success).toHaveBeenCalledWith('Invitation withdrawn'),
+      afterApiRequest
     )
     expect(screen.queryByTestId(invitationRow)).toBeNull()
-  })
+  }, 15000)
 
   it('brings the invitation back and says so when the API fails', async () => {
     fetchMock.mockRejectedValue(new TypeError('Network request failed'))
@@ -92,12 +99,17 @@ describe('CanopyInviteCard withdrawing an invitation', () => {
       screen.getByTestId(`canopy-withdraw-${canopyIds.invitation}`)
     )
 
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(
-        'Something went wrong. Try again.'
-      )
+    await waitFor(
+      () =>
+        expect(toast.error).toHaveBeenCalledWith(
+          'Something went wrong. Try again.'
+        ),
+      afterApiRequest
     )
     expect(fetchMock).toHaveBeenCalled()
-    await waitFor(() => expect(screen.getByTestId(invitationRow)).toBeTruthy())
-  })
+    await waitFor(
+      () => expect(screen.getByTestId(invitationRow)).toBeTruthy(),
+      afterApiRequest
+    )
+  }, 15000)
 })
