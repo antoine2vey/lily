@@ -110,6 +110,9 @@ jobs:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/lily_test
       REDIS_URL_TEST: redis://localhost:6379/0
       KNOWLEDGE_DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5433/lily_knowledge_test
+      # The zone rules Dockerfile.prod gives the api, in place of the older ones
+      # Bun and Node bundle.
+      ICU_TIMEZONE_FILES_DIR: ${{ github.workspace }}/packages/db/icu-tzdata
     steps:
       - uses: actions/checkout@v7
       # A service container cannot be built from a Dockerfile. This is the
@@ -125,7 +128,7 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Setup test database
         run: bun run db:setup-test
-      - name: Check Postgres accepts every time zone Bun knows
+      - name: Check Postgres accepts every time zone Bun knows, with Bun's offsets
         if: matrix.shard == 1
         run: bun run --filter=@lily/db db:check-time-zones
       - name: Run integration tests
