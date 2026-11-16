@@ -29,13 +29,19 @@ import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import type { Api } from '@lily/api/api'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
+import { Api } from '@lily/api/api'
 import { hashInviteToken } from '@lily/api/contexts/canopy'
 import { CarePlans, CareReadsLive } from '@lily/api/contexts/care'
 import { replanPlants } from '@lily/api/contexts/reminders'
 import { mintPlanPermit } from '@lily/api/kernel/permit'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
-import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
+import {
+  CanopyRepository,
+  CanopyRepositoryLive,
+} from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -68,13 +74,13 @@ import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
-import { RoomsApi } from '@lily/api/services/rooms/api'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { API_PREFIX } from '@lily/shared'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -94,6 +100,7 @@ import {
 } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
+import * as SqlClient from 'effect/sql/SqlClient'
 import { SqlError } from 'effect/sql/SqlError'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -120,7 +127,7 @@ const BaseLive = Layer.mergeAll(
   UserRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
-const RoomsOverHttpApi = HttpApi.make('roomsOverHttp').add(RoomsApi)
+const RoomsOverHttpApi = HttpApi.make('Api').add(Api.groups.rooms)
 
 const HttpPlatformLive = Layer.mergeAll(
   Path.layer,
@@ -1744,14 +1751,33 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         userId: string,
         seam: (repo: IRoomRepository) => IRoomRepository = Function.identity
       ) => {
+        // The handler sees the copy the rooms group captures when it is built.
+        // The request copy only satisfies the request markers in the type.
+        const seamedRooms = Layer.effect(
+          RoomRepository,
+          Effect.map(RoomRepository, seam)
+        )
         const web = HttpRouter.toWebHandler(
           HttpApiBuilder.layer(RoomsOverHttpApi).pipe(
-            Layer.provide(RoomsApiLive(RoomsOverHttpApi as unknown as Api)),
+            Layer.provide(RoomsApiLive(Api)),
             Layer.provide(AuthenticationBase),
-            Layer.provide(
-              Layer.effect(RoomRepository, Effect.map(RoomRepository, seam))
+            HttpRouter.provideRequest(seamedRooms),
+            Layer.provide(seamedRooms),
+            HttpRouter.provideRequest(
+              Layer.mergeAll(
+                CanopyOnPostgresLive.pipe(
+                  Layer.provide(
+                    Layer.mergeAll(
+                      createMockWeatherProvider(),
+                      createMockWeatherCache(),
+                      createMockWeatherRepository()
+                    )
+                  )
+                ),
+                Layer.effect(CanopyRepository, CanopyRepository),
+                Layer.effect(SqlClient.SqlClient, SqlClient.SqlClient)
+              )
             ),
-            Layer.provide(CanopyOnPostgresLive),
             Layer.provide(
               Layer.mergeAll(
                 createMockJWTService({
@@ -1772,14 +1798,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             ),
             Layer.provide(BaseLive),
             Layer.provide(HttpPlatformLive)
-          ) as unknown as Layer.Layer<never>,
+          ),
           { disableLogger: true }
         )
         return {
           dispose: web.dispose,
           create: async (name: string) => {
             const res = await web.handler(
-              new Request('http://lily.test/rooms', {
+              new Request(`http://lily.test${API_PREFIX}/rooms`, {
                 method: 'POST',
                 headers: {
                   Authorization: 'Bearer some-token',

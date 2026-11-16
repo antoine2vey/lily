@@ -6,13 +6,13 @@ import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import type { Api } from '@lily/api/api'
+import { Api } from '@lily/api/api'
 import { RoomRepository } from '@lily/api/repositories/room.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AuthenticationBase } from '@lily/api/services/auth/middleware.impl'
-import { RoomsApi } from '@lily/api/services/rooms/api'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
 import type { User } from '@lily/shared'
+import { API_PREFIX } from '@lily/shared'
 import {
   Cause,
   Effect,
@@ -27,7 +27,7 @@ import { HttpApi, HttpApiBuilder } from 'effect/http-api'
 import { ConstraintError, SqlError, UnknownError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'
 
-const TestApi = HttpApi.make('accountGoneMidRequest').add(RoomsApi)
+const TestApi = HttpApi.make('Api').add(Api.groups.rooms)
 
 const PlatformLive = Layer.mergeAll(
   Path.layer,
@@ -112,13 +112,13 @@ const createRoomWhere = async (world: {
 
   const web = HttpRouter.toWebHandler(
     HttpApiBuilder.layer(TestApi).pipe(
-      Layer.provide(RoomsApiLive(TestApi as unknown as Api)),
+      Layer.provide(RoomsApiLive(Api)),
       Layer.provide(
         AuthenticationBase.pipe(
           Layer.provide(Layer.merge(createMockJWTService(), UsersLive))
         )
       ),
-      Layer.provide(
+      HttpRouter.provideRequest(
         Layer.mergeAll(
           RoomsLive,
           createMockCanopyRepository(),
@@ -129,12 +129,12 @@ const createRoomWhere = async (world: {
       ),
       Layer.provide(PlatformLive),
       Layer.provide(Logger.layer([capture]))
-    ) as unknown as Layer.Layer<never>,
+    ),
     { disableLogger: true }
   )
   try {
     const res = await web.handler(
-      new Request('http://lily.test/rooms', {
+      new Request(`http://lily.test${API_PREFIX}/rooms`, {
         method: 'POST',
         headers: {
           Authorization: 'Bearer some-token',

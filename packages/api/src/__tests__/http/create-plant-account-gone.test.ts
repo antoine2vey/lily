@@ -1,21 +1,27 @@
+import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRareIdentificationRepository } from '@lily/api/__tests__/mocks/rare-identification.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
-import type { Api } from '@lily/api/api'
+import { createMockScanRepository } from '@lily/api/__tests__/mocks/scan.repository'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
+import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
+import { Api } from '@lily/api/api'
 import {
   Authentication,
   CurrentUser,
 } from '@lily/api/services/auth/middleware.types'
-import { PlantsApi } from '@lily/api/services/plants/api'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import type { plants } from '@lily/db/schema'
+import { API_PREFIX } from '@lily/shared'
 import { Effect, FileSystem, Layer, Path, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
@@ -24,7 +30,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 const purged = 'user-purged'
 const alex = 'user-alex'
 
-const TestApi = HttpApi.make('createPlantAccountGone').add(PlantsApi)
+const TestApi = HttpApi.make('Api').add(Api.groups.plants)
 
 const AuthLive = Layer.succeed(
   Authentication,
@@ -44,6 +50,7 @@ const care = createInMemoryCare([], {
 })
 
 const DependenciesLive = Layer.mergeAll(
+  createMockStoredRefRepository(),
   createMockGCSService(),
   createMockRoomRepository([]),
   createMockPlantRepository({ plants: rows, sharesPlantsArray: true }),
@@ -52,7 +59,13 @@ const DependenciesLive = Layer.mergeAll(
   createMockEventBus(),
   createInMemoryCanopy().layer,
   MockLimitCheckerLive,
-  care.layer
+  care.layer,
+  createMockAiService(),
+  createMockDelegationRepository({}),
+  createMockFileService(),
+  createMockScanRepository(),
+  createMockUsageTracker({ limitReached: false }),
+  FileSystem.layerNoop({})
 )
 
 const PlatformLive = Layer.mergeAll(
@@ -64,11 +77,11 @@ const PlatformLive = Layer.mergeAll(
 const makeHandler = () =>
   HttpRouter.toWebHandler(
     HttpApiBuilder.layer(TestApi).pipe(
-      Layer.provide(PlantsApiLive(TestApi as unknown as Api)),
+      Layer.provide(PlantsApiLive(Api)),
       Layer.provide(AuthLive),
-      Layer.provide(DependenciesLive),
+      HttpRouter.provideRequest(DependenciesLive),
       Layer.provide(PlatformLive)
-    ) as unknown as Layer.Layer<never>,
+    ),
     { disableLogger: true }
   )
 
@@ -77,7 +90,7 @@ describe('creating a plant over HTTP once the account row is gone', () => {
 
   const create = async (userId: string) => {
     const res = await web.handler(
-      new Request('http://lily.test/plants', {
+      new Request(`http://lily.test${API_PREFIX}/plants`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${userId}`,
@@ -91,7 +104,10 @@ describe('creating a plant over HTTP once the account row is gone', () => {
         }),
       })
     )
-    return { status: res.status, body: await res.json() }
+    const text = await res.text()
+    expect(res.status, `HTTP ${res.status}: ${text}`).toBeLessThan(500)
+    const body: { name?: string } = JSON.parse(text)
+    return { status: res.status, body }
   }
 
   beforeAll(() => {

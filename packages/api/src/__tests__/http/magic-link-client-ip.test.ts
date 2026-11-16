@@ -1,10 +1,14 @@
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
 import { createMockEmailService } from '@lily/api/__tests__/mocks/email.service'
+import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockMagicLinkRepository } from '@lily/api/__tests__/mocks/magic-link.repository'
+import { createMockOAuthIdentityRepository } from '@lily/api/__tests__/mocks/oauth-identity.repository'
+import { createMockOAuthVerifier } from '@lily/api/__tests__/mocks/oauth-verifier.service'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
-import type { Api } from '@lily/api/api'
-import { AuthApi } from '@lily/api/services/auth/api'
+import { createMockRefreshTokenRepository } from '@lily/api/__tests__/mocks/refresh-token.repository'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { Api } from '@lily/api/api'
 import { MagicLinkConfig } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import {
@@ -12,12 +16,13 @@ import {
   CurrentUser,
 } from '@lily/api/services/auth/middleware.types'
 import { RATE_LIMITS } from '@lily/api/services/rate-limiter/service'
+import { API_PREFIX } from '@lily/shared'
 import { Effect, FileSystem, Layer, Path } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
 import { afterEach, describe, expect, it } from 'vitest'
 
-const TestApi = HttpApi.make('magicLinkClientIp').add(AuthApi)
+const TestApi = HttpApi.make('Api').add(Api.groups.auth)
 
 const AuthLive = Layer.succeed(
   Authentication,
@@ -36,13 +41,18 @@ const PlatformLive = Layer.mergeAll(
 const makeHandler = () =>
   HttpRouter.toWebHandler(
     HttpApiBuilder.layer(TestApi).pipe(
-      Layer.provide(AuthApiLive(TestApi as unknown as Api)),
+      Layer.provide(AuthApiLive(Api)),
       Layer.provide(AuthLive),
-      Layer.provide(
+      HttpRouter.provideRequest(
         Layer.mergeAll(
           createMockMagicLinkRepository({ magicLinks: [] }),
           createMockRateLimiterService(),
           createMockEmailService(),
+          createMockJWTService(),
+          createMockOAuthIdentityRepository().layer,
+          createMockOAuthVerifier(),
+          createMockRefreshTokenRepository(),
+          createMockUserRepository([]),
           MockAlerterLive,
           Layer.succeed(MagicLinkConfig, {
             disableVerification: false,
@@ -51,7 +61,7 @@ const makeHandler = () =>
         )
       ),
       Layer.provide(PlatformLive)
-    ) as unknown as Layer.Layer<never>,
+    ),
     { disableLogger: true }
   )
 
@@ -65,7 +75,7 @@ describe('POST /magic-link client IP', () => {
   const send = (email: string, realIp: string) =>
     web
       ?.handler(
-        new Request('http://lily.test/auth/magic-link', {
+        new Request(`http://lily.test${API_PREFIX}/auth/magic-link`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-real-ip': realIp },
           body: JSON.stringify({ email }),
