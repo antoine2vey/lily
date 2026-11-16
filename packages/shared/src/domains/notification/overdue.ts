@@ -1,7 +1,8 @@
 import { DateTime, Effect, Option, pipe } from 'effect'
 
+import { zoneFromNameOrUtc } from '../common/date/timezone'
 import { DndWindowBlockedError } from './errors'
-import { DEFAULT_TIMEZONE, isInDndWindow, timeToMinutes } from './timezone'
+import { isInDndWindow, timeToMinutes } from './timezone'
 
 // Morning window: 6:00-8:00 local time (120 minutes)
 const MORNING_START = 6 * 60 // 360
@@ -17,7 +18,7 @@ const EVENING_END = 22 * 60 // 1320
  * are blocked.
  *
  * @param userId - User ID (for error context)
- * @param timezone - IANA timezone string
+ * @param timezone - IANA timezone string, UTC when unknown
  * @param dndEnabled - Whether DND is active
  * @param dndStart - DND start time in HH:mm format
  * @param dndEnd - DND end time in HH:mm format
@@ -88,17 +89,7 @@ export const pickNotificationTime = (
     ),
     // Convert chosen local time to UTC Date for today in the user's timezone
     Option.map((chosen) => {
-      const zoneOption = DateTime.zoneMakeNamed(timezone)
-      const validTimezone = pipe(
-        zoneOption,
-        Option.map(() => timezone),
-        Option.getOrElse(() => DEFAULT_TIMEZONE)
-      )
-      const zone = pipe(
-        zoneOption,
-        Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
-      )
-
+      const zone = zoneFromNameOrUtc(timezone)
       const nowZoned = DateTime.setZone(DateTime.nowUnsafe(), zone)
       const parts = DateTime.toParts(nowZoned)
 
@@ -115,7 +106,7 @@ export const pickNotificationTime = (
           second: 0,
           millisecond: 0,
         },
-        { timeZone: validTimezone, adjustForTimeZone: true }
+        { timeZone: zone, adjustForTimeZone: true }
       )
 
       return DateTime.toDateUtc(scheduledZoned)
