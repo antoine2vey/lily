@@ -54,19 +54,25 @@ export const chunkRedditDocument = (
   const hasComments = !Array.isArrayEmpty(sortedComments)
 
   if (!hasComments) {
+    const metadata = {
+      chunkType: 'reddit_question_only',
+      postScore: input.postScore,
+      subreddit: input.subreddit,
+      commentCount: 0,
+      topCommentScore: 0,
+    }
+    const pieces = chunkContent(input.content)
+
+    if (pieces.length <= 1) {
+      return { children: [{ content: question, metadata }] }
+    }
+
     return {
-      children: [
-        {
-          content: question,
-          metadata: {
-            chunkType: 'reddit_question_only',
-            postScore: input.postScore,
-            subreddit: input.subreddit,
-            commentCount: 0,
-            topCommentScore: 0,
-          },
-        },
-      ],
+      parent: { content: question, metadata },
+      children: Array.map(pieces, (piece) => ({
+        content: `Q: ${input.title}\n\n${piece}`,
+        metadata,
+      })),
     }
   }
 
