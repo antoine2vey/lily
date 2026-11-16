@@ -33,6 +33,7 @@ import { HealthApiLive } from '@lily/api/services/health/handlers'
 import { SHUTDOWN_DRAIN_DEADLINE } from '@lily/api/services/helpers/create-scheduler'
 import { InternalApiLive } from '@lily/api/services/internal/handlers'
 import { KnowledgeApiLive } from '@lily/api/services/knowledge/handlers'
+import { startEmbeddingBackfillScheduler } from '@lily/api/services/knowledge-ingestion/embedding-backfill'
 import { KnowledgeIngestionApiLive } from '@lily/api/services/knowledge-ingestion/handlers'
 import { startKnowledgeIngestionWorker } from '@lily/api/services/knowledge-ingestion/worker'
 import { startLiveActivitySubscriber } from '@lily/api/services/live-activity/subscriber'
@@ -130,6 +131,10 @@ const KnowledgeIngestionWorkerLive = Layer.effectDiscard(
   startKnowledgeIngestionWorker
 )
 
+const EmbeddingBackfillSchedulerLive = Layer.effectDiscard(
+  startEmbeddingBackfillScheduler
+)
+
 const ChatFollowUpWorkerLive = Layer.effectDiscard(startChatFollowUpWorker)
 
 // Group all background schedulers into one layer
@@ -146,6 +151,7 @@ const AllSchedulersLive = Layer.mergeAll(
   TipsSchedulerLive,
   BlogGeneratorSchedulerLive,
   KnowledgeIngestionWorkerLive,
+  EmbeddingBackfillSchedulerLive,
   ChatFollowUpWorkerLive,
   AccountCleanupSchedulerLive,
   WeeklyRecapSchedulerLive,

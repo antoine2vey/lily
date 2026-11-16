@@ -58,7 +58,7 @@ One row per directory of `src/services/`, in directory order. "Repositories" nam
 | `internal` | Service-to-service token issue and magic-link send, with its own middleware. | Identity & Access | generic | User, MagicLink, RefreshToken |
 | `jwt` | JWT signing and verification. | Platform (used by Identity) | generic | none |
 | `knowledge` | One endpoint, `queryKnowledge`, over the RAG store. | Assistant | supporting | none |
-| `knowledge-ingestion` | Ingest jobs, adapters, the processor and a worker that runs every 30 seconds. | Assistant | supporting | IngestJob, ProcessedChunk, RawDocument, DeadLetter |
+| `knowledge-ingestion` | Ingest jobs, adapters, the processor and a worker that runs every 30 seconds. A second scheduler embeds the chunks stored without an embedding every 10 minutes. | Assistant | supporting | IngestJob, ProcessedChunk, RawDocument, DeadLetter |
 | `live-activity` | EventBus subscriber that updates or ends the Live Activity card. | Notifications | core | ActivityPushToken, Plant |
 | `message-queue` | Redis list provider for `MessageQueue`. | Platform | generic | none |
 | `notification-scheduler` | Claims pending notifications, gates and renders them, and enqueues them. The worker delivers the pushes. | Notifications | core | Notification, User, Plant, DeadLetter, DeviceToken, ActivityPushToken |
