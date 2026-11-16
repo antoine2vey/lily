@@ -1,6 +1,11 @@
+import type { PlantDetail } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { refreshOwnedData, useCanopyMutation } from '@/hooks/useCanopyMutations'
 import { apiEffectRunner } from '@/utils/client'
+import {
+  patchCachedResults,
+  restoreCachedResults,
+} from '@/utils/optimistic-cache'
 import { plantDetailKey } from '@/utils/plant-cache'
 import { queryKeys } from '@/utils/query-keys'
 
@@ -40,7 +45,15 @@ export function useSetPlantMuted() {
       muted
         ? apiEffectRunner('plants', 'mutePlant', { params: { id: plantId } })
         : apiEffectRunner('plants', 'unmutePlant', { params: { id: plantId } }),
-    onSuccess: (_, { plantId }) => {
+    onMutate: ({ plantId, muted }) =>
+      patchCachedResults<PlantDetail>(
+        queryClient,
+        { queryKey: plantDetailKey(plantId), exact: true },
+        (plant) => ({ ...plant, muted })
+      ),
+    onError: (_error, _variables, snapshot) =>
+      restoreCachedResults(queryClient, snapshot),
+    onSettled: (_data, _error, { plantId }) => {
       queryClient.invalidateQueries({ queryKey: plantDetailKey(plantId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all })
     },
