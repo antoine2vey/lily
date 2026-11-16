@@ -4,6 +4,17 @@
 # that Bun lists and devices report.
 FROM ghcr.io/railwayapp-templates/postgres-ssl:17
 
+# The IANA release in packages/db/icu-tzdata, which the api reads. The build
+# fails when Debian ships another one, so the two sides move together.
+# Changing it also rebuilds this layer, where a comment edit would reuse the
+# cached one.
+ARG TZDATA_RELEASE=2026f
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends tzdata-legacy \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* \
+  && version=$(dpkg-query -W -f='${Version}' tzdata) \
+  && case "$version" in \
+    "$TZDATA_RELEASE"-*) ;; \
+    *) echo "Debian ships tzdata $version, not $TZDATA_RELEASE. Set TZDATA_RELEASE to its IANA release and run scripts/update-icu-tzdata.sh with the same release." >&2; exit 1 ;; \
+  esac
