@@ -1028,6 +1028,101 @@ describe('findCareTasks', () => {
         expect(result.windowDays).toContain('2025-01-31')
       }
     })
+
+    it.each([
+      {
+        timezone: 'Europe/Paris',
+        clock: '00:30 on the 25-hour day',
+        now: '2026-10-24T22:30:00.000Z',
+        days: '2026-10-25 2026-10-26 2026-10-27 2026-10-28 2026-10-29 2026-10-30 2026-10-31 2026-11-01',
+      },
+      {
+        timezone: 'Europe/Paris',
+        clock: '23:30 on the eve of the 23-hour day',
+        now: '2026-03-28T22:30:00.000Z',
+        days: '2026-03-28 2026-03-29 2026-03-30 2026-03-31 2026-04-01 2026-04-02 2026-04-03 2026-04-04',
+      },
+      {
+        timezone: 'America/New_York',
+        clock: '00:30 on the 25-hour day',
+        now: '2026-11-01T04:30:00.000Z',
+        days: '2026-11-01 2026-11-02 2026-11-03 2026-11-04 2026-11-05 2026-11-06 2026-11-07 2026-11-08',
+      },
+      {
+        timezone: 'America/New_York',
+        clock: '23:30 on the eve of the 23-hour day',
+        now: '2026-03-08T04:30:00.000Z',
+        days: '2026-03-07 2026-03-08 2026-03-09 2026-03-10 2026-03-11 2026-03-12 2026-03-13 2026-03-14',
+      },
+      {
+        timezone: 'Pacific/Auckland',
+        clock: '00:30 on the 25-hour day',
+        now: '2026-04-04T11:30:00.000Z',
+        days: '2026-04-05 2026-04-06 2026-04-07 2026-04-08 2026-04-09 2026-04-10 2026-04-11 2026-04-12',
+      },
+      {
+        timezone: 'Pacific/Auckland',
+        clock: '23:30 on the eve of the 23-hour day',
+        now: '2026-09-26T11:30:00.000Z',
+        days: '2026-09-26 2026-09-27 2026-09-28 2026-09-29 2026-09-30 2026-10-01 2026-10-02 2026-10-03',
+      },
+      {
+        timezone: 'Pacific/Kiritimati',
+        clock: 'the last millisecond before local midnight',
+        now: '2026-06-16T09:59:59.999Z',
+        days: '2026-06-16 2026-06-17 2026-06-18 2026-06-19 2026-06-20 2026-06-21 2026-06-22 2026-06-23',
+      },
+      {
+        timezone: 'Pacific/Kiritimati',
+        clock: 'local midnight',
+        now: '2026-06-16T10:00:00.000Z',
+        days: '2026-06-17 2026-06-18 2026-06-19 2026-06-20 2026-06-21 2026-06-22 2026-06-23 2026-06-24',
+      },
+      {
+        timezone: 'Pacific/Kiritimati',
+        clock: 'the last millisecond before UTC midnight',
+        now: '2026-06-15T23:59:59.999Z',
+        days: '2026-06-16 2026-06-17 2026-06-18 2026-06-19 2026-06-20 2026-06-21 2026-06-22 2026-06-23',
+      },
+      {
+        timezone: 'Pacific/Pago_Pago',
+        clock: 'the last millisecond before local midnight',
+        now: '2026-06-16T10:59:59.999Z',
+        days: '2026-06-15 2026-06-16 2026-06-17 2026-06-18 2026-06-19 2026-06-20 2026-06-21 2026-06-22',
+      },
+      {
+        timezone: 'Pacific/Pago_Pago',
+        clock: 'local midnight',
+        now: '2026-06-16T11:00:00.000Z',
+        days: '2026-06-16 2026-06-17 2026-06-18 2026-06-19 2026-06-20 2026-06-21 2026-06-22 2026-06-23',
+      },
+      {
+        timezone: 'Pacific/Pago_Pago',
+        clock: 'UTC midnight',
+        now: '2026-06-16T00:00:00.000Z',
+        days: '2026-06-15 2026-06-16 2026-06-17 2026-06-18 2026-06-19 2026-06-20 2026-06-21 2026-06-22',
+      },
+    ])(
+      'lists eight consecutive calendar days in $timezone at $clock',
+      async ({ timezone, now, days }) => {
+        vi.setSystemTime(new Date(now))
+        const viewer = createTestUser({ id: 'user-zoned', timezone })
+        const layer = Layer.mergeAll(
+          createMockCanopyRepository([]),
+          createMockPlantRepository({ plants: [] }),
+          createMockCareScheduleRepository({ schedules: [], plants: [] }),
+          createMockCurrentUser({ id: 'user-zoned' }),
+          createMockUserRepository([viewer]),
+          createMockCareLogRepository([])
+        )
+
+        const result = await Effect.runPromise(
+          findCareTasks(false).pipe(Effect.provide(layer))
+        )
+
+        expect(Array.join(result.windowDays, ' ')).toBe(days)
+      }
+    )
   })
   describe('dead plants', () => {
     it('never lists tasks for a plant in the cemetery', async () => {
