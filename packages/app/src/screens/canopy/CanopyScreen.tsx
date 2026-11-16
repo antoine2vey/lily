@@ -20,6 +20,7 @@ import { CanopyInviteCard } from '@/screens/canopy/components/CanopyInviteCard'
 import { CanopyMembersCard } from '@/screens/canopy/components/CanopyMembersCard'
 import { CanopyNameCard } from '@/screens/canopy/components/CanopyNameCard'
 import { CanopyPlaceCard } from '@/screens/canopy/components/CanopyPlaceCard'
+import { CanopyPlantsCard } from '@/screens/canopy/components/CanopyPlantsCard'
 import type { ApiResult } from '@/utils/client'
 
 type CanopyView =
@@ -197,6 +198,7 @@ function CanopyDetail({ canopy }: { canopy: Canopy }) {
       testID="canopy-detail"
     >
       <CanopyNameCard key={canopy.name} name={canopy.name} />
+      <CanopyPlantsCard canopy={canopy} myUserId={myUserId} />
       <CanopyMembersCard canopy={canopy} myUserId={myUserId} />
       <CanopyInviteCard canopy={canopy} myUserId={myUserId} />
       <CanopyPlaceCard canopy={canopy} />

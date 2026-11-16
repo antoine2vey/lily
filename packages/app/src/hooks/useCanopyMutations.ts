@@ -25,12 +25,14 @@ const setMyCanopy = (queryClient: QueryClient, canopy: Canopy | null) =>
   )
 
 // Joining, leaving, removing a member and dissolving move plants and rooms
-// between owners.
-export const refreshOwnedData = (queryClient: QueryClient) => {
-  queryClient.invalidateQueries({ queryKey: queryKeys.plants.all })
-  queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all })
-  queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all })
-}
+// between owners. A mutation whose onSuccess returns this promise stays
+// pending until the screens show the move.
+export const refreshOwnedData = (queryClient: QueryClient) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.plants.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all }),
+  ])
 
 export function useCreateCanopy() {
   const queryClient = useQueryClient()
