@@ -33,7 +33,7 @@ const signedUrl = (key: string, query: string) =>
  * `outage.deletes` makes every delete fail the way an unreachable bucket does.
  */
 export const createInMemoryGCS = (
-  options: { privateUploads?: GCSUploadRequest[] } = {}
+  options: { privateUploads?: GCSUploadRequest[]; signedKeys?: string[] } = {}
 ) => {
   const objects: Record<BucketRole, Set<string>> = {
     plant: new Set(),
@@ -65,7 +65,10 @@ export const createInMemoryGCS = (
       })),
 
     getSignedUrl: (key: string): Effect.Effect<string> =>
-      Effect.succeed(signedUrl(key, 'signed=true&expires=3600')),
+      Effect.sync(() => {
+        options.signedKeys?.push(key)
+        return signedUrl(key, 'signed=true&expires=3600')
+      }),
 
     getSignedUrls: (
       keys: readonly string[]
@@ -139,5 +142,5 @@ export const createInMemoryGCS = (
 }
 
 export const createMockGCSService = (
-  options: { privateUploads?: GCSUploadRequest[] } = {}
+  options: { privateUploads?: GCSUploadRequest[]; signedKeys?: string[] } = {}
 ): Layer.Layer<GCSService> => createInMemoryGCS(options).layer

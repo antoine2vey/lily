@@ -21,6 +21,7 @@ import type {
 } from '@lily/api/services/ai-chat/plant-chat'
 import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { readChatImageKey } from '@lily/api/services/helpers/client-image'
 import type { RagService } from '@lily/api/services/rag/service'
 import {
   type Billing,
@@ -37,7 +38,6 @@ import type {
 } from '@lily/shared/errors/plant'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
-import { chatFolder } from '@lily/shared/services/file/stored-object'
 import type { UIMessage } from 'ai'
 import {
   Array,
@@ -145,15 +145,6 @@ const makeSseResponse = (
     HttpServerResponse.setHeaders(SSE_HEADERS)
   )
 
-// Older upload keys are `<epoch>-chat/<conversationId>/...`
-const isKeyOfConversation = (
-  key: string,
-  userId: string,
-  conversationId: string
-) =>
-  key.startsWith(`${chatFolder(userId, conversationId)}/`) ||
-  key.replace(/^\d+-/, '').startsWith(`chat/${conversationId}/`)
-
 /** How a chat turn ended once it got past the quota check. */
 type TurnOutcome =
   | 'replied'
@@ -227,22 +218,33 @@ export const streamChatMessage = (
     const gcs = yield* GCSService
     yield* annotateSuggestion(request.suggestion)
 
-    if (
-      request.imageKey !== undefined &&
-      !isKeyOfConversation(request.imageKey, userId, conversation.id)
-    ) {
-      return yield* new ConversationNotFoundError({ id: conversation.id })
-    }
-
-    const imageSignedUrl: string | undefined = yield* pipe(
-      Option.fromNullishOr(request.imageKey),
+    const imageKey: string | undefined = yield* pipe(
+      Option.fromUndefinedOr(request.imageKey),
       Option.match({
         onNone: () => Effect.undefined,
-        onSome: (key: string) => gcs.getSignedUrl(key),
+        onSome: (ref) =>
+          Effect.flatMap(
+            readChatImageKey(ref, conversation.id),
+            Option.match({
+              onNone: () =>
+                Effect.fail(
+                  new ConversationNotFoundError({ id: conversation.id })
+                ),
+              onSome: (key) => Effect.succeed(key),
+            })
+          ),
       })
     )
 
-    const fileParts = makeImageParts(request.imageKey)
+    const imageSignedUrl: string | undefined = yield* pipe(
+      Option.fromUndefinedOr(imageKey),
+      Option.match({
+        onNone: () => Effect.undefined,
+        onSome: (key) => gcs.getSignedUrl(key),
+      })
+    )
+
+    const fileParts = makeImageParts(imageKey)
 
     const userMessage: UIMessage = {
       id: generateMessageId('user'),
@@ -287,7 +289,7 @@ export const streamChatMessage = (
         Option.fromNullishOr(imageSignedUrl),
         Option.map((url) => ({
           imageUrl: url,
-          imageKey: request.imageKey,
+          imageKey,
         })),
         Option.getOrUndefined
       )

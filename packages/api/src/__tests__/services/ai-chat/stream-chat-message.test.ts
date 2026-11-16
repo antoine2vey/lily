@@ -170,20 +170,25 @@ describe('streamChatMessage', () => {
         }).pipe(Effect.provide(createTestLayer()))
       )
 
-    it.each([
-      `1770000000000-chat/${testConversation.id}/1770000000000-chat.jpg`,
-      `chat/${testConversation.id}/1770000000000-a1b2.jpg`,
-      `users/user-1/chat/${testConversation.id}/a1b2.jpg`,
-    ])('accepts a key uploaded to this conversation: %s', async (key) => {
-      expect(Exit.isSuccess(await streamWithKey(key))).toBe(true)
+    const ownFolder = `users/user-1/chat/${testConversation.id}`
+
+    it('accepts a key uploaded to this conversation', async () => {
+      const exit = await streamWithKey(`${ownFolder}/a1b2.jpg`)
+
+      expect(Exit.isSuccess(exit)).toBe(true)
     })
 
     it.each([
-      '1770000000000-chat/another-conversation/1770000000000-chat.jpg',
-      '1792786787517-scan-card-1792786787400.jpg',
-      `../chat/${testConversation.id}/x.jpg`,
+      `users/user-1/chat/another-conversation/a1b2.jpg`,
+      `users/user-1/identify/a1b2.jpg`,
       `users/someone-else/chat/${testConversation.id}/a1b2.jpg`,
-    ])('refuses a key from elsewhere in the bucket: %s', async (key) => {
+      `${ownFolder}/../another-conversation/a1b2.jpg`,
+      `../chat/${testConversation.id}/x.jpg`,
+      `1770000000000-chat/${testConversation.id}/1770000000000-chat.jpg`,
+      `chat/${testConversation.id}/1770000000000-a1b2.jpg`,
+      '1792786787517-scan-card-1792786787400.jpg',
+      'file:///var/mobile/tmp/photo.jpg',
+    ])('refuses a key from elsewhere: %s', async (key) => {
       const exit = await streamWithKey(key)
 
       expect(failureOf(exit)).toBeInstanceOf(ConversationNotFoundError)
