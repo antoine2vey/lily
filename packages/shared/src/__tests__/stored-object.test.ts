@@ -124,6 +124,110 @@ describe('namedObjects', () => {
     ])
   })
 
+  const PLANT_URL = 'https://storage.googleapis.com/lily-plants/'
+
+  it.each([
+    ['a #', `${PLANT_URL}1690000000000-my#pic.jpg`, '1690000000000-my#pic.jpg'],
+    ['a ?', `${PLANT_URL}1690000000000-what?.jpg`, '1690000000000-what?.jpg'],
+    [
+      'a ? and a # more than once',
+      `${PLANT_URL}1690000000000-a?b#c?d#.jpg`,
+      '1690000000000-a?b#c?d#.jpg',
+    ],
+    [
+      'a ? ahead of a real query',
+      `${PLANT_URL}1690000000000-what?.jpg?X-Goog-Signature=abc`,
+      '1690000000000-what?.jpg',
+    ],
+    [
+      'a # on a virtual-host URL',
+      'https://lily-plants.storage.googleapis.com/1690000000000-my#pic.jpg',
+      '1690000000000-my#pic.jpg',
+    ],
+    [
+      'a % that starts no escape',
+      `${PLANT_URL}1690000000000-100%.jpg`,
+      '1690000000000-100%.jpg',
+    ],
+    [
+      'a literal escape',
+      `${PLANT_URL}1690000000000-a%20b.jpg`,
+      '1690000000000-a%20b.jpg',
+    ],
+    [
+      'an escape next to a % that starts none',
+      `${PLANT_URL}1690000000000-50%-off%20now.jpg`,
+      '1690000000000-50%-off now.jpg',
+    ],
+    [
+      'an escape encoded twice',
+      `${PLANT_URL}1690000000000-a%2520b.jpg`,
+      '1690000000000-a b.jpg',
+    ],
+    ['a +', `${PLANT_URL}1690000000000-my+pic.jpg`, '1690000000000-my+pic.jpg'],
+    [
+      'a + that stands for a space',
+      `${PLANT_URL}1690000000000-my+pic.jpg`,
+      '1690000000000-my pic.jpg',
+    ],
+    [
+      'a space',
+      `${PLANT_URL}1690000000000-my pic.jpg`,
+      '1690000000000-my pic.jpg',
+    ],
+    [
+      'a trailing space',
+      `${PLANT_URL}1690000000000-pic.jpg `,
+      '1690000000000-pic.jpg ',
+    ],
+    [
+      'a tab, which the URL parser drops',
+      `${PLANT_URL}1690000000000-my\tpic.jpg`,
+      '1690000000000-my\tpic.jpg',
+    ],
+    [
+      'a backslash, which the URL parser turns into a slash',
+      `${PLANT_URL}1690000000000-my\\pic.jpg`,
+      '1690000000000-my\\pic.jpg',
+    ],
+    [
+      'dot segments, which the URL parser resolves',
+      `${PLANT_URL}1690000000000-a/../b.jpg`,
+      '1690000000000-a/../b.jpg',
+    ],
+    [
+      'non-ASCII letters',
+      `${PLANT_URL}1690000000000-植物.jpg`,
+      '1690000000000-植物.jpg',
+    ],
+    [
+      'a decomposed accent, stored composed',
+      `${PLANT_URL}1690000000000-café.jpg`,
+      '1690000000000-café.jpg',
+    ],
+    [
+      'a composed accent, stored decomposed',
+      `${PLANT_URL}1690000000000-café.jpg`,
+      '1690000000000-café.jpg',
+    ],
+  ])('keeps a client file name with %s in a URL', (_case, ref, key) => {
+    expect(named(ref)).toContainEqual({ bucket: 'plant', key })
+  })
+
+  it.each([
+    ['a #', '1690000000000-my#pic.jpg'],
+    ['a ?', '1690000000000-what?.jpg'],
+    ['a trailing space', '1690000000000-pic.jpg '],
+    ['a colon that reads as a URL scheme', 'scan:1690000000000.jpg'],
+  ])('keeps a bare key with %s whole', (_case, key) => {
+    expect(named(key)).toEqual(
+      expect.arrayContaining([
+        { bucket: 'plant', key },
+        { bucket: 'ai', key },
+      ])
+    )
+  })
+
   it.each([
     ['an empty reference', '   '],
     ['an OAuth avatar', 'https://lh3.googleusercontent.com/a/photo'],

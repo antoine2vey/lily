@@ -28,6 +28,9 @@ const DRY: SweepOptions = {
 const APPLY: SweepOptions = { ...DRY, apply: true }
 
 const LEGACY_KEY = '1690000000000-plants/p2/photo-1690000000000.jpg'
+const HASH_KEY = '1690000000000-my#pic.jpg'
+const QUERY_KEY = '1690000000000-what?.jpg'
+const BARE_KEY = '1690000000000-scan#2?.jpg'
 
 const OBJECTS: ReadonlyArray<
   readonly [BucketRole, string, { size: number; age: number }]
@@ -39,6 +42,9 @@ const OBJECTS: ReadonlyArray<
   ['plant', 'plants/p4/old.jpg', { size: 500, age: 30 }],
   ['ai', 'users/u2/chat/old.jpg', { size: 600, age: 30 }],
   ['plant', 'exports/backup.csv', { size: 700, age: 30 }],
+  ['plant', HASH_KEY, { size: 800, age: 400 }],
+  ['plant', QUERY_KEY, { size: 900, age: 400 }],
+  ['ai', BARE_KEY, { size: 1000, age: 400 }],
 ]
 
 const REFS: ReadonlyArray<StoredRef> = [
@@ -51,6 +57,15 @@ const REFS: ReadonlyArray<StoredRef> = [
     ref: `https://${MOCK_BUCKET_NAMES.plant}.storage.googleapis.com/${LEGACY_KEY}?X-Goog-Signature=abc`,
   },
   { source: 'chat_messages.image_key', ref: 'users/u1/chat/kept.jpg' },
+  {
+    source: 'plant_photos.url',
+    ref: `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.plant}/${HASH_KEY}`,
+  },
+  {
+    source: 'care_logs.photo_url',
+    ref: `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.plant}/${QUERY_KEY}`,
+  },
+  { source: 'diagnoses.image_key', ref: BARE_KEY },
 ]
 
 const setUp = (
@@ -124,6 +139,9 @@ describe('sweepOrphans', () => {
       'plants/p4/old.jpg': 'orphan',
       'users/u2/chat/old.jpg': 'orphan',
       'exports/backup.csv': 'foreign',
+      [HASH_KEY]: 'referenced',
+      [QUERY_KEY]: 'referenced',
+      [BARE_KEY]: 'referenced',
     })
     expect(result.outcomes).toEqual([])
     expect(result.blockers).toEqual([])
@@ -136,13 +154,13 @@ describe('sweepOrphans', () => {
     const result = await Effect.runPromise(run(DRY))
 
     expect(result.tallies.plant).toEqual({
-      referenced: { count: 2, bytes: 300 },
+      referenced: { count: 4, bytes: 2000 },
       'inside-grace': { count: 1, bytes: 400 },
       foreign: { count: 1, bytes: 700 },
       orphan: { count: 1, bytes: 500 },
     })
     expect(result.tallies.ai).toEqual({
-      referenced: { count: 1, bytes: 300 },
+      referenced: { count: 2, bytes: 1300 },
       'inside-grace': { count: 0, bytes: 0 },
       foreign: { count: 0, bytes: 0 },
       orphan: { count: 1, bytes: 600 },
@@ -167,11 +185,13 @@ describe('sweepOrphans', () => {
     expect(held(gcs.objects)).toEqual({
       plant: [
         LEGACY_KEY,
+        HASH_KEY,
+        QUERY_KEY,
         'exports/backup.csv',
         'plants/p1/kept.jpg',
         'plants/p3/fresh.jpg',
       ],
-      ai: ['users/u1/chat/kept.jpg'],
+      ai: [BARE_KEY, 'users/u1/chat/kept.jpg'],
     })
     expect(second.outcomes).toEqual([])
   })
@@ -204,7 +224,7 @@ describe('sweepOrphans', () => {
     [
       'a bucket has no referenced object',
       Array.take(REFS, 2),
-      `bucket ${MOCK_BUCKET_NAMES.ai} holds 2 objects`,
+      `bucket ${MOCK_BUCKET_NAMES.ai} holds 3 objects`,
     ],
     [
       'a reference mentions a bucket but names no object',
@@ -228,6 +248,7 @@ describe('sweepOrphans', () => {
       expect.arrayContaining([expect.stringContaining(blocker)])
     )
     expect(refused).toBeInstanceOf(SweepRefused)
+    expect(refused.message).toContain(blocker)
     expect(held(gcs.objects)).toEqual(before)
   })
 

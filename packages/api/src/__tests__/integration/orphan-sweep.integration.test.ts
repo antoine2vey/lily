@@ -28,6 +28,9 @@ const DRY: SweepOptions = {
 }
 
 const LEGACY_KEY = '1690000000000-plants/p1/photo-1690000000000.jpg'
+const HASH_KEY = '1690000000000-my#pic.jpg'
+const QUERY_KEY = '1690000000000-what?.jpg'
+const BARE_KEY = '1690000000000-scan#2?.jpg'
 
 const OBJECTS: ReadonlyArray<readonly [BucketRole, string, number]> = [
   ['plant', LEGACY_KEY, 900],
@@ -43,6 +46,9 @@ const OBJECTS: ReadonlyArray<readonly [BucketRole, string, number]> = [
   ['plant', 'plants/p1/old.jpg', 30],
   ['ai', 'users/a/chat/old.jpg', 30],
   ['plant', 'exports/dump.csv', 30],
+  ['plant', HASH_KEY, 900],
+  ['plant', QUERY_KEY, 900],
+  ['ai', BARE_KEY, 900],
 ]
 
 const signed = (bucket: string, key: string) =>
@@ -126,10 +132,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .returning()
       if (!plant) throw new Error('plant insert returned nothing')
-      await db.insert(schema.plantPhotos).values({
-        plantId: plant.id,
-        url: `http://storage.cloud.google.com/${MOCK_BUCKET_NAMES.plant}/plants/p1/photo%20one.jpg`,
-      })
+      await db.insert(schema.plantPhotos).values([
+        {
+          plantId: plant.id,
+          url: `http://storage.cloud.google.com/${MOCK_BUCKET_NAMES.plant}/plants/p1/photo%20one.jpg`,
+        },
+        { plantId: plant.id, url: mockPublicUrl(HASH_KEY) },
+        { plantId: plant.id, url: mockPublicUrl(QUERY_KEY) },
+      ])
       await db.insert(schema.careLogs).values({
         plantId: plant.id,
         type: 'watering',
@@ -181,6 +191,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         treatmentSteps: ['repot'],
         imageKey: 'users/a/diagnosis.jpg',
       })
+      await db.insert(schema.diagnoses).values({
+        plantId: plant.id,
+        userId: user.id,
+        diseaseName: 'Leaf spot',
+        severity: 'MODERATE',
+        confidence: 70,
+        symptoms: ['brown spots'],
+        treatmentSteps: ['prune'],
+        imageKey: BARE_KEY,
+      })
       await db.insert(schema.rarePlantIdentifications).values({
         userId: user.id,
         imageUrl: signed(MOCK_BUCKET_NAMES.ai, 'users/a/rare.jpg'),
@@ -196,13 +216,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(Object.fromEntries(result.refsBySource)).toEqual({
         'plants.image_url': 1,
-        'plant_photos.url': 1,
+        'plant_photos.url': 3,
         'care_logs.photo_url': 1,
         'users.image': 2,
         'plant_catalog.image_url': 1,
         'chat_messages.image_key': 1,
         'chat_messages.parts': 2,
-        'diagnoses.image_key': 1,
+        'diagnoses.image_key': 2,
         'rare_plant_identifications.image_url': 1,
       })
       expect(verdicts(result.decided)).toEqual({
@@ -219,6 +239,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         'plants/p1/old.jpg': 'orphan',
         'users/a/chat/old.jpg': 'orphan',
         'exports/dump.csv': 'foreign',
+        [HASH_KEY]: 'referenced',
+        [QUERY_KEY]: 'referenced',
+        [BARE_KEY]: 'referenced',
       })
       expect(result.blockers).toEqual([])
       expect(result.outcomes).toEqual([])
@@ -240,7 +263,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ['Deleted', 'ai', 'users/a/chat/old.jpg'],
       ])
       expect([...gcs.objects.plant].sort()).toEqual([
+        HASH_KEY,
         LEGACY_KEY,
+        QUERY_KEY,
         'catalog/fern.jpg',
         'exports/dump.csv',
         'plants/p1/care.jpg',
@@ -249,6 +274,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         'users/a/avatar.jpg',
       ])
       expect([...gcs.objects.ai].sort()).toEqual([
+        BARE_KEY,
         'users/a/chat/first.jpg',
         'users/a/chat/second.jpg',
         'users/a/diagnosis.jpg',
