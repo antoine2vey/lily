@@ -70,7 +70,13 @@ const handleDetectionError = (error: unknown, t: (key: string) => string) => {
   }
 }
 
-type ScanPhase = 'idle' | 'capturing' | 'uploading' | 'analyzing' | 'result'
+type ScanPhase =
+  | 'idle'
+  | 'picking'
+  | 'capturing'
+  | 'uploading'
+  | 'analyzing'
+  | 'result'
 
 export function UnifiedScannerScreen() {
   const { t } = useTranslation('addPlant')
@@ -250,17 +256,23 @@ export function UnifiedScannerScreen() {
   const handlePickFromGallery = useCallback(async () => {
     if (scanPhaseRef.current !== 'idle') return
 
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    })
-
-    if (pickerResult.canceled || !pickerResult.assets[0]) return
-
-    enterPhase('uploading')
+    // The camera keeps analysing frames behind the picker, so the scanner
+    // leaves idle until the picker closes.
+    enterPhase('picking')
 
     try {
-      const image = ImageManipulator.manipulate(pickerResult.assets[0].uri)
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      })
+      const pickedUri = picked.canceled ? undefined : picked.assets[0]?.uri
+      if (pickedUri === undefined) {
+        enterPhase('idle')
+        return
+      }
+
+      enterPhase('uploading')
+      const image = ImageManipulator.manipulate(pickedUri)
       const rendered = await image.renderAsync()
       const jpeg = await rendered.saveAsync({
         compress: 0.8,
@@ -376,6 +388,8 @@ export function UnifiedScannerScreen() {
     scanPhase === 'capturing' ||
     scanPhase === 'uploading' ||
     scanPhase === 'analyzing'
+  const showPhasePill =
+    detection.plantVisible || isScanning || scanPhase === 'result'
   useEffect(() => {
     if (isScanning) {
       spinSV.value = 0
@@ -599,7 +613,7 @@ export function UnifiedScannerScreen() {
           </View>
 
           {/* Scan phase pill below top bar */}
-          {!measureMode && (detection.plantVisible || scanPhase !== 'idle') && (
+          {!measureMode && showPhasePill && (
             <Animated.View
               entering={FadeIn.duration(200)}
               exiting={FadeOut.duration(200)}
@@ -744,7 +758,7 @@ export function UnifiedScannerScreen() {
                   <View className="flex-row items-center px-4 py-2.5">
                     <Animated.View style={isScanning ? spinStyle : undefined}>
                       <MaterialIcons
-                        name={scanPhase === 'idle' ? 'search' : 'autorenew'}
+                        name={isScanning ? 'autorenew' : 'search'}
                         size={16}
                         color="#A7D9A7"
                       />
@@ -935,7 +949,7 @@ export function UnifiedScannerScreen() {
             )}
             {/* Manual shutter button — visible when idle + no detection */}
             {!measureMode &&
-              scanPhase === 'idle' &&
+              (scanPhase === 'idle' || scanPhase === 'picking') &&
               !detection.plantVisible && (
                 <Pressable
                   onPress={handleForceCapture}
