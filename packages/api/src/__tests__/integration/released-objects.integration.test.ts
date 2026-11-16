@@ -513,6 +513,65 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         expect([...gcs.objects.plant]).toEqual([`plants/${fern}/photo.jpg`])
       })
+
+      it.each([
+        ['a bare key', (key: string) => key],
+        ['a key with a leading slash', (key: string) => `/${key}`],
+        ['a query', (key: string) => `${mockPublicUrl(key)}?alt=media`],
+        ['a fragment', (key: string) => `${mockPublicUrl(key)}#x`],
+        [
+          'an uppercase host',
+          (key: string) => `https://STORAGE.googleapis.com/mock-bucket/${key}`,
+        ],
+        [
+          'a virtual host',
+          (key: string) => `https://mock-bucket.storage.googleapis.com/${key}`,
+        ],
+        ['a gs:// URL', (key: string) => `gs://mock-bucket/${key}`],
+        [
+          'the JSON API',
+          (key: string) =>
+            `https://storage.googleapis.com/storage/v1/b/mock-bucket/o/${encodeURIComponent(key)}?alt=media`,
+        ],
+        [
+          'a tab the URL parser drops',
+          (key: string) =>
+            mockPublicUrl(`${key.slice(0, 10)}\t${key.slice(10)}`),
+        ],
+        [
+          'backslashes',
+          (key: string) => mockPublicUrl(key.replaceAll('/', '\\')),
+        ],
+        [
+          'a dot segment',
+          (key: string) => mockPublicUrl(`plants/elsewhere/../${key.slice(7)}`),
+        ],
+        [
+          'an escaped dot segment',
+          (key: string) =>
+            mockPublicUrl(`plants/elsewhere/%2E%2E/${key.slice(7)}`),
+        ],
+        [
+          'an escaped letter',
+          (key: string) =>
+            mockPublicUrl(
+              `plants/%${key.charCodeAt(7).toString(16).toUpperCase()}${key.slice(8)}`
+            ),
+        ],
+      ])(
+        'keeps the object while another plant shows it as %s',
+        async (_, spelled) => {
+          const fern = await plantOf(alex)
+          const key = `plants/${fern}/photo.jpg`
+          await plantOf(alex, spelled(key))
+          const photo = await photoOf(fern, key)
+          stored('plant', key)
+
+          await done(alex, deletePlantPhoto({ plantId: fern, photoId: photo }))
+
+          expect([...gcs.objects.plant]).toEqual([key])
+        }
+      )
     })
 
     describe("replacing a plant's image", () => {
@@ -601,6 +660,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           rot,
           `users/${alex}/chat/c2/other.jpg`,
         ])
+      })
+
+      it('keeps an image a diagnosis holds as a signed URL', async () => {
+        const fern = await plantOf(alex)
+        const leaf = `users/${alex}/chat/c1/leaf.jpg`
+        const conversation = await conversationOf(alex, fern, [leaf])
+        await diagnosisOf(
+          fern,
+          alex,
+          `https://storage.googleapis.com/mock-private-bucket/${leaf}?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=sa%40p.iam.gserviceaccount.com%2F20261116%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Signature=abc`
+        )
+        stored('ai', leaf)
+
+        await done(alex, deleteConversation(conversation))
+
+        expect([...gcs.objects.ai]).toEqual([leaf])
       })
 
       it('keeps the image of a diagnosis that is written while the conversation is deleted', async () => {

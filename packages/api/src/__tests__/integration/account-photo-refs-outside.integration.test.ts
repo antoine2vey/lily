@@ -7,7 +7,7 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import {
   legacyStampOf,
-  locateStoredObject,
+  namedObjects,
 } from '@lily/shared/services/file/stored-object'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -27,7 +27,7 @@ const PLAIN = `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.plant}/${KEY}`
 const BUCKET_PATH = `${MOCK_BUCKET_NAMES.plant}/`
 
 /**
- * Every known spelling of one URL. `locateStoredObject` and the SQL filter of
+ * Every known spelling of one URL. `namedObjects` and the SQL filter of
  * `findRefsOutside` are two readings of the same rule: a spelling that the
  * first resolves and the second misses lets a purge delete a photo that
  * another account holds. A new spelling is one more row here.
@@ -136,9 +136,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         )
 
-        expect(locateStoredObject(MOCK_BUCKET_NAMES)(spelling)).toEqual(
-          Option.some({ bucket: 'plant', key: KEY })
-        )
+        expect(namedObjects(MOCK_BUCKET_NAMES)(spelling)).toContainEqual({
+          bucket: 'plant',
+          key: KEY,
+        })
         expect(found).toEqual([spelling])
       }
     )

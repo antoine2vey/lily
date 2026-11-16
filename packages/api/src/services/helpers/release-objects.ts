@@ -8,6 +8,7 @@ import { GCSDeleteError } from '@lily/shared/services/file/gcs-errors'
 import {
   legacyOwnerOf,
   type ObjectScope,
+  type readStoredRef,
   type StoredObject,
   sameObject,
   scopePrefix,
@@ -41,7 +42,7 @@ export interface Release {
   readonly scopes: ReadonlyArray<ObjectScope>
   /** References the write may have dropped. */
   readonly dropped: ReadonlyArray<Held>
-  /** References a row still points at once the write is done. */
+  /** References on rows that may still name a dropped object. */
   readonly kept: ReadonlyArray<string>
 }
 
@@ -73,6 +74,15 @@ export const holds = (holder: Holder, object: StoredObject): boolean =>
       ),
   })
 
+/** The objects `ref` may name that its holder owns. */
+const releasable =
+  (read: ReturnType<typeof readStoredRef>) =>
+  ({ holder, ref }: Held): ReadonlyArray<StoredObject> =>
+    Option.match(read(ref), {
+      onNone: () => [],
+      onSome: Array.filter((object) => holds(holder, object)),
+    })
+
 const withinTimeLimit = (
   effect: Effect.Effect<void, GCSDeleteError>
 ): Effect.Effect<void, GCSDeleteError> =>
@@ -102,19 +112,20 @@ export const releaseObjects = ({
 }: Release): Effect.Effect<void, never, GCSService> =>
   Effect.gen(function* () {
     const gcs = yield* GCSService
-    const stillPointedAt = Array.getSomes(Array.map(kept, gcs.locate))
-    const objects = pipe(
-      Array.getSomes(
-        Array.map(dropped, ({ holder, ref }) =>
-          Option.filter(gcs.locate(ref), (object) => holds(holder, object))
+    const objects = Option.match(Option.all(Array.map(kept, gcs.readRef)), {
+      onNone: () => [],
+      onSome: (named) => {
+        const stillNamed = Array.flatten(named)
+        return pipe(
+          Array.flatMap(dropped, releasable(gcs.readRef)),
+          Array.filter(
+            (object) =>
+              !Array.some(stillNamed, (held) => sameObject(held, object))
+          ),
+          Array.dedupeWith(sameObject)
         )
-      ),
-      Array.filter(
-        (object) =>
-          !Array.some(stillPointedAt, (held) => sameObject(held, object))
-      ),
-      Array.dedupeWith(sameObject)
-    )
+      },
+    })
 
     const deleteScopes = Array.map(scopes, (scope) =>
       withinTimeLimit(gcs.deleteScope(scope)).pipe(
@@ -168,10 +179,13 @@ export const releasing = <A, E, R>(
   Effect.gen(function* () {
     const refs = yield* StoredRefRepository
     const transaction = yield* Transaction
+    const gcs = yield* GCSService
     const storage = yield* Effect.context<GCSService>()
     const dropped = yield* held
     const result = yield* write
-    const kept = yield* refs.stillHeld(Array.map(dropped, ({ ref }) => ref))
+    const kept = yield* refs.stillHeld(
+      Array.flatMap(dropped, releasable(gcs.readRef))
+    )
     yield* transaction.afterCommit(
       Effect.provide(releaseObjects({ scopes, dropped, kept }), storage)
     )

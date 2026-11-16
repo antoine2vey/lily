@@ -1,4 +1,4 @@
-import { Array, Effect, Option, Schema } from 'effect'
+import { Array, Effect, Option, pipe, Schema, String } from 'effect'
 import { MAX_FILE_SIZE_BYTES } from '../../domains/plant/constants'
 
 export class InvalidImageError extends Schema.TaggedError<InvalidImageError>()(
@@ -79,3 +79,17 @@ export const planImageUpload = (
       }),
   })
 }
+
+const PLANNED_NAME =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(\w+)$/
+
+/** Whether `key` is one that `planImageUpload` makes in `folder`. */
+export const isPlannedKey = (folder: string, key: string): boolean =>
+  String.startsWith(`${folder}/`)(key) &&
+  pipe(
+    String.slice(folder.length + 1)(key),
+    String.match(PLANNED_NAME),
+    Option.exists(([, extension]) =>
+      Array.some(IMAGE_TYPES, (type) => type.extension === extension)
+    )
+  )

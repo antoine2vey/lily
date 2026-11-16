@@ -3,7 +3,7 @@ import {
   type StoredRef,
   StoredRefRepository,
 } from '@lily/api/repositories/stored-ref.repository'
-import { Array, Effect, Layer, Option, Stream } from 'effect'
+import { Effect, Layer, Option, Stream } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -25,9 +25,6 @@ export const createMockStoredRefRepository = (
     chatOfPlant: () => Effect.succeed(rows.chat ?? []),
     chatOfConversation: () => Effect.succeed(rows.chat ?? []),
     lockAvatar: () => Effect.succeed(Option.fromUndefinedOr(rows.avatar)),
-    stillHeld: (refs) =>
-      Effect.succeed(
-        Array.filter(refs, (ref) => Array.contains(rows.held ?? [], ref))
-      ),
+    stillHeld: () => Effect.succeed(rows.held ?? []),
     everyRef: rows.everyRef ?? Stream.empty,
   })

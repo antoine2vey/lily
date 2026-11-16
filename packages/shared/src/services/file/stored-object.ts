@@ -26,6 +26,10 @@ export const chatFolder = (userId: string, conversationId: string): string =>
 
 export const plantFolder = (plantId: string): string => `plants/${plantId}`
 
+/** The URL the API stores for an object of the public plant bucket. */
+export const publicUrlOf = (bucketName: string, key: string): string =>
+  `https://storage.googleapis.com/${bucketName}/${key}`
+
 export type BucketRole = 'plant' | 'ai'
 
 export interface StoredObject {
@@ -37,36 +41,6 @@ export const sameObject = (a: StoredObject, b: StoredObject): boolean =>
   a.bucket === b.bucket && a.key === b.key
 
 const decodeKey = Option.liftThrowable(decodeURIComponent)
-
-/**
- * Reads a stored reference back into an object. The plant bucket is stored as
- * a public URL, the ai bucket as a bare key or a signed URL. A URL outside
- * both buckets, such as an OAuth avatar, is nobody's object, and so is a URL
- * whose path does not decode.
- */
-export const locateStoredObject =
-  (bucketNames: Record<BucketRole, string>) =>
-  (ref: string): Option.Option<StoredObject> => {
-    if (!URL.canParse(ref)) {
-      return String.isEmpty(ref)
-        ? Option.none()
-        : Option.some({ bucket: 'ai', key: ref })
-    }
-    const [, bucketName, ...segments] = pipe(
-      new URL(ref).pathname,
-      String.split('/')
-    )
-    const bucket = pipe(
-      Match.value(bucketName),
-      Match.when(bucketNames.plant, () => Option.some<BucketRole>('plant')),
-      Match.when(bucketNames.ai, () => Option.some<BucketRole>('ai')),
-      Match.orElse(() => Option.none<BucketRole>())
-    )
-    return pipe(
-      Option.all({ bucket, key: decodeKey(Array.join(segments, '/')) }),
-      Option.filter(({ key }) => String.isNonEmpty(key))
-    )
-  }
 
 export const BUCKET_ROLES: ReadonlyArray<BucketRole> = ['plant', 'ai']
 
@@ -224,6 +198,51 @@ export const namedObjects = (bucketNames: Record<BucketRole, string>) => {
   }
 }
 
+const READABLE_LENGTH = 2048
+
+/**
+ * `namedObjects` for a reference short enough to read. Reading takes time
+ * that grows with the square of the length, and a client can write a
+ * reference of any length. None means the caller cannot tell what the
+ * reference names: the server writes none that long.
+ */
+export const readStoredRef = (bucketNames: Record<BucketRole, string>) => {
+  const named = namedObjects(bucketNames)
+  return (ref: string): Option.Option<ReadonlyArray<StoredObject>> =>
+    String.length(ref) > READABLE_LENGTH
+      ? Option.none()
+      : Option.some(named(ref))
+}
+
+const SEARCH_RUN = /[A-Za-z0-9-]+/g
+
+/**
+ * How to find, with a text search, every reference that `namedObjects` may
+ * read a key out of. Such a reference holds the key's search run unless it
+ * holds an `unsafe` character or an `escape`. An unsafe character is one the
+ * URL parser drops or escapes into hex digits, or one outside ASCII, which
+ * NFD can split into a letter. An escape decodes to a run character, to `%`,
+ * or to a byte outside ASCII. Revisit both when `namedObjects` reads a key a
+ * new way.
+ */
+export const KEY_DISGUISE = {
+  unsafe: '[^!#-;=?-_a-z|~]',
+  escape:
+    '%(2[5dD]|3[0-9]|4[1-9a-fA-F]|5[0-9aA]|6[1-9a-fA-F]|7[0-9aA]|[89a-fA-F][0-9a-fA-F])',
+} as const
+
+/**
+ * The longest run of letters, digits and `-` in a key, the first of equals.
+ * The first is the scope's ID in a scoped key, so the keys of one scope share
+ * a run.
+ */
+export const searchRunOf = (key: string): string =>
+  Array.reduce(
+    Array.fromIterable(String.matchAll(SEARCH_RUN)(key)),
+    '',
+    (longest, [run]) => (run.length > longest.length ? run : longest)
+  )
+
 /**
  * What a key written before the scoped layout says about its owner. Those
  * keys start with the epoch millis of the upload: `<epoch>-<client file name>`
@@ -240,7 +259,7 @@ const LEGACY_NAMED = /^\d+-(avatars|plants)\/(.+?)(?:\/|-\d+\.)/
 
 /**
  * How a URL can hide the stamp of an older key from a text search, although
- * `locateStoredObject` still reads the key out of it. The URL parser drops
+ * `namedObjects` still reads the key out of it. The URL parser drops
  * `ignored` characters wherever they are, and a digit may be percent-encoded.
  * Search for the stamp with `ignored` removed, and take any URL that matches
  * `encodedDigit` as well. The spellings table in

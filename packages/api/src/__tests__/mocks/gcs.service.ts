@@ -11,8 +11,9 @@ import {
 import {
   type BucketRole,
   type ListedObject,
-  locateStoredObject,
   type ObjectScope,
+  publicUrlOf,
+  readStoredRef,
   type StoredObject,
   scopePrefix,
 } from '@lily/shared/services/file/stored-object'
@@ -24,7 +25,7 @@ export const MOCK_BUCKET_NAMES = {
 }
 
 export const mockPublicUrl = (key: string) =>
-  `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.plant}/${key}`
+  publicUrlOf(MOCK_BUCKET_NAMES.plant, key)
 
 const signedUrl = (key: string, query: string) =>
   `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/${key}?${query}`
@@ -113,7 +114,7 @@ export const createInMemoryGCS = (
 
     bucketNames: MOCK_BUCKET_NAMES,
 
-    locate: locateStoredObject(MOCK_BUCKET_NAMES),
+    readRef: readStoredRef(MOCK_BUCKET_NAMES),
 
     listObjects: (bucket: BucketRole): Stream.Stream<ListedObject> =>
       Stream.suspend(() =>
