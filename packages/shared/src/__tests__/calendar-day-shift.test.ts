@@ -82,6 +82,13 @@ describe('the day after and the day before, one calendar day from now', () => {
       tomorrow: '2026-09-26T12:00:00.000Z',
     },
     {
+      timezone: 'Africa/Cairo',
+      clock: 'noon on the eve of a day whose midnight is skipped',
+      now: '2026-04-23T10:00:00.000Z',
+      today: '2026-04-22T22:00:00.000Z',
+      tomorrow: '2026-04-23T22:00:00.000Z',
+    },
+    {
       timezone: 'Pacific/Kiritimati',
       clock: 'the last millisecond before local midnight',
       now: '2026-06-16T09:59:59.999Z',

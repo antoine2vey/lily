@@ -1,5 +1,6 @@
 import { DateTime, Duration, Option, pipe } from 'effect'
 
+import { CareDays } from '../../care/care-day'
 import { type DateInput, now, parseApiDate } from './parse'
 import { endOfDay, endOfWeek, startOfDay, withTimeZone } from './timezone'
 
@@ -119,7 +120,7 @@ export const isThisWeek = (
 }
 
 /**
- * Check if a DateTime is yesterday.
+ * Check if a DateTime is yesterday, the calendar day before today.
  *
  * @param dateTime - DateTime to check
  * @param timezone - IANA timezone string
@@ -128,24 +129,9 @@ export const isThisWeek = (
 export const isYesterday = (
   dateTime: DateTime.DateTime,
   timezone: string
-): boolean => {
-  // Subtract before applying the timezone — `DateTime.subtract` on a
-  // Zoned DateTime can throw `RangeError: Invalid time value` under
-  // Hermes for some timezones (intermediate native Date round-trip).
-  // Match the safe pattern used by isOverdue above.
-  const yesterday = withTimeZone(
-    DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
-    timezone
-  )
-  const target = withTimeZone(dateTime, timezone)
-  const targetParts = DateTime.toParts(target)
-  const yesterdayParts = DateTime.toParts(yesterday)
-  return (
-    targetParts.year === yesterdayParts.year &&
-    targetParts.month === yesterdayParts.month &&
-    targetParts.day === yesterdayParts.day
-  )
-}
+): boolean =>
+  CareDays.of(dateTime, timezone) ===
+  CareDays.addDays(CareDays.today(timezone, DateTime.nowUnsafe()), -1)
 
 /**
  * Calculate days since a date (days between a past date and now).
