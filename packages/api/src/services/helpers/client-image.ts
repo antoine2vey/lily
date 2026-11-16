@@ -1,6 +1,9 @@
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { GCSService } from '@lily/shared/services/file/gcs'
-import { scopePrefix } from '@lily/shared/services/file/stored-object'
+import {
+  chatFolder,
+  scopePrefix,
+} from '@lily/shared/services/file/stored-object'
 import { Array, Data, Effect, Option, pipe, String } from 'effect'
 
 /**
@@ -27,14 +30,18 @@ export const ClientImage = Data.taggedEnum<ClientImage>()
 export const deviceFile = (ref: string | undefined): Option.Option<string> =>
   pipe(Option.fromNullishOr(ref), Option.filter(String.startsWith('file:///')))
 
+const SERVER_MADE_SEGMENT = /^[\w.-]+$/
+
 /**
+ * The server writes keys of letters, digits, `.`, `-` and `_` between slashes.
  * A `..` segment survives in a key when the URL spelled its slash as `%2F`,
  * and a URL built from that key leaves the folder its prefix names.
  */
-const staysInFolder = (key: string) =>
-  !Array.some(
+const isServerMadeKey = (key: string) =>
+  Array.every(
     String.split(key, '/'),
-    (segment) => segment === '.' || segment === '..'
+    (segment) =>
+      segment !== '.' && segment !== '..' && SERVER_MADE_SEGMENT.test(segment)
   )
 
 export const readClientImage = (
@@ -55,11 +62,30 @@ export const readClientImage = (
             ({ bucket, key }) =>
               bucket === 'ai' &&
               String.startsWith(ownFolder)(key) &&
-              staysInFolder(key)
+              isServerMadeKey(key)
           ),
           Option.map(({ key }) => ClientImage.OwnUpload({ key }))
         )
       ),
       Option.getOrElse(() => ClientImage.Untrusted())
+    )
+  })
+
+/**
+ * The key of a photo the caller uploaded to this conversation, from the key
+ * the chat upload answered with.
+ */
+export const readChatImageKey = (
+  ref: string,
+  conversationId: string
+): Effect.Effect<Option.Option<string>, never, GCSService | CurrentUser> =>
+  Effect.gen(function* () {
+    const { id: userId } = yield* CurrentUser
+    const image = yield* readClientImage(ref)
+
+    return pipe(
+      Option.liftPredicate(image, ClientImage.$is('OwnUpload')),
+      Option.map(({ key }) => key),
+      Option.filter(String.startsWith(`${chatFolder(userId, conversationId)}/`))
     )
   })
