@@ -237,6 +237,17 @@ describe('sweepOrphans', () => {
       ],
       '1 references mention a bucket but name no object',
     ],
+    [
+      'a reference is too long to read',
+      [
+        ...REFS,
+        {
+          source: 'plants.image_url',
+          ref: `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.plant}/plants/p4/old.jpg?${'a'.repeat(2100)}`,
+        },
+      ],
+      '1 references are too long to read',
+    ],
   ])('refuses to delete when %s', async (_, refs, blocker) => {
     const { gcs, run } = setUp(Stream.fromIterable(refs))
     const before = held(gcs.objects)

@@ -62,6 +62,19 @@ describe('namedObjects', () => {
       'lily-ai/users/u1/chat/c1/a.png',
       [{ bucket: 'ai', key: 'users/u1/chat/c1/a.png' }],
     ],
+    [
+      'a signed URL with an uppercase escape next to a % that starts none',
+      'https://storage.googleapis.com/lily-ai/users/u1/chat/c1/100%-%F0%9F%8C%B1.png?X-Goog-Signature=abc',
+      [{ bucket: 'ai', key: 'users/u1/chat/c1/100%-🌱.png' }],
+    ],
+    [
+      'a key with a leading slash',
+      '/1690000000000-a.png',
+      [
+        { bucket: 'plant', key: '1690000000000-a.png' },
+        { bucket: 'ai', key: '1690000000000-a.png' },
+      ],
+    ],
   ])('reads %s', (_case, ref, objects) => {
     expect(named(ref)).toEqual(expect.arrayContaining(objects))
   })
@@ -100,6 +113,31 @@ describe('namedObjects', () => {
     [
       'a # on a virtual-host URL',
       'https://lily-plants.storage.googleapis.com/1690000000000-my#pic.jpg',
+      '1690000000000-my#pic.jpg',
+    ],
+    [
+      'a # on a virtual-host URL with a port',
+      'https://lily-plants.storage.googleapis.com:443/1690000000000-my#pic.jpg',
+      '1690000000000-my#pic.jpg',
+    ],
+    [
+      'a ? on a virtual-host URL with a user',
+      'https://user:pw@lily-plants.storage.googleapis.com/1690000000000-what?.jpg',
+      '1690000000000-what?.jpg',
+    ],
+    [
+      'a # on an uppercase virtual-host URL',
+      'https://LILY-PLANTS.Storage.GoogleAPIs.com/1690000000000-my#pic.jpg',
+      '1690000000000-my#pic.jpg',
+    ],
+    [
+      'a ? on a virtual-host URL with an escaped host',
+      'https://lily%2Dplants.storage.googleapis.com/1690000000000-what?.jpg',
+      '1690000000000-what?.jpg',
+    ],
+    [
+      'a # on a virtual-host URL with a trailing dot',
+      'https://lily-plants.storage.googleapis.com./1690000000000-my#pic.jpg',
       '1690000000000-my#pic.jpg',
     ],
     [

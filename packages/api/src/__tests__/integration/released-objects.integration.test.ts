@@ -6,6 +6,7 @@ import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import {
   createInMemoryGCS,
+  MOCK_BUCKET_NAMES,
   mockPublicUrl,
 } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -54,7 +55,10 @@ import { withPermittedPlant } from '@lily/api/services/plants/helpers/with-plant
 import { uploadAvatar } from '@lily/api/services/user/endpoints/upload-avatar'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import type { BucketRole } from '@lily/shared/services/file/stored-object'
+import {
+  type BucketRole,
+  namedObjects,
+} from '@lily/shared/services/file/stored-object'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Exit, Layer, References } from 'effect'
@@ -552,11 +556,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             mockPublicUrl(`plants/elsewhere/%2E%2E/${key.slice(7)}`),
         ],
         [
-          'an escaped letter',
-          (key: string) =>
-            mockPublicUrl(
-              `plants/%${key.charCodeAt(7).toString(16).toUpperCase()}${key.slice(8)}`
-            ),
+          'an escaped dash',
+          (key: string) => mockPublicUrl(key.replace('-', '%2D')),
         ],
       ])(
         'keeps the object while another plant shows it as %s',
@@ -572,6 +573,27 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           expect([...gcs.objects.plant]).toEqual([key])
         }
       )
+
+      it('finds a row that shows an escaped caret key with a caret', async () => {
+        const fern = await plantOf(alex)
+        const name = `a^${'b'.repeat(40)}.jpg`
+        const key = `plants/${fern}/${encodeURIComponent(name)}`
+        const caret = mockPublicUrl(`plants/${fern}/${name}`)
+        await plantOf(alex, caret)
+
+        const held = await done(
+          alex,
+          Effect.flatMap(StoredRefRepository, (refs) =>
+            refs.stillHeld([{ bucket: 'plant', key }])
+          )
+        )
+
+        expect(namedObjects(MOCK_BUCKET_NAMES)(caret)).toContainEqual({
+          bucket: 'plant',
+          key,
+        })
+        expect(held).toEqual([caret])
+      })
     })
 
     describe("replacing a plant's image", () => {
