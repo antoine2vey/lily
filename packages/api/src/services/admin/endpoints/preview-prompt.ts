@@ -13,7 +13,7 @@ import { RagService } from '@lily/api/services/rag/service'
 import { daysSince, formatIsoDate } from '@lily/shared'
 import type { PromptPreviewResponse } from '@lily/shared/admin'
 import { ChatMessageNotFoundError } from '@lily/shared/errors/admin'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const previewPrompt = (
@@ -82,6 +82,8 @@ export const previewPrompt = (
       plant: { ...plant, schedules },
       daysSinceAdded,
       careHistoryText,
+      timezone: 'UTC',
+      now: yield* DateTime.now,
     })
 
     // 8. Load conversation history (messages before this one)

@@ -8,7 +8,8 @@ import {
   pipe,
 } from 'effect'
 
-import { daysUntil, isToday, isYesterday } from './compare'
+import { CareDays } from '../../care/care-day'
+import { isToday, isYesterday } from './compare'
 import {
   type DateInput,
   formatApiDateWith,
@@ -523,18 +524,29 @@ export const formatIsoDate = (
 /**
  * Format days until a date as a human-readable string.
  * Returns strings like "Today", "Tomorrow", "In 3 days", "2 days overdue".
+ * Counts calendar days in `timezone`, the zone whose local midnight a stored
+ * due date marks.
  *
  * @param dateInput - Date input (Date, string, number, or null/undefined)
+ * @param now - The current instant
+ * @param timezone - IANA timezone string, UTC when unknown
  * @param defaultValue - Value to return if date is invalid (default: "Not scheduled")
  * @returns Human-readable string describing days until the date
  */
 export const formatDaysUntilHuman = (
   dateInput: DateInput,
+  now: DateTime.DateTime,
+  timezone: string,
   defaultValue = 'Not scheduled'
 ): string =>
   pipe(
     parseApiDate(dateInput),
-    Option.map(daysUntil),
+    Option.map((target) =>
+      CareDays.daysBetween(
+        CareDays.today(timezone, now),
+        CareDays.of(target, timezone)
+      )
+    ),
     Option.match({
       onNone: () => defaultValue,
       onSome: (days) =>

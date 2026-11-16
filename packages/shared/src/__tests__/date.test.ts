@@ -3,8 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   daysBetween,
   daysSince,
-  daysUntil,
-  daysUntilApiDate,
   endOfDay,
   endOfWeek,
   formatApiDateAsNextDate,
@@ -144,48 +142,6 @@ describe('Date Utilities', () => {
       const resultMs = DateTime.toEpochMillis(result)
       expect(resultMs).toBeGreaterThanOrEqual(before)
       expect(resultMs).toBeLessThanOrEqual(after)
-    })
-  })
-
-  describe('daysUntil', () => {
-    beforeEach(() => {
-      // Mock DateTime.unsafeNow to return a fixed date
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
-    it('should return positive days for future date', () => {
-      const futureDate = createFixedDateTime(2024, 6, 20) // 5 days later
-      const result = daysUntil(futureDate)
-      expect(result).toBe(5)
-    })
-
-    it('should return negative days for past date', () => {
-      const pastDate = createFixedDateTime(2024, 6, 10) // 5 days ago
-      const result = daysUntil(pastDate)
-      expect(result).toBe(-5)
-    })
-
-    it('should return 0 for same day', () => {
-      const sameDay = createFixedDateTime(2024, 6, 15, 18, 0) // Same day, later time
-      const result = daysUntil(sameDay)
-      expect(result).toBe(0) // Same calendar day = 0 days
-    })
-
-    it('should handle month boundaries', () => {
-      const nextMonth = createFixedDateTime(2024, 7, 1)
-      const result = daysUntil(nextMonth)
-      expect(result).toBe(16) // June 15 to July 1 = 16 days
-    })
-
-    it('should handle year boundaries', () => {
-      const nextYear = createFixedDateTime(2025, 1, 1)
-      const result = daysUntil(nextYear)
-      expect(result).toBeGreaterThan(180) // More than half a year
     })
   })
 
@@ -867,24 +823,6 @@ describe('Date Utilities', () => {
       vi.useRealTimers()
     })
 
-    describe('daysUntilApiDate', () => {
-      it('should return days for valid date', () => {
-        const futureDate = new Date('2024-06-20T12:00:00Z')
-        const result = daysUntilApiDate(futureDate)
-        expect(result).toBe(5)
-      })
-
-      it('should return default for null', () => {
-        const result = daysUntilApiDate(null)
-        expect(result).toBe(0)
-      })
-
-      it('should return custom default for null', () => {
-        const result = daysUntilApiDate(null, -1)
-        expect(result).toBe(-1)
-      })
-    })
-
     describe('formatApiDateAsNextDate', () => {
       it('should format valid date', () => {
         const date = new Date('2024-06-17T12:00:00Z') // Monday
@@ -988,17 +926,6 @@ describe('Date Utilities', () => {
         expect(parts.month).toBe(2)
         expect(parts.day).toBe(29)
       }
-    })
-
-    it('should handle end of year boundary', () => {
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date('2024-12-31T23:59:00Z'))
-
-      const tomorrow = createFixedDateTime(2025, 1, 1, 0, 0)
-      const result = daysUntil(tomorrow)
-      expect(result).toBe(1)
-
-      vi.useRealTimers()
     })
 
     it('should handle daylight saving time transitions', () => {
@@ -1278,59 +1205,78 @@ describe('Date Utilities', () => {
   })
 
   describe('formatDaysUntilHuman', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-      // June 15, 2024 12:00 UTC (Saturday)
-      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
+    const noon = DateTime.makeUnsafe('2024-06-15T12:00:00Z')
+
+    it.each([
+      ['2024-06-15T18:00:00Z', 'Today'],
+      ['2024-06-16T12:00:00Z', 'Tomorrow'],
+      ['2024-06-20T12:00:00Z', 'In 5 days'],
+      ['2024-06-12T12:00:00Z', '3 days overdue'],
+      ['2024-06-14T12:00:00Z', '1 days overdue'],
+      ['2025-01-01T00:00:00Z', 'In 200 days'],
+    ])('reads %s from noon UTC on 2024-06-15 as "%s"', (target, expected) => {
+      expect(formatDaysUntilHuman(new Date(target), noon, 'UTC')).toBe(expected)
     })
 
-    afterEach(() => {
-      vi.useRealTimers()
+    // A due day is stored as the local midnight that starts it, which is on
+    // the previous UTC day east of UTC and on the same UTC day west of it.
+    it.each([
+      {
+        zone: 'Europe/Paris',
+        now: '2026-06-10T08:00:00Z',
+        due: '2026-06-10T22:00:00Z',
+        expected: 'Tomorrow',
+      },
+      {
+        zone: 'Europe/Paris',
+        now: '2026-06-10T22:30:00Z',
+        due: '2026-06-10T22:00:00Z',
+        expected: 'Today',
+      },
+      {
+        zone: 'Europe/Paris',
+        now: '2026-06-10T22:30:00Z',
+        due: '2026-06-11T22:00:00Z',
+        expected: 'Tomorrow',
+      },
+      {
+        zone: 'Europe/Paris',
+        now: '2026-06-10T22:30:00Z',
+        due: '2026-06-09T22:00:00Z',
+        expected: '1 days overdue',
+      },
+      {
+        zone: 'America/New_York',
+        now: '2026-06-11T02:00:00Z',
+        due: '2026-06-11T04:00:00Z',
+        expected: 'Tomorrow',
+      },
+      {
+        zone: 'America/New_York',
+        now: '2026-06-11T02:00:00Z',
+        due: '2026-06-10T04:00:00Z',
+        expected: 'Today',
+      },
+      {
+        zone: 'Pacific/Auckland',
+        now: '2026-06-11T01:00:00Z',
+        due: '2026-06-11T12:00:00Z',
+        expected: 'Tomorrow',
+      },
+    ])('counts $zone days: now $now, due $due is "$expected"', (row) => {
+      expect(
+        formatDaysUntilHuman(
+          new Date(row.due),
+          DateTime.makeUnsafe(row.now),
+          row.zone
+        )
+      ).toBe(row.expected)
     })
 
-    it('should return "Today" for same day', () => {
-      const today = new Date('2024-06-15T18:00:00Z')
-      const result = formatDaysUntilHuman(today)
-      expect(result).toBe('Today')
-    })
-
-    it('should return "Tomorrow" for next day', () => {
-      const tomorrow = new Date('2024-06-16T12:00:00Z')
-      const result = formatDaysUntilHuman(tomorrow)
-      expect(result).toBe('Tomorrow')
-    })
-
-    it('should return "In X days" for future dates', () => {
-      const futureDate = new Date('2024-06-20T12:00:00Z')
-      const result = formatDaysUntilHuman(futureDate)
-      expect(result).toBe('In 5 days')
-    })
-
-    it('should return "X days overdue" for past dates', () => {
-      const pastDate = new Date('2024-06-12T12:00:00Z')
-      const result = formatDaysUntilHuman(pastDate)
-      expect(result).toBe('3 days overdue')
-    })
-
-    it('should return "1 days overdue" for yesterday', () => {
-      const yesterday = new Date('2024-06-14T12:00:00Z')
-      const result = formatDaysUntilHuman(yesterday)
-      expect(result).toBe('1 days overdue')
-    })
-
-    it('should return default value for null', () => {
-      const result = formatDaysUntilHuman(null)
-      expect(result).toBe('Not scheduled')
-    })
-
-    it('should return default value for undefined', () => {
-      const result = formatDaysUntilHuman(undefined)
-      expect(result).toBe('Not scheduled')
-    })
-
-    it('should return custom default value when provided', () => {
-      const result = formatDaysUntilHuman(null, 'Not set')
-      expect(result).toBe('Not set')
+    it('returns the default value for a missing date', () => {
+      expect(formatDaysUntilHuman(null, noon, 'UTC')).toBe('Not scheduled')
+      expect(formatDaysUntilHuman(undefined, noon, 'UTC')).toBe('Not scheduled')
+      expect(formatDaysUntilHuman(null, noon, 'UTC', 'Not set')).toBe('Not set')
     })
   })
 

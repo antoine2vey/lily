@@ -1,6 +1,12 @@
+import { TimeZone } from '@lily/shared'
 import type { CarePlan } from '@lily/shared/care-plan'
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { getDeviceTimezone } from '@/utils/notifications'
 import { CarePlanChecklistCard } from '../components/CarePlanChecklistCard'
+
+jest.mock('@/utils/notifications', () => ({
+  getDeviceTimezone: jest.fn(() => 'UTC'),
+}))
 
 const plan: CarePlan = {
   id: 'plan-1',
@@ -101,5 +107,76 @@ describe('CarePlanChecklistCard', () => {
 
     fireEvent.press(screen.getByTestId('care-plan-plan-1-delete'))
     expect(onDeletePlan).toHaveBeenCalledTimes(1)
+  })
+
+  describe('due label', () => {
+    afterEach(() => {
+      jest.useRealTimers()
+    })
+
+    // The API stores a step's due day as the local midnight that starts it.
+    it.each([
+      {
+        zone: 'Europe/Paris',
+        now: '2026-06-10T08:00:00Z',
+        dueDate: '2026-06-10T22:00:00Z',
+        label: /^Due \w{3}, Jun 1[01]$/,
+      },
+      {
+        zone: 'Europe/Paris',
+        now: '2026-06-10T22:30:00Z',
+        dueDate: '2026-06-10T22:00:00Z',
+        label: 'Due today',
+      },
+      {
+        zone: 'Europe/Paris',
+        now: '2026-06-10T22:30:00Z',
+        dueDate: '2026-06-11T22:00:00Z',
+        label: /^Due \w{3}, Jun 1[12]$/,
+      },
+      {
+        zone: 'Europe/Paris',
+        now: '2026-06-10T22:30:00Z',
+        dueDate: '2026-06-09T22:00:00Z',
+        label: 'Overdue',
+      },
+      {
+        zone: 'America/New_York',
+        now: '2026-06-11T02:00:00Z',
+        dueDate: '2026-06-11T04:00:00Z',
+        label: /^Due \w{3}, Jun 1[01]$/,
+      },
+      {
+        zone: 'America/New_York',
+        now: '2026-06-11T02:00:00Z',
+        dueDate: '2026-06-10T04:00:00Z',
+        label: 'Due today',
+      },
+    ])('in $zone at $now, a step due $dueDate reads $label', (row) => {
+      jest.useFakeTimers({ now: new Date(row.now) })
+      jest.mocked(getDeviceTimezone).mockReturnValue(TimeZone.make(row.zone))
+
+      render(
+        <CarePlanChecklistCard
+          plan={{
+            ...plan,
+            steps: [
+              {
+                id: 'step-1',
+                planId: 'plan-1',
+                position: 0,
+                title: 'Hold off watering',
+                dueDate: new Date(row.dueDate),
+              },
+            ],
+          }}
+          pendingStepIds={new Set()}
+          onStepPress={onStepPress}
+          onStepUndo={onStepUndo}
+        />
+      )
+
+      expect(screen.getByText(row.label)).toBeTruthy()
+    })
   })
 })

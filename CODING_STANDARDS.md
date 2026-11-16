@@ -28,7 +28,7 @@ The `String` module (`String.toUpperCase`, `String.includes`, `String.split`, ..
 - Current time: `DateTime.nowUnsafe()` (for `new Date()`). Parsing: `DateTime.make(iso)`, which returns an `Option` (for `new Date(iso)`).
 - Date math: `DateTime.distance` (returns a `Duration`), the `Duration` module, `DateTime.toParts`.
 - `DateTime.make` / `makeUnsafe` parts take singular keys (`hour`, `minute`, `second`, `millisecond`). Plural v3 keys (`hours`, ...) typecheck but are silently dropped.
-- `@lily/shared` wraps the common cases: `parseApiDate`, `now`, `nowAsDate`, `daysUntil`, `isOverdue`, `isFuture` and more, in `packages/shared/src/domains/common/date/`.
+- `@lily/shared` wraps the common cases: `parseApiDate`, `now`, `nowAsDate`, `daysSince`, `isOverdue`, `isFuture` and more, in `packages/shared/src/domains/common/date/`.
 
 ## Imports
 

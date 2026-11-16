@@ -1,22 +1,7 @@
 import { DateTime, Duration, Option, pipe } from 'effect'
 
-import { type DateInput, formatApiDateWith, now, parseApiDate } from './parse'
+import { type DateInput, now, parseApiDate } from './parse'
 import { endOfDay, endOfWeek, startOfDay, withTimeZone } from './timezone'
-
-/**
- * Calculate days until a future date (positive) or days overdue (negative).
- *
- * @param target - Target DateTime to compare against current time
- * @returns Number of days (positive if future, negative if past)
- */
-export const daysUntil = (target: DateTime.DateTime): number => {
-  const currentDay = DateTime.startOf(DateTime.nowUnsafe(), 'day')
-  const targetDay = DateTime.startOf(target, 'day')
-  const distanceMs = Duration.toMillis(DateTime.distance(currentDay, targetDay))
-  const sign = distanceMs >= 0 ? 1 : -1
-  const days = Duration.toDays(Duration.millis(Math.abs(distanceMs)))
-  return sign * Math.round(days)
-}
 
 /**
  * Calculate the whole-day offset of a DateTime from a reference, in a timezone.
@@ -147,7 +132,7 @@ export const isYesterday = (
   // Subtract before applying the timezone — `DateTime.subtract` on a
   // Zoned DateTime can throw `RangeError: Invalid time value` under
   // Hermes for some timezones (intermediate native Date round-trip).
-  // Match the safe pattern used by daysUntil/isOverdue above.
+  // Match the safe pattern used by isOverdue above.
   const yesterday = withTimeZone(
     DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
     timezone
@@ -161,19 +146,6 @@ export const isYesterday = (
     targetParts.day === yesterdayParts.day
   )
 }
-
-/**
- * Parse an API date and calculate days until that date.
- * Convenience function combining parseApiDate and daysUntil.
- *
- * @param dateInput - Date input (Date, string, number, or null/undefined)
- * @param defaultValue - Value to return if date is invalid (default: 0)
- * @returns Number of days until the date, or defaultValue if invalid
- */
-export const daysUntilApiDate = (
-  dateInput: DateInput,
-  defaultValue = 0
-): number => formatApiDateWith(daysUntil, defaultValue)(dateInput)
 
 /**
  * Calculate days since a date (days between a past date and now).

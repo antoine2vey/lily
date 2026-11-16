@@ -38,6 +38,7 @@ import { cleanupQueryClients } from './utils/query-helpers'
 jest.mock('react-i18next', () => {
   // Import translations inside the mock factory
   const en = require('../i18n/locales/en').default
+  const { renderPlurals } = require('./mocks/icu-plural')
 
   const getTranslationValue = (
     namespace: string,
@@ -69,7 +70,7 @@ jest.mock('react-i18next', () => {
       if (options) {
         let result = current
         for (const [optKey, optValue] of Object.entries(options)) {
-          result = result.replace(
+          result = renderPlurals(result, optKey, optValue).replace(
             new RegExp(`\\{${optKey}\\}`, 'g'),
             String(optValue)
           )
@@ -180,6 +181,7 @@ jest.mock('@/contexts/LocalizationContext', () => ({
 jest.mock('@/hooks/useLocalization', () => {
   // Import translations inside the mock factory
   const en = require('../i18n/locales/en').default
+  const { renderPlurals } = require('./mocks/icu-plural')
 
   const getTranslationValue = (
     namespace: string,
@@ -203,7 +205,7 @@ jest.mock('@/hooks/useLocalization', () => {
       if (options) {
         let result = current
         for (const [optKey, optValue] of Object.entries(options)) {
-          result = result.replace(
+          result = renderPlurals(result, optKey, optValue).replace(
             new RegExp(`\\{${optKey}\\}`, 'g'),
             String(optValue)
           )

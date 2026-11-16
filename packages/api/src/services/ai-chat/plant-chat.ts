@@ -31,6 +31,7 @@ import {
 } from 'ai'
 import {
   Array,
+  DateTime,
   Deferred,
   Effect,
   Exit,
@@ -225,15 +226,16 @@ const buildPlantContext = (
       yield* carePlanRepo.findByPlant(plantId),
       seesCarePlan(view)
     )
-    const carePlansText = formatCarePlansText(carePlans)
-
     const timezone = yield* actorDayTimezone(plant.owner, userId)
+    const carePlansText = formatCarePlansText(carePlans, timezone)
 
     const systemPrompt = buildPlantSystemPrompt({
       plant: { ...plant, schedules },
       daysSinceAdded,
       careHistoryText,
       carePlansText,
+      timezone,
+      now: yield* DateTime.now,
     })
 
     const tools = buildPlantChatTools({

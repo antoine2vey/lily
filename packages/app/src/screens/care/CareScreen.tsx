@@ -3,10 +3,8 @@ import {
   CARE_TASK_UNDO_TIMEOUT_MS,
   type CareTask,
   type CareType,
-  daysUntil,
   formatDateHeader,
   formatPlainDateWeekday,
-  parseApiDate,
 } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe, Record } from 'effect'
 import { router } from 'expo-router'
@@ -46,13 +44,6 @@ const formatDate = (
   dateTime: DateTime.DateTime,
   locale?: Intl.LocalesArgument
 ): string => formatDateHeader(dateTime, locale)
-
-const calculateDaysUntilDue = (dueDate: Date): number =>
-  pipe(
-    parseApiDate(dueDate),
-    Option.map(daysUntil),
-    Option.getOrElse(() => 0)
-  )
 
 export function CareScreen() {
   const { t, i18n } = useTranslation(['care', 'vacation'])
@@ -131,7 +122,7 @@ export function CareScreen() {
         setFutureTaskModal({
           visible: true,
           task,
-          daysUntilDue: calculateDaysUntilDue(task.dueDate),
+          daysUntilDue: task.dueDayOffset,
         })
       }),
       Match.when('overdue', () => handleImmediateComplete(task)),
