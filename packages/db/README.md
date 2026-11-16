@@ -20,7 +20,7 @@ Run them from the monorepo root. A command that reaches a database reads `DATABA
 | `bun run --filter=@lily/db db:push` | Syncs a local database to the schema |
 | `bun run --filter=@lily/db db:migrate:prod` | Applies `drizzle/` to `DATABASE_URL` with the production migrator |
 | `bun run db:setup-test` | Applies `drizzle/` to the test database and seeds the tiers. Safe to rerun. |
-| `bun run --filter=@lily/db db:check-time-zones` | Fails when the database behind `DATABASE_URL_TEST` rejects a zone Bun lists or an IANA `backward` alias |
+| `bun run --filter=@lily/db db:check-time-zones` | Fails when the database behind `DATABASE_URL_TEST` rejects a zone Bun lists or an IANA `backward` alias, or gives a zone another UTC offset than Bun does |
 | `bun run --filter=@lily/db db:studio` | Opens Drizzle Studio on `DATABASE_URL` |
 | `bun run --filter=@lily/db test` | Runs the pool config tests, and the bridge tests against `TEST_DATABASE_URL`. The bridge tests skip when it is unset. |
 | `bun run --filter=@lily/db tsc` | Typechecks the package |
