@@ -28,7 +28,15 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Cause, Effect, Exit, Layer, ManagedRuntime, References } from 'effect'
+import {
+  Cause,
+  Effect,
+  Exit,
+  Layer,
+  Logger,
+  ManagedRuntime,
+  References,
+} from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -68,6 +76,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       Layer.Error<typeof BaseLive>
     >
     let gcs: ReturnType<typeof createInMemoryGCS>
+    let warnings: { message: unknown; annotations: unknown }[]
+
+    const captureWarnings = Logger.make(({ logLevel, message, fiber }) => {
+      if (logLevel === 'Warn') {
+        warnings.push({
+          message,
+          annotations: fiber.getRef(References.CurrentLogAnnotations),
+        })
+      }
+    })
 
     const purge = (userId: string) =>
       runtime.runPromiseExit(
@@ -79,10 +97,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               createMockEventBus(),
               createMockLimitChecker(),
               createMockMessageQueue(),
-              MockAlerterLive
+              MockAlerterLive,
+              Logger.layer([captureWarnings])
             )
-          ),
-          Effect.provideService(References.MinimumLogLevel, 'None')
+          )
         ) as Effect.Effect<unknown, unknown, Layer.Success<typeof BaseLive>>
       )
 
@@ -280,6 +298,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     beforeEach(async () => {
       gcs = createInMemoryGCS()
+      warnings = []
       for (const table of [
         'outbox',
         'notifications',
@@ -571,6 +590,139 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(outcome(purged)).toBe('ok')
       expect(stored().plant).toEqual(['1700000000000-detect/ficus-scan.png'])
+    })
+
+    const SCAN = '1700000000000-detect/alex-scan.png'
+    const CACTUS = '1700000000001-detect/alex-cactus.png'
+    const SAMS_SCAN = mockPublicUrl('1700000000000-identify/sam-scan.png')
+
+    /** `url` with a query string that brings it to exactly `length` characters. */
+    const padded = (url: string, length: number) =>
+      `${url}?pad=${'a'.repeat(length - url.length - 5)}`
+
+    const keptUnreadable = (objects: readonly string[]) => [
+      {
+        message: [
+          'Kept older photos that a reference too long to read may name',
+        ],
+        annotations: {
+          unreadable: 1,
+          objects: objects.map((key) => `plant:${key}`),
+        },
+      },
+    ]
+
+    /** Alex's fern shows SCAN, and Sam's plant holds `samsRef`. */
+    const scanAndSamsRef = async (samsRef: string) => {
+      const alex = await user('alex')
+      const sam = await user('sam')
+      const fern = await plant({ userId: alex }, alex)
+      const samsPlant = await plant({ userId: sam }, sam)
+      store('plant', [SCAN])
+      await setPlantImage(fern, mockPublicUrl(SCAN))
+      await setPlantImage(samsPlant, samsRef)
+      return alex
+    }
+
+    it.each([
+      ['as long as can be read', 2048],
+      ['one character too long to read', 2049],
+      ['a million characters long', 1_000_000],
+    ])(
+      'deletes an older photo of the account when another account holds a reference %s that cannot name it',
+      async (_case, length) => {
+        const alex = await scanAndSamsRef(padded(SAMS_SCAN, length))
+
+        const purged = await purge(alex)
+
+        expect({
+          outcome: outcome(purged),
+          plant: stored().plant,
+          warnings,
+        }).toEqual({
+          outcome: 'ok',
+          plant: [],
+          warnings: [],
+        })
+      }
+    )
+
+    it('keeps an older photo that another account points at with a reference as long as can be read', async () => {
+      const alex = await scanAndSamsRef(padded(mockPublicUrl(SCAN), 2048))
+
+      const purged = await purge(alex)
+
+      expect({
+        outcome: outcome(purged),
+        plant: stored().plant,
+        warnings,
+      }).toEqual({
+        outcome: 'ok',
+        plant: [SCAN],
+        warnings: [],
+      })
+    })
+
+    it.each([
+      ['one character too long to read', 2049],
+      ['a million characters long', 1_000_000],
+    ])(
+      'keeps an older photo, and says so, when another account holds a reference %s that may name it',
+      async (_case, length) => {
+        const alex = await scanAndSamsRef(padded(mockPublicUrl(SCAN), length))
+
+        const purged = await purge(alex)
+
+        expect({
+          outcome: outcome(purged),
+          plant: stored().plant,
+          warnings,
+        }).toEqual({
+          outcome: 'ok',
+          plant: [SCAN],
+          warnings: keptUnreadable([SCAN]),
+        })
+      }
+    )
+
+    it('keeps an older photo that a reference too long to read hides behind a percent-encoded digit', async () => {
+      const alex = await scanAndSamsRef(
+        padded(
+          mockPublicUrl(SCAN).replace('1700000000000-', '1%3700000000000-'),
+          4096
+        )
+      )
+
+      const purged = await purge(alex)
+
+      expect({
+        outcome: outcome(purged),
+        plant: stored().plant,
+        warnings,
+      }).toEqual({
+        outcome: 'ok',
+        plant: [SCAN],
+        warnings: keptUnreadable([SCAN]),
+      })
+    })
+
+    it('deletes the older photos that a reference too long to read cannot name, and keeps the one it may name', async () => {
+      const alex = await scanAndSamsRef(padded(mockPublicUrl(SCAN), 4096))
+      const cactus = await plant({ userId: alex }, alex)
+      store('plant', [CACTUS])
+      await setPlantImage(cactus, mockPublicUrl(CACTUS))
+
+      const purged = await purge(alex)
+
+      expect({
+        outcome: outcome(purged),
+        plant: stored().plant,
+        warnings,
+      }).toEqual({
+        outcome: 'ok',
+        plant: [SCAN],
+        warnings: keptUnreadable([SCAN]),
+      })
     })
 
     it('purges every expired account when one of them has an avatar URL with a malformed escape', async () => {
