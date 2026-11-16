@@ -1,5 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { formatTime, makeTimePickerDate, parseApiDate } from '@lily/shared'
+import {
+  formatTime,
+  makeTimePickerDate,
+  parseApiDate,
+  type TimeZone,
+} from '@lily/shared'
 import { Array, Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
@@ -128,7 +133,7 @@ export function NotificationSettingsScreen() {
   }, [state])
 
   const handleTimezoneChange = useCallback(
-    async (newTimezone: string) => {
+    async (newTimezone: TimeZone) => {
       if (state._tag !== 'Authenticated') return
 
       setTimezone(newTimezone)

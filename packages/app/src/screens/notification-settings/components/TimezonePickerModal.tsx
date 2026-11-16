@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { TimeZone } from '@lily/shared'
 import { Array, pipe, String } from 'effect'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -14,23 +15,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
 import { useIconColors } from '@/hooks/useIconColors'
 
-const TIMEZONE_OPTIONS = [
-  { label: 'UTC', value: 'UTC' },
-  { label: 'New York (ET)', value: 'America/New_York' },
-  { label: 'Chicago (CT)', value: 'America/Chicago' },
-  { label: 'Denver (MT)', value: 'America/Denver' },
-  { label: 'Los Angeles (PT)', value: 'America/Los_Angeles' },
-  { label: 'London (GMT/BST)', value: 'Europe/London' },
-  { label: 'Paris (CET)', value: 'Europe/Paris' },
-  { label: 'Berlin (CET)', value: 'Europe/Berlin' },
-  { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
-  { label: 'Shanghai (CST)', value: 'Asia/Shanghai' },
-  { label: 'Sydney (AEDT)', value: 'Australia/Sydney' },
-  { label: 'Dubai (GST)', value: 'Asia/Dubai' },
-  { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
-  { label: 'Mumbai (IST)', value: 'Asia/Kolkata' },
-  { label: 'São Paulo (BRT)', value: 'America/Sao_Paulo' },
-]
+const TIMEZONE_OPTIONS = Array.map(
+  [
+    { label: 'UTC', value: 'UTC' },
+    { label: 'New York (ET)', value: 'America/New_York' },
+    { label: 'Chicago (CT)', value: 'America/Chicago' },
+    { label: 'Denver (MT)', value: 'America/Denver' },
+    { label: 'Los Angeles (PT)', value: 'America/Los_Angeles' },
+    { label: 'London (GMT/BST)', value: 'Europe/London' },
+    { label: 'Paris (CET)', value: 'Europe/Paris' },
+    { label: 'Berlin (CET)', value: 'Europe/Berlin' },
+    { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
+    { label: 'Shanghai (CST)', value: 'Asia/Shanghai' },
+    { label: 'Sydney (AEDT)', value: 'Australia/Sydney' },
+    { label: 'Dubai (GST)', value: 'Asia/Dubai' },
+    { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
+    { label: 'Mumbai (IST)', value: 'Asia/Kolkata' },
+    { label: 'São Paulo (BRT)', value: 'America/Sao_Paulo' },
+  ],
+  ({ label, value }) => ({ label, value: TimeZone.make(value) })
+)
 
 export { TIMEZONE_OPTIONS }
 
@@ -38,7 +42,7 @@ interface TimezonePickerModalProps {
   visible: boolean
   onClose: () => void
   selectedTimezone: string
-  onTimezoneChange: (timezone: string) => void
+  onTimezoneChange: (timezone: TimeZone) => void
 }
 
 export function TimezonePickerModal({

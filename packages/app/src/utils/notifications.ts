@@ -1,7 +1,9 @@
 import {
+  DEFAULT_TIMEZONE,
   type LanguageCode,
   type MetadataOf,
   NOTIFICATION_METADATA,
+  TimeZone,
 } from '@lily/shared'
 // Type-only import — erased at compile time, so no server code is bundled
 import type { NotificationTopic } from '@lily/shared/server'
@@ -490,18 +492,18 @@ export function setupNotificationListeners(
 }
 
 /**
- * Get the device's IANA timezone (e.g., "America/New_York")
- * Returns 'UTC' if timezone cannot be determined
+ * Get the device's IANA timezone in canonical form ("Asia/Calcutta" becomes
+ * "Asia/Kolkata"). Returns UTC when the device reports none or an unknown one.
  */
-export function getDeviceTimezone(): string {
+export function getDeviceTimezone(): TimeZone {
   try {
     return pipe(
       Option.fromNullishOr(Intl.DateTimeFormat().resolvedOptions().timeZone),
-      Option.filter(Str.isNonEmpty),
-      Option.getOrElse(() => 'UTC')
+      Option.flatMap(Schema.decodeUnknownOption(TimeZone)),
+      Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
   } catch {
-    return 'UTC'
+    return DEFAULT_TIMEZONE
   }
 }
 

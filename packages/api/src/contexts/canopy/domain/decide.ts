@@ -28,8 +28,10 @@ import {
   type CanopyId,
   type CanopyInvitationStatus,
   type CanopyMemberRole,
+  DEFAULT_TIMEZONE,
   type LimitExceededError,
   type PlantOwner,
+  TimeZone,
 } from '@lily/shared'
 import {
   Array,
@@ -40,11 +42,12 @@ import {
   Option,
   pipe,
   Result,
+  Schema,
 } from 'effect'
 
 export interface CanopyChanges {
   readonly name: Option.Option<string>
-  readonly timezone: Option.Option<string>
+  readonly timezone: Option.Option<TimeZone>
   readonly latitude: Option.Option<number | null>
   readonly longitude: Option.Option<number | null>
 }
@@ -62,7 +65,7 @@ export type CanopyWrite = Data.TaggedEnum<{
   CreateCanopy: {
     readonly id: CanopyId
     readonly name: string
-    readonly timezone: string
+    readonly timezone: TimeZone
     readonly location: Option.Option<Location>
   }
   UpdateCanopy: {
@@ -262,9 +265,10 @@ export const createCanopy = (
       CanopyWrite.CreateCanopy({
         id: command.canopyId,
         name: command.name,
-        timezone: Option.getOrElse(
+        timezone: pipe(
           Option.fromNullishOr(creator.timezone),
-          () => 'UTC'
+          Option.flatMap(Schema.decodeUnknownOption(TimeZone)),
+          Option.getOrElse(() => DEFAULT_TIMEZONE)
         ),
         location: creator.location,
       }),

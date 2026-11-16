@@ -28,6 +28,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import type { CareType } from '@lily/shared'
+import { TimeZone } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import type { UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Effect, Layer } from 'effect'
@@ -130,7 +131,10 @@ describe('updateUserSettings - reminder rebuild', () => {
   it('moves pending reminders to the new timezone', async () => {
     const notifications = pendingWatering()
 
-    await update({ timezone: 'America/New_York' }, { notifications })
+    await update(
+      { timezone: TimeZone.make('America/New_York') },
+      { notifications }
+    )
 
     expect(pending(notifications)).toEqual([
       { type: 'watering_reminder', at: '2030-06-15T13:00:00.000Z' },
@@ -141,7 +145,7 @@ describe('updateUserSettings - reminder rebuild', () => {
     const notifications = pendingWatering()
 
     await update(
-      { timezone: 'America/New_York' },
+      { timezone: TimeZone.make('America/New_York') },
       {
         notifications,
         user: {
@@ -220,7 +224,7 @@ describe('updateUserSettings - reminder rebuild', () => {
     })
 
     await update(
-      { timezone: 'America/New_York' },
+      { timezone: TimeZone.make('America/New_York') },
       {
         notifications,
         plants: [canopyPlant],

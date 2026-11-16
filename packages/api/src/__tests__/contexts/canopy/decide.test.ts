@@ -36,6 +36,7 @@ import {
   CanopyId,
   LimitExceededError,
   type PlantOwner,
+  TimeZone,
 } from '@lily/shared'
 import { Array, DateTime, Option, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -119,7 +120,7 @@ describe('createCanopy', () => {
           CanopyWrite.CreateCanopy({
             id: CanopyId.make('canopy-2'),
             name: 'Cabin',
-            timezone: 'Europe/Paris',
+            timezone: TimeZone.make('Europe/Paris'),
             location: Option.some(paris),
           }),
           CanopyWrite.AddMember({
@@ -145,7 +146,7 @@ describe('createCanopy', () => {
           CanopyWrite.CreateCanopy({
             id: CanopyId.make('canopy-2'),
             name: 'Cabin',
-            timezone: 'UTC',
+            timezone: TimeZone.make('UTC'),
             location: Option.none(),
           })
         )
@@ -189,13 +190,16 @@ describe('updateCanopy', () => {
   })
 
   it.each([
-    ['the timezone', { timezone: Option.some('Asia/Tokyo') }],
+    ['the timezone', { timezone: Option.some(TimeZone.make('Asia/Tokyo')) }],
     ['the latitude', { latitude: Option.some(48.85) }],
     ['a cleared latitude', { latitude: Option.some(null) }],
     ['the longitude', { longitude: Option.some(2.35) }],
     [
       'a name with a timezone',
-      { name: Option.some('Nest'), timezone: Option.some('Asia/Tokyo') },
+      {
+        name: Option.some('Nest'),
+        timezone: Option.some(TimeZone.make('Asia/Tokyo')),
+      },
     ],
   ] satisfies ReadonlyArray<readonly [string, Partial<CanopyChanges>]>)(
     'refuses a member who changes %s, and lets the owner',
@@ -217,7 +221,7 @@ describe('updateCanopy', () => {
   it('says the timezone changed only when the value differs', () => {
     const events = (timezone: string) =>
       Result.map(
-        update('alex', { timezone: Option.some(timezone) }),
+        update('alex', { timezone: Option.some(TimeZone.make(timezone)) }),
         (decided) => decided.events
       )
 

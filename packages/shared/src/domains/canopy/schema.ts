@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { KnownTimezone } from '../notification/timezone'
+import { TimeZone } from '../notification/timezone'
 
 export const CANOPY_MAX_MEMBERS = 10
 export const CANOPY_NAME_MAX_LENGTH = 50
@@ -99,7 +99,7 @@ export const Longitude = Schema.Number.check(
 /** Any member renames; the timezone and location need the owner. */
 export const UpdateCanopyRequest = Schema.Struct({
   name: Schema.optional(CanopyName),
-  timezone: Schema.optional(KnownTimezone),
+  timezone: Schema.optional(TimeZone),
   latitude: Schema.optional(Schema.NullOr(Latitude)),
   longitude: Schema.optional(Schema.NullOr(Longitude)),
 })

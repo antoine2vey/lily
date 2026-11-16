@@ -7,6 +7,7 @@ import {
   InvalidTimezoneError,
   parseTime,
   TimeString,
+  TimeZone,
   validateTimeFormat,
   validateTimezone,
 } from '../domains/notification/timezone'
@@ -250,6 +251,41 @@ describe('Timezone Utilities', () => {
 
     it('should reject non-string values', () => {
       expect(() => Schema.decodeSync(TimeString)(930 as never)).toThrow()
+    })
+  })
+
+  describe('TimeZone Schema', () => {
+    const decode = Schema.decodeUnknownOption(TimeZone)
+
+    it.each([
+      ['Eire', 'Europe/Dublin'],
+      ['Asia/Calcutta', 'Asia/Kolkata'],
+      ['Europe/Kiev', 'Europe/Kyiv'],
+      ['US/Pacific', 'America/Los_Angeles'],
+      ['GMT', 'Etc/GMT'],
+      ['Etc/UTC', 'UTC'],
+    ])('decodes the alias %s to %s', (alias, zone) => {
+      expect(decode(alias)).toEqual(Option.some(zone))
+    })
+
+    it.each(['UTC', 'Europe/Paris', 'America/Argentina/Buenos_Aires'])(
+      'keeps the canonical zone %s',
+      (zone) => {
+        expect(decode(zone)).toEqual(Option.some(zone))
+      }
+    )
+
+    it.each(['Not/AZone', 'europe/paris', 'PST8PDT', 'toString', ''])(
+      'rejects %j',
+      (zone) => {
+        expect(decode(zone)).toEqual(Option.none())
+      }
+    )
+
+    it('rejects an alias on encode', () => {
+      expect(Option.isNone(Schema.encodeUnknownOption(TimeZone)('Eire'))).toBe(
+        true
+      )
     })
   })
 

@@ -3,6 +3,7 @@ import { users } from '@lily/db/schema'
 import {
   type LanguageCode,
   nowAsDate,
+  type TimeZone,
   type UserRole,
   type UserStatus,
 } from '@lily/shared'
@@ -26,7 +27,7 @@ export interface CreateUserData {
   name?: string
   email: string
   emailVerified?: boolean
-  timezone?: string
+  timezone?: TimeZone
   language?: LanguageCode
   firstName?: string | null
   lastName?: string | null
@@ -50,7 +51,7 @@ export interface UpdateUserData {
   role?: UserRole
   status?: UserStatus
   language?: LanguageCode
-  timezone?: string | null
+  timezone?: TimeZone | null
   preferredNotificationTime?: string | null
   weatherEnabled?: boolean
   latitude?: number | null

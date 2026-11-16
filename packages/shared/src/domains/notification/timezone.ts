@@ -3,10 +3,15 @@ import {
   DateTime,
   Effect,
   String as EffectString,
+  identity,
   Option,
   pipe,
+  Record,
   Schema,
+  SchemaTransformation,
 } from 'effect'
+
+import { CANONICAL_TIME_ZONES, TIME_ZONE_ALIASES } from './time-zones.generated'
 
 // HH:mm time format validation pattern
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
@@ -34,14 +39,31 @@ export const TimeString = Schema.String.pipe(
 
 export type TimeString = typeof TimeString.Type
 
-/** A time zone this runtime resolves, so the date helpers accept it. */
-export const KnownTimezone = Schema.String.check(
-  Schema.makeFilter(
-    (zone) =>
-      Option.isSome(DateTime.zoneMakeNamed(zone)) || 'a known time zone',
-    { identifier: 'KnownTimezone' }
+const canonicalZones: ReadonlySet<string> = new Set(CANONICAL_TIME_ZONES)
+
+/**
+ * A canonical IANA zone name, the form stored in `users.timezone` and
+ * `canopies.timezone`. Decoding maps a tzdata alias such as `Eire` to its zone
+ * (`Europe/Dublin`), so a stored zone never depends on a tzdata build that ships
+ * the IANA `backward` links.
+ */
+export const TimeZone = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.String.check(
+      Schema.makeFilter(
+        (zone) => canonicalZones.has(zone) || 'a canonical IANA time zone',
+        { identifier: 'TimeZone' }
+      )
+    ).pipe(Schema.brand('TimeZone')),
+    SchemaTransformation.transform({
+      decode: (zone: string) =>
+        Option.getOrElse(Record.get(TIME_ZONE_ALIASES, zone), () => zone),
+      encode: identity,
+    })
   )
 )
+
+export type TimeZone = typeof TimeZone.Type
 
 // Validate an IANA timezone string using Effect's DateTime module
 export const validateTimezone = (
@@ -85,7 +107,7 @@ export const parseTime = (
   })
 
 // Default values for timezone settings
-export const DEFAULT_TIMEZONE = 'UTC'
+export const DEFAULT_TIMEZONE: TimeZone = TimeZone.make('UTC')
 export const DEFAULT_NOTIFICATION_TIME = '09:00'
 
 /**

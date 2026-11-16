@@ -25,6 +25,7 @@ import { pollAndTransition } from '@lily/api/services/delegation-scheduler/sched
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { TimeZone } from '@lily/shared'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array as Arr, Effect, Layer, ManagedRuntime, References } from 'effect'
@@ -215,7 +216,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('keeps the owner reminder when the owner changes timezone', async () => {
       await remindToday(owner, fern)
 
-      await as(owner, updateUserSettings({ timezone: 'Europe/Paris' }))
+      await as(
+        owner,
+        updateUserSettings({ timezone: TimeZone.make('Europe/Paris') })
+      )
 
       expect(await dueWithinADay()).toEqual(['fern -> owner'])
     })
