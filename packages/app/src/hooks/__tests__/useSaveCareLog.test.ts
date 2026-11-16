@@ -102,31 +102,6 @@ describe('useSaveCareLog', () => {
     expect(apiEffectRunner).not.toHaveBeenCalled()
   })
 
-  it('sends the path of the photo to an API that takes no upload', async () => {
-    jest
-      .mocked(uploadMultipart)
-      .mockRejectedValue(new UploadError('Upload failed: 415', undefined, 415))
-    jest.mocked(apiEffectRunner).mockResolvedValue({} as never)
-    const { result } = renderQueryHook(() => useSaveCareLog())
-
-    await act(async () => {
-      await result.current.mutateAsync({
-        ...careWithPhoto,
-        plantIds: ['plant-1'],
-      })
-    })
-
-    expect(apiEffectRunner).toHaveBeenCalledWith('careLogs', 'createCareLog', {
-      params: { plantId: 'plant-1' },
-      payload: {
-        type: 'watering',
-        notes: 'Deep soak',
-        date: utc('2026-03-14T09:45:00Z'),
-        photoUrl: pickedPhoto,
-      },
-    })
-  })
-
   it('fails when the API refuses the photo', async () => {
     jest
       .mocked(uploadMultipart)

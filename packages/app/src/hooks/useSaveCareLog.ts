@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { DateTime, Effect, Option } from 'effect'
 import { apiEffectRunner } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
-import { createFileFromUri, UploadError, uploadMultipart } from '@/utils/upload'
+import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
 interface SaveCareLogInput {
   plantIds: string[]
@@ -29,14 +29,6 @@ const combineDateAndTime = (date: Date, time: Date): Date => {
   return DateTime.toDateUtc(combined)
 }
 
-/**
- * An API from before the photo upload takes JSON only and answers 415 to
- * multipart. An update can reach a phone before that API is replaced.
- * https://github.com/antoine2vey/lily/issues/246 removes the fallback.
- */
-const takesNoUpload = (error: unknown) =>
-  error instanceof UploadError && error.status === 415
-
 async function saveCareLogApi(input: SaveCareLogInput): Promise<void> {
   const fields = {
     type: input.type,
@@ -44,25 +36,19 @@ async function saveCareLogApi(input: SaveCareLogInput): Promise<void> {
     date: combineDateAndTime(input.date, input.time),
   }
 
-  const createAsJson = (plantId: string, photoUrl?: string) =>
+  const createAsJson = (plantId: string) =>
     apiEffectRunner('careLogs', 'createCareLog', {
       params: { plantId },
-      payload: { ...fields, photoUrl },
+      payload: fields,
     })
 
-  const createWithPhoto = async (plantId: string, photoUri: string) => {
-    try {
-      return await uploadMultipart<unknown>(
-        `${API_PREFIX}/plants/${plantId}/logs`,
-        [createFileFromUri(photoUri)],
-        'image',
-        { data: JSON.stringify(fields) }
-      )
-    } catch (error) {
-      if (!takesNoUpload(error)) throw error
-      return createAsJson(plantId, photoUri)
-    }
-  }
+  const createWithPhoto = (plantId: string, photoUri: string) =>
+    uploadMultipart<unknown>(
+      `${API_PREFIX}/plants/${plantId}/logs`,
+      [createFileFromUri(photoUri)],
+      'image',
+      { data: JSON.stringify(fields) }
+    )
 
   return Effect.runPromise(
     Effect.forEach(

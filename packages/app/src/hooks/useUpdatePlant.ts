@@ -34,13 +34,11 @@ export function useUpdatePlant() {
           ]
         : []
 
-      const data = isLocalFile ? fields : { ...fields, imageUrl }
-
       return uploadMultipart<unknown>(
         `${API_PREFIX}/plants/${path.id}`,
         files,
         'image',
-        { data: JSON.stringify(data) },
+        { data: JSON.stringify(fields) },
         'PUT'
       )
     },
