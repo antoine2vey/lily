@@ -1,7 +1,6 @@
 import type { Api } from '@lily/api/api'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { aiIdentify } from '@lily/api/services/plants/endpoints/ai-identify'
-import { aiReIdentify } from '@lily/api/services/plants/endpoints/ai-re-identify'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
 import { carePlant } from '@lily/api/services/plants/endpoints/care-plant'
 import { correctCareDates } from '@lily/api/services/plants/endpoints/correct-care-dates'
@@ -81,9 +80,6 @@ export const PlantsApiLive = (api: Api) =>
       )
       .handle('aiIdentify', ({ payload: { images, locale } }) =>
         aiIdentify(images, locale).pipe(withInfraErrorsAsDefect)
-      )
-      .handle('aiReIdentify', ({ payload: { imageUrls, locale } }) =>
-        aiReIdentify(imageUrls, locale).pipe(withInfraErrorsAsDefect)
       )
       .handle('getPlant', ({ params: { id } }) =>
         withPlantAuth(id, 'view').pipe(

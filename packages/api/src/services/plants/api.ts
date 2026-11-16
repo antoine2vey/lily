@@ -1,9 +1,7 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   CanopyNotFoundError,
-  LanguageCode,
   LimitExceededError,
-  MAX_SCAN_FILES,
   MovePlantScopeRequest,
   OpenAIError,
   PaginationParams,
@@ -77,17 +75,6 @@ export const PlantsQueryParams = Schema.Struct({
 export type PlantsQueryParams = typeof PlantsQueryParams.Type
 
 // Define the Plants API group
-export const AiReIdentifyPayload = Schema.Struct({
-  imageUrls: Schema.Array(Schema.String).check(
-    Schema.isMinLength(1),
-    Schema.isMaxLength(MAX_SCAN_FILES)
-  ),
-  locale: LanguageCode.pipe(
-    Schema.withDecodingDefaultType(Effect.succeed('en' as const)),
-    Schema.withConstructorDefault(Effect.succeed('en' as const))
-  ),
-})
-
 export const PlantsApi = HttpApiGroup.make('plants')
   .add(
     // GET /plants - List user's plants with filtering and pagination
@@ -201,20 +188,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
         InvalidImageError,
         GCSUploadError.pipe(HttpApiSchema.status(500)),
         GCSConfigError.pipe(HttpApiSchema.status(500)),
-        OpenAIError.pipe(HttpApiSchema.status(500)),
-        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
-      ],
-    })
-  )
-  .add(
-    // POST /plants/ai-re-identify - Re-identify plant from existing image URLs
-    HttpApiEndpoint.post('aiReIdentify', '/ai-re-identify', {
-      payload: AiReIdentifyPayload,
-      success: AIIdentifyResponse,
-      error: [
-        LimitExceededError,
-        InvalidImageError,
-        GCSUploadError.pipe(HttpApiSchema.status(500)),
         OpenAIError.pipe(HttpApiSchema.status(500)),
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
       ],

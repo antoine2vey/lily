@@ -13,10 +13,10 @@ import {
   RareIdentificationRepository,
 } from '@lily/api/repositories/rare-identification.repository'
 import { aiIdentify } from '@lily/api/services/plants/endpoints/ai-identify'
-import { aiReIdentify } from '@lily/api/services/plants/endpoints/ai-re-identify'
 import { detect } from '@lily/api/services/plants/endpoints/detect'
 import { scanCard } from '@lily/api/services/plants/endpoints/scan-card'
 import { scanCardMultiple } from '@lily/api/services/plants/endpoints/scan-card-multiple'
+import { rememberRareIdentification } from '@lily/api/services/plants/helpers/rare-identification'
 import { Effect, Layer } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
@@ -31,7 +31,7 @@ const photo = (name: string) =>
     path: `/tmp/${name}`,
   }) as unknown as PersistedFile
 
-const reIdentifiedUrl =
+const identifiedUrl =
   'https://storage.googleapis.com/mock-private-bucket/users/user-1/identify/a.jpg?X-Goog-Signature=abc'
 
 const layerFor = (
@@ -74,10 +74,6 @@ const endpoints: ReadonlyArray<{
     name: 'scan-card-multiple',
     identify: () =>
       scanCardMultiple([photo('card-1.jpg'), photo('card-2.jpg')], 'en'),
-  },
-  {
-    name: 'ai-re-identify',
-    identify: () => aiReIdentify([reIdentifiedUrl], 'en'),
   },
 ]
 
@@ -137,9 +133,12 @@ describe.each(endpoints)('$name and the rarity answer', ({ identify }) => {
   })
 })
 
-describe('re-identifying the same photo', () => {
+describe('identifying the same photo again', () => {
   const reIdentify = (isRareHouseplant: boolean, rows: RareIdentification[]) =>
-    aiReIdentify([reIdentifiedUrl], 'en').pipe(
+    rememberRareIdentification({
+      isRareHouseplant,
+      imageUrl: identifiedUrl,
+    }).pipe(
       Effect.provide(
         layerFor(isRareHouseplant, createMockRareIdentificationRepository(rows))
       ),
@@ -155,7 +154,7 @@ describe('re-identifying the same photo', () => {
     await reIdentify(false, rows)
 
     expect({ afterRare, afterNotRare: rows }).toEqual({
-      afterRare: [{ userId: 'user-1', imageUrl: reIdentifiedUrl }],
+      afterRare: [{ userId: 'user-1', imageUrl: identifiedUrl }],
       afterNotRare: [],
     })
   })
