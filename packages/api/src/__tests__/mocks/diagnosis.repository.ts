@@ -34,6 +34,8 @@ export const createMockDiagnosisRepository = (
   const diagnosesData = Array.map(data, (d) => ({ ...d }))
 
   const repo: IDiagnosisRepository = {
+    holdConversation: () => Effect.succeed(true),
+
     create: (createData: CreateDiagnosisData) => {
       const newRecord: DiagnosisRecord = {
         id: `diagnosis-${crypto.randomUUID()}`,

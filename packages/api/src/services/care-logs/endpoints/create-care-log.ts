@@ -3,6 +3,10 @@ import { EntityMutationDefect } from '@lily/api/errors/defects'
 import type { PlantPermit } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import {
+  Holder,
+  releasingRefusedUpload,
+} from '@lily/api/services/helpers/release-objects'
 import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
 import type { CareLogCreateRequest } from '@lily/shared/care-log'
 import { Effect, Option } from 'effect'
@@ -19,7 +23,9 @@ export const createCareLogWithPhoto = (
   photo: PersistedFile
 ) =>
   Effect.flatMap(uploadToPlantFolder(permit.plantId, photo), (url) =>
-    recordCareLog(permit, request, Option.some(url))
+    recordCareLog(permit, request, Option.some(url)).pipe(
+      releasingRefusedUpload(Holder.Plant({ plantId: permit.plantId }), url)
+    )
   )
 
 const recordCareLog = (

@@ -27,6 +27,7 @@ import {
   PlantRepositoryLive,
 } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -45,6 +46,7 @@ const { Pool } = pg
 
 const RepositoriesLive = Layer.mergeAll(
   PlantRepositoryLive,
+  StoredRefRepositoryLive,
   CareScheduleRepositoryLive,
   CareReadsLive,
   NotificationRepositoryLive,

@@ -2,20 +2,33 @@ import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants, noCare } from '@lily/api/__tests__/fixtures/plants'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
+import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
+import {
+  createInMemoryGCS,
+  createMockGCSService,
+  mockPublicUrl,
+} from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import {
+  createMockSqlClient,
+  MockSqlClientLive,
+} from '@lily/api/__tests__/mocks/sql-client'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { frequencyOfDays } from '@lily/api/contexts/care'
 import { Dirty } from '@lily/api/contexts/reminders'
 import { Actor, mintPermit } from '@lily/api/kernel/permit'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
-import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  type PlantWithRoom,
+} from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { RoomNotFoundError } from '@lily/shared'
-import { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect, Exit, Layer, Option } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
+import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
 
 const toPlantWithRoom = (
@@ -37,6 +50,14 @@ const strangersRoom = {
 }
 const roomsWithStranger = [...mockRooms, strangersRoom]
 
+const image = {
+  _tag: 'PersistedFile',
+  key: 'image',
+  name: 'photo.png',
+  contentType: 'image/png',
+  path: '/tmp/photo.png',
+} as unknown as PersistedFile
+
 describe('updatePlant', () => {
   const createTestLayer = (plants = mockPlants) => {
     const care = createStubCare()
@@ -48,7 +69,8 @@ describe('updatePlant', () => {
         care.layer,
         outbox.layer,
         MockSqlClientLive,
-        Layer.succeed(GCSService, {} as any),
+        createMockGCSService(),
+        createMockStoredRefRepository(),
         Layer.succeed(FileSystem, {} as any)
       ),
       care,
@@ -167,5 +189,62 @@ describe('updatePlant', () => {
     it("moves the plant into one of its owner's rooms", async () => {
       expect(Exit.isSuccess(await move('room-2'))).toBe(true)
     })
+  })
+
+  it('deletes the uploaded image when the plant is gone before the write', async () => {
+    const gcs = createInMemoryGCS()
+    const layer = Layer.mergeAll(
+      createMockRoomRepository(roomsWithStranger),
+      createMockPlantRepository({ plants: [] }),
+      createStubCare().layer,
+      createMockOutbox().layer,
+      MockSqlClientLive,
+      gcs.layer,
+      createMockStoredRefRepository(),
+      createMockFileSystem()
+    )
+    const plant = toPlantWithRoom(mockPlants[0]!)
+
+    const outcome = await Effect.runPromise(
+      updatePlant(plant, permit, { id: 'plant-1' }, image).pipe(
+        Effect.as('updated'),
+        Effect.catchTag('PlantNotFoundError', () => Effect.succeed('gone')),
+        Effect.provide(layer)
+      )
+    )
+
+    expect({ outcome, stored: [...gcs.objects.plant] }).toEqual({
+      outcome: 'gone',
+      stored: [],
+    })
+  })
+
+  it('keeps the uploaded image when the commit is not acknowledged', async () => {
+    const gcs = createInMemoryGCS()
+    const layer = Layer.mergeAll(
+      createMockRoomRepository(roomsWithStranger),
+      createMockPlantRepository({ plants: mockPlants }),
+      createStubCare().layer,
+      createMockOutbox().layer,
+      createMockSqlClient({ commitUnanswered: true }),
+      gcs.layer,
+      createMockStoredRefRepository(),
+      createMockFileSystem()
+    )
+    const plant = toPlantWithRoom(mockPlants[0]!)
+
+    const written = await Effect.runPromise(
+      updatePlant(plant, permit, { id: 'plant-1' }, image).pipe(
+        Effect.catchTag('SqlError', () => Effect.void),
+        Effect.andThen(
+          Effect.flatMap(PlantRepository, (repo) => repo.findById('plant-1'))
+        ),
+        Effect.provide(layer)
+      )
+    )
+
+    expect([...gcs.objects.plant].map(mockPublicUrl)).toEqual([
+      written?.imageUrl,
+    ])
   })
 })

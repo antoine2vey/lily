@@ -60,7 +60,7 @@ describe('createDiagnosisTool', () => {
       userId: 'user-1',
       permit: chatPermit('plant-1'),
       plantName: 'Monstera',
-      imageKey: 'uploads/photo.jpg',
+      image: { key: 'uploads/photo.jpg', conversationId: 'conversation-1' },
     })
 
     const result = (await diagTool.execute!(

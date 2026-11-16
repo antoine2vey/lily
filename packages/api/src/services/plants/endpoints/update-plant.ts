@@ -8,6 +8,13 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
+import type { StoredRefRepository } from '@lily/api/repositories/stored-ref.repository'
+import {
+  Holder,
+  plantHeld,
+  releasing,
+  releasingRefusedUpload,
+} from '@lily/api/services/helpers/release-objects'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import { frequencyChanges } from '@lily/api/services/plants/helpers/schedule-frequencies'
 import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
@@ -48,6 +55,7 @@ export const updatePlant = (
   | PlantRepository
   | Care
   | RoomRepository
+  | StoredRefRepository
   | GCSService
   | FileSystem
   | SqlClient.SqlClient
@@ -76,21 +84,27 @@ export const updatePlant = (
       Record.filter((value) => value !== undefined)
     ) as Record<string, unknown>
 
-    yield* transact(
-      Effect.gen(function* () {
-        const written = yield* repo.update(request.id, plant.owner, data)
-        if (!written) {
-          return yield* new PlantNotFoundError({ plantId: request.id })
-        }
-        yield* care.setSchedules({
-          permit,
-          frequencies: frequencyChanges(request),
-        })
-        if (request.remindersEnabled !== undefined) {
-          yield* Reminders.request(Dirty.Plants({ plantIds: [request.id] }))
-        }
+    const write = Effect.gen(function* () {
+      const written = yield* repo.update(request.id, plant.owner, data)
+      if (!written) {
+        return yield* new PlantNotFoundError({ plantId: request.id })
+      }
+      yield* care.setSchedules({
+        permit,
+        frequencies: frequencyChanges(request),
       })
-    )
+      if (request.remindersEnabled !== undefined) {
+        yield* Reminders.request(Dirty.Plants({ plantIds: [request.id] }))
+      }
+    })
+
+    yield* Option.match(Option.fromUndefinedOr(imageUrl), {
+      onNone: () => transact(write),
+      onSome: (url) =>
+        transact(releasing(plantHeld(request.id), write)).pipe(
+          releasingRefusedUpload(Holder.Plant({ plantId: request.id }), url)
+        ),
+    })
 
     const updated = yield* repo.findById(request.id)
     return pipe(

@@ -11,6 +11,7 @@ import {
 } from '@lily/api/__tests__/integration/lock-waits'
 import { chatPermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
@@ -39,6 +40,7 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import type { ToolContext } from '@lily/api/services/ai-chat/tools'
@@ -71,6 +73,7 @@ const RepositoriesLive = Layer.mergeAll(
   DiagnosisRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
+  StoredRefRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
   SubscriptionRepositoryLive,
@@ -81,6 +84,7 @@ const RepositoriesLive = Layer.mergeAll(
 
 const appAs = (userId: string) =>
   Layer.mergeAll(
+    createMockGCSService(),
     LimitCheckerLive,
     createMockCurrentUser({ id: userId }),
     createMockEventBus(),
@@ -215,7 +219,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Effect.flatMap(completeCarePlanStep)
       )
 
-    const diagnose = (plantId: string) =>
+    const conversationAbout = async (plantId: string) => {
+      const [row] = await db
+        .insert(schema.chatConversations)
+        .values({ userId: alex, kind: 'plant', plantId })
+        .returning()
+      if (!row) throw new Error('conversation insert returned nothing')
+      return row.id
+    }
+
+    const diagnose = (plantId: string, conversationId: string) =>
       Effect.flatMap(Effect.context<ToolContext>(), (runtime) =>
         Effect.tryPromise({
           try: async () =>
@@ -224,6 +237,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               userId: alex,
               permit: chatPermit(plantId, alex),
               plantName: 'Fern',
+              image: {
+                key: `users/${alex}/chat/${conversationId}/leaf.jpg`,
+                conversationId,
+              },
             }).execute?.(
               {
                 diseaseName: 'Root rot',
@@ -338,7 +355,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect((await deadlocks(pool)) - before).toBe(0)
     }, 60_000)
 
-    it('a remove racing a diagnosis ends as one of the two orders, with no defect, no deadlock and no diagnosis or plan left', async () => {
+    it('a remove racing a diagnosis that shows a chat photo ends as one of the two orders, with no defect, no deadlock and no diagnosis or plan left', async () => {
       const before = await deadlocks(pool)
       const seen: string[] = []
 
@@ -347,7 +364,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const [removed, diagnosed] = await atOnce(
           round,
           removeAsCurrentUser(plantId),
-          diagnose(plantId)
+          diagnose(plantId, await conversationAbout(plantId))
         )
         seen.push(`remove ${how(removed)}, diagnosis ${how(diagnosed)}`)
         expect(await whatIsLeftOf(plantId)).toEqual(NOTHING_OF_THE_PLANT)

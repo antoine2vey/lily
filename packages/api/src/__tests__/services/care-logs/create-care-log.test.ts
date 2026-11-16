@@ -7,7 +7,8 @@ import {
   mockPublicUrl,
 } from '@lily/api/__tests__/mocks/gcs.service'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
 import {
   createCareLog,
@@ -28,7 +29,10 @@ const image = {
   path: '/tmp/photo.png',
 } as unknown as PersistedFile
 
-const setup = (outcome: 'Recorded' | 'AlreadyCared' = 'Recorded') => {
+const setup = (
+  outcome: 'Recorded' | 'AlreadyCared' = 'Recorded',
+  sql: { commitUnanswered?: boolean } = {}
+) => {
   const care = createStubCare((plantId) =>
     outcome === 'Recorded'
       ? RecordOutcome.Recorded({
@@ -56,8 +60,9 @@ const setup = (outcome: 'Recorded' | 'AlreadyCared' = 'Recorded') => {
       care.layer,
       gcs.layer,
       createMockFileSystem(),
-      MockSqlClientLive,
-      MockOutboxLive
+      createMockSqlClient(sql),
+      MockOutboxLive,
+      createMockStoredRefRepository()
     ),
   }
 }
@@ -133,5 +138,47 @@ describe('createCareLog', () => {
     )
 
     expect(failure._tag).toBe('AlreadyCaredTodayError')
+  })
+
+  it('deletes the uploaded photo when the care is refused', async () => {
+    const test = setup('AlreadyCared')
+
+    const outcome = await Effect.runPromise(
+      createCareLogWithPhoto(
+        carePermit(existing.plantId),
+        { type: 'watering' },
+        image
+      ).pipe(
+        Effect.as('recorded'),
+        Effect.catchTag('AlreadyCaredTodayError', () =>
+          Effect.succeed('refused')
+        ),
+        Effect.provide(test.layer)
+      )
+    )
+
+    expect({ outcome, stored: [...test.gcs.objects.plant] }).toEqual({
+      outcome: 'refused',
+      stored: [],
+    })
+  })
+
+  it('keeps the uploaded photo when the commit is not acknowledged', async () => {
+    const test = setup('Recorded', { commitUnanswered: true })
+
+    await Effect.runPromise(
+      createCareLogWithPhoto(
+        carePermit(existing.plantId),
+        { type: 'watering' },
+        image
+      ).pipe(
+        Effect.catchTag('SqlError', () => Effect.void),
+        Effect.provide(test.layer)
+      )
+    )
+
+    expect(Option.some([...test.gcs.objects.plant].map(mockPublicUrl))).toEqual(
+      Option.map(test.care.commands[0]!.photoUrl, Array.of)
+    )
   })
 })

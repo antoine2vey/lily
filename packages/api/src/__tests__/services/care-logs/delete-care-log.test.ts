@@ -1,6 +1,10 @@
 import { carePermit, createStubCare } from '@lily/api/__tests__/mocks/care'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { deleteCareLog } from '@lily/api/services/care-logs/endpoints/delete-care-log'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('deleteCareLog', () => {
@@ -9,7 +13,17 @@ describe('deleteCareLog', () => {
     const permit = carePermit('plant-1')
 
     const result = await Effect.runPromise(
-      deleteCareLog(permit, 'log-1').pipe(Effect.provide(care.layer))
+      deleteCareLog(permit, 'log-1').pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            care.layer,
+            createMockGCSService(),
+            createMockStoredRefRepository(),
+            MockSqlClientLive,
+            MockOutboxLive
+          )
+        )
+      )
     )
 
     expect(care.removed).toEqual([{ permit, careLogId: 'log-1' }])

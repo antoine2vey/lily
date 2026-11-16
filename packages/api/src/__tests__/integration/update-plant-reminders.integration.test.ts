@@ -6,6 +6,7 @@ import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { permitTo } from '@lily/api/__tests__/mocks/care'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
@@ -20,12 +21,12 @@ import {
   PlantRepositoryLive,
 } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { PlantUpdateRequest } from '@lily/shared/plant'
-import { GCSService } from '@lily/shared/services/file/gcs'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Layer, References, Schema } from 'effect'
@@ -42,6 +43,7 @@ const AppLive = CareOnPostgresLive.pipe(
     Layer.mergeAll(
       Layer.mergeAll(
         PlantRepositoryLive,
+        StoredRefRepositoryLive,
         CareScheduleRepositoryLive,
         CareReadsLive,
         NotificationRepositoryLive,
@@ -54,7 +56,7 @@ const AppLive = CareOnPostgresLive.pipe(
       createMockWeatherProvider(),
       createMockWeatherCache(),
       createMockWeatherRepository(),
-      Layer.succeed(GCSService, {} as never),
+      createMockGCSService(),
       Layer.succeed(FileSystem, {} as never)
     )
   )
