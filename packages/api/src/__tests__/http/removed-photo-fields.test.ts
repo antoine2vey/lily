@@ -53,16 +53,15 @@ const PlatformLive = Layer.mergeAll(
   HttpPlatform.layer
 ).pipe(Layer.provideMerge(BunFileSystem.layer))
 
+// Payload parse options come from the Api the handlers are built from, so
+// callers pass handlers built from the production Api, as server.ts does.
 const serveGroup = <Group extends HttpApiGroup.Constraint>(
   group: Group,
   handlers: Layer.Layer<never, never, never>,
   dependencies: Layer.Layer<never, never, never>
 ) =>
   HttpRouter.toWebHandler(
-    // Parse options set on the root Api live in its annotations, not the group's.
-    HttpApiBuilder.layer(
-      HttpApi.make('Api').add(group).annotateMerge(Api.annotations)
-    ).pipe(
+    HttpApiBuilder.layer(HttpApi.make('Api').add(group)).pipe(
       Layer.provide(handlers),
       Layer.provide(AuthLive),
       Layer.provide(dependencies),
