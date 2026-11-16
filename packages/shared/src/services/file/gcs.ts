@@ -1,8 +1,13 @@
-import { type Bucket, Storage } from '@google-cloud/storage'
+import {
+  type Bucket,
+  type GetFilesOptions,
+  Storage,
+} from '@google-cloud/storage'
 import {
   Array,
   Config,
   Context,
+  DateTime,
   Duration,
   Effect,
   Layer,
@@ -10,18 +15,22 @@ import {
   pipe,
   Redacted,
   Schema,
+  Stream,
   String,
 } from 'effect'
 import { nowAsDate, nowAsEpochMillis } from '../../domains/common/date'
 import {
   GCSConfigError,
   GCSDeleteError,
+  GCSListError,
   GCSPublishError,
   GCSUploadError,
   storageFailureMessage,
 } from './gcs-errors'
 import { type InvalidImageError, planImageUpload } from './image-upload'
 import {
+  type BucketRole,
+  type ListedObject,
   locateStoredObject,
   type ObjectScope,
   type StoredObject,
@@ -66,6 +75,8 @@ export const GCSUploadResponseSchema = Schema.Struct({
 export type GCSUploadResponse = Schema.Schema.Type<
   typeof GCSUploadResponseSchema
 >
+
+const FIRST_PAGE: GetFilesOptions = { autoPaginate: false, maxResults: 1000 }
 
 export class GCSService extends Context.Service<GCSService>()('GCSService', {
   make: Effect.gen(function* () {
@@ -127,6 +138,10 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
     const buckets = {
       plant: storage.bucket(yield* Config.String('GCS_PLANT_BUCKET')),
       ai: storage.bucket(yield* Config.String('GCS_AI_BUCKET')),
+    }
+    const bucketNames: Record<BucketRole, string> = {
+      plant: buckets.plant.name,
+      ai: buckets.ai.name,
     }
 
     const deleteFailed = (error: unknown) =>
@@ -254,10 +269,52 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
           }
         }).pipe(Effect.withSpan('GCS.uploadPrivateFile')),
 
-      locate: locateStoredObject({
-        plant: buckets.plant.name,
-        ai: buckets.ai.name,
-      }),
+      bucketNames,
+
+      locate: locateStoredObject(bucketNames),
+
+      /**
+       * Every object of a bucket, a page at a time. An object whose creation
+       * time does not parse reads as created now.
+       */
+      listObjects: (
+        bucket: BucketRole
+      ): Stream.Stream<ListedObject, GCSListError> =>
+        Stream.paginate(FIRST_PAGE, (page) =>
+          Effect.tryPromise({
+            try: () => buckets[bucket].getFiles(page),
+            catch: (error) =>
+              new GCSListError({
+                message: `Failed to list ${buckets[bucket].name}: ${storageFailureMessage(error)}`,
+              }),
+          }).pipe(
+            Effect.map(
+              ([files, next]) =>
+                [
+                  Array.map(files, (file) => ({
+                    bucket,
+                    key: file.name,
+                    size: Number(file.metadata.size ?? 0),
+                    createdAt: pipe(
+                      Option.fromNullishOr(file.metadata.timeCreated),
+                      Option.flatMap(DateTime.make),
+                      Option.getOrElse(() => DateTime.nowUnsafe())
+                    ),
+                  })),
+                  pipe(
+                    Option.fromNullishOr(next),
+                    Option.flatMapNullishOr((query) =>
+                      'pageToken' in query ? query.pageToken : undefined
+                    ),
+                    Option.map((pageToken) => ({ ...FIRST_PAGE, pageToken }))
+                  ),
+                ] as const
+            ),
+            Effect.withSpan('GCS.listObjects', {
+              attributes: { 'gcs.bucket': buckets[bucket].name },
+            })
+          )
+        ),
 
       /** Copies an ai-bucket object into the plant bucket, where it is public. */
       publish: (

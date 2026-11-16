@@ -22,6 +22,11 @@ export class GCSPublishError extends Schema.TaggedError<GCSPublishError>()(
   { message: Schema.String }
 ) {}
 
+export class GCSListError extends Schema.TaggedError<GCSListError>()(
+  'GCSListError',
+  { message: Schema.String }
+) {}
+
 /** A prefix delete rejects with the list of the errors it met. */
 export const storageFailureMessage = (error: unknown): string => {
   if (Array.isArray(error)) {

@@ -1,4 +1,4 @@
-import { Array, Match, Option, pipe, String } from 'effect'
+import { Array, type DateTime, Match, Option, pipe, String } from 'effect'
 
 /**
  * Who an object is erased with. A user's objects go when the account is
@@ -67,6 +67,106 @@ export const locateStoredObject =
       Option.filter(({ key }) => String.isNonEmpty(key))
     )
   }
+
+export const BUCKET_ROLES: ReadonlyArray<BucketRole> = ['plant', 'ai']
+
+/** An object as a bucket listing reports it. */
+export interface ListedObject extends StoredObject {
+  readonly size: number
+  readonly createdAt: DateTime.Utc
+}
+
+const VIRTUAL_HOST_SUFFIX = '.storage.googleapis.com'
+const JSON_API_PATH = /(?:^|\/)b\/([^/]+)\/o\/(.+)$/
+
+/**
+ * Every object a stored reference may name, read generously so a reference
+ * is never missed. A reference can be a bare key, a bucket-prefixed key, or a
+ * URL of any form GCS serves: path style on any host, virtual-host style, the
+ * JSON and Firebase download paths, or `gs://`. The query and fragment are
+ * dropped, and a percent-encoded key yields both spellings. A bare key names
+ * that key in both buckets, because older rows may store either bucket's key
+ * without its URL.
+ */
+export const namedObjects = (bucketNames: Record<BucketRole, string>) => {
+  const roleOf = (name: string): Option.Option<BucketRole> =>
+    Array.findFirst(BUCKET_ROLES, (role) => bucketNames[role] === name)
+
+  const spellings = (key: string): ReadonlyArray<string> =>
+    pipe(
+      [key, ...Option.toArray(decodeKey(key))],
+      Array.filter(String.isNonEmpty),
+      Array.dedupe
+    )
+
+  const inBucket = (name: string, key: string): ReadonlyArray<StoredObject> =>
+    pipe(
+      roleOf(name),
+      Option.match({
+        onNone: () => [],
+        onSome: (bucket) =>
+          Array.map(spellings(key), (k) => ({ bucket, key: k })),
+      })
+    )
+
+  const afterBucketSegment = (path: string): ReadonlyArray<StoredObject> => {
+    const segments = String.split(path, '/')
+    return Array.flatMap(segments, (segment, index) =>
+      inBucket(segment, Array.join(Array.drop(segments, index + 1), '/'))
+    )
+  }
+
+  const jsonApi = (path: string): ReadonlyArray<StoredObject> =>
+    pipe(
+      path,
+      String.match(JSON_API_PATH),
+      Option.match({
+        onNone: () => [],
+        onSome: ([, name = '', key = '']) =>
+          inBucket(
+            Option.getOrElse(decodeKey(name), () => name),
+            key
+          ),
+      })
+    )
+
+  const fromUrl = (url: URL): ReadonlyArray<StoredObject> => {
+    const path = String.slice(1)(url.pathname)
+    const host = url.hostname
+    return [
+      ...inBucket(host, path),
+      ...(String.endsWith(VIRTUAL_HOST_SUFFIX)(host)
+        ? inBucket(String.slice(0, -VIRTUAL_HOST_SUFFIX.length)(host), path)
+        : []),
+      ...afterBucketSegment(path),
+      ...jsonApi(path),
+    ]
+  }
+
+  const fromText = (text: string): ReadonlyArray<StoredObject> => {
+    const key = pipe(
+      String.split(text, /[?#]/),
+      Array.head,
+      Option.getOrElse(() => text),
+      String.replace(/^\/+/, '')
+    )
+    return [
+      ...Array.flatMap(BUCKET_ROLES, (bucket) =>
+        Array.map(spellings(key), (k) => ({ bucket, key: k }))
+      ),
+      ...afterBucketSegment(key),
+    ]
+  }
+
+  return (ref: string): ReadonlyArray<StoredObject> => {
+    const text = String.trim(ref)
+    if (String.isEmpty(text)) return []
+    return Array.dedupeWith(
+      URL.canParse(text) ? fromUrl(new URL(text)) : fromText(text),
+      sameObject
+    )
+  }
+}
 
 /**
  * What a key written before the scoped layout says about its owner. Those

@@ -4,6 +4,7 @@ import { storageFailureMessage } from '../services/file/gcs-errors'
 import {
   legacyOwnerOf,
   locateStoredObject,
+  namedObjects,
 } from '../services/file/stored-object'
 
 const locate = locateStoredObject({ plant: 'lily-plants', ai: 'lily-ai' })
@@ -46,6 +47,90 @@ describe('locateStoredObject', () => {
     ],
   ])('finds nothing for %s', (_case, ref) => {
     expect(locate(ref)).toEqual(Option.none())
+  })
+})
+
+const named = namedObjects({ plant: 'lily-plants', ai: 'lily-ai' })
+
+describe('namedObjects', () => {
+  it.each([
+    [
+      'a public URL',
+      'https://storage.googleapis.com/lily-plants/plants/p1/a.png',
+      [{ bucket: 'plant', key: 'plants/p1/a.png' }],
+    ],
+    [
+      'a signed URL, without its query',
+      'https://storage.googleapis.com/lily-ai/users/u1/detect/a.png?X-Goog-Signature=abc#frag',
+      [{ bucket: 'ai', key: 'users/u1/detect/a.png' }],
+    ],
+    [
+      'a plain-http URL on another GCS host',
+      'http://storage.cloud.google.com/lily-plants/1700000000000-a.png',
+      [{ bucket: 'plant', key: '1700000000000-a.png' }],
+    ],
+    [
+      'a virtual-host URL',
+      'https://lily-plants.storage.googleapis.com/plants/p1/a.png?v=2',
+      [{ bucket: 'plant', key: 'plants/p1/a.png' }],
+    ],
+    [
+      'a JSON API download URL with an encoded key',
+      'https://storage.googleapis.com/download/storage/v1/b/lily-plants/o/plants%2Fp1%2Fa.png?alt=media',
+      [{ bucket: 'plant', key: 'plants/p1/a.png' }],
+    ],
+    [
+      'a Firebase download URL',
+      'https://firebasestorage.googleapis.com/v0/b/lily-ai/o/users%2Fu1%2Fa.png?alt=media',
+      [{ bucket: 'ai', key: 'users/u1/a.png' }],
+    ],
+    [
+      'a gs URL',
+      'gs://lily-plants/plants/p1/a.png',
+      [{ bucket: 'plant', key: 'plants/p1/a.png' }],
+    ],
+    [
+      'a URL padded with whitespace',
+      '  https://storage.googleapis.com/lily-plants/plants/p1/a.png\n',
+      [{ bucket: 'plant', key: 'plants/p1/a.png' }],
+    ],
+    [
+      'a scheme-less URL',
+      'storage.googleapis.com/lily-plants/plants/p1/a.png',
+      [{ bucket: 'plant', key: 'plants/p1/a.png' }],
+    ],
+    [
+      'a bucket-prefixed key',
+      'lily-ai/users/u1/chat/c1/a.png',
+      [{ bucket: 'ai', key: 'users/u1/chat/c1/a.png' }],
+    ],
+  ])('reads %s', (_case, ref, objects) => {
+    expect(named(ref)).toEqual(expect.arrayContaining(objects))
+  })
+
+  it('names both spellings of a percent-encoded key', () => {
+    expect(
+      named('https://storage.googleapis.com/lily-plants/plants/p1/a%20b.png')
+    ).toEqual([
+      { bucket: 'plant', key: 'plants/p1/a%20b.png' },
+      { bucket: 'plant', key: 'plants/p1/a b.png' },
+    ])
+  })
+
+  it('names a bare key in both buckets', () => {
+    expect(named('1700000000000-chat/c1/a.png')).toEqual([
+      { bucket: 'plant', key: '1700000000000-chat/c1/a.png' },
+      { bucket: 'ai', key: '1700000000000-chat/c1/a.png' },
+    ])
+  })
+
+  it.each([
+    ['an empty reference', '   '],
+    ['an OAuth avatar', 'https://lh3.googleusercontent.com/a/photo'],
+    ['another bucket', 'https://storage.googleapis.com/other/plants/p1/a.png'],
+    ['a bucket with no key', 'https://storage.googleapis.com/lily-plants/'],
+  ])('names nothing for %s', (_case, ref) => {
+    expect(named(ref)).toEqual([])
   })
 })
 

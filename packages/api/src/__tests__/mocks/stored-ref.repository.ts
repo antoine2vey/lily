@@ -1,12 +1,15 @@
 import {
   type ChatRef,
+  type StoredRef,
   StoredRefRepository,
 } from '@lily/api/repositories/stored-ref.repository'
-import { Array, Effect, Layer, Option } from 'effect'
+import { Array, Effect, Layer, Option, Stream } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * The photo columns read as fixed lists: `plant` for the plant's own refs,
- * `avatar` for the user row, `held` for what every column points at.
+ * `avatar` for the user row, `held` for what every column points at,
+ * `everyRef` for the stream of all of them.
  */
 export const createMockStoredRefRepository = (
   rows: {
@@ -14,6 +17,7 @@ export const createMockStoredRefRepository = (
     chat?: ChatRef[]
     avatar?: string
     held?: string[]
+    everyRef?: Stream.Stream<StoredRef, SqlError>
   } = {}
 ) =>
   Layer.succeed(StoredRefRepository, {
@@ -25,4 +29,5 @@ export const createMockStoredRefRepository = (
       Effect.succeed(
         Array.filter(refs, (ref) => Array.contains(rows.held ?? [], ref))
       ),
+    everyRef: rows.everyRef ?? Stream.empty,
   })

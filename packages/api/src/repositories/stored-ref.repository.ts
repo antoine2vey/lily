@@ -10,12 +10,30 @@ import {
   users,
 } from '@lily/db/schema'
 import { and, eq, inArray, isNotNull } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option } from 'effect'
+import { Array, Context, Effect, Layer, Option, Stream } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /** A chat image reference and the user whose chat folder it may sit in. */
 export interface ChatRef {
   readonly userId: string
+  readonly ref: string
+}
+
+/** A column that can point at a stored object. */
+export type RefSource =
+  | 'plants.image_url'
+  | 'plant_photos.url'
+  | 'care_logs.photo_url'
+  | 'users.image'
+  | 'plant_catalog.image_url'
+  | 'chat_messages.image_key'
+  | 'chat_messages.parts'
+  | 'diagnoses.image_key'
+  | 'rare_plant_identifications.image_url'
+
+export interface StoredRef {
+  readonly source: RefSource
   readonly ref: string
 }
 
@@ -39,6 +57,12 @@ export interface IStoredRefRepository {
   readonly stillHeld: (
     refs: readonly string[]
   ) => Effect.Effect<string[], SqlError>
+  /**
+   * Every reference any row holds, streamed so no table is read into memory.
+   * `chat_messages.parts` yields the url of each file part, because
+   * `image_key` keeps only the first image of a message.
+   */
+  readonly everyRef: Stream.Stream<StoredRef, SqlError>
 }
 
 export class StoredRefRepository extends Context.Service<
@@ -63,6 +87,7 @@ export const StoredRefRepositoryLive = Layer.effect(
   StoredRefRepository,
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
+    const sql = yield* SqlClient.SqlClient
 
     return {
       ofPlant: Effect.fn('StoredRefRepository.ofPlant')(function* (
@@ -184,6 +209,27 @@ export const StoredRefRepositoryLive = Layer.effect(
         ]
         return Array.dedupe(refsOf(held))
       }),
+
+      everyRef: sql<StoredRef>`
+        SELECT 'plants.image_url' AS source, image_url AS ref
+          FROM plants WHERE image_url IS NOT NULL
+        UNION ALL SELECT 'plant_photos.url', url FROM plant_photos
+        UNION ALL SELECT 'care_logs.photo_url', photo_url
+          FROM care_logs WHERE photo_url IS NOT NULL
+        UNION ALL SELECT 'users.image', image FROM users WHERE image IS NOT NULL
+        UNION ALL SELECT 'plant_catalog.image_url', image_url
+          FROM plant_catalog WHERE image_url IS NOT NULL
+        UNION ALL SELECT 'chat_messages.image_key', image_key
+          FROM chat_messages WHERE image_key IS NOT NULL
+        UNION ALL SELECT 'chat_messages.parts', part #>> '{}'
+          FROM chat_messages,
+            jsonb_path_query(parts, '$[*] ? (@.type == "file").url') AS part
+          WHERE jsonb_typeof(part) = 'string'
+        UNION ALL SELECT 'diagnoses.image_key', image_key
+          FROM diagnoses WHERE image_key IS NOT NULL
+        UNION ALL SELECT 'rare_plant_identifications.image_url', image_url
+          FROM rare_plant_identifications
+      `.stream.pipe(Stream.withSpan('StoredRefRepository.everyRef')),
     }
   })
 )
