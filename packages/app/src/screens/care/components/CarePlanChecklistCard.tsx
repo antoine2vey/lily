@@ -1,7 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { daysUntil, formatShortDate, parseApiDate } from '@lily/shared'
+import {
+  type CareDay,
+  CareDays,
+  formatShortDate,
+  parseApiDate,
+} from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
-import { Array, Match, Option, pipe } from 'effect'
+import { Array, DateTime, Match, Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
@@ -9,6 +14,7 @@ import { Badge } from '@/components/Badge'
 import { useIconColors } from '@/hooks/useIconColors'
 import { getCareTypeConfig } from '@/screens/care/components/care-type-config'
 import { UndoButton } from '@/screens/care/components/UndoButton'
+import { getDeviceTimezone } from '@/utils/notifications'
 
 interface CarePlanChecklistCardProps {
   plan: CarePlan
@@ -24,11 +30,22 @@ interface CarePlanChecklistCardProps {
 
 type DueState = 'none' | 'overdue' | 'today' | 'future'
 
-const dueStateOf = (step: CarePlanStep): DueState =>
+/**
+ * `step.dueDate` is the local midnight that starts the due day, so the day is
+ * read back in a zone. The device zone is also the one `formatShortDate`
+ * prints the date in.
+ */
+const dueStateOf = (
+  step: CarePlanStep,
+  today: CareDay,
+  timezone: string
+): DueState =>
   pipe(
     Option.fromNullishOr(step.dueDate),
     Option.flatMap(parseApiDate),
-    Option.map(daysUntil),
+    Option.map((due) =>
+      CareDays.daysBetween(today, CareDays.of(due, timezone))
+    ),
     Option.match({
       onNone: (): DueState => 'none',
       onSome: (days): DueState =>
@@ -56,6 +73,8 @@ export function CarePlanChecklistCard({
 }: CarePlanChecklistCardProps) {
   const { t, i18n } = useTranslation('care')
   const iconColors = useIconColors()
+  const timezone = getDeviceTimezone()
+  const today = CareDays.today(timezone, DateTime.nowUnsafe())
 
   const doneCount = Array.length(
     Array.filter(plan.steps, (s) =>
@@ -65,7 +84,7 @@ export function CarePlanChecklistCard({
   const totalCount = Array.length(plan.steps)
 
   const renderDueLabel = (step: CarePlanStep) => {
-    const state = dueStateOf(step)
+    const state = dueStateOf(step, today, timezone)
     const isDone = Option.isSome(Option.fromNullishOr(step.completedAt))
     if (state === 'none' || isDone) return null
     const label = pipe(
@@ -199,7 +218,8 @@ export function CarePlanChecklistCard({
                     {step.description}
                   </Text>
                 )}
-                {(careConfig || dueStateOf(step) !== 'none') && (
+                {(careConfig ||
+                  dueStateOf(step, today, timezone) !== 'none') && (
                   <View className="flex-row items-center mt-1">
                     {careConfig && (
                       <Badge

@@ -1,6 +1,11 @@
-import { formatDaysUntilHuman, formatIsoDate, isPetSafe } from '@lily/shared'
+import {
+  CareDays,
+  formatDaysUntilHuman,
+  formatIsoDate,
+  isPetSafe,
+} from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
-import { Array, Filter, Option, Order, pipe } from 'effect'
+import { Array, DateTime, Filter, Option, Order, pipe } from 'effect'
 
 const CARE_PLAN_COMPLETED_STEPS_IN_CONTEXT = 5
 
@@ -11,7 +16,9 @@ const mostRecentFirst: Order.Order<{ readonly completedAt: Date }> = Order.flip(
   )
 )
 
-const formatStepLine = (step: CarePlanStep): string => {
+const formatStepLine = (step: CarePlanStep, timezone: string): string => {
+  const localDay = (date: Date) =>
+    CareDays.of(DateTime.fromDateUnsafe(date), timezone)
   const meta = pipe(
     [
       pipe(
@@ -20,11 +27,11 @@ const formatStepLine = (step: CarePlanStep): string => {
       ),
       pipe(
         Option.fromNullishOr(step.dueDate),
-        Option.map((d) => `due ${formatIsoDate(d)}`)
+        Option.map((d) => `due ${localDay(d)}`)
       ),
       pipe(
         Option.fromNullishOr(step.completedAt),
-        Option.map((d) => `done ${formatIsoDate(d)}`)
+        Option.map((d) => `done ${localDay(d)}`)
       ),
     ],
     Array.getSomes,
@@ -39,7 +46,10 @@ const formatStepLine = (step: CarePlanStep): string => {
  * completed ones. Proposed / dismissed plans are omitted (the user never
  * agreed to them).
  */
-export const formatCarePlansText = (plans: ReadonlyArray<CarePlan>): string => {
+export const formatCarePlansText = (
+  plans: ReadonlyArray<CarePlan>,
+  timezone: string
+): string => {
   const active = Array.filter(
     plans,
     (p) => p.status === 'accepted' || p.status === 'completed'
@@ -53,7 +63,7 @@ export const formatCarePlansText = (plans: ReadonlyArray<CarePlan>): string => {
       pipe(
         plan.steps,
         Array.filter((s) => Option.isNone(Option.fromNullishOr(s.completedAt))),
-        Array.map((s) => `${formatStepLine(s)} [plan: ${plan.title}]`)
+        Array.map((s) => `${formatStepLine(s, timezone)} [plan: ${plan.title}]`)
       )
     )
   )
@@ -76,7 +86,8 @@ export const formatCarePlansText = (plans: ReadonlyArray<CarePlan>): string => {
     Array.sort(mostRecentFirst),
     Array.take(CARE_PLAN_COMPLETED_STEPS_IN_CONTEXT),
     Array.map(
-      ({ step, plan }) => `${formatStepLine(step)} [plan: ${plan.title}]`
+      ({ step, plan }) =>
+        `${formatStepLine(step, timezone)} [plan: ${plan.title}]`
     )
   )
 
@@ -133,6 +144,9 @@ export interface BuildSystemPromptParams {
   readonly daysSinceAdded: number
   readonly careHistoryText: string
   readonly carePlansText?: string | undefined
+  /** The zone the plant's care days are counted in. */
+  readonly timezone: string
+  readonly now: DateTime.Utc
 }
 
 type ScheduleEntry = SystemPromptPlantData['schedules'][number]
@@ -152,7 +166,9 @@ const formatScheduleBlock = (
   label: string,
   lastLabel: string,
   nextLabel: string,
-  schedule: ScheduleEntry | undefined
+  schedule: ScheduleEntry | undefined,
+  timezone: string,
+  now: DateTime.Utc
 ): string => {
   const opt = Option.fromNullishOr(schedule)
   return `${label} Schedule:
@@ -175,7 +191,9 @@ const formatScheduleBlock = (
             opt,
             Option.map((s) => s.nextCareAt),
             Option.getOrNull
-          )
+          ),
+          now,
+          timezone
         )}`
 }
 
@@ -186,7 +204,7 @@ const formatScheduleBlock = (
 export const buildPlantSystemPrompt = (
   params: BuildSystemPromptParams
 ): string => {
-  const { plant, daysSinceAdded, careHistoryText } = params
+  const { plant, daysSinceAdded, careHistoryText, timezone, now } = params
   const carePlansText = pipe(
     Option.fromNullishOr(params.carePlansText),
     Option.getOrElse(() => '')
@@ -218,13 +236,13 @@ export const buildPlantSystemPrompt = (
         Watering needs: ${plant.wateringRating}/100
         Pet toxicity: ${plant.petToxicityRating}/100 (${isPetSafe(plant.petToxicityRating) ? 'safe for pets' : 'may be toxic to pets'})
 
-      ${formatScheduleBlock('Watering', 'Last watered', 'Next watering', byType.watering)}
+      ${formatScheduleBlock('Watering', 'Last watered', 'Next watering', byType.watering, timezone, now)}
 
-      ${formatScheduleBlock('Fertilization', 'Last fertilized', 'Next fertilization', byType.fertilization)}
+      ${formatScheduleBlock('Fertilization', 'Last fertilized', 'Next fertilization', byType.fertilization, timezone, now)}
 
-      ${formatScheduleBlock('Misting', 'Last misted', 'Next misting', byType.misting)}
+      ${formatScheduleBlock('Misting', 'Last misted', 'Next misting', byType.misting, timezone, now)}
 
-      ${formatScheduleBlock('Repotting', 'Last repotted', 'Next repotting', byType.repotting)}
+      ${formatScheduleBlock('Repotting', 'Last repotted', 'Next repotting', byType.repotting, timezone, now)}
 
       Recent Care History:
       ${pipe(

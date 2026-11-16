@@ -1,5 +1,5 @@
-import { daysUntilApiDate } from '@lily/shared'
-import { String as EffectString, Match, Option, pipe } from 'effect'
+import { CareDays } from '@lily/shared'
+import { DateTime, String as EffectString, Match, Option, pipe } from 'effect'
 import type { Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -43,13 +43,14 @@ const getHealthLabel = (
     Match.exhaustive
   )
 
-const computeAgeDays = (dateAdded: Date): number => {
-  const days = daysUntilApiDate(dateAdded.toISOString())
-  return Option.match(Option.fromNullishOr(days), {
-    onNone: () => 0,
-    onSome: (d) => Math.abs(d),
-  })
-}
+/** Whole UTC calendar days, the days `getCalendarAge` counts elsewhere. */
+const computeAgeDays = (dateAdded: Date): number =>
+  Math.abs(
+    CareDays.daysBetween(
+      CareDays.of(DateTime.fromDateUnsafe(dateAdded), 'UTC'),
+      CareDays.today('UTC', DateTime.nowUnsafe())
+    )
+  )
 
 export function PlantShareCard({
   plant,
