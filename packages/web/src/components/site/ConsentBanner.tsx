@@ -24,7 +24,11 @@ export function ConsentBanner({ locale }: { locale: Option.Option<Locale> }) {
     hydrated ? Option.some(browserLocale()) : Option.none()
   )
   return asking && Option.isSome(lang) ? (
-    <Banner locale={lang.value} reopened={Option.isSome(choice)} />
+    <Banner
+      locale={lang.value}
+      live={hydrated}
+      reopened={Option.isSome(choice)}
+    />
   ) : null
 }
 
@@ -39,7 +43,15 @@ export function ConsentSettings() {
   ) : null
 }
 
-function Banner({ locale, reopened }: { locale: Locale; reopened: boolean }) {
+function Banner({
+  locale,
+  live,
+  reopened,
+}: {
+  locale: Locale
+  live: boolean
+  reopened: boolean
+}) {
   const ref = useRef<HTMLElement>(null)
   const m = messagesFor(locale).Consent
 
@@ -67,7 +79,7 @@ function Banner({ locale, reopened }: { locale: Locale; reopened: boolean }) {
       tabIndex={-1}
       lang={locale}
       className="m-consent"
-      data-reopened={reopened || undefined}
+      data-live={live || undefined}
       aria-label={m.label}
     >
       <p>

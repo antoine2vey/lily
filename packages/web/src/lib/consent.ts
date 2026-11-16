@@ -16,8 +16,9 @@ const isChoice = (s: string): s is Choice => s === 'granted' || s === 'denied'
 
 const now = () => DateTime.toEpochMillis(DateTime.nowUnsafe())
 
-// Runs before the first paint so a stored choice hides the prerendered banner. It is the only parser of the stored value.
-export const CONSENT_SCRIPT = `(function(){try{var v=(localStorage.getItem('${KEY}')||'').split(':'),a=Date.now()-Number(v[1]);if((v[0]==='granted'||v[0]==='denied')&&a>=0&&a<${MAX_AGE_MS})document.documentElement.dataset.consent=v[0]}catch(e){}})()`
+// Runs before the first paint and is the only parser of the stored value. It writes a valid choice, or 'ask', to
+// <html data-consent>. The prerendered banner shows only under 'ask', so a page whose scripts never ran keeps it hidden.
+export const CONSENT_SCRIPT = `(function(){var c='ask';try{var v=(localStorage.getItem('${KEY}')||'').split(':'),a=Date.now()-Number(v[1]);if((v[0]==='granted'||v[0]==='denied')&&a>=0&&a<${MAX_AGE_MS})c=v[0]}catch(e){}document.documentElement.dataset.consent=c})()`
 
 const stored = (): Option.Option<Choice> =>
   Option.filter(
