@@ -1,27 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffectMutation } from '@/utils/client'
-import {
-  optimisticFollowUpdate,
-  restoreSocialSnapshot,
-  type SocialCacheSnapshot,
-  saveSocialSnapshot,
-} from '@/utils/optimistic-follow'
+import { restoreCachedResults } from '@/utils/optimistic-cache'
+import { optimisticFollowUpdate } from '@/utils/optimistic-follow'
 import { queryKeys } from '@/utils/query-keys'
-
-interface FollowMutationContext {
-  readonly previous: SocialCacheSnapshot
-}
-
-function isFollowMutationContext(
-  value: unknown
-): value is FollowMutationContext {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'previous' in value &&
-    Array.isArray((value as FollowMutationContext).previous)
-  )
-}
 
 /**
  * Shared optimistic mutation for follow/unfollow.
@@ -37,17 +18,10 @@ export function useFollowMutation(
   const queryClient = useQueryClient()
 
   return useEffectMutation('social', method, {
-    onMutate: async (variables) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.social.all })
-      const previous = saveSocialSnapshot(queryClient)
-      optimisticFollowUpdate(queryClient, variables.params.userId, isFollowing)
-      return { previous } satisfies FollowMutationContext
-    },
-    onError: (_error, _variables, context) => {
-      if (isFollowMutationContext(context)) {
-        restoreSocialSnapshot(queryClient, context.previous)
-      }
-    },
+    onMutate: (variables) =>
+      optimisticFollowUpdate(queryClient, variables.params.userId, isFollowing),
+    onError: (_error, _variables, snapshot) =>
+      restoreCachedResults(queryClient, snapshot),
     onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.social.all,

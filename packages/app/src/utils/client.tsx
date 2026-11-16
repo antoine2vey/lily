@@ -875,6 +875,7 @@ export function useEffectQuery<
 export function useEffectMutation<
   X extends keyof Client,
   Y extends keyof Client[X],
+  TContext = unknown,
 >(
   section: X,
   method: Y,
@@ -882,14 +883,16 @@ export function useEffectMutation<
     UseMutationOptions<
       GetCleanSuccessType<X, Y>,
       ApiFailure,
-      GetRequestParams<X, Y>
+      GetRequestParams<X, Y>,
+      TContext
     >,
     'mutationFn'
   >
 ): UseMutationResult<
   GetCleanSuccessType<X, Y>,
   ApiFailure,
-  GetRequestParams<X, Y>
+  GetRequestParams<X, Y>,
+  TContext
 > {
   return useMutation({
     mutationFn: (params: GetRequestParams<X, Y>) =>

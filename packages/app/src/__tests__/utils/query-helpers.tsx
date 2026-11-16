@@ -45,6 +45,21 @@ export function createTestQueryClient(): QueryClient {
 }
 
 /**
+ * A test client that keeps entries no hook observes, so a test can seed the
+ * cache, run a mutation and read the entries back.
+ */
+export function createCacheTestQueryClient(): QueryClient {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { retry: false, gcTime: 0 },
+    },
+  })
+  testQueryClients.push(client)
+  return client
+}
+
+/**
  * The app's createQueryClient with cache GC off. Its 5-minute GC timers outlive
  * the test, and clear() does not cancel the ones on mutations.
  */

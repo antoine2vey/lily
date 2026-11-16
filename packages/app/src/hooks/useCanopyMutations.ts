@@ -14,8 +14,8 @@ import {
 } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 
-export const useCanopyMutation = <A, V = void>(
-  options: UseMutationOptions<A, ApiFailure, V>
+export const useCanopyMutation = <A, V = void, C = unknown>(
+  options: UseMutationOptions<A, ApiFailure, V, C>
 ) => useMutation(options)
 
 const setMyCanopy = (queryClient: QueryClient, canopy: Canopy | null) =>
