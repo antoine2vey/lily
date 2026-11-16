@@ -200,51 +200,19 @@ export const startOfLocalDay = (
  * @param timezone - IANA timezone string, UTC when unknown
  * @returns Start of today (00:00:00.000) in the specified timezone
  */
-export const startOfTodayAsDate = (timezone = 'UTC'): Date => {
-  const zone = zoneFromNameOrUtc(timezone)
-  const parts = DateTime.toParts(DateTime.setZone(DateTime.nowUnsafe(), zone))
-  return DateTime.toDateUtc(
-    DateTime.makeZonedUnsafe(
-      {
-        year: parts.year,
-        month: parts.month,
-        day: parts.day,
-        hour: 0,
-        minute: 0,
-        second: 0,
-        millisecond: 0,
-      },
-      { timeZone: zone, adjustForTimeZone: true }
-    )
+export const startOfTodayAsDate = (timezone = 'UTC'): Date =>
+  DateTime.toDateUtc(
+    localMidnight(DateTime.nowUnsafe(), zoneFromNameOrUtc(timezone), 0)
   )
-}
 
 /**
- * Get start of tomorrow as Date in a specific timezone.
+ * Get start of tomorrow as Date in a specific timezone. Tomorrow is the next
+ * calendar day, which starts 23 or 25 hours after today when the clocks change.
  *
  * @param timezone - IANA timezone string, UTC when unknown
  * @returns Start of tomorrow (00:00:00.000) in the specified timezone
  */
-export const startOfTomorrowAsDate = (timezone = 'UTC'): Date => {
-  // Add before applying the timezone — `DateTime.add` on a Zoned
-  // DateTime can throw `RangeError: Invalid time value` under Hermes
-  // for some timezones. Safe pattern: arithmetic on UTC, then zone.
-  const zone = zoneFromNameOrUtc(timezone)
-  const parts = DateTime.toParts(
-    DateTime.setZone(DateTime.add(DateTime.nowUnsafe(), { days: 1 }), zone)
+export const startOfTomorrowAsDate = (timezone = 'UTC'): Date =>
+  DateTime.toDateUtc(
+    localMidnight(DateTime.nowUnsafe(), zoneFromNameOrUtc(timezone), 1)
   )
-  return DateTime.toDateUtc(
-    DateTime.makeZonedUnsafe(
-      {
-        year: parts.year,
-        month: parts.month,
-        day: parts.day,
-        hour: 0,
-        minute: 0,
-        second: 0,
-        millisecond: 0,
-      },
-      { timeZone: zone, adjustForTimeZone: true }
-    )
-  )
-}

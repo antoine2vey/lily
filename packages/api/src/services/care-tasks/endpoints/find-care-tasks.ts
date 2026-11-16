@@ -10,7 +10,6 @@ import {
   CareDays,
   type CareTask,
   type CareTasksResponse,
-  localDayKey,
 } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -84,8 +83,9 @@ export const findCareTasks = (
       )
 
     const now = yield* DateTime.now
+    const today = CareDays.today(timezone, now)
     const windowDays = Array.makeBy(CARE_TASK_WINDOW_DAYS + 1, (i) =>
-      localDayKey(DateTime.add(now, { days: i }), timezone)
+      CareDays.addDays(today, i)
     )
 
     const completedToday = yield* careLogRepo.countTodayByUser(
