@@ -6,10 +6,12 @@ import {
 } from '@lily/api/__tests__/mocks/ai.service'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
+import { createMockChatFollowUpRepository } from '@lily/api/__tests__/mocks/chat-follow-up.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -19,9 +21,10 @@ import {
 } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockRagServiceLive } from '@lily/api/__tests__/mocks/rag.service'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import type { Api } from '@lily/api/api'
+import { Api } from '@lily/api/api'
 import { AIChatApi } from '@lily/api/services/ai-chat/api'
 import { ChatTurns } from '@lily/api/services/ai-chat/chat-turns'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
@@ -29,6 +32,7 @@ import {
   Authentication,
   CurrentUser,
 } from '@lily/api/services/auth/middleware.types'
+import { API_PREFIX } from '@lily/shared'
 import type { ChatConversation, ChatMessage } from '@lily/shared/ai-chat'
 import { Array, Effect, FileSystem, Layer, Path, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
@@ -45,7 +49,7 @@ const conversation: ChatConversation = {
   lastMessageAt: new Date('2026-01-01T00:00:00Z'),
 }
 
-const TestApi = HttpApi.make('chatStreamImage').add(AIChatApi)
+const TestApi = HttpApi.make('Api').add(Api.groups.aiChat)
 
 const AuthLive = Layer.succeed(
   Authentication,
@@ -87,17 +91,21 @@ const ServicesLive = Layer.mergeAll(
   createMockGCSService({ signedKeys }),
   createMockDelegationRepository({}),
   createMockCanopyRepository(),
+  createInMemoryCare([]).layer,
+  createMockChatFollowUpRepository(),
+  createMockRateLimiterService(),
+  FileSystem.layerNoop({}),
   ChatTurns.layer
 )
 
 const makeHandler = () =>
   HttpRouter.toWebHandler(
     HttpApiBuilder.layer(TestApi).pipe(
-      Layer.provide(AIChatApiLive(TestApi as unknown as Api)),
+      Layer.provide(AIChatApiLive(Api)),
       Layer.provide(AuthLive),
-      Layer.provide(ServicesLive),
+      HttpRouter.provideRequest(ServicesLive),
       Layer.provide(PlatformLive)
-    ) as unknown as Layer.Layer<never>,
+    ),
     { disableLogger: true }
   )
 
@@ -112,7 +120,7 @@ describe('chat stream image source over HTTP', () => {
   const stream = (body: unknown) =>
     web.handler(
       new Request(
-        `http://lily.test/chat/conversations/${conversation.id}/stream`,
+        `http://lily.test${API_PREFIX}/chat/conversations/${conversation.id}/stream`,
         {
           method: 'POST',
           headers: {

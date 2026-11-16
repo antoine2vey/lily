@@ -1,8 +1,11 @@
+import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createInMemoryCare } from '@lily/api/__tests__/mocks/care'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import {
   createInMemoryGCS,
   MOCK_BUCKET_NAMES,
@@ -11,7 +14,9 @@ import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRareIdentificationRepository } from '@lily/api/__tests__/mocks/rare-identification.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
-import type { Api } from '@lily/api/api'
+import { createMockScanRepository } from '@lily/api/__tests__/mocks/scan.repository'
+import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
+import { Api } from '@lily/api/api'
 import type { AppEvent } from '@lily/api/events'
 import {
   Authentication,
@@ -20,6 +25,7 @@ import {
 import { PlantsApi } from '@lily/api/services/plants/api'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import type { plants } from '@lily/db/schema'
+import { API_PREFIX } from '@lily/shared'
 import { Array, Effect, FileSystem, Layer, Path, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
@@ -35,7 +41,7 @@ const scanUrl = `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/${scanKe
 const gcs = createInMemoryGCS()
 gcs.objects.ai.add(scanKey)
 
-const TestApi = HttpApi.make('createPlantRareCollector').add(PlantsApi)
+const TestApi = HttpApi.make('Api').add(Api.groups.plants)
 
 const AuthLive = Layer.succeed(
   Authentication,
@@ -64,7 +70,13 @@ const DependenciesLive = Layer.mergeAll(
   createMockEventBus({ publishedEvents }),
   createInMemoryCanopy().layer,
   MockLimitCheckerLive,
-  createInMemoryCare([], { plantRows: rows }).layer
+  createInMemoryCare([], { plantRows: rows }).layer,
+  createMockAiService(),
+  createMockDelegationRepository({}),
+  createMockFileService(),
+  createMockScanRepository(),
+  createMockUsageTracker({ limitReached: false }),
+  FileSystem.layerNoop({})
 )
 
 const PlatformLive = Layer.mergeAll(
@@ -76,11 +88,11 @@ const PlatformLive = Layer.mergeAll(
 const makeHandler = () =>
   HttpRouter.toWebHandler(
     HttpApiBuilder.layer(TestApi).pipe(
-      Layer.provide(PlantsApiLive(TestApi as unknown as Api)),
+      Layer.provide(PlantsApiLive(Api)),
       Layer.provide(AuthLive),
-      Layer.provide(DependenciesLive),
+      HttpRouter.provideRequest(DependenciesLive),
       Layer.provide(PlatformLive)
-    ) as unknown as Layer.Layer<never>,
+    ),
     { disableLogger: true }
   )
 
@@ -89,7 +101,7 @@ describe('saving an identified plant over HTTP', () => {
 
   const save = async (imageUrl: string | undefined) => {
     const res = await web.handler(
-      new Request('http://lily.test/plants', {
+      new Request(`http://lily.test${API_PREFIX}/plants`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${alex}`,

@@ -20,7 +20,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
-import type { Api } from '@lily/api/api'
+import { Api } from '@lily/api/api'
 import { LifeState } from '@lily/api/contexts/care/domain/care-plant'
 import {
   Authentication,
@@ -28,6 +28,7 @@ import {
 } from '@lily/api/services/auth/middleware.types'
 import { CarePlansApi } from '@lily/api/services/care-plans/api'
 import { CarePlansApiLive } from '@lily/api/services/care-plans/handlers'
+import { API_PREFIX } from '@lily/shared'
 import { Effect, FileSystem, Layer, Path, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
@@ -102,7 +103,7 @@ const proposedTwice = createTestCarePlan({
   userId: alex,
 })
 
-const TestApi = HttpApi.make('carePlanAccess').add(CarePlansApi)
+const TestApi = HttpApi.make('Api').add(Api.groups.carePlans)
 
 const AuthLive = Layer.succeed(
   Authentication,
@@ -171,11 +172,11 @@ const PlatformLive = Layer.mergeAll(
 const makeHandler = () =>
   HttpRouter.toWebHandler(
     HttpApiBuilder.layer(TestApi).pipe(
-      Layer.provide(CarePlansApiLive(TestApi as unknown as Api)),
+      Layer.provide(CarePlansApiLive(Api)),
       Layer.provide(AuthLive),
-      Layer.provide(RepositoriesLive),
+      HttpRouter.provideRequest(RepositoriesLive),
       Layer.provide(PlatformLive)
-    ) as unknown as Layer.Layer<never>,
+    ),
     { disableLogger: true }
   )
 
@@ -184,7 +185,7 @@ describe('care plan access over HTTP', () => {
 
   const call = async (method: string, path: string, userId: string) => {
     const res = await web.handler(
-      new Request(`http://lily.test${path}`, {
+      new Request(`http://lily.test${API_PREFIX}${path}`, {
         method,
         headers: { Authorization: `Bearer ${userId}` },
       })

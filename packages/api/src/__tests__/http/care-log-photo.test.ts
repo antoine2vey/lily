@@ -15,7 +15,7 @@ import {
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import type { Api } from '@lily/api/api'
+import { Api } from '@lily/api/api'
 import { RecordOutcome } from '@lily/api/contexts/care'
 import {
   Authentication,
@@ -23,7 +23,7 @@ import {
 } from '@lily/api/services/auth/middleware.types'
 import { CareLogsApi } from '@lily/api/services/care-logs/api'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
-import { CareDay } from '@lily/shared'
+import { API_PREFIX, CareDay } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
@@ -37,7 +37,7 @@ const log = {
 }
 const devicePath = 'file:///var/mobile/Containers/Data/tmp/photo.jpg'
 
-const TestApi = HttpApi.make('careLogPhoto').add(CareLogsApi)
+const TestApi = HttpApi.make('Api').add(Api.groups.careLogs)
 
 const AuthLive = Layer.succeed(
   Authentication,
@@ -70,9 +70,9 @@ const PlatformLive = Layer.mergeAll(
 const makeHandler = () =>
   HttpRouter.toWebHandler(
     HttpApiBuilder.layer(TestApi).pipe(
-      Layer.provide(CareLogsApiLive(TestApi as unknown as Api)),
+      Layer.provide(CareLogsApiLive(Api)),
       Layer.provide(AuthLive),
-      Layer.provide(
+      HttpRouter.provideRequest(
         Layer.mergeAll(
           createMockPlantRepository({ plants: [plant] }),
           createMockCanopyRepository([]),
@@ -82,11 +82,12 @@ const makeHandler = () =>
           care.layer,
           gcs.layer,
           MockSqlClientLive,
-          MockOutboxLive
+          MockOutboxLive,
+          BunFileSystem.layer
         )
       ),
       Layer.provide(PlatformLive)
-    ) as unknown as Layer.Layer<never>,
+    ),
     { disableLogger: true }
   )
 
@@ -114,7 +115,7 @@ describe('a care log with a photo over HTTP', () => {
     )
 
     const response = await web.handler(
-      new Request(`http://lily.test/plants/${plant.id}/logs`, {
+      new Request(`http://lily.test${API_PREFIX}/plants/${plant.id}/logs`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${owner}` },
         body: form,

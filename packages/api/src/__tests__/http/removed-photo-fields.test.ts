@@ -1,6 +1,7 @@
 import { BunFileSystem, BunPath } from '@effect/platform-bun'
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
@@ -11,13 +12,16 @@ import {
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createInMemoryGCS } from '@lily/api/__tests__/mocks/gcs.service'
 import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRareIdentificationRepository } from '@lily/api/__tests__/mocks/rare-identification.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
+import { createMockScanRepository } from '@lily/api/__tests__/mocks/scan.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
 import { Api } from '@lily/api/api'
 import { RecordOutcome } from '@lily/api/contexts/care'
 import {
@@ -29,7 +33,7 @@ import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import { API_PREFIX, CareDay } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
-import { HttpApi, HttpApiBuilder, type HttpApiGroup } from 'effect/http-api'
+import { HttpApi, HttpApiBuilder } from 'effect/http-api'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 const owner = 'user-1'
@@ -52,23 +56,6 @@ const PlatformLive = Layer.mergeAll(
   Etag.layer,
   HttpPlatform.layer
 ).pipe(Layer.provideMerge(BunFileSystem.layer))
-
-// Payload parse options come from the Api the handlers are built from, so
-// callers pass handlers built from the production Api, as server.ts does.
-const serveGroup = <Group extends HttpApiGroup.Constraint>(
-  group: Group,
-  handlers: Layer.Layer<never, never, never>,
-  dependencies: Layer.Layer<never, never, never>
-) =>
-  HttpRouter.toWebHandler(
-    HttpApiBuilder.layer(HttpApi.make('Api').add(group)).pipe(
-      Layer.provide(handlers),
-      Layer.provide(AuthLive),
-      Layer.provide(dependencies),
-      Layer.provide(PlatformLive)
-    ) as unknown as Layer.Layer<never>,
-    { disableLogger: true }
-  )
 
 const sendJson = (method: 'POST' | 'PUT', path: string, body: unknown) =>
   new Request(`http://lily.test${path}`, {
@@ -96,24 +83,33 @@ describe('a care log from a build that still sends photoUrl', () => {
       dueDay: Option.none(),
     })
   )
-  let web: ReturnType<typeof serveGroup>
+  const makeHandler = () =>
+    HttpRouter.toWebHandler(
+      HttpApiBuilder.layer(HttpApi.make('Api').add(Api.groups.careLogs)).pipe(
+        Layer.provide(CareLogsApiLive(Api)),
+        Layer.provide(AuthLive),
+        HttpRouter.provideRequest(
+          Layer.mergeAll(
+            createMockPlantRepository({ plants: [plant] }),
+            createMockCanopyRepository([]),
+            createMockDelegationRepository({}),
+            createMockCareLogRepository([log]),
+            createMockEventBus(),
+            care.layer,
+            createInMemoryGCS().layer,
+            MockSqlClientLive,
+            MockOutboxLive,
+            BunFileSystem.layer
+          )
+        ),
+        Layer.provide(PlatformLive)
+      ),
+      { disableLogger: true }
+    )
+  let web: ReturnType<typeof makeHandler>
 
   beforeAll(() => {
-    web = serveGroup(
-      Api.groups.careLogs,
-      CareLogsApiLive(Api) as unknown as Layer.Layer<never, never, never>,
-      Layer.mergeAll(
-        createMockPlantRepository({ plants: [plant] }),
-        createMockCanopyRepository([]),
-        createMockDelegationRepository({}),
-        createMockCareLogRepository([log]),
-        createMockEventBus(),
-        care.layer,
-        createInMemoryGCS().layer,
-        MockSqlClientLive,
-        MockOutboxLive
-      ) as unknown as Layer.Layer<never, never, never>
-    )
+    web = makeHandler()
   })
 
   beforeEach(() => {
@@ -174,24 +170,41 @@ describe('a plant edit from a build that still sends imageUrl', () => {
     imageUrl: coverUrl,
   })
   const rows = [plant]
-  let web: ReturnType<typeof serveGroup>
+  const makeHandler = () =>
+    HttpRouter.toWebHandler(
+      HttpApiBuilder.layer(HttpApi.make('Api').add(Api.groups.plants)).pipe(
+        Layer.provide(PlantsApiLive(Api)),
+        Layer.provide(AuthLive),
+        HttpRouter.provideRequest(
+          Layer.mergeAll(
+            createMockRoomRepository([]),
+            createMockPlantRepository({
+              plants: rows,
+              sharesPlantsArray: true,
+            }),
+            createMockCanopyRepository(),
+            createMockRareIdentificationRepository([]),
+            createInMemoryGCS().layer,
+            createMockEventBus(),
+            createInMemoryCanopy().layer,
+            MockLimitCheckerLive,
+            createInMemoryCare([], { plantRows: rows }).layer,
+            createMockAiService(),
+            createMockDelegationRepository({}),
+            createMockFileService(),
+            createMockScanRepository(),
+            createMockUsageTracker({ limitReached: false }),
+            BunFileSystem.layer
+          )
+        ),
+        Layer.provide(PlatformLive)
+      ),
+      { disableLogger: true }
+    )
+  let web: ReturnType<typeof makeHandler>
 
   beforeAll(() => {
-    web = serveGroup(
-      Api.groups.plants,
-      PlantsApiLive(Api) as unknown as Layer.Layer<never, never, never>,
-      Layer.mergeAll(
-        createMockRoomRepository([]),
-        createMockPlantRepository({ plants: rows, sharesPlantsArray: true }),
-        createMockCanopyRepository(),
-        createMockRareIdentificationRepository([]),
-        createInMemoryGCS().layer,
-        createMockEventBus(),
-        createInMemoryCanopy().layer,
-        MockLimitCheckerLive,
-        createInMemoryCare([], { plantRows: rows }).layer
-      ) as unknown as Layer.Layer<never, never, never>
-    )
+    web = makeHandler()
   })
 
   afterAll(async () => {

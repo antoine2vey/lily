@@ -134,11 +134,16 @@ type AnyHandlers = {
   ) => AnyHandlers
 }
 
+type ApiGroupServices = HttpApiGroup.ToService<
+  'Api',
+  (typeof Api.groups)[keyof typeof Api.groups]
+>
+
 const groupUntyped = HttpApiBuilder.group as unknown as (
   api: typeof Api,
   identifier: string,
   build: (handlers: AnyHandlers) => AnyHandlers
-) => Layer.Layer<never>
+) => Layer.Layer<ApiGroupServices>
 
 /**
  * Every handler dies if reached, so any status other than the middleware's
@@ -157,22 +162,21 @@ const placeholderGroup = (
   )
 
 const makeHandler = () => {
-  // The untyped group builder hides which group services and middleware
-  // the placeholder layers provide and need, so the composed layer is
-  // asserted closed; `HttpApiBuilder.layer` dies at build time if a group
-  // is actually missing.
+  // Group identifiers are runtime strings, so the builder cannot type which
+  // group each placeholder provides; the layer is asserted to provide all of
+  // them while middleware and platform requirements stay checked.
   const apiLayer = HttpApiBuilder.layer(Api).pipe(
     Layer.provide(
       Array.reduce(
         Record.toEntries(endpointsByGroup),
-        Layer.empty,
+        Layer.empty as Layer.Layer<ApiGroupServices>,
         (merged, [identifier, groupEndpoints]) =>
           Layer.merge(merged, placeholderGroup(identifier, groupEndpoints))
       )
     ),
     Layer.provide(MiddlewareLive),
     Layer.provide(PlatformLive)
-  ) as unknown as Layer.Layer<never>
+  )
   return HttpRouter.toWebHandler(apiLayer, { disableLogger: true })
 }
 

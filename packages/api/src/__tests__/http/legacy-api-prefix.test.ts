@@ -1,6 +1,10 @@
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
+import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
+import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
+import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { Api } from '@lily/api/api'
 import { GlobalRouterMiddleware } from '@lily/api/middleware/router'
 import {
@@ -20,7 +24,7 @@ import {
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-const TestApi = HttpApi.make('legacyApiPrefix').add(Api.groups.rooms)
+const TestApi = HttpApi.make('Api').add(Api.groups.rooms)
 
 const AuthLive = Layer.succeed(
   Authentication,
@@ -46,16 +50,24 @@ const makeHandler = () =>
   HttpRouter.toWebHandler(
     Layer.mergeAll(
       HttpApiBuilder.layer(TestApi).pipe(
-        Layer.provide(RoomsApiLive(TestApi as unknown as Api)),
+        Layer.provide(RoomsApiLive(Api)),
         Layer.provide(AuthLive),
-        Layer.provide(createMockRoomRepository(mockRooms)),
+        HttpRouter.provideRequest(
+          Layer.mergeAll(
+            createMockRoomRepository(mockRooms),
+            createMockCanopyRepository(),
+            createInMemoryCanopy().layer,
+            MockOutboxLive,
+            MockSqlClientLive
+          )
+        ),
         Layer.provide(PlatformLive)
       ),
       HttpRouter.add('GET', `${API_PREFIX}/echo`, echoUrl),
       HttpRouter.add('GET', '/apiary', echoUrl),
       HttpRouter.add('GET', '/health', echoUrl),
       GlobalRouterMiddleware
-    ) as unknown as Layer.Layer<never>,
+    ),
     { disableLogger: true }
   )
 
