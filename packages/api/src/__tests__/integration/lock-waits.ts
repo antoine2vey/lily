@@ -1,8 +1,8 @@
-import { Array, Deferred, Effect } from 'effect'
+import { Array, Deferred, Effect, Schedule } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type pg from 'pg'
 
-const POLLS = 200
+const POLLS = 100
 const IDLE_POLLS = 80
 const POLL_EVERY_MS = 25
 
@@ -68,16 +68,20 @@ export const readBehind = (rival: Deferred.Deferred<void>) =>
   Effect.map(
     SqlClient.SqlClient,
     (sql) =>
-      <A, E, R>(read: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
-        Effect.gen(function* () {
-          const [row] = yield* Effect.orDie(
-            sql<{
-              aSessionWaitsOnThisOne: boolean
-            }>`SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE pg_backend_pid() = ANY (pg_blocking_pids(pid))) AS "aSessionWaitsOnThisOne"`
-          )
-          if (row?.aSessionWaitsOnThisOne !== true) yield* Deferred.await(rival)
-          return yield* read
-        })
+      <A, E, R>(read: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> => {
+        const aSessionWaitsOnThisOne = Effect.orDie(
+          sql<{
+            aSessionWaitsOnThisOne: boolean
+          }>`SELECT EXISTS (SELECT 1 FROM pg_locks WHERE NOT granted AND pg_backend_pid() = ANY (pg_blocking_pids(pid))) AS "aSessionWaitsOnThisOne"`
+        ).pipe(Effect.map(([row]) => row?.aSessionWaitsOnThisOne === true))
+        return Effect.raceFirst(
+          Deferred.await(rival),
+          Effect.repeat(aSessionWaitsOnThisOne, {
+            schedule: Schedule.spaced(`${POLL_EVERY_MS} millis`),
+            until: (waits) => waits,
+          })
+        ).pipe(Effect.andThen(read))
+      }
   )
 
 const sessionsNotIdle = async (pool: pg.Pool) => {
