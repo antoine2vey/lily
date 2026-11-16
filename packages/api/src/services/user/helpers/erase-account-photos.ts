@@ -4,6 +4,7 @@ import { GCSDeleteError } from '@lily/shared/services/file/gcs-errors'
 import {
   legacyOwnerOf,
   legacyStampOf,
+  mayNameKey,
   type StoredObject,
   sameObject,
 } from '@lily/shared/services/file/stored-object'
@@ -20,7 +21,9 @@ const IDLE_MARGIN = Duration.seconds(30)
  * older key has no scope, so it goes only when a row of the account points at
  * it. A column the client can write may point at anything, and a reference
  * may name several objects, so an older key is deleted only when it names no
- * other owner and no row outside the account points at it.
+ * other owner and no row outside the account points at it. A reference
+ * outside that is too long to read keeps each older key it may name, and the
+ * warning lists them.
  *
  * The caller's transaction sits idle while storage answers, so it is allowed
  * to idle for longer than the time limit.
@@ -61,22 +64,33 @@ export const eraseAccountPhotos = (userId: string) =>
     const stamps = Array.dedupe(
       Array.getSomes(Array.map(claimed, ({ key }) => legacyStampOf(key)))
     )
-    const proven = Option.match(
-      Option.all(
-        Array.map(yield* repo.findRefsOutside(userId, stamps), gcs.readRef)
-      ),
-      {
-        onNone: () => [],
-        onSome: (outside) => {
-          const heldOutside = Array.flatten(outside)
-          return Array.filter(
-            claimed,
-            (object) =>
-              !Array.some(heldOutside, (held) => sameObject(held, object))
-          )
-        },
-      }
+    const [readOutside, unreadable] = Array.partition(
+      yield* repo.findRefsOutside(userId, stamps),
+      (ref) => Result.fromOption(gcs.readRef(ref), () => ref)
     )
+    const heldOutside = Array.flatten(readOutside)
+    const notHeldOutside = Array.filter(
+      claimed,
+      (object) => !Array.some(heldOutside, (held) => sameObject(held, object))
+    )
+    const mayBeNamed = ({ key }: StoredObject) =>
+      Array.some(unreadable, (ref) => mayNameKey(ref)(key))
+    const [mayBeHeld, proven] = Array.partition(notHeldOutside, (object) =>
+      mayBeNamed(object) ? Result.succeed(object) : Result.fail(object)
+    )
+    if (Array.isReadonlyArrayNonEmpty(mayBeHeld)) {
+      yield* Effect.logWarning(
+        'Kept older photos that a reference too long to read may name'
+      ).pipe(
+        Effect.annotateLogs({
+          unreadable: unreadable.length,
+          objects: Array.map(
+            mayBeHeld,
+            ({ bucket, key }) => `${bucket}:${key}`
+          ),
+        })
+      )
+    }
 
     yield* repo.allowIdleInTransaction(
       Duration.sum(STORAGE_TIME_LIMIT, IDLE_MARGIN)
