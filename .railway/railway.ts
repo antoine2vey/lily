@@ -20,6 +20,15 @@ export default defineRailway(() => {
     defaultMountPath: '/var/lib/postgresql/data',
     region: 'europe-west4-drams3a',
   })
+  // Railway builds the image from Dockerfile.postgres, which adds the time zone
+  // aliases. Only a change to that file redeploys Postgres.
+  Postgres.source = lily
+  Postgres.build = {
+    buildEnvironment: 'V3',
+    builder: 'DOCKERFILE',
+    dockerfilePath: '/Dockerfile.postgres',
+    watchPatterns: ['/Dockerfile.postgres'],
+  }
   Postgres.networking = {
     privateNetworkEndpoint: 'postgres',
     tcpProxies: { '5432': {} },

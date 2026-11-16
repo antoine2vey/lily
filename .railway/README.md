@@ -23,7 +23,9 @@ This project defines its Railway infrastructure in code.
   them in the Railway dashboard.
 - Postgres is pinned with `database(...)` to `postgres-ssl:17`. The
   `postgres()` helper defaults to v18, which can't boot the v17 data
-  directory.
+  directory. Railway builds the running image from `Dockerfile.postgres`,
+  which adds `tzdata-legacy` on top, and redeploys Postgres only when that
+  file changes.
 - Check for drift: `./node_modules/.bin/railway config plan --detailed-exit-code`
   (exit 0 = in sync, 2 = pending changes).
 
