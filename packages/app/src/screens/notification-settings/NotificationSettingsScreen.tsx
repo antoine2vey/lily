@@ -96,7 +96,7 @@ export function NotificationSettingsScreen() {
     null
   )
   const [showTimezonePicker, setShowTimezonePicker] = useState(false)
-  const { data: userSettings } = useUser()
+  const { data: userSettings, isLoading: isLoadingUser } = useUser()
   const { mutate: updateUserSettings } = useUpdateUserSettings()
   const timezone = userSettings?.timezone || getDeviceTimezone()
   const preferredNotificationTime =
@@ -193,7 +193,8 @@ export function NotificationSettingsScreen() {
     [handleTimeChange, handleNotificationTimeChange]
   )
 
-  const isInitialLoading = isLoading && !settings
+  const isInitialLoading =
+    (isLoading && !settings) || (isLoadingUser && !userSettings)
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
   if (error) {
