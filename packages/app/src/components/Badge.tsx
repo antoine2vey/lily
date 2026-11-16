@@ -63,7 +63,7 @@ export function Badge({ label, variant, size = 'md', icon }: BadgeProps) {
 
   return (
     <View
-      className={`flex-row items-center self-start gap-1 rounded-md ${sizeClasses.container} ${variantClasses.container}`}
+      className={`flex-row items-center gap-1 rounded-md ${sizeClasses.container} ${variantClasses.container}`}
     >
       {icon}
       <Text
