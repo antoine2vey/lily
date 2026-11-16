@@ -85,6 +85,16 @@ bun run --filter=@lily/knowledge-db db:migrate:prod
 bun run dev
 ```
 
+**Moving from Postgres 15.** `postgres` and `postgres-test` now build `Dockerfile.postgres`, a Postgres 17 image, and keep their data in the new volumes `postgres17_data` and `postgres17_test_data`. A 15 data directory cannot start on 17, so the old volumes stay untouched. To keep local rows, `pg_dump` them before you switch. Then rebuild both databases:
+
+```bash
+docker compose up -d --build postgres postgres-test
+bun run --filter=@lily/db db:push
+bun run db:setup-test
+```
+
+Remove the old volumes once you no longer need them. `docker volume ls --filter name=postgres_` lists them.
+
 **Prerequisites.** [Bun 1.4.3](https://bun.sh) and Docker. The local Postgres and Redis defaults in `.env.example` match `docker-compose.yml`, so the core stack works out of the box.
 
 ## Commands

@@ -38,6 +38,7 @@ jobs:
               - 'package.json'
               - '.github/workflows/ci.yml'
               - '.github/actions/setup/**'
+              - 'Dockerfile.postgres'
 
   checks:
     name: Lint · Typecheck · Test · Build
@@ -81,22 +82,6 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     services:
-      postgres:
-        # Debian, as in production: its tzdata has no `backward` aliases
-        # (Eire, Asia/Calcutta), which the Alpine image accepts.
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: lily_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          --tmpfs /var/lib/postgresql/data:rw
       knowledge-postgres:
         image: pgvector/pgvector:pg17
         env:
@@ -127,9 +112,22 @@ jobs:
       KNOWLEDGE_DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5433/lily_knowledge_test
     steps:
       - uses: actions/checkout@v7
+      # A service container cannot be built from a Dockerfile. This is the
+      # image production runs, so the suite sees the same time zone data.
+      - name: Start Postgres from Dockerfile.postgres
+        run: |
+          docker build -t lily-postgres - < Dockerfile.postgres
+          docker run -d --name postgres -p 5432:5432 \
+            --tmpfs /var/lib/postgresql/data:rw \
+            -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=lily_test \
+            lily-postgres
+          timeout 120 bash -c 'until docker exec postgres pg_isready -h 127.0.0.1 -U postgres -d lily_test; do sleep 1; done'
       - uses: ./.github/actions/setup
       - name: Setup test database
         run: bun run db:setup-test
+      - name: Check Postgres accepts every time zone Bun knows
+        if: matrix.shard == 1
+        run: bun run --filter=@lily/db db:check-time-zones
       - name: Run integration tests
         run: bun run test:integration --shard=${{ matrix.shard }}/4
 

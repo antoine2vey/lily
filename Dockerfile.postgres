@@ -1,0 +1,9 @@
+# The primary database for CI and docker-compose.yml, built on the image
+# Railway runs. Debian 13 moved the IANA `backward` links (Eire, Asia/Calcutta,
+# US/*) out of tzdata into tzdata-legacy. Without it Postgres rejects zone names
+# that Bun lists and devices report.
+FROM ghcr.io/railwayapp-templates/postgres-ssl:17
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends tzdata-legacy \
+  && rm -rf /var/lib/apt/lists/*

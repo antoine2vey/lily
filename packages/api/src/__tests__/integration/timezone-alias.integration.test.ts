@@ -29,8 +29,8 @@ const run = <A, E>(
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000)
 
-// Debian's tzdata, which production Postgres reads, ships no `backward` links,
-// so it rejects this alias of Europe/Dublin. JavaScript accepts it.
+// An alias of Europe/Dublin from the IANA `backward` file. JavaScript accepts
+// it, and a Debian Postgres without tzdata-legacy rejects it.
 const ALIAS = 'Eire'
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
