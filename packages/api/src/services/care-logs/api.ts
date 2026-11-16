@@ -74,7 +74,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
   )
   .add(
     // POST /plants/:plantId/logs - Add a log entry, as JSON or as multipart
-    // with the photo. Builds from before the upload send JSON only.
+    // with the photo
     HttpApiEndpoint.post('createCareLog', '/plants/:plantId/logs', {
       params: { plantId: plantIdParam },
       payload: [CareLogCreateRequest, CareLogCreateUpload],

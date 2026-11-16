@@ -10,7 +10,6 @@ import { DateTime, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const permit = carePermit('plant-1')
-const deviceFile = 'file:///var/mobile/Containers/Data/tmp/photo.jpg'
 
 const update = (
   request: CareLogUpdateRequest,
@@ -42,7 +41,6 @@ describe('updateCareLog', () => {
         careLogId: 'log-1',
         on: Option.none(),
         notes: Option.some(Option.some('Updated notes')),
-        photoUrl: Option.none(),
       },
     ])
     expect(log.id).toBe('log-1')
@@ -50,34 +48,13 @@ describe('updateCareLog', () => {
 
   it('moves the care to the instant of the request', async () => {
     const date = new Date('2024-12-01T08:30:00.000Z')
-    const { care, effect } = update({
-      date,
-      photoUrl: deviceFile,
-    })
+    const { care, effect } = update({ date })
 
     await Effect.runPromise(effect)
 
     expect(care.amended[0]).toMatchObject({
       on: Option.some(CareWhen.At({ instant: DateTime.makeUnsafe(date) })),
       notes: Option.none(),
-      photoUrl: Option.some(Option.some(deviceFile)),
-    })
-  })
-
-  it.each([
-    ['a URL on another host', 'https://tracker.example/pixel.jpg'],
-    [
-      "another account's public photo",
-      'https://storage.googleapis.com/mock-bucket/users/user-2/avatars/face.png',
-    ],
-  ])('leaves the photo of the log alone for %s', async (_case, photoUrl) => {
-    const { care, effect } = update({ notes: 'Edited', photoUrl })
-
-    await Effect.runPromise(effect)
-
-    expect(care.amended[0]).toMatchObject({
-      notes: Option.some(Option.some('Edited')),
-      photoUrl: Option.none(),
     })
   })
 

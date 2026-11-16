@@ -141,7 +141,6 @@ export const PlantUpdateRequest = Schema.Struct({
   name: Schema.optional(Schema.String),
   description: Schema.optional(Schema.String),
   category: Schema.optional(Schema.String),
-  imageUrl: Schema.optional(Schema.String),
   wateringFrequencyDays: Schema.optional(Schema.Number),
   fertilizationFrequencyDays: Schema.optional(Schema.NullOr(Schema.Number)),
   mistingFrequencyDays: Schema.optional(Schema.NullOr(Schema.Number)),

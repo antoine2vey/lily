@@ -199,7 +199,6 @@ describe('Plant Schemas', () => {
         name: 'Updated Name',
         description: 'New description',
         category: 'Updated category',
-        imageUrl: 'https://new-url.com/image.jpg',
         wateringFrequencyDays: 10,
         humidityRating: 4,
         lightingRating: 3,

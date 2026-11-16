@@ -3,7 +3,6 @@ import { EntityMutationDefect } from '@lily/api/errors/defects'
 import type { PlantPermit } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { deviceFile } from '@lily/api/services/helpers/client-image'
 import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
 import type { CareLogCreateRequest } from '@lily/shared/care-log'
 import { Effect, Option } from 'effect'
@@ -12,7 +11,7 @@ import type { PersistedFile } from 'effect/http/Multipart'
 export const createCareLog = (
   permit: PlantPermit<'care'>,
   request: CareLogCreateRequest
-) => recordCareLog(permit, request, deviceFile(request.photoUrl))
+) => recordCareLog(permit, request, Option.none())
 
 export const createCareLogWithPhoto = (
   permit: PlantPermit<'care'>,

@@ -20,7 +20,6 @@ import { describe, expect, it } from 'vitest'
 
 const today = CareDay.make('2026-11-12')
 const existing = pipe(Array.head(mockCareLogs), Option.getOrThrow)
-const deviceFile = 'file:///var/mobile/Containers/Data/tmp/photo.jpg'
 const image = {
   _tag: 'PersistedFile',
   key: 'image',
@@ -71,7 +70,6 @@ describe('createCareLog', () => {
       createCareLog(carePermit(existing.plantId), {
         type: 'watering',
         notes: 'Deep soak',
-        photoUrl: deviceFile,
       }).pipe(Effect.provide(test.layer))
     )
 
@@ -80,7 +78,7 @@ describe('createCareLog', () => {
       careType: 'watering',
       on: { _tag: 'Today' },
       notes: Option.some('Deep soak'),
-      photoUrl: Option.some(deviceFile),
+      photoUrl: Option.none(),
     })
   })
 
@@ -90,7 +88,7 @@ describe('createCareLog', () => {
     await Effect.runPromise(
       createCareLogWithPhoto(
         carePermit(existing.plantId),
-        { type: 'watering', photoUrl: deviceFile },
+        { type: 'watering' },
         image
       ).pipe(Effect.provide(test.layer))
     )
@@ -104,28 +102,6 @@ describe('createCareLog', () => {
     }).toEqual({
       stored: [`plants/${existing.plantId}/<uuid>.png`],
       recorded: Option.map(Array.head(stored), mockPublicUrl),
-    })
-  })
-
-  it.each([
-    ['a URL on another host', 'https://tracker.example/pixel.jpg'],
-    [
-      "another account's public photo",
-      'https://storage.googleapis.com/mock-bucket/users/user-2/avatars/face.png',
-    ],
-  ])('records the care without a photo for %s', async (_case, photoUrl) => {
-    const test = setup()
-
-    await Effect.runPromise(
-      createCareLog(carePermit(existing.plantId), {
-        type: 'watering',
-        photoUrl,
-      }).pipe(Effect.provide(test.layer))
-    )
-
-    expect(test.care.commands[0]).toMatchObject({
-      careType: 'watering',
-      photoUrl: Option.none(),
     })
   })
 

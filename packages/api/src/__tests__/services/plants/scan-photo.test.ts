@@ -106,24 +106,16 @@ describe('withScanPhoto', () => {
       'a public photo from before scopes',
       mockPublicUrl('1700000000000-detect/scan.png'),
     ],
+    [
+      'a file on the device',
+      'file:///var/mobile/Containers/Data/tmp/photo.jpg',
+    ],
   ])('creates the plant without an image for %s', async (_case, url) => {
     const result = await createFrom(url, [])
 
     expect(result).toMatchObject({
       askedFor: [undefined],
       answered: null,
-      published: [],
-    })
-  })
-
-  it('stores the path of a file on the device as an older build sent it', async () => {
-    const uri = 'file:///var/mobile/Containers/Data/tmp/photo.jpg'
-
-    const result = await createFrom(uri, [])
-
-    expect(result).toMatchObject({
-      askedFor: [uri],
-      answered: uri,
       published: [],
     })
   })

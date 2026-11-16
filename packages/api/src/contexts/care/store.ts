@@ -322,12 +322,6 @@ export const CareStoreLive = Layer.effect(
                   onNone: () => ({}),
                   onSome: (notes) => ({ notes: Option.getOrNull(notes) }),
                 }),
-                ...Option.match(w.photoUrl, {
-                  onNone: () => ({}),
-                  onSome: (photoUrl) => ({
-                    photoUrl: Option.getOrNull(photoUrl),
-                  }),
-                }),
                 updatedAt: sql`now()`,
               })
               .where(eq(careLogs.id, w.id))

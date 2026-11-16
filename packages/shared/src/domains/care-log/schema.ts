@@ -24,13 +24,11 @@ export const CareLogCreateRequest = Schema.Struct({
   type: CareType,
   notes: Schema.optional(Schema.String),
   date: Schema.optional(Schema.DateFromString),
-  photoUrl: Schema.optional(Schema.String),
 })
 
 export const CareLogUpdateRequest = Schema.Struct({
   notes: Schema.optional(Schema.String),
   date: Schema.optional(Schema.DateFromString),
-  photoUrl: Schema.optional(Schema.String),
 })
 
 export const CareLogPerformer = Schema.Struct({
