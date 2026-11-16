@@ -33,6 +33,9 @@ export function CanopyInviteCard({
   const { t, i18n } = useTranslation('canopy')
   const create = useCreateCanopyInvite()
   const revoke = useRevokeCanopyInvite()
+  // A withdrawn row unmounts before the API answers, so the mutation and its
+  // toasts live here rather than in the row.
+  const withdraw = useWithdrawCanopyInvitation()
   const isFull = canopy.members.length >= CANOPY_MAX_MEMBERS
 
   const shortDate = (date: Date) =>
@@ -135,6 +138,12 @@ export function CanopyInviteCard({
                 canopy.role === 'owner' ||
                 invitation.invitedByUserId === myUserId
               }
+              onWithdraw={() =>
+                withdraw.mutate(invitation.id, {
+                  onSuccess: () => toast.success(t('detail.invite.withdrawn')),
+                  onError: () => toast.error(t('detail.failed')),
+                })
+              }
             />
           ))}
         </View>
@@ -147,13 +156,14 @@ function PendingInvitationRow({
   invitation,
   until,
   canWithdraw,
+  onWithdraw,
 }: {
   invitation: CanopyPendingInvitation
   until: Option.Option<string>
   canWithdraw: boolean
+  onWithdraw: () => void
 }) {
   const { t } = useTranslation('canopy')
-  const withdraw = useWithdrawCanopyInvitation()
   const name = pipe(
     Option.fromNullishOr(invitation.invitee.name),
     Option.getOrElse(() => t('detail.unnamed'))
@@ -168,11 +178,7 @@ function PendingInvitationRow({
         {
           text: t('detail.invite.withdraw'),
           style: 'destructive',
-          onPress: () =>
-            withdraw.mutate(invitation.id, {
-              onSuccess: () => toast.success(t('detail.invite.withdrawn')),
-              onError: () => toast.error(t('detail.failed')),
-            }),
+          onPress: onWithdraw,
         },
       ]
     )
@@ -211,7 +217,6 @@ function PendingInvitationRow({
       {canWithdraw && (
         <Pressable
           onPress={confirmWithdraw}
-          disabled={withdraw.isPending}
           hitSlop={8}
           testID={`canopy-withdraw-${invitation.id}`}
         >

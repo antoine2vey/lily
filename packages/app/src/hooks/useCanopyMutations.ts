@@ -5,13 +5,18 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { Result } from 'effect'
+import { Array as Arr, Result } from 'effect'
 import type { InviteToken } from '@/utils/canopy-invite-token'
 import {
   type ApiFailure,
   type ApiResult,
   apiEffectRunner,
 } from '@/utils/client'
+import {
+  type CacheSnapshot,
+  patchCachedResults,
+  restoreCachedResults,
+} from '@/utils/optimistic-cache'
 import { queryKeys } from '@/utils/query-keys'
 
 export const useCanopyMutation = <A, V = void, C = unknown>(
@@ -22,6 +27,16 @@ const setMyCanopy = (queryClient: QueryClient, canopy: Canopy | null) =>
   queryClient.setQueryData<ApiResult<CanopyResponse>>(
     queryKeys.canopy.mine(),
     Result.succeed({ canopy })
+  )
+
+const patchMyCanopy = (
+  queryClient: QueryClient,
+  patch: (canopy: Canopy) => Canopy
+): CacheSnapshot =>
+  patchCachedResults<CanopyResponse>(
+    queryClient,
+    { queryKey: queryKeys.canopy.mine(), exact: true },
+    ({ canopy }) => ({ canopy: canopy && patch(canopy) })
   )
 
 // Joining, leaving, removing a member and dissolving move plants and rooms
@@ -57,6 +72,13 @@ export function useRemoveCanopyMember() {
   return useCanopyMutation({
     mutationFn: (userId: string) =>
       apiEffectRunner('canopy', 'removeCanopyMember', { params: { userId } }),
+    onMutate: (userId) =>
+      patchMyCanopy(queryClient, (canopy) => ({
+        ...canopy,
+        members: Arr.filter(canopy.members, (m) => m.userId !== userId),
+      })),
+    onError: (_error, _userId, snapshot) =>
+      restoreCachedResults(queryClient, snapshot),
     onSuccess: (canopy) => {
       setMyCanopy(queryClient, canopy)
       refreshOwnedData(queryClient)
@@ -134,6 +156,16 @@ export function useWithdrawCanopyInvitation() {
       apiEffectRunner('canopy', 'withdrawCanopyInvitation', {
         params: { invitationId },
       }),
+    onMutate: (invitationId) =>
+      patchMyCanopy(queryClient, (canopy) => ({
+        ...canopy,
+        invitations: Arr.filter(
+          canopy.invitations,
+          (invitation) => invitation.id !== invitationId
+        ),
+      })),
+    onError: (_error, _invitationId, snapshot) =>
+      restoreCachedResults(queryClient, snapshot),
     onSuccess: (canopy) => setMyCanopy(queryClient, canopy),
   })
 }
