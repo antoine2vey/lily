@@ -16,17 +16,18 @@ on:
   # app/shared changes that a server-only push left unpublished.
   workflow_dispatch:
 
-# Publishes queue in push order, one at a time, so the last run to finish is
-# the newest commit. GitHub keeps one pending run per group and drops older
-# pending ones; that is safe because the surviving run builds the newest commit
-# and its diff starts at the last published commit, not at its own push.
+# Every run publishes to the one EAS branch `production`, so all runs share
+# one group and go one at a time. GitHub keeps one pending run per group and
+# drops older pending ones; that is safe because the surviving run builds the
+# newest commit and its diff starts at the last published commit, not at its
+# own push.
 # Never cancel: a cancelled run can leave a commit unpublished.
 concurrency:
-  group: ota-update-${{ github.ref }}
+  group: ota-update-production
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   update:
@@ -34,6 +35,9 @@ jobs:
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     name: Publish OTA Update
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.affected.outputs.result }}
+      last: ${{ steps.affected.outputs.last }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -41,6 +45,9 @@ jobs:
           # Full history so the affected-check can diff from the last
           # published commit, which may be many commits back.
           fetch-depth: 0
+          # This job installs dependencies and runs the bundler. It gets no
+          # token it could push with.
+          persist-credentials: false
 
       - name: Fetch the last published commit
         run: |
@@ -54,7 +61,9 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           AFTER_SHA: ${{ github.sha }}
-        run: bash scripts/ota-should-publish.sh | tee -a "$GITHUB_OUTPUT"
+        # Only key=value lines may reach $GITHUB_OUTPUT: the runner fails the
+        # step on anything else. The script sends its notices to stderr.
+        run: bash scripts/ota-should-publish.sh >> "$GITHUB_OUTPUT"
 
       - name: Setup
         if: steps.affected.outputs.result == 'true'
@@ -91,14 +100,29 @@ jobs:
             --message "$SUBJECT" \
             --non-interactive
 
-      - name: Record the published commit
-        if: steps.affected.outputs.result == 'true'
+  record:
+    # Its own job so that only these two steps hold a token that can write to
+    # the repository. Runs only after a publish that succeeded.
+    name: Record the published commit
+    needs: update
+    if: ${{ needs.update.result == 'success' && needs.update.outputs.result == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Move refs/ota/production
         env:
           AFTER_SHA: ${{ github.sha }}
+          LAST: ${{ needs.update.outputs.last }}
         run: |
-          # Moved only after a successful publish, so a failed run leaves the
-          # ref behind and the next run republishes the gap. If this push
-          # fails, the next run's range is just wider: extra publish, never a
-          # skipped one.
-          git push --force origin "${AFTER_SHA}:refs/ota/production" \
-            || echo "::warning::Could not move refs/ota/production; the next run will diff from the older commit."
+          # The lease moves the ref only while it still holds the commit the
+          # publish job diffed from (empty: the ref must not exist yet). A
+          # re-run of this job after a newer run recorded its commit therefore
+          # cannot move the ref back. A failed push leaves the ref behind, so
+          # the next run diffs a wider range and publishes again.
+          git push --force-with-lease="refs/ota/production:${LAST}" \
+            origin "${AFTER_SHA}:refs/ota/production" \
+            || echo "::warning::Could not move refs/ota/production from '${LAST}'; the next run will diff from the commit it holds."

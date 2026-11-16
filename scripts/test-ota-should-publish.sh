@@ -62,6 +62,8 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 cd "$work"
 git init -q . && git config user.email t@t && git config user.name t
+# Background maintenance after the large commit would race the cleanup trap.
+git config gc.auto 0 && git config maintenance.auto false
 base=$(commit README.txt base)
 git update-ref refs/ota/production "$base"
 
