@@ -5,6 +5,7 @@ set -euo pipefail
 
 MODE="${1:-new}"
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/ota-should-publish.sh"
+WORKFLOW="${OTA_WORKFLOW:-$(cd "$(dirname "$0")/.." && pwd)/.github/workflows/ota-update.yml}"
 fails=0
 
 legacy() {
@@ -57,6 +58,30 @@ expect() { # expect <name> <want> <got>
 		fails=$((fails + 1))
 	fi
 }
+
+# Workflow guards. awk keeps this free of yq, which the docs job does not install.
+# write_scopes: the job name, or the top-level key, that holds each `contents: write`.
+write_scopes() {
+	awk '
+		/^[^ #]/ { top = $1; job = "" }
+		top == "jobs:" && /^  [A-Za-z_-]+:/ { job = $1 }
+		/^ *(contents: *write|permissions: *write-all) *$/ { print (top == "jobs:" ? job : top) }
+	' "$1" | paste -sd, -
+}
+# top_concurrency: the top-level concurrency block as "group=... cancel=...".
+top_concurrency() {
+	awk '
+		/^[^ #]/ { top = $1 }
+		top == "concurrency:" && /^  group:/ { sub(/^  group: */, ""); g = $0 }
+		top == "concurrency:" && /^  cancel-in-progress:/ { sub(/^  cancel-in-progress: */, ""); c = $0 }
+		END { print "group=" g " cancel=" c }
+	' "$1"
+}
+if [ "$MODE" = new ]; then
+	expect "contents: write only on the record job" "record:" "$(write_scopes "$WORKFLOW")"
+	expect "one constant concurrency group, never cancelled" \
+		"group=ota-update-production cancel=false" "$(top_concurrency "$WORKFLOW")"
+fi
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
