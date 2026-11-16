@@ -30,6 +30,8 @@ const SOURCE_FILES = [
   'backward',
 ] as const
 
+const COUNTRY_FILE = 'zone.tab'
+
 // tzdata names Etc/UTC the zone and UTC a link. Lily keeps UTC canonical,
 // because it is the column default and the zone CLDR and Intl report.
 const RENAMED_ZONES: { readonly [zone: string]: string } = {
@@ -84,6 +86,7 @@ const download = async (): Promise<string> => {
     '-C',
     dir,
     ...SOURCE_FILES,
+    COUNTRY_FILE,
   ])
   if (tar.exitCode !== 0) {
     throw new Error(`tar failed: ${tar.stderr.toString()}`)
@@ -115,14 +118,30 @@ const readEntries = async (dir: string): Promise<ReadonlyArray<Entry>> => {
   )
 }
 
+// zone.tab lists the zones of each country. tzdata links some of them to
+// another country's zone (Europe/Zagreb to Europe/Belgrade), and those stay
+// canonical, so no user is moved to a zone named after another country.
+const readCountryZones = async (dir: string): Promise<ReadonlyArray<string>> =>
+  pipe(
+    String.split(await readFile(join(dir, COUNTRY_FILE), 'utf8'), '\n'),
+    Array.filter((line) => line !== '' && !String.startsWith('#')(line)),
+    Array.flatMap((line) => Array.fromNullishOr(String.split(line, '\t')[2])),
+    Array.dedupe,
+    Array.sort(Order.String)
+  )
+
 const rename = (name: string): string => RENAMED_ZONES[name] ?? name
 
-const build = (entries: ReadonlyArray<Entry>) => {
-  const zones = new Set(
-    Array.flatMap(entries, (entry) =>
+const build = (
+  entries: ReadonlyArray<Entry>,
+  countryZones: ReadonlyArray<string>
+) => {
+  const zones = new Set([
+    ...Array.flatMap(entries, (entry) =>
       entry.kind === 'zone' ? [rename(entry.name)] : []
-    )
-  )
+    ),
+    ...countryZones,
+  ])
   const links = Record.fromEntries(
     Array.flatMap(entries, (entry) =>
       entry.kind === 'link' ? [[entry.name, entry.target] as const] : []
@@ -155,6 +174,7 @@ const quote = (value: string): string => `'${value}'`
 
 const renderTs = (
   canonical: ReadonlyArray<string>,
+  countryZones: ReadonlyArray<string>,
   aliases: ReadonlyArray<readonly [string, string]>
 ): string =>
   [
@@ -167,6 +187,10 @@ const renderTs = (
     '] as const',
     '',
     'export type CanonicalTimeZoneName = (typeof CANONICAL_TIME_ZONES)[number]',
+    '',
+    'export const COUNTRY_TIME_ZONES: ReadonlyArray<CanonicalTimeZoneName> = [',
+    ...Array.map(countryZones, (name) => `  ${quote(name)},`),
+    ']',
     '',
     'export const TIME_ZONE_ALIASES: {',
     '  readonly [alias: string]: CanonicalTimeZoneName',
@@ -188,8 +212,9 @@ const renderSql = (aliases: ReadonlyArray<readonly [string, string]>): string =>
 
 const dir = await download()
 try {
-  const { canonical, aliases } = build(await readEntries(dir))
-  await writeFile(OUTPUT, renderTs(canonical, aliases))
+  const countryZones = await readCountryZones(dir)
+  const { canonical, aliases } = build(await readEntries(dir), countryZones)
+  await writeFile(OUTPUT, renderTs(canonical, countryZones, aliases))
   const format = Bun.spawnSync([
     'bunx',
     '--bun',

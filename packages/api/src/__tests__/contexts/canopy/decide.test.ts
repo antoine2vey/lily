@@ -154,6 +154,33 @@ describe('createCanopy', () => {
     )
   })
 
+  it.each([
+    ['Eire', 'Europe/Dublin'],
+    ['Asia/Calcutta', 'Asia/Kolkata'],
+    ['Mars/Base', 'UTC'],
+  ])(
+    'creates the canopy in the canonical zone of a creator on %j',
+    (stored, zone) => {
+      const decided = create({
+        ...HELD_NOTHING,
+        accounts: new Map([['sam', account({ timezone: stored })]]),
+      })
+
+      expect(Result.map(decided, ({ writes }) => Array.head(writes))).toEqual(
+        Result.succeed(
+          Option.some(
+            CanopyWrite.CreateCanopy({
+              id: CanopyId.make('canopy-2'),
+              name: 'Cabin',
+              timezone: TimeZone.make(zone),
+              location: Option.none(),
+            })
+          )
+        )
+      )
+    }
+  )
+
   it('refuses a creator whose account is gone', () => {
     const decided = create({
       ...HELD_NOTHING,

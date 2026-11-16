@@ -1,5 +1,6 @@
-import { Cause, Effect, Exit, Option, Schema } from 'effect'
+import { Array, Cause, Effect, Exit, Option, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
+import { COUNTRY_TIME_ZONES } from '../domains/notification/time-zones.generated'
 import {
   DEFAULT_NOTIFICATION_TIME,
   DEFAULT_TIMEZONE,
@@ -268,12 +269,25 @@ describe('Timezone Utilities', () => {
       expect(decode(alias)).toEqual(Option.some(zone))
     })
 
-    it.each(['UTC', 'Europe/Paris', 'America/Argentina/Buenos_Aires'])(
-      'keeps the canonical zone %s',
-      (zone) => {
-        expect(decode(zone)).toEqual(Option.some(zone))
-      }
-    )
+    it.each([
+      'UTC',
+      'Europe/Paris',
+      'America/Argentina/Buenos_Aires',
+      'Europe/Zagreb',
+      'Europe/Stockholm',
+      'Atlantic/Reykjavik',
+    ])('keeps the canonical zone %s', (zone) => {
+      expect(decode(zone)).toEqual(Option.some(zone))
+    })
+
+    it('keeps every zone that zone.tab lists for a country', () => {
+      expect(
+        Array.filter(
+          COUNTRY_TIME_ZONES,
+          (zone) => !Option.exists(decode(zone), (decoded) => decoded === zone)
+        )
+      ).toEqual([])
+    })
 
     it.each(['Not/AZone', 'europe/paris', 'PST8PDT', 'toString', ''])(
       'rejects %j',

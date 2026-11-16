@@ -237,6 +237,67 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
+    it('moves a run of consecutive evenings back one day each', async () => {
+      const buenosAires = await user(
+        `ba-${Date.now()}@example.com`,
+        'America/Buenos_Aires'
+      )
+      const monstera = await plant('Monstera', { userId: buenosAires })
+      const evenings = Array.map(
+        ['02', '03', '04', '05', '06'],
+        (day) => new Date(`2026-09-${day}T00:30:00Z`)
+      )
+      await db.insert(schema.careLogs).values(
+        Array.map(evenings, (date) => ({
+          plantId: monstera,
+          type: 'watering' as const,
+          date,
+          careDay: careDayOf(date),
+          performedByUserId: buenosAires,
+        }))
+      )
+
+      await migrate()
+
+      expect(await careDays()).toEqual(
+        expect.arrayContaining([
+          ['2026-09-02T00:30:00.000Z', '2026-09-01'],
+          ['2026-09-03T00:30:00.000Z', '2026-09-02'],
+          ['2026-09-04T00:30:00.000Z', '2026-09-03'],
+          ['2026-09-05T00:30:00.000Z', '2026-09-04'],
+          ['2026-09-06T00:30:00.000Z', '2026-09-05'],
+        ])
+      )
+    })
+
+    it('moves a run of consecutive nights forward one day each', async () => {
+      const nights = Array.map(
+        ['20', '21', '22', '23', '24'],
+        (day) => new Date(`2026-11-${day}T20:00:00Z`)
+      )
+      await db.insert(schema.careLogs).values(
+        Array.map(nights, (date) => ({
+          plantId: palm,
+          type: 'misting' as const,
+          date,
+          careDay: careDayOf(date),
+          performedByUserId: eire,
+        }))
+      )
+
+      await migrate()
+
+      expect(await careDays()).toEqual(
+        expect.arrayContaining([
+          ['2026-11-20T20:00:00.000Z', '2026-11-21'],
+          ['2026-11-21T20:00:00.000Z', '2026-11-22'],
+          ['2026-11-22T20:00:00.000Z', '2026-11-23'],
+          ['2026-11-23T20:00:00.000Z', '2026-11-24'],
+          ['2026-11-24T20:00:00.000Z', '2026-11-25'],
+        ])
+      )
+    })
+
     it('changes nothing when it runs again', async () => {
       await migrate()
       const once = {

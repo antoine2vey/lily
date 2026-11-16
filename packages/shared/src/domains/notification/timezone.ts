@@ -43,9 +43,10 @@ const canonicalZones: ReadonlySet<string> = new Set(CANONICAL_TIME_ZONES)
 
 /**
  * A canonical IANA zone name, the form stored in `users.timezone` and
- * `canopies.timezone`. Decoding maps a tzdata alias such as `Eire` to its zone
- * (`Europe/Dublin`), so a stored zone never depends on a tzdata build that ships
- * the IANA `backward` links.
+ * `canopies.timezone`: a tzdata `Zone` line or a zone `zone.tab` lists.
+ * Decoding maps a renamed or legacy name such as `Eire` to its zone
+ * (`Europe/Dublin`). A stored zone stays canonical so day math does not depend
+ * on whichever tzdata build a runtime ships.
  */
 export const TimeZone = Schema.String.pipe(
   Schema.decodeTo(

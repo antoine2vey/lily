@@ -1,8 +1,9 @@
 -- Rewrites tzdata aliases in users.timezone and canopies.timezone to the zones
--- they name. The rows come from `bun run --filter=@lily/db generate:time-zones
--- -- --sql`. The Postgres image Railway runs has no alias names, so 0072, 0074,
--- 0080, 0081 and 0083 computed the day columns of an alias's plants in UTC,
--- and they are recomputed here first. A zone outside the map is left as it is.
+-- they name, so day math never depends on the tzdata build a runtime ships.
+-- The rows come from `bun run --filter=@lily/db generate:time-zones -- --sql`.
+-- 0072, 0074, 0080, 0081 and 0083 ran when Postgres knew no alias and computed
+-- the day columns of an alias's plants in UTC, so they are recomputed here
+-- first. A zone outside the map is left as it is.
 SET LOCAL lock_timeout = '5s';
 --> statement-breakpoint
 CREATE TEMPORARY TABLE "time_zone_aliases" (
@@ -11,98 +12,35 @@ CREATE TEMPORARY TABLE "time_zone_aliases" (
 ) ON COMMIT DROP;
 --> statement-breakpoint
 INSERT INTO "time_zone_aliases" ("alias", "zone") VALUES
-  ('Africa/Accra', 'Africa/Abidjan'),
-  ('Africa/Addis_Ababa', 'Africa/Nairobi'),
-  ('Africa/Asmara', 'Africa/Nairobi'),
   ('Africa/Asmera', 'Africa/Nairobi'),
-  ('Africa/Bamako', 'Africa/Abidjan'),
-  ('Africa/Bangui', 'Africa/Lagos'),
-  ('Africa/Banjul', 'Africa/Abidjan'),
-  ('Africa/Blantyre', 'Africa/Maputo'),
-  ('Africa/Brazzaville', 'Africa/Lagos'),
-  ('Africa/Bujumbura', 'Africa/Maputo'),
-  ('Africa/Conakry', 'Africa/Abidjan'),
-  ('Africa/Dakar', 'Africa/Abidjan'),
-  ('Africa/Dar_es_Salaam', 'Africa/Nairobi'),
-  ('Africa/Djibouti', 'Africa/Nairobi'),
-  ('Africa/Douala', 'Africa/Lagos'),
-  ('Africa/Freetown', 'Africa/Abidjan'),
-  ('Africa/Gaborone', 'Africa/Maputo'),
-  ('Africa/Harare', 'Africa/Maputo'),
-  ('Africa/Kampala', 'Africa/Nairobi'),
-  ('Africa/Kigali', 'Africa/Maputo'),
-  ('Africa/Kinshasa', 'Africa/Lagos'),
-  ('Africa/Libreville', 'Africa/Lagos'),
-  ('Africa/Lome', 'Africa/Abidjan'),
-  ('Africa/Luanda', 'Africa/Lagos'),
-  ('Africa/Lubumbashi', 'Africa/Maputo'),
-  ('Africa/Lusaka', 'Africa/Maputo'),
-  ('Africa/Malabo', 'Africa/Lagos'),
-  ('Africa/Maseru', 'Africa/Johannesburg'),
-  ('Africa/Mbabane', 'Africa/Johannesburg'),
-  ('Africa/Mogadishu', 'Africa/Nairobi'),
-  ('Africa/Niamey', 'Africa/Lagos'),
-  ('Africa/Nouakchott', 'Africa/Abidjan'),
-  ('Africa/Ouagadougou', 'Africa/Abidjan'),
-  ('Africa/Porto-Novo', 'Africa/Lagos'),
   ('Africa/Timbuktu', 'Africa/Abidjan'),
-  ('America/Anguilla', 'America/Puerto_Rico'),
-  ('America/Antigua', 'America/Puerto_Rico'),
   ('America/Argentina/ComodRivadavia', 'America/Argentina/Catamarca'),
-  ('America/Aruba', 'America/Puerto_Rico'),
-  ('America/Atikokan', 'America/Panama'),
   ('America/Atka', 'America/Adak'),
-  ('America/Blanc-Sablon', 'America/Puerto_Rico'),
   ('America/Buenos_Aires', 'America/Argentina/Buenos_Aires'),
   ('America/Catamarca', 'America/Argentina/Catamarca'),
-  ('America/Cayman', 'America/Panama'),
   ('America/Coral_Harbour', 'America/Panama'),
   ('America/Cordoba', 'America/Argentina/Cordoba'),
-  ('America/Creston', 'America/Phoenix'),
-  ('America/Curacao', 'America/Puerto_Rico'),
-  ('America/Dominica', 'America/Puerto_Rico'),
   ('America/Ensenada', 'America/Tijuana'),
   ('America/Fort_Wayne', 'America/Indiana/Indianapolis'),
   ('America/Godthab', 'America/Nuuk'),
-  ('America/Grenada', 'America/Puerto_Rico'),
-  ('America/Guadeloupe', 'America/Puerto_Rico'),
   ('America/Indianapolis', 'America/Indiana/Indianapolis'),
   ('America/Jujuy', 'America/Argentina/Jujuy'),
   ('America/Knox_IN', 'America/Indiana/Knox'),
-  ('America/Kralendijk', 'America/Puerto_Rico'),
   ('America/Louisville', 'America/Kentucky/Louisville'),
-  ('America/Lower_Princes', 'America/Puerto_Rico'),
-  ('America/Marigot', 'America/Puerto_Rico'),
   ('America/Mendoza', 'America/Argentina/Mendoza'),
   ('America/Montreal', 'America/Toronto'),
-  ('America/Montserrat', 'America/Puerto_Rico'),
-  ('America/Nassau', 'America/Toronto'),
   ('America/Nipigon', 'America/Toronto'),
   ('America/Pangnirtung', 'America/Iqaluit'),
-  ('America/Port_of_Spain', 'America/Puerto_Rico'),
   ('America/Porto_Acre', 'America/Rio_Branco'),
   ('America/Rainy_River', 'America/Winnipeg'),
   ('America/Rosario', 'America/Argentina/Cordoba'),
   ('America/Santa_Isabel', 'America/Tijuana'),
   ('America/Shiprock', 'America/Denver'),
-  ('America/St_Barthelemy', 'America/Puerto_Rico'),
-  ('America/St_Kitts', 'America/Puerto_Rico'),
-  ('America/St_Lucia', 'America/Puerto_Rico'),
-  ('America/St_Thomas', 'America/Puerto_Rico'),
-  ('America/St_Vincent', 'America/Puerto_Rico'),
   ('America/Thunder_Bay', 'America/Toronto'),
-  ('America/Tortola', 'America/Puerto_Rico'),
   ('America/Virgin', 'America/Puerto_Rico'),
   ('America/Yellowknife', 'America/Edmonton'),
-  ('Antarctica/DumontDUrville', 'Pacific/Port_Moresby'),
-  ('Antarctica/McMurdo', 'Pacific/Auckland'),
   ('Antarctica/South_Pole', 'Pacific/Auckland'),
-  ('Antarctica/Syowa', 'Asia/Riyadh'),
-  ('Arctic/Longyearbyen', 'Europe/Berlin'),
-  ('Asia/Aden', 'Asia/Riyadh'),
   ('Asia/Ashkhabad', 'Asia/Ashgabat'),
-  ('Asia/Bahrain', 'Asia/Qatar'),
-  ('Asia/Brunei', 'Asia/Kuching'),
   ('Asia/Calcutta', 'Asia/Kolkata'),
   ('Asia/Choibalsan', 'Asia/Ulaanbaatar'),
   ('Asia/Chongqing', 'Asia/Shanghai'),
@@ -112,22 +50,15 @@ INSERT INTO "time_zone_aliases" ("alias", "zone") VALUES
   ('Asia/Istanbul', 'Europe/Istanbul'),
   ('Asia/Kashgar', 'Asia/Urumqi'),
   ('Asia/Katmandu', 'Asia/Kathmandu'),
-  ('Asia/Kuala_Lumpur', 'Asia/Singapore'),
-  ('Asia/Kuwait', 'Asia/Riyadh'),
   ('Asia/Macao', 'Asia/Macau'),
-  ('Asia/Muscat', 'Asia/Dubai'),
-  ('Asia/Phnom_Penh', 'Asia/Bangkok'),
   ('Asia/Rangoon', 'Asia/Yangon'),
   ('Asia/Saigon', 'Asia/Ho_Chi_Minh'),
   ('Asia/Tel_Aviv', 'Asia/Jerusalem'),
   ('Asia/Thimbu', 'Asia/Thimphu'),
   ('Asia/Ujung_Pandang', 'Asia/Makassar'),
   ('Asia/Ulan_Bator', 'Asia/Ulaanbaatar'),
-  ('Asia/Vientiane', 'Asia/Bangkok'),
   ('Atlantic/Faeroe', 'Atlantic/Faroe'),
   ('Atlantic/Jan_Mayen', 'Europe/Berlin'),
-  ('Atlantic/Reykjavik', 'Africa/Abidjan'),
-  ('Atlantic/St_Helena', 'Africa/Abidjan'),
   ('Australia/ACT', 'Australia/Sydney'),
   ('Australia/Canberra', 'Australia/Sydney'),
   ('Australia/Currie', 'Australia/Hobart'),
@@ -168,31 +99,11 @@ INSERT INTO "time_zone_aliases" ("alias", "zone") VALUES
   ('Etc/UTC', 'UTC'),
   ('Etc/Universal', 'UTC'),
   ('Etc/Zulu', 'UTC'),
-  ('Europe/Amsterdam', 'Europe/Brussels'),
   ('Europe/Belfast', 'Europe/London'),
-  ('Europe/Bratislava', 'Europe/Prague'),
-  ('Europe/Busingen', 'Europe/Zurich'),
-  ('Europe/Copenhagen', 'Europe/Berlin'),
-  ('Europe/Guernsey', 'Europe/London'),
-  ('Europe/Isle_of_Man', 'Europe/London'),
-  ('Europe/Jersey', 'Europe/London'),
   ('Europe/Kiev', 'Europe/Kyiv'),
-  ('Europe/Ljubljana', 'Europe/Belgrade'),
-  ('Europe/Luxembourg', 'Europe/Brussels'),
-  ('Europe/Mariehamn', 'Europe/Helsinki'),
-  ('Europe/Monaco', 'Europe/Paris'),
   ('Europe/Nicosia', 'Asia/Nicosia'),
-  ('Europe/Oslo', 'Europe/Berlin'),
-  ('Europe/Podgorica', 'Europe/Belgrade'),
-  ('Europe/San_Marino', 'Europe/Rome'),
-  ('Europe/Sarajevo', 'Europe/Belgrade'),
-  ('Europe/Skopje', 'Europe/Belgrade'),
-  ('Europe/Stockholm', 'Europe/Berlin'),
   ('Europe/Tiraspol', 'Europe/Chisinau'),
   ('Europe/Uzhgorod', 'Europe/Kyiv'),
-  ('Europe/Vaduz', 'Europe/Zurich'),
-  ('Europe/Vatican', 'Europe/Rome'),
-  ('Europe/Zagreb', 'Europe/Belgrade'),
   ('Europe/Zaporozhye', 'Europe/Kyiv'),
   ('GB', 'Europe/London'),
   ('GB-Eire', 'Europe/London'),
@@ -204,14 +115,6 @@ INSERT INTO "time_zone_aliases" ("alias", "zone") VALUES
   ('HST', 'Pacific/Honolulu'),
   ('Hongkong', 'Asia/Hong_Kong'),
   ('Iceland', 'Africa/Abidjan'),
-  ('Indian/Antananarivo', 'Africa/Nairobi'),
-  ('Indian/Christmas', 'Asia/Bangkok'),
-  ('Indian/Cocos', 'Asia/Yangon'),
-  ('Indian/Comoro', 'Africa/Nairobi'),
-  ('Indian/Kerguelen', 'Indian/Maldives'),
-  ('Indian/Mahe', 'Asia/Dubai'),
-  ('Indian/Mayotte', 'Africa/Nairobi'),
-  ('Indian/Reunion', 'Asia/Dubai'),
   ('Iran', 'Asia/Tehran'),
   ('Israel', 'Asia/Jerusalem'),
   ('Jamaica', 'America/Jamaica'),
@@ -227,19 +130,11 @@ INSERT INTO "time_zone_aliases" ("alias", "zone") VALUES
   ('NZ-CHAT', 'Pacific/Chatham'),
   ('Navajo', 'America/Denver'),
   ('PRC', 'Asia/Shanghai'),
-  ('Pacific/Chuuk', 'Pacific/Port_Moresby'),
   ('Pacific/Enderbury', 'Pacific/Kanton'),
-  ('Pacific/Funafuti', 'Pacific/Tarawa'),
   ('Pacific/Johnston', 'Pacific/Honolulu'),
-  ('Pacific/Majuro', 'Pacific/Tarawa'),
-  ('Pacific/Midway', 'Pacific/Pago_Pago'),
-  ('Pacific/Pohnpei', 'Pacific/Guadalcanal'),
   ('Pacific/Ponape', 'Pacific/Guadalcanal'),
-  ('Pacific/Saipan', 'Pacific/Guam'),
   ('Pacific/Samoa', 'Pacific/Pago_Pago'),
   ('Pacific/Truk', 'Pacific/Port_Moresby'),
-  ('Pacific/Wake', 'Pacific/Tarawa'),
-  ('Pacific/Wallis', 'Pacific/Tarawa'),
   ('Pacific/Yap', 'Pacific/Port_Moresby'),
   ('Poland', 'Europe/Warsaw'),
   ('Portugal', 'Europe/Lisbon'),
@@ -272,39 +167,61 @@ LEFT JOIN "canopies" c ON c."id" = p."canopy_id"
 LEFT JOIN "users" u ON u."id" = p."user_id"
 JOIN "time_zone_aliases" a ON a."alias" = coalesce(c."timezone", u."timezone");
 --> statement-breakpoint
--- A recomputed day already held by another log of the same care stays as it
--- is, so care_logs_one_per_care_day never fails the migration.
-WITH "recomputed" AS (
-  SELECT
-    cl."id",
-    cl."plant_id",
-    cl."type",
-    (cl."date" AT TIME ZONE ap."zone")::date AS "day"
-  FROM "care_logs" cl
-  JOIN "alias_plants" ap ON ap."plant_id" = cl."plant_id"
-  WHERE cl."care_day" <> (cl."date" AT TIME ZONE ap."zone")::date
-),
-"movable" AS (
-  SELECT
-    r."id",
-    r."day",
-    row_number() OVER (
-      PARTITION BY r."plant_id", r."type", r."day"
-      ORDER BY r."id"
-    ) AS "rank"
-  FROM "recomputed" r
-  WHERE NOT EXISTS (
-    SELECT 1
-    FROM "care_logs" held
-    WHERE held."plant_id" = r."plant_id"
-      AND held."type" = r."type"
-      AND held."care_day" = r."day"
-  )
+CREATE TEMPORARY TABLE "care_day_moves" ON COMMIT DROP AS
+SELECT
+  cl."id",
+  cl."plant_id",
+  cl."type",
+  cl."care_day" AS "old_day",
+  (cl."date" AT TIME ZONE ap."zone")::date AS "new_day",
+  row_number() OVER (
+    PARTITION BY cl."plant_id", cl."type", (cl."date" AT TIME ZONE ap."zone")::date
+    ORDER BY cl."date", cl."created_at", cl."id"
+  ) AS "rank"
+FROM "care_logs" cl
+JOIN "alias_plants" ap ON ap."plant_id" = cl."plant_id"
+WHERE cl."care_day" <> (cl."date" AT TIME ZONE ap."zone")::date;
+--> statement-breakpoint
+-- A log keeps its day when its new day ends up held by a log that does not
+-- move: one already on its right day, an earlier log landing on the same day,
+-- or a log kept in place for either reason.
+WITH RECURSIVE "kept" AS (
+  SELECT m."id", m."plant_id", m."type", m."old_day"
+  FROM "care_day_moves" m
+  WHERE m."rank" > 1
+    OR EXISTS (
+      SELECT 1
+      FROM "care_logs" held
+      WHERE held."plant_id" = m."plant_id"
+        AND held."type" = m."type"
+        AND held."care_day" = m."new_day"
+        AND NOT EXISTS (
+          SELECT 1 FROM "care_day_moves" o WHERE o."id" = held."id"
+        )
+    )
+  UNION
+  SELECT m."id", m."plant_id", m."type", m."old_day"
+  FROM "care_day_moves" m
+  JOIN "kept" k
+    ON k."plant_id" = m."plant_id"
+    AND k."type" = m."type"
+    AND k."old_day" = m."new_day"
 )
+DELETE FROM "care_day_moves" m
+USING "kept" k
+WHERE m."id" = k."id";
+--> statement-breakpoint
+-- Postgres checks a unique index row by row, so a run of consecutive days that
+-- each move by one would collide midway through a single UPDATE.
+DROP INDEX "care_logs_one_per_care_day";
+--> statement-breakpoint
 UPDATE "care_logs" cl
-SET "care_day" = m."day"
-FROM "movable" m
-WHERE cl."id" = m."id" AND m."rank" = 1;
+SET "care_day" = m."new_day"
+FROM "care_day_moves" m
+WHERE cl."id" = m."id";
+--> statement-breakpoint
+CREATE UNIQUE INDEX "care_logs_one_per_care_day"
+  ON "care_logs" ("plant_id", "type", "care_day");
 --> statement-breakpoint
 UPDATE "plant_care_schedules" s
 SET "due_day" = (s."next_care_at" AT TIME ZONE ap."zone")::date

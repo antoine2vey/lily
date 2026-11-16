@@ -1,5 +1,8 @@
 // jest globals provided via @types/jest
-import { resolveNotificationRoute } from '@/utils/notifications'
+import {
+  getDeviceTimezone,
+  resolveNotificationRoute,
+} from '@/utils/notifications'
 
 describe('resolveNotificationRoute', () => {
   it('routes watering_reminder with single plant to plant screen', () => {
@@ -261,5 +264,24 @@ describe('resolveNotificationRoute', () => {
       plantIds: 42,
     })
     expect(route).toBe('/(app)/(tabs)/care')
+  })
+})
+
+describe('getDeviceTimezone', () => {
+  const onDevice = (timeZone: string) =>
+    jest.spyOn(Intl, 'DateTimeFormat').mockReturnValue({
+      resolvedOptions: () => ({ timeZone }),
+    } as Intl.DateTimeFormat)
+
+  afterEach(() => jest.restoreAllMocks())
+
+  it.each([
+    ['Asia/Calcutta', 'Asia/Kolkata'],
+    ['Europe/Paris', 'Europe/Paris'],
+    ['Mars/Base', 'UTC'],
+  ])('reports %j as %j', (device, zone) => {
+    onDevice(device)
+
+    expect(getDeviceTimezone()).toBe(zone)
   })
 })
