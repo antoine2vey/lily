@@ -39,6 +39,8 @@ jobs:
               - '.github/workflows/ci.yml'
               - '.github/actions/setup/**'
               - 'Dockerfile.postgres'
+              - 'Dockerfile.prod'
+              - '.dockerignore'
 
   checks:
     name: Lint · Typecheck · Test · Build
@@ -148,7 +150,7 @@ jobs:
       # second cannot pass on a probe that never reads the real offset.
       - name: Probe without the zone rules, expecting StaleZoneRulesError
         run: |
-          if docker run --rm lily-api env -u ICU_TIMEZONE_FILES_DIR bun run --cwd packages/api src/probes/zone-rules.ts 2>probe.err; then
+          if docker run --rm lily-api env -u ICU_TIMEZONE_FILES_DIR bun run --cwd packages/api src/probes/zone-rules.ts >probe.err 2>&1; then
             echo '::error::the guard passed on Bun'"'"'s bundled zone rules'
             exit 1
           fi
@@ -160,17 +162,22 @@ jobs:
   summary:
     name: CI summary
     if: always()
-    needs: [checks, universal-links, docs, integration, zone-rules]
+    needs: [changes, checks, universal-links, docs, integration, zone-rules]
     runs-on: ubuntu-latest
     steps:
       - name: Verify required jobs
         run: |
+          changes='${{ needs.changes.result }}'
           checks='${{ needs.checks.result }}'
           universal_links='${{ needs.universal-links.result }}'
           docs='${{ needs.docs.result }}'
           integration='${{ needs.integration.result }}'
           zone_rules='${{ needs.zone-rules.result }}'
-          echo "checks=$checks universal-links=$universal_links docs=$docs integration=$integration zone-rules=$zone_rules"
+          echo "changes=$changes checks=$checks universal-links=$universal_links docs=$docs integration=$integration zone-rules=$zone_rules"
+          if [ "$changes" != 'success' ]; then
+            echo '::error::changes job did not succeed'
+            exit 1
+          fi
           if [ "$checks" != 'success' ]; then
             echo '::error::checks job did not succeed'
             exit 1
