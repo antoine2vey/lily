@@ -4,11 +4,16 @@ import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import {
   createInMemoryGCS,
   createMockGCSService,
+  mockPublicUrl,
 } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import {
+  createMockSqlClient,
+  MockSqlClientLive,
+} from '@lily/api/__tests__/mocks/sql-client'
 import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { uploadAvatar } from '@lily/api/services/user/endpoints/upload-avatar'
 import { Effect, Layer } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -85,6 +90,31 @@ describe('uploadAvatar', () => {
       outcome: 'gone',
       stored: [],
     })
+  })
+
+  it('keeps the uploaded avatar when the commit is not acknowledged', async () => {
+    const gcs = createInMemoryGCS()
+    const layer = Layer.mergeAll(
+      createMockUserRepository([...mockUsers]),
+      gcs.layer,
+      createMockFileService(),
+      createMockFileSystem(),
+      createMockStoredRefRepository(),
+      createMockSqlClient({ commitUnanswered: true }),
+      createMockCurrentUser({ id: 'user-1' })
+    )
+
+    const user = await Effect.runPromise(
+      uploadAvatar([mockFile]).pipe(
+        Effect.catchTag('SqlError', () => Effect.void),
+        Effect.andThen(
+          Effect.flatMap(UserRepository, (repo) => repo.findById('user-1'))
+        ),
+        Effect.provide(layer)
+      )
+    )
+
+    expect([...gcs.objects.plant].map(mockPublicUrl)).toEqual([user?.image])
   })
 
   it('should fail when no files provided', async () => {

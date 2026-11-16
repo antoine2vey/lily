@@ -29,8 +29,9 @@ const signedUrl = (key: string, query: string) =>
   `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/${key}?${query}`
 
 /**
- * GCS held in memory: uploads land in `objects`, deletes remove them, and
- * `outage.deletes` makes every delete fail the way an unreachable bucket does.
+ * GCS held in memory: uploads land in `objects`, deletes remove them,
+ * `outage.deletes` makes every delete fail the way an unreachable bucket does,
+ * and `outage.defect` makes it die the way a bug in the client does.
  */
 export const createInMemoryGCS = (
   options: { privateUploads?: GCSUploadRequest[]; signedKeys?: string[] } = {}
@@ -39,7 +40,7 @@ export const createInMemoryGCS = (
     plant: new Set(),
     ai: new Set(),
   }
-  const outage = { deletes: false }
+  const outage = { deletes: false, defect: false }
 
   const save = (bucket: BucketRole, request: GCSUploadRequest) =>
     Effect.tap(planImageUpload(request.fileBuffer, request.folder), ({ key }) =>
@@ -47,11 +48,12 @@ export const createInMemoryGCS = (
     )
 
   const unlessOutage = (remove: () => void) =>
-    Effect.suspend(() =>
-      outage.deletes
+    Effect.suspend(() => {
+      if (outage.defect) return Effect.die(new Error('storage client bug'))
+      return outage.deletes
         ? Effect.fail(new GCSDeleteError({ message: 'bucket unreachable' }))
         : Effect.sync(remove)
-    )
+    })
 
   const mockService = {
     uploadFile: (

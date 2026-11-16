@@ -6,17 +6,24 @@ import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import {
   createInMemoryGCS,
   createMockGCSService,
+  mockPublicUrl,
 } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
-import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import {
+  createMockSqlClient,
+  MockSqlClientLive,
+} from '@lily/api/__tests__/mocks/sql-client'
 import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { frequencyOfDays } from '@lily/api/contexts/care'
 import { Dirty } from '@lily/api/contexts/reminders'
 import { Actor, mintPermit } from '@lily/api/kernel/permit'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
-import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  type PlantWithRoom,
+} from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { RoomNotFoundError } from '@lily/shared'
 import { Effect, Exit, Layer, Option } from 'effect'
@@ -210,5 +217,34 @@ describe('updatePlant', () => {
       outcome: 'gone',
       stored: [],
     })
+  })
+
+  it('keeps the uploaded image when the commit is not acknowledged', async () => {
+    const gcs = createInMemoryGCS()
+    const layer = Layer.mergeAll(
+      createMockRoomRepository(roomsWithStranger),
+      createMockPlantRepository({ plants: mockPlants }),
+      createStubCare().layer,
+      createMockOutbox().layer,
+      createMockSqlClient({ commitUnanswered: true }),
+      gcs.layer,
+      createMockStoredRefRepository(),
+      createMockFileSystem()
+    )
+    const plant = toPlantWithRoom(mockPlants[0]!)
+
+    const written = await Effect.runPromise(
+      updatePlant(plant, permit, { id: 'plant-1' }, image).pipe(
+        Effect.catchTag('SqlError', () => Effect.void),
+        Effect.andThen(
+          Effect.flatMap(PlantRepository, (repo) => repo.findById('plant-1'))
+        ),
+        Effect.provide(layer)
+      )
+    )
+
+    expect([...gcs.objects.plant].map(mockPublicUrl)).toEqual([
+      written?.imageUrl,
+    ])
   })
 })

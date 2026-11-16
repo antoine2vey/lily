@@ -1,6 +1,6 @@
 import { delivered } from '@lily/api/__tests__/integration/canopy-layers'
 import { removeAsCurrentUser } from '@lily/api/__tests__/integration/care-layers'
-import { carePermit } from '@lily/api/__tests__/mocks/care'
+import { carePermit, chatPermit } from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
@@ -10,6 +10,7 @@ import {
 } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
+import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
@@ -19,22 +20,33 @@ import type { Absence } from '@lily/api/contexts/absence'
 import type { Canopy } from '@lily/api/contexts/canopy'
 import {
   type Care,
+  type CarePlans,
   CareReadsLive,
   type PlantLife,
 } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
+import { transactQuietly } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import {
+  DiagnosisRepository,
+  DiagnosisRepositoryLive,
+} from '@lily/api/repositories/diagnosis.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
-import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
+import {
+  StoredRefRepository,
+  StoredRefRepositoryLive,
+} from '@lily/api/repositories/stored-ref.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { deleteConversation } from '@lily/api/services/ai-chat/endpoints/delete-conversation'
+import type { ToolContext } from '@lily/api/services/ai-chat/tools'
+import { createDiagnosisTool } from '@lily/api/services/ai-chat/tools/create-diagnosis'
 import { deleteCareLog } from '@lily/api/services/care-logs/endpoints/delete-care-log'
 import { deletePlantPhoto } from '@lily/api/services/plants/endpoints/delete-plant-photo'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
@@ -60,11 +72,13 @@ const ReposLive = Layer.mergeAll(
   ChatRepositoryLive,
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
+  DiagnosisRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
   RoomRepositoryLive,
   StoredRefRepositoryLive,
-  UserRepositoryLive
+  UserRepositoryLive,
+  createMockRagService()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const image = {
@@ -79,6 +93,7 @@ type App =
   | Layer.Success<typeof ReposLive>
   | Outbox
   | Care
+  | CarePlans
   | PlantLife
   | Canopy
   | Absence
@@ -235,6 +250,67 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     }
 
+    const diagnose = (
+      plantId: string,
+      imageKey: string,
+      _conversationId: string
+    ) =>
+      Effect.flatMap(Effect.context<ToolContext>(), (runtime) =>
+        Effect.promise(async () => {
+          await createDiagnosisTool({
+            runtime,
+            userId: alex,
+            permit: chatPermit(plantId, alex),
+            plantName: 'Fern',
+            imageKey,
+          }).execute?.(
+            {
+              diseaseName: 'Root rot',
+              severity: 'HIGH',
+              confidence: 85,
+              symptoms: ['Mushy roots'],
+              treatmentSteps: [{ title: 'Repot', careType: 'none' }],
+            },
+            { toolCallId: 'call-1', messages: [], context: {} }
+          )
+        })
+      )
+
+    const gate = () => {
+      const { promise: reached, resolve: reach } = Promise.withResolvers<void>()
+      const { promise: opened, resolve: open } = Promise.withResolvers<void>()
+      const wait = Effect.promise(() => {
+        reach()
+        return opened
+      })
+      return { reached, open, wait }
+    }
+
+    const settledOrWaitingOnALock = async (work: Promise<unknown>) => {
+      let settled = false
+      const settle = () => {
+        settled = true
+      }
+      work.then(settle, settle)
+      while (!settled) {
+        const { rows } = await pool.query(
+          `SELECT 1 FROM pg_stat_activity
+           WHERE datname = current_database() AND wait_event_type = 'Lock'`
+        )
+        if (rows.length > 0) return
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+    }
+
+    const diagnosisImages = async () => {
+      const rows = await db
+        .select({ key: schema.diagnoses.imageKey })
+        .from(schema.diagnoses)
+      return rows.map(({ key }) =>
+        key === null || gcs.objects.ai.has(key) ? 'shown' : 'missing'
+      )
+    }
+
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
@@ -373,9 +449,49 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           objects: [`plants/${fern}/photo.jpg`],
         })
       })
+
+      it('still removes the plant when the storage client has a bug', async () => {
+        const fern = await plantOf(alex)
+        await photoOf(fern, `plants/${fern}/photo.jpg`)
+        stored('plant', `plants/${fern}/photo.jpg`)
+        gcs.outage.defect = true
+
+        const exit = await as(alex, removeAsCurrentUser(fern))
+
+        expect({
+          succeeded: Exit.isSuccess(exit),
+          plants: await db.select().from(schema.plants),
+        }).toEqual({ succeeded: true, plants: [] })
+      })
     })
 
     describe('deleting a plant photo', () => {
+      it('keeps the object when the transaction around the delete rolls back', async () => {
+        const fern = await plantOf(alex)
+        const photo = await photoOf(fern, `plants/${fern}/photo.jpg`)
+        stored('plant', `plants/${fern}/photo.jpg`)
+
+        const exit = await as(
+          alex,
+          transactQuietly(
+            Effect.andThen(
+              deletePlantPhoto({ plantId: fern, photoId: photo }),
+              Effect.fail('the caller rolls back' as const)
+            )
+          )
+        )
+
+        expect({
+          failed: Exit.isFailure(exit),
+          photos: (await db.select().from(schema.plantPhotos)).length,
+          objects: [...gcs.objects.plant],
+        }).toEqual({
+          failed: true,
+          photos: 1,
+          objects: [`plants/${fern}/photo.jpg`],
+        })
+      })
+
       it('deletes its object', async () => {
         const fern = await plantOf(alex)
         const photo = await photoOf(fern, `plants/${fern}/photo.jpg`)
@@ -488,6 +604,72 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           rot,
           `users/${alex}/chat/c2/other.jpg`,
         ])
+      })
+
+      it('keeps the image of a diagnosis that is written while the conversation is deleted', async () => {
+        const fern = await plantOf(alex)
+        const leaf = `users/${alex}/chat/c1/leaf.jpg`
+        const conversation = await conversationOf(alex, fern, [leaf])
+        stored('ai', leaf)
+        const beforeTheDiagnosisRow = gate()
+
+        const diagnosing = done(
+          alex,
+          Effect.flatMap(DiagnosisRepository, (repo) =>
+            Effect.provideService(
+              diagnose(fern, leaf, conversation),
+              DiagnosisRepository,
+              {
+                ...repo,
+                create: (data) =>
+                  Effect.andThen(beforeTheDiagnosisRow.wait, repo.create(data)),
+              }
+            )
+          )
+        )
+        await beforeTheDiagnosisRow.reached
+        const deleting = done(alex, deleteConversation(conversation))
+        await settledOrWaitingOnALock(deleting)
+        beforeTheDiagnosisRow.open()
+        await Promise.all([diagnosing, deleting])
+
+        expect({
+          conversations: await db.select().from(schema.chatConversations),
+          diagnosisImages: await diagnosisImages(),
+        }).toEqual({ conversations: [], diagnosisImages: ['shown'] })
+      })
+
+      it('keeps the image of a diagnosis that is written once the conversation is gone', async () => {
+        const fern = await plantOf(alex)
+        const leaf = `users/${alex}/chat/c1/leaf.jpg`
+        const conversation = await conversationOf(alex, fern, [leaf])
+        stored('ai', leaf)
+        const beforeTheCommit = gate()
+
+        const deleting = done(
+          alex,
+          Effect.flatMap(StoredRefRepository, (refs) =>
+            Effect.provideService(
+              deleteConversation(conversation),
+              StoredRefRepository,
+              {
+                ...refs,
+                stillHeld: (held) =>
+                  Effect.andThen(beforeTheCommit.wait, refs.stillHeld(held)),
+              }
+            )
+          )
+        )
+        await beforeTheCommit.reached
+        const diagnosing = done(alex, diagnose(fern, leaf, conversation))
+        await settledOrWaitingOnALock(diagnosing)
+        beforeTheCommit.open()
+        await Promise.all([diagnosing, deleting])
+
+        expect({
+          conversations: await db.select().from(schema.chatConversations),
+          diagnosisImages: await diagnosisImages(),
+        }).toEqual({ conversations: [], diagnosisImages: ['shown'] })
       })
 
       it('leaves the images of a conversation the caller does not own', async () => {
