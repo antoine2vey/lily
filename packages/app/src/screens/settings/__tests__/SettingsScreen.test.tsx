@@ -1,16 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
 import { mockUsers } from '@/__tests__/fixtures/users'
-
-const mockInvalidateQueries = jest.fn()
-jest.mock('@tanstack/react-query', () => {
-  const actual = jest.requireActual('@tanstack/react-query')
-  return {
-    ...actual,
-    useQueryClient: () => ({
-      invalidateQueries: mockInvalidateQueries,
-    }),
-  }
-})
+import { fireEvent, renderWithQuery, screen } from '@/__tests__/utils/render'
 
 jest.mock('@/utils/client', () => ({
   apiEffectRunner: jest.fn(),
@@ -64,7 +53,7 @@ describe('SettingsScreen', () => {
   it('shows loading state when data is loading', () => {
     mockedUseUser.mockReturnValue({ data: undefined, isLoading: true })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     // Screen returns null during initial loading (before skeleton delay)
     expect(screen.queryByText('Settings')).toBeNull()
@@ -76,7 +65,7 @@ describe('SettingsScreen', () => {
       isLoading: false,
     })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     expect(screen.getByText('Settings')).toBeTruthy()
   })
@@ -87,7 +76,7 @@ describe('SettingsScreen', () => {
       isLoading: false,
     })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     expect(screen.getByText('Appearance')).toBeTruthy()
     expect(screen.getByText('Theme')).toBeTruthy()
@@ -100,7 +89,7 @@ describe('SettingsScreen', () => {
       isLoading: false,
     })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     expect(screen.getByText('Notifications')).toBeTruthy()
     expect(screen.getByText('Push Notifications')).toBeTruthy()
@@ -112,7 +101,7 @@ describe('SettingsScreen', () => {
       isLoading: false,
     })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     // Multiple "Privacy" elements exist (section header and menu item)
     expect(screen.getAllByText('Privacy').length).toBeGreaterThan(0)
@@ -124,7 +113,7 @@ describe('SettingsScreen', () => {
       isLoading: false,
     })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     expect(screen.getByText('Support')).toBeTruthy()
     expect(screen.getByText('Help Center')).toBeTruthy()
@@ -138,7 +127,7 @@ describe('SettingsScreen', () => {
       isLoading: false,
     })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     expect(screen.getByText('Account')).toBeTruthy()
     expect(screen.getByText('Sign Out')).toBeTruthy()
@@ -151,7 +140,7 @@ describe('SettingsScreen', () => {
       isLoading: false,
     })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     expect(screen.getByText('Delete Account')).toBeTruthy()
   })
@@ -162,7 +151,7 @@ describe('SettingsScreen', () => {
       isLoading: false,
     })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     // Multiple "Version" elements may exist
     expect(screen.getAllByText(/Version/).length).toBeGreaterThan(0)
@@ -174,7 +163,7 @@ describe('SettingsScreen', () => {
       isLoading: false,
     })
 
-    render(<SettingsScreen />)
+    renderWithQuery(<SettingsScreen />)
 
     fireEvent.press(screen.getByText('Theme'))
 

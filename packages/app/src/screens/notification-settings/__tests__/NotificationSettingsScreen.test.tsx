@@ -1,6 +1,22 @@
-import { render, waitFor } from '@testing-library/react-native'
+import { Result } from 'effect'
+import { mockUserSettings } from '@/__tests__/fixtures'
+import { createCacheTestQueryClient } from '@/__tests__/utils/query-helpers'
+import {
+  act,
+  fireEvent,
+  renderWithQuery,
+  screen,
+  waitFor,
+} from '@/__tests__/utils/render'
 
-// Mock dependencies
+// Stubbed at the network so the screen runs through the real API client.
+const fetchMock = jest.spyOn(globalThis, 'fetch')
+afterEach(() => fetchMock.mockReset())
+
+jest.mock('sonner-native', () => ({
+  toast: { success: jest.fn(), error: jest.fn() },
+}))
+
 jest.mock('@/hooks/useNotificationSettings', () => ({
   useNotificationSettings: jest.fn(),
   useUpdateNotificationSettings: jest.fn(),
@@ -10,17 +26,13 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
 
-jest.mock('@/utils/client', () => ({
-  apiEffectRunner: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
-}))
-
-// Mock notifications utilities
 jest.mock('@/utils/notifications', () => ({
-  getDeviceTimezone: jest.fn(() => 'UTC'),
+  getDeviceTimezone: jest.fn(() => 'Europe/Paris'),
   getExpoPushToken: jest.fn().mockResolvedValue('mock-push-token'),
   getPlatform: jest.fn().mockReturnValue('ios'),
 }))
 
+import { toast } from 'sonner-native'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   useNotificationSettings,
@@ -33,25 +45,22 @@ const mockedUseUpdateNotificationSettings =
   useUpdateNotificationSettings as jest.Mock
 const mockedUseAuth = useAuth as jest.Mock
 
+const renderScreen = () => {
+  const queryClient = createCacheTestQueryClient()
+  queryClient.setQueryData(
+    ['users', 'getUserSettings', {}],
+    Result.succeed(mockUserSettings)
+  )
+  return renderWithQuery(<NotificationSettingsScreen />, { queryClient })
+}
+
 describe('NotificationSettingsScreen', () => {
-  const mockUpdateSettings = jest.fn()
-
-  const defaultSettings = {
-    careReminders: true,
-    reminderTime: '09:00',
-    weeklyDigest: true,
-    achievements: true,
-    tips: false,
-    productUpdates: false,
-    doNotDisturb: false,
-    doNotDisturbStart: '22:00',
-    doNotDisturbEnd: '07:00',
-  }
-
   beforeEach(() => {
     jest.clearAllMocks()
-    mockedUseUpdateNotificationSettings.mockReturnValue({
-      mutate: mockUpdateSettings,
+    mockedUseUpdateNotificationSettings.mockReturnValue({ mutate: jest.fn() })
+    mockedUseNotificationSettings.mockReturnValue({
+      data: mockUserSettings.notifications,
+      isLoading: false,
     })
     mockedUseAuth.mockReturnValue({
       state: {
@@ -67,23 +76,54 @@ describe('NotificationSettingsScreen', () => {
       isLoading: true,
     })
 
-    const { toJSON } = render(<NotificationSettingsScreen />)
+    const { toJSON } = renderScreen()
 
     await waitFor(() => {
       expect(toJSON()).toBeTruthy()
     })
   })
 
-  it('renders with settings data', async () => {
-    mockedUseNotificationSettings.mockReturnValue({
-      data: defaultSettings,
-      isLoading: false,
+  it('shows the saved timezone from the user settings', () => {
+    renderScreen()
+
+    expect(screen.getByText('New York (ET)')).toBeTruthy()
+  })
+
+  it('shows the detected timezone before the API answers', async () => {
+    fetchMock.mockReturnValue(new Promise(() => {}))
+    renderScreen()
+
+    act(() => {
+      fireEvent.press(screen.getByText('Auto-detect Timezone'))
     })
 
-    const { toJSON } = render(<NotificationSettingsScreen />)
+    await waitFor(() => expect(screen.getByText('Paris (CET)')).toBeTruthy())
+    expect(screen.queryByText('New York (ET)')).toBeNull()
+  })
 
-    await waitFor(() => {
-      expect(toJSON()).toBeTruthy()
+  it('restores the saved timezone and says so when saving fails', async () => {
+    // The save fails; the refetch that follows returns the saved settings.
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+      .mockImplementation(
+        async () =>
+          new Response(JSON.stringify(mockUserSettings), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+      )
+    renderScreen()
+
+    act(() => {
+      fireEvent.press(screen.getByText('Auto-detect Timezone'))
     })
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn't save your change. Try again."
+      )
+    )
+    expect(fetchMock).toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByText('New York (ET)')).toBeTruthy())
   })
 })
