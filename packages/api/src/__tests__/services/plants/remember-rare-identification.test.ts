@@ -16,7 +16,6 @@ import { aiIdentify } from '@lily/api/services/plants/endpoints/ai-identify'
 import { detect } from '@lily/api/services/plants/endpoints/detect'
 import { scanCard } from '@lily/api/services/plants/endpoints/scan-card'
 import { scanCardMultiple } from '@lily/api/services/plants/endpoints/scan-card-multiple'
-import { rememberRareIdentification } from '@lily/api/services/plants/helpers/rare-identification'
 import { Effect, Layer } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
@@ -30,9 +29,6 @@ const photo = (name: string) =>
     contentType: 'image/jpeg',
     path: `/tmp/${name}`,
   }) as unknown as PersistedFile
-
-const identifiedUrl =
-  'https://storage.googleapis.com/mock-private-bucket/users/user-1/identify/a.jpg?X-Goog-Signature=abc'
 
 const layerFor = (
   isRareHouseplant: boolean,
@@ -87,7 +83,6 @@ const failingRecord = Layer.succeed(RareIdentificationRepository, {
         }),
       })
     ),
-  forget: () => Effect.void,
   exists: () => Effect.succeed(false),
 })
 
@@ -130,32 +125,5 @@ describe.each(endpoints)('$name and the rarity answer', ({ identify }) => {
     const identified = await run(true, failingRecord)
 
     expect(identified.isRareHouseplant).toBe(true)
-  })
-})
-
-describe('identifying the same photo again', () => {
-  const reIdentify = (isRareHouseplant: boolean, rows: RareIdentification[]) =>
-    rememberRareIdentification({
-      isRareHouseplant,
-      imageUrl: identifiedUrl,
-    }).pipe(
-      Effect.provide(
-        layerFor(isRareHouseplant, createMockRareIdentificationRepository(rows))
-      ),
-      Effect.runPromise
-    )
-
-  it('keeps the latest answer for the photo', async () => {
-    const rows: RareIdentification[] = []
-
-    await reIdentify(true, rows)
-    await reIdentify(true, rows)
-    const afterRare = [...rows]
-    await reIdentify(false, rows)
-
-    expect({ afterRare, afterNotRare: rows }).toEqual({
-      afterRare: [{ userId: 'user-1', imageUrl: identifiedUrl }],
-      afterNotRare: [],
-    })
   })
 })

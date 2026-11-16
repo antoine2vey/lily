@@ -19,7 +19,7 @@ export const rememberRareIdentification = (identification: {
       onSome: (imageUrl) =>
         identification.isRareHouseplant
           ? repo.record({ userId, imageUrl })
-          : repo.forget({ userId, imageUrl }),
+          : Effect.void,
     })
   }).pipe(
     Effect.catchTag('SqlError', (error) =>

@@ -13,22 +13,12 @@ export const createMockRareIdentificationRepository = (
       row.userId === identification.userId &&
       row.imageUrl === identification.imageUrl
 
-  const forget = (identification: RareIdentification) =>
-    identifications.splice(
-      0,
-      identifications.length,
-      ...Array.filter(identifications, (row) => !matches(identification)(row))
-    )
-
   const repo: IRareIdentificationRepository = {
     record: (identification) =>
       Effect.sync(() => {
-        forget(identification)
-        identifications.push(identification)
-      }),
-    forget: (identification) =>
-      Effect.sync(() => {
-        forget(identification)
+        if (!Array.some(identifications, matches(identification))) {
+          identifications.push(identification)
+        }
       }),
     exists: (identification) =>
       Effect.succeed(Array.some(identifications, matches(identification))),

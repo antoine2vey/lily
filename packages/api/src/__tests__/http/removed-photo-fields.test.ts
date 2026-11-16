@@ -18,17 +18,15 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockRareIdentificationRepository } from '@lily/api/__tests__/mocks/rare-identification.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
-import type { Api } from '@lily/api/api'
+import { Api } from '@lily/api/api'
 import { RecordOutcome } from '@lily/api/contexts/care'
 import {
   Authentication,
   CurrentUser,
 } from '@lily/api/services/auth/middleware.types'
-import { CareLogsApi } from '@lily/api/services/care-logs/api'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
-import { PlantsApi } from '@lily/api/services/plants/api'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
-import { CareDay } from '@lily/shared'
+import { API_PREFIX, CareDay } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder, type HttpApiGroup } from 'effect/http-api'
@@ -55,13 +53,16 @@ const PlatformLive = Layer.mergeAll(
   HttpPlatform.layer
 ).pipe(Layer.provideMerge(BunFileSystem.layer))
 
-const serve = <Id extends string, Groups extends HttpApiGroup.Constraint>(
-  api: HttpApi.HttpApi<Id, Groups>,
+const serveGroup = <Group extends HttpApiGroup.Constraint>(
+  group: Group,
   handlers: Layer.Layer<never, never, never>,
   dependencies: Layer.Layer<never, never, never>
 ) =>
   HttpRouter.toWebHandler(
-    HttpApiBuilder.layer(api).pipe(
+    // Parse options set on the root Api live in its annotations, not the group's.
+    HttpApiBuilder.layer(
+      HttpApi.make('Api').add(group).annotateMerge(Api.annotations)
+    ).pipe(
       Layer.provide(handlers),
       Layer.provide(AuthLive),
       Layer.provide(dependencies),
@@ -96,17 +97,12 @@ describe('a care log from a build that still sends photoUrl', () => {
       dueDay: Option.none(),
     })
   )
-  const TestApi = HttpApi.make('removedCareLogPhotoUrl').add(CareLogsApi)
-  let web: ReturnType<typeof serve>
+  let web: ReturnType<typeof serveGroup>
 
   beforeAll(() => {
-    web = serve(
-      TestApi,
-      CareLogsApiLive(TestApi as unknown as Api) as unknown as Layer.Layer<
-        never,
-        never,
-        never
-      >,
+    web = serveGroup(
+      Api.groups.careLogs,
+      CareLogsApiLive(Api) as unknown as Layer.Layer<never, never, never>,
       Layer.mergeAll(
         createMockPlantRepository({ plants: [plant] }),
         createMockCanopyRepository([]),
@@ -135,7 +131,7 @@ describe('a care log from a build that still sends photoUrl', () => {
     ['a URL on another host', 'https://tracker.example/pixel.jpg'],
   ])('records the care without a photo for %s', async (_case, photoUrl) => {
     const response = await web.handler(
-      sendJson('POST', `/plants/${plant.id}/logs`, {
+      sendJson('POST', `${API_PREFIX}/plants/${plant.id}/logs`, {
         type: 'watering',
         notes: 'Deep soak',
         photoUrl,
@@ -156,7 +152,7 @@ describe('a care log from a build that still sends photoUrl', () => {
 
   it('saves the edit', async () => {
     const response = await web.handler(
-      sendJson('PUT', `/plants/${plant.id}/logs/${log.id}`, {
+      sendJson('PUT', `${API_PREFIX}/plants/${plant.id}/logs/${log.id}`, {
         notes: 'Edited',
         photoUrl: devicePath,
       })
@@ -179,17 +175,12 @@ describe('a plant edit from a build that still sends imageUrl', () => {
     imageUrl: coverUrl,
   })
   const rows = [plant]
-  const TestApi = HttpApi.make('removedPlantImageUrl').add(PlantsApi)
-  let web: ReturnType<typeof serve>
+  let web: ReturnType<typeof serveGroup>
 
   beforeAll(() => {
-    web = serve(
-      TestApi,
-      PlantsApiLive(TestApi as unknown as Api) as unknown as Layer.Layer<
-        never,
-        never,
-        never
-      >,
+    web = serveGroup(
+      Api.groups.plants,
+      PlantsApiLive(Api) as unknown as Layer.Layer<never, never, never>,
       Layer.mergeAll(
         createMockRoomRepository([]),
         createMockPlantRepository({ plants: rows, sharesPlantsArray: true }),
@@ -216,7 +207,7 @@ describe('a plant edit from a build that still sends imageUrl', () => {
     )
 
     const response = await web.handler(
-      new Request(`http://lily.test/plants/${plant.id}`, {
+      new Request(`http://lily.test${API_PREFIX}/plants/${plant.id}`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${owner}` },
         body: form,
