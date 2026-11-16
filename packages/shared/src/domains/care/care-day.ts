@@ -1,6 +1,6 @@
 import { DateTime, Duration, Schema } from 'effect'
 
-import { localDayKey } from '../common/date/timezone'
+import { localDayKey, zoneFromNameOrUtc } from '../common/date/timezone'
 
 /** A calendar day (`YYYY-MM-DD`) in a plant's care context. */
 export const CareDay = Schema.String.check(
@@ -32,7 +32,7 @@ const startOf = (day: CareDay, timezone: string): DateTime.Utc => {
   return DateTime.toUtc(
     DateTime.makeZonedUnsafe(
       { year: parts.year, month: parts.month, day: parts.day },
-      { timeZone: timezone, adjustForTimeZone: true }
+      { timeZone: zoneFromNameOrUtc(timezone), adjustForTimeZone: true }
     )
   )
 }

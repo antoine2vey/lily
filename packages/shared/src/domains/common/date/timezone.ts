@@ -4,38 +4,54 @@ import { DateTime, Option, pipe } from 'effect'
 const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
 
 /**
+ * Resolve an IANA zone name, including aliases such as GMT, Eire or
+ * US/Pacific, to the zone every helper below hands to Effect.
+ *
+ * `DateTime.makeZoned` parses a string `timeZone` itself and reads any name
+ * that starts with GMT as an offset, so a bare `'GMT'` throws there. Passing
+ * the resolved zone skips that parser. `'UTC'` maps to a fixed offset because
+ * Hermes on Android lacks the Intl options a named zone needs.
+ *
+ * @param timezone - IANA timezone string (e.g. 'Europe/Paris')
+ * @returns None when Intl does not know `timezone`
+ */
+export const zoneFromName = (
+  timezone: string
+): Option.Option<DateTime.TimeZone> =>
+  timezone === 'UTC'
+    ? Option.some(DateTime.zoneMakeOffset(0))
+    : DateTime.zoneMakeNamed(timezone)
+
+/** `zoneFromName`, falling back to UTC when Intl does not know `timezone`. */
+export const zoneFromNameOrUtc = (timezone: string): DateTime.TimeZone =>
+  Option.getOrElse(zoneFromName(timezone), () => DateTime.zoneMakeOffset(0))
+
+/**
  * Apply a named timezone to a DateTime, returning a Zoned DateTime.
  * If no timezone is provided, returns the original DateTime unchanged.
  *
  * @param dateTime - DateTime to apply timezone to
- * @param timezone - IANA timezone string (e.g., 'Europe/Paris')
+ * @param timezone - IANA timezone string (e.g., 'Europe/Paris'), UTC when unknown
  * @returns Zoned DateTime if timezone provided, otherwise original DateTime
  */
 export const withTimeZone = (
   dateTime: DateTime.DateTime,
   timezone?: string
 ): DateTime.DateTime =>
-  timezone
-    ? DateTime.setZone(
-        dateTime,
-        timezone === 'UTC'
-          ? DateTime.zoneMakeOffset(0)
-          : DateTime.zoneMakeNamedUnsafe(timezone)
-      )
-    : dateTime
+  timezone ? DateTime.setZone(dateTime, zoneFromNameOrUtc(timezone)) : dateTime
 
 /**
  * Get start of day (00:00:00.000) for a DateTime.
  *
  * @param dateTime - DateTime to get start of day for
- * @param timezone - IANA timezone string
+ * @param timezone - IANA timezone string, UTC when unknown
  * @returns DateTime at 00:00:00.000 of the same day
  */
 export const startOfDay = (
   dateTime: DateTime.DateTime,
   timezone: string
 ): DateTime.DateTime => {
-  const zone = DateTime.zoneMakeNamedUnsafe(timezone)
+  const zone = zoneFromNameOrUtc(timezone)
   const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
   return DateTime.makeZonedUnsafe(
     {
@@ -55,15 +71,15 @@ export const startOfDay = (
  * Get end of day (23:59:59.999) for a DateTime.
  *
  * @param dateTime - DateTime to get end of day for
- * @param timezone - IANA timezone string
+ * @param timezone - IANA timezone string, UTC when unknown
  * @returns DateTime at 23:59:59.999 of the same day
  */
 export const endOfDay = (
   dateTime: DateTime.DateTime,
   timezone: string
 ): DateTime.DateTime => {
-  const zoned = withTimeZone(dateTime, timezone)
-  const parts = DateTime.toParts(zoned)
+  const zone = zoneFromNameOrUtc(timezone)
+  const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
   return DateTime.makeZonedUnsafe(
     {
       year: parts.year,
@@ -74,7 +90,7 @@ export const endOfDay = (
       second: 59,
       millisecond: 999,
     },
-    { timeZone: timezone, adjustForTimeZone: true }
+    { timeZone: zone, adjustForTimeZone: true }
   )
 }
 
@@ -82,14 +98,14 @@ export const endOfDay = (
  * Get start of week (Monday 00:00:00.000) for a DateTime.
  *
  * @param dateTime - DateTime to get start of week for
- * @param timezone - IANA timezone string
+ * @param timezone - IANA timezone string, UTC when unknown
  * @returns DateTime at Monday 00:00:00.000 of the same week
  */
 export const startOfWeek = (
   dateTime: DateTime.DateTime,
   timezone: string
 ): DateTime.DateTime => {
-  const zone = DateTime.zoneMakeNamedUnsafe(timezone)
+  const zone = zoneFromNameOrUtc(timezone)
   const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
   const daysSinceMonday = (parts.weekDay + 6) % 7
 
@@ -112,15 +128,15 @@ export const startOfWeek = (
  * Week ends on Sunday.
  *
  * @param dateTime - DateTime to get end of week for
- * @param timezone - IANA timezone string
+ * @param timezone - IANA timezone string, UTC when unknown
  * @returns DateTime at Sunday 23:59:59.999 of the same week
  */
 export const endOfWeek = (
   dateTime: DateTime.DateTime,
   timezone: string
 ): DateTime.DateTime => {
-  const zoned = withTimeZone(dateTime, timezone)
-  const parts = DateTime.toParts(zoned)
+  const zone = zoneFromNameOrUtc(timezone)
+  const parts = DateTime.toParts(DateTime.setZone(dateTime, zone))
   const dayOfWeek = parts.weekDay
   const daysUntilSunday = 7 - dayOfWeek
 
@@ -134,7 +150,7 @@ export const endOfWeek = (
       second: 59,
       millisecond: 999,
     },
-    { timeZone: timezone, adjustForTimeZone: true }
+    { timeZone: zone, adjustForTimeZone: true }
   )
 }
 
@@ -147,7 +163,7 @@ export const endOfWeek = (
  * boundary the way `toLocaleDateString` without a timeZone would.
  *
  * @param dateTime - DateTime to key
- * @param timezone - IANA timezone string (e.g. 'Europe/Paris')
+ * @param timezone - IANA timezone string (e.g. 'Europe/Paris'), UTC when unknown
  * @returns Date key in YYYY-MM-DD form, in the given timezone
  */
 export const localDayKey = (
@@ -181,17 +197,19 @@ export const startOfLocalDay = (
     Option.filter((utc) => localDayKey(utc, 'UTC') === dayKey),
     Option.flatMap((utc) => {
       const parts = DateTime.toParts(utc)
-      return DateTime.makeZoned(
-        {
-          year: parts.year,
-          month: parts.month,
-          day: parts.day + daysLater,
-          hour: 0,
-          minute: 0,
-          second: 0,
-          millisecond: 0,
-        },
-        { timeZone: timezone, adjustForTimeZone: true }
+      return Option.flatMap(zoneFromName(timezone), (zone) =>
+        DateTime.makeZoned(
+          {
+            year: parts.year,
+            month: parts.month,
+            day: parts.day + daysLater,
+            hour: 0,
+            minute: 0,
+            second: 0,
+            millisecond: 0,
+          },
+          { timeZone: zone, adjustForTimeZone: true }
+        )
       )
     })
   )
@@ -199,12 +217,12 @@ export const startOfLocalDay = (
 /**
  * Get start of today as Date in a specific timezone.
  *
- * @param timezone - IANA timezone string
+ * @param timezone - IANA timezone string, UTC when unknown
  * @returns Start of today (00:00:00.000) in the specified timezone
  */
 export const startOfTodayAsDate = (timezone = 'UTC'): Date => {
-  const current = withTimeZone(DateTime.nowUnsafe(), timezone)
-  const parts = DateTime.toParts(current)
+  const zone = zoneFromNameOrUtc(timezone)
+  const parts = DateTime.toParts(DateTime.setZone(DateTime.nowUnsafe(), zone))
   return DateTime.toDateUtc(
     DateTime.makeZonedUnsafe(
       {
@@ -216,7 +234,7 @@ export const startOfTodayAsDate = (timezone = 'UTC'): Date => {
         second: 0,
         millisecond: 0,
       },
-      { timeZone: timezone, adjustForTimeZone: true }
+      { timeZone: zone, adjustForTimeZone: true }
     )
   )
 }
@@ -224,18 +242,17 @@ export const startOfTodayAsDate = (timezone = 'UTC'): Date => {
 /**
  * Get start of tomorrow as Date in a specific timezone.
  *
- * @param timezone - IANA timezone string
+ * @param timezone - IANA timezone string, UTC when unknown
  * @returns Start of tomorrow (00:00:00.000) in the specified timezone
  */
 export const startOfTomorrowAsDate = (timezone = 'UTC'): Date => {
   // Add before applying the timezone — `DateTime.add` on a Zoned
   // DateTime can throw `RangeError: Invalid time value` under Hermes
   // for some timezones. Safe pattern: arithmetic on UTC, then zone.
-  const tomorrow = withTimeZone(
-    DateTime.add(DateTime.nowUnsafe(), { days: 1 }),
-    timezone
+  const zone = zoneFromNameOrUtc(timezone)
+  const parts = DateTime.toParts(
+    DateTime.setZone(DateTime.add(DateTime.nowUnsafe(), { days: 1 }), zone)
   )
-  const parts = DateTime.toParts(tomorrow)
   return DateTime.toDateUtc(
     DateTime.makeZonedUnsafe(
       {
@@ -247,7 +264,7 @@ export const startOfTomorrowAsDate = (timezone = 'UTC'): Date => {
         second: 0,
         millisecond: 0,
       },
-      { timeZone: timezone, adjustForTimeZone: true }
+      { timeZone: zone, adjustForTimeZone: true }
     )
   )
 }
