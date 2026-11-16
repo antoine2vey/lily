@@ -10,13 +10,13 @@ Run every command from the monorepo root.
 |---|---|
 | `bun run --filter=@lily/api dev` | Starts the server on port 3000 and restarts it on every change |
 | `bun run --filter=@lily/api tsc` | Typecheck |
-| `bun run --filter=@lily/api test` | Vitest over `src/__tests__`, run on Bun (`bun --bun vitest run`), the runtime production uses. Node and Bun give different zone ids for `GMT`, so `src/__tests__/runtime.test.ts` fails if the suite starts on Node. The integration suites skip themselves unless `DATABASE_URL_TEST` is set |
+| `bun run --filter=@lily/api test` | Vitest over `src/__tests__`, run on Bun (`bun --bun vitest run`), the runtime production uses. Node and Bun give different zone ids for `GMT`, so `src/__tests__/runtime.test.ts` fails if the suite starts on Node. `vitest.config.ts` excludes `src/__tests__/integration`, so no env file or `DATABASE_URL_TEST` turns those suites on here |
 | `bun run --filter=@lily/api test src/__tests__/services/plants` | One directory or file |
 | `bun run --filter=@lily/api lint` | Biome check |
 | `bun run --filter=@lily/api lint:fix` | Biome with autofix |
 | `bun run db:setup-test` | Applies the migrations to the test database and seeds the tiers |
-| `bun run test:integration` | Every integration suite against the test database, one file at a time |
-| `bun --env-file=.env.test.local run --filter=@lily/api test src/__tests__/integration/<file>` | One integration suite |
+| `bun run test:integration` | Every integration suite against the test database, one file at a time. It uses `vitest.integration.config.ts`, which includes only `src/__tests__/integration` |
+| `bun run test:integration src/__tests__/integration/<file>` | One integration suite |
 
 The last three read `.env.test.local` at the repo root. Set both `DATABASE_URL_TEST` and `DATABASE_URL` to the test database there. A suite runs only when `DATABASE_URL_TEST` is set, and `PgLive` from `@lily/db` connects with `DATABASE_URL`, so a suite with only the first fails on a `ConfigError`.
 

@@ -23,7 +23,7 @@
     "sweep:orphans": "bun run src/scripts/sweep-orphans.ts",
     "tsc": "tsc --noEmit",
     "test": "bun --bun vitest run",
-    "test:integration": "bun --bun vitest run src/__tests__/integration --no-file-parallelism",
+    "test:integration": "bun --bun vitest run --config vitest.integration.config.ts",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write .",
     "clean": "rm -rf dist"
