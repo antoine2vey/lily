@@ -24,7 +24,7 @@ The knowledge search suite, `src/__tests__/integration/knowledge-search.integrat
 
 ## Layout
 
-- `src/index.ts` registers every handler group and launches every scheduler, worker and subscriber as a `Layer.effectDiscard`. A new scheduler runs only after you add it there.
+- `src/server.ts` builds `ServerLive`, which registers every handler group and launches every scheduler, worker and subscriber as a `Layer.effectDiscard`. A new scheduler runs only after you add it there. `src/index.ts` runs `ServerLive` with telemetry and logging, so tests can import `ServerLive` without starting the process.
 - `src/api.ts` composes the `HttpApi`. Add each group with `.prefix(API_PREFIX)` from `@lily/shared`, so it serves under `/api/v1`. `HealthApiGroup` and `InternalApi` stay at the root. `src/middleware/legacy-api-prefix.ts` keeps `/api/...` as a permanent alias of `/api/v1/...`, because installed app builds and the RevenueCat webhook still call it.
 - `src/services/<domain>/` has one shape, as in `src/services/plants/`. `src/services/plants/api.ts` defines the `HttpApiEndpoint`s, `src/services/plants/handlers.ts` is the `HttpApiBuilder.group`, `src/services/plants/endpoints/` has one function per endpoint and `src/services/plants/helpers/` the rest. A domain with routes has no `service.ts`, and its handlers call endpoint functions directly. Only an infrastructure service with no routes, such as `src/services/ai/service.ts`, defines one.
 - `src/contexts/` holds `care`, `reminders`, `canopy` and `absence`, each in a section below. Import a context only through its index, `@lily/api/contexts/<name>` (`src/contexts/care/index.ts` for Care), and never from a module that context loads. The boundary test fails on a deep import and on a load cycle.

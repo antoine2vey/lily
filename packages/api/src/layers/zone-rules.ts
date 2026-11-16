@@ -1,4 +1,4 @@
-import { Config, DateTime, Effect, Layer, Schema } from 'effect'
+import { Config, Context, DateTime, Effect, Layer, Schema } from 'effect'
 
 // British Columbia has kept UTC-07:00 all year since IANA 2026b. ICU data older
 // than that, such as the data Bun bundles, gives -08:00 here.
@@ -10,6 +10,14 @@ export class StaleZoneRulesError extends Schema.TaggedError<StaleZoneRulesError>
   'StaleZoneRulesError',
   { message: Schema.String }
 ) {}
+
+/** Where the check reads a zone's offset. Tests swap in stale rules. */
+export const ZoneOffset = Context.Reference<
+  (instant: string, timeZone: string) => string
+>('@lily/api/ZoneOffset', {
+  defaultValue: () => (instant, timeZone) =>
+    DateTime.zonedOffsetIso(DateTime.makeZonedUnsafe(instant, { timeZone })),
+})
 
 /**
  * Stops a production api whose ICU did not load the zone rules in
@@ -24,9 +32,7 @@ export const ZoneRulesLive = Layer.effectDiscard(
     if (nodeEnv !== 'production') {
       return
     }
-    const offset = DateTime.zonedOffsetIso(
-      DateTime.makeZonedUnsafe(INSTANT, { timeZone: ZONE })
-    )
+    const offset = (yield* ZoneOffset)(INSTANT, ZONE)
     if (offset === OFFSET) {
       return
     }
