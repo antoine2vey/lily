@@ -1,0 +1,46 @@
+name: Time zones
+
+# Production Postgres runs the floating postgres-ssl:17 tag, and Railway
+# redeploys it when the tag moves. Each night this pulls the newest image and
+# checks that it still accepts every canonical zone. packages/db/CLAUDE.md
+# says what to do when it fails.
+on:
+  schedule:
+    - cron: '17 1 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/time-zones.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  latest-postgres:
+    name: Canonical zones on the latest postgres-ssl:17
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ghcr.io/railwayapp-templates/postgres-ssl:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lily_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres -d lily_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --tmpfs /var/lib/postgresql/data:rw
+    env:
+      DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5432/lily_test
+      ICU_TIMEZONE_FILES_DIR: ${{ github.workspace }}/packages/db/icu-tzdata
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: 'false'
+      - name: Check Postgres and Bun accept every canonical time zone
+        run: bun run --filter=@lily/db db:check-time-zones

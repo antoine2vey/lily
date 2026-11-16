@@ -4,9 +4,9 @@ FROM oven/bun:1.4.3-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
-# Bun's bundled ICU carries older IANA zone rules than Postgres, so the two
-# would place local midnight at different instants. ICU reads the zone rules
-# from here instead. db:check-time-zones fails in CI when they disagree.
+# Bun's bundled ICU carries IANA zone rules months old, which would put local
+# midnight at the wrong instant in a zone that changed recently. ICU reads the
+# zone rules from here instead.
 ENV ICU_TIMEZONE_FILES_DIR=/app/packages/db/icu-tzdata
 
 # Copy package files first for better caching

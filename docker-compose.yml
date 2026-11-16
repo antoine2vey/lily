@@ -2,10 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    build:
-      context: .
-      dockerfile: Dockerfile.postgres
-    image: lily-postgres:17
+    image: ghcr.io/railwayapp-templates/postgres-ssl:17
     container_name: lily-postgres
     environment:
       POSTGRES_DB: lily
@@ -22,10 +19,7 @@ services:
       retries: 5
 
   postgres-test:
-    build:
-      context: .
-      dockerfile: Dockerfile.postgres
-    image: lily-postgres:17
+    image: ghcr.io/railwayapp-templates/postgres-ssl:17
     container_name: lily-postgres-test
     environment:
       POSTGRES_DB: lily_test

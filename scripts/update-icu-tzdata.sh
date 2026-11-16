@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Replaces the time zone data the api's ICU reads (ICU_TIMEZONE_FILES_DIR in
-# Dockerfile.prod and in CI) with ICU's build of one IANA tzdata release, and
-# sets TZDATA_RELEASE in Dockerfile.postgres to the same release.
+# Dockerfile.prod and in CI) with ICU's build of one IANA tzdata release.
 # Usage: bash scripts/update-icu-tzdata.sh 2026f
 #
 # Each release is pinned below to the unicode-org/icu-data commit that added it
@@ -53,6 +52,4 @@ fi
 
 mkdir -p "$dir"
 mv "$staging"/*.res "$dir"/
-sed -i.bak "s/^ARG TZDATA_RELEASE=.*/ARG TZDATA_RELEASE=$release/" "$root/Dockerfile.postgres"
-rm "$root/Dockerfile.postgres.bak"
-echo "ICU time zone data $release written to $dir, and Dockerfile.postgres set to $release"
+echo "ICU time zone data $release written to $dir"
