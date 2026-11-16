@@ -43,7 +43,9 @@ export function JoinInvite() {
   }, [])
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-16">
+    // The card hangs from a fixed top edge. Centering it moved it whenever the invite view changed its height.
+    // The offset centers a 36rem card, the height of the invite preview.
+    <main className="flex min-h-screen items-start justify-center px-6 pt-[max(4rem,calc((100vh-36rem)/2))] pb-16">
       <div className="w-full max-w-md rounded-3xl bg-surface p-8 text-center shadow-[0_20px_60px_-20px_rgb(0_0_0/0.18)] ring-1 ring-line sm:p-10">
         <a href="/" className="mb-8 inline-flex" aria-label="Lily">
           <LilyMark size={56} />
@@ -64,14 +66,7 @@ function InviteCard({
   t: JoinMessages
 }) {
   return Match.value(view).pipe(
-    Match.tag('Loading', () => (
-      <div role="status" className="animate-pulse space-y-4">
-        <span className="sr-only">{t.loading}</span>
-        <div className="mx-auto h-4 w-2/3 rounded-full bg-chip" />
-        <div className="mx-auto h-8 w-3/4 rounded-full bg-chip" />
-        <div className="mx-auto mt-8 h-12 w-1/2 rounded-full bg-chip" />
-      </div>
-    )),
+    Match.tag('Loading', () => <Skeleton label={t.loading} />),
     Match.tag('Ready', ({ preview }) => (
       <div>
         <p className="text-ink-2">
@@ -142,6 +137,34 @@ function InviteCard({
       </div>
     )),
     Match.exhaustive
+  )
+}
+
+// Each slot has the box of the element the invite preview puts there, so the card keeps its height when the preview lands.
+function Skeleton({ label }: { label: string }) {
+  return (
+    <div role="status" className="animate-pulse">
+      <span className="sr-only">{label}</span>
+      <Bar slot="h-6" bar="h-4 w-2/3" />
+      <Bar slot="mt-2 h-9" bar="h-7 w-3/4" />
+      <Bar slot="mt-4 h-5" bar="h-3 w-full" />
+      <Bar slot="h-5" bar="h-3 w-full" />
+      <Bar slot="h-5 sm:hidden" bar="h-3 w-1/2" />
+      <div className="mt-8 h-14 rounded-full bg-chip" />
+      <Bar slot="mt-10 h-6" bar="h-4 w-1/2" />
+      <div
+        className={`mt-4 rounded-full bg-chip ${PLAY_STORE_LIVE ? 'h-27 sm:h-12' : 'h-12'}`}
+      />
+      <Bar slot="mt-4 h-5" bar="h-3 w-3/4" />
+    </div>
+  )
+}
+
+function Bar({ slot, bar }: { slot: string; bar: string }) {
+  return (
+    <div className={`flex items-center justify-center ${slot}`}>
+      <div className={`rounded-full bg-chip ${bar}`} />
+    </div>
   )
 }
 
