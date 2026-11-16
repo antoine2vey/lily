@@ -7,6 +7,7 @@ import { GCSService } from '@lily/shared/services/file/gcs'
 import { GCSDeleteError } from '@lily/shared/services/file/gcs-errors'
 import {
   legacyOwnerOf,
+  mayNameKey,
   type ObjectScope,
   type readStoredRef,
   type StoredObject,
@@ -14,7 +15,17 @@ import {
   scopePrefix,
   userFolder,
 } from '@lily/shared/services/file/stored-object'
-import { Array, Data, Duration, Effect, Option, pipe, String } from 'effect'
+import {
+  Array,
+  Data,
+  Duration,
+  Effect,
+  Option,
+  Predicate,
+  pipe,
+  Result,
+  String,
+} from 'effect'
 import { isSqlError, type SqlError } from 'effect/sql/SqlError'
 
 const STORAGE_TIME_LIMIT = Duration.seconds(20)
@@ -103,7 +114,8 @@ const withinTimeLimit = (
  * fail the write: the objects stay until the account purge deletes the
  * owner's scope, and the error is logged with what was left. Nothing storage
  * does may fail the caller, whose write is already committed, so a defect of
- * the storage client is logged here as well.
+ * the storage client is logged here as well. An object a kept reference too
+ * long to read may name stays, and the warning lists it.
  */
 export const releaseObjects = ({
   scopes,
@@ -112,20 +124,31 @@ export const releaseObjects = ({
 }: Release): Effect.Effect<void, never, GCSService> =>
   Effect.gen(function* () {
     const gcs = yield* GCSService
-    const objects = Option.match(Option.all(Array.map(kept, gcs.readRef)), {
-      onNone: () => [],
-      onSome: (named) => {
-        const stillNamed = Array.flatten(named)
-        return pipe(
-          Array.flatMap(dropped, releasable(gcs.readRef)),
-          Array.filter(
-            (object) =>
-              !Array.some(stillNamed, (held) => sameObject(held, object))
-          ),
-          Array.dedupeWith(sameObject)
-        )
-      },
-    })
+    const [named, unreadable] = Array.partition(kept, (ref) =>
+      Result.fromOption(gcs.readRef(ref), () => ref)
+    )
+    const stillNamed = Array.flatten(named)
+    const released = pipe(
+      Array.flatMap(dropped, releasable(gcs.readRef)),
+      Array.filter(
+        (object) => !Array.some(stillNamed, (held) => sameObject(held, object))
+      ),
+      Array.dedupeWith(sameObject)
+    )
+    const mayStillBeNamed = ({ key }: StoredObject) =>
+      Array.some(unreadable, (ref) => mayNameKey(ref)(key))
+    const blocked = Array.filter(released, mayStillBeNamed)
+    const objects = Array.filter(released, Predicate.not(mayStillBeNamed))
+    if (Array.isReadonlyArrayNonEmpty(blocked)) {
+      yield* Effect.logWarning(
+        'Kept released objects that a reference too long to read may name'
+      ).pipe(
+        Effect.annotateLogs({
+          unreadable: unreadable.length,
+          objects: Array.map(blocked, ({ bucket, key }) => `${bucket}:${key}`),
+        })
+      )
+    }
 
     const deleteScopes = Array.map(scopes, (scope) =>
       withinTimeLimit(gcs.deleteScope(scope)).pipe(

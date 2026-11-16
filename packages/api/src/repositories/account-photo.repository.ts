@@ -142,7 +142,7 @@ export const AccountPhotoRepositoryLive = Layer.effect(
           const readable = (column: Column) =>
             sql`translate(${column}, ${STAMP_DISGUISE.ignored}, '')`
           const maySpell = (column: Column) =>
-            sql<boolean>`(${readable(column)} like any (array[${patterns}]::text[]) or ${readable(column)} ~ ${STAMP_DISGUISE.encodedDigit})`
+            sql<boolean>`(${readable(column)} like any (array[${patterns}]::text[]) or ${readable(column)} ~ ${STAMP_DISGUISE.escape})`
           const notTheirPlant = or(
             isNull(plants.userId),
             ne(plants.userId, userId)

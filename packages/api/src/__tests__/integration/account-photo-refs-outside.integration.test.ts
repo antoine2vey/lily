@@ -62,6 +62,8 @@ const SPELLINGS: readonly (readonly [string, string])[] = [
   ['an encoded slash', PLAIN.replace('detect/', 'detect%2F')],
   ['encoded letters', PLAIN.replace('detect', '%64%65tect')],
   ['an encoded digit', PLAIN.replace('/1700', '/1%3700')],
+  ['a digit encoded twice', PLAIN.replace('/1700', '/1%253700')],
+  ['a digit encoded three times', PLAIN.replace('/1700', '/1%25253700')],
   ['a tab inside the stamp', PLAIN.replace('17000', '17\t000')],
   ['a line feed inside the stamp', PLAIN.replace('17000', '17\n000')],
   ['a carriage return inside the stamp', PLAIN.replace('17000', '17\r000')],
