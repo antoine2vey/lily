@@ -1,4 +1,4 @@
-import { DateTime, Option, pipe } from 'effect'
+import { DateTime, Option } from 'effect'
 import { useSyncExternalStore } from 'react'
 
 export type Choice = 'granted' | 'denied'
@@ -16,28 +16,17 @@ const isChoice = (s: string): s is Choice => s === 'granted' || s === 'denied'
 
 const now = () => DateTime.toEpochMillis(DateTime.nowUnsafe())
 
-// Native `split` in place of Effect's `String` module only: see the Effect rule in packages/web/CLAUDE.md.
-const parseStored = (raw: string | null): Option.Option<Choice> =>
-  pipe(
-    Option.fromNullishOr(raw),
-    Option.map((value) => value.split(':')),
-    Option.filter(([, at]) => {
-      const age = now() - Number(at)
-      return age >= 0 && age < MAX_AGE_MS
-    }),
-    Option.flatMap(([choice]) => Option.fromNullishOr(choice)),
-    Option.filter(isChoice)
+// Runs before the first paint and is the only parser of the stored value. It writes a valid choice, or 'ask', to
+// <html data-consent>. The prerendered banner shows only under 'ask', so a page whose scripts never ran keeps it hidden.
+export const CONSENT_SCRIPT = `(function(){var c='ask';try{var v=(localStorage.getItem('${KEY}')||'').split(':'),a=Date.now()-Number(v[1]);if((v[0]==='granted'||v[0]==='denied')&&a>=0&&a<${MAX_AGE_MS})c=v[0]}catch(e){}document.documentElement.dataset.consent=c})()`
+
+const stored = (): Option.Option<Choice> =>
+  Option.filter(
+    Option.fromNullishOr(document.documentElement.dataset.consent),
+    isChoice
   )
 
-const stored = (): Option.Option<Choice> => {
-  try {
-    return parseStored(localStorage.getItem(KEY))
-  } catch {
-    return Option.none()
-  }
-}
-
-const PRERENDERED: Consent = { choice: Option.none(), asking: false }
+const PRERENDERED: Consent = { choice: Option.none(), asking: true }
 
 let current: Consent | undefined
 const listeners = new Set<() => void>()

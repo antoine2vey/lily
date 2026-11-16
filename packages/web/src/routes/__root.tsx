@@ -10,7 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { ConsentBanner, ConsentSettings } from '@/components/site/ConsentBanner'
 import { defaultLocale, isLocale } from '@/i18n'
 import { setAnalytics } from '@/lib/analytics'
-import { onChoice } from '@/lib/consent'
+import { CONSENT_SCRIPT, onChoice } from '@/lib/consent'
 import { useSmoothAnchors } from '@/lib/smooth-anchors'
 import css from '../styles.css?url'
 
@@ -76,6 +76,8 @@ function Html({ lang, children }: { lang: string; children: ReactNode }) {
       <head>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static theme script, runs before paint to avoid a flash */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static consent script, runs before paint so a stored choice hides the prerendered banner */}
+        <script dangerouslySetInnerHTML={{ __html: CONSENT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
