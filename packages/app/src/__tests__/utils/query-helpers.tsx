@@ -45,13 +45,18 @@ export function createTestQueryClient(): QueryClient {
 }
 
 /**
- * A test client that keeps entries no hook observes, so a test can seed the
- * cache, run a mutation and read the entries back.
+ * A test client for seeded caches. It keeps entries no hook observes, so a
+ * test can run a mutation and read them back, and a mounted query reads the
+ * seed instead of fetching.
  */
 export function createCacheTestQueryClient(): QueryClient {
   const client = new QueryClient({
     defaultOptions: {
-      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      queries: {
+        retry: false,
+        gcTime: Number.POSITIVE_INFINITY,
+        staleTime: Number.POSITIVE_INFINITY,
+      },
       mutations: { retry: false, gcTime: 0 },
     },
   })

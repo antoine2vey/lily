@@ -1,5 +1,16 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { nowAsDate } from '@lily/shared'
+import type {
+  CarePlan,
+  CarePlanListResponse,
+  CarePlanStep,
+} from '@lily/shared/care-plan'
+import { type QueryClient, useQueryClient } from '@tanstack/react-query'
+import { Array as Arr } from 'effect'
 import { useEffectMutation } from '@/utils/client'
+import {
+  patchCachedResults,
+  restoreCachedResults,
+} from '@/utils/optimistic-cache'
 import { queryKeys } from '@/utils/query-keys'
 
 // Plan mutations can move schedules (accept) or write care logs (complete a
@@ -37,17 +48,61 @@ export function useDeleteCarePlan() {
   })
 }
 
+// Both plan lists (the Care tab's and a plant's) live under carePlans.all.
+const patchCachedPlans = (
+  queryClient: QueryClient,
+  patch: (plans: ReadonlyArray<CarePlan>) => ReadonlyArray<CarePlan>
+) =>
+  patchCachedResults<CarePlanListResponse>(
+    queryClient,
+    { queryKey: queryKeys.carePlans.all },
+    (list) => ({ ...list, items: patch(list.items) })
+  )
+
+const patchStep =
+  (
+    { planId, stepId }: { planId: string; stepId: string },
+    patch: (step: CarePlanStep) => CarePlanStep
+  ) =>
+  (plans: ReadonlyArray<CarePlan>) =>
+    Arr.map(plans, (plan) =>
+      plan.id === planId
+        ? {
+            ...plan,
+            steps: Arr.map(plan.steps, (step) =>
+              step.id === stepId ? patch(step) : step
+            ),
+          }
+        : plan
+    )
+
 export function useCompleteCarePlanStep() {
+  const queryClient = useQueryClient()
   const invalidate = useInvalidateCarePlanQueries()
   return useEffectMutation('carePlans', 'completeCarePlanStep', {
-    onSuccess: invalidate,
+    onMutate: ({ params }) =>
+      patchCachedPlans(
+        queryClient,
+        patchStep(params, (step) => ({ ...step, completedAt: nowAsDate() }))
+      ),
+    onError: (_error, _variables, snapshot) =>
+      restoreCachedResults(queryClient, snapshot),
+    onSettled: invalidate,
   })
 }
 
 export function useUncompleteCarePlanStep() {
+  const queryClient = useQueryClient()
   const invalidate = useInvalidateCarePlanQueries()
   return useEffectMutation('carePlans', 'uncompleteCarePlanStep', {
-    onSuccess: invalidate,
+    onMutate: ({ params }) =>
+      patchCachedPlans(
+        queryClient,
+        patchStep(params, ({ completedAt: _, ...open }) => open)
+      ),
+    onError: (_error, _variables, snapshot) =>
+      restoreCachedResults(queryClient, snapshot),
+    onSettled: invalidate,
   })
 }
 
