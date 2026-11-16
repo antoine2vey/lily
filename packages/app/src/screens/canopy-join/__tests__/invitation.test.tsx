@@ -85,10 +85,11 @@ jest.mock('@/hooks/useCanopyMutations', () => ({
     isPending: mockDeclinePending,
   }),
   useLeaveCanopy: () => ({ mutateAsync: mockLeave }),
+  refreshOwnedData: jest.fn(),
 }))
 
-jest.mock('@/screens/canopy-join/BringPlantsScreen', () => ({
-  BringPlantsScreen: () => null,
+jest.mock('@/hooks/usePlants', () => ({
+  usePlants: () => ({ data: { items: [], total: 0 }, isLoading: false }),
 }))
 
 jest.mock('expo-router', () => ({
@@ -120,6 +121,14 @@ describe('answering a direct invitation', () => {
     renderInvitation()
     fireEvent.press(await screen.findByTestId('canopy-join-button'))
     await waitFor(() => expect(mockAccept).toHaveBeenCalledWith(INVITATION_ID))
+  })
+
+  it('confirms the join once the user has picked plants to bring', async () => {
+    renderInvitation()
+    fireEvent.press(await screen.findByTestId('canopy-join-button'))
+    fireEvent.press(await screen.findByTestId('canopy-bring-submit'))
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/canopy'))
+    expect(toast.success).toHaveBeenCalledWith('You joined Our Flat', {})
   })
 
   it('declines, confirms with a toast and closes', async () => {

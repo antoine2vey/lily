@@ -25,8 +25,14 @@ const shareOne = (plantId: string) =>
     })
   )
 
-/** Shown once, right after joining: every personal plant starts unticked. */
-export function BringPlantsScreen({ canopyName }: { canopyName: string }) {
+/** Shown once, right after joining or creating: every personal plant starts unticked. */
+export function BringPlantsScreen({
+  canopyName,
+  arrival,
+}: {
+  canopyName: string
+  arrival: 'joined' | 'created'
+}) {
   const { t } = useTranslation('canopy')
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
@@ -61,7 +67,7 @@ export function BringPlantsScreen({ canopyName }: { canopyName: string }) {
     refreshOwnedData(queryClient)
     queryClient.invalidateQueries({ queryKey: queryKeys.canopy.all })
 
-    toast.success(t('bring.joined', { name: canopyName }), {
+    toast.success(t(`bring.${arrival}`, { name: canopyName }), {
       ...(Arr.isArrayNonEmpty(shared)
         ? { description: t('bring.brought', { count: shared.length }) }
         : {}),
