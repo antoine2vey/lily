@@ -236,6 +236,41 @@ describe('CareScreen', () => {
     expect(screen.getByText('Cancel')).toBeTruthy()
   })
 
+  it('counts the days of the early-completion modal from the server day offset', () => {
+    jest.useFakeTimers({ now: new Date('2026-06-10T08:00:00Z') })
+
+    mockedUseCareTasks.mockReturnValue({
+      data: {
+        overdue: [],
+        today: [],
+        upcoming: [
+          {
+            id: 'task-1',
+            plantId: 'plant-1',
+            plantName: 'Cactus',
+            plantImageUrl: null,
+            type: 'watering',
+            completed: false,
+            // Midnight of 2026-06-11 in Europe/Paris, the user's zone.
+            dueDate: new Date('2026-06-10T22:00:00Z'),
+            dueDayOffset: 1,
+            localDueDate: '2026-06-11',
+          },
+        ],
+      },
+      isLoading: false,
+    })
+
+    render(<CareScreen />)
+    fireEvent.press(screen.getByText('Cactus'))
+
+    expect(
+      screen.getByText('This task is scheduled in 1 day. Complete it anyway?')
+    ).toBeTruthy()
+
+    jest.useRealTimers()
+  })
+
   it('displays multiple sections simultaneously', () => {
     const futureDate = mockDateFuture(2, 'days')
 
