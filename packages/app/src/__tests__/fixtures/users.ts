@@ -1,4 +1,4 @@
-import type { User } from '@lily/shared/user'
+import type { User, UserSettings } from '@lily/shared/user'
 
 export const mockUsers: User[] = [
   {
@@ -120,3 +120,32 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   vacationEnd: null,
   ...overrides,
 })
+
+export const mockUserSettings: UserSettings = {
+  name: 'Alex',
+  firstName: 'Alex',
+  lastName: null,
+  email: 'alex@example.com',
+  notifications: {
+    careReminders: true,
+    weeklyDigest: true,
+    achievements: true,
+    tips: false,
+    productUpdates: false,
+    ads: false,
+    doNotDisturb: false,
+    doNotDisturbStart: '22:00',
+    doNotDisturbEnd: '07:00',
+  },
+  privacy: {
+    publicProfile: true,
+    shareGrowthData: false,
+    personalizedTips: true,
+  },
+  timezone: 'America/New_York',
+  preferredNotificationTime: '09:00',
+  language: 'en',
+  temperatureUnit: 'celsius',
+  weather: { enabled: false, latitude: null, longitude: null },
+  careLogsCount: 12,
+}

@@ -63,4 +63,5 @@ export default {
       saoPaulo: 'São Paulo (BRT)',
     },
   },
+  saveFailed: "Impossible d'enregistrer la modification. Réessayez.",
 } as const

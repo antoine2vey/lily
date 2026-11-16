@@ -3,6 +3,14 @@ import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { Result } from 'effect'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 
+// The request the mocked careMultiplePlants sends. Pending unless a test
+// replaces it.
+const pendingRequest = () => new Promise(() => {})
+let mockRequest: () => Promise<unknown> = pendingRequest
+afterEach(() => {
+  mockRequest = pendingRequest
+})
+
 jest.mock('@/utils/client', () => {
   const actual = jest.requireActual('@/utils/client')
   const rq = jest.requireActual('@tanstack/react-query')
@@ -10,7 +18,7 @@ jest.mock('@/utils/client', () => {
     ...actual,
     useEffectMutation: (_section: string, _method: string, options: object) =>
       rq.useMutation({
-        mutationFn: () => new Promise(() => {}),
+        mutationFn: () => mockRequest(),
         ...options,
       }),
   }
@@ -68,5 +76,29 @@ describe('useCareAll optimistic update', () => {
     })
     expect(tasks.current.data?.today).toEqual([])
     expect(tasks.current.data?.completedToday).toBe(2)
+  })
+
+  it('restores the tasks when the request fails', async () => {
+    mockRequest = () => Promise.reject(new Error('careMultiplePlants failed'))
+    const seeded = Result.succeed({
+      overdue: [task('1', 'a', 'watering')],
+      today: [task('3', 'b', 'watering')],
+      upcoming: [],
+      completedToday: 0,
+    })
+    const client = makeClient()
+    client.setQueryData(CARE_TASKS_QUERY_KEY, seeded)
+    const { result: careAll } = renderHook(() => useCareAll(), {
+      wrapper: createQueryWrapper(client),
+    })
+
+    act(() => {
+      careAll.current.mutate({
+        payload: { plantIds: ['a', 'b'], careType: 'watering' },
+      })
+    })
+
+    await waitFor(() => expect(careAll.current.isError).toBe(true))
+    expect(client.getQueryData(CARE_TASKS_QUERY_KEY)).toEqual(seeded)
   })
 })

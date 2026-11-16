@@ -1,12 +1,10 @@
-import type { QueryClient, QueryKey } from '@tanstack/react-query'
-import { Array as Arr, Match, Option, pipe, Result } from 'effect'
-import type { ApiResult } from '@/utils/client'
+import type { QueryClient } from '@tanstack/react-query'
+import { Array as Arr, Match, pipe } from 'effect'
+import {
+  type CacheSnapshot,
+  patchCachedResults,
+} from '@/utils/optimistic-cache'
 import { queryKeys } from '@/utils/query-keys'
-
-/**
- * Snapshot of all cached social queries, used for rollback on failure.
- */
-export type SocialCacheSnapshot = ReadonlyArray<readonly [QueryKey, unknown]>
 
 /**
  * Cached data shapes that appear in social queries.
@@ -71,44 +69,6 @@ function hasTotalField(value: unknown): value is { readonly total: number } {
 }
 
 // ---------------------------------------------------------------------------
-// Cache helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Extract the Right payload from a cached Either value.
- * Returns None if the value is missing, not an Either, or is a Left.
- */
-function unwrapCachedEither(raw: unknown): Option.Option<unknown> {
-  if (!raw || !Result.isResult(raw) || Result.isFailure(raw)) {
-    return Option.none()
-  }
-  return Option.some(raw.success)
-}
-
-/**
- * Save a snapshot of all social queries for later rollback.
- */
-export function saveSocialSnapshot(
-  queryClient: QueryClient
-): SocialCacheSnapshot {
-  return queryClient.getQueriesData({
-    queryKey: queryKeys.social.all,
-  })
-}
-
-/**
- * Restore cached social queries from a previous snapshot.
- */
-export function restoreSocialSnapshot(
-  queryClient: QueryClient,
-  snapshot: SocialCacheSnapshot
-): void {
-  Arr.forEach(snapshot, ([key, value]) => {
-    queryClient.setQueryData(key, value)
-  })
-}
-
-// ---------------------------------------------------------------------------
 // Patch functions (pure, operate on unwrapped data)
 // ---------------------------------------------------------------------------
 
@@ -127,61 +87,42 @@ function patchFollowableItems(
 // ---------------------------------------------------------------------------
 
 /**
- * Optimistically update `isFollowing` across all cached social queries.
- *
- * Cached data is wrapped in `Either<ApiFailure, Data>`. This helper
- * unwraps, patches any matching userId, and re-wraps.
+ * Optimistically update `isFollowing` across all cached social queries and
+ * return the snapshot to restore on failure.
  */
 export function optimisticFollowUpdate(
   queryClient: QueryClient,
   targetUserId: string,
   isFollowing: boolean
-): void {
+): CacheSnapshot {
   const followerDelta = isFollowing ? 1 : -1
 
-  queryClient.setQueriesData<ApiResult<unknown>>(
+  const snapshot = patchCachedResults<unknown>(
+    queryClient,
     { queryKey: queryKeys.social.all },
-    (old) =>
+    (data) =>
       pipe(
-        unwrapCachedEither(old),
-        Option.match({
-          onNone: () => old,
-          onSome: (data) =>
-            pipe(
-              Match.value(data),
-              Match.when(
-                (d: unknown): d is ProfileData =>
-                  isProfileForUser(d, targetUserId),
-                (profile) => {
-                  const followerCount = Math.max(
-                    0,
-                    profile.followerCount + followerDelta
-                  )
-                  return Result.succeed({
-                    ...profile,
-                    isFollowing,
-                    followerCount,
-                  })
-                }
-              ),
-              Match.when(isPaginatedData, (paginated) =>
-                Result.succeed({
-                  ...paginated,
-                  items: patchFollowableItems(
-                    paginated.items,
-                    targetUserId,
-                    isFollowing
-                  ),
-                })
-              ),
-              Match.when(isFollowableArray, (items) =>
-                Result.succeed(
-                  patchFollowableItems(items, targetUserId, isFollowing)
-                )
-              ),
-              Match.orElse(() => old)
-            ),
-        })
+        Match.value(data),
+        Match.when(
+          (d: unknown): d is ProfileData => isProfileForUser(d, targetUserId),
+          (profile) => ({
+            ...profile,
+            isFollowing,
+            followerCount: Math.max(0, profile.followerCount + followerDelta),
+          })
+        ),
+        Match.when(isPaginatedData, (paginated) => ({
+          ...paginated,
+          items: patchFollowableItems(
+            paginated.items,
+            targetUserId,
+            isFollowing
+          ),
+        })),
+        Match.when(isFollowableArray, (items) =>
+          patchFollowableItems(items, targetUserId, isFollowing)
+        ),
+        Match.orElse(() => data)
       )
   )
 
@@ -191,6 +132,7 @@ export function optimisticFollowUpdate(
     ['social', 'getUserFollowers'],
     followerDelta
   )
+  return snapshot
 }
 
 /**
@@ -201,21 +143,9 @@ function updatePaginatedTotal(
   keyPrefix: readonly string[],
   delta: number
 ): void {
-  queryClient.setQueriesData<ApiResult<unknown>>(
-    { queryKey: keyPrefix },
-    (old) =>
-      pipe(
-        unwrapCachedEither(old),
-        Option.match({
-          onNone: () => old,
-          onSome: (data) =>
-            hasTotalField(data)
-              ? Result.succeed({
-                  ...data,
-                  total: Math.max(0, data.total + delta),
-                })
-              : old,
-        })
-      )
+  patchCachedResults<unknown>(queryClient, { queryKey: keyPrefix }, (data) =>
+    hasTotalField(data)
+      ? { ...data, total: Math.max(0, data.total + delta) }
+      : data
   )
 }

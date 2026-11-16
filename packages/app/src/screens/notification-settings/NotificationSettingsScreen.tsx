@@ -7,11 +7,12 @@ import {
 } from '@lily/shared'
 import { Array, Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { toast } from 'sonner-native'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { ToggleRow } from '@/components/ToggleRow'
 import { useAuth } from '@/contexts/AuthContext'
@@ -21,6 +22,11 @@ import {
   useNotificationSettings,
   useUpdateNotificationSettings,
 } from '@/hooks/useNotificationSettings'
+import {
+  type UserSettingsPatch,
+  useUpdateUserSettings,
+} from '@/hooks/useUpdateUserSettings'
+import { useUser } from '@/hooks/useUser'
 import { NotificationSettingsSkeleton } from '@/screens/notification-settings/components/NotificationSettingsSkeleton'
 import {
   TimePickerModal,
@@ -30,7 +36,6 @@ import {
   TIMEZONE_OPTIONS,
   TimezonePickerModal,
 } from '@/screens/notification-settings/components/TimezonePickerModal'
-import { apiEffectRunner } from '@/utils/client'
 import { getDeviceTimezone } from '@/utils/notifications'
 
 function parseTime(timeString: string): Date {
@@ -91,91 +96,44 @@ export function NotificationSettingsScreen() {
     null
   )
   const [showTimezonePicker, setShowTimezonePicker] = useState(false)
-  const [timezone, setTimezone] = useState<string>('UTC')
-  const [preferredNotificationTime, setPreferredNotificationTime] =
-    useState<string>('09:00')
-  const [isLoadingTimezone, setIsLoadingTimezone] = useState(true)
+  const { data: userSettings, isLoading: isLoadingUser } = useUser()
+  const { mutate: updateUserSettings } = useUpdateUserSettings()
+  const timezone = userSettings?.timezone || getDeviceTimezone()
+  const preferredNotificationTime =
+    userSettings?.preferredNotificationTime || '09:00'
 
-  // Load user timezone settings
-  useEffect(() => {
-    let cancelled = false
-
-    const loadTimezoneSettings = async () => {
+  const saveUserSettings = useCallback(
+    (patch: UserSettingsPatch) => {
       if (state._tag !== 'Authenticated') return
-
-      try {
-        const userSettings = await apiEffectRunner(
-          'users',
-          'getUserSettings',
-          {}
-        )
-        if (!cancelled) {
-          setTimezone(userSettings.timezone || getDeviceTimezone())
-          setPreferredNotificationTime(
-            userSettings.preferredNotificationTime || '09:00'
-          )
-        }
-      } catch (_error) {
-        if (!cancelled) {
-          setTimezone(getDeviceTimezone())
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingTimezone(false)
-        }
-      }
-    }
-
-    loadTimezoneSettings()
-    return () => {
-      cancelled = true
-    }
-  }, [state])
+      updateUserSettings(patch, {
+        onError: () => toast.error(t('saveFailed')),
+      })
+    },
+    [state, updateUserSettings, t]
+  )
 
   const handleTimezoneChange = useCallback(
-    async (newTimezone: TimeZone) => {
-      if (state._tag !== 'Authenticated') return
-
-      setTimezone(newTimezone)
+    (newTimezone: TimeZone) => {
       setShowTimezonePicker(false)
-
-      try {
-        await apiEffectRunner('users', 'updateUserSettings', {
-          payload: { timezone: newTimezone },
-        })
-      } catch (error) {
-        console.error('Failed to update timezone:', error)
-      }
+      saveUserSettings({ timezone: newTimezone })
     },
-    [state]
+    [saveUserSettings]
   )
 
   const handleNotificationTimeChange = useCallback(
-    async (date: Date) => {
-      if (state._tag !== 'Authenticated') return
-
-      const timeString = formatTimeString(date)
-      setPreferredNotificationTime(timeString)
-
+    (date: Date) => {
       if (Platform.OS === 'android') {
         setShowTimePicker(null)
       }
-
-      try {
-        await apiEffectRunner('users', 'updateUserSettings', {
-          payload: { preferredNotificationTime: timeString },
-        })
-      } catch (error) {
-        console.error('Failed to update notification time:', error)
-      }
+      saveUserSettings({ preferredNotificationTime: formatTimeString(date) })
     },
-    [state]
+    [saveUserSettings]
   )
 
-  const handleAutoDetectTimezone = useCallback(async () => {
-    const detectedTimezone = getDeviceTimezone()
-    await handleTimezoneChange(detectedTimezone)
-  }, [handleTimezoneChange])
+  const handleAutoDetectTimezone = useCallback(
+    () => handleTimezoneChange(getDeviceTimezone()),
+    [handleTimezoneChange]
+  )
 
   type BooleanSettingKey =
     | 'careReminders'
@@ -235,7 +193,8 @@ export function NotificationSettingsScreen() {
     [handleTimeChange, handleNotificationTimeChange]
   )
 
-  const isInitialLoading = (isLoading || isLoadingTimezone) && !settings
+  const isInitialLoading =
+    (isLoading && !settings) || (isLoadingUser && !userSettings)
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
   if (error) {

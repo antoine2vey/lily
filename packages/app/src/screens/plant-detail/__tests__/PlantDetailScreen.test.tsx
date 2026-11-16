@@ -53,6 +53,7 @@ jest.mock('@/hooks/usePlantCanopyActions', () => ({
 
 const mockLiveMutations = { current: false }
 jest.mock('@/utils/client', () => ({
+  effectQueryKey: jest.requireActual('@/utils/client').effectQueryKey,
   useEffectQuery: jest.fn(),
   useEffectMutation: jest.fn((...args: unknown[]) =>
     mockLiveMutations.current

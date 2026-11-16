@@ -4,7 +4,6 @@ import {
   parseApiDate,
   type TemperatureUnit,
 } from '@lily/shared'
-import { useQueryClient } from '@tanstack/react-query'
 import { Array, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
@@ -19,6 +18,7 @@ import { useIconColors } from '@/hooks/useIconColors'
 import { useLocalization } from '@/hooks/useLocalization'
 import { useMyCanopy } from '@/hooks/useMyCanopy'
 import { useTheme } from '@/hooks/useTheme'
+import { useUpdateUserSettings } from '@/hooks/useUpdateUserSettings'
 import { useUser } from '@/hooks/useUser'
 import { useVacation } from '@/hooks/useVacation'
 import { LanguageSelectionModal } from '@/screens/settings/components/LanguageSelectionModal'
@@ -28,14 +28,12 @@ import { TemperatureUnitModal } from '@/screens/settings/components/TemperatureU
 import { ThemeSelectionModal } from '@/screens/settings/components/ThemeSelectionModal'
 import { apiEffectRunner } from '@/utils/client'
 import { openExternalUrl } from '@/utils/linking'
-import { queryKeys } from '@/utils/query-keys'
 
 type Theme = 'light' | 'dark' | 'system'
 
 export function SettingsScreen() {
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
-  const queryClient = useQueryClient()
   const {
     data: userSettings,
     isLoading: isLoadingUser,
@@ -48,6 +46,7 @@ export function SettingsScreen() {
   const { t, language, supportedLanguages } = useLocalization()
   const { data: vacation } = useVacation()
   const { data: myCanopy } = useMyCanopy()
+  const { mutate: updateUserSettings } = useUpdateUserSettings()
   const [showThemeModal, setShowThemeModal] = useState(false)
   const [showLanguageModal, setShowLanguageModal] = useState(false)
   const [showTempUnitModal, setShowTempUnitModal] = useState(false)
@@ -76,12 +75,8 @@ export function SettingsScreen() {
       Match.exhaustive
     )
 
-  const handleTempUnitSelect = async (unit: TemperatureUnit) => {
-    await apiEffectRunner('users', 'updateUserSettings', {
-      payload: { temperatureUnit: unit },
-    })
-    queryClient.invalidateQueries({ queryKey: queryKeys.users.settings() })
-  }
+  const handleTempUnitSelect = (unit: TemperatureUnit) =>
+    updateUserSettings({ temperatureUnit: unit })
 
   const getThemeLabel = (themeValue: Theme): string =>
     pipe(

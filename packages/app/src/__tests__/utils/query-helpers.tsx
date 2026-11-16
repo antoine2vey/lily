@@ -26,6 +26,15 @@ export function cleanupQueryClients(): void {
 /**
  * Create a test query client with sensible defaults
  */
+/**
+ * `waitFor` options for a render that follows a request through the real API
+ * client. Each request builds the client and captures stack traces
+ * synchronously, which holds the event loop for over a second under Jest and
+ * longer under load, and a re-render scheduled by a cache write waits behind
+ * it. The default 1s window flakes there.
+ */
+export const afterApiRequest = { timeout: 10000 }
+
 export function createTestQueryClient(): QueryClient {
   const client = new QueryClient({
     defaultOptions: {
@@ -38,6 +47,26 @@ export function createTestQueryClient(): QueryClient {
         retry: false,
         gcTime: 0,
       },
+    },
+  })
+  testQueryClients.push(client)
+  return client
+}
+
+/**
+ * A test client for seeded caches. It keeps entries no hook observes, so a
+ * test can run a mutation and read them back, and a mounted query reads the
+ * seed instead of fetching.
+ */
+export function createCacheTestQueryClient(): QueryClient {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: Number.POSITIVE_INFINITY,
+        staleTime: Number.POSITIVE_INFINITY,
+      },
+      mutations: { retry: false, gcTime: 0 },
     },
   })
   testQueryClients.push(client)
