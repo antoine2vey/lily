@@ -19,6 +19,8 @@ afterEach(() => fetchMock.mockReset())
 import type { ApiResult } from '@/utils/client'
 import {
   useCompleteCarePlanStep,
+  useDeleteCarePlan,
+  useDeleteCarePlanStep,
   useUncompleteCarePlanStep,
 } from '../useCarePlanMutations'
 
@@ -95,6 +97,82 @@ describe('care plan step mutations', () => {
       act(() =>
         result.current.mutate({ params: { planId: carePlanIds.plan, stepId } })
       )
+
+      await waitFor(() => expect(result.current.isError).toBe(true))
+      expect(fetchMock).toHaveBeenCalled()
+      for (const key of keys) {
+        expect(plansIn(client, key)).toEqual([mockCarePlan])
+      }
+    }
+  )
+})
+
+describe('care plan deletion', () => {
+  it('drops the plan from every cached plan list before the API answers', () => {
+    fetchMock.mockReturnValue(new Promise(() => {}))
+    const client = seed()
+    const { result } = render(useDeleteCarePlan, client)
+
+    act(() => result.current.mutate({ params: { planId: carePlanIds.plan } }))
+
+    for (const key of keys) {
+      expect(plansIn(client, key)).toEqual([])
+    }
+  })
+
+  it('drops only that step from the plan before the API answers', () => {
+    fetchMock.mockReturnValue(new Promise(() => {}))
+    const client = seed()
+    const { result } = render(useDeleteCarePlanStep, client)
+
+    act(() =>
+      result.current.mutate({
+        params: { planId: carePlanIds.plan, stepId: carePlanIds.openStep },
+      })
+    )
+
+    for (const key of keys) {
+      expect(plansIn(client, key)[0]?.steps.map(({ id }) => id)).toEqual([
+        carePlanIds.doneStep,
+      ])
+    }
+  })
+
+  it.each([
+    [
+      'the plan',
+      () => {
+        const { mutate, isError } = useDeleteCarePlan()
+        return {
+          remove: () => mutate({ params: { planId: carePlanIds.plan } }),
+          isError,
+        }
+      },
+    ],
+    [
+      'a step',
+      () => {
+        const { mutate, isError } = useDeleteCarePlanStep()
+        return {
+          remove: () =>
+            mutate({
+              params: {
+                planId: carePlanIds.plan,
+                stepId: carePlanIds.openStep,
+              },
+            }),
+          isError,
+        }
+      },
+    ],
+  ] as const)(
+    'restores both plan lists when deleting %s fails',
+    async (_, useRemove) => {
+      fetchMock.mockRejectedValue(new TypeError('Network request failed'))
+      const client = seed()
+      const { result } = render(useRemove, client)
+
+      act(() => result.current.remove())
 
       await waitFor(() => expect(result.current.isError).toBe(true))
       expect(fetchMock).toHaveBeenCalled()

@@ -41,13 +41,6 @@ export function useDismissCarePlan() {
   })
 }
 
-export function useDeleteCarePlan() {
-  const invalidate = useInvalidateCarePlanQueries()
-  return useEffectMutation('carePlans', 'deleteCarePlan', {
-    onSuccess: invalidate,
-  })
-}
-
 // Both plan lists (the Care tab's and a plant's) live under carePlans.all.
 const patchCachedPlans = (
   queryClient: QueryClient,
@@ -59,22 +52,21 @@ const patchCachedPlans = (
     (list) => ({ ...list, items: patch(list.items) })
   )
 
-const patchStep =
-  (
-    { planId, stepId }: { planId: string; stepId: string },
-    patch: (step: CarePlanStep) => CarePlanStep
-  ) =>
+const patchPlan =
+  (planId: string, patch: (plan: CarePlan) => CarePlan) =>
   (plans: ReadonlyArray<CarePlan>) =>
-    Arr.map(plans, (plan) =>
-      plan.id === planId
-        ? {
-            ...plan,
-            steps: Arr.map(plan.steps, (step) =>
-              step.id === stepId ? patch(step) : step
-            ),
-          }
-        : plan
-    )
+    Arr.map(plans, (plan) => (plan.id === planId ? patch(plan) : plan))
+
+const patchStep = (
+  { planId, stepId }: { planId: string; stepId: string },
+  patch: (step: CarePlanStep) => CarePlanStep
+) =>
+  patchPlan(planId, (plan) => ({
+    ...plan,
+    steps: Arr.map(plan.steps, (step) =>
+      step.id === stepId ? patch(step) : step
+    ),
+  }))
 
 export function useCompleteCarePlanStep() {
   const queryClient = useQueryClient()
@@ -106,9 +98,34 @@ export function useUncompleteCarePlanStep() {
   })
 }
 
+export function useDeleteCarePlan() {
+  const queryClient = useQueryClient()
+  const invalidate = useInvalidateCarePlanQueries()
+  return useEffectMutation('carePlans', 'deleteCarePlan', {
+    onMutate: ({ params: { planId } }) =>
+      patchCachedPlans(queryClient, (plans) =>
+        Arr.filter(plans, (plan) => plan.id !== planId)
+      ),
+    onError: (_error, _variables, snapshot) =>
+      restoreCachedResults(queryClient, snapshot),
+    onSettled: invalidate,
+  })
+}
+
 export function useDeleteCarePlanStep() {
+  const queryClient = useQueryClient()
   const invalidate = useInvalidateCarePlanQueries()
   return useEffectMutation('carePlans', 'deleteCarePlanStep', {
-    onSuccess: invalidate,
+    onMutate: ({ params: { planId, stepId } }) =>
+      patchCachedPlans(
+        queryClient,
+        patchPlan(planId, (plan) => ({
+          ...plan,
+          steps: Arr.filter(plan.steps, (step) => step.id !== stepId),
+        }))
+      ),
+    onError: (_error, _variables, snapshot) =>
+      restoreCachedResults(queryClient, snapshot),
+    onSettled: invalidate,
   })
 }
