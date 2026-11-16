@@ -7,7 +7,7 @@ import { TestClock } from 'effect/testing'
 import { describe, expect, it } from 'vitest'
 
 // Shutdown is the scheduler layer's scope closing, which is what SIGTERM
-// does to every layer under Layer.launch in src/index.ts.
+// does to every layer ServerLive builds under Layer.launch.
 
 const runTestClock = <A>(effect: Effect.Effect<A, never, Scope.Scope>) =>
   effect.pipe(

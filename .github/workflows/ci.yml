@@ -39,6 +39,8 @@ jobs:
               - '.github/workflows/ci.yml'
               - '.github/actions/setup/**'
               - 'Dockerfile.postgres'
+              - 'Dockerfile.prod'
+              - '.dockerignore'
 
   checks:
     name: Lint · Typecheck · Test · Build
@@ -134,19 +136,48 @@ jobs:
       - name: Run integration tests
         run: bun run test:integration --shard=${{ matrix.shard }}/4
 
+  zone-rules:
+    name: Zone rules in the api image
+    needs: changes
+    if: needs.changes.outputs.api_db == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build the api image
+        run: docker build -f Dockerfile.prod -t lily-api .
+      # The api reads ICU_TIMEZONE_FILES_DIR through Bun on Alpine, a path no
+      # unit test reaches. The first run proves the guard can fail, so the
+      # second cannot pass on a probe that never reads the real offset.
+      - name: Probe without the zone rules, expecting StaleZoneRulesError
+        run: |
+          if docker run --rm lily-api env -u ICU_TIMEZONE_FILES_DIR bun run --cwd packages/api src/probes/zone-rules.ts >probe.err 2>&1; then
+            echo '::error::the guard passed on Bun'"'"'s bundled zone rules'
+            exit 1
+          fi
+          cat probe.err
+          grep -q StaleZoneRulesError probe.err
+      - name: Probe with the zone rules the image ships
+        run: docker run --rm lily-api bun run --cwd packages/api src/probes/zone-rules.ts
+
   summary:
     name: CI summary
     if: always()
-    needs: [checks, universal-links, docs, integration]
+    needs: [changes, checks, universal-links, docs, integration, zone-rules]
     runs-on: ubuntu-latest
     steps:
       - name: Verify required jobs
         run: |
+          changes='${{ needs.changes.result }}'
           checks='${{ needs.checks.result }}'
           universal_links='${{ needs.universal-links.result }}'
           docs='${{ needs.docs.result }}'
           integration='${{ needs.integration.result }}'
-          echo "checks=$checks universal-links=$universal_links docs=$docs integration=$integration"
+          zone_rules='${{ needs.zone-rules.result }}'
+          echo "changes=$changes checks=$checks universal-links=$universal_links docs=$docs integration=$integration zone-rules=$zone_rules"
+          if [ "$changes" != 'success' ]; then
+            echo '::error::changes job did not succeed'
+            exit 1
+          fi
           if [ "$checks" != 'success' ]; then
             echo '::error::checks job did not succeed'
             exit 1
@@ -161,5 +192,9 @@ jobs:
           fi
           if [ "$integration" != 'success' ] && [ "$integration" != 'skipped' ]; then
             echo '::error::integration job failed'
+            exit 1
+          fi
+          if [ "$zone_rules" != 'success' ] && [ "$zone_rules" != 'skipped' ]; then
+            echo '::error::zone-rules job failed'
             exit 1
           fi
