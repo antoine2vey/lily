@@ -90,20 +90,42 @@ jest.mock('@/hooks/useWeatherSettings', () => ({
   useToggleWeather: jest.fn(() => ({ mutate: jest.fn() })),
 }))
 
-jest.mock('@/hooks/useTemperatureUnit', () => ({
-  useTemperatureUnit: jest.fn(() => ({
-    unit: 'celsius',
-    formatTemp: (c: number | null) =>
-      c === null ? '--' : `${Math.round(c)}°C`,
-  })),
-}))
-
+import { Option } from 'effect'
 import { useAuth } from '@/contexts/AuthContext'
+import { useWeather } from '@/hooks/useWeather'
 import { useEffectQuery } from '@/utils/client'
 import { HomeScreen } from '../HomeScreen'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock
 const mockedUseAuth = useAuth as jest.Mock
+const mockedUseWeather = useWeather as jest.Mock
+
+const renderHomeAt17Celsius = (temperatureUnit: 'celsius' | 'fahrenheit') => {
+  mockedUseWeather.mockReturnValue({
+    weatherEnabled: true,
+    todayWeather: Option.some({ temperatureMean: 17, temperatureMax: 21 }),
+    adjustmentSummary: {
+      adjustedCount: 0,
+      skipWateringCount: 0,
+      skipFertilizationCount: 0,
+    },
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+  })
+  mockedUseEffectQuery.mockImplementation(
+    (group: string, endpoint: string) => ({
+      data:
+        group === 'users' && endpoint === 'getUserSettings'
+          ? { temperatureUnit }
+          : { items: mockPlants, total: mockPlants.length },
+      isLoading: false,
+      isRefetching: false,
+      refetch: jest.fn(),
+    })
+  )
+  render(<HomeScreen />)
+}
 
 describe('HomeScreen', () => {
   const mockLogout = jest.fn()
@@ -209,5 +231,18 @@ describe('HomeScreen', () => {
     render(<HomeScreen />)
 
     expect(screen.getByText(/Gardener/)).toBeTruthy()
+  })
+
+  it('shows the temperature in Celsius for a user on celsius', () => {
+    renderHomeAt17Celsius('celsius')
+
+    expect(screen.getByText('17°C')).toBeTruthy()
+  })
+
+  it('shows the temperature in Fahrenheit for a user on fahrenheit', () => {
+    renderHomeAt17Celsius('fahrenheit')
+
+    expect(screen.getByText('63°F')).toBeTruthy()
+    expect(screen.queryByText(/°C/)).toBeNull()
   })
 })
