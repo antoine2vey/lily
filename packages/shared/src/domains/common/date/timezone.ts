@@ -81,25 +81,6 @@ export const startOfDay = (
 ): DateTime.DateTime => localMidnight(dateTime, zoneFromNameOrUtc(timezone), 0)
 
 /**
- * Get the last millisecond of the local day a DateTime falls on.
- *
- * The result is one millisecond before the next local midnight, not the wall
- * clock 23:59:59.999. A clock change in the last hour of the day makes that
- * wall clock happen twice or not at all.
- *
- * @param dateTime - DateTime to get end of day for
- * @param timezone - IANA timezone string, UTC when unknown
- * @returns DateTime at the last millisecond of the same local day
- */
-export const endOfDay = (
-  dateTime: DateTime.DateTime,
-  timezone: string
-): DateTime.DateTime =>
-  DateTime.subtract(localMidnight(dateTime, zoneFromNameOrUtc(timezone), 1), {
-    milliseconds: 1,
-  })
-
-/**
  * Get start of week (Monday 00:00:00.000) for a DateTime.
  *
  * @param dateTime - DateTime to get start of week for
@@ -113,25 +94,6 @@ export const startOfWeek = (
   const zone = zoneFromNameOrUtc(timezone)
   const daysSinceMonday = (weekDay(dateTime, zone) + 6) % 7
   return localMidnight(dateTime, zone, -daysSinceMonday)
-}
-
-/**
- * Get end of week for a DateTime.
- * Week ends on Sunday.
- *
- * @param dateTime - DateTime to get end of week for
- * @param timezone - IANA timezone string, UTC when unknown
- * @returns DateTime at the last millisecond of that Sunday
- */
-export const endOfWeek = (
-  dateTime: DateTime.DateTime,
-  timezone: string
-): DateTime.DateTime => {
-  const zone = zoneFromNameOrUtc(timezone)
-  const daysUntilSunday = 7 - weekDay(dateTime, zone)
-  return DateTime.subtract(localMidnight(dateTime, zone, daysUntilSunday + 1), {
-    milliseconds: 1,
-  })
 }
 
 /**

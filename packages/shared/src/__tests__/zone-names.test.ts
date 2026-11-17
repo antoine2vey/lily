@@ -2,8 +2,6 @@ import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CareDay, CareDays } from '../domains/care/care-day'
 import {
-  endOfDay,
-  endOfWeek,
   localDayKey,
   startOfDay,
   startOfLocalDay,
@@ -30,9 +28,7 @@ const iso = (dateTime: DateTime.DateTime | Date): string =>
 const everyHelper = (timezone: string) => ({
   'CareDays.startOf': iso(CareDays.startOf(day, timezone)),
   startOfDay: iso(startOfDay(now, timezone)),
-  endOfDay: iso(endOfDay(now, timezone)),
   startOfWeek: iso(startOfWeek(now, timezone)),
-  endOfWeek: iso(endOfWeek(now, timezone)),
   localDayKey: localDayKey(now, timezone),
   startOfTodayAsDate: iso(startOfTodayAsDate(timezone)),
   startOfTomorrowAsDate: iso(startOfTomorrowAsDate(timezone)),
@@ -44,9 +40,7 @@ const everyHelper = (timezone: string) => ({
 const atUtcOffsetZero = {
   'CareDays.startOf': '2026-11-16T00:00:00.000Z',
   startOfDay: '2026-11-16T00:00:00.000Z',
-  endOfDay: '2026-11-16T23:59:59.999Z',
   startOfWeek: '2026-11-16T00:00:00.000Z',
-  endOfWeek: '2026-11-22T23:59:59.999Z',
   localDayKey: '2026-11-16',
   startOfTodayAsDate: '2026-11-16T00:00:00.000Z',
   startOfTomorrowAsDate: '2026-11-17T00:00:00.000Z',
@@ -76,9 +70,7 @@ describe('zone names in the date helpers', () => {
     expect(everyHelper('US/Pacific')).toEqual({
       'CareDays.startOf': '2026-11-16T08:00:00.000Z',
       startOfDay: '2026-11-16T08:00:00.000Z',
-      endOfDay: '2026-11-17T07:59:59.999Z',
       startOfWeek: '2026-11-16T08:00:00.000Z',
-      endOfWeek: '2026-11-23T07:59:59.999Z',
       localDayKey: '2026-11-16',
       startOfTodayAsDate: '2026-11-16T08:00:00.000Z',
       startOfTomorrowAsDate: '2026-11-17T08:00:00.000Z',
