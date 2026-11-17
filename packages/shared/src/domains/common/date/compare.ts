@@ -2,7 +2,7 @@ import { DateTime, Duration, Option, pipe } from 'effect'
 
 import { CareDays } from '../../care/care-day'
 import { type DateInput, now, parseApiDate } from './parse'
-import { endOfDay, endOfWeek, startOfDay, withTimeZone } from './timezone'
+import { startOfDay, withTimeZone } from './timezone'
 
 /**
  * Calculate the whole-day offset of a DateTime from a reference, in a timezone.
@@ -95,28 +95,6 @@ export const isOverdue = (dateTime: DateTime.DateTime): boolean => {
 export const isFuture = (dateTime: DateTime.DateTime): boolean => {
   const current = DateTime.nowUnsafe()
   return DateTime.isGreaterThan(dateTime, current)
-}
-
-/**
- * Check if a DateTime is this week (after today, before end of week).
- *
- * @param dateTime - DateTime to check
- * @param referenceDate - Reference DateTime (defaults to now)
- * @param timezone - IANA timezone string
- * @returns true if the DateTime is this week but after today
- */
-export const isThisWeek = (
-  dateTime: DateTime.DateTime,
-  referenceDate: DateTime.DateTime,
-  timezone: string
-): boolean => {
-  const weekEnd = endOfWeek(referenceDate, timezone)
-  const afterToday = DateTime.isGreaterThan(
-    dateTime,
-    endOfDay(referenceDate, timezone)
-  )
-  const beforeEndOfWeek = DateTime.isLessThanOrEqualTo(dateTime, weekEnd)
-  return afterToday && beforeEndOfWeek
 }
 
 /**

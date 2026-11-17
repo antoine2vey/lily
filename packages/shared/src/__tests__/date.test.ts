@@ -3,8 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   daysBetween,
   daysSince,
-  endOfDay,
-  endOfWeek,
   formatApiDateAsNextDate,
   formatApiRelativeTime,
   formatApiTime,
@@ -29,7 +27,6 @@ import {
   getTimeBasedGreeting,
   isFuture,
   isOverdue,
-  isThisWeek,
   isToday,
   isYesterday,
   localDayKey,
@@ -547,42 +544,6 @@ describe('Date Utilities', () => {
     })
   })
 
-  describe('endOfDay', () => {
-    it('should return 23:59:59.999 of the same day', () => {
-      const dateTime = createFixedDateTime(2024, 6, 15, 8, 0, 0)
-      const result = endOfDay(dateTime, 'UTC')
-      const parts = DateTime.toParts(result)
-
-      expect(parts.year).toBe(2024)
-      expect(parts.month).toBe(6)
-      expect(parts.day).toBe(15)
-      expect(parts.hour).toBe(23)
-      expect(parts.minute).toBe(59)
-      expect(parts.second).toBe(59)
-      expect(parts.millisecond).toBe(999)
-    })
-
-    it('should handle midnight input', () => {
-      const midnight = createFixedDateTime(2024, 6, 15, 0, 0, 0)
-      const result = endOfDay(midnight, 'UTC')
-      const parts = DateTime.toParts(result)
-
-      expect(parts.day).toBe(15)
-      expect(parts.hour).toBe(23)
-      expect(parts.minute).toBe(59)
-    })
-
-    it('should handle already at end of day', () => {
-      const endTime = createFixedDateTime(2024, 6, 15, 23, 59, 59)
-      const result = endOfDay(endTime, 'UTC')
-      const parts = DateTime.toParts(result)
-
-      expect(parts.hour).toBe(23)
-      expect(parts.minute).toBe(59)
-      expect(parts.second).toBe(59)
-    })
-  })
-
   describe('startOfWeek', () => {
     const instantOf = (dateTime: DateTime.DateTime) =>
       DateTime.formatIso(DateTime.toUtc(dateTime))
@@ -625,97 +586,6 @@ describe('Date Utilities', () => {
       expect(instantOf(startOfWeek(instant, 'Eire'))).toBe(
         instantOf(startOfWeek(instant, 'Europe/Dublin'))
       )
-    })
-  })
-
-  describe('endOfWeek', () => {
-    it('should return Sunday 23:59:59.999 for a Monday', () => {
-      // June 17, 2024 is Monday
-      const monday = createFixedDateTime(2024, 6, 17, 12, 0)
-      const result = endOfWeek(monday, 'UTC')
-      const parts = DateTime.toParts(result)
-
-      // Should be Sunday June 23, 2024
-      expect(parts.day).toBe(23)
-      expect(parts.month).toBe(6)
-      expect(parts.hour).toBe(23)
-      expect(parts.minute).toBe(59)
-      expect(parts.second).toBe(59)
-    })
-
-    it('should return same Sunday for a Sunday', () => {
-      // June 16, 2024 is Sunday
-      const sunday = createFixedDateTime(2024, 6, 16, 10, 0)
-      const result = endOfWeek(sunday, 'UTC')
-      const parts = DateTime.toParts(result)
-
-      // Should be end of same Sunday
-      expect(parts.day).toBe(23) // Next Sunday since weekDay 0 means 7 days until next Sunday
-      expect(parts.hour).toBe(23)
-    })
-
-    it('should return Sunday 23:59:59.999 for a Saturday', () => {
-      // June 15, 2024 is Saturday
-      const saturday = createFixedDateTime(2024, 6, 15, 12, 0)
-      const result = endOfWeek(saturday, 'UTC')
-      const parts = DateTime.toParts(result)
-
-      // Should be Sunday June 16, 2024
-      expect(parts.day).toBe(16)
-      expect(parts.month).toBe(6)
-      expect(parts.hour).toBe(23)
-    })
-
-    it('should handle month boundary', () => {
-      // June 26, 2024 is Wednesday
-      const wednesday = createFixedDateTime(2024, 6, 26, 12, 0)
-      const result = endOfWeek(wednesday, 'UTC')
-      const parts = DateTime.toParts(result)
-
-      // Should be Sunday June 30, 2024
-      expect(parts.day).toBe(30)
-      expect(parts.month).toBe(6)
-    })
-  })
-
-  describe('isThisWeek', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-      // June 15, 2024 is Saturday
-      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
-    it('should return true for tomorrow (within this week)', () => {
-      // June 16, 2024 is Sunday (end of week)
-      const sunday = createFixedDateTime(2024, 6, 16, 12, 0)
-      expect(isThisWeek(sunday, DateTime.nowUnsafe(), 'UTC')).toBe(true)
-    })
-
-    it('should return false for today', () => {
-      const today = createFixedDateTime(2024, 6, 15, 18, 0)
-      expect(isThisWeek(today, DateTime.nowUnsafe(), 'UTC')).toBe(false)
-    })
-
-    it('should return false for past dates', () => {
-      const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
-      expect(isThisWeek(yesterday, DateTime.nowUnsafe(), 'UTC')).toBe(false)
-    })
-
-    it('should return false for next week', () => {
-      // June 17, 2024 is Monday of next week
-      const nextMonday = createFixedDateTime(2024, 6, 17, 12, 0)
-      expect(isThisWeek(nextMonday, DateTime.nowUnsafe(), 'UTC')).toBe(false)
-    })
-
-    it('should use reference date when provided', () => {
-      // If reference is Monday June 17, then June 20 (Thursday) is this week
-      const reference = createFixedDateTime(2024, 6, 17, 12, 0) // Monday
-      const thursday = createFixedDateTime(2024, 6, 20, 12, 0)
-      expect(isThisWeek(thursday, reference, 'UTC')).toBe(true)
     })
   })
 
@@ -1048,41 +918,6 @@ describe('Date Utilities', () => {
       expect(parts.day).toBe(29)
     })
 
-    it('endOfDay with timezone returns 23:59:59.999 in user timezone', () => {
-      const utcDt = createFixedDateTime(2025, 1, 29, 10, 30)
-      const result = endOfDay(utcDt, 'Asia/Tokyo')
-      const parts = DateTime.toParts(result)
-      expect(parts.hour).toBe(23)
-      expect(parts.minute).toBe(59)
-      expect(parts.second).toBe(59)
-      expect(parts.millisecond).toBe(999)
-      // In Tokyo, 10:30 UTC = 19:30 Jan 29 → endOfDay = Jan 29 23:59:59.999
-      expect(parts.day).toBe(29)
-    })
-
-    it('endOfWeek with timezone respects user timezone', () => {
-      // Jan 29 2025 is Wednesday
-      const utcDt = createFixedDateTime(2025, 1, 29, 10, 0)
-      const resultUtc = endOfWeek(utcDt, 'UTC')
-      const resultTokyo = endOfWeek(utcDt, 'Asia/Tokyo')
-      // Both should end on Sunday but the day might differ due to TZ shift
-      const partsUtc = DateTime.toParts(resultUtc)
-      const partsTokyo = DateTime.toParts(resultTokyo)
-      expect(partsUtc.hour).toBe(23)
-      expect(partsTokyo.hour).toBe(23)
-    })
-
-    it('isThisWeek with timezone — categorization changes by timezone', () => {
-      // Jan 29 2025 is Wednesday. End of week = Sunday Feb 2
-      const ref = createFixedDateTime(2025, 1, 29, 12, 0)
-      // A task on Feb 1 12:00 UTC
-      const task = createFixedDateTime(2025, 2, 1, 12, 0)
-
-      // Should be this week in both UTC and Tokyo
-      expect(isThisWeek(task, ref, 'UTC')).toBe(true)
-      expect(isThisWeek(task, ref, 'Asia/Tokyo')).toBe(true)
-    })
-
     it('functions work with explicit UTC timezone', () => {
       const ref = createFixedDateTime(2025, 1, 29, 12, 0)
       const target = createFixedDateTime(2025, 1, 29, 8, 0)
@@ -1096,15 +931,6 @@ describe('Date Utilities', () => {
       const parts = DateTime.toParts(sod)
       expect(parts.hour).toBe(0)
       expect(parts.day).toBe(29)
-
-      // endOfDay with UTC timezone
-      const eod = endOfDay(ref, 'UTC')
-      const eodParts = DateTime.toParts(eod)
-      expect(eodParts.hour).toBe(23)
-
-      // isThisWeek with UTC timezone
-      const tomorrow = createFixedDateTime(2025, 1, 30, 12, 0)
-      expect(isThisWeek(tomorrow, ref, 'UTC')).toBe(true)
     })
   })
 
