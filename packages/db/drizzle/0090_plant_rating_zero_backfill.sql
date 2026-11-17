@@ -4,11 +4,18 @@
 -- a deliberate 0, so a row is backfilled only when no path that writes a chosen
 -- 0 could have produced it. Every other 0 stays.
 --
+-- Each date bound is a merge to main. The api serving at that instant still ran
+-- the code from before the merge, so a create at the bound counts as before it.
+--
 -- Watering, where a watering schedule gives the frequency:
---   * created before 2026-04-21T10:55:50Z, when the api took no watering rating
+--   * created by 2026-04-21T10:55:50Z. Until 35120868, create stored a
+--     hardcoded 0, and the edit screen saves back the 0 its slider loads, so a
+--     0 kept since then was not chosen.
 --   * a pet rating other than 0 or 100, which only the scanner and onboarding
---     write, and neither sends a watering rating. 0087 set 60 on manual plants
---     named after a toxic catalog entry, so those names stay out.
+--     write, and neither sent a watering rating. 0087 raised a chosen 0 or 100
+--     to 60 on manual plants named after a toxic catalog entry. Such a plant
+--     looks the same as an onboarding plant of that species, so a 60 on those
+--     names stays.
 --   * the MCP create_plant shape below
 -- Humidity: only the MCP create_plant shape, since every app create sends one.
 -- The MCP shape is both ratings 0, no image, description or category, the
@@ -38,8 +45,8 @@ WITH "mcp_created" AS (
     AND p."category" IS NULL
     AND p."lighting_rating" = 50
     AND p."pet_toxicity_rating" IN (0, 100)
-    AND p."date_added" >= '2026-11-02T10:35:04Z'
-    AND p."date_added" < '2026-11-17T16:08:04Z'
+    AND p."date_added" > '2026-11-02T10:35:04Z'
+    AND p."date_added" <= '2026-11-17T16:08:04Z'
     AND EXISTS (
       SELECT 1 FROM "oauth_user_api_credentials" c
       WHERE c."user_id" = p."created_by_user_id"
@@ -71,9 +78,9 @@ WITH "mcp_created" AS (
   JOIN "plant_care_schedules" s
     ON s."plant_id" = p."id" AND s."care_type" = 'watering'
   WHERE p."watering_rating" = 0
-    AND p."date_added" < '2026-11-17T16:39:00Z'
+    AND p."date_added" <= '2026-11-17T16:39:00Z'
     AND (
-      p."date_added" < '2026-04-21T10:55:50Z'
+      p."date_added" <= '2026-04-21T10:55:50Z'
       OR (
         p."pet_toxicity_rating" NOT IN (0, 100)
         AND NOT (
