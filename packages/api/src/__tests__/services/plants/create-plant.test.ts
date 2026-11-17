@@ -181,10 +181,33 @@ describe('createPlant', () => {
     expect(result.wateringRating).toBe(80)
   })
 
-  it('should default wateringRating to 0 when omitted', async () => {
+  it.each([
+    [5, 70],
+    [6, 50],
+    [8, 50],
+    [9, 30],
+    [12, 30],
+    [13, 10],
+  ])(
+    'derives the watering rating of a plant watered every %i days and named no rating: %i',
+    async (wateringFrequencyDays, wateringRating) => {
+      const { layer } = createTestLayer()
+      const result = await Effect.runPromise(
+        createPlant({ ...validRequest, wateringFrequencyDays }).pipe(
+          Effect.provide(layer)
+        )
+      )
+
+      expect(result.wateringRating).toBe(wateringRating)
+    }
+  )
+
+  it('keeps a watering rating of 0, the drought tolerant end of the scale', async () => {
     const { layer } = createTestLayer()
     const result = await Effect.runPromise(
-      createPlant(validRequest).pipe(Effect.provide(layer))
+      createPlant({ ...validRequest, wateringRating: 0 }).pipe(
+        Effect.provide(layer)
+      )
     )
 
     expect(result.wateringRating).toBe(0)

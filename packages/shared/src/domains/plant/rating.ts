@@ -25,5 +25,27 @@ export const ratingLevel = (rating: number): LuminosityLevel =>
     Match.orElse(() => 5 as const)
   )
 
+// Bands fitted on the curated wateringRating of the plant catalog entries.
+// A frequency never earns level 5.
+export const wateringRatingFromFrequency = (
+  wateringFrequencyDays: number
+): number =>
+  pipe(
+    Match.value(wateringFrequencyDays),
+    Match.when(
+      (days) => days <= 5,
+      () => 70
+    ),
+    Match.when(
+      (days) => days <= 8,
+      () => 50
+    ),
+    Match.when(
+      (days) => days <= 12,
+      () => 30
+    ),
+    Match.orElse(() => 10)
+  )
+
 export const isPetSafe = (petToxicityRating: number): boolean =>
   petToxicityRating <= PET_SAFE_UP_TO
