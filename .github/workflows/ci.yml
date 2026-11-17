@@ -92,6 +92,11 @@ jobs:
       - uses: actions/checkout@v7
       - name: Check doc links, paths and package coverage
         run: bash scripts/check-docs.sh
+      # Bun alone, no install: the OTA check parses its workflow with Bun.YAML.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
       - name: Check the OTA publish decision
         run: bash scripts/test-ota-should-publish.sh
 
