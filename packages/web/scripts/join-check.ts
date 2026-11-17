@@ -1,7 +1,9 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Array, Predicate } from 'effect'
+import { CANOPY_NAME_MAX_LENGTH } from '@lily/shared'
+import { usernameProblem } from '@lily/shared/username'
+import { Array, Option, Predicate } from 'effect'
 import { en, type Messages } from '../src/i18n/en'
 import { fr } from '../src/i18n/fr'
 
@@ -31,7 +33,87 @@ interface Case {
   readonly answer: Answer
   readonly heading: (t: Messages['Join']) => string
   readonly skeletonTwin?: true
+  // A sweep case runs with no stored choice, on the short phones, where the banner leaves the least room, and on
+  // the desktop, where a name must show whole.
+  // Within a sweep, a text that wraps onto as many lines as one already measured gives the same card, so it is skipped.
+  readonly sweep?: {
+    readonly element: string
+    readonly text: (t: Messages['Join']) => string
+  }
 }
+
+// How a name wraps decides its height, more than how wide its letters are, so the sweep draws the widest letter
+// in words of every length. A canopy name may hold spaces. An inviter name is a username: the invite preview
+// sends `users.name`, which only the username endpoints write, so it is one unbroken word that usernameProblem
+// accepts. The sweep takes both limits from @lily/shared, so it follows them.
+const CANOPY_MAX = CANOPY_NAME_MAX_LENGTH
+const isUsername = (name: string) => Option.isNone(usernameProblem(name))
+const USERNAME_LENGTHS = Array.filter(Array.range(1, 100), (length) =>
+  isUsername('W'.repeat(length))
+)
+const USERNAME_MAX = Math.max(...USERNAME_LENGTHS)
+const INVITERS = Array.filter(
+  [
+    ...Array.map(USERNAME_LENGTHS, (length) => 'W'.repeat(length)),
+    'M'.repeat(USERNAME_MAX),
+    '_'.repeat(USERNAME_MAX),
+  ],
+  isUsername
+)
+const wide = (word: number, total: number) =>
+  `${'W'.repeat(word)} `
+    .repeat(total)
+    .slice(0, total - 1)
+    .concat('W')
+const REAL_CAPITALS = [
+  'MAMAN WILHELMINA WARM MAMMOTH GREENHOUSE NUMBER 22',
+  'GRANDMAMA WILHELMINA MONSTERAS WOODWORK MUSHROOMS',
+]
+const CANOPY_SWEEP = 'main h1'
+const INVITER_SWEEP = 'main p'
+const sweepCase = (
+  element: string,
+  name: string,
+  canopyName: string,
+  inviterName: string
+): Case => ({
+  name: `invite preview, ${name}`,
+  answer: { status: 200, body: { canopyName, inviterName } },
+  heading: () => canopyName,
+  sweep: {
+    element,
+    text: (t) =>
+      element === CANOPY_SWEEP
+        ? canopyName
+        : t.invitedBy.replace('{inviter}', inviterName),
+  },
+})
+const SWEEP: ReadonlyArray<Case> = [
+  ...Array.map(Array.range(1, CANOPY_MAX), (word) =>
+    sweepCase(
+      CANOPY_SWEEP,
+      `canopy name of W words of ${word}`,
+      wide(word, CANOPY_MAX),
+      'W'.repeat(USERNAME_MAX)
+    )
+  ),
+  ...Array.map(REAL_CAPITALS, (canopyName) =>
+    sweepCase(
+      CANOPY_SWEEP,
+      `canopy name "${canopyName}"`,
+      canopyName,
+      'W'.repeat(USERNAME_MAX)
+    )
+  ),
+  ...Array.map(INVITERS, (inviter) =>
+    sweepCase(
+      INVITER_SWEEP,
+      `inviter name of ${inviter.length} ${inviter.charAt(0)}`,
+      wide(6, CANOPY_MAX),
+      inviter
+    )
+  ),
+]
 
 const CASES: ReadonlyArray<Case> = [
   {
@@ -87,6 +169,7 @@ const CASES: ReadonlyArray<Case> = [
     answer: 'connection refused',
     heading: (t) => t.unavailableTitle,
   },
+  ...SWEEP,
 ]
 
 const LOCALES = [
@@ -97,21 +180,24 @@ const LOCALES = [
 const VIEWPORTS = [
   { name: 'mobile', width: 412, height: 823, mobile: true },
   { name: 'narrow phone', width: 390, height: 844, mobile: true },
-  { name: 'small phone', width: 360, height: 640, mobile: true },
-  { name: 'desktop', width: 1350, height: 940, mobile: false },
+  // The narrow phone in Safari with both toolbars showing.
+  {
+    name: 'narrow phone with toolbars',
+    width: 390,
+    height: 664,
+    mobile: true,
+    sweep: true,
+  },
+  { name: 'small phone', width: 360, height: 640, mobile: true, sweep: true },
+  { name: 'desktop', width: 1350, height: 940, mobile: false, sweep: true },
 ] as const
 
-// On the small phone the banner takes up to 270 of the 640px and covers the open button in these runs (#321).
-// Remove a run from the list when the button clears the banner there.
-const BANNER_COVERS_BUTTON: ReadonlySet<string> = new Set([
-  'en-US, invite preview, two-line canopy name, small phone',
-  'en-US, invite preview, unbroken inviter name, small phone',
-  'en-US, invite preview, long names, small phone',
-  'fr-FR, invite preview, small phone',
-  'fr-FR, invite preview, two-line canopy name, small phone',
-  'fr-FR, invite preview, unbroken inviter name, small phone',
-  'fr-FR, invite preview, long names, small phone',
-])
+// Space Grotesk loads with font-display: optional, so a visit draws either it or the fallback, and the two wrap
+// text differently. Every run is measured under each.
+const FONTS = [
+  { name: 'fallback font', webFont: false },
+  { name: 'web font', webFont: true },
+] as const
 
 const CONSENTS = ['no stored choice', 'stored choice'] as const
 
@@ -248,8 +334,9 @@ const TWO_FRAMES = `new Promise(r=>requestAnimationFrame(()=>requestAnimationFra
 let failed = false
 try {
   await send('Page.enable')
+  await send('DOM.enable')
+  await send('CSS.enable')
   await send('Network.enable')
-  await send('Network.setCacheDisabled', { cacheDisabled: true })
   await send('Fetch.enable', {
     patterns: [{ urlPattern: '*canopy-invites/preview*' }],
   })
@@ -259,104 +346,172 @@ try {
   await send('Page.navigate', { url: `${base}/join/abc` })
   await until('load', `document.readyState === 'complete'`)
 
-  for (const { language, t } of LOCALES) {
-    // The join page has no locale in its path, so it follows the browser language.
-    await send('Emulation.setUserAgentOverride', {
-      userAgent,
-      acceptLanguage: language,
+  for (const font of FONTS) {
+    // A cached font file arrives inside the block period of font-display: optional, so the page draws it. A blocked
+    // one never arrives.
+    await send('Network.setCacheDisabled', { cacheDisabled: !font.webFont })
+    await send('Network.setBlockedURLs', {
+      urls: font.webFont ? [] : ['*.woff2'],
     })
-    for (const viewport of VIEWPORTS) {
-      await send('Emulation.setDeviceMetricsOverride', {
-        width: viewport.width,
-        height: viewport.height,
-        deviceScaleFactor: 1,
-        mobile: viewport.mobile,
+    if (font.webFont) {
+      await send('Page.navigate', { url: `${base}/join/abc` })
+      await until(
+        'the web font',
+        `[...document.fonts].some((face) => face.status === 'loaded')`
+      )
+    }
+    for (const { language, t } of LOCALES) {
+      // The join page has no locale in its path, so it follows the browser language.
+      await send('Emulation.setUserAgentOverride', {
+        userAgent,
+        acceptLanguage: language,
       })
-      for (const consent of CONSENTS)
-        for (const c of CASES) {
-          const run = `${language}, ${c.name}, ${viewport.name}`
-          const name = `${run}, ${consent}`
-          answer = c.answer
-          await evaluate(
-            consent === 'stored choice'
-              ? `localStorage.setItem('analytics-consent', 'denied:' + Date.now())`
-              : `localStorage.clear()`
-          )
-          await send('Page.navigate', { url: `${base}/join/abc` })
-          try {
-            await until(
-              'the invite view',
-              `document.querySelector('main h1') !== null`
+      for (const viewport of VIEWPORTS) {
+        await send('Emulation.setDeviceMetricsOverride', {
+          width: viewport.width,
+          height: viewport.height,
+          deviceScaleFactor: 1,
+          mobile: viewport.mobile,
+        })
+        // How many lines each sweep text takes unclamped on this phone, and the counts a run has measured.
+        const wraps = new Map<string, string>()
+        const measured = new Set<string>()
+        let skipped = 0
+        for (const consent of CONSENTS)
+          for (const c of CASES) {
+            if (c.sweep !== undefined) {
+              if (!('sweep' in viewport && consent === 'no stored choice'))
+                continue
+              const lines = wraps.get(c.name)
+              if (lines !== undefined && measured.has(lines)) {
+                skipped++
+                continue
+              }
+            }
+            const name = `${language}, ${c.name}, ${viewport.name}, ${consent}, ${font.name}`
+            answer = c.answer
+            await evaluate(
+              consent === 'stored choice'
+                ? `localStorage.setItem('analytics-consent', 'denied:' + Date.now())`
+                : `localStorage.clear()`
             )
-            // The consent banner and its settings link mount after hydration, and a shift is reported with the next frame.
-            await until(
-              'hydration',
-              `document.querySelector('.m-consent-settings') !== null`
-            )
-            await evaluate(TWO_FRAMES)
-            await sleep(300)
-            const seen = await evaluate<{
-              language: string
-              heading: string
-              shifts: Array<number>
-              skeleton: Box
-              card: Box
-              button: Box | null
-              banner: Box | null
-              pageWidth: number
-            }>(
-              `({language:navigator.language,heading:document.querySelector('main h1').textContent,shifts:window.joinShifts,skeleton:window.joinSkeleton,card:${BOX}('main > div'),button:${BOX}('main a[href^="lily:"]'),banner:${BOX}('.m-consent'),pageWidth:document.documentElement.scrollWidth})`
-            )
-            const cls = Array.reduce(seen.shifts, 0, (sum, v) => sum + v)
-            const banner =
-              seen.banner !== null && seen.banner.height > 0
-                ? seen.banner
-                : null
-            const isPreview =
-              c.answer !== 'connection refused' && c.answer.status === 200
-            const problems = Array.filter(
-              [
-                seen.language === language
-                  ? null
-                  : `browser language "${seen.language}" (want "${language}")`,
-                seen.heading === c.heading(t)
-                  ? null
-                  : `heading "${seen.heading}" (want "${c.heading(t)}")`,
-                cls === 0 ? null : `layout shift ${cls.toFixed(4)} (want 0)`,
-                seen.card.top === seen.skeleton.top
-                  ? null
-                  : `the card top moved from ${seen.skeleton.top}px to ${seen.card.top}px`,
-                seen.pageWidth <= viewport.width
-                  ? null
-                  : `the page is ${seen.pageWidth}px wide in a ${viewport.width}px viewport`,
-                c.skeletonTwin !== true ||
-                Math.abs(seen.card.height - seen.skeleton.height) <=
-                  SKELETON_SLACK
-                  ? null
-                  : `the skeleton card is ${seen.skeleton.height}px tall and the invite preview ${seen.card.height}px (want within ${SKELETON_SLACK}px)`,
-                !isPreview || seen.button !== null
-                  ? null
-                  : 'the invite preview has no open button',
-                seen.button === null ||
-                banner === null ||
-                BANNER_COVERS_BUTTON.has(run) ||
-                seen.button.bottom <= banner.top
-                  ? null
-                  : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
-              ],
-              Predicate.isNotNull
-            )
-            if (problems.length > 0) failed = true
-            console.log(
-              `${problems.length === 0 ? 'ok  ' : 'FAIL'} ${name}\n     card top ${seen.card.top}px, height ${seen.skeleton.height}px as skeleton, ${seen.card.height}px after${seen.button !== null && banner !== null ? `, open button ends at ${seen.button.bottom}px, banner starts at ${banner.top}px` : ''}${problems.map((problem) => `\n     ${problem}`).join('')}`
-            )
-          } catch (error) {
-            failed = true
-            console.log(
-              `FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`
-            )
+            await send('Page.navigate', { url: `${base}/join/abc` })
+            try {
+              await until(
+                'the invite view',
+                `document.querySelector('main h1') !== null`
+              )
+              // The consent banner and its settings link mount after hydration, and a shift is reported with the next frame.
+              await until(
+                'hydration',
+                `document.querySelector('.m-consent-settings') !== null`
+              )
+              await evaluate(TWO_FRAMES)
+              await sleep(300)
+              const seen = await evaluate<{
+                language: string
+                heading: string
+                shifts: Array<number>
+                skeleton: Box
+                card: Box
+                button: Box | null
+                banner: Box | null
+                pageWidth: number
+                clamped: ReadonlyArray<string>
+              }>(
+                `({language:navigator.language,heading:document.querySelector('main h1').textContent,shifts:window.joinShifts,skeleton:window.joinSkeleton,card:${BOX}('main > div'),button:${BOX}('main a[href^="lily:"]'),banner:${BOX}('.m-consent'),pageWidth:document.documentElement.scrollWidth,clamped:['main p','main h1'].filter(q=>{const e=document.querySelector(q);return e.scrollHeight-e.clientHeight>parseFloat(getComputedStyle(e).lineHeight)/2})})`
+              )
+              const { root } = await send<{ root: { nodeId: number } }>(
+                'DOM.getDocument',
+                { depth: 0 }
+              )
+              const { nodeId } = await send<{ nodeId: number }>(
+                'DOM.querySelector',
+                { nodeId: root.nodeId, selector: 'main h1' }
+              )
+              const { fonts } = await send<{
+                fonts: ReadonlyArray<{ familyName: string }>
+              }>('CSS.getPlatformFontsForNode', { nodeId })
+              const family = fonts.map((f) => f.familyName).join(', ')
+              const webFont = family.includes('Space Grotesk')
+              const cls = Array.reduce(seen.shifts, 0, (sum, v) => sum + v)
+              const banner =
+                seen.banner !== null && seen.banner.height > 0
+                  ? seen.banner
+                  : null
+              const isPreview =
+                c.answer !== 'connection refused' && c.answer.status === 200
+              const problems = Array.filter(
+                [
+                  seen.language === language
+                    ? null
+                    : `browser language "${seen.language}" (want "${language}")`,
+                  webFont === font.webFont
+                    ? null
+                    : `the heading is drawn in "${family}" (want the ${font.name})`,
+                  seen.heading === c.heading(t)
+                    ? null
+                    : `heading "${seen.heading}" (want "${c.heading(t)}")`,
+                  cls === 0 ? null : `layout shift ${cls.toFixed(4)} (want 0)`,
+                  seen.card.top === seen.skeleton.top
+                    ? null
+                    : `the card top moved from ${seen.skeleton.top}px to ${seen.card.top}px`,
+                  seen.pageWidth <= viewport.width
+                    ? null
+                    : `the page is ${seen.pageWidth}px wide in a ${viewport.width}px viewport`,
+                  c.skeletonTwin !== true ||
+                  Math.abs(seen.card.height - seen.skeleton.height) <=
+                    SKELETON_SLACK
+                    ? null
+                    : `the skeleton card is ${seen.skeleton.height}px tall and the invite preview ${seen.card.height}px (want within ${SKELETON_SLACK}px)`,
+                  !isPreview || seen.button !== null
+                    ? null
+                    : 'the invite preview has no open button',
+                  // The fallback font overflows its line box by a pixel or two, so only half a line or more counts.
+                  viewport.mobile || seen.clamped.length === 0
+                    ? null
+                    : `the desktop cuts off ${seen.clamped.join(' and ')}`,
+                  seen.button === null ||
+                  banner === null ||
+                  seen.button.bottom <= banner.top
+                    ? null
+                    : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
+                ],
+                Predicate.isNotNull
+              )
+              if (problems.length > 0) failed = true
+              console.log(
+                `${problems.length === 0 ? 'ok  ' : 'FAIL'} ${name}\n     card top ${seen.card.top}px, height ${seen.skeleton.height}px as skeleton, ${seen.card.height}px after${seen.button !== null && banner !== null ? `, open button ends at ${seen.button.bottom}px, banner starts at ${banner.top}px` : ''}${problems.map((problem) => `\n     ${problem}`).join('')}`
+              )
+              if (c.sweep !== undefined) {
+                const { element } = c.sweep
+                if (!wraps.has(c.name)) {
+                  const group = Array.filter(
+                    CASES,
+                    (other) => other.sweep?.element === element
+                  )
+                  const lines = await evaluate<ReadonlyArray<number>>(
+                    `(()=>{const e=document.querySelector(${JSON.stringify(element)});e.style.cssText='display:block;overflow:visible;-webkit-line-clamp:unset';const line=parseFloat(getComputedStyle(e).lineHeight);return ${JSON.stringify(group.map((other) => other.sweep?.text(t)))}.map(text=>{e.textContent=text;return Math.round(e.getBoundingClientRect().height/line)})})()`
+                  )
+                  Array.forEach(group, (other, i) => {
+                    wraps.set(other.name, `${element} on ${lines[i]} lines`)
+                  })
+                }
+                const own = wraps.get(c.name)
+                if (own !== undefined) measured.add(own)
+              }
+            } catch (error) {
+              failed = true
+              console.log(
+                `FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`
+              )
+            }
           }
-        }
+        if (skipped > 0)
+          console.log(
+            `     skipped ${skipped} sweep texts that wrap like one measured above (${language}, ${viewport.name}, ${font.name})`
+          )
+      }
     }
   }
 } catch (error) {

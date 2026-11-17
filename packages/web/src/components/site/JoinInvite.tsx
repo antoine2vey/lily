@@ -18,6 +18,12 @@ type JoinMessages = ReturnType<typeof messagesFor>['Join']
 const SECONDARY =
   'inline-flex items-center justify-center gap-2 rounded-full bg-surface px-6 py-3 font-semibold text-ink ring-1 ring-line transition-colors hover:bg-chip'
 
+// How a name wraps is not bounded by its length, so below sm the inviter line and the canopy name are clamped. The
+// inviter line then takes 72px at most and the name 112px, and the open button stays above the consent banner
+// whatever the names are. A name longer than LONG_NAME is set one size smaller there, so more of it fits in the
+// clamp. From sm up both show whole, and a name that takes that much room scrolls the page.
+const LONG_NAME = 24
+
 // The invite page is one static file for both languages. It prerenders the card in each, and the page shows the one
 // in the browser language from the first paint, before the invite preview arrives.
 export function JoinInvite() {
@@ -45,8 +51,8 @@ export function JoinInvite() {
     // so a long name or French copy still leaves the open button above the consent banner.
     <main className="flex min-h-screen items-start justify-center px-6 pt-[max(1.5rem,calc((100vh-46rem)/2))] pb-16 sm:pt-[max(4rem,calc((100vh-36rem)/2))]">
       <div className="w-full max-w-md rounded-3xl bg-surface p-8 text-center shadow-[0_20px_60px_-20px_rgb(0_0_0/0.18)] ring-1 ring-line sm:p-10">
-        <a href="/" className="mb-8 inline-flex" aria-label="Lily">
-          <LilyMark size={56} />
+        <a href="/" className="mb-4 inline-flex sm:mb-8" aria-label="Lily">
+          <LilyMark size={56} className="size-10 sm:size-14" />
         </a>
         {Array.map(langs, (lang) => (
           <div key={lang} lang={lang} data-locale={lang}>
@@ -116,40 +122,49 @@ function Invite({
             <span className="sr-only">{t.loading}</span>
           </Bar>
         ),
-        onSome: ({ inviterName }) => (
-          <p className="break-words text-ink-2">
-            {Option.match(Option.fromNullishOr(inviterName), {
-              onNone: () => t.invited,
-              onSome: (inviter) => fmt(t.invitedBy, { inviter }),
-            })}
-          </p>
-        ),
+        onSome: ({ inviterName }) => {
+          const line = Option.match(Option.fromNullishOr(inviterName), {
+            onNone: () => t.invited,
+            onSome: (inviter) => fmt(t.invitedBy, { inviter }),
+          })
+          return (
+            <p
+              title={line}
+              className="line-clamp-3 break-words text-ink-2 sm:line-clamp-none"
+            >
+              {line}
+            </p>
+          )
+        },
       })}
       {Option.match(preview, {
-        onNone: () => <Bar slot="mt-2 h-9" bar="h-7 w-3/4" />,
+        onNone: () => <Bar slot="mt-2 h-8 sm:h-9" bar="h-6 w-3/4 sm:h-7" />,
         onSome: ({ canopyName }) => (
-          <h1 className="mt-2 text-3xl font-bold break-words text-ink">
+          <h1
+            title={canopyName}
+            className={`mt-2 font-bold break-words text-ink sm:line-clamp-none sm:text-3xl ${canopyName.length > LONG_NAME ? 'line-clamp-4 text-xl' : 'line-clamp-3 text-2xl'}`}
+          >
             {canopyName}
           </h1>
         ),
       })}
-      <p className="mt-4 text-sm text-muted">{t.canopyHint}</p>
       {Option.match(
         Option.zipWith(preview, token, (_, value) => value),
         {
           onNone: () => (
-            <div className="mt-8 h-14 animate-pulse rounded-full bg-chip" />
+            <div className="mt-6 h-14 animate-pulse rounded-full bg-chip" />
           ),
           onSome: (value) => (
             <a
               href={appLink(value)}
-              className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 font-semibold text-on-primary transition-colors hover:bg-primary-dark"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 font-semibold text-on-primary transition-colors hover:bg-primary-dark"
             >
               {t.openInLily}
             </a>
           ),
         }
       )}
+      <p className="mt-4 text-sm text-muted">{t.canopyHint}</p>
       <div className="mt-10">
         <p className="font-semibold text-ink">{t.getTheApp}</p>
         <div className="mt-4 flex flex-col justify-center gap-3 sm:flex-row">

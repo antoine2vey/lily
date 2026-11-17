@@ -1,4 +1,10 @@
-export function LilyMark({ size = 28 }: { size?: number }) {
+export function LilyMark({
+  size = 28,
+  className = '',
+}: {
+  size?: number
+  className?: string
+}) {
   return (
     <img
       src="/icons/lily-112.webp"
@@ -6,7 +12,7 @@ export function LilyMark({ size = 28 }: { size?: number }) {
       width={size}
       height={size}
       fetchPriority="low"
-      className="rounded-[7px]"
+      className={`rounded-[7px] ${className}`}
     />
   )
 }

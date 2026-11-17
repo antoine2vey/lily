@@ -361,6 +361,16 @@ body {
   font-size: 15px;
   line-height: 1.5;
 }
+/* A phone gets a tighter banner, so it leaves the page more of a short viewport. */
+@media (max-width: 480px) {
+  .m-consent {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+}
 /* The prerendered banner shows only when the head script ran and found no valid choice. A hydrated banner always shows. */
 html:not([data-consent="ask"]) .m-consent:not([data-live]) {
   display: none;
@@ -400,6 +410,7 @@ html:not([lang="fr"]) [data-locale="fr"] {
 /* Both buttons share one style: refusing is as easy as accepting. */
 .m-consent-actions button {
   flex: 1;
+  min-height: 44px;
   padding: 10px 16px;
   border-radius: 999px;
   border: 1px solid var(--text);

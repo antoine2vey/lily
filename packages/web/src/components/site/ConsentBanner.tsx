@@ -60,7 +60,10 @@ function Banner({
     if (!live || banner === null) return undefined
     const root = document.documentElement
     const observer = new ResizeObserver(() =>
-      root.style.setProperty('--consent-space', `${banner.offsetHeight + 32}px`)
+      root.style.setProperty(
+        '--consent-space',
+        `${banner.offsetHeight + 2 * Number.parseFloat(getComputedStyle(banner).bottom)}px`
+      )
     )
     observer.observe(banner)
     return () => {
