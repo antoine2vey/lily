@@ -44,8 +44,9 @@ export function JoinInvite() {
 
   return (
     // The card hangs from a fixed top edge. Centering it moved it whenever the invite view changed its height.
-    // The offset centers a 36rem card, the height of the invite preview.
-    <main className="flex min-h-screen items-start justify-center px-6 pt-[max(4rem,calc((100vh-36rem)/2))] pb-16">
+    // The offset centers a 36rem card, the height of the invite preview. On a phone it centers a 46rem card instead,
+    // so a long name or French copy still leaves the open button above the consent banner.
+    <main className="flex min-h-screen items-start justify-center px-6 pt-[max(1.5rem,calc((100vh-46rem)/2))] pb-16 sm:pt-[max(4rem,calc((100vh-36rem)/2))]">
       <div className="w-full max-w-md rounded-3xl bg-surface p-8 text-center shadow-[0_20px_60px_-20px_rgb(0_0_0/0.18)] ring-1 ring-line sm:p-10">
         <a href="/" className="mb-8 inline-flex" aria-label="Lily">
           <LilyMark size={56} />
@@ -69,7 +70,7 @@ function InviteCard({
     Match.tag('Loading', () => <Skeleton label={t.loading} />),
     Match.tag('Ready', ({ preview }) => (
       <div>
-        <p className="text-ink-2">
+        <p className="break-words text-ink-2">
           {Option.match(Option.fromNullishOr(preview.inviterName), {
             onNone: () => t.invited,
             onSome: (inviter) => fmt(t.invitedBy, { inviter }),
