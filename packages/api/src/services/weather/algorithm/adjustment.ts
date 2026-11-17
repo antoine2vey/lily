@@ -215,17 +215,6 @@ function checkPrecipitationSkip(
   return { skip: false }
 }
 
-// ─── Step 7: Combined Watering Multiplier ───────────────────────────────────
-
-/*
- * WHY MULTIPLICATIVE COMBINATION:
- *   Environmental factors compound each other. A hot, dry, windy day has a
- *   much greater effect than any single factor alone:
- *     1.2 (hot) x 1.15 (dry) x 1.1 (windy) = 1.518x
- *   An additive model would give: 1 + 0.2 + 0.15 + 0.1 = 1.45, which
- *   underestimates the compounding stress.
- */
-
 // ─── Step 8: Fertilization Check ────────────────────────────────────────────
 
 /**
@@ -339,6 +328,8 @@ export function calculatePlantAdjustment(
   )
 
   // Step 7: Combined multiplier and adjusted frequency.
+  // The factors multiply because they compound: a hot, dry, windy day gives
+  // 1.2 x 1.15 x 1.1 = 1.518, where a sum (1.45) would understate the stress.
   // Indoor plants with a known latitude use the location-aware light/growth +
   // VPD demand model; outdoor plants (and indoor plants without a location)
   // keep the temperature × humidity × wind multiplier.
