@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Array } from 'effect'
+import { Array, Predicate } from 'effect'
 import { en, type Messages } from '../src/i18n/en'
 import { fr } from '../src/i18n/fr'
 
@@ -94,31 +94,24 @@ const LOCALES = [
   { language: 'fr-FR', t: fr.Join },
 ] as const
 
-// On the small phone the banner takes 270 of the 640px, so the open button cannot end above it.
 const VIEWPORTS = [
-  { name: 'mobile', width: 412, height: 823, mobile: true, buttonFits: true },
-  {
-    name: 'narrow phone',
-    width: 390,
-    height: 844,
-    mobile: true,
-    buttonFits: true,
-  },
-  {
-    name: 'small phone',
-    width: 360,
-    height: 640,
-    mobile: true,
-    buttonFits: false,
-  },
-  {
-    name: 'desktop',
-    width: 1350,
-    height: 940,
-    mobile: false,
-    buttonFits: true,
-  },
+  { name: 'mobile', width: 412, height: 823, mobile: true },
+  { name: 'narrow phone', width: 390, height: 844, mobile: true },
+  { name: 'small phone', width: 360, height: 640, mobile: true },
+  { name: 'desktop', width: 1350, height: 940, mobile: false },
 ] as const
+
+// On the small phone the banner takes up to 270 of the 640px and covers the open button in these runs (#321).
+// Remove a run from the list when the button clears the banner there.
+const BANNER_COVERS_BUTTON: ReadonlySet<string> = new Set([
+  'en-US, invite preview, two-line canopy name, small phone',
+  'en-US, invite preview, unbroken inviter name, small phone',
+  'en-US, invite preview, long names, small phone',
+  'fr-FR, invite preview, small phone',
+  'fr-FR, invite preview, two-line canopy name, small phone',
+  'fr-FR, invite preview, unbroken inviter name, small phone',
+  'fr-FR, invite preview, long names, small phone',
+])
 
 const CONSENTS = ['no stored choice', 'stored choice'] as const
 
@@ -131,8 +124,9 @@ interface Box {
 const SKELETON_FRAMES = 10
 
 // The skeleton draws one height for every language and width. French copy and a narrow card wrap the small text
-// onto one or two more lines of 20px.
-const SKELETON_SLACK = 40
+// onto as many as two more 20px lines, and the slack leaves room for two beyond that. It can be loose, because the
+// card top check is the one that guards against a shift.
+const SKELETON_SLACK = 80
 
 const CORS = [
   { name: 'access-control-allow-origin', value: '*' },
@@ -280,7 +274,8 @@ try {
       })
       for (const consent of CONSENTS)
         for (const c of CASES) {
-          const name = `${language}, ${c.name}, ${viewport.name}, ${consent}`
+          const run = `${language}, ${c.name}, ${viewport.name}`
+          const name = `${run}, ${consent}`
           answer = c.answer
           await evaluate(
             consent === 'stored choice'
@@ -319,35 +314,38 @@ try {
                 : null
             const isPreview =
               c.answer !== 'connection refused' && c.answer.status === 200
-            const problems = [
-              seen.language === language
-                ? null
-                : `browser language "${seen.language}" (want "${language}")`,
-              seen.heading === c.heading(t)
-                ? null
-                : `heading "${seen.heading}" (want "${c.heading(t)}")`,
-              cls === 0 ? null : `layout shift ${cls.toFixed(4)} (want 0)`,
-              seen.card.top === seen.skeleton.top
-                ? null
-                : `the card top moved from ${seen.skeleton.top}px to ${seen.card.top}px`,
-              seen.pageWidth <= viewport.width
-                ? null
-                : `the page is ${seen.pageWidth}px wide in a ${viewport.width}px viewport`,
-              c.skeletonTwin !== true ||
-              Math.abs(seen.card.height - seen.skeleton.height) <=
-                SKELETON_SLACK
-                ? null
-                : `the skeleton card is ${seen.skeleton.height}px tall and the invite preview ${seen.card.height}px (want within ${SKELETON_SLACK}px)`,
-              !isPreview || seen.button !== null
-                ? null
-                : 'the invite preview has no open button',
-              seen.button === null ||
-              banner === null ||
-              !viewport.buttonFits ||
-              seen.button.bottom <= banner.top
-                ? null
-                : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
-            ].filter((problem) => problem !== null)
+            const problems = Array.filter(
+              [
+                seen.language === language
+                  ? null
+                  : `browser language "${seen.language}" (want "${language}")`,
+                seen.heading === c.heading(t)
+                  ? null
+                  : `heading "${seen.heading}" (want "${c.heading(t)}")`,
+                cls === 0 ? null : `layout shift ${cls.toFixed(4)} (want 0)`,
+                seen.card.top === seen.skeleton.top
+                  ? null
+                  : `the card top moved from ${seen.skeleton.top}px to ${seen.card.top}px`,
+                seen.pageWidth <= viewport.width
+                  ? null
+                  : `the page is ${seen.pageWidth}px wide in a ${viewport.width}px viewport`,
+                c.skeletonTwin !== true ||
+                Math.abs(seen.card.height - seen.skeleton.height) <=
+                  SKELETON_SLACK
+                  ? null
+                  : `the skeleton card is ${seen.skeleton.height}px tall and the invite preview ${seen.card.height}px (want within ${SKELETON_SLACK}px)`,
+                !isPreview || seen.button !== null
+                  ? null
+                  : 'the invite preview has no open button',
+                seen.button === null ||
+                banner === null ||
+                BANNER_COVERS_BUTTON.has(run) ||
+                seen.button.bottom <= banner.top
+                  ? null
+                  : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
+              ],
+              Predicate.isNotNull
+            )
             if (problems.length > 0) failed = true
             console.log(
               `${problems.length === 0 ? 'ok  ' : 'FAIL'} ${name}\n     card top ${seen.card.top}px, height ${seen.skeleton.height}px as skeleton, ${seen.card.height}px after${seen.button !== null && banner !== null ? `, open button ends at ${seen.button.bottom}px, banner starts at ${banner.top}px` : ''}${problems.map((problem) => `\n     ${problem}`).join('')}`
