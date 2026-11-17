@@ -365,6 +365,11 @@ body {
 html:not([data-consent="ask"]) .m-consent:not([data-live]) {
   display: none;
 }
+/* A page outside a locale prerenders its copy in every language. LANG_SCRIPT sets <html lang> before the first paint. */
+html:not([lang="en"]) [data-locale="en"],
+html:not([lang="fr"]) [data-locale="fr"] {
+  display: none;
+}
 .m-consent:focus-visible,
 .m-consent :focus-visible {
   outline: 3px solid var(--water);

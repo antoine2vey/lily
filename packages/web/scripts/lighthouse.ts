@@ -1,20 +1,87 @@
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Array, Order } from 'effect'
+import { Array, Option, Order, pipe, String as Str } from 'effect'
 
-// usage: bun scripts/lighthouse.ts [base=http://127.0.0.1:8088] [paths...]
+// usage: bun scripts/lighthouse.ts [base=http://127.0.0.1:8088] [--stored-consent] [--language=en-US] [paths...]
 // Runs mobile Lighthouse 3 times per page against the prerendered build (`preview`) and fails on a budget breach.
 // Throttling is applied in Chrome (`--throttling-method=devtools`), not simulated. The simulation charges every request
 // that ends before the paint on the unthrottled load to LCP, and against a local server that is every hydration module,
 // so it reported 2.6 to 2.9 s for pages that paint at 1.5 to 1.9 s with the throttling applied. Lighthouse's own
 // docs/throttling.md says the simulation "suffers from edge cases" and sends a deep investigation to applied throttling.
 // Sample the URL a page is served at: a redirect adds a round trip that belongs to the old URL.
+// The script starts Chrome itself and sends the invite preview call to a local stub, so no run reaches the API. The
+// call still crosses the throttled network. `--stored-consent` runs the given paths as a visitor who refused analytics.
+// Each run pins the browser language, en-US unless `--language` names another, because the join page paints its copy in
+// the browser language and the machine's own language would otherwise pick which copy a run measures.
 
-const RUNS = 3
+const RUNS = Number(process.env.LIGHTHOUSE_RUNS ?? 3)
 const CHROME =
   process.env.CHROME_PATH ??
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+
+// chrome-launcher's defaults, which Lighthouse used while it started Chrome itself.
+const CHROME_FLAGS = [
+  '--disable-features=Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider,CalculateNativeWinOcclusion,InterestFeedContentSuggestions,CertificateTransparencyComponentUpdater,AutofillServerCommunication,PrivacySandboxSettings4',
+  '--disable-extensions',
+  '--disable-component-extensions-with-background-pages',
+  '--disable-background-networking',
+  '--disable-component-update',
+  '--disable-client-side-phishing-detection',
+  '--disable-sync',
+  '--metrics-recording-only',
+  '--disable-default-apps',
+  '--mute-audio',
+  '--no-default-browser-check',
+  '--no-first-run',
+  '--disable-backgrounding-occluded-windows',
+  '--disable-renderer-backgrounding',
+  '--disable-background-timer-throttling',
+  '--disable-ipc-flooding-protection',
+  '--password-store=basic',
+  '--use-mock-keychain',
+  '--force-fieldtrials=*BackgroundTracing/default/',
+  '--disable-hang-monitor',
+  '--disable-prompt-on-repost',
+  '--disable-domain-reliability',
+  '--propagate-iph-for-testing',
+  '--headless=new',
+]
+
+type Consent = 'ask' | 'stored'
+
+interface Visit {
+  readonly path: string
+  readonly consent: Consent
+  readonly language: string
+}
+
+const JOIN = '/join/lighthouse'
+const DEFAULT_VISITS: ReadonlyArray<Visit> = [
+  { path: '/en', consent: 'ask', language: 'en-US' },
+  { path: '/en/blog', consent: 'ask', language: 'en-US' },
+  { path: '/en/blog/pothos-care-guide', consent: 'ask', language: 'en-US' },
+  { path: '/en/about', consent: 'ask', language: 'en-US' },
+  // The banner is the largest text for a first visitor, and the invite card once a choice is stored. The French copy
+  // is longer, so the join page runs in both languages.
+  ...Array.flatMap(['en-US', 'fr-FR'], (language) =>
+    Array.map(
+      ['ask', 'stored'] as const,
+      (consent): Visit => ({
+        path: JOIN,
+        consent,
+        language,
+      })
+    )
+  ),
+]
+
+// The join page is noindex on purpose, so Lighthouse's crawlability audit holds its SEO score below 100.
+const isNoindex = (path: string) =>
+  path === '/join' || Str.startsWith('/join/')(path)
+
+const INVITE_PREVIEW = { canopyName: 'Probe canopy', inviterName: 'Sam' }
+const STORE_CONSENT = `try{localStorage.setItem('analytics-consent','denied:'+Date.now())}catch(e){}`
 
 interface Budget {
   readonly key: string
@@ -73,47 +140,182 @@ const BUDGETS: ReadonlyArray<Budget> = [
   },
 ]
 
-const [base = 'http://127.0.0.1:8088', ...rest] = process.argv.slice(2)
-const paths = Array.isReadonlyArrayNonEmpty(rest)
-  ? rest
-  : ['/en', '/en/blog', '/en/blog/pothos-care-guide', '/en/about']
+const args = process.argv.slice(2)
+const consent: Consent = Array.contains(args, '--stored-consent')
+  ? 'stored'
+  : 'ask'
+const LANGUAGE_FLAG = '--language='
+const language = pipe(
+  Array.findFirst(args, Str.startsWith(LANGUAGE_FLAG)),
+  Option.map(Str.slice(LANGUAGE_FLAG.length)),
+  Option.getOrElse(() => 'en-US')
+)
+const [base = 'http://127.0.0.1:8088', ...rest] = Array.filter(
+  args,
+  (arg) => !Str.startsWith('--')(arg)
+)
+const visits = Array.isReadonlyArrayNonEmpty(rest)
+  ? Array.map(rest, (path): Visit => ({ path, consent, language }))
+  : DEFAULT_VISITS
 const outDir = join(tmpdir(), 'lily-lighthouse')
 mkdirSync(outDir, { recursive: true })
 
-const run = async (path: string, i: number): Promise<Report> => {
-  const out = join(outDir, `${path.replace(/\W+/g, '_')}-${i}.json`)
-  const proc = Bun.spawn(
-    [
-      'bunx',
-      '--bun',
-      'lighthouse@12',
-      `${base}${path}`,
-      '--quiet',
-      '--only-categories=performance,seo,accessibility,best-practices',
-      '--throttling-method=devtools',
-      '--chrome-flags=--headless=new --use-mock-keychain --password-store=basic',
-      '--output=json',
-      `--output-path=${out}`,
-    ],
-    {
-      env: { ...process.env, CHROME_PATH: CHROME },
-      stdout: 'ignore',
-      stderr: 'pipe',
+const stub = Bun.serve({
+  hostname: '127.0.0.1',
+  port: 0,
+  fetch: (request) =>
+    new Response(
+      request.method === 'OPTIONS' ? null : JSON.stringify(INVITE_PREVIEW),
+      {
+        status: request.method === 'OPTIONS' ? 204 : 200,
+        headers: {
+          'access-control-allow-origin': '*',
+          'access-control-allow-headers': 'content-type',
+          'access-control-allow-methods': 'POST',
+          'content-type': 'application/json',
+        },
+      }
+    ),
+})
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+const debugPort = async (profile: string): Promise<string> => {
+  for (let i = 0; i < 100; i++) {
+    try {
+      const [port = ''] = readFileSync(
+        join(profile, 'DevToolsActivePort'),
+        'utf8'
+      ).split('\n')
+      if (port !== '') return port
+    } catch {
+      // Chrome has not written the file yet.
     }
+    await sleep(100)
+  }
+  throw new Error('Chrome did not open a debugging port')
+}
+
+interface Message {
+  readonly id?: number
+  readonly method?: string
+  readonly sessionId?: string
+  readonly params?: {
+    readonly requestId?: string
+    readonly sessionId?: string
+    readonly targetInfo?: { readonly type: string }
+  }
+}
+
+// Holds every new page until the preview call is rerouted to the stub and, for a stored choice, the choice is written
+// before the page's own head script reads it.
+const prepareChrome = async (port: string, visit: Visit) => {
+  const { webSocketDebuggerUrl } = (await (
+    await fetch(`http://127.0.0.1:${port}/json/version`)
+  ).json()) as { webSocketDebuggerUrl: string }
+  const socket = new WebSocket(webSocketDebuggerUrl)
+  await new Promise((resolve) => socket.addEventListener('open', resolve))
+  let nextId = 0
+  const send = (method: string, params: object = {}, sessionId?: string) =>
+    socket.send(JSON.stringify({ id: ++nextId, method, params, sessionId }))
+  socket.addEventListener('message', (event) => {
+    const { method, sessionId, params } = JSON.parse(
+      String(event.data)
+    ) as Message
+    if (method === 'Target.attachedToTarget' && params?.sessionId) {
+      const session = params.sessionId
+      if (params.targetInfo?.type === 'page') {
+        send(
+          'Fetch.enable',
+          { patterns: [{ urlPattern: '*canopy-invites/preview*' }] },
+          session
+        )
+        if (visit.consent === 'stored') {
+          // Chrome drops the script unless the Page domain is enabled on this session.
+          send('Page.enable', {}, session)
+          send(
+            'Page.addScriptToEvaluateOnNewDocument',
+            { source: STORE_CONSENT },
+            session
+          )
+        }
+      }
+      send('Runtime.runIfWaitingForDebugger', {}, session)
+    }
+    if (method === 'Fetch.requestPaused' && params?.requestId)
+      send(
+        'Fetch.continueRequest',
+        {
+          requestId: params.requestId,
+          url: `${stub.url}canopy-invites/preview`,
+        },
+        sessionId
+      )
+  })
+  send('Target.setAutoAttach', {
+    autoAttach: true,
+    waitForDebuggerOnStart: true,
+    flatten: true,
+  })
+  return socket
+}
+
+const run = async (visit: Visit, i: number): Promise<Report> => {
+  const out = join(
+    outDir,
+    `${visit.path.replace(/\W+/g, '_')}-${visit.consent}-${visit.language}-${i}.json`
   )
-  if ((await proc.exited) !== 0)
-    throw new Error(
-      `${path} run ${i}: ${await new Response(proc.stderr).text()}`
+  const profile = mkdtempSync(join(tmpdir(), 'lily-lighthouse-chrome-'))
+  const chrome = Bun.spawn(
+    [
+      CHROME,
+      ...CHROME_FLAGS,
+      `--lang=${visit.language}`,
+      `--accept-lang=${visit.language}`,
+      '--remote-debugging-port=0',
+      `--user-data-dir=${profile}`,
+      'about:blank',
+    ],
+    { stdout: 'ignore', stderr: 'ignore' }
+  )
+  try {
+    const port = await debugPort(profile)
+    const socket = await prepareChrome(port, visit)
+    const proc = Bun.spawn(
+      [
+        'bunx',
+        '--bun',
+        'lighthouse@12',
+        `${base}${visit.path}`,
+        '--quiet',
+        `--port=${port}`,
+        '--only-categories=performance,seo,accessibility,best-practices',
+        '--throttling-method=devtools',
+        '--output=json',
+        `--output-path=${out}`,
+      ],
+      { stdout: 'ignore', stderr: 'pipe' }
     )
-  return JSON.parse(readFileSync(out, 'utf8')) as Report
+    const exit = await proc.exited
+    socket.close()
+    if (exit !== 0)
+      throw new Error(
+        `${visit.path} run ${i}: ${await new Response(proc.stderr).text()}`
+      )
+    return JSON.parse(readFileSync(out, 'utf8')) as Report
+  } finally {
+    chrome.kill()
+    await chrome.exited
+    rmSync(profile, { recursive: true, force: true })
+  }
 }
 
 let failed = false
 let untrusted = false
-for (const path of paths) {
+for (const visit of visits) {
   const reports: Array<Report> = []
-  for (let i = 0; i < RUNS; i++) reports.push(await run(path, i))
-  if (!Array.isArrayNonEmpty(reports)) throw new Error(`${path}: no runs`)
+  for (let i = 0; i < RUNS; i++) reports.push(await run(visit, i))
+  if (!Array.isArrayNonEmpty(reports)) throw new Error(`${visit.path}: no runs`)
   const best = Array.max(
     reports,
     Order.mapInput(Order.Number, score('performance'))
@@ -123,13 +325,16 @@ for (const path of paths) {
   if (!trusted) untrusted = true
   const cells = Array.map(BUDGETS, (b) => {
     const v = b.read(best)
-    const judged = trusted || !TIMING.has(b.key)
+    const waived = b.key === 'seo' && isNoindex(visit.path)
+    const judged = !waived && (trusted || !TIMING.has(b.key))
     if (judged && !b.ok(v)) failed = true
-    return `${b.key}=${b.show(v)}${!judged ? '?' : b.ok(v) ? '' : '!'}`
+    return `${b.key}=${b.show(v)}${waived ? '~' : !judged ? '?' : b.ok(v) ? '' : '!'}`
   })
-  console.log(`${path.padEnd(48)} ${cells.join('  ')}  bench=${bench}`)
+  const label = `${visit.path} ${visit.language}${visit.consent === 'stored' ? ' (stored choice)' : ''}`
+  console.log(`${label.padEnd(48)} ${cells.join('  ')}  bench=${bench}`)
 }
+stub.stop(true)
 console.log(
-  `reports in ${outDir}; "!" marks a budget breach, "?" a timing metric not judged (bench < ${MIN_BENCHMARK})`
+  `reports in ${outDir}; "!" marks a budget breach, "?" a timing metric not judged (bench < ${MIN_BENCHMARK}), "~" the SEO score of a noindex page`
 )
 process.exit(failed ? 1 : untrusted ? 2 : 0)

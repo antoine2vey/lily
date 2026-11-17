@@ -3,12 +3,13 @@ import {
   HeadContent,
   Outlet,
   Scripts,
+  useMatches,
   useParams,
 } from '@tanstack/react-router'
-import { Option } from 'effect'
+import { Array, Option } from 'effect'
 import { type ReactNode, useEffect } from 'react'
 import { ConsentBanner, ConsentSettings } from '@/components/site/ConsentBanner'
-import { defaultLocale, isLocale } from '@/i18n'
+import { isLocale, LANG_SCRIPT, type PageLanguage, usePageLocale } from '@/i18n'
 import { setAnalytics } from '@/lib/analytics'
 import { CONSENT_SCRIPT, onChoice } from '@/lib/consent'
 import { useSmoothAnchors } from '@/lib/smooth-anchors'
@@ -56,28 +57,53 @@ const useAnalytics = () =>
     []
   )
 
-function RootDocument() {
+declare module '@tanstack/react-router' {
+  interface StaticDataRouteOption {
+    // The page is one file for every language. See `Prerendered` in src/i18n/index.tsx.
+    readonly prerendersEveryLocale?: boolean
+  }
+}
+
+const usePageLanguage = (): PageLanguage => {
   const { locale } = useParams({ strict: false })
-  const known = Option.filter(Option.fromNullishOr(locale), isLocale)
+  const prerendered = useMatches({
+    select: (matches) =>
+      Array.some(
+        matches,
+        (match) => match.staticData.prerendersEveryLocale === true
+      ),
+  })
+  return Option.match(Option.filter(Option.fromNullishOr(locale), isLocale), {
+    onSome: (known) => ({ _tag: 'Locale', locale: known }),
+    onNone: () => ({ _tag: prerendered ? 'Prerendered' : 'Hydrated' }),
+  })
+}
+
+function RootDocument() {
+  const page = usePageLanguage()
   useAnalytics()
   useSmoothAnchors()
   return (
-    <Html lang={Option.getOrElse(known, () => defaultLocale)}>
-      <ConsentBanner locale={known} />
+    <Html page={page}>
+      <ConsentBanner page={page} />
       <Outlet />
-      {Option.isNone(known) && <ConsentSettings />}
+      {page._tag !== 'Locale' && <ConsentSettings />}
     </Html>
   )
 }
 
-function Html({ lang, children }: { lang: string; children: ReactNode }) {
+function Html({ page, children }: { page: PageLanguage; children: ReactNode }) {
   return (
-    <html lang={lang} suppressHydrationWarning>
+    <html lang={usePageLocale(page)} suppressHydrationWarning>
       <head>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static theme script, runs before paint to avoid a flash */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static consent script, runs before paint so a stored choice hides the prerendered banner */}
         <script dangerouslySetInnerHTML={{ __html: CONSENT_SCRIPT }} />
+        {page._tag === 'Prerendered' && (
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static language script, runs before paint so the page shows the copy in the browser language
+          <script dangerouslySetInnerHTML={{ __html: LANG_SCRIPT }} />
+        )}
         <HeadContent />
       </head>
       <body>

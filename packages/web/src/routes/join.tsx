@@ -20,5 +20,6 @@ export const Route = createFileRoute('/join')({
       { name: 'twitter:card', content: 'summary_large_image' },
     ],
   }),
+  staticData: { prerendersEveryLocale: true },
   component: JoinInvite,
 })

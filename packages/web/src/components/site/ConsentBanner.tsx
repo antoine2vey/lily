@@ -1,35 +1,30 @@
 import { Link } from '@tanstack/react-router'
-import { Option } from 'effect'
-import { useEffect, useRef, useSyncExternalStore } from 'react'
-import { type Locale, messagesFor } from '@/i18n'
+import { Array, Option } from 'effect'
+import { useEffect, useRef } from 'react'
+import {
+  browserLocale,
+  type Locale,
+  messagesFor,
+  type PageLanguage,
+  useHydrated,
+  usePageLocales,
+} from '@/i18n'
 import { askAgain, decide, useConsent } from '@/lib/consent'
 
-// Native string methods on purpose: see the Effect rule in packages/web/CLAUDE.md.
-const browserLocale = (): Locale =>
-  navigator.language.startsWith('fr') ? 'fr' : 'en'
-
-const neverChanges = () => () => {}
-const useHydrated = () =>
-  useSyncExternalStore(
-    neverChanges,
-    () => true,
-    () => false
-  )
-
-// A page outside a locale takes the browser language, which the prerender cannot know.
-export function ConsentBanner({ locale }: { locale: Option.Option<Locale> }) {
+export function ConsentBanner({ page }: { page: PageLanguage }) {
   const { asking, choice } = useConsent()
   const hydrated = useHydrated()
-  const lang = Option.orElse(locale, () =>
-    hydrated ? Option.some(browserLocale()) : Option.none()
-  )
-  return asking && Option.isSome(lang) ? (
-    <Banner
-      locale={lang.value}
-      live={hydrated}
-      reopened={Option.isSome(choice)}
-    />
-  ) : null
+  const langs = usePageLocales(page)
+  return asking
+    ? Array.map(langs, (lang) => (
+        <Banner
+          key={lang}
+          locale={lang}
+          live={hydrated}
+          reopened={Option.isSome(choice)}
+        />
+      ))
+    : null
 }
 
 // A page outside a locale has no footer, so the root route gives it this way back to the banner.
@@ -59,9 +54,10 @@ function Banner({
     if (reopened) ref.current?.focus()
   }, [reopened])
 
+  // Only the live banner reserves its space: a prerendered copy in the other language unmounts at hydration.
   useEffect(() => {
     const banner = ref.current
-    if (banner === null) return undefined
+    if (!live || banner === null) return undefined
     const root = document.documentElement
     const observer = new ResizeObserver(() =>
       root.style.setProperty('--consent-space', `${banner.offsetHeight + 32}px`)
@@ -71,7 +67,7 @@ function Banner({
       observer.disconnect()
       root.style.removeProperty('--consent-space')
     }
-  }, [])
+  }, [live])
 
   return (
     <section
@@ -80,6 +76,7 @@ function Banner({
       lang={locale}
       className="m-consent"
       data-live={live || undefined}
+      data-locale={locale}
       aria-label={m.label}
     >
       <p>
