@@ -790,6 +790,7 @@ export const fr = {
       "Des soins qui se souviennent, pour que vous n'ayez pas à le faire.",
     nav: 'Pied de page',
     blog: 'Blog',
+    calculator: "Calculateur d'arrosage",
     team: 'Équipe',
     about: 'À propos',
     support: 'Assistance',

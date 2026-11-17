@@ -773,6 +773,7 @@ export const en = {
     tagline: 'Plant care that remembers, so you do not have to.',
     nav: 'Footer',
     blog: 'Blog',
+    calculator: 'Watering calculator',
     team: 'Team',
     about: 'About',
     support: 'Support',
@@ -1213,7 +1214,7 @@ export const en = {
 } as const
 
 // Literal strings widen to string; tuples keep their length, so a translation cannot drop or add a list entry.
-type Widen<T> = T extends string
+export type Widen<T> = T extends string
   ? string
   : T extends number
     ? number

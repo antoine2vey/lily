@@ -353,10 +353,20 @@ const saturationVaporPressureKpa = (tempC: number): number =>
   0.6108 * Math.exp((17.27 * tempC) / (tempC + 237.3))
 
 /**
- * Estimate indoor VPD demand. Indoor RH is modeled to fall as the OUTDOOR air
- * gets colder (heating dries the air); indoor air temperature is assumed
- * constant. A high `humidityRating` plant (e.g. a fern) is penalized more by
- * dry air. Result centered at 1.0 against a reference VPD.
+ * Indoor relative humidity (%) estimated from the OUTDOOR mean temperature.
+ * It falls as the outdoor air gets colder, because heating dries the air.
+ */
+export const indoorRelativeHumidity = (outdoorTempC: number): number =>
+  clamp(
+    INDOOR_RH_BASE + INDOOR_RH_SLOPE * (outdoorTempC - INDOOR_RH_PIVOT_C),
+    INDOOR_RH_MIN,
+    INDOOR_RH_MAX
+  )
+
+/**
+ * Estimate indoor VPD demand from `indoorRelativeHumidity`; indoor air
+ * temperature is assumed constant. A high `humidityRating` plant (e.g. a fern)
+ * is penalized more by dry air. Result centered at 1.0 against a reference VPD.
  */
 export const indoorVpdFactor = (
   temperatureMean: number | null,
@@ -366,11 +376,7 @@ export const indoorVpdFactor = (
     Option.fromNullishOr(temperatureMean),
     Option.getOrElse(() => DEFAULT_TEMPERATURE_MEAN_C)
   )
-  const rhIndoor = clamp(
-    INDOOR_RH_BASE + INDOOR_RH_SLOPE * (tOut - INDOOR_RH_PIVOT_C),
-    INDOOR_RH_MIN,
-    INDOOR_RH_MAX
-  )
+  const rhIndoor = indoorRelativeHumidity(tOut)
   const vpd = saturationVaporPressureKpa(INDOOR_TEMP_C) * (1 - rhIndoor / 100)
   const rawFactor = vpd / VPD_REFERENCE_KPA
   const humSens = 1 + HUM_RATING_STEP * (ratingLevel(humidityRating) - 3)

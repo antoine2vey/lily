@@ -27,6 +27,8 @@ const PAGES = [
   'en/about.html',
   'fr/privacy.html',
   'join.html',
+  'en/watering-calculator.html',
+  'fr/watering-calculator.html',
 ]
 
 const gz = (file: string) =>

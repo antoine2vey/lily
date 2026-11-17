@@ -20,6 +20,7 @@ import { Route as LocalePrivacyRouteImport } from './routes/$locale/privacy'
 import { Route as LocaleSupportRouteImport } from './routes/$locale/support'
 import { Route as LocaleTeamRouteImport } from './routes/$locale/team'
 import { Route as LocaleTermsRouteImport } from './routes/$locale/terms'
+import { Route as LocaleWateringCalculatorRouteImport } from './routes/$locale/watering-calculator'
 import { Route as LocaleBlogIndexRouteImport } from './routes/$locale/blog/index'
 import { Route as LocaleBlogSlugRouteImport } from './routes/$locale/blog/$slug'
 import { Route as LocaleBlogPagePageRouteImport } from './routes/$locale/blog/page/$page'
@@ -79,6 +80,12 @@ const LocaleTermsRoute = LocaleTermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => LocaleRouteRoute,
 } as any)
+const LocaleWateringCalculatorRoute =
+  LocaleWateringCalculatorRouteImport.update({
+    id: '/watering-calculator',
+    path: '/watering-calculator',
+    getParentRoute: () => LocaleRouteRoute,
+  } as any)
 const LocaleBlogIndexRoute = LocaleBlogIndexRouteImport.update({
   id: '/blog/',
   path: '/blog/',
@@ -106,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/$locale/support': typeof LocaleSupportRoute
   '/$locale/team': typeof LocaleTeamRoute
   '/$locale/terms': typeof LocaleTermsRoute
+  '/$locale/watering-calculator': typeof LocaleWateringCalculatorRoute
   '/$locale/': typeof LocaleIndexRoute
   '/$locale/blog/$slug': typeof LocaleBlogSlugRoute
   '/$locale/blog/': typeof LocaleBlogIndexRoute
@@ -121,6 +129,7 @@ export interface FileRoutesByTo {
   '/$locale/support': typeof LocaleSupportRoute
   '/$locale/team': typeof LocaleTeamRoute
   '/$locale/terms': typeof LocaleTermsRoute
+  '/$locale/watering-calculator': typeof LocaleWateringCalculatorRoute
   '/$locale': typeof LocaleIndexRoute
   '/$locale/blog/$slug': typeof LocaleBlogSlugRoute
   '/$locale/blog': typeof LocaleBlogIndexRoute
@@ -138,6 +147,7 @@ export interface FileRoutesById {
   '/$locale/support': typeof LocaleSupportRoute
   '/$locale/team': typeof LocaleTeamRoute
   '/$locale/terms': typeof LocaleTermsRoute
+  '/$locale/watering-calculator': typeof LocaleWateringCalculatorRoute
   '/$locale/': typeof LocaleIndexRoute
   '/$locale/blog/$slug': typeof LocaleBlogSlugRoute
   '/$locale/blog/': typeof LocaleBlogIndexRoute
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/$locale/support'
     | '/$locale/team'
     | '/$locale/terms'
+    | '/$locale/watering-calculator'
     | '/$locale/'
     | '/$locale/blog/$slug'
     | '/$locale/blog/'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/$locale/support'
     | '/$locale/team'
     | '/$locale/terms'
+    | '/$locale/watering-calculator'
     | '/$locale'
     | '/$locale/blog/$slug'
     | '/$locale/blog'
@@ -187,6 +199,7 @@ export interface FileRouteTypes {
     | '/$locale/support'
     | '/$locale/team'
     | '/$locale/terms'
+    | '/$locale/watering-calculator'
     | '/$locale/'
     | '/$locale/blog/$slug'
     | '/$locale/blog/'
@@ -280,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LocaleTermsRouteImport
       parentRoute: typeof LocaleRouteRoute
     }
+    '/$locale/watering-calculator': {
+      id: '/$locale/watering-calculator'
+      path: '/watering-calculator'
+      fullPath: '/$locale/watering-calculator'
+      preLoaderRoute: typeof LocaleWateringCalculatorRouteImport
+      parentRoute: typeof LocaleRouteRoute
+    }
     '/$locale/blog/': {
       id: '/$locale/blog/'
       path: '/blog'
@@ -310,6 +330,7 @@ interface LocaleRouteRouteChildren {
   LocaleSupportRoute: typeof LocaleSupportRoute
   LocaleTeamRoute: typeof LocaleTeamRoute
   LocaleTermsRoute: typeof LocaleTermsRoute
+  LocaleWateringCalculatorRoute: typeof LocaleWateringCalculatorRoute
   LocaleIndexRoute: typeof LocaleIndexRoute
   LocaleBlogSlugRoute: typeof LocaleBlogSlugRoute
   LocaleBlogIndexRoute: typeof LocaleBlogIndexRoute
@@ -322,6 +343,7 @@ const LocaleRouteRouteChildren: LocaleRouteRouteChildren = {
   LocaleSupportRoute: LocaleSupportRoute,
   LocaleTeamRoute: LocaleTeamRoute,
   LocaleTermsRoute: LocaleTermsRoute,
+  LocaleWateringCalculatorRoute: LocaleWateringCalculatorRoute,
   LocaleIndexRoute: LocaleIndexRoute,
   LocaleBlogSlugRoute: LocaleBlogSlugRoute,
   LocaleBlogIndexRoute: LocaleBlogIndexRoute,

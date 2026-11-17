@@ -5,7 +5,7 @@ export const APP_STORE_ID = '6758399014'
 export const APP_STORE_PROVIDER_ID = '125135094'
 export const APP_STORE_URL = `https://apps.apple.com/app/with-lily/id${APP_STORE_ID}`
 
-export type PageKind = 'home' | 'page' | 'blog' | 'post' | 'join'
+export type PageKind = 'home' | 'page' | 'blog' | 'post' | 'tool' | 'join'
 
 // The join page is one prerendered file for both languages, so its campaign cannot name a locale.
 export type Campaign = 'web-join' | `web-${Exclude<PageKind, 'join'>}-${Locale}`
