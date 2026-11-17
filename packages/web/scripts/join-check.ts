@@ -19,6 +19,9 @@ const [base = 'http://127.0.0.1:8088'] = process.argv.slice(2)
 const CANOPY = 'Probe canopy'
 const LONG_CANOPY =
   'The Extraordinarily Overgrown Greenhouse Of Aunt Wilhelmina'
+// A canopy name holds 50 characters at most (CANOPY_NAME_MAX_LENGTH in @lily/shared). Capitals with M and W are
+// the widest it can be drawn.
+const WIDEST_CANOPY = 'MAMAN WILHELMINA WARM MAMMOTH GREENHOUSE NUMBER 22'
 const UNBROKEN_INVITER =
   'Maximilianalexanderfitzgeraldmontgomerywolfeschlegelstein'
 
@@ -68,6 +71,17 @@ const CASES: ReadonlyArray<Case> = [
     heading: () => LONG_CANOPY,
   },
   {
+    name: 'invite preview, widest canopy name',
+    answer: {
+      status: 200,
+      body: {
+        canopyName: WIDEST_CANOPY,
+        inviterName: 'Maximiliano Alexander Fitzgerald-Montgomery',
+      },
+    },
+    heading: () => WIDEST_CANOPY,
+  },
+  {
     name: 'expired invite',
     answer: { status: 410, body: {} },
     heading: (t) => t.expiredTitle,
@@ -101,6 +115,13 @@ const VIEWPORTS = [
   { name: 'narrow phone with toolbars', width: 390, height: 664, mobile: true },
   { name: 'small phone', width: 360, height: 640, mobile: true },
   { name: 'desktop', width: 1350, height: 940, mobile: false },
+] as const
+
+// Space Grotesk loads with font-display: optional, so a visit draws either it or the fallback, and the two wrap
+// text differently. Every run is measured under each.
+const FONTS = [
+  { name: 'fallback font', webFont: false },
+  { name: 'web font', webFont: true },
 ] as const
 
 const CONSENTS = ['no stored choice', 'stored choice'] as const
@@ -238,8 +259,9 @@ const TWO_FRAMES = `new Promise(r=>requestAnimationFrame(()=>requestAnimationFra
 let failed = false
 try {
   await send('Page.enable')
+  await send('DOM.enable')
+  await send('CSS.enable')
   await send('Network.enable')
-  await send('Network.setCacheDisabled', { cacheDisabled: true })
   await send('Fetch.enable', {
     patterns: [{ urlPattern: '*canopy-invites/preview*' }],
   })
@@ -249,102 +271,133 @@ try {
   await send('Page.navigate', { url: `${base}/join/abc` })
   await until('load', `document.readyState === 'complete'`)
 
-  for (const { language, t } of LOCALES) {
-    // The join page has no locale in its path, so it follows the browser language.
-    await send('Emulation.setUserAgentOverride', {
-      userAgent,
-      acceptLanguage: language,
+  for (const font of FONTS) {
+    // A cached font file arrives inside the block period of font-display: optional, so the page draws it. A blocked
+    // one never arrives.
+    await send('Network.setCacheDisabled', { cacheDisabled: !font.webFont })
+    await send('Network.setBlockedURLs', {
+      urls: font.webFont ? [] : ['*.woff2'],
     })
-    for (const viewport of VIEWPORTS) {
-      await send('Emulation.setDeviceMetricsOverride', {
-        width: viewport.width,
-        height: viewport.height,
-        deviceScaleFactor: 1,
-        mobile: viewport.mobile,
+    if (font.webFont) {
+      await send('Page.navigate', { url: `${base}/join/abc` })
+      await until(
+        'the web font',
+        `[...document.fonts].some((face) => face.status === 'loaded')`
+      )
+    }
+    for (const { language, t } of LOCALES) {
+      // The join page has no locale in its path, so it follows the browser language.
+      await send('Emulation.setUserAgentOverride', {
+        userAgent,
+        acceptLanguage: language,
       })
-      for (const consent of CONSENTS)
-        for (const c of CASES) {
-          const name = `${language}, ${c.name}, ${viewport.name}, ${consent}`
-          answer = c.answer
-          await evaluate(
-            consent === 'stored choice'
-              ? `localStorage.setItem('analytics-consent', 'denied:' + Date.now())`
-              : `localStorage.clear()`
-          )
-          await send('Page.navigate', { url: `${base}/join/abc` })
-          try {
-            await until(
-              'the invite view',
-              `document.querySelector('main h1') !== null`
+      for (const viewport of VIEWPORTS) {
+        await send('Emulation.setDeviceMetricsOverride', {
+          width: viewport.width,
+          height: viewport.height,
+          deviceScaleFactor: 1,
+          mobile: viewport.mobile,
+        })
+        for (const consent of CONSENTS)
+          for (const c of CASES) {
+            const name = `${language}, ${c.name}, ${viewport.name}, ${consent}, ${font.name}`
+            answer = c.answer
+            await evaluate(
+              consent === 'stored choice'
+                ? `localStorage.setItem('analytics-consent', 'denied:' + Date.now())`
+                : `localStorage.clear()`
             )
-            // The consent banner and its settings link mount after hydration, and a shift is reported with the next frame.
-            await until(
-              'hydration',
-              `document.querySelector('.m-consent-settings') !== null`
-            )
-            await evaluate(TWO_FRAMES)
-            await sleep(300)
-            const seen = await evaluate<{
-              language: string
-              heading: string
-              shifts: Array<number>
-              skeleton: Box
-              card: Box
-              button: Box | null
-              banner: Box | null
-              pageWidth: number
-            }>(
-              `({language:navigator.language,heading:document.querySelector('main h1').textContent,shifts:window.joinShifts,skeleton:window.joinSkeleton,card:${BOX}('main > div'),button:${BOX}('main a[href^="lily:"]'),banner:${BOX}('.m-consent'),pageWidth:document.documentElement.scrollWidth})`
-            )
-            const cls = Array.reduce(seen.shifts, 0, (sum, v) => sum + v)
-            const banner =
-              seen.banner !== null && seen.banner.height > 0
-                ? seen.banner
-                : null
-            const isPreview =
-              c.answer !== 'connection refused' && c.answer.status === 200
-            const problems = Array.filter(
-              [
-                seen.language === language
-                  ? null
-                  : `browser language "${seen.language}" (want "${language}")`,
-                seen.heading === c.heading(t)
-                  ? null
-                  : `heading "${seen.heading}" (want "${c.heading(t)}")`,
-                cls === 0 ? null : `layout shift ${cls.toFixed(4)} (want 0)`,
-                seen.card.top === seen.skeleton.top
-                  ? null
-                  : `the card top moved from ${seen.skeleton.top}px to ${seen.card.top}px`,
-                seen.pageWidth <= viewport.width
-                  ? null
-                  : `the page is ${seen.pageWidth}px wide in a ${viewport.width}px viewport`,
-                c.skeletonTwin !== true ||
-                Math.abs(seen.card.height - seen.skeleton.height) <=
-                  SKELETON_SLACK
-                  ? null
-                  : `the skeleton card is ${seen.skeleton.height}px tall and the invite preview ${seen.card.height}px (want within ${SKELETON_SLACK}px)`,
-                !isPreview || seen.button !== null
-                  ? null
-                  : 'the invite preview has no open button',
-                seen.button === null ||
-                banner === null ||
-                seen.button.bottom <= banner.top
-                  ? null
-                  : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
-              ],
-              Predicate.isNotNull
-            )
-            if (problems.length > 0) failed = true
-            console.log(
-              `${problems.length === 0 ? 'ok  ' : 'FAIL'} ${name}\n     card top ${seen.card.top}px, height ${seen.skeleton.height}px as skeleton, ${seen.card.height}px after${seen.button !== null && banner !== null ? `, open button ends at ${seen.button.bottom}px, banner starts at ${banner.top}px` : ''}${problems.map((problem) => `\n     ${problem}`).join('')}`
-            )
-          } catch (error) {
-            failed = true
-            console.log(
-              `FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`
-            )
+            await send('Page.navigate', { url: `${base}/join/abc` })
+            try {
+              await until(
+                'the invite view',
+                `document.querySelector('main h1') !== null`
+              )
+              // The consent banner and its settings link mount after hydration, and a shift is reported with the next frame.
+              await until(
+                'hydration',
+                `document.querySelector('.m-consent-settings') !== null`
+              )
+              await evaluate(TWO_FRAMES)
+              await sleep(300)
+              const seen = await evaluate<{
+                language: string
+                heading: string
+                shifts: Array<number>
+                skeleton: Box
+                card: Box
+                button: Box | null
+                banner: Box | null
+                pageWidth: number
+              }>(
+                `({language:navigator.language,heading:document.querySelector('main h1').textContent,shifts:window.joinShifts,skeleton:window.joinSkeleton,card:${BOX}('main > div'),button:${BOX}('main a[href^="lily:"]'),banner:${BOX}('.m-consent'),pageWidth:document.documentElement.scrollWidth})`
+              )
+              const { root } = await send<{ root: { nodeId: number } }>(
+                'DOM.getDocument',
+                { depth: 0 }
+              )
+              const { nodeId } = await send<{ nodeId: number }>(
+                'DOM.querySelector',
+                { nodeId: root.nodeId, selector: 'main h1' }
+              )
+              const { fonts } = await send<{
+                fonts: ReadonlyArray<{ familyName: string }>
+              }>('CSS.getPlatformFontsForNode', { nodeId })
+              const family = fonts.map((f) => f.familyName).join(', ')
+              const webFont = family.includes('Space Grotesk')
+              const cls = Array.reduce(seen.shifts, 0, (sum, v) => sum + v)
+              const banner =
+                seen.banner !== null && seen.banner.height > 0
+                  ? seen.banner
+                  : null
+              const isPreview =
+                c.answer !== 'connection refused' && c.answer.status === 200
+              const problems = Array.filter(
+                [
+                  seen.language === language
+                    ? null
+                    : `browser language "${seen.language}" (want "${language}")`,
+                  webFont === font.webFont
+                    ? null
+                    : `the heading is drawn in "${family}" (want the ${font.name})`,
+                  seen.heading === c.heading(t)
+                    ? null
+                    : `heading "${seen.heading}" (want "${c.heading(t)}")`,
+                  cls === 0 ? null : `layout shift ${cls.toFixed(4)} (want 0)`,
+                  seen.card.top === seen.skeleton.top
+                    ? null
+                    : `the card top moved from ${seen.skeleton.top}px to ${seen.card.top}px`,
+                  seen.pageWidth <= viewport.width
+                    ? null
+                    : `the page is ${seen.pageWidth}px wide in a ${viewport.width}px viewport`,
+                  c.skeletonTwin !== true ||
+                  Math.abs(seen.card.height - seen.skeleton.height) <=
+                    SKELETON_SLACK
+                    ? null
+                    : `the skeleton card is ${seen.skeleton.height}px tall and the invite preview ${seen.card.height}px (want within ${SKELETON_SLACK}px)`,
+                  !isPreview || seen.button !== null
+                    ? null
+                    : 'the invite preview has no open button',
+                  seen.button === null ||
+                  banner === null ||
+                  seen.button.bottom <= banner.top
+                    ? null
+                    : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
+                ],
+                Predicate.isNotNull
+              )
+              if (problems.length > 0) failed = true
+              console.log(
+                `${problems.length === 0 ? 'ok  ' : 'FAIL'} ${name}\n     card top ${seen.card.top}px, height ${seen.skeleton.height}px as skeleton, ${seen.card.height}px after${seen.button !== null && banner !== null ? `, open button ends at ${seen.button.bottom}px, banner starts at ${banner.top}px` : ''}${problems.map((problem) => `\n     ${problem}`).join('')}`
+              )
+            } catch (error) {
+              failed = true
+              console.log(
+                `FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`
+              )
+            }
           }
-        }
+      }
     }
   }
 } catch (error) {
