@@ -71,6 +71,10 @@
       "types": "./src/domains/username/schema.ts",
       "default": "./src/domains/username/schema.ts"
     },
+    "./indoor-demand": {
+      "types": "./src/domains/weather/indoor-demand/index.ts",
+      "default": "./src/domains/weather/indoor-demand/index.ts"
+    },
     "./knowledge": {
       "types": "./src/domains/knowledge/index.ts",
       "default": "./src/domains/knowledge/index.ts"

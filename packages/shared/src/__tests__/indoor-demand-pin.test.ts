@@ -3,9 +3,10 @@
  * moved out of the api. The other indoor tests assert ordering and bounds, so a
  * changed constant passes them. These do not.
  */
-import { calculateIndoorDemandFactor } from '@lily/api/services/weather/algorithm'
-import type { WeatherData } from '@lily/shared'
+
 import { describe, expect, it } from 'vitest'
+import { calculateIndoorDemandFactor } from '../domains/weather/indoor-demand'
+import type { WeatherData } from '../domains/weather/schema'
 
 const day = (date: string, fields: Partial<WeatherData> = {}): WeatherData => ({
   date,

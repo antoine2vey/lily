@@ -13,26 +13,25 @@
  */
 
 import {
+  calculateHumidityFactor,
+  calculateTemperatureFactor,
+  calculateWindFactor,
+} from '@lily/api/services/weather/algorithm/et0'
+import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
+import type { CareAdjustment, Orientation, WeatherData } from '@lily/shared'
+import { PRECIP_SKIP_MM, TEMP_FERT_HIGH_C, TEMP_FERT_LOW_C } from '@lily/shared'
+import {
+  adjustedWateringDays,
+  calculateIndoorDemandFactor,
   DEFAULT_ET0_MM_PER_DAY,
   DEFAULT_HUMIDITY_RATING,
   DEFAULT_LIGHTING_RATING,
   DEFAULT_TEMPERATURE_MAX_C,
   DEFAULT_TEMPERATURE_MIN_C,
+  type IndoorDemandInput,
   MS_PER_DAY,
   PRECIP_DAMPENING_FACTOR,
-} from '@lily/api/services/weather/algorithm/coefficients'
-import {
-  calculateHumidityFactor,
-  calculateTemperatureFactor,
-  calculateWindFactor,
-} from '@lily/api/services/weather/algorithm/et0'
-import {
-  calculateIndoorDemandFactor,
-  type IndoorDemandInput,
-} from '@lily/api/services/weather/algorithm/indoor-light'
-import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import type { CareAdjustment, Orientation, WeatherData } from '@lily/shared'
-import { PRECIP_SKIP_MM, TEMP_FERT_HIGH_C, TEMP_FERT_LOW_C } from '@lily/shared'
+} from '@lily/shared/indoor-demand'
 import { Array, Match, Option, pipe } from 'effect'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -218,42 +217,14 @@ function checkPrecipitationSkip(
 
 // ─── Step 7: Combined Watering Multiplier ───────────────────────────────────
 
-/**
- * Combine individual factors into a single watering multiplier and compute
- * the adjusted watering frequency in days.
- *
+/*
  * WHY MULTIPLICATIVE COMBINATION:
  *   Environmental factors compound each other. A hot, dry, windy day has a
  *   much greater effect than any single factor alone:
  *     1.2 (hot) x 1.15 (dry) x 1.1 (windy) = 1.518x
  *   An additive model would give: 1 + 0.2 + 0.15 + 0.1 = 1.45, which
  *   underestimates the compounding stress.
- *
- * WHY WE DIVIDE FREQUENCY BY THE MULTIPLIER:
- *   If the multiplier is 1.5 (plant needs 50% more water), watering should
- *   happen MORE OFTEN. Since frequency is expressed in days between waterings,
- *   a higher water need means fewer days between waterings:
- *     7 days / 1.5 = ~5 days (water more often)
- *     7 days / 0.5 = 14 days (water less often)
- *
- * WHY WE CLAMP:
- *   Safety bounds prevent absurd schedules:
- *   - Minimum 1 day: Can't water more than daily in the current system.
- *   - Maximum 2x original: Even in ideal conditions (cold, humid, no wind),
- *     don't extend more than double the base schedule. This prevents a plant
- *     set to every-7-days from being pushed to every-28-days in a cold snap.
- *
- * ROUNDING:
- *   Math.round for the nearest integer day, since the care system doesn't
- *   support sub-day scheduling.
  */
-function computeAdjustedFrequency(
-  originalDays: number,
-  multiplier: number
-): number {
-  const adjusted = Math.round(originalDays / multiplier)
-  return Math.max(1, Math.min(adjusted, originalDays * 2))
-}
 
 // ─── Step 8: Fertilization Check ────────────────────────────────────────────
 
@@ -378,7 +349,7 @@ export function calculatePlantAdjustment(
       onSome: calculateIndoorDemandFactor,
     })
   )
-  const adjustedDays = computeAdjustedFrequency(
+  const adjustedDays = adjustedWateringDays(
     plant.wateringFrequencyDays,
     combinedMultiplier
   )
@@ -495,7 +466,7 @@ export function calculateScheduleDelta(
   )
 
   // Compute adjusted frequency from the averaged multiplier
-  const adjustedDays = computeAdjustedFrequency(
+  const adjustedDays = adjustedWateringDays(
     plant.wateringFrequencyDays,
     avgMultiplier
   )

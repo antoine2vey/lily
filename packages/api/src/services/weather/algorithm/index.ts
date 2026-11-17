@@ -30,20 +30,3 @@ export {
   calculateScheduleDelta,
   toIndoorPlantContext,
 } from '@lily/api/services/weather/algorithm/adjustment'
-
-export type {
-  IndoorDemandInput,
-  RoomFitResult,
-} from '@lily/api/services/weather/algorithm/indoor-light'
-
-export {
-  calculateIndoorDemandFactor,
-  dayLengthHours,
-  dayOfYearFromIso,
-  indoorVpdFactor,
-  lightEnergyFactor,
-  orientationFactor,
-  roomFitFactor,
-  skyFactor,
-  solarNoonElevationDeg,
-} from '@lily/api/services/weather/algorithm/indoor-light'

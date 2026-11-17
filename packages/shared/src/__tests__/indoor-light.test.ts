@@ -6,6 +6,9 @@
  * deterministic. Northern-hemisphere winter is ~day 41 (mid-Feb), summer is
  * ~day 172 (late Jun).
  */
+
+import { Option } from 'effect'
+import { describe, expect, it } from 'vitest'
 import {
   calculateIndoorDemandFactor,
   dayLengthHours,
@@ -16,10 +19,8 @@ import {
   orientationFactor,
   roomFitFactor,
   skyFactor,
-} from '@lily/api/services/weather/algorithm'
-import type { WeatherData } from '@lily/shared'
-import { Option } from 'effect'
-import { describe, expect, it } from 'vitest'
+} from '../domains/weather/indoor-demand'
+import type { WeatherData } from '../domains/weather/schema'
 
 const makeDay = (
   overrides: Partial<WeatherData> & { date: string }

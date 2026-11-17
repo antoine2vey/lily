@@ -30,6 +30,19 @@
  */
 
 import {
+  Array,
+  DateTime,
+  Duration,
+  Option,
+  Predicate,
+  pipe,
+  String,
+} from 'effect'
+import { parseApiDate } from '../../common/date/parse'
+import { luxToLuminosityLevel } from '../../common/luminosity'
+import { ratingLevel } from '../../plant/rating'
+import type { WeatherData } from '../schema'
+import {
   DEFAULT_TEMPERATURE_MEAN_C,
   FACTOR_NEUTRAL,
   HUM_RATING_STEP,
@@ -76,18 +89,7 @@ import {
   SKY_SOLAR_REF,
   SKY_SOLAR_SPAN,
   VPD_REFERENCE_KPA,
-} from '@lily/api/services/weather/algorithm/coefficients'
-import type { WeatherData } from '@lily/shared'
-import { luxToLuminosityLevel, parseApiDate, ratingLevel } from '@lily/shared'
-import {
-  Array,
-  DateTime,
-  Duration,
-  Option,
-  Predicate,
-  pipe,
-  String,
-} from 'effect'
+} from './coefficients'
 
 const DEG_TO_RAD = Math.PI / 180
 const RAD_TO_DEG = 180 / Math.PI

@@ -10,13 +10,14 @@
  * Hour/angle assertions use toBeCloseTo; everything else is directional /
  * bounds / monotonicity so the suite survives constant tuning.
  */
+
+import { Option } from 'effect'
+import { describe, expect, it } from 'vitest'
 import {
   dayLengthHours,
   dayOfYearFromIso,
   solarNoonElevationDeg,
-} from '@lily/api/services/weather/algorithm'
-import { Option } from 'effect'
-import { describe, expect, it } from 'vitest'
+} from '../domains/weather/indoor-demand'
 
 const PARIS = 48.86
 const SYDNEY = -33.87

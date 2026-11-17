@@ -10,15 +10,16 @@
  *
  * Day-of-year is pinned via explicit ISO dates so assertions are deterministic.
  */
+
+import { describe, expect, it } from 'vitest'
 import {
   indoorVpdFactor,
   lightEnergyFactor,
   orientationFactor,
   roomFitFactor,
   skyFactor,
-} from '@lily/api/services/weather/algorithm'
-import type { WeatherData } from '@lily/shared'
-import { describe, expect, it } from 'vitest'
+} from '../domains/weather/indoor-demand'
+import type { WeatherData } from '../domains/weather/schema'
 
 const makeDay = (
   overrides: Partial<WeatherData> & { date: string }
