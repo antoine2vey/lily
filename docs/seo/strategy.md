@@ -11,7 +11,7 @@ Turn search into App Store installs. Count installs, not visits. Four kinds of p
 1. **The App Store listing.** A person who searches the App Store for a plant app is one tap from an install.
 2. **Decision pages** on withlily.app that rank for "plant watering reminder app", "Planta alternative" and the French "rappel arrosage plantes". A person who compares apps still clicks through.
 3. **Tools**, starting with the indoor watering calculator. A tool gives a personal answer that a search result page cannot show, and other sites link to it.
-4. **Plant-care articles** that answer questions like "how often to water a monstera". They build topical authority and carry internal links to the pages above. They are no longer expected to bring most of the installs.
+4. **Plant-care articles** that answer questions like "how often to water a monstera". They build topical authority, carry internal links to the pages above, and mention Lily once where it helps. They are no longer expected to bring most of the installs.
 
 ## Why the plan changed on 2026-11-17
 
@@ -44,15 +44,15 @@ No App Store baseline is recorded yet. Record impressions, product page views an
 
 ### App Store listing
 
-Work on the French storefront first. The French Google results for plant apps are thin (see the keyword map), and the French press has run roundups of plant apps. Nobody has measured whether French App Store search is as thin.
+Work on the French storefront first. The French Google results for the feature query "rappel arrosage plantes" are thin (see the keyword map), and the French press has run roundups of plant apps. Nobody has measured whether French App Store search is as thin.
 
-The table below is a draft. It has not been compared with the live listing or with keyword volumes. The limits are 30 characters for the name, 30 for the subtitle and 100 for the keyword field. Do not repeat a word from the name or the subtitle in the keyword field.
+The table below is a draft. It has not been compared with the live listing or with keyword volumes. The limits are 30 characters for the name, 30 for the subtitle and 100 for the keyword field. Do not repeat a word from the name or the subtitle in the keyword field. Every storefront name starts with "Lily", and the words after it are in the storefront's language.
 
 | Field | English | French |
 |---|---|---|
 | Name | Lily: Plant Care & Watering | Lily : entretien des plantes |
 | Subtitle | Smart watering reminders | Rappel d'arrosage intelligent |
-| Keywords | houseplant,garden,schedule,identify,identifier,tracker,fertilizer,monstera,pothos,indoor,journal | plante,intérieur,jardin,calendrier,identifier,identification,engrais,monstera,suivi,balcon,potager |
+| Keywords | houseplant,garden,schedule,identify,identifier,tracker,fertilizer,monstera,pothos,indoor,journal | fleurs,intérieur,jardin,calendrier,identifier,identification,engrais,monstera,suivi,balcon,potager |
 
 The first three screenshots carry the pitch in search results. Show the watering schedule, the seasonal adjustment and plant identification, in that order.
 
@@ -75,20 +75,21 @@ The indoor watering calculator takes a plant, the light in the room, the locatio
 - Pitch French "applis plantes" roundups. Numerama, Femina, Les Echos and Radio France ran one each.
 - Submit Lily to AlternativeTo as a Planta alternative, and to Product Hunt when the calculator ships.
 - Answer Reddit threads that rank for "best plant app" as the maker, and say so.
-- Use one name everywhere. Another app, "Care-Lily", outranks Lily for "lily plant care app".
+- Start every listing and every mention with "Lily" and a plant-care descriptor. Another app, "Care-Lily", outranks Lily for "lily plant care app".
 
 ### Blog
 
-The blog holds 125 hubs per locale, rewritten on 2026-11-06.
+The blog holds 125 hubs per locale, rewritten on 2026-11-06. The hubs are frozen until the three-month review on 2027-02-06. Frozen means the three rules below.
 
-- Do not add informational posts. A new post must support a decision page, a tool or a season.
-- Do not rewrite the text before 2027-02-06. A rewrite before then hides the effect of the 2026-11-06 merge.
-- Add real photos to the 37 `plant-problems` and `pests` hubs. A person who searches for a symptom wants to compare a photo with a leaf. Do not use generated photos. A generated photo can show a symptom that does not exist.
-- At the three-month review, merge or rewrite each hub that has had no impressions.
+- Do not add an informational post. A new post must support a decision page, a tool or a season.
+- Do not rewrite a hub. A rewrite before the review hides the effect of the 2026-11-06 merge. Correct a factual error at any time and set `updated`.
+- A photo is not a rewrite. Add real photos to the 39 symptom hubs: the 37 hubs in `plant-problems` and `pests`, plus "plant-leaves-turning-yellow" and "root-rot-recovery" in `houseplant-basics`. A person who searches for a symptom wants to compare a photo with a leaf. Do not use generated photos. A generated photo can show a symptom that does not exist.
+
+At the review, merge or rewrite each hub that has had no impressions. Review the winter hub, `packages/web/content/posts/en/houseplant-care-in-winter.mdx`, every autumn from 2027.
 
 ## Keyword map
 
-Volumes are rough public estimates. Positions are from live SERPs read on 2026-11-06. The tool and open source rows were added on 2026-11-17 without a SERP read.
+Volumes are rough public estimates. Positions are from live SERPs read on 2026-11-06. The tool and open source rows were added on 2026-11-17 without a SERP read. "Frozen" refers to the rules in the Blog section.
 
 | Intent | English target | French target | Page | Notes |
 |---|---|---|---|---|
@@ -97,11 +98,11 @@ Volumes are rough public estimates. Positions are from live SERPs read on 2026-1
 | Comparison | planta alternative, greg vs planta | alternative à Planta | to build | Listicles rank. A fair comparison page with a table can rank. |
 | Tool | plant watering calculator, how often to water calculator | calculateur arrosage plantes | to build | The answer depends on the visitor's room, so an AI Overview cannot give it. |
 | Open source | open source plant care app | application plantes open source | to build | Low volume. The larger apps cannot compete for it. |
-| Brand | with lily, lily plant care app | | `/en` | Another app, "Care-Lily", outranks us for "lily plant care app". Use "Lily: Plant Care" consistently in App Store Connect. |
+| Brand | with lily, lily plant care app | | `/en` | Another app, "Care-Lily", outranks us for "lily plant care app". Start every storefront name with "Lily" in App Store Connect. |
 | Plant care | {plant} care | entretien {plante} | `/blog/{plant}-care-guide` | One hub per plant. Frozen. |
 | Watering | how often to water {plant} | arrosage {plante} | `/blog/how-often-to-water-{plant}` | Only for plants with enough demand and content. Folded into the care guide otherwise. Frozen. |
-| Problems | {plant} yellow leaves, drooping, root rot | {plante} feuilles jaunes | `/blog/{plant}-problems` | One H2 per symptom, phrased as the search. Photos to add. |
-| General | overwatering vs underwatering, best soil for houseplants, houseplant care in winter | arrosage plante intérieur hiver, feuilles jaunes plante d'intérieur | `/blog/{topic}` | 32 general hubs. Frozen. |
+| Problems | {plant} yellow leaves, drooping, root rot | {plante} feuilles jaunes | `/blog/{plant}-problems` | One H2 per symptom, phrased as the search. Frozen. Photos to add. |
+| General | overwatering vs underwatering, best soil for houseplants, houseplant care in winter | arrosage plante intérieur hiver, feuilles jaunes plante d'intérieur | `/blog/{topic}` | 32 general hubs. Frozen. Photos to add on the pest and symptom hubs. |
 
 ## Content architecture
 
@@ -126,7 +127,7 @@ The posts are merged into hubs, one per search intent. `packages/web/scripts/blo
 
 ### Adding a post
 
-First check that the post supports a decision page, a tool or a season, as the blog rules above require. Then check that no hub already covers the intent. If one does, improve that hub and set `updated`. If not, create the post in both locales and run `bun packages/web/scripts/blog-check.ts --strict`.
+First check that the post supports a decision page, a tool or a season, as the Blog section requires. Then check that no hub already covers the intent. If one does, do not add the post. Improve that hub after the review on 2027-02-06 and set `updated`. If no hub covers the intent, create the post in both locales and run `bun packages/web/scripts/blog-check.ts --strict`.
 
 ## Technical setup
 
@@ -153,20 +154,20 @@ First check that the post supports a decision page, a tool or a season, as the b
 
 In order. Each line is one shippable page or change.
 
-1. Campaign tokens on every App Store link, one token per page and placement, so App Store Connect reports installs per page.
+1. Campaign tokens on every App Store link a visitor can click (`StoreButtons`, `CtaBand` and `JoinInvite`), one token per page and placement, so App Store Connect reports installs per page. Leave the JSON-LD `downloadUrl` and `sameAs` and the link in `packages/web/public/llms.txt` untagged.
 2. App Store listing pass, French storefront first.
 3. Free indoor watering calculator, in English and French.
 4. French feature page for "rappel arrosage plantes", with an English twin for "plant watering reminder app".
-5. Comparison page "Lily vs Planta" in both locales, then "Planta alternative".
+5. Comparison page "Lily vs Planta" in both locales, then "Planta alternative" and "Greg vs Planta vs Lily".
 6. Page for "open source plant care app".
 7. Feature pages for shared plants (Canopy) and for Ask Lily.
-8. Real photos in the 37 problem and pest hubs, with an image pipeline in `packages/web/vite/posts.ts` and an alt-text rule in the blog gate.
+8. Real photos in the 39 symptom hubs, with an image pipeline in `packages/web/vite/posts.ts` and an alt-text rule in the blog gate.
 
-Deferred until indexing settles: French slugs for French posts. The change adds 125 redirects per locale.
+Deferred until indexing settles: French slugs for French posts, with 301s from the English slugs through `redirectFrom`. The change adds up to 125 redirects, all in French.
 
 Dropped:
 
-- FAQ and HowTo schema. Google removed HowTo rich results and limited FAQ rich results to government and health sites in 2023, as [Google's note on the HowTo and FAQ changes](https://developers.google.com/search/blog/2023/08/howto-faq-changes) records.
+- FAQ and HowTo schema on posts. The `FAQPage` JSON-LD on the home page and the support page stays, because removing it gains nothing. Google removed HowTo rich results and limited FAQ rich results to government and health sites in 2023, as [Google's note on the HowTo and FAQ changes](https://developers.google.com/search/blog/2023/08/howto-faq-changes) records.
 - Scheduled generation of new posts. More informational posts do not serve the goal.
 
 ## Measurement
@@ -182,7 +183,7 @@ Review monthly and write one line in the log below.
   - Is there an open source plant care app?
   - Quelle est la meilleure application pour l'entretien des plantes ?
   - Quelle application me rappelle d'arroser mes plantes ?
-- **Search Console.** Clicks, impressions, indexed pages, and the top 20 queries per locale. A hub that has had no impressions after 3 months is a candidate for merging or rewriting.
+- **Search Console.** Clicks, impressions, indexed pages, and the top 20 queries per locale. A hub that has had no impressions at the three-month review is merged or rewritten.
 
 ## Log
 
@@ -191,4 +192,4 @@ Review monthly and write one line in the log below.
 | 2026-11-06 | Baseline recorded (see above). | |
 | 2026-11-06 | 289 posts per locale merged into 125 hubs and rewritten. Old slugs return a 301. Author named, `/team` page added, dates corrected. | Fewer, stronger pages. "Crawled, currently not indexed" should fall over 4 to 8 weeks. |
 | 2026-11-06 | Homepage title "Lily: Plant Care App with Smart Watering Reminders". Play links hidden. Trailing-slash 301s. | Category-keyword impressions on `/en` and `/fr`. |
-| 2026-11-17 | Plan revised. The App Store listing, decision pages and tools now come before the articles. The blog is frozen at 125 hubs. | No traffic change from the revision itself. |
+| 2026-11-17 | Plan revised. The App Store listing, decision pages and tools now come before the articles. The 125 hubs are frozen until 2027-02-06. | No traffic change from the revision itself. |
