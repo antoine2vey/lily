@@ -80,9 +80,9 @@ export const fr = {
     factors: {
       seasonLight: {
         name: 'Lumière de saison',
-        up: '{city} en {month} : jours longs et soleil haut, la plante pousse plus vite et boit davantage.',
-        down: '{city} en {month} : jours courts et soleil bas, la plante pousse moins vite et boit moins.',
-        flat: '{city} en {month} : durée du jour et hauteur du soleil proches du point neutre.',
+        up: '{city} en {month} : jours longs, soleil haut ou les deux, la plante pousse plus vite et boit davantage.',
+        down: '{city} en {month} : jours courts, soleil bas ou les deux, la plante pousse moins vite et boit moins.',
+        flat: '{city} en {month} : durée du jour et hauteur du soleil changent à peine les besoins en eau de la plante.',
       },
       window: {
         name: 'Orientation de la fenêtre',

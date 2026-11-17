@@ -79,9 +79,9 @@ export const en = {
     factors: {
       seasonLight: {
         name: 'Season light',
-        up: 'In {month}, days in {city} are long and the sun climbs high, so the plant grows faster and drinks more.',
-        down: 'In {month}, days in {city} are short and the sun stays low, so the plant grows slower and drinks less.',
-        flat: 'In {month}, day length and sun height in {city} are close to the neutral point.',
+        up: 'In {month}, {city} gets long days, a high sun or both, so the plant grows faster and drinks more.',
+        down: 'In {month}, {city} gets short days, a low sun or both, so the plant grows slower and drinks less.',
+        flat: 'In {month}, day length and sun height in {city} barely change how much this plant drinks.',
       },
       window: {
         name: 'Window direction',
