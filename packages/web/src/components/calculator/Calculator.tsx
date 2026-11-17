@@ -154,7 +154,7 @@ export function Calculator({ t }: { t: CalculatorMessages }) {
               plant: plantName,
             })}
           </p>
-          <p className="mt-1 font-semibold text-ink">
+          <p id="calc-total" className="mt-1 font-semibold text-ink">
             {fmt(t.result.total, {
               value: percent(percentOf(result.demand)),
             })}
@@ -175,7 +175,7 @@ export function Calculator({ t }: { t: CalculatorMessages }) {
           {Array.map(FACTORS, (key) => {
             const pct = percentOf(result.factors[key])
             return (
-              <li key={key}>
+              <li key={key} data-factor={key}>
                 <p className="flex items-baseline justify-between gap-3 font-semibold text-ink">
                   <span>{f[key].name}</span>
                   <span className="tabular-nums">{percent(pct)}</span>
