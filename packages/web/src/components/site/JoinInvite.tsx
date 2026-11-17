@@ -18,8 +18,9 @@ type JoinMessages = ReturnType<typeof messagesFor>['Join']
 const SECONDARY =
   'inline-flex items-center justify-center gap-2 rounded-full bg-surface px-6 py-3 font-semibold text-ink ring-1 ring-line transition-colors hover:bg-chip'
 
-// On a phone a canopy name longer than this is set one size smaller, so a name of the maximum length, 50 characters,
-// takes four lines at most and the open button stays above the consent banner.
+// How a name wraps is not bounded by its length, so the inviter line and the canopy name are clamped. On a phone the
+// name then takes 112px at most, and the open button stays above the consent banner whatever the names are. A name
+// longer than LONG_NAME is set one size smaller there, so more of it fits in the clamp.
 const LONG_NAME = 24
 
 // The invite page is one static file for both languages. It prerenders the card in each, and the page shows the one
@@ -120,20 +121,24 @@ function Invite({
             <span className="sr-only">{t.loading}</span>
           </Bar>
         ),
-        onSome: ({ inviterName }) => (
-          <p className="break-words text-ink-2">
-            {Option.match(Option.fromNullishOr(inviterName), {
-              onNone: () => t.invited,
-              onSome: (inviter) => fmt(t.invitedBy, { inviter }),
-            })}
-          </p>
-        ),
+        onSome: ({ inviterName }) => {
+          const line = Option.match(Option.fromNullishOr(inviterName), {
+            onNone: () => t.invited,
+            onSome: (inviter) => fmt(t.invitedBy, { inviter }),
+          })
+          return (
+            <p title={line} className="line-clamp-3 break-words text-ink-2">
+              {line}
+            </p>
+          )
+        },
       })}
       {Option.match(preview, {
         onNone: () => <Bar slot="mt-2 h-8 sm:h-9" bar="h-6 w-3/4 sm:h-7" />,
         onSome: ({ canopyName }) => (
           <h1
-            className={`mt-2 font-bold break-words text-ink sm:text-3xl ${canopyName.length > LONG_NAME ? 'text-xl' : 'text-2xl'}`}
+            title={canopyName}
+            className={`mt-2 font-bold break-words text-ink sm:text-3xl ${canopyName.length > LONG_NAME ? 'line-clamp-4 text-xl' : 'line-clamp-3 text-2xl'}`}
           >
             {canopyName}
           </h1>
