@@ -6,7 +6,7 @@ import { wateringRatingFromFrequency } from '@lily/shared'
 import { DEFAULT_HUMIDITY_RATING } from '@lily/shared/indoor-demand'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Order, Record } from 'effect'
+import { Array, Option, Order, Record } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -29,10 +29,14 @@ WHERE a.plant_id = p.id AND a.rating = 'watering' AND p.watering_rating = a.new_
 `
 
 const BEFORE_WATERING_FIELD = new Date('2026-03-01T12:00:00Z')
+const WATERING_FIELD_MERGE = new Date('2026-04-21T10:55:50Z')
 const SUMMER = new Date('2026-06-01T12:00:00Z')
 const BEFORE_MCP_CREATE = new Date('2026-10-30T12:00:00Z')
+const MCP_CREATE_MERGE = new Date('2026-11-02T10:35:04Z')
 const MCP_ERA = new Date('2026-11-10T12:00:00Z')
+const HUMIDITY_FIX_MERGE = new Date('2026-11-17T16:08:04Z')
 const AFTER_HUMIDITY_FIX = new Date('2026-11-17T16:20:00Z')
+const WATERING_FIX_MERGE = new Date('2026-11-17T16:39:00Z')
 const AFTER_WATERING_FIX = new Date('2026-11-17T17:00:00Z')
 
 type Creator = 'mcpLinked' | 'appOnly'
@@ -46,7 +50,10 @@ interface Case {
   readonly lightingRating: number
   readonly petToxicityRating: number
   readonly description?: string
+  readonly imageUrl?: string
+  readonly category?: string
   readonly wateringDays?: number
+  readonly fertilizationDays?: number
   readonly expected: { readonly humidity: number; readonly watering: number }
 }
 
@@ -61,11 +68,10 @@ const mcpShape = {
 
 const BAND_DAYS = [1, 5, 6, 8, 9, 12, 13, 30] as const
 
-const EVERY_9_DAYS =
-  'created before the api took a watering rating, every 9 days'
+const EVERY_9_DAYS = 'created while create stored watering 0, every 9 days'
 
 const bandCases: ReadonlyArray<Case> = Array.map(BAND_DAYS, (days) => ({
-  name: `created before the api took a watering rating, every ${days} days`,
+  name: `created while create stored watering 0, every ${days} days`,
   creator: 'appOnly',
   dateAdded: BEFORE_WATERING_FIELD,
   humidityRating: 50,
@@ -111,6 +117,61 @@ const predicateCases: ReadonlyArray<Case> = [
     expected: { humidity: 60, watering: 0 },
   },
   {
+    name: 'Rubber Plant',
+    creator: 'appOnly',
+    dateAdded: SUMMER,
+    humidityRating: 60,
+    wateringRating: 0,
+    lightingRating: 70,
+    petToxicityRating: 20,
+    wateringDays: 7,
+    expected: { humidity: 60, watering: wateringRatingFromFrequency(7) },
+  },
+  {
+    name: 'created while create stored watering 0, watering set to 30 since',
+    creator: 'appOnly',
+    dateAdded: BEFORE_WATERING_FIELD,
+    humidityRating: 50,
+    wateringRating: 30,
+    lightingRating: 50,
+    petToxicityRating: 100,
+    wateringDays: 4,
+    expected: { humidity: 50, watering: 30 },
+  },
+  {
+    name: 'scanned with an AI pet rating and watering 30',
+    creator: 'appOnly',
+    dateAdded: SUMMER,
+    humidityRating: 60,
+    wateringRating: 30,
+    lightingRating: 70,
+    petToxicityRating: 20,
+    wateringDays: 4,
+    expected: { humidity: 60, watering: 30 },
+  },
+  {
+    name: 'created while create stored watering 0, at the merge of 35120868',
+    creator: 'appOnly',
+    dateAdded: WATERING_FIELD_MERGE,
+    humidityRating: 50,
+    wateringRating: 0,
+    lightingRating: 50,
+    petToxicityRating: 100,
+    wateringDays: 4,
+    expected: { humidity: 50, watering: wateringRatingFromFrequency(4) },
+  },
+  {
+    name: 'scanned at the merge of the watering fix',
+    creator: 'appOnly',
+    dateAdded: WATERING_FIX_MERGE,
+    humidityRating: 60,
+    wateringRating: 0,
+    lightingRating: 70,
+    petToxicityRating: 20,
+    wateringDays: 7,
+    expected: { humidity: 60, watering: wateringRatingFromFrequency(7) },
+  },
+  {
     name: 'manual watering slider dragged to 0',
     creator: 'appOnly',
     dateAdded: SUMMER,
@@ -140,6 +201,63 @@ const predicateCases: ReadonlyArray<Case> = [
       humidity: DEFAULT_HUMIDITY_RATING,
       watering: wateringRatingFromFrequency(4),
     },
+  },
+  {
+    name: 'created through MCP at the merge of the humidity fix',
+    ...mcpShape,
+    dateAdded: HUMIDITY_FIX_MERGE,
+    expected: {
+      humidity: DEFAULT_HUMIDITY_RATING,
+      watering: wateringRatingFromFrequency(4),
+    },
+  },
+  {
+    name: 'MCP shaped at the merge of create_plant',
+    ...mcpShape,
+    dateAdded: MCP_CREATE_MERGE,
+    expected: { humidity: 0, watering: 0 },
+  },
+  {
+    name: 'MCP shaped with lighting 70',
+    ...mcpShape,
+    dateAdded: MCP_ERA,
+    lightingRating: 70,
+    expected: { humidity: 0, watering: 0 },
+  },
+  {
+    name: 'MCP shaped with an image',
+    ...mcpShape,
+    dateAdded: MCP_ERA,
+    imageUrl: 'https://example.com/fern.jpg',
+    expected: { humidity: 0, watering: 0 },
+  },
+  {
+    name: 'MCP shaped with a category',
+    ...mcpShape,
+    dateAdded: MCP_ERA,
+    category: 'Fern',
+    expected: { humidity: 0, watering: 0 },
+  },
+  {
+    name: 'MCP shaped with an AI pet rating',
+    ...mcpShape,
+    dateAdded: MCP_ERA,
+    petToxicityRating: 20,
+    expected: { humidity: 0, watering: wateringRatingFromFrequency(4) },
+  },
+  {
+    name: 'MCP shaped with humidity 50',
+    ...mcpShape,
+    dateAdded: MCP_ERA,
+    humidityRating: 50,
+    expected: { humidity: 50, watering: 0 },
+  },
+  {
+    name: 'MCP shaped with watering 30',
+    ...mcpShape,
+    dateAdded: MCP_ERA,
+    wateringRating: 30,
+    expected: { humidity: 0, watering: 30 },
   },
   {
     name: 'MCP shaped, creator never linked MCP',
@@ -179,13 +297,14 @@ const predicateCases: ReadonlyArray<Case> = [
     expected: { humidity: 60, watering: 0 },
   },
   {
-    name: 'created before the api took a watering rating, no watering schedule',
+    name: 'created while create stored watering 0, fertilization schedule only',
     creator: 'appOnly',
     dateAdded: BEFORE_WATERING_FIELD,
     humidityRating: 50,
     wateringRating: 0,
     lightingRating: 50,
     petToxicityRating: 100,
+    fertilizationDays: 30,
     expected: { humidity: 50, watering: 0 },
   },
 ]
@@ -300,6 +419,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             createdByUserId: creators[c.creator],
             name: c.name,
             description: c.description,
+            imageUrl: c.imageUrl,
+            category: c.category,
             dateAdded: c.dateAdded,
             humidityRating: c.humidityRating,
             wateringRating: c.wateringRating,
@@ -308,11 +429,21 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
           .returning({ id: schema.plants.id })
         if (!row) throw new Error(`Failed to create plant ${c.name}`)
-        if (c.wateringDays !== undefined) {
+        const schedules = Array.getSomes([
+          Option.map(Option.fromUndefinedOr(c.wateringDays), (days) => ({
+            careType: 'watering' as const,
+            days,
+          })),
+          Option.map(Option.fromUndefinedOr(c.fertilizationDays), (days) => ({
+            careType: 'fertilization' as const,
+            days,
+          })),
+        ])
+        for (const { careType, days } of schedules) {
           await db.insert(schema.plantCareSchedules).values({
             plantId: row.id,
-            careType: 'watering',
-            frequencyDays: c.wateringDays,
+            careType,
+            frequencyDays: days,
             nextCareAt: c.dateAdded,
             dueDay: careDayOf(c.dateAdded),
           })
