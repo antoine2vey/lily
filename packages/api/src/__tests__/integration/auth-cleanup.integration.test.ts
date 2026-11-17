@@ -82,6 +82,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       await db.insert(schema.refreshTokens).values([
         { userId, tokenHash: `${run}-live`, expiresAt: fromNow(29 * DAY) },
+        {
+          userId,
+          tokenHash: `${run}-expires-in-a-minute`,
+          expiresAt: fromNow(60 * 1000),
+        },
         { userId, tokenHash: `${run}-expired`, expiresAt: fromNow(-DAY) },
         {
           userId,
@@ -113,6 +118,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(await magicLinksLeft()).toEqual(['live'])
       expect(await refreshTokensLeft()).toEqual([
+        'expires-in-a-minute',
         'live',
         'old-but-not-expired',
         'revoked-not-expired',

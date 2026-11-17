@@ -162,7 +162,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
           const result = yield* db
             .delete(magicLinks)
             .where(lt(magicLinks.expiresAt, oneHourAgo))
-            .returning()
+            .returning({ id: magicLinks.id })
 
           return result.length
         }
