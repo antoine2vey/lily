@@ -21,7 +21,7 @@ const SECONDARY =
 // The invite page is one static file for both languages. It prerenders the card in each, and the page shows the one
 // in the browser language from the first paint, before the invite preview arrives.
 export function JoinInvite() {
-  const langs = usePageLocales(Option.none())
+  const langs = usePageLocales({ _tag: 'Prerendered' })
   const [token, setToken] = useState<Option.Option<string>>(Option.none())
   const [view, setView] = useState<InviteView>(loading)
 

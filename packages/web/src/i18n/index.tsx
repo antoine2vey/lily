@@ -66,10 +66,25 @@ export function I18nProvider({
 
 export const useI18n = (): I18n => use(I18nContext)
 
-// A page outside a locale, such as /join, is one prerendered file for every language. This script runs in its head
-// before the first paint and writes the browser language to <html lang>. The page prerenders its copy once per locale,
-// each copy marked with data-locale, and a rule in site.css shows only the copy that <html lang> names.
+// How a page picks the language of its copy. `Locale` is a page under /en or /fr. `Prerendered` is a page outside a
+// locale that is one file for every language, such as /join: it prerenders its copy once per locale and its head runs
+// LANG_SCRIPT. `Hydrated` is any other page outside a locale, such as the redirect page /: it renders its copy once
+// hydrated, in the browser language.
+export type PageLanguage =
+  | { readonly _tag: 'Locale'; readonly locale: Locale }
+  | { readonly _tag: 'Prerendered' }
+  | { readonly _tag: 'Hydrated' }
+
+// Runs in the head of a `Prerendered` page before the first paint and writes the browser language to <html lang>. Each
+// prerendered copy carries data-locale, and a rule in site.css shows only the copy that <html lang> names.
 export const LANG_SCRIPT = `(function(){var l=(navigator.language||'').slice(0,2).toLowerCase();document.documentElement.lang=${JSON.stringify(locales)}.indexOf(l)<0?'${defaultLocale}':l})()`
+
+// Reads the browser language the way LANG_SCRIPT does. Native string methods on purpose: see the Effect rule in
+// packages/web/CLAUDE.md.
+export const browserLocale = (): Locale => {
+  const lang = navigator.language.slice(0, 2).toLowerCase()
+  return isLocale(lang) ? lang : defaultLocale
+}
 
 const neverChanges = () => () => {}
 export const useHydrated = () =>
@@ -79,20 +94,20 @@ export const useHydrated = () =>
     () => false
   )
 
-// The language LANG_SCRIPT picked for a page outside a locale.
-export const browserLocale = (): Locale => {
-  const { lang } = document.documentElement
-  return isLocale(lang) ? lang : defaultLocale
+// The locales a page renders its copy in, keyed by locale so React keeps the nodes that already painted. After
+// hydration a page outside a locale renders only the browser language. Plain conditions, not Effect's Match: this file
+// loads on every page, and Match adds about 1.4 KB gzipped to each.
+export const usePageLocales = (page: PageLanguage): ReadonlyArray<Locale> => {
+  const hydrated = useHydrated()
+  if (page._tag === 'Locale') return [page.locale]
+  if (hydrated) return [browserLocale()]
+  return page._tag === 'Prerendered' ? locales : []
 }
 
-// The locales a page renders its copy in. Before hydration, a page outside a locale renders every one, as its prerender
-// did. After it renders only the one on screen, keyed by locale so React keeps the nodes that already painted.
-export const usePageLocales = (
-  locale: Option.Option<Locale>
-): ReadonlyArray<Locale> => {
+// The language <html lang> names. A page outside a locale prerenders the default, which LANG_SCRIPT overwrites on a
+// `Prerendered` page.
+export const usePageLocale = (page: PageLanguage): Locale => {
   const hydrated = useHydrated()
-  return Option.match(locale, {
-    onSome: (known) => [known],
-    onNone: () => (hydrated ? [browserLocale()] : locales),
-  })
+  if (page._tag === 'Locale') return page.locale
+  return hydrated ? browserLocale() : defaultLocale
 }

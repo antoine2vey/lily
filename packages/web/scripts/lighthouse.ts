@@ -1,9 +1,9 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Array, Order, String as Str } from 'effect'
+import { Array, Option, Order, pipe, String as Str } from 'effect'
 
-// usage: bun scripts/lighthouse.ts [base=http://127.0.0.1:8088] [--stored-consent] [paths...]
+// usage: bun scripts/lighthouse.ts [base=http://127.0.0.1:8088] [--stored-consent] [--language=en-US] [paths...]
 // Runs mobile Lighthouse 3 times per page against the prerendered build (`preview`) and fails on a budget breach.
 // Throttling is applied in Chrome (`--throttling-method=devtools`), not simulated. The simulation charges every request
 // that ends before the paint on the unthrottled load to LCP, and against a local server that is every hydration module,
@@ -12,6 +12,8 @@ import { Array, Order, String as Str } from 'effect'
 // Sample the URL a page is served at: a redirect adds a round trip that belongs to the old URL.
 // The script starts Chrome itself and sends the invite preview call to a local stub, so no run reaches the API. The
 // call still crosses the throttled network. `--stored-consent` runs the given paths as a visitor who refused analytics.
+// Each run pins the browser language, en-US unless `--language` names another, because the join page paints its copy in
+// the browser language and the machine's own language would otherwise pick which copy a run measures.
 
 const RUNS = Number(process.env.LIGHTHOUSE_RUNS ?? 3)
 const CHROME =
@@ -51,17 +53,27 @@ type Consent = 'ask' | 'stored'
 interface Visit {
   readonly path: string
   readonly consent: Consent
+  readonly language: string
 }
 
 const JOIN = '/join/lighthouse'
 const DEFAULT_VISITS: ReadonlyArray<Visit> = [
-  { path: '/en', consent: 'ask' },
-  { path: '/en/blog', consent: 'ask' },
-  { path: '/en/blog/pothos-care-guide', consent: 'ask' },
-  { path: '/en/about', consent: 'ask' },
-  // The banner is the largest text for a first visitor, and the invite card once a choice is stored.
-  { path: JOIN, consent: 'ask' },
-  { path: JOIN, consent: 'stored' },
+  { path: '/en', consent: 'ask', language: 'en-US' },
+  { path: '/en/blog', consent: 'ask', language: 'en-US' },
+  { path: '/en/blog/pothos-care-guide', consent: 'ask', language: 'en-US' },
+  { path: '/en/about', consent: 'ask', language: 'en-US' },
+  // The banner is the largest text for a first visitor, and the invite card once a choice is stored. The French copy
+  // is longer, so the join page runs in both languages.
+  ...Array.flatMap(['en-US', 'fr-FR'], (language) =>
+    Array.map(
+      ['ask', 'stored'] as const,
+      (consent): Visit => ({
+        path: JOIN,
+        consent,
+        language,
+      })
+    )
+  ),
 ]
 
 // The join page is noindex on purpose, so Lighthouse's crawlability audit holds its SEO score below 100.
@@ -129,13 +141,21 @@ const BUDGETS: ReadonlyArray<Budget> = [
 ]
 
 const args = process.argv.slice(2)
-const consent: Consent = args.includes('--stored-consent') ? 'stored' : 'ask'
+const consent: Consent = Array.contains(args, '--stored-consent')
+  ? 'stored'
+  : 'ask'
+const LANGUAGE_FLAG = '--language='
+const language = pipe(
+  Array.findFirst(args, Str.startsWith(LANGUAGE_FLAG)),
+  Option.map(Str.slice(LANGUAGE_FLAG.length)),
+  Option.getOrElse(() => 'en-US')
+)
 const [base = 'http://127.0.0.1:8088', ...rest] = Array.filter(
   args,
   (arg) => !Str.startsWith('--')(arg)
 )
 const visits = Array.isReadonlyArrayNonEmpty(rest)
-  ? Array.map(rest, (path): Visit => ({ path, consent }))
+  ? Array.map(rest, (path): Visit => ({ path, consent, language }))
   : DEFAULT_VISITS
 const outDir = join(tmpdir(), 'lily-lighthouse')
 mkdirSync(outDir, { recursive: true })
@@ -243,13 +263,15 @@ const prepareChrome = async (port: string, visit: Visit) => {
 const run = async (visit: Visit, i: number): Promise<Report> => {
   const out = join(
     outDir,
-    `${visit.path.replace(/\W+/g, '_')}-${visit.consent}-${i}.json`
+    `${visit.path.replace(/\W+/g, '_')}-${visit.consent}-${visit.language}-${i}.json`
   )
   const profile = mkdtempSync(join(tmpdir(), 'lily-lighthouse-chrome-'))
   const chrome = Bun.spawn(
     [
       CHROME,
       ...CHROME_FLAGS,
+      `--lang=${visit.language}`,
+      `--accept-lang=${visit.language}`,
       '--remote-debugging-port=0',
       `--user-data-dir=${profile}`,
       'about:blank',
@@ -308,7 +330,7 @@ for (const visit of visits) {
     if (judged && !b.ok(v)) failed = true
     return `${b.key}=${b.show(v)}${waived ? '~' : !judged ? '?' : b.ok(v) ? '' : '!'}`
   })
-  const label = `${visit.path}${visit.consent === 'stored' ? ' (stored choice)' : ''}`
+  const label = `${visit.path} ${visit.language}${visit.consent === 'stored' ? ' (stored choice)' : ''}`
   console.log(`${label.padEnd(48)} ${cells.join('  ')}  bench=${bench}`)
 }
 stub.stop(true)

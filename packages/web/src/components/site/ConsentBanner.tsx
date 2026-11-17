@@ -5,15 +5,16 @@ import {
   browserLocale,
   type Locale,
   messagesFor,
+  type PageLanguage,
   useHydrated,
   usePageLocales,
 } from '@/i18n'
 import { askAgain, decide, useConsent } from '@/lib/consent'
 
-export function ConsentBanner({ locale }: { locale: Option.Option<Locale> }) {
+export function ConsentBanner({ page }: { page: PageLanguage }) {
   const { asking, choice } = useConsent()
   const hydrated = useHydrated()
-  const langs = usePageLocales(locale)
+  const langs = usePageLocales(page)
   return asking
     ? Array.map(langs, (lang) => (
         <Banner
