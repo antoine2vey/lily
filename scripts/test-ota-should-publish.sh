@@ -59,63 +59,38 @@ expect() { # expect <name> <want> <got>
 	fi
 }
 
-# Workflow guards. awk keeps this free of yq, which the docs job does not install.
-# workflow_facts prints one normalized line per `permissions:` or `concurrency:`
-# entry: "P <scope> <key>=<value>" or "C <scope> <key>=<value>", where scope is
-# the job name or @top. Trailing comments and quotes are stripped, and block,
-# flow ({ a: b }) and scalar forms read the same. A scalar concurrency is a group
-# that never cancels.
+# Workflow guards. Bun.YAML reads the workflow the way GitHub does, so no
+# comment, quoting, indent or flow style can hide a grant from them.
+# workflow_facts prints one line per `permissions:` or `concurrency:` entry:
+# "P <scope> <key>=<value>" or "C <scope> <key>=<value>", where scope is the job
+# name or @top and value is JSON, so the string 'false' and the boolean false
+# differ. A scalar permissions prints as key all. A scalar concurrency is a
+# group that never cancels.
 workflow_facts() {
-	awk '
-		function trim(v) { sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); return v }
-		function norm(v) {
-			v = trim(v)
-			sub(/[ \t]+#.*$/, "", v)
-			v = trim(v)
-			if (v ~ /^".*"$/ || v ~ /^'"'"'.*'"'"'$/) v = substr(v, 2, length(v) - 2)
-			return v
-		}
-		function emit(kind, k, v) { print kind " " bscope " " trim(k) "=" norm(v) }
-		{
-			sub(/\015$/, "")
-			if ($0 ~ /^[ \t]*(#|$)/) next
-			indent = match($0, /[^ ]/) - 1
-			line = substr($0, indent + 1)
-			c = index(line, ":")
-			key = c ? substr(line, 1, c - 1) : line
-			val = c ? substr(line, c + 1) : ""
-			if (indent == 0) { top = key; job = ""; block = "" }
-			if (top == "jobs" && indent == 2) { job = key; block = "" }
-			scope = (top == "jobs") ? job : "@top"
-			if (block != "" && indent > bindent) { emit(kind, key, val); next }
-			block = ""
-			if ((key != "permissions" && key != "concurrency") ||
-			    !((top != "jobs" && indent == 0) || (top == "jobs" && indent == 4))) next
-			kind = (key == "permissions") ? "P" : "C"
-			bscope = scope; bindent = indent
-			v = norm(val)
-			if (v == "") { block = key }
-			else if (v ~ /^\{/) {
-				sub(/^\{/, "", v); sub(/\}$/, "", v)
-				n = split(v, parts, ",")
-				for (i = 1; i <= n; i++) {
-					c = index(parts[i], ":")
-					if (c) emit(kind, substr(parts[i], 1, c - 1), substr(parts[i], c + 1))
-				}
+	bun -e '
+		const doc = Bun.YAML.parse(await Bun.file(process.argv[1]).text())
+		const scopes = [["@top", doc], ...Object.entries(doc.jobs)]
+		for (const [scope, node] of scopes) {
+			for (const [kind, key] of [["P", "permissions"], ["C", "concurrency"]]) {
+				if (!Object.hasOwn(node, key)) continue
+				const value = node[key]
+				const entries =
+					value !== null && typeof value === "object" ? Object.entries(value)
+					: kind === "P" ? [["all", value]]
+					: [["group", value], ["cancel-in-progress", false]]
+				for (const [k, v] of entries) console.log(`${kind} ${scope} ${k}=${JSON.stringify(v)}`)
 			}
-			else if (kind == "P") emit(kind, "all", v)
-			else { emit(kind, "group", v); emit(kind, "cancel-in-progress", "false") }
 		}
 	' "$1"
 }
 if [ "$MODE" = new ]; then
 	facts="$(workflow_facts "$WORKFLOW")"
-	expect "only the record job holds a write grant" "P record contents=write" \
-		"$(grep -E '(=write|=write-all|all=.*)$' <<<"$facts" | grep '^P ' | paste -sd, -)"
-	expect "workflow permissions are contents: read" "P @top contents=read" \
+	expect "only the record job holds a write grant" 'P record contents="write"' \
+		"$(grep -E '(="write"|="write-all"|all=.*)$' <<<"$facts" | grep '^P ' | paste -sd, -)"
+	expect "workflow permissions are contents: read" 'P @top contents="read"' \
 		"$(grep '^P @top ' <<<"$facts" | paste -sd, -)"
 	expect "one constant concurrency group, never cancelled" \
-		"C @top cancel-in-progress=false,C @top group=ota-update-production" \
+		'C @top cancel-in-progress=false,C @top group="ota-update-production"' \
 		"$(grep '^C ' <<<"$facts" | sort | paste -sd, -)"
 fi
 
