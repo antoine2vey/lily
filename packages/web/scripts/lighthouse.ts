@@ -62,6 +62,7 @@ const DEFAULT_VISITS: ReadonlyArray<Visit> = [
   { path: '/en/blog', consent: 'ask', language: 'en-US' },
   { path: '/en/blog/pothos-care-guide', consent: 'ask', language: 'en-US' },
   { path: '/en/about', consent: 'ask', language: 'en-US' },
+  { path: '/en/watering-calculator', consent: 'ask', language: 'en-US' },
   // The banner is the largest text for a first visitor, and the invite card once a choice is stored. The French copy
   // is longer, so the join page runs in both languages.
   ...Array.flatMap(['en-US', 'fr-FR'], (language) =>
