@@ -100,7 +100,7 @@ type App =
   | Absence
 
 const aTimezoneOnAnotherDay = () =>
-  new Date().getUTCHours() >= 12 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago'
+  new Date().getUTCHours() >= 10 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago'
 
 const request = {
   name: 'Fern',
