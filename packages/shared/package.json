@@ -59,6 +59,10 @@
       "types": "./src/domains/notification/schema.ts",
       "default": "./src/domains/notification/schema.ts"
     },
+    "./plant-catalog": {
+      "types": "./src/domains/plant-catalog/catalog.ts",
+      "default": "./src/domains/plant-catalog/catalog.ts"
+    },
     "./plant": {
       "types": "./src/domains/plant/schema.ts",
       "default": "./src/domains/plant/schema.ts"
