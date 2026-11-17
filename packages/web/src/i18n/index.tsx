@@ -1,5 +1,5 @@
 import { Array, Option, pipe, Record } from 'effect'
-import { createContext, type ReactNode, use } from 'react'
+import { createContext, type ReactNode, use, useSyncExternalStore } from 'react'
 import { en, type Messages } from './en'
 import { fr } from './fr'
 
@@ -65,3 +65,34 @@ export function I18nProvider({
 }
 
 export const useI18n = (): I18n => use(I18nContext)
+
+// A page outside a locale, such as /join, is one prerendered file for every language. This script runs in its head
+// before the first paint and writes the browser language to <html lang>. The page prerenders its copy once per locale,
+// each copy marked with data-locale, and a rule in site.css shows only the copy that <html lang> names.
+export const LANG_SCRIPT = `(function(){var l=(navigator.language||'').slice(0,2).toLowerCase();document.documentElement.lang=${JSON.stringify(locales)}.indexOf(l)<0?'${defaultLocale}':l})()`
+
+const neverChanges = () => () => {}
+export const useHydrated = () =>
+  useSyncExternalStore(
+    neverChanges,
+    () => true,
+    () => false
+  )
+
+// The language LANG_SCRIPT picked for a page outside a locale.
+export const browserLocale = (): Locale => {
+  const { lang } = document.documentElement
+  return isLocale(lang) ? lang : defaultLocale
+}
+
+// The locales a page renders its copy in. Before hydration, a page outside a locale renders every one, as its prerender
+// did. After it renders only the one on screen, keyed by locale so React keeps the nodes that already painted.
+export const usePageLocales = (
+  locale: Option.Option<Locale>
+): ReadonlyArray<Locale> => {
+  const hydrated = useHydrated()
+  return Option.match(locale, {
+    onSome: (known) => [known],
+    onNone: () => (hydrated ? [browserLocale()] : locales),
+  })
+}

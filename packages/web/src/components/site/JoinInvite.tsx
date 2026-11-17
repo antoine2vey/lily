@@ -1,9 +1,10 @@
-import { Match, Option, String } from 'effect'
-import { useEffect, useState } from 'react'
-import { fmt, type Locale, messagesFor } from '@/i18n'
+import { Array, Match, Option } from 'effect'
+import { type ReactNode, useEffect, useState } from 'react'
+import { fmt, messagesFor, usePageLocales } from '@/i18n'
 import {
   appLink,
   fetchInviteView,
+  type InvitePreview,
   type InviteView,
   invalid,
   loading,
@@ -17,18 +18,14 @@ type JoinMessages = ReturnType<typeof messagesFor>['Join']
 const SECONDARY =
   'inline-flex items-center justify-center gap-2 rounded-full bg-surface px-6 py-3 font-semibold text-ink ring-1 ring-line transition-colors hover:bg-chip'
 
-// The invite page is one static file for both languages, so the locale comes from the browser.
+// The invite page is one static file for both languages. It prerenders the card in each, and the page shows the one
+// in the browser language from the first paint, before the invite preview arrives.
 export function JoinInvite() {
-  const [locale, setLocale] = useState<Locale>('en')
+  const langs = usePageLocales(Option.none())
   const [token, setToken] = useState<Option.Option<string>>(Option.none())
   const [view, setView] = useState<InviteView>(loading)
 
   useEffect(() => {
-    const detected: Locale = String.startsWith('fr')(navigator.language)
-      ? 'fr'
-      : 'en'
-    document.documentElement.lang = detected
-    setLocale(detected)
     const parsed = tokenFromPath(window.location.pathname)
     setToken(parsed)
     if (Option.isNone(parsed)) {
@@ -51,7 +48,11 @@ export function JoinInvite() {
         <a href="/" className="mb-8 inline-flex" aria-label="Lily">
           <LilyMark size={56} />
         </a>
-        <InviteCard view={view} token={token} t={messagesFor(locale).Join} />
+        {Array.map(langs, (lang) => (
+          <div key={lang} lang={lang} data-locale={lang}>
+            <InviteCard view={view} token={token} t={messagesFor(lang).Join} />
+          </div>
+        ))}
       </div>
     </main>
   )
@@ -66,58 +67,13 @@ function InviteCard({
   token: Option.Option<string>
   t: JoinMessages
 }) {
+  // The keys mount the invite preview as new nodes. A painted node that a longer name pushes down counts as a layout shift.
   return Match.value(view).pipe(
-    Match.tag('Loading', () => <Skeleton label={t.loading} />),
+    Match.tag('Loading', () => (
+      <Invite key="loading" preview={Option.none()} token={token} t={t} />
+    )),
     Match.tag('Ready', ({ preview }) => (
-      <div>
-        <p className="break-words text-ink-2">
-          {Option.match(Option.fromNullishOr(preview.inviterName), {
-            onNone: () => t.invited,
-            onSome: (inviter) => fmt(t.invitedBy, { inviter }),
-          })}
-        </p>
-        <h1 className="mt-2 text-3xl font-bold break-words text-ink">
-          {preview.canopyName}
-        </h1>
-        <p className="mt-4 text-sm text-muted">{t.canopyHint}</p>
-        {Option.match(token, {
-          onNone: () => null,
-          onSome: (value) => (
-            <a
-              href={appLink(value)}
-              className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 font-semibold text-on-primary transition-colors hover:bg-primary-dark"
-            >
-              {t.openInLily}
-            </a>
-          ),
-        })}
-        <div className="mt-10">
-          <p className="font-semibold text-ink">{t.getTheApp}</p>
-          <div className="mt-4 flex flex-col justify-center gap-3 sm:flex-row">
-            <a
-              href={appStoreUrl('web-join')}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={SECONDARY}
-            >
-              <AppleIcon className="size-5" />
-              {t.appStore}
-            </a>
-            {PLAY_STORE_LIVE && (
-              <a
-                href={PLAY_STORE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={SECONDARY}
-              >
-                <GooglePlayIcon className="size-5" />
-                {t.googlePlay}
-              </a>
-            )}
-          </div>
-          <p className="mt-4 text-sm text-muted">{t.tapAgain}</p>
-        </div>
-      </div>
+      <Invite key="ready" preview={Option.some(preview)} token={token} t={t} />
     )),
     Match.tag('Expired', () => (
       <Notice title={t.expiredTitle} body={t.expiredBody} />
@@ -141,30 +97,104 @@ function InviteCard({
   )
 }
 
-// Each slot has the box of the element the invite preview puts there, so the card keeps its height when the preview lands.
-function Skeleton({ label }: { label: string }) {
+// The copy that does not depend on the invite is in the prerender. Until the preview lands, each slot it fills holds
+// a bar with the box of the element that replaces it, so the card keeps its height.
+function Invite({
+  preview,
+  token,
+  t,
+}: {
+  preview: Option.Option<InvitePreview>
+  token: Option.Option<string>
+  t: JoinMessages
+}) {
   return (
-    <div role="status" className="animate-pulse">
-      <span className="sr-only">{label}</span>
-      <Bar slot="h-6" bar="h-4 w-2/3" />
-      <Bar slot="mt-2 h-9" bar="h-7 w-3/4" />
-      <Bar slot="mt-4 h-5" bar="h-3 w-full" />
-      <Bar slot="h-5" bar="h-3 w-full" />
-      <Bar slot="h-5 sm:hidden" bar="h-3 w-1/2" />
-      <div className="mt-8 h-14 rounded-full bg-chip" />
-      <Bar slot="mt-10 h-6" bar="h-4 w-1/2" />
-      <div
-        className={`mt-4 rounded-full bg-chip ${PLAY_STORE_LIVE ? 'h-27 sm:h-12' : 'h-12'}`}
-      />
-      <Bar slot="mt-4 h-5" bar="h-3 w-3/4" />
+    <div>
+      {Option.match(preview, {
+        onNone: () => (
+          <Bar slot="h-6" bar="h-4 w-2/3" role="status">
+            <span className="sr-only">{t.loading}</span>
+          </Bar>
+        ),
+        onSome: ({ inviterName }) => (
+          <p className="break-words text-ink-2">
+            {Option.match(Option.fromNullishOr(inviterName), {
+              onNone: () => t.invited,
+              onSome: (inviter) => fmt(t.invitedBy, { inviter }),
+            })}
+          </p>
+        ),
+      })}
+      {Option.match(preview, {
+        onNone: () => <Bar slot="mt-2 h-9" bar="h-7 w-3/4" />,
+        onSome: ({ canopyName }) => (
+          <h1 className="mt-2 text-3xl font-bold break-words text-ink">
+            {canopyName}
+          </h1>
+        ),
+      })}
+      <p className="mt-4 text-sm text-muted">{t.canopyHint}</p>
+      {Option.match(
+        Option.zipWith(preview, token, (_, value) => value),
+        {
+          onNone: () => (
+            <div className="mt-8 h-14 animate-pulse rounded-full bg-chip" />
+          ),
+          onSome: (value) => (
+            <a
+              href={appLink(value)}
+              className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 font-semibold text-on-primary transition-colors hover:bg-primary-dark"
+            >
+              {t.openInLily}
+            </a>
+          ),
+        }
+      )}
+      <div className="mt-10">
+        <p className="font-semibold text-ink">{t.getTheApp}</p>
+        <div className="mt-4 flex flex-col justify-center gap-3 sm:flex-row">
+          <a
+            href={appStoreUrl('web-join')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={SECONDARY}
+          >
+            <AppleIcon className="size-5" />
+            {t.appStore}
+          </a>
+          {PLAY_STORE_LIVE && (
+            <a
+              href={PLAY_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={SECONDARY}
+            >
+              <GooglePlayIcon className="size-5" />
+              {t.googlePlay}
+            </a>
+          )}
+        </div>
+        <p className="mt-4 text-sm text-muted">{t.tapAgain}</p>
+      </div>
     </div>
   )
 }
 
-function Bar({ slot, bar }: { slot: string; bar: string }) {
+function Bar({
+  slot,
+  bar,
+  role,
+  children,
+}: {
+  slot: string
+  bar: string
+  role?: 'status'
+  children?: ReactNode
+}) {
   return (
-    <div className={`flex items-center justify-center ${slot}`}>
-      <div className={`rounded-full bg-chip ${bar}`} />
+    <div role={role} className={`flex items-center justify-center ${slot}`}>
+      {children}
+      <div className={`animate-pulse rounded-full bg-chip ${bar}`} />
     </div>
   )
 }

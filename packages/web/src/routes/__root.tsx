@@ -8,7 +8,7 @@ import {
 import { Option } from 'effect'
 import { type ReactNode, useEffect } from 'react'
 import { ConsentBanner, ConsentSettings } from '@/components/site/ConsentBanner'
-import { defaultLocale, isLocale } from '@/i18n'
+import { defaultLocale, isLocale, LANG_SCRIPT, type Locale } from '@/i18n'
 import { setAnalytics } from '@/lib/analytics'
 import { CONSENT_SCRIPT, onChoice } from '@/lib/consent'
 import { useSmoothAnchors } from '@/lib/smooth-anchors'
@@ -62,7 +62,7 @@ function RootDocument() {
   useAnalytics()
   useSmoothAnchors()
   return (
-    <Html lang={Option.getOrElse(known, () => defaultLocale)}>
+    <Html locale={known}>
       <ConsentBanner locale={known} />
       <Outlet />
       {Option.isNone(known) && <ConsentSettings />}
@@ -70,14 +70,27 @@ function RootDocument() {
   )
 }
 
-function Html({ lang, children }: { lang: string; children: ReactNode }) {
+function Html({
+  locale,
+  children,
+}: {
+  locale: Option.Option<Locale>
+  children: ReactNode
+}) {
   return (
-    <html lang={lang} suppressHydrationWarning>
+    <html
+      lang={Option.getOrElse(locale, () => defaultLocale)}
+      suppressHydrationWarning
+    >
       <head>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static theme script, runs before paint to avoid a flash */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static consent script, runs before paint so a stored choice hides the prerendered banner */}
         <script dangerouslySetInnerHTML={{ __html: CONSENT_SCRIPT }} />
+        {Option.isNone(locale) && (
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static language script, runs before paint so a page outside a locale shows the copy in the browser language
+          <script dangerouslySetInnerHTML={{ __html: LANG_SCRIPT }} />
+        )}
         <HeadContent />
       </head>
       <body>
