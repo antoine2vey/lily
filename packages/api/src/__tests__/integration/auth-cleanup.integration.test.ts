@@ -3,7 +3,7 @@ import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token
 import { deleteExpiredSignInRows } from '@lily/api/services/auth/cleanup-scheduler'
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { ConfigProvider, Effect, Layer } from 'effect'
 import pg from 'pg'
@@ -101,7 +101,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     afterAll(async () => {
       await db
         .delete(schema.magicLinks)
-        .where(inArray(schema.magicLinks.email, [email]))
+        .where(eq(schema.magicLinks.email, email))
       await db.execute(sql`DELETE FROM users WHERE id = ${userId}`)
       await pool.end()
     })

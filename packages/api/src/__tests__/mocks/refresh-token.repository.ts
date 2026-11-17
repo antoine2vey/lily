@@ -84,14 +84,11 @@ export const createMockRefreshTokenRepository = (
         return originalLength - tokenStore.length
       }),
 
-    deleteExpiredAndRevoked: () =>
+    deleteExpired: () =>
       Effect.gen(function* () {
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        const now = new Date()
         const originalLength = tokenStore.length
-        tokenStore = Array.filter(
-          tokenStore,
-          (t) => t.createdAt >= thirtyDaysAgo
-        )
+        tokenStore = Array.filter(tokenStore, (t) => t.expiresAt >= now)
         return originalLength - tokenStore.length
       }),
   }

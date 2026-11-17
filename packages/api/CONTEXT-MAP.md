@@ -40,7 +40,7 @@ One row per directory of `src/services/`, in directory order. "Repositories" nam
 | `ai-chat` | Conversations, streamed chat, chat suggestions, the follow-up worker, and the tools that create diagnoses and propose care plans through the `CarePlans` service. | Assistant | core | Chat, ChatFollowUp, CarePlan, Diagnosis, Plant, CareSchedule, CareLog, User, Delegation, Canopy |
 | `alerting` | Ops alerts to Discord or the console, with dedup. | Admin & Ops | generic | none |
 | `analytics-scheduler` | Precomputes metrics every 6 hours. | Admin & Ops | generic | Analytics |
-| `auth` | Magic link, OAuth sign-in, refresh, logout and set username, plus the auth middleware. | Identity & Access | generic | User, MagicLink, RefreshToken, OAuthIdentity |
+| `auth` | Magic link, OAuth sign-in, refresh, logout and set username, plus the auth middleware. `src/services/auth/cleanup-scheduler.ts` deletes expired magic links and refresh tokens every hour. | Identity & Access | generic | User, MagicLink, RefreshToken, OAuthIdentity |
 | `blog-generator` | Hourly pipeline that researches, writes and publishes blog posts. | Content | generic | BlogPost, PlantCatalog |
 | `canopy` | Endpoints over the `Canopy` service. They create, update, dissolve and leave a canopy, handle links and invitations, and remove a member. They read through `CanopyRepository` and write nothing themselves. | Canopy | core | Canopy |
 | `care-logs` | Endpoints over the `Care` service that record, amend and remove a care. They read care logs and recent activity through `CareLogRepository` and write nothing themselves. `src/services/care-logs/endpoints/get-care-logs.ts` publishes `CareHistoryViewed`. | Care | core | CareLog |
