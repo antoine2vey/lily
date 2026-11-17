@@ -69,7 +69,7 @@ A decision page answers a person who is choosing an app. Each page is a static r
 
 ### Tools
 
-The indoor watering calculator takes a plant, the light in the room, the location and the season, and returns a watering interval from the model the app uses. The site has no server at runtime, so the calculator runs in the browser. The model's pure code must be callable from `packages/web` before the page can ship.
+The indoor watering calculator shipped on 2026-11-17 at `/en/watering-calculator` and `/fr/watering-calculator`. It takes a plant from the catalog, the light in the room, the window direction, a city, a month and an outdoor temperature. It returns a watering interval from the model the app uses, with the share of each factor. The site has no server at runtime, so the model runs in the browser, from `@lily/shared/indoor-demand`. The French page keeps the English slug until the deferred French slugs land. The footer links to the calculator and the header does not, because the French header has no room for one below 700 px.
 
 ### Assistants and mentions
 
@@ -98,7 +98,7 @@ Volumes are rough public estimates. Positions are from live SERPs read on 2026-1
 | Category | plant care app | application entretien plantes | `/en`, `/fr` | Homepage title and hero kicker carry it. SERPs are App Store pages, Reddit and listicles. |
 | Feature | plant watering reminder app | rappel arrosage plantes, application arrosage plantes | to build | French SERP is thin (Play, hortenia.com, planti.app). Best near-term product win. |
 | Comparison | planta alternative, greg vs planta | alternative à Planta | to build | Listicles rank. A fair comparison page with a table can rank. |
-| Tool | plant watering calculator, how often to water calculator | calculateur arrosage plantes | to build | The answer depends on the visitor's room, so an AI Overview cannot give it. |
+| Tool | plant watering calculator, how often to water calculator | calculateur arrosage plantes | `/watering-calculator` | The answer depends on the visitor's room, so an AI Overview cannot give it. |
 | Open source | open source plant care app | application plantes open source | to build | Low volume. The larger apps cannot compete for it. |
 | Brand | with lily, lily plant care app | | `/en` | Another app, "Care-Lily", outranks us for "lily plant care app". Start every storefront name with "Lily" in App Store Connect. |
 | Plant care | {plant} care | entretien {plante} | `/blog/{plant}-care-guide` | One hub per plant. Frozen. |
@@ -157,7 +157,7 @@ First check that the post supports a decision page, a tool or a season, as the B
 In order. Each line is one shippable page or change.
 
 1. App Store listing pass, French storefront first.
-2. Free indoor watering calculator, in English and French.
+2. Done on 2026-11-17. Free indoor watering calculator, in English and French.
 3. French feature page for "rappel arrosage plantes", with an English twin for "plant watering reminder app".
 4. Comparison page "Lily vs Planta" in both locales, then "Planta alternative" and "Greg vs Planta vs Lily".
 5. Page for "open source plant care app".
@@ -175,7 +175,7 @@ Dropped:
 
 Review monthly and write one line in the log below.
 
-- **Installs per kind of page.** App Store Connect, App Analytics, by campaign. Each clickable App Store link carries the campaign `web-<kind>-<locale>`, where the kind is `home`, `page`, `blog` or `post`. The join page carries `web-join`. Only the home page, the about page and the posts render a button today, so `web-blog-<locale>` reports nothing until the blog index gets one. A campaign appears only after five first-time downloads, as [Apple's help on campaigns](https://developer.apple.com/help/app-store-connect/view-app-analytics/manage-campaigns) says, so the campaigns name a kind of page and not a single page. Split a kind into pages when its campaign passes that threshold every month.
+- **Installs per kind of page.** App Store Connect, App Analytics, by campaign. Each clickable App Store link carries the campaign `web-<kind>-<locale>`, where the kind is `home`, `page`, `blog`, `post` or `tool`. The join page carries `web-join`. Only the home page, the about page, the posts and the calculator render a button today, so `web-blog-<locale>` reports nothing until the blog index gets one. A campaign appears only after five first-time downloads, as [Apple's help on campaigns](https://developer.apple.com/help/app-store-connect/view-app-analytics/manage-campaigns) says, so the campaigns name a kind of page and not a single page. Split a kind into pages when its campaign passes that threshold every month.
 - **App Store listing.** Impressions, product page views and conversion rate, per storefront.
 - **Assistant panel.** Ask ChatGPT, Gemini, Perplexity and Claude the questions below, each in a new conversation. Record whether the answer names Lily.
   - What is the best plant care app?
@@ -194,4 +194,5 @@ Review monthly and write one line in the log below.
 | 2026-11-06 | 289 posts per locale merged into 125 hubs and rewritten. Old slugs return a 301. Author named, `/team` page added, dates corrected. | Fewer, stronger pages. "Crawled, currently not indexed" should fall over 4 to 8 weeks. |
 | 2026-11-06 | Homepage title "Lily: Plant Care App with Smart Watering Reminders". Play links hidden. Trailing-slash 301s. | Category-keyword impressions on `/en` and `/fr`. |
 | 2026-11-17 | Campaign tokens on every clickable App Store link, per kind of page and locale. The build fails on an untagged link. Android paused. | Installs per kind of page in App Analytics, once a campaign has five first-time downloads. |
+| 2026-11-17 | Indoor watering calculator published in both locales, with `WebApplication` JSON-LD, a sitemap entry and the campaign `web-tool-<locale>`. | Impressions on "plant watering calculator" and "calculateur arrosage plantes" within 4 to 8 weeks, and installs under the tool campaign. |
 | 2026-11-17 | Plan revised. The App Store listing, decision pages and tools now come before the articles. The 125 hubs are frozen until 2027-02-06. | No traffic change from the revision itself. |
