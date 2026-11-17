@@ -68,10 +68,10 @@ export const fr = {
   },
   result: {
     label: "Rythme d'arrosage",
-    every: { one: 'Tous les jours', other: 'Tous les {count} jours' },
+    every: { one: 'Tous les jours', other: 'Tous les {count} jours' },
     base: {
       one: 'Rythme de base pour {plant} : tous les jours',
-      other: 'Rythme de base pour {plant} : tous les {count} jours',
+      other: 'Rythme de base pour {plant} : tous les {count} jours',
     },
     total: 'Variation du besoin en eau : {value}',
     percent: '{value} %',
