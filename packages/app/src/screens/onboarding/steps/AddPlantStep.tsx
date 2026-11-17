@@ -19,6 +19,7 @@ import { useCreatePlant } from '@/hooks/useCreatePlant'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useIconColors } from '@/hooks/useIconColors'
 import type { OnboardingData } from '@/hooks/useOnboardingFlow'
+import { catalogPlantToCreateRequest } from '@/utils/catalog-plant'
 import { useEffectQuery } from '@/utils/client'
 
 interface AddPlantStepProps {
@@ -111,23 +112,7 @@ export function AddPlantStep({
     async (plant: CatalogPlant) => {
       setAddingPlantId(plant.id)
       try {
-        await createPlant({
-          payload: {
-            name: plant.name,
-            description: plant.description ?? undefined,
-            category: plant.category ?? undefined,
-            wateringFrequencyDays: plant.wateringFrequencyDays,
-            fertilizationFrequencyDays:
-              plant.fertilizationFrequencyDays ?? undefined,
-            mistingFrequencyDays: plant.mistingFrequencyDays ?? undefined,
-            repottingFrequencyDays: plant.repottingFrequencyDays ?? undefined,
-            luxNeeded: plant.luxNeeded ?? 2500,
-            humidityRating: plant.humidityRating,
-            petToxicityRating: plant.petToxicityRating,
-            wateringRating: plant.wateringRating,
-            remindersEnabled: true,
-          },
-        })
+        await createPlant({ payload: catalogPlantToCreateRequest(plant) })
         onPlantAdded({
           plantName: plant.name,
           plantDays: plant.wateringFrequencyDays,

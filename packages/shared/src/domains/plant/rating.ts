@@ -25,8 +25,8 @@ export const ratingLevel = (rating: number): LuminosityLevel =>
     Match.orElse(() => 5 as const)
   )
 
-// Bands fitted on the plant catalog: they put 25 of its 31 entries at the
-// level of their curated wateringRating. A frequency never earns level 5.
+// Bands fitted on the curated wateringRating of the plant catalog entries.
+// A frequency never earns level 5.
 export const wateringRatingFromFrequency = (
   wateringFrequencyDays: number
 ): number =>

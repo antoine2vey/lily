@@ -182,10 +182,12 @@ describe('createPlant', () => {
   })
 
   it.each([
-    [3, 70],
-    [7, 50],
-    [10, 30],
-    [14, 10],
+    [5, 70],
+    [6, 50],
+    [8, 50],
+    [9, 30],
+    [12, 30],
+    [13, 10],
   ])(
     'derives the watering rating of a plant watered every %i days and named no rating: %i',
     async (wateringFrequencyDays, wateringRating) => {
