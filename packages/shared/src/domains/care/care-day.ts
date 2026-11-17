@@ -41,6 +41,10 @@ export const CareDays = {
   of,
   today: (timezone: string, now: DateTime.DateTime): CareDay =>
     of(now, timezone),
+  /**
+   * First instant of `day` in `timezone`, in UTC when Intl does not know the
+   * zone (see `zoneFromNameOrUtc`).
+   */
   startOf,
   addDays,
   daysBetween,
