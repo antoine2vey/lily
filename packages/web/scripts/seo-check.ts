@@ -3,6 +3,8 @@ import { join, relative } from 'node:path'
 import { Array, Option, Order, pipe, Record, String } from 'effect'
 
 const ORIGIN = 'https://withlily.app'
+const APP_STORE = 'https://apps.apple.com'
+const APP_STORE_PROVIDER_ID = '125135094'
 const ENTITIES: Record<string, string> = {
   amp: '&',
   lt: '<',
@@ -31,6 +33,7 @@ interface Page {
   readonly robots: string
   readonly jsonLd: ReadonlyArray<string>
   readonly h1: number
+  readonly appStoreLinks: ReadonlyArray<string>
 }
 
 const IGNORED = /^(404|_not-found|google[0-9a-f]+)\.html$/
@@ -73,6 +76,7 @@ const parse = async (url: string, html: string): Promise<Page> => {
     robots: '',
     jsonLd: [] as string[],
     h1: 0,
+    appStoreLinks: [] as string[],
   }
   let inTitle = false
   let ld = ''
@@ -121,6 +125,11 @@ const parse = async (url: string, html: string): Promise<Page> => {
         ld += t.text
       },
     })
+    .on(`a[href^="${APP_STORE}"]`, {
+      element: (el) => {
+        page.appStoreLinks.push(decodeEntities(el.getAttribute('href') ?? ''))
+      },
+    })
     .on('h1', {
       element: () => {
         page.h1++
@@ -162,6 +171,39 @@ const load = async (root: string) => {
   }
 }
 
+// Derived from the page path, not from the kind each call site passes, so a wrong kind fails here.
+const CAMPAIGNS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^\/join$/, 'web-join'],
+  [/^\/(en|fr)$/, 'web-home-$1'],
+  [/^\/(en|fr)\/(about|privacy|support|team|terms)$/, 'web-page-$1'],
+  [/^\/(en|fr)\/blog(\/page\/\d+)?$/, 'web-blog-$1'],
+  [/^\/(en|fr)\/blog\/[^/]+$/, 'web-post-$1'],
+]
+
+const expectedCampaign = (url: string): Option.Option<string> => {
+  const path = new URL(url).pathname
+  return pipe(
+    Array.findFirst(CAMPAIGNS, ([pattern]) => pattern.test(path)),
+    Option.map(([pattern, campaign]) => String.replace(pattern, campaign)(path))
+  )
+}
+
+const appStoreErrors = (p: Page): ReadonlyArray<string> =>
+  Array.flatMap(p.appStoreLinks, (href) => {
+    const params = new URL(href).searchParams
+    return Option.match(expectedCampaign(p.url), {
+      onNone: () => [`${p.url} has App Store link ${href} but no campaign`],
+      onSome: (ct) =>
+        params.get('pt') === APP_STORE_PROVIDER_ID &&
+        params.get('mt') === '8' &&
+        params.get('ct') === ct
+          ? []
+          : [
+              `${p.url} App Store link ${href} lacks pt=${APP_STORE_PROVIDER_ID}&ct=${ct}&mt=8`,
+            ],
+    })
+  })
+
 const isIndexable = (p: Page) => !String.includes('noindex')(p.robots)
 
 const lint = (pages: Record<string, Page>, sitemap: ReadonlyArray<string>) => {
@@ -169,6 +211,7 @@ const lint = (pages: Record<string, Page>, sitemap: ReadonlyArray<string>) => {
   const warnings: string[] = []
   for (const p of Record.values(pages)) {
     if (!p.title) errors.push(`${p.url} missing <title>`)
+    errors.push(...appStoreErrors(p))
     if (!isIndexable(p)) continue
     if (!p.description) errors.push(`${p.url} missing description`)
     if (p.canonical !== p.url)
