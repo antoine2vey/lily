@@ -84,6 +84,11 @@ jobs:
         run: |
           bun run --filter=@lily/web preview
           bun packages/web/scripts/hydration-check.ts
+      - name: Check the watering calculator matches its model
+        timeout-minutes: 5
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: bun packages/web/scripts/calculator-check.ts
 
   docs:
     name: Docs references
