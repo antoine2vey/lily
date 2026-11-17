@@ -85,7 +85,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 90,
     petToxicityRating: 60,
     wateringRating: 60,
-    luxNeeded: 8000,
+    luxNeeded: 40000,
     translations: {
       en: {
         name: 'Bird of Paradise',
@@ -110,7 +110,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 30,
     petToxicityRating: 10,
     wateringRating: 80,
-    luxNeeded: 1500,
+    luxNeeded: 500,
     translations: {
       en: {
         name: 'Calathea',
@@ -284,7 +284,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 90,
     petToxicityRating: 10,
     wateringRating: 15,
-    luxNeeded: 10000,
+    luxNeeded: 40000,
     translations: {
       en: {
         name: 'Echeveria',
@@ -308,7 +308,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 90,
     petToxicityRating: 20,
     wateringRating: 10,
-    luxNeeded: 10000,
+    luxNeeded: 40000,
     translations: {
       en: {
         name: 'Cactus',
@@ -358,7 +358,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 30,
     petToxicityRating: 60,
     wateringRating: 40,
-    luxNeeded: 1500,
+    luxNeeded: 500,
     translations: {
       en: {
         name: 'Pothos',
@@ -435,7 +435,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 30,
     petToxicityRating: 10,
     wateringRating: 80,
-    luxNeeded: 1500,
+    luxNeeded: 500,
     translations: {
       en: {
         name: 'Boston Fern',
@@ -459,7 +459,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 30,
     petToxicityRating: 10,
     wateringRating: 90,
-    luxNeeded: 1500,
+    luxNeeded: 500,
     translations: {
       en: {
         name: 'Maidenhair Fern',
@@ -485,7 +485,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 30,
     petToxicityRating: 70,
     wateringRating: 70,
-    luxNeeded: 1500,
+    luxNeeded: 500,
     translations: {
       en: {
         name: 'Peace Lily',
@@ -560,7 +560,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 10,
     petToxicityRating: 60,
     wateringRating: 20,
-    luxNeeded: 500,
+    luxNeeded: 100,
     translations: {
       en: {
         name: 'ZZ Plant',
@@ -585,7 +585,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 30,
     petToxicityRating: 10,
     wateringRating: 50,
-    luxNeeded: 1500,
+    luxNeeded: 500,
     translations: {
       en: {
         name: 'Spider Plant',
@@ -635,7 +635,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 90,
     petToxicityRating: 10,
     wateringRating: 70,
-    luxNeeded: 10000,
+    luxNeeded: 40000,
     translations: {
       en: { name: 'Basil', description: 'Fragrant culinary herb for cooking' },
       fr: {
@@ -677,7 +677,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 90,
     petToxicityRating: 60,
     wateringRating: 20,
-    luxNeeded: 10000,
+    luxNeeded: 40000,
     translations: {
       en: {
         name: 'Lavender',
@@ -727,7 +727,7 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     lightingRating: 30,
     petToxicityRating: 10,
     wateringRating: 50,
-    luxNeeded: 1500,
+    luxNeeded: 500,
     translations: {
       en: {
         name: 'Parlor Palm',
