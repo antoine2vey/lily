@@ -1,3 +1,8 @@
+/**
+ * The zone helpers take a zone name that has already been decoded by the
+ * `TimeZone` schema. They compute in UTC, with no error, for a name the schema
+ * rejects, such as `GMT+05:00` or an unknown name.
+ */
 import { DateTime, Option, pipe } from 'effect'
 
 /** Zero-pad a 1-2 digit number to a 2-char string (e.g. 6 -> "06"). */

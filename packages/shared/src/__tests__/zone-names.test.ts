@@ -84,6 +84,25 @@ describe('zone names in the date helpers', () => {
     expect(zoneFromName('Not/A_Zone')).toEqual(Option.none())
   })
 
+  // Offsets read from `zdump -v -c 2026,2027`. Etc/GMT+N is UTC-N (POSIX sign).
+  it.each([
+    ['Etc/GMT+5', '2026-11-16', '2026-11-16T05:00:00.000Z'],
+    ['Etc/GMT-14', '2026-11-16', '2026-11-15T10:00:00.000Z'],
+    // Clocks go 02:00 CET to 03:00 CEST on 2026-03-29, a 23-hour day.
+    ['Europe/Paris', '2026-03-29', '2026-03-28T23:00:00.000Z'],
+    ['Europe/Paris', '2026-03-30', '2026-03-29T22:00:00.000Z'],
+    // Clocks go 00:00 -04 to 01:00 -03 on 2026-09-06, so the day starts at 01:00.
+    ['America/Santiago', '2026-09-06', '2026-09-06T04:00:00.000Z'],
+  ])('starts %s day %s at %s', (timezone, dayKey, start) => {
+    const noon = DateTime.add(DateTime.makeUnsafe(start), { hours: 12 })
+    expect(iso(CareDays.startOf(CareDay.make(dayKey), timezone))).toBe(start)
+    expect(Option.map(startOfLocalDay(dayKey, timezone), iso)).toEqual(
+      Option.some(start)
+    )
+    expect(iso(startOfDay(noon, timezone))).toBe(start)
+    expect(localDayKey(noon, timezone)).toBe(dayKey)
+  })
+
   it('resolves every zone name tzdata knows to the day it starts', () => {
     const names = [...CANONICAL_TIME_ZONES, ...Record.keys(TIME_ZONE_ALIASES)]
     const mismatched = Array.filter(
