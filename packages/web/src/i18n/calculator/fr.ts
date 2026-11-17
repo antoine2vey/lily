@@ -2,7 +2,7 @@ import type { CalculatorMessages } from './en'
 
 export const fr = {
   meta: {
-    title: "Calculateur arrosage plantes d'intérieur | Lily",
+    title: "Calculateur d'arrosage pour plantes d'intérieur | Lily",
     description:
       "Calculateur d'arrosage gratuit : choisissez une plante, sa lumière, l'orientation de la fenêtre, une ville et un mois pour connaître son rythme d'arrosage.",
     breadcrumb: "Calculateur d'arrosage",
