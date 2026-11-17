@@ -21,8 +21,13 @@ jobs:
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
     outputs:
       api_db: ${{ steps.filter.outputs.api_db }}
+      pr_run: ${{ steps.reuse.outputs.pr_run }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -40,6 +45,21 @@ jobs:
               - '.github/actions/setup/**'
               - 'Dockerfile.prod'
               - '.dockerignore'
+      # The PR run that passed on this exact tree already ran integration and
+      # zone-rules. main still runs checks, whose Turbo cache writes PR runs read.
+      - name: Reuse a passing PR run on the same tree
+        id: reuse
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          url=$(bash scripts/reuse-pr-verdict.sh "$REPO" "$SHA" "$BEFORE" 2>"$RUNNER_TEMP/reason") || url=''
+          cat "$RUNNER_TEMP/reason"
+          cat "$RUNNER_TEMP/reason" >> "$GITHUB_STEP_SUMMARY"
+          echo "pr_run=$url" >> "$GITHUB_OUTPUT"
 
   checks:
     name: Lint · Typecheck · Test · Build
@@ -78,7 +98,7 @@ jobs:
   integration:
     name: Integration tests (${{ matrix.shard }}/4)
     needs: changes
-    if: needs.changes.outputs.api_db == 'true'
+    if: needs.changes.outputs.api_db == 'true' && needs.changes.outputs.pr_run == ''
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -145,7 +165,7 @@ jobs:
   zone-rules:
     name: Zone rules in the api image
     needs: changes
-    if: needs.changes.outputs.api_db == 'true'
+    if: needs.changes.outputs.api_db == 'true' && needs.changes.outputs.pr_run == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -175,7 +195,8 @@ jobs:
           docs='${{ needs.docs.result }}'
           integration='${{ needs.integration.result }}'
           zone_rules='${{ needs.zone-rules.result }}'
-          echo "changes=$changes checks=$checks docs=$docs integration=$integration zone-rules=$zone_rules"
+          pr_run='${{ needs.changes.outputs.pr_run }}'
+          echo "changes=$changes checks=$checks docs=$docs integration=$integration zone-rules=$zone_rules pr_run=$pr_run"
           if [ "$changes" != 'success' ]; then
             echo '::error::changes job did not succeed'
             exit 1
