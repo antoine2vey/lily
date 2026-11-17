@@ -44,6 +44,7 @@ type Creator = 'mcpLinked' | 'appOnly'
 interface Case {
   readonly name: string
   readonly creator: Creator
+  readonly owner?: Creator
   readonly dateAdded: Date
   readonly humidityRating: number
   readonly wateringRating: number
@@ -267,6 +268,24 @@ const predicateCases: ReadonlyArray<Case> = [
     expected: { humidity: 0, watering: 0 },
   },
   {
+    name: 'MCP shaped, created through MCP, owned by an app-only user',
+    ...mcpShape,
+    owner: 'appOnly',
+    dateAdded: MCP_ERA,
+    expected: {
+      humidity: DEFAULT_HUMIDITY_RATING,
+      watering: wateringRatingFromFrequency(4),
+    },
+  },
+  {
+    name: 'MCP shaped, owned by an MCP user, created by an app-only user',
+    ...mcpShape,
+    creator: 'appOnly',
+    owner: 'mcpLinked',
+    dateAdded: MCP_ERA,
+    expected: { humidity: 0, watering: 0 },
+  },
+  {
     name: 'MCP shaped with a description',
     ...mcpShape,
     dateAdded: MCP_ERA,
@@ -415,7 +434,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const [row] = await db
           .insert(schema.plants)
           .values({
-            userId: creators[c.creator],
+            userId: creators[c.owner ?? c.creator],
             createdByUserId: creators[c.creator],
             name: c.name,
             description: c.description,

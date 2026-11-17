@@ -12,8 +12,8 @@
 --     hardcoded 0, and the edit screen saves back the 0 its slider loads, so a
 --     0 kept since then was not chosen.
 --   * a pet rating other than 0 or 100, which only the scanner and onboarding
---     write, and neither sent a watering rating. 0087 raised a chosen 0 or 100
---     to 60 on manual plants named after a toxic catalog entry. Such a plant
+--     write, and neither sent a watering rating. 0087 raised a chosen 0 to 60
+--     on manual plants named after a toxic catalog entry. Such a plant
 --     looks the same as an onboarding plant of that species, so a 60 on those
 --     names stays.
 --   * the MCP create_plant shape below
