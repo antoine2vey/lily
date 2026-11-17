@@ -410,6 +410,7 @@ html:not([lang="fr"]) [data-locale="fr"] {
 /* Both buttons share one style: refusing is as easy as accepting. */
 .m-consent-actions button {
   flex: 1;
+  min-height: 44px;
   padding: 10px 16px;
   border-radius: 999px;
   border: 1px solid var(--text);
