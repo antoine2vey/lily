@@ -59,7 +59,7 @@ expect() { # expect <name> <want> <got>
 	fi
 }
 
-# Workflow guards. Bun.YAML reads the workflow the way GitHub does, so no
+# Workflow guards. Bun.YAML parses the workflow into its structure, so no
 # comment, quoting, indent or flow style can hide a grant from them.
 # workflow_facts prints one line per `permissions:` or `concurrency:` entry:
 # "P <scope> <key>=<value>" or "C <scope> <key>=<value>", where scope is the job
