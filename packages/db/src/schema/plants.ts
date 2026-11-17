@@ -15,6 +15,7 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -94,3 +95,21 @@ export const plantsRelations = relations(plants, ({ one, many }) => ({
   delegations: many(delegationPlants),
   careSchedules: many(plantCareSchedules),
 }))
+
+// The ratings 0090 backfilled with their old values, so the backfill can be
+// undone (#329).
+export const plantRatingBackfill = pgTable(
+  'plant_rating_backfill',
+  {
+    plantId: uuid('plant_id')
+      .notNull()
+      .references(() => plants.id, { onDelete: 'cascade' }),
+    rating: text('rating', { enum: ['humidity', 'watering'] }).notNull(),
+    oldValue: integer('old_value').notNull(),
+    newValue: integer('new_value').notNull(),
+    backfilledAt: timestamp('backfilled_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.plantId, table.rating] })]
+)
