@@ -31,7 +31,8 @@ interface Case {
   readonly answer: Answer
   readonly heading: (t: Messages['Join']) => string
   readonly skeletonTwin?: true
-  // A sweep case runs only where the banner leaves the least room: on the short phones, with no stored choice.
+  // A sweep case runs with no stored choice, on the short phones, where the banner leaves the least room, and on
+  // the desktop, where a name must show whole.
   // Within a sweep, a text that wraps onto as many lines as one already measured gives the same card, so it is skipped.
   readonly sweep?: {
     readonly element: string
@@ -169,10 +170,10 @@ const VIEWPORTS = [
     width: 390,
     height: 664,
     mobile: true,
-    short: true,
+    sweep: true,
   },
-  { name: 'small phone', width: 360, height: 640, mobile: true, short: true },
-  { name: 'desktop', width: 1350, height: 940, mobile: false },
+  { name: 'small phone', width: 360, height: 640, mobile: true, sweep: true },
+  { name: 'desktop', width: 1350, height: 940, mobile: false, sweep: true },
 ] as const
 
 // Space Grotesk loads with font-display: optional, so a visit draws either it or the fallback, and the two wrap
@@ -363,7 +364,7 @@ try {
         for (const consent of CONSENTS)
           for (const c of CASES) {
             if (c.sweep !== undefined) {
-              if (!('short' in viewport && consent === 'no stored choice'))
+              if (!('sweep' in viewport && consent === 'no stored choice'))
                 continue
               const lines = wraps.get(c.name)
               if (lines !== undefined && measured.has(lines)) {
@@ -400,8 +401,9 @@ try {
                 button: Box | null
                 banner: Box | null
                 pageWidth: number
+                clamped: ReadonlyArray<string>
               }>(
-                `({language:navigator.language,heading:document.querySelector('main h1').textContent,shifts:window.joinShifts,skeleton:window.joinSkeleton,card:${BOX}('main > div'),button:${BOX}('main a[href^="lily:"]'),banner:${BOX}('.m-consent'),pageWidth:document.documentElement.scrollWidth})`
+                `({language:navigator.language,heading:document.querySelector('main h1').textContent,shifts:window.joinShifts,skeleton:window.joinSkeleton,card:${BOX}('main > div'),button:${BOX}('main a[href^="lily:"]'),banner:${BOX}('.m-consent'),pageWidth:document.documentElement.scrollWidth,clamped:['main p','main h1'].filter(q=>{const e=document.querySelector(q);return e.scrollHeight-e.clientHeight>parseFloat(getComputedStyle(e).lineHeight)/2})})`
               )
               const { root } = await send<{ root: { nodeId: number } }>(
                 'DOM.getDocument',
@@ -449,8 +451,14 @@ try {
                   !isPreview || seen.button !== null
                     ? null
                     : 'the invite preview has no open button',
+                  // The fallback font overflows its line box by a pixel or two, so only half a line or more counts.
+                  viewport.mobile || seen.clamped.length === 0
+                    ? null
+                    : `the desktop cuts off ${seen.clamped.join(' and ')}`,
                   seen.button === null ||
                   banner === null ||
+                  // The desktop shows a name whole, so a sweep name can push the button under the banner there.
+                  (c.sweep !== undefined && !viewport.mobile) ||
                   seen.button.bottom <= banner.top
                     ? null
                     : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
