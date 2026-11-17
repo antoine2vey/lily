@@ -97,21 +97,11 @@ const LOCALES = [
 const VIEWPORTS = [
   { name: 'mobile', width: 412, height: 823, mobile: true },
   { name: 'narrow phone', width: 390, height: 844, mobile: true },
+  // The narrow phone in Safari with both toolbars showing.
+  { name: 'narrow phone with toolbars', width: 390, height: 664, mobile: true },
   { name: 'small phone', width: 360, height: 640, mobile: true },
   { name: 'desktop', width: 1350, height: 940, mobile: false },
 ] as const
-
-// On the small phone the banner takes up to 270 of the 640px and covers the open button in these runs (#321).
-// Remove a run from the list when the button clears the banner there.
-const BANNER_COVERS_BUTTON: ReadonlySet<string> = new Set([
-  'en-US, invite preview, two-line canopy name, small phone',
-  'en-US, invite preview, unbroken inviter name, small phone',
-  'en-US, invite preview, long names, small phone',
-  'fr-FR, invite preview, small phone',
-  'fr-FR, invite preview, two-line canopy name, small phone',
-  'fr-FR, invite preview, unbroken inviter name, small phone',
-  'fr-FR, invite preview, long names, small phone',
-])
 
 const CONSENTS = ['no stored choice', 'stored choice'] as const
 
@@ -274,8 +264,7 @@ try {
       })
       for (const consent of CONSENTS)
         for (const c of CASES) {
-          const run = `${language}, ${c.name}, ${viewport.name}`
-          const name = `${run}, ${consent}`
+          const name = `${language}, ${c.name}, ${viewport.name}, ${consent}`
           answer = c.answer
           await evaluate(
             consent === 'stored choice'
@@ -339,7 +328,6 @@ try {
                   : 'the invite preview has no open button',
                 seen.button === null ||
                 banner === null ||
-                BANNER_COVERS_BUTTON.has(run) ||
                 seen.button.bottom <= banner.top
                   ? null
                   : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
