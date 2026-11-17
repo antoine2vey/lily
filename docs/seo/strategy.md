@@ -61,7 +61,7 @@ The first three screenshots carry the pitch in search results. Show the watering
 A decision page answers a person who is choosing an app. Each page is a static route with its own `seo()` call, in both locales.
 
 - A feature page for watering reminders. The French search results for "rappel arrosage plantes" are thin, so the French page comes first.
-- A comparison page "Lily vs Planta", fair, with a table and a date. Then a "Planta alternative" page.
+- A comparison page "Lily vs Planta", fair, with a table and a date. Then a "Planta alternative" page and a "Greg vs Planta vs Lily" page.
 - A page for "open source plant care app". Lily is AGPL-3.0 and the larger apps are closed, so this query is one Lily can own.
 - Feature pages for shared plants (Canopy), with the plant-sitter and vacation angle, and for Ask Lily (diagnosis).
 
