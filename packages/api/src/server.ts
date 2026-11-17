@@ -15,6 +15,7 @@ import { AdminAnalyticsApiLive } from '@lily/api/services/admin-analytics/handle
 import { startChatFollowUpWorker } from '@lily/api/services/ai-chat/follow-up-worker'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { startAnalyticsScheduler } from '@lily/api/services/analytics-scheduler/scheduler'
+import { startAuthCleanupScheduler } from '@lily/api/services/auth/cleanup-scheduler'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { startBlogGeneratorScheduler } from '@lily/api/services/blog-generator/scheduler'
 import {
@@ -110,6 +111,8 @@ const AccountCleanupSchedulerLive = Layer.effectDiscard(
   startAccountCleanupScheduler
 )
 
+const AuthCleanupSchedulerLive = Layer.effectDiscard(startAuthCleanupScheduler)
+
 const AnalyticsSchedulerLive = Layer.effectDiscard(startAnalyticsScheduler)
 
 const ActivitySchedulerLive = Layer.effectDiscard(startActivityScheduler)
@@ -154,6 +157,7 @@ const AllSchedulersLive = Layer.mergeAll(
   EmbeddingBackfillSchedulerLive,
   ChatFollowUpWorkerLive,
   AccountCleanupSchedulerLive,
+  AuthCleanupSchedulerLive,
   WeeklyRecapSchedulerLive,
   AnalyticsSchedulerLive,
   ActivitySchedulerLive,
