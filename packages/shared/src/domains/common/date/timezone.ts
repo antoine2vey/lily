@@ -22,7 +22,12 @@ export const zoneFromName = (
     ? Option.some(DateTime.zoneMakeOffset(0))
     : DateTime.zoneMakeNamed(timezone)
 
-/** `zoneFromName`, falling back to UTC when Intl does not know `timezone`. */
+/**
+ * `zoneFromName`, falling back to UTC when Intl does not know `timezone`, such
+ * as `GMT+05:00`, with no error (`startOfLocalDay` returns None for those
+ * instead). Pass a decoded `TimeZone`: names that schema rejects but Intl
+ * accepts, such as `+05:00` or `europe/paris`, compute in that zone.
+ */
 export const zoneFromNameOrUtc = (timezone: string): DateTime.TimeZone =>
   Option.getOrElse(zoneFromName(timezone), () => DateTime.zoneMakeOffset(0))
 
