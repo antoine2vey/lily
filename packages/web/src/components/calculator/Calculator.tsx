@@ -1,4 +1,4 @@
-import { Array, DateTime, Option, pipe } from 'effect'
+import { Array, Option, pipe } from 'effect'
 import { type ReactNode, useEffect, useId, useState } from 'react'
 import { fmt, plural, useI18n } from '@/i18n'
 import type { CalculatorMessages } from '@/i18n/calculator'
@@ -58,9 +58,11 @@ const FACTORS: ReadonlyArray<keyof CalculatorFactors> = [
   'dryAir',
 ]
 
+// The visitor's own month, from the native Date. DateTime.toParts reads UTC unless the value is zoned, and zoning it
+// adds 0.8 KB gzipped to the DateTime chunk that every page loads.
 const currentMonth = (fallback: Month): Month =>
   pipe(
-    Array.get(MONTHS, DateTime.toParts(DateTime.nowUnsafe()).month - 1),
+    Array.get(MONTHS, new Date().getMonth()),
     Option.getOrElse(() => fallback)
   )
 
