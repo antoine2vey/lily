@@ -1,14 +1,15 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Array } from 'effect'
+import { Array, Predicate } from 'effect'
 import { en, type Messages } from '../src/i18n/en'
 import { fr } from '../src/i18n/fr'
 
 // usage: bun scripts/join-check.ts [base=http://127.0.0.1:8088]
-// Drives headless Chrome over CDP against the prerendered build (`preview`) and fails when the join page reports a
-// layout shift while the invite view replaces the skeleton. It answers the invite preview call itself, so no run
-// reaches the API.
+// Drives headless Chrome over CDP against the prerendered build (`preview`), in English and in French. It fails
+// when the invite view that replaces the skeleton shifts the layout, moves the top edge of the card or widens the
+// page, when the skeleton is not about as tall as the plain invite preview, and when the consent banner covers the
+// open button. It answers the invite preview call itself, so no run reaches the API.
 
 const CHROME =
   process.env.CHROME_PATH ??
@@ -18,6 +19,8 @@ const [base = 'http://127.0.0.1:8088'] = process.argv.slice(2)
 const CANOPY = 'Probe canopy'
 const LONG_CANOPY =
   'The Extraordinarily Overgrown Greenhouse Of Aunt Wilhelmina'
+const UNBROKEN_INVITER =
+  'Maximilianalexanderfitzgeraldmontgomerywolfeschlegelstein'
 
 type Answer =
   | { readonly status: number; readonly body: unknown }
@@ -27,12 +30,30 @@ interface Case {
   readonly name: string
   readonly answer: Answer
   readonly heading: (t: Messages['Join']) => string
+  readonly skeletonTwin?: true
 }
 
 const CASES: ReadonlyArray<Case> = [
   {
     name: 'invite preview',
     answer: { status: 200, body: { canopyName: CANOPY, inviterName: 'Sam' } },
+    heading: () => CANOPY,
+    skeletonTwin: true,
+  },
+  {
+    name: 'invite preview, two-line canopy name',
+    answer: {
+      status: 200,
+      body: { canopyName: 'The Greenhouse Upstairs', inviterName: 'Sam' },
+    },
+    heading: () => 'The Greenhouse Upstairs',
+  },
+  {
+    name: 'invite preview, unbroken inviter name',
+    answer: {
+      status: 200,
+      body: { canopyName: CANOPY, inviterName: UNBROKEN_INVITER },
+    },
     heading: () => CANOPY,
   },
   {
@@ -68,15 +89,44 @@ const CASES: ReadonlyArray<Case> = [
   },
 ]
 
+const LOCALES = [
+  { language: 'en-US', t: en.Join },
+  { language: 'fr-FR', t: fr.Join },
+] as const
+
 const VIEWPORTS = [
   { name: 'mobile', width: 412, height: 823, mobile: true },
+  { name: 'narrow phone', width: 390, height: 844, mobile: true },
   { name: 'small phone', width: 360, height: 640, mobile: true },
   { name: 'desktop', width: 1350, height: 940, mobile: false },
 ] as const
 
+// On the small phone the banner takes up to 270 of the 640px and covers the open button in these runs (#321).
+// Remove a run from the list when the button clears the banner there.
+const BANNER_COVERS_BUTTON: ReadonlySet<string> = new Set([
+  'en-US, invite preview, two-line canopy name, small phone',
+  'en-US, invite preview, unbroken inviter name, small phone',
+  'en-US, invite preview, long names, small phone',
+  'fr-FR, invite preview, small phone',
+  'fr-FR, invite preview, two-line canopy name, small phone',
+  'fr-FR, invite preview, unbroken inviter name, small phone',
+  'fr-FR, invite preview, long names, small phone',
+])
+
 const CONSENTS = ['no stored choice', 'stored choice'] as const
 
+interface Box {
+  readonly top: number
+  readonly bottom: number
+  readonly height: number
+}
+
 const SKELETON_FRAMES = 10
+
+// The skeleton draws one height for every language and width. French copy and a narrow card wrap the small text
+// onto as many as two more 20px lines, and the slack leaves room for two beyond that. It can be loose, because the
+// card top check is the one that guards against a shift.
+const SKELETON_SLACK = 80
 
 const CORS = [
   { name: 'access-control-allow-origin', value: '*' },
@@ -190,8 +240,9 @@ socket.addEventListener('message', (event) => {
     void onPreview(message.params.requestId, message.params.request.method)
 })
 
-// Records every layout shift, and the height of the card in the first frame, while it still holds the skeleton.
-const PROBE = `window.joinFrames=0;(function count(){window.joinFrames++;requestAnimationFrame(count)})();window.joinShifts=[];new PerformanceObserver(l=>{for(const e of l.getEntries())window.joinShifts.push(e.value)}).observe({type:'layout-shift',buffered:true});requestAnimationFrame(()=>{window.joinSkeleton=document.querySelector('main > div')?.offsetHeight})`
+// Records every layout shift, and the box of the card in the first frame, while it still holds the skeleton.
+const BOX = `(q=>{const e=document.querySelector(q);if(e===null)return null;const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height}})`
+const PROBE = `window.joinFrames=0;(function count(){window.joinFrames++;requestAnimationFrame(count)})();window.joinShifts=[];new PerformanceObserver(l=>{for(const e of l.getEntries())window.joinShifts.push(e.value)}).observe({type:'layout-shift',buffered:true});requestAnimationFrame(()=>{window.joinSkeleton=${BOX}('main > div')})`
 const TWO_FRAMES = `new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))))`
 
 let failed = false
@@ -204,65 +255,109 @@ try {
   })
   await send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE })
 
+  const { userAgent } = await send<{ userAgent: string }>('Browser.getVersion')
   await send('Page.navigate', { url: `${base}/join/abc` })
   await until('load', `document.readyState === 'complete'`)
-  // The join page has no locale in its path, so it follows the browser language.
-  const t: Messages['Join'] = (
-    await evaluate<string>('navigator.language')
-  ).startsWith('fr')
-    ? fr.Join
-    : en.Join
 
-  for (const viewport of VIEWPORTS) {
-    await send('Emulation.setDeviceMetricsOverride', {
-      width: viewport.width,
-      height: viewport.height,
-      deviceScaleFactor: 1,
-      mobile: viewport.mobile,
+  for (const { language, t } of LOCALES) {
+    // The join page has no locale in its path, so it follows the browser language.
+    await send('Emulation.setUserAgentOverride', {
+      userAgent,
+      acceptLanguage: language,
     })
-    for (const consent of CONSENTS)
-      for (const c of CASES) {
-        const name = `${c.name}, ${viewport.name}, ${consent}`
-        answer = c.answer
-        await evaluate(
-          consent === 'stored choice'
-            ? `localStorage.setItem('analytics-consent', 'denied:' + Date.now())`
-            : `localStorage.clear()`
-        )
-        await send('Page.navigate', { url: `${base}/join/abc` })
-        try {
-          await until(
-            'the invite view',
-            `document.querySelector('main h1') !== null`
+    for (const viewport of VIEWPORTS) {
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: viewport.width,
+        height: viewport.height,
+        deviceScaleFactor: 1,
+        mobile: viewport.mobile,
+      })
+      for (const consent of CONSENTS)
+        for (const c of CASES) {
+          const run = `${language}, ${c.name}, ${viewport.name}`
+          const name = `${run}, ${consent}`
+          answer = c.answer
+          await evaluate(
+            consent === 'stored choice'
+              ? `localStorage.setItem('analytics-consent', 'denied:' + Date.now())`
+              : `localStorage.clear()`
           )
-          // The consent banner and its settings link mount after hydration, and a shift is reported with the next frame.
-          await until(
-            'hydration',
-            `document.querySelector('.m-consent-settings') !== null`
-          )
-          await evaluate(TWO_FRAMES)
-          await sleep(300)
-          const seen = await evaluate<{
-            heading: string
-            shifts: Array<number>
-            skeleton: number
-            card: number
-          }>(
-            `({heading:document.querySelector('main h1').textContent,shifts:window.joinShifts,skeleton:window.joinSkeleton,card:document.querySelector('main > div').offsetHeight})`
-          )
-          const cls = Array.reduce(seen.shifts, 0, (sum, v) => sum + v)
-          const ok = seen.heading === c.heading(t) && cls === 0
-          if (!ok) failed = true
-          console.log(
-            `${ok ? 'ok  ' : 'FAIL'} ${name}\n     layout shift=${cls.toFixed(4)} (want 0)  heading="${seen.heading}" (want "${c.heading(t)}")  card height ${seen.skeleton}px as skeleton, ${seen.card}px after`
-          )
-        } catch (error) {
-          failed = true
-          console.log(
-            `FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`
-          )
+          await send('Page.navigate', { url: `${base}/join/abc` })
+          try {
+            await until(
+              'the invite view',
+              `document.querySelector('main h1') !== null`
+            )
+            // The consent banner and its settings link mount after hydration, and a shift is reported with the next frame.
+            await until(
+              'hydration',
+              `document.querySelector('.m-consent-settings') !== null`
+            )
+            await evaluate(TWO_FRAMES)
+            await sleep(300)
+            const seen = await evaluate<{
+              language: string
+              heading: string
+              shifts: Array<number>
+              skeleton: Box
+              card: Box
+              button: Box | null
+              banner: Box | null
+              pageWidth: number
+            }>(
+              `({language:navigator.language,heading:document.querySelector('main h1').textContent,shifts:window.joinShifts,skeleton:window.joinSkeleton,card:${BOX}('main > div'),button:${BOX}('main a[href^="lily:"]'),banner:${BOX}('.m-consent'),pageWidth:document.documentElement.scrollWidth})`
+            )
+            const cls = Array.reduce(seen.shifts, 0, (sum, v) => sum + v)
+            const banner =
+              seen.banner !== null && seen.banner.height > 0
+                ? seen.banner
+                : null
+            const isPreview =
+              c.answer !== 'connection refused' && c.answer.status === 200
+            const problems = Array.filter(
+              [
+                seen.language === language
+                  ? null
+                  : `browser language "${seen.language}" (want "${language}")`,
+                seen.heading === c.heading(t)
+                  ? null
+                  : `heading "${seen.heading}" (want "${c.heading(t)}")`,
+                cls === 0 ? null : `layout shift ${cls.toFixed(4)} (want 0)`,
+                seen.card.top === seen.skeleton.top
+                  ? null
+                  : `the card top moved from ${seen.skeleton.top}px to ${seen.card.top}px`,
+                seen.pageWidth <= viewport.width
+                  ? null
+                  : `the page is ${seen.pageWidth}px wide in a ${viewport.width}px viewport`,
+                c.skeletonTwin !== true ||
+                Math.abs(seen.card.height - seen.skeleton.height) <=
+                  SKELETON_SLACK
+                  ? null
+                  : `the skeleton card is ${seen.skeleton.height}px tall and the invite preview ${seen.card.height}px (want within ${SKELETON_SLACK}px)`,
+                !isPreview || seen.button !== null
+                  ? null
+                  : 'the invite preview has no open button',
+                seen.button === null ||
+                banner === null ||
+                BANNER_COVERS_BUTTON.has(run) ||
+                seen.button.bottom <= banner.top
+                  ? null
+                  : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
+              ],
+              Predicate.isNotNull
+            )
+            if (problems.length > 0) failed = true
+            console.log(
+              `${problems.length === 0 ? 'ok  ' : 'FAIL'} ${name}\n     card top ${seen.card.top}px, height ${seen.skeleton.height}px as skeleton, ${seen.card.height}px after${seen.button !== null && banner !== null ? `, open button ends at ${seen.button.bottom}px, banner starts at ${banner.top}px` : ''}${problems.map((problem) => `\n     ${problem}`).join('')}`
+            )
+          } catch (error) {
+            failed = true
+            console.log(
+              `FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`
+            )
+          }
         }
-      }
+    }
   }
 } catch (error) {
   failed = true
