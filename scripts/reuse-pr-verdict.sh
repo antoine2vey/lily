@@ -11,8 +11,8 @@
 # then. main only moves forward, so that main is an ancestor of <before>. When
 # <before> is an ancestor of H, so is that main, and the merge ref carried H's
 # tree. The push carries that tree too when its one commit has H's tree on top
-# of <before>. A PR retargeted to main may hold a run that merged H into
-# another base, so a retarget refuses reuse.
+# of <before>. A run of a PR retargeted to main may have merged H into another
+# base, so a retarget of any PR from the head branch refuses reuse.
 set -euo pipefail
 
 repo=${1:-}
@@ -46,11 +46,6 @@ pr=$(api "repos/$repo/commits/$sha/pulls" \
 read -r number head label head_repo <<<"$pr"
 branch=${label#*:}
 
-retargets=$(api --paginate "repos/$repo/issues/$number/events?per_page=100" \
-	--jq '.[] | select(.event == "base_ref_changed") | .event') \
-	|| no_reuse "cannot list the events of PR #$number"
-[ -z "$retargets" ] || no_reuse "PR #$number changed its base branch, so its run may have tested another base"
-
 status=$(api "repos/$repo/compare/$before...$head" --jq .status) \
 	|| no_reuse "cannot compare $before with PR #$number head $head"
 [ "$status" = ahead ] \
@@ -63,11 +58,19 @@ head_tree=$(api "repos/$repo/git/commits/$head" --jq .tree.sha) \
 
 # A run's pull_requests list empties once its head branch is deleted, which
 # happens on merge. The run is matched by head branch instead, and it targeted
-# main when every pull request ever opened from that branch did.
-bases=$(api -X GET "repos/$repo/pulls" -f head="$label" -f state=all -F per_page=100 \
-	--jq '[.[].base.ref] | unique | join(",")') \
+# main when every pull request ever opened from that branch did, and none of
+# them changed its base.
+siblings=$(api -X GET "repos/$repo/pulls" -f head="$label" -f state=all -F per_page=100 \
+	--jq '"\([.[].base.ref] | unique | join(",")) \([.[].number] | join(" "))"') \
 	|| no_reuse "cannot list the pull requests from $label"
+read -r bases numbers <<<"$siblings"
 [ "$bases" = main ] || no_reuse "pull requests from $label target '$bases', not only main"
+for n in $number $numbers; do
+	retargets=$(api --paginate "repos/$repo/issues/$n/events?per_page=100" \
+		--jq '.[] | select(.event == "base_ref_changed") | .event') \
+		|| no_reuse "cannot list the events of PR #$n"
+	[ -z "$retargets" ] || no_reuse "PR #$n from $label changed its base branch, so a run of $label may have tested another base"
+done
 
 runs=$(api "repos/$repo/actions/workflows/ci.yml/runs?head_sha=$head&event=pull_request&status=success" \
 	--jq '.workflow_runs | sort_by(.created_at) | reverse | .[]
