@@ -45,8 +45,8 @@ export function JoinInvite() {
     // so a long name or French copy still leaves the open button above the consent banner.
     <main className="flex min-h-screen items-start justify-center px-6 pt-[max(1.5rem,calc((100vh-46rem)/2))] pb-16 sm:pt-[max(4rem,calc((100vh-36rem)/2))]">
       <div className="w-full max-w-md rounded-3xl bg-surface p-8 text-center shadow-[0_20px_60px_-20px_rgb(0_0_0/0.18)] ring-1 ring-line sm:p-10">
-        <a href="/" className="mb-8 inline-flex" aria-label="Lily">
-          <LilyMark size={56} />
+        <a href="/" className="mb-4 inline-flex sm:mb-8" aria-label="Lily">
+          <LilyMark size={56} className="size-10 sm:size-14" />
         </a>
         {Array.map(langs, (lang) => (
           <div key={lang} lang={lang} data-locale={lang}>
@@ -126,30 +126,30 @@ function Invite({
         ),
       })}
       {Option.match(preview, {
-        onNone: () => <Bar slot="mt-2 h-9" bar="h-7 w-3/4" />,
+        onNone: () => <Bar slot="mt-2 h-8 sm:h-9" bar="h-6 w-3/4 sm:h-7" />,
         onSome: ({ canopyName }) => (
-          <h1 className="mt-2 text-3xl font-bold break-words text-ink">
+          <h1 className="mt-2 text-2xl font-bold break-words text-ink sm:text-3xl">
             {canopyName}
           </h1>
         ),
       })}
-      <p className="mt-4 text-sm text-muted">{t.canopyHint}</p>
       {Option.match(
         Option.zipWith(preview, token, (_, value) => value),
         {
           onNone: () => (
-            <div className="mt-8 h-14 animate-pulse rounded-full bg-chip" />
+            <div className="mt-6 h-14 animate-pulse rounded-full bg-chip" />
           ),
           onSome: (value) => (
             <a
               href={appLink(value)}
-              className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 font-semibold text-on-primary transition-colors hover:bg-primary-dark"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-4 font-semibold text-on-primary transition-colors hover:bg-primary-dark"
             >
               {t.openInLily}
             </a>
           ),
         }
       )}
+      <p className="mt-4 text-sm text-muted">{t.canopyHint}</p>
       <div className="mt-10">
         <p className="font-semibold text-ink">{t.getTheApp}</p>
         <div className="mt-4 flex flex-col justify-center gap-3 sm:flex-row">
