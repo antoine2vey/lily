@@ -10,6 +10,15 @@
  *   https://www.fao.org/4/x0490e/x0490e00.htm
  */
 
+import type { WeatherData } from '@lily/shared'
+import {
+  HUMIDITY_HIGH,
+  HUMIDITY_LOW,
+  TEMP_HIGH_C,
+  TEMP_LOW_C,
+  WIND_HIGH,
+  WIND_LOW,
+} from '@lily/shared'
 import {
   DEFAULT_HUMIDITY_PERCENT,
   DEFAULT_TEMPERATURE_MEAN_C,
@@ -26,16 +35,7 @@ import {
   TEMP_FACTOR_INDOOR_HOT_DAY,
   WIND_FACTOR_HIGH,
   WIND_FACTOR_LOW,
-} from '@lily/api/services/weather/algorithm/coefficients'
-import type { WeatherData } from '@lily/shared'
-import {
-  HUMIDITY_HIGH,
-  HUMIDITY_LOW,
-  TEMP_HIGH_C,
-  TEMP_LOW_C,
-  WIND_HIGH,
-  WIND_LOW,
-} from '@lily/shared'
+} from '@lily/shared/indoor-demand'
 import { Array, Match, Option, pipe } from 'effect'
 
 // ─── Step 3: Temperature Factor ─────────────────────────────────────────────

@@ -59,6 +59,10 @@
       "types": "./src/domains/notification/schema.ts",
       "default": "./src/domains/notification/schema.ts"
     },
+    "./plant-catalog": {
+      "types": "./src/domains/plant-catalog/catalog.ts",
+      "default": "./src/domains/plant-catalog/catalog.ts"
+    },
     "./plant": {
       "types": "./src/domains/plant/schema.ts",
       "default": "./src/domains/plant/schema.ts"
@@ -70,6 +74,10 @@
     "./username": {
       "types": "./src/domains/username/schema.ts",
       "default": "./src/domains/username/schema.ts"
+    },
+    "./indoor-demand": {
+      "types": "./src/domains/weather/indoor-demand/index.ts",
+      "default": "./src/domains/weather/indoor-demand/index.ts"
     },
     "./knowledge": {
       "types": "./src/domains/knowledge/index.ts",
