@@ -19,6 +19,7 @@ import {
   type LimitExceededError,
   luxToSliderValue,
   type PlantOwner,
+  wateringRatingFromFrequency,
 } from '@lily/shared'
 import type { UnauthorizedError } from '@lily/shared/errors/user'
 import { DEFAULT_HUMIDITY_RATING } from '@lily/shared/indoor-demand'
@@ -79,13 +80,12 @@ export const createPlant = (
               Option.fromNullishOr(request.lightingRating),
               Option.getOrElse(() => luxToSliderValue(request.luxNeeded))
             ),
-            petToxicityRating: pipe(
-              Option.fromNullishOr(request.petToxicityRating),
-              Option.getOrElse(() => 0)
-            ),
+            petToxicityRating: request.petToxicityRating,
             wateringRating: pipe(
               Option.fromNullishOr(request.wateringRating),
-              Option.getOrElse(() => 0)
+              Option.getOrElse(() =>
+                wateringRatingFromFrequency(request.wateringFrequencyDays)
+              )
             ),
             potWidthCm: Option.fromNullishOr(request.potWidthCm),
             potHeightCm: Option.fromNullishOr(request.potHeightCm),

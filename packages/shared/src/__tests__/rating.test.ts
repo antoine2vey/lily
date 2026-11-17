@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { isPetSafe, ratingLevel } from '../domains/plant/rating'
+import {
+  isPetSafe,
+  ratingLevel,
+  wateringRatingFromFrequency,
+} from '../domains/plant/rating'
 
 describe('ratingLevel', () => {
   it('splits 0-100 into five levels of 20 points', () => {
@@ -10,6 +14,14 @@ describe('ratingLevel', () => {
 
   it('reads the slider stops back as their level', () => {
     expect([10, 30, 50, 70, 90].map(ratingLevel)).toEqual([1, 2, 3, 4, 5])
+  })
+})
+
+describe('wateringRatingFromFrequency', () => {
+  it('rates a plant lower the longer it goes between waterings', () => {
+    expect(
+      [1, 5, 6, 8, 9, 12, 13, 30].map(wateringRatingFromFrequency)
+    ).toEqual([70, 70, 50, 50, 30, 30, 10, 10])
   })
 })
 

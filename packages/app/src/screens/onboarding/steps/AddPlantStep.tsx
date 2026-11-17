@@ -124,6 +124,7 @@ export function AddPlantStep({
             luxNeeded: plant.luxNeeded ?? 2500,
             humidityRating: plant.humidityRating,
             petToxicityRating: plant.petToxicityRating,
+            wateringRating: plant.wateringRating,
             remindersEnabled: true,
           },
         })
