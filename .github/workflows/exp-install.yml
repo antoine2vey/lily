@@ -1,0 +1,40 @@
+name: Experiment install cache
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/exp-install.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: ${{ matrix.variant }} ${{ matrix.rep }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [restore-cache, cold]
+        rep: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+      - name: Restore bun install cache
+        if: matrix.variant == 'restore-cache'
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+      - name: Install dependencies
+        run: |
+          start=$(date +%s%N)
+          bun install --frozen-lockfile
+          echo "install_ms=$(( ($(date +%s%N) - start) / 1000000 ))"
+      - name: Sizes
+        run: |
+          du -sh ~/.bun/install/cache node_modules || true
+          nproc
