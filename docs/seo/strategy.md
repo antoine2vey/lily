@@ -175,7 +175,7 @@ Dropped:
 
 Review monthly and write one line in the log below.
 
-- **Installs per kind of page.** App Store Connect, App Analytics, by campaign. Each clickable App Store link carries the campaign `web-<kind>-<locale>`, where the kind is `home`, `page`, `blog` or `post`. The join page carries `web-join`. A campaign appears only after five first-time downloads, as [Apple's help on campaigns](https://developer.apple.com/help/app-store-connect/view-app-analytics/manage-campaigns) says, so the campaigns name a kind of page and not a single page. Split a kind into pages when its campaign passes that threshold every month.
+- **Installs per kind of page.** App Store Connect, App Analytics, by campaign. Each clickable App Store link carries the campaign `web-<kind>-<locale>`, where the kind is `home`, `page`, `blog` or `post`. The join page carries `web-join`. Only the home page, the about page and the posts render a button today, so `web-blog-<locale>` reports nothing until the blog index gets one. A campaign appears only after five first-time downloads, as [Apple's help on campaigns](https://developer.apple.com/help/app-store-connect/view-app-analytics/manage-campaigns) says, so the campaigns name a kind of page and not a single page. Split a kind into pages when its campaign passes that threshold every month.
 - **App Store listing.** Impressions, product page views and conversion rate, per storefront.
 - **Assistant panel.** Ask ChatGPT, Gemini, Perplexity and Claude the questions below, each in a new conversation. Record whether the answer names Lily.
   - What is the best plant care app?
