@@ -2,12 +2,8 @@ import {
   adjustedWateringDays,
   calculateIndoorDemandFactor,
   dayOfYearFromIso,
-  INDOOR_RH_BASE,
-  INDOOR_RH_MAX,
-  INDOOR_RH_MIN,
-  INDOOR_RH_PIVOT_C,
-  INDOOR_RH_SLOPE,
   type IndoorDemandInput,
+  indoorRelativeHumidity,
   indoorVpdFactor,
   LUMINOSITY_LUX_VALUES,
   type LuminosityLevel,
@@ -158,13 +154,6 @@ export const calculate = (input: CalculatorInput): CalculatorResult => {
       dryAir: indoorVpdFactor(input.outdoorTempC, plant.humidityRating),
     },
     dimRoom: room.gap <= ROOMFIT_DIM_VETO_GAP,
-    indoorHumidity: Math.min(
-      INDOOR_RH_MAX,
-      Math.max(
-        INDOOR_RH_MIN,
-        INDOOR_RH_BASE +
-          INDOOR_RH_SLOPE * (input.outdoorTempC - INDOOR_RH_PIVOT_C)
-      )
-    ),
+    indoorHumidity: indoorRelativeHumidity(input.outdoorTempC),
   }
 }
