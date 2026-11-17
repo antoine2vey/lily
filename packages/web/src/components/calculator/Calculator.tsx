@@ -1,4 +1,4 @@
-import { Array, Option, pipe } from 'effect'
+import { Array, DateTime, Option, pipe } from 'effect'
 import { type ReactNode, useEffect, useId, useState } from 'react'
 import { fmt, plural, useI18n } from '@/i18n'
 import type { CalculatorMessages } from '@/i18n/calculator'
@@ -60,7 +60,7 @@ const FACTORS: ReadonlyArray<keyof CalculatorFactors> = [
 
 const currentMonth = (fallback: Month): Month =>
   pipe(
-    Array.get(MONTHS, new Date().getMonth()),
+    Array.get(MONTHS, DateTime.toParts(DateTime.nowUnsafe()).month - 1),
     Option.getOrElse(() => fallback)
   )
 
@@ -108,7 +108,10 @@ export function Calculator({ t }: { t: CalculatorMessages }) {
   const result = calculate(input)
   const plantName = plantById(input.plantId).translations[locale].name
   const cityName = cityById(input.cityId).names[locale]
-  const monthName = t.form.months[input.month - 1] ?? ''
+  const monthName = pipe(
+    Array.get(t.form.months, input.month - 1),
+    Option.getOrElse(() => `${input.month}`)
+  )
   const f = t.result.factors
   const sentence: Record<keyof CalculatorFactors, (pct: number) => string> = {
     seasonLight: (pct) =>
