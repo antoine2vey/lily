@@ -158,21 +158,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Build the api image
-        run: docker build -f Dockerfile.prod -t lily-api .
       # The api reads ICU_TIMEZONE_FILES_DIR through Bun on Alpine, a path no
-      # unit test reaches. The first run proves the guard can fail, so the
-      # second cannot pass on a probe that never reads the real offset.
-      - name: Probe without the zone rules, expecting StaleZoneRulesError
+      # unit test reaches. The probes run as extra RUN steps on top of
+      # Dockerfile.prod, so they see the image's files and ENV without the
+      # 80 s export of its layers. The first probe proves the guard can fail,
+      # so the second cannot pass on a probe that never reads the real offset.
+      - name: Build the api image and probe its zone rules
         run: |
-          if docker run --rm lily-api env -u ICU_TIMEZONE_FILES_DIR bun run --cwd packages/api src/probes/zone-rules.ts >probe.err 2>&1; then
-            echo '::error::the guard passed on Bun'"'"'s bundled zone rules'
-            exit 1
-          fi
-          cat probe.err
-          grep -q StaleZoneRulesError probe.err
-      - name: Probe with the zone rules the image ships
-        run: docker run --rm lily-api bun run --cwd packages/api src/probes/zone-rules.ts
+          {
+            cat Dockerfile.prod
+            echo 'RUN if env -u ICU_TIMEZONE_FILES_DIR bun run --cwd packages/api src/probes/zone-rules.ts >/tmp/probe.err 2>&1; then cat /tmp/probe.err; echo "the guard passed on the zone rules Bun bundles"; exit 1; fi; cat /tmp/probe.err; grep -q StaleZoneRulesError /tmp/probe.err'
+            echo 'RUN bun run --cwd packages/api src/probes/zone-rules.ts'
+          } | docker buildx build --progress=plain --output type=cacheonly -f - .
 
   summary:
     name: CI summary
