@@ -182,7 +182,7 @@ export default defineRailway(() => {
       buildEnvironment: 'V3',
       builder: 'DOCKERFILE',
       dockerfilePath: '/packages/web/Dockerfile',
-      watchPatterns: ['/packages/web/**'],
+      watchPatterns: ['/packages/web/**', '/packages/shared/**'],
     },
     replicas: { 'europe-west4-drams3a': 1 },
     deploy: {

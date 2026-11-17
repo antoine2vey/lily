@@ -16,6 +16,7 @@ COPY packages/web/package.json ./packages/web/
 RUN bun install --ignore-scripts
 
 COPY tsconfig.json ./
+COPY packages/shared ./packages/shared
 COPY packages/web ./packages/web
 
 WORKDIR /app/packages/web
