@@ -8,10 +8,11 @@
 # Fails closed: an API error or any unmet condition prints no URL.
 #
 # The PR run tested refs/pull/N/merge, the PR head H merged into main as it was
-# then. main only moves forward, so when <before> is an ancestor of H, main was
-# still <before> when H was pushed, and the merge ref carried H's tree. The
-# push carries that tree too when its one commit has H's tree on top of
-# <before>.
+# then. main only moves forward, so that main is an ancestor of <before>. When
+# <before> is an ancestor of H, so is that main, and the merge ref carried H's
+# tree. The push carries that tree too when its one commit has H's tree on top
+# of <before>. A PR retargeted to main may hold a run that merged H into
+# another base, so a retarget refuses reuse.
 set -euo pipefail
 
 repo=${1:-}
@@ -44,6 +45,11 @@ pr=$(api "repos/$repo/commits/$sha/pulls" \
 [ -n "$pr" ] || no_reuse "$sha is not the merge of exactly one pull request into main"
 read -r number head label head_repo <<<"$pr"
 branch=${label#*:}
+
+retargets=$(api --paginate "repos/$repo/issues/$number/events?per_page=100" \
+	--jq '.[] | select(.event == "base_ref_changed") | .event') \
+	|| no_reuse "cannot list the events of PR #$number"
+[ -z "$retargets" ] || no_reuse "PR #$number changed its base branch, so its run may have tested another base"
 
 status=$(api "repos/$repo/compare/$before...$head" --jq .status) \
 	|| no_reuse "cannot compare $before with PR #$number head $head"
