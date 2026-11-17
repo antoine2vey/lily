@@ -1,7 +1,9 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Array, Predicate } from 'effect'
+import { CANOPY_NAME_MAX_LENGTH } from '@lily/shared'
+import { usernameProblem } from '@lily/shared/username'
+import { Array, Option, Predicate } from 'effect'
 import { en, type Messages } from '../src/i18n/en'
 import { fr } from '../src/i18n/fr'
 
@@ -40,10 +42,24 @@ interface Case {
   }
 }
 
-// A canopy name holds 50 characters at most (CANOPY_NAME_MAX_LENGTH in @lily/shared), and a user name has no
-// limit. How a name wraps decides its height, more than how wide its letters are, so the sweep draws the widest
-// letter in words of every length.
-const CANOPY_MAX = 50
+// How a name wraps decides its height, more than how wide its letters are, so the sweep draws the widest letter
+// in words of every length. A canopy name may hold spaces. An inviter name is a username: the invite preview
+// sends `users.name`, which only the username endpoints write, so it is one unbroken word that usernameProblem
+// accepts. The sweep takes both limits from @lily/shared, so it follows them.
+const CANOPY_MAX = CANOPY_NAME_MAX_LENGTH
+const isUsername = (name: string) => Option.isNone(usernameProblem(name))
+const USERNAME_LENGTHS = Array.filter(Array.range(1, 100), (length) =>
+  isUsername('W'.repeat(length))
+)
+const USERNAME_MAX = Math.max(...USERNAME_LENGTHS)
+const INVITERS = Array.filter(
+  [
+    ...Array.map(USERNAME_LENGTHS, (length) => 'W'.repeat(length)),
+    'M'.repeat(USERNAME_MAX),
+    '_'.repeat(USERNAME_MAX),
+  ],
+  isUsername
+)
 const wide = (word: number, total: number) =>
   `${'W'.repeat(word)} `
     .repeat(total)
@@ -78,7 +94,7 @@ const SWEEP: ReadonlyArray<Case> = [
       CANOPY_SWEEP,
       `canopy name of W words of ${word}`,
       wide(word, CANOPY_MAX),
-      wide(30, 30)
+      'W'.repeat(USERNAME_MAX)
     )
   ),
   ...Array.map(REAL_CAPITALS, (canopyName) =>
@@ -86,15 +102,15 @@ const SWEEP: ReadonlyArray<Case> = [
       CANOPY_SWEEP,
       `canopy name "${canopyName}"`,
       canopyName,
-      wide(30, 30)
+      'W'.repeat(USERNAME_MAX)
     )
   ),
-  ...Array.map([...Array.range(1, 15), 60], (word) =>
+  ...Array.map(INVITERS, (inviter) =>
     sweepCase(
       INVITER_SWEEP,
-      `inviter name of W words of ${word}`,
+      `inviter name of ${inviter.length} ${inviter.charAt(0)}`,
       wide(6, CANOPY_MAX),
-      wide(word, 60)
+      inviter
     )
   ),
 ]
@@ -457,8 +473,6 @@ try {
                     : `the desktop cuts off ${seen.clamped.join(' and ')}`,
                   seen.button === null ||
                   banner === null ||
-                  // The desktop shows a name whole, so a sweep name can push the button under the banner there.
-                  (c.sweep !== undefined && !viewport.mobile) ||
                   seen.button.bottom <= banner.top
                     ? null
                     : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
