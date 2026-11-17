@@ -29,7 +29,7 @@ function About() {
         <h2 className="mb-3 text-2xl font-bold text-ink">{t.ctaHeading}</h2>
         <p className="mx-auto mb-6 max-w-md">{t.ctaText}</p>
         <div className="flex justify-center">
-          <StoreButtons />
+          <StoreButtons kind="page" />
         </div>
       </aside>
     </DocPage>

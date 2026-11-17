@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useI18n } from '@/i18n'
-import { APP_STORE_URL, PLAY_STORE_LIVE, PLAY_STORE_URL } from '@/lib/site'
+import {
+  appStoreUrl,
+  type PageKind,
+  PLAY_STORE_LIVE,
+  PLAY_STORE_URL,
+} from '@/lib/site'
 import { AppleIcon, GooglePlayIcon } from './icons'
 
 type Platform = 'ios' | 'android' | 'web'
@@ -23,13 +28,23 @@ export const usePlatform = (): Platform => {
 }
 
 const STORES = {
-  ios: { href: APP_STORE_URL, Icon: AppleIcon, label: 'appStore' },
-  android: { href: PLAY_STORE_URL, Icon: GooglePlayIcon, label: 'googlePlay' },
+  ios: { Icon: AppleIcon, label: 'appStore' },
+  android: { Icon: GooglePlayIcon, label: 'googlePlay' },
 } as const
 
-export function StoreButtons({ size = 'md' }: { size?: 'sm' | 'md' }) {
-  const { m } = useI18n()
+export function StoreButtons({
+  kind,
+  size = 'md',
+}: {
+  kind: Exclude<PageKind, 'join'>
+  size?: 'sm' | 'md'
+}) {
+  const { m, locale } = useI18n()
   const platform = usePlatform()
+  const href = {
+    ios: appStoreUrl(`web-${kind}-${locale}`),
+    android: PLAY_STORE_URL,
+  }
   const shown = !PLAY_STORE_LIVE
     ? (['ios'] as const)
     : platform === 'web'
@@ -39,11 +54,11 @@ export function StoreButtons({ size = 'md' }: { size?: 'sm' | 'md' }) {
   return (
     <div className="flex flex-wrap gap-3">
       {shown.map((p, i) => {
-        const { href, Icon, label } = STORES[p]
+        const { Icon, label } = STORES[p]
         return (
           <a
             key={p}
-            href={href}
+            href={href[p]}
             target="_blank"
             rel="noopener noreferrer"
             className={`inline-flex items-center gap-2 rounded-full font-semibold transition-transform hover:-translate-y-0.5 ${pad} ${
