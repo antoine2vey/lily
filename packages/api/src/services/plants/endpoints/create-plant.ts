@@ -21,6 +21,7 @@ import {
   type PlantOwner,
 } from '@lily/shared'
 import type { UnauthorizedError } from '@lily/shared/errors/user'
+import { DEFAULT_HUMIDITY_RATING } from '@lily/shared/indoor-demand'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { Effect, Option, pipe } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
@@ -72,7 +73,7 @@ export const createPlant = (
             imageUrl: Option.fromNullishOr(request.imageUrl),
             humidityRating: pipe(
               Option.fromNullishOr(request.humidityRating),
-              Option.getOrElse(() => 0)
+              Option.getOrElse(() => DEFAULT_HUMIDITY_RATING)
             ),
             lightingRating: pipe(
               Option.fromNullishOr(request.lightingRating),
