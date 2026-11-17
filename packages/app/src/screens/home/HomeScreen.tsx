@@ -22,6 +22,7 @@ import { useIconColors } from '@/hooks/useIconColors'
 import { useLocalization } from '@/hooks/useLocalization'
 import { useUnreadCount } from '@/hooks/useNotifications'
 import { useRecentActivities } from '@/hooks/useRecentActivities'
+import { useTemperatureUnit } from '@/hooks/useTemperatureUnit'
 import { useWeather } from '@/hooks/useWeather'
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
 import { HomeContentSkeleton } from '@/screens/home/components/HomeContentSkeleton'
@@ -135,10 +136,11 @@ function WeatherInlineChip({
   temperatureC,
   adjustedText,
 }: WeatherInlineChipProps) {
+  const { formatTemp } = useTemperatureUnit()
   const meta = adjustedText ? ` · ${adjustedText}` : ''
   return (
     <Text className="text-xs text-text-muted dark:text-slate-400 mt-1.5">
-      {`${Math.round(temperatureC)}°C${meta}`}
+      {`${formatTemp(temperatureC)}${meta}`}
     </Text>
   )
 }
