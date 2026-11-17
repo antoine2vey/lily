@@ -51,6 +51,8 @@ jobs:
         run: bash scripts/check-turbo-inputs.sh
       - name: Check SQL applies no time zone but UTC
         run: bash scripts/check-sql-time-zones.sh
+      - name: Check the AASA and assetlinks.json
+        run: bun packages/web/scripts/check-well-known.ts
       - name: Run Turbo pipeline
         run: bun x turbo run lint tsc test build
       - name: Check bundle sizes
@@ -62,17 +64,6 @@ jobs:
         run: |
           bun run --filter=@lily/web preview
           bun packages/web/scripts/hydration-check.ts
-
-  universal-links:
-    name: Universal-link files
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-        with:
-          turbo-cache: 'false'
-      - name: Check the AASA and assetlinks.json
-        run: bun packages/web/scripts/check-well-known.ts
 
   docs:
     name: Docs references
@@ -174,28 +165,23 @@ jobs:
   summary:
     name: CI summary
     if: always()
-    needs: [changes, checks, universal-links, docs, integration, zone-rules]
+    needs: [changes, checks, docs, integration, zone-rules]
     runs-on: ubuntu-latest
     steps:
       - name: Verify required jobs
         run: |
           changes='${{ needs.changes.result }}'
           checks='${{ needs.checks.result }}'
-          universal_links='${{ needs.universal-links.result }}'
           docs='${{ needs.docs.result }}'
           integration='${{ needs.integration.result }}'
           zone_rules='${{ needs.zone-rules.result }}'
-          echo "changes=$changes checks=$checks universal-links=$universal_links docs=$docs integration=$integration zone-rules=$zone_rules"
+          echo "changes=$changes checks=$checks docs=$docs integration=$integration zone-rules=$zone_rules"
           if [ "$changes" != 'success' ]; then
             echo '::error::changes job did not succeed'
             exit 1
           fi
           if [ "$checks" != 'success' ]; then
             echo '::error::checks job did not succeed'
-            exit 1
-          fi
-          if [ "$universal_links" != 'success' ]; then
-            echo '::error::universal-links job did not succeed'
             exit 1
           fi
           if [ "$docs" != 'success' ]; then
