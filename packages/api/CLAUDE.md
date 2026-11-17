@@ -10,7 +10,7 @@ Run every command from the monorepo root.
 |---|---|
 | `bun run --filter=@lily/api dev` | Starts the server on port 3000 and restarts it on every change |
 | `bun run --filter=@lily/api tsc` | Typecheck |
-| `bun run --filter=@lily/api test` | Vitest over `src/__tests__`, run on Bun (`bun --bun vitest run`), the runtime production uses. Node and Bun give different zone ids for `GMT`, so `src/__tests__/runtime.test.ts` fails if the suite starts on Node. `vitest.config.ts` excludes `src/__tests__/integration`, so no env file or `DATABASE_URL_TEST` turns those suites on here |
+| `bun run --filter=@lily/api test` | Vitest over `src/__tests__`, run on Bun (`bun --bun vitest run`), the runtime production uses. Node and Bun give different zone ids for `GMT` (`src/__tests__/runtime.test.ts`), so `src/__tests__/setup.ts`, the setup file of both vitest configs, fails every test file of either suite that starts on Node. `vitest.config.ts` excludes `src/__tests__/integration`, so no env file or `DATABASE_URL_TEST` turns those suites on here |
 | `bun run --filter=@lily/api test src/__tests__/services/plants` | One directory or file |
 | `bun run --filter=@lily/api lint` | Biome check |
 | `bun run --filter=@lily/api lint:fix` | Biome with autofix |
