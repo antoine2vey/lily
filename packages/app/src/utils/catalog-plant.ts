@@ -12,6 +12,7 @@ export const catalogPlantToCreateRequest = (
   mistingFrequencyDays: plant.mistingFrequencyDays ?? undefined,
   repottingFrequencyDays: plant.repottingFrequencyDays ?? undefined,
   luxNeeded: plant.luxNeeded ?? 2500,
+  lightingRating: plant.lightingRating,
   humidityRating: plant.humidityRating,
   petToxicityRating: plant.petToxicityRating,
   wateringRating: plant.wateringRating,
