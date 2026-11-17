@@ -19,9 +19,6 @@ const [base = 'http://127.0.0.1:8088'] = process.argv.slice(2)
 const CANOPY = 'Probe canopy'
 const LONG_CANOPY =
   'The Extraordinarily Overgrown Greenhouse Of Aunt Wilhelmina'
-// A canopy name holds 50 characters at most (CANOPY_NAME_MAX_LENGTH in @lily/shared). Capitals with M and W are
-// the widest it can be drawn.
-const WIDEST_CANOPY = 'MAMAN WILHELMINA WARM MAMMOTH GREENHOUSE NUMBER 22'
 const UNBROKEN_INVITER =
   'Maximilianalexanderfitzgeraldmontgomerywolfeschlegelstein'
 
@@ -34,7 +31,72 @@ interface Case {
   readonly answer: Answer
   readonly heading: (t: Messages['Join']) => string
   readonly skeletonTwin?: true
+  // A sweep case runs only where the banner leaves the least room: on the short phones, with no stored choice.
+  // Within a sweep, a text that wraps onto as many lines as one already measured gives the same card, so it is skipped.
+  readonly sweep?: {
+    readonly element: string
+    readonly text: (t: Messages['Join']) => string
+  }
 }
+
+// A canopy name holds 50 characters at most (CANOPY_NAME_MAX_LENGTH in @lily/shared), and a user name has no
+// limit. How a name wraps decides its height, more than how wide its letters are, so the sweep draws the widest
+// letter in words of every length.
+const CANOPY_MAX = 50
+const wide = (word: number, total: number) =>
+  `${'W'.repeat(word)} `
+    .repeat(total)
+    .slice(0, total - 1)
+    .concat('W')
+const REAL_CAPITALS = [
+  'MAMAN WILHELMINA WARM MAMMOTH GREENHOUSE NUMBER 22',
+  'GRANDMAMA WILHELMINA MONSTERAS WOODWORK MUSHROOMS',
+]
+const CANOPY_SWEEP = 'main h1'
+const INVITER_SWEEP = 'main p'
+const sweepCase = (
+  element: string,
+  name: string,
+  canopyName: string,
+  inviterName: string
+): Case => ({
+  name: `invite preview, ${name}`,
+  answer: { status: 200, body: { canopyName, inviterName } },
+  heading: () => canopyName,
+  sweep: {
+    element,
+    text: (t) =>
+      element === CANOPY_SWEEP
+        ? canopyName
+        : t.invitedBy.replace('{inviter}', inviterName),
+  },
+})
+const SWEEP: ReadonlyArray<Case> = [
+  ...Array.map(Array.range(1, CANOPY_MAX), (word) =>
+    sweepCase(
+      CANOPY_SWEEP,
+      `canopy name of W words of ${word}`,
+      wide(word, CANOPY_MAX),
+      wide(30, 30)
+    )
+  ),
+  ...Array.map(REAL_CAPITALS, (canopyName) =>
+    sweepCase(
+      CANOPY_SWEEP,
+      `canopy name "${canopyName}"`,
+      canopyName,
+      wide(30, 30)
+    )
+  ),
+  ...Array.map([...Array.range(1, 15), 60], (word) =>
+    sweepCase(
+      INVITER_SWEEP,
+      `inviter name of W words of ${word}`,
+      wide(6, CANOPY_MAX),
+      wide(word, 60)
+    )
+  ),
+]
 
 const CASES: ReadonlyArray<Case> = [
   {
@@ -71,17 +133,6 @@ const CASES: ReadonlyArray<Case> = [
     heading: () => LONG_CANOPY,
   },
   {
-    name: 'invite preview, widest canopy name',
-    answer: {
-      status: 200,
-      body: {
-        canopyName: WIDEST_CANOPY,
-        inviterName: 'Maximiliano Alexander Fitzgerald-Montgomery',
-      },
-    },
-    heading: () => WIDEST_CANOPY,
-  },
-  {
     name: 'expired invite',
     answer: { status: 410, body: {} },
     heading: (t) => t.expiredTitle,
@@ -101,6 +152,7 @@ const CASES: ReadonlyArray<Case> = [
     answer: 'connection refused',
     heading: (t) => t.unavailableTitle,
   },
+  ...SWEEP,
 ]
 
 const LOCALES = [
@@ -112,8 +164,14 @@ const VIEWPORTS = [
   { name: 'mobile', width: 412, height: 823, mobile: true },
   { name: 'narrow phone', width: 390, height: 844, mobile: true },
   // The narrow phone in Safari with both toolbars showing.
-  { name: 'narrow phone with toolbars', width: 390, height: 664, mobile: true },
-  { name: 'small phone', width: 360, height: 640, mobile: true },
+  {
+    name: 'narrow phone with toolbars',
+    width: 390,
+    height: 664,
+    mobile: true,
+    short: true,
+  },
+  { name: 'small phone', width: 360, height: 640, mobile: true, short: true },
   { name: 'desktop', width: 1350, height: 940, mobile: false },
 ] as const
 
@@ -298,8 +356,21 @@ try {
           deviceScaleFactor: 1,
           mobile: viewport.mobile,
         })
+        // How many lines each sweep text takes unclamped on this phone, and the counts a run has measured.
+        const wraps = new Map<string, string>()
+        const measured = new Set<string>()
+        let skipped = 0
         for (const consent of CONSENTS)
           for (const c of CASES) {
+            if (c.sweep !== undefined) {
+              if (!('short' in viewport && consent === 'no stored choice'))
+                continue
+              const lines = wraps.get(c.name)
+              if (lines !== undefined && measured.has(lines)) {
+                skipped++
+                continue
+              }
+            }
             const name = `${language}, ${c.name}, ${viewport.name}, ${consent}, ${font.name}`
             answer = c.answer
             await evaluate(
@@ -390,6 +461,23 @@ try {
               console.log(
                 `${problems.length === 0 ? 'ok  ' : 'FAIL'} ${name}\n     card top ${seen.card.top}px, height ${seen.skeleton.height}px as skeleton, ${seen.card.height}px after${seen.button !== null && banner !== null ? `, open button ends at ${seen.button.bottom}px, banner starts at ${banner.top}px` : ''}${problems.map((problem) => `\n     ${problem}`).join('')}`
               )
+              if (c.sweep !== undefined) {
+                const { element } = c.sweep
+                if (!wraps.has(c.name)) {
+                  const group = Array.filter(
+                    CASES,
+                    (other) => other.sweep?.element === element
+                  )
+                  const lines = await evaluate<ReadonlyArray<number>>(
+                    `(()=>{const e=document.querySelector(${JSON.stringify(element)});e.style.cssText='display:block;overflow:visible;-webkit-line-clamp:unset';const line=parseFloat(getComputedStyle(e).lineHeight);return ${JSON.stringify(group.map((other) => other.sweep?.text(t)))}.map(text=>{e.textContent=text;return Math.round(e.getBoundingClientRect().height/line)})})()`
+                  )
+                  Array.forEach(group, (other, i) => {
+                    wraps.set(other.name, `${element} on ${lines[i]} lines`)
+                  })
+                }
+                const own = wraps.get(c.name)
+                if (own !== undefined) measured.add(own)
+              }
             } catch (error) {
               failed = true
               console.log(
@@ -397,6 +485,10 @@ try {
               )
             }
           }
+        if (skipped > 0)
+          console.log(
+            `     skipped ${skipped} sweep texts that wrap like one measured above (${language}, ${viewport.name}, ${font.name})`
+          )
       }
     }
   }
