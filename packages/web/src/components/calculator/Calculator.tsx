@@ -87,7 +87,7 @@ function Field({
         {label}
       </label>
       {children}
-      {hint && <p className="text-sm text-muted">{hint}</p>}
+      {hint && <p className="text-sm text-ink-2">{hint}</p>}
     </div>
   )
 }
@@ -182,7 +182,7 @@ export function Calculator({ t }: { t: CalculatorMessages }) {
             )
           })}
         </ul>
-        <p className="mt-5 text-xs text-muted">{t.result.capNote}</p>
+        <p className="mt-5 text-xs text-ink-2">{t.result.capNote}</p>
       </section>
 
       <form
@@ -250,7 +250,7 @@ export function Calculator({ t }: { t: CalculatorMessages }) {
               </label>
             ))}
           </div>
-          <p id={`${id}-window-hint`} className="mt-2 text-sm text-muted">
+          <p id={`${id}-window-hint`} className="mt-2 text-sm text-ink-2">
             {t.form.windowHint}
           </p>
         </fieldset>
