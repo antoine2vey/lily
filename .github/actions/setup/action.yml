@@ -1,5 +1,5 @@
 name: Setup
-description: Checkout-aware setup — Bun + frozen install + Turbo remote cache backed by GH Actions cache.
+description: Bun, a frozen install, and the Turbo remote cache backed by the GitHub Actions cache.
 
 inputs:
   bun-version:
@@ -19,13 +19,9 @@ runs:
       with:
         bun-version: ${{ inputs.bun-version }}
 
-    - name: Restore bun install cache
-      uses: actions/cache@v6
-      with:
-        path: ~/.bun/install/cache
-        key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-        restore-keys: ${{ runner.os }}-bun-
-
+    # Deliberately uncached. Restoring the 1.3 GB Bun download cache took longer
+    # than a cold install from the registry, and its copies pushed the Turbo
+    # entries out of the repo's 10 GB Actions cache budget.
     - name: Install dependencies
       shell: bash
       run: bun install --frozen-lockfile
