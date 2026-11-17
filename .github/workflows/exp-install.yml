@@ -9,58 +9,25 @@ permissions:
   contents: read
 
 jobs:
-  install:
-    name: ${{ matrix.variant }} ${{ matrix.rep }}
+  zone-mutant:
+    name: mutant ${{ matrix.mutant }} (must fail)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        variant: [restore-cache, cold]
-        rep: [1, 2, 3]
+        mutant: [guard-always-passes, rules-dir-missing, none]
     steps:
       - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: '1.4.3'
-      - name: Restore bun install cache
-        if: matrix.variant == 'restore-cache'
-        uses: actions/cache/restore@v6
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
-      - name: Install dependencies
+      - name: Apply mutant
         run: |
-          start=$(date +%s%N)
-          bun install --frozen-lockfile
-          echo "install_ms=$(( ($(date +%s%N) - start) / 1000000 ))"
-      - name: Sizes
-        run: |
-          du -sh ~/.bun/install/cache node_modules || true
-          nproc
-
-  zone:
-    name: zone ${{ matrix.variant }} ${{ matrix.rep }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: [export-image, probe-in-build]
-        rep: [1, 2]
-    steps:
-      - uses: actions/checkout@v7
-      - name: Current approach
-        if: matrix.variant == 'export-image'
-        run: |
-          docker build -f Dockerfile.prod -t lily-api .
-          if docker run --rm lily-api env -u ICU_TIMEZONE_FILES_DIR bun run --cwd packages/api src/probes/zone-rules.ts >probe.err 2>&1; then exit 1; fi
-          grep -q StaleZoneRulesError probe.err
-          docker run --rm lily-api bun run --cwd packages/api src/probes/zone-rules.ts
-      - name: Probes run inside the build
-        if: matrix.variant == 'probe-in-build'
+          case '${{ matrix.mutant }}' in
+            guard-always-passes) printf "console.log('zone rules ok')\n" > packages/api/src/probes/zone-rules.ts ;;
+            rules-dir-missing) sed -i 's#ENV ICU_TIMEZONE_FILES_DIR=/app/packages/db/icu-tzdata#ENV ICU_TIMEZONE_FILES_DIR=/nowhere#' Dockerfile.prod ;;
+          esac
+      - name: Build the api image and probe its zone rules
         run: |
           {
             cat Dockerfile.prod
-            echo 'RUN if env -u ICU_TIMEZONE_FILES_DIR bun run --cwd packages/api src/probes/zone-rules.ts >/tmp/probe.err 2>&1; then cat /tmp/probe.err; echo "guard passed on bundled zone rules"; exit 1; fi; cat /tmp/probe.err; grep -q StaleZoneRulesError /tmp/probe.err'
+            echo 'RUN if env -u ICU_TIMEZONE_FILES_DIR bun run --cwd packages/api src/probes/zone-rules.ts >/tmp/probe.err 2>&1; then cat /tmp/probe.err; echo "the guard passed on the zone rules Bun bundles"; exit 1; fi; cat /tmp/probe.err; grep -q StaleZoneRulesError /tmp/probe.err'
             echo 'RUN bun run --cwd packages/api src/probes/zone-rules.ts'
           } | docker buildx build --progress=plain --output type=cacheonly -f - .
