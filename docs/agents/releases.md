@@ -4,7 +4,7 @@ How a change on `main` reaches users. Read this before you promise that a change
 
 ## Server services
 
-- **Railway deploys `main`.** The API, MCP and web services are defined in `.railway/railway.ts`. Each one rebuilds only when a path in its `watchPatterns` changed. Railway waits for the commit's GitHub check suites (`checkSuites: true`), so a red CI run on `main` skips the deploy.
+- **Railway deploys `main`.** The API, MCP and web services are defined in `.railway/railway.ts`. Each one rebuilds only when a path in its `watchPatterns` changed. Railway waits for the commit's GitHub check suites (`checkSuites: true`), so a red CI run on `main` skips the deploy. A push to `main` skips the integration and zone-rules jobs when a passing pull request run already tested its exact tree, so that run's verdict gates the deploy. `scripts/reuse-pr-verdict.sh` decides, and the `CI summary` log names the reused run.
 - **The API migrates itself.** `Dockerfile.prod` runs `db:migrate:prod` for `packages/db` and `packages/knowledge-db`, then `db:seed:prod`, before it starts the server. Push the migration and the deploy applies it. Never run `db:migrate:prod` against production by hand. How to write a migration is in `packages/db/CLAUDE.md`.
 - **Infrastructure lives in code.** Change services, volumes and domains in `.railway/railway.ts`. A pull request that touches `.railway/` gets a plan comment, and the plan applies on merge. Read `.railway/README.md` before running the Railway CLI.
 
