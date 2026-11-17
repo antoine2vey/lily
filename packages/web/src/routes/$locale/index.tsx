@@ -70,7 +70,7 @@ function Home() {
         <Pricing />
         <Faq />
         <LatestPosts posts={posts} total={total} />
-        <CtaBand />
+        <CtaBand kind="home" />
       </div>
     </main>
   )

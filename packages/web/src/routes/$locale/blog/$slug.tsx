@@ -132,7 +132,7 @@ function PostPage() {
           <p className="mb-3 text-2xl font-bold text-ink">{t.ctaHeading}</p>
           <p className="mx-auto mb-6 max-w-md text-ink-2">{t.ctaText}</p>
           <div className="flex justify-center">
-            <StoreButtons />
+            <StoreButtons kind="post" />
           </div>
         </aside>
         <div className="mt-12 text-center">

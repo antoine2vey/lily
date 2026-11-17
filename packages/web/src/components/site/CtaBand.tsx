@@ -1,9 +1,20 @@
 import { useI18n } from '@/i18n'
-import { APP_STORE_URL, PLAY_STORE_LIVE, PLAY_STORE_URL } from '@/lib/site'
+import {
+  appStoreUrl,
+  type PageKind,
+  PLAY_STORE_LIVE,
+  PLAY_STORE_URL,
+} from '@/lib/site'
 
 // B's final section: mascot, headline, lede and the two store badges.
-export function CtaBand({ id = 'download' }: { id?: string }) {
-  const { m } = useI18n()
+export function CtaBand({
+  id = 'download',
+  kind,
+}: {
+  id?: string
+  kind: Exclude<PageKind, 'join'>
+}) {
+  const { m, locale } = useI18n()
   return (
     <section className="m-final m-cv" id={id}>
       <div className="m-wrap" data-rv>
@@ -24,7 +35,7 @@ export function CtaBand({ id = 'download' }: { id?: string }) {
         </h2>
         <p className="m-lede">{m.Cta.lede}</p>
         <div className="m-stores">
-          <a className="m-store" href={APP_STORE_URL}>
+          <a className="m-store" href={appStoreUrl(`web-${kind}-${locale}`)}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
                 fill="currentColor"

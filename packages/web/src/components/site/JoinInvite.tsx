@@ -9,7 +9,7 @@ import {
   loading,
   tokenFromPath,
 } from '@/lib/canopy-invite'
-import { APP_STORE_URL, PLAY_STORE_LIVE, PLAY_STORE_URL } from '@/lib/site'
+import { appStoreUrl, PLAY_STORE_LIVE, PLAY_STORE_URL } from '@/lib/site'
 import { AppleIcon, GooglePlayIcon, LilyMark } from './icons'
 
 type JoinMessages = ReturnType<typeof messagesFor>['Join']
@@ -95,7 +95,7 @@ function InviteCard({
           <p className="font-semibold text-ink">{t.getTheApp}</p>
           <div className="mt-4 flex flex-col justify-center gap-3 sm:flex-row">
             <a
-              href={APP_STORE_URL}
+              href={appStoreUrl('web-join')}
               target="_blank"
               rel="noopener noreferrer"
               className={SECONDARY}
