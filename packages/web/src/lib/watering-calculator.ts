@@ -19,7 +19,7 @@ import {
   roomFitFactor,
 } from '@lily/shared/indoor-demand'
 import { CATALOG, type CatalogEntry } from '@lily/shared/plant-catalog'
-import { Array, Option, Order, pipe, String } from 'effect'
+import { Array, Option, type Order, pipe, String } from 'effect'
 import type { Locale } from '@/i18n'
 import { CITIES, type City, type CityId } from './cities'
 
@@ -80,14 +80,10 @@ export const cityById = (id: CityId): KnownCity =>
     Option.getOrThrow
   )
 
+// Effect's Order module here makes the bundler regroup the chunks, and every page then loads the blog post index.
 const byName = <A>(locale: Locale, name: (a: A) => string): Order.Order<A> => {
   const collator = new Intl.Collator(locale)
-  return Order.mapInput(
-    Order.make<string>(
-      (a, b) => Math.sign(collator.compare(a, b)) as -1 | 0 | 1
-    ),
-    name
-  )
+  return (a, b) => Math.sign(collator.compare(name(a), name(b))) as -1 | 0 | 1
 }
 
 export const plantsFor = (locale: Locale): ReadonlyArray<CatalogEntry> =>

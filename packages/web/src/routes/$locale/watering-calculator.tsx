@@ -3,7 +3,6 @@ import { Array, Option, pipe } from 'effect'
 import { Calculator } from '@/components/calculator/Calculator'
 import { StoreButtons } from '@/components/site/StoreButtons'
 import { type Locale, useI18n } from '@/i18n'
-import { calculatorMessages } from '@/i18n/calculator'
 import { breadcrumbs, localeUrl, seo } from '@/lib/seo'
 
 const PATH = '/watering-calculator'
@@ -45,11 +44,11 @@ export const Route = createFileRoute('/$locale/watering-calculator')({
         )
       )
     )
-    return { meta: calculatorMessages[params.locale].meta, reads }
+    return { t: calculatorMessages[params.locale], reads }
   },
   head: ({ params: { locale }, loaderData }) => {
     if (!loaderData) return {}
-    const { meta } = loaderData
+    const { meta } = loaderData.t
     return seo({
       locale,
       path: PATH,
@@ -72,9 +71,8 @@ const link =
   'font-semibold text-primary-dark underline-offset-2 hover:underline dark:text-primary'
 
 function CalculatorPage() {
-  const { reads } = Route.useLoaderData()
+  const { t, reads } = Route.useLoaderData()
   const { locale } = useI18n()
-  const t = calculatorMessages[locale]
   return (
     <main className="px-4 pt-28 pb-24 sm:px-5 sm:pt-32">
       <div className="mx-auto max-w-5xl">
@@ -85,7 +83,7 @@ function CalculatorPage() {
           {t.lead}
         </p>
 
-        <Calculator />
+        <Calculator t={t} />
 
         <div className="mx-auto mt-16 max-w-3xl space-y-12 leading-relaxed text-ink-2">
           <section>

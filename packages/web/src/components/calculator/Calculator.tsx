@@ -1,7 +1,7 @@
 import { Array, Option, pipe } from 'effect'
 import { type ReactNode, useEffect, useId, useState } from 'react'
 import { fmt, plural, useI18n } from '@/i18n'
-import { type CalculatorMessages, calculatorMessages } from '@/i18n/calculator'
+import type { CalculatorMessages } from '@/i18n/calculator'
 import {
   type CalculatorFactors,
   type CalculatorInput,
@@ -92,9 +92,8 @@ function Field({
   )
 }
 
-export function Calculator() {
+export function Calculator({ t }: { t: CalculatorMessages }) {
   const { locale } = useI18n()
-  const t = calculatorMessages[locale]
   const id = useId()
   const [input, setInput] = useState<CalculatorInput>(() =>
     defaultInput(locale)
