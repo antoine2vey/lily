@@ -2,6 +2,11 @@ import {
   adjustedWateringDays,
   calculateIndoorDemandFactor,
   dayOfYearFromIso,
+  INDOOR_RH_BASE,
+  INDOOR_RH_MAX,
+  INDOOR_RH_MIN,
+  INDOOR_RH_PIVOT_C,
+  INDOOR_RH_SLOPE,
   type IndoorDemandInput,
   indoorVpdFactor,
   LUMINOSITY_LUX_VALUES,
@@ -52,6 +57,7 @@ export interface CalculatorResult {
   readonly demand: number
   readonly factors: CalculatorFactors
   readonly dimRoom: boolean
+  readonly indoorHumidity: number
 }
 
 const DEFAULT_PLANT: CatalogEntry = pipe(
@@ -66,7 +72,9 @@ export const plantById = (id: PlantId): CatalogEntry =>
     Option.getOrElse(() => DEFAULT_PLANT)
   )
 
-export const cityById = (id: CityId): City =>
+export type KnownCity = City & { readonly id: CityId }
+
+export const cityById = (id: CityId): KnownCity =>
   pipe(
     Array.findFirst(CITIES, (c) => c.id === id),
     Option.getOrThrow
@@ -88,10 +96,10 @@ export const plantsFor = (locale: Locale): ReadonlyArray<CatalogEntry> =>
     byName(locale, (p: CatalogEntry) => p.translations[locale].name)
   )
 
-export const citiesFor = (locale: Locale): ReadonlyArray<City> =>
+export const citiesFor = (locale: Locale): ReadonlyArray<KnownCity> =>
   Array.sort(
     CITIES,
-    byName(locale, (c: City) => c.names[locale])
+    byName(locale, (c: KnownCity) => c.names[locale])
   )
 
 // The prerendered page shows this input. A fixed month keeps the HTML the same on every build.
@@ -154,5 +162,13 @@ export const calculate = (input: CalculatorInput): CalculatorResult => {
       dryAir: indoorVpdFactor(input.outdoorTempC, plant.humidityRating),
     },
     dimRoom: room.gap <= ROOMFIT_DIM_VETO_GAP,
+    indoorHumidity: Math.min(
+      INDOOR_RH_MAX,
+      Math.max(
+        INDOOR_RH_MIN,
+        INDOOR_RH_BASE +
+          INDOOR_RH_SLOPE * (input.outdoorTempC - INDOOR_RH_PIVOT_C)
+      )
+    ),
   }
 }

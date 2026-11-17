@@ -12,6 +12,7 @@ export const STATIC_PATHS = [
   '/privacy',
   '/terms',
   '/support',
+  '/watering-calculator',
 ] as const
 
 export interface SiteUrl {

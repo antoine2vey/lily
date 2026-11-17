@@ -38,6 +38,9 @@ export function Footer() {
             <Link to="/$locale/blog" params={{ locale }}>
               {m.Footer.blog}
             </Link>
+            <Link to="/$locale/watering-calculator" params={{ locale }}>
+              {m.Footer.calculator}
+            </Link>
             <Link to="/$locale/about" params={{ locale }}>
               {m.Footer.about}
             </Link>

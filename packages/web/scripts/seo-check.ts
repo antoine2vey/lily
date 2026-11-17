@@ -178,6 +178,7 @@ const CAMPAIGNS: ReadonlyArray<readonly [RegExp, string]> = [
   [/^\/(en|fr)\/(about|privacy|support|team|terms)$/, 'web-page-$1'],
   [/^\/(en|fr)\/blog(\/page\/\d+)?$/, 'web-blog-$1'],
   [/^\/(en|fr)\/blog\/[^/]+$/, 'web-post-$1'],
+  [/^\/(en|fr)\/watering-calculator$/, 'web-tool-$1'],
 ]
 
 const expectedCampaign = (url: string): Option.Option<string> => {
