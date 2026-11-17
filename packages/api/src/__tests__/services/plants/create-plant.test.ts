@@ -14,6 +14,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import type { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { RoomNotFoundError } from '@lily/shared'
+import { DEFAULT_HUMIDITY_RATING } from '@lily/shared/indoor-demand'
 import { Array, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -187,6 +188,27 @@ describe('createPlant', () => {
     )
 
     expect(result.wateringRating).toBe(0)
+  })
+
+  it('stores the neutral humidity rating of the indoor model when the request names none', async () => {
+    const { humidityRating: _, ...withoutHumidity } = validRequest
+    const { layer } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant(withoutHumidity).pipe(Effect.provide(layer))
+    )
+
+    expect(result.humidityRating).toBe(DEFAULT_HUMIDITY_RATING)
+  })
+
+  it('keeps a humidity rating of 0, the driest end of the scale', async () => {
+    const { layer } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant({ ...validRequest, humidityRating: 0 }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(result.humidityRating).toBe(0)
   })
 
   it('should default imageUrl to null when not provided', async () => {
