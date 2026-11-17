@@ -4,6 +4,8 @@ This document is the working plan for organic installs of Lily. It records the g
 
 Owner: Antoine de Veyrac. Started 2026-11-06. Revised 2026-11-17.
 
+Android is paused as of 2026-11-17. Plan and measure for the App Store only.
+
 ## Goal
 
 Turn search into App Store installs. Count installs, not visits. Four kinds of page do that, listed from the most direct to the least:
@@ -20,7 +22,7 @@ The first version of this plan made the plant-care articles the main source of t
 - **AI answers take the click on informational queries.** The [Ahrefs study of 300,000 keywords](https://ahrefs.com/blog/ai-overviews-reduce-clicks/) found that the top result gets about 58% fewer clicks when an AI Overview shows, up from 34.5% a year earlier. The [Seer Interactive 2026 update](https://seerinteractive.com/insights/aio-impact-on-google-ctr-2026-update) reports that the decline has slowed. The two disagree on the size and agree on the direction. A plant-care question is the kind of query an AI Overview answers.
 - **Assistants recommend apps by name.** A person who asks an assistant for a plant app gets a short list of names. Lily enters that list through mentions on other sites, not through its own articles.
 - **The category results are weak.** A web search for "best plant care app 2026" on 2026-11-17 returned mostly templated affiliate pages that name Planta, PictureThis, Greg and Blossom. Lily was in none of them.
-- **No page can be credited with an install.** `APP_STORE_URL` in `packages/web/src/lib/site.ts` carries no campaign token, so App Store Connect cannot report which page sent an install.
+- **No page could be credited with an install.** The App Store links carried no campaign token, so App Store Connect could not report which page sent an install. The links have carried one since 2026-11-17.
 
 ## Baseline (2026-11-06)
 
@@ -148,20 +150,19 @@ First check that the post supports a decision page, a tool or a season, as the B
 | Link GA4 (G-YX8RMN49KD) to Search Console. | To do |
 | Bing Webmaster Tools: import the site from GSC. Turn on Cloudflare Crawler Hints for IndexNow. | To do |
 | App Store Connect: record the listing baseline, then apply the name, subtitle and keywords from the App Store listing section, French storefront first. | To do |
-| App Store Connect: copy the provider ID from App Analytics, under the campaign link generator. The campaign tokens in roadmap item 1 need it. | To do |
+| App Store Connect: copy the provider ID from App Analytics, under the campaign link generator. | Done 2026-11-17. It is `APP_STORE_PROVIDER_ID` in `packages/web/src/lib/site.ts`. |
 
 ## Roadmap
 
 In order. Each line is one shippable page or change.
 
-1. Campaign tokens on every App Store link a visitor can click (`StoreButtons`, `CtaBand` and `JoinInvite`), one token per page and placement, so App Store Connect reports installs per page. Leave the JSON-LD `downloadUrl` and `sameAs` and the link in `packages/web/public/llms.txt` untagged.
-2. App Store listing pass, French storefront first.
-3. Free indoor watering calculator, in English and French.
-4. French feature page for "rappel arrosage plantes", with an English twin for "plant watering reminder app".
-5. Comparison page "Lily vs Planta" in both locales, then "Planta alternative" and "Greg vs Planta vs Lily".
-6. Page for "open source plant care app".
-7. Feature pages for shared plants (Canopy) and for Ask Lily.
-8. Real photos in the 39 symptom hubs, with an image pipeline in `packages/web/vite/posts.ts` and an alt-text rule in the blog gate.
+1. App Store listing pass, French storefront first.
+2. Free indoor watering calculator, in English and French.
+3. French feature page for "rappel arrosage plantes", with an English twin for "plant watering reminder app".
+4. Comparison page "Lily vs Planta" in both locales, then "Planta alternative" and "Greg vs Planta vs Lily".
+5. Page for "open source plant care app".
+6. Feature pages for shared plants (Canopy) and for Ask Lily.
+7. Real photos in the 39 symptom hubs, with an image pipeline in `packages/web/vite/posts.ts` and an alt-text rule in the blog gate.
 
 Deferred until indexing settles: French slugs for French posts, with 301s from the English slugs through `redirectFrom`. The change adds up to 125 redirects, all in French.
 
@@ -174,7 +175,7 @@ Dropped:
 
 Review monthly and write one line in the log below.
 
-- **Installs per page.** App Store Connect, App Analytics, by campaign. Available after roadmap item 1.
+- **Installs per kind of page.** App Store Connect, App Analytics, by campaign. Each clickable App Store link carries the campaign `web-<kind>-<locale>`, where the kind is `home`, `page`, `blog` or `post`. The join page carries `web-join`. A campaign appears only after five first-time downloads, as [Apple's help on campaigns](https://developer.apple.com/help/app-store-connect/view-app-analytics/manage-campaigns) says, so the campaigns name a kind of page and not a single page. Split a kind into pages when its campaign passes that threshold every month.
 - **App Store listing.** Impressions, product page views and conversion rate, per storefront.
 - **Assistant panel.** Ask ChatGPT, Gemini, Perplexity and Claude the questions below, each in a new conversation. Record whether the answer names Lily.
   - What is the best plant care app?
@@ -192,4 +193,5 @@ Review monthly and write one line in the log below.
 | 2026-11-06 | Baseline recorded (see above). | |
 | 2026-11-06 | 289 posts per locale merged into 125 hubs and rewritten. Old slugs return a 301. Author named, `/team` page added, dates corrected. | Fewer, stronger pages. "Crawled, currently not indexed" should fall over 4 to 8 weeks. |
 | 2026-11-06 | Homepage title "Lily: Plant Care App with Smart Watering Reminders". Play links hidden. Trailing-slash 301s. | Category-keyword impressions on `/en` and `/fr`. |
+| 2026-11-17 | Campaign tokens on every clickable App Store link, per kind of page and locale. The build fails on an untagged link. Android paused. | Installs per kind of page in App Analytics, once a campaign has five first-time downloads. |
 | 2026-11-17 | Plan revised. The App Store listing, decision pages and tools now come before the articles. The 125 hubs are frozen until 2027-02-06. | No traffic change from the revision itself. |
