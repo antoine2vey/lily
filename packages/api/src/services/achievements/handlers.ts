@@ -9,10 +9,10 @@ export const AchievementsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'achievements', (handlers) =>
     handlers
       .handle('getUserAchievements', () =>
-        getUserAchievements().pipe(withInfraErrorsAsDefect)
+        getUserAchievements.pipe(withInfraErrorsAsDefect)
       )
       .handle('achievementEvents', () =>
-        achievementEvents().pipe(withInfraErrorsAsDefect)
+        achievementEvents.pipe(withInfraErrorsAsDefect)
       )
       .handle('unlockAchievement', ({ payload }) =>
         unlockAchievement(payload).pipe(withInfraErrorsAsDefect)

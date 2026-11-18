@@ -79,7 +79,7 @@ export interface TrialingUser {
 }
 
 export interface IEngagementRepository {
-  readonly getUsersWithTipsEnabled: () => Effect.Effect<
+  readonly getUsersWithTipsEnabled: Effect.Effect<
     ReadonlyArray<UserWithSettings>,
     SqlError
   >
@@ -107,11 +107,11 @@ export interface IEngagementRepository {
     plantId: string,
     sinceDate: Date
   ) => Effect.Effect<boolean, SqlError>
-  readonly getUsersWithCareRemindersEnabled: () => Effect.Effect<
+  readonly getUsersWithCareRemindersEnabled: Effect.Effect<
     ReadonlyArray<UserWithSettings>,
     SqlError
   >
-  readonly getUsersWithWeeklyDigestEnabled: () => Effect.Effect<
+  readonly getUsersWithWeeklyDigestEnabled: Effect.Effect<
     ReadonlyArray<UserWithSettings>,
     SqlError
   >
@@ -158,14 +158,12 @@ export const EngagementRepositoryLive = Layer.effect(
     }
 
     return {
-      getUsersWithTipsEnabled: Effect.fn(
-        'EngagementRepository.getUsersWithTipsEnabled'
-      )(function* () {
-        return yield* db
+      getUsersWithTipsEnabled: Effect.suspend(() =>
+        db
           .select(userSettingsSelection)
           .from(users)
           .where(and(eq(users.tips, true), reachable))
-      }),
+      ).pipe(Effect.withSpan('EngagementRepository.getUsersWithTipsEnabled')),
 
       getLastCareDate: Effect.fn('EngagementRepository.getLastCareDate')(
         function* (userId: string) {
@@ -287,23 +285,23 @@ export const EngagementRepositoryLive = Layer.effect(
         )
       }),
 
-      getUsersWithCareRemindersEnabled: Effect.fn(
-        'EngagementRepository.getUsersWithCareRemindersEnabled'
-      )(function* () {
-        return yield* db
+      getUsersWithCareRemindersEnabled: Effect.suspend(() =>
+        db
           .select(userSettingsSelection)
           .from(users)
           .where(and(eq(users.careReminders, true), reachable))
-      }),
+      ).pipe(
+        Effect.withSpan('EngagementRepository.getUsersWithCareRemindersEnabled')
+      ),
 
-      getUsersWithWeeklyDigestEnabled: Effect.fn(
-        'EngagementRepository.getUsersWithWeeklyDigestEnabled'
-      )(function* () {
-        return yield* db
+      getUsersWithWeeklyDigestEnabled: Effect.suspend(() =>
+        db
           .select(userSettingsSelection)
           .from(users)
           .where(and(eq(users.weeklyDigest, true), reachable))
-      }),
+      ).pipe(
+        Effect.withSpan('EngagementRepository.getUsersWithWeeklyDigestEnabled')
+      ),
 
       getTrialingUsersWithTrialEndingSoon: Effect.fn(
         'EngagementRepository.getTrialingUsersWithTrialEndingSoon'

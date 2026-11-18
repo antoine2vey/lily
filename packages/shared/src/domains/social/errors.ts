@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class UserNotPublicError extends Schema.TaggedError<UserNotPublicError>()(
+export class UserNotPublicError extends Schema.TaggedError<
+  UserNotPublicError,
+  { readonly brand: unique symbol }
+>()(
   'UserNotPublicError',
   {
     userId: Schema.String.pipe(
@@ -11,7 +14,10 @@ export class UserNotPublicError extends Schema.TaggedError<UserNotPublicError>()
   { httpApiStatus: 403 }
 ) {}
 
-export class AlreadyFollowingError extends Schema.TaggedError<AlreadyFollowingError>()(
+export class AlreadyFollowingError extends Schema.TaggedError<
+  AlreadyFollowingError,
+  { readonly brand: unique symbol }
+>()(
   'AlreadyFollowingError',
   {
     targetUserId: Schema.String,
@@ -19,7 +25,10 @@ export class AlreadyFollowingError extends Schema.TaggedError<AlreadyFollowingEr
   { httpApiStatus: 409 }
 ) {}
 
-export class NotFollowingError extends Schema.TaggedError<NotFollowingError>()(
+export class NotFollowingError extends Schema.TaggedError<
+  NotFollowingError,
+  { readonly brand: unique symbol }
+>()(
   'NotFollowingError',
   {
     targetUserId: Schema.String,
@@ -27,13 +36,15 @@ export class NotFollowingError extends Schema.TaggedError<NotFollowingError>()(
   { httpApiStatus: 404 }
 ) {}
 
-export class CannotFollowSelfError extends Schema.TaggedError<CannotFollowSelfError>()(
-  'CannotFollowSelfError',
-  {},
-  { httpApiStatus: 400 }
-) {}
+export class CannotFollowSelfError extends Schema.TaggedError<
+  CannotFollowSelfError,
+  { readonly brand: unique symbol }
+>()('CannotFollowSelfError', {}, { httpApiStatus: 400 }) {}
 
-export class NudgeRateLimitError extends Schema.TaggedError<NudgeRateLimitError>()(
+export class NudgeRateLimitError extends Schema.TaggedError<
+  NudgeRateLimitError,
+  { readonly brand: unique symbol }
+>()(
   'NudgeRateLimitError',
   {
     message: Schema.String.pipe(
@@ -48,7 +59,10 @@ export class NudgeRateLimitError extends Schema.TaggedError<NudgeRateLimitError>
   { httpApiStatus: 429 }
 ) {}
 
-export class NudgeNotAllowedError extends Schema.TaggedError<NudgeNotAllowedError>()(
+export class NudgeNotAllowedError extends Schema.TaggedError<
+  NudgeNotAllowedError,
+  { readonly brand: unique symbol }
+>()(
   'NudgeNotAllowedError',
   {
     message: Schema.String.pipe(

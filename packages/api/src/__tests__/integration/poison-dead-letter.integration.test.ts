@@ -65,7 +65,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               RepositoriesLive,
               alerter.layer,
               Layer.succeed(MessageQueue, queue),
-              createSuccessPushService(),
+              createSuccessPushService,
               createMockDeviceTokenRepository([]),
               createMockActivityPushTokenRepository(),
               createMockCareScheduleRepository(),

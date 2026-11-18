@@ -70,13 +70,12 @@ export const createMockJWTService = (
         )
       }),
 
-    generateRefreshToken: () =>
-      Effect.succeed(
-        pipe(
-          Option.fromNullishOr(options.refreshToken),
-          Option.getOrElse(() => `${crypto.randomUUID()}${crypto.randomUUID()}`)
-        )
-      ),
+    generateRefreshToken: Effect.sync(() =>
+      pipe(
+        Option.fromNullishOr(options.refreshToken),
+        Option.getOrElse(() => `${crypto.randomUUID()}${crypto.randomUUID()}`)
+      )
+    ),
 
     hashRefreshToken: (_token) =>
       Effect.succeed(

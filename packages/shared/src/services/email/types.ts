@@ -9,17 +9,17 @@ export interface SendEmailRequest {
 }
 
 // Email service errors
-export class EmailSendError extends Schema.TaggedError<EmailSendError>()(
-  'EmailSendError',
-  {
-    message: Schema.String,
-    cause: Schema.optional(Schema.Unknown),
-  }
-) {}
+export class EmailSendError extends Schema.TaggedError<
+  EmailSendError,
+  { readonly brand: unique symbol }
+>()('EmailSendError', {
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown),
+}) {}
 
-export class EmailConfigError extends Schema.TaggedError<EmailConfigError>()(
-  'EmailConfigError',
-  {
-    message: Schema.String,
-  }
-) {}
+export class EmailConfigError extends Schema.TaggedError<
+  EmailConfigError,
+  { readonly brand: unique symbol }
+>()('EmailConfigError', {
+  message: Schema.String,
+}) {}

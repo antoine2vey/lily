@@ -28,7 +28,7 @@ export const readPendingJoin = Effect.tryPromise(() =>
   AsyncStorage.getItem(PENDING_JOIN_KEY)
 ).pipe(
   Effect.map(parseInviteToken),
-  Effect.catchTag('UnknownError', () => Effect.succeed(Option.none()))
+  Effect.catchTag('UnknownError', () => Effect.succeedNone)
 )
 
 /** Where a signed-in user lands after the gate or onboarding: a stashed invite, else Home. */

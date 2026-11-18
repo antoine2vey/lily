@@ -37,10 +37,9 @@ export const createMockActivityPushTokenRepository = (
             t.userId === userId && t.kind === 'update' && t.status === 'active'
         )
       ),
-    findAllActiveUpdateTokens: () =>
-      Effect.succeed(
-        Array.filter(store, (t) => t.kind === 'update' && t.status === 'active')
-      ),
+    findAllActiveUpdateTokens: Effect.sync(() =>
+      Array.filter(store, (t) => t.kind === 'update' && t.status === 'active')
+    ),
     findByActivityId: (activityId) =>
       Effect.succeed(
         Option.getOrNull(

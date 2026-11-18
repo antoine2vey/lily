@@ -74,10 +74,10 @@ const clientLayer = (types?: PgTypes.Registry) =>
     )
   )
 
-class PlantRejected extends Schema.TaggedError<PlantRejected>()(
-  'PlantRejected',
-  {}
-) {}
+class PlantRejected extends Schema.TaggedError<
+  PlantRejected,
+  { readonly brand: unique symbol }
+>()('PlantRejected', {}) {}
 
 const countPlants = Effect.gen(function* () {
   const db = yield* PgDrizzle.PgDrizzle

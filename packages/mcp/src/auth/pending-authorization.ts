@@ -16,7 +16,7 @@ export interface PendingAuthorization extends AuthorizationRequest {
 const PendingAuthorizationSchema = Schema.fromJsonString(
   Schema.Struct({
     id: Schema.String,
-    expiresAt: Schema.Number,
+    expiresAt: Schema.Finite,
     clientId: Schema.String,
     redirectUri: Schema.String,
     codeChallenge: Schema.String,

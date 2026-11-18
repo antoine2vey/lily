@@ -16,7 +16,7 @@ export const createMockWeatherCache = (
 
     store: () => Effect.void,
 
-    getAllLocations: () => Effect.succeed([]),
+    getAllLocations: Effect.succeed([]),
 
     removeLocation: () => Effect.void,
   }

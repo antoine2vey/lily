@@ -18,7 +18,7 @@ export const SubscriptionsApiLive = (api: Api) =>
           return yield* getCurrentSubscription(currentUser.id)
         }).pipe(withInfraErrorsAsDefect)
       )
-      .handle('getTiers', () => getTiers().pipe(withInfraErrorsAsDefect))
+      .handle('getTiers', () => getTiers.pipe(withInfraErrorsAsDefect))
       .handle('redeemGiftCode', ({ payload }) =>
         Effect.gen(function* () {
           const currentUser = yield* CurrentUser

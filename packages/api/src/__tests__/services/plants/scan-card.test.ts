@@ -27,12 +27,12 @@ describe('scanCard', () => {
     Layer.mergeAll(
       createMockAiService(),
       createMockGCSService(),
-      createMockFileService(),
+      createMockFileService,
       createMockFileSystem(),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
       createMockRareIdentificationRepository(),
-      createMockScanRepository(),
+      createMockScanRepository,
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )
@@ -60,12 +60,12 @@ describe('scanCard', () => {
     const layer = Layer.mergeAll(
       createMockAiService(),
       createMockGCSService(),
-      createMockFileService(),
+      createMockFileService,
       createMockFileSystem(),
       createMockEventBus({ publishedEvents }),
       createMockCurrentUser({ id: 'user-1' }),
       createMockRareIdentificationRepository(),
-      createMockScanRepository(),
+      createMockScanRepository,
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )

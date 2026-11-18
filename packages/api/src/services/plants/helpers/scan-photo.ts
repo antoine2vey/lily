@@ -15,11 +15,11 @@ import { Effect, Struct } from 'effect'
  * plant gets a public copy of the caller's own scan photo instead. Any other
  * reference is not the caller's to show and the plant gets no image.
  */
-export const withScanPhoto = <E, R>(
-  request: EnhancedPlantCreateRequest,
-  create: (request: EnhancedPlantCreateRequest) => Effect.Effect<Plant, E, R>
-) =>
-  Effect.gen(function* () {
+export const withScanPhoto = Effect.fn('PlantsService.withScanPhoto')(
+  function* <E, R>(
+    request: EnhancedPlantCreateRequest,
+    create: (request: EnhancedPlantCreateRequest) => Effect.Effect<Plant, E, R>
+  ) {
     const gcs = yield* GCSService
     const repo = yield* PlantRepository
     if (request.imageUrl === undefined) return yield* create(request)
@@ -52,4 +52,5 @@ export const withScanPhoto = <E, R>(
           )
         }),
     })
-  }).pipe(Effect.withSpan('PlantsService.withScanPhoto'))
+  }
+)

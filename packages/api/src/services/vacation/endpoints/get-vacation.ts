@@ -6,19 +6,18 @@ import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const getVacation = (): Effect.Effect<
+export const getVacation: Effect.Effect<
   VacationState,
   SqlError | UserNotFoundError,
   UserRepository | CurrentUser
-> =>
-  Effect.gen(function* () {
-    const { id } = yield* CurrentUser
-    const userRepo = yield* UserRepository
-    const user = yield* userRepo.findById(id)
+> = Effect.gen(function* () {
+  const { id } = yield* CurrentUser
+  const userRepo = yield* UserRepository
+  const user = yield* userRepo.findById(id)
 
-    if (!user) {
-      return yield* new UserNotFoundError()
-    }
+  if (!user) {
+    return yield* new UserNotFoundError()
+  }
 
-    return toVacationState(user)
-  }).pipe(Effect.withSpan('VacationService.getVacation'))
+  return toVacationState(user)
+}).pipe(Effect.withSpan('VacationService.getVacation'))

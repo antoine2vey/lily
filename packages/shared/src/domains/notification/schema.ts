@@ -70,7 +70,7 @@ export const Notification = Schema.Struct({
   sentAt: Schema.optional(Schema.DateFromString),
   isRead: Schema.Boolean,
   status: NotificationStatus,
-  retryCount: Schema.Number,
+  retryCount: Schema.Finite,
   lastError: Schema.optional(Schema.String),
   userId: Schema.String,
   plantId: Schema.optional(Schema.String),
@@ -91,7 +91,7 @@ export type NotificationStatusFilter = typeof NotificationStatusFilter.Type
 
 // Unread count response
 export const UnreadCountResponse = Schema.Struct({
-  count: Schema.Number,
+  count: Schema.Finite,
 })
 export type UnreadCountResponse = typeof UnreadCountResponse.Type
 

@@ -170,11 +170,11 @@ export class QueueOperationError extends Data.TaggedError(
   cause?: unknown
 }> {}
 
-export class QueueMessageDecodeError extends Schema.TaggedError<QueueMessageDecodeError>()(
-  'QueueMessageDecodeError',
-  {
-    rawData: Schema.String,
-    claim: Schema.String,
-    message: Schema.String,
-  }
-) {}
+export class QueueMessageDecodeError extends Schema.TaggedError<
+  QueueMessageDecodeError,
+  { readonly brand: unique symbol }
+>()('QueueMessageDecodeError', {
+  rawData: Schema.String,
+  claim: Schema.String,
+  message: Schema.String,
+}) {}

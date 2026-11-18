@@ -75,7 +75,7 @@ describe('getCareAdjustments', () => {
     )
 
     const result = await Effect.runPromiseExit(
-      getCareAdjustments().pipe(Effect.provide(layers))
+      getCareAdjustments.pipe(Effect.provide(layers))
     )
 
     expect(Exit.isFailure(result)).toBe(true)
@@ -114,7 +114,7 @@ describe('getCareAdjustments', () => {
     )
 
     const result = await Effect.runPromise(
-      getCareAdjustments().pipe(Effect.provide(layers))
+      getCareAdjustments.pipe(Effect.provide(layers))
     )
 
     expect(result.length).toBe(1)
@@ -157,7 +157,7 @@ describe('getCareAdjustments', () => {
     )
 
     const result = await Effect.runPromise(
-      getCareAdjustments().pipe(Effect.provide(layers))
+      getCareAdjustments.pipe(Effect.provide(layers))
     )
 
     expect(result.length).toBe(0)

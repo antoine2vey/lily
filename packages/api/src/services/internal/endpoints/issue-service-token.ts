@@ -87,7 +87,7 @@ export const issueServiceToken = (input: {
     })
 
     // Generate refresh token
-    const refreshToken = yield* jwtService.generateRefreshToken()
+    const refreshToken = yield* jwtService.generateRefreshToken
     const refreshTokenHash = yield* jwtService.hashRefreshToken(refreshToken)
     const refreshTokenExpiry = DateTime.toDateUtc(
       DateTime.addDuration(

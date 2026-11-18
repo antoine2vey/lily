@@ -29,15 +29,15 @@ const OnboardingDataSchema = Schema.Struct({
     Schema.Literals(['beginner', 'intermediate', 'expert'])
   ),
   plantName: Schema.optionalKey(Schema.String),
-  plantDays: Schema.optionalKey(Schema.Number),
+  plantDays: Schema.optionalKey(Schema.Finite),
   notificationsEnabled: Schema.optionalKey(Schema.Boolean),
   weatherEnabled: Schema.optionalKey(Schema.Boolean),
-  latitude: Schema.optionalKey(Schema.Number),
-  longitude: Schema.optionalKey(Schema.Number),
+  latitude: Schema.optionalKey(Schema.Finite),
+  longitude: Schema.optionalKey(Schema.Finite),
   preferredTime: Schema.optionalKey(
     Schema.Literals(['morning', 'afternoon', 'evening'])
   ),
-  roomsCreated: Schema.optionalKey(Schema.Number),
+  roomsCreated: Schema.optionalKey(Schema.Finite),
 }) satisfies Schema.Schema<OnboardingData>
 const OnboardingDataJson = Schema.fromJsonString(OnboardingDataSchema)
 const decodeOnboardingData = Schema.decodeUnknownSync(OnboardingDataJson)

@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class DelegationNotFoundError extends Schema.TaggedError<DelegationNotFoundError>()(
+export class DelegationNotFoundError extends Schema.TaggedError<
+  DelegationNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'DelegationNotFoundError',
   {
     delegationId: Schema.String.pipe(
@@ -11,7 +14,10 @@ export class DelegationNotFoundError extends Schema.TaggedError<DelegationNotFou
   { httpApiStatus: 404 }
 ) {}
 
-export class DelegationNotAuthorizedError extends Schema.TaggedError<DelegationNotAuthorizedError>()(
+export class DelegationNotAuthorizedError extends Schema.TaggedError<
+  DelegationNotAuthorizedError,
+  { readonly brand: unique symbol }
+>()(
   'DelegationNotAuthorizedError',
   {
     message: Schema.String.pipe(
@@ -26,7 +32,10 @@ export class DelegationNotAuthorizedError extends Schema.TaggedError<DelegationN
   { httpApiStatus: 403 }
 ) {}
 
-export class DelegationInvalidStatusError extends Schema.TaggedError<DelegationInvalidStatusError>()(
+export class DelegationInvalidStatusError extends Schema.TaggedError<
+  DelegationInvalidStatusError,
+  { readonly brand: unique symbol }
+>()(
   'DelegationInvalidStatusError',
   {
     currentStatus: Schema.String,
@@ -47,7 +56,10 @@ export class DelegationInvalidStatusError extends Schema.TaggedError<DelegationI
   { httpApiStatus: 409 }
 ) {}
 
-export class DelegationOverlapError extends Schema.TaggedError<DelegationOverlapError>()(
+export class DelegationOverlapError extends Schema.TaggedError<
+  DelegationOverlapError,
+  { readonly brand: unique symbol }
+>()(
   'DelegationOverlapError',
   {
     plantIds: Schema.Array(Schema.String),
@@ -67,7 +79,10 @@ export class DelegationOverlapError extends Schema.TaggedError<DelegationOverlap
   { httpApiStatus: 409 }
 ) {}
 
-export class DelegationDateError extends Schema.TaggedError<DelegationDateError>()(
+export class DelegationDateError extends Schema.TaggedError<
+  DelegationDateError,
+  { readonly brand: unique symbol }
+>()(
   'DelegationDateError',
   {
     message: Schema.String,
@@ -75,8 +90,7 @@ export class DelegationDateError extends Schema.TaggedError<DelegationDateError>
   { httpApiStatus: 400 }
 ) {}
 
-export class CannotDelegateSelfError extends Schema.TaggedError<CannotDelegateSelfError>()(
-  'CannotDelegateSelfError',
-  {},
-  { httpApiStatus: 400 }
-) {}
+export class CannotDelegateSelfError extends Schema.TaggedError<
+  CannotDelegateSelfError,
+  { readonly brand: unique symbol }
+>()('CannotDelegateSelfError', {}, { httpApiStatus: 400 }) {}

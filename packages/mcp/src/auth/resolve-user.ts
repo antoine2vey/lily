@@ -154,17 +154,14 @@ const resolveAuth = Effect.fn('MCP.resolveAuth')(function* (
   }
 
   const maybeCreds = yield* repo.getUserApiCredentials(validation.userId)
-  const creds = yield* Option.match(maybeCreds, {
-    onNone: () =>
-      Effect.fail(
-        new OAuthError({
-          error: 'invalid_token',
-          error_description:
-            'No API credentials found — please re-authenticate',
-        })
-      ),
-    onSome: Effect.succeed,
-  })
+  const creds = yield* Effect.fromOption(
+    maybeCreds,
+    () =>
+      new OAuthError({
+        error: 'invalid_token',
+        error_description: 'No API credentials found — please re-authenticate',
+      })
+  )
 
   const jwt =
     forceRefresh || isJwtExpired(creds.apiJwt)

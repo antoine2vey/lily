@@ -3,12 +3,11 @@ import type { PaidChurnResponse } from '@lily/shared/admin/analytics'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const paidChurn = (): Effect.Effect<
+export const paidChurn: Effect.Effect<
   PaidChurnResponse,
   SqlError,
   AnalyticsRepository
-> =>
-  Effect.gen(function* () {
-    const repo = yield* AnalyticsRepository
-    return yield* repo.getPaidChurn
-  }).pipe(Effect.withSpan('AdminAnalyticsService.paidChurn'))
+> = Effect.gen(function* () {
+  const repo = yield* AnalyticsRepository
+  return yield* repo.getPaidChurn
+}).pipe(Effect.withSpan('AdminAnalyticsService.paidChurn'))

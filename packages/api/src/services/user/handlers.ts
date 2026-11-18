@@ -10,7 +10,7 @@ export const UsersApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'users', (handlers) =>
     handlers
       .handle('getUserSettings', () =>
-        getUserSettings().pipe(withInfraErrorsAsDefect)
+        getUserSettings.pipe(withInfraErrorsAsDefect)
       )
       .handle('updateUserSettings', ({ payload }) =>
         updateUserSettings(payload).pipe(withInfraErrorsAsDefect)

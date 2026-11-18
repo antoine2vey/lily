@@ -44,30 +44,29 @@ export const WeatherRepositoryLive = Layer.effect(
 
     return {
       upsertSnapshot: (data) =>
-        Effect.gen(function* () {
-          yield* db
-            .insert(weatherSnapshots)
-            .values(data)
-            .onConflictDoUpdate({
-              target: [
-                weatherSnapshots.latitude,
-                weatherSnapshots.longitude,
-                weatherSnapshots.date,
-              ],
-              set: {
-                temperatureMin: data.temperatureMin,
-                temperatureMax: data.temperatureMax,
-                temperatureMean: data.temperatureMean,
-                humidity: data.humidity,
-                windSpeed: data.windSpeed,
-                precipitation: data.precipitation,
-                solarRadiation: data.solarRadiation,
-                et0: data.et0,
-                cloudCover: data.cloudCover,
-                soilTemperature: data.soilTemperature,
-              },
-            })
-        }),
+        db
+          .insert(weatherSnapshots)
+          .values(data)
+          .onConflictDoUpdate({
+            target: [
+              weatherSnapshots.latitude,
+              weatherSnapshots.longitude,
+              weatherSnapshots.date,
+            ],
+            set: {
+              temperatureMin: data.temperatureMin,
+              temperatureMax: data.temperatureMax,
+              temperatureMean: data.temperatureMean,
+              humidity: data.humidity,
+              windSpeed: data.windSpeed,
+              precipitation: data.precipitation,
+              solarRadiation: data.solarRadiation,
+              et0: data.et0,
+              cloudCover: data.cloudCover,
+              soilTemperature: data.soilTemperature,
+            },
+          })
+          .pipe(Effect.asVoid),
 
       findRecentByLocation: (lat, lng, days) =>
         Effect.gen(function* () {

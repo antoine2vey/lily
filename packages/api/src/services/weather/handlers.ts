@@ -8,9 +8,9 @@ export const WeatherApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'weather', (handlers) =>
     handlers
       .handle('getWeather', () =>
-        getWeatherForUser().pipe(withInfraErrorsAsDefect)
+        getWeatherForUser.pipe(withInfraErrorsAsDefect)
       )
       .handle('getCareAdjustments', () =>
-        getCareAdjustments().pipe(withInfraErrorsAsDefect)
+        getCareAdjustments.pipe(withInfraErrorsAsDefect)
       )
   )

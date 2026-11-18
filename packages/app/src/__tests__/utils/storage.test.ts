@@ -59,7 +59,7 @@ describe('Storage Utilities', () => {
     it('should return Some when token exists', async () => {
       mockGetItemAsync.mockResolvedValueOnce('existing-token')
 
-      const result = await Effect.runPromise(getStoredAccessToken())
+      const result = await Effect.runPromise(getStoredAccessToken)
 
       expect(Option.isSome(result)).toBe(true)
       if (Option.isSome(result)) {
@@ -70,7 +70,7 @@ describe('Storage Utilities', () => {
     it('should return None when token does not exist', async () => {
       mockGetItemAsync.mockResolvedValueOnce(null)
 
-      const result = await Effect.runPromise(getStoredAccessToken())
+      const result = await Effect.runPromise(getStoredAccessToken)
 
       expect(Option.isNone(result)).toBe(true)
     })
@@ -78,7 +78,7 @@ describe('Storage Utilities', () => {
     it('should fail when SecureStore throws', async () => {
       mockGetItemAsync.mockRejectedValueOnce(new Error('Storage error'))
 
-      const result = await Effect.runPromiseExit(getStoredAccessToken())
+      const result = await Effect.runPromiseExit(getStoredAccessToken)
 
       expect(Exit.isFailure(result)).toBe(true)
     })
@@ -88,7 +88,7 @@ describe('Storage Utilities', () => {
     it('should remove access token successfully', async () => {
       mockDeleteItemAsync.mockResolvedValueOnce(undefined)
 
-      const result = await Effect.runPromiseExit(removeStoredAccessToken())
+      const result = await Effect.runPromiseExit(removeStoredAccessToken)
 
       expect(Exit.isSuccess(result)).toBe(true)
       expect(mockDeleteItemAsync).toHaveBeenCalledWith('lily_access_token')
@@ -97,7 +97,7 @@ describe('Storage Utilities', () => {
     it('should fail when SecureStore throws', async () => {
       mockDeleteItemAsync.mockRejectedValueOnce(new Error('Storage error'))
 
-      const result = await Effect.runPromiseExit(removeStoredAccessToken())
+      const result = await Effect.runPromiseExit(removeStoredAccessToken)
 
       expect(Exit.isFailure(result)).toBe(true)
     })
@@ -124,7 +124,7 @@ describe('Storage Utilities', () => {
     it('should remove refresh token successfully', async () => {
       mockDeleteItemAsync.mockResolvedValueOnce(undefined)
 
-      const result = await Effect.runPromiseExit(removeStoredRefreshToken())
+      const result = await Effect.runPromiseExit(removeStoredRefreshToken)
 
       expect(Exit.isSuccess(result)).toBe(true)
       expect(mockDeleteItemAsync).toHaveBeenCalledWith('lily_refresh_token')
@@ -152,7 +152,7 @@ describe('Storage Utilities', () => {
     it('should return Some when email exists', async () => {
       mockGetItemAsync.mockResolvedValueOnce('user@example.com')
 
-      const result = await Effect.runPromise(getStoredUserEmail())
+      const result = await Effect.runPromise(getStoredUserEmail)
 
       expect(Option.isSome(result)).toBe(true)
       if (Option.isSome(result)) {
@@ -163,7 +163,7 @@ describe('Storage Utilities', () => {
     it('should return None when email does not exist', async () => {
       mockGetItemAsync.mockResolvedValueOnce(null)
 
-      const result = await Effect.runPromise(getStoredUserEmail())
+      const result = await Effect.runPromise(getStoredUserEmail)
 
       expect(Option.isNone(result)).toBe(true)
     })
@@ -173,7 +173,7 @@ describe('Storage Utilities', () => {
     it('should remove user email successfully', async () => {
       mockDeleteItemAsync.mockResolvedValueOnce(undefined)
 
-      const result = await Effect.runPromiseExit(removeStoredUserEmail())
+      const result = await Effect.runPromiseExit(removeStoredUserEmail)
 
       expect(Exit.isSuccess(result)).toBe(true)
       expect(mockDeleteItemAsync).toHaveBeenCalledWith('lily_user_email')
@@ -184,7 +184,7 @@ describe('Storage Utilities', () => {
     it('should clear all auth storage items', async () => {
       mockDeleteItemAsync.mockResolvedValue(undefined)
 
-      const result = await Effect.runPromiseExit(clearAuthStorage())
+      const result = await Effect.runPromiseExit(clearAuthStorage)
 
       expect(Exit.isSuccess(result)).toBe(true)
       expect(mockDeleteItemAsync).toHaveBeenCalledTimes(4)
@@ -199,7 +199,7 @@ describe('Storage Utilities', () => {
       mockDeleteItemAsync.mockRejectedValueOnce(new Error('Storage error'))
       mockDeleteItemAsync.mockResolvedValueOnce(undefined)
 
-      const result = await Effect.runPromiseExit(clearAuthStorage())
+      const result = await Effect.runPromiseExit(clearAuthStorage)
 
       expect(Exit.isFailure(result)).toBe(true)
     })

@@ -12,7 +12,7 @@ describe('getAllTiers', () => {
     )
 
     const result = await Effect.runPromise(
-      getTiers().pipe(Effect.provide(testLayer))
+      getTiers.pipe(Effect.provide(testLayer))
     )
 
     expect(result).toHaveLength(2)
@@ -31,7 +31,7 @@ describe('getAllTiers', () => {
     )
 
     const result = await Effect.runPromise(
-      getTiers().pipe(Effect.provide(testLayer))
+      getTiers.pipe(Effect.provide(testLayer))
     )
 
     const freeTier = result.find((t) => t.tier === 'free')
@@ -51,7 +51,7 @@ describe('getAllTiers', () => {
     )
 
     const result = await Effect.runPromise(
-      getTiers().pipe(Effect.provide(testLayer))
+      getTiers.pipe(Effect.provide(testLayer))
     )
 
     const paidTier = result.find((t) => t.tier === 'paid')
@@ -72,7 +72,7 @@ describe('getAllTiers', () => {
     )
 
     const result = await Effect.runPromise(
-      getTiers().pipe(Effect.provide(testLayer))
+      getTiers.pipe(Effect.provide(testLayer))
     )
 
     for (const tier of result) {
@@ -93,11 +93,11 @@ describe('getAllTiers', () => {
     )
 
     const result1 = await Effect.runPromise(
-      getTiers().pipe(Effect.provide(testLayer))
+      getTiers.pipe(Effect.provide(testLayer))
     )
 
     const result2 = await Effect.runPromise(
-      getTiers().pipe(Effect.provide(testLayer))
+      getTiers.pipe(Effect.provide(testLayer))
     )
 
     expect(result1).toEqual(result2)

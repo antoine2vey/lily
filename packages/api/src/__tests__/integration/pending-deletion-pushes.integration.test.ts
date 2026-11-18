@@ -641,11 +641,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             const ids = (rows: ReadonlyArray<{ readonly id: string }>) =>
               rows.map((r) => r.id)
             return {
-              tips: ids(yield* repo.getUsersWithTipsEnabled()),
-              careReminders: ids(
-                yield* repo.getUsersWithCareRemindersEnabled()
-              ),
-              weeklyDigest: ids(yield* repo.getUsersWithWeeklyDigestEnabled()),
+              tips: ids(yield* repo.getUsersWithTipsEnabled),
+              careReminders: ids(yield* repo.getUsersWithCareRemindersEnabled),
+              weeklyDigest: ids(yield* repo.getUsersWithWeeklyDigestEnabled),
               trialEnding: ids(
                 yield* repo.getTrialingUsersWithTrialEndingSoon(1)
               ),

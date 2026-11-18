@@ -131,11 +131,9 @@ export const verifyHandler = Effect.gen(function* () {
     )
   )
 }).pipe(
-  Effect.catchTag('OAuthError', (err) =>
-    Effect.succeed(errorHtml(err.error_description))
-  ),
-  Effect.catchTag('SqlError', () =>
-    Effect.succeed(errorHtml('Authentication failed'))
-  ),
+  Effect.catchTags({
+    OAuthError: (err) => Effect.succeed(errorHtml(err.error_description)),
+    SqlError: () => Effect.succeed(errorHtml('Authentication failed')),
+  }),
   Effect.withSpan('MCP.verify')
 )

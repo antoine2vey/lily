@@ -53,14 +53,13 @@ describe('readCareScheduleResource', () => {
   it('should include task details in overdue section', async () => {
     const layer = Layer.merge(
       createMockApiClient({
-        getCareTasks: () =>
-          Effect.succeed({
-            overdue: [mockOverdueTask],
-            today: [],
-            upcoming: [],
-            completedToday: 0,
-            windowDays: [],
-          }),
+        getCareTasks: Effect.succeed({
+          overdue: [mockOverdueTask],
+          today: [],
+          upcoming: [],
+          completedToday: 0,
+          windowDays: [],
+        }),
       }),
       JwtLayer
     )

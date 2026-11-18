@@ -44,9 +44,9 @@ export const AuthApiLive = (api: Api) =>
         refreshToken(payload).pipe(withInfraErrorsAsDefect)
       )
       .handle('getCurrentUser', () =>
-        getCurrentUser().pipe(withInfraErrorsAsDefect)
+        getCurrentUser.pipe(withInfraErrorsAsDefect)
       )
-      .handle('logout', () => logout().pipe(withInfraErrorsAsDefect))
+      .handle('logout', () => logout.pipe(withInfraErrorsAsDefect))
       .handle('setUsername', ({ payload }) =>
         setUsername(payload).pipe(withInfraErrorsAsDefect)
       )

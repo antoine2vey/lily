@@ -6,7 +6,10 @@ import { Schema } from 'effect'
  * status per declaration (`HttpApiSchema.status(401)` on the refresh and
  * session routes).
  */
-export class AuthError extends Schema.TaggedError<AuthError>()(
+export class AuthError extends Schema.TaggedError<
+  AuthError,
+  { readonly brand: unique symbol }
+>()(
   'AuthError',
   {
     message: Schema.String,

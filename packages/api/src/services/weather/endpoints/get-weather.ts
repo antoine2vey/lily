@@ -78,7 +78,7 @@ export const getWeatherForLocation = (
   })
 
 // Fetch weather for the current authenticated user
-export const getWeatherForUser = (): Effect.Effect<
+export const getWeatherForUser: Effect.Effect<
   WeatherForecast,
   SqlError | WeatherFetchError | WeatherNotAvailableError,
   | CurrentUser
@@ -86,16 +86,15 @@ export const getWeatherForUser = (): Effect.Effect<
   | WeatherProvider
   | WeatherCache
   | WeatherRepository
-> =>
-  Effect.gen(function* () {
-    const { id } = yield* CurrentUser
-    const userRepo = yield* UserRepository
+> = Effect.gen(function* () {
+  const { id } = yield* CurrentUser
+  const userRepo = yield* UserRepository
 
-    const user = yield* userRepo.findById(id)
+  const user = yield* userRepo.findById(id)
 
-    if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
-      return yield* new WeatherNotAvailableError({})
-    }
+  if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
+    return yield* new WeatherNotAvailableError({})
+  }
 
-    return yield* getWeatherForLocation(user.latitude, user.longitude)
-  })
+  return yield* getWeatherForLocation(user.latitude, user.longitude)
+})

@@ -14,7 +14,7 @@ export interface IWeatherCache {
     data: WeatherForecast
   ) => Effect.Effect<void>
 
-  readonly getAllLocations: () => Effect.Effect<
+  readonly getAllLocations: Effect.Effect<
     Array<{ latitude: number; longitude: number; id: string }>
   >
 

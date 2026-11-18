@@ -8,7 +8,7 @@ import { HttpApiBuilder } from 'effect/http-api'
 export const VacationApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'vacation', (handlers) =>
     handlers
-      .handle('getVacation', () => getVacation().pipe(withInfraErrorsAsDefect))
+      .handle('getVacation', () => getVacation.pipe(withInfraErrorsAsDefect))
       .handle('setVacation', ({ payload }) =>
         setVacation(payload).pipe(withInfraErrorsAsDefect)
       )

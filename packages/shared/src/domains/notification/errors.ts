@@ -1,6 +1,9 @@
 import { Data, Effect, Schema } from 'effect'
 
-export class NotificationNotFoundError extends Schema.TaggedError<NotificationNotFoundError>()(
+export class NotificationNotFoundError extends Schema.TaggedError<
+  NotificationNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'NotificationNotFoundError',
   {
     notificationId: Schema.String.pipe(

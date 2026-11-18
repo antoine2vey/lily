@@ -80,7 +80,7 @@ export interface ISubscriptionRepository {
   >
 
   // Rows linked to a store purchase (gifts and free rows have no external id)
-  readonly findStoreSubscriptions: () => Effect.Effect<
+  readonly findStoreSubscriptions: Effect.Effect<
     ReadonlyArray<typeof userSubscriptions.$inferSelect>,
     SqlError
   >
@@ -122,7 +122,7 @@ export interface ISubscriptionRepository {
     tier: SubscriptionTier
   ) => Effect.Effect<TierConfig, SqlError>
 
-  readonly getAllTiers: () => Effect.Effect<TierConfig[], SqlError>
+  readonly getAllTiers: Effect.Effect<TierConfig[], SqlError>
 
   // Usage tracking
   readonly getCurrentUsage: (
@@ -231,14 +231,12 @@ export const SubscriptionRepositoryLive = Layer.effect(
         }
       ),
 
-      findStoreSubscriptions: Effect.fn(
-        'SubscriptionRepository.findStoreSubscriptions'
-      )(function* () {
-        return yield* db
+      findStoreSubscriptions: Effect.suspend(() =>
+        db
           .select()
           .from(userSubscriptions)
           .where(isNotNull(userSubscriptions.externalSubscriptionId))
-      }),
+      ).pipe(Effect.withSpan('SubscriptionRepository.findStoreSubscriptions')),
 
       claimWebhookEvent: Effect.fn('SubscriptionRepository.claimWebhookEvent')(
         function* (event: RevenueCatWebhookEventRecord) {
@@ -426,20 +424,18 @@ export const SubscriptionRepositoryLive = Layer.effect(
         )
       }),
 
-      getAllTiers: Effect.fn('SubscriptionRepository.getAllTiers')(
-        function* () {
-          const tiers = yield* db.select().from(subscriptionTiers)
-          return Array.map(tiers, (config) => ({
-            tier: config.tier,
-            name: config.name,
-            priceMonthly: config.priceMonthly,
-            maxPlants: config.maxPlants,
-            maxAiChatsMonthly: config.maxAiChatsMonthly,
-            maxCardScansMonthly: config.maxCardScansMonthly,
-            maxPlantIdentifiesMonthly: config.maxPlantIdentifiesMonthly,
-          })) as TierConfig[]
-        }
-      ),
+      getAllTiers: Effect.gen(function* () {
+        const tiers = yield* db.select().from(subscriptionTiers)
+        return Array.map(tiers, (config) => ({
+          tier: config.tier,
+          name: config.name,
+          priceMonthly: config.priceMonthly,
+          maxPlants: config.maxPlants,
+          maxAiChatsMonthly: config.maxAiChatsMonthly,
+          maxCardScansMonthly: config.maxCardScansMonthly,
+          maxPlantIdentifiesMonthly: config.maxPlantIdentifiesMonthly,
+        })) as TierConfig[]
+      }).pipe(Effect.withSpan('SubscriptionRepository.getAllTiers')),
 
       getCurrentUsage: Effect.fn('SubscriptionRepository.getCurrentUsage')(
         function* (userId: string) {

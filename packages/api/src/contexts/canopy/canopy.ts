@@ -437,12 +437,12 @@ export const CanopyLive = Layer.effect(
         held.plants,
         (plant) => plant.id === plantId && takesASlot(plant)
       )
-        ? limits.checkPlantLimit(receiver).pipe(
-            Effect.as(Option.none<LimitExceededError>()),
-            Effect.catchTag('LimitExceededError', (error) =>
-              Effect.succeed(Option.some(error))
+        ? limits
+            .checkPlantLimit(receiver)
+            .pipe(
+              Effect.as(Option.none<LimitExceededError>()),
+              Effect.catchTag('LimitExceededError', Effect.succeedSome)
             )
-          )
         : Effect.succeed(Option.none<LimitExceededError>())
 
     const noticed = <A, R extends Refusal>(
@@ -468,8 +468,7 @@ export const CanopyLive = Layer.effect(
       decide: (held: Held) => Result.Result<Decision<Noticed<A>>, R>
     ) =>
       transact(noticed(name, plan, decide)).pipe(
-        Effect.catchTag('SqlError', Effect.die),
-        Effect.catchTag('SchemaError', Effect.die),
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
         Effect.mapError(asError),
         Effect.withSpan(name),
         Effect.provide(context)

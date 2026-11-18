@@ -18,9 +18,9 @@ export const getKnowledgeStats: Effect.Effect<
   const jobRepo = yield* IngestJobRepository
   const chunkRepo = yield* ProcessedChunkRepository
 
-  const totalChunks = yield* chunkRepo.count()
-  const totalJobs = yield* jobRepo.count()
-  const sourceBreakdown = yield* chunkRepo.countBySource()
+  const totalChunks = yield* chunkRepo.count
+  const totalJobs = yield* jobRepo.count
+  const sourceBreakdown = yield* chunkRepo.countBySource
 
   const totalDocuments = pipe(
     sourceBreakdown,

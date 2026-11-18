@@ -76,7 +76,7 @@ export const selectTopic = Effect.fn('blog-generator.selectTopic')(function* (
 
   const [existingSlugs, recentCategories, seedPlants] = yield* Effect.all(
     [
-      repo.findAllSlugs(),
+      repo.findAllSlugs,
       repo.findRecentCategories(10),
       catalog.findRandomNames(1, 'en'),
     ],

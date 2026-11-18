@@ -4,15 +4,14 @@ import type { UnreadCountResponse } from '@lily/shared/notification'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const getUnreadCount = (): Effect.Effect<
+export const getUnreadCount: Effect.Effect<
   UnreadCountResponse,
   SqlError,
   NotificationRepository | CurrentUser
-> =>
-  Effect.gen(function* () {
-    const repo = yield* NotificationRepository
-    const { id: userId } = yield* CurrentUser
+> = Effect.gen(function* () {
+  const repo = yield* NotificationRepository
+  const { id: userId } = yield* CurrentUser
 
-    const count = yield* repo.countUnreadByUserId(userId)
-    return { count }
-  }).pipe(Effect.withSpan('NotificationsService.getUnreadCount'))
+  const count = yield* repo.countUnreadByUserId(userId)
+  return { count }
+}).pipe(Effect.withSpan('NotificationsService.getUnreadCount'))

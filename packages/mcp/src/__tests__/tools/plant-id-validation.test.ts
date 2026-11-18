@@ -8,7 +8,7 @@ const plantId = '3f2b8c1e-5d4a-4b7e-9c0d-1a2b3c4d5e6f'
 describe('plantId tool parameter', () => {
   it.each(traversalIds)('care_plant rejects %j', async (id) => {
     const result = await Effect.runPromise(
-      Schema.decodeUnknownEffect(CarePlant.parametersSchema)({
+      Schema.decodeEffect(CarePlant.parametersSchema)({
         plantId: id,
         type: 'watering',
       }).pipe(Effect.flip)
@@ -18,7 +18,7 @@ describe('plantId tool parameter', () => {
 
   it.each(traversalIds)('get_plant_details rejects %j', async (id) => {
     const result = await Effect.runPromise(
-      Schema.decodeUnknownEffect(GetPlantDetails.parametersSchema)({
+      Schema.decodeEffect(GetPlantDetails.parametersSchema)({
         plantId: id,
       }).pipe(Effect.flip)
     )
@@ -27,7 +27,7 @@ describe('plantId tool parameter', () => {
 
   it('accepts a UUID', async () => {
     const params = await Effect.runPromise(
-      Schema.decodeUnknownEffect(GetPlantDetails.parametersSchema)({ plantId })
+      Schema.decodeEffect(GetPlantDetails.parametersSchema)({ plantId })
     )
     expect(params.plantId).toBe(plantId)
   })

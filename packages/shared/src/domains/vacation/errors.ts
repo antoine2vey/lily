@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class VacationDateError extends Schema.TaggedError<VacationDateError>()(
+export class VacationDateError extends Schema.TaggedError<
+  VacationDateError,
+  { readonly brand: unique symbol }
+>()(
   'VacationDateError',
   {
     message: Schema.String,
@@ -8,7 +11,10 @@ export class VacationDateError extends Schema.TaggedError<VacationDateError>()(
   { httpApiStatus: 400 }
 ) {}
 
-export class VacationNotFoundError extends Schema.TaggedError<VacationNotFoundError>()(
+export class VacationNotFoundError extends Schema.TaggedError<
+  VacationNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'VacationNotFoundError',
   {
     message: Schema.String.pipe(

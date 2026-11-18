@@ -25,14 +25,13 @@ const mockOverdueTask: CareTask = {
 describe('getCareTasks MCP tool', () => {
   it('should return grouped tasks with correct sections', async () => {
     const layer = createMockApiClient({
-      getCareTasks: () =>
-        Effect.succeed({
-          overdue: [mockOverdueTask],
-          today: [],
-          upcoming: [],
-          completedToday: 0,
-          windowDays: [],
-        }),
+      getCareTasks: Effect.succeed({
+        overdue: [mockOverdueTask],
+        today: [],
+        upcoming: [],
+        completedToday: 0,
+        windowDays: [],
+      }),
     })
 
     const result = await Effect.runPromise(
@@ -62,14 +61,13 @@ describe('getCareTasks MCP tool', () => {
       localDueDate: '2026-10-28',
     }
     const layer = createMockApiClient({
-      getCareTasks: () =>
-        Effect.succeed({
-          overdue: [],
-          today: [auckland],
-          upcoming: [],
-          completedToday: 0,
-          windowDays: [],
-        }),
+      getCareTasks: Effect.succeed({
+        overdue: [],
+        today: [auckland],
+        upcoming: [],
+        completedToday: 0,
+        windowDays: [],
+      }),
     })
 
     const result = await Effect.runPromise(

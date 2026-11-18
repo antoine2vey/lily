@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class PlantNotFoundError extends Schema.TaggedError<PlantNotFoundError>()(
+export class PlantNotFoundError extends Schema.TaggedError<
+  PlantNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'PlantNotFoundError',
   {
     plantId: Schema.String.pipe(
@@ -11,7 +14,10 @@ export class PlantNotFoundError extends Schema.TaggedError<PlantNotFoundError>()
   { httpApiStatus: 404 }
 ) {}
 
-export class FutureDateNotAllowedError extends Schema.TaggedError<FutureDateNotAllowedError>()(
+export class FutureDateNotAllowedError extends Schema.TaggedError<
+  FutureDateNotAllowedError,
+  { readonly brand: unique symbol }
+>()(
   'FutureDateNotAllowedError',
   {
     message: Schema.String.pipe(
@@ -26,7 +32,10 @@ export class FutureDateNotAllowedError extends Schema.TaggedError<FutureDateNotA
   { httpApiStatus: 400 }
 ) {}
 
-export class AlreadyCaredTodayError extends Schema.TaggedError<AlreadyCaredTodayError>()(
+export class AlreadyCaredTodayError extends Schema.TaggedError<
+  AlreadyCaredTodayError,
+  { readonly brand: unique symbol }
+>()(
   'AlreadyCaredTodayError',
   {
     careType: Schema.String,
@@ -42,7 +51,10 @@ export class AlreadyCaredTodayError extends Schema.TaggedError<AlreadyCaredToday
   { httpApiStatus: 409 }
 ) {}
 
-export class PlantNotAuthorizedError extends Schema.TaggedError<PlantNotAuthorizedError>()(
+export class PlantNotAuthorizedError extends Schema.TaggedError<
+  PlantNotAuthorizedError,
+  { readonly brand: unique symbol }
+>()(
   'PlantNotAuthorizedError',
   {
     message: Schema.String.pipe(
@@ -61,7 +73,10 @@ export class PlantNotAuthorizedError extends Schema.TaggedError<PlantNotAuthoriz
   { httpApiStatus: 403 }
 ) {}
 
-export class PlantIsDeadError extends Schema.TaggedError<PlantIsDeadError>()(
+export class PlantIsDeadError extends Schema.TaggedError<
+  PlantIsDeadError,
+  { readonly brand: unique symbol }
+>()(
   'PlantIsDeadError',
   {
     plantId: Schema.String,
@@ -77,7 +92,10 @@ export class PlantIsDeadError extends Schema.TaggedError<PlantIsDeadError>()(
   { httpApiStatus: 409 }
 ) {}
 
-export class PlantAlreadyDeadError extends Schema.TaggedError<PlantAlreadyDeadError>()(
+export class PlantAlreadyDeadError extends Schema.TaggedError<
+  PlantAlreadyDeadError,
+  { readonly brand: unique symbol }
+>()(
   'PlantAlreadyDeadError',
   {
     message: Schema.String.pipe(
@@ -92,7 +110,10 @@ export class PlantAlreadyDeadError extends Schema.TaggedError<PlantAlreadyDeadEr
   { httpApiStatus: 409 }
 ) {}
 
-export class PlantNotDeadError extends Schema.TaggedError<PlantNotDeadError>()(
+export class PlantNotDeadError extends Schema.TaggedError<
+  PlantNotDeadError,
+  { readonly brand: unique symbol }
+>()(
   'PlantNotDeadError',
   {
     message: Schema.String.pipe(

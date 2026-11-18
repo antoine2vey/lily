@@ -25,14 +25,14 @@ export interface IIngestJobRepository {
     config: unknown
   ) => Effect.Effect<IngestJob, SqlError>
   readonly findById: (id: string) => Effect.Effect<IngestJob | null, SqlError>
-  readonly findAll: () => Effect.Effect<IngestJob[], SqlError>
+  readonly findAll: Effect.Effect<IngestJob[], SqlError>
   /**
    * Takes the oldest pending job for this worker: one UPDATE that flips it
    * to in_progress and stamps claimed_at. `FOR UPDATE SKIP LOCKED` lets two
    * workers claim at once without taking the same job. Null when the queue
    * is empty.
    */
-  readonly claimNext: () => Effect.Effect<IngestJob | null, SqlError>
+  readonly claimNext: Effect.Effect<IngestJob | null, SqlError>
   /**
    * Puts in_progress jobs whose claim is older than `before` (or that were
    * never stamped, from before claims existed) back to pending. Returns how
@@ -52,7 +52,7 @@ export interface IIngestJobRepository {
     id: string,
     error: string
   ) => Effect.Effect<void, SqlError>
-  readonly count: () => Effect.Effect<number, SqlError>
+  readonly count: Effect.Effect<number, SqlError>
   readonly delete: (id: string) => Effect.Effect<boolean, SqlError>
 }
 
@@ -110,16 +110,16 @@ export const IngestJobRepositoryLive = Layer.effect(
         )
       }),
 
-      findAll: Effect.fn('IngestJobRepository.findAll')(function* () {
+      findAll: Effect.gen(function* () {
         const rows = yield* db
           .select()
           .from(ingestJobs)
           .orderBy(desc(ingestJobs.createdAt))
 
         return Array.map(rows, mapToIngestJob)
-      }),
+      }).pipe(Effect.withSpan('IngestJobRepository.findAll')),
 
-      claimNext: Effect.fn('IngestJobRepository.claimNext')(function* () {
+      claimNext: Effect.gen(function* () {
         const rows = yield* db
           .update(ingestJobs)
           .set({ status: 'in_progress', claimedAt: sql`now()` })
@@ -136,7 +136,7 @@ export const IngestJobRepositoryLive = Layer.effect(
           Option.map(mapToIngestJob),
           Option.getOrNull
         )
-      }),
+      }).pipe(Effect.withSpan('IngestJobRepository.claimNext')),
 
       releaseStaleClaims: Effect.fn('IngestJobRepository.releaseStaleClaims')(
         function* (before: Date) {
@@ -194,7 +194,7 @@ export const IngestJobRepositoryLive = Layer.effect(
           .where(eq(ingestJobs.id, id))
       }),
 
-      count: Effect.fn('IngestJobRepository.count')(function* () {
+      count: Effect.gen(function* () {
         const result = yield* db.select({ value: count() }).from(ingestJobs)
 
         return pipe(
@@ -202,7 +202,7 @@ export const IngestJobRepositoryLive = Layer.effect(
           Option.map((r) => r.value),
           Option.getOrElse(() => 0)
         )
-      }),
+      }).pipe(Effect.withSpan('IngestJobRepository.count')),
 
       delete: Effect.fn('IngestJobRepository.delete')(function* (id: string) {
         const rows = yield* db

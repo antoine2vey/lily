@@ -140,7 +140,6 @@ export const runCommand = <Agg, W, E, A, Refusal, R>(
   Exclude<R, Transaction> | SqlClient.SqlClient | Outbox
 > =>
   transact(commandBody(spec)).pipe(
-    Effect.catchTag('SqlError', Effect.die),
-    Effect.catchTag('SchemaError', Effect.die),
+    Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
     Effect.withSpan(spec.name)
   )

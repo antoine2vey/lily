@@ -4,7 +4,7 @@ import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import type { Scope } from '@lily/mcp/auth/scopes'
 import { ToolsLayer } from '@lily/mcp/tools/handlers'
 import { API_PREFIX, ExternalServiceError } from '@lily/shared'
-import { Effect, Layer, Option } from 'effect'
+import { Effect, Layer } from 'effect'
 import { McpSchema, McpServer } from 'effect/ai'
 import { HttpServerRequest } from 'effect/http'
 import { describe, expect, it } from 'vitest'
@@ -76,13 +76,11 @@ const callTool = (
             }),
             Layer.mock(OAuthRepository)({
               getUserApiCredentials: (userId) =>
-                Effect.succeed(
-                  Option.some({
-                    userId,
-                    apiJwt: unexpiredJwt,
-                    apiRefreshToken: 'api-refresh',
-                  })
-                ),
+                Effect.succeedSome({
+                  userId,
+                  apiJwt: unexpiredJwt,
+                  apiRefreshToken: 'api-refresh',
+                }),
             })
           )
         )

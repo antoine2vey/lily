@@ -15,9 +15,9 @@ export const PublicUserProfile = Schema.Struct({
   name: Schema.NullOr(Schema.String),
   image: Schema.NullOr(Schema.String),
   bio: Schema.NullOr(Schema.String),
-  plantCount: Schema.Number,
-  followerCount: Schema.Number,
-  followingCount: Schema.Number,
+  plantCount: Schema.Finite,
+  followerCount: Schema.Finite,
+  followingCount: Schema.Finite,
   isFollowing: Schema.Boolean,
   shareGrowthData: Schema.Boolean,
   createdAt: Schema.DateFromString,
@@ -30,7 +30,7 @@ export const UserCard = Schema.Struct({
   id: Schema.String,
   name: Schema.NullOr(Schema.String),
   image: Schema.NullOr(Schema.String),
-  plantCount: Schema.Number,
+  plantCount: Schema.Finite,
   isFollowing: Schema.Boolean,
 })
 export type UserCard = typeof UserCard.Type

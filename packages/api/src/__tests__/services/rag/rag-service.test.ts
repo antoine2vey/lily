@@ -129,8 +129,8 @@ describe('RagService', () => {
                 }),
               })
             ),
-          count: () => Effect.succeed(0),
-          countBySource: () => Effect.succeed([]),
+          count: Effect.succeed(0),
+          countBySource: Effect.succeed([]),
           countByJobId: () => Effect.succeed(0),
           findUnembedded: () => Effect.succeed([]),
           setEmbedding: () => Effect.void,

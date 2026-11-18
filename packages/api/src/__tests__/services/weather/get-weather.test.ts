@@ -81,7 +81,7 @@ describe('getWeatherForUser', () => {
     )
 
     const result = await Effect.runPromiseExit(
-      getWeatherForUser().pipe(Effect.provide(layers))
+      getWeatherForUser.pipe(Effect.provide(layers))
     )
 
     expect(Exit.isFailure(result)).toBe(true)
@@ -116,7 +116,7 @@ describe('getWeatherForUser', () => {
     )
 
     const result = await Effect.runPromise(
-      getWeatherForUser().pipe(Effect.provide(layers))
+      getWeatherForUser.pipe(Effect.provide(layers))
     )
 
     expect(result.daily.length).toBe(7)

@@ -10,18 +10,16 @@ const signInTables = () => {
 
   const layer = Layer.mergeAll(
     Layer.mock(MagicLinkRepository, {
-      deleteExpired: () =>
-        Effect.sync(() => {
-          sweeps.magicLinks++
-          return 0
-        }),
+      deleteExpired: Effect.sync(() => {
+        sweeps.magicLinks++
+        return 0
+      }),
     }),
     Layer.mock(RefreshTokenRepository, {
-      deleteExpired: () =>
-        Effect.sync(() => {
-          sweeps.refreshTokens++
-          return 0
-        }),
+      deleteExpired: Effect.sync(() => {
+        sweeps.refreshTokens++
+        return 0
+      }),
     })
   )
 

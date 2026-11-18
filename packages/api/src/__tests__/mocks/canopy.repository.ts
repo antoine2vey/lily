@@ -170,13 +170,12 @@ export const createMockCanopyRepository = (
           Array.map((p) => p.id)
         )
       ),
-    findWithLocation: () =>
-      Effect.sync(() =>
-        Array.filter(
-          store.canopies,
-          (c) => c.latitude !== null && c.longitude !== null
-        )
-      ),
+    findWithLocation: Effect.sync(() =>
+      Array.filter(
+        store.canopies,
+        (c) => c.latitude !== null && c.longitude !== null
+      )
+    ),
     findActiveInvite: (canopyId) =>
       Effect.sync(() =>
         pipe(

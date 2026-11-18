@@ -116,7 +116,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
         credentials: validatedCredentials,
       }
 
-      return yield* Schema.decodeUnknownEffect(GCSConfigSchema)(rawConfig).pipe(
+      return yield* Schema.decodeEffect(GCSConfigSchema)(rawConfig).pipe(
         Effect.mapError(
           (error) =>
             new GCSConfigError({

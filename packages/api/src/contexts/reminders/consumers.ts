@@ -55,8 +55,10 @@ export const remindersConsumer = (
   consumer(CARE_CONSUMER, CareTopic, (event) =>
     handle(event).pipe(
       Effect.provide(context),
-      Effect.catchTag('SqlError', failed(CARE_CONSUMER)),
-      Effect.catchTag('EventBusPublishError', failed(CARE_CONSUMER)),
+      Effect.catchTags({
+        SqlError: failed(CARE_CONSUMER),
+        EventBusPublishError: failed(CARE_CONSUMER),
+      }),
       Effect.withSpan('Reminders.onCareEvent', {
         attributes: { 'event.tag': event._tag, 'plant.id': event.plantId },
       })

@@ -194,8 +194,8 @@ describe('a plant edit from a build that still sends imageUrl', () => {
             createInMemoryCare([], { plantRows: rows }).layer,
             createMockAiService(),
             createMockDelegationRepository({}),
-            createMockFileService(),
-            createMockScanRepository(),
+            createMockFileService,
+            createMockScanRepository,
             createMockUsageTracker({ limitReached: false }),
             BunFileSystem.layer
           )

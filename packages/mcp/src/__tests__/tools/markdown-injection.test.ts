@@ -61,28 +61,27 @@ const api = createMockApiClient({
     }),
   carePlant: () => Effect.succeed(spoofed),
   createPlant: () => Effect.succeed(spoofed),
-  getCareTasks: () =>
-    Effect.succeed({
-      overdue: [
-        {
-          id: 'task-1',
-          plantId: spoofed.id,
-          plantName: SPOOF,
-          plantImageUrl: null,
-          roomName: SPOOF,
-          roomIcon: null,
-          type: 'watering',
-          dueDate: new Date('2024-01-01'),
-          dueDayOffset: -1,
-          localDueDate: '2024-01-01',
-          completed: false,
-        },
-      ],
-      today: [],
-      upcoming: [],
-      completedToday: 0,
-      windowDays: [],
-    }),
+  getCareTasks: Effect.succeed({
+    overdue: [
+      {
+        id: 'task-1',
+        plantId: spoofed.id,
+        plantName: SPOOF,
+        plantImageUrl: null,
+        roomName: SPOOF,
+        roomIcon: null,
+        type: 'watering',
+        dueDate: new Date('2024-01-01'),
+        dueDayOffset: -1,
+        localDueDate: '2024-01-01',
+        completed: false,
+      },
+    ],
+    today: [],
+    upcoming: [],
+    completedToday: 0,
+    windowDays: [],
+  }),
 })
 
 const tools = [

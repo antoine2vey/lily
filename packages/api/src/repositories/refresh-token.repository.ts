@@ -37,7 +37,7 @@ export interface IRefreshTokenRepository {
   ) => Effect.Effect<RefreshToken | null, SqlError>
   readonly revoke: (id: string) => Effect.Effect<RefreshToken | null, SqlError>
   readonly revokeAllForUser: (userId: string) => Effect.Effect<number, SqlError>
-  readonly deleteExpired: () => Effect.Effect<number, SqlError>
+  readonly deleteExpired: Effect.Effect<number, SqlError>
 }
 
 /**
@@ -154,16 +154,14 @@ export const RefreshTokenRepositoryLive = Layer.effect(
 
       // A revoked row stays until it expires. Nothing reads it after the
       // rotation grace window, and its expiry bounds how long it is kept.
-      deleteExpired: Effect.fn('RefreshTokenRepository.deleteExpired')(
-        function* () {
-          const result = yield* db
-            .delete(refreshTokens)
-            .where(lt(refreshTokens.expiresAt, nowAsDate()))
-            .returning({ id: refreshTokens.id })
+      deleteExpired: Effect.gen(function* () {
+        const result = yield* db
+          .delete(refreshTokens)
+          .where(lt(refreshTokens.expiresAt, nowAsDate()))
+          .returning({ id: refreshTokens.id })
 
-          return result.length
-        }
-      ),
+        return result.length
+      }).pipe(Effect.withSpan('RefreshTokenRepository.deleteExpired')),
     }
   })
 )

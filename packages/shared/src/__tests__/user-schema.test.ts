@@ -398,7 +398,7 @@ describe('User Schemas', () => {
     })
 
     it('rejects a time zone that does not resolve', () => {
-      const result = Schema.decodeUnknownExit(UserSettingsUpdateRequest)({
+      const result = Schema.decodeExit(UserSettingsUpdateRequest)({
         timezone: 'Not/AZone',
       })
 

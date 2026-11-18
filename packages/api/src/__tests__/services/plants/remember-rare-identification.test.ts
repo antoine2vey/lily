@@ -37,11 +37,11 @@ const layerFor = (
   Layer.mergeAll(
     createMockAiService({ isRareHouseplant }),
     createMockGCSService(),
-    createMockFileService(),
+    createMockFileService,
     createMockFileSystem(),
     createMockEventBus(),
     createMockCurrentUser({ id: 'user-1' }),
-    createMockScanRepository(),
+    createMockScanRepository,
     repository,
     MockLimitCheckerLive,
     MockUsageTrackerLive

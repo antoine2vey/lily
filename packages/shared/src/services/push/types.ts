@@ -19,7 +19,7 @@ export const PushMessage = Schema.Struct({
   body: Schema.String,
   data: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   sound: Schema.optional(Schema.Literal('default')),
-  badge: Schema.optional(Schema.Number),
+  badge: Schema.optional(Schema.Finite),
   interruptionLevel: Schema.optional(InterruptionLevel),
 })
 export type PushMessage = typeof PushMessage.Type
@@ -64,7 +64,7 @@ export type PushTicket = typeof PushTicket.Type
 
 export const CareGroupContent = Schema.Struct({
   careType: CareType,
-  count: Schema.Number,
+  count: Schema.Finite,
   firstPlantName: Schema.optional(Schema.String),
   // Localized verb for the care type ("Water", "Arroser") — server-rendered
   // because the widget extension has no access to i18next at runtime.
@@ -76,8 +76,8 @@ export type CareGroupContent = typeof CareGroupContent.Type
 // `schemaVersion` must be read defensively on the Swift side so older
 // builds can still render newer payloads.
 export const LiveActivityContentState = Schema.Struct({
-  schemaVersion: Schema.Number,
-  totalPlants: Schema.Number,
+  schemaVersion: Schema.Finite,
+  totalPlants: Schema.Finite,
   groups: Schema.Array(CareGroupContent),
   headline: Schema.String,
   subheadline: Schema.optional(Schema.String),
@@ -86,7 +86,7 @@ export const LiveActivityContentState = Schema.Struct({
   title: Schema.String,
   // Care tasks the user has logged today; paired with the remaining-task count
   // it lets the widget render a progress bar without a second push round-trip.
-  completedToday: Schema.Number,
+  completedToday: Schema.Finite,
   updatedAt: Schema.DateFromString,
 })
 export type LiveActivityContentState = typeof LiveActivityContentState.Type

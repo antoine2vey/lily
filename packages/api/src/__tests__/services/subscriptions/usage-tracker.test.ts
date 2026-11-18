@@ -24,7 +24,10 @@ import type { Notification } from '@lily/shared/notification'
 import { Deferred, Effect, Exit, Fiber, FiberSet, Layer, Schema } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
-class TurnFailed extends Schema.TaggedError<TurnFailed>()('TurnFailed', {}) {}
+class TurnFailed extends Schema.TaggedError<
+  TurnFailed,
+  { readonly brand: unique symbol }
+>()('TurnFailed', {}) {}
 
 const usageAt = (
   overrides: Partial<typeof subscriptionUsage.$inferSelect> = {}
@@ -461,14 +464,12 @@ describe('UsageTracker', () => {
     it('refunds when detaching the turn dies', async () => {
       const { layer, released } = createTestLayer({ usage: usageAt() })
 
-      const exit = await Effect.runPromise(
-        Effect.exit(
-          runTurn(
-            turnThatBills('charge', {
-              detach: () => Effect.die(new Error('fiber set gone')),
-            })
-          ).pipe(Effect.provide(layer))
-        )
+      const exit = await Effect.runPromiseExit(
+        runTurn(
+          turnThatBills('charge', {
+            detach: () => Effect.die(new Error('fiber set gone')),
+          })
+        ).pipe(Effect.provide(layer))
       )
 
       expect(Exit.isFailure(exit)).toBe(true)

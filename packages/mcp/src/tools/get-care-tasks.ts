@@ -28,7 +28,7 @@ const mapTask = (task: CareTask, actionable: boolean) => ({
  */
 export const getCareTasksEffect = Effect.fn('MCP.getCareTasks')(function* () {
   const apiClient = yield* ApiClient
-  const tasks = yield* apiClient.getCareTasks()
+  const tasks = yield* apiClient.getCareTasks
 
   const overdue = tasks.overdue
   const today = tasks.today

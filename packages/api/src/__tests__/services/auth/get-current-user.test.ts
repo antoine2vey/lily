@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 describe('getCurrentUser', () => {
   it('should return user profile when authenticated', async () => {
     const result = await Effect.runPromise(
-      getCurrentUser().pipe(
+      getCurrentUser.pipe(
         Effect.provide(createMockCurrentUser(mockUserProfile))
       )
     )
@@ -31,7 +31,7 @@ describe('getCurrentUser', () => {
     }
 
     const result = await Effect.runPromise(
-      getCurrentUser().pipe(Effect.provide(createMockCurrentUser(customUser)))
+      getCurrentUser.pipe(Effect.provide(createMockCurrentUser(customUser)))
     )
 
     expect(result.id).toBe('custom-user-id')

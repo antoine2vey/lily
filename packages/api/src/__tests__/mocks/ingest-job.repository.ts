@@ -58,20 +58,19 @@ export const createMockIngestJobRepository = (data: {
         )
       ),
 
-    findAll: () => Effect.succeed(data.jobs),
+    findAll: Effect.sync(() => data.jobs),
 
-    claimNext: () =>
-      Effect.sync(() =>
-        pipe(
-          Array.filter(data.jobs, (j) => j.status === 'pending'),
-          Array.sort(byCreatedAt),
-          Array.head,
-          Option.flatMap((job) =>
-            replace(job.id, { status: 'in_progress', claimedAt: new Date() })
-          ),
-          Option.getOrNull
-        )
-      ),
+    claimNext: Effect.sync(() =>
+      pipe(
+        Array.filter(data.jobs, (j) => j.status === 'pending'),
+        Array.sort(byCreatedAt),
+        Array.head,
+        Option.flatMap((job) =>
+          replace(job.id, { status: 'in_progress', claimedAt: new Date() })
+        ),
+        Option.getOrNull
+      )
+    ),
 
     releaseStaleClaims: (before: Date) =>
       Effect.sync(() => {
@@ -102,7 +101,7 @@ export const createMockIngestJobRepository = (data: {
         replace(id, { error, status: 'failed' })
       }),
 
-    count: () => Effect.succeed(data.jobs.length),
+    count: Effect.sync(() => data.jobs.length),
 
     delete: (id: string) =>
       Effect.sync(() =>

@@ -85,8 +85,9 @@ export const plantRoleFor = (
         )
       )
     ),
-    Match.exhaustive
-  ).pipe(Effect.withSpan('plantRoleFor'))
+    Match.exhaustive,
+    Effect.withSpan('plantRoleFor')
+  )
 
 export const resolvePlantRole = (
   plant: RoleInput

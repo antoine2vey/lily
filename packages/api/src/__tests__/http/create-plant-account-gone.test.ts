@@ -62,8 +62,8 @@ const DependenciesLive = Layer.mergeAll(
   care.layer,
   createMockAiService(),
   createMockDelegationRepository({}),
-  createMockFileService(),
-  createMockScanRepository(),
+  createMockFileService,
+  createMockScanRepository,
   createMockUsageTracker({ limitReached: false }),
   FileSystem.layerNoop({})
 )

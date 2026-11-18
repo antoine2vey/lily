@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class ForbiddenError extends Schema.TaggedError<ForbiddenError>()(
+export class ForbiddenError extends Schema.TaggedError<
+  ForbiddenError,
+  { readonly brand: unique symbol }
+>()(
   'ForbiddenError',
   {
     message: Schema.String.pipe(
@@ -15,7 +18,10 @@ export class ForbiddenError extends Schema.TaggedError<ForbiddenError>()(
   { httpApiStatus: 403 }
 ) {}
 
-export class CannotModifySelfError extends Schema.TaggedError<CannotModifySelfError>()(
+export class CannotModifySelfError extends Schema.TaggedError<
+  CannotModifySelfError,
+  { readonly brand: unique symbol }
+>()(
   'CannotModifySelfError',
   {
     message: Schema.String.pipe(
@@ -30,7 +36,10 @@ export class CannotModifySelfError extends Schema.TaggedError<CannotModifySelfEr
   { httpApiStatus: 400 }
 ) {}
 
-export class ChatMessageNotFoundError extends Schema.TaggedError<ChatMessageNotFoundError>()(
+export class ChatMessageNotFoundError extends Schema.TaggedError<
+  ChatMessageNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'ChatMessageNotFoundError',
   {
     message: Schema.String.pipe(
@@ -44,7 +53,10 @@ export class ChatMessageNotFoundError extends Schema.TaggedError<ChatMessageNotF
 // Raised when an admin gift/revoke would overwrite a real store-billed
 // (App Store / Play Store) subscription. Server-side backstop for the same
 // rule the admin UI enforces by disabling the controls.
-export class StorePayerProtectedError extends Schema.TaggedError<StorePayerProtectedError>()(
+export class StorePayerProtectedError extends Schema.TaggedError<
+  StorePayerProtectedError,
+  { readonly brand: unique symbol }
+>()(
   'StorePayerProtectedError',
   {
     message: Schema.String.pipe(

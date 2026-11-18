@@ -1,11 +1,10 @@
 import { Array, Effect, Option, pipe, Schema, String } from 'effect'
 import { MAX_FILE_SIZE_BYTES } from '../../domains/plant/constants'
 
-export class InvalidImageError extends Schema.TaggedError<InvalidImageError>()(
-  'InvalidImageError',
-  { message: Schema.String },
-  { httpApiStatus: 400 }
-) {}
+export class InvalidImageError extends Schema.TaggedError<
+  InvalidImageError,
+  { readonly brand: unique symbol }
+>()('InvalidImageError', { message: Schema.String }, { httpApiStatus: 400 }) {}
 
 interface ImageType {
   readonly contentType: string

@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class GiftCodeNotFoundError extends Schema.TaggedError<GiftCodeNotFoundError>()(
+export class GiftCodeNotFoundError extends Schema.TaggedError<
+  GiftCodeNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'GiftCodeNotFoundError',
   {
     message: Schema.String.pipe(
@@ -11,7 +14,10 @@ export class GiftCodeNotFoundError extends Schema.TaggedError<GiftCodeNotFoundEr
   { httpApiStatus: 404 }
 ) {}
 
-export class GiftCodeExpiredError extends Schema.TaggedError<GiftCodeExpiredError>()(
+export class GiftCodeExpiredError extends Schema.TaggedError<
+  GiftCodeExpiredError,
+  { readonly brand: unique symbol }
+>()(
   'GiftCodeExpiredError',
   {
     message: Schema.String.pipe(
@@ -26,7 +32,10 @@ export class GiftCodeExpiredError extends Schema.TaggedError<GiftCodeExpiredErro
   { httpApiStatus: 400 }
 ) {}
 
-export class GiftCodeExhaustedError extends Schema.TaggedError<GiftCodeExhaustedError>()(
+export class GiftCodeExhaustedError extends Schema.TaggedError<
+  GiftCodeExhaustedError,
+  { readonly brand: unique symbol }
+>()(
   'GiftCodeExhaustedError',
   {
     message: Schema.String.pipe(
@@ -41,7 +50,10 @@ export class GiftCodeExhaustedError extends Schema.TaggedError<GiftCodeExhausted
   { httpApiStatus: 400 }
 ) {}
 
-export class GiftCodeInactiveError extends Schema.TaggedError<GiftCodeInactiveError>()(
+export class GiftCodeInactiveError extends Schema.TaggedError<
+  GiftCodeInactiveError,
+  { readonly brand: unique symbol }
+>()(
   'GiftCodeInactiveError',
   {
     message: Schema.String.pipe(
@@ -56,7 +68,10 @@ export class GiftCodeInactiveError extends Schema.TaggedError<GiftCodeInactiveEr
   { httpApiStatus: 400 }
 ) {}
 
-export class GiftCodeAlreadyRedeemedError extends Schema.TaggedError<GiftCodeAlreadyRedeemedError>()(
+export class GiftCodeAlreadyRedeemedError extends Schema.TaggedError<
+  GiftCodeAlreadyRedeemedError,
+  { readonly brand: unique symbol }
+>()(
   'GiftCodeAlreadyRedeemedError',
   {
     message: Schema.String.pipe(
@@ -71,7 +86,10 @@ export class GiftCodeAlreadyRedeemedError extends Schema.TaggedError<GiftCodeAlr
   { httpApiStatus: 409 }
 ) {}
 
-export class GiftCodeDuplicateError extends Schema.TaggedError<GiftCodeDuplicateError>()(
+export class GiftCodeDuplicateError extends Schema.TaggedError<
+  GiftCodeDuplicateError,
+  { readonly brand: unique symbol }
+>()(
   'GiftCodeDuplicateError',
   {
     message: Schema.String.pipe(
@@ -86,7 +104,10 @@ export class GiftCodeDuplicateError extends Schema.TaggedError<GiftCodeDuplicate
   { httpApiStatus: 409 }
 ) {}
 
-export class GiftCodeMaxUsagesTooLowError extends Schema.TaggedError<GiftCodeMaxUsagesTooLowError>()(
+export class GiftCodeMaxUsagesTooLowError extends Schema.TaggedError<
+  GiftCodeMaxUsagesTooLowError,
+  { readonly brand: unique symbol }
+>()(
   'GiftCodeMaxUsagesTooLowError',
   {
     message: Schema.String.pipe(
@@ -105,7 +126,10 @@ export class GiftCodeMaxUsagesTooLowError extends Schema.TaggedError<GiftCodeMax
   { httpApiStatus: 400 }
 ) {}
 
-export class GiftCodeExpiryInPastError extends Schema.TaggedError<GiftCodeExpiryInPastError>()(
+export class GiftCodeExpiryInPastError extends Schema.TaggedError<
+  GiftCodeExpiryInPastError,
+  { readonly brand: unique symbol }
+>()(
   'GiftCodeExpiryInPastError',
   {
     message: Schema.String.pipe(

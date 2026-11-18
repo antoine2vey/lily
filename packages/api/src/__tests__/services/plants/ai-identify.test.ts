@@ -24,7 +24,7 @@ describe('aiIdentify', () => {
     Layer.mergeAll(
       createMockAiService(),
       createMockGCSService(),
-      createMockFileService(),
+      createMockFileService,
       createMockFileSystem(),
       createMockCurrentUser({ id: 'user-1' }),
       createMockRareIdentificationRepository(),

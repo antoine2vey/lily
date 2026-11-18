@@ -22,7 +22,7 @@ describe('getUserSettings', () => {
 
   it('should return user settings when user exists', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.name).toBe('Test User')
@@ -31,7 +31,7 @@ describe('getUserSettings', () => {
 
   it('should return notification preferences from database', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(Effect.provide(createTestLayer('user-2')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('user-2')))
     )
 
     expect(result.notifications.careReminders).toBe(false)
@@ -47,7 +47,7 @@ describe('getUserSettings', () => {
 
   it('should return bio when present', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(Effect.provide(createTestLayer('user-2')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('user-2')))
     )
 
     expect(result.bio).toBe('Plant enthusiast')
@@ -55,7 +55,7 @@ describe('getUserSettings', () => {
 
   it('should return undefined bio when not set', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.bio).toBeUndefined()
@@ -63,7 +63,7 @@ describe('getUserSettings', () => {
 
   it('should fail with UserNotFoundError when user does not exist', async () => {
     const result = await Effect.runPromiseExit(
-      getUserSettings().pipe(Effect.provide(createTestLayer('non-existent')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('non-existent')))
     )
 
     expect(result._tag).toBe('Failure')
@@ -71,7 +71,7 @@ describe('getUserSettings', () => {
 
   it('should return image when present', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(Effect.provide(createTestLayer('user-2')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('user-2')))
     )
 
     expect(result.image).toBe('https://example.com/avatar.png')
@@ -79,7 +79,7 @@ describe('getUserSettings', () => {
 
   it('should return undefined image when not set', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.image).toBeUndefined()
@@ -87,7 +87,7 @@ describe('getUserSettings', () => {
 
   it('should return privacy preferences from database', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.privacy.publicProfile).toBe(true)
@@ -97,7 +97,7 @@ describe('getUserSettings', () => {
 
   it('should return privacy preferences for user with custom values', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(Effect.provide(createTestLayer('user-2')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('user-2')))
     )
 
     expect(result.privacy.publicProfile).toBe(false)
@@ -107,7 +107,7 @@ describe('getUserSettings', () => {
 
   it('should return the all-time care logs count for the user', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(
+      getUserSettings.pipe(
         Effect.provide(createTestLayer('user-1', { 'user-1': 156 }))
       )
     )
@@ -117,7 +117,7 @@ describe('getUserSettings', () => {
 
   it('should default care logs count to 0 when the user has none', async () => {
     const result = await Effect.runPromise(
-      getUserSettings().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserSettings.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.careLogsCount).toBe(0)

@@ -23,11 +23,10 @@ export const carePlant = (
         planStep: PlanStepChoice.Auto(),
       })
       const plant = yield* plants.findById(permit.plantId)
-      return yield* Option.match(Option.fromNullishOr(plant), {
-        onNone: () =>
-          Effect.fail(new PlantNotFoundError({ plantId: permit.plantId })),
-        onSome: Effect.succeed,
-      })
+      return yield* Effect.fromOption(
+        Option.fromNullishOr(plant),
+        () => new PlantNotFoundError({ plantId: permit.plantId })
+      )
     })
   ).pipe(
     Effect.withSpan('PlantsService.carePlant', {

@@ -29,7 +29,7 @@ export const readCareScheduleResource = Effect.fn(
   'MCP.readCareScheduleResource'
 )(function* () {
   const apiClient = yield* ApiClient
-  const tasks = yield* apiClient.getCareTasks()
+  const tasks = yield* apiClient.getCareTasks
 
   const formatTask = (task: CareTask) => ({
     id: task.id,

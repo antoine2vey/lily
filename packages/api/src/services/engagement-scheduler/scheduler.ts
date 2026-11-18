@@ -547,8 +547,8 @@ export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
   const engagementRepo = yield* EngagementRepository
 
   const [allUsersWithTips, allUsersWithCareReminders] = yield* Effect.all([
-    engagementRepo.getUsersWithTipsEnabled(),
-    engagementRepo.getUsersWithCareRemindersEnabled(),
+    engagementRepo.getUsersWithTipsEnabled,
+    engagementRepo.getUsersWithCareRemindersEnabled,
   ])
 
   // Engagement notifications are muted while the recipient is on vacation

@@ -44,68 +44,61 @@ const getProgressForKey = (
   )
 
 // Get all achievements with progress for the current user
-export const getUserAchievements = (): Effect.Effect<
+export const getUserAchievements: Effect.Effect<
   AchievementsResponse,
   SqlError,
   AchievementRepository | CurrentUser
-> =>
-  Effect.gen(function* () {
-    const { id: userId } = yield* CurrentUser
-    const repo = yield* AchievementRepository
+> = Effect.gen(function* () {
+  const { id: userId } = yield* CurrentUser
+  const repo = yield* AchievementRepository
 
-    // Fetch all data in parallel: unlocked achievements + all progress counts
-    const [unlocked, counts] = yield* Effect.all([
-      repo.findByUserId(userId),
-      Effect.all({
-        plants: repo.countPlants(userId),
-        watering: repo.countCareLogsByType(userId, 'watering'),
-        fertilization: repo.countCareLogsByType(userId, 'fertilization'),
-        careStreak: repo.getCareStreak(userId),
-        photos: repo.countPhotos(userId),
-        scans: repo.countScans(userId),
-        historyViews: repo.getHistoryViewCount(userId),
-      }),
-    ])
+  // Fetch all data in parallel: unlocked achievements + all progress counts
+  const [unlocked, counts] = yield* Effect.all([
+    repo.findByUserId(userId),
+    Effect.all({
+      plants: repo.countPlants(userId),
+      watering: repo.countCareLogsByType(userId, 'watering'),
+      fertilization: repo.countCareLogsByType(userId, 'fertilization'),
+      careStreak: repo.getCareStreak(userId),
+      photos: repo.countPhotos(userId),
+      scans: repo.countScans(userId),
+      historyViews: repo.getHistoryViewCount(userId),
+    }),
+  ])
 
-    const allKeys = ACHIEVEMENT_KEYS
+  const allKeys = ACHIEVEMENT_KEYS
 
-    const achievements: AchievementWithProgress[] = Array.map(
-      allKeys,
-      (key) => {
-        const def = ACHIEVEMENTS[key]
-        const unlockedEntry = Array.findFirst(
-          unlocked,
-          (u) => u.achievement === key
-        )
-
-        return {
-          key,
-          name: def.name,
-          description: def.description,
-          icon: def.icon,
-          category: def.category,
-          rarity: def.rarity,
-          unlocked: Option.isSome(unlockedEntry),
-          unlockedAt: pipe(
-            unlockedEntry,
-            Option.map((u) => u.unlockedAt),
-            Option.getOrNull
-          ),
-          progress: getProgressForKey(counts, key),
-          maxProgress: pipe(
-            Option.fromNullishOr(def.threshold),
-            Option.getOrNull
-          ),
-        } satisfies AchievementWithProgress
-      }
+  const achievements: AchievementWithProgress[] = Array.map(allKeys, (key) => {
+    const def = ACHIEVEMENTS[key]
+    const unlockedEntry = Array.findFirst(
+      unlocked,
+      (u) => u.achievement === key
     )
 
-    const unlockedCount = Array.filter(achievements, (a) => a.unlocked).length
-
     return {
-      achievements,
-      level: Math.floor(unlockedCount / 3) + 1,
-      unlockedCount,
-      totalCount: achievements.length,
-    }
-  }).pipe(Effect.withSpan('AchievementsService.getUserAchievements'))
+      key,
+      name: def.name,
+      description: def.description,
+      icon: def.icon,
+      category: def.category,
+      rarity: def.rarity,
+      unlocked: Option.isSome(unlockedEntry),
+      unlockedAt: pipe(
+        unlockedEntry,
+        Option.map((u) => u.unlockedAt),
+        Option.getOrNull
+      ),
+      progress: getProgressForKey(counts, key),
+      maxProgress: pipe(Option.fromNullishOr(def.threshold), Option.getOrNull),
+    } satisfies AchievementWithProgress
+  })
+
+  const unlockedCount = Array.filter(achievements, (a) => a.unlocked).length
+
+  return {
+    achievements,
+    level: Math.floor(unlockedCount / 3) + 1,
+    unlockedCount,
+    totalCount: achievements.length,
+  }
+}).pipe(Effect.withSpan('AchievementsService.getUserAchievements'))

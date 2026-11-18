@@ -47,14 +47,14 @@ export const RevenueCatWebhookEventData = Schema.Struct({
   entitlement_ids: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
   store: RevenueCatStore,
   environment: RevenueCatEnvironment,
-  purchased_at_ms: Schema.Number,
-  expiration_at_ms: Schema.NullOr(Schema.Number),
+  purchased_at_ms: Schema.Finite,
+  expiration_at_ms: Schema.NullOr(Schema.Finite),
   // Trial and period info
   is_trial_period: Schema.optional(Schema.NullOr(Schema.Boolean)),
   period_type: Schema.optional(Schema.NullOr(RevenueCatPeriodType)),
   // Price info
-  price: Schema.optional(Schema.NullOr(Schema.Number)),
-  price_in_purchased_currency: Schema.optional(Schema.NullOr(Schema.Number)),
+  price: Schema.optional(Schema.NullOr(Schema.Finite)),
+  price_in_purchased_currency: Schema.optional(Schema.NullOr(Schema.Finite)),
   currency: Schema.optional(Schema.NullOr(Schema.String)),
   // Cancellation info
   cancel_reason: Schema.optional(Schema.NullOr(Schema.String)),

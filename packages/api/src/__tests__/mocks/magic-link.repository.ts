@@ -101,17 +101,16 @@ export const createMockMagicLinkRepository = (
         return updated
       }),
 
-    deleteExpired: () =>
-      Effect.gen(function* () {
-        const now = new Date()
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
-        const originalLength = magicLinkStore.length
-        magicLinkStore = Array.filter(
-          magicLinkStore,
-          (ml) => ml.expiresAt >= oneHourAgo
-        )
-        return originalLength - magicLinkStore.length
-      }),
+    deleteExpired: Effect.gen(function* () {
+      const now = new Date()
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+      const originalLength = magicLinkStore.length
+      magicLinkStore = Array.filter(
+        magicLinkStore,
+        (ml) => ml.expiresAt >= oneHourAgo
+      )
+      return originalLength - magicLinkStore.length
+    }),
 
     deleteSpentByEmail: (email: string) =>
       Effect.gen(function* () {

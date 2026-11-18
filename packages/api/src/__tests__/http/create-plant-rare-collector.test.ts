@@ -74,8 +74,8 @@ const DependenciesLive = Layer.mergeAll(
   createInMemoryCare([], { plantRows: rows }).layer,
   createMockAiService(),
   createMockDelegationRepository({}),
-  createMockFileService(),
-  createMockScanRepository(),
+  createMockFileService,
+  createMockScanRepository,
   createMockUsageTracker({ limitReached: false }),
   FileSystem.layerNoop({})
 )

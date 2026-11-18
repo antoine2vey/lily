@@ -399,7 +399,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await careBy(rae.id, alexsPersonalPlant, [0])
 
       const ids = await run(
-        Effect.flatMap(achievements, (repo) => repo.findUserIdsWithProgress())
+        Effect.flatMap(achievements, (repo) => repo.findUserIdsWithProgress)
       )
 
       expect([...ids].sort()).toEqual([alexId, lilyId, samId, rae.id].sort())

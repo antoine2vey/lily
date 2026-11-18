@@ -53,7 +53,7 @@ export const DelegationListItem = Schema.Struct({
   status: DelegationStatus,
   startDate: Schema.DateFromString,
   endDate: Schema.DateFromString,
-  plantCount: Schema.Number,
+  plantCount: Schema.Finite,
   createdAt: Schema.DateFromString,
 })
 export type DelegationListItem = typeof DelegationListItem.Type

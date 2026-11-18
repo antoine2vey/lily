@@ -91,7 +91,7 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
   }
 
   // Skip if a post is already being processed
-  const inProgress = yield* repo.hasInProgress()
+  const inProgress = yield* repo.hasInProgress
 
   if (inProgress) {
     yield* Effect.log('Blog generation skipped — post already in progress')

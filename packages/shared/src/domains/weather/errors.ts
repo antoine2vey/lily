@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class WeatherFetchError extends Schema.TaggedError<WeatherFetchError>()(
+export class WeatherFetchError extends Schema.TaggedError<
+  WeatherFetchError,
+  { readonly brand: unique symbol }
+>()(
   'WeatherFetchError',
   {
     message: Schema.String,
@@ -8,7 +11,10 @@ export class WeatherFetchError extends Schema.TaggedError<WeatherFetchError>()(
   { httpApiStatus: 502 }
 ) {}
 
-export class WeatherNotAvailableError extends Schema.TaggedError<WeatherNotAvailableError>()(
+export class WeatherNotAvailableError extends Schema.TaggedError<
+  WeatherNotAvailableError,
+  { readonly brand: unique symbol }
+>()(
   'WeatherNotAvailableError',
   {
     message: Schema.String.pipe(

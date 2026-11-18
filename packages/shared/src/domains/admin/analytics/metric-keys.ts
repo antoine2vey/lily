@@ -15,19 +15,19 @@ export const ANALYTICS_METRIC_KEYS = {
 
 // Shape of the jsonb `value` column per metric key. Used by the API read
 // path to decode snapshots produced by the scheduler compute methods.
-export const MrrSnapshotValue = Schema.Struct({ cents: Schema.Number })
+export const MrrSnapshotValue = Schema.Struct({ cents: Schema.Finite })
 export type MrrSnapshotValue = typeof MrrSnapshotValue.Type
 
 export const DauSnapshotValue = Schema.Struct({
-  dau: Schema.Number,
-  wau: Schema.Number,
-  mau: Schema.Number,
+  dau: Schema.Finite,
+  wau: Schema.Finite,
+  mau: Schema.Finite,
 })
 export type DauSnapshotValue = typeof DauSnapshotValue.Type
 
 export const ChurnSnapshotValue = Schema.Struct({
-  rate: Schema.Number,
-  canceled: Schema.Number,
-  activeStart: Schema.Number,
+  rate: Schema.Finite,
+  canceled: Schema.Finite,
+  activeStart: Schema.Finite,
 })
 export type ChurnSnapshotValue = typeof ChurnSnapshotValue.Type

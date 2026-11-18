@@ -15,10 +15,10 @@ export const getIngestJob = (
     const repo = yield* IngestJobRepository
     const job = yield* repo.findById(id)
 
-    return yield* Option.match(Option.fromNullishOr(job), {
-      onNone: () => Effect.fail(new IngestJobNotFoundError({ jobId: id })),
-      onSome: Effect.succeed,
-    })
+    return yield* Effect.fromOption(
+      Option.fromNullishOr(job),
+      () => new IngestJobNotFoundError({ jobId: id })
+    )
   }).pipe(
     Effect.withSpan('KnowledgeIngestion.getIngestJob', {
       attributes: { 'job.id': id },

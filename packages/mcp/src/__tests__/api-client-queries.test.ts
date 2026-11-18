@@ -82,7 +82,7 @@ describe('MCP API client plant scope', () => {
   })
 
   it('asks GET /care-tasks for Canopy tasks', async () => {
-    await run((api) => api.getCareTasks())
+    await run((api) => api.getCareTasks)
 
     expect(new URL(requests[0]?.url ?? '').pathname).toBe(
       `${API_PREFIX}/care-tasks`
@@ -113,7 +113,7 @@ describe('MCP API client response decoding', () => {
   it('fails with ExternalServiceError when the API body does not match the endpoint schema', async () => {
     responseBody = () => ({ overdue: 'nope' })
 
-    const error = await run((api) => api.getCareTasks().pipe(Effect.flip))
+    const error = await run((api) => api.getCareTasks.pipe(Effect.flip))
 
     expect(error).toBeInstanceOf(ExternalServiceError)
     expect(error.url).toBe(

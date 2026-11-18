@@ -427,8 +427,7 @@ export const AbsenceLive = Layer.effect(
           return value
         })
       ).pipe(
-        Effect.catchTag('SqlError', Effect.die),
-        Effect.catchTag('SchemaError', Effect.die),
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
         Effect.withSpan(name),
         Effect.provide(context)
       )
@@ -449,8 +448,7 @@ export const AbsenceLive = Layer.effect(
           apply: store.apply,
         })
       ).pipe(
-        Effect.catchTag('SqlError', Effect.die),
-        Effect.catchTag('SchemaError', Effect.die),
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
         Effect.withSpan(name),
         Effect.provide(context)
       )

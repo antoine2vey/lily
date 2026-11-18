@@ -1,17 +1,23 @@
 import { Schema } from 'effect'
 
-export class LimitExceededError extends Schema.TaggedError<LimitExceededError>()(
+export class LimitExceededError extends Schema.TaggedError<
+  LimitExceededError,
+  { readonly brand: unique symbol }
+>()(
   'LimitExceededError',
   {
     feature: Schema.String,
-    limit: Schema.Number,
-    current: Schema.Number,
+    limit: Schema.Finite,
+    current: Schema.Finite,
     message: Schema.String,
   },
   { httpApiStatus: 403 }
 ) {}
 
-export class PaymentProviderError extends Schema.TaggedError<PaymentProviderError>()(
+export class PaymentProviderError extends Schema.TaggedError<
+  PaymentProviderError,
+  { readonly brand: unique symbol }
+>()(
   'PaymentProviderError',
   {
     message: Schema.String,
@@ -20,7 +26,10 @@ export class PaymentProviderError extends Schema.TaggedError<PaymentProviderErro
   { httpApiStatus: 502 }
 ) {}
 
-export class SubscriptionNotFoundError extends Schema.TaggedError<SubscriptionNotFoundError>()(
+export class SubscriptionNotFoundError extends Schema.TaggedError<
+  SubscriptionNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'SubscriptionNotFoundError',
   {
     userId: Schema.String,
@@ -28,7 +37,10 @@ export class SubscriptionNotFoundError extends Schema.TaggedError<SubscriptionNo
   { httpApiStatus: 404 }
 ) {}
 
-export class InvalidSubscriptionStatusError extends Schema.TaggedError<InvalidSubscriptionStatusError>()(
+export class InvalidSubscriptionStatusError extends Schema.TaggedError<
+  InvalidSubscriptionStatusError,
+  { readonly brand: unique symbol }
+>()(
   'InvalidSubscriptionStatusError',
   {
     currentStatus: Schema.String,

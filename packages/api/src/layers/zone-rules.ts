@@ -6,10 +6,10 @@ const ZONE = 'America/Vancouver'
 const INSTANT = '2027-01-15T12:00:00Z'
 const OFFSET = '-07:00'
 
-export class StaleZoneRulesError extends Schema.TaggedError<StaleZoneRulesError>()(
-  'StaleZoneRulesError',
-  { message: Schema.String }
-) {}
+export class StaleZoneRulesError extends Schema.TaggedError<
+  StaleZoneRulesError,
+  { readonly brand: unique symbol }
+>()('StaleZoneRulesError', { message: Schema.String }) {}
 
 /** Where the check reads a zone's offset. Tests swap in stale rules. */
 export const ZoneOffset = Context.Reference<

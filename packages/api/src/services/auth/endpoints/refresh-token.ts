@@ -92,7 +92,7 @@ export const refreshToken = ({
     })
 
     // Generate new refresh token (rotation)
-    const newRefreshToken = yield* jwtService.generateRefreshToken()
+    const newRefreshToken = yield* jwtService.generateRefreshToken
     const newRefreshTokenHash =
       yield* jwtService.hashRefreshToken(newRefreshToken)
     const refreshTokenExpiry = DateTime.toDateUtc(

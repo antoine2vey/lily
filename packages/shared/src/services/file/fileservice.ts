@@ -1,36 +1,44 @@
 import { Array as Arr, Context, Effect, Layer, Schema } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
+import type { PlatformError } from 'effect/PlatformError'
 
-export class MultipleFilesError extends Schema.Class<MultipleFilesError>(
-  'MultipleFilesError'
-)({
+export class MultipleFilesError extends Schema.Class<
+  MultipleFilesError,
+  { readonly brand: unique symbol }
+>('MultipleFilesError')({
   message: Schema.String,
 }) {}
 
-export class NoFilesError extends Schema.Class<NoFilesError>('NoFilesError')({
+export class NoFilesError extends Schema.Class<
+  NoFilesError,
+  { readonly brand: unique symbol }
+>('NoFilesError')({
   message: Schema.String,
 }) {}
 
-export class TooManyFilesError extends Schema.Class<TooManyFilesError>(
-  'TooManyFilesError'
-)({
+export class TooManyFilesError extends Schema.Class<
+  TooManyFilesError,
+  { readonly brand: unique symbol }
+>('TooManyFilesError')({
   message: Schema.String,
-  max: Schema.Number,
+  max: Schema.Finite,
 }) {}
 
-export class FileTooLargeError extends Schema.Class<FileTooLargeError>(
-  'FileTooLargeError'
-)({
+export class FileTooLargeError extends Schema.Class<
+  FileTooLargeError,
+  { readonly brand: unique symbol }
+>('FileTooLargeError')({
   message: Schema.String,
   fileName: Schema.String,
-  size: Schema.Number,
-  maxSize: Schema.Number,
+  size: Schema.Finite,
+  maxSize: Schema.Finite,
 }) {}
 
-export class InvalidFileTypeError extends Schema.Class<InvalidFileTypeError>(
-  'InvalidFileTypeError'
-)({
+export class InvalidFileTypeError extends Schema.Class<
+  InvalidFileTypeError,
+  { readonly brand: unique symbol }
+>('InvalidFileTypeError')({
   message: Schema.String,
   fileName: Schema.String,
   contentType: Schema.String,
@@ -66,7 +74,7 @@ export class FileService extends Context.Service<FileService>()('FileService', {
         files: readonly PersistedFile[]
       ): Effect.Effect<
         PersistedFileBuffer,
-        MultipleFilesError | NoFilesError
+        MultipleFilesError | NoFilesError | PlatformError
       > =>
         Effect.gen(function* () {
           if (files.length === 0) {
@@ -107,6 +115,7 @@ export class FileService extends Context.Service<FileService>()('FileService', {
         | TooManyFilesError
         | InvalidFileTypeError
         | FileTooLargeError
+        | PlatformError
       > =>
         Effect.gen(function* () {
           const maxFiles = opts?.maxFiles ?? MAX_SCAN_FILES

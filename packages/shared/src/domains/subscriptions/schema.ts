@@ -38,11 +38,11 @@ export type SubscriptionEventType = typeof SubscriptionEventType.Type
 export const TierConfig = Schema.Struct({
   tier: SubscriptionTier,
   name: Schema.String,
-  priceMonthly: Schema.Number,
-  maxPlants: Schema.NullOr(Schema.Number),
-  maxAiChatsMonthly: Schema.NullOr(Schema.Number),
-  maxCardScansMonthly: Schema.NullOr(Schema.Number),
-  maxPlantIdentifiesMonthly: Schema.NullOr(Schema.Number),
+  priceMonthly: Schema.Finite,
+  maxPlants: Schema.NullOr(Schema.Finite),
+  maxAiChatsMonthly: Schema.NullOr(Schema.Finite),
+  maxCardScansMonthly: Schema.NullOr(Schema.Finite),
+  maxPlantIdentifiesMonthly: Schema.NullOr(Schema.Finite),
 })
 export type TierConfig = typeof TierConfig.Type
 
@@ -71,17 +71,17 @@ export const SubscriptionUsage = Schema.Struct({
   userId: Schema.String,
   periodStart: Schema.DateFromString,
   periodEnd: Schema.DateFromString,
-  aiChatsCount: Schema.Number,
-  cardScansCount: Schema.Number,
-  plantIdentifiesCount: Schema.Number,
+  aiChatsCount: Schema.Finite,
+  cardScansCount: Schema.Finite,
+  plantIdentifiesCount: Schema.Finite,
 })
 export type SubscriptionUsage = typeof SubscriptionUsage.Type
 
 // Usage counts (subset for API response)
 export const UsageCounts = Schema.Struct({
-  aiChatsCount: Schema.Number,
-  cardScansCount: Schema.Number,
-  plantIdentifiesCount: Schema.Number,
+  aiChatsCount: Schema.Finite,
+  cardScansCount: Schema.Finite,
+  plantIdentifiesCount: Schema.Finite,
 })
 export type UsageCounts = typeof UsageCounts.Type
 

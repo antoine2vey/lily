@@ -132,12 +132,11 @@ export const createMockSubscriptionRepository = (
               Result.fromOption(Option.fromNullishOr(byUser[id]), () => id)
             )
       ),
-    findStoreSubscriptions: () =>
-      Effect.succeed(
-        subscription && subscription.externalSubscriptionId !== null
-          ? [subscription]
-          : []
-      ),
+    findStoreSubscriptions: Effect.sync(() =>
+      subscription && subscription.externalSubscriptionId !== null
+        ? [subscription]
+        : []
+    ),
     claimWebhookEvent: (event: RevenueCatWebhookEventRecord) =>
       Effect.sync(() => {
         if (claimedWebhookEventIds.has(event.id)) return false
@@ -180,7 +179,7 @@ export const createMockSubscriptionRepository = (
             ? paidTierConfig
             : freeTierConfig
       ),
-    getAllTiers: () => Effect.succeed([freeTierConfig, paidTierConfig]),
+    getAllTiers: Effect.succeed([freeTierConfig, paidTierConfig]),
     getCurrentUsage: () => Effect.succeed(usage),
     reserveUsage: (userId, field, limit) => {
       const countKey = `${field}Count` as const

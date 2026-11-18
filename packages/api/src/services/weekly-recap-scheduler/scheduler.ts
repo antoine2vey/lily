@@ -88,7 +88,7 @@ const checkAndCreateWeeklyRecap = Effect.gen(function* () {
 
   const engagementRepo = yield* EngagementRepository
   const allUsersWithDigest =
-    yield* engagementRepo.getUsersWithWeeklyDigestEnabled()
+    yield* engagementRepo.getUsersWithWeeklyDigestEnabled
 
   // Weekly recap is an engagement notification — muted during vacation
   const usersWithDigest = Array.filter(
