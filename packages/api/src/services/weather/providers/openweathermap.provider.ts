@@ -7,6 +7,7 @@ import {
   DateTime,
   Duration,
   Effect,
+  Number as Num,
   Option,
   pipe,
   String as Str,
@@ -45,8 +46,11 @@ const estimateExtraterrestrialRadiation = (
   const latRad = (latDeg * Math.PI) / 180
   // Solar declination (FAO-56 eq. 24)
   const decl = 0.409 * Math.sin((2 * Math.PI * dayOfYear) / 365 - 1.39)
-  // Sunset hour angle (FAO-56 eq. 25)
-  const ws = Math.acos(-Math.tan(latRad) * Math.tan(decl))
+  // Sunset hour angle (FAO-56 eq. 25). Past the polar circles the product
+  // leaves [-1, 1] near the solstices, where acos would return NaN.
+  const ws = Math.acos(
+    Num.clamp(-Math.tan(latRad) * Math.tan(decl), { minimum: -1, maximum: 1 })
+  )
   // Inverse relative distance Earth-Sun (FAO-56 eq. 23)
   const dr = 1 + 0.033 * Math.cos((2 * Math.PI * dayOfYear) / 365)
   // Solar constant * conversion: 24*60/π * 0.0820 = 37.586
