@@ -70,10 +70,7 @@ export interface FindUsersFilters {
 
 // Repository service interface
 export interface IUserRepository {
-  readonly findAll: () => Effect.Effect<
-    Array<typeof users.$inferSelect>,
-    SqlError
-  >
+  readonly findAll: Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
   readonly findById: (
     id: string
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
@@ -114,11 +111,11 @@ export interface IUserRepository {
     id: string,
     status: UserStatus
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
-  readonly findWeatherEnabled: () => Effect.Effect<
+  readonly findWeatherEnabled: Effect.Effect<
     Array<typeof users.$inferSelect>,
     SqlError
   >
-  readonly findTipsEnabled: () => Effect.Effect<
+  readonly findTipsEnabled: Effect.Effect<
     Array<typeof users.$inferSelect>,
     SqlError
   >
@@ -160,8 +157,9 @@ export const UserRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findAll: () =>
-        db.select().from(users).pipe(Effect.withSpan('UserRepository.findAll')),
+      findAll: Effect.suspend(() => db.select().from(users)).pipe(
+        Effect.withSpan('UserRepository.findAll')
+      ),
 
       findById: Effect.fn('UserRepository.findById')(function* (id: string) {
         const [user] = yield* db.select().from(users).where(eq(users.id, id))
@@ -334,7 +332,7 @@ export const UserRepositoryLive = Layer.effect(
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
-      findWeatherEnabled: () =>
+      findWeatherEnabled: Effect.suspend(() =>
         db
           .select()
           .from(users)
@@ -345,14 +343,11 @@ export const UserRepositoryLive = Layer.effect(
               isNotNull(users.longitude)
             )
           )
-          .pipe(Effect.withSpan('UserRepository.findWeatherEnabled')),
+      ).pipe(Effect.withSpan('UserRepository.findWeatherEnabled')),
 
-      findTipsEnabled: () =>
-        db
-          .select()
-          .from(users)
-          .where(eq(users.tips, true))
-          .pipe(Effect.withSpan('UserRepository.findTipsEnabled')),
+      findTipsEnabled: Effect.suspend(() =>
+        db.select().from(users).where(eq(users.tips, true))
+      ).pipe(Effect.withSpan('UserRepository.findTipsEnabled')),
     }
   })
 )

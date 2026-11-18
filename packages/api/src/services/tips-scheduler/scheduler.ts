@@ -82,7 +82,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   })
 
   // Find all users with tips enabled — minus those on vacation
-  const allUsers = yield* engagementRepo.getUsersWithTipsEnabled()
+  const allUsers = yield* engagementRepo.getUsersWithTipsEnabled
   const users = Array.filter(allUsers, (u) => !isOnVacation(u, nowAsDate()))
 
   if (Array.isReadonlyArrayEmpty(users)) return

@@ -74,10 +74,10 @@ export const withCarePlanAuth = <A extends CarePlanAction>(
     const plantRepo = yield* PlantRepository
     const { id: viewerId } = yield* CurrentUser
     const required = <A>(row: A | null) =>
-      Option.match(Option.fromNullishOr(row), {
-        onNone: () => Effect.fail(new CarePlanNotFoundError({ planId })),
-        onSome: (value) => Effect.succeed(value),
-      })
+      Effect.fromOption(
+        Option.fromNullishOr(row),
+        () => new CarePlanNotFoundError({ planId })
+      )
 
     const plan = yield* Effect.flatMap(repo.findById(planId), required)
     const plant = yield* Effect.flatMap(
@@ -86,7 +86,7 @@ export const withCarePlanAuth = <A extends CarePlanAction>(
     )
     const plantRole = yield* resolvePlantRole(plant)
     const planRole = yield* Option.match(plantRole, {
-      onNone: () => Effect.succeed(Option.none()),
+      onNone: () => Effect.succeedNone,
       onSome: (role) =>
         Effect.map(isSteward(role, plan, plant, viewerId), (steward) =>
           Option.map(
@@ -150,12 +150,9 @@ export const reloadPlan = (
 > =>
   Effect.gen(function* () {
     const repo = yield* CarePlanRepository
-    return yield* Option.match(
+    return yield* Effect.fromOption(
       Option.fromNullishOr(yield* repo.findById(planId)),
-      {
-        onNone: () => Effect.fail(new CarePlanNotFoundError({ planId })),
-        onSome: (plan) => Effect.succeed(plan),
-      }
+      () => new CarePlanNotFoundError({ planId })
     )
   })
 

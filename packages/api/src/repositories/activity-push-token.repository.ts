@@ -61,7 +61,7 @@ export interface IActivityPushTokenRepository {
   readonly findActiveActivitiesByUserId: (
     userId: string
   ) => Effect.Effect<ActivityPushToken[], SqlError>
-  readonly findAllActiveUpdateTokens: () => Effect.Effect<
+  readonly findAllActiveUpdateTokens: Effect.Effect<
     ActivityPushToken[],
     SqlError
   >
@@ -147,9 +147,7 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
 
       // Reconciliation sweep — recovers activities left stuck after a dropped
       // CareLogCreated event.
-      findAllActiveUpdateTokens: Effect.fn(
-        'ActivityPushTokenRepository.findAllActiveUpdateTokens'
-      )(function* () {
+      findAllActiveUpdateTokens: Effect.gen(function* () {
         const rows = yield* db
           .select()
           .from(activityPushTokens)
@@ -160,7 +158,9 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
             )
           )
         return Array.map(rows, mapRow)
-      }),
+      }).pipe(
+        Effect.withSpan('ActivityPushTokenRepository.findAllActiveUpdateTokens')
+      ),
 
       findByActivityId: Effect.fn(
         'ActivityPushTokenRepository.findByActivityId'

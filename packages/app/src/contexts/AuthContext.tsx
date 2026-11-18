@@ -264,7 +264,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // The refresh path already captured the forced-logout event
       addAuthBreadcrumb('auth_failure_clearing_session')
       // Clear all auth storage
-      await Effect.runPromise(clearAuthStorage())
+      await Effect.runPromise(clearAuthStorage)
       setPendingEmail(null)
       setState({ _tag: 'Unauthenticated' })
     }
@@ -279,8 +279,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Check for stored token on mount
   useEffect(() => {
     const checkAuth = Effect.gen(function* () {
-      const tokenOption = yield* getStoredAccessToken()
-      const emailOption = yield* getStoredUserEmail()
+      const tokenOption = yield* getStoredAccessToken
+      const emailOption = yield* getStoredUserEmail
 
       pipe(
         emailOption,
@@ -341,7 +341,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 Effect.gen(function* () {
                   if (isAuthFailureError(error)) {
                     trackForcedLogout('startup_check_auth_error')
-                    yield* removeStoredAccessToken()
+                    yield* removeStoredAccessToken
                     setState({ _tag: 'Unauthenticated' })
                     return
                   }
@@ -355,10 +355,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   trackAuthAnomaly('startup_check_transient_failure', {
                     message: extractErrorMessage(error),
                   })
-                  const cachedUser = yield* getStoredUserProfile().pipe(
-                    Effect.catch(() =>
-                      Effect.succeed(Option.none<UserProfile>())
-                    )
+                  const cachedUser = yield* getStoredUserProfile.pipe(
+                    Effect.orElseSucceed(() => Option.none<UserProfile>())
                   )
                   pipe(
                     cachedUser,
@@ -640,7 +638,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch {
       // Ignore errors, we'll clear local state anyway
     }
-    await Effect.runPromise(clearAuthStorage())
+    await Effect.runPromise(clearAuthStorage)
     setPendingEmail(null)
     setState({ _tag: 'Unauthenticated' })
   }, [])
@@ -669,7 +667,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (isAuthFailureError(error)) {
         // Token is invalid and refresh could not recover it
         trackForcedLogout('refresh_user_auth_error')
-        await Effect.runPromise(clearAuthStorage())
+        await Effect.runPromise(clearAuthStorage)
         setState({ _tag: 'Unauthenticated' })
       } else {
         // Transient failure (network, server) — keep the session, the

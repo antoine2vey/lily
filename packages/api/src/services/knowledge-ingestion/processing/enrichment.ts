@@ -2,7 +2,7 @@ import { openai } from '@ai-sdk/openai'
 import { FAST_MODEL } from '@lily/api/services/ai/models'
 import { mapOpenAIError, type OpenAIError } from '@lily/shared'
 import { generateText, Output } from 'ai'
-import { Effect, Option, pipe, Schedule, Schema } from 'effect'
+import { Effect, Option, Schedule, Schema } from 'effect'
 import { z } from 'zod'
 
 const enrichmentModel = openai(FAST_MODEL)
@@ -19,12 +19,12 @@ const EnrichmentSchema = z.object({
 
 export type ChunkEnrichment = z.infer<typeof EnrichmentSchema>
 
-export class EnrichmentError extends Schema.TaggedError<EnrichmentError>()(
-  'EnrichmentError',
-  {
-    message: Schema.String,
-  }
-) {}
+export class EnrichmentError extends Schema.TaggedError<
+  EnrichmentError,
+  { readonly brand: unique symbol }
+>()('EnrichmentError', {
+  message: Schema.String,
+}) {}
 
 const SYSTEM_PROMPT = `You are a plant care knowledge indexer. Given a plant care text, extract semantic keywords.
 
@@ -60,14 +60,8 @@ export const enrichChunk = (
       Effect.retry(enrichmentRetryPolicy)
     )
 
-    return yield* pipe(
+    return yield* Effect.fromOption(
       Option.fromNullishOr(result.output),
-      Option.match({
-        onNone: () =>
-          Effect.fail(
-            new EnrichmentError({ message: 'Enrichment returned no output' })
-          ),
-        onSome: (output) => Effect.succeed(output),
-      })
+      () => new EnrichmentError({ message: 'Enrichment returned no output' })
     )
   }).pipe(Effect.withSpan('Enrichment.enrichChunk'))

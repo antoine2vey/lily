@@ -26,7 +26,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const { Pool } = pg
 
-class TurnFailed extends Schema.TaggedError<TurnFailed>()('TurnFailed', {}) {}
+class TurnFailed extends Schema.TaggedError<
+  TurnFailed,
+  { readonly brand: unique symbol }
+>()('TurnFailed', {}) {}
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
   'usage refund across a month boundary - Integration',

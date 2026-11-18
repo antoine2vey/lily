@@ -84,13 +84,12 @@ export const createMockRefreshTokenRepository = (
         return originalLength - tokenStore.length
       }),
 
-    deleteExpired: () =>
-      Effect.gen(function* () {
-        const now = new Date()
-        const originalLength = tokenStore.length
-        tokenStore = Array.filter(tokenStore, (t) => t.expiresAt >= now)
-        return originalLength - tokenStore.length
-      }),
+    deleteExpired: Effect.gen(function* () {
+      const now = new Date()
+      const originalLength = tokenStore.length
+      tokenStore = Array.filter(tokenStore, (t) => t.expiresAt >= now)
+      return originalLength - tokenStore.length
+    }),
   }
 
   return Layer.succeed(RefreshTokenRepository, repo)

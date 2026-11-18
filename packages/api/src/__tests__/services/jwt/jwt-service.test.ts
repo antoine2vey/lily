@@ -175,7 +175,7 @@ describe('JWTService', () => {
       const result = await Effect.runPromise(
         Effect.gen(function* () {
           const jwtService = yield* JWTService
-          return yield* jwtService.generateRefreshToken()
+          return yield* jwtService.generateRefreshToken
         }).pipe(Effect.provide(JWTServiceTestLive))
       )
 
@@ -189,8 +189,8 @@ describe('JWTService', () => {
       const [token1, token2] = await Effect.runPromise(
         Effect.gen(function* () {
           const jwtService = yield* JWTService
-          const t1 = yield* jwtService.generateRefreshToken()
-          const t2 = yield* jwtService.generateRefreshToken()
+          const t1 = yield* jwtService.generateRefreshToken
+          const t2 = yield* jwtService.generateRefreshToken
           return [t1, t2] as const
         }).pipe(Effect.provide(JWTServiceTestLive))
       )

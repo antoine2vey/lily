@@ -11,7 +11,7 @@ describe('topic selection dedup', () => {
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const repo = yield* BlogPostRepository
-        return yield* repo.findAllSlugs()
+        return yield* repo.findAllSlugs
       }).pipe(Effect.provide(mockRepo))
     )
 

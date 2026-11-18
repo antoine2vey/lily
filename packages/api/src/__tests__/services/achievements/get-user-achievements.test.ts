@@ -36,7 +36,7 @@ describe('getUserAchievements', () => {
 
   it('should return all 15 achievements with progress', async () => {
     const result = await Effect.runPromise(
-      getUserAchievements().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserAchievements.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.achievements.length).toBe(15)
@@ -45,7 +45,7 @@ describe('getUserAchievements', () => {
 
   it('should mark unlocked achievements correctly', async () => {
     const result = await Effect.runPromise(
-      getUserAchievements().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserAchievements.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     const firstPlant = Array.findFirst(
@@ -61,7 +61,7 @@ describe('getUserAchievements', () => {
 
   it('should include category and rarity', async () => {
     const result = await Effect.runPromise(
-      getUserAchievements().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserAchievements.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     const firstPlant = Array.findFirst(
@@ -77,7 +77,7 @@ describe('getUserAchievements', () => {
 
   it('should include progress for threshold-based achievements', async () => {
     const result = await Effect.runPromise(
-      getUserAchievements().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserAchievements.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     const collector = Array.findFirst(
@@ -92,7 +92,7 @@ describe('getUserAchievements', () => {
 
   it('should compute level from unlocked count', async () => {
     const result = await Effect.runPromise(
-      getUserAchievements().pipe(Effect.provide(createTestLayer('user-1')))
+      getUserAchievements.pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     // user-1 has 2 unlocked achievements: FIRST_PLANT_ADDED + WATERING_NOVICE
@@ -102,7 +102,7 @@ describe('getUserAchievements', () => {
 
   it('should return 0 unlocked for user with no achievements', async () => {
     const result = await Effect.runPromise(
-      getUserAchievements().pipe(
+      getUserAchievements.pipe(
         Effect.provide(createTestLayer('user-with-no-achievements'))
       )
     )

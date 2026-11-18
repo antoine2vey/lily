@@ -9,6 +9,7 @@
     "plugins": [
       {
         "name": "@effect/language-service",
+        "ignoreEffectSuggestionsInTscExitCode": false,
         "allowedUnstableApis": [
           "effect/ai",
           "effect/FileSystem",

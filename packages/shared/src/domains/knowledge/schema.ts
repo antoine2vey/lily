@@ -70,8 +70,8 @@ export const IngestJob = Schema.Struct({
   adapter: Schema.String,
   config: Schema.Unknown,
   status: IngestJobStatus,
-  documentsFetched: Schema.Number,
-  chunksCreated: Schema.Number,
+  documentsFetched: Schema.Finite,
+  chunksCreated: Schema.Finite,
   cursor: Schema.optional(Schema.String),
   error: Schema.optional(Schema.String),
   createdAt: Schema.DateFromString,
@@ -88,7 +88,7 @@ export const RawDocument = Schema.Struct({
   title: Schema.String,
   content: Schema.String,
   author: Schema.optional(Schema.String),
-  score: Schema.optional(Schema.Number),
+  score: Schema.optional(Schema.Finite),
   metadata: Schema.optional(Schema.Unknown),
   ingestJobId: Schema.String,
   fetchedAt: Schema.DateFromString,
@@ -101,7 +101,7 @@ export const ProcessedChunk = Schema.Struct({
   documentId: Schema.String,
   parentChunkId: Schema.optional(Schema.String),
   content: Schema.String,
-  chunkIndex: Schema.Number,
+  chunkIndex: Schema.Finite,
   source: Schema.String,
   plantType: Schema.optional(Schema.String),
   category: Schema.optional(ContentCategory),
@@ -120,7 +120,7 @@ export const ChunkSearchResult = Schema.Struct({
   plantType: Schema.optional(Schema.String),
   category: Schema.optional(ContentCategory),
   metadata: Schema.optional(Schema.Unknown),
-  similarity: Schema.Number,
+  similarity: Schema.Finite,
 })
 
 export type ChunkSearchResult = typeof ChunkSearchResult.Type
@@ -137,11 +137,11 @@ export type IngestJobListResponse = typeof IngestJobListResponse.Type
 
 export const KnowledgeSearchRequest = Schema.Struct({
   query: Schema.String,
-  limit: Schema.Number.pipe(
+  limit: Schema.Finite.pipe(
     Schema.withDecodingDefaultType(Effect.succeed(5)),
     Schema.withConstructorDefault(Effect.succeed(5))
   ),
-  minSimilarity: Schema.Number.pipe(
+  minSimilarity: Schema.Finite.pipe(
     Schema.withDecodingDefaultType(Effect.succeed(0.3)),
     Schema.withConstructorDefault(Effect.succeed(0.3))
   ),
@@ -150,13 +150,13 @@ export const KnowledgeSearchRequest = Schema.Struct({
 export type KnowledgeSearchRequest = typeof KnowledgeSearchRequest.Type
 
 export const KnowledgeStats = Schema.Struct({
-  totalChunks: Schema.Number,
-  totalDocuments: Schema.Number,
-  totalJobs: Schema.Number,
+  totalChunks: Schema.Finite,
+  totalDocuments: Schema.Finite,
+  totalJobs: Schema.Finite,
   sourceBreakdown: Schema.Array(
     Schema.Struct({
       source: Schema.String,
-      count: Schema.Number,
+      count: Schema.Finite,
     })
   ),
 })

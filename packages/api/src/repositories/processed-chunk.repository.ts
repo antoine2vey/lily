@@ -38,8 +38,8 @@ export interface IProcessedChunkRepository {
   readonly search: (
     params: SearchChunksParams
   ) => Effect.Effect<ChunkSearchResult[], SqlError>
-  readonly count: () => Effect.Effect<number, SqlError>
-  readonly countBySource: () => Effect.Effect<
+  readonly count: Effect.Effect<number, SqlError>
+  readonly countBySource: Effect.Effect<
     { source: string; count: number }[],
     SqlError
   >
@@ -168,22 +168,20 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
         )
       }),
 
-      count: () =>
-        db
-          .select({ value: count() })
-          .from(processedChunks)
-          .pipe(
-            Effect.map((result) =>
-              pipe(
-                Array.head(result),
-                Option.map((r) => r.value),
-                Option.getOrElse(() => 0)
-              )
-            ),
-            Effect.withSpan('ProcessedChunkRepository.count')
-          ),
+      count: Effect.suspend(() =>
+        db.select({ value: count() }).from(processedChunks)
+      ).pipe(
+        Effect.map((result) =>
+          pipe(
+            Array.head(result),
+            Option.map((r) => r.value),
+            Option.getOrElse(() => 0)
+          )
+        ),
+        Effect.withSpan('ProcessedChunkRepository.count')
+      ),
 
-      countBySource: () =>
+      countBySource: Effect.suspend(() =>
         db
           .select({
             source: processedChunks.source,
@@ -191,7 +189,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
           })
           .from(processedChunks)
           .groupBy(processedChunks.source)
-          .pipe(Effect.withSpan('ProcessedChunkRepository.countBySource')),
+      ).pipe(Effect.withSpan('ProcessedChunkRepository.countBySource')),
 
       countByJobId: (jobId: string) =>
         db

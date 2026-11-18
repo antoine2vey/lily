@@ -2,7 +2,10 @@ import { UserProfile } from '@lily/shared/auth'
 import { Effect, Option, pipe, Schema } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 
-class StorageError extends Schema.TaggedError<StorageError>()('StorageError', {
+class StorageError extends Schema.TaggedError<
+  StorageError,
+  { readonly brand: unique symbol }
+>()('StorageError', {
   message: Schema.String,
   cause: Schema.optional(Schema.Unknown),
 }) {}
@@ -36,20 +39,19 @@ export const storeAccessToken = (
       new StorageError({ message: 'Failed to store access token', cause }),
   })
 
-export const getStoredAccessToken = (): Effect.Effect<
+export const getStoredAccessToken: Effect.Effect<
   Option.Option<string>,
   StorageError
-> =>
-  Effect.tryPromise({
-    try: async () => {
-      const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
-      return Option.fromNullishOr(token)
-    },
-    catch: (cause) =>
-      new StorageError({ message: 'Failed to get access token', cause }),
-  })
+> = Effect.tryPromise({
+  try: async () => {
+    const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
+    return Option.fromNullishOr(token)
+  },
+  catch: (cause) =>
+    new StorageError({ message: 'Failed to get access token', cause }),
+})
 
-export const removeStoredAccessToken = (): Effect.Effect<void, StorageError> =>
+export const removeStoredAccessToken: Effect.Effect<void, StorageError> =
   Effect.tryPromise({
     try: () => SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
     catch: (cause) =>
@@ -67,7 +69,7 @@ export const storeRefreshToken = (
       new StorageError({ message: 'Failed to store refresh token', cause }),
   })
 
-export const removeStoredRefreshToken = (): Effect.Effect<void, StorageError> =>
+export const removeStoredRefreshToken: Effect.Effect<void, StorageError> =
   Effect.tryPromise({
     try: () => SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
     catch: (cause) =>
@@ -85,20 +87,18 @@ export const storeUserEmail = (
       new StorageError({ message: 'Failed to store email', cause }),
   })
 
-export const getStoredUserEmail = (): Effect.Effect<
+export const getStoredUserEmail: Effect.Effect<
   Option.Option<string>,
   StorageError
-> =>
-  Effect.tryPromise({
-    try: async () => {
-      const email = await SecureStore.getItemAsync(USER_EMAIL_KEY)
-      return Option.fromNullishOr(email)
-    },
-    catch: (cause) =>
-      new StorageError({ message: 'Failed to get email', cause }),
-  })
+> = Effect.tryPromise({
+  try: async () => {
+    const email = await SecureStore.getItemAsync(USER_EMAIL_KEY)
+    return Option.fromNullishOr(email)
+  },
+  catch: (cause) => new StorageError({ message: 'Failed to get email', cause }),
+})
 
-export const removeStoredUserEmail = (): Effect.Effect<void, StorageError> =>
+export const removeStoredUserEmail: Effect.Effect<void, StorageError> =
   Effect.tryPromise({
     try: () => SecureStore.deleteItemAsync(USER_EMAIL_KEY),
     catch: (cause) =>
@@ -127,34 +127,33 @@ export const storeUserProfile = (
     )
   )
 
-export const getStoredUserProfile = (): Effect.Effect<
+export const getStoredUserProfile: Effect.Effect<
   Option.Option<UserProfile>,
   StorageError
-> =>
-  Effect.tryPromise({
-    try: () => SecureStore.getItemAsync(USER_PROFILE_KEY),
-    catch: (cause) =>
-      new StorageError({ message: 'Failed to get user profile', cause }),
-  }).pipe(
-    Effect.flatMap((raw) =>
-      pipe(
-        Option.fromNullishOr(raw),
-        Option.match({
-          onNone: () => Effect.succeed(Option.none<UserProfile>()),
-          onSome: (json) =>
-            pipe(
-              Schema.decodeEffect(UserProfileJson)(json),
-              Effect.map(Option.some),
-              // A corrupt or schema-outdated cache entry is not fatal —
-              // treat it as absent so startup falls back to the login flow
-              Effect.catch(() => Effect.succeed(Option.none<UserProfile>()))
-            ),
-        })
-      )
+> = Effect.tryPromise({
+  try: () => SecureStore.getItemAsync(USER_PROFILE_KEY),
+  catch: (cause) =>
+    new StorageError({ message: 'Failed to get user profile', cause }),
+}).pipe(
+  Effect.flatMap((raw) =>
+    pipe(
+      Option.fromNullishOr(raw),
+      Option.match({
+        onNone: () => Effect.succeed(Option.none<UserProfile>()),
+        onSome: (json) =>
+          pipe(
+            Schema.decodeEffect(UserProfileJson)(json),
+            Effect.asSome,
+            // A corrupt or schema-outdated cache entry is not fatal —
+            // treat it as absent so startup falls back to the login flow
+            Effect.orElseSucceed(() => Option.none<UserProfile>())
+          ),
+      })
     )
   )
+)
 
-export const removeStoredUserProfile = (): Effect.Effect<void, StorageError> =>
+export const removeStoredUserProfile: Effect.Effect<void, StorageError> =
   Effect.tryPromise({
     try: () => SecureStore.deleteItemAsync(USER_PROFILE_KEY),
     catch: (cause) =>
@@ -162,10 +161,9 @@ export const removeStoredUserProfile = (): Effect.Effect<void, StorageError> =>
   })
 
 // Clear all auth storage
-export const clearAuthStorage = (): Effect.Effect<void, StorageError> =>
-  Effect.all([
-    removeStoredAccessToken(),
-    removeStoredRefreshToken(),
-    removeStoredUserEmail(),
-    removeStoredUserProfile(),
-  ]).pipe(Effect.asVoid)
+export const clearAuthStorage: Effect.Effect<void, StorageError> = Effect.all([
+  removeStoredAccessToken,
+  removeStoredRefreshToken,
+  removeStoredUserEmail,
+  removeStoredUserProfile,
+]).pipe(Effect.asVoid)

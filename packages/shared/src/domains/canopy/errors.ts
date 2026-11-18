@@ -6,13 +6,19 @@ const message = (text: string) =>
     Schema.withConstructorDefault(Effect.succeed(text))
   )
 
-export class CanopyNotFoundError extends Schema.TaggedError<CanopyNotFoundError>()(
+export class CanopyNotFoundError extends Schema.TaggedError<
+  CanopyNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'CanopyNotFoundError',
   { message: message('Canopy not found') },
   { httpApiStatus: 404 }
 ) {}
 
-export class AlreadyInCanopyError extends Schema.TaggedError<AlreadyInCanopyError>()(
+export class AlreadyInCanopyError extends Schema.TaggedError<
+  AlreadyInCanopyError,
+  { readonly brand: unique symbol }
+>()(
   'AlreadyInCanopyError',
   {
     canopyName: Schema.String,
@@ -21,46 +27,67 @@ export class AlreadyInCanopyError extends Schema.TaggedError<AlreadyInCanopyErro
   { httpApiStatus: 409 }
 ) {}
 
-export class CanopyFullError extends Schema.TaggedError<CanopyFullError>()(
+export class CanopyFullError extends Schema.TaggedError<
+  CanopyFullError,
+  { readonly brand: unique symbol }
+>()(
   'CanopyFullError',
   {
-    limit: Schema.Number,
+    limit: Schema.Finite,
     message: message('This Canopy is full'),
   },
   { httpApiStatus: 409 }
 ) {}
 
-export class CanopyMemberNotFoundError extends Schema.TaggedError<CanopyMemberNotFoundError>()(
+export class CanopyMemberNotFoundError extends Schema.TaggedError<
+  CanopyMemberNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'CanopyMemberNotFoundError',
   { message: message('Member not found') },
   { httpApiStatus: 404 }
 ) {}
 
-export class CanopyInviteNotFoundError extends Schema.TaggedError<CanopyInviteNotFoundError>()(
+export class CanopyInviteNotFoundError extends Schema.TaggedError<
+  CanopyInviteNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'CanopyInviteNotFoundError',
   { message: message('Invite not found') },
   { httpApiStatus: 404 }
 ) {}
 
-export class CanopyInviteExpiredError extends Schema.TaggedError<CanopyInviteExpiredError>()(
+export class CanopyInviteExpiredError extends Schema.TaggedError<
+  CanopyInviteExpiredError,
+  { readonly brand: unique symbol }
+>()(
   'CanopyInviteExpiredError',
   { message: message('This invite has expired') },
   { httpApiStatus: 410 }
 ) {}
 
-export class CanopyInviteeAlreadyMemberError extends Schema.TaggedError<CanopyInviteeAlreadyMemberError>()(
+export class CanopyInviteeAlreadyMemberError extends Schema.TaggedError<
+  CanopyInviteeAlreadyMemberError,
+  { readonly brand: unique symbol }
+>()(
   'CanopyInviteeAlreadyMemberError',
   { message: message('Already in your Canopy') },
   { httpApiStatus: 409 }
 ) {}
 
-export class NotCanopyOwnerError extends Schema.TaggedError<NotCanopyOwnerError>()(
+export class NotCanopyOwnerError extends Schema.TaggedError<
+  NotCanopyOwnerError,
+  { readonly brand: unique symbol }
+>()(
   'NotCanopyOwnerError',
   { message: message('Only the Canopy owner can do this') },
   { httpApiStatus: 403 }
 ) {}
 
-export class CanopyPlantNotDelegableError extends Schema.TaggedError<CanopyPlantNotDelegableError>()(
+export class CanopyPlantNotDelegableError extends Schema.TaggedError<
+  CanopyPlantNotDelegableError,
+  { readonly brand: unique symbol }
+>()(
   'CanopyPlantNotDelegableError',
   {
     plantId: Schema.String,
@@ -69,7 +96,10 @@ export class CanopyPlantNotDelegableError extends Schema.TaggedError<CanopyPlant
   { httpApiStatus: 409 }
 ) {}
 
-export class PlantInDelegationError extends Schema.TaggedError<PlantInDelegationError>()(
+export class PlantInDelegationError extends Schema.TaggedError<
+  PlantInDelegationError,
+  { readonly brand: unique symbol }
+>()(
   'PlantInDelegationError',
   {
     plantId: Schema.String,

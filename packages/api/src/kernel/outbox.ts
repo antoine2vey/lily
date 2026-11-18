@@ -49,10 +49,10 @@ export const topic = <E>(
   schema: Schema.Codec<E, unknown>
 ): OutboxTopic<E> => ({ name, schema })
 
-export class ConsumerFailed extends Schema.TaggedError<ConsumerFailed>()(
-  'ConsumerFailed',
-  { consumer: Schema.String, reason: Schema.String }
-) {
+export class ConsumerFailed extends Schema.TaggedError<
+  ConsumerFailed,
+  { readonly brand: unique symbol }
+>()('ConsumerFailed', { consumer: Schema.String, reason: Schema.String }) {
   override get message() {
     return this.reason
   }
@@ -201,9 +201,7 @@ export const makeOutbox = (
                 })
                 .where(eq(outbox.id, row.id))
                 .pipe(Effect.as(Option.none<{ name: string; error: string }>()))
-            : Effect.succeed(
-                Option.some({ name, error: Cause.pretty(exit.cause) })
-              )
+            : Effect.succeedSome({ name, error: Cause.pretty(exit.cause) })
         )
       )
 

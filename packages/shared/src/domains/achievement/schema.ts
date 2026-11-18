@@ -52,15 +52,15 @@ export const AchievementWithProgress = Schema.Struct({
   rarity: AchievementRarity,
   unlocked: Schema.Boolean,
   unlockedAt: Schema.NullOr(Schema.DateFromString),
-  progress: Schema.NullOr(Schema.Number),
-  maxProgress: Schema.NullOr(Schema.Number),
+  progress: Schema.NullOr(Schema.Finite),
+  maxProgress: Schema.NullOr(Schema.Finite),
 })
 
 export const AchievementsResponse = Schema.Struct({
   achievements: Schema.Array(AchievementWithProgress),
-  level: Schema.Number,
-  unlockedCount: Schema.Number,
-  totalCount: Schema.Number,
+  level: Schema.Finite,
+  unlockedCount: Schema.Finite,
+  totalCount: Schema.Finite,
 })
 
 export const UnlockAchievementRequest = Schema.Struct({

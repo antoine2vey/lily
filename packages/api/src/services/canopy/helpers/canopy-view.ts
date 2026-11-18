@@ -10,7 +10,7 @@ import {
   CanopyNotFoundError,
   type CanopyPendingInvitation,
 } from '@lily/shared'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Array, Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const toCanopy = (
@@ -50,12 +50,9 @@ export const canopyView = (
       return yield* new CanopyNotFoundError()
     }
     const members = yield* repo.findMembersByJoinDate(canopyId)
-    const viewer = yield* pipe(
+    const viewer = yield* Effect.fromOption(
       Array.findFirst(members, (m) => m.userId === viewerId),
-      Option.match({
-        onNone: () => Effect.fail(new CanopyNotFoundError()),
-        onSome: Effect.succeed,
-      })
+      () => new CanopyNotFoundError()
     )
     const invite = yield* repo.findActiveInvite(canopyId)
     const invitations = yield* repo.findPendingInvitations(canopyId)

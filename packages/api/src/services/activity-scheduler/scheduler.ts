@@ -39,7 +39,7 @@ const reconcileActiveActivities = Effect.gen(function* () {
   const activityRepo = yield* ActivityPushTokenRepository
   const pushService = yield* PushService
 
-  const active = yield* activityRepo.findAllActiveUpdateTokens()
+  const active = yield* activityRepo.findAllActiveUpdateTokens
   if (active.length === 0) return
 
   let endedCount = 0

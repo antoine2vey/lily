@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class UserNotFoundError extends Schema.TaggedError<UserNotFoundError>()(
+export class UserNotFoundError extends Schema.TaggedError<
+  UserNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'UserNotFoundError',
   {
     userId: Schema.String.pipe(
@@ -11,7 +14,10 @@ export class UserNotFoundError extends Schema.TaggedError<UserNotFoundError>()(
   { httpApiStatus: 404 }
 ) {}
 
-export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundError>()(
+export class SessionNotFoundError extends Schema.TaggedError<
+  SessionNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'SessionNotFoundError',
   {
     sessionId: Schema.String.pipe(
@@ -22,7 +28,10 @@ export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundErro
   { httpApiStatus: 401 }
 ) {}
 
-export class UnauthorizedError extends Schema.TaggedError<UnauthorizedError>()(
+export class UnauthorizedError extends Schema.TaggedError<
+  UnauthorizedError,
+  { readonly brand: unique symbol }
+>()(
   'UnauthorizedError',
   {
     message: Schema.String.pipe(

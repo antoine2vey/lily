@@ -56,7 +56,7 @@ describe('verifyMagicLink', () => {
           ? { shouldExceedLimit: options.shouldExceedRateLimit }
           : {}
       ),
-      createMockPgDrizzle()
+      createMockPgDrizzle
     )
 
   it('should verify valid magic link and return tokens', async () => {

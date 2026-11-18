@@ -7,8 +7,8 @@ export const deleteExpiredSignInRows = Effect.gen(function* () {
   const magicLinkRepo = yield* MagicLinkRepository
   const refreshTokenRepo = yield* RefreshTokenRepository
 
-  const magicLinks = yield* magicLinkRepo.deleteExpired()
-  const refreshTokens = yield* refreshTokenRepo.deleteExpired()
+  const magicLinks = yield* magicLinkRepo.deleteExpired
+  const refreshTokens = yield* refreshTokenRepo.deleteExpired
 
   if (magicLinks + refreshTokens > 0) {
     yield* Effect.log('Deleted expired sign-in rows', {

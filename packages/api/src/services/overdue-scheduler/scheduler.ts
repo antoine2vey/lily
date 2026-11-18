@@ -61,7 +61,7 @@ const subscriptionCaps = (owners: ReadonlyArray<PlantOwner>) =>
     )
     const [subscriptions, allTiers] = yield* Effect.all([
       subRepo.findByUserIds(userIds),
-      subRepo.getAllTiers(),
+      subRepo.getAllTiers,
     ])
 
     const subByUserId = pipe(

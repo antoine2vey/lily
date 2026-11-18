@@ -11,7 +11,7 @@ const DRIZZLE = resolve(import.meta.dirname, '../../drizzle')
 
 const Journal = Schema.Struct({
   entries: Schema.Array(
-    Schema.Struct({ when: Schema.Number, tag: Schema.String })
+    Schema.Struct({ when: Schema.Finite, tag: Schema.String })
   ),
 })
 

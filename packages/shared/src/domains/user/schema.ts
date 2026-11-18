@@ -39,7 +39,7 @@ export const User = Schema.Struct({
   doNotDisturb: Schema.Boolean,
   doNotDisturbStart: Schema.NullOr(Schema.String),
   doNotDisturbEnd: Schema.NullOr(Schema.String),
-  historyViewCount: Schema.Number,
+  historyViewCount: Schema.Finite,
   role: UserRole,
   status: UserStatus,
   timezone: Schema.NullOr(Schema.String),
@@ -49,8 +49,8 @@ export const User = Schema.Struct({
   personalizedTips: Schema.Boolean,
   language: LanguageCode,
   weatherEnabled: Schema.Boolean,
-  latitude: Schema.NullOr(Schema.Number),
-  longitude: Schema.NullOr(Schema.Number),
+  latitude: Schema.NullOr(Schema.Finite),
+  longitude: Schema.NullOr(Schema.Finite),
   temperatureUnit: TemperatureUnit,
   deletedAt: Schema.NullOr(Schema.DateFromString),
   vacationStatus: VacationStatus,
@@ -98,11 +98,11 @@ export const UserSettings = Schema.Struct({
   temperatureUnit: TemperatureUnit,
   weather: Schema.Struct({
     enabled: Schema.Boolean,
-    latitude: Schema.NullOr(Schema.Number),
-    longitude: Schema.NullOr(Schema.Number),
+    latitude: Schema.NullOr(Schema.Finite),
+    longitude: Schema.NullOr(Schema.Finite),
   }),
   // All-time count of care logs across the user's plants
-  careLogsCount: Schema.Number,
+  careLogsCount: Schema.Finite,
 })
 
 export const UserSettingsUpdateRequest = Schema.Struct({
@@ -139,8 +139,8 @@ export const UserSettingsUpdateRequest = Schema.Struct({
   weather: Schema.optional(
     Schema.Struct({
       enabled: Schema.optional(Schema.Boolean),
-      latitude: Schema.optional(Schema.Number),
-      longitude: Schema.optional(Schema.Number),
+      latitude: Schema.optional(Schema.Finite),
+      longitude: Schema.optional(Schema.Finite),
     })
   ),
 })
@@ -152,14 +152,16 @@ export type UserUpdateRequest = typeof UserUpdateRequest.Type
 export type UserSettings = typeof UserSettings.Type
 export type UserSettingsUpdateRequest = typeof UserSettingsUpdateRequest.Type
 
-export class UserByIdRequest extends Schema.Class<UserByIdRequest>(
-  'UserByIdRequest'
-)({
+export class UserByIdRequest extends Schema.Class<
+  UserByIdRequest,
+  { readonly brand: unique symbol }
+>('UserByIdRequest')({
   id: Schema.String,
 }) {}
 
-export class UserDeleteRequest extends Schema.Class<UserDeleteRequest>(
-  'UserDeleteRequest'
-)({
+export class UserDeleteRequest extends Schema.Class<
+  UserDeleteRequest,
+  { readonly brand: unique symbol }
+>('UserDeleteRequest')({
   id: Schema.String,
 }) {}

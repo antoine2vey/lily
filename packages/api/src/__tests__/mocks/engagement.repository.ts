@@ -60,7 +60,7 @@ export const createMockEngagementRepository = (
   )
 
   const repo: IEngagementRepository = {
-    getUsersWithTipsEnabled: () => Effect.succeed(usersWithTips),
+    getUsersWithTipsEnabled: Effect.succeed(usersWithTips),
 
     getLastCareDate: (userId: string) =>
       Effect.succeed(
@@ -117,9 +117,9 @@ export const createMockEngagementRepository = (
         )
       ),
 
-    getUsersWithCareRemindersEnabled: () => Effect.succeed(usersWithTips),
+    getUsersWithCareRemindersEnabled: Effect.succeed(usersWithTips),
 
-    getUsersWithWeeklyDigestEnabled: () => Effect.succeed(usersWithTips),
+    getUsersWithWeeklyDigestEnabled: Effect.succeed(usersWithTips),
 
     getTrialingUsersWithTrialEndingSoon: () =>
       Effect.succeed(

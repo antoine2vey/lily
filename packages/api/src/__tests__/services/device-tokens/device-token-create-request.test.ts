@@ -4,7 +4,7 @@ import Expo from 'expo-server-sdk'
 import { describe, expect, it } from 'vitest'
 
 const decode = (token: string) =>
-  Schema.decodeUnknownExit(DeviceTokenCreateRequest)({
+  Schema.decodeExit(DeviceTokenCreateRequest)({
     token,
     platform: 'ios',
   })

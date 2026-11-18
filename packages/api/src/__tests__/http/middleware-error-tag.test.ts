@@ -119,7 +119,7 @@ const MiddlewareLive = Layer.mergeAll(
   AuthenticationLive,
   AdminAuthLive,
   ServiceAuthenticationLive
-).pipe(Layer.provide(createMockPgDrizzle()), Layer.provide(ConfigLive))
+).pipe(Layer.provide(createMockPgDrizzle), Layer.provide(ConfigLive))
 
 const PlatformLive = Layer.mergeAll(
   Path.layer,

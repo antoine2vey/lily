@@ -63,7 +63,7 @@ export const createMockPushService = (
           Option.flatMap((fail) => fail(message))
         )
         if (Option.isSome(failure)) {
-          return yield* Effect.fail(failure.value)
+          return yield* failure.value
         }
 
         if (options.shouldFail) {
@@ -86,7 +86,7 @@ export const createMockPushService = (
 }
 
 // Helper to create a push service that succeeds
-export const createSuccessPushService = (): Layer.Layer<PushService> =>
+export const createSuccessPushService: Layer.Layer<PushService> =
   createMockPushService()
 
 // Helper to create a push service that always fails

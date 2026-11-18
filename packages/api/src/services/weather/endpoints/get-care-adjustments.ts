@@ -20,7 +20,7 @@ import {
 import { Array, Effect, Filter, Option, pipe, String } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const getCareAdjustments = (): Effect.Effect<
+export const getCareAdjustments: Effect.Effect<
   ReadonlyArray<CareAdjustment>,
   SqlError | WeatherFetchError | WeatherNotAvailableError,
   | CurrentUser
@@ -30,118 +30,117 @@ export const getCareAdjustments = (): Effect.Effect<
   | WeatherProvider
   | WeatherCache
   | WeatherRepository
-> =>
-  Effect.gen(function* () {
-    const { id } = yield* CurrentUser
-    const userRepo = yield* UserRepository
-    const plantRepo = yield* PlantRepository
-    const scheduleRepo = yield* CareScheduleRepository
-    const weatherRepo = yield* WeatherRepository
+> = Effect.gen(function* () {
+  const { id } = yield* CurrentUser
+  const userRepo = yield* UserRepository
+  const plantRepo = yield* PlantRepository
+  const scheduleRepo = yield* CareScheduleRepository
+  const weatherRepo = yield* WeatherRepository
 
-    // Get user and verify weather is enabled
-    const user = yield* userRepo.findById(id)
-    if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
-      return yield* new WeatherNotAvailableError({})
-    }
+  // Get user and verify weather is enabled
+  const user = yield* userRepo.findById(id)
+  if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
+    return yield* new WeatherNotAvailableError({})
+  }
 
-    const rlat = roundCoord(user.latitude)
-    const rlng = roundCoord(user.longitude)
+  const rlat = roundCoord(user.latitude)
+  const rlng = roundCoord(user.longitude)
 
-    // Fetch current weather forecast
-    const forecast = yield* getWeatherForLocation(rlat, rlng)
+  // Fetch current weather forecast
+  const forecast = yield* getWeatherForLocation(rlat, rlng)
 
-    // Get the user's plants
-    const plantsResult = yield* plantRepo.findAll({
-      userId: id,
-      page: 1,
-      limit: 1000,
-    })
+  // Get the user's plants
+  const plantsResult = yield* plantRepo.findAll({
+    userId: id,
+    page: 1,
+    limit: 1000,
+  })
 
-    // Get recent weather history for multi-day trend analysis
-    const recentSnapshots = yield* weatherRepo
-      .findRecentByLocation(rlat, rlng, 7)
-      .pipe(
-        Effect.catchTag('SqlError', () =>
-          Effect.succeed(
-            [] as Array<
-              typeof import('@lily/db/schema').weatherSnapshots.$inferSelect
-            >
-          )
+  // Get recent weather history for multi-day trend analysis
+  const recentSnapshots = yield* weatherRepo
+    .findRecentByLocation(rlat, rlng, 7)
+    .pipe(
+      Effect.catchTag('SqlError', () =>
+        Effect.succeed(
+          [] as Array<
+            typeof import('@lily/db/schema').weatherSnapshots.$inferSelect
+          >
         )
       )
-
-    // Convert snapshots to WeatherData format
-    const recentHistory: ReadonlyArray<WeatherData> = Array.map(
-      recentSnapshots,
-      (snap) => ({
-        date: snap.date,
-        temperatureMin: snap.temperatureMin,
-        temperatureMax: snap.temperatureMax,
-        temperatureMean: snap.temperatureMean,
-        humidity: snap.humidity,
-        windSpeed: snap.windSpeed,
-        precipitation: snap.precipitation,
-        solarRadiation: snap.solarRadiation,
-        et0: snap.et0,
-        cloudCover: snap.cloudCover,
-        soilTemperature: snap.soilTemperature,
-      })
     )
 
-    // Get today's weather (first day of forecast)
-    const currentWeather = Option.getOrElse(
-      Array.head(forecast.daily),
-      () =>
-        ({
-          date: pipe(nowAsIsoString(), String.split('T'), Array.headNonEmpty),
-          temperatureMin: null,
-          temperatureMax: null,
-          temperatureMean: null,
-          humidity: null,
-          windSpeed: null,
-          precipitation: null,
-          solarRadiation: null,
-          et0: null,
-          cloudCover: null,
-          soilTemperature: null,
-        }) satisfies WeatherData
-    )
+  // Convert snapshots to WeatherData format
+  const recentHistory: ReadonlyArray<WeatherData> = Array.map(
+    recentSnapshots,
+    (snap) => ({
+      date: snap.date,
+      temperatureMin: snap.temperatureMin,
+      temperatureMax: snap.temperatureMax,
+      temperatureMean: snap.temperatureMean,
+      humidity: snap.humidity,
+      windSpeed: snap.windSpeed,
+      precipitation: snap.precipitation,
+      solarRadiation: snap.solarRadiation,
+      et0: snap.et0,
+      cloudCover: snap.cloudCover,
+      soilTemperature: snap.soilTemperature,
+    })
+  )
 
-    // Fetch watering schedules for all plants and build a lookup
-    const allSchedules = yield* Effect.forEach(
-      plantsResult.items,
-      (plant) => scheduleRepo.findByPlant(plant.id),
-      { concurrency: 10 }
-    )
+  // Get today's weather (first day of forecast)
+  const currentWeather = Option.getOrElse(
+    Array.head(forecast.daily),
+    () =>
+      ({
+        date: pipe(nowAsIsoString(), String.split('T'), Array.headNonEmpty),
+        temperatureMin: null,
+        temperatureMax: null,
+        temperatureMean: null,
+        humidity: null,
+        windSpeed: null,
+        precipitation: null,
+        solarRadiation: null,
+        et0: null,
+        cloudCover: null,
+        soilTemperature: null,
+      }) satisfies WeatherData
+  )
 
-    // Calculate adjustments for each plant
-    return Array.filterMap(
-      Array.zip(plantsResult.items, allSchedules),
-      Filter.fromPredicateOption(([plant, schedules]) => {
-        const wateringSchedule = pipe(
-          Array.findFirst(schedules, (s) => s.careType === 'watering'),
-          Option.getOrNull
+  // Fetch watering schedules for all plants and build a lookup
+  const allSchedules = yield* Effect.forEach(
+    plantsResult.items,
+    (plant) => scheduleRepo.findByPlant(plant.id),
+    { concurrency: 10 }
+  )
+
+  // Calculate adjustments for each plant
+  return Array.filterMap(
+    Array.zip(plantsResult.items, allSchedules),
+    Filter.fromPredicateOption(([plant, schedules]) => {
+      const wateringSchedule = pipe(
+        Array.findFirst(schedules, (s) => s.careType === 'watering'),
+        Option.getOrNull
+      )
+
+      // Skip plants without a watering schedule
+      if (!wateringSchedule) {
+        return Option.none()
+      }
+
+      return Option.some(
+        calculatePlantAdjustment(
+          {
+            id: plant.id,
+            wateringFrequencyDays: wateringSchedule.frequencyDays,
+            wateringRating: plant.wateringRating,
+            ...toIndoorPlantContext(plant),
+          },
+          currentWeather,
+          recentHistory,
+          forecast.daily,
+          user.latitude
         )
-
-        // Skip plants without a watering schedule
-        if (!wateringSchedule) {
-          return Option.none()
-        }
-
-        return Option.some(
-          calculatePlantAdjustment(
-            {
-              id: plant.id,
-              wateringFrequencyDays: wateringSchedule.frequencyDays,
-              wateringRating: plant.wateringRating,
-              ...toIndoorPlantContext(plant),
-            },
-            currentWeather,
-            recentHistory,
-            forecast.daily,
-            user.latitude
-          )
-        )
-      })
-    )
-  })
+      )
+    })
+  )
+})

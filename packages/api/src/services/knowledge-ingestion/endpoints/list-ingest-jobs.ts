@@ -9,5 +9,5 @@ export const listIngestJobs: Effect.Effect<
   IngestJobRepository
 > = Effect.gen(function* () {
   const repo = yield* IngestJobRepository
-  return yield* repo.findAll()
+  return yield* repo.findAll
 }).pipe(Effect.withSpan('KnowledgeIngestion.listIngestJobs'))

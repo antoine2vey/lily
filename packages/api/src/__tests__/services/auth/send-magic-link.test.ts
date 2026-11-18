@@ -167,7 +167,7 @@ describe('sendMagicLink', () => {
             createMockUserRepository(mockUsers),
             createMockJWTService({}),
             createMockRateLimiterService(),
-            createMockPgDrizzle()
+            createMockPgDrizzle
           )
         )
       )

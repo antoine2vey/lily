@@ -16,21 +16,21 @@ export type OpenAIErrorCode = Schema.Schema.Type<typeof OpenAIErrorCodeSchema>
 
 // ── OpenAI error ───────────────────────────────────────────────────
 
-export class OpenAIError extends Schema.TaggedError<OpenAIError>()(
-  'OpenAIError',
-  {
-    code: OpenAIErrorCodeSchema,
-    message: Schema.String,
-    statusCode: Schema.optional(Schema.Number),
-  }
-) {}
+export class OpenAIError extends Schema.TaggedError<
+  OpenAIError,
+  { readonly brand: unique symbol }
+>()('OpenAIError', {
+  code: OpenAIErrorCodeSchema,
+  message: Schema.String,
+  statusCode: Schema.optional(Schema.Finite),
+}) {}
 
 // ── Conversation lookup error ──────────────────────────────────────
 
-export class ConversationNotFoundError extends Schema.TaggedError<ConversationNotFoundError>()(
-  'ConversationNotFoundError',
-  { id: Schema.String }
-) {}
+export class ConversationNotFoundError extends Schema.TaggedError<
+  ConversationNotFoundError,
+  { readonly brand: unique symbol }
+>()('ConversationNotFoundError', { id: Schema.String }) {}
 
 // ── Helper: unwrap AI SDK error → typed Effect error ───────────────
 

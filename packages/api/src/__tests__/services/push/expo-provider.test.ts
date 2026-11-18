@@ -41,7 +41,7 @@ describe('PushService (mock)', () => {
               body: 'Message 3',
             },
           ])
-        }).pipe(Effect.provide(createSuccessPushService()))
+        }).pipe(Effect.provide(createSuccessPushService))
       )
 
       expect(result).toHaveLength(3)
@@ -94,7 +94,7 @@ describe('PushService (mock)', () => {
         Effect.gen(function* () {
           const pushService = yield* PushService
           return yield* pushService.sendBatch([])
-        }).pipe(Effect.provide(createSuccessPushService()))
+        }).pipe(Effect.provide(createSuccessPushService))
       )
 
       expect(result).toHaveLength(0)
@@ -109,7 +109,7 @@ describe('PushService (mock)', () => {
             { to: 'ExponentPushToken[b]', title: 'B', body: 'B' },
             { to: 'ExponentPushToken[c]', title: 'C', body: 'C' },
           ])
-        }).pipe(Effect.provide(createSuccessPushService()))
+        }).pipe(Effect.provide(createSuccessPushService))
       )
 
       const ids = result.map((t) => t.id)

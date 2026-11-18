@@ -5,10 +5,10 @@ export const Room = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   icon: Schema.String,
-  luminosity: Schema.NullOr(Schema.Number),
+  luminosity: Schema.NullOr(Schema.Finite),
   orientation: Schema.NullOr(OrientationSchema),
   isOutdoor: Schema.Boolean,
-  order: Schema.Number,
+  order: Schema.Finite,
   userId: Schema.NullOr(Schema.String),
   canopyId: Schema.NullOr(Schema.String),
   createdAt: Schema.DateFromString,
@@ -19,7 +19,7 @@ export const RoomRef = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   icon: Schema.String,
-  luminosity: Schema.NullOr(Schema.Number),
+  luminosity: Schema.NullOr(Schema.Finite),
   orientation: Schema.NullOr(OrientationSchema),
   isOutdoor: Schema.Boolean,
 })
@@ -30,7 +30,7 @@ export const RoomCreateRequest = Schema.Struct({
     Schema.withDecodingDefaultType(Effect.succeed('🏠')),
     Schema.withConstructorDefault(Effect.succeed('🏠'))
   ),
-  luminosity: Schema.optional(Schema.Number),
+  luminosity: Schema.optional(Schema.Finite),
   orientation: Schema.optional(OrientationSchema),
   isOutdoor: Schema.Boolean.pipe(
     Schema.withDecodingDefaultType(Effect.succeed(false)),
@@ -42,15 +42,15 @@ export const RoomCreateRequest = Schema.Struct({
 export const RoomUpdateRequest = Schema.Struct({
   name: Schema.optional(Schema.String),
   icon: Schema.optional(Schema.String),
-  order: Schema.optional(Schema.Number),
-  luminosity: Schema.optional(Schema.NullOr(Schema.Number)),
+  order: Schema.optional(Schema.Finite),
+  luminosity: Schema.optional(Schema.NullOr(Schema.Finite)),
   orientation: Schema.optional(Schema.NullOr(OrientationSchema)),
   isOutdoor: Schema.optional(Schema.Boolean),
 })
 
 export const RoomWithCount = Schema.Struct({
   ...Room.fields,
-  plantCount: Schema.Number,
+  plantCount: Schema.Finite,
 })
 
 export const RoomListWithCountsResponse = Schema.Array(RoomWithCount)

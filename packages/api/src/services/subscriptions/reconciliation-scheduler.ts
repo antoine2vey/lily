@@ -11,7 +11,7 @@ import { Effect, Option } from 'effect'
 // the same fetch-and-apply the webhook uses.
 export const reconcileStoreSubscriptions = Effect.gen(function* () {
   const subRepo = yield* SubscriptionRepository
-  const rows = yield* subRepo.findStoreSubscriptions()
+  const rows = yield* subRepo.findStoreSubscriptions
 
   yield* Effect.forEach(
     rows,

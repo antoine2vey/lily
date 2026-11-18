@@ -71,24 +71,26 @@ export const confirmHandler = Effect.gen(function* () {
     })
   )
 }).pipe(
-  Effect.catchTag('OAuthError', (err) =>
-    HttpServerResponse.json({ error: err.error_description }, { status: 400 })
-  ),
-  Effect.catchTag('SqlError', () =>
-    HttpServerResponse.json(
-      { error: 'Request failed. Please try again.' },
-      { status: 500 }
-    )
-  ),
-  Effect.catchTag('ExternalServiceError', (err) =>
-    Effect.flatMap(
-      Effect.logError('POST /confirm failed', { error: err.message }),
-      () =>
-        HttpServerResponse.json(
-          { error: 'Request failed. Please try again.' },
-          { status: 500 }
-        )
-    )
-  ),
+  Effect.catchTags({
+    OAuthError: (err) =>
+      HttpServerResponse.json(
+        { error: err.error_description },
+        { status: 400 }
+      ),
+    SqlError: () =>
+      HttpServerResponse.json(
+        { error: 'Request failed. Please try again.' },
+        { status: 500 }
+      ),
+    ExternalServiceError: (err) =>
+      Effect.flatMap(
+        Effect.logError('POST /confirm failed', { error: err.message }),
+        () =>
+          HttpServerResponse.json(
+            { error: 'Request failed. Please try again.' },
+            { status: 500 }
+          )
+      ),
+  }),
   Effect.withSpan('MCP.confirm')
 )

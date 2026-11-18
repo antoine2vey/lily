@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class CarePlanNotFoundError extends Schema.TaggedError<CarePlanNotFoundError>()(
+export class CarePlanNotFoundError extends Schema.TaggedError<
+  CarePlanNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'CarePlanNotFoundError',
   {
     planId: Schema.String.pipe(
@@ -11,7 +14,10 @@ export class CarePlanNotFoundError extends Schema.TaggedError<CarePlanNotFoundEr
   { httpApiStatus: 404 }
 ) {}
 
-export class CarePlanStepNotFoundError extends Schema.TaggedError<CarePlanStepNotFoundError>()(
+export class CarePlanStepNotFoundError extends Schema.TaggedError<
+  CarePlanStepNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'CarePlanStepNotFoundError',
   {
     stepId: Schema.String.pipe(
@@ -22,7 +28,10 @@ export class CarePlanStepNotFoundError extends Schema.TaggedError<CarePlanStepNo
   { httpApiStatus: 404 }
 ) {}
 
-export class CarePlanNotAuthorizedError extends Schema.TaggedError<CarePlanNotAuthorizedError>()(
+export class CarePlanNotAuthorizedError extends Schema.TaggedError<
+  CarePlanNotAuthorizedError,
+  { readonly brand: unique symbol }
+>()(
   'CarePlanNotAuthorizedError',
   {
     planId: Schema.String.pipe(
@@ -34,7 +43,10 @@ export class CarePlanNotAuthorizedError extends Schema.TaggedError<CarePlanNotAu
 ) {}
 
 /** Raised when accepting or dismissing a plan that is no longer `proposed`. */
-export class CarePlanNotProposedError extends Schema.TaggedError<CarePlanNotProposedError>()(
+export class CarePlanNotProposedError extends Schema.TaggedError<
+  CarePlanNotProposedError,
+  { readonly brand: unique symbol }
+>()(
   'CarePlanNotProposedError',
   {
     planId: Schema.String,

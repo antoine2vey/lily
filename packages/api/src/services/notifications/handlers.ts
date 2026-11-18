@@ -38,9 +38,9 @@ export const NotificationsApiLive = (api: Api) =>
         }).pipe(withInfraErrorsAsDefect)
       )
       .handle('getUnreadCount', () =>
-        getUnreadCount().pipe(withInfraErrorsAsDefect)
+        getUnreadCount.pipe(withInfraErrorsAsDefect)
       )
-      .handle('markAllRead', () => markAllRead().pipe(withInfraErrorsAsDefect))
+      .handle('markAllRead', () => markAllRead.pipe(withInfraErrorsAsDefect))
       .handle('markNotificationRead', ({ params: { notificationId } }) =>
         markNotificationRead(notificationId).pipe(withInfraErrorsAsDefect)
       )

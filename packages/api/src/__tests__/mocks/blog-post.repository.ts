@@ -50,7 +50,7 @@ export const createMockBlogPostRepository = (
         )
       ),
 
-    findAllSlugs: () => Effect.succeed(Array.map(data, (p) => p.slug)),
+    findAllSlugs: Effect.sync(() => Array.map(data, (p) => p.slug)),
 
     findRecentCategories: (limit: number) =>
       Effect.succeed(
@@ -87,18 +87,16 @@ export const createMockBlogPostRepository = (
       return Effect.succeed(Array.length(stale))
     },
 
-    hasInProgress: () =>
-      Effect.succeed(
-        Array.some(data, (p) => Array.contains(IN_PROGRESS_STATUSES, p.status))
-      ),
+    hasInProgress: Effect.sync(() =>
+      Array.some(data, (p) => Array.contains(IN_PROGRESS_STATUSES, p.status))
+    ),
 
-    findPublishedSlugsWithTitles: () =>
-      Effect.succeed(
-        pipe(
-          Array.filter(data, (p) => p.status === 'published'),
-          Array.map((p) => ({ slug: p.slug, title: p.title }))
-        )
-      ),
+    findPublishedSlugsWithTitles: Effect.sync(() =>
+      pipe(
+        Array.filter(data, (p) => p.status === 'published'),
+        Array.map((p) => ({ slug: p.slug, title: p.title }))
+      )
+    ),
 
     updateStatus: (id: string, status: BlogPostStatus) =>
       pipe(

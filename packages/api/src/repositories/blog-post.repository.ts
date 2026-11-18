@@ -37,7 +37,7 @@ export interface IBlogPostRepository {
     slug: string
   ) => Effect.Effect<BlogPost | null, SqlError>
   readonly findById: (id: string) => Effect.Effect<BlogPost | null, SqlError>
-  readonly findAllSlugs: () => Effect.Effect<string[], SqlError>
+  readonly findAllSlugs: Effect.Effect<string[], SqlError>
   readonly findRecentCategories: (
     limit: number
   ) => Effect.Effect<string[], SqlError>
@@ -45,8 +45,8 @@ export interface IBlogPostRepository {
   readonly rejectStalePosts: (
     staleBeforeDate: Date
   ) => Effect.Effect<number, SqlError>
-  readonly hasInProgress: () => Effect.Effect<boolean, SqlError>
-  readonly findPublishedSlugsWithTitles: () => Effect.Effect<
+  readonly hasInProgress: Effect.Effect<boolean, SqlError>
+  readonly findPublishedSlugsWithTitles: Effect.Effect<
     readonly { slug: string; title: LocalizedText }[],
     SqlError
   >
@@ -125,10 +125,10 @@ export const BlogPostRepositoryLive = Layer.effect(
         return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
-      findAllSlugs: Effect.fn('BlogPostRepository.findAllSlugs')(function* () {
+      findAllSlugs: Effect.gen(function* () {
         const rows = yield* db.select({ slug: blogPosts.slug }).from(blogPosts)
         return Array.map(rows, (r) => r.slug)
-      }),
+      }).pipe(Effect.withSpan('BlogPostRepository.findAllSlugs')),
 
       findRecentCategories: Effect.fn(
         'BlogPostRepository.findRecentCategories'
@@ -142,31 +142,29 @@ export const BlogPostRepositoryLive = Layer.effect(
         return Array.map(rows, (r) => r.category)
       }),
 
-      findPublishedSlugsWithTitles: Effect.fn(
-        'BlogPostRepository.findPublishedSlugsWithTitles'
-      )(function* () {
+      findPublishedSlugsWithTitles: Effect.gen(function* () {
         const rows = yield* db
           .select({ slug: blogPosts.slug, title: blogPosts.title })
           .from(blogPosts)
           .where(eq(blogPosts.status, 'published'))
           .orderBy(desc(blogPosts.publishedAt))
         return rows as readonly { slug: string; title: LocalizedText }[]
-      }),
-
-      hasInProgress: Effect.fn('BlogPostRepository.hasInProgress')(
-        function* () {
-          const [result] = yield* db
-            .select({ value: count() })
-            .from(blogPosts)
-            .where(inArray(blogPosts.status, [...IN_PROGRESS_STATUSES]))
-          return pipe(
-            Option.fromNullishOr(result),
-            Option.flatMap((r) => Option.fromNullishOr(r.value)),
-            Option.getOrElse(() => 0),
-            (n) => n > 0
-          )
-        }
+      }).pipe(
+        Effect.withSpan('BlogPostRepository.findPublishedSlugsWithTitles')
       ),
+
+      hasInProgress: Effect.gen(function* () {
+        const [result] = yield* db
+          .select({ value: count() })
+          .from(blogPosts)
+          .where(inArray(blogPosts.status, [...IN_PROGRESS_STATUSES]))
+        return pipe(
+          Option.fromNullishOr(result),
+          Option.flatMap((r) => Option.fromNullishOr(r.value)),
+          Option.getOrElse(() => 0),
+          (n) => n > 0
+        )
+      }).pipe(Effect.withSpan('BlogPostRepository.hasInProgress')),
 
       countPublishedSince: Effect.fn('BlogPostRepository.countPublishedSince')(
         function* (since: Date) {

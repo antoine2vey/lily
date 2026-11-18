@@ -47,7 +47,7 @@ const identify = (
       Layer.mergeAll(
         createMockAiService({ isRareHouseplant }),
         createMockGCSService(),
-        createMockFileService(),
+        createMockFileService,
         createMockFileSystem(),
         createMockCurrentUser({ id: userId }),
         createMockRareIdentificationRepository(rows),

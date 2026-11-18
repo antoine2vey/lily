@@ -143,14 +143,13 @@ export const createMockAchievementRepository = (
         )
       ),
 
-    findUserIdsWithProgress: () => {
-      const userIds = pipe(
+    findUserIdsWithProgress: Effect.sync(() =>
+      pipe(
         data.achievements,
         Array.map((a) => a.userId),
         Array.dedupe
       )
-      return Effect.succeed(userIds)
-    },
+    ),
 
     getBatchCareStreaks: () =>
       Effect.succeed(

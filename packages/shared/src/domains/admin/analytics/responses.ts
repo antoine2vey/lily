@@ -11,26 +11,26 @@ import { UserStatus } from '../../user/schema'
 
 export const TimeSeriesPoint = Schema.Struct({
   date: Schema.String,
-  value: Schema.Number,
+  value: Schema.Finite,
 })
 export type TimeSeriesPoint = typeof TimeSeriesPoint.Type
 
 export const CategoryCount = Schema.Struct({
   label: Schema.String,
-  count: Schema.Number,
+  count: Schema.Finite,
 })
 export type CategoryCount = typeof CategoryCount.Type
 
 export const HistogramBucket = Schema.Struct({
   label: Schema.String,
-  count: Schema.Number,
+  count: Schema.Finite,
 })
 export type HistogramBucket = typeof HistogramBucket.Type
 
 export const FunnelStep = Schema.Struct({
   label: Schema.String,
-  count: Schema.Number,
-  pctOfStart: Schema.Number,
+  count: Schema.Finite,
+  pctOfStart: Schema.Finite,
 })
 export type FunnelStep = typeof FunnelStep.Type
 
@@ -39,11 +39,11 @@ export type FunnelStep = typeof FunnelStep.Type
 // ============================================================================
 
 export const UsersByStatusResponse = Schema.Struct({
-  total: Schema.Number,
+  total: Schema.Finite,
   byStatus: Schema.Array(
     Schema.Struct({
       status: UserStatus,
-      count: Schema.Number,
+      count: Schema.Finite,
     })
   ),
 })
@@ -54,10 +54,10 @@ export type UsersByStatusResponse = typeof UsersByStatusResponse.Type
 // ============================================================================
 
 export const DauWauMauResponse = Schema.Struct({
-  dau: Schema.Number,
-  wau: Schema.Number,
-  mau: Schema.Number,
-  stickiness: Schema.Number,
+  dau: Schema.Finite,
+  wau: Schema.Finite,
+  mau: Schema.Finite,
+  stickiness: Schema.Finite,
   trend: Schema.Array(TimeSeriesPoint),
 })
 export type DauWauMauResponse = typeof DauWauMauResponse.Type
@@ -67,9 +67,9 @@ export type DauWauMauResponse = typeof DauWauMauResponse.Type
 // ============================================================================
 
 export const SignupToFirstPlantResponse = Schema.Struct({
-  cohortSize: Schema.Number,
+  cohortSize: Schema.Finite,
   steps: Schema.Array(FunnelStep),
-  medianHoursToFirstPlant: Schema.NullOr(Schema.Number),
+  medianHoursToFirstPlant: Schema.NullOr(Schema.Finite),
 })
 export type SignupToFirstPlantResponse = typeof SignupToFirstPlantResponse.Type
 
@@ -78,10 +78,10 @@ export type SignupToFirstPlantResponse = typeof SignupToFirstPlantResponse.Type
 // ============================================================================
 
 export const TrialToPaidResponse = Schema.Struct({
-  trialsStarted: Schema.Number,
-  converted: Schema.Number,
-  conversionRate: Schema.Number,
-  medianDaysToConvert: Schema.NullOr(Schema.Number),
+  trialsStarted: Schema.Finite,
+  converted: Schema.Finite,
+  conversionRate: Schema.Finite,
+  medianDaysToConvert: Schema.NullOr(Schema.Finite),
 })
 export type TrialToPaidResponse = typeof TrialToPaidResponse.Type
 
@@ -90,7 +90,7 @@ export type TrialToPaidResponse = typeof TrialToPaidResponse.Type
 // ============================================================================
 
 export const PaywallAttributionResponse = Schema.Struct({
-  totalConversions: Schema.Number,
+  totalConversions: Schema.Finite,
   byLimit: Schema.Array(CategoryCount),
 })
 export type PaywallAttributionResponse = typeof PaywallAttributionResponse.Type
@@ -100,12 +100,12 @@ export type PaywallAttributionResponse = typeof PaywallAttributionResponse.Type
 // ============================================================================
 
 export const ActiveSubscribersByTierResponse = Schema.Struct({
-  total: Schema.Number,
+  total: Schema.Finite,
   byTier: Schema.Array(
     Schema.Struct({
       tier: SubscriptionTier,
       status: SubscriptionStatus,
-      count: Schema.Number,
+      count: Schema.Finite,
     })
   ),
 })
@@ -117,7 +117,7 @@ export type ActiveSubscribersByTierResponse =
 // ============================================================================
 
 export const MrrEstimateResponse = Schema.Struct({
-  currentCents: Schema.Number,
+  currentCents: Schema.Finite,
   trend: Schema.Array(TimeSeriesPoint),
 })
 export type MrrEstimateResponse = typeof MrrEstimateResponse.Type
@@ -127,7 +127,7 @@ export type MrrEstimateResponse = typeof MrrEstimateResponse.Type
 // ============================================================================
 
 export const PaidChurnResponse = Schema.Struct({
-  currentRate: Schema.Number,
+  currentRate: Schema.Finite,
   trend: Schema.Array(TimeSeriesPoint),
 })
 export type PaidChurnResponse = typeof PaidChurnResponse.Type
@@ -137,8 +137,8 @@ export type PaidChurnResponse = typeof PaidChurnResponse.Type
 // ============================================================================
 
 export const PlantsPerUserDistributionResponse = Schema.Struct({
-  totalUsers: Schema.Number,
-  totalPlants: Schema.Number,
+  totalUsers: Schema.Finite,
+  totalPlants: Schema.Finite,
   buckets: Schema.Array(HistogramBucket),
 })
 export type PlantsPerUserDistributionResponse =
@@ -155,7 +155,7 @@ export const CareLogVolumeSeries = Schema.Struct({
 export type CareLogVolumeSeries = typeof CareLogVolumeSeries.Type
 
 export const CareLogVolumeByTypeResponse = Schema.Struct({
-  totalInRange: Schema.Number,
+  totalInRange: Schema.Finite,
   series: Schema.Array(CareLogVolumeSeries),
 })
 export type CareLogVolumeByTypeResponse =
@@ -166,13 +166,13 @@ export type CareLogVolumeByTypeResponse =
 // ============================================================================
 
 export const AiChatVolumeResponse = Schema.Struct({
-  totalMessages: Schema.Number,
-  uniqueUsers: Schema.Number,
+  totalMessages: Schema.Finite,
+  uniqueUsers: Schema.Finite,
   trend: Schema.Array(
     Schema.Struct({
       date: Schema.String,
-      messages: Schema.Number,
-      users: Schema.Number,
+      messages: Schema.Finite,
+      users: Schema.Finite,
     })
   ),
 })
@@ -183,10 +183,10 @@ export type AiChatVolumeResponse = typeof AiChatVolumeResponse.Type
 // ============================================================================
 
 export const DiagnosisResolutionRateResponse = Schema.Struct({
-  total: Schema.Number,
-  resolved: Schema.Number,
-  resolutionRate: Schema.Number,
-  medianHoursToResolve: Schema.NullOr(Schema.Number),
+  total: Schema.Finite,
+  resolved: Schema.Finite,
+  resolutionRate: Schema.Finite,
+  medianHoursToResolve: Schema.NullOr(Schema.Finite),
 })
 export type DiagnosisResolutionRateResponse =
   typeof DiagnosisResolutionRateResponse.Type
@@ -196,9 +196,9 @@ export type DiagnosisResolutionRateResponse =
 // ============================================================================
 
 export const NotificationToCareActionResponse = Schema.Struct({
-  remindersSent: Schema.Number,
-  actedOnWithin24h: Schema.Number,
-  actionRate: Schema.Number,
+  remindersSent: Schema.Finite,
+  actedOnWithin24h: Schema.Finite,
+  actionRate: Schema.Finite,
 })
 export type NotificationToCareActionResponse =
   typeof NotificationToCareActionResponse.Type
@@ -216,12 +216,12 @@ export type DeadLetterSeries = typeof DeadLetterSeries.Type
 export const DeadLetterTopError = Schema.Struct({
   topic: Schema.String,
   error: Schema.String,
-  count: Schema.Number,
+  count: Schema.Finite,
 })
 export type DeadLetterTopError = typeof DeadLetterTopError.Type
 
 export const DeadLetterVolumeResponse = Schema.Struct({
-  totalInRange: Schema.Number,
+  totalInRange: Schema.Finite,
   series: Schema.Array(DeadLetterSeries),
   topErrors: Schema.Array(DeadLetterTopError),
 })

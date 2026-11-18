@@ -18,7 +18,7 @@ export type CarePlanSource = typeof CarePlanSource.Type
 export const CarePlanStep = Schema.Struct({
   id: Schema.String,
   planId: Schema.String,
-  position: Schema.Number,
+  position: Schema.Finite,
   title: Schema.String,
   description: Schema.optional(Schema.String),
   // Present when the step maps onto the recurring schedule model. Accepting

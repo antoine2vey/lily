@@ -68,8 +68,8 @@ export const Canopy = Schema.Struct({
   id: CanopyId,
   name: Schema.String,
   timezone: Schema.String,
-  latitude: Schema.NullOr(Schema.Number),
-  longitude: Schema.NullOr(Schema.Number),
+  latitude: Schema.NullOr(Schema.Finite),
+  longitude: Schema.NullOr(Schema.Finite),
   role: CanopyMemberRole,
   members: Schema.Array(CanopyMember),
   invite: Schema.NullOr(CanopyActiveInvite),
@@ -89,10 +89,10 @@ export const CreateCanopyRequest = Schema.Struct({
 })
 export type CreateCanopyRequest = typeof CreateCanopyRequest.Type
 
-export const Latitude = Schema.Number.check(
+export const Latitude = Schema.Finite.check(
   Schema.isBetween({ minimum: -90, maximum: 90 })
 )
-export const Longitude = Schema.Number.check(
+export const Longitude = Schema.Finite.check(
   Schema.isBetween({ minimum: -180, maximum: 180 })
 )
 
@@ -114,7 +114,7 @@ export type CanopyInvite = typeof CanopyInvite.Type
 export const CanopyInvitePreview = Schema.Struct({
   canopyName: Schema.String,
   inviterName: Schema.NullOr(Schema.String),
-  memberCount: Schema.Number,
+  memberCount: Schema.Finite,
   expiresAt: Schema.DateFromString,
 })
 export type CanopyInvitePreview = typeof CanopyInvitePreview.Type
@@ -131,7 +131,7 @@ export const CanopyInvitationView = Schema.Struct({
   canopyId: CanopyId,
   canopyName: Schema.String,
   inviterName: Schema.NullOr(Schema.String),
-  memberCount: Schema.Number,
+  memberCount: Schema.Finite,
   status: Schema.Literals([...CanopyInvitationStatus.literals, 'expired']),
   expiresAt: Schema.DateFromString,
 })

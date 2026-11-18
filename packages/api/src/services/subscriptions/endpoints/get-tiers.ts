@@ -3,12 +3,11 @@ import type { TierConfig } from '@lily/shared'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const getTiers = (): Effect.Effect<
+export const getTiers: Effect.Effect<
   TierConfig[],
   SqlError,
   SubscriptionRepository
-> =>
-  Effect.gen(function* () {
-    const subRepo = yield* SubscriptionRepository
-    return yield* subRepo.getAllTiers()
-  }).pipe(Effect.withSpan('SubscriptionService.getAllTiers'))
+> = Effect.gen(function* () {
+  const subRepo = yield* SubscriptionRepository
+  return yield* subRepo.getAllTiers
+}).pipe(Effect.withSpan('SubscriptionService.getAllTiers'))

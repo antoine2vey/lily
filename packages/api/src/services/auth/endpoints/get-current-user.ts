@@ -6,11 +6,7 @@ import { Effect } from 'effect'
  * Get current authenticated user profile
  * Requires authentication middleware to provide CurrentUser context
  */
-export const getCurrentUser = (): Effect.Effect<
-  UserProfile,
-  never,
-  CurrentUser
-> =>
+export const getCurrentUser: Effect.Effect<UserProfile, never, CurrentUser> =
   Effect.gen(function* () {
     // CurrentUser is provided by the auth middleware
     const user = yield* CurrentUser

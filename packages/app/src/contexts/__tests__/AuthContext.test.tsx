@@ -26,24 +26,29 @@ jest.mock('expo-secure-store', () => ({
 jest.mock('@/utils/storage', () => {
   const { Effect, Option } = require('effect')
   return {
-    clearAuthStorage: jest.fn().mockReturnValue(Effect.void),
-    getStoredAccessToken: jest
-      .fn()
-      .mockReturnValue(Effect.succeed(Option.none())),
-    getStoredUserEmail: jest
-      .fn()
-      .mockReturnValue(Effect.succeed(Option.none())),
-    getStoredUserProfile: jest
-      .fn()
-      .mockReturnValue(Effect.succeed(Option.none())),
-    removeStoredAccessToken: jest.fn().mockReturnValue(Effect.void),
-    removeStoredUserProfile: jest.fn().mockReturnValue(Effect.void),
+    clearAuthStorage: Effect.void,
+    getStoredAccessToken: Effect.suspend(() => mockGetStoredAccessToken()),
+    getStoredUserEmail: Effect.succeed(Option.none()),
+    getStoredUserProfile: Effect.suspend(() => mockGetStoredUserProfile()),
+    removeStoredAccessToken: Effect.suspend(() =>
+      mockRemoveStoredAccessToken()
+    ),
+    removeStoredUserProfile: Effect.void,
     storeAccessToken: jest.fn().mockReturnValue(Effect.void),
     storeRefreshToken: jest.fn().mockReturnValue(Effect.void),
     storeUserEmail: jest.fn().mockReturnValue(Effect.void),
     storeUserProfile: jest.fn().mockReturnValue(Effect.void),
   }
 })
+
+const { Effect, Option } = require('effect')
+const mockGetStoredAccessToken = jest
+  .fn()
+  .mockReturnValue(Effect.succeed(Option.none()))
+const mockGetStoredUserProfile = jest
+  .fn()
+  .mockReturnValue(Effect.succeed(Option.none()))
+const mockRemoveStoredAccessToken = jest.fn().mockReturnValue(Effect.void)
 
 // Mock client utilities
 jest.mock('@/utils/client', () => ({
@@ -245,28 +250,20 @@ describe('AuthContext', () => {
     }
 
     afterEach(() => {
-      const { Effect, Option } = require('effect')
-      const storage = require('@/utils/storage')
       const client = require('@/utils/client')
-      storage.getStoredAccessToken.mockReturnValue(
-        Effect.succeed(Option.none())
-      )
-      storage.getStoredUserProfile.mockReturnValue(
-        Effect.succeed(Option.none())
-      )
+      mockGetStoredAccessToken.mockReturnValue(Effect.succeed(Option.none()))
+      mockGetStoredUserProfile.mockReturnValue(Effect.succeed(Option.none()))
       client.apiEffectRunner.mockReset()
       client.isAuthFailureError.mockReturnValue(false)
     })
 
     it('restores session from cached profile on transient startup failure', async () => {
-      const { Effect, Option } = require('effect')
-      const storage = require('@/utils/storage')
       const { apiEffectRunner } = require('@/utils/client')
 
-      storage.getStoredAccessToken.mockReturnValue(
+      mockGetStoredAccessToken.mockReturnValue(
         Effect.succeed(Option.some('token-1'))
       )
-      storage.getStoredUserProfile.mockReturnValue(
+      mockGetStoredUserProfile.mockReturnValue(
         Effect.succeed(Option.some(cachedUser))
       )
 
@@ -295,16 +292,12 @@ describe('AuthContext', () => {
     }, 15000)
 
     it('falls back to Unauthenticated on transient failure without a cached profile', async () => {
-      const { Effect, Option } = require('effect')
-      const storage = require('@/utils/storage')
       const { apiEffectRunner } = require('@/utils/client')
 
-      storage.getStoredAccessToken.mockReturnValue(
+      mockGetStoredAccessToken.mockReturnValue(
         Effect.succeed(Option.some('token-1'))
       )
-      storage.getStoredUserProfile.mockReturnValue(
-        Effect.succeed(Option.none())
-      )
+      mockGetStoredUserProfile.mockReturnValue(Effect.succeed(Option.none()))
       apiEffectRunner.mockImplementation((_group: string, endpoint: string) => {
         if (endpoint === 'getCurrentUser') {
           return Promise.reject(new Error('Network request failed'))
@@ -323,14 +316,12 @@ describe('AuthContext', () => {
     }, 15000)
 
     it('logs out and removes the token on a definitive auth failure', async () => {
-      const { Effect, Option } = require('effect')
-      const storage = require('@/utils/storage')
       const { apiEffectRunner, isAuthFailureError } = require('@/utils/client')
 
-      storage.getStoredAccessToken.mockReturnValue(
+      mockGetStoredAccessToken.mockReturnValue(
         Effect.succeed(Option.some('token-1'))
       )
-      storage.getStoredUserProfile.mockReturnValue(
+      mockGetStoredUserProfile.mockReturnValue(
         Effect.succeed(Option.some(cachedUser))
       )
       isAuthFailureError.mockReturnValue(true)
@@ -347,7 +338,7 @@ describe('AuthContext', () => {
         expect(result.current.state._tag).toBe('Unauthenticated')
       })
 
-      expect(storage.removeStoredAccessToken).toHaveBeenCalled()
+      expect(mockRemoveStoredAccessToken).toHaveBeenCalled()
       expect(apiEffectRunner).toHaveBeenCalledTimes(1)
     })
   })
@@ -368,13 +359,11 @@ describe('AuthContext', () => {
     const plantsKey = ['plants', 'getPlants', { query: { page: '1' } }]
 
     const signIn = async () => {
-      const { Effect, Option } = require('effect')
-      const storage = require('@/utils/storage')
       const { apiEffectRunner } = require('@/utils/client')
-      storage.getStoredAccessToken.mockReturnValue(
+      mockGetStoredAccessToken.mockReturnValue(
         Effect.succeed(Option.some('token-a'))
       )
-      storage.getStoredUserProfile.mockReturnValue(
+      mockGetStoredUserProfile.mockReturnValue(
         Effect.succeed(Option.some(signedInUser))
       )
       apiEffectRunner.mockImplementation((_group: string, endpoint: string) =>
@@ -393,15 +382,9 @@ describe('AuthContext', () => {
     }
 
     afterEach(() => {
-      const { Effect, Option } = require('effect')
-      const storage = require('@/utils/storage')
       const client = require('@/utils/client')
-      storage.getStoredAccessToken.mockReturnValue(
-        Effect.succeed(Option.none())
-      )
-      storage.getStoredUserProfile.mockReturnValue(
-        Effect.succeed(Option.none())
-      )
+      mockGetStoredAccessToken.mockReturnValue(Effect.succeed(Option.none()))
+      mockGetStoredUserProfile.mockReturnValue(Effect.succeed(Option.none()))
       client.apiEffectRunner.mockReset()
     })
 

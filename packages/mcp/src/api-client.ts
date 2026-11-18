@@ -110,13 +110,13 @@ export interface IApiClient {
     }
   ) => Effect.Effect<Plant, ExternalServiceError, CurrentJwt>
 
-  readonly getUserTimezone: () => Effect.Effect<
+  readonly getUserTimezone: Effect.Effect<
     string,
     ExternalServiceError,
     CurrentJwt
   >
 
-  readonly getCareTasks: () => Effect.Effect<
+  readonly getCareTasks: Effect.Effect<
     CareTasksResponse,
     ExternalServiceError,
     CurrentJwt
@@ -333,27 +333,25 @@ export const ApiClientLive = Layer.unwrap(
               Effect.withSpan('ApiClient.carePlant')
             ),
 
-          getUserTimezone: () =>
-            HttpClientRequest.get(
-              `${baseUrl}${API_PREFIX}/users/settings`
-            ).pipe(
-              authed(UserSettings),
-              Effect.map((settings) =>
-                pipe(
-                  Option.fromNullishOr(settings.timezone),
-                  Option.getOrElse(() => 'UTC')
-                )
-              ),
-              Effect.withSpan('ApiClient.getUserTimezone')
+          getUserTimezone: HttpClientRequest.get(
+            `${baseUrl}${API_PREFIX}/users/settings`
+          ).pipe(
+            authed(UserSettings),
+            Effect.map((settings) =>
+              pipe(
+                Option.fromNullishOr(settings.timezone),
+                Option.getOrElse(() => 'UTC')
+              )
             ),
+            Effect.withSpan('ApiClient.getUserTimezone')
+          ),
 
-          getCareTasks: () =>
-            HttpClientRequest.get(
-              `${baseUrl}${API_PREFIX}/care-tasks?includeCanopy=true`
-            ).pipe(
-              authed(CareTasksResponse),
-              Effect.withSpan('ApiClient.getCareTasks')
-            ),
+          getCareTasks: HttpClientRequest.get(
+            `${baseUrl}${API_PREFIX}/care-tasks?includeCanopy=true`
+          ).pipe(
+            authed(CareTasksResponse),
+            Effect.withSpan('ApiClient.getCareTasks')
+          ),
 
           queryKnowledge: (question, plantName) => {
             const body = pipe(

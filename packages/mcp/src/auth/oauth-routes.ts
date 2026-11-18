@@ -147,12 +147,12 @@ export const OAuthRoutes = Layer.mergeAll(
       const client = yield* oauthService.registerClient(parsed)
       return yield* jsonResponse(client, 201)
     }).pipe(
-      Effect.catchTag('SchemaError', () =>
-        errorResponse('invalid_request', 'Invalid registration request body')
-      ),
-      Effect.catchTag('SqlError', () =>
-        errorResponse('server_error', 'An internal error occurred', 500)
-      )
+      Effect.catchTags({
+        SchemaError: () =>
+          errorResponse('invalid_request', 'Invalid registration request body'),
+        SqlError: () =>
+          errorResponse('server_error', 'An internal error occurred', 500),
+      })
     )
   ),
 
@@ -287,12 +287,11 @@ export const OAuthRoutes = Layer.mergeAll(
         'The requested grant type is not supported'
       )
     }).pipe(
-      Effect.catchTag('OAuthError', (err) =>
-        errorResponse(err.error, err.error_description)
-      ),
-      Effect.catchTag('SqlError', () =>
-        errorResponse('server_error', 'An internal error occurred', 500)
-      )
+      Effect.catchTags({
+        OAuthError: (err) => errorResponse(err.error, err.error_description),
+        SqlError: () =>
+          errorResponse('server_error', 'An internal error occurred', 500),
+      })
     )
   ),
 

@@ -10,7 +10,7 @@ export const createMockUserRepository = (
   users: User[]
 ): Layer.Layer<UserRepository> => {
   const repo: IUserRepository = {
-    findAll: () => Effect.succeed(users),
+    findAll: Effect.succeed(users),
 
     findById: (id: string) =>
       Effect.succeed(
@@ -188,19 +188,19 @@ export const createMockUserRepository = (
       })
     },
 
-    findWeatherEnabled: () =>
-      Effect.succeed(
-        Array.filter(
-          users,
-          (u) =>
-            u.weatherEnabled === true &&
-            u.latitude !== null &&
-            u.longitude !== null
-        )
-      ),
+    findWeatherEnabled: Effect.sync(() =>
+      Array.filter(
+        users,
+        (u) =>
+          u.weatherEnabled === true &&
+          u.latitude !== null &&
+          u.longitude !== null
+      )
+    ),
 
-    findTipsEnabled: () =>
-      Effect.succeed(Array.filter(users, (u) => u.tips === true)),
+    findTipsEnabled: Effect.sync(() =>
+      Array.filter(users, (u) => u.tips === true)
+    ),
 
     softDelete: (id: string) => {
       const userOption = Array.findFirst(users, (u) => u.id === id)

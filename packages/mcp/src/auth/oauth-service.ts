@@ -11,7 +11,7 @@ import {
   Effect,
   Layer,
   Match,
-  Option,
+  type Option,
   pipe,
   Schema,
 } from 'effect'
@@ -105,26 +105,29 @@ export interface IOAuthService {
 
 // ── Errors ─────────────────────────────────────────────────────────────
 
-export class OAuthError extends Schema.TaggedError<OAuthError>()('OAuthError', {
+export class OAuthError extends Schema.TaggedError<
+  OAuthError,
+  { readonly brand: unique symbol }
+>()('OAuthError', {
   error: Schema.String,
   error_description: Schema.String,
 }) {}
 
-export class AccessTokenNotFound extends Schema.TaggedError<AccessTokenNotFound>()(
-  'AccessTokenNotFound',
-  {
-    error: Schema.String,
-    error_description: Schema.String,
-  }
-) {}
+export class AccessTokenNotFound extends Schema.TaggedError<
+  AccessTokenNotFound,
+  { readonly brand: unique symbol }
+>()('AccessTokenNotFound', {
+  error: Schema.String,
+  error_description: Schema.String,
+}) {}
 
-export class AccessTokenExpired extends Schema.TaggedError<AccessTokenExpired>()(
-  'AccessTokenExpired',
-  {
-    error: Schema.String,
-    error_description: Schema.String,
-  }
-) {}
+export class AccessTokenExpired extends Schema.TaggedError<
+  AccessTokenExpired,
+  { readonly brand: unique symbol }
+>()('AccessTokenExpired', {
+  error: Schema.String,
+  error_description: Schema.String,
+}) {}
 
 // ── Context Tag ────────────────────────────────────────────────────────
 
@@ -207,17 +210,14 @@ export const OAuthServiceLive = Layer.effect(
         readonly codeVerifier: string
       }) {
         const maybeCode = yield* repo.consumeAuthorizationCode(params.code)
-        const authCode: AuthorizationCode = yield* Option.match(maybeCode, {
-          onNone: () =>
-            Effect.fail(
-              new OAuthError({
-                error: 'invalid_grant',
-                error_description:
-                  'Authorization code not found or already used',
-              })
-            ),
-          onSome: Effect.succeed,
-        })
+        const authCode: AuthorizationCode = yield* Effect.fromOption(
+          maybeCode,
+          () =>
+            new OAuthError({
+              error: 'invalid_grant',
+              error_description: 'Authorization code not found or already used',
+            })
+        )
 
         // Verify code hasn't expired
         const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
@@ -306,16 +306,14 @@ export const OAuthServiceLive = Layer.effect(
           const maybeToken = yield* repo.consumeRefreshToken(
             params.refreshToken
           )
-          const refreshToken = yield* Option.match(maybeToken, {
-            onNone: () =>
-              Effect.fail(
-                new OAuthError({
-                  error: 'invalid_grant',
-                  error_description: 'Refresh token not found',
-                })
-              ),
-            onSome: Effect.succeed,
-          })
+          const refreshToken = yield* Effect.fromOption(
+            maybeToken,
+            () =>
+              new OAuthError({
+                error: 'invalid_grant',
+                error_description: 'Refresh token not found',
+              })
+          )
 
           // Verify not expired
           const refreshNowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
@@ -411,16 +409,14 @@ export const OAuthServiceLive = Layer.effect(
       validateBearerToken: Effect.fn('OAuthService.validateBearerToken')(
         function* (token: string) {
           const maybeToken = yield* repo.getAccessToken(token)
-          const accessToken = yield* Option.match(maybeToken, {
-            onNone: () =>
-              Effect.fail(
-                new AccessTokenNotFound({
-                  error: 'invalid_token',
-                  error_description: 'Access token not found',
-                })
-              ),
-            onSome: Effect.succeed,
-          })
+          const accessToken = yield* Effect.fromOption(
+            maybeToken,
+            () =>
+              new AccessTokenNotFound({
+                error: 'invalid_token',
+                error_description: 'Access token not found',
+              })
+          )
 
           const validateNowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
           const tokenExpiresAtMs = DateTime.toEpochMillis(

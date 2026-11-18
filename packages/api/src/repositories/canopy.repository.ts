@@ -83,10 +83,7 @@ export interface ICanopyRepository {
   readonly findPlantIdsOfCanopy: (
     canopyId: string
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
-  readonly findWithLocation: () => Effect.Effect<
-    ReadonlyArray<CanopyRow>,
-    SqlError
-  >
+  readonly findWithLocation: Effect.Effect<ReadonlyArray<CanopyRow>, SqlError>
   readonly findActiveInvite: (
     canopyId: string
   ) => Effect.Effect<{ readonly expiresAt: Date } | null, SqlError>
@@ -220,16 +217,14 @@ export const CanopyRepositoryLive = Layer.effect(
         }
       ),
 
-      findWithLocation: Effect.fn('CanopyRepository.findWithLocation')(
-        function* () {
-          return yield* db
-            .select()
-            .from(canopies)
-            .where(
-              and(isNotNull(canopies.latitude), isNotNull(canopies.longitude))
-            )
-        }
-      ),
+      findWithLocation: Effect.suspend(() =>
+        db
+          .select()
+          .from(canopies)
+          .where(
+            and(isNotNull(canopies.latitude), isNotNull(canopies.longitude))
+          )
+      ).pipe(Effect.withSpan('CanopyRepository.findWithLocation')),
 
       findActiveInvite: Effect.fn('CanopyRepository.findActiveInvite')(
         function* (canopyId: string) {

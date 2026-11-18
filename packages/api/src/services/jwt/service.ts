@@ -30,8 +30,8 @@ export type JWTPayload = typeof JWTPayloadSchema.Type
 export interface SignAccessTokenInput {
   userId: string
   email: string
-  role: typeof UserRole.Type
-  status: typeof UserStatus.Type
+  role: UserRole
+  status: UserStatus
 }
 
 /**
@@ -56,7 +56,7 @@ export interface IJWTService {
   readonly verifyAccessToken: (
     token: string
   ) => Effect.Effect<JWTPayload, JWTError>
-  readonly generateRefreshToken: () => Effect.Effect<string, never>
+  readonly generateRefreshToken: Effect.Effect<string, never>
   readonly hashRefreshToken: (token: string) => Effect.Effect<string, never>
 }
 
@@ -127,21 +127,23 @@ export const JWTServiceLive = Layer.effect(
           },
         })
 
-        return yield* Effect.try({
-          try: () => Schema.decodeUnknownSync(JWTPayloadSchema)(result.payload),
-          catch: () =>
-            new JWTError({
-              message: 'Token payload missing required fields',
-              code: 'INVALID_TOKEN',
-            }),
-        })
+        return yield* Schema.decodeUnknownEffect(JWTPayloadSchema)(
+          result.payload
+        ).pipe(
+          Effect.mapError(
+            () =>
+              new JWTError({
+                message: 'Token payload missing required fields',
+                code: 'INVALID_TOKEN',
+              })
+          )
+        )
       }),
 
-      generateRefreshToken: () =>
-        Effect.sync(() => {
-          // 244 bits of entropy (2 UUIDs concatenated)
-          return `${crypto.randomUUID()}${crypto.randomUUID()}`
-        }).pipe(Effect.withSpan('JWTService.generateRefreshToken')),
+      generateRefreshToken: Effect.sync(() => {
+        // 244 bits of entropy (2 UUIDs concatenated)
+        return `${crypto.randomUUID()}${crypto.randomUUID()}`
+      }).pipe(Effect.withSpan('JWTService.generateRefreshToken')),
 
       hashRefreshToken: Effect.fn('JWTService.hashRefreshToken')(function* (
         token: string

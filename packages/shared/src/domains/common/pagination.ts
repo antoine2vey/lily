@@ -30,9 +30,9 @@ export const parsePaginationParams = (
 export const PaginatedResponse = <T extends Schema.Top>(itemSchema: T) =>
   Schema.Struct({
     items: Schema.Array(itemSchema),
-    total: Schema.Number,
-    page: Schema.Number,
-    limit: Schema.Number,
+    total: Schema.Finite,
+    page: Schema.Finite,
+    limit: Schema.Finite,
     hasMore: Schema.Boolean,
   })
 

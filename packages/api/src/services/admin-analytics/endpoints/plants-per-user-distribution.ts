@@ -3,12 +3,11 @@ import type { PlantsPerUserDistributionResponse } from '@lily/shared/admin/analy
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export const plantsPerUserDistribution = (): Effect.Effect<
+export const plantsPerUserDistribution: Effect.Effect<
   PlantsPerUserDistributionResponse,
   SqlError,
   AnalyticsRepository
-> =>
-  Effect.gen(function* () {
-    const repo = yield* AnalyticsRepository
-    return yield* repo.plantsPerUserDistribution
-  }).pipe(Effect.withSpan('AdminAnalyticsService.plantsPerUserDistribution'))
+> = Effect.gen(function* () {
+  const repo = yield* AnalyticsRepository
+  return yield* repo.plantsPerUserDistribution
+}).pipe(Effect.withSpan('AdminAnalyticsService.plantsPerUserDistribution'))

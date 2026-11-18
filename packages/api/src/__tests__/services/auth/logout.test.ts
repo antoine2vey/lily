@@ -54,7 +54,7 @@ describe('logout', () => {
 
   it('should revoke all refresh tokens for user', async () => {
     const result = await Effect.runPromise(
-      logout().pipe(Effect.provide(createTestLayer()))
+      logout.pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.message).toBe('Successfully logged out')
@@ -62,7 +62,7 @@ describe('logout', () => {
 
   it('should return success message', async () => {
     const result = await Effect.runPromise(
-      logout().pipe(Effect.provide(createTestLayer()))
+      logout.pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result).toEqual({ message: 'Successfully logged out' })
@@ -70,7 +70,7 @@ describe('logout', () => {
 
   it('should succeed even if user has no tokens', async () => {
     const result = await Effect.runPromise(
-      logout().pipe(
+      logout.pipe(
         Effect.provide(
           createTestLayer({
             tokens: [],
@@ -106,7 +106,7 @@ describe('logout', () => {
     ]
 
     const result = await Effect.runPromise(
-      logout().pipe(
+      logout.pipe(
         Effect.provide(
           createTestLayer({
             userId: currentUserId,
@@ -133,7 +133,7 @@ describe('logout', () => {
     ]
 
     const result = await Effect.runPromise(
-      logout().pipe(
+      logout.pipe(
         Effect.provide(
           createTestLayer({
             tokens,

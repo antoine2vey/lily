@@ -65,7 +65,7 @@ const buildLayer = (opts: {
     createMockJWTService({}),
     createMockOAuthVerifier(opts.verifier ?? {}),
     identityLayer,
-    createMockPgDrizzle()
+    createMockPgDrizzle
   )
   return { layer, store, createdUsers }
 }

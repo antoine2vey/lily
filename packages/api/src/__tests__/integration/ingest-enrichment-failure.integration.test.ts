@@ -142,7 +142,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const claimJob = async (): Promise<IngestJob> => {
       const claimed = await run(
-        Effect.flatMap(IngestJobRepository, (repo) => repo.claimNext())
+        Effect.flatMap(IngestJobRepository, (repo) => repo.claimNext)
       )
       if (!claimed) throw new Error('no pending job to claim')
       return claimed

@@ -209,7 +209,7 @@ export const generateAndReviewBlogPost = (
     const repo = yield* BlogPostRepository
 
     // Fetch valid slugs once for link validation across retries
-    const publishedPosts = yield* repo.findPublishedSlugsWithTitles()
+    const publishedPosts = yield* repo.findPublishedSlugsWithTitles
     const validSlugs = pipe(
       publishedPosts,
       Array.filter((p) => p.slug !== topic.slug),

@@ -59,13 +59,13 @@ export interface StepData {
 }
 
 /** The model or provider failed before the reply completed. */
-export class ChatStreamError extends Schema.TaggedError<ChatStreamError>()(
-  'ChatStreamError',
-  {
-    message: Schema.String,
-    cause: Schema.Defect(),
-  }
-) {}
+export class ChatStreamError extends Schema.TaggedError<
+  ChatStreamError,
+  { readonly brand: unique symbol }
+>()('ChatStreamError', {
+  message: Schema.String,
+  cause: Schema.Defect(),
+}) {}
 
 export const CHAT_MAX_OUTPUT_TOKENS = 2048
 

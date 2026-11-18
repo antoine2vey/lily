@@ -14,9 +14,9 @@ export const createMockProcessedChunkRepository = (data: {
   const repo: IProcessedChunkRepository = {
     search: () => Effect.succeed(data.searchResults ?? []),
 
-    count: () => Effect.succeed(data.insertedChunks.length),
+    count: Effect.sync(() => data.insertedChunks.length),
 
-    countBySource: () => Effect.succeed(data.sourceBreakdown ?? []),
+    countBySource: Effect.sync(() => data.sourceBreakdown ?? []),
 
     countByJobId: () => Effect.succeed(data.insertedChunks.length),
 

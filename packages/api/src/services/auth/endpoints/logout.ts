@@ -8,17 +8,16 @@ import type { SqlError } from 'effect/sql/SqlError'
  * Logout - revoke all refresh tokens for the current user
  * Requires authentication middleware to provide CurrentUser context
  */
-export const logout = (): Effect.Effect<
+export const logout: Effect.Effect<
   LogoutResponse,
   SqlError,
   CurrentUser | RefreshTokenRepository
-> =>
-  Effect.gen(function* () {
-    const user = yield* CurrentUser
-    const refreshTokenRepo = yield* RefreshTokenRepository
+> = Effect.gen(function* () {
+  const user = yield* CurrentUser
+  const refreshTokenRepo = yield* RefreshTokenRepository
 
-    // Revoke all refresh tokens for this user
-    yield* refreshTokenRepo.revokeAllForUser(user.id)
+  // Revoke all refresh tokens for this user
+  yield* refreshTokenRepo.revokeAllForUser(user.id)
 
-    return { message: 'Successfully logged out' }
-  }).pipe(Effect.withSpan('AuthService.logout'))
+  return { message: 'Successfully logged out' }
+}).pipe(Effect.withSpan('AuthService.logout'))

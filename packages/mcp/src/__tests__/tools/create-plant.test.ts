@@ -62,13 +62,11 @@ const withServer = <A, E>(
             }),
             Layer.mock(OAuthRepository)({
               getUserApiCredentials: (userId) =>
-                Effect.succeed(
-                  Option.some({
-                    userId,
-                    apiJwt: unexpiredJwt,
-                    apiRefreshToken: 'api-refresh',
-                  })
-                ),
+                Effect.succeedSome({
+                  userId,
+                  apiJwt: unexpiredJwt,
+                  apiRefreshToken: 'api-refresh',
+                }),
             })
           )
         )

@@ -17,16 +17,16 @@ import { CANONICAL_TIME_ZONES, TIME_ZONE_ALIASES } from './time-zones.generated'
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
 
 // Tagged error for invalid timezone
-export class InvalidTimezoneError extends Schema.TaggedError<InvalidTimezoneError>()(
-  'InvalidTimezoneError',
-  { timezone: Schema.String }
-) {}
+export class InvalidTimezoneError extends Schema.TaggedError<
+  InvalidTimezoneError,
+  { readonly brand: unique symbol }
+>()('InvalidTimezoneError', { timezone: Schema.String }) {}
 
 // Tagged error for invalid time format
-export class InvalidTimeFormatError extends Schema.TaggedError<InvalidTimeFormatError>()(
-  'InvalidTimeFormatError',
-  { time: Schema.String }
-) {}
+export class InvalidTimeFormatError extends Schema.TaggedError<
+  InvalidTimeFormatError,
+  { readonly brand: unique symbol }
+>()('InvalidTimeFormatError', { time: Schema.String }) {}
 
 // Schema for validating HH:mm time format
 export const TimeString = Schema.String.pipe(

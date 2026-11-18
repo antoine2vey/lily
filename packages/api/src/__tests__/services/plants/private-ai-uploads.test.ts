@@ -24,34 +24,43 @@ const photo = {
   path: '/tmp/photo.png',
 } as unknown as PersistedFile
 
+const mocks = (gcs: ReturnType<typeof createInMemoryGCS>) =>
+  Layer.mergeAll(
+    createMockAiService(),
+    gcs.layer,
+    createMockFileService,
+    createMockFileSystem(),
+    createMockEventBus(),
+    createMockCurrentUser({ id: 'user-1' }),
+    createMockScanRepository,
+    createMockRareIdentificationRepository(),
+    MockLimitCheckerLive,
+    MockUsageTrackerLive
+  )
+
+type AiAnswer = Effect.Effect<
+  { readonly imageUrl: string },
+  unknown,
+  Layer.Success<ReturnType<typeof mocks>>
+>
+
+const endpoints: ReadonlyArray<
+  readonly [endpoint: string, folder: string, call: () => AiAnswer]
+> = [
+  ['identify', 'identify', () => aiIdentify([photo], 'en')],
+  ['detect', 'detect', () => detect([photo], 'en')],
+  ['scan-card', 'scan-card', () => scanCard([photo], 'en')],
+  ['scan-card-multiple', 'scan-card', () => scanCardMultiple([photo], 'en')],
+]
+
 describe('photos sent only for an AI answer', () => {
-  it.each([
-    ['identify', 'identify', () => aiIdentify([photo], 'en')],
-    ['detect', 'detect', () => detect([photo], 'en')],
-    ['scan-card', 'scan-card', () => scanCard([photo], 'en')],
-    ['scan-card-multiple', 'scan-card', () => scanCardMultiple([photo], 'en')],
-  ] as const)(
+  it.each(endpoints)(
     '%s stores its photo in the private bucket under the caller',
     async (_endpoint, folder, call) => {
       const gcs = createInMemoryGCS()
 
       const result = await Effect.runPromise(
-        call().pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              createMockAiService(),
-              gcs.layer,
-              createMockFileService(),
-              createMockFileSystem(),
-              createMockEventBus(),
-              createMockCurrentUser({ id: 'user-1' }),
-              createMockScanRepository(),
-              createMockRareIdentificationRepository(),
-              MockLimitCheckerLive,
-              MockUsageTrackerLive
-            )
-          )
-        )
+        call().pipe(Effect.provide(mocks(gcs)))
       )
 
       expect({

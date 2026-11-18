@@ -38,8 +38,8 @@ const refreshWeatherData = Effect.gen(function* () {
   yield* Effect.log('Running weather data refresh...')
 
   const scopes = weatherScopes(
-    yield* userRepo.findWeatherEnabled(),
-    yield* canopyRepo.findWithLocation()
+    yield* userRepo.findWeatherEnabled,
+    yield* canopyRepo.findWithLocation
   )
 
   if (Array.isReadonlyArrayEmpty(scopes)) {

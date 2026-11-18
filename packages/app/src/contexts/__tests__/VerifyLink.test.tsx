@@ -12,18 +12,12 @@ import VerifyScreen from '../../../app/(auth)/verify'
 jest.mock('@/utils/storage', () => {
   const { Effect, Option } = require('effect')
   return {
-    clearAuthStorage: jest.fn().mockReturnValue(Effect.void),
-    getStoredAccessToken: jest
-      .fn()
-      .mockReturnValue(Effect.succeed(Option.none())),
-    getStoredUserEmail: jest
-      .fn()
-      .mockReturnValue(Effect.succeed(Option.none())),
-    getStoredUserProfile: jest
-      .fn()
-      .mockReturnValue(Effect.succeed(Option.none())),
-    removeStoredAccessToken: jest.fn().mockReturnValue(Effect.void),
-    removeStoredUserProfile: jest.fn().mockReturnValue(Effect.void),
+    clearAuthStorage: Effect.void,
+    getStoredAccessToken: Effect.suspend(() => mockGetStoredAccessToken()),
+    getStoredUserEmail: Effect.succeed(Option.none()),
+    getStoredUserProfile: Effect.succeed(Option.none()),
+    removeStoredAccessToken: Effect.void,
+    removeStoredUserProfile: Effect.void,
     storeAccessToken: jest.fn().mockReturnValue(Effect.void),
     storeRefreshToken: jest.fn().mockReturnValue(Effect.void),
     storeUserEmail: jest.fn().mockReturnValue(Effect.void),
@@ -70,6 +64,9 @@ jest.mock('@/components', () => {
 })
 
 const { Effect, Option } = require('effect')
+const mockGetStoredAccessToken = jest
+  .fn()
+  .mockReturnValue(Effect.succeed(Option.none()))
 const storage = require('@/utils/storage')
 const { apiEffectRunner } = require('@/utils/client')
 
@@ -126,7 +123,7 @@ describe('magic link verify screen', () => {
 
   describe('with a stored session for user A', () => {
     beforeEach(() => {
-      storage.getStoredAccessToken.mockReturnValue(
+      mockGetStoredAccessToken.mockReturnValue(
         Effect.succeed(Option.some('token-a'))
       )
     })
@@ -162,9 +159,7 @@ describe('magic link verify screen', () => {
 
   describe('signed out', () => {
     beforeEach(() => {
-      storage.getStoredAccessToken.mockReturnValue(
-        Effect.succeed(Option.none())
-      )
+      mockGetStoredAccessToken.mockReturnValue(Effect.succeed(Option.none()))
     })
 
     it('verifies the code and stores the new session', async () => {

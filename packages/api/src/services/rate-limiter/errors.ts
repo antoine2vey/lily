@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class RateLimitExceededError extends Schema.TaggedError<RateLimitExceededError>()(
+export class RateLimitExceededError extends Schema.TaggedError<
+  RateLimitExceededError,
+  { readonly brand: unique symbol }
+>()(
   'RateLimitExceededError',
   {
     message: Schema.String.pipe(
@@ -11,7 +14,7 @@ export class RateLimitExceededError extends Schema.TaggedError<RateLimitExceeded
         Effect.succeed('Rate limit exceeded. Please try again later.')
       )
     ),
-    retryAfter: Schema.Number.pipe(
+    retryAfter: Schema.Finite.pipe(
       Schema.withDecodingDefaultType(Effect.succeed(60)),
       Schema.withConstructorDefault(Effect.succeed(60))
     ),

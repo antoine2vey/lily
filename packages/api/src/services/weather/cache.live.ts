@@ -115,36 +115,35 @@ export const WeatherCacheLive = Layer.effect(
           Effect.asVoid
         ),
 
-      getAllLocations: () =>
-        Effect.tryPromise(async () => {
-          const members = await redis.zrange(WEATHER_GEO_KEY, 0, '-1')
-          return pipe(
-            members,
-            Array.filterMap(
-              Filter.fromPredicateOption((memberId) =>
-                pipe(
-                  idToCoord(memberId),
-                  Option.map((coord) => ({
-                    ...coord,
-                    id: memberId,
-                  }))
-                )
+      getAllLocations: Effect.tryPromise(async () => {
+        const members = await redis.zrange(WEATHER_GEO_KEY, 0, '-1')
+        return pipe(
+          members,
+          Array.filterMap(
+            Filter.fromPredicateOption((memberId) =>
+              pipe(
+                idToCoord(memberId),
+                Option.map((coord) => ({
+                  ...coord,
+                  id: memberId,
+                }))
               )
             )
           )
-        }).pipe(
-          Effect.catchTag('UnknownError', (e) =>
-            warnAndAlert('getAllLocations')(e).pipe(
-              Effect.as(
-                [] as Array<{
-                  latitude: number
-                  longitude: number
-                  id: string
-                }>
-              )
+        )
+      }).pipe(
+        Effect.catchTag('UnknownError', (e) =>
+          warnAndAlert('getAllLocations')(e).pipe(
+            Effect.as(
+              [] as Array<{
+                latitude: number
+                longitude: number
+                id: string
+              }>
             )
           )
-        ),
+        )
+      ),
 
       removeLocation: (id) =>
         Effect.tryPromise(async () => {

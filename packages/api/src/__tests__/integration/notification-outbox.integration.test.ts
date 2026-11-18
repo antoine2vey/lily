@@ -128,7 +128,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return enqueued
     }
 
-    const deliverPending = async (push = createSuccessPushService()) => {
+    const deliverPending = async (push = createSuccessPushService) => {
       const enqueued = await enqueuePending()
       const { queue } = createInMemoryRedisQueue(
         enqueued.map((message) => JSON.stringify(message))

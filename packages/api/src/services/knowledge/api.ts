@@ -12,7 +12,7 @@ export type KnowledgeQueryRequest = typeof KnowledgeQueryRequest.Type
 const KnowledgeSource = Schema.Struct({
   title: Schema.String,
   content: Schema.String,
-  similarity: Schema.Number,
+  similarity: Schema.Finite,
 })
 
 export const KnowledgeQueryResponse = Schema.Struct({

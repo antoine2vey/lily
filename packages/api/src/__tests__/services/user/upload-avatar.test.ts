@@ -32,7 +32,7 @@ describe('uploadAvatar', () => {
     Layer.mergeAll(
       createMockUserRepository([...mockUsers]),
       createMockGCSService(),
-      createMockFileService(),
+      createMockFileService,
       createMockFileSystem(),
       createMockStoredRefRepository(),
       MockSqlClientLive,
@@ -52,7 +52,7 @@ describe('uploadAvatar', () => {
     const layer = Layer.mergeAll(
       createMockUserRepository([...mockUsers]),
       createMockGCSService(),
-      createMockFileService(),
+      createMockFileService,
       createMockFileSystem(),
       createMockStoredRefRepository(),
       MockSqlClientLive,
@@ -71,7 +71,7 @@ describe('uploadAvatar', () => {
     const layer = Layer.mergeAll(
       createMockUserRepository([...mockUsers]),
       gcs.layer,
-      createMockFileService(),
+      createMockFileService,
       createMockFileSystem(),
       createMockStoredRefRepository(),
       MockSqlClientLive,
@@ -97,7 +97,7 @@ describe('uploadAvatar', () => {
     const layer = Layer.mergeAll(
       createMockUserRepository([...mockUsers]),
       gcs.layer,
-      createMockFileService(),
+      createMockFileService,
       createMockFileSystem(),
       createMockStoredRefRepository(),
       createMockSqlClient({ commitUnanswered: true }),

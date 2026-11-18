@@ -58,13 +58,13 @@ export const AuthResponse = Schema.Struct({
   user: UserProfile,
   accessToken: Schema.String,
   refreshToken: Schema.String,
-  expiresIn: Schema.Number,
+  expiresIn: Schema.Finite,
 })
 
 export const RefreshTokenResponse = Schema.Struct({
   accessToken: Schema.String,
   refreshToken: Schema.String,
-  expiresIn: Schema.Number,
+  expiresIn: Schema.Finite,
 })
 
 export const MagicLinkSentResponse = Schema.Struct({

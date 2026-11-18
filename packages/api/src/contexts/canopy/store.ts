@@ -111,6 +111,10 @@ export const lockPlan = (classes: Partial<LockPlan>): LockPlan => ({
   ...classes,
 })
 
+/**
+ * Each method runs inside the transaction its caller opened.
+ * @effect-expect-leaking Transaction
+ */
 export class CanopyStore extends Context.Service<
   CanopyStore,
   {

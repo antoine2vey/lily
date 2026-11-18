@@ -45,11 +45,11 @@ export { User as AdminUser }
 
 // Curated per-user engagement counts shown on the admin user-detail page.
 export const AdminUserStats = Schema.Struct({
-  plantCount: Schema.Number,
-  careLogsCount: Schema.Number,
-  achievementsCount: Schema.Number,
-  activeDeviceCount: Schema.Number,
-  roomsCount: Schema.Number,
+  plantCount: Schema.Finite,
+  careLogsCount: Schema.Finite,
+  achievementsCount: Schema.Finite,
+  activeDeviceCount: Schema.Finite,
+  roomsCount: Schema.Finite,
 })
 export type AdminUserStats = typeof AdminUserStats.Type
 
@@ -85,12 +85,12 @@ export const PromptPreviewPlant = Schema.Struct({
   category: Schema.NullOr(Schema.String),
   description: Schema.NullOr(Schema.String),
   health: Schema.String,
-  humidityRating: Schema.Number,
-  lightingRating: Schema.Number,
-  wateringRating: Schema.Number,
-  petToxicityRating: Schema.Number,
+  humidityRating: Schema.Finite,
+  lightingRating: Schema.Finite,
+  wateringRating: Schema.Finite,
+  petToxicityRating: Schema.Finite,
   dateAdded: Schema.String,
-  daysSinceAdded: Schema.Number,
+  daysSinceAdded: Schema.Finite,
 })
 
 export const PromptPreviewCareEntry = Schema.Struct({
@@ -107,7 +107,7 @@ export const PromptPreviewRagChunk = Schema.Struct({
   plantType: Schema.optional(Schema.String),
   category: Schema.optional(Schema.String),
   metadata: Schema.optional(Schema.Unknown),
-  similarity: Schema.Number,
+  similarity: Schema.Finite,
 })
 
 export const PromptPreviewConversationEntry = Schema.Struct({
@@ -220,7 +220,7 @@ export const AdminLiveActivityTriggerResponse = Schema.Struct({
   activityId: Schema.String,
   // Null when there's nothing due today; the LA payload would be empty.
   contentStateBuilt: Schema.Boolean,
-  startTokenCount: Schema.Number,
+  startTokenCount: Schema.Finite,
   outcomes: Schema.Array(AdminLiveActivityTriggerOutcome),
 })
 export type AdminLiveActivityTriggerResponse =
@@ -232,8 +232,8 @@ export const GiftCode = Schema.Struct({
   id: Schema.String,
   code: Schema.String,
   duration: GiftDuration,
-  maxUsages: Schema.Number,
-  currentUsages: Schema.Number,
+  maxUsages: Schema.Finite,
+  currentUsages: Schema.Finite,
   isActive: Schema.Boolean,
   expiresAt: Schema.NullOr(Schema.DateFromString),
   createdAt: Schema.DateFromString,
@@ -244,7 +244,7 @@ export type GiftCode = typeof GiftCode.Type
 export const GiftCodeCreateRequest = Schema.Struct({
   code: Schema.String,
   duration: GiftDuration,
-  maxUsages: Schema.Number,
+  maxUsages: Schema.Finite,
   expiresAt: Schema.optional(Schema.DateFromString),
 })
 export type GiftCodeCreateRequest = typeof GiftCodeCreateRequest.Type
@@ -252,7 +252,7 @@ export type GiftCodeCreateRequest = typeof GiftCodeCreateRequest.Type
 export const GiftCodeUpdateRequest = Schema.Struct({
   code: Schema.optional(Schema.String),
   duration: Schema.optional(GiftDuration),
-  maxUsages: Schema.optional(Schema.Number),
+  maxUsages: Schema.optional(Schema.Finite),
   isActive: Schema.optional(Schema.Boolean),
   expiresAt: Schema.optional(Schema.NullOr(Schema.DateFromString)),
 })

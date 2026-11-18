@@ -17,7 +17,7 @@ export const Diagnosis = Schema.Struct({
   chatMessageId: Schema.optional(Schema.String),
   diseaseName: Schema.String,
   severity: DiagnosisSeverity,
-  confidence: Schema.Number,
+  confidence: Schema.Finite,
   symptoms: Schema.Array(Schema.String),
   treatmentSteps: Schema.Array(Schema.String),
   preventionTips: Schema.optional(Schema.Array(Schema.String)),

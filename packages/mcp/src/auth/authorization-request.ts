@@ -63,13 +63,9 @@ export const parseAuthorizationRequest = (params: URLSearchParams) =>
       )
     }
 
-    const scopes = yield* pipe(
+    const scopes = yield* Effect.fromOption(
       grantScopes(params.get('scope')),
-      Option.match({
-        onNone: () =>
-          Effect.fail(reject('invalid_scope', 'Unsupported scope requested')),
-        onSome: Effect.succeed,
-      })
+      () => reject('invalid_scope', 'Unsupported scope requested')
     )
 
     const state = params.get('state')

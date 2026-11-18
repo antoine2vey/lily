@@ -101,7 +101,7 @@ type App =
   | PlantLife
   | Canopy
   | Absence
-  | Layer.Success<ReturnType<typeof createMockFileService>>
+  | Layer.Success<typeof createMockFileService>
   | Layer.Success<ReturnType<typeof createMockFileSystem>>
   | Layer.Success<ReturnType<typeof createInMemoryGCS>['layer']>
   | Layer.Success<ReturnType<typeof createMockCurrentUser>>
@@ -123,7 +123,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             Layer.mergeAll(
               gcs.layer,
               createMockCurrentUser({ id: userId }),
-              createMockFileService(),
+              createMockFileService,
               createMockFileSystem(),
               createMockEventBus(),
               createMockLimitChecker(),

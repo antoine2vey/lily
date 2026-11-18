@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class JWTError extends Schema.TaggedError<JWTError>()(
+export class JWTError extends Schema.TaggedError<
+  JWTError,
+  { readonly brand: unique symbol }
+>()(
   'JWTError',
   {
     message: Schema.String,

@@ -258,7 +258,7 @@ describe.skipIf(!process.env.KNOWLEDGE_DATABASE_URL_TEST)(
         Effect.gen(function* () {
           const jobs = yield* IngestJobRepository
           yield* jobs.create('web', { type: 'web', urls: [] })
-          const job = yield* jobs.claimNext()
+          const job = yield* jobs.claimNext
           yield* processIngestJob(
             yield* Effect.fromNullishOr(job).pipe(Effect.orDie)
           )

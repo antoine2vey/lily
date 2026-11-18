@@ -1,6 +1,9 @@
 import { Effect, Schema } from 'effect'
 
-export class DeviceTokenNotFoundError extends Schema.TaggedError<DeviceTokenNotFoundError>()(
+export class DeviceTokenNotFoundError extends Schema.TaggedError<
+  DeviceTokenNotFoundError,
+  { readonly brand: unique symbol }
+>()(
   'DeviceTokenNotFoundError',
   {
     token: Schema.String.pipe(

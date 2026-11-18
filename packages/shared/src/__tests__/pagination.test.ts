@@ -222,7 +222,7 @@ describe('Pagination Utilities', () => {
     })
 
     it('should reject invalid item types', () => {
-      const NumberResponse = PaginatedResponse(Schema.Number)
+      const NumberResponse = PaginatedResponse(Schema.Finite)
       const data = {
         items: ['not', 'numbers'],
         total: 2,
@@ -248,7 +248,7 @@ describe('Pagination Utilities', () => {
     it('should work with complex item schemas', () => {
       const ItemSchema = Schema.Struct({
         id: Schema.String,
-        value: Schema.Number,
+        value: Schema.Finite,
       })
       const ComplexResponse = PaginatedResponse(ItemSchema)
 

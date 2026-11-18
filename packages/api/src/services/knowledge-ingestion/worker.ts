@@ -34,7 +34,7 @@ export const pollIngestJobs = Effect.gen(function* () {
     )
   }
 
-  const job = yield* jobRepo.claimNext()
+  const job = yield* jobRepo.claimNext
   return yield* Option.match(Option.fromNullishOr(job), {
     onNone: () => Effect.succeed(false),
     onSome: (claimed) =>

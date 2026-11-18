@@ -21,7 +21,7 @@ export const CareTask = Schema.Struct({
   // instead of re-deriving day boundaries, so every surface agrees by
   // construction. `dueDayOffset`: 0 = today, <0 = overdue, +N = N days ahead.
   // `localDueDate`: YYYY-MM-DD of the due day in the user's timezone.
-  dueDayOffset: Schema.Number,
+  dueDayOffset: Schema.Finite,
   localDueDate: Schema.String,
   completed: Schema.Boolean,
   sharedBy: Schema.optionalKey(Schema.NullOr(PlantSharer)),
@@ -31,7 +31,7 @@ export const CareTasksResponse = Schema.Struct({
   overdue: Schema.Array(CareTask),
   today: Schema.Array(CareTask),
   upcoming: Schema.Array(CareTask),
-  completedToday: Schema.Number,
+  completedToday: Schema.Finite,
   // The local date (YYYY-MM-DD, user timezone) for each calendar column, index
   // 0 = today. Drives the home weekly calendar's day axis so its columns line
   // up exactly with the buckets above — and so the +N boundary can never drift.

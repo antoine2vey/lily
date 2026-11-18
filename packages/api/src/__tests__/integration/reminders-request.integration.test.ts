@@ -389,7 +389,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       }
 
-      const sinceStartup = () => Effect.runSync(Ref.make(Option.none<string>()))
+      const sinceStartup = () => Ref.makeUnsafe(Option.none<string>())
 
       it('gives the request and the Care event Reminders dead-lettered another round', async () => {
         beforeTheDailyPass()

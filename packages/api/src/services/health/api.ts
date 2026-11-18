@@ -9,7 +9,10 @@ const ReadyResponse = Schema.Struct({
   redis: DependencyStatus,
 })
 
-export class NotReadyError extends Schema.TaggedError<NotReadyError>()(
+export class NotReadyError extends Schema.TaggedError<
+  NotReadyError,
+  { readonly brand: unique symbol }
+>()(
   'NotReadyError',
   {
     status: Schema.Literal('degraded'),

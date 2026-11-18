@@ -1667,7 +1667,7 @@ describe('Notification Worker', () => {
             Layer.mergeAll(
               MockAlerterLive,
               createMockMessageQueue(), // Empty queue
-              createSuccessPushService(),
+              createSuccessPushService,
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([]),
               createMockDeadLetterRepository(),
@@ -1693,7 +1693,7 @@ describe('Notification Worker', () => {
             Layer.mergeAll(
               MockAlerterLive,
               Layer.succeed(MessageQueue, queue),
-              createSuccessPushService(),
+              createSuccessPushService,
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([]),
               dlqLayer,
@@ -1750,7 +1750,7 @@ describe('Notification Worker', () => {
               Layer.mergeAll(
                 alerter.layer,
                 Layer.succeed(MessageQueue, queue),
-                createSuccessPushService(),
+                createSuccessPushService,
                 createMockDeviceTokenRepository(mockDeviceTokens),
                 createMockNotificationRepository([]),
                 dlqLayer,
@@ -1782,7 +1782,7 @@ describe('Notification Worker', () => {
             Layer.mergeAll(
               MockAlerterLive,
               Layer.succeed(MessageQueue, queue),
-              createSuccessPushService(),
+              createSuccessPushService,
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([]),
               dlqLayer,
@@ -1861,7 +1861,7 @@ describe('Notification Worker', () => {
             Layer.mergeAll(
               alerter.layer,
               Layer.succeed(MessageQueue, queue),
-              createSuccessPushService(),
+              createSuccessPushService,
               createMockDeviceTokenRepository(mockDeviceTokens),
               repo,
               dlqLayer,
@@ -1933,7 +1933,7 @@ describe('Notification Worker', () => {
             Layer.mergeAll(
               alerter.layer,
               Layer.succeed(MessageQueue, queue),
-              createSuccessPushService(),
+              createSuccessPushService,
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([]),
               failingDeadLetters,

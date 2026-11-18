@@ -62,7 +62,7 @@ export interface IAchievementRepository {
     userId: string
   ) => Effect.Effect<number, SqlError>
 
-  readonly findUserIdsWithProgress: () => Effect.Effect<string[], SqlError>
+  readonly findUserIdsWithProgress: Effect.Effect<string[], SqlError>
 
   readonly getBatchCareStreaks: (
     userIds: readonly string[]
@@ -292,9 +292,7 @@ export const AchievementRepositoryLive = Layer.effect(
         )
       }),
 
-      findUserIdsWithProgress: Effect.fn(
-        'AchievementRepository.findUserIdsWithProgress'
-      )(function* () {
+      findUserIdsWithProgress: Effect.gen(function* () {
         const result = yield* db.execute(sql`
           SELECT created_by_user_id AS user_id FROM plants
           WHERE created_by_user_id IS NOT NULL
@@ -309,7 +307,7 @@ export const AchievementRepositoryLive = Layer.effect(
           unwrapPgRows<{ user_id: string }>(result),
           (r) => r.user_id
         )
-      }),
+      }).pipe(Effect.withSpan('AchievementRepository.findUserIdsWithProgress')),
 
       getBatchCareStreaks: Effect.fn(
         'AchievementRepository.getBatchCareStreaks'

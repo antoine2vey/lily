@@ -20,13 +20,13 @@ export const AdminAnalyticsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'admin-analytics', (handlers) =>
     handlers
       .handle('usersByStatus', () =>
-        usersByStatus().pipe(withInfraErrorsAsDefect)
+        usersByStatus.pipe(withInfraErrorsAsDefect)
       )
       .handle('activeSubscribersByTier', () =>
-        activeSubscribersByTier().pipe(withInfraErrorsAsDefect)
+        activeSubscribersByTier.pipe(withInfraErrorsAsDefect)
       )
       .handle('plantsPerUserDistribution', () =>
-        plantsPerUserDistribution().pipe(withInfraErrorsAsDefect)
+        plantsPerUserDistribution.pipe(withInfraErrorsAsDefect)
       )
       .handle('careLogVolumeByType', ({ query: urlParams }) =>
         careLogVolumeByType(urlParams).pipe(withInfraErrorsAsDefect)
@@ -38,19 +38,19 @@ export const AdminAnalyticsApiLive = (api: Api) =>
         aiChatVolume(urlParams).pipe(withInfraErrorsAsDefect)
       )
       .handle('diagnosisResolutionRate', () =>
-        diagnosisResolutionRate().pipe(withInfraErrorsAsDefect)
+        diagnosisResolutionRate.pipe(withInfraErrorsAsDefect)
       )
       .handle('paywallAttribution', () =>
-        paywallAttribution().pipe(withInfraErrorsAsDefect)
+        paywallAttribution.pipe(withInfraErrorsAsDefect)
       )
       .handle('signupToFirstPlant', () =>
-        signupToFirstPlant().pipe(withInfraErrorsAsDefect)
+        signupToFirstPlant.pipe(withInfraErrorsAsDefect)
       )
-      .handle('trialToPaid', () => trialToPaid().pipe(withInfraErrorsAsDefect))
+      .handle('trialToPaid', () => trialToPaid.pipe(withInfraErrorsAsDefect))
       .handle('notificationToCareAction', ({ query: urlParams }) =>
         notificationToCareAction(urlParams).pipe(withInfraErrorsAsDefect)
       )
-      .handle('mrrEstimate', () => mrrEstimate().pipe(withInfraErrorsAsDefect))
-      .handle('dauWauMau', () => dauWauMau().pipe(withInfraErrorsAsDefect))
-      .handle('paidChurn', () => paidChurn().pipe(withInfraErrorsAsDefect))
+      .handle('mrrEstimate', () => mrrEstimate.pipe(withInfraErrorsAsDefect))
+      .handle('dauWauMau', () => dauWauMau.pipe(withInfraErrorsAsDefect))
+      .handle('paidChurn', () => paidChurn.pipe(withInfraErrorsAsDefect))
   )

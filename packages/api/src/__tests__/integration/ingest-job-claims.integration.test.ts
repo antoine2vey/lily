@@ -146,7 +146,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       try {
         const claimed = await run(
-          Effect.flatMap(IngestJobRepository, (repo) => repo.claimNext())
+          Effect.flatMap(IngestJobRepository, (repo) => repo.claimNext)
         )
         expect(claimed?.id).toBe(newer)
         expect(claimed?.status).toBe('in_progress')
@@ -156,12 +156,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
 
       const next = await run(
-        Effect.flatMap(IngestJobRepository, (repo) => repo.claimNext())
+        Effect.flatMap(IngestJobRepository, (repo) => repo.claimNext)
       )
       expect(next?.id).toBe(older)
 
       const empty = await run(
-        Effect.flatMap(IngestJobRepository, (repo) => repo.claimNext())
+        Effect.flatMap(IngestJobRepository, (repo) => repo.claimNext)
       )
       expect(empty).toBeNull()
     })
@@ -172,7 +172,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       const claimed = await run(
         Effect.flatMap(IngestJobRepository, (repo) =>
-          Effect.forEach([1, 2], () => repo.claimNext(), {
+          Effect.forEach([1, 2], () => repo.claimNext, {
             concurrency: 'unbounded',
           })
         )
