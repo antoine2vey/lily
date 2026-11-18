@@ -11,7 +11,7 @@ import type { RawDocumentInput } from '@lily/api/services/knowledge-ingestion/ad
 import { processIngestJob } from '@lily/api/services/knowledge-ingestion/processor'
 import { AdapterError } from '@lily/shared/errors/knowledge'
 import type { IngestJob, RawDocument } from '@lily/shared/knowledge'
-import { Effect, Layer, Stream } from 'effect'
+import { Array, Effect, Layer, Stream } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@lily/api/services/rag/embedding.service', () => ({
@@ -86,7 +86,7 @@ const makeRedditDocWithComments = (commentCount = 2): RawDocumentInput => ({
   metadata: {
     subreddit: 'houseplants',
     postScore: 42,
-    comments: globalThis.Array.from({ length: commentCount }, (_, i) => ({
+    comments: Array.makeBy(commentCount, (i) => ({
       body: `This is a detailed comment number ${i + 1} about monstera care with watering and lighting advice for healthy growth in indoor conditions.`,
       author: `commenter${i}`,
       score: 30 - i * 5,

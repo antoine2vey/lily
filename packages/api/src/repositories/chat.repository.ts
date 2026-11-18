@@ -80,7 +80,7 @@ const mapToChatMessage = (row: ChatMessageRow): ChatMessage => ({
   imageUrl: Option.getOrUndefined(Option.fromNullishOr(row.imageKey)),
   parts: pipe(
     Option.fromNullishOr(row.parts),
-    Option.filter((p): p is unknown[] => globalThis.Array.isArray(p)),
+    Option.filter((p): p is unknown[] => Array.isArray(p)),
     Option.getOrUndefined
   ),
   conversationId: row.conversationId,
@@ -497,7 +497,7 @@ export const ChatRepositoryLive = Layer.effect(
           const parts = pipe(
             Option.fromNullishOr(row.parts as unknown),
             Option.filter((p): p is Array<{ type: string; text?: string }> =>
-              globalThis.Array.isArray(p)
+              Array.isArray(p)
             ),
             Option.map(Array.filter((p) => modelPartTypes.has(p.type))),
             Option.filter(Array.isArrayNonEmpty),

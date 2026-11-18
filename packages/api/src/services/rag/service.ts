@@ -9,7 +9,7 @@ import {
   Match,
   Option,
   pipe,
-  String,
+  String as Str,
 } from 'effect'
 import { embedText } from './embedding.service'
 
@@ -50,12 +50,12 @@ export class RagService extends Context.Service<RagService>()('RagService', {
             EmbeddingError: (error) =>
               Effect.logWarning(
                 'RAG retrieval failed, continuing without knowledge context',
-                { error: globalThis.String(error), query: params.query }
+                { error: String(error), query: params.query }
               ).pipe(Effect.as([] as ChunkSearchResult[])),
             SqlError: (error) =>
               Effect.logWarning(
                 'RAG retrieval failed, continuing without knowledge context',
-                { error: globalThis.String(error), query: params.query }
+                { error: String(error), query: params.query }
               ).pipe(Effect.as([] as ChunkSearchResult[])),
           }),
           Effect.withSpan('RagService.retrieve', {
@@ -75,11 +75,11 @@ export class RagService extends Context.Service<RagService>()('RagService', {
 
         const cleanContent = (content: string) =>
           pipe(
-            String.split(content, '\n'),
+            Str.split(content, '\n'),
             Array.filter((line) => !urlOnlyLine.test(line)),
             Array.join('\n'),
-            String.replace(/\n{3,}/g, '\n\n'),
-            String.trim
+            Str.replace(/\n{3,}/g, '\n\n'),
+            Str.trim
           )
 
         const sections = pipe(

@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Array, Option, pipe, Record, String } from 'effect'
+import { Array, Option, pipe, Record, String as Str } from 'effect'
 
 // usage: bun scripts/hydration-check.ts [base=http://127.0.0.1:8088]
 // Opens one page per route and locale of the prerendered build (`preview`) in headless Chrome and fails when a page
@@ -63,7 +63,7 @@ const served = async () => {
 // Below the locale, the last segment of a nested path is read as a route parameter, so every /en/blog/<slug> is one
 // route and every /en/blog/page/<n> another.
 const routeOf = (path: string) => {
-  const segments = Array.filter(String.split(path, '/'), String.isNonEmpty)
+  const segments = Array.filter(Str.split(path, '/'), Str.isNonEmpty)
   return segments.length > 2
     ? Array.join([...Array.dropRight(segments, 1), '*'], '/')
     : path
@@ -155,7 +155,7 @@ const origin = new URL(base).origin
 const onRequest = (requestId: string, url: string, method: string) => {
   if (new URL(url).origin === origin)
     return send('Fetch.continueRequest', { requestId })
-  if (String.includes('canopy-invites/preview')(url)) {
+  if (Str.includes('canopy-invites/preview')(url)) {
     const preflight = method === 'OPTIONS'
     return send('Fetch.fulfillRequest', {
       requestId,
@@ -172,7 +172,7 @@ const onRequest = (requestId: string, url: string, method: string) => {
 }
 
 const firstLine = (text: string) =>
-  pipe(text, String.split('\n'), Array.headNonEmpty)
+  pipe(text, Str.split('\n'), Array.headNonEmpty)
 
 interface CdpEvents {
   'Page.loadEventFired': object
@@ -233,7 +233,7 @@ socket.addEventListener('message', (event) => {
       firstLine(
         pipe(
           message.params.args,
-          Array.map((a) => globalThis.String(a.value ?? a.description)),
+          Array.map((a) => String(a.value ?? a.description)),
           Array.join(' ')
         )
       )
@@ -323,9 +323,7 @@ try {
   }
 } catch (error) {
   failed = true
-  console.log(
-    `FAIL ${error instanceof Error ? error.message : globalThis.String(error)}`
-  )
+  console.log(`FAIL ${error instanceof Error ? error.message : error}`)
 } finally {
   socket.close()
   chrome.kill()

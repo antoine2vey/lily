@@ -1,5 +1,6 @@
 import type { RedditCommentData } from '@lily/api/services/knowledge-ingestion/adapters/reddit.adapter'
 import { chunkRedditDocument } from '@lily/api/services/knowledge-ingestion/processing/reddit-chunker'
+import { Array } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const makeComment = (
@@ -85,7 +86,7 @@ describe('chunkRedditDocument', () => {
   })
 
   it('should limit children to MAX_COMMENTS_PER_THREAD (5)', () => {
-    const comments = globalThis.Array.from({ length: 8 }, (_, i) =>
+    const comments = Array.makeBy(8, (i) =>
       makeComment({
         body: `Comment number ${i + 1} about plant care with enough detail to pass the minimum length requirement for inclusion.`,
         score: 100 - i * 10,
@@ -144,9 +145,9 @@ describe('chunkRedditDocument', () => {
   })
 
   it('splits a selftext too long for one embedding into children under a parent that holds the whole question', () => {
-    const selftext = globalThis.Array.from(
-      { length: 300 },
-      (_, i) =>
+    const selftext = Array.makeBy(
+      300,
+      (i) =>
         `Paragraph ${i}: the lower leaves of my monstera turned yellow after I moved it next to the north window last month.`
     ).join('\n\n')
 

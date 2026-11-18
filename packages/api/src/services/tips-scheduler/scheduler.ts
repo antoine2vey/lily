@@ -19,8 +19,8 @@ const TIP_DEDUP_DAYS = 3
 const getTodayDateString = (): string => {
   const now = DateTime.nowUnsafe()
   const parts = DateTime.toParts(now)
-  const month = globalThis.String(parts.month).padStart(2, '0')
-  const day = globalThis.String(parts.day).padStart(2, '0')
+  const month = String(parts.month).padStart(2, '0')
+  const day = String(parts.day).padStart(2, '0')
   return `${parts.year}-${month}-${day}`
 }
 
