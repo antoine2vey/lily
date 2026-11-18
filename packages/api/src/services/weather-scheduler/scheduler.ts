@@ -54,7 +54,7 @@ const refreshWeatherData = Effect.gen(function* () {
   // Collect distinct locations (rounded to 2dp)
   const locationRecord = Array.reduce(
     scopes,
-    {} as globalThis.Record<
+    {} as Record.ReadonlyRecord<
       string,
       { lat: number; lng: number; timezones: ReadonlyArray<string> }
     >,

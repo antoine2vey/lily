@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store'
 import { ACCESS_TOKEN_KEY, refreshAccessTokenAsync } from '@/utils/client'
 
-type Fetch = typeof globalThis.fetch
+type Fetch = typeof fetch
 
 /**
  * Authenticates a fetch that bypasses the typed API client (streaming

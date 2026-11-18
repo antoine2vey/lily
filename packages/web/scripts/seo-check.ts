@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { Array, Option, Order, pipe, Record, String } from 'effect'
+import { Array, Option, Order, pipe, Record, String as Str } from 'effect'
 
 const ORIGIN = 'https://withlily.app'
 const APP_STORE = 'https://apps.apple.com'
@@ -16,9 +16,9 @@ const ENTITIES: Record<string, string> = {
 const decodeEntities = (s: string) =>
   s.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (entity, name: string) =>
     name.startsWith('#x') || name.startsWith('#X')
-      ? globalThis.String.fromCodePoint(Number.parseInt(name.slice(2), 16))
+      ? String.fromCodePoint(Number.parseInt(name.slice(2), 16))
       : name.startsWith('#')
-        ? globalThis.String.fromCodePoint(Number(name.slice(1)))
+        ? String.fromCodePoint(Number(name.slice(1)))
         : (ENTITIES[name] ?? entity)
   )
 
@@ -47,8 +47,8 @@ const walk = (dir: string): ReadonlyArray<string> =>
 const urlOf = (root: string, file: string): string =>
   pipe(
     relative(root, file),
-    String.replace(/(^|\/)index\.html$/, ''),
-    String.replace(/\.html$/, ''),
+    Str.replace(/(^|\/)index\.html$/, ''),
+    Str.replace(/\.html$/, ''),
     (path) => `${ORIGIN}/${path}`.replace(/\/$/, '') || ORIGIN
   )
 
@@ -185,7 +185,7 @@ const expectedCampaign = (url: string): Option.Option<string> => {
   const path = new URL(url).pathname
   return pipe(
     Array.findFirst(CAMPAIGNS, ([pattern]) => pattern.test(path)),
-    Option.map(([pattern, campaign]) => String.replace(pattern, campaign)(path))
+    Option.map(([pattern, campaign]) => Str.replace(pattern, campaign)(path))
   )
 }
 
@@ -205,7 +205,7 @@ const appStoreErrors = (p: Page): ReadonlyArray<string> =>
     })
   })
 
-const isIndexable = (p: Page) => !String.includes('noindex')(p.robots)
+const isIndexable = (p: Page) => !Str.includes('noindex')(p.robots)
 
 const lint = (pages: Record<string, Page>, sitemap: ReadonlyArray<string>) => {
   const errors: string[] = []

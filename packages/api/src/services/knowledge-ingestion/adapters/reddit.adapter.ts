@@ -246,7 +246,7 @@ const fetchPostComments = (permalink: string) =>
       Effect.orElseSucceed(() => [] as RedditListing[])
     )
 
-    if (!globalThis.Array.isArray(response)) {
+    if (!Array.isArray(response)) {
       return [] as RedditCommentData[]
     }
 

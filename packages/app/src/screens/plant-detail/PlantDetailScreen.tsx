@@ -76,7 +76,7 @@ import { mapApiHealthToCardHealth } from '@/utils/health'
 import { showPlantLimitAlert } from '@/utils/plant-limit-alert'
 
 const CARE_TOAST_KEYS: Readonly<
-  globalThis.Record<CareType, { success: string; error: string }>
+  Record<CareType, { success: string; error: string }>
 > = {
   watering: {
     success: 'detail.toast.watered',

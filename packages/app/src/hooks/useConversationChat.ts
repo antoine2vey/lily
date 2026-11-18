@@ -42,7 +42,7 @@ export function useConversationChat({
     () =>
       new DefaultChatTransport({
         api: `${API_BASE_URL}${API_PREFIX}/chat/conversations/${conversationId}/stream`,
-        fetch: withAuthRefresh(expoFetch as typeof globalThis.fetch),
+        fetch: withAuthRefresh(expoFetch as typeof fetch),
         prepareSendMessagesRequest: async ({
           messages,
           body,

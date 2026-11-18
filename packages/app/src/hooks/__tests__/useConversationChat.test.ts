@@ -10,7 +10,7 @@ jest.mock('expo/fetch', () => ({
   },
 }))
 jest.mock('@/utils/auth-fetch', () => ({
-  withAuthRefresh: (fetch: typeof globalThis.fetch) => fetch,
+  withAuthRefresh: (baseFetch: typeof fetch) => baseFetch,
 }))
 jest.mock('@/utils/client', () => ({ API_BASE_URL: 'http://api.test' }))
 jest.mock('@ai-sdk/react', () => ({

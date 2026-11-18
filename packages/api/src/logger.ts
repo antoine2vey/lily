@@ -12,9 +12,7 @@ import { Logger, String as Str } from 'effect'
  * `level` field in the JSON, not from stdout vs stderr.
  */
 const railwayLogger = Logger.map(Logger.formatStructured, (entry) => {
-  globalThis.console.log(
-    JSON.stringify({ ...entry, level: Str.toLowerCase(entry.level) })
-  )
+  console.log(JSON.stringify({ ...entry, level: Str.toLowerCase(entry.level) }))
 })
 
 // `Logger.layer` replaces the whole logger set, so `tracerLogger` is listed
