@@ -86,6 +86,26 @@ const clients: readonly OAuthClient[] = [
     redirect_uris: ['https://evil.example/callback'],
   },
   {
+    client_id: 'scheme-browser',
+    client_name: 'ChatGPT',
+    redirect_uris: ['googlechromes://evil.example/callback'],
+  },
+  {
+    client_id: 'scheme-intent',
+    client_name: 'ChatGPT',
+    redirect_uris: ['intent://evil.example/callback#Intent;scheme=https;end'],
+  },
+  {
+    client_id: 'scheme-websocket',
+    client_name: 'ChatGPT',
+    redirect_uris: ['ws://evil.example/callback'],
+  },
+  {
+    client_id: 'scheme-opaque',
+    client_name: 'ChatGPT',
+    redirect_uris: ['microsoft-edge:https://evil.example/callback'],
+  },
+  {
     client_id: 'hostile',
     client_name: '<script>alert(1)</script>',
     redirect_uris: ['https://a"b&c.example/callback'],
@@ -250,13 +270,22 @@ describe('GET /consent', () => {
     }
   )
 
-  it('says an app on this device is asking for an app-scheme redirect', async () => {
-    const { status, html } = await consentPage('app')
+  it.each([
+    ['app', 'cursor://anysphere.cursor-retrieval'],
+    ['scheme-browser', 'googlechromes://evil.example'],
+    ['scheme-intent', 'intent://evil.example'],
+    ['scheme-websocket', 'ws://evil.example'],
+    ['scheme-opaque', 'microsoft-edge:https://evil.example/callback'],
+  ])(
+    'shows where the %s redirect goes without placing it on this device',
+    async (clientId, target) => {
+      const { status, html } = await consentPage(clientId)
 
-    expect(status).toBe(200)
-    expect(html).toContain('An app on this device wants to access your plants')
-    expect(html).toContain('cursor://')
-  })
+      expect(status).toBe(200)
+      expect(headline(html)).toBe(`${target} wants to access your plants`)
+      expect(html).not.toContain('on this device')
+    }
+  )
 
   it('shows the whole of a long host and sets its last two labels apart', async () => {
     const { html } = await consentPage('long-host')
