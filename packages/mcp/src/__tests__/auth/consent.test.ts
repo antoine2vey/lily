@@ -266,6 +266,8 @@ describe('GET /consent', () => {
       ['http://evillocalhost/', 'evillocalhost'],
       ['http://128.0.0.1/', '128.0.0.1'],
       ['http://10.127.0.1/', '10.127.0.1'],
+      ['http://localhost@evil.example/', 'evil.example'],
+      ['http://127.0.0.1:80@evil.example/', 'evil.example'],
       ['http://127.evil.example/', '127.evil.example'],
       ['http://127.evil.example1/', '127.evil.example1'],
       ['http://127.evil.1example/', '127.evil.1example'],
@@ -338,11 +340,11 @@ describe('GET /consent', () => {
 
     it('shows the link as the browser will follow it, in ASCII', async () => {
       const { html } = await consentPage(
-        'x://h\u00E9st/p\u0301\u035F?q=\u3164#f\u202E'
+        'x://h\u00E9st/p\u0301\u035F\u0007?q=\u3164\u007F#f\u202E'
       )
 
       expect(link(html)).toEqual(
-        Option.some('x://h%C3%A9st/p%CC%81%CD%9F?q=%E3%85%A4#f%E2%80%AE')
+        Option.some('x://h%C3%A9st/p%CC%81%CD%9F%07?q=%E3%85%A4%7F#f%E2%80%AE')
       )
       expect(html).toMatch(/^[\n\x20-\x7E]*$/)
     })
