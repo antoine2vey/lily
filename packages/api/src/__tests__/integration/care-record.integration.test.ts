@@ -559,6 +559,76 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       }
     )
 
+    const correctTo = (
+      permit: Parameters<Care['Service']['correctLastCare']>[0]['permit'],
+      on: Date,
+      careTypes: ReadonlyArray<'watering' | 'fertilization'> = ['watering']
+    ) =>
+      Effect.flatMap(Care, (care) =>
+        care.correctLastCare({
+          permit,
+          corrections: Array.map(careTypes, (careType) => ({
+            careType,
+            on: CareWhen.At({ instant: DateTime.makeUnsafe(on) }),
+          })),
+        })
+      )
+
+    it.each([
+      ['another user performed', true],
+      ['with no known author', false],
+    ])(
+      'refuses a care permit a correction of a last care %s and leaves the care and the due day',
+      async (_case, authorKnown) => {
+        const plantId = await addPlant('Corrected by a guest', daysAgo(-2))
+        const theirs = await careOfAnother(plantId)
+        if (!authorKnown) {
+          await db
+            .update(schema.careLogs)
+            .set({ performedByUserId: null })
+            .where(eq(schema.careLogs.id, theirs))
+        }
+        const before = await careRows(plantId)
+
+        const refusal = await run(
+          correctTo(carePermit(plantId, userId), daysAgo(7)).pipe(Effect.flip)
+        )
+
+        expect(refusal._tag).toBe('PlantNotAuthorizedError')
+        expect(await careRows(plantId)).toEqual(before)
+        expect(await dueDayOf(plantId)).toBe(dayOf(daysAgo(-2)))
+      }
+    )
+
+    it('records no first care when the same correction is refused a last care another user performed', async () => {
+      const plantId = await addPlant('Half theirs', daysAgo(-2))
+      await careOfAnother(plantId)
+      const before = await careRows(plantId)
+
+      const refusal = await run(
+        correctTo(carePermit(plantId, userId), daysAgo(7), [
+          'fertilization',
+          'watering',
+        ]).pipe(Effect.flip)
+      )
+
+      expect(refusal._tag).toBe('PlantNotAuthorizedError')
+      expect(await careRows(plantId)).toEqual(before)
+    })
+
+    it('lets a curate permit correct the day of a last care another user performed', async () => {
+      const plantId = await addPlant('Corrected by its owner', daysAgo(-2))
+      const theirs = await careOfAnother(plantId)
+      const on = daysAgo(7)
+
+      await run(correctTo(permitTo('curate', plantId, userId), on))
+
+      expect(await careRows(plantId)).toEqual([
+        { id: theirs, date: on, notes: 'Seeded' },
+      ])
+      expect(await dueDayOf(plantId)).toBe(CareDays.addDays(dayOf(on), 7))
+    })
+
     it('lets a curate permit remove a care another user performed', async () => {
       const plantId = await addPlant('Kept by its owner', daysAgo(-2))
       const theirs = await careOfAnother(plantId)
