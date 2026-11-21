@@ -1,7 +1,7 @@
 import { parseAuthorizationRequest } from '@lily/mcp/auth/authorization-request'
 import { errorPage, escapeHtml } from '@lily/mcp/auth/html'
 import { McpServerUrl } from '@lily/mcp/config'
-import { Array, Data, Effect, Option, pipe, String } from 'effect'
+import { Data, Effect, pipe, String } from 'effect'
 import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 /**
@@ -11,19 +11,39 @@ import { HttpServerRequest, HttpServerResponse } from 'effect/http'
  * load a website, so the page shows that URI whole and describes none of it.
  */
 type Destination = Data.TaggedEnum<{
-  Website: { readonly host: string }
+  Website: { readonly lead: string; readonly end: string }
   Loopback: { readonly address: string }
   Link: { readonly uri: string }
 }>
 const Destination = Data.taggedEnum<Destination>()
 
 const WEB_SCHEMES = new Set(['http:', 'https:'])
-const LOOPBACK_IPV4 = /^127\.\d+\.\d+\.\d+$/
+const DIGITS = /^\d+$/
+
+// Index of the dot before the last `labels` labels of `host`, or -1. It scans
+// back from the end, so a long host costs no more than its last labels.
+const dotBefore = (host: string, labels: number, from = host.length): number =>
+  labels === 0
+    ? from
+    : dotBefore(host, labels - 1, host.lastIndexOf('.', from - 1))
+
+// The parser rejects a web host that ends in a number unless it is an IPv4
+// address, and it writes that address as four numbers
+const isIpv4 = (hostname: string) =>
+  DIGITS.test(hostname.slice(dotBefore(hostname, 1) + 1))
 
 const isLoopback = (hostname: string) =>
   hostname === 'localhost' ||
   hostname === '[::1]' ||
-  LOOPBACK_IPV4.test(hostname)
+  (isIpv4(hostname) && pipe(hostname, String.startsWith('127.')))
+
+// Without a public suffix list the owner's domain is unknown, but it always
+// ends the host, so the last two labels get the weight and the rest is muted.
+// An address has no owner's domain and a trailing dot is not a label.
+const leadLength = (hostname: string) =>
+  isIpv4(hostname)
+    ? 0
+    : dotBefore(hostname, pipe(hostname, String.endsWith('.')) ? 3 : 2) + 1
 
 // Every part comes from the parser, which writes a URL in printable ASCII.
 // A lookalike host shows as punycode and any other character as a %XX escape.
@@ -32,34 +52,21 @@ const toDestination = (redirectUri: string): Destination => {
   if (!WEB_SCHEMES.has(url.protocol)) {
     return Destination.Link({ uri: url.href })
   }
-  return isLoopback(url.hostname)
-    ? Destination.Loopback({ address: url.host })
-    : Destination.Website({ host: url.host })
-}
-
-const IP_LITERAL = /^(\[.*\]|\d+(\.\d+){3})(:\d+)?$/
-const LAST_TWO_LABELS = /^(.*?)((?:[^.]+\.)?[^.]+\.?(?::\d+)?)$/
-
-// Without a public suffix list the owner's domain is unknown, but it always
-// ends the host, so the last two labels get the weight and the rest is muted
-const renderHost = (host: string) => {
-  const lead = IP_LITERAL.test(host)
-    ? ''
-    : pipe(
-        host,
-        String.match(LAST_TWO_LABELS),
-        Option.flatMap((match) => Array.get(match, 1)),
-        Option.getOrElse(() => '')
-      )
-  const end = pipe(host, String.slice(lead.length))
-  return `${String.isEmpty(lead) ? '' : `<span class="host-lead">${escapeHtml(lead)}</span>`}<strong>${escapeHtml(end)}</strong>`
+  if (isLoopback(url.hostname)) {
+    return Destination.Loopback({ address: url.host })
+  }
+  const cut = leadLength(url.hostname)
+  return Destination.Website({
+    lead: url.host.slice(0, cut),
+    end: url.host.slice(cut),
+  })
 }
 
 const WANTS_ACCESS = 'wants to access your plants'
 
 const describeDestination = Destination.$match({
-  Website: ({ host }) => ({
-    headline: `${renderHost(host)} ${WANTS_ACCESS}`,
+  Website: ({ lead, end }) => ({
+    headline: `<span class="host-lead">${escapeHtml(lead)}</span><strong>${escapeHtml(end)}</strong> ${WANTS_ACCESS}`,
     detail: '',
     handoff: 'Lily will send you on to that website',
   }),
