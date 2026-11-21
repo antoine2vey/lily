@@ -1274,7 +1274,7 @@ const living = (canopy: CanopyState, given: Partial<Held> = {}): Held => ({
 
 const goneFromHome = (userId: string) => [
   CanopyWrite.RemoveMember({ canopyId: homeId, userId }),
-  CanopyWrite.WithdrawInvitationsSentBy({
+  CanopyWrite.WithdrawInvitationsSentByOrTo({
     canopyId: homeId,
     userId,
     at: now,
