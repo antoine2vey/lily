@@ -137,7 +137,6 @@ export const consentHandler = Effect.gen(function* () {
     h1 strong { display: inline-block; }
     .detail { font-size: 0.9rem; margin-bottom: 0.5rem; }
     .link {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.85rem;
       background: #f5f5f0;
       border: 1px solid #ddd;
