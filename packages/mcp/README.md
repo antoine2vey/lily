@@ -40,7 +40,7 @@ The server also exposes two resources, `plant://{plantId}` and `care-schedule://
 ## Signing in
 
 1. The client finds the server's metadata under `/.well-known/` and registers itself at `/oauth/register`.
-2. `/oauth/authorize` checks the request against the registered client and sends the user to a consent page. The page names where the authorization goes, as a website host, an app on this device for a loopback address, or the scheme and host of any other link. It shows the client's name as unverified. The user enters their email, and the server asks the API to email a magic link.
+2. `/oauth/authorize` checks the request against the registered client and sends the user to a consent page. The page says where the authorization goes. It shows the host of a website, an app on this device for a loopback address, or the whole link for any other scheme. It does not show the client's name, which anyone can register. The user enters their email, and the server asks the API to email a magic link.
 3. The link opens `/verify` in the same browser. The server trades the link's code for an API token, stores it, and redirects to the client with an authorization code.
 4. The client exchanges the code at `/oauth/token` with PKCE (S256 only).
 
