@@ -265,6 +265,7 @@ describe('GET /consent', () => {
       ['http://localhost.evil.example/', 'localhost.evil.example'],
       ['http://evillocalhost/', 'evillocalhost'],
       ['http://128.0.0.1/', '128.0.0.1'],
+      ['http://10.127.0.1/', '10.127.0.1'],
       ['http://127.evil.example/', '127.evil.example'],
       ['http://127.evil.example1/', '127.evil.example1'],
       ['http://127.evil.1example/', '127.evil.1example'],
