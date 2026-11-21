@@ -10,6 +10,7 @@ import {
   type AmendRefusal,
   amendCare,
   authorOf,
+  type CorrectRefusal,
   correctLastCare,
   type Decision,
   type DueMove,
@@ -17,7 +18,6 @@ import {
   moveDueDay,
   type Recorded,
   RecordOutcome,
-  type RecordRefusal,
   Refusal,
   type RefusalOf,
   type RemoveRefusal,
@@ -84,6 +84,8 @@ export type AmendCareError =
   | AlreadyCaredTodayError
   | FutureDateNotAllowedError
 
+export type CorrectLastCareError = RecordOneError | PlantNotAuthorizedError
+
 export interface DueDayMove {
   readonly plantId: string
   readonly careType: CareType
@@ -135,12 +137,14 @@ export class Care extends Context.Service<
     }) => Effect.Effect<void, RemoveCareError>
     /**
      * "The last care was on that day", for one or more care types at once:
-     * the latest care moves there, or one is recorded when there is none.
+     * the latest care moves there, or one is recorded when there is none. A
+     * `care` permit moves only a care its actor performed. One refused care
+     * type refuses the whole command.
      */
     readonly correctLastCare: (command: {
-      readonly permit: PlantPermit<'care'>
+      readonly permit: RecordPermit<'care'>
       readonly corrections: ReadonlyArray<LastCareCorrection>
-    }) => Effect.Effect<void, RecordOneError>
+    }) => Effect.Effect<void, CorrectLastCareError>
     /**
      * Sets how often each care is due, or stops scheduling it (`None`). A
      * care type left out keeps its schedule.
@@ -369,7 +373,7 @@ export const CareLive = Layer.effect(
             accountsHeld,
           }): Result.Result<
             Decision<void>,
-            SkipReason | RefusalOf<'ActorGone'>
+            CorrectRefusal | RefusalOf<'PlantGone' | 'ActorGone'>
           > =>
             Result.gen(function* () {
               const by = yield* authorOf(
@@ -387,8 +391,11 @@ export const CareLive = Layer.effect(
                   ({
                     careType,
                     on,
-                  }): Result.Result<Decision<void>, RecordRefusal> =>
-                    correctLastCare(plant, careType, on, { ...env(), by })
+                  }): Result.Result<Decision<void>, CorrectRefusal> =>
+                    correctLastCare(plant, permit, careType, on, {
+                      ...env(),
+                      by,
+                    })
                 )
               )
             }),

@@ -150,7 +150,7 @@ export const PlantsApiLive = (api: Api) =>
         careMultiplePlants(payload).pipe(withInfraErrorsAsDefect)
       )
       .handle('correctCareDates', ({ params: { id }, payload }) =>
-        withPlantPermit(id, 'care').pipe(
+        withRecordPermit(id, 'care').pipe(
           Effect.flatMap((permit) => correctCareDates(permit, payload)),
           withInfraErrorsAsDefect
         )

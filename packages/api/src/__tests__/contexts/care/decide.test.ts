@@ -672,9 +672,26 @@ describe('a care permit on one care', () => {
       amendCare(state, permit, 'care', 'watering', notes, env())
     ),
     remove: refusalOf(removeCare(state, permit, 'care', 'watering', env())),
+    correct: refusalOf(
+      correctLastCare(
+        state,
+        permit,
+        'watering',
+        CareWhen.Day({ day: day('2026-11-09') }),
+        env()
+      )
+    ),
   })
-  const refused = { amend: 'CareOfAnother', remove: 'CareOfAnother' }
-  const accepted = { amend: 'accepted', remove: 'accepted' }
+  const refused = {
+    amend: 'CareOfAnother',
+    remove: 'CareOfAnother',
+    correct: 'CareOfAnother',
+  }
+  const accepted = {
+    amend: 'accepted',
+    remove: 'accepted',
+    correct: 'accepted',
+  }
 
   it('reaches a care its actor performed', () => {
     expect(
@@ -731,7 +748,7 @@ describe('correctLastCare', () => {
       }),
     ])
     const decided = pipe(
-      correctLastCare(cared, 'watering', on('2026-11-09'), env()),
+      correctLastCare(cared, own, 'watering', on('2026-11-09'), env()),
       Result.getOrThrow
     )
     expect(tags(decided.writes)).toEqual(['ReplaceCare', 'PutSchedule'])
@@ -742,6 +759,7 @@ describe('correctLastCare', () => {
     const decided = pipe(
       correctLastCare(
         plant([line('watering', { frequency: 7 })]),
+        own,
         'watering',
         on('2026-11-09'),
         env()
@@ -755,12 +773,15 @@ describe('correctLastCare', () => {
   it('refuses a future day and a dead plant', () => {
     const cared = plant([line('watering', { frequency: 7 })])
     expect(
-      refusalOf(correctLastCare(cared, 'watering', on('2026-11-13'), env()))
+      refusalOf(
+        correctLastCare(cared, own, 'watering', on('2026-11-13'), env())
+      )
     ).toBe('FutureDay')
     expect(
       refusalOf(
         correctLastCare(
           { ...cared, life: LifeState.Dead() },
+          own,
           'watering',
           on('2026-11-09'),
           env()
@@ -861,7 +882,7 @@ describe('any sequence of care commands', () => {
               )
             : command === 2
               ? removeCare(state, own, victim, 'watering', e)
-              : correctLastCare(state, 'watering', target, e)
+              : correctLastCare(state, own, 'watering', target, e)
 
       if (Result.isSuccess(result)) {
         const latestBefore = Array.head(current.history)

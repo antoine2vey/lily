@@ -7,6 +7,7 @@ import { WeatherAdvisorLive } from './weather'
 
 export {
   Care,
+  type CorrectLastCareError,
   type DueDayMove,
   type RecordCare,
   type RecordOneError,
