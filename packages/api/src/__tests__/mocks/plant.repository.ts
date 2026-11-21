@@ -366,12 +366,9 @@ export const createMockPlantRepository = (
 
     lockPhoto: (plantId, photoId) =>
       Effect.sync(() =>
-        pipe(
-          Array.findFirst(
-            photos,
-            (p) => p.id === photoId && p.plantId === plantId
-          ),
-          Option.getOrNull
+        Array.findFirst(
+          photos,
+          (p) => p.id === photoId && p.plantId === plantId
         )
       ),
 

@@ -206,7 +206,7 @@ export interface IPlantRepository {
     plantId: string,
     photoId: string
   ) => Effect.Effect<
-    typeof plantPhotos.$inferSelect | null,
+    Option.Option<typeof plantPhotos.$inferSelect>,
     SqlError,
     Transaction
   >
@@ -780,14 +780,14 @@ export const PlantRepositoryLive = Layer.effect(
         plantId: string,
         photoId: string
       ) {
-        const [photo] = yield* db
+        const photos = yield* db
           .select()
           .from(plantPhotos)
           .where(
             and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId))
           )
           .for('update')
-        return pipe(Option.fromNullishOr(photo), Option.getOrNull)
+        return Array.head(photos)
       }),
 
       deletePhotoByPlantId: Effect.fn('PlantRepository.deletePhotoByPlantId')(

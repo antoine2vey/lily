@@ -30,19 +30,21 @@ export const deletePlantPhoto = (
     yield* transactQuietly(
       releasing(
         plantHeld(permit.plantId),
-        Effect.gen(function* () {
-          const photo = yield* repo.lockPhoto(permit.plantId, photoId)
-          if (photo === null) return
-          if (
-            !coversRecordOf(
-              permit,
-              Option.fromNullishOr(photo.uploadedByUserId)
-            )
-          ) {
-            return yield* new PlantNotAuthorizedError()
-          }
-          yield* repo.deletePhotoByPlantId(permit.plantId, photoId)
-        })
+        Effect.flatMap(
+          repo.lockPhoto(permit.plantId, photoId),
+          Option.match({
+            onNone: () => Effect.void,
+            onSome: (
+              photo
+            ): Effect.Effect<void, PlantNotAuthorizedError | SqlError> =>
+              coversRecordOf(
+                permit,
+                Option.fromNullishOr(photo.uploadedByUserId)
+              )
+                ? repo.deletePhotoByPlantId(permit.plantId, photoId)
+                : Effect.fail(new PlantNotAuthorizedError()),
+          })
+        )
       )
     )
   }).pipe(
