@@ -1,3 +1,4 @@
+import { carePermit, permitTo } from '@lily/api/__tests__/mocks/care'
 import {
   type CareLine,
   type CarePlant,
@@ -20,7 +21,7 @@ import {
   requireActor,
 } from '@lily/api/contexts/care/domain/decide'
 import type { PlanStatus, PlanStep } from '@lily/api/contexts/care/domain/plan'
-import { Actor } from '@lily/api/kernel/permit'
+import { Actor, systemPermit } from '@lily/api/kernel/permit'
 import { CareDay, CareDays, type CareType } from '@lily/shared'
 import { Array, DateTime, Option, pipe, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -94,6 +95,8 @@ const dueDayWritten = (writes: ReadonlyArray<CareWrite>) =>
     Option.map((write) => write.schedule.dueDay),
     Option.getOrNull
   )
+
+const own = carePermit('plant-1', 'user-1')
 
 const refusalOf = <A>(result: Result.Result<A, { readonly _tag: string }>) =>
   Result.match(result, {
@@ -496,7 +499,14 @@ describe('amendCare', () => {
 
   it('moves the due day when the latest care moves', () => {
     const decided = pipe(
-      amendCare(twoCares, 'latest', 'watering', moveTo('2026-11-08'), env()),
+      amendCare(
+        twoCares,
+        own,
+        'latest',
+        'watering',
+        moveTo('2026-11-08'),
+        env()
+      ),
       Result.getOrThrow
     )
     expect(dueDayWritten(decided.writes)).toBe('2026-11-15')
@@ -506,6 +516,7 @@ describe('amendCare', () => {
     const decided = pipe(
       amendCare(
         twoCares,
+        own,
         'latest',
         'watering',
         {
@@ -525,7 +536,14 @@ describe('amendCare', () => {
   it('refuses a move onto a day that already has a care', () => {
     expect(
       refusalOf(
-        amendCare(twoCares, 'latest', 'watering', moveTo('2026-11-03'), env())
+        amendCare(
+          twoCares,
+          own,
+          'latest',
+          'watering',
+          moveTo('2026-11-03'),
+          env()
+        )
       )
     ).toBe('AlreadyCared')
   })
@@ -533,12 +551,26 @@ describe('amendCare', () => {
   it('accepts a move onto its own day and refuses a future day', () => {
     expect(
       refusalOf(
-        amendCare(twoCares, 'latest', 'watering', moveTo('2026-11-10'), env())
+        amendCare(
+          twoCares,
+          own,
+          'latest',
+          'watering',
+          moveTo('2026-11-10'),
+          env()
+        )
       )
     ).toBe('accepted')
     expect(
       refusalOf(
-        amendCare(twoCares, 'latest', 'watering', moveTo('2026-11-13'), env())
+        amendCare(
+          twoCares,
+          own,
+          'latest',
+          'watering',
+          moveTo('2026-11-13'),
+          env()
+        )
       )
     ).toBe('FutureDay')
   })
@@ -546,7 +578,14 @@ describe('amendCare', () => {
   it('refuses a care that is not on the line', () => {
     expect(
       refusalOf(
-        amendCare(twoCares, 'missing', 'watering', moveTo('2026-11-08'), env())
+        amendCare(
+          twoCares,
+          own,
+          'missing',
+          'watering',
+          moveTo('2026-11-08'),
+          env()
+        )
       )
     ).toBe('CareNotFound')
   })
@@ -555,6 +594,7 @@ describe('amendCare', () => {
     const decided = pipe(
       amendCare(
         { ...twoCares, life: LifeState.Dead() },
+        own,
         'latest',
         'watering',
         moveTo('2026-11-08'),
@@ -580,7 +620,7 @@ describe('removeCare', () => {
 
   it('falls back to the previous care when the latest is removed', () => {
     const decided = pipe(
-      removeCare(twoCares, 'latest', 'watering', env()),
+      removeCare(twoCares, own, 'latest', 'watering', env()),
       Result.getOrThrow
     )
     expect(tags(decided.writes)).toEqual(['DeleteCare', 'PutSchedule'])
@@ -589,7 +629,7 @@ describe('removeCare', () => {
 
   it('keeps the due day when an older care is removed', () => {
     const decided = pipe(
-      removeCare(twoCares, 'older', 'watering', env()),
+      removeCare(twoCares, own, 'older', 'watering', env()),
       Result.getOrThrow
     )
     expect(tags(decided.writes)).toEqual(['DeleteCare'])
@@ -604,10 +644,78 @@ describe('removeCare', () => {
       }),
     ])
     const decided = pipe(
-      removeCare(single, 'only', 'watering', env()),
+      removeCare(single, own, 'only', 'watering', env()),
       Result.getOrThrow
     )
     expect(dueDayWritten(decided.writes)).toBe('2026-10-01')
+  })
+})
+
+describe('a care permit on one care', () => {
+  const careBy = (by: Option.Option<string>) =>
+    plant([
+      {
+        careType: 'watering',
+        schedule: Option.none(),
+        history: [{ id: 'care', day: day('2026-11-10'), by }],
+      },
+    ])
+  const notes = {
+    on: Option.none(),
+    notes: Option.some(Option.some('Deep soak')),
+  }
+  const verdicts = (
+    state: CarePlant,
+    permit: Parameters<typeof removeCare>[1]
+  ) => ({
+    amend: refusalOf(
+      amendCare(state, permit, 'care', 'watering', notes, env())
+    ),
+    remove: refusalOf(removeCare(state, permit, 'care', 'watering', env())),
+  })
+  const refused = { amend: 'CareOfAnother', remove: 'CareOfAnother' }
+  const accepted = { amend: 'accepted', remove: 'accepted' }
+
+  it('reaches a care its actor performed', () => {
+    expect(
+      verdicts(careBy(Option.some('user-2')), carePermit('plant-1', 'user-2'))
+    ).toEqual(accepted)
+  })
+
+  it('refuses a care another user performed', () => {
+    expect(
+      verdicts(careBy(Option.some('user-1')), carePermit('plant-1', 'user-2'))
+    ).toEqual(refused)
+  })
+
+  it('refuses a care with no known author, for a user and for a job', () => {
+    expect(
+      verdicts(careBy(Option.none()), carePermit('plant-1', 'user-2'))
+    ).toEqual(refused)
+    expect(
+      verdicts(careBy(Option.none()), systemPermit('plant-1', 'care', 'job'))
+    ).toEqual(refused)
+  })
+
+  it('gives way to a curate permit, whoever performed the care', () => {
+    const curate = permitTo('curate', 'plant-1', 'user-2')
+
+    expect(verdicts(careBy(Option.some('user-1')), curate)).toEqual(accepted)
+    expect(verdicts(careBy(Option.none()), curate)).toEqual(accepted)
+  })
+
+  it('reads a care that is not on the line as not found before it asks who performed it', () => {
+    expect(
+      refusalOf(
+        removeCare(
+          careBy(Option.some('user-1')),
+          carePermit('plant-1', 'user-2'),
+          'missing',
+          'watering',
+          env()
+        )
+      )
+    ).toBe('CareNotFound')
   })
 })
 
@@ -742,6 +850,7 @@ describe('any sequence of care commands', () => {
           : command === 1
             ? amendCare(
                 state,
+                own,
                 victim,
                 'watering',
                 {
@@ -751,7 +860,7 @@ describe('any sequence of care commands', () => {
                 e
               )
             : command === 2
-              ? removeCare(state, victim, 'watering', e)
+              ? removeCare(state, own, victim, 'watering', e)
               : correctLastCare(state, 'watering', target, e)
 
       if (Result.isSuccess(result)) {

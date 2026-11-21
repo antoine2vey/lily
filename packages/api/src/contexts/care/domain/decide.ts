@@ -25,7 +25,11 @@ import {
   statusToSettleInto,
   withStepDone,
 } from '@lily/api/contexts/care/domain/plan'
-import { Actor } from '@lily/api/kernel/permit'
+import {
+  Actor,
+  coversRecordOf,
+  type RecordPermit,
+} from '@lily/api/kernel/permit'
 import {
   decision,
   type Decision as KernelDecision,
@@ -127,6 +131,7 @@ export type Refusal = Data.TaggedEnum<{
   Dead: { readonly plantId: string }
   PlantGone: { readonly plantId: string }
   CareNotFound: { readonly careLogId: string }
+  CareOfAnother: { readonly careLogId: string }
   PlanGone: { readonly planId: string }
   PlanOfDeadPlant: { readonly planId: string }
   StepGone: { readonly planId: string; readonly stepId: string }
@@ -146,10 +151,10 @@ export type RefusalOf<T extends Refusal['_tag']> = Extract<
 >
 export type RecordRefusal = RefusalOf<'AlreadyCared' | 'FutureDay' | 'Dead'>
 export type SkipReason = RecordRefusal | RefusalOf<'PlantGone'>
-export type AmendRefusal = RefusalOf<
-  'CareNotFound' | 'AlreadyCared' | 'FutureDay'
->
-export type RemoveRefusal = RefusalOf<'CareNotFound'>
+export type RemoveRefusal = RefusalOf<'CareNotFound' | 'CareOfAnother'>
+export type AmendRefusal =
+  | RemoveRefusal
+  | RefusalOf<'AlreadyCared' | 'FutureDay'>
 
 export interface Recorded {
   readonly plantId: string
@@ -468,11 +473,17 @@ export interface AmendInput {
 
 const findCare = (
   line: CareLine,
-  careLogId: string
-): Result.Result<CareEntry, RefusalOf<'CareNotFound'>> =>
-  Result.fromOption(
+  careLogId: string,
+  permit: RecordPermit<'care'>
+): Result.Result<CareEntry, RemoveRefusal> =>
+  pipe(
     Array.findFirst(line.history, (entry) => entry.id === careLogId),
-    () => Refusal.CareNotFound({ careLogId })
+    Result.fromOption((): RemoveRefusal => Refusal.CareNotFound({ careLogId })),
+    Result.flatMap((entry) =>
+      coversRecordOf(permit, entry.by)
+        ? Result.succeed(entry)
+        : Result.fail(Refusal.CareOfAnother({ careLogId }))
+    )
   )
 
 const amendEntry = (
@@ -531,26 +542,30 @@ const amendEntry = (
 
 export const amendCare = (
   plant: CarePlant,
+  permit: RecordPermit<'care'>,
   careLogId: string,
   careType: CareType,
   input: AmendInput,
   env: DecideEnv
 ): Result.Result<Decision<void>, AmendRefusal> => {
   const line = lineOf(plant, careType)
-  return Result.flatMap(findCare(line, careLogId), (entry) =>
-    amendEntry(plant, line, entry, input, env)
+  return Result.flatMap(
+    findCare(line, careLogId, permit),
+    (entry): Result.Result<Decision<void>, AmendRefusal> =>
+      amendEntry(plant, line, entry, input, env)
   )
 }
 
 export const removeCare = (
   plant: CarePlant,
+  permit: RecordPermit<'care'>,
   careLogId: string,
   careType: CareType,
   env: DecideEnv
 ): Result.Result<Decision<void>, RemoveRefusal> =>
   Result.gen(function* () {
     const line = lineOf(plant, careType)
-    yield* findCare(line, careLogId)
+    yield* findCare(line, careLogId, permit)
     const after: CareLine = {
       ...line,
       history: Array.filter(line.history, (entry) => entry.id !== careLogId),

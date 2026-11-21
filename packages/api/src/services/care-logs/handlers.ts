@@ -12,6 +12,7 @@ import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handli
 import {
   withPlantAuth,
   withPlantPermit,
+  withRecordPermit,
 } from '@lily/api/services/plants/helpers/with-plant-access'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect } from 'effect'
@@ -58,13 +59,13 @@ export const CareLogsApiLive = (api: Api) =>
         )
       )
       .handle('updateCareLog', ({ params: { plantId, logId }, payload }) =>
-        withPlantPermit(plantId, 'care').pipe(
+        withRecordPermit(plantId, 'care').pipe(
           Effect.flatMap((permit) => updateCareLog(permit, logId, payload)),
           withInfraErrorsAsDefect
         )
       )
       .handle('deleteCareLog', ({ params: { plantId, logId } }) =>
-        withPlantPermit(plantId, 'care').pipe(
+        withRecordPermit(plantId, 'care').pipe(
           Effect.flatMap((permit) => deleteCareLog(permit, logId)),
           withInfraErrorsAsDefect
         )

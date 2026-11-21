@@ -13,6 +13,7 @@ import type { PlantAction } from '@lily/api/services/plants/helpers/plant-access
 import {
   withPlantAuth,
   withPlantKnowledge,
+  withRecordPermit,
 } from '@lily/api/services/plants/helpers/with-plant-access'
 import {
   PlantNotAuthorizedError,
@@ -185,6 +186,54 @@ describe('withPlantAuth', () => {
     ])
     expect(failureOf(exit)).toEqual(
       new PlantNotFoundError({ plantId: 'canopy-plant' })
+    )
+  })
+})
+
+describe('withRecordPermit', () => {
+  const permitFor = (
+    userId: string,
+    plantId: string,
+    caretakerOf: readonly string[] = []
+  ) =>
+    Effect.runPromise(
+      withRecordPermit(plantId, 'photo').pipe(
+        Effect.provide(layerFor(userId, caretakerOf))
+      )
+    )
+
+  it.each([
+    ['the owner of a personal plant', alex, 'alex-plant'],
+    ['the Canopy owner', alex, 'canopy-plant'],
+    ['the member who created the Canopy plant', lily, 'canopy-plant'],
+  ])('lets %s curate, in their own name', async (_who, userId, plantId) => {
+    expect(await permitFor(userId, plantId)).toEqual({
+      plantId,
+      action: 'curate',
+      actor: { _tag: 'User', userId },
+    })
+  })
+
+  it('gives a caretaker and another member the permit for their own records only', async () => {
+    const caretaker = await permitFor(lily, 'alex-plant', ['alex-plant'])
+    const member = await permitFor(sam, 'canopy-plant')
+
+    expect([caretaker.action, member.action]).toEqual(['photo', 'photo'])
+    expect([caretaker.actor, member.actor]).toEqual([
+      { _tag: 'User', userId: lily },
+      { _tag: 'User', userId: sam },
+    ])
+  })
+
+  it('gives no permit to someone with no role on the plant', async () => {
+    const exit = await Effect.runPromiseExit(
+      withRecordPermit('alex-plant', 'photo').pipe(
+        Effect.provide(layerFor(sam))
+      )
+    )
+
+    expect(failureOf(exit)).toEqual(
+      new PlantNotFoundError({ plantId: 'alex-plant' })
     )
   })
 })

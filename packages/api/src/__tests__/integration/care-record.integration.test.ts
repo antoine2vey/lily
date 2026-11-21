@@ -3,7 +3,7 @@ import {
   drainOutbox,
 } from '@lily/api/__tests__/integration/care-layers'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
-import { carePermit } from '@lily/api/__tests__/mocks/care'
+import { carePermit, permitTo } from '@lily/api/__tests__/mocks/care'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
@@ -366,7 +366,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
   describe('editing history', () => {
     const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000)
     const dayOf = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
-    const addCare = async (plantId: string, date: Date) => {
+    const addCare = async (
+      plantId: string,
+      date: Date,
+      performedByUserId: string = userId
+    ) => {
       const [log] = await db
         .insert(schema.careLogs)
         .values({
@@ -375,6 +379,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
           date,
           careDay: careDayOf(date),
           notes: 'Seeded',
+          performedByUserId,
         })
         .returning()
       if (!log) throw new Error('care log insert failed')
@@ -495,6 +500,79 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       ])
       expect(schedule?.lastCareAt).toEqual(earlier)
       expect(await dueDayOf(plantId)).toBe(CareDays.addDays(dayOf(earlier), 7))
+    })
+
+    const careOfAnother = async (plantId: string) => {
+      const [other] = await db
+        .insert(schema.users)
+        .values({
+          email: 'other-carer@example.com',
+          name: 'Other Carer',
+          emailVerified: true,
+          timezone: 'UTC',
+        })
+        .returning()
+      if (!other) throw new Error('user insert failed')
+      return addCare(plantId, daysAgo(5), other.id)
+    }
+
+    it.each([
+      ['another user performed', true],
+      ['with no known author', false],
+    ])(
+      'refuses a care permit on a care %s and leaves the care and the due day',
+      async (_case, authorKnown) => {
+        const plantId = await addPlant('Tended by two', daysAgo(-2))
+        const theirs = await careOfAnother(plantId)
+        if (!authorKnown) {
+          await db
+            .update(schema.careLogs)
+            .set({ performedByUserId: null })
+            .where(eq(schema.careLogs.id, theirs))
+        }
+        const permit = carePermit(plantId, userId)
+
+        const refusals = await run(
+          Effect.flatMap(Care, (care) =>
+            Effect.all([
+              care
+                .amend({
+                  ...unchanged,
+                  permit,
+                  careLogId: theirs,
+                  notes: Option.some(Option.some('Rewritten')),
+                })
+                .pipe(Effect.flip),
+              care.remove({ permit, careLogId: theirs }).pipe(Effect.flip),
+            ])
+          )
+        )
+
+        expect(Array.map(refusals, (refusal) => refusal._tag)).toEqual([
+          'PlantNotAuthorizedError',
+          'PlantNotAuthorizedError',
+        ])
+        expect(Array.map(await careRows(plantId), (row) => row.notes)).toEqual([
+          'Seeded',
+        ])
+        expect(await dueDayOf(plantId)).toBe(dayOf(daysAgo(-2)))
+      }
+    )
+
+    it('lets a curate permit remove a care another user performed', async () => {
+      const plantId = await addPlant('Kept by its owner', daysAgo(-2))
+      const theirs = await careOfAnother(plantId)
+
+      await run(
+        Effect.flatMap(Care, (care) =>
+          care.remove({
+            permit: permitTo('curate', plantId, userId),
+            careLogId: theirs,
+          })
+        )
+      )
+
+      expect(await careRows(plantId)).toEqual([])
     })
 
     it('refuses to edit a care through a permit for another plant', async () => {

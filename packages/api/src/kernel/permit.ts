@@ -1,10 +1,11 @@
-import { Data } from 'effect'
+import { Data, Option } from 'effect'
 
 export type PlantAction =
   | 'view'
   | 'edit'
   | 'care'
   | 'photo'
+  | 'curate'
   | 'diagnose'
   | 'chat'
   | 'markDead'
@@ -50,6 +51,25 @@ export const actingUserId = (permit: PlantPermit<PlantAction>): string | null =>
     User: ({ userId }) => userId,
     System: () => null,
   })
+
+export type RecordAction = Extract<PlantAction, 'care' | 'photo'>
+
+/**
+ * The permit of a command on one record of a plant. A `curate` permit covers
+ * every record of the plant. The permit for the action that adds such a
+ * record covers only the records its actor added.
+ */
+export type RecordPermit<Add extends RecordAction> =
+  | PlantPermit<'curate'>
+  | PlantPermit<Add>
+
+/** A record with no known author is someone else's. */
+export const coversRecordOf = (
+  permit: RecordPermit<RecordAction>,
+  author: Option.Option<string>
+): boolean =>
+  permit.action === 'curate' ||
+  Option.exists(author, (userId) => userId === actingUserId(permit))
 
 export type PlanAction = 'manage' | 'tick'
 

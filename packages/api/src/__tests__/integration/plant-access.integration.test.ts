@@ -25,6 +25,7 @@ import { withCarePlanAuth } from '@lily/api/services/care-plans/helpers/with-car
 import {
   resolvePlantRole,
   withPlantAuth,
+  withRecordPermit,
 } from '@lily/api/services/plants/helpers/with-plant-access'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -204,6 +205,30 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(failureOf(missing)).toEqual(
         new PlantNotFoundError({ plantId: missingId })
       )
+    })
+
+    it('gives whoever may delete the plant a curate permit and another member the permit for their own records', async () => {
+      const mine = await insertPlant(alexOwner)
+      const shared = await insertPlant(canopyOwner)
+      const actionFor = async (userId: string, plantId: string) => {
+        const permit = await Effect.runPromise(
+          withRecordPermit(plantId, 'care').pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                RepositoriesLive,
+                createMockCurrentUser({ id: userId })
+              )
+            )
+          )
+        )
+        return permit.action
+      }
+
+      expect([
+        await actionFor(alexId, mine.id),
+        await actionFor(alexId, shared.id),
+        await actionFor(lilyId, shared.id),
+      ]).toEqual(['curate', 'curate', 'care'])
     })
 
     it('keeps Canopy plants out of a caretaking list that did not ask for them', async () => {

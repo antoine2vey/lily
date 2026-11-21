@@ -31,6 +31,7 @@ import {
   withPermittedPlant,
   withPlantAuth,
   withPlantPermit,
+  withRecordPermit,
 } from '@lily/api/services/plants/helpers/with-plant-access'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
@@ -134,8 +135,8 @@ export const PlantsApiLive = (api: Api) =>
         )
       )
       .handle('deletePlantPhoto', ({ params: { id, photoId } }) =>
-        withPlantAuth(id, 'photo').pipe(
-          Effect.andThen(deletePlantPhoto({ plantId: id, photoId })),
+        withRecordPermit(id, 'photo').pipe(
+          Effect.flatMap((permit) => deletePlantPhoto(permit, photoId)),
           withInfraErrorsAsDefect
         )
       )

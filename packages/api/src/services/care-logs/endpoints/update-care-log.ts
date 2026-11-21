@@ -1,6 +1,6 @@
 import { Care, CareWhen } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
-import type { PlantPermit } from '@lily/api/kernel/permit'
+import type { RecordPermit } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareLog, CareLogUpdateRequest } from '@lily/shared/care-log'
@@ -8,19 +8,21 @@ import { CareLogNotFoundError } from '@lily/shared/errors/care-log'
 import type {
   AlreadyCaredTodayError,
   FutureDateNotAllowedError,
+  PlantNotAuthorizedError,
 } from '@lily/shared/errors/plant'
 import { DateTime, Effect, Option } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const updateCareLog = (
-  permit: PlantPermit<'care'>,
+  permit: RecordPermit<'care'>,
   logId: string,
   request: CareLogUpdateRequest
 ): Effect.Effect<
   CareLog,
   | SqlError
   | CareLogNotFoundError
+  | PlantNotAuthorizedError
   | AlreadyCaredTodayError
   | FutureDateNotAllowedError,
   Care | CareLogRepository | SqlClient.SqlClient | Outbox

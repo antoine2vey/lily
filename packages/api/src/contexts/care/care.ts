@@ -38,6 +38,7 @@ import {
   actingUserId,
   type PlantAction,
   type PlantPermit,
+  type RecordPermit,
 } from '@lily/api/kernel/permit'
 import { decision, runCommand } from '@lily/api/kernel/transact'
 import type { CareType } from '@lily/shared'
@@ -46,6 +47,7 @@ import {
   type AlreadyCaredTodayError,
   type FutureDateNotAllowedError,
   type PlantIsDeadError,
+  type PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import {
@@ -75,8 +77,10 @@ export type RecordOneError =
   | PlantIsDeadError
   | PlantNotFoundError
 
+export type RemoveCareError = CareLogNotFoundError | PlantNotAuthorizedError
+
 export type AmendCareError =
-  | CareLogNotFoundError
+  | RemoveCareError
   | AlreadyCaredTodayError
   | FutureDateNotAllowedError
 
@@ -115,18 +119,20 @@ export class Care extends Context.Service<
     ) => Effect.Effect<Recorded, RecordOneError>
     /**
      * Edits one care of the permit's plant. A field left out is kept. Moving
-     * the latest care moves the due day with it.
+     * the latest care moves the due day with it. A `care` permit reaches only
+     * the cares its actor performed.
      */
     readonly amend: (
       command: AmendInput & {
-        readonly permit: PlantPermit<'care'>
+        readonly permit: RecordPermit<'care'>
         readonly careLogId: string
       }
     ) => Effect.Effect<void, AmendCareError>
+    /** A `care` permit reaches only the cares its actor performed. */
     readonly remove: (command: {
-      readonly permit: PlantPermit<'care'>
+      readonly permit: RecordPermit<'care'>
       readonly careLogId: string
-    }) => Effect.Effect<void, CareLogNotFoundError>
+    }) => Effect.Effect<void, RemoveCareError>
     /**
      * "The last care was on that day", for one or more care types at once:
      * the latest care moves there, or one is recorded when there is none.
@@ -265,7 +271,7 @@ export const CareLive = Layer.effect(
       }).pipe(Effect.provide(context), Effect.mapError(asError))
 
     const envOf = (
-      permit: PlantPermit<'care'>,
+      permit: PlantPermit<PlantAction>,
       careTypes: ReadonlyArray<CareType>
     ) =>
       Effect.gen(function* () {
@@ -301,7 +307,7 @@ export const CareLive = Layer.effect(
         apply: store.apply,
       }).pipe(Effect.provide(context))
 
-    const careTypeOf = (permit: PlantPermit<'care'>, careLogId: string) =>
+    const careTypeOf = (permit: PlantPermit<PlantAction>, careLogId: string) =>
       store.careLogKey(careLogId).pipe(
         Effect.catchTag('SqlError', Effect.die),
         Effect.map(Option.filter((key) => key.plantId === permit.plantId)),
@@ -325,7 +331,7 @@ export const CareLive = Layer.effect(
           permit,
           [careType],
           Refusal.CareNotFound({ careLogId }),
-          (plant) => amendCare(plant, careLogId, careType, input, env())
+          (plant) => amendCare(plant, permit, careLogId, careType, input, env())
         )
       }).pipe(Effect.mapError(asError))
 
@@ -338,7 +344,7 @@ export const CareLive = Layer.effect(
           permit,
           [careType],
           Refusal.CareNotFound({ careLogId }),
-          (plant) => removeCare(plant, careLogId, careType, env())
+          (plant) => removeCare(plant, permit, careLogId, careType, env())
         )
       }).pipe(Effect.mapError(asError))
 

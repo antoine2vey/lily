@@ -10,6 +10,7 @@ import {
   FutureDateNotAllowedError,
   PlantAlreadyDeadError,
   PlantIsDeadError,
+  PlantNotAuthorizedError,
   PlantNotDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
@@ -22,6 +23,7 @@ const errorOf = {
   Dead: ({ plantId }) => new PlantIsDeadError({ plantId }),
   PlantGone: ({ plantId }) => new PlantNotFoundError({ plantId }),
   CareNotFound: ({ careLogId }) => new CareLogNotFoundError({ careLogId }),
+  CareOfAnother: () => new PlantNotAuthorizedError(),
   PlanGone: ({ planId }) => new CarePlanNotFoundError({ planId }),
   PlanOfDeadPlant: ({ planId }) => new CarePlanNotFoundError({ planId }),
   StepGone: ({ stepId }) => new CarePlanStepNotFoundError({ stepId }),

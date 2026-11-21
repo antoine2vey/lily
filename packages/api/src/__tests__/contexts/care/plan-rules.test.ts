@@ -605,6 +605,10 @@ describe('the error a refusal answers with', () => {
       refusal: { _tag: 'CareNotFound', careLogId: 'c' },
       error: 'CareLogNotFoundError',
     },
+    CareOfAnother: {
+      refusal: { _tag: 'CareOfAnother', careLogId: 'c' },
+      error: 'PlantNotAuthorizedError',
+    },
     PlanGone: {
       refusal: { _tag: 'PlanGone', planId: 'plan-1' },
       error: 'CarePlanNotFoundError',

@@ -8,6 +8,7 @@ import {
   type StoredSchedule,
   seePlantCare,
 } from '@lily/api/contexts/care'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
@@ -204,6 +205,18 @@ export interface IPlantRepository {
   readonly deletePhoto: (
     photoId: string
   ) => Effect.Effect<typeof plantPhotos.$inferSelect | null, SqlError>
+  /**
+   * The photo `photoId` of the plant, locked until the caller's transaction
+   * ends, so who uploaded it cannot change before the caller deletes it.
+   */
+  readonly lockPhoto: (
+    plantId: string,
+    photoId: string
+  ) => Effect.Effect<
+    typeof plantPhotos.$inferSelect | null,
+    SqlError,
+    Transaction
+  >
   readonly deletePhotoByPlantId: (
     plantId: string,
     photoId: string
@@ -788,6 +801,20 @@ export const PlantRepositoryLive = Layer.effect(
           .delete(plantPhotos)
           .where(eq(plantPhotos.id, photoId))
           .returning()
+        return pipe(Option.fromNullishOr(photo), Option.getOrNull)
+      }),
+
+      lockPhoto: Effect.fn('PlantRepository.lockPhoto')(function* (
+        plantId: string,
+        photoId: string
+      ) {
+        const [photo] = yield* db
+          .select()
+          .from(plantPhotos)
+          .where(
+            and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId))
+          )
+          .for('update')
         return pipe(Option.fromNullishOr(photo), Option.getOrNull)
       }),
 

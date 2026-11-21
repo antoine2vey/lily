@@ -30,6 +30,7 @@ const expected: Record<PlantAction, ReadonlyArray<PlantRole['_tag']>> = {
   edit: ['Owner', 'Caretaker', 'CanopyOwner', 'CanopyCreator', 'CanopyMember'],
   care: ['Owner', 'Caretaker', 'CanopyOwner', 'CanopyCreator', 'CanopyMember'],
   photo: ['Owner', 'Caretaker', 'CanopyOwner', 'CanopyCreator', 'CanopyMember'],
+  curate: ['Owner', 'CanopyOwner', 'CanopyCreator'],
   diagnose: [
     'Owner',
     'Caretaker',
