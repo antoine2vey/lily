@@ -85,34 +85,15 @@ const describeDestination = Destination.$match({
   }),
 })
 
-// Registration stores any client_name, so it is cleaned where it is shown
-const INVISIBLE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu
-const MAX_NAME_LENGTH = 60
-
-const displayName = (name: string) => {
-  const visible = pipe(
-    name,
-    String.replace(INVISIBLE, ''),
-    String.replace(/\s+/g, ' '),
-    String.trim
-  )
-  const codePoints = Array.fromIterable(visible)
-  const shown =
-    codePoints.length > MAX_NAME_LENGTH
-      ? `${Array.join(Array.take(codePoints, MAX_NAME_LENGTH), '')}…`
-      : visible
-  return Option.liftPredicate(shown, String.isNonEmpty)
-}
-
 /**
  * Renders the consent/login page for MCP OAuth flow.
  *
  * When a user connects an MCP client (e.g. Claude Desktop), the OAuth server
- * redirects here. The page validates the authorization request, then names
- * where the authorization will be sent and shows the client's self-declared
- * name as unverified, since registration is open to anyone. Query params from
- * the OAuth flow are forwarded to the confirm endpoint, which validates them
- * again.
+ * redirects here. The page validates the authorization request, then says
+ * where the authorization will be sent. Registration is open to anyone, so
+ * the page shows nothing the client registered except the parts of its
+ * redirect URI. Query params from the OAuth flow are forwarded to the confirm
+ * endpoint, which validates them again.
  */
 export const consentHandler = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest
@@ -120,20 +101,9 @@ export const consentHandler = Effect.gen(function* () {
   const url = new URL(request.url, serverUrl)
   const qs = url.searchParams
 
-  const { client, request: authorization } =
-    yield* parseAuthorizationRequest(qs)
+  const authorization = yield* parseAuthorizationRequest(qs)
   const { headline, detail, handoff } = describeDestination(
     toDestination(authorization.redirectUri)
-  )
-  const claimedName = pipe(
-    Option.fromNullishOr(client.client_name),
-    Option.flatMap(displayName),
-    Option.match({
-      onNone: () => '<p class="subtitle">This app gave no name.</p>',
-      onSome: (name) =>
-        `<p class="subtitle">This app calls itself “<bdi>${escapeHtml(name)}</bdi>”.</p>
-    <p class="unverified">Lily has not verified that name.</p>`,
-    })
   )
 
   return HttpServerResponse.html(`<!DOCTYPE html>
@@ -167,9 +137,7 @@ export const consentHandler = Effect.gen(function* () {
     .host-lead { font-weight: 400; color: #777; }
     h1 strong { display: inline-block; }
     .detail { font-size: 0.9rem; margin-bottom: 0.5rem; }
-    .subtitle { color: #666; font-size: 0.9rem; }
-    .subtitle bdi { color: #333; font-weight: 600; }
-    .unverified { color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    form { margin-top: 1.5rem; }
     label { display: block; font-weight: 500; font-size: 0.875rem; margin-bottom: 0.5rem; }
     input[type="email"] {
       width: 100%;
@@ -217,7 +185,6 @@ export const consentHandler = Effect.gen(function* () {
     <div class="logo">&#127793;</div>
     <h1>${headline}</h1>
     ${Option.match(detail, { onNone: () => '', onSome: (line) => `<p class="detail">${line}</p>` })}
-    ${claimedName}
 
     <form id="login-form" action="/confirm?${escapeHtml(qs.toString())}" method="POST">
       <label for="email">Email address</label>
