@@ -17,6 +17,7 @@ import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { describe, expect, it } from 'vitest'
 
 const SERVER_URL = 'http://localhost:3001'
+const LONG_HOST = `chatgpt.com.${'a'.repeat(60)}.${'b'.repeat(60)}.${'c'.repeat(60)}.evil.example`
 
 const clients: readonly OAuthClient[] = [
   {
@@ -58,6 +59,11 @@ const clients: readonly OAuthClient[] = [
     client_id: '127-subdomain',
     client_name: 'MCP Inspector',
     redirect_uris: ['http://127.evil.example/callback'],
+  },
+  {
+    client_id: 'long-host',
+    client_name: 'ChatGPT',
+    redirect_uris: [`https://${LONG_HOST}/callback`],
   },
   {
     client_id: 'hostile',
@@ -198,6 +204,16 @@ describe('GET /consent', () => {
     expect(status).toBe(200)
     expect(html).toContain('An app on this device wants to access your plants')
     expect(html).toContain('cursor://')
+  })
+
+  it('shows the whole of a long host and sets its last two labels apart', async () => {
+    const { html } = await consentPage('long-host')
+
+    expect(headline(html)).toBe(`${LONG_HOST} wants to access your plants`)
+    expect(html).toContain(
+      '<strong>evil.example</strong> wants to access your plants'
+    )
+    expect(html).toMatch(/overflow-wrap:\s*anywhere/)
   })
 
   it('shows a lookalike host in its ASCII form', async () => {
