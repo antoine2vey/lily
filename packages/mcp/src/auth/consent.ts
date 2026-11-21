@@ -6,14 +6,14 @@ import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 /**
  * Where the authorization code goes, read from the validated redirect URI.
- * Only a loopback address is known to be on this device. Any other scheme
- * is opened by whatever app the device picks, which may load a website.
+ * Only a loopback address over http or https is known to be on this device.
+ * Any other scheme is opened by whatever app the device picks, which may
+ * load a website, so the page shows that URI whole and describes none of it.
  */
 type Destination = Data.TaggedEnum<{
   Website: { readonly host: string }
   Loopback: { readonly address: string }
-  Link: { readonly scheme: string; readonly host: string }
-  OpaqueLink: { readonly uri: string }
+  Link: { readonly uri: string }
 }>
 const Destination = Data.taggedEnum<Destination>()
 
@@ -25,17 +25,16 @@ const isLoopback = (hostname: string) =>
   hostname === '[::1]' ||
   LOOPBACK_IPV4.test(hostname)
 
-// `host` is the parser's ASCII form, so a lookalike shows as punycode
+// Every part comes from the parser, which writes a URL in printable ASCII.
+// A lookalike host shows as punycode and any other character as a %XX escape.
 const toDestination = (redirectUri: string): Destination => {
   const url = new URL(redirectUri)
-  if (WEB_SCHEMES.has(url.protocol)) {
-    return isLoopback(url.hostname)
-      ? Destination.Loopback({ address: url.host })
-      : Destination.Website({ host: url.host })
+  if (!WEB_SCHEMES.has(url.protocol)) {
+    return Destination.Link({ uri: url.href })
   }
-  return String.isEmpty(url.host)
-    ? Destination.OpaqueLink({ uri: `${url.protocol}${url.pathname}` })
-    : Destination.Link({ scheme: url.protocol, host: url.host })
+  return isLoopback(url.hostname)
+    ? Destination.Loopback({ address: url.host })
+    : Destination.Website({ host: url.host })
 }
 
 const IP_LITERAL = /^(\[.*\]|\d+(\.\d+){3})(:\d+)?$/
@@ -57,30 +56,23 @@ const renderHost = (host: string) => {
 }
 
 const WANTS_ACCESS = 'wants to access your plants'
-const LINK_DETAIL =
-  'Your device picks the app that opens this link, and that app may load a website. Lily cannot check which app it is.'
 
 const describeDestination = Destination.$match({
   Website: ({ host }) => ({
     headline: `${renderHost(host)} ${WANTS_ACCESS}`,
-    detail: Option.none<string>(),
+    detail: '',
     handoff: 'Lily will send you on to that website',
   }),
   Loopback: ({ address }) => ({
     headline: `An app on this device ${WANTS_ACCESS}`,
-    detail: Option.some(
-      `It is waiting at <strong>${escapeHtml(address)}</strong>.`
-    ),
+    detail: `<p class="detail">It is waiting at <strong>${escapeHtml(address)}</strong>.</p>`,
     handoff: 'Lily will hand the connection to that app',
   }),
-  Link: ({ scheme, host }) => ({
-    headline: `<span class="host-lead">${escapeHtml(scheme)}//</span>${renderHost(host)} ${WANTS_ACCESS}`,
-    detail: Option.some(LINK_DETAIL),
-    handoff: 'Lily will open that link',
-  }),
-  OpaqueLink: ({ uri }) => ({
-    headline: `<strong>${escapeHtml(uri)}</strong> ${WANTS_ACCESS}`,
-    detail: Option.some(LINK_DETAIL),
+  Link: ({ uri }) => ({
+    headline: `An app ${WANTS_ACCESS}`,
+    detail: `<p class="detail">Lily will open this link:</p>
+    <pre class="link">${escapeHtml(uri)}</pre>
+    <p class="detail">Your device picks the app that opens this link, and that app may load a website. Lily cannot check which app it is.</p>`,
     handoff: 'Lily will open that link',
   }),
 })
@@ -137,6 +129,17 @@ export const consentHandler = Effect.gen(function* () {
     .host-lead { font-weight: 400; color: #777; }
     h1 strong { display: inline-block; }
     .detail { font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .link {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      background: #f5f5f0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
     form { margin-top: 1.5rem; }
     label { display: block; font-weight: 500; font-size: 0.875rem; margin-bottom: 0.5rem; }
     input[type="email"] {
@@ -184,7 +187,7 @@ export const consentHandler = Effect.gen(function* () {
   <div class="card">
     <div class="logo">&#127793;</div>
     <h1>${headline}</h1>
-    ${Option.match(detail, { onNone: () => '', onSome: (line) => `<p class="detail">${line}</p>` })}
+    ${detail}
 
     <form id="login-form" action="/confirm?${escapeHtml(qs.toString())}" method="POST">
       <label for="email">Email address</label>
