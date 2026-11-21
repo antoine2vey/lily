@@ -312,7 +312,10 @@ describe('GET /consent', () => {
 
         expect(status).toBe(200)
         expect(html).toContain('<h1>An app wants to access your plants</h1>')
-        expect(details(html)).toEqual(['Lily will open this link:', WARNING])
+        expect(details(html)).toEqual([
+          'Lily will open this link, which the app chose:',
+          WARNING,
+        ])
         expect(link(html)).toEqual(Option.some(uri))
         expect(handoff(html)).toBe(
           'A magic link will be sent to your email. Click it to connect, and Lily will open that link.'

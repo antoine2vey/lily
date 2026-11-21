@@ -77,7 +77,7 @@ const describeDestination = Destination.$match({
   }),
   Link: ({ uri }) => ({
     headline: `An app ${WANTS_ACCESS}`,
-    detail: `<p class="detail">Lily will open this link:</p>
+    detail: `<p class="detail">Lily will open this link, which the app chose:</p>
     <pre class="link">${escapeHtml(uri)}</pre>
     <p class="detail">Your device picks the app that opens this link, and that app may load a website. Lily cannot check which app it is.</p>`,
     handoff: 'Lily will open that link',
@@ -132,7 +132,7 @@ export const consentHandler = Effect.gen(function* () {
       overflow-wrap: anywhere;
     }
     .logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
-    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
+    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
     .host-lead { font-weight: 400; color: #777; }
     h1 strong { display: inline-block; }
     .detail { font-size: 0.9rem; margin-bottom: 0.5rem; }
@@ -144,8 +144,8 @@ export const consentHandler = Effect.gen(function* () {
       border-radius: 8px;
       padding: 0.75rem;
       margin-bottom: 0.5rem;
-      white-space: pre-wrap;
-      word-break: break-all;
+      white-space: break-spaces;
+      line-break: anywhere;
     }
     form { margin-top: 1.5rem; }
     label { display: block; font-weight: 500; font-size: 0.875rem; margin-bottom: 0.5rem; }
