@@ -190,10 +190,6 @@ export interface IPlantRepository {
   readonly findPhotos: (
     params: FindPhotosParams
   ) => Effect.Effect<FindPhotosResult, SqlError>
-  readonly addPhoto: (
-    plantId: string,
-    url: string
-  ) => Effect.Effect<typeof plantPhotos.$inferSelect | null, SqlError>
   readonly addPhotos: (
     photos: Array<{
       plantId: string
@@ -202,9 +198,6 @@ export interface IPlantRepository {
       uploadedByUserId: string
     }>
   ) => Effect.Effect<Array<typeof plantPhotos.$inferSelect>, SqlError>
-  readonly deletePhoto: (
-    photoId: string
-  ) => Effect.Effect<typeof plantPhotos.$inferSelect | null, SqlError>
   /**
    * The photo `photoId` of the plant, locked until the caller's transaction
    * ends, so who uploaded it cannot change before the caller deletes it.
@@ -771,17 +764,6 @@ export const PlantRepositoryLive = Layer.effect(
         return paginate(items, total, page, limit)
       }),
 
-      addPhoto: Effect.fn('PlantRepository.addPhoto')(function* (
-        plantId: string,
-        url: string
-      ) {
-        const [photo] = yield* db
-          .insert(plantPhotos)
-          .values({ plantId, url })
-          .returning()
-        return pipe(Option.fromNullishOr(photo), Option.getOrNull)
-      }),
-
       addPhotos: Effect.fn('PlantRepository.addPhotos')(function* (
         photos: Array<{
           plantId: string
@@ -792,16 +774,6 @@ export const PlantRepositoryLive = Layer.effect(
       ) {
         const result = yield* db.insert(plantPhotos).values(photos).returning()
         return result
-      }),
-
-      deletePhoto: Effect.fn('PlantRepository.deletePhoto')(function* (
-        photoId: string
-      ) {
-        const [photo] = yield* db
-          .delete(plantPhotos)
-          .where(eq(plantPhotos.id, photoId))
-          .returning()
-        return pipe(Option.fromNullishOr(photo), Option.getOrNull)
       }),
 
       lockPhoto: Effect.fn('PlantRepository.lockPhoto')(function* (

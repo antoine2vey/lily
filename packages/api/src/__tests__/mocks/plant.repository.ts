@@ -351,17 +351,6 @@ export const createMockPlantRepository = (
       return Effect.succeed(paginate(items, total, page, limit))
     },
 
-    addPhoto: (plantId: string, url: string) => {
-      const newPhoto: PhotoRecord = {
-        id: `photo-${crypto.randomUUID()}`,
-        url,
-        takenAt: new Date(),
-        plantId,
-        uploadedByUserId: null,
-      }
-      return Effect.succeed(newPhoto)
-    },
-
     addPhotos: (photosData) =>
       Effect.sync(() => {
         const added = Array.map(photosData, (p) => ({
@@ -374,14 +363,6 @@ export const createMockPlantRepository = (
         photos.push(...added)
         return added
       }),
-
-    deletePhoto: (photoId: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(photos, (p) => p.id === photoId),
-          Option.getOrNull
-        )
-      ),
 
     lockPhoto: (plantId, photoId) =>
       Effect.sync(() =>
