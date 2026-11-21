@@ -53,7 +53,7 @@ const renderHost = (host: string) => {
         Option.getOrElse(() => '')
       )
   const end = pipe(host, String.slice(lead.length))
-  return `${lead === '' ? '' : `<span class="host-lead">${escapeHtml(lead)}</span>`}<strong>${escapeHtml(end)}</strong>`
+  return `${String.isEmpty(lead) ? '' : `<span class="host-lead">${escapeHtml(lead)}</span>`}<strong>${escapeHtml(end)}</strong>`
 }
 
 const WANTS_ACCESS = 'wants to access your plants'
@@ -165,6 +165,7 @@ export const consentHandler = Effect.gen(function* () {
     .logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
     h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
     .host-lead { font-weight: 400; color: #777; }
+    h1 strong { display: inline-block; }
     .detail { font-size: 0.9rem; margin-bottom: 0.5rem; }
     .subtitle { color: #666; font-size: 0.9rem; }
     .subtitle bdi { color: #333; font-weight: 600; }
