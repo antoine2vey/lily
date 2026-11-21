@@ -4,14 +4,20 @@ import { McpServerUrl } from '@lily/mcp/config'
 import { Array, Data, Effect, Option, pipe, String } from 'effect'
 import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
-/** Where the authorization code goes, read from the validated redirect URI. */
+/**
+ * Where the authorization code goes, read from the validated redirect URI.
+ * Only a loopback address is known to be on this device. Any other scheme
+ * is opened by whatever app the device picks, which may load a website.
+ */
 type Destination = Data.TaggedEnum<{
   Website: { readonly host: string }
   Loopback: { readonly address: string }
-  AppScheme: { readonly scheme: string }
+  Link: { readonly scheme: string; readonly host: string }
+  OpaqueLink: { readonly uri: string }
 }>
 const Destination = Data.taggedEnum<Destination>()
 
+const WEB_SCHEMES = new Set(['http:', 'https:'])
 const LOOPBACK_IPV4 = /^127\.\d+\.\d+\.\d+$/
 
 const isLoopback = (hostname: string) =>
@@ -22,14 +28,14 @@ const isLoopback = (hostname: string) =>
 // `host` is the parser's ASCII form, so a lookalike shows as punycode
 const toDestination = (redirectUri: string): Destination => {
   const url = new URL(redirectUri)
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    return Destination.AppScheme({
-      scheme: pipe(url.protocol, String.slice(0, -1)),
-    })
+  if (WEB_SCHEMES.has(url.protocol)) {
+    return isLoopback(url.hostname)
+      ? Destination.Loopback({ address: url.host })
+      : Destination.Website({ host: url.host })
   }
-  return isLoopback(url.hostname)
-    ? Destination.Loopback({ address: url.host })
-    : Destination.Website({ host: url.host })
+  return String.isEmpty(url.host)
+    ? Destination.OpaqueLink({ uri: `${url.protocol}${url.pathname}` })
+    : Destination.Link({ scheme: url.protocol, host: url.host })
 }
 
 const IP_LITERAL = /^(\[.*\]|\d+(\.\d+){3})(:\d+)?$/
@@ -50,28 +56,32 @@ const renderHost = (host: string) => {
   return `${lead === '' ? '' : `<span class="host-lead">${escapeHtml(lead)}</span>`}<strong>${escapeHtml(end)}</strong>`
 }
 
-const DEVICE_HEADLINE = 'An app on this device wants to access your plants'
-const DEVICE_HANDOFF = 'Lily will hand the connection to that app'
+const WANTS_ACCESS = 'wants to access your plants'
+const LINK_DETAIL =
+  'Your device picks the app that opens this link, and that app may load a website. Lily cannot check which app it is.'
 
 const describeDestination = Destination.$match({
   Website: ({ host }) => ({
-    headline: `${renderHost(host)} wants to access your plants`,
+    headline: `${renderHost(host)} ${WANTS_ACCESS}`,
     detail: Option.none<string>(),
     handoff: 'Lily will send you on to that website',
   }),
   Loopback: ({ address }) => ({
-    headline: DEVICE_HEADLINE,
+    headline: `An app on this device ${WANTS_ACCESS}`,
     detail: Option.some(
       `It is waiting at <strong>${escapeHtml(address)}</strong>.`
     ),
-    handoff: DEVICE_HANDOFF,
+    handoff: 'Lily will hand the connection to that app',
   }),
-  AppScheme: ({ scheme }) => ({
-    headline: DEVICE_HEADLINE,
-    detail: Option.some(
-      `It opens <strong>${escapeHtml(scheme)}://</strong> links.`
-    ),
-    handoff: DEVICE_HANDOFF,
+  Link: ({ scheme, host }) => ({
+    headline: `<span class="host-lead">${escapeHtml(scheme)}//</span>${renderHost(host)} ${WANTS_ACCESS}`,
+    detail: Option.some(LINK_DETAIL),
+    handoff: 'Lily will open that link',
+  }),
+  OpaqueLink: ({ uri }) => ({
+    headline: `<strong>${escapeHtml(uri)}</strong> ${WANTS_ACCESS}`,
+    detail: Option.some(LINK_DETAIL),
+    handoff: 'Lily will open that link',
   }),
 })
 
