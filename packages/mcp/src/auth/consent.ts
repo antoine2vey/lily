@@ -75,6 +75,25 @@ const describeDestination = Destination.$match({
   }),
 })
 
+// Registration stores any client_name, so it is cleaned where it is shown
+const INVISIBLE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu
+const MAX_NAME_LENGTH = 60
+
+const displayName = (name: string) => {
+  const visible = pipe(
+    name,
+    String.replace(INVISIBLE, ''),
+    String.replace(/\s+/g, ' '),
+    String.trim
+  )
+  const codePoints = Array.fromIterable(visible)
+  const shown =
+    codePoints.length > MAX_NAME_LENGTH
+      ? `${Array.join(Array.take(codePoints, MAX_NAME_LENGTH), '')}…`
+      : visible
+  return Option.liftPredicate(shown, String.isNonEmpty)
+}
+
 /**
  * Renders the consent/login page for MCP OAuth flow.
  *
@@ -98,10 +117,12 @@ export const consentHandler = Effect.gen(function* () {
   )
   const claimedName = pipe(
     Option.fromNullishOr(client.client_name),
+    Option.flatMap(displayName),
     Option.match({
-      onNone: () => 'This app gave no name.',
+      onNone: () => '<p class="subtitle">This app gave no name.</p>',
       onSome: (name) =>
-        `This app calls itself <strong>${escapeHtml(name)}</strong>. Lily has not verified that name.`,
+        `<p class="subtitle">This app calls itself “<bdi>${escapeHtml(name)}</bdi>”.</p>
+    <p class="unverified">Lily has not verified that name.</p>`,
     })
   )
 
@@ -135,7 +156,9 @@ export const consentHandler = Effect.gen(function* () {
     h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
     .host-lead { font-weight: 400; color: #777; }
     .detail { font-size: 0.9rem; margin-bottom: 0.5rem; }
-    .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .subtitle { color: #666; font-size: 0.9rem; }
+    .subtitle bdi { color: #333; font-weight: 600; }
+    .unverified { color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
     label { display: block; font-weight: 500; font-size: 0.875rem; margin-bottom: 0.5rem; }
     input[type="email"] {
       width: 100%;
@@ -183,7 +206,7 @@ export const consentHandler = Effect.gen(function* () {
     <div class="logo">&#127793;</div>
     <h1>${headline}</h1>
     ${Option.match(detail, { onNone: () => '', onSome: (line) => `<p class="detail">${line}</p>` })}
-    <p class="subtitle">${claimedName}</p>
+    ${claimedName}
 
     <form id="login-form" action="/confirm?${escapeHtml(qs.toString())}" method="POST">
       <label for="email">Email address</label>
