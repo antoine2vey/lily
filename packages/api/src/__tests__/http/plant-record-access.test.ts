@@ -32,7 +32,7 @@ import {
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import type { PlantRole } from '@lily/api/services/plants/helpers/plant-access'
-import { API_PREFIX, CareDay } from '@lily/shared'
+import { API_PREFIX, CareDay, type CareType } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
@@ -112,28 +112,50 @@ const members = [
 
 const disposals: Array<() => Promise<void>> = []
 
-/** Both plants, with one care and one photo that `author` added to `plantId`. */
-const worldWith = (plantId: string, author: string | null) => {
-  const careLogId = crypto.randomUUID()
+interface Cared {
+  readonly careType: CareType
+  readonly day: string
+  readonly by: string | null
+}
+
+/**
+ * Both plants, with one photo that `author` added to `plantId` and the cares
+ * of that plant, latest first. Left out, they are one watering that `author`
+ * performed. `careLogId` names the first of them.
+ */
+const worldWith = (
+  plantId: string,
+  author: string | null,
+  cares: Array.NonEmptyReadonlyArray<Cared> = [
+    { careType: 'watering', day: '2026-11-10', by: author },
+  ]
+) => {
+  const entries = Array.map(cares, (care) => ({
+    ...care,
+    id: crypto.randomUUID(),
+  }))
+  const careLogId = Array.headNonEmpty(entries).id
   const photoId = crypto.randomUUID()
   const careOf = (id: string) =>
     createTestCarePlant(id, {
-      lines: [
-        {
-          careType: 'watering',
+      lines: Array.map(
+        Array.dedupe(Array.map(entries, (entry) => entry.careType)),
+        (careType) => ({
+          careType,
           schedule: Option.none(),
-          history:
-            id === plantId
-              ? [
-                  {
-                    id: careLogId,
-                    day: CareDay.make('2026-11-10'),
-                    by: Option.fromNullishOr(author),
-                  },
-                ]
-              : [],
-        },
-      ],
+          history: Array.map(
+            Array.filter(
+              entries,
+              (entry) => id === plantId && entry.careType === careType
+            ),
+            (entry) => ({
+              id: entry.id,
+              day: CareDay.make(entry.day),
+              by: Option.fromNullishOr(entry.by),
+            })
+          ),
+        })
+      ),
     })
   const care = createInMemoryCare([careOf(personal.id), careOf(shared.id)])
   const web = HttpRouter.toWebHandler(
@@ -201,7 +223,7 @@ const worldWith = (plantId: string, author: string | null) => {
 
   const call = async (
     user: string,
-    method: 'GET' | 'PUT' | 'DELETE',
+    method: 'GET' | 'PUT' | 'PATCH' | 'DELETE',
     path: string,
     body?: unknown
   ) => {
@@ -245,6 +267,9 @@ afterEach(async () => {
 })
 
 const refused = { status: 403, tag: 'PlantNotAuthorizedError' }
+
+const earlier = '2026-11-08T12:00:00.000Z'
+const earliest = '2026-11-03T12:00:00.000Z'
 
 describe('changing a record of a plant over HTTP', () => {
   for (const [role, { user, plant }] of Object.entries(callers) as Array<
@@ -294,6 +319,28 @@ describe('changing a record of a plant over HTTP', () => {
         )
       })
 
+      it(`${verdict} ${role} correct the day of a last care ${described[author]}`, async () => {
+        const { call, careWrites } = world()
+
+        const answer = await call(
+          user,
+          'PATCH',
+          `/plants/${plant}/care-dates`,
+          {
+            lastWateredAt: earlier,
+          }
+        )
+
+        expect({ answer, writes: careWrites() }).toEqual(
+          allowed
+            ? {
+                answer: { status: 200, tag: undefined },
+                writes: ['ReplaceCare'],
+              }
+            : { answer: refused, writes: [] }
+        )
+      })
+
       it(`${verdict} ${role} delete a photo ${described[author]}`, async () => {
         const { call, photoId, photosOf } = world()
 
@@ -311,6 +358,105 @@ describe('changing a record of a plant over HTTP', () => {
       })
     }
   }
+
+  describe.each(['Caretaker', 'CanopyMember'] as const)(
+    'a correction of last cares by %s',
+    (role) => {
+      const { user, plant } = callers[role]
+      const another = authorOf(user).another
+      const path = `/plants/${plant}/care-dates`
+
+      it('records a care that is the first of its type', async () => {
+        const { call, careWrites } = worldWith(plant, another, [
+          { careType: 'fertilization', day: '2026-11-09', by: another },
+        ])
+
+        const answer = await call(user, 'PATCH', path, {
+          lastWateredAt: earlier,
+        })
+
+        expect({ answer, writes: careWrites() }).toEqual({
+          answer: { status: 200, tag: undefined },
+          writes: ['InsertCare'],
+        })
+      })
+
+      it('records nothing when it also names a last care someone else performed', async () => {
+        const { call, careWrites } = worldWith(plant, another, [
+          { careType: 'fertilization', day: '2026-11-09', by: another },
+        ])
+
+        const answer = await call(user, 'PATCH', path, {
+          lastWateredAt: earlier,
+          lastFertilizedAt: earlier,
+        })
+
+        expect({ answer, writes: careWrites() }).toEqual({
+          answer: refused,
+          writes: [],
+        })
+      })
+
+      it('moves neither care when only one of the two it names is their own', async () => {
+        const { call, careWrites } = worldWith(plant, user, [
+          { careType: 'watering', day: '2026-11-10', by: user },
+          { careType: 'fertilization', day: '2026-11-09', by: another },
+        ])
+
+        const answer = await call(user, 'PATCH', path, {
+          lastWateredAt: earlier,
+          lastFertilizedAt: earlier,
+        })
+
+        expect({ answer, writes: careWrites() }).toEqual({
+          answer: refused,
+          writes: [],
+        })
+      })
+
+      it('is answered as an edit of that care is, however often it is sent', async () => {
+        const { call, careLogId, careWrites } = worldWith(plant, another, [
+          { careType: 'watering', day: '2026-11-10', by: another },
+          { careType: 'watering', day: '2026-11-05', by: another },
+        ])
+
+        const answers = [
+          await call(user, 'PUT', `/plants/${plant}/logs/${careLogId}`, {
+            date: earlier,
+          }),
+          await call(user, 'PATCH', path, { lastWateredAt: earlier }),
+          await call(user, 'PATCH', path, { lastWateredAt: earliest }),
+        ]
+
+        expect({ answers, writes: careWrites() }).toEqual({
+          answers: Array.replicate(refused, 3),
+          writes: [],
+        })
+      })
+    }
+  )
+
+  it('lets a keeper correct several last cares at once, whoever performed them', async () => {
+    const { call, careWrites } = worldWith(personal.id, casey, [
+      { careType: 'watering', day: '2026-11-10', by: casey },
+      { careType: 'fertilization', day: '2026-11-09', by: null },
+    ])
+
+    const answer = await call(
+      alex,
+      'PATCH',
+      `/plants/${personal.id}/care-dates`,
+      {
+        lastWateredAt: earlier,
+        lastFertilizedAt: earlier,
+      }
+    )
+
+    expect({ answer, writes: careWrites() }).toEqual({
+      answer: { status: 200, tag: undefined },
+      writes: ['ReplaceCare', 'ReplaceCare'],
+    })
+  })
 
   it('answers someone with no role on the plant as a plant that does not exist', async () => {
     const { call, careLogId, photoId, careWrites, photosOf } = worldWith(
