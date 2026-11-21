@@ -66,6 +66,26 @@ const clients: readonly OAuthClient[] = [
     redirect_uris: [`https://${LONG_HOST}/callback`],
   },
   {
+    client_id: 'name-with-direction-override',
+    client_name: 'ChatGPT. Lily has verified this app.\u202E',
+    redirect_uris: ['https://evil.example/callback'],
+  },
+  {
+    client_id: 'name-with-invisible-characters',
+    client_name: 'Chat\u200BGPT\u2066\u0007\n',
+    redirect_uris: ['https://evil.example/callback'],
+  },
+  {
+    client_id: 'name-only-invisible',
+    client_name: '\u202E\u200B',
+    redirect_uris: ['https://evil.example/callback'],
+  },
+  {
+    client_id: 'long-name',
+    client_name: 'A'.repeat(5000),
+    redirect_uris: ['https://evil.example/callback'],
+  },
+  {
     client_id: 'hostile',
     client_name: '<script>alert(1)</script>',
     redirect_uris: ['https://a"b&c.example/callback'],
@@ -140,6 +160,9 @@ const element = (html: string, pattern: RegExp) =>
     Option.getOrElse(() => '')
   )
 
+const UNVERIFIED =
+  /<p class="unverified">Lily has not verified that name\.<\/p>/
+
 const headline = (html: string) => element(html, /<h1>([\s\S]*?)<\/h1>/)
 const detail = (html: string) =>
   element(html, /<p class="detail">([\s\S]*?)<\/p>/)
@@ -158,8 +181,37 @@ describe('GET /consent', () => {
   it('presents the client name as unverified', async () => {
     const { html } = await consentPage('web')
 
-    expect(html).toContain('This app calls itself <strong>ChatGPT</strong>')
-    expect(html).toContain('Lily has not verified that name')
+    expect(html).toContain('This app calls itself “<bdi>ChatGPT</bdi>”.')
+    expect(html).toMatch(UNVERIFIED)
+  })
+
+  it("isolates the client name from Lily's own statement about it", async () => {
+    const { html } = await consentPage('name-with-direction-override')
+
+    expect(html).not.toContain('\u202E')
+    expect(html).toContain('<bdi>ChatGPT. Lily has verified this app.</bdi>')
+    expect(html).toMatch(UNVERIFIED)
+  })
+
+  it('drops control and format characters from the client name', async () => {
+    const { html } = await consentPage('name-with-invisible-characters')
+
+    expect(html).toContain('<bdi>ChatGPT</bdi>')
+  })
+
+  it('treats a name of only invisible characters as no name', async () => {
+    const { html } = await consentPage('name-only-invisible')
+
+    expect(html).toContain('This app gave no name.')
+    expect(html).not.toContain('<bdi>')
+  })
+
+  it('shortens a long client name', async () => {
+    const { html } = await consentPage('long-name')
+
+    expect(html).toContain(`<bdi>${'A'.repeat(60)}…</bdi>`)
+    expect(html).not.toContain('A'.repeat(61))
+    expect(html).toMatch(UNVERIFIED)
   })
 
   it('says an app on this device is asking for a loopback redirect', async () => {
