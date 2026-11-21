@@ -1,7 +1,7 @@
 import { parseAuthorizationRequest } from '@lily/mcp/auth/authorization-request'
 import { errorPage, escapeHtml } from '@lily/mcp/auth/html'
 import { McpServerUrl } from '@lily/mcp/config'
-import { Data, Effect, Option, pipe, String } from 'effect'
+import { Array, Data, Effect, Option, pipe, String } from 'effect'
 import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 /** Where the authorization code goes, read from the validated redirect URI. */
@@ -32,14 +32,32 @@ const toDestination = (redirectUri: string): Destination => {
     : Destination.Website({ host: url.host })
 }
 
+const IP_LITERAL = /^(\[.*\]|\d+(\.\d+){3})(:\d+)?$/
+const LAST_TWO_LABELS = /^(.*?)((?:[^.]+\.)?[^.]+\.?(?::\d+)?)$/
+
+// Without a public suffix list the owner's domain is unknown, but it always
+// ends the host, so the last two labels get the weight and the rest is muted
+const renderHost = (host: string) => {
+  const lead = IP_LITERAL.test(host)
+    ? ''
+    : pipe(
+        host,
+        String.match(LAST_TWO_LABELS),
+        Option.flatMap((match) => Array.get(match, 1)),
+        Option.getOrElse(() => '')
+      )
+  const end = pipe(host, String.slice(lead.length))
+  return `${lead === '' ? '' : `<span class="host-lead">${escapeHtml(lead)}</span>`}<strong>${escapeHtml(end)}</strong>`
+}
+
 const DEVICE_HEADLINE = 'An app on this device wants to access your plants'
 const DEVICE_HANDOFF = 'Lily will hand the connection to that app'
 
 const describeDestination = Destination.$match({
   Website: ({ host }) => ({
-    headline: `<strong>${escapeHtml(host)}</strong> wants to access your plants`,
+    headline: `${renderHost(host)} wants to access your plants`,
     detail: Option.none<string>(),
-    handoff: `Lily will send you on to ${escapeHtml(host)}`,
+    handoff: 'Lily will send you on to that website',
   }),
   Loopback: ({ address }) => ({
     headline: DEVICE_HEADLINE,
@@ -111,9 +129,11 @@ export const consentHandler = Effect.gen(function* () {
       max-width: 420px;
       width: 100%;
       box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      overflow-wrap: anywhere;
     }
     .logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
     h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .host-lead { font-weight: 400; color: #777; }
     .detail { font-size: 0.9rem; margin-bottom: 0.5rem; }
     .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
     label { display: block; font-weight: 500; font-size: 0.875rem; margin-bottom: 0.5rem; }
