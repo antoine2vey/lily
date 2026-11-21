@@ -194,7 +194,12 @@ export interface IPlantRepository {
     url: string
   ) => Effect.Effect<typeof plantPhotos.$inferSelect | null, SqlError>
   readonly addPhotos: (
-    photos: Array<{ plantId: string; url: string; takenAt: Date }>
+    photos: Array<{
+      plantId: string
+      url: string
+      takenAt: Date
+      uploadedByUserId: string
+    }>
   ) => Effect.Effect<Array<typeof plantPhotos.$inferSelect>, SqlError>
   readonly deletePhoto: (
     photoId: string
@@ -765,7 +770,12 @@ export const PlantRepositoryLive = Layer.effect(
       }),
 
       addPhotos: Effect.fn('PlantRepository.addPhotos')(function* (
-        photos: Array<{ plantId: string; url: string; takenAt: Date }>
+        photos: Array<{
+          plantId: string
+          url: string
+          takenAt: Date
+          uploadedByUserId: string
+        }>
       ) {
         const result = yield* db.insert(plantPhotos).values(photos).returning()
         return result

@@ -27,6 +27,7 @@ export interface Schedule {
 export interface CareEntry {
   readonly id: string
   readonly day: CareDay
+  readonly by: Option.Option<string>
 }
 
 export interface CareLine {

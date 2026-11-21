@@ -246,7 +246,10 @@ export const createInMemoryCare = (
       update(w.plantId, (plant) =>
         withLine(plant, w.careType, (line) => ({
           ...line,
-          history: latestFirst([...line.history, { id: w.id, day: w.day }]),
+          history: latestFirst([
+            ...line.history,
+            { id: w.id, day: w.day, by: w.by },
+          ]),
         }))
       ),
     ReplaceCare: (w) =>

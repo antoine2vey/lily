@@ -46,7 +46,11 @@ const line = (
           dueDay: day(options.dueDay ?? '2026-11-12'),
           startedOn: day('2026-10-01'),
         }),
-  history: Array.map(options.history ?? [], ([id, d]) => ({ id, day: day(d) })),
+  history: Array.map(options.history ?? [], ([id, d]) => ({
+    id,
+    day: day(d),
+    by: Option.some('user-1'),
+  })),
 })
 
 const plant = (
@@ -672,7 +676,10 @@ describe('any sequence of care commands', () => {
       if (write._tag === 'InsertCare') {
         return {
           ...acc,
-          history: [...acc.history, { id: write.id, day: write.day }],
+          history: [
+            ...acc.history,
+            { id: write.id, day: write.day, by: write.by },
+          ],
         }
       }
       if (write._tag === 'ReplaceCare') {

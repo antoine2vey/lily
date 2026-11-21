@@ -385,7 +385,7 @@ export const recordCare = (
     const after: CareLine = {
       ...line,
       history: Array.sort(
-        Array.append(line.history, { id: env.newCareLogId, day }),
+        Array.append(line.history, { id: env.newCareLogId, day, by: env.by }),
         latestFirst
       ),
     }
