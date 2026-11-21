@@ -4,7 +4,15 @@ import {
   OAuthRepository,
 } from '@lily/mcp/auth/oauth-repository'
 import { OAuthServiceLive } from '@lily/mcp/auth/oauth-service'
-import { Array, ConfigProvider, Effect, Layer, Option } from 'effect'
+import {
+  Array,
+  ConfigProvider,
+  Effect,
+  Layer,
+  Option,
+  pipe,
+  String,
+} from 'effect'
 import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { describe, expect, it } from 'vitest'
 
@@ -30,6 +38,26 @@ const clients: readonly OAuthClient[] = [
     client_id: 'lookalike',
     client_name: 'ChatGPT',
     redirect_uris: ['https://сhatgpt.com/callback'],
+  },
+  {
+    client_id: 'web-port',
+    client_name: 'ChatGPT',
+    redirect_uris: ['https://chatgpt.com:8443/callback'],
+  },
+  {
+    client_id: 'loopback-ipv4',
+    client_name: 'MCP Inspector',
+    redirect_uris: ['http://127.0.0.1:8080/callback'],
+  },
+  {
+    client_id: 'localhost-subdomain',
+    client_name: 'MCP Inspector',
+    redirect_uris: ['http://localhost.evil.example/callback'],
+  },
+  {
+    client_id: '127-subdomain',
+    client_name: 'MCP Inspector',
+    redirect_uris: ['http://127.evil.example/callback'],
   },
   {
     client_id: 'hostile',
@@ -89,6 +117,27 @@ const consentPage = async (
   }
 }
 
+const visibleText = (fragment: string) =>
+  pipe(
+    fragment,
+    String.replace(/<[^>]+>/g, ''),
+    String.replace(/\s+/g, ' '),
+    String.trim
+  )
+
+const element = (html: string, pattern: RegExp) =>
+  pipe(
+    html,
+    String.match(pattern),
+    Option.flatMap((match) => Array.get(match, 1)),
+    Option.map(visibleText),
+    Option.getOrElse(() => '')
+  )
+
+const headline = (html: string) => element(html, /<h1>([\s\S]*?)<\/h1>/)
+const detail = (html: string) =>
+  element(html, /<p class="detail">([\s\S]*?)<\/p>/)
+
 describe('GET /consent', () => {
   it('names the website the authorization goes to', async () => {
     const { status, html } = await consentPage('web')
@@ -114,6 +163,34 @@ describe('GET /consent', () => {
     expect(html).toContain('An app on this device wants to access your plants')
     expect(html).toContain('localhost:6274')
   })
+
+  it('shows the port of a website', async () => {
+    const { html } = await consentPage('web-port')
+
+    expect(headline(html)).toBe('chatgpt.com:8443 wants to access your plants')
+  })
+
+  it('treats a 127.0.0.0/8 address as this device and shows its port', async () => {
+    const { html } = await consentPage('loopback-ipv4')
+
+    expect(headline(html)).toBe(
+      'An app on this device wants to access your plants'
+    )
+    expect(detail(html)).toContain('127.0.0.1:8080')
+  })
+
+  it.each([
+    ['localhost-subdomain', 'localhost.evil.example'],
+    ['127-subdomain', '127.evil.example'],
+  ])(
+    'treats %s as a website and shows its whole host',
+    async (clientId, host) => {
+      const { html } = await consentPage(clientId)
+
+      expect(headline(html)).toBe(`${host} wants to access your plants`)
+      expect(html).not.toContain('on this device')
+    }
+  )
 
   it('says an app on this device is asking for an app-scheme redirect', async () => {
     const { status, html } = await consentPage('app')
