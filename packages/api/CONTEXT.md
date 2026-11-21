@@ -17,6 +17,10 @@ Care covers plants and their life, their care schedules, the care history, care 
 | **Living plant** | A plant that has not died. Only living plants have due cares, reminders and a health status. | "active plant" |
 | **Dead plant** | A plant with a death date, cause and optional note. It sits in its owner's **cemetery**. Its care history stays readable. It has no due cares and gets no reminders. | "archived", "deleted" |
 | **Care context** | The timezone and weather location that apply to a plant. It comes from the plant's owner: the user's settings for a user-owned plant, the canopy's settings for a canopy-owned plant. | "user timezone" for a plant-level calculation |
+| **Record** | A care or a photo that someone added to a plant. | "entry", "log" for a photo |
+| **Author** | The user who added a record. For a care it is who performed it, and for a photo it is who uploaded it. A care whose author's account is gone and a photo uploaded before authors were stored have no known author. | "owner" of a record |
+| **Keeper** | A user who may remove the plant: the owner of a personal plant, the canopy owner, and the sharer of a canopy plant while they are a member. | "admin" |
+| **Curate** | Change or remove a record that someone else added. Only a keeper curates. | "moderate" |
 
 ### Time
 
@@ -56,6 +60,7 @@ Every schedule of a living plant has exactly one status, derived from its due da
 4. **A dead plant takes part in nothing.** Rules 1 and 2, statuses and reminders apply to living plants only. A dead plant accepts no new care, no correction, no schedule change, no due-day move, no new care plan and no change to a plan. Its past cares can still be edited or removed, and its plans can still be deleted.
 5. **A care closes a plan step.** A care recorded outside a plan ticks the earliest open step of that care type among the plant's accepted plans, oldest plan first.
 6. **A plan is answered once.** Only a proposed plan can be accepted or dismissed. A second answer is refused and moves nothing.
+7. **A record answers to its author and to a keeper.** Everyone with a role on a plant adds records, and edits or removes the records they authored. Editing or removing any other record is curating, and a record with no known author is nobody's own. A caretaker and a canopy member who is not the sharer are refused. This covers an edit and a removal of one care, and the removal of one photo. A correction of the last care is not covered. It still moves the day of a care someone else performed.
 
 ### Health
 
