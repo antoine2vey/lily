@@ -36,7 +36,9 @@ export const confirmHandler = Effect.gen(function* () {
     )
   }
 
-  const authorization = yield* parseAuthorizationRequest(url.searchParams)
+  const { request: authorization } = yield* parseAuthorizationRequest(
+    url.searchParams
+  )
   const secret = yield* PendingSecret
   const pending: PendingAuthorization = {
     ...authorization,

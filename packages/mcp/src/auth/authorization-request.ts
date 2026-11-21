@@ -16,7 +16,8 @@ const reject = (error: string, description: string) =>
 
 /**
  * Validates the OAuth authorization parameters a client sent, before any
- * side effect (email, magic link, authorization code) depends on them.
+ * side effect (consent page, email, magic link, authorization code) depends
+ * on them. Returns the registered client with the request.
  */
 export const parseAuthorizationRequest = (params: URLSearchParams) =>
   Effect.gen(function* () {
@@ -79,5 +80,5 @@ export const parseAuthorizationRequest = (params: URLSearchParams) =>
       ...(state != null ? { state } : {}),
       ...(resource != null ? { resource } : {}),
     }
-    return request
+    return { client, request }
   })
