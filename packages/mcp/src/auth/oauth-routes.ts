@@ -1,10 +1,11 @@
+import { parseAuthorizationRequest } from '@lily/mcp/auth/authorization-request'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { refreshApiJwtIfNeeded } from '@lily/mcp/auth/resolve-user'
 import { SCOPES_SUPPORTED } from '@lily/mcp/auth/scopes'
 import { McpServerUrl } from '@lily/mcp/config'
 import { clientIp } from '@lily/shared/services/http/client-ip'
-import { Array, Effect, Layer, Option, Schema } from 'effect'
+import { Effect, Layer, Schema } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 // ── Validation Schema ─────────────────────────────────────────────────
@@ -165,57 +166,20 @@ export const OAuthRoutes = Layer.mergeAll(
       const serverUrl = yield* McpServerUrl
       const url = new URL(request.url, serverUrl)
       const params = url.searchParams
-      const oauthService = yield* OAuthService
-
-      const clientId = params.get('client_id')
-      if (!clientId) {
-        return yield* errorResponse('invalid_request', 'Missing client_id')
-      }
-
-      const maybeClient = yield* oauthService.getClient(clientId)
-      if (Option.isNone(maybeClient)) {
-        return yield* errorResponse('invalid_request', 'Unknown client')
-      }
-      const client = maybeClient.value
-
-      const redirectUri = params.get('redirect_uri')
-      if (!redirectUri) {
-        return yield* errorResponse('invalid_request', 'Missing redirect_uri')
-      }
-
-      if (
-        !Array.some(
-          client.redirect_uris as string[],
-          (uri) => uri === redirectUri
-        )
-      ) {
-        return yield* errorResponse(
-          'invalid_request',
-          'redirect_uri not registered for this client'
-        )
-      }
+      yield* parseAuthorizationRequest(params)
 
       const consentUrl = new URL(`${serverUrl}/consent`)
-      for (const [key, value] of params.entries()) {
-        consentUrl.searchParams.set(key, value)
-      }
-      if (client.client_name) {
-        consentUrl.searchParams.set('client_name', client.client_name)
-      }
-      if (client.client_uri) {
-        consentUrl.searchParams.set('client_uri', client.client_uri)
-      }
-      if (client.logo_uri) {
-        consentUrl.searchParams.set('logo_uri', client.logo_uri)
-      }
+      consentUrl.search = params.toString()
 
       return HttpServerResponse.redirect(consentUrl.toString(), {
         status: 302,
       })
     }).pipe(
-      Effect.catchTag('SqlError', () =>
-        errorResponse('server_error', 'An internal error occurred', 500)
-      )
+      Effect.catchTags({
+        OAuthError: (err) => errorResponse(err.error, err.error_description),
+        SqlError: () =>
+          errorResponse('server_error', 'An internal error occurred', 500),
+      })
     )
   ),
 
