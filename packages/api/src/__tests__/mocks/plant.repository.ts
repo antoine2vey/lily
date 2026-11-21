@@ -383,7 +383,17 @@ export const createMockPlantRepository = (
         )
       ),
 
-    deletePhotoByPlantId: () => Effect.void,
+    deletePhotoByPlantId: (plantId, photoId) =>
+      Effect.sync(() => {
+        photos.splice(
+          0,
+          photos.length,
+          ...Array.filter(
+            photos,
+            (p) => !(p.id === photoId && p.plantId === plantId)
+          )
+        )
+      }),
   }
 
   return Layer.succeed(PlantRepository, repo)
