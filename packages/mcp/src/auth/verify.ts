@@ -1,4 +1,5 @@
 import { ApiClient } from '@lily/mcp/api-client'
+import { errorPage } from '@lily/mcp/auth/html'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthError, OAuthService } from '@lily/mcp/auth/oauth-service'
 import {
@@ -11,26 +12,8 @@ import { McpServerUrl } from '@lily/mcp/config'
 import { DateTime, Effect, Option } from 'effect'
 import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
-const escapeHtml = (s: string) =>
-  s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-
 const errorHtml = (message: string) =>
-  HttpServerResponse.text(
-    `<html><body style="font-family:sans-serif;padding:2rem;text-align:center">
-      <h2>Authentication failed</h2>
-      <p>${escapeHtml(message)}</p>
-      <p>Please close this window and try again.</p>
-    </body></html>`,
-    {
-      status: 400,
-      contentType: 'text/html',
-    }
-  )
+  errorPage('Authentication failed', message)
 
 const SAME_BROWSER_MESSAGE =
   'This link must be opened in the same browser where you started connecting. Go back to that browser and request a new link.'
