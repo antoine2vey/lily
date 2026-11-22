@@ -3,7 +3,7 @@ import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.rep
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import {
   ACCESS_TOKEN_EXPIRY_SECONDS,
-  REFRESH_TOKEN_EXPIRY_MS,
+  REFRESH_TOKEN_EXPIRY,
 } from '@lily/api/services/auth/constants'
 import { JWTService } from '@lily/api/services/jwt/service'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
@@ -11,7 +11,7 @@ import { users } from '@lily/db/schema/users'
 import { AuthError, nowAsDate } from '@lily/shared'
 import type { AuthResponse } from '@lily/shared/auth'
 import { eq } from 'drizzle-orm'
-import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -90,10 +90,7 @@ export const issueServiceToken = (input: {
     const refreshToken = yield* jwtService.generateRefreshToken
     const refreshTokenHash = yield* jwtService.hashRefreshToken(refreshToken)
     const refreshTokenExpiry = DateTime.toDateUtc(
-      DateTime.addDuration(
-        DateTime.nowUnsafe(),
-        Duration.millis(REFRESH_TOKEN_EXPIRY_MS)
-      )
+      DateTime.addDuration(DateTime.nowUnsafe(), REFRESH_TOKEN_EXPIRY)
     )
 
     yield* refreshTokenRepo.create(

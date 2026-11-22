@@ -1,7 +1,8 @@
+import { Duration } from 'effect'
+
 // Access token expiry in seconds for response
 export const ACCESS_TOKEN_EXPIRY_SECONDS = 15 * 60
-// Refresh token expiry: 30 days
-export const REFRESH_TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000
+export const REFRESH_TOKEN_EXPIRY = Duration.days(30)
 // Rotation grace window: a rotated (revoked) refresh token stays usable for
 // this long so a concurrent/duplicate refresh, or a client killed between the
 // server rotating and the device persisting the new pair, doesn't hard-logout

@@ -1,4 +1,4 @@
-import { DateTime, Option, pipe } from 'effect'
+import { DateTime, Duration, Option, pipe } from 'effect'
 
 /**
  * Valid date input types from API or database.
@@ -175,7 +175,9 @@ export const endOfMonthAsDate = (): Date => {
  * @returns Date that many days in the past
  */
 export const daysAgoAsDate = (days: number): Date =>
-  DateTime.toDateUtc(DateTime.subtract(DateTime.nowUnsafe(), { days }))
+  DateTime.toDateUtc(
+    DateTime.subtractDuration(DateTime.nowUnsafe(), Duration.days(days))
+  )
 
 /**
  * Get date in the past by subtracting hours.

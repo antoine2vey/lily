@@ -9,7 +9,7 @@ import {
   buildLiveActivitySubheadline,
   buildLiveActivityTitle,
 } from '@lily/api/services/notification-scheduler/translations'
-import type { CareType } from '@lily/shared'
+import { CareDay, CareDays, type CareType } from '@lily/shared'
 import type {
   CareGroupContent,
   LiveActivityContentState,
@@ -19,6 +19,8 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 // v3 adds server-rendered `title` + per-group `label` (widget can't reach i18next).
 const LIVE_ACTIVITY_SCHEMA_VERSION = 3
+
+const EPOCH_DAY = CareDay.make('1970-01-01')
 
 export const buildLiveActivityContentState = (
   userId: string
@@ -80,7 +82,10 @@ export const buildLiveActivityContentState = (
 
     // Day-stable seed: rotates the lock-screen title once per day rather than
     // on every activity update (which would flicker the bold first line).
-    const titleSeed = Math.floor(DateTime.toEpochMillis(now) / 86_400_000)
+    const titleSeed = CareDays.daysBetween(
+      EPOCH_DAY,
+      CareDays.today(timezone, now)
+    )
     const title = buildLiveActivityTitle(language, titleSeed)
     const headline = buildLiveActivityHeadline(totalPlants, language)
     const subheadline = buildLiveActivitySubheadline(groups, language)

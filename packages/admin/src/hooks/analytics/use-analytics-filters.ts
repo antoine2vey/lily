@@ -1,4 +1,4 @@
-import { DateTime, Option, pipe } from 'effect'
+import { DateTime, Duration, Option, pipe } from 'effect'
 import { useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 
@@ -54,7 +54,7 @@ export const resolvePresetRange = (
   const now = DateTime.nowUnsafe()
   return {
     from: DateTime.formatIso(
-      DateTime.subtract(now, { days: PRESET_DAYS[preset] })
+      DateTime.subtractDuration(now, Duration.days(PRESET_DAYS[preset]))
     ),
     to: DateTime.formatIso(now),
   }

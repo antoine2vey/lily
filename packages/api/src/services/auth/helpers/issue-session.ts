@@ -1,12 +1,12 @@
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import {
   ACCESS_TOKEN_EXPIRY_SECONDS,
-  REFRESH_TOKEN_EXPIRY_MS,
+  REFRESH_TOKEN_EXPIRY,
 } from '@lily/api/services/auth/constants'
 import { JWTService } from '@lily/api/services/jwt/service'
 import type { users } from '@lily/db/schema'
 import { AuthError } from '@lily/shared'
-import { DateTime, Duration, Effect } from 'effect'
+import { DateTime, Effect } from 'effect'
 
 type UserRow = typeof users.$inferSelect
 
@@ -30,10 +30,7 @@ export const issueSession = (user: UserRow) =>
     const refreshToken = yield* jwtService.generateRefreshToken
     const refreshTokenHash = yield* jwtService.hashRefreshToken(refreshToken)
     const refreshTokenExpiry = DateTime.toDateUtc(
-      DateTime.addDuration(
-        DateTime.nowUnsafe(),
-        Duration.millis(REFRESH_TOKEN_EXPIRY_MS)
-      )
+      DateTime.addDuration(DateTime.nowUnsafe(), REFRESH_TOKEN_EXPIRY)
     )
 
     yield* refreshTokenRepo.create(
