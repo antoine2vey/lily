@@ -29,7 +29,10 @@
     "production": {
       "channel": "production",
       "autoIncrement": true,
-      "bun": "1.4.3"
+      "bun": "1.4.3",
+      "android": {
+        "gradleCommand": ":app:bundleRelease --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process"
+      }
     }
   },
   "submit": {

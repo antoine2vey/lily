@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual trigger to build Android alone. A new tag also starts the iOS build.
+  workflow_dispatch:
 
 jobs:
   build:
