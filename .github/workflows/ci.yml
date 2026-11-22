@@ -106,6 +106,8 @@ jobs:
           bun-version: '1.4.3'
       - name: Check the OTA publish decision
         run: bash scripts/test-ota-should-publish.sh
+      - name: Check the replay harness
+        run: bash scripts/test-replay-check.sh
 
   integration:
     name: Integration tests (${{ matrix.shard }}/4)
