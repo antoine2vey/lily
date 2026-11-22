@@ -112,7 +112,7 @@ Remove the old volumes once you no longer need them. `docker volume ls --filter 
 | `bun run tsc:build` | Exercise the full TypeScript project-reference build graph |
 | `bun run clean` | Remove build artifacts across all packages |
 
-Git hooks. `pre-commit` runs `lint:fix` and re-stages the files you had staged. `pre-push` runs `scripts/check-docs.sh`, `lint`, `tsc`, then `test`.
+Git hooks. `pre-commit` runs `lint:fix` and re-stages the files you had staged. `pre-push` runs `scripts/check-docs.sh`, `scripts/check-migrations.sh`, `lint`, `tsc`, then `test`.
 
 ## Architecture
 
