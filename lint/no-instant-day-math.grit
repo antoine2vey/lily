@@ -1,0 +1,28 @@
+// A local day lasts 23, 24 or 25 hours, so a day counted on an instant lands on
+// the wrong date across a clock change. biome.json skips two places. Tests place
+// instants by elapsed time from a fixed clock. care-day.ts counts on UTC
+// midnights, where every day lasts 24 hours. DateTime.add on a zoned value moves
+// its wall-clock date, so such a site takes a biome-ignore that says it is zoned.
+language js
+
+or {
+  `86400000`,
+  `86_400_000`,
+  `864e5`,
+  `$k * 60 * 60 * 1000` where { $k <: or { `24`, `$_ * 24` } },
+  `1000 * 60 * 60 * 24`,
+  `$x.getTime() + $n`,
+  `$x.getTime() - $n` where { $n <: not `$_.getTime()` },
+  `DateTime.$op($args)` where {
+    $op <: or { `add`, `subtract` },
+    $args <: contains or {
+      JsPropertyObjectMember(name = $key),
+      JsShorthandPropertyObjectMember(name = $key)
+    } where { $key <: r"days|weeks|months" }
+  }
+} as $hit where {
+  register_diagnostic(
+    span = $hit,
+    message = "A calendar day is not 24 hours. Use CareDays.addDays(day, n) from @lily/shared, or Duration.days(n) for elapsed time."
+  )
+}

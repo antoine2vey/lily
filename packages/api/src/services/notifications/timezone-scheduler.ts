@@ -247,7 +247,8 @@ export const adjustForDoNotDisturb = (
       startMinutes > endMinutes && scheduledMinutes >= startMinutes
 
     const endDay = needsNextDay
-      ? DateTime.add(scheduledDateTime, { days: 1 })
+      ? // biome-ignore lint/plugin/no-instant-day-math: scheduledDateTime is zoned, so adding a day moves its wall-clock date.
+        DateTime.add(scheduledDateTime, { days: 1 })
       : scheduledDateTime
 
     const adjusted = pipe(
