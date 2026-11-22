@@ -1,12 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { formatShortDate, nowAsDate, parseApiDate } from '@lily/shared'
-import { Calendar, toDateId } from '@marceloterreiro/flash-calendar'
-import { Option, pipe } from 'effect'
+import { CareDays, formatShortDate, parseApiDate } from '@lily/shared'
+import { Calendar } from '@marceloterreiro/flash-calendar'
+import { DateTime, Option, pipe } from 'effect'
 import { useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { useCalendarTheme } from '@/hooks/useCalendarTheme'
 import { useIconColors } from '@/hooks/useIconColors'
+import { getDeviceTimezone } from '@/utils/notifications'
 
 interface DateRangePickerProps {
   startDate: string | null
@@ -28,9 +29,10 @@ export function DateRangePicker({
   const calendarTheme = useCalendarTheme()
   const isSelectingEnd = useRef(false)
 
-  const today = nowAsDate()
-  const tomorrow = new Date(today.getTime() + 86400000)
-  const tomorrowId = toDateId(tomorrow)
+  const tomorrowId = CareDays.addDays(
+    CareDays.today(getDeviceTimezone(), DateTime.nowUnsafe()),
+    1
+  )
 
   const calendarActiveDateRanges = pipe(
     Option.fromNullishOr(startDate),
