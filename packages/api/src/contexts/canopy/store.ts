@@ -720,7 +720,7 @@ export const CanopyStoreLive = Layer.effect(
               .set({ status: w.to, resolvedAt: DateTime.toDateUtc(w.at) })
               .where(eq(canopyDirectInvites.id, w.id))
           ),
-        WithdrawInvitationsSentBy: (w) =>
+        WithdrawInvitationsSentByOrTo: (w) =>
           Effect.asVoid(
             db
               .update(canopyDirectInvites)
@@ -731,7 +731,10 @@ export const CanopyStoreLive = Layer.effect(
               .where(
                 and(
                   eq(canopyDirectInvites.canopyId, w.canopyId),
-                  eq(canopyDirectInvites.invitedByUserId, w.userId),
+                  or(
+                    eq(canopyDirectInvites.invitedByUserId, w.userId),
+                    eq(canopyDirectInvites.inviteeUserId, w.userId)
+                  ),
                   eq(canopyDirectInvites.status, 'pending')
                 )
               )

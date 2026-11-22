@@ -1,4 +1,10 @@
-import { leave, settled } from '@lily/api/__tests__/integration/canopy-layers'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import {
+  dissolve,
+  leave,
+  leaveForDeletion,
+  settled,
+} from '@lily/api/__tests__/integration/canopy-layers'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -6,7 +12,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
-import { Canopy } from '@lily/api/contexts/canopy'
+import { Canopy, JoinVia } from '@lily/api/contexts/canopy'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import {
@@ -21,6 +27,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { acceptCanopyInvitation } from '@lily/api/services/canopy/endpoints/accept-canopy-invitation'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { CanopyInviteNotFoundError } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Exit, Layer } from 'effect'
@@ -203,6 +210,52 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ['pending']
       )
     })
+
+    it.each<[string, () => Effect.Effect<unknown, unknown, Canopy>]>([
+      [
+        'the canopy owner removes them',
+        () =>
+          Effect.flatMap(Canopy, (canopy) =>
+            canopy.removeMember({ by: alexId, target: lilyId })
+          ),
+      ],
+      ['they leave', () => leave(lilyId)],
+      [
+        'they leave for the deletion of their account',
+        () => leaveForDeletion(lilyId)(Effect.void),
+      ],
+      ['the canopy is dissolved', () => dissolve(alexId)],
+    ])(
+      'answers CanopyInviteNotFoundError to the invitation a member never spent, once %s',
+      async (_, ending) => {
+        const { id } = await invite(lilyId, samId)
+        await run(
+          Effect.flatMap(Canopy, (canopy) =>
+            Effect.flatMap(canopy.createLink({ by: alexId }), ({ token }) =>
+              canopy.join({ joiner: lilyId, via: JoinVia.Link({ token }) })
+            )
+          )
+        )
+        await run(ending())
+
+        const accepted = await Effect.runPromiseExit(
+          Effect.flatMap(Canopy, (canopy) =>
+            canopy.join({
+              joiner: lilyId,
+              via: JoinVia.Invitation({ invitationId: id }),
+            })
+          ).pipe(settled, Effect.provide(AppLive))
+        )
+
+        expect(failureOf(accepted)).toEqual(new CanopyInviteNotFoundError())
+        expect(
+          await db
+            .select({ userId: schema.canopyMembers.userId })
+            .from(schema.canopyMembers)
+            .where(eq(schema.canopyMembers.userId, lilyId))
+        ).toEqual([])
+      }
+    )
 
     it('admits the invitee once when they accept twice at the same time', async () => {
       const { id } = await invite(lilyId, samId)

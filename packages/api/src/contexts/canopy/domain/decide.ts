@@ -106,7 +106,7 @@ export type CanopyWrite = Data.TaggedEnum<{
     readonly to: Exclude<CanopyInvitationStatus, 'pending'>
     readonly at: DateTime.Utc
   }
-  WithdrawInvitationsSentBy: {
+  WithdrawInvitationsSentByOrTo: {
     readonly canopyId: CanopyId
     readonly userId: string
     readonly at: DateTime.Utc
@@ -892,7 +892,7 @@ const departure = (
     writes: [
       ...returned.writes,
       CanopyWrite.RemoveMember({ canopyId: canopy.id, userId: leaver }),
-      CanopyWrite.WithdrawInvitationsSentBy({
+      CanopyWrite.WithdrawInvitationsSentByOrTo({
         canopyId: canopy.id,
         userId: leaver,
         at: now,

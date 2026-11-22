@@ -475,11 +475,12 @@ export const createInMemoryCanopy = (
           })
         })
       ),
-      WithdrawInvitationsSentBy: change((w) =>
+      WithdrawInvitationsSentByOrTo: change((w) =>
         Array.forEach(data.invitations, (row) => {
           if (
             row.canopyId !== w.canopyId ||
-            row.invitedByUserId !== w.userId ||
+            (row.invitedByUserId !== w.userId &&
+              row.inviteeUserId !== w.userId) ||
             row.status !== 'pending'
           ) {
             return

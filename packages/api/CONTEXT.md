@@ -150,7 +150,7 @@ Canopy publishes seven facts on the outbox topic `canopy`, in the transaction of
 4. **Who may unshare.** The sharer of a canopy plant may unshare it. The canopy owner may once the sharer is no longer a member.
 5. **Give-back.** A member who leaves or is removed gets back the plants they shared. When the canopy is dissolved, every member but the heir gets theirs back. A member whose account is deleted leaves their plants in the canopy.
 6. **Limits.** A share asks the canopy's plant limit and an unshare asks the member's. A give-back and the heir's part ask no limit.
-7. **Invitations.** Any member invites an account that is active and not being deleted. Inviting again while the invitation is open, or within 7 days of the invitee declining, succeeds and sends nothing. The sender or the canopy owner withdraws it, and only the invitee accepts or declines it. An invitation is accepted or declined, never both.
+7. **Invitations.** Any member invites an account that is active and not being deleted. Inviting again while the invitation is open, or within 7 days of the invitee declining, succeeds and sends nothing. The sender or the canopy owner withdraws it, and only the invitee accepts or declines it. An invitation is accepted or declined, never both. When a membership ends and the canopy goes on, Canopy withdraws the pending invitations the former member sent and the pending invitations addressed to that member. A member holds a pending invitation when they joined through the link instead.
 
 ## Absence
 
