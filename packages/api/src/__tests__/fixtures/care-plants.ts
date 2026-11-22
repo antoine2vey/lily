@@ -25,6 +25,7 @@ export const createTestCareLine = (
   history: Array.map(overrides.caredOn ?? [], (day, index) => ({
     id: `care-${careType}-${index}`,
     day: CareDay.make(day),
+    by: Option.some('user-1'),
   })),
 })
 

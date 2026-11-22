@@ -40,6 +40,7 @@ export const uploadPlantPhoto = ({
         plantId,
         url,
         takenAt: nowAsDate(),
+        uploadedByUserId: userId,
       }))
     )
 

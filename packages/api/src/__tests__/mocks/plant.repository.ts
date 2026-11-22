@@ -16,7 +16,7 @@ import {
   type PlantWithRoom,
   seeCareWithLastDays,
 } from '@lily/api/repositories/plant.repository'
-import type { plants } from '@lily/db/schema'
+import type { plantPhotos, plants } from '@lily/db/schema'
 import {
   CareDay,
   type Orientation,
@@ -27,6 +27,7 @@ import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
+type PhotoRecord = typeof plantPhotos.$inferSelect
 
 interface MockRoom {
   id: string
@@ -45,7 +46,9 @@ export interface MockCaretakingPlant {
 interface MockPlantRepositoryData {
   plants: PlantRecord[]
   sharesPlantsArray?: boolean
-  photos?: PlantPhoto[]
+  photos?: ReadonlyArray<
+    PlantPhoto & { readonly uploadedByUserId?: string | null }
+  >
   rooms?: MockRoom[]
   caretakingPlants?: MockCaretakingPlant[]
   memberships?: MockMembership[]
@@ -63,9 +66,14 @@ export const createMockPlantRepository = (
     : Array.map(data.plants, (p) => ({ ...p }))
   // Keep a reference to the original array for health scheduler mutations
   const originalPlantsData = data.plants
-  const photos = Option.getOrElse(
-    Option.fromNullishOr(data.photos),
-    () => [] as PlantPhoto[]
+  const photos: PhotoRecord[] = Array.map(
+    Option.getOrElse(Option.fromNullishOr(data.photos), () => []),
+    (photo) => ({
+      ...photo,
+      uploadedByUserId: Option.getOrNull(
+        Option.fromNullishOr(photo.uploadedByUserId)
+      ),
+    })
   )
   const rooms = Option.getOrElse(
     Option.fromNullishOr(data.rooms),
@@ -343,35 +351,38 @@ export const createMockPlantRepository = (
       return Effect.succeed(paginate(items, total, page, limit))
     },
 
-    addPhoto: (plantId: string, url: string) => {
-      const newPhoto: PlantPhoto = {
-        id: `photo-${crypto.randomUUID()}`,
-        url,
-        takenAt: new Date(),
-        plantId,
-      }
-      return Effect.succeed(newPhoto)
-    },
-
     addPhotos: (photosData) =>
-      Effect.succeed(
-        Array.map(photosData, (p) => ({
+      Effect.sync(() => {
+        const added = Array.map(photosData, (p) => ({
           id: `photo-${crypto.randomUUID()}`,
           url: p.url,
           takenAt: p.takenAt,
           plantId: p.plantId,
+          uploadedByUserId: p.uploadedByUserId,
         }))
-      ),
+        photos.push(...added)
+        return added
+      }),
 
-    deletePhoto: (photoId: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(photos, (p) => p.id === photoId),
-          Option.getOrNull
+    lockPhoto: (plantId, photoId) =>
+      Effect.sync(() =>
+        Array.findFirst(
+          photos,
+          (p) => p.id === photoId && p.plantId === plantId
         )
       ),
 
-    deletePhotoByPlantId: () => Effect.void,
+    deletePhotoByPlantId: (plantId, photoId) =>
+      Effect.sync(() => {
+        photos.splice(
+          0,
+          photos.length,
+          ...Array.filter(
+            photos,
+            (p) => !(p.id === photoId && p.plantId === plantId)
+          )
+        )
+      }),
   }
 
   return Layer.succeed(PlantRepository, repo)

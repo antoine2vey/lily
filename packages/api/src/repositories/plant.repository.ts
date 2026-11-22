@@ -8,6 +8,7 @@ import {
   type StoredSchedule,
   seePlantCare,
 } from '@lily/api/contexts/care'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
@@ -189,16 +190,26 @@ export interface IPlantRepository {
   readonly findPhotos: (
     params: FindPhotosParams
   ) => Effect.Effect<FindPhotosResult, SqlError>
-  readonly addPhoto: (
-    plantId: string,
-    url: string
-  ) => Effect.Effect<typeof plantPhotos.$inferSelect | null, SqlError>
   readonly addPhotos: (
-    photos: Array<{ plantId: string; url: string; takenAt: Date }>
+    photos: Array<{
+      plantId: string
+      url: string
+      takenAt: Date
+      uploadedByUserId: string
+    }>
   ) => Effect.Effect<Array<typeof plantPhotos.$inferSelect>, SqlError>
-  readonly deletePhoto: (
+  /**
+   * The photo `photoId` of the plant, locked until the caller's transaction
+   * ends, so who uploaded it cannot change before the caller deletes it.
+   */
+  readonly lockPhoto: (
+    plantId: string,
     photoId: string
-  ) => Effect.Effect<typeof plantPhotos.$inferSelect | null, SqlError>
+  ) => Effect.Effect<
+    Option.Option<typeof plantPhotos.$inferSelect>,
+    SqlError,
+    Transaction
+  >
   readonly deletePhotoByPlantId: (
     plantId: string,
     photoId: string
@@ -753,32 +764,30 @@ export const PlantRepositoryLive = Layer.effect(
         return paginate(items, total, page, limit)
       }),
 
-      addPhoto: Effect.fn('PlantRepository.addPhoto')(function* (
-        plantId: string,
-        url: string
-      ) {
-        const [photo] = yield* db
-          .insert(plantPhotos)
-          .values({ plantId, url })
-          .returning()
-        return pipe(Option.fromNullishOr(photo), Option.getOrNull)
-      }),
-
       addPhotos: Effect.fn('PlantRepository.addPhotos')(function* (
-        photos: Array<{ plantId: string; url: string; takenAt: Date }>
+        photos: Array<{
+          plantId: string
+          url: string
+          takenAt: Date
+          uploadedByUserId: string
+        }>
       ) {
         const result = yield* db.insert(plantPhotos).values(photos).returning()
         return result
       }),
 
-      deletePhoto: Effect.fn('PlantRepository.deletePhoto')(function* (
+      lockPhoto: Effect.fn('PlantRepository.lockPhoto')(function* (
+        plantId: string,
         photoId: string
       ) {
-        const [photo] = yield* db
-          .delete(plantPhotos)
-          .where(eq(plantPhotos.id, photoId))
-          .returning()
-        return pipe(Option.fromNullishOr(photo), Option.getOrNull)
+        const photos = yield* db
+          .select()
+          .from(plantPhotos)
+          .where(
+            and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId))
+          )
+          .for('update')
+        return Array.head(photos)
       }),
 
       deletePhotoByPlantId: Effect.fn('PlantRepository.deletePhotoByPlantId')(

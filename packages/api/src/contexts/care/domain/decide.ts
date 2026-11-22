@@ -25,7 +25,11 @@ import {
   statusToSettleInto,
   withStepDone,
 } from '@lily/api/contexts/care/domain/plan'
-import { Actor } from '@lily/api/kernel/permit'
+import {
+  Actor,
+  coversRecordOf,
+  type RecordPermit,
+} from '@lily/api/kernel/permit'
 import {
   decision,
   type Decision as KernelDecision,
@@ -127,6 +131,7 @@ export type Refusal = Data.TaggedEnum<{
   Dead: { readonly plantId: string }
   PlantGone: { readonly plantId: string }
   CareNotFound: { readonly careLogId: string }
+  CareOfAnother: { readonly careLogId: string }
   PlanGone: { readonly planId: string }
   PlanOfDeadPlant: { readonly planId: string }
   StepGone: { readonly planId: string; readonly stepId: string }
@@ -146,10 +151,11 @@ export type RefusalOf<T extends Refusal['_tag']> = Extract<
 >
 export type RecordRefusal = RefusalOf<'AlreadyCared' | 'FutureDay' | 'Dead'>
 export type SkipReason = RecordRefusal | RefusalOf<'PlantGone'>
-export type AmendRefusal = RefusalOf<
-  'CareNotFound' | 'AlreadyCared' | 'FutureDay'
->
-export type RemoveRefusal = RefusalOf<'CareNotFound'>
+export type RemoveRefusal = RefusalOf<'CareNotFound' | 'CareOfAnother'>
+export type AmendRefusal =
+  | RemoveRefusal
+  | RefusalOf<'AlreadyCared' | 'FutureDay'>
+export type CorrectRefusal = RecordRefusal | RefusalOf<'CareOfAnother'>
 
 export interface Recorded {
   readonly plantId: string
@@ -385,7 +391,7 @@ export const recordCare = (
     const after: CareLine = {
       ...line,
       history: Array.sort(
-        Array.append(line.history, { id: env.newCareLogId, day }),
+        Array.append(line.history, { id: env.newCareLogId, day, by: env.by }),
         latestFirst
       ),
     }
@@ -475,14 +481,27 @@ const findCare = (
     () => Refusal.CareNotFound({ careLogId })
   )
 
+const requireReach = (
+  permit: RecordPermit<'care'>,
+  entry: CareEntry
+): Result.Result<CareEntry, RefusalOf<'CareOfAnother'>> =>
+  coversRecordOf(permit, entry.by)
+    ? Result.succeed(entry)
+    : Result.fail(Refusal.CareOfAnother({ careLogId: entry.id }))
+
 const amendEntry = (
   plant: CarePlant,
   line: CareLine,
+  permit: RecordPermit<'care'>,
   entry: CareEntry,
   input: AmendInput,
   env: DecideEnv
-): Result.Result<Decision<void>, RefusalOf<'AlreadyCared' | 'FutureDay'>> =>
+): Result.Result<
+  Decision<void>,
+  RefusalOf<'CareOfAnother' | 'AlreadyCared' | 'FutureDay'>
+> =>
   Result.gen(function* () {
+    yield* requireReach(permit, entry)
     const when = yield* Option.match(input.on, {
       onNone: () => Result.succeed(Option.none<ResolvedDay>()),
       onSome: (on) => Result.map(resolveDay(plant, on, env.now), Option.some),
@@ -531,26 +550,30 @@ const amendEntry = (
 
 export const amendCare = (
   plant: CarePlant,
+  permit: RecordPermit<'care'>,
   careLogId: string,
   careType: CareType,
   input: AmendInput,
   env: DecideEnv
 ): Result.Result<Decision<void>, AmendRefusal> => {
   const line = lineOf(plant, careType)
-  return Result.flatMap(findCare(line, careLogId), (entry) =>
-    amendEntry(plant, line, entry, input, env)
+  return Result.flatMap(
+    findCare(line, careLogId),
+    (entry): Result.Result<Decision<void>, AmendRefusal> =>
+      amendEntry(plant, line, permit, entry, input, env)
   )
 }
 
 export const removeCare = (
   plant: CarePlant,
+  permit: RecordPermit<'care'>,
   careLogId: string,
   careType: CareType,
   env: DecideEnv
 ): Result.Result<Decision<void>, RemoveRefusal> =>
   Result.gen(function* () {
     const line = lineOf(plant, careType)
-    yield* findCare(line, careLogId)
+    yield* requireReach(permit, yield* findCare(line, careLogId))
     const after: CareLine = {
       ...line,
       history: Array.filter(line.history, (entry) => entry.id !== careLogId),
@@ -573,16 +596,17 @@ export const removeCare = (
 
 export const correctLastCare = (
   plant: CarePlant,
+  permit: RecordPermit<'care'>,
   careType: CareType,
   on: CareWhen,
   env: DecideEnv
-): Result.Result<Decision<void>, RecordRefusal> =>
+): Result.Result<Decision<void>, CorrectRefusal> =>
   Result.flatMap(requireLiving(plant), () => {
     const line = lineOf(plant, careType)
     return pipe(
       Array.head(line.history),
       Option.match({
-        onNone: () =>
+        onNone: (): Result.Result<Decision<void>, CorrectRefusal> =>
           Result.map(
             recordCare(
               plant,
@@ -601,6 +625,7 @@ export const correctLastCare = (
           amendEntry(
             plant,
             line,
+            permit,
             latest,
             {
               on: Option.some(on),

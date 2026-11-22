@@ -3,6 +3,8 @@ import {
   mintPermit,
   type PlantAction,
   type PlantPermit,
+  type RecordAction,
+  type RecordPermit,
 } from '@lily/api/kernel/permit'
 import {
   type CanopyMembership,
@@ -141,6 +143,32 @@ export const canPerform = (
 ): Effect.Effect<boolean, SqlError, DelegationRepository> =>
   Effect.map(plantRoleFor(who, plant), Option.exists(allows(action)))
 
+const plantInRole = (
+  plantId: string,
+  action: PlantAction
+): Effect.Effect<
+  {
+    readonly plant: PlantWithRoom
+    readonly role: PlantRole
+    readonly viewerId: string
+  },
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantRepository | PlantAccessContext
+> =>
+  Effect.gen(function* () {
+    const repo = yield* PlantRepository
+    const { id: viewerId } = yield* CurrentUser
+    const plant = yield* repo.findById(plantId)
+
+    if (!plant) {
+      return yield* new PlantNotFoundError({ plantId })
+    }
+
+    const role = yield* authorizedRole(plantId, plant, action)
+
+    return { plant, role, viewerId }
+  }).pipe(Effect.withSpan('withPlantAuth', { attributes: { action } }))
+
 /**
  * Fetches a plant by ID, checks the caller may perform `action` on it, and
  * returns the plant.
@@ -161,23 +189,11 @@ export const withPlantKnowledge = <A extends PlantAction>(
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
 > =>
-  Effect.gen(function* () {
-    const repo = yield* PlantRepository
-    const { id: viewerId } = yield* CurrentUser
-    const plant = yield* repo.findById(plantId)
-
-    if (!plant) {
-      return yield* new PlantNotFoundError({ plantId })
-    }
-
-    const role = yield* authorizedRole(plantId, plant, action)
-
-    return {
-      plant,
-      view: knowledgeView(role, viewerId),
-      permit: mintPermit(plant.id, action, Actor.User({ userId: viewerId })),
-    }
-  }).pipe(Effect.withSpan('withPlantAuth', { attributes: { action } }))
+  Effect.map(plantInRole(plantId, action), ({ plant, role, viewerId }) => ({
+    plant,
+    view: knowledgeView(role, viewerId),
+    permit: mintPermit(plant.id, action, Actor.User({ userId: viewerId })),
+  }))
 
 export const withPlantAuth = (
   plantId: string,
@@ -209,6 +225,27 @@ export const withPlantPermit = <A extends PlantAction>(
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
 > => Effect.map(withPermittedPlant(plantId, action), ({ permit }) => permit)
+
+/**
+ * The permit for a command on one record of the plant, for a caller who may
+ * `add` such a record. A caller who may also `curate` gets that permit and
+ * reaches every record. Anyone else gets the `add` permit, which reaches
+ * only the records they added.
+ */
+export const withRecordPermit = <A extends RecordAction>(
+  plantId: string,
+  add: A
+): Effect.Effect<
+  RecordPermit<A>,
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantRepository | PlantAccessContext
+> =>
+  Effect.map(plantInRole(plantId, add), ({ plant, role, viewerId }) => {
+    const actor = Actor.User({ userId: viewerId })
+    return allows('curate')(role)
+      ? mintPermit(plant.id, 'curate', actor)
+      : mintPermit(plant.id, add, actor)
+  })
 
 export const plantPermits = <A extends PlantAction>(
   plantIds: ReadonlyArray<string>,

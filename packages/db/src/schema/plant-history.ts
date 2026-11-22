@@ -12,19 +12,34 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-export const plantPhotos = pgTable('plant_photos', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  url: text('url').notNull(),
-  takenAt: timestamp('taken_at', { withTimezone: true }).notNull().defaultNow(),
-  plantId: uuid('plant_id')
-    .notNull()
-    .references(() => plants.id, { onDelete: 'cascade' }),
-})
+export const plantPhotos = pgTable(
+  'plant_photos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    url: text('url').notNull(),
+    takenAt: timestamp('taken_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    plantId: uuid('plant_id')
+      .notNull()
+      .references(() => plants.id, { onDelete: 'cascade' }),
+    uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    index('plant_photos_uploaded_by_user_id_idx').on(table.uploadedByUserId),
+  ]
+)
 
 export const plantPhotosRelations = relations(plantPhotos, ({ one }) => ({
   plant: one(plants, {
     fields: [plantPhotos.plantId],
     references: [plants.id],
+  }),
+  uploadedBy: one(users, {
+    fields: [plantPhotos.uploadedByUserId],
+    references: [users.id],
   }),
 }))
 

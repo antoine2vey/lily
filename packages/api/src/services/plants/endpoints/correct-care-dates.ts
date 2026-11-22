@@ -1,6 +1,10 @@
-import { Care, careWhenOf, type RecordOneError } from '@lily/api/contexts/care'
+import {
+  Care,
+  type CorrectLastCareError,
+  careWhenOf,
+} from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
-import type { PlantPermit } from '@lily/api/kernel/permit'
+import type { RecordPermit } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
 import {
   PlantRepository,
@@ -20,11 +24,11 @@ const correction = (careType: CareType, date: Date | undefined) =>
   }))
 
 export const correctCareDates = (
-  permit: PlantPermit<'care'>,
+  permit: RecordPermit<'care'>,
   request: PlantCorrectCareDatesRequest
 ): Effect.Effect<
   PlantWithRoom,
-  SqlError | RecordOneError,
+  SqlError | CorrectLastCareError,
   Care | PlantRepository | SqlClient.SqlClient | Outbox
 > =>
   transact(

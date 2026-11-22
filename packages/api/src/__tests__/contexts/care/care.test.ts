@@ -30,6 +30,7 @@ const watering = (history: ReadonlyArray<string> = []): CareLine => ({
   history: Array.map(history, (day, i) => ({
     id: `care-${i}`,
     day: CareDay.make(day),
+    by: Option.some('user-1'),
   })),
 })
 
@@ -476,7 +477,13 @@ describe('Care', () => {
         dueDay: CareDay.make('2026-11-20'),
         startedOn: CareDay.make('2026-10-01'),
       }),
-      history: [{ id: 'feed-0', day: CareDay.make('2026-10-21') }],
+      history: [
+        {
+          id: 'feed-0',
+          day: CareDay.make('2026-10-21'),
+          by: Option.some('user-1'),
+        },
+      ],
     }
     const correct = (
       world: World,
@@ -634,7 +641,13 @@ describe('Care', () => {
     const unscheduledFeeding: CareLine = {
       careType: 'fertilization',
       schedule: Option.none(),
-      history: [{ id: 'feed-0', day: CareDay.make('2026-10-21') }],
+      history: [
+        {
+          id: 'feed-0',
+          day: CareDay.make('2026-10-21'),
+          by: Option.some('user-1'),
+        },
+      ],
     }
 
     it('starts a schedule due today for a care never done', async () => {

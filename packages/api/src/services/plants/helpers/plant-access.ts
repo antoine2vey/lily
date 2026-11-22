@@ -40,6 +40,7 @@ export const allowedRoles: Record<PlantAction, ReadonlyArray<RoleTag>> = {
   edit: everyone,
   care: everyone,
   photo: everyone,
+  curate: deleters,
   diagnose: everyone,
   chat: everyone,
   markDead: members,

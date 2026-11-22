@@ -139,6 +139,7 @@ const toHistory = (
     readonly id: string
     readonly date: Date
     readonly careDay: string
+    readonly performedByUserId: string | null
   }>
 ): ReadonlyArray<CareEntry> =>
   pipe(
@@ -148,6 +149,7 @@ const toHistory = (
       (row): CareEntry => ({
         id: row.id,
         day: CareDay.make(row.careDay),
+        by: Option.fromNullishOr(row.performedByUserId),
       })
     )
   )
@@ -558,6 +560,7 @@ export const CareStoreLive = Layer.effect(
               careType: careLogs.type,
               date: careLogs.date,
               careDay: careLogs.careDay,
+              performedByUserId: careLogs.performedByUserId,
             })
             .from(careLogs)
             .where(

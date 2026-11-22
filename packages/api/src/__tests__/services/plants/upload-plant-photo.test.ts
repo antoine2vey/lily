@@ -5,6 +5,7 @@ import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
 import { Array, Effect, Layer } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -39,6 +40,24 @@ describe('uploadPlantPhoto', () => {
     expect(result.photos[0]).toMatchObject({ plantId: 'plant-1' })
     expect(typeof result.photos[0]?.id).toBe('string')
     expect(typeof result.photos[0]?.url).toBe('string')
+  })
+
+  it('stores the acting user as the uploader of each photo', async () => {
+    const stored = await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* uploadPlantPhoto({
+          plantId: 'plant-1',
+          files: [mockFile, { ...mockFile, name: 'second.jpg' }],
+        })
+        const repo = yield* PlantRepository
+        return yield* repo.findPhotos({ plantId: 'plant-1' })
+      }).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(Array.map(stored.items, (photo) => photo.uploadedByUserId)).toEqual([
+      'user-1',
+      'user-1',
+    ])
   })
 
   it('should publish PhotoUploaded event for each photo', async () => {

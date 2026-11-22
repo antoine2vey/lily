@@ -1,6 +1,11 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { delivered } from '@lily/api/__tests__/integration/canopy-layers'
 import { removeAsCurrentUser } from '@lily/api/__tests__/integration/care-layers'
-import { carePermit, chatPermit } from '@lily/api/__tests__/mocks/care'
+import {
+  carePermit,
+  chatPermit,
+  permitTo,
+} from '@lily/api/__tests__/mocks/care'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
@@ -186,10 +191,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return row.id
     }
 
-    const photoOf = async (plantId: string, key: string) => {
+    const photoOf = async (
+      plantId: string,
+      key: string,
+      uploadedByUserId?: string
+    ) => {
       const [row] = await db
         .insert(schema.plantPhotos)
-        .values({ plantId, url: mockPublicUrl(key) })
+        .values({ plantId, url: mockPublicUrl(key), uploadedByUserId })
         .returning()
       if (!row) throw new Error('photo insert returned nothing')
       return row.id
@@ -476,7 +485,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           alex,
           transactQuietly(
             Effect.andThen(
-              deletePlantPhoto({ plantId: fern, photoId: photo }),
+              deletePlantPhoto(permitTo('curate', fern, alex), photo),
               Effect.fail('the caller rolls back' as const)
             )
           )
@@ -499,10 +508,54 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await photoOf(fern, `plants/${fern}/other.jpg`)
         stored('plant', `plants/${fern}/photo.jpg`, `plants/${fern}/other.jpg`)
 
-        await done(alex, deletePlantPhoto({ plantId: fern, photoId: photo }))
+        await done(
+          alex,
+          deletePlantPhoto(permitTo('curate', fern, alex), photo)
+        )
 
         expect([...gcs.objects.plant]).toEqual([`plants/${fern}/other.jpg`])
       })
+
+      it('deletes the photo its actor uploaded under a photo permit, with its object', async () => {
+        const fern = await plantOf(alex)
+        const photo = await photoOf(fern, `plants/${fern}/photo.jpg`, sam)
+        stored('plant', `plants/${fern}/photo.jpg`)
+
+        await done(sam, deletePlantPhoto(permitTo('photo', fern, sam), photo))
+
+        expect({
+          photos: (await db.select().from(schema.plantPhotos)).length,
+          objects: [...gcs.objects.plant],
+        }).toEqual({ photos: 0, objects: [] })
+      })
+
+      it.each([
+        ['someone else uploaded', () => alex],
+        ['with no known uploader', () => undefined],
+      ])(
+        'refuses a photo permit on a photo %s and keeps the row and its object',
+        async (_, uploader) => {
+          const fern = await plantOf(alex)
+          const key = `plants/${fern}/photo.jpg`
+          const photo = await photoOf(fern, key, uploader())
+          stored('plant', key)
+
+          const exit = await as(
+            sam,
+            deletePlantPhoto(permitTo('photo', fern, sam), photo)
+          )
+
+          expect({
+            refused: failureOf(exit)._tag,
+            photos: (await db.select().from(schema.plantPhotos)).length,
+            objects: [...gcs.objects.plant],
+          }).toEqual({
+            refused: 'PlantNotAuthorizedError',
+            photos: 1,
+            objects: [key],
+          })
+        }
+      )
 
       it('keeps the object while the plant still shows it as its image', async () => {
         const fern = await plantOf(alex)
@@ -513,7 +566,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const photo = await photoOf(fern, `plants/${fern}/photo.jpg`)
         stored('plant', `plants/${fern}/photo.jpg`)
 
-        await done(alex, deletePlantPhoto({ plantId: fern, photoId: photo }))
+        await done(
+          alex,
+          deletePlantPhoto(permitTo('curate', fern, alex), photo)
+        )
 
         expect([...gcs.objects.plant]).toEqual([`plants/${fern}/photo.jpg`])
       })
@@ -568,7 +624,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           const photo = await photoOf(fern, key)
           stored('plant', key)
 
-          await done(alex, deletePlantPhoto({ plantId: fern, photoId: photo }))
+          await done(
+            alex,
+            deletePlantPhoto(permitTo('curate', fern, alex), photo)
+          )
 
           expect([...gcs.objects.plant]).toEqual([key])
         }
@@ -787,6 +846,25 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await done(alex, deleteCareLog(carePermit(fern, alex), log))
 
         expect([...gcs.objects.plant]).toEqual([])
+      })
+
+      it('refuses a care permit on a care someone else performed and keeps the row and its photo', async () => {
+        const fern = await plantOf(alex)
+        const key = `plants/${fern}/care.jpg`
+        const log = await careLogOf(fern, key)
+        stored('plant', key)
+
+        const exit = await as(sam, deleteCareLog(carePermit(fern, sam), log))
+
+        expect({
+          refused: failureOf(exit)._tag,
+          logs: (await db.select().from(schema.careLogs)).length,
+          objects: [...gcs.objects.plant],
+        }).toEqual({
+          refused: 'PlantNotAuthorizedError',
+          logs: 1,
+          objects: [key],
+        })
       })
     })
   }
