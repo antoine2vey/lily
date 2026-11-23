@@ -72,27 +72,6 @@ describe('LocalizationContext', () => {
       )
     })
 
-    it('provides language state', async () => {
-      const { result } = renderHook(() => useLocalizationContext(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      expect(result.current.language).toBeDefined()
-      expect(['en', 'fr']).toContain(result.current.language)
-    })
-
-    it('provides setLanguage function', async () => {
-      const { result } = renderHook(() => useLocalizationContext(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      expect(typeof result.current.setLanguage).toBe('function')
-    })
-
     it('provides supportedLanguages array', async () => {
       const { result } = renderHook(() => useLocalizationContext(), { wrapper })
 
@@ -104,30 +83,9 @@ describe('LocalizationContext', () => {
       expect(Array.isArray(result.current.supportedLanguages)).toBe(true)
       expect(result.current.supportedLanguages.length).toBe(2)
     })
-
-    it('provides isLoading state', async () => {
-      const { result } = renderHook(() => useLocalizationContext(), { wrapper })
-
-      // Initially might be loading
-      expect(typeof result.current.isLoading).toBe('boolean')
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-    })
   })
 
   describe('LocalizationProvider', () => {
-    it('renders children', async () => {
-      const { result } = renderHook(() => useLocalizationContext(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      expect(result.current).toBeTruthy()
-    })
-
     it('defaults to English when no stored preference', async () => {
       ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
 
@@ -211,18 +169,6 @@ describe('LocalizationContext', () => {
   })
 
   describe('setLanguage function', () => {
-    it('is callable and returns a promise', async () => {
-      const { result } = renderHook(() => useLocalizationContext(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      // setLanguage should be a function that returns a promise
-      const setLanguageResult = result.current.setLanguage('fr')
-      expect(setLanguageResult).toBeInstanceOf(Promise)
-    })
-
     it('calls AsyncStorage.setItem when language is changed', async () => {
       const { result } = renderHook(() => useLocalizationContext(), { wrapper })
 

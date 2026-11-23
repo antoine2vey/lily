@@ -2,13 +2,33 @@ import { API_PREFIX, nowAsEpochMillis } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { Array as Arr } from 'effect'
 import { useTranslation } from 'react-i18next'
-import type { PlantIdentificationResult } from '@/hooks/useIdentifyPlant'
 import { createFileFromUri, uploadMultipart } from '@/utils/upload'
+
+interface PlantAlternative {
+  name: string | null
+  confidence: number
+}
+
+interface PlantIdentificationResult {
+  name: string | null
+  family: string | null
+  confidence: number
+  alternatives: PlantAlternative[]
+  wateringFrequencyDays: number | null
+  luxNeeded: number | null
+  humidityRating: number | null
+  petToxicityRating: number | null
+  fertilizationFrequencyDays: number | null
+  mistingFrequencyDays: number | null
+  repottingFrequencyDays: number | null
+  category: string | null
+  description: string | null
+  wateringTips: string | null
+  imageUrl: string
+}
 
 /**
  * Hook to scan a nursery card photo using AI.
- * Returns the same PlantIdentificationResult as useIdentifyPlant,
- * so the same results screen can be reused.
  */
 export function useScanCard() {
   const { i18n } = useTranslation()

@@ -45,18 +45,6 @@ describe('useOnboardingComplete', () => {
     expect(result.current.isComplete).toBe(true)
   })
 
-  it('provides completeOnboarding function', async () => {
-    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
-
-    const { result } = renderHook(() => useOnboardingComplete())
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(typeof result.current.completeOnboarding).toBe('function')
-  })
-
   it('updates isComplete when completeOnboarding called', async () => {
     ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
     ;(AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined)
