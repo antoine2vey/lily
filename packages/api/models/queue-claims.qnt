@@ -747,6 +747,20 @@ module queue_before_82 {
   run doublePollTest = doublePoll.expect(pushes == 2)
 }
 
+// The poll of before #82 with today's row claim. The claim covers two polls
+// that overlap. It does not cover a late markManyAsQueued that puts a sent
+// row back to queued under the message that sent it.
+module queue_read_then_mark {
+  import queue_claims(
+    SCHEDULER_CLAIMS = false, DELIVERY_CLAIM = true, CLAIM_BY = "token",
+    REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
+  ).*
+
+  run doublePollTest = doublePoll.expect(pushes == 1)
+}
+
 module queue_no_delivery_claim {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = false, CLAIM_BY = "token",

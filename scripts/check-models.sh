@@ -43,6 +43,7 @@ packages/api/models/usage-reservation.qnt usage_release_fails noChargeWithoutRep
 packages/api/models/usage-reservation.qnt usage_late_refund_lost noChargeWithoutReply breaks # 372 gap 3
 packages/api/models/queue-claims.qnt queue_current unackedDeliveryStaysInRedis,ackRemovesOnlyItsOwnClaim,pushedAtMostOnce,deadLetteredOnce,alertedOnce,alertOnlyAfterDeadLetter,failedRowIsReported,failsOnlyRowsItHolds holds
 packages/api/models/queue-claims.qnt queue_before_82 pushedAtMostOnce breaks # before 82
+packages/api/models/queue-claims.qnt queue_read_then_mark pushedAtMostOnce breaks # before 82, the scheduler half alone
 packages/api/models/queue-claims.qnt queue_no_delivery_claim pushedAtMostOnce breaks # before 82, the worker half alone
 packages/api/models/queue-claims.qnt queue_raw_claim unackedDeliveryStaysInRedis breaks # before 4db6c557
 packages/api/models/queue-claims.qnt queue_raw_claim ackRemovesOnlyItsOwnClaim breaks # before 4db6c557
