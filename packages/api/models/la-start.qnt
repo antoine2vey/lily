@@ -29,6 +29,11 @@ module la_start {
   // The app posts one update token per card. false lands the posts of every
   // card on screen together. One can be lost alone: see la_lost_post.
   const LOST_POSTS: bool
+  // false delivers every End push: see la_end_delivered.
+  const END_PUSH_LOST: bool
+  // false is createActivity before it gave each activity its own started_at:
+  // see la_stale_started_at.
+  const STARTED_AT_PER_ACTIVITY: bool
 
   pure val LA_START_COOLDOWN = 600
   pure val SOFT_TTL = 600
@@ -190,8 +195,8 @@ module la_start {
 
   // register-activity-token.ts registerActivityToken: the app runs with an
   // unlocked keychain and posts a card's update token. The device has one
-  // update row, and the upsert keeps the started_at of the row it replaces.
-  // A locked phone never gets here.
+  // update row, and a new activity replaces the one in it. A locked phone
+  // never gets here.
   action registerActivityToken(card: Card, alone: bool): bool = all {
     cards.contains(card),
     CONFIRM_MID_BATCH or not(midBatch),
@@ -200,7 +205,10 @@ module la_start {
     updateRow' = {
       status: Active,
       activity: card.id,
-      startedAt: if (updateRow.status == NoRow) now else updateRow.startedAt,
+      startedAt:
+        if (updateRow.status == NoRow) now
+        else if (STARTED_AT_PER_ACTIVITY and updateRow.activity != card.id) now
+        else updateRow.startedAt,
     },
     startRow' = { ...startRow, lastConfirmedAt: stamp },
     writes' = writes + 1,
@@ -278,7 +286,7 @@ module la_start {
       endActivity(card),
       swipeAway(card),
     },
-    nondet endDelivered = Set(true, false).oneOf()
+    nondet endDelivered = (if (END_PUSH_LOST) Set(true, false) else Set(true)).oneOf()
     refreshLiveActivity(endDelivered),
     expireStaleActivities,
     expireStaleStartTokens,
@@ -342,8 +350,8 @@ module la_start {
       .then(advanceTime(120))
       .then(deliver("reminder"))
 
-  // #367 gap 4: the second activity on a device inherits the first one's
-  // started_at, so the soft TTL expires its row at the next sweep.
+  // #367 gap 4: when the second activity on a device inherits the first
+  // one's started_at, the soft TTL expires its row at the next sweep.
   run secondActivity =
     init
       .then(deliver("digest"))
@@ -373,7 +381,8 @@ module la_start {
 module la_current {
   import la_start(
     GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false
+    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
+    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 1)
@@ -381,13 +390,14 @@ module la_current {
     confirmedThenEnded.expect(cards == Set({ id: 1, sentAt: 1, confirmed: false }))
   run confirmedLongAgoTest =
     confirmedLongAgo.expect(cards == Set({ id: 1, sentAt: 602, confirmed: false }))
-  run secondActivityTest = secondActivity.expect(not(oneCardOnScreen))
+  run secondActivityTest = secondActivity.expect(oneCardOnScreen)
 }
 
 module la_no_guard {
   import la_start(
     GUARD = "none", ATOMIC = false, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false
+    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
+    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 2)
@@ -396,7 +406,8 @@ module la_no_guard {
 module la_cooldown15 {
   import la_start(
     GUARD = "cooldown15", ATOMIC = false, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false
+    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
+    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 2)
@@ -405,7 +416,8 @@ module la_cooldown15 {
 module la_check_then_send {
   import la_start(
     GUARD = "unresolved10h", ATOMIC = false, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false
+    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
+    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 1)
@@ -414,7 +426,8 @@ module la_check_then_send {
 module la_hard_cap_12h {
   import la_start(
     GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 720,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false
+    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
+    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 1)
@@ -423,7 +436,8 @@ module la_hard_cap_12h {
 module la_confirm_mid_batch {
   import la_start(
     GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = true, LOST_POSTS = false
+    CONFIRM_MID_BATCH = true, LOST_POSTS = false,
+    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 1)
@@ -432,8 +446,29 @@ module la_confirm_mid_batch {
 module la_lost_post {
   import la_start(
     GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = true
+    CONFIRM_MID_BATCH = false, LOST_POSTS = true,
+    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run lostPostTest = lostPost.expect(not(noDuplicateCard))
+}
+
+module la_end_delivered {
+  import la_start(
+    GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
+    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
+    END_PUSH_LOST = false, STARTED_AT_PER_ACTIVITY = true
+  ).*
+
+  run secondActivityTest = secondActivity.expect(oneCardOnScreen)
+}
+
+module la_stale_started_at {
+  import la_start(
+    GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
+    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
+    END_PUSH_LOST = false, STARTED_AT_PER_ACTIVITY = false
+  ).*
+
+  run secondActivityTest = secondActivity.expect(not(oneCardOnScreen))
 }

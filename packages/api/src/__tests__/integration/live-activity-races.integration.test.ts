@@ -14,6 +14,8 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { endActivity } from '@lily/api/services/activity-push-tokens/endpoints/end-activity'
 import { registerActivityToken } from '@lily/api/services/activity-push-tokens/endpoints/register-activity-token'
+import { expireStaleActivities } from '@lily/api/services/activity-scheduler/scheduler'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -291,34 +293,55 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return deliverConcurrently(await enqueueCarePushes(1))
     }
 
-    const confirmThenEnd = async (
-      batch: ReadonlyArray<LiveActivityPushMessage>
-    ) => {
-      const activityId = Option.getOrThrow(
+    const asDevice = <A, E>(
+      effect: Effect.Effect<
+        A,
+        E,
+        Layer.Success<typeof RepositoriesLive> | CurrentUser
+      >
+    ) =>
+      Effect.runPromise(
+        effect.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              RepositoriesLive,
+              createMockCurrentUser({ id: userId })
+            )
+          )
+        )
+      )
+
+    const startedOn = (
+      batch: ReadonlyArray<LiveActivityPushMessage>,
+      startToken: string
+    ) =>
+      Option.getOrThrow(
         Arr.findFirst(batch, (m) =>
-          m._tag === 'LiveActivityStart' && m.to === 'start-0'
+          m._tag === 'LiveActivityStart' && m.to === startToken
             ? Option.some(m.attributes.activityId)
             : Option.none()
         )
       )
-      const DeviceLive = Layer.mergeAll(
-        RepositoriesLive,
-        createMockCurrentUser({ id: userId })
-      )
-      await Effect.runPromise(
+
+    const confirm = (activityId: string, updateToken: string) =>
+      asDevice(
         registerActivityToken({
           deviceTokenId: devices[0],
           activityId,
-          updateToken: 'update-0',
-        }).pipe(Effect.provide(DeviceLive))
+          updateToken,
+        })
       )
+
+    const confirmThenEnd = async (
+      batch: ReadonlyArray<LiveActivityPushMessage>
+    ) => {
+      const activityId = startedOn(batch, 'start-0')
+      await confirm(activityId, 'update-0')
       vi.setSystemTime(Date.now() + MINUTE)
-      await Effect.runPromise(
-        endActivity(activityId).pipe(Effect.provide(DeviceLive))
-      )
+      await asDevice(endActivity(activityId))
     }
 
-    // The three tests below replay the runs of the same names in
+    // The four tests below replay the runs of the same names in
     // packages/api/models/la-start.qnt.
     it('digestThenReminder: holds the reminder 2h18m after a digest the device never confirmed', async () => {
       vi.useFakeTimers({ toFake: ['Date'] })
@@ -359,6 +382,46 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         count([...digest, ...reminder], 'LiveActivityStart', 'start-0'),
         'push-to-start sends since the last confirmation, 10h back'
       ).toBe(1)
+    })
+
+    it('secondActivity: updates the second card of a device instead of starting a third', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      await confirmThenEnd(await deliverBatch())
+      vi.setSystemTime(Date.now() + 601 * MINUTE)
+      await confirm(startedOn(await deliverBatch(), 'start-0'), 'update-0b')
+      await Effect.runPromise(
+        expireStaleActivities.pipe(
+          Effect.provide(RepositoriesLive),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      const reminder = await deliverBatch()
+      expect(
+        Arr.filter(reminder, (m) => m.to === 'update-0b' || m.to === 'start-0'),
+        'pushes to the device whose second card was just confirmed'
+      ).toMatchObject([{ _tag: 'LiveActivityUpdate', to: 'update-0b' }])
+    })
+
+    it('still expires a card 10h after it started when it posted a rotated token since', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      const activityId = startedOn(await deliverBatch(), 'start-0')
+      await confirm(activityId, 'update-0')
+      vi.setSystemTime(Date.now() + 599 * MINUTE)
+      await confirm(activityId, 'update-0-rotated')
+      vi.setSystemTime(Date.now() + 2 * MINUTE)
+      await Effect.runPromise(
+        expireStaleActivities.pipe(
+          Effect.provide(RepositoriesLive),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+      const rows = await db
+        .select({ status: schema.activityPushTokens.status })
+        .from(schema.activityPushTokens)
+        .where(eq(schema.activityPushTokens.token, 'update-0-rotated'))
+      expect(rows).toEqual([{ status: 'expired' }])
     })
 
     it('updates the running card on every push and starts the other device once', async () => {

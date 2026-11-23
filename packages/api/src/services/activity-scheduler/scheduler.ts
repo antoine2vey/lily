@@ -18,7 +18,7 @@ const UNCONFIRMED_TTL = Duration.days(14)
 // rotated device-side; new push attempts would silently fail.
 const CONFIRMED_TTL = Duration.days(30)
 
-const expireStaleActivities = Effect.gen(function* () {
+export const expireStaleActivities = Effect.gen(function* () {
   const repo = yield* ActivityPushTokenRepository
   const cutoff = DateTime.toDateUtc(
     DateTime.subtractDuration(DateTime.nowUnsafe(), SOFT_TTL)
