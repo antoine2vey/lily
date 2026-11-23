@@ -224,7 +224,6 @@ export function CorrectCareDatesSheet({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* Watering date section */}
         <View className="mb-6">
           <Text className="text-sm font-bold text-text-muted dark:text-slate-400 ml-1 mb-2">
             {t('detail.correctDates.wateringDate')}
@@ -249,7 +248,6 @@ export function CorrectCareDatesSheet({
           </Pressable>
         </View>
 
-        {/* Fertilization date section */}
         {hasFertilization && (
           <View className="mb-6">
             <Text className="text-sm font-bold text-text-muted dark:text-slate-400 ml-1 mb-2">
@@ -277,7 +275,6 @@ export function CorrectCareDatesSheet({
         )}
       </ScrollView>
 
-      {/* Save button */}
       <View
         className="absolute bottom-0 left-0 right-0 pt-12 px-0 bg-white dark:bg-surface-dark"
         style={{ paddingBottom: Math.max(insets.bottom, 8) }}

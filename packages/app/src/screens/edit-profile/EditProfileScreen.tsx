@@ -138,7 +138,6 @@ export function EditProfileScreen() {
       entering={FadeIn.duration(300)}
       className="flex-1 bg-background dark:bg-background-dark"
     >
-      {/* Header */}
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-border/30 dark:border-slate-700/30">
         <Pressable onPress={handleCancel}>
           <Text className="text-base font-medium text-text-muted">
@@ -164,7 +163,6 @@ export function EditProfileScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Avatar Picker */}
         <AvatarPicker
           avatarUrl={pipe(
             Option.fromNullishOr(avatarUri),
@@ -174,7 +172,6 @@ export function EditProfileScreen() {
           onPress={handleChangePhoto}
         />
 
-        {/* Form Fields */}
         <View className="px-6 gap-6">
           <FormInput
             label={t('profile:edit.firstNameLabel')}

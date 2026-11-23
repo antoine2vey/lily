@@ -6,7 +6,6 @@ import type React from 'react'
 jest.unmock('@/contexts/LocalizationContext')
 jest.unmock('@/hooks/useLocalization')
 
-// Mock expo-localization
 jest.mock('expo-localization', () => ({
   getLocales: jest.fn(() => [{ languageCode: 'en' }]),
 }))
@@ -28,7 +27,6 @@ jest.mock('react-i18next', () => ({
   }),
 }))
 
-// Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),

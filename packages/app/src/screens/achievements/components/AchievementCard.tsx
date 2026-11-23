@@ -77,7 +77,6 @@ export function AchievementCard({
       })}
     >
       <View className="items-center">
-        {/* Icon */}
         <View
           className="w-16 h-16 rounded-full items-center justify-center mb-3"
           style={{
@@ -93,7 +92,6 @@ export function AchievementCard({
           )}
         </View>
 
-        {/* Name */}
         <Text
           className={`text-sm text-center font-semibold ${achievement.unlocked ? 'text-text-primary dark:text-white' : 'text-text-muted dark:text-slate-400'}`}
           numberOfLines={1}
@@ -101,7 +99,6 @@ export function AchievementCard({
           {copy.name}
         </Text>
 
-        {/* Description */}
         <Text
           className="text-xs text-center mt-1 font-regular text-text-muted dark:text-slate-400"
           numberOfLines={2}
@@ -109,7 +106,6 @@ export function AchievementCard({
           {copy.description}
         </Text>
 
-        {/* Progress bar for locked achievements with progress */}
         {!achievement.unlocked && hasProgress && (
           <View className="w-full mt-3">
             <ProgressBar
@@ -123,7 +119,6 @@ export function AchievementCard({
           </View>
         )}
 
-        {/* Unlocked checkmark */}
         {achievement.unlocked && (
           <View className="absolute top-2 right-2 w-6 h-6 rounded-full items-center justify-center bg-primary">
             <MaterialIcons name="check" size={16} color={iconColors.white} />

@@ -205,7 +205,6 @@ export function CareScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header - always rendered */}
       <View className="px-6 pt-4 pb-4 flex-row items-center justify-between">
         <View className="flex-1">
           <Text className="text-2xl font-bold tracking-tight text-text-primary dark:text-white">
@@ -229,7 +228,6 @@ export function CareScreen() {
             onScroll={scrollHandler}
             scrollEventThrottle={16}
           >
-            {/* Content */}
             {showSkeleton ? (
               <Animated.View entering={FadeIn.duration(300)}>
                 <CareContentSkeleton />
@@ -341,7 +339,6 @@ export function CareScreen() {
                   )}
                 </View>
 
-                {/* Delegated Plants Section */}
                 <DelegatedTasksSection />
               </Animated.View>
             )}

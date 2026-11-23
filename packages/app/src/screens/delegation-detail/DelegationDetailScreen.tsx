@@ -112,7 +112,6 @@ export function DelegationDetailScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 pt-2 pb-4">
         <GlassBackButton />
         <Text
@@ -137,12 +136,9 @@ export function DelegationDetailScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View className="gap-6 mt-2">
-              {/* Status Badge */}
               <DelegationStatusBadge status={delegation.status} />
 
-              {/* People */}
               <View className="gap-3">
-                {/* Owner */}
                 <View className="flex-row items-center p-4 rounded-xl bg-surface dark:bg-surface-dark">
                   <Avatar
                     source={pipe(
@@ -178,7 +174,6 @@ export function DelegationDetailScreen() {
                   </View>
                 </View>
 
-                {/* Arrow */}
                 <View className="items-center">
                   <MaterialIcons
                     name="arrow-downward"
@@ -187,7 +182,6 @@ export function DelegationDetailScreen() {
                   />
                 </View>
 
-                {/* Caretaker */}
                 <View className="flex-row items-center p-4 rounded-xl bg-surface dark:bg-surface-dark">
                   <Avatar
                     source={pipe(
@@ -224,7 +218,6 @@ export function DelegationDetailScreen() {
                 </View>
               </View>
 
-              {/* Date Range */}
               <View className="flex-row gap-3">
                 <View className="flex-1 p-4 rounded-xl bg-surface dark:bg-surface-dark">
                   <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
@@ -250,7 +243,6 @@ export function DelegationDetailScreen() {
                 </View>
               </View>
 
-              {/* Message */}
               {delegation.message && (
                 <View className="p-4 rounded-xl bg-surface dark:bg-surface-dark">
                   <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
@@ -262,13 +254,11 @@ export function DelegationDetailScreen() {
                 </View>
               )}
 
-              {/* Plant List */}
               <DelegationPlantList
                 plants={delegation.plants}
                 onPlantPress={handlePlantPress}
               />
 
-              {/* Actions */}
               <DelegationActions
                 status={delegation.status}
                 role={userRole}

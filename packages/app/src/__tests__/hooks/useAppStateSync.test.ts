@@ -12,7 +12,6 @@
 
 type AppStateStatus = 'active' | 'background' | 'inactive'
 
-// Simple unit tests for the throttle logic
 describe('useAppStateSync throttle logic', () => {
   const SYNC_THROTTLE_MS = 30 * 1000 // 30 seconds
 

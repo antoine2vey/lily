@@ -24,7 +24,6 @@ export function useToggleWeather() {
   return useMutation({
     mutationFn: async (enabled: boolean) => {
       if (enabled) {
-        // Request location permission and get current position
         const location = await requestPermission()
         if (!location) {
           throw new Error('Location permission denied')
@@ -42,7 +41,6 @@ export function useToggleWeather() {
         return result.weather
       }
 
-      // Disable weather
       const result = await apiEffectRunner('users', 'updateUserSettings', {
         payload: {
           weather: { enabled: false },
@@ -68,7 +66,6 @@ export function useToggleWeather() {
       return { previous }
     },
     onError: (error, _, context) => {
-      // Revert optimistic update
       if (context?.previous) {
         queryClient.setQueryData(USER_SETTINGS_QUERY_KEY, context.previous)
       }

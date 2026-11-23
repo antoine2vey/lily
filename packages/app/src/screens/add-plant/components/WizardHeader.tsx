@@ -24,7 +24,6 @@ export function WizardHeader({
 
   return (
     <View className="px-4 pt-2 pb-2 bg-background dark:bg-background-dark">
-      {/* Header row */}
       <View className="flex-row items-center justify-between mb-3">
         <GlassBackButton onPress={onBack} />
         <Text className="text-lg font-bold text-text-primary dark:text-white flex-1 text-center">
@@ -36,7 +35,6 @@ export function WizardHeader({
           </Text>
         </View>
       </View>
-      {/* Progress bar */}
       <View className="h-1.5 rounded-full bg-surface-tinted dark:bg-slate-700 overflow-hidden">
         <View
           className="h-full rounded-full bg-primary"

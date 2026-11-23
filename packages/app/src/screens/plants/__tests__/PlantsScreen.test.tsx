@@ -149,10 +149,8 @@ describe('PlantsScreen', () => {
 
     render(<PlantsScreen />)
 
-    // Search bar should not be visible initially
     expect(screen.queryByTestId('plant-search-bar')).toBeNull()
 
-    // Click search button to show search bar
     fireEvent.press(screen.getByTestId('search-button'))
 
     expect(screen.getByTestId('plant-search-bar')).toBeTruthy()
@@ -248,7 +246,6 @@ describe('PlantsScreen', () => {
 
     render(<PlantsScreen />)
 
-    // Open search and enter non-matching query
     fireEvent.press(screen.getByTestId('search-button'))
     fireEvent.changeText(screen.getByTestId('plant-search-bar'), 'nonexistent')
 

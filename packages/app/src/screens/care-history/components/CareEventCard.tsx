@@ -111,7 +111,6 @@ export function CareEventCard({ event, onPress }: CareEventCardProps) {
         opacity: pressed ? 0.95 : 1,
       })}
     >
-      {/* Header row with title and time */}
       <View className="flex-row justify-between items-baseline mb-2">
         <Text className="text-lg font-bold text-text-primary dark:text-white">
           {withCareActor(getEventLabel(config.labelKey, t), event.actor, t)}
@@ -121,7 +120,6 @@ export function CareEventCard({ event, onPress }: CareEventCardProps) {
         </Text>
       </View>
 
-      {/* Notes */}
       {event.notes && (
         <Text
           className={`text-sm font-regular text-text-muted dark:text-slate-400 ${hasPhoto ? 'mb-3' : ''}`}
@@ -131,7 +129,6 @@ export function CareEventCard({ event, onPress }: CareEventCardProps) {
         </Text>
       )}
 
-      {/* Photo if present */}
       {event.photoUrl && (
         <View
           className="w-full h-32 rounded-xl overflow-hidden shadow-sm"

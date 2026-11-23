@@ -19,7 +19,6 @@ export function AboutScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
@@ -32,7 +31,6 @@ export function AboutScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1 }}
       >
-        {/* Logo & App Info */}
         <View className="items-center pt-8 pb-6">
           <View className="w-20 h-20 rounded-2xl items-center justify-center mb-4 bg-primary-tint">
             <MaterialIcons
@@ -49,14 +47,12 @@ export function AboutScreen() {
           </Text>
         </View>
 
-        {/* Mission Quote */}
         <View className="px-8 py-6">
           <Text className="text-sm text-center italic font-regular text-text-muted leading-[22px]">
             "{t('description')}"
           </Text>
         </View>
 
-        {/* Links Section */}
         <View className="px-6 py-4 border-t border-border dark:border-slate-700">
           <ListRow
             leftIcon={
@@ -100,10 +96,8 @@ export function AboutScreen() {
           />
         </View>
 
-        {/* Spacer */}
         <View className="flex-1" />
 
-        {/* Footer */}
         <View className="px-6 py-8 items-center">
           <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
             {t('footer')}

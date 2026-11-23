@@ -153,7 +153,6 @@ export function SubscriptionPayScreen() {
 
   return (
     <View className="flex-1 bg-background dark:bg-background-dark">
-      {/* Close Button */}
       <View className="absolute top-6 left-4 z-50">
         <Pressable
           testID="close-button"
@@ -173,11 +172,8 @@ export function SubscriptionPayScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
-        {/* Content */}
         <View className="gap-6 pt-8">
-          {/* Title Section */}
           <View className="items-center px-6 gap-2">
-            {/* Premium Access Badge */}
             <View className="flex-row items-center px-3 py-1 rounded-full bg-primary-tint dark:bg-primary/20 border border-primary/20">
               <MaterialIcons
                 name="diamond"
@@ -189,7 +185,6 @@ export function SubscriptionPayScreen() {
               </Text>
             </View>
 
-            {/* Trial Badge */}
             {hasFreeTrial && (
               <View className="px-3 py-1 rounded-full bg-warning/10 border border-warning/20">
                 <Text className="text-xs font-bold text-warning">
@@ -198,21 +193,17 @@ export function SubscriptionPayScreen() {
               </View>
             )}
 
-            {/* Title */}
             <Text className="text-4xl pt-4 text-center font-bold text-text-primary dark:text-white">
               {t('headline')}
             </Text>
 
-            {/* Subtitle */}
             <Text className="text-sm text-center leading-relaxed font-regular text-text-muted dark:text-slate-400 max-w-[280px]">
               {t('description')}
             </Text>
           </View>
 
-          {/* Feature List */}
           <FeatureList features={PREMIUM_FEATURES} />
 
-          {/* Pricing Toggle */}
           <View className="pt-2">
             <PricingToggle
               selected={billingPeriod}
@@ -226,7 +217,6 @@ export function SubscriptionPayScreen() {
             />
           </View>
 
-          {/* Subscribe Button */}
           <View className="px-4 pt-4">
             <Pressable
               onPress={handleSubscribe}
@@ -240,7 +230,6 @@ export function SubscriptionPayScreen() {
               </Text>
             </Pressable>
 
-            {/* Terms */}
             <Text className="text-xs text-center mt-3 font-medium text-text-muted dark:text-slate-400">
               {hasFreeTrial
                 ? t('trial.billingInfo', {
@@ -251,9 +240,7 @@ export function SubscriptionPayScreen() {
             </Text>
           </View>
 
-          {/* Trust Badges & Links */}
           <View className="items-center gap-5 border-t border-border/30 dark:border-slate-700/30 mx-4 pt-6 mt-2">
-            {/* Trust Badges */}
             <View className="flex-row items-center gap-8 opacity-70">
               <View className="flex-row items-center gap-1.5">
                 <MaterialIcons
@@ -277,7 +264,6 @@ export function SubscriptionPayScreen() {
               </View>
             </View>
 
-            {/* Restore Purchase */}
             <Pressable
               testID="restore-button"
               onPress={handleRestore}
@@ -288,7 +274,6 @@ export function SubscriptionPayScreen() {
               </Text>
             </Pressable>
 
-            {/* Legal Links */}
             <View className="flex-row gap-4">
               <Pressable
                 testID="terms-link"

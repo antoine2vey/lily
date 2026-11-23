@@ -169,7 +169,6 @@ export function WeeklySchedule({
                   borderColor: col.isToday ? iconColors.primary : 'transparent',
                 }}
               >
-                {/* Day abbrev */}
                 <Text
                   className="text-[10px] font-bold uppercase tracking-wide mb-1"
                   numberOfLines={1}
@@ -183,7 +182,6 @@ export function WeeklySchedule({
                 >
                   {col.dayLabel}
                 </Text>
-                {/* Day number */}
                 <Text
                   className="text-base font-bold mb-2"
                   style={{
@@ -194,7 +192,6 @@ export function WeeklySchedule({
                 >
                   {col.dayNumber}
                 </Text>
-                {/* Dots */}
                 <View className="gap-1 min-h-[16px]">
                   {/* Overdue indicator — kept distinct from today's dots so the
                       today column mirrors the care screen's separate Overdue

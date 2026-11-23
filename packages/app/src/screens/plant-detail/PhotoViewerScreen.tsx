@@ -204,7 +204,6 @@ export function PhotoViewerScreen() {
 
   return (
     <View className="flex-1 bg-black" testID="photo-viewer-screen">
-      {/* Swipeable carousel of all photos */}
       <Animated.FlatList
         ref={flatListRef}
         data={photos}
@@ -231,7 +230,6 @@ export function PhotoViewerScreen() {
         testID="photo-viewer-carousel"
       />
 
-      {/* Header with back and delete buttons */}
       <View
         className="absolute top-0 left-0 right-0 flex-row items-center justify-between px-4"
         style={{ paddingTop: insets.top + 8 }}
@@ -253,7 +251,6 @@ export function PhotoViewerScreen() {
         </Pressable>
       </View>
 
-      {/* Pagination dots (interpolated from scroll position) */}
       {hasSeeded && photos.length > 1 && (
         <View
           className="absolute left-0 right-0 items-center"
@@ -268,7 +265,6 @@ export function PhotoViewerScreen() {
         </View>
       )}
 
-      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         visible={showDeleteConfirm}
         title={t('plantDetail:photoViewer.deleteTitle')}

@@ -95,7 +95,6 @@ export function SayGoodbyeSheet({
             </Text>
           </View>
 
-          {/* Cause */}
           <View className="mt-6">
             <Text className="text-sm mb-2 font-bold text-text-muted dark:text-slate-400 ml-1">
               {t('sheet.causeLabel')}
@@ -113,7 +112,6 @@ export function SayGoodbyeSheet({
             </View>
           </View>
 
-          {/* Note */}
           <View className="mt-6">
             <Text className="text-sm mb-2 font-bold text-text-muted dark:text-slate-400 ml-1">
               {t('sheet.noteLabel')}

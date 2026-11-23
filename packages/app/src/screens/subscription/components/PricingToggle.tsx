@@ -27,7 +27,6 @@ export function PricingToggle({
 
   return (
     <View className="flex-row px-4 gap-3">
-      {/* Monthly Option */}
       <Pressable
         onPress={() => onSelect('monthly')}
         className={`flex-1 p-4 rounded-2xl border-2 min-h-[110px] justify-between ${
@@ -79,7 +78,6 @@ export function PricingToggle({
         )}
       </Pressable>
 
-      {/* Annual Option */}
       <Pressable
         onPress={() => onSelect('annual')}
         className={`flex-1 p-4 rounded-2xl border-2 min-h-[110px] justify-between relative ${
@@ -88,7 +86,6 @@ export function PricingToggle({
             : 'bg-surface dark:bg-surface-dark border-border/50 dark:border-slate-700/50'
         }`}
       >
-        {/* Savings Badge */}
         {savingsPercent && (
           <View className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary z-10">
             <Text className="text-[10px] font-bold uppercase text-white">

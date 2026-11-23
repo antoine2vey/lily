@@ -117,7 +117,6 @@ export function CarePlanChecklistCard({
       testID={`care-plan-${plan.id}`}
       className="rounded-2xl p-4 mb-3 bg-surface dark:bg-surface-dark"
     >
-      {/* Header */}
       <View className="flex-row items-center mb-3">
         {showPlant && (
           <Pressable
@@ -173,7 +172,6 @@ export function CarePlanChecklistCard({
         )}
       </View>
 
-      {/* Steps */}
       <View className="gap-1">
         {Array.map(plan.steps, (step) => {
           const isDone = Option.isSome(Option.fromNullishOr(step.completedAt))

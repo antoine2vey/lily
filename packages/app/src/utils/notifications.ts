@@ -67,7 +67,6 @@ export async function getExpoPushToken(): Promise<string | null> {
     return null
   }
 
-  // Request permissions
   const { status: existingStatus } = await Notifications.getPermissionsAsync()
   let finalStatus = existingStatus
 

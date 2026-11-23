@@ -56,7 +56,6 @@ export const initialize = (): void => {
   }
 }
 
-// Mock offerings for dev mode
 const createMockOfferings = (): PurchasesOfferings => {
   const defaultOffering: PurchasesOffering = {
     identifier: 'default',
@@ -218,10 +217,8 @@ export const purchase = async (
 ): Promise<CustomerInfo> => {
   if (isDevMode) {
     console.log(`[RevenueCat DEV] purchase(${pkg.identifier}) - simulating...`)
-    // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 1500))
     console.log('[RevenueCat DEV] Purchase simulated successfully')
-    // Return mock customer info
     return {} as CustomerInfo
   }
   if (!isConfigured) {

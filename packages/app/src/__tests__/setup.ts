@@ -1,4 +1,3 @@
-// Import all module mocks
 import './mocks/expo-modules'
 import './mocks/navigation'
 
@@ -30,13 +29,11 @@ for (const entry of ['lib/module', 'src']) {
   }
 }
 
-// Import QueryClient cleanup utility
 import { cleanupQueryClients } from './utils/query-helpers'
 
 // Mock react-i18next globally for all components
 // This creates a simple mock that returns translations from the actual translation files
 jest.mock('react-i18next', () => {
-  // Import translations inside the mock factory
   const en = require('../i18n/locales/en').default
   const { renderPlurals } = require('./mocks/icu-plural')
 
@@ -49,11 +46,9 @@ jest.mock('react-i18next', () => {
     const missing =
       typeof options?.defaultValue === 'string' ? options.defaultValue : keyPath
 
-    // Get the namespace object
     const namespaceObj = en[namespace]
     if (!namespaceObj) return missing
 
-    // Navigate the path
     const parts = keyPath.split('.')
     let current: unknown = namespaceObj
     for (const part of parts) {
@@ -66,7 +61,6 @@ jest.mock('react-i18next', () => {
 
     // Return the string value or the key if not a string
     if (typeof current === 'string') {
-      // Handle interpolation
       if (options) {
         let result = current
         for (const [optKey, optValue] of Object.entries(options)) {
@@ -84,19 +78,16 @@ jest.mock('react-i18next', () => {
 
   return {
     useTranslation: (namespaces?: string | string[]) => {
-      // Get the default namespace from the parameter
       const defaultNs =
         (Array.isArray(namespaces) ? namespaces[0] : namespaces) || 'common'
 
       const t = (key: string, options?: Record<string, unknown>): string => {
-        // Handle explicit namespaced keys like 'plantDetail:edit.title'
         const colonIndex = key.indexOf(':')
         if (colonIndex > -1) {
           const namespace = key.substring(0, colonIndex)
           const keyPath = key.substring(colonIndex + 1)
           return getTranslationValue(namespace, keyPath, options)
         }
-        // Use the default namespace from useTranslation
         return getTranslationValue(defaultNs, key, options)
       }
 
@@ -177,9 +168,7 @@ jest.mock('@/contexts/LocalizationContext', () => ({
     children,
 }))
 
-// Mock useLocalization hook globally
 jest.mock('@/hooks/useLocalization', () => {
-  // Import translations inside the mock factory
   const en = require('../i18n/locales/en').default
   const { renderPlurals } = require('./mocks/icu-plural')
 
@@ -269,7 +258,6 @@ jest.mock('@/components/Mascot', () => {
   }
 })
 
-// Mock safe area context
 jest.mock('react-native-safe-area-context', () => {
   const insets = { top: 0, right: 0, bottom: 0, left: 0 }
   return {
@@ -280,7 +268,6 @@ jest.mock('react-native-safe-area-context', () => {
   }
 })
 
-// Mock theme
 jest.mock('@/theme', () => ({
   iconColorsLight: {
     primary: '#80ac53',

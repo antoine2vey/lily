@@ -69,7 +69,6 @@ export function DelegationListScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center justify-between px-6 pt-2 pb-4">
         <GlassBackButton />
         <Text
@@ -90,7 +89,6 @@ export function DelegationListScreen() {
         )}
       </View>
 
-      {/* Filter Chips */}
       <View className="flex-row gap-2 px-6 mb-4">
         {Arr.map(filterOptions, (option) => (
           <Chip

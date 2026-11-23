@@ -10,7 +10,6 @@ import { AchievementsScreen } from '../AchievementsScreen'
 
 const mockedUseAchievements = useAchievements as jest.Mock
 
-// Create mock achievements data
 const mockAchievements = [
   {
     id: '1',

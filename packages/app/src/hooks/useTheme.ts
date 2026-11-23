@@ -18,15 +18,11 @@ export function useTheme() {
     useThemeContext()
 
   return {
-    /** User's theme preference (light, dark, or system) */
     theme: preference,
     /** The actual theme being applied (light or dark) */
     resolvedTheme,
-    /** Convenience boolean for checking dark mode */
     isDark,
-    /** Update the theme preference */
     setTheme,
-    /** True while loading the stored preference */
     isLoading,
   }
 }

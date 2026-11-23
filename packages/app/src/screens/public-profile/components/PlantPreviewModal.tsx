@@ -138,7 +138,6 @@ export function PlantPreviewModal({
       onRequestClose={onClose}
     >
       <Pressable className="flex-1 bg-black" onPress={onClose}>
-        {/* Close button */}
         <Pressable
           className="absolute w-10 h-10 rounded-full bg-black/50 items-center justify-center z-10"
           style={{ top: insets.top + 8, left: 16 }}
@@ -160,7 +159,6 @@ export function PlantPreviewModal({
           )}
         </Pressable>
 
-        {/* Bottom info panel */}
         {pipe(
           plantOption,
           Option.match({

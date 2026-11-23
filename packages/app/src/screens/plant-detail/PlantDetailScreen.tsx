@@ -226,7 +226,6 @@ export function PlantDetailScreen() {
   )
   const [showCorrectDatesSheet, setShowCorrectDatesSheet] = useState(false)
 
-  // Scroll tracking for header animation
   const scrollY = useSharedValue(0)
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -237,7 +236,6 @@ export function PlantDetailScreen() {
   // Calculate when card reaches the top (accounting for header area)
   const cardTopThreshold = HERO_HEIGHT - 48 - insets.top - 60
 
-  // Animated style for header button backgrounds
   const animatedButtonStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(
       scrollY.value,
@@ -671,7 +669,6 @@ export function PlantDetailScreen() {
   const diedAtOpt = Option.fromNullishOr(plant.diedAt)
   const isDead = Option.isSome(diedAtOpt)
 
-  // Map photos from plant data
   const photos = Array.map(
     Option.getOrElse(Option.fromNullishOr(plant.photos), () => []),
     (photo) => ({
@@ -718,12 +715,10 @@ export function PlantDetailScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       testID="plant-detail-screen"
     >
-      {/* Fixed Hero Image */}
       <View className="absolute top-0 left-0 right-0">
         <PlantHeroImage imageUrl={plant.imageUrl} />
       </View>
 
-      {/* Scrollable Content Card */}
       <Animated.ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
@@ -732,7 +727,6 @@ export function PlantDetailScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-        {/* Content card with overlap */}
         <View
           className="bg-background dark:bg-background-dark px-6 pb-8"
           style={{
@@ -742,10 +736,8 @@ export function PlantDetailScreen() {
           }}
           testID="plant-detail-content"
         >
-          {/* Drag Handle */}
           <View className="w-12 h-1.5 bg-border dark:bg-slate-600 rounded-full mx-auto mt-4 mb-6 opacity-50" />
 
-          {/* Plant Header */}
           <PlantHeader
             plant={{
               name: plant.name,
@@ -759,7 +751,6 @@ export function PlantDetailScreen() {
             }}
           />
 
-          {/* Room Badge */}
           {plant.room && (
             <View className="flex-row items-center gap-1.5 mt-2 px-3 py-1.5 self-start bg-surface-tinted dark:bg-slate-800 rounded-full">
               <Text className="text-sm">{plant.room.icon}</Text>
@@ -769,7 +760,6 @@ export function PlantDetailScreen() {
             </View>
           )}
 
-          {/* Chat CTA */}
           <View className="mt-8">
             <ChatCTA plantName={plant.name} onPress={handleChat} />
           </View>
@@ -828,10 +818,8 @@ export function PlantDetailScreen() {
             )}
           </View>
 
-          {/* AI care plans (accepted) */}
           {plantId && <PlantCarePlans plantId={plantId} />}
 
-          {/* Growth Journal */}
           <View className="mt-10">
             <GrowthJournalEntryCard
               photos={photos}
@@ -843,7 +831,6 @@ export function PlantDetailScreen() {
             />
           </View>
 
-          {/* Ideal Environment */}
           <View className="mt-10">
             <IdealEnvironment
               sunlightPercentage={plant.lightingRating}
@@ -852,7 +839,6 @@ export function PlantDetailScreen() {
             />
           </View>
 
-          {/* Recent History */}
           <View className="mt-10 mb-4">
             <RecentHistory
               events={historyEvents}
@@ -862,7 +848,6 @@ export function PlantDetailScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* Floating Header */}
       <View
         className="absolute top-0 left-0 right-0 flex-row items-center justify-between px-4"
         style={{ paddingTop: insets.top + 8 }}
@@ -899,7 +884,6 @@ export function PlantDetailScreen() {
         </View>
       </View>
 
-      {/* Options Sheet */}
       <PlantOptionsSheet
         visible={showOptionsSheet}
         onClose={() => setShowOptionsSheet(false)}
@@ -924,7 +908,6 @@ export function PlantDetailScreen() {
         onToggleMute={handleToggleMute}
       />
 
-      {/* Say Goodbye Sheet */}
       <SayGoodbyeSheet
         visible={showGoodbyeSheet}
         plantName={plant.name}
@@ -933,14 +916,12 @@ export function PlantDetailScreen() {
         onConfirm={handleConfirmGoodbye}
       />
 
-      {/* Past Care Sheet */}
       <PastCareSheet
         visible={activePastCareType !== null}
         onClose={() => setActivePastCareType(null)}
         onSelect={handlePastCareSelect}
       />
 
-      {/* Correct Care Dates Sheet */}
       <CorrectCareDatesSheet
         visible={showCorrectDatesSheet}
         onClose={() => setShowCorrectDatesSheet(false)}
@@ -966,7 +947,6 @@ export function PlantDetailScreen() {
         }}
       />
 
-      {/* Delete Confirmation */}
       <ConfirmationModal
         visible={showDeleteConfirm}
         title={t('detail.delete.title', { name: plant.name })}

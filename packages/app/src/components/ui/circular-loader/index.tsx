@@ -84,9 +84,8 @@ export const CircularLoader: React.FC<CircularLoaderProps> = ({
 
             {/* Gradient segments - smooth fade using opacity interpolation */}
             {EffectArray.map(EffectArray.range(0, segments - 1), (index) => {
-              // Smooth exponential fade curve
               const progress = index / segments
-              const opacity = 1 - progress ** 1.5 // Exponential curve for natural fade
+              const opacity = 1 - progress ** 1.5
               const finalOpacity = opacity * (1 - fadeOpacity) + fadeOpacity
               const offset = -(activeLength + segmentLength * index)
 

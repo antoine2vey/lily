@@ -23,7 +23,6 @@ import { SubscriptionUsageScreen } from '../SubscriptionUsageScreen'
 
 const mockedUseSubscriptionUsage = useSubscriptionUsage as jest.Mock
 
-// Helper to create properly structured mock data
 const createMockUsageData = (overrides = {}) => ({
   planName: 'Free',
   status: 'active' as const,

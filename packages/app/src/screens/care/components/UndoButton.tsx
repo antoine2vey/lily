@@ -54,7 +54,6 @@ export function UndoButton({ onUndo }: UndoButtonProps) {
           setDimensions({ width, height })
         }}
       >
-        {/* Content */}
         <View
           className="px-3 py-2 bg-surface dark:bg-surface-dark"
           style={{ borderRadius: BORDER_RADIUS }}
@@ -67,7 +66,6 @@ export function UndoButton({ onUndo }: UndoButtonProps) {
           </Text>
         </View>
 
-        {/* SVG border overlay */}
         {dimensions.width > 0 && dimensions.height > 0 && (
           <Svg
             width={dimensions.width}

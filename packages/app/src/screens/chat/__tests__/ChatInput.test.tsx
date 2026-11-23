@@ -36,7 +36,6 @@ describe('ChatInput', () => {
       'Hello'
     )
 
-    // Input should contain the text
     expect(screen.getByDisplayValue('Hello')).toBeTruthy()
   })
 

@@ -1,7 +1,6 @@
 import { Option, pipe } from 'effect'
 import { useEffectQuery } from '@/utils/client'
 
-/** Accepted plans for the Care tab. */
 export function useCarePlans() {
   return useEffectQuery('carePlans', 'getCarePlans', {
     query: { status: 'accepted' },

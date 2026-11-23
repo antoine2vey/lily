@@ -7,7 +7,6 @@ import {
 import { mockFixedDate } from '@/__tests__/utils/dates'
 import { PhotoViewerScreen } from '../PhotoViewerScreen'
 
-// Mock the hooks
 const mockUseEffectQuery = jest.fn()
 const mockDeletePhotoMutate = jest.fn()
 const mockUseDeletePhoto = jest.fn()
