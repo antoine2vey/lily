@@ -40,6 +40,11 @@
       "includes": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
     },
     {
+      "path": "./lint/eager-require-actual.grit",
+      "resolutionKind": "config",
+      "includes": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
+    },
+    {
       "path": "./lint/query-key-from-factory.grit",
       "resolutionKind": "config",
       "includes": ["packages/app/**", "packages/admin/**"]
