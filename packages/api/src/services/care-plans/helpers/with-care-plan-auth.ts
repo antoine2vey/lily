@@ -1,4 +1,4 @@
-import { mintPlanPermit, type PlanPermit } from '@lily/api/kernel/permit'
+import type { PlanPermit } from '@lily/api/kernel/permit'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import {
@@ -29,6 +29,13 @@ import {
 } from '@lily/shared/errors/care-plan'
 import { Array, Effect, identity, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
+
+const mintPlanPermit = <A extends CarePlanAction>(
+  plan: CarePlan,
+  action: A,
+  by: string
+): PlanPermit<A> =>
+  ({ planId: plan.id, plantId: plan.plantId, action, by }) as PlanPermit<A>
 
 export interface CarePlanContext<A extends CarePlanAction = CarePlanAction> {
   readonly plan: CarePlan

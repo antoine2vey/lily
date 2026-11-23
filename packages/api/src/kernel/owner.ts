@@ -11,7 +11,3 @@ export interface OwnerHeld {
   readonly owner: PlantOwner
   readonly [OwnerHeldBrand]: true
 }
-
-/** Only `withOwnerLock` may call this, once it holds the lock. */
-export const mintOwnerHeld = (owner: PlantOwner): OwnerHeld =>
-  ({ owner }) as OwnerHeld

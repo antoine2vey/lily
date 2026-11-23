@@ -1,7 +1,7 @@
 import { Canopy } from '@lily/api/contexts/canopy'
 import { lockUser } from '@lily/api/kernel/locks'
 import type { Outbox } from '@lily/api/kernel/outbox'
-import { mintOwnerHeld, type OwnerHeld } from '@lily/api/kernel/owner'
+import type { OwnerHeld } from '@lily/api/kernel/owner'
 import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CanopyOwner } from '@lily/api/repositories/helpers/plant-owner'
@@ -27,6 +27,8 @@ export const canopyOwnerOf = (
         : Effect.succeed({ _tag: 'Canopy', canopyId: membership.canopyId })
     )
   )
+
+const mintOwnerHeld = (owner: PlantOwner): OwnerHeld => ({ owner }) as OwnerHeld
 
 export const withUserLock =
   (userId: string) =>

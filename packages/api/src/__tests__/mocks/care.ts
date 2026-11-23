@@ -7,6 +7,7 @@ import {
   createCarePlanRows,
 } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { mintPermit } from '@lily/api/__tests__/mocks/permits'
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import {
   Care,
@@ -30,10 +31,9 @@ import { CareStore } from '@lily/api/contexts/care/store'
 import { WeatherAdvisor } from '@lily/api/contexts/care/weather'
 import { eventBusForwarder } from '@lily/api/events/care-forwarder'
 import { Outbox } from '@lily/api/kernel/outbox'
-import { mintOwnerHeld, type OwnerHeld } from '@lily/api/kernel/owner'
+import type { OwnerHeld } from '@lily/api/kernel/owner'
 import {
   Actor,
-  mintPermit,
   type PlantAction,
   type PlantPermit,
 } from '@lily/api/kernel/permit'
@@ -78,7 +78,8 @@ export const toldToTheApp = async (
   return publishedEvents
 }
 
-export const ownerHeld = (owner: PlantOwner): OwnerHeld => mintOwnerHeld(owner)
+export const ownerHeld = (owner: PlantOwner): OwnerHeld =>
+  ({ owner }) as OwnerHeld
 
 const latestFirst = (history: ReadonlyArray<CareEntry>) =>
   [...history].sort((a, b) => (a.day < b.day ? 1 : -1))

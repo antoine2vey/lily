@@ -1,4 +1,5 @@
 import { carePermit, permitTo } from '@lily/api/__tests__/mocks/care'
+import { systemPermit } from '@lily/api/__tests__/mocks/permits'
 import {
   type CareLine,
   type CarePlant,
@@ -21,7 +22,7 @@ import {
   requireActor,
 } from '@lily/api/contexts/care/domain/decide'
 import type { PlanStatus, PlanStep } from '@lily/api/contexts/care/domain/plan'
-import { Actor, systemPermit } from '@lily/api/kernel/permit'
+import { Actor } from '@lily/api/kernel/permit'
 import { CareDay, CareDays, type CareType } from '@lily/shared'
 import { Array, DateTime, Option, pipe, Result } from 'effect'
 import { describe, expect, it } from 'vitest'

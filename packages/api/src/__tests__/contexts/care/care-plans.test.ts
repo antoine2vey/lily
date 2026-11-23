@@ -1,12 +1,12 @@
 import { createTestCarePlant } from '@lily/api/__tests__/fixtures/care-plants'
 import { chatPermit, createInMemoryCare } from '@lily/api/__tests__/mocks/care'
 import { createCarePlanRows } from '@lily/api/__tests__/mocks/care-plan.repository'
+import { mintPlanPermit, systemPermit } from '@lily/api/__tests__/mocks/permits'
 import { CarePlans } from '@lily/api/contexts/care'
 import {
   type CarePlant,
   LifeState,
 } from '@lily/api/contexts/care/domain/care-plant'
-import { mintPlanPermit, systemPermit } from '@lily/api/kernel/permit'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CarePlanNotFoundError } from '@lily/shared/errors/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'

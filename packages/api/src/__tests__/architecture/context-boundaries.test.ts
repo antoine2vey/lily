@@ -7,12 +7,6 @@ import { describe, expect, expectTypeOf, it } from 'vitest'
 const SRC = resolve(import.meta.dirname, '../..')
 const CONTEXTS = join(SRC, 'contexts')
 
-const MAY_MINT_PERMITS = [
-  'kernel/permit.ts',
-  'services/plants/helpers/with-plant-access.ts',
-  'services/care-plans/helpers/with-care-plan-auth.ts',
-]
-
 const NOTIFICATION_REPOSITORY = 'repositories/notification.repository.ts'
 
 // Delivery moves a row through its statuses and drops the ones it must not
@@ -158,20 +152,40 @@ describe('bounded contexts', () => {
     expect(cycles).toEqual([])
   })
 
-  it('receive permits minted by an access module only', () => {
-    const minters = files
+  it('receive permits and owner proofs built only where their check runs', () => {
+    const BUILDS =
+      /\bas\s+(?:unknown\s+as\s+)?(PlantPermit|RecordPermit|PlanPermit|OwnerHeld)\b/g
+    const builders = new Set(
+      files.flatMap((file) =>
+        [...readFileSync(file, 'utf8').matchAll(BUILDS)].map(
+          (match) => `${match[1]} in ${name(file)}`
+        )
+      )
+    )
+
+    expect(
+      [...builders].sort(),
+      'Get a permit through withPlantAuth, withPlantPermit, withRecordPermit or withCarePlanAuth, and an OwnerHeld through withOwnerLock. Building one anywhere else skips the role check or the lock.'
+    ).toEqual([
+      `OwnerHeld in ${OWNER_LOCK}`,
+      'PlanPermit in services/care-plans/helpers/with-care-plan-auth.ts',
+      'PlantPermit in services/plants/helpers/with-plant-access.ts',
+    ])
+  })
+
+  it('import nothing from the tests', () => {
+    const importers = files
       .filter((file) =>
-        (graph.get(file) ?? []).some(
-          (imported) =>
-            imported.target === join(SRC, 'kernel/permit.ts') &&
-            /\bmint\w*Permit\b/.test(imported.names)
+        (graph.get(file) ?? []).some((imported) =>
+          imported.target.startsWith(join(SRC, '__tests__/'))
         )
       )
       .map(name)
 
-    expect(minters.filter((file) => !MAY_MINT_PERMITS.includes(file))).toEqual(
-      []
-    )
+    expect(
+      importers,
+      'The test mocks build permits with no role check, so production code must not import them.'
+    ).toEqual([])
   })
 
   it('take a permit and never read the current user', () => {
@@ -231,20 +245,6 @@ describe('bounded contexts', () => {
       PLANT_LIFE_ENDPOINTS.filter((endpoint) => !graph.has(join(SRC, endpoint)))
     ).toEqual([])
     expect(tellers).toEqual([])
-  })
-
-  it('take the proof of a held owner from the owner lock only', () => {
-    const minters = files
-      .filter((file) =>
-        (graph.get(file) ?? []).some(
-          (imported) =>
-            imported.target === join(SRC, 'kernel/owner.ts') &&
-            /\bmintOwnerHeld\b/.test(imported.names)
-        )
-      )
-      .map(name)
-
-    expect(minters).toEqual([OWNER_LOCK])
   })
 
   it('leave reminder rows, their locks and their planning to Reminders', () => {

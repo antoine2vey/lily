@@ -8,6 +8,7 @@ import {
   mockPublicUrl,
 } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockOutbox } from '@lily/api/__tests__/mocks/outbox'
+import { mintPermit } from '@lily/api/__tests__/mocks/permits'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import {
@@ -17,7 +18,7 @@ import {
 import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { frequencyOfDays } from '@lily/api/contexts/care'
 import { Dirty } from '@lily/api/contexts/reminders'
-import { Actor, mintPermit } from '@lily/api/kernel/permit'
+import { Actor } from '@lily/api/kernel/permit'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import {
   PlantRepository,

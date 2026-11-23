@@ -6,6 +6,7 @@ import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { carePermit, permitTo } from '@lily/api/__tests__/mocks/care'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { mintPermit } from '@lily/api/__tests__/mocks/permits'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
@@ -18,7 +19,7 @@ import {
   PlanStepChoice,
   type RecordOutcome,
 } from '@lily/api/contexts/care'
-import { Actor, mintPermit } from '@lily/api/kernel/permit'
+import { Actor } from '@lily/api/kernel/permit'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
