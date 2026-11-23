@@ -60,6 +60,19 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["**/stored-ref-mint"],
+                "message": "Only the upload path, readClientImage and the storedRef() column read mint a StoredObjectRef. Take the reference one of them returns."
+              }
+            ]
+          }
+        }
+      },
       "suspicious": {
         "noShadowRestrictedNames": "off",
         "noUnknownAtRules": {
@@ -97,6 +110,19 @@
       "includes": ["packages/web/src/components/home/home.css"],
       "linter": {
         "rules": { "style": { "noDescendingSpecificity": "off" } }
+      }
+    },
+    {
+      "includes": [
+        "packages/shared/src/services/file/gcs.ts",
+        "packages/api/src/services/helpers/client-image.ts",
+        "packages/db/src/schema/stored-ref.ts",
+        "packages/db/scripts/**",
+        "**/*.test.ts",
+        "**/__tests__/**"
+      ],
+      "linter": {
+        "rules": { "style": { "noRestrictedImports": "off" } }
       }
     },
     {
