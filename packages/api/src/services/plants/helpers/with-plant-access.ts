@@ -1,6 +1,5 @@
 import {
   Actor,
-  mintPermit,
   type PlantAction,
   type PlantPermit,
   type RecordAction,
@@ -31,6 +30,12 @@ import {
 } from '@lily/shared/errors/plant'
 import { Array, Effect, Match, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
+
+const mintPermit = <A extends PlantAction>(
+  plantId: string,
+  action: A,
+  actor: Actor
+): PlantPermit<A> => ({ plantId, action, actor }) as PlantPermit<A>
 
 export type PlantAccessContext =
   | CurrentUser

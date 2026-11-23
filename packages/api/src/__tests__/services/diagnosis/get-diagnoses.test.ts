@@ -1,6 +1,7 @@
 import { mockDiagnoses } from '@lily/api/__tests__/fixtures/diagnoses'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getDiagnoses } from '@lily/api/services/diagnosis/endpoints/get-diagnoses'
 import { KnowledgeView } from '@lily/api/services/plants/helpers/plant-access'
 import { Array, Effect, Layer } from 'effect'
@@ -10,7 +11,8 @@ describe('getDiagnoses', () => {
   const createTestLayer = () =>
     Layer.mergeAll(
       createMockDiagnosisRepository(mockDiagnoses),
-      createMockGCSService()
+      createMockGCSService(),
+      createMockCurrentUser({ id: 'user-1' })
     )
   const own = KnowledgeView.Personal({ viewerId: 'user-1' })
   const household = KnowledgeView.Household({ viewerId: 'user-1' })
@@ -62,9 +64,10 @@ describe('getDiagnoses', () => {
       Effect.runPromise(
         getDiagnoses({ plantId: 'plant-3', view }).pipe(
           Effect.provide(
-            Layer.merge(
+            Layer.mergeAll(
               createMockDiagnosisRepository(linked),
-              createMockGCSService()
+              createMockGCSService(),
+              createMockCurrentUser({ id: view.viewerId })
             )
           )
         )

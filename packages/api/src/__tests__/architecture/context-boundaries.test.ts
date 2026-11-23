@@ -7,12 +7,6 @@ import { describe, expect, expectTypeOf, it } from 'vitest'
 const SRC = resolve(import.meta.dirname, '../..')
 const CONTEXTS = join(SRC, 'contexts')
 
-const MAY_MINT_PERMITS = [
-  'kernel/permit.ts',
-  'services/plants/helpers/with-plant-access.ts',
-  'services/care-plans/helpers/with-care-plan-auth.ts',
-]
-
 const NOTIFICATION_REPOSITORY = 'repositories/notification.repository.ts'
 
 // Delivery moves a row through its statuses and drops the ones it must not
@@ -27,6 +21,8 @@ const CANOPY_STORE = 'contexts/canopy/store.ts'
 const CARE_STORE = 'contexts/care/store.ts'
 
 const OWNER_LOCK = 'services/plants/helpers/owner-lock.ts'
+
+const SEEN = 'services/plants/helpers/seen.ts'
 
 const PLANT_LIFE_ENDPOINTS = [
   'services/plants/endpoints/create-plant.ts',
@@ -158,20 +154,103 @@ describe('bounded contexts', () => {
     expect(cycles).toEqual([])
   })
 
-  it('receive permits minted by an access module only', () => {
-    const minters = files
-      .filter((file) =>
-        (graph.get(file) ?? []).some(
-          (imported) =>
-            imported.target === join(SRC, 'kernel/permit.ts') &&
-            /\bmint\w*Permit\b/.test(imported.names)
+  it('receive permits, owner proofs and seen rows built only where their check runs', () => {
+    const PROOF = 'PlantPermit|RecordPermit|PlanPermit|OwnerHeld|Seen'
+    const CASTS = [
+      new RegExp(
+        `\\bas\\s+(?:unknown\\s+as\\s+)?(?:(?:readonly\\s+)?[\\w.$]+\\s*[<|&]\\s*)*(?:readonly\\s+)?(${PROOF})\\b`,
+        'g'
+      ),
+      new RegExp(
+        `(?<=(?:^|[(,=:?![{;&|]|\\breturn|\\byield|\\bawait|=>)\\s*)<\\s*(?:(?:readonly\\s+)?[\\w.$]+\\s*[<|&]\\s*)*(?:readonly\\s+)?(${PROOF})\\b`,
+        'gm'
+      ),
+    ]
+    const builders = new Set(
+      files.flatMap((file) =>
+        CASTS.flatMap((cast) =>
+          [...readFileSync(file, 'utf8').matchAll(cast)].map(
+            (match) => `${match[1]} in ${name(file)}`
+          )
         )
       )
+    )
+
+    expect(
+      [...builders].sort(),
+      'Get a permit through withPlantAuth, withPlantPermit, withRecordPermit or withCarePlanAuth, an OwnerHeld through withOwnerLock and a Seen row through seenByCaller. Building one anywhere else skips the role check, the lock or the redaction.'
+    ).toEqual([
+      `OwnerHeld in ${OWNER_LOCK}`,
+      'PlanPermit in services/care-plans/helpers/with-care-plan-auth.ts',
+      'PlantPermit in services/plants/helpers/with-plant-access.ts',
+      `Seen in ${SEEN}`,
+    ])
+  })
+
+  it('cast nothing to never', () => {
+    const casters = files
+      .filter((file) => /\bas\s+never\b/.test(readFileSync(file, 'utf8')))
       .map(name)
 
-    expect(minters.filter((file) => !MAY_MINT_PERMITS.includes(file))).toEqual(
-      []
+    expect(
+      casters,
+      '`as never` fits any parameter, a permit or a Seen row included, so tsc stops checking it.'
+    ).toEqual([])
+  })
+
+  it('brand a row Seen only in seen.ts', () => {
+    const BRANDS =
+      /\bbrand\(\s*['"`]Seen['"`]|\bBrand\s*<\s*['"`]Seen['"`]|\bnominal\s*<\s*Seen\b/
+    const branders = files
+      .filter((file) => name(file) !== SEEN)
+      .filter((file) => BRANDS.test(readFileSync(file, 'utf8')))
+      .map(name)
+    const SCHEMAS = ['services/care-plans/api.ts', 'services/diagnosis/api.ts']
+    const namesOf = (imported: Import): ReadonlyArray<string> => {
+      const named = /^\{([^}]*)\}$/.exec(imported.names.trim())?.[1]
+      return named === undefined
+        ? ['*']
+        : named
+            .split(',')
+            .map((part) => part.trim().replace(/^type\s+/, ''))
+            .map((part) => part.split(/\s+as\s+/)[0] ?? '')
+            .filter((part) => part !== '')
+    }
+    const mayImport = (file: string, imported: string) =>
+      imported === 'seenByCaller' ||
+      imported === 'Seen' ||
+      (imported === 'seen' && SCHEMAS.includes(name(file)))
+    const importers = files.flatMap((file) =>
+      (graph.get(file) ?? [])
+        .filter((imported) => imported.target === join(SRC, SEEN))
+        .flatMap(namesOf)
+        .filter((imported) => !mayImport(file, imported))
+        .map((imported) => `${imported} in ${name(file)}`)
     )
+    const LOADS = /\b(?:import|require)\(\s*['"`][^'"`]*\/seen(?:\.ts)?['"`]/
+    const loaders = files
+      .filter((file) => LOADS.test(readFileSync(file, 'utf8')))
+      .map(name)
+
+    expect(
+      branders,
+      'A Seen row comes from seenByCaller. A brand made elsewhere skips the redaction.'
+    ).toEqual([])
+    expect(
+      [...importers, ...loaders],
+      'Decoding through `seen` makes a Seen row with nothing redacted, so only the success schemas import it. Elsewhere import seenByCaller or the type Seen by name.'
+    ).toEqual([])
+  })
+
+  it('reach nothing in the tests', () => {
+    const reachers = files
+      .filter((file) => readFileSync(file, 'utf8').includes('__tests__/'))
+      .map(name)
+
+    expect(
+      reachers,
+      'The test mocks build permits with no role check, so production code must not import or require them.'
+    ).toEqual([])
   })
 
   it('take a permit and never read the current user', () => {
@@ -231,20 +310,6 @@ describe('bounded contexts', () => {
       PLANT_LIFE_ENDPOINTS.filter((endpoint) => !graph.has(join(SRC, endpoint)))
     ).toEqual([])
     expect(tellers).toEqual([])
-  })
-
-  it('take the proof of a held owner from the owner lock only', () => {
-    const minters = files
-      .filter((file) =>
-        (graph.get(file) ?? []).some(
-          (imported) =>
-            imported.target === join(SRC, 'kernel/owner.ts') &&
-            /\bmintOwnerHeld\b/.test(imported.names)
-        )
-      )
-      .map(name)
-
-    expect(minters).toEqual([OWNER_LOCK])
   })
 
   it('leave reminder rows, their locks and their planning to Reminders', () => {

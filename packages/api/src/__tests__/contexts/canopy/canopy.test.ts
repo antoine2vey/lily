@@ -18,6 +18,7 @@ import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
+import { mintPermit, systemPermit } from '@lily/api/__tests__/mocks/permits'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import {
   Canopy,
@@ -36,7 +37,7 @@ import {
   RoomScope,
   RowsNotWrittenDefect,
 } from '@lily/api/contexts/canopy/store'
-import { Actor, mintPermit, systemPermit } from '@lily/api/kernel/permit'
+import { Actor } from '@lily/api/kernel/permit'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {

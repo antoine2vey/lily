@@ -1,14 +1,15 @@
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { resolveImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { SeenDiagnosisList } from '@lily/api/services/diagnosis/api'
 import {
-  asSeenBy,
   authorScope,
   type KnowledgeView,
 } from '@lily/api/services/plants/helpers/plant-access'
-import type { DiagnosisListResponse } from '@lily/shared/diagnosis'
+import { seenByCaller } from '@lily/api/services/plants/helpers/seen'
 import type { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
-import { Array, Effect } from 'effect'
+import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface GetDiagnosesParams {
@@ -21,9 +22,9 @@ export interface GetDiagnosesParams {
 export const getDiagnoses = (
   params: GetDiagnosesParams
 ): Effect.Effect<
-  DiagnosisListResponse,
+  SeenDiagnosisList,
   SqlError | GCSUploadError,
-  DiagnosisRepository | GCSService
+  DiagnosisRepository | GCSService | CurrentUser
 > =>
   Effect.gen(function* () {
     const repo = yield* DiagnosisRepository
@@ -37,7 +38,7 @@ export const getDiagnoses = (
 
     // Resolve any raw GCS keys to signed URLs (batch, parallel)
     const resolvedItems = yield* resolveImageUrls(
-      Array.map(result.items, asSeenBy(params.view.viewerId))
+      yield* Effect.forEach(result.items, seenByCaller)
     )
 
     return { ...result, items: resolvedItems }

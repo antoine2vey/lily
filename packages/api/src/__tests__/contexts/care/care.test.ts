@@ -1,4 +1,5 @@
 import { carePermit, createInMemoryCare } from '@lily/api/__tests__/mocks/care'
+import { mintPermit } from '@lily/api/__tests__/mocks/permits'
 import {
   Care,
   CareWhen,
@@ -13,7 +14,7 @@ import {
   LifeState,
 } from '@lily/api/contexts/care/domain/care-plant'
 import type { AmendInput } from '@lily/api/contexts/care/domain/decide'
-import { Actor, mintPermit } from '@lily/api/kernel/permit'
+import { Actor } from '@lily/api/kernel/permit'
 import { CareDay, CareDays, type CareType } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

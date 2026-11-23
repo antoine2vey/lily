@@ -1,4 +1,4 @@
-import { mintPlanPermit, type PlanPermit } from '@lily/api/kernel/permit'
+import type { PlanPermit } from '@lily/api/kernel/permit'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import {
@@ -13,7 +13,6 @@ import {
   carePlanRole,
 } from '@lily/api/services/care-plans/helpers/care-plan-access'
 import {
-  asSeenBy,
   knowledgeView,
   type PlantRole,
 } from '@lily/api/services/plants/helpers/plant-access'
@@ -29,6 +28,13 @@ import {
 } from '@lily/shared/errors/care-plan'
 import { Array, Effect, identity, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
+
+const mintPlanPermit = <A extends CarePlanAction>(
+  plan: CarePlan,
+  action: A,
+  by: string
+): PlanPermit<A> =>
+  ({ planId: plan.id, plantId: plan.plantId, action, by }) as PlanPermit<A>
 
 export interface CarePlanContext<A extends CarePlanAction = CarePlanAction> {
   readonly plan: CarePlan
@@ -154,12 +160,4 @@ export const reloadPlan = (
       Option.fromNullishOr(yield* repo.findById(planId)),
       () => new CarePlanNotFoundError({ planId })
     )
-  })
-
-export const seenByCaller = (
-  plan: CarePlan
-): Effect.Effect<CarePlan, never, CurrentUser> =>
-  Effect.gen(function* () {
-    const { id } = yield* CurrentUser
-    return asSeenBy(id)(plan)
   })
