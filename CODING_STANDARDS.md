@@ -45,10 +45,11 @@ The `String` module (`String.toUpperCase`, `String.includes`, `String.split`, ..
 
 - Define typed errors with `Schema.TaggedError` and let them propagate through the Effect error channel.
 - Handle errors by tag (`Effect.catchTag`, `Effect.catchTags`), naming each error you recover from.
+- A test that expects a failure names the error. `lint/assert-which-error.grit` fails on a check that passes on any error, and on a `toEqual` of a built error whose `message` the matcher skips.
 
 ## Auth
 
-Read the requesting user from `CurrentUser` (`const { id: userId } = yield* CurrentUser`), provided by the auth middleware. The caller's identity never comes from a `userId` path param.
+Read the requesting user from `CurrentUser` (`const { id: userId } = yield* CurrentUser`), provided by the auth middleware. The caller's identity never comes from a `userId` path param. Code under `packages/api/src/contexts/` takes a permit instead, and `context-boundaries.test.ts` fails on a context that reads the current user.
 
 ## Type suppression
 
@@ -58,12 +59,12 @@ Suppress a type error with `@ts-expect-error` plus a one-line rationale; unlike 
 
 A change under one of these packages also follows that package's `CLAUDE.md`. Read it before writing or reviewing the change:
 
-- **`packages/api/`**: service layout, handlers, `withPlantAuth`, schedulers, naming, tests, dead-plant filtering: `packages/api/CLAUDE.md`.
-- **`packages/app/`**: NativeWind styling, theme tokens, component variants, loading states: `packages/app/CLAUDE.md`.
+- **`packages/api/`**: service layout, handlers, `withPlantAuth`, permits, locks, status transitions, the Quint models, schedulers, naming, tests, dead-plant filtering: `packages/api/CLAUDE.md`.
+- **`packages/app/`**: NativeWind styling, theme tokens, component variants, loading states, query keys, API stubs in tests: `packages/app/CLAUDE.md`.
 - **`packages/plant-scanner/`**: props and events across Swift and TypeScript, the lux bands, frame analysis, measurement: `packages/plant-scanner/CLAUDE.md`.
 - **`packages/db/`**: hand-written migrations, local databases, schema conventions, the Effect bridge, seeds: `packages/db/CLAUDE.md`.
 - **`packages/knowledge-db/`**: migrations and their journal, vectors and search, the layer and its pool: `packages/knowledge-db/CLAUDE.md`.
 - **`packages/shared/`**: domain schemas, errors, service interfaces, exports: `packages/shared/CLAUDE.md`.
 - **`packages/mcp/`**: the import alias, `API_PREFIX`, tool errors and input schemas, escaping, widgets, sessions, CORS: `packages/mcp/CLAUDE.md`.
 - **`packages/admin/`**: `API_PREFIX`, typing responses with shared schemas, the `@/` alias, Effect for data shaping: `packages/admin/CLAUDE.md`.
-- **`packages/web/`**: Effect in a static build, SEO metadata, i18n, blog posts, components: `packages/web/CLAUDE.md`.
+- **`packages/web/`**: Effect in a static build, SEO metadata, i18n, blog posts, components, launching Chrome: `packages/web/CLAUDE.md`.
