@@ -1,4 +1,7 @@
-import { mockBlogPosts } from '@lily/api/__tests__/fixtures/blog-posts'
+import {
+  mockBlogPost1,
+  mockBlogPosts,
+} from '@lily/api/__tests__/fixtures/blog-posts'
 import { createMockBlogPostRepository } from '@lily/api/__tests__/mocks/blog-post.repository'
 import { createMockDailyTipRepository } from '@lily/api/__tests__/mocks/daily-tip.repository'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
@@ -58,8 +61,18 @@ const passingReview = {
   },
 }
 
+const RESEARCHED = ['researched-1', 'researched-2', 'researched-3'] as const
+
 const deps = Layer.mergeAll(
-  createMockBlogPostRepository(mockBlogPosts),
+  createMockBlogPostRepository([
+    ...mockBlogPosts,
+    ...RESEARCHED.map((id) => ({
+      ...mockBlogPost1,
+      id,
+      slug: id,
+      status: 'researching' as const,
+    })),
+  ]),
   createMockDailyTipRepository([]),
   createMockRagService(),
   Layer.succeed(PlantCatalogRepository, {
@@ -98,19 +111,19 @@ const cases: ReadonlyArray<{
   {
     name: 'blog content generation',
     replies: [],
-    run: () => generateAndReviewBlogPost('blog-1', topic, brief),
+    run: () => generateAndReviewBlogPost(RESEARCHED[0], topic, brief),
     deadline: Duration.minutes(3),
   },
   {
     name: 'blog content review',
     replies: [{ text: 'post' }],
-    run: () => generateAndReviewBlogPost('blog-1', topic, brief),
+    run: () => generateAndReviewBlogPost(RESEARCHED[1], topic, brief),
     deadline: Duration.seconds(60),
   },
   {
     name: 'blog translation',
     replies: [{ text: 'post' }, passingReview],
-    run: () => generateAndReviewBlogPost('blog-1', topic, brief),
+    run: () => generateAndReviewBlogPost(RESEARCHED[2], topic, brief),
     deadline: Duration.minutes(3),
   },
 ]

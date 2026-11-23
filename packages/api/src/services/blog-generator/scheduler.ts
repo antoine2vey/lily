@@ -8,7 +8,7 @@ import { iterate } from '@lily/api/services/helpers/iterate'
 import type { BlogPostSource } from '@lily/db/schema'
 import { daysAgoAsDate, hoursAgoAsDate } from '@lily/shared'
 import { Array, Config, Effect } from 'effect'
-import { generateAndReviewBlogPost } from './generator'
+import { generateAndReviewBlogPost, movePost } from './generator'
 import { researchTopic } from './researcher'
 import { selectTopic } from './topics'
 import type { TopicSuggestion } from './types'
@@ -22,7 +22,7 @@ const rejectPost = (postId: string, reason: string) =>
     yield* Effect.logWarning(
       `Blog pipeline failed — marking post ${postId} as rejected: ${reason}`
     )
-    yield* repo.updateStatus(postId, 'rejected')
+    yield* repo.reject(postId)
   })
 
 // Run the pipeline for a single blog post, marking it rejected on failure
@@ -31,7 +31,7 @@ const runPipeline = (postId: string, topic: TopicSuggestion) =>
     const repo = yield* BlogPostRepository
 
     // 1. RESEARCH
-    yield* repo.updateStatus(postId, 'researching')
+    yield* movePost(postId, 'researching')
     const brief = yield* researchTopic(topic)
 
     yield* repo.updateSources(

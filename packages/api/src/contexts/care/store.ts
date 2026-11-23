@@ -14,6 +14,7 @@ import type { Plan, PlanStep } from '@lily/api/contexts/care/domain/plan'
 import { seePlantCare } from '@lily/api/contexts/care/plant-care'
 import { lockRowsNamed, pinAccounts } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
+import { Transition, transitionDecided } from '@lily/api/kernel/transition'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import {
   ownerColumns,
@@ -418,20 +419,18 @@ export const CareStoreLive = Layer.effect(
           ),
         SetPlanStatus: (w) =>
           Effect.flatMap(
-            db
-              .update(carePlans)
-              .set({
-                status: w.to,
-                ...STAMPS_OF[w.to]({
-                  from: w.from,
-                  at: DateTime.toDateUtc(w.at),
-                }),
-              })
-              .where(
-                and(eq(carePlans.id, w.planId), eq(carePlans.status, w.from))
-              )
-              .returning({ id: carePlans.id }),
-            writtenOnce(w)
+            transitionDecided(db, 'Plan', w.planId, {
+              from: w.from,
+              to: w.to,
+              also: STAMPS_OF[w.to]({
+                from: w.from,
+                at: DateTime.toDateUtc(w.at),
+              }),
+            }),
+            Transition.$match({
+              Moved: () => Effect.void,
+              LostRace: () => writtenOnce(w)([]),
+            })
           ),
         DeletePlan: (w) =>
           Effect.flatMap(

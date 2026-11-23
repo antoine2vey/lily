@@ -61,22 +61,6 @@ describe('BlogPostRepository', () => {
     })
   })
 
-  describe('updateStatus', () => {
-    it('should update post status', async () => {
-      const mockRepo = createMockBlogPostRepository(mockBlogPosts)
-
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const repo = yield* BlogPostRepository
-          return yield* repo.updateStatus(mockPendingBlogPost.id, 'researching')
-        }).pipe(Effect.provide(mockRepo))
-      )
-
-      expect(result).not.toBeNull()
-      expect(result?.status).toBe('researching')
-    })
-  })
-
   describe('updateContent', () => {
     it('should update post content', async () => {
       const mockRepo = createMockBlogPostRepository(mockBlogPosts)
@@ -94,28 +78,6 @@ describe('BlogPostRepository', () => {
       expect(result).not.toBeNull()
       expect(result?.content?.en).toBe('# English Content')
       expect(result?.content?.fr).toBe('# Contenu Français')
-    })
-  })
-
-  describe('markPublished', () => {
-    it('should mark post as published with commit SHAs', async () => {
-      const mockRepo = createMockBlogPostRepository(mockBlogPosts)
-
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const repo = yield* BlogPostRepository
-          return yield* repo.markPublished(mockPendingBlogPost.id, {
-            en: 'sha-en-123',
-            fr: 'sha-fr-456',
-          })
-        }).pipe(Effect.provide(mockRepo))
-      )
-
-      expect(result).not.toBeNull()
-      expect(result?.status).toBe('published')
-      expect(result?.commitShas?.en).toBe('sha-en-123')
-      expect(result?.commitShas?.fr).toBe('sha-fr-456')
-      expect(result?.publishedAt).toBeDefined()
     })
   })
 

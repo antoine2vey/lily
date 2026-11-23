@@ -1,3 +1,4 @@
+import { transitionEach } from '@lily/api/kernel/transition'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { activityPushTokens, deviceTokens } from '@lily/db/schema'
 import { type ActivityPushToken, nowAsDate } from '@lily/shared'
@@ -74,6 +75,7 @@ export interface IActivityPushTokenRepository {
   readonly createActivity: (
     data: CreateActivityTokenData
   ) => Effect.Effect<ActivityPushToken, SqlError>
+  /** Null when no live row has that activity: it ended or expired already. */
   readonly markEnded: (
     activityId: string
   ) => Effect.Effect<ActivityPushToken | null, SqlError>
@@ -241,28 +243,25 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
       markEnded: Effect.fn('ActivityPushTokenRepository.markEnded')(function* (
         activityId: string
       ) {
-        const [row] = yield* db
-          .update(activityPushTokens)
-          .set({ status: 'ended' })
-          .where(eq(activityPushTokens.activityId, activityId))
-          .returning()
+        const [row] = yield* transitionEach(db, 'ActivityToken', {
+          from: ['active'],
+          to: 'ended',
+          where: eq(activityPushTokens.activityId, activityId),
+        })
         return row ? mapRow(row) : null
       }),
 
       expireStaleOlderThan: Effect.fn(
         'ActivityPushTokenRepository.expireStaleOlderThan'
       )(function* (cutoff: Date) {
-        const rows = yield* db
-          .update(activityPushTokens)
-          .set({ status: 'expired' })
-          .where(
-            and(
-              eq(activityPushTokens.kind, 'update'),
-              eq(activityPushTokens.status, 'active'),
-              lt(activityPushTokens.startedAt, cutoff)
-            )
-          )
-          .returning({ id: activityPushTokens.id })
+        const rows = yield* transitionEach(db, 'ActivityToken', {
+          from: ['active'],
+          to: 'expired',
+          where: and(
+            eq(activityPushTokens.kind, 'update'),
+            lt(activityPushTokens.startedAt, cutoff)
+          ),
+        })
         return Array.length(rows)
       }),
 
@@ -292,19 +291,17 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
       endOrphanStartTokens: Effect.fn(
         'ActivityPushTokenRepository.endOrphanStartTokens'
       )(function* (userId: string, keepDeviceTokenId: string) {
-        const rows = yield* db
-          .update(activityPushTokens)
-          .set({ status: 'ended', updatedAt: nowAsDate() })
-          .where(
-            and(
-              eq(activityPushTokens.userId, userId),
-              eq(activityPushTokens.kind, 'start'),
-              eq(activityPushTokens.status, 'active'),
-              ne(activityPushTokens.deviceTokenId, keepDeviceTokenId),
-              sql`EXISTS (SELECT 1 FROM ${deviceTokens} dt WHERE dt.id = ${activityPushTokens.deviceTokenId} AND dt.is_active = false)`
-            )
-          )
-          .returning({ id: activityPushTokens.id })
+        const rows = yield* transitionEach(db, 'ActivityToken', {
+          from: ['active'],
+          to: 'ended',
+          also: { updatedAt: nowAsDate() },
+          where: and(
+            eq(activityPushTokens.userId, userId),
+            eq(activityPushTokens.kind, 'start'),
+            ne(activityPushTokens.deviceTokenId, keepDeviceTokenId),
+            sql`EXISTS (SELECT 1 FROM ${deviceTokens} dt WHERE dt.id = ${activityPushTokens.deviceTokenId} AND dt.is_active = false)`
+          ),
+        })
         return Array.length(rows)
       }),
 
@@ -317,17 +314,15 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
       endStartTokenByDeviceTokenId: Effect.fn(
         'ActivityPushTokenRepository.endStartTokenByDeviceTokenId'
       )(function* (deviceTokenId: string) {
-        const rows = yield* db
-          .update(activityPushTokens)
-          .set({ status: 'ended', updatedAt: nowAsDate() })
-          .where(
-            and(
-              eq(activityPushTokens.deviceTokenId, deviceTokenId),
-              eq(activityPushTokens.kind, 'start'),
-              eq(activityPushTokens.status, 'active')
-            )
-          )
-          .returning({ id: activityPushTokens.id })
+        const rows = yield* transitionEach(db, 'ActivityToken', {
+          from: ['active'],
+          to: 'ended',
+          also: { updatedAt: nowAsDate() },
+          where: and(
+            eq(activityPushTokens.deviceTokenId, deviceTokenId),
+            eq(activityPushTokens.kind, 'start')
+          ),
+        })
         return Array.length(rows)
       }),
 
@@ -376,26 +371,21 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
         unconfirmedOlderThan: Date
         confirmedOlderThan: Date
       }) {
-        const rows = yield* db
-          .update(activityPushTokens)
-          .set({ status: 'expired', updatedAt: nowAsDate() })
-          .where(
-            and(
-              eq(activityPushTokens.kind, 'start'),
-              eq(activityPushTokens.status, 'active'),
-              or(
-                and(
-                  isNull(activityPushTokens.lastConfirmedAt),
-                  lt(activityPushTokens.startedAt, params.unconfirmedOlderThan)
-                ),
-                lt(
-                  activityPushTokens.lastConfirmedAt,
-                  params.confirmedOlderThan
-                )
-              )
+        const rows = yield* transitionEach(db, 'ActivityToken', {
+          from: ['active'],
+          to: 'expired',
+          also: { updatedAt: nowAsDate() },
+          where: and(
+            eq(activityPushTokens.kind, 'start'),
+            or(
+              and(
+                isNull(activityPushTokens.lastConfirmedAt),
+                lt(activityPushTokens.startedAt, params.unconfirmedOlderThan)
+              ),
+              lt(activityPushTokens.lastConfirmedAt, params.confirmedOlderThan)
             )
-          )
-          .returning({ id: activityPushTokens.id })
+          ),
+        })
         return Array.length(rows)
       }),
     }

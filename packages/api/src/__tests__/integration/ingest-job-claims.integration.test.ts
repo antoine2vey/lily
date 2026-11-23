@@ -4,6 +4,7 @@ import {
   claimsMigration,
   knowledgeTables,
 } from '@lily/api/__tests__/integration/knowledge-tables'
+import { holdRowUntilWaited } from '@lily/api/__tests__/integration/lock-waits'
 import {
   IngestJobRepository,
   IngestJobRepositoryLive,
@@ -166,24 +167,85 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(empty).toBeNull()
     })
 
-    it('hands two concurrent claimers two different jobs', async () => {
-      await insertJob('pending', null, new Date('2024-01-01T00:00:00Z'))
-      await insertJob('pending', null, new Date('2024-01-02T00:00:00Z'))
+    it('hands two claimers two different jobs while a third session holds the oldest', async () => {
+      const held = await insertJob(
+        'pending',
+        null,
+        new Date('2024-01-01T00:00:00Z')
+      )
+      const free = [
+        await insertJob('pending', null, new Date('2024-01-02T00:00:00Z')),
+        await insertJob('pending', null, new Date('2024-01-03T00:00:00Z')),
+      ]
+      const settled = new AbortController()
 
-      const claimed = await run(
+      const { waiting, result } = await holdRowUntilWaited(
+        pool,
+        'SELECT id FROM ingest_jobs WHERE id = $1 FOR UPDATE',
+        [held],
+        () => {
+          const claims = run(
+            Effect.flatMap(IngestJobRepository, (repo) =>
+              Effect.forEach([1, 2], () => repo.claimNext, {
+                concurrency: 'unbounded',
+              })
+            )
+          )
+          void claims.finally(() => settled.abort())
+          return claims
+        },
+        2,
+        settled.signal
+      )
+
+      expect(
+        Array.map(
+          Array.filter(await result, Predicate.isNotNull),
+          (job) => job.id
+        ).sort()
+      ).toEqual([...free].sort())
+      expect(waiting, 'claimers that waited for the held job').toBe(0)
+      expect(await jobStatus(held)).toBe('pending')
+    })
+
+    it('leaves a job whose claim was released to the worker that claims it next', async () => {
+      const released = await insertJob(
+        'pending',
+        null,
+        new Date('2024-01-01T00:00:00Z')
+      )
+
+      const [completed, failed] = await run(
         Effect.flatMap(IngestJobRepository, (repo) =>
-          Effect.forEach([1, 2], () => repo.claimNext, {
-            concurrency: 'unbounded',
-          })
+          Effect.all([
+            repo.complete(released, { documentsFetched: 3, chunksCreated: 9 }),
+            repo.updateError(released, 'boom'),
+          ])
         )
       )
 
-      const ids = Array.map(
-        Array.filter(claimed, Predicate.isNotNull),
-        (job) => job.id
+      expect([completed._tag, failed._tag]).toEqual(['LostRace', 'LostRace'])
+      expect(await jobStatus(released)).toBe('pending')
+    })
+
+    it('ends a job once: a failure after the completion does not overwrite it', async () => {
+      const held = await insertJob(
+        'in_progress',
+        new Date(),
+        new Date('2024-01-01T00:00:00Z')
       )
-      expect(ids).toHaveLength(2)
-      expect(Array.dedupe(ids)).toHaveLength(2)
+
+      const [completed, failed] = await run(
+        Effect.flatMap(IngestJobRepository, (repo) =>
+          Effect.all([
+            repo.complete(held, { documentsFetched: 3, chunksCreated: 9 }),
+            repo.updateError(held, 'boom'),
+          ])
+        )
+      )
+
+      expect([completed._tag, failed._tag]).toEqual(['Moved', 'LostRace'])
+      expect(await jobStatus(held)).toBe('completed')
     })
 
     it('re-queues abandoned and unstamped claims but not live ones', async () => {

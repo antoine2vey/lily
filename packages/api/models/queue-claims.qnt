@@ -8,7 +8,9 @@
 //
 // What the model takes for granted, beyond the constants below:
 // - One message carries one row. A care digest carries several, and each
-//   UPDATE treats them row by row.
+//   UPDATE treats them row by row. That holds only while each step is one
+//   statement: the retryLater run of queue-claims-model.integration.test.ts
+//   races the sweep against a message of two rows.
 // - The dispatch gate sends. A deferred or dropped row leaves the queue
 //   through deferUntil or deleteByIds and is never pushed.
 // - A push is delivered or every ticket fails. A batch that fails for some

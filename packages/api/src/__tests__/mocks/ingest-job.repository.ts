@@ -1,3 +1,4 @@
+import { Transition } from '@lily/api/kernel/transition'
 import {
   type IIngestJobRepository,
   IngestJobRepository,
@@ -30,6 +31,22 @@ export const createMockIngestJobRepository = (data: {
           return updated
         })
       )
+    )
+
+  const end = (
+    id: string,
+    patch: Partial<MockIngestJob>
+  ): Transition<IngestJob> =>
+    pipe(
+      Array.findFirst(
+        data.jobs,
+        (job) => job.id === id && job.status === 'in_progress'
+      ),
+      Option.flatMap(() => replace(id, patch)),
+      Option.match({
+        onNone: () => Transition.LostRace(),
+        onSome: (row) => Transition.Moved({ row }),
+      })
     )
 
   const repo: IIngestJobRepository = {
@@ -92,14 +109,10 @@ export const createMockIngestJobRepository = (data: {
       }),
 
     complete: (id, counts) =>
-      Effect.sync(() => {
-        replace(id, { ...counts, status: 'completed' })
-      }),
+      Effect.sync(() => end(id, { ...counts, status: 'completed' })),
 
     updateError: (id: string, error: string) =>
-      Effect.sync(() => {
-        replace(id, { error, status: 'failed' })
-      }),
+      Effect.sync(() => end(id, { error, status: 'failed' })),
 
     count: Effect.sync(() => data.jobs.length),
 

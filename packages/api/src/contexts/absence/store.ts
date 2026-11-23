@@ -20,9 +20,9 @@ import {
   lockRowsNamed,
   lockUsers,
   pinAccounts,
-  writeAccount,
 } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
+import { Transition, transitionDecided } from '@lily/api/kernel/transition'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
@@ -620,17 +620,15 @@ export const AbsenceStoreLive = Layer.effect(
             }),
           MoveDelegation: (w) =>
             Effect.flatMap(
-              db
-                .update(careDelegations)
-                .set({ status: statusOf(w.to), ...stampOf(w.to, w.at) })
-                .where(
-                  and(
-                    eq(careDelegations.id, w.id),
-                    eq(careDelegations.status, statusOf(w.from))
-                  )
-                )
-                .returning({ id: careDelegations.id }),
-              (moved) => movedOnce(w, moved.length)
+              transitionDecided(db, 'Delegation', w.id, {
+                from: statusOf(w.from),
+                to: statusOf(w.to),
+                also: stampOf(w.to, w.at),
+              }),
+              Transition.$match({
+                Moved: () => Effect.void,
+                LostRace: () => movedOnce(w, 0),
+              })
             ),
           MoveDueDaysAfterAbsence: (w) =>
             Effect.flatMap(
@@ -650,21 +648,24 @@ export const AbsenceStoreLive = Layer.effect(
                   ),
                 })
             ),
-          SetVacation: (w) =>
-            Effect.flatMap(
-              writeAccount(
-                db,
-                w.userId,
-                { ...vacationColumnsOf(w.next), updatedAt: nowAsDate() },
-                (written) => written.returning({ id: users.id }),
-                and(
-                  eq(users.vacationStatus, w.expected.status),
+          SetVacation: (w) => {
+            const { vacationStatus, ...dates } = vacationColumnsOf(w.next)
+            return Effect.flatMap(
+              transitionDecided(db, 'Vacation', w.userId, {
+                from: w.expected.status,
+                to: vacationStatus,
+                also: { ...dates, updatedAt: nowAsDate() },
+                where: and(
                   storedAt(users.vacationStart, w.expected.start),
                   storedAt(users.vacationEnd, w.expected.end)
-                )
-              ),
-              (set) => setOnce(w, set.length)
-            ),
+                ),
+              }),
+              Transition.$match({
+                Moved: () => Effect.void,
+                LostRace: () => setOnce(w, 0),
+              })
+            )
+          },
           SweepMuted: (w) =>
             notifications.deletePendingByUserIdAndTypes(
               w.userId,

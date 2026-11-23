@@ -3,7 +3,10 @@ import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
-import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
+import {
+  ActivityPushTokenRepository,
+  ActivityPushTokenRepositoryLive,
+} from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -421,6 +424,30 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .select({ status: schema.activityPushTokens.status })
         .from(schema.activityPushTokens)
         .where(eq(schema.activityPushTokens.token, 'update-0-rotated'))
+      expect(rows).toEqual([{ status: 'expired' }])
+    })
+
+    it('leaves an expired card expired when its end arrives after the sweep', async () => {
+      await db.insert(schema.activityPushTokens).values({
+        userId,
+        deviceTokenId: devices[0],
+        kind: 'update',
+        activityId: 'activity-swept',
+        token: 'update-swept',
+        status: 'expired',
+      })
+
+      const ended = await Effect.runPromise(
+        Effect.flatMap(ActivityPushTokenRepository, (repo) =>
+          repo.markEnded('activity-swept')
+        ).pipe(Effect.provide(RepositoriesLive))
+      )
+
+      expect(ended).toBeNull()
+      const rows = await db
+        .select({ status: schema.activityPushTokens.status })
+        .from(schema.activityPushTokens)
+        .where(eq(schema.activityPushTokens.token, 'update-swept'))
       expect(rows).toEqual([{ status: 'expired' }])
     })
 

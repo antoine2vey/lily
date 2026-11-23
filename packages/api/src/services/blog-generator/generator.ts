@@ -1,5 +1,9 @@
 import { openai } from '@ai-sdk/openai'
-import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import { Transition } from '@lily/api/kernel/transition'
+import {
+  BlogPostRepository,
+  type BlogPostStep,
+} from '@lily/api/repositories/blog-post.repository'
 import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import { iterate } from '@lily/api/services/helpers/iterate'
 import type { LocalizedText } from '@lily/db/schema'
@@ -200,6 +204,23 @@ ${validLinks || 'None — no internal links should be present'}`,
   return result.output as ReviewResult
 })
 
+/** Stops the pipeline of a post the stale sweep rejected under it. */
+export const movePost = (postId: string, to: BlogPostStep) =>
+  Effect.flatMap(BlogPostRepository, (repo) =>
+    Effect.flatMap(
+      repo.moveTo(postId, to),
+      Transition.$match({
+        Moved: () => Effect.void,
+        LostRace: () =>
+          Effect.fail(
+            new BlogGenerationError({
+              message: `Post ${postId} is no longer in progress, so it cannot move to ${to}`,
+            })
+          ),
+      })
+    )
+  )
+
 export const generateAndReviewBlogPost = (
   postId: string,
   topic: TopicSuggestion,
@@ -228,7 +249,7 @@ export const generateAndReviewBlogPost = (
           Effect.gen(function* () {
             // Persist attempt number + transition to generating
             yield* repo.updateRetryCount(postId, state.retryCount)
-            yield* repo.updateStatus(postId, 'generating')
+            yield* movePost(postId, 'generating')
             const generated = yield* generateContent(
               topic,
               brief,
@@ -238,7 +259,7 @@ export const generateAndReviewBlogPost = (
             yield* repo.updateContent(postId, generated.content)
 
             // REVIEW
-            yield* repo.updateStatus(postId, 'reviewing')
+            yield* movePost(postId, 'reviewing')
             const review = yield* reviewContent(generated, brief, validSlugs)
 
             yield* repo.updateReview(postId, {
@@ -288,7 +309,13 @@ export const generateAndReviewBlogPost = (
                 translatedContent
               )
 
-              yield* repo.markPublished(postId, commitShas)
+              const published = yield* repo.markPublished(postId, commitShas)
+              if (published._tag === 'LostRace') {
+                yield* Effect.logError(
+                  'Blog post is live but its row was not marked published',
+                  { postId, slug: topic.slug }
+                )
+              }
 
               yield* Effect.log('Blog post published', {
                 postId,

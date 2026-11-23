@@ -89,7 +89,10 @@ export const createMockActivityPushTokenRepository = (
     markEnded: (activityId) =>
       Effect.sync(() =>
         pipe(
-          Array.findFirstIndex(store, (t) => t.activityId === activityId),
+          Array.findFirstIndex(
+            store,
+            (t) => t.activityId === activityId && t.status === 'active'
+          ),
           Option.flatMap((idx) =>
             pipe(
               Array.get(store, idx),

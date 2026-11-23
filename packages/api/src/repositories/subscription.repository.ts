@@ -98,23 +98,9 @@ export interface ISubscriptionRepository {
     data: CreateSubscriptionData
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
 
-  readonly updateStatus: (
-    userId: string,
-    status: SubscriptionStatus
-  ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
-
-  readonly updateFromWebhook: (
-    externalSubscriptionId: string,
-    data: Partial<CreateSubscriptionData>
-  ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
-
   readonly updateByUserId: (
     userId: string,
     data: Partial<CreateSubscriptionData>
-  ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
-
-  readonly cancel: (
-    userId: string
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
 
   // Tier configuration
@@ -328,39 +314,6 @@ export const SubscriptionRepositoryLive = Layer.effect(
         return Option.getOrNull(Option.fromNullishOr(subscription))
       }),
 
-      updateStatus: Effect.fn('SubscriptionRepository.updateStatus')(function* (
-        userId: string,
-        status: SubscriptionStatus
-      ) {
-        const [subscription] = yield* db
-          .update(userSubscriptions)
-          .set({ status, updatedAt: nowAsDate() })
-          .where(eq(userSubscriptions.userId, userId))
-          .returning()
-        return Option.getOrNull(Option.fromNullishOr(subscription))
-      }),
-
-      updateFromWebhook: Effect.fn('SubscriptionRepository.updateFromWebhook')(
-        function* (
-          externalSubscriptionId: string,
-          data: Partial<CreateSubscriptionData>
-        ) {
-          const updateData = compact(data, { updatedAt: nowAsDate() })
-
-          const [subscription] = yield* db
-            .update(userSubscriptions)
-            .set(updateData)
-            .where(
-              eq(
-                userSubscriptions.externalSubscriptionId,
-                externalSubscriptionId
-              )
-            )
-            .returning()
-          return Option.getOrNull(Option.fromNullishOr(subscription))
-        }
-      ),
-
       updateByUserId: Effect.fn('SubscriptionRepository.updateByUserId')(
         function* (userId: string, data: Partial<CreateSubscriptionData>) {
           const updateData = compact(data, { updatedAt: nowAsDate() })
@@ -373,21 +326,6 @@ export const SubscriptionRepositoryLive = Layer.effect(
           return Option.getOrNull(Option.fromNullishOr(subscription))
         }
       ),
-
-      cancel: Effect.fn('SubscriptionRepository.cancel')(function* (
-        userId: string
-      ) {
-        const [subscription] = yield* db
-          .update(userSubscriptions)
-          .set({
-            status: 'canceled',
-            canceledAt: nowAsDate(),
-            updatedAt: nowAsDate(),
-          })
-          .where(eq(userSubscriptions.userId, userId))
-          .returning()
-        return Option.getOrNull(Option.fromNullishOr(subscription))
-      }),
 
       getTier: Effect.fn('SubscriptionRepository.getTier')(function* (
         tier: SubscriptionTier

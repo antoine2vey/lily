@@ -1,6 +1,11 @@
+import {
+  Transition,
+  transition,
+  transitionEach,
+} from '@lily/api/kernel/transition'
 import { ingestJobs, KnowledgeDrizzle } from '@lily/knowledge-db'
 import type { IngestJob } from '@lily/shared/knowledge'
-import { and, count, desc, eq, isNull, lt, or, sql } from 'drizzle-orm'
+import { count, desc, eq, isNull, lt, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 
@@ -18,6 +23,12 @@ const mapToIngestJob = (row: IngestJobRow): IngestJob => ({
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 })
+
+const ended: (moved: Transition<IngestJobRow>) => Transition<IngestJob> =
+  Transition.$match({
+    Moved: ({ row }) => Transition.Moved({ row: mapToIngestJob(row) }),
+    LostRace: () => Transition.LostRace(),
+  })
 
 export interface IIngestJobRepository {
   readonly create: (
@@ -44,14 +55,19 @@ export interface IIngestJobRepository {
     id: string,
     counts: { documentsFetched: number; chunksCreated: number }
   ) => Effect.Effect<void, SqlError>
+  /**
+   * Both end a job that is in progress. `LostRace` says it is not: its claim
+   * was released as abandoned. No claim token names the worker, so a job
+   * released and then claimed by another worker is ended all the same.
+   */
   readonly complete: (
     id: string,
     counts: { documentsFetched: number; chunksCreated: number }
-  ) => Effect.Effect<void, SqlError>
+  ) => Effect.Effect<Transition<IngestJob>, SqlError>
   readonly updateError: (
     id: string,
     error: string
-  ) => Effect.Effect<void, SqlError>
+  ) => Effect.Effect<Transition<IngestJob>, SqlError>
   readonly count: Effect.Effect<number, SqlError>
   readonly delete: (id: string) => Effect.Effect<boolean, SqlError>
 }
@@ -120,16 +136,15 @@ export const IngestJobRepositoryLive = Layer.effect(
       }).pipe(Effect.withSpan('IngestJobRepository.findAll')),
 
       claimNext: Effect.gen(function* () {
-        const rows = yield* db
-          .update(ingestJobs)
-          .set({ status: 'in_progress', claimedAt: sql`now()` })
-          .where(
-            eq(
-              ingestJobs.id,
-              sql`(SELECT ${ingestJobs.id} FROM ${ingestJobs} WHERE ${ingestJobs.status} = 'pending' ORDER BY ${ingestJobs.createdAt} LIMIT 1 FOR UPDATE SKIP LOCKED)`
-            )
-          )
-          .returning()
+        const rows = yield* transitionEach(db, 'IngestJob', {
+          from: ['pending'],
+          to: 'in_progress',
+          also: { claimedAt: sql`now()` },
+          where: eq(
+            ingestJobs.id,
+            sql`(SELECT ${ingestJobs.id} FROM ${ingestJobs} WHERE ${ingestJobs.status} = 'pending' ORDER BY ${ingestJobs.createdAt} LIMIT 1 FOR UPDATE SKIP LOCKED)`
+          ),
+        })
 
         return pipe(
           Array.head(rows),
@@ -140,19 +155,15 @@ export const IngestJobRepositoryLive = Layer.effect(
 
       releaseStaleClaims: Effect.fn('IngestJobRepository.releaseStaleClaims')(
         function* (before: Date) {
-          const rows = yield* db
-            .update(ingestJobs)
-            .set({ status: 'pending', claimedAt: null })
-            .where(
-              and(
-                eq(ingestJobs.status, 'in_progress'),
-                or(
-                  isNull(ingestJobs.claimedAt),
-                  lt(ingestJobs.claimedAt, before)
-                )
-              )
-            )
-            .returning({ id: ingestJobs.id })
+          const rows = yield* transitionEach(db, 'IngestJob', {
+            from: ['in_progress'],
+            to: 'pending',
+            also: { claimedAt: null },
+            where: or(
+              isNull(ingestJobs.claimedAt),
+              lt(ingestJobs.claimedAt, before)
+            ),
+          })
 
           return rows.length
         }
@@ -173,14 +184,16 @@ export const IngestJobRepositoryLive = Layer.effect(
 
       complete: Effect.fn('IngestJobRepository.complete')(
         function* (id, counts) {
-          yield* db
-            .update(ingestJobs)
-            .set({
-              status: 'completed',
-              documentsFetched: counts.documentsFetched,
-              chunksCreated: counts.chunksCreated,
+          return ended(
+            yield* transition(db, 'IngestJob', id, {
+              from: ['in_progress'],
+              to: 'completed',
+              also: {
+                documentsFetched: counts.documentsFetched,
+                chunksCreated: counts.chunksCreated,
+              },
             })
-            .where(eq(ingestJobs.id, id))
+          )
         }
       ),
 
@@ -188,10 +201,13 @@ export const IngestJobRepositoryLive = Layer.effect(
         id: string,
         error: string
       ) {
-        yield* db
-          .update(ingestJobs)
-          .set({ error, status: 'failed' })
-          .where(eq(ingestJobs.id, id))
+        return ended(
+          yield* transition(db, 'IngestJob', id, {
+            from: ['in_progress'],
+            to: 'failed',
+            also: { error },
+          })
+        )
       }),
 
       count: Effect.gen(function* () {

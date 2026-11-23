@@ -1,3 +1,4 @@
+import { Transition } from '@lily/api/kernel/transition'
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
 import {
@@ -244,6 +245,15 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
  * Documents are processed one by one so that if the job crashes,
  * previously processed documents and their chunks are already persisted.
  */
+const warnWhenClaimLost = (jobId: string, ended: Transition<IngestJob>) =>
+  Transition.$match(ended, {
+    Moved: () => Effect.void,
+    LostRace: () =>
+      Effect.logWarning(
+        `Job ${jobId} was not ended: its claim was released while it ran`
+      ),
+  })
+
 export const processIngestJob = (
   job: IngestJob
 ): Effect.Effect<
@@ -278,17 +288,21 @@ export const processIngestJob = (
       })
     )
 
-    yield* jobRepo.complete(job.id, {
+    const completed = yield* jobRepo.complete(job.id, {
       documentsFetched: yield* Ref.get(totalInsertedRef),
       chunksCreated: yield* Ref.get(totalChunksRef),
     })
+    yield* warnWhenClaimLost(job.id, completed)
   }).pipe(
     Effect.catchTags({
       SqlError: (error) =>
         Effect.gen(function* () {
           const jobRepo = yield* IngestJobRepository
           const errorMessage = String(error)
-          yield* jobRepo.updateError(job.id, errorMessage).pipe(Effect.orDie)
+          const failed = yield* jobRepo
+            .updateError(job.id, errorMessage)
+            .pipe(Effect.orDie)
+          yield* warnWhenClaimLost(job.id, failed)
           yield* Effect.logError(`Job ${job.id} failed`, {
             error: errorMessage,
           })
@@ -297,7 +311,10 @@ export const processIngestJob = (
         Effect.gen(function* () {
           const jobRepo = yield* IngestJobRepository
           const errorMessage = error.message
-          yield* jobRepo.updateError(job.id, errorMessage).pipe(Effect.orDie)
+          const failed = yield* jobRepo
+            .updateError(job.id, errorMessage)
+            .pipe(Effect.orDie)
+          yield* warnWhenClaimLost(job.id, failed)
           yield* Effect.logError(`Job ${job.id} failed`, {
             error: errorMessage,
           })
