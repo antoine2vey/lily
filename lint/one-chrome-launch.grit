@@ -11,15 +11,19 @@ or {
     $flag <: r"[\s\S]*--remote-debugging-(?:port|pipe)[\s\S]*"
   },
   `$launch($command, $...)` where {
+    // RegExp has exec too, so only a bare exec() counts.
     $launch <: or {
-      `Bun.spawn`,
-      `Bun.spawnSync`,
       `spawn`,
       `spawnSync`,
       `execFile`,
       `execFileSync`,
       `exec`,
-      `execSync`
+      `execSync`,
+      `$_.spawn`,
+      `$_.spawnSync`,
+      `$_.execFile`,
+      `$_.execFileSync`,
+      `$_.execSync`
     },
     $command <: r"(?:\[\s*)?[^,\[]*?(?i:chrom(?:e|ium))[\s\S]*"
   }

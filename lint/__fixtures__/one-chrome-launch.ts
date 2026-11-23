@@ -1,5 +1,6 @@
 // Fixture for lint/one-chrome-launch.grit. scripts/test-lint-rules.sh checks
 // that the rule flags exactly the lines that end in `// flag`.
+import cp, * as child_process from 'node:child_process'
 import { execFile, spawn } from 'node:child_process'
 
 declare const CHROME: string
@@ -23,6 +24,9 @@ export const flagged = () => {
   spawn(chromePath, flags) // flag
   execFile('/usr/bin/chromium', ['--headless']) // flag
   spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', []) // flag
+  cp.spawn(CHROME, flags) // flag
+  child_process.execFileSync(chromePath, ['--version']) // flag
+  globalThis.Bun.spawn([CHROME]) // flag
   const pipe = ['--remote-debugging-pipe'] // flag
   const debugging = `--remote-debugging-port=${port}` // flag
   return [pipe, debugging]
@@ -33,6 +37,10 @@ export const clean = () => {
   spawn('chromatic', ['--project-token=x'])
   Bun.spawn(['bunx', 'lighthouse@12', '--chrome-flags=--headless=new'])
   Bun.spawn(['nginx', '-g', 'daemon off;'])
+  cp.spawn('docker', ['run', 'chrome-image'])
+  child_process.exec('git status')
+  const regex = /chrome/
+  regex.exec(CHROME)
   const note = 'remote debugging is off'
   const chrome = { port: String(port) }
   return [note, chrome]

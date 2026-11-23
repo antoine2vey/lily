@@ -29,7 +29,6 @@ const removeProfile = (profile: string) =>
 // The group is gone (ESRCH), or on macOS holds only exited processes (EPERM).
 const GROUP_GONE = new Set(['ESRCH', 'EPERM'])
 
-// Chrome runs as the leader of its own process group, so a signal to the group reaches its helpers too.
 const signalGroup = (proc: Running['proc'], signal: NodeJS.Signals) => {
   try {
     process.kill(-proc.pid, signal)
@@ -46,8 +45,13 @@ process.once('exit', () => {
     removeProfile(profile)
   }
 })
-process.once('SIGINT', () => process.exit(130))
-process.once('SIGTERM', () => process.exit(143))
+// Chrome is detached from the script's process group, so these signals stop it only through the exit hook.
+for (const [signal, code] of [
+  ['SIGHUP', 129],
+  ['SIGINT', 130],
+  ['SIGTERM', 143],
+] as const)
+  process.once(signal, () => process.exit(code))
 
 const spawn = (profile: string, flags: ReadonlyArray<string>) => {
   try {

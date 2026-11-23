@@ -23,7 +23,7 @@ type Head = Record<HeadTag, ReadonlyArray<string>>
 const sameValues = Array.makeEquivalence<string>((x, y) => x === y)
 
 const WAIT_MS = 10_000
-// A cold CI runner took about 8 s to serve the sitemap and start Chrome, so serving the sitemap gets its own wide budget.
+// On a fresh CI runner the nginx container may not answer yet when the check starts, so the sitemap gets its own wide budget.
 const STARTUP_MS = 60_000
 const HYDRATED = `Object.keys(document.body).some((key) => key.startsWith('__reactFiber$'))`
 // After a mismatch React throws the prerendered nodes away and renders the page again on the client, some time after
