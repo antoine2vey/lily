@@ -38,7 +38,6 @@ export const createMockDeadLetterRepository = (
   return Layer.succeed(DeadLetterRepository, repo)
 }
 
-// Helper to get all messages created in the mock
 export const createMockDeadLetterRepositoryWithCapture = () => {
   const capturedMessages: CreateDeadLetterData[] = []
 

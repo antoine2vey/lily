@@ -5,11 +5,6 @@ import { ConversationNotFoundError } from '@lily/shared/ai-chat'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Resolve a conversation by id and verify the current user owns it.
- * Returns the conversation as a typed `ChatConversation` so callers
- * never need to re-fetch.
- */
 export const withConversationAuth = (
   conversationId: string
 ): Effect.Effect<

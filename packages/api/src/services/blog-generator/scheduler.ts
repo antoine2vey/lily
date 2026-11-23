@@ -25,12 +25,10 @@ const rejectPost = (postId: string, reason: string) =>
     yield* repo.reject(postId)
   })
 
-// Run the pipeline for a single blog post, marking it rejected on failure
 const runPipeline = (postId: string, topic: TopicSuggestion) =>
   Effect.gen(function* () {
     const repo = yield* BlogPostRepository
 
-    // 1. RESEARCH
     yield* movePost(postId, 'researching')
     const brief = yield* researchTopic(topic)
 
@@ -52,7 +50,6 @@ const runPipeline = (postId: string, topic: TopicSuggestion) =>
       sourceCount: Array.length(brief.sources),
     })
 
-    // 2. GENERATE → REVIEW → PUBLISH (or reject)
     yield* generateAndReviewBlogPost(postId, topic, brief)
   }).pipe(
     Effect.catchTags({
@@ -66,9 +63,7 @@ const runPipeline = (postId: string, topic: TopicSuggestion) =>
     })
   )
 
-// Check if we should generate a blog post and run the pipeline
 export const checkAndGenerateBlogPost = Effect.gen(function* () {
-  // Feature flag check
   const enabled = yield* Config.withDefault(
     Config.Boolean('BLOG_GENERATION_ENABLED'),
     false
@@ -90,7 +85,6 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
     })
   }
 
-  // Skip if a post is already being processed
   const inProgress = yield* repo.hasInProgress
 
   if (inProgress) {
@@ -98,7 +92,6 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
     return
   }
 
-  // Check if we've published enough today
   const publishedCount = yield* repo.countPublishedSince(daysAgoAsDate(1))
 
   if (publishedCount >= MAX_POSTS_PER_DAY) {
@@ -167,7 +160,6 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
     return
   }
 
-  // Run the pipeline — on any failure, the post is marked rejected
   yield* runPipeline(selection.result.post.id, selection.result.topic)
 }).pipe(
   Effect.catchTags({

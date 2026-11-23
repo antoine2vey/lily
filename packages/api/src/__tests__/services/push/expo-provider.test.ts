@@ -9,7 +9,6 @@ import { failureOf } from '@lily/shared/testing'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// Local interface for test type assertions
 interface TestPushMessage {
   to: string
   title: string

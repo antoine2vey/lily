@@ -63,9 +63,6 @@ export class RagService extends Context.Service<RagService>()('RagService', {
           })
         ),
 
-      /**
-       * Format retrieved chunks as markdown context for the system prompt.
-       */
       formatContext: (chunks: ChunkSearchResult[]) => {
         if (Array.isArrayEmpty(chunks)) {
           return ''

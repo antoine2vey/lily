@@ -6,14 +6,6 @@ import {
 import { UnauthorizedError } from '@lily/shared'
 import { Config, Effect, Layer, Redacted } from 'effect'
 
-/**
- * Live implementation of ServiceAuthentication middleware.
- *
- * Reads `SERVICE_TOKEN_SECRET` from env at construction time.
- * On each request, compares the `X-Service-Secret` header value
- * (provided via HttpApiSecurity.apiKey) against the stored secret
- * using timing-safe comparison.
- */
 export const ServiceAuthenticationLive = Layer.unwrap(
   Effect.gen(function* () {
     const secret = yield* Config.Redacted('SERVICE_TOKEN_SECRET')

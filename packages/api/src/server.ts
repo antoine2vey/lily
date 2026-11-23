@@ -66,10 +66,8 @@ import { Effect, Layer } from 'effect'
 import { HttpRouter } from 'effect/http'
 import { HttpApiBuilder, HttpApiSwagger } from 'effect/http-api'
 
-// Shared database layers
 const SharedLive = Layer.mergeAll(DrizzleLive, PgLive)
 
-// Background schedulers and workers — deps come from AppLive at root
 const AchievementSubscriberLive = Layer.effectDiscard(
   Effect.gen(function* () {
     yield* startAchievementSubscriber
@@ -140,7 +138,6 @@ const EmbeddingBackfillSchedulerLive = Layer.effectDiscard(
 
 const ChatFollowUpWorkerLive = Layer.effectDiscard(startChatFollowUpWorker)
 
-// Group all background schedulers into one layer
 const AllSchedulersLive = Layer.mergeAll(
   AchievementReconciliationSchedulerLive,
   AchievementSubscriberLive,

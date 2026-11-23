@@ -39,7 +39,6 @@ export const LimitCheckerLive = Layer.effect(
     const nodeEnv = yield* NodeEnvConfig
 
     if (disableLimits) {
-      // Prevent disabling limits in production
       if (nodeEnv === 'production') {
         yield* Effect.logWarning(
           'DISABLE_LIMITS=true is ignored in production environment'

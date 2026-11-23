@@ -38,8 +38,6 @@ import {
 } from '@lily/shared/indoor-demand'
 import { Array, Match, Option, pipe } from 'effect'
 
-// ─── Step 3: Temperature Factor ─────────────────────────────────────────────
-
 /**
  * Calculate the temperature adjustment factor.
  *
@@ -82,7 +80,6 @@ export function calculateTemperatureFactor(
   recentHistory: ReadonlyArray<WeatherData>,
   isOutdoor: boolean = true
 ): number {
-  // Count consecutive hot days in recent history (most recent first)
   const consecutiveHotDays = pipe(
     recentHistory,
     Array.takeWhile(
@@ -98,22 +95,18 @@ export function calculateTemperatureFactor(
 
   const outdoorFactor = pipe(
     Match.value({ consecutiveHotDays, currentMean }),
-    // 3+ consecutive hot days -> heat wave, 50% more water needed
     Match.when(
       { consecutiveHotDays: (d: number) => d >= HEAT_WAVE_CONSECUTIVE_DAYS },
       () => TEMP_FACTOR_HEAT_WAVE
     ),
-    // Single hot day (today) -> moderate increase
     Match.when(
       { currentMean: (t: number) => t > TEMP_HIGH_C },
       () => TEMP_FACTOR_HOT_DAY
     ),
-    // Cold day -> reduced needs
     Match.when(
       { currentMean: (t: number) => t < TEMP_LOW_C },
       () => TEMP_FACTOR_COLD_DAY
     ),
-    // Normal temperature range
     Match.orElse(() => FACTOR_NEUTRAL)
   )
 
@@ -121,30 +114,24 @@ export function calculateTemperatureFactor(
   if (!isOutdoor) {
     return pipe(
       Match.value(outdoorFactor),
-      // Heat wave 1.5 -> 1.15 (indoor still gets some heat stress via ambient temp)
       Match.when(
         (f: number) => f >= TEMP_FACTOR_HEAT_WAVE,
         () => TEMP_FACTOR_INDOOR_HEAT_WAVE
       ),
-      // Hot day 1.2 -> 1.1
       Match.when(
         (f: number) => f > FACTOR_NEUTRAL,
         () => TEMP_FACTOR_INDOOR_HOT_DAY
       ),
-      // Cold day 0.5 -> 0.85 (indoor stays much warmer)
       Match.when(
         (f: number) => f < FACTOR_NEUTRAL,
         () => TEMP_FACTOR_INDOOR_COLD_DAY
       ),
-      // Normal -> 1.0
       Match.orElse(() => FACTOR_NEUTRAL)
     )
   }
 
   return outdoorFactor
 }
-
-// ─── Step 4: Humidity Factor ────────────────────────────────────────────────
 
 /**
  * Calculate the humidity adjustment factor.
@@ -180,7 +167,6 @@ export function calculateHumidityFactor(
   currentWeather: WeatherData,
   isOutdoor: boolean = true
 ): number {
-  // Indoor plants live in controlled climate -- humidity has no effect
   if (!isOutdoor) return FACTOR_NEUTRAL
 
   const humidity = pipe(
@@ -190,22 +176,17 @@ export function calculateHumidityFactor(
 
   return pipe(
     Match.value(humidity),
-    // High humidity -> 15% less water needed (slower transpiration)
     Match.when(
       (h: number) => h > HUMIDITY_HIGH,
       () => HUMIDITY_FACTOR_HIGH
     ),
-    // Low humidity -> 15% more water needed (faster transpiration)
     Match.when(
       (h: number) => h < HUMIDITY_LOW,
       () => HUMIDITY_FACTOR_LOW
     ),
-    // Normal humidity range
     Match.orElse(() => FACTOR_NEUTRAL)
   )
 }
-
-// ─── Step 5: Wind Factor ────────────────────────────────────────────────────
 
 /**
  * Calculate the wind speed adjustment factor.
@@ -238,7 +219,6 @@ export function calculateWindFactor(
   currentWeather: WeatherData,
   isOutdoor: boolean
 ): number {
-  // Indoor plants are sheltered from wind -- no adjustment needed
   if (!isOutdoor) return FACTOR_NEUTRAL
 
   const windSpeed = pipe(
@@ -248,17 +228,14 @@ export function calculateWindFactor(
 
   return pipe(
     Match.value(windSpeed),
-    // Strong wind -> 10% more water needed (boundary layer disruption)
     Match.when(
       (w: number) => w > WIND_HIGH,
       () => WIND_FACTOR_HIGH
     ),
-    // Light wind -> 10% less water needed (boundary layer intact)
     Match.when(
       (w: number) => w < WIND_LOW,
       () => WIND_FACTOR_LOW
     ),
-    // Moderate wind
     Match.orElse(() => FACTOR_NEUTRAL)
   )
 }

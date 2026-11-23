@@ -82,7 +82,6 @@ export const scanCardMultiple = (
 
         const urls = Arr.map(uploadResults, (r) => r.url)
 
-        // Single AI call with all images — returns one plant result
         const result = yield* ai.plantCardScanMultiple(urls, locale)
 
         const scan = yield* scanRepo.create({ userId, scanType: 'card' })
@@ -94,7 +93,6 @@ export const scanCardMultiple = (
           })
         )
 
-        // Use first uploaded image as the plant imageUrl
         const imageUrl = Arr.head(urls)
         const identification = {
           ...result,

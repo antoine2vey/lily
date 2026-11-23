@@ -43,7 +43,6 @@ const getProgressForKey = (
     Match.exhaustive
   )
 
-// Get all achievements with progress for the current user
 export const getUserAchievements: Effect.Effect<
   AchievementsResponse,
   SqlError,
@@ -52,7 +51,6 @@ export const getUserAchievements: Effect.Effect<
   const { id: userId } = yield* CurrentUser
   const repo = yield* AchievementRepository
 
-  // Fetch all data in parallel: unlocked achievements + all progress counts
   const [unlocked, counts] = yield* Effect.all([
     repo.findByUserId(userId),
     Effect.all({

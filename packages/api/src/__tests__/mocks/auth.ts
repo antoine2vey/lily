@@ -7,9 +7,6 @@ import type { UserProfile } from '@lily/shared/auth'
 import { Effect, Layer } from 'effect'
 import { HttpServerRequest } from 'effect/http'
 
-/**
- * Mock user profile for testing
- */
 export const mockUserProfile: UserProfile = {
   id: 'user-1',
   name: 'Test User',
@@ -42,10 +39,6 @@ export interface MockAuthOptions {
   failMessage?: string
 }
 
-/**
- * Create a mock Authentication layer for testing
- * Provides a user to the CurrentUser context
- */
 export const createMockAuthentication = (
   options: MockAuthOptions = {}
 ): Layer.Layer<Authentication> => {
@@ -68,19 +61,12 @@ export const createMockAuthentication = (
   )
 }
 
-/**
- * Create a mock CurrentUser layer for testing
- * Use this when you need to provide CurrentUser directly without authentication middleware
- */
 export const createMockCurrentUser = (
   user: UserProfile = mockUserProfile
 ): Layer.Layer<CurrentUser> => {
   return Layer.succeed(CurrentUser, user)
 }
 
-/**
- * Create a mock HttpServerRequest layer for testing
- */
 export const createMockHttpServerRequest = (
   headers: Record<string, string> = {}
 ): Layer.Layer<HttpServerRequest.HttpServerRequest> => {

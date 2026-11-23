@@ -5,7 +5,6 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 
-// Helper to get dates relative to now
 const now = new Date()
 
 const yesterday = new Date(now)
@@ -23,7 +22,6 @@ inThreeDays.setDate(inThreeDays.getDate() + 3)
 const nextWeek = new Date(now)
 nextWeek.setDate(nextWeek.getDate() + 10)
 
-// Mock plants for care tasks testing
 export const mockPlantsForCareTasks: TestPlant[] = [
   {
     id: 'plant-1',
@@ -196,7 +194,6 @@ export const mockPlantsForCareTasks: TestPlant[] = [
   },
 ]
 
-// Mock plants with no pending care tasks
 export const mockPlantsNoCare: TestPlant[] = [
   {
     id: 'plant-no-care-1',

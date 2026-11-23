@@ -35,8 +35,6 @@ import { describe, expect, it } from 'vitest'
 
 const oneDayMs = 24 * 60 * 60 * 1000
 
-// ─── Test Setup ──────────────────────────────────────────────────────────
-
 const weatherUser = createTestUser({
   id: 'weather-user-1',
   weatherEnabled: true,
@@ -141,8 +139,6 @@ const readjustAndApply = async (
   }
   return days
 }
-
-// ─── Tests ───────────────────────────────────────────────────────────────
 
 describe('readjustCareSchedules — full pipeline integration', () => {
   describe('Paris winter: indoor vs outdoor vs no room', () => {

@@ -10,13 +10,11 @@ export interface MockRateLimiterServiceOptions {
   retryAfter?: number
 }
 
-// Track rate limit state per key for more realistic mocking
 const rateLimitState = new Map<string, { count: number; windowStart: Date }>()
 
 export const createMockRateLimiterService = (
   options: MockRateLimiterServiceOptions = {}
 ): Layer.Layer<RateLimiterService> => {
-  // Reset state for each mock instance
   rateLimitState.clear()
 
   const service: IRateLimiterService = {
@@ -33,7 +31,6 @@ export const createMockRateLimiterService = (
           })
         }
 
-        // Simulate rate limit tracking
         const now = new Date()
         const existing = rateLimitState.get(key)
 
@@ -79,7 +76,6 @@ export const createMockRateLimiterService = (
   return Layer.succeed(RateLimiterService, service)
 }
 
-// Helper to clear all rate limit state (useful between tests)
 export const clearRateLimitState = () => {
   rateLimitState.clear()
 }

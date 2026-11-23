@@ -373,7 +373,6 @@ export const FollowRepositoryLive = Layer.effect(
           limit?: number
         }) {
           const { limit, offset } = getPaginationParams(params)
-          // `%` and `_` in the query match literally, not as wildcards
           const escaped = params.query.replace(/[\\%_]/g, '\\$&')
           const searchPattern = `%${escaped}%`
 

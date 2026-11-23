@@ -180,7 +180,6 @@ describe('verifyMagicLink', () => {
   })
 
   it('should return existing user if exists', async () => {
-    // Create a magic link for existing user
     const existingUserMagicLink = {
       ...mockMagicLink,
       email: mockUser1.email,

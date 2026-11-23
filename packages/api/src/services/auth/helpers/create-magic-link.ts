@@ -14,10 +14,8 @@ import {
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// 10 minutes expiry
 export const MAGIC_LINK_EXPIRY_MS = 10 * 60 * 1000
 
-// Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export const normalizeEmail = (email: string) =>
@@ -58,7 +56,6 @@ export const createMagicLinkToken = (
     // in 10 minutes, and a new request must not void one the owner holds.
     yield* magicLinkRepo.deleteSpentByEmail(normalizedEmail)
 
-    // Generate secure token
     const token = crypto.randomUUID()
     const expiresAt = DateTime.toDateUtc(
       DateTime.addDuration(
@@ -67,7 +64,6 @@ export const createMagicLinkToken = (
       )
     )
 
-    // Store magic link in database
     yield* magicLinkRepo.create(normalizedEmail, token, expiresAt)
 
     return { token, expiresAt }

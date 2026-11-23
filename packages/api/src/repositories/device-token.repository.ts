@@ -7,7 +7,6 @@ import { and, count, eq, lte } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Types for repository methods
 export interface CreateDeviceTokenData {
   token: string
   platform: 'ios' | 'android' | 'web'
@@ -18,7 +17,6 @@ export interface UpdateDeviceTokenData {
   isActive?: boolean
 }
 
-// Helper to map database row to API DeviceToken type
 const mapToDeviceToken = (
   row: typeof deviceTokens.$inferSelect
 ): DeviceToken => ({
@@ -31,7 +29,6 @@ const mapToDeviceToken = (
   updatedAt: row.updatedAt,
 })
 
-// Repository service interface
 export interface IDeviceTokenRepository {
   readonly findById: (id: string) => Effect.Effect<DeviceToken | null, SqlError>
   readonly findByToken: (
@@ -63,13 +60,11 @@ export interface IDeviceTokenRepository {
   ) => Effect.Effect<boolean, SqlError>
 }
 
-// Tag for dependency injection
 export class DeviceTokenRepository extends Context.Service<
   DeviceTokenRepository,
   IDeviceTokenRepository
 >()('DeviceTokenRepository') {}
 
-// Live implementation using PgDrizzle
 export const DeviceTokenRepositoryLive = Layer.effect(
   DeviceTokenRepository,
   Effect.gen(function* () {

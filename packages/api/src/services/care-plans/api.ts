@@ -26,7 +26,6 @@ export type SeenCarePlanList = typeof SeenCarePlanList.Type
 
 export const CarePlansApi = HttpApiGroup.make('carePlans')
   .add(
-    // GET /care-plans?status=accepted — plans for the Care tab
     HttpApiEndpoint.get('getCarePlans', '/', {
       query: CarePlanListParams,
       success: SeenCarePlanList,

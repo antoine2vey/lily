@@ -106,9 +106,6 @@ export const getUserNotificationSettings = (
     notificationSettingsOf
   )
 
-/**
- * Get user timezone with a default fallback
- */
 export const getUserTimezone = (
   userId: string,
   defaultTimezone = 'UTC'

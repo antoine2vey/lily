@@ -1,12 +1,8 @@
-// Re-export from shared for backward compatibility
-
-// Retry policy
 export {
   eventRetryPolicy,
   publishWithRetry,
 } from '@lily/api/events/retry-policy'
 
-// Re-export providers from services
 export {
   InMemoryEventBusLive,
   RedisEventBusLive,

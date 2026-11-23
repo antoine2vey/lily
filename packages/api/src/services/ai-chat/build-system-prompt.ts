@@ -103,9 +103,6 @@ export const formatCarePlansText = (
   ].join('\n')
 }
 
-/**
- * Format care log items into a human-readable text block.
- */
 export const formatCareHistoryText = (
   items: ReadonlyArray<{
     readonly type: string
@@ -197,10 +194,6 @@ const formatScheduleBlock = (
         )}`
 }
 
-/**
- * Plant-scoped system prompt — used when a conversation is anchored
- * to a specific plant and benefits from its care history and ratings.
- */
 export const buildPlantSystemPrompt = (
   params: BuildSystemPromptParams
 ): string => {
@@ -298,10 +291,6 @@ export const buildPlantSystemPrompt = (
     `
 }
 
-/**
- * General-chat system prompt — used when the user is asking free-form
- * plant questions not anchored to a specific plant in their collection.
- */
 export const buildGeneralSystemPrompt = (): string =>
   `
       You are Lily, a friendly and knowledgeable houseplant care expert. You help users with broad plant questions: identifying plants from photos, diagnosing issues without prior context, recommending species for their environment, propagation tips, soil and lighting advice, repotting, pests, diseases, and any general houseplant care topic.

@@ -4,17 +4,10 @@ import { ServiceUnavailableError } from '@lily/shared/errors/database'
 import { Context } from 'effect'
 import { HttpApiMiddleware, HttpApiSecurity } from 'effect/http-api'
 
-/**
- * Admin user context - CurrentUser with verified admin role
- */
 export class AdminUser extends Context.Service<AdminUser, UserProfile>()(
   'AdminUser'
 ) {}
 
-/**
- * Admin authorization middleware
- * Validates bearer token AND verifies admin role
- */
 export class AdminAuth extends HttpApiMiddleware.Service<
   AdminAuth,
   { provides: AdminUser }

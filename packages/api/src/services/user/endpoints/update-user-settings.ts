@@ -26,7 +26,6 @@ import { Array, Effect, Option, pipe } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Update user settings (profile + notification preferences)
 export const updateUserSettings = (
   data: UserSettingsUpdateRequest
 ): Effect.Effect<

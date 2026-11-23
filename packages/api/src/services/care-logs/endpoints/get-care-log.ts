@@ -4,7 +4,6 @@ import { CareLogNotFoundError } from '@lily/shared/errors/care-log'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Get care log
 export const getCareLog = (
   plantId: string,
   logId: string

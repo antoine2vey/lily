@@ -19,7 +19,6 @@ import {
 } from '@lily/shared'
 import { Array, DateTime, Effect, Random } from 'effect'
 
-// Only send on Sunday
 const SUNDAY = 0
 
 export const processWeeklyRecap = Effect.fn(

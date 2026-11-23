@@ -4,10 +4,6 @@ import type { LogoutResponse } from '@lily/shared/auth'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Logout - revoke all refresh tokens for the current user
- * Requires authentication middleware to provide CurrentUser context
- */
 export const logout: Effect.Effect<
   LogoutResponse,
   SqlError,
@@ -16,7 +12,6 @@ export const logout: Effect.Effect<
   const user = yield* CurrentUser
   const refreshTokenRepo = yield* RefreshTokenRepository
 
-  // Revoke all refresh tokens for this user
   yield* refreshTokenRepo.revokeAllForUser(user.id)
 
   return { message: 'Successfully logged out' }

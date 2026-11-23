@@ -14,14 +14,8 @@ import {
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Magic link record type
- */
 export type MagicLink = typeof magicLinks.$inferSelect
 
-/**
- * Magic link repository interface
- */
 export interface IMagicLinkRepository {
   readonly create: (
     email: string,
@@ -45,17 +39,11 @@ export interface IMagicLinkRepository {
   ) => Effect.Effect<number, SqlError>
 }
 
-/**
- * Magic link repository context tag
- */
 export class MagicLinkRepository extends Context.Service<
   MagicLinkRepository,
   IMagicLinkRepository
 >()('MagicLinkRepository') {}
 
-/**
- * Live implementation of Magic Link Repository
- */
 export const MagicLinkRepositoryLive = Layer.effect(
   MagicLinkRepository,
   Effect.gen(function* () {
@@ -96,17 +84,10 @@ export const MagicLinkRepositoryLive = Layer.effect(
           const results = yield* db
             .select()
             .from(magicLinks)
-            .where(
-              and(
-                eq(magicLinks.token, token),
-                isNull(magicLinks.usedAt)
-                // expiresAt > now (not expired)
-              )
-            )
+            .where(and(eq(magicLinks.token, token), isNull(magicLinks.usedAt)))
 
           const record = pipe(results, Array.head, Option.getOrNull)
 
-          // Check expiration manually since drizzle gt() can be tricky with dates
           if (
             record &&
             DateTime.isGreaterThan(
@@ -156,7 +137,6 @@ export const MagicLinkRepositoryLive = Layer.effect(
       }),
 
       deleteExpired: Effect.gen(function* () {
-        // Delete tokens older than 1 hour (expired + buffer for cleanup)
         const oneHourAgo = hoursAgoAsDate(1)
         const result = yield* db
           .delete(magicLinks)

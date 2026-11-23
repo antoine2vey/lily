@@ -26,7 +26,6 @@ export interface FindCareLogsParams {
   type?: CareType | 'all'
 }
 
-// Helper to map database row to API CareLog type (null -> undefined)
 const mapToCareLog = (row: typeof careLogs.$inferSelect): CareLog => ({
   id: row.id,
   type: row.type,
@@ -44,7 +43,6 @@ export interface FindRecentParams {
   limit?: number
 }
 
-// Repository service interface
 export interface ICareLogRepository {
   readonly findByPlantId: (
     params: FindCareLogsParams
@@ -68,13 +66,11 @@ export interface ICareLogRepository {
   readonly countByUser: (userId: string) => Effect.Effect<number, SqlError>
 }
 
-// Tag for dependency injection
 export class CareLogRepository extends Context.Service<
   CareLogRepository,
   ICareLogRepository
 >()('CareLogRepository') {}
 
-// Live implementation using PgDrizzle
 export const CareLogRepositoryLive = Layer.effect(
   CareLogRepository,
   Effect.gen(function* () {

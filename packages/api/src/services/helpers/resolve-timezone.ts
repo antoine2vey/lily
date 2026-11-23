@@ -1,7 +1,6 @@
 import { DEFAULT_TIMEZONE, TimeZone } from '@lily/shared'
 import { Option, pipe, Schema } from 'effect'
 
-/** Resolve a nullable user timezone setting to an IANA string. */
 export const resolveTimezone = (tz: string | null): string =>
   Option.getOrElse(Option.fromNullishOr(tz), () => DEFAULT_TIMEZONE)
 

@@ -46,7 +46,6 @@ import {
 } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// Helper to make a date N days in the past
 const daysAgo = (days: number): Date =>
   new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
@@ -225,7 +224,6 @@ describe('pickNotificationTime', () => {
     })
 
     it('should always return time within valid bounds', () => {
-      // Test a range of random values
       const values = [0.0, 0.1, 0.25, 0.49, 0.5, 0.6, 0.8, 0.99]
       for (const rv of values) {
         const date = Effect.runSync(
@@ -1095,7 +1093,6 @@ describe('checkAndCreateOverdueReminders', () => {
 
     it('should cap notifications to maxPlants oldest plants for free-tier users', async () => {
       const notifications: Notification[] = []
-      // Create 8 plants with distinct dateAdded values
       const plants = Arr.makeBy(8, (i) =>
         createTestPlant({
           id: `plant-${i}`,

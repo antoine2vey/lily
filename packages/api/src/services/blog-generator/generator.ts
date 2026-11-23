@@ -38,7 +38,6 @@ const stripCodeFences = (text: string): string =>
     .replace(/\n```\s*$/, '')
     .trim()
 
-/** Languages to generate content for — add new languages here */
 const TARGET_LANGUAGES: ReadonlyArray<{ code: LanguageCode; name: string }> = [
   { code: 'en', name: 'English' },
   { code: 'fr', name: 'French' },
@@ -83,7 +82,6 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
     ? `${basePrompt}\n\nPREVIOUS REVIEW FEEDBACK (address these issues):\n${previousFeedback}`
     : basePrompt
 
-  // Generate primary (English) content
   const enResult = yield* callOpenAI(
     'English content generation',
     BLOG_OPENAI_TIMEOUTS.content,
@@ -165,7 +163,6 @@ const reviewContent = Effect.fn('blog-generator.reviewContent')(function* (
     Array.join('\n\n')
   )
 
-  // Review the primary (English) content
   const primaryContent = pipe(
     Option.fromNullishOr(content.content.en),
     Option.orElse(() => Array.head(Record.values(content.content) as string[])),
@@ -247,7 +244,6 @@ export const generateAndReviewBlogPost = (
         while: (state) => !state.published && state.retryCount < MAX_RETRIES,
         body: (state) =>
           Effect.gen(function* () {
-            // Persist attempt number + transition to generating
             yield* repo.updateRetryCount(postId, state.retryCount)
             yield* movePost(postId, 'generating')
             const generated = yield* generateContent(
@@ -258,7 +254,6 @@ export const generateAndReviewBlogPost = (
             )
             yield* repo.updateContent(postId, generated.content)
 
-            // REVIEW
             yield* movePost(postId, 'reviewing')
             const review = yield* reviewContent(generated, brief, validSlugs)
 
@@ -278,7 +273,6 @@ export const generateAndReviewBlogPost = (
               retryCount: state.retryCount,
             })
 
-            // DECIDE
             const allDimensionsPassing =
               review.uniqueness >= MIN_SCORE &&
               review.organicFeel >= MIN_SCORE &&
@@ -344,7 +338,6 @@ export const generateAndReviewBlogPost = (
 
     if (result.published) return
 
-    // Max retries reached — yield error so the caller handles rejection
     return yield* new BlogGenerationError({
       message: `Max retries (${MAX_RETRIES}) reached for post ${topic.slug}`,
     })

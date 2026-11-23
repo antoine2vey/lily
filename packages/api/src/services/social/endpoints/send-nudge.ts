@@ -23,7 +23,6 @@ export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
 
   const { targetUserId } = params
 
-  // Target must exist
   const targetUser = yield* userRepo.findById(targetUserId)
   if (!targetUser) {
     return yield* new UserNotFoundError({
@@ -31,7 +30,6 @@ export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
     })
   }
 
-  // Must be following the target
   const isFollowing = yield* followRepo.isFollowing(currentUserId, targetUserId)
   if (!isFollowing) {
     return yield* new NudgeNotAllowedError({

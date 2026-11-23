@@ -32,10 +32,8 @@ describe('topic selection dedup', () => {
       }).pipe(Effect.provide(mockRepo))
     )
 
-    // Only published posts should appear
     expect(result).toContain('care-guide')
     expect(result).toContain('plant-profile')
-    // Pending and rejected should not
     expect(result).not.toContain('how-to')
     expect(result).not.toContain('troubleshooting')
   })
@@ -46,7 +44,6 @@ describe('topic selection dedup', () => {
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const repo = yield* BlogPostRepository
-        // Count posts published since March 6
         return yield* repo.countPublishedSince(new Date('2026-03-06T00:00:00Z'))
       }).pipe(Effect.provide(mockRepo))
     )

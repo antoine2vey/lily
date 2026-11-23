@@ -9,10 +9,6 @@ import type { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// List a target user's (owned) plants for the admin detail page. Delegates to
-// PlantRepository.findAll, which already accepts an arbitrary userId and
-// returns the same PlantWithRoom shape the mobile app receives — so the wire
-// schema is the existing PlantsListResponse.
 export const getUserPlants = (
   userId: string,
   params: PaginationParams

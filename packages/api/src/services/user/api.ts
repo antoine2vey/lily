@@ -15,17 +15,14 @@ import { Schema } from 'effect'
 import { Multipart } from 'effect/http'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-// Define the Users API group
 export const UsersApi = HttpApiGroup.make('users')
   .add(
-    // GET /users/settings - Fetch profile info & notification prefs (uses CurrentUser)
     HttpApiEndpoint.get('getUserSettings', '/settings', {
       success: UserSettings,
       error: [UserNotFoundError, UnauthorizedError],
     })
   )
   .add(
-    // PUT /users/settings - Update profile & global notification settings (uses CurrentUser)
     HttpApiEndpoint.put('updateUserSettings', '/settings', {
       payload: UserSettingsUpdateRequest,
       success: UserSettings,
@@ -38,7 +35,6 @@ export const UsersApi = HttpApiGroup.make('users')
     })
   )
   .add(
-    // POST /users/avatar - Upload user avatar (uses CurrentUser)
     HttpApiEndpoint.post('uploadAvatar', '/avatar', {
       payload: Schema.Struct({
         files: Multipart.FilesSchema,

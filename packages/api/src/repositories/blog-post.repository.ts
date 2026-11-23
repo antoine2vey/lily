@@ -17,7 +17,6 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 export type BlogPostStatus = (typeof blogPostStatusEnum.enumValues)[number]
 
-/** Non-terminal statuses indicating a post is actively being processed */
 export const IN_PROGRESS_STATUSES = [
   'pending',
   'researching',

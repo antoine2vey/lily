@@ -11,12 +11,6 @@ export class ServiceAuth extends Context.Service<
   { readonly verified: true }
 >()('ServiceAuth') {}
 
-/**
- * Service-to-service authentication middleware.
- *
- * Protects internal endpoints with an API key in the `X-Service-Secret` header.
- * The implementation validates the key against the `SERVICE_TOKEN_SECRET` env var.
- */
 export class ServiceAuthentication extends HttpApiMiddleware.Service<
   ServiceAuthentication,
   { provides: ServiceAuth }

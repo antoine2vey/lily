@@ -5,7 +5,6 @@ import {
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// Helper to create a future date
 const createFutureDate = (daysFromNow: number, hours = 12): Date => {
   const date = new Date()
   date.setDate(date.getDate() + daysFromNow)
@@ -15,7 +14,6 @@ const createFutureDate = (daysFromNow: number, hours = 12): Date => {
 
 describe('calculateScheduledAt', () => {
   it('should schedule notification at 9 AM UTC by default', async () => {
-    // Create a base date 7 days in the future at noon UTC
     const baseDate = createFutureDate(7, 12)
 
     const result = await Effect.runPromise(
@@ -30,7 +28,6 @@ describe('calculateScheduledAt', () => {
   })
 
   it('should use provided timezone', async () => {
-    // Create a base date 7 days in the future
     const baseDate = createFutureDate(7, 12)
 
     const result = await Effect.runPromise(

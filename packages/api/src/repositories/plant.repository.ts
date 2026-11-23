@@ -85,7 +85,6 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 type Db = PgDrizzle.PgDrizzle['Service']
 
-// Types for repository methods
 export interface FindPlantsParams {
   page?: number
   limit?: number
@@ -164,7 +163,6 @@ export type FindPhotosResult = PaginatedResponse<
   typeof plantPhotos.$inferSelect
 >
 
-// Repository service interface
 export interface IPlantRepository {
   readonly findAll: (
     params: FindPlantsParams
@@ -218,13 +216,11 @@ export interface IPlantRepository {
   ) => Effect.Effect<void, SqlError>
 }
 
-// Tag for dependency injection
 export class PlantRepository extends Context.Service<
   PlantRepository,
   IPlantRepository
 >()('PlantRepository') {}
 
-// Shared room selection shape for joins
 const roomSelect = {
   id: rooms.id,
   name: rooms.name,
@@ -256,7 +252,6 @@ export const matchesCareFilter =
       onSome: (matches) => matches(plant),
     })
 
-// Build where-clause conditions from filter and room params
 function buildPlantFilters(
   params: FindPlantsParams,
   db: Db,
@@ -297,7 +292,6 @@ function buildPlantFilters(
   return pipe([filterCondition, livingCondition, roomCondition], Array.getSomes)
 }
 
-// Build the drizzle orderBy clause from sort param
 function buildPlantOrderBy(sort: FindPlantsParams['sort']) {
   return sort === 'name'
     ? [asc(plants.name), asc(plants.id)]
@@ -356,7 +350,6 @@ export const seeCareWithLastDays = (plant: RawPlant, care: CareInput) => {
   }
 }
 
-// Map a DB row to an owned PlantWithRoom
 function toOwnedPlant(
   row: { plant: RawPlant; room: RoomRef },
   care: CareInput
@@ -370,7 +363,6 @@ function toOwnedPlant(
   }
 }
 
-// Map a DB row to a caretaking PlantWithRoom
 function toCaretakingPlant(
   row: { plant: RawPlant; room: RoomRef; ownerName: string | null },
   care: CareInput
@@ -412,7 +404,6 @@ const schedulesFor =
       Option.getOrElse(() => [] as ScheduleRow[])
     )
 
-// Live implementation using PgDrizzle
 export const PlantRepositoryLive = Layer.effect(
   PlantRepository,
   Effect.gen(function* () {

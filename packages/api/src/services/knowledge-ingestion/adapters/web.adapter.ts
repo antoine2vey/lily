@@ -33,7 +33,6 @@ const fetchWebPage = (
   url: string
 ): Effect.Effect<RawDocumentInput, AdapterError> =>
   Effect.gen(function* () {
-    // SSRF guard: validates scheme + resolved IP and re-checks each redirect hop.
     const response = yield* fetchGuarded(
       url,
       {

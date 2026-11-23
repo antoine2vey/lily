@@ -130,7 +130,6 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
       })
     )
 
-    // Enrich child chunks with keywords, up to 5 in parallel
     const enrichedChildren = yield* Effect.forEach(
       chunkResult.children,
       (child) =>
@@ -160,7 +159,6 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
       { concurrency: 5 }
     )
 
-    // Batch embed all chunks in one request
     const texts = Array.map(
       enrichedChildren,
       (c) => c.embeddingContent ?? c.content
@@ -236,15 +234,6 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
     return { inserted: true, chunksCreated: childChunks.length } as const
   })
 
-/**
- * Process a job the worker has already claimed:
- * 1. Fetch documents via adapter
- * 2. For each document: deduplicate, chunk, enrich, embed, then store it whole
- * 3. Record progress after every document, which also refreshes the claim
- *
- * Documents are processed one by one so that if the job crashes,
- * previously processed documents and their chunks are already persisted.
- */
 const warnWhenClaimLost = (jobId: string, ended: Transition<IngestJob>) =>
   Transition.$match(ended, {
     Moved: () => Effect.void,
@@ -254,6 +243,10 @@ const warnWhenClaimLost = (jobId: string, ended: Transition<IngestJob>) =>
       ),
   })
 
+/**
+ * Documents are processed one by one so that if the job crashes,
+ * previously processed documents and their chunks are already persisted.
+ */
 export const processIngestJob = (
   job: IngestJob
 ): Effect.Effect<

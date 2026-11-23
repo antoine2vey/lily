@@ -5,7 +5,6 @@ import { failureOf } from '@lily/shared/testing'
 import { ConfigProvider, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// Test config provider for JWT service
 const testConfigProvider = ConfigProvider.fromUnknown({
   JWT_SECRET: 'test-secret-key-for-testing-purposes-only',
   JWT_ISSUER: 'lily-test',
@@ -79,7 +78,6 @@ describe('JWTService', () => {
     )
 
     it('should return payload for valid token', async () => {
-      // First sign a token, then verify it
       const result = await Effect.runPromise(
         Effect.gen(function* () {
           const jwtService = yield* JWTService
@@ -144,7 +142,6 @@ describe('JWTService', () => {
     })
 
     it('should fail when payload missing required fields', async () => {
-      // Create a mock that returns an incomplete payload
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const jwtService = yield* JWTService

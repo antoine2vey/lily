@@ -9,7 +9,6 @@ export const CareTasksQueryParams = Schema.Struct({
 
 export const CareTasksApi = HttpApiGroup.make('careTasks')
   .add(
-    // GET /care-tasks - Get care tasks grouped by date
     HttpApiEndpoint.get('getCareTasks', '/', {
       query: CareTasksQueryParams,
       success: CareTasksResponse,

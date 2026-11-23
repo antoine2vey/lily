@@ -6,7 +6,6 @@ import { failureOf } from '@lily/shared/testing'
 import { Data, Effect, Layer, Redacted } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// Test fixtures
 const mockUser: User = {
   id: 'user-123',
   email: 'test@example.com',
@@ -60,7 +59,6 @@ const suspendedUser: User = {
   status: 'suspended',
 }
 
-// Custom error class for testing
 class TestAuthError extends Data.TaggedError('TestAuthError')<{
   message: string
 }> {}
@@ -138,7 +136,6 @@ describe('validateUserFromToken', () => {
         }).pipe(Effect.provide(mockLayers))
       )
 
-      // Verify profile has all expected fields
       expect(result.profile).toHaveProperty('id')
       expect(result.profile).toHaveProperty('email')
       expect(result.profile).toHaveProperty('name')

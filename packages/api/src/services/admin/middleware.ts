@@ -8,7 +8,5 @@
  * Use middleware.types for API definitions, middleware.impl for handlers.
  */
 
-// Re-export implementation (server-only)
 export { AdminAuthLive } from './middleware.impl'
-// Re-export everything from types (client-safe)
 export { AdminAuth, AdminUser } from './middleware.types'

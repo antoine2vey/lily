@@ -34,13 +34,11 @@ export const previewPrompt = (
     const scheduleRepo = yield* CareScheduleRepository
     const ragService = yield* RagService
 
-    // 1. Find the message by DB id
     const messageRow = yield* chatRepo.findById(messageId)
     if (!messageRow) {
       return yield* new ChatMessageNotFoundError()
     }
 
-    // 2. Resolve the conversation, then the plant it is anchored to
     const conversation = yield* chatRepo.findConversationById(
       messageRow.conversationId
     )
@@ -58,10 +56,8 @@ export const previewPrompt = (
       })
     }
 
-    // 3. Load care schedules for the plant
     const schedules = yield* scheduleRepo.findByPlant(plant.id)
 
-    // 4. Load care history (same as plantChat: last 10)
     const careLogsResponse = yield* careLogRepo.findByPlantId({
       plantId: plantIdForMessage,
       limit: 10,
@@ -69,14 +65,12 @@ export const previewPrompt = (
 
     const careHistoryText = formatCareHistoryText(careLogsResponse.items)
 
-    // 5. Run RAG retrieval for admin preview (without translation — RAG is now tool-driven)
     const ragQuery = `${plant.name}: ${messageRow.content}`
     const ragChunks = yield* ragService.retrieve({
       query: ragQuery,
     })
     const formattedRagContext = ragService.formatContext(ragChunks)
 
-    // 6. Build system prompt
     const daysSinceAdded = daysSince(plant.dateAdded)
     const systemPrompt = buildSystemPrompt({
       plant: { ...plant, schedules },
@@ -86,7 +80,6 @@ export const previewPrompt = (
       now: yield* DateTime.now,
     })
 
-    // 8. Load conversation history (messages before this one)
     const previousRows = yield* chatRepo.findMessagesBefore({
       conversationId: messageRow.conversationId,
       beforeDate: messageRow.createdAt,
@@ -101,7 +94,6 @@ export const previewPrompt = (
       })
     )
 
-    // 9. Determine model and image status
     const hasImage = Boolean(messageRow.imageKey)
     const model = hasImage ? 'gpt-4o' : 'gpt-4o-mini'
 

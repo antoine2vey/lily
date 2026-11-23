@@ -12,7 +12,6 @@ import {
 import { Effect, Option, String } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Check username availability
 export const checkUsername = (
   username: string
 ): Effect.Effect<

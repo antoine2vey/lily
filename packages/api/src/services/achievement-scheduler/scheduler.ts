@@ -79,7 +79,6 @@ const reconcileUserAchievements = (userId: string) =>
     return missedKeys.length
   })
 
-// Reconcile threshold-based achievements for all active users
 export const reconcileAchievements = Effect.gen(function* () {
   const repo = yield* AchievementRepository
 

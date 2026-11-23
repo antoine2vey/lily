@@ -8,7 +8,6 @@ import type { CareLogsListResponse } from '@lily/shared/care-log'
 import { Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Get care logs
 export const getCareLogs = (
   params: FindCareLogsParams
 ): Effect.Effect<

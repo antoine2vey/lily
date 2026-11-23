@@ -18,7 +18,6 @@ import { findPlants } from '@lily/api/services/plants/endpoints/find-plants'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// Helper to create test layer with CurrentUser
 const createTestLayer = (userId = 'user-1') =>
   Layer.mergeAll(
     createMockPlantRepository({
@@ -36,7 +35,6 @@ const overdueWatering = (plantId: string) =>
     nextCareAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
   })
 
-// Caretaking plants for includeCaretaking tests
 const mockCaretakingPlants: MockCaretakingPlant[] = [
   {
     plant: createTestPlant({

@@ -29,17 +29,6 @@ const infraErrorHandlers = {
   UnknownError: Effect.die,
 } as const
 
-/**
- * Convert infrastructure errors to defects.
- * Effect Platform will handle these as 500 responses.
- *
- * Usage:
- * ```typescript
- * .handle('getPlants', () =>
- *   plantsService.findPlants().pipe(withInfraErrorsAsDefect)
- * )
- * ```
- */
 export const withInfraErrorsAsDefect = <A, E, R>(
   effect: Effect.Effect<A, E, R>
 ): Effect.Effect<A, Exclude<E, InfrastructureError>, R> =>

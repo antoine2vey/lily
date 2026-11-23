@@ -9,7 +9,6 @@ import { Array, Cause, Effect, Layer, Option, pipe, Result } from 'effect'
 import { isSqlError, type SqlError } from 'effect/sql/SqlError'
 import { Authentication, CurrentUser } from './middleware.types'
 
-// Re-export types for convenience
 export { Authentication, CurrentUser } from './middleware.types'
 
 const sqlDefectOf = <E>(
@@ -48,9 +47,6 @@ const answeringForAnAccountGone =
       })
     )
 
-/**
- * Base layer for Authentication middleware (requires JWTService and UserRepository)
- */
 export const AuthenticationBase = Layer.effect(
   Authentication,
   Effect.gen(function* () {
@@ -83,10 +79,6 @@ export const AuthenticationBase = Layer.effect(
   })
 )
 
-/**
- * Authentication middleware with all dependencies bundled
- * Use this in handler files instead of AuthenticationBase
- */
 export const AuthenticationLive = AuthenticationBase.pipe(
   Layer.provide(JWTServiceLive),
   Layer.provide(UserRepositoryLive)

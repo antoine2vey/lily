@@ -52,7 +52,6 @@ import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Types for repository methods
 export interface FindNotificationsParams {
   userId: string
   page?: number
@@ -103,7 +102,6 @@ export interface SentNotification {
   readonly body: string
 }
 
-// Helper to map database row to API Notification type
 const mapToNotification = (
   row: typeof notifications.$inferSelect
 ): NotificationRow => ({
@@ -138,7 +136,6 @@ export const exceptReminders = (
 ): ReadonlyArray<OtherTopic> =>
   Array.filter(topics, (topic): topic is OtherTopic => !isReminderTopic(topic))
 
-// Repository service interface
 export interface INotificationRepository {
   readonly findByUserId: (
     params: FindNotificationsParams
@@ -158,7 +155,6 @@ export interface INotificationRepository {
   readonly delete: (
     id: string
   ) => Effect.Effect<NotificationRow | null, SqlError>
-  // Scheduler methods
   readonly claimPendingToSchedule: (
     limit: number
   ) => Effect.Effect<NotificationRow[], SqlError>
@@ -244,7 +240,6 @@ export interface INotificationRepository {
   readonly findPendingByUserId: (
     userId: string
   ) => Effect.Effect<NotificationRow[], SqlError>
-  // Batch scheduler methods
   readonly markManyAsSent: (
     rows: ReadonlyArray<SentNotification>
   ) => Effect.Effect<void, SqlError>
@@ -270,13 +265,11 @@ export interface INotificationRepository {
   ) => Effect.Effect<void, SqlError>
 }
 
-// Tag for dependency injection
 export class NotificationRepository extends Context.Service<
   NotificationRepository,
   INotificationRepository
 >()('NotificationRepository') {}
 
-// Live implementation using PgDrizzle
 export interface ReminderQuery {
   readonly plantIds: ReadonlyArray<string>
   /** Delivered rows are read only when they are about one of these days. */
@@ -428,7 +421,6 @@ export const NotificationRepositoryLive = Layer.effect(
         return row ? mapToNotification(row) : null
       }),
 
-      // Scheduler methods
       claimPendingToSchedule: Effect.fn(
         'NotificationRepository.claimPendingToSchedule'
       )(function* (limit: number) {
@@ -901,7 +893,6 @@ export const NotificationRepositoryLive = Layer.effect(
         return Array.map(rows, mapToNotification)
       }),
 
-      // Batch scheduler methods
       markManyAsSent: Effect.fn('NotificationRepository.markManyAsSent')(
         function* (rows: ReadonlyArray<SentNotification>) {
           if (Array.isReadonlyArrayEmpty(rows)) return

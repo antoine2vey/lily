@@ -25,7 +25,6 @@ export const getChatHistory = (params: {
       ...(params.limit !== undefined && { limit: params.limit }),
     })
 
-    // Resolve any raw GCS keys to signed URLs (batch, parallel)
     const resolvedItems = yield* resolveImageUrls(result.items)
 
     return { ...result, items: resolvedItems }

@@ -186,8 +186,6 @@ export const mockForecastWithRain: WeatherForecast = {
   ],
 }
 
-// ─── Multi-day Forecast Profiles ──────────────────────────────────────────
-
 const makeDay = (
   dayOffset: number,
   overrides: Partial<WeatherData>
@@ -1097,8 +1095,6 @@ export const hotWeekForecast: ReadonlyArray<WeatherData> = [
   }),
 ]
 
-// ─── Weather Context Helpers ──────────────────────────────────────────────
-
 export const buildWeatherCtx = (
   forecast: ReadonlyArray<WeatherData>,
   recentHistory: ReadonlyArray<WeatherData> = []
@@ -1107,8 +1103,6 @@ export const buildWeatherCtx = (
   recentHistory,
   forecast,
 })
-
-// ─── Plant Profiles for Schedule Delta Tests ──────────────────────────────
 
 const oneDayMs = 24 * 60 * 60 * 1000
 

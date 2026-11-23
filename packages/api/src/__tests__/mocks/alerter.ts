@@ -28,9 +28,6 @@ export const createMockAlerter = () => {
   }
 }
 
-/**
- * Zero-op alerter layer for tests that don't care about alerting signal.
- */
 export const MockAlerterLive = Layer.succeed(Alerter, {
   alert: () => Effect.void,
   alertWarning: () => Effect.void,

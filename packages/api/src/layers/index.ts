@@ -1,25 +1,3 @@
-/**
- * Shared Layer Exports & Composite App Layer
- *
- * Re-exports layers from their original locations for convenient importing.
- * Provides `AppLive` — a single composite layer that bundles all repositories
- * and infrastructure, so handlers and schedulers never need their own
- * `Layer.provide` chains.
- *
- * Usage:
- * ```typescript
- * import { AppLive } from '@lily/api/layers'
- * ```
- *
- * ## EventBus vs MessageQueue
- *
- * - **EventBus** (Redis pub/sub, `RedisEventBusLive`): Ephemeral, fire-and-forget.
- *   Used for achievement events — if a subscriber is offline the event is lost.
- *
- * - **MessageQueue** (Redis lists, `RedisMessageQueueLive`): Reliable, at-least-once.
- *   Used for notification delivery — messages persist until consumed.
- */
-
 import { BunServices } from '@effect/platform-bun'
 import { AbsenceLive } from '@lily/api/contexts/absence'
 import { CanopyLive } from '@lily/api/contexts/canopy'
@@ -96,10 +74,6 @@ import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import { Config, Effect, Layer, Option, Redacted } from 'effect'
 
-// ============================================================================
-// Re-exports for direct access
-// ============================================================================
-
 export { BunServices } from '@effect/platform-bun'
 export { RedisEventBusLive } from '@lily/api/events'
 export { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
@@ -116,12 +90,6 @@ export { RevenueCatProviderLive } from '@lily/api/services/subscriptions/provide
 export { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
 export { FileService } from '@lily/shared/services/file/fileservice'
 export { GCSService } from '@lily/shared/services/file/gcs'
-
-// ============================================================================
-// Composite Layer: AllRepositoriesLive
-// All repository implementations — depend on PgDrizzle (from SharedLive)
-// and KnowledgeDrizzle for knowledge-specific repos.
-// ============================================================================
 
 // Split into two groups to stay under Layer.mergeAll's 20-argument overload limit
 const RepositoriesGroup1 = Layer.mergeAll(
@@ -171,19 +139,6 @@ export const AllRepositoriesLive = Layer.mergeAll(
   RepositoriesGroup2
 )
 
-// ============================================================================
-// Composite Layer: AllInfrastructureLive
-// Auth, Redis, AI, file storage, subscriptions, weather, push notifications.
-// Some of these depend on repositories or RedisClient — the dependency
-// ordering is handled via Layer.provideMerge in AppLive below.
-// ============================================================================
-
-// Self-contained layers (only depend on Config, not on app repos/infra)
-// FileService.layer depends on FileSystem from BunServices.layer, so we
-// provide BunServices first via Layer.provideMerge to satisfy that dependency.
-//
-// In development, external services (push notifications, email) are replaced
-// with console-logging implementations to avoid hitting real APIs.
 const NodeEnvConfig = Config.String('NODE_ENV').pipe(
   Config.withDefault('development')
 )
@@ -227,9 +182,6 @@ const ExternalServicesLive = Layer.unwrap(
       onNone: () => false,
       onSome: (v) => v.toLowerCase() === 'expo',
     })
-    // In dev, PUSH_PROVIDER=expo uses the combined provider (Expo for regular
-    // push + direct APNs for Live Activities). Without the override, console
-    // logging only — no real delivery.
     const pushLayer = forceExpoPush
       ? ExpoPlusApnsPushServiceLive
       : ConsolePushServiceLive
@@ -260,8 +212,6 @@ const SelfContainedInfraLive = Layer.mergeAll(
   MagicLinkConfigLive
 ).pipe(Layer.provideMerge(BunServices.layer))
 
-// Redis-dependent layers all need RedisClient. Layer.provideMerge provides
-// RedisClient to them AND outputs it for downstream use.
 const RedisFullLive = Layer.mergeAll(
   RedisEventBusLive,
   RedisMessageQueueLive,
@@ -269,12 +219,6 @@ const RedisFullLive = Layer.mergeAll(
   PendingPushReceipts.layer
 ).pipe(Layer.provideMerge(RedisClientLive))
 
-// Repo-dependent infra: these need specific repositories to be available.
-// LimitCheckerLive needs SubscriptionRepository + AchievementRepository +
-// CanopyRepository.
-// UsageTrackerLive needs SubscriptionRepository.
-// The push provider needs DeviceTokenRepository, PendingPushReceipts (Redis)
-// and ExpoPushClient.
 const RepoDependentInfraLive = Layer.mergeAll(
   LimitCheckerLive,
   UsageTrackerLive,
@@ -289,16 +233,6 @@ const AllInfrastructureLive = Layer.mergeAll(
   Layer.provideMerge(Layer.mergeAll(RedisFullLive, ExpoPushClient.layer)),
   Layer.provideMerge(AlerterLive)
 )
-
-// ============================================================================
-// AppLive — The single composite layer for the entire application.
-//
-// Provides ALL repositories + ALL infrastructure. Handlers and schedulers
-// declare their dependencies via Effect's R type parameter and get them
-// satisfied automatically from AppLive at the root.
-//
-// Requires: PgDrizzle (from SharedLive = DrizzleLive + PgLive)
-// ============================================================================
 
 const ContextsLive = CanopyLive.pipe(
   Layer.provideMerge(AbsenceLive),

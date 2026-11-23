@@ -125,10 +125,6 @@ export class AnalyticsRepository extends Context.Service<
   IAnalyticsRepository
 >()('AnalyticsRepository') {}
 
-// ============================================================================
-// Row types for raw query results
-// ============================================================================
-
 type UsersByStatusRow = { status: UserStatus; n: number }
 
 type SubsByTierRow = {

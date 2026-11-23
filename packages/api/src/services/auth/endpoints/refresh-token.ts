@@ -38,10 +38,8 @@ export const refreshToken = ({
     const jwtService = yield* JWTService
     const rateLimiter = yield* RateLimiterService
 
-    // Hash the provided token to look it up
     const tokenHash = yield* jwtService.hashRefreshToken(refreshToken)
 
-    // Find valid refresh token (active, or rotated within the grace window)
     const storedToken = yield* refreshTokenRepo.findValidByTokenHash(
       tokenHash,
       REFRESH_TOKEN_ROTATION_GRACE_MS
@@ -60,18 +58,14 @@ export const refreshToken = ({
       RATE_LIMITS.REFRESH
     )
 
-    // Get user
     const user = yield* userRepo.findById(storedToken.userId)
 
     if (!user) {
-      // Revoke the token since user doesn't exist
       yield* refreshTokenRepo.revoke(storedToken.id)
       return yield* new AuthError({ message: 'User not found' })
     }
 
-    // Check user status
     if (user.status !== 'active') {
-      // Revoke all tokens for suspended/banned user
       yield* refreshTokenRepo.revokeAllForUser(user.id)
       return yield* new AuthError({ message: 'Account is not active' })
     }
@@ -83,7 +77,6 @@ export const refreshToken = ({
       yield* refreshTokenRepo.revoke(storedToken.id)
     }
 
-    // Generate new access token
     const accessToken = yield* jwtService.signAccessToken({
       userId: user.id,
       email: user.email,
@@ -91,7 +84,6 @@ export const refreshToken = ({
       status: user.status,
     })
 
-    // Generate new refresh token (rotation)
     const newRefreshToken = yield* jwtService.generateRefreshToken
     const newRefreshTokenHash =
       yield* jwtService.hashRefreshToken(newRefreshToken)
@@ -99,7 +91,6 @@ export const refreshToken = ({
       DateTime.addDuration(DateTime.nowUnsafe(), REFRESH_TOKEN_EXPIRY)
     )
 
-    // Store the new hashed refresh token
     yield* refreshTokenRepo.create(
       user.id,
       newRefreshTokenHash,

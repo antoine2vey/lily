@@ -60,5 +60,4 @@ export const createMockRevenueCatProvider = (
   return Layer.succeed(RevenueCatProvider, provider)
 }
 
-// Default mock that does nothing - useful for tests that don't need RevenueCat
 export const MockRevenueCatProviderLive = createMockRevenueCatProvider()

@@ -72,7 +72,6 @@ describe('RagService', () => {
         }).pipe(Effect.provide(layer))
       )
 
-      // embedText was called (query was embedded)
       expect(mockedEmbedText).toHaveBeenCalledWith('test')
     })
 
@@ -115,7 +114,6 @@ describe('RagService', () => {
     it('should return empty array on search failure', async () => {
       mockedEmbedText.mockReturnValueOnce(Effect.succeed([0.1]))
 
-      // Create a special layer where search fails
       const failingChunkRepo = Layer.succeed(
         (await import('@lily/api/repositories/processed-chunk.repository'))
           .ProcessedChunkRepository,

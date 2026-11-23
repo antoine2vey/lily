@@ -16,7 +16,6 @@ export const findPlantById = (
   Effect.gen(function* () {
     const repo = yield* PlantRepository
 
-    // Fetch recent photos (limit 10 for the detail view)
     const photosResult = yield* repo.findPhotos({
       plantId: plant.id,
       page: 1,

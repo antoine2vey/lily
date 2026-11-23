@@ -7,7 +7,6 @@ import type { PlantFilter, PlantSort } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Get plants with pagination and filtering
 export const findPlants = (params: {
   page?: number
   limit?: number

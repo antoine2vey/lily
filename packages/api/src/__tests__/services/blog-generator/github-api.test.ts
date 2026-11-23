@@ -72,7 +72,6 @@ describe('GitHub API — publishBlogPost', () => {
       )
     )
 
-    // All locales should have the commit SHA
     expect(result.en).toBe('new-commit-sha')
     expect(result.fr).toBe('new-commit-sha')
 
@@ -84,7 +83,6 @@ describe('GitHub API — publishBlogPost', () => {
       })
     )
 
-    // Verify tree was created with both locale files
     expect(mockCreateTree).toHaveBeenCalledWith(
       expect.objectContaining({
         base_tree: 'tree-sha-1',

@@ -31,18 +31,14 @@ import {
   Ref,
 } from 'effect'
 
-// Inactivity threshold: 7 days without care
 const INACTIVITY_DAYS = 7
-// Photo staleness threshold: 30 days without a photo
 const PHOTO_STALENESS_DAYS = 30
 // Milestone days since signup
 const MILESTONES = [7, 30, 90, 180, 365] as const
 
-// Dedup periods (in days)
 const INACTIVITY_DEDUP_DAYS = 7
 const PHOTO_DEDUP_DAYS = 30
 
-// Streak notification thresholds
 const STREAK_AT_RISK_MIN = 3
 const STREAK_AT_RISK_HOUR = 18 // 6 PM local time
 const STREAK_MILESTONES = [7, 14, 30, 60, 90, 180, 365] as const
@@ -477,7 +473,6 @@ export const processPlantAnniversaries = Effect.fn(
 
         const timezone = resolveTimezone(user.timezone)
 
-        // One scheduledAt shared across all plants for this user in this run.
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
           user.id,

@@ -51,5 +51,4 @@ export const createMockLimitChecker = (
   return Layer.succeed(LimitChecker, checker)
 }
 
-// Default mock that allows all operations
 export const MockLimitCheckerLive = createMockLimitChecker()

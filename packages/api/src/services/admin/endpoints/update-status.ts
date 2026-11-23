@@ -18,7 +18,6 @@ export const updateStatus = (
     const repo = yield* UserRepository
     const currentAdmin = yield* AdminUser
 
-    // Prevent admins from changing their own status
     if (id === currentAdmin.id) {
       return yield* new CannotModifySelfError()
     }

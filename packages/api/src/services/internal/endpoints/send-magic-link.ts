@@ -38,7 +38,6 @@ export const sendInternalMagicLink = (input: {
 
     const normalized = normalizeEmail(input.email)
 
-    // Validate email format
     yield* validateEmail(normalized)
 
     // Rate-limit before the account lookup so known and unknown emails hit
@@ -50,10 +49,8 @@ export const sendInternalMagicLink = (input: {
       return { message: 'Magic link sent' }
     }
 
-    // Create magic link token
     const { token } = yield* createMagicLinkToken(normalized)
 
-    // Build the full callback URL with the token
     const fullCallbackUrl = input.callbackUrl.includes('?')
       ? `${input.callbackUrl}&code=${token}`
       : `${input.callbackUrl}?code=${token}`

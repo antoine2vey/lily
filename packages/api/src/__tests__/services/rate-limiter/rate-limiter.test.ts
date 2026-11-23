@@ -49,18 +49,15 @@ describe('RateLimiterService', () => {
     })
 
     it('should track request count per key', async () => {
-      // Make multiple requests up to the limit
       const result = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const rateLimiter = yield* RateLimiterService
           const config = { maxRequests: 3, windowSeconds: 60 }
 
-          // First 3 requests should succeed
           yield* rateLimiter.checkRateLimit('test-key', config)
           yield* rateLimiter.checkRateLimit('test-key', config)
           yield* rateLimiter.checkRateLimit('test-key', config)
 
-          // 4th request should fail
           yield* rateLimiter.checkRateLimit('test-key', config)
         }).pipe(Effect.provide(createMockRateLimiterService()))
       )
@@ -74,11 +71,9 @@ describe('RateLimiterService', () => {
           const rateLimiter = yield* RateLimiterService
           const config = { maxRequests: 2, windowSeconds: 60 }
 
-          // Use up limit for key-a
           yield* rateLimiter.checkRateLimit('key-a', config)
           yield* rateLimiter.checkRateLimit('key-a', config)
 
-          // key-b should still have full limit available
           yield* rateLimiter.checkRateLimit('key-b', config)
           yield* rateLimiter.checkRateLimit('key-b', config)
 
@@ -121,14 +116,11 @@ describe('RateLimiterService', () => {
           const rateLimiter = yield* RateLimiterService
           const config = { maxRequests: 2, windowSeconds: 60 }
 
-          // Use up limit
           yield* rateLimiter.checkRateLimit('test-key', config)
           yield* rateLimiter.checkRateLimit('test-key', config)
 
-          // Reset the limit
           yield* rateLimiter.resetRateLimit('test-key')
 
-          // Should be able to make requests again
           yield* rateLimiter.checkRateLimit('test-key', config)
 
           return 'success'
@@ -144,17 +136,13 @@ describe('RateLimiterService', () => {
           const rateLimiter = yield* RateLimiterService
           const config = { maxRequests: 1, windowSeconds: 60 }
 
-          // Use up limit for both keys
           yield* rateLimiter.checkRateLimit('key-a', config)
           yield* rateLimiter.checkRateLimit('key-b', config)
 
-          // Reset only key-a
           yield* rateLimiter.resetRateLimit('key-a')
 
-          // key-a should work
           yield* rateLimiter.checkRateLimit('key-a', config)
 
-          // key-b should still be limited
           yield* rateLimiter.checkRateLimit('key-b', config)
         }).pipe(Effect.provide(createMockRateLimiterService()))
       )

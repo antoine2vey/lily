@@ -10,10 +10,6 @@ const isFilePartWithUrl = (
 ): part is MessagePart & { type: 'file'; url: string } =>
   part.type === 'file' && 'url' in part && typeof part.url === 'string'
 
-/**
- * Resolve all GCS key references in UIMessage parts to signed URLs.
- * Collects all keys first, signs them in batch, then maps back.
- */
 export const resolveMessageImageUrls = (
   messages: UIMessage[]
 ): Effect.Effect<UIMessage[], GCSUploadError, GCSService> =>
@@ -49,10 +45,6 @@ export const resolveMessageImageUrls = (
     }))
   })
 
-/**
- * Resolve raw GCS keys to signed URLs for a list of items.
- * Signs all unique keys in batch, then maps them back.
- */
 export const resolveImageUrls = <T extends { imageUrl?: string | undefined }>(
   items: readonly T[]
 ): Effect.Effect<T[], GCSUploadError, GCSService> =>
@@ -84,9 +76,6 @@ export const resolveImageUrls = <T extends { imageUrl?: string | undefined }>(
     )
   })
 
-/**
- * Resolve a single raw GCS key to a signed URL.
- */
 export const resolveImageUrl = (
   imageUrl: string | undefined
 ): Effect.Effect<string | undefined, GCSUploadError, GCSService> =>

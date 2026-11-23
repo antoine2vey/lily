@@ -103,7 +103,6 @@ const makeJwtState = (cfg: ApnsConfig): JwtState => {
   }
 }
 
-// Config bindings — present only when APNs is fully configured.
 const ApnsTeamIdConfig = Config.option(Config.String('APNS_TEAM_ID'))
 const ApnsKeyIdConfig = Config.option(Config.String('APNS_KEY_ID'))
 const ApnsPrivateKeyConfig = Config.option(Config.Redacted('APNS_PRIVATE_KEY'))

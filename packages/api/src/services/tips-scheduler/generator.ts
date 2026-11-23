@@ -47,7 +47,6 @@ export const generateDailyTip = Effect.gen(function* () {
   const tipRepo = yield* DailyTipRepository
   const ragService = yield* RagService
 
-  // Get recent tips for dedup
   const recentTips = yield* tipRepo.findRecent(30)
 
   const recentTopics = pipe(
@@ -55,7 +54,6 @@ export const generateDailyTip = Effect.gen(function* () {
     Array.map((t) => `${t.category}: ${t.title.en ?? ''}`)
   )
 
-  // Pick a random category to guide RAG retrieval
   const randomIndex = yield* Random.nextIntBetween(
     0,
     Array.length(TIP_CATEGORIES)
@@ -65,7 +63,6 @@ export const generateDailyTip = Effect.gen(function* () {
     () => 'general' as const
   )
 
-  // Use RAG to get relevant knowledge
   const chunks = yield* ragService.retrieve({
     query: `${targetCategory} plant care tips and advice`,
     limit: 3,
@@ -73,7 +70,6 @@ export const generateDailyTip = Effect.gen(function* () {
 
   const knowledgeContext = ragService.formatContext(chunks)
 
-  // Generate the tip
   const result = yield* callOpenAI(
     'Daily tip generation',
     DAILY_TIP_TIMEOUT,

@@ -14,14 +14,8 @@ import {
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Refresh token record type
- */
 export type RefreshToken = typeof refreshTokens.$inferSelect
 
-/**
- * Refresh token repository interface
- */
 export interface IRefreshTokenRepository {
   readonly create: (
     userId: string,
@@ -40,17 +34,11 @@ export interface IRefreshTokenRepository {
   readonly deleteExpired: Effect.Effect<number, SqlError>
 }
 
-/**
- * Refresh token repository context tag
- */
 export class RefreshTokenRepository extends Context.Service<
   RefreshTokenRepository,
   IRefreshTokenRepository
 >()('RefreshTokenRepository') {}
 
-/**
- * Live implementation of Refresh Token Repository
- */
 export const RefreshTokenRepositoryLive = Layer.effect(
   RefreshTokenRepository,
   Effect.gen(function* () {

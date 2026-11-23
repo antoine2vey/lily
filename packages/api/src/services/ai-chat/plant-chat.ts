@@ -117,11 +117,6 @@ const appendImageToLastUserMessage = (
   )
 }
 
-/**
- * Unified chat stream — dispatches on conversation kind.
- * Plant-anchored conversations gather plant data + care history;
- * general conversations skip that and use the general system prompt.
- */
 export const chatStream = (
   conversation: ChatConversation,
   messages: UIMessage[],

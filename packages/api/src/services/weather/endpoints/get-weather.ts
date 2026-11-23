@@ -13,7 +13,6 @@ import {
 import { Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Fetch weather for a specific location (with cache + persistence)
 export const getWeatherForLocation = (
   lat: number,
   lng: number
@@ -30,17 +29,14 @@ export const getWeatherForLocation = (
     const rlat = roundCoord(lat)
     const rlng = roundCoord(lng)
 
-    // Check Redis cache first
     const cached = yield* cache.findNearest(rlat, rlng, WEATHER_ZONE_RADIUS_KM)
 
     if (Option.isSome(cached)) {
       return cached.value
     }
 
-    // Cache miss — fetch from provider
     const forecast = yield* provider.fetchForecast(rlat, rlng)
 
-    // Store in Redis cache
     yield* cache.store(rlat, rlng, forecast)
 
     // Persist daily snapshots to PostgreSQL for historical trend analysis
@@ -77,7 +73,6 @@ export const getWeatherForLocation = (
     return forecast
   })
 
-// Fetch weather for the current authenticated user
 export const getWeatherForUser: Effect.Effect<
   WeatherForecast,
   SqlError | WeatherFetchError | WeatherNotAvailableError,

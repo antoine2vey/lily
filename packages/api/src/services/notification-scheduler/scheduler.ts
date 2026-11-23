@@ -72,7 +72,6 @@ export const pollAndEnqueue = Effect.gen(function* () {
     count: pendingNotifications.length,
   })
 
-  // Batch-fetch all users in a single query
   const uniqueUserIds = pipe(
     Array.map(pendingNotifications, (n) => n.userId),
     Array.dedupe
@@ -94,7 +93,6 @@ export const pollAndEnqueue = Effect.gen(function* () {
   const plants = yield* plantRepo.findByIds(allPlantIds)
   const plantFacts = yield* loadPlantFacts(plants)
 
-  // Phase 1: Filter valid notifications and resolve topics
   type ValidNotification = {
     notification: NotificationRow
     topic: NotificationTopic
@@ -270,7 +268,6 @@ export const pollAndEnqueue = Effect.gen(function* () {
     { concurrency: 10 }
   )
 
-  // Signal whether there are likely more rows waiting
   return filledBatch
 }).pipe(Effect.withSpan('notification-scheduler.poll'))
 

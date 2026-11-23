@@ -61,7 +61,6 @@ import { HttpServerResponse } from 'effect/http'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Exponential backoff: 200ms -> 400ms -> 800ms (max 3 retries)
 export const postStreamRetryPolicy = Schedule.max([
   Schedule.exponential('200 millis'),
   Schedule.recurs(3),

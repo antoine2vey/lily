@@ -49,11 +49,9 @@ import { Effect, Schema } from 'effect'
 import { Multipart } from 'effect/http'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-// Path parameter for plant ID
 const plantIdParam = Schema.String.check(Schema.isGUID())
 const photoIdParam = Schema.String.check(Schema.isGUID())
 
-// Query parameters for plants listing (extends base pagination)
 export const PlantsQueryParams = Schema.Struct({
   ...PaginationParams.fields,
   filter: Schema.String.pipe(
@@ -74,10 +72,8 @@ export const PlantsQueryParams = Schema.Struct({
 
 export type PlantsQueryParams = typeof PlantsQueryParams.Type
 
-// Define the Plants API group
 export const PlantsApi = HttpApiGroup.make('plants')
   .add(
-    // GET /plants - List user's plants with filtering and pagination
     HttpApiEndpoint.get('getPlants', '/', {
       query: PlantsQueryParams,
       success: PlantsListResponse,
@@ -87,7 +83,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants - Create a new plant (manual entry)
     HttpApiEndpoint.post('createPlant', '/', {
       payload: EnhancedPlantCreateRequest,
       success: Plant.pipe(HttpApiSchema.status(201)),
@@ -100,7 +95,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/scan-card - Scan nursery card
     HttpApiEndpoint.post('scanCard', '/scan-card', {
       payload: Schema.Struct({
         images: Multipart.FilesSchema,
@@ -123,7 +117,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/scan-card-multiple - Scan multiple nursery cards at once
     HttpApiEndpoint.post('scanCardMultiple', '/scan-card-multiple', {
       payload: Schema.Struct({
         images: Multipart.FilesSchema,
@@ -148,7 +141,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/detect - Unified plant/card detection
     HttpApiEndpoint.post('detect', '/detect', {
       payload: Schema.Struct({
         images: Multipart.FilesSchema,
@@ -171,7 +163,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/ai-identify - AI-identify species & care ratings
     HttpApiEndpoint.post('aiIdentify', '/ai-identify', {
       payload: Schema.Struct({
         images: Multipart.FilesSchema,
@@ -194,7 +185,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/care-multiple - Care for multiple plants at once (generic)
     HttpApiEndpoint.post('careMultiplePlants', '/care-multiple', {
       payload: CareMultiplePlantsRequest,
       success: CareMultiplePlantsResponse,
@@ -205,7 +195,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // GET /plants/:id - Get plant by ID (includes recent photos)
     HttpApiEndpoint.get('getPlant', '/:id', {
       params: { id: plantIdParam },
       success: PlantDetail,
@@ -217,7 +206,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // PUT /plants/:id - Update plant (multipart: JSON data + optional image)
     HttpApiEndpoint.put('updatePlant', '/:id', {
       params: { id: plantIdParam },
       payload: Schema.Struct({
@@ -238,7 +226,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // DELETE /plants/:id - Delete plant permanently (owner only)
     HttpApiEndpoint.delete('deletePlant', '/:id', {
       params: { id: plantIdParam },
       success: Plant,
@@ -250,7 +237,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/:id/death - "Say goodbye": move the plant to the cemetery
     HttpApiEndpoint.post('markPlantDead', '/:id/death', {
       params: { id: plantIdParam },
       payload: PlantDeathRequest,
@@ -264,7 +250,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // DELETE /plants/:id/death - "Bring back": restore a plant from the cemetery
     HttpApiEndpoint.delete('revivePlant', '/:id/death', {
       params: { id: plantIdParam },
       success: Plant,
@@ -278,7 +263,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // GET /plants/:plantId/photos - List all photos for a plant
     HttpApiEndpoint.get('getPlantPhotos', '/:id/photos', {
       params: { id: plantIdParam },
       query: PaginationParams,
@@ -291,7 +275,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/:plantId/photos - Upload a new plant photo
     HttpApiEndpoint.post('uploadPlantPhoto', '/:id/photos', {
       params: { id: plantIdParam },
       payload: Schema.Struct({
@@ -309,7 +292,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // DELETE /plants/:plantId/photos/:photoId - Remove a plant photo
     HttpApiEndpoint.delete('deletePlantPhoto', '/:id/photos/:photoId', {
       params: { id: plantIdParam, photoId: photoIdParam },
       success: Schema.Void,
@@ -322,7 +304,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/:id/care - Generic care action
     HttpApiEndpoint.post('carePlant', '/:id/care', {
       params: { id: plantIdParam },
       payload: PlantCareRequest,
@@ -338,7 +319,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // PATCH /plants/:id/care-dates - Correct care dates
     HttpApiEndpoint.patch('correctCareDates', '/:id/care-dates', {
       params: { id: plantIdParam },
       payload: PlantCorrectCareDatesRequest,
@@ -354,7 +334,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     })
   )
   .add(
-    // POST /plants/:id/share - Notify that plant was shared
     HttpApiEndpoint.post('sharePlant', '/:id/share', {
       params: { id: plantIdParam },
       success: Schema.Void,

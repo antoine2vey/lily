@@ -24,10 +24,6 @@ export const createTestSchedule = (
   }
 }
 
-/**
- * Build schedule rows from plant fixtures.
- * Creates one CareScheduleRow per entry in each plant's scheduleSpecs.
- */
 export const schedulesFromPlants = (
   plants: ReadonlyArray<{ id: string; scheduleSpecs: ScheduleSpec[] }>
 ): CareScheduleRow[] => {

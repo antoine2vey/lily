@@ -137,10 +137,6 @@ const CATEGORY_KEYWORDS: readonly CategoryKeywords[] = [
   },
 ]
 
-/**
- * Categorize content based on keyword matching.
- * Returns the category with the most keyword matches.
- */
 export const categorize = (content: string): ContentCategory => {
   const lower = String.toLowerCase(content)
 

@@ -19,7 +19,6 @@ import {
   Result,
 } from 'effect'
 
-// Mutable version of Notification for internal mock state
 type MutableNotification = {
   -readonly [K in keyof NotificationRow]: NotificationRow[K]
 }
@@ -76,7 +75,6 @@ export const createMockNotificationRepository = (
         filtered = Array.filter(filtered, (n) => n.status === params.status)
       }
 
-      // Sort by createdAt descending
       const sorted = [...filtered].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -143,7 +141,6 @@ export const createMockNotificationRepository = (
       return Effect.succeed(Option.getOrNull(Option.fromNullishOr(removed)))
     },
 
-    // Scheduler methods
     claimPendingToSchedule: (limit: number) =>
       Effect.sync(() => {
         const now = new Date()
@@ -476,7 +473,6 @@ export const createMockNotificationRepository = (
         )
       ),
 
-    // Batch scheduler methods
     markManyAsSent: (rows) =>
       Effect.sync(() => {
         Array.forEach(rows, ({ id, title, body }) => {

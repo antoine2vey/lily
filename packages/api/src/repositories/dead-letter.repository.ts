@@ -13,7 +13,6 @@ export interface CreateDeadLetterData {
   plantId?: string
 }
 
-// Dead letter message type
 export interface DeadLetterMessage {
   id: string
   originalMessageId: string
@@ -27,7 +26,6 @@ export interface DeadLetterMessage {
   plantId: string | null
 }
 
-// Helper to map database row
 const mapToDeadLetterMessage = (
   row: typeof deadLetterMessages.$inferSelect
 ): DeadLetterMessage => ({
@@ -43,7 +41,6 @@ const mapToDeadLetterMessage = (
   plantId: row.plantId,
 })
 
-// Repository service interface
 export interface IDeadLetterRepository {
   readonly create: (
     data: CreateDeadLetterData
@@ -55,7 +52,6 @@ export class DeadLetterRepository extends Context.Service<
   IDeadLetterRepository
 >()('DeadLetterRepository') {}
 
-// Live implementation using PgDrizzle
 export const DeadLetterRepositoryLive = Layer.effect(
   DeadLetterRepository,
   Effect.gen(function* () {

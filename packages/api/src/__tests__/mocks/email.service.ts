@@ -11,13 +11,11 @@ export interface MockEmailServiceOptions {
   failureMessage?: string
 }
 
-// Track sent emails for verification in tests
 let sentEmails: SendEmailRequest[] = []
 
 export const createMockEmailService = (
   options: MockEmailServiceOptions = {}
 ): Layer.Layer<EmailService> => {
-  // Reset sent emails
   sentEmails = []
 
   const service: IEmailService = {
@@ -32,7 +30,6 @@ export const createMockEmailService = (
           })
         }
 
-        // Track the sent email
         sentEmails.push(request)
       }),
   }
@@ -40,18 +37,14 @@ export const createMockEmailService = (
   return Layer.succeed(EmailService, service)
 }
 
-// Helper to get all sent emails
 export const getSentEmails = () => [...sentEmails]
 
-// Helper to get last sent email
 export const getLastSentEmail = () =>
   sentEmails.length > 0 ? sentEmails[sentEmails.length - 1] : null
 
-// Helper to clear sent emails
 export const clearSentEmails = () => {
   sentEmails = []
 }
 
-// Helper to check if an email was sent to a specific address
 export const wasEmailSentTo = (email: string) =>
   sentEmails.some((e) => e.to === email)

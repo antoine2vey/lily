@@ -22,10 +22,6 @@ export const KnowledgeQueryResponse = Schema.Struct({
 
 export type KnowledgeQueryResponse = typeof KnowledgeQueryResponse.Type
 
-/**
- * Knowledge API — RAG-powered plant care question answering.
- * Protected by standard JWT authentication.
- */
 export const KnowledgeApi = HttpApiGroup.make('knowledge')
   .add(
     HttpApiEndpoint.post('queryKnowledge', '/query', {
