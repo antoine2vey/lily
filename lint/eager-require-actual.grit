@@ -7,9 +7,13 @@ pattern function_in_factory_body() {
   or {
     JsArrowFunctionExpression(),
     JsFunctionExpression(),
-    JsMethodObjectMember()
+    JsFunctionDeclaration(),
+    JsMethodObjectMember(),
+    JsGetterObjectMember(),
+    JsMethodClassMember()
   } as $inner where {
-    $inner <: within `jest.mock($_, $factory)` where {
+    $inner <: within `jest.$mock($_, $factory, $...)` where {
+      $mock <: or { `mock`, `doMock` },
       $factory <: or {
         `($...) => $body`,
         `function $_($...) { $body }`,
