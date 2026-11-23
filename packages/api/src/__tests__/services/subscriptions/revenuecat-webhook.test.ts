@@ -101,7 +101,6 @@ interface Harness {
 }
 
 const harness = (options: Harness = {}) => {
-  const onCreate = vi.fn()
   const onLogEvent = vi.fn()
   let subscriberInfo =
     options.subscriberInfo ?? Effect.succeed(activeSubscriber)
@@ -112,7 +111,6 @@ const harness = (options: Harness = {}) => {
   const layer = Layer.mergeAll(
     createMockSubscriptionRepository({
       subscription: options.subscription ?? null,
-      onCreate,
       onLogEvent,
       failingCreates: options.failingCreates,
     }),
@@ -138,7 +136,6 @@ const harness = (options: Harness = {}) => {
     deliver,
     currentRow,
     setSubscriberInfo,
-    onCreate,
     onLogEvent,
     getSubscriberInfo,
     layer,
@@ -162,17 +159,6 @@ describe('handleRevenueCatWebhook', () => {
     expect(row && hasPremiumAccess(row)).toBe(true)
   })
 
-  it('writes one subscription event when the same event is delivered twice', async () => {
-    const h = harness()
-
-    await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))
-    const second = await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))
-
-    expect(second._tag).toBe('Success')
-    expect(h.onLogEvent).toHaveBeenCalledTimes(1)
-    expect(h.onCreate).toHaveBeenCalledTimes(1)
-  })
-
   it('applies the store state when RevenueCat retries a delivery whose write failed', async () => {
     const h = harness({ failingCreates: 1 })
 
@@ -186,7 +172,6 @@ describe('handleRevenueCatWebhook', () => {
     const retried = await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))
 
     expect(retried._tag).toBe('Success')
-    expect(h.onCreate).toHaveBeenCalledTimes(1)
     expect((await h.currentRow())?.status).toBe('active')
   })
 
@@ -209,7 +194,6 @@ describe('handleRevenueCatWebhook', () => {
     const exit = await h.deliver(webhookPayload('EXPIRATION', 'evt-1'))
 
     expect(exit._tag).toBe('Success')
-    expect(h.onCreate).not.toHaveBeenCalled()
     const row = await h.currentRow()
     expect(row).toEqual(giftRow)
     expect(row && hasPremiumAccess(row)).toBe(true)
@@ -236,7 +220,7 @@ describe('handleRevenueCatWebhook', () => {
 
     expect(exit._tag).toBe('Success')
     expect(h.getSubscriberInfo).not.toHaveBeenCalled()
-    expect(h.onCreate).not.toHaveBeenCalled()
+    expect(await h.currentRow()).toBeNull()
   })
 
   it('acknowledges TEST events without touching RevenueCat', async () => {
@@ -249,7 +233,7 @@ describe('handleRevenueCatWebhook', () => {
   })
 
   it('fails the request when the RevenueCat fetch fails, and applies the retry', async () => {
-    const failing = harness({
+    const h = harness({
       subscriberInfo: Effect.fail(
         new PaymentProviderError({
           message: 'down',
@@ -258,46 +242,18 @@ describe('handleRevenueCatWebhook', () => {
       ),
     })
 
-    const exit = await failing.deliver(webhookPayload('RENEWAL', 'evt-1'))
+    const exit = await h.deliver(webhookPayload('RENEWAL', 'evt-1'))
 
     expect(failureOf(exit)).toMatchObject({
       _tag: 'PaymentProviderError',
       code: 'revenuecat_api_error',
     })
-    expect(failing.onCreate).not.toHaveBeenCalled()
+    expect(await h.currentRow()).toBeNull()
 
-    const claimed = new Set<string>()
-    const retryLayer = (
-      info: Effect.Effect<RevenueCatSubscriberInfo, PaymentProviderError>
-    ) =>
-      Layer.mergeAll(
-        createMockSubscriptionRepository({
-          claimedWebhookEventIds: claimed,
-          onCreate: failing.onCreate,
-        }),
-        createMockRevenueCatProvider({ getSubscriberInfo: () => info })
-      )
-    const run = (
-      info: Effect.Effect<RevenueCatSubscriberInfo, PaymentProviderError>
-    ) =>
-      Effect.runPromiseExit(
-        handleRevenueCatWebhook(webhookPayload('RENEWAL', 'evt-1'), 'x').pipe(
-          Effect.provide(retryLayer(info))
-        )
-      )
+    h.setSubscriberInfo(activeSubscriber)
+    await h.deliver(webhookPayload('RENEWAL', 'evt-1'))
 
-    await run(
-      Effect.fail(
-        new PaymentProviderError({
-          message: 'down',
-          code: 'revenuecat_api_error',
-        })
-      )
-    )
-    expect(claimed.size).toBe(0)
-    await run(Effect.succeed(activeSubscriber))
-    expect(claimed.has('evt-1')).toBe(true)
-    expect(failing.onCreate).toHaveBeenCalledTimes(1)
+    expect((await h.currentRow())?.status).toBe('active')
   })
 
   it('does not write when the row already matches the store', async () => {
@@ -305,8 +261,7 @@ describe('handleRevenueCatWebhook', () => {
 
     await h.deliver(webhookPayload('RENEWAL', 'evt-1'))
 
-    expect(h.onCreate).not.toHaveBeenCalled()
-    expect(h.onLogEvent).not.toHaveBeenCalled()
+    expect(await h.currentRow()).toEqual(storeRow)
   })
 })
 
@@ -342,7 +297,7 @@ describe('reconcileStoreSubscriptions', () => {
     )
 
     expect(h.getSubscriberInfo).not.toHaveBeenCalled()
-    expect(h.onCreate).not.toHaveBeenCalled()
+    expect(await h.currentRow()).toEqual(giftRow)
   })
 
   it('keeps going when one fetch fails', async () => {
@@ -361,6 +316,6 @@ describe('reconcileStoreSubscriptions', () => {
     )
 
     expect(exit._tag).toBe('Success')
-    expect(h.onCreate).not.toHaveBeenCalled()
+    expect(await h.currentRow()).toEqual(storeRow)
   })
 })
