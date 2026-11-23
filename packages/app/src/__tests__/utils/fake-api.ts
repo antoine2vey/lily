@@ -23,8 +23,6 @@ interface SentFile {
 
 export const ok = (body?: unknown): Reply => ({ status: 200, body })
 
-const notFound: Reply = { status: 404, body: { error: 'No such route' } }
-
 interface FilePart {
   readonly name: string
   readonly type: string
@@ -76,9 +74,17 @@ type Answer = (
 ) => Promise<Response>
 
 let answer: Answer | undefined
+let unmatched: SentRequest[] = []
 
 afterEach(() => {
+  const missed = unmatched
   answer = undefined
+  unmatched = []
+  if (missed.length > 0) {
+    throw new Error(
+      `stubApi had no reply for ${missed.map(({ method, path }) => `${method} ${path}`).join(', ')}. Answer every request the test makes.`
+    )
+  }
 })
 
 // The Effect HTTP client reads `fetch` once and keeps it for the whole file,
@@ -91,7 +97,8 @@ const fakeFetch: typeof fetch = (input, init) => {
 /**
  * Replace `fetch` with `reply`, the test's stand-in for the API, for the rest
  * of the test. Every API request lands in `sent`, in order. A request `reply`
- * returns nothing for gets a 404.
+ * returns nothing for gets a 404 and fails the test, so a test that expects a
+ * 404 returns it.
  */
 export const stubApi = (reply: (request: SentRequest) => Reply | undefined) => {
   const sent: SentRequest[] = []
@@ -107,7 +114,9 @@ export const stubApi = (reply: (request: SentRequest) => Reply | undefined) => {
       body: await readBody(init?.body),
     }
     sent.push(request)
-    const { status, body } = reply(request) ?? notFound
+    const replied = reply(request)
+    if (replied === undefined) unmatched.push(request)
+    const { status, body } = replied ?? { status: 404 }
     return body === undefined
       ? new Response(null, { status })
       : new Response(JSON.stringify(body), {
