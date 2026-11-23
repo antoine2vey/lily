@@ -24,7 +24,11 @@ const tier = (name: 'free' | 'paid') => ({
 describe('useSubscriptionSync', () => {
   it('shows the tier the API reports after a purchase', async () => {
     let current = tier('free')
-    stubApi(() => ok(current))
+    const api = stubApi(({ method, path }) =>
+      method === 'GET' && path === '/subscriptions/current'
+        ? ok(current)
+        : undefined
+    )
     const { result } = renderQueryHook(() => ({
       tier: useSubscription().data?.tierConfig.tier,
       sync: useSubscriptionSync(),
@@ -41,5 +45,9 @@ describe('useSubscriptionSync', () => {
       () => expect(result.current.tier).toBe('paid'),
       afterApiRequest
     )
+    expect(api.sent.map(({ method, path }) => `${method} ${path}`)).toEqual([
+      'GET /subscriptions/current',
+      'GET /subscriptions/current',
+    ])
   })
 })

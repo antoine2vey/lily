@@ -2,12 +2,7 @@ import { Plant, PlantsListResponse } from '@lily/shared'
 import { act, waitFor } from '@testing-library/react-native'
 import { Schema } from 'effect'
 import { mockPlants } from '@/__tests__/fixtures'
-import {
-  ok,
-  type Reply,
-  type SentRequest,
-  stubApi,
-} from '@/__tests__/utils/fake-api'
+import { ok, type SentRequest, stubApi } from '@/__tests__/utils/fake-api'
 import {
   afterApiRequest,
   renderQueryHook,
@@ -38,14 +33,17 @@ const plant = (
   deathCause: diedAt === null ? null : 'overwatering',
 })
 
+const CARE_SCREENS = ['/care-tasks', '/care-logs/recent']
+const OTHER_SCREENS = [...CARE_SCREENS, '/achievements']
+
 const encodeList = Schema.encodeSync(PlantsListResponse)
 const encodePlant = Schema.encodeSync(Plant)
 
 /**
  * The plants API over a list of rows: `getPlants` answers from the rows and
- * the plant writes change them. Any other request (care tasks, recent
- * activity, achievements) gets an empty answer, and the test only checks
- * that it was sent again after the write.
+ * the plant writes change them. The other screens that list plants (care
+ * tasks, recent activity, achievements) get an empty answer, and the test
+ * only checks that they read again after the write.
  */
 const fakePlantsApi = (initial: ReadonlyArray<Plant>) => {
   let rows = initial
@@ -69,7 +67,7 @@ const fakePlantsApi = (initial: ReadonlyArray<Plant>) => {
       })
     )
 
-  return stubApi(({ method, path, query, body }: SentRequest): Reply => {
+  return stubApi(({ method, path, query, body }: SentRequest) => {
     const id = path.split('/')[2] ?? ''
     if (method === 'GET' && path === '/plants') {
       return page(
@@ -92,7 +90,8 @@ const fakePlantsApi = (initial: ReadonlyArray<Plant>) => {
     if (method === 'DELETE' && path === `/plants/${id}/death`) {
       return update(id, (row) => ({ ...row, diedAt: null }))
     }
-    return ok({})
+    if (method === 'GET' && OTHER_SCREENS.includes(path)) return ok({})
+    return undefined
   })
 }
 
@@ -116,8 +115,6 @@ const rereadAfterWrite = (sent: ReadonlyArray<SentRequest>) =>
     .slice(sent.findIndex(isWrite) + 1)
     .filter((request) => request.method === 'GET' && request.path !== '/plants')
     .map((request) => request.path)
-
-const CARE_SCREENS = ['/care-tasks', '/care-logs/recent']
 
 describe('plant lifecycle writes', () => {
   it('creates the plant and shows it in the plant list', async () => {

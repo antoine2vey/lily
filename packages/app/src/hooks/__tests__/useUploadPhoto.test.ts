@@ -20,10 +20,14 @@ const photo = (id: string) => ({
 
 describe('useUploadPhoto', () => {
   it('uploads the picked photo and shows the stored one in both caches', async () => {
-    const api = stubApi(() =>
-      ok({
-        photos: [{ ...photo('stored'), takenAt: '2026-11-20T09:00:00.000Z' }],
-      })
+    const api = stubApi(({ method, path }) =>
+      method === 'POST' && path === `/plants/${PLANT_ID}/photos`
+        ? ok({
+            photos: [
+              { ...photo('stored'), takenAt: '2026-11-20T09:00:00.000Z' },
+            ],
+          })
+        : undefined
     )
     const queryClient = createCacheTestQueryClient()
     queryClient.setQueryData(
@@ -57,7 +61,16 @@ describe('useUploadPhoto', () => {
       expect.objectContaining({
         method: 'POST',
         path: `/plants/${PLANT_ID}/photos`,
-        body: [['files', 'file']],
+        body: [
+          [
+            'files',
+            {
+              name: expect.stringMatching(/^plant-.+\.jpg$/),
+              type: 'image/jpeg',
+              uri: 'file:///var/mobile/picked.jpg',
+            },
+          ],
+        ],
       }),
     ])
     const urls = (photos: ReadonlyArray<{ url: string }>) =>

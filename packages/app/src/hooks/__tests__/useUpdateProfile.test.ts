@@ -22,8 +22,12 @@ describe('useUpdateProfile', () => {
       }
       if (method === 'PUT' && path === '/users/settings') {
         settings = { ...settings, ...(body as Partial<UserSettings>) }
+        return ok(encodeSettings(settings))
       }
-      return ok(encodeSettings(settings))
+      if (method === 'GET' && path === '/users/settings') {
+        return ok(encodeSettings(settings))
+      }
+      return undefined
     })
     const { result } = renderQueryHook(() => ({
       settings: useEffectQuery('users', 'getUserSettings', USER_SETTINGS_PARAMS)
@@ -48,7 +52,20 @@ describe('useUpdateProfile', () => {
         .filter((request) => request.method !== 'GET')
         .map(({ method, path, body }) => ({ method, path, body }))
     ).toEqual([
-      { method: 'POST', path: '/users/avatar', body: [['files', 'file']] },
+      {
+        method: 'POST',
+        path: '/users/avatar',
+        body: [
+          [
+            'files',
+            {
+              name: expect.stringMatching(/^avatar-.+\.jpg$/),
+              type: 'image/jpeg',
+              uri: 'file:///var/mobile/avatar.jpg',
+            },
+          ],
+        ],
+      },
       {
         method: 'PUT',
         path: '/users/settings',

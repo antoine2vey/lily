@@ -224,6 +224,11 @@ describe('AuthContext', () => {
       await waitFor(() => {
         expect(result.current.state._tag).toBe('Unauthenticated')
       })
+      expect(
+        apiEffectRunner.mock.calls.filter(
+          ([, endpoint]: [string, string]) => endpoint === 'getCurrentUser'
+        )
+      ).toHaveLength(3)
     })
 
     it('logs out and removes the token on a definitive auth failure', async () => {

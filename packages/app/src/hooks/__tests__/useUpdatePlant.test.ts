@@ -21,17 +21,26 @@ const encodePlant = Schema.encodeSync(Plant)
 /** One plant row: getPlants lists it and a PUT renames it. */
 const fakePlantApi = () => {
   let row = monstera
-  return stubApi(({ method, body }: SentRequest) => {
-    if (method === 'PUT') {
+  return stubApi(({ method, path, body }: SentRequest) => {
+    if (method === 'PUT' && path === `/plants/${PLANT_ID}`) {
       const [, data] = (body as Array<[string, unknown]>).find(
         ([field]) => field === 'data'
       )!
       row = { ...row, ...JSON.parse(data as string) }
       return ok(encodePlant(row))
     }
-    return ok(
-      encodeList({ items: [row], total: 1, page: 1, limit: 20, hasMore: false })
-    )
+    if (method === 'GET' && path === '/plants') {
+      return ok(
+        encodeList({
+          items: [row],
+          total: 1,
+          page: 1,
+          limit: 20,
+          hasMore: false,
+        })
+      )
+    }
+    return undefined
   })
 }
 
@@ -91,7 +100,14 @@ describe('useUpdatePlant', () => {
         method: 'PUT',
         path: `/plants/${PLANT_ID}`,
         body: [
-          ['image', 'file'],
+          [
+            'image',
+            {
+              name: expect.stringMatching(/^plant-.+\.jpg$/),
+              type: 'image/jpeg',
+              uri: 'file:///var/mobile/photo.jpg',
+            },
+          ],
           ['data', JSON.stringify({ name: 'Monstera' })],
         ],
       },

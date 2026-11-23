@@ -65,7 +65,11 @@ const listIds = (client: QueryClient) =>
 
 describe('useDeletePhoto optimistic lifecycle', () => {
   it('deletes the photo on the server and keeps it out of both caches', async () => {
-    const api = stubApi(() => ok())
+    const api = stubApi(({ method, path }) =>
+      method === 'DELETE' && path === `/plants/${PLANT_ID}/photos/${PHOTO_ID}`
+        ? ok()
+        : undefined
+    )
     const client = makeClient()
     seed(client)
 
