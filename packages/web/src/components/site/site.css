@@ -340,6 +340,9 @@
 /* The banner covers the bottom of the viewport. This space lets every focused element scroll clear of it. */
 html {
   scroll-padding-bottom: var(--consent-space, 0px);
+  /* Hydration adds that space, and outside a locale the settings link, so a short page such as /join starts to
+     scroll. The reserved gutter keeps a classic scrollbar from moving the page when it appears. */
+  scrollbar-gutter: stable;
 }
 body {
   padding-bottom: var(--consent-space, 0px);

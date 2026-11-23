@@ -221,6 +221,25 @@ const CORS = [
   { name: 'content-type', value: 'application/json' },
 ]
 
+const JOIN_INVITE = 'packages/web/src/components/site/JoinInvite.tsx'
+const FIXES = {
+  language:
+    'Chrome did not take the Accept-Language override, so the run says nothing about the page. Fix Emulation.setUserAgentOverride in this script.',
+  font: 'The page drew another font than the run forced. Load Space Grotesk only through the font-display: optional faces in packages/web/src/styles.css, and list "Space Grotesk Fallback" next to every "Space Grotesk Variable".',
+  heading:
+    'The page shows the wrong invite view or language. packages/web/src/lib/canopy-invite.ts maps the preview answer to a view, and site.css shows only the prerendered copy whose data-locale matches <html lang>.',
+  shift: `Give each skeleton bar in ${JOIN_INVITE} the box of the element that replaces it. When only the desktop shifts and the card moves sideways, a classic scrollbar appeared at hydration: keep scrollbar-gutter: stable on html in packages/web/src/components/site/site.css.`,
+  cardTop: `Set the top offset of the card in ${JOIN_INVITE} from the viewport height alone, never from the card's own height (#265).`,
+  width: `Let long names break (break-words) in ${JOIN_INVITE}, so no word widens the page.`,
+  skeleton: `Resize the skeleton bars in ${JOIN_INVITE} until the skeleton card is within SKELETON_SLACK of the plain invite preview.`,
+  button:
+    'Render the open link to lily://join/<token> (appLink in packages/web/src/lib/canopy-invite.ts) in every invite preview.',
+  desktopClamp: `Clamp the inviter line and the canopy name below sm only (sm:line-clamp-none in ${JOIN_INVITE}).`,
+  banner: `Bring the open button back above the consent banner. In ${JOIN_INVITE} the button follows the canopy name, each line above it is clamped below sm and the card offset is smaller below sm. packages/web/src/components/site/site.css tightens the banner up to 480px wide. Restore whichever of these the change undid, and add no unclamped line above the button (#284, #321).`,
+} as const
+type Problem = keyof typeof FIXES
+const problem = (kind: Problem, detail: string) => ({ kind, detail })
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const profile = mkdtempSync(join(tmpdir(), 'lily-join-'))
@@ -332,6 +351,7 @@ const PROBE = `window.joinFrames=0;(function count(){window.joinFrames++;request
 const TWO_FRAMES = `new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))))`
 
 let failed = false
+const found = new Set<Problem>()
 try {
   await send('Page.enable')
   await send('DOM.enable')
@@ -445,43 +465,76 @@ try {
                 [
                   seen.language === language
                     ? null
-                    : `browser language "${seen.language}" (want "${language}")`,
+                    : problem(
+                        'language',
+                        `browser language "${seen.language}" (want "${language}")`
+                      ),
                   webFont === font.webFont
                     ? null
-                    : `the heading is drawn in "${family}" (want the ${font.name})`,
+                    : problem(
+                        'font',
+                        `the heading is drawn in "${family}" (want the ${font.name})`
+                      ),
                   seen.heading === c.heading(t)
                     ? null
-                    : `heading "${seen.heading}" (want "${c.heading(t)}")`,
-                  cls === 0 ? null : `layout shift ${cls.toFixed(4)} (want 0)`,
+                    : problem(
+                        'heading',
+                        `heading "${seen.heading}" (want "${c.heading(t)}")`
+                      ),
+                  cls === 0
+                    ? null
+                    : problem(
+                        'shift',
+                        `layout shift ${cls.toFixed(4)} (want 0)`
+                      ),
                   seen.card.top === seen.skeleton.top
                     ? null
-                    : `the card top moved from ${seen.skeleton.top}px to ${seen.card.top}px`,
+                    : problem(
+                        'cardTop',
+                        `the card top moved from ${seen.skeleton.top}px to ${seen.card.top}px`
+                      ),
                   seen.pageWidth <= viewport.width
                     ? null
-                    : `the page is ${seen.pageWidth}px wide in a ${viewport.width}px viewport`,
+                    : problem(
+                        'width',
+                        `the page is ${seen.pageWidth}px wide in a ${viewport.width}px viewport`
+                      ),
                   c.skeletonTwin !== true ||
                   Math.abs(seen.card.height - seen.skeleton.height) <=
                     SKELETON_SLACK
                     ? null
-                    : `the skeleton card is ${seen.skeleton.height}px tall and the invite preview ${seen.card.height}px (want within ${SKELETON_SLACK}px)`,
+                    : problem(
+                        'skeleton',
+                        `the skeleton card is ${seen.skeleton.height}px tall and the invite preview ${seen.card.height}px (want within ${SKELETON_SLACK}px)`
+                      ),
                   !isPreview || seen.button !== null
                     ? null
-                    : 'the invite preview has no open button',
+                    : problem(
+                        'button',
+                        'the invite preview has no open button'
+                      ),
                   // The fallback font overflows its line box by a pixel or two, so only half a line or more counts.
                   viewport.mobile || seen.clamped.length === 0
                     ? null
-                    : `the desktop cuts off ${seen.clamped.join(' and ')}`,
+                    : problem(
+                        'desktopClamp',
+                        `the desktop cuts off ${seen.clamped.join(' and ')}`
+                      ),
                   seen.button === null ||
                   banner === null ||
                   seen.button.bottom <= banner.top
                     ? null
-                    : `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`,
+                    : problem(
+                        'banner',
+                        `the consent banner starts at ${banner.top}px and covers the open button, which ends at ${seen.button.bottom}px`
+                      ),
                 ],
                 Predicate.isNotNull
               )
               if (problems.length > 0) failed = true
+              for (const p of problems) found.add(p.kind)
               console.log(
-                `${problems.length === 0 ? 'ok  ' : 'FAIL'} ${name}\n     card top ${seen.card.top}px, height ${seen.skeleton.height}px as skeleton, ${seen.card.height}px after${seen.button !== null && banner !== null ? `, open button ends at ${seen.button.bottom}px, banner starts at ${banner.top}px` : ''}${problems.map((problem) => `\n     ${problem}`).join('')}`
+                `${problems.length === 0 ? 'ok  ' : 'FAIL'} ${name}\n     card top ${seen.card.top}px, height ${seen.skeleton.height}px as skeleton, ${seen.card.height}px after${seen.button !== null && banner !== null ? `, open button ends at ${seen.button.bottom}px, banner starts at ${banner.top}px` : ''}${problems.map((p) => `\n     ${p.detail}`).join('')}`
               )
               if (c.sweep !== undefined) {
                 const { element } = c.sweep
@@ -522,5 +575,11 @@ try {
   chrome.kill()
   await chrome.exited
   rmSync(profile, { recursive: true, force: true })
+}
+if (found.size > 0) {
+  console.log(
+    '\nTo fix, see "The join card hangs from a fixed top edge" in packages/web/CLAUDE.md:'
+  )
+  for (const kind of found) console.log(`  ${kind}: ${FIXES[kind]}`)
 }
 process.exit(failed ? 1 : 0)
