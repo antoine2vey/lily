@@ -36,7 +36,6 @@ import {
   CanopyId,
   CanopyPlantNotDelegableError,
   DelegationDateError,
-  DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
   DelegationOverlapError,
@@ -608,13 +607,12 @@ describe('the error a refusal answers with', () => {
       asDelegationError(
         DelegationRefusal.WrongStatus({ command, current: 'Completed' })
       )
-    ).toEqual(
-      new DelegationInvalidStatusError({
-        currentStatus: 'completed',
-        expectedStatus: ANSWERED[command].expectedStatus,
-        message: ANSWERED[command].wrongStatus,
-      })
-    )
+    ).toMatchObject({
+      _tag: 'DelegationInvalidStatusError',
+      currentStatus: 'completed',
+      expectedStatus: ANSWERED[command].expectedStatus,
+      message: ANSWERED[command].wrongStatus,
+    })
   })
 
   const OPENING: {

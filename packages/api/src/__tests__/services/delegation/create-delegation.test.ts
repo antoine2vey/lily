@@ -342,9 +342,10 @@ describe('createDelegation', () => {
       )
     )
 
-    expect(failureOf(result)).toEqual(
-      new DelegationDateError({ message: 'Invalid date format' })
-    )
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'DelegationDateError',
+      message: 'Invalid date format',
+    })
   })
 
   it('writes nothing and tells nobody when it refuses', async () => {

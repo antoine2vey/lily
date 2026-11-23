@@ -234,12 +234,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const status = await currentStatus()
       expect(Arr.filter(answers, Exit.isSuccess)).toHaveLength(1)
       expect(['accepted', 'rejected']).toContain(status)
-      expect(Arr.map(Arr.filter(answers, Exit.isFailure), failureOf)).toEqual([
-        new DelegationInvalidStatusError({
+      expect(
+        Arr.map(Arr.filter(answers, Exit.isFailure), failureOf)
+      ).toMatchObject([
+        {
+          _tag: 'DelegationInvalidStatusError',
           currentStatus: status ?? '',
           expectedStatus: 'pending',
           message: 'This delegation has already been responded to',
-        }),
+        },
       ])
       expect(
         await db

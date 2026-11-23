@@ -3,23 +3,34 @@
 language js
 
 or {
-  `expect($asserted)` where {
-    $asserted <: contains or {
-      `Exit.isFailure($_)`,
-      `Exit.hasFails($_)`,
-      `Exit.hasDies($_)`,
-      `Cause.hasFails($_)`,
-      `Cause.hasDies($_)`,
-      `Result.isFailure($_)`
+  or {
+    `expect($asserted)` where {
+      $asserted <: contains or {
+        `Exit.isFailure($_)`,
+        `Exit.hasFails($_)`,
+        `Exit.hasDies($_)`,
+        `Cause.hasFails($_)`,
+        `Cause.hasDies($_)`,
+        `Result.isFailure($_)`
+      }
+    },
+    `expect(Exit.isSuccess($_)).$matcher(false)`,
+    `expect(Result.isSuccess($_)).$matcher(false)`,
+    `expect($exit._tag).$matcher('Failure')`,
+    `expect($_).rejects.$matcher()` where { $matcher <: or { `toThrow`, `toThrowError` } },
+    `expect(failureOf($_)).toMatchObject({ $props })` where {
+      $props <: not some `_tag: $_`
     }
+  } as $hit where {
+    register_diagnostic(span=$hit, message="Assert which error failed: use failureOf(exit or result) and check its _tag or class (Exit.isFailure, a toMatchObject without _tag or a bare rejects.toThrow() passes on any error).")
   },
-  `expect(Exit.isSuccess($_)).$matcher(false)`,
-  `expect(Result.isSuccess($_)).$matcher(false)`,
-  `expect($exit._tag).$matcher('Failure')`,
-  `expect($_).rejects.$matcher()` where { $matcher <: or { `toThrow`, `toThrowError` } },
-  `expect(failureOf($_)).toMatchObject({ $props })` where {
-    $props <: not some `_tag: $_`
+  // An error's message is not enumerable, so these matchers skip it.
+  `expect($_).$matcher($expected)` as $hit where {
+    $matcher <: or { `toEqual`, `toStrictEqual`, `toMatchObject` },
+    $expected <: contains `new $class({ $props })` where {
+      $class <: r".*(?:Error|Defect)",
+      $props <: some `message: $_`
+    },
+    register_diagnostic(span=$hit, message="toEqual, toStrictEqual and toMatchObject skip an error's message, which is not enumerable. Match a plain object with _tag and message, or check error.message with toBe.")
   }
-} as $hit where {
-  register_diagnostic(span=$hit, message="Assert which error failed: use failureOf(exit or result) and check its _tag or class (Exit.isFailure, a toMatchObject without _tag or a bare rejects.toThrow() passes on any error).")
 }

@@ -8,6 +8,9 @@ declare const exit: Exit.Exit<number, { readonly _tag: 'UserNotFoundError' }>
 declare const result: { readonly _tag: 'Success' | 'Failure' }
 declare const decoded: Result.Result<number, { readonly _tag: 'SchemaError' }>
 declare const promise: Promise<number>
+declare class UserNotFoundError { constructor(args: object) }
+declare class CodecError { constructor(args: object) }
+declare class AuthError { constructor(args: object) }
 
 export const flagged = () => {
   expect(Exit.isFailure(exit)).toBe(true) // flag
@@ -25,6 +28,9 @@ export const flagged = () => {
   expect(failureOf(exit)).toMatchObject({ cause: { _tag: 'SqlError' } }) // flag
   expect(promise).rejects.toThrow() // flag
   expect(promise).rejects.toThrowError() // flag
+  expect(failureOf(exit)).toEqual(new UserNotFoundError({ message: 'gone' })) // flag
+  expect(decoded).toEqual(Result.fail(new CodecError({ message: 'bad' }))) // flag
+  expect(failureOf(exit)).toMatchObject(new AuthError({ message: 'x' })) // flag
 }
 
 export const clean = () => {
@@ -36,6 +42,9 @@ export const clean = () => {
   expect(promise).rejects.toThrow(/violates foreign key constraint/)
   expect(promise).rejects.toMatchObject({ _tag: 'SqlError' })
   expect(() => JSON.parse('{')).toThrow()
+  expect(failureOf(exit)).toEqual(new UserNotFoundError({ userId: 'u1' }))
+  expect(failureOf(exit)).toMatchObject({ _tag: 'AuthError', message: 'x' })
+  expect(failureOf(exit).message).toBe('gone')
   expect(() => JSON.parse('{}')).not.toThrow()
   expect(defectOf(exit)).toEqual(new Error('boom'))
   expect(Exit.isSuccess(exit)).toBe(true)

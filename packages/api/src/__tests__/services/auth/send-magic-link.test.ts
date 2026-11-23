@@ -17,7 +17,6 @@ import {
 } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { verifyMagicLink } from '@lily/api/services/auth/endpoints/verify-magic-link'
 import { RATE_LIMITS } from '@lily/api/services/rate-limiter/service'
-import { AuthError } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer, Option } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -78,13 +77,10 @@ describe('sendMagicLink', () => {
       )
     )
 
-    expect(Exit.findErrorOption(result)).toEqual(
-      Option.some(
-        new AuthError({
-          message: "We couldn't send the sign-in email. Please try again.",
-        })
-      )
-    )
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: "We couldn't send the sign-in email. Please try again.",
+    })
   })
 
   it('should word the send failure in the requested language', async () => {
@@ -94,14 +90,11 @@ describe('sendMagicLink', () => {
       )
     )
 
-    expect(Exit.findErrorOption(result)).toEqual(
-      Option.some(
-        new AuthError({
-          message:
-            "Impossible d'envoyer l'e-mail de connexion. Veuillez réessayer.",
-        })
-      )
-    )
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message:
+        "Impossible d'envoyer l'e-mail de connexion. Veuillez réessayer.",
+    })
   })
 
   it('should normalize email (lowercase, trim)', async () => {

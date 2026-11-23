@@ -1,4 +1,3 @@
-import { PgTypes } from '@effect/sql-pg'
 import { KnowledgeDrizzle, KnowledgeDrizzleLive } from '@lily/knowledge-db'
 import { decodeHalfvec } from '@lily/knowledge-db/halfvec'
 import { vector } from '@lily/knowledge-db/schema/processed-chunks'
@@ -38,20 +37,17 @@ describe('decodeHalfvec', () => {
   })
 
   it('rejects a payload whose length disagrees with its dimension', () => {
-    expect(decodeHalfvec(hex('000300003c00'))).toEqual(
-      Result.fail(
-        new PgTypes.CodecError({
-          message: 'Malformed halfvec: 6 bytes for dim 3',
-        })
-      )
-    )
-    expect(decodeHalfvec(hex('0000'))).toEqual(
-      Result.fail(
-        new PgTypes.CodecError({
-          message: 'Malformed halfvec: 2 bytes for dim 0',
-        })
-      )
-    )
+    const rejection = (digits: string) =>
+      Option.getOrThrow(Result.getFailure(decodeHalfvec(hex(digits))))
+
+    expect(rejection('000300003c00')).toMatchObject({
+      _tag: 'PgTypesCodecError',
+      message: 'Malformed halfvec: 6 bytes for dim 3',
+    })
+    expect(rejection('0000')).toMatchObject({
+      _tag: 'PgTypesCodecError',
+      message: 'Malformed halfvec: 2 bytes for dim 0',
+    })
   })
 })
 
