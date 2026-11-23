@@ -55,7 +55,7 @@ expect "a failure without the expected diagnostic is not a caught mistake" \
 expect "a command that cannot run is not a caught mistake" \
 	"2 replay: the command failed at $mistake (exit 127) without printing /$hit/" "$(replay "$both" "$hit" "$mistake" no-such-command)"
 expect "a killed command is not a caught mistake" \
-	"2 replay: the command was killed at $mistake (exit 137)" "$(replay "$both" "$hit" "$mistake" sh -c "echo '$hit'; kill -9 \$\$")"
+	"2 replay: the command exited 137 at $mistake (signal or crash)" "$(replay "$both" "$hit" "$mistake" sh -c "echo '$hit'; kill -9 \$\$")"
 expect "REPLAY_EXPECT is required" 2 "$(replay "$both" '' "$mistake" sh check.sh | cut -d' ' -f1)"
 expect "every worktree is removed" 1 "$(git worktree list | wc -l | tr -d ' ')"
 

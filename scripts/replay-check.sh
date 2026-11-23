@@ -7,6 +7,9 @@
 # Any other failure, such as a missing rule file or a missing target, means the
 # check never ran, so it exits 2. The command sees this tree's root as
 # $REPLAY_ROOT, so it can use its tools without an install.
+# REPLAY_EXPECT must match the diagnostic message, never the rule or file name,
+# which a missing rule file also prints. The command must target the file that
+# held the mistake.
 set -euo pipefail
 
 if [ $# -lt 3 ] || [ "$2" != -- ] || [ -z "${REPLAY_EXPECT:-}" ]; then
@@ -37,7 +40,7 @@ if [ "$status" -eq 0 ]; then
 	exit 1
 fi
 if [ "$status" -gt 128 ]; then
-	echo "replay: the command was killed at $sha (exit $status)" >&2
+	echo "replay: the command exited $status at $sha (signal or crash)" >&2
 	exit 2
 fi
 if ! grep -qE -- "$REPLAY_EXPECT" <<<"$out"; then
