@@ -28,6 +28,7 @@ jobs:
     outputs:
       api_db: ${{ steps.filter.outputs.api_db }}
       web: ${{ steps.filter.outputs.web }}
+      models: ${{ steps.filter.outputs.models }}
       pr_run: ${{ steps.reuse.outputs.pr_run }}
     steps:
       - uses: actions/checkout@v7
@@ -53,8 +54,12 @@ jobs:
               - 'package.json'
               - '.github/workflows/ci.yml'
               - '.github/actions/setup/**'
+            models:
+              - '**/*.qnt'
+              - 'scripts/check-models.sh'
+              - '.github/workflows/ci.yml'
       # The PR run that passed on this exact tree already ran integration,
-      # zone-rules and web-layout. main still runs checks, whose Turbo cache writes PR runs read.
+      # zone-rules, web-layout and models. main still runs checks, whose Turbo cache writes PR runs read.
       - name: Reuse a passing PR run on the same tree
         id: reuse
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -120,6 +125,17 @@ jobs:
       - name: Check the join page keeps its open button above the consent banner
         timeout-minutes: 10
         run: bun packages/web/scripts/join-check.ts
+
+  models:
+    name: Quint models
+    needs: changes
+    if: needs.changes.outputs.models == 'true' && needs.changes.outputs.pr_run == ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check each model gives its expected verdict
+        timeout-minutes: 5
+        run: bash scripts/check-models.sh
 
   docs:
     name: Docs references
@@ -230,7 +246,7 @@ jobs:
   summary:
     name: CI summary
     if: always()
-    needs: [changes, checks, docs, integration, zone-rules, web-layout]
+    needs: [changes, checks, docs, integration, zone-rules, web-layout, models]
     runs-on: ubuntu-latest
     steps:
       - name: Verify required jobs
@@ -241,8 +257,9 @@ jobs:
           integration='${{ needs.integration.result }}'
           zone_rules='${{ needs.zone-rules.result }}'
           web_layout='${{ needs.web-layout.result }}'
+          models='${{ needs.models.result }}'
           pr_run='${{ needs.changes.outputs.pr_run }}'
-          echo "changes=$changes checks=$checks docs=$docs integration=$integration zone-rules=$zone_rules web-layout=$web_layout pr_run=$pr_run"
+          echo "changes=$changes checks=$checks docs=$docs integration=$integration zone-rules=$zone_rules web-layout=$web_layout models=$models pr_run=$pr_run"
           if [ "$changes" != 'success' ]; then
             echo '::error::changes job did not succeed'
             exit 1
@@ -265,5 +282,9 @@ jobs:
           fi
           if [ "$web_layout" != 'success' ] && [ "$web_layout" != 'skipped' ]; then
             echo '::error::web-layout job failed'
+            exit 1
+          fi
+          if [ "$models" != 'success' ] && [ "$models" != 'skipped' ]; then
+            echo '::error::models job failed'
             exit 1
           fi
