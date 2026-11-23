@@ -38,19 +38,28 @@ const etcOffset = (zone: string): Option.Option<DateTime.TimeZone> =>
  * only `NSTimeZone.knownTimeZoneNames`, which lists `Asia/Calcutta` and no
  * `Asia/Kolkata` or `Etc/GMT±N`, and stale Android tzdata lacks `Europe/Kyiv`.
  * So a zone Intl rejects resolves through each alias that names it, then an
- * `Etc/GMT±N` zone through its fixed offset. Throws only when all of them fail.
+ * `Etc/GMT±N` zone through its fixed offset. None when all of them fail, which
+ * a zone newer than the phone's tzdata does.
  */
-export const zoneFromName = (zone: ZoneName): DateTime.TimeZone =>
+export const zoneOnThisRuntime = (
+  zone: ZoneName
+): Option.Option<DateTime.TimeZone> =>
   zone === 'UTC'
-    ? DateTime.zoneMakeOffset(0)
+    ? Option.some(DateTime.zoneMakeOffset(0))
     : pipe(
         DateTime.zoneMakeNamed(zone),
         Option.orElse(() =>
           Array.findFirst(aliasesOf.get(zone) ?? [], DateTime.zoneMakeNamed)
         ),
-        Option.orElse(() => etcOffset(zone)),
-        Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(zone))
+        Option.orElse(() => etcOffset(zone))
       )
+
+/** `zoneOnThisRuntime`, throwing when Intl knows the zone by no name. */
+export const zoneFromName = (zone: ZoneName): DateTime.TimeZone =>
+  pipe(
+    zoneOnThisRuntime(zone),
+    Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(zone))
+  )
 
 /** `dateTime` in `zone`. */
 export const withTimeZone = (

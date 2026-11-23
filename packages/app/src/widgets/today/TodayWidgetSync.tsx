@@ -8,6 +8,7 @@ import { useLocalizationContext } from '@/contexts/LocalizationContext'
 import { CARE_TASKS_PARAMS } from '@/hooks/useCareTasks'
 import i18n from '@/i18n'
 import { useEffectQuery } from '@/utils/client'
+import { zoneOnThisDevice } from '@/utils/zone'
 import {
   buildTodayWidgetSnapshot,
   makeTodayWidgetCopy,
@@ -51,7 +52,8 @@ export const decideTodayWidgetInput = ({
           tasks: response,
           timezone: pipe(
             Option.fromNullishOr(user.timezone),
-            Option.getOrElse(() => DEFAULT_ZONE)
+            Option.getOrElse(() => DEFAULT_ZONE),
+            zoneOnThisDevice
           ),
         })
       )
