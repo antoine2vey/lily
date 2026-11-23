@@ -1,6 +1,7 @@
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -11,6 +12,8 @@ import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.r
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { endActivity } from '@lily/api/services/activity-push-tokens/endpoints/end-activity'
+import { registerActivityToken } from '@lily/api/services/activity-push-tokens/endpoints/register-activity-token'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -29,14 +32,25 @@ import {
   Effect,
   Exit,
   Layer,
+  Option,
   References,
 } from 'effect'
 import pg from 'pg'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 const { Pool } = pg
 
 const ROUNDS = 12
+const MINUTE = 60_000
 const CONCURRENT_PUSHES = 3
 
 const RepositoriesLive = Layer.mergeAll(
@@ -161,6 +175,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(eq(schema.activityPushTokens.userId, userId))
     })
 
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
     afterAll(async () => {
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
       await pool.end()
@@ -265,6 +283,83 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(count(sent, 'LiveActivityStart', 'start-1')).toBe(1)
       }
     }, 120_000)
+
+    const deliverBatch = async () => {
+      await db
+        .delete(schema.notifications)
+        .where(eq(schema.notifications.userId, userId))
+      return deliverConcurrently(await enqueueCarePushes(1))
+    }
+
+    const confirmThenEnd = async (
+      batch: ReadonlyArray<LiveActivityPushMessage>
+    ) => {
+      const activityId = Option.getOrThrow(
+        Arr.findFirst(batch, (m) =>
+          m._tag === 'LiveActivityStart' && m.to === 'start-0'
+            ? Option.some(m.attributes.activityId)
+            : Option.none()
+        )
+      )
+      const DeviceLive = Layer.mergeAll(
+        RepositoriesLive,
+        createMockCurrentUser({ id: userId })
+      )
+      await Effect.runPromise(
+        registerActivityToken({
+          deviceTokenId: devices[0],
+          activityId,
+          updateToken: 'update-0',
+        }).pipe(Effect.provide(DeviceLive))
+      )
+      vi.setSystemTime(Date.now() + MINUTE)
+      await Effect.runPromise(
+        endActivity(activityId).pipe(Effect.provide(DeviceLive))
+      )
+    }
+
+    // The three tests below replay the runs of the same names in
+    // packages/api/models/la-start.qnt.
+    it('digestThenReminder: holds the reminder 2h18m after a digest the device never confirmed', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      const digest = await deliverBatch()
+      vi.setSystemTime(Date.now() + 138 * MINUTE)
+      const reminder = await deliverBatch()
+      expect(
+        count([...digest, ...reminder], 'LiveActivityStart', 'start-0'),
+        'push-to-start sends to a device that confirmed none of them'
+      ).toBe(1)
+    })
+
+    it('confirmedThenEnded: starts a fresh card once the confirmed one has ended', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      await confirmThenEnd(await deliverBatch())
+      const reminder = await deliverBatch()
+      expect(
+        count(reminder, 'LiveActivityStart', 'start-0'),
+        'fresh starts after the confirmed card ended'
+      ).toBe(1)
+      expect(
+        count(reminder, 'LiveActivityStart', 'start-1'),
+        'push-to-start sends to a device that confirmed none of them'
+      ).toBe(0)
+    })
+
+    it('confirmedLongAgo: holds the reminder after an unconfirmed digest, however old the last confirmation', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      await confirmThenEnd(await deliverBatch())
+      vi.setSystemTime(Date.now() + 601 * MINUTE)
+      const digest = await deliverBatch()
+      vi.setSystemTime(Date.now() + 120 * MINUTE)
+      const reminder = await deliverBatch()
+      expect(
+        count([...digest, ...reminder], 'LiveActivityStart', 'start-0'),
+        'push-to-start sends since the last confirmation, 10h back'
+      ).toBe(1)
+    })
 
     it('updates the running card on every push and starts the other device once', async () => {
       for (let round = 1; round <= ROUNDS; round++) {
