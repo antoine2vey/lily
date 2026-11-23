@@ -1,6 +1,7 @@
 import { API_PREFIX } from '@lily/shared'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
+import { queryKeys } from '@/lib/query-keys'
 
 export interface GiftCodeItem {
   readonly id: string
@@ -52,7 +53,7 @@ interface UpdateGiftCodeRequest {
 
 export const useGiftCodes = (page = 1) =>
   useQuery({
-    queryKey: ['gift-codes', page],
+    queryKey: queryKeys.giftCodes.page(page),
     queryFn: () =>
       apiRequest<PaginatedGiftCodes>(
         `${API_PREFIX}/admin/gift-codes?page=${page}&limit=20`
@@ -61,7 +62,7 @@ export const useGiftCodes = (page = 1) =>
 
 export const useGiftCode = (id: string) =>
   useQuery({
-    queryKey: ['gift-codes', id],
+    queryKey: queryKeys.giftCodes.detail(id),
     queryFn: () =>
       apiRequest<GiftCodeWithRedemptions>(
         `${API_PREFIX}/admin/gift-codes/${id}`

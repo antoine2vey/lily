@@ -1,6 +1,7 @@
 import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
+import { queryKeys } from '@/lib/query-keys'
 
 interface AdminUser {
   readonly id: string
@@ -17,7 +18,7 @@ interface PaginatedUsers {
 
 export const useAdminUsers = (search: string, enabled: boolean) =>
   useQuery({
-    queryKey: ['admin-users', search],
+    queryKey: queryKeys.users.search(search),
     queryFn: () =>
       apiRequest<PaginatedUsers>(
         `${API_PREFIX}/admin/users?search=${encodeURIComponent(search)}&limit=10`

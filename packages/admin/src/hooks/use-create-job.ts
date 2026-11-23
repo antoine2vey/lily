@@ -1,6 +1,7 @@
 import { API_PREFIX } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
+import { queryKeys } from '@/lib/query-keys'
 
 export type CreateIngestJobRequest =
   | {
@@ -31,10 +32,8 @@ export const useCreateJob = () => {
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['ingest-jobs'] })
-      void queryClient.invalidateQueries({
-        queryKey: ['knowledge-stats'],
-      })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.ingestJobs })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.knowledgeStats })
     },
   })
 }

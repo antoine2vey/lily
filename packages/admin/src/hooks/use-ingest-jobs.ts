@@ -1,6 +1,7 @@
 import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
+import { queryKeys } from '@/lib/query-keys'
 
 export interface IngestJob {
   readonly id: string
@@ -17,7 +18,7 @@ export interface IngestJob {
 
 export const useIngestJobs = () =>
   useQuery({
-    queryKey: ['ingest-jobs'],
+    queryKey: queryKeys.ingestJobs,
     queryFn: () =>
       apiRequest<ReadonlyArray<IngestJob>>(`${API_PREFIX}/knowledge/jobs`),
     refetchInterval: 5_000,

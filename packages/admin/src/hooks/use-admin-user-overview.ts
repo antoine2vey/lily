@@ -1,6 +1,7 @@
 import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
+import { queryKeys } from '@/lib/query-keys'
 
 // Focused view of the overview payload. Dates are typed as strings because the
 // wire format is JSON (the API encodes Schema.Date to ISO strings).
@@ -93,7 +94,7 @@ export interface AdminUserOverview {
 
 export const useAdminUserOverview = (id: string) =>
   useQuery({
-    queryKey: ['admin-user-overview', id],
+    queryKey: queryKeys.users.overview(id),
     queryFn: () =>
       apiRequest<AdminUserOverview>(`${API_PREFIX}/admin/users/${id}/overview`),
     enabled: !!id,

@@ -8,6 +8,7 @@ import {
   useDeleteGiftCode,
   useGiftCodes,
 } from '@/hooks/use-gift-codes'
+import { queryKeys } from '@/lib/query-keys'
 
 const durationLabel: Record<string, string> = pipe(
   Option.fromNullishOr(GIFT_DURATION_LABELS.en),
@@ -45,7 +46,7 @@ const DeleteButton = ({ giftCode }: { giftCode: GiftCodeItem }) => {
     if (!window.confirm(`Delete gift code "${giftCode.code}"?`)) return
     deleteMutation.mutate(giftCode.id, {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['gift-codes'] })
+        queryClient.invalidateQueries({ queryKey: queryKeys.giftCodes.all })
       },
     })
   }
