@@ -1,5 +1,5 @@
 import { Transaction } from '@lily/api/kernel/transact'
-import { Array, Effect, identity, Ref } from 'effect'
+import { Array, Effect, identity, Option, Ref } from 'effect'
 
 export const transactInMemory = <A, E, R>(
   effect: Effect.Effect<A, E, R>
@@ -12,6 +12,7 @@ export const transactInMemory = <A, E, R>(
       Transaction.of({
         afterCommit: (registering) =>
           Ref.update(registered, Array.append(registering)),
+        held: Option.none(),
       })
     )
     yield* Effect.flatMap(

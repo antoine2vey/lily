@@ -1,3 +1,4 @@
+import { lockRowsNamed } from '@lily/api/kernel/locks'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import type * as schema from '@lily/db/schema'
 import {
@@ -223,11 +224,15 @@ export const StoredRefRepositoryLive = Layer.effect(
       lockAvatar: Effect.fn('StoredRefRepository.lockAvatar')(function* (
         userId: string
       ) {
-        const rows = yield* db
-          .select({ ref: users.image })
-          .from(users)
-          .where(eq(users.id, userId))
-          .for('update')
+        const rows = yield* lockRowsNamed(
+          'Account',
+          'update',
+          [userId],
+          db
+            .select({ ref: users.image })
+            .from(users)
+            .where(eq(users.id, userId))
+        )
         return Array.head(refsOf(rows))
       }),
 

@@ -1,3 +1,4 @@
+import { pinAccounts } from '@lily/api/kernel/locks'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { users } from '@lily/db/schema'
 import {
@@ -10,7 +11,6 @@ import {
 import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   and,
-  asc,
   desc,
   eq,
   ilike,
@@ -180,12 +180,12 @@ export const UserRepositoryLive = Layer.effect(
       findByIdsForKeyShare: Effect.fn('UserRepository.findByIdsForKeyShare')(
         function* (ids: ReadonlyArray<string>) {
           if (Array.isReadonlyArrayEmpty(ids)) return []
-          return yield* db
-            .select()
-            .from(users)
-            .where(inArray(users.id, [...ids]))
-            .orderBy(asc(users.id))
-            .for('key share')
+          return yield* pinAccounts(
+            db
+              .select()
+              .from(users)
+              .where(inArray(users.id, [...ids]))
+          )
         }
       ),
 

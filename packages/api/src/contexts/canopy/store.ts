@@ -7,7 +7,12 @@ import {
   memberOf,
 } from '@lily/api/contexts/canopy/domain/canopy'
 import { CanopyWrite, RoomMove } from '@lily/api/contexts/canopy/domain/decide'
-import { lockUser } from '@lily/api/kernel/locks'
+import {
+  lockRows,
+  lockRowsNamed,
+  lockUser,
+  pinAccounts,
+} from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
 import {
   ownedBy,
@@ -88,10 +93,7 @@ export interface LockPlan {
   readonly absenceOf: Option.Option<string>
   readonly accounts: ReadonlyArray<string>
   readonly invitations: InvitationScope
-  /**
-   * Room rows in id order. Before plants, as a room delete takes its row
-   * and then the plants in it.
-   */
+  /** Before plants, as a room delete takes its row and then the plants in it. */
   readonly rooms: RoomScope
   readonly plants: PlantScope
 }
@@ -261,11 +263,15 @@ export const CanopyStoreLive = Layer.effect(
 
     const lockedCanopy = (canopyId: CanopyId) =>
       Effect.gen(function* () {
-        const rows = yield* db
-          .select({ name: canopies.name, timezone: canopies.timezone })
-          .from(canopies)
-          .where(eq(canopies.id, canopyId))
-          .for('update')
+        const rows = yield* lockRowsNamed(
+          'Canopy',
+          'update',
+          [canopyId],
+          db
+            .select({ name: canopies.name, timezone: canopies.timezone })
+            .from(canopies)
+            .where(eq(canopies.id, canopyId))
+        )
         const members = yield* db
           .select({
             userId: canopyMembers.userId,
@@ -343,12 +349,12 @@ export const CanopyStoreLive = Layer.effect(
         )
         const locked = Array.isReadonlyArrayEmpty(named)
           ? []
-          : yield* db
-              .select(accountColumns)
-              .from(users)
-              .where(inArray(users.id, named))
-              .orderBy(asc(users.id))
-              .for('key share')
+          : yield* pinAccounts(
+              db
+                .select(accountColumns)
+                .from(users)
+                .where(inArray(users.id, named))
+            )
         const read = Array.isReadonlyArrayEmpty(known)
           ? []
           : yield* db
@@ -380,19 +386,21 @@ export const CanopyStoreLive = Layer.effect(
 
     const invitationsWhere = (held: Held, where: SQL | undefined) =>
       Effect.map(
-        db
-          .select({
-            id: canopyDirectInvites.id,
-            invitee: canopyDirectInvites.inviteeUserId,
-            invitedBy: canopyDirectInvites.invitedByUserId,
-            status: canopyDirectInvites.status,
-            expiresAt: canopyDirectInvites.expiresAt,
-            resolvedAt: canopyDirectInvites.resolvedAt,
-          })
-          .from(canopyDirectInvites)
-          .where(where)
-          .orderBy(asc(canopyDirectInvites.id))
-          .for('update'),
+        lockRows(
+          'Invitation',
+          'update',
+          db
+            .select({
+              id: canopyDirectInvites.id,
+              invitee: canopyDirectInvites.inviteeUserId,
+              invitedBy: canopyDirectInvites.invitedByUserId,
+              status: canopyDirectInvites.status,
+              expiresAt: canopyDirectInvites.expiresAt,
+              resolvedAt: canopyDirectInvites.resolvedAt,
+            })
+            .from(canopyDirectInvites)
+            .where(where)
+        ),
         (rows) => ({ ...held, invitations: rows })
       )
 
@@ -433,16 +441,18 @@ export const CanopyStoreLive = Layer.effect(
       strength: 'key share' | 'no key update'
     ) =>
       Effect.map(
-        db
-          .select({
-            id: rooms.id,
-            userId: rooms.userId,
-            canopyId: rooms.canopyId,
-          })
-          .from(rooms)
-          .where(where)
-          .orderBy(asc(rooms.id))
-          .for(strength),
+        lockRows(
+          'Room',
+          strength,
+          db
+            .select({
+              id: rooms.id,
+              userId: rooms.userId,
+              canopyId: rooms.canopyId,
+            })
+            .from(rooms)
+            .where(where)
+        ),
         (rows) => ({
           ...held,
           rooms: Array.map(rows, (row) => ({
@@ -468,18 +478,20 @@ export const CanopyStoreLive = Layer.effect(
       strength: 'key share' | 'no key update'
     ) =>
       Effect.map(
-        db
-          .select({
-            id: plants.id,
-            userId: plants.userId,
-            canopyId: plants.canopyId,
-            sharer: plants.createdByUserId,
-            diedAt: plants.diedAt,
-          })
-          .from(plants)
-          .where(where)
-          .orderBy(asc(plants.id))
-          .for(strength),
+        lockRows(
+          'Plant',
+          strength,
+          db
+            .select({
+              id: plants.id,
+              userId: plants.userId,
+              canopyId: plants.canopyId,
+              sharer: plants.createdByUserId,
+              diedAt: plants.diedAt,
+            })
+            .from(plants)
+            .where(where)
+        ),
         Array.map((row) => ({
           id: row.id,
           owner: ownerOf(row),

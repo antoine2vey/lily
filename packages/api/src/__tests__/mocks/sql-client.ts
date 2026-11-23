@@ -29,6 +29,7 @@ export const createMockSqlClient = (
       if (depth === 0) options.onTransaction?.(event)
     })
   const client = Object.assign(() => Effect.succeed([]), {
+    join: () => () => [],
     withTransaction: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
       signalOutermost('begin').pipe(
         Effect.andThen(
