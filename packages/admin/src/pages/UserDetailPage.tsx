@@ -20,8 +20,6 @@ import { useRevokeGift } from '@/hooks/use-revoke-gift'
 import { formatShortDate } from '@/lib/format'
 import { queryKeys } from '@/lib/query-keys'
 
-// ── Formatting helpers ─────────────────────────────────────────────
-
 // Gifted "infinite" subscriptions are stored with a year-2099 sentinel end.
 const formatPeriodEnd = (dateStr: string): string =>
   new Date(dateStr).getFullYear() >= 2099
@@ -37,8 +35,6 @@ const durations: ReadonlyArray<{ value: GiftDuration; label: string }> = [
   { value: '1y', label: '1 Year' },
   { value: 'infinite', label: 'Lifetime' },
 ]
-
-// ── Small presentational helpers ───────────────────────────────────
 
 const Card = ({
   title,
@@ -84,8 +80,6 @@ const BoolPill = ({
   </span>
 )
 
-// ── Stats strip ────────────────────────────────────────────────────
-
 const StatsStrip = ({
   overview,
 }: {
@@ -116,8 +110,6 @@ const StatsStrip = ({
     </div>
   )
 }
-
-// ── Account + preferences ──────────────────────────────────────────
 
 const AccountCard = ({ user }: { readonly user: AdminUserProfile }) => (
   <Card title="Account">
@@ -192,8 +184,6 @@ const PreferencesCard = ({ user }: { readonly user: AdminUserProfile }) => (
     </div>
   </Card>
 )
-
-// ── Subscription panel (with inline gift / revoke) ─────────────────
 
 const SubscriptionPanel = ({
   id,
@@ -354,8 +344,6 @@ const SubscriptionPanel = ({
   )
 }
 
-// ── Recent activity ────────────────────────────────────────────────
-
 const activityLabel = (type: string): string =>
   pipe(
     Match.value(type),
@@ -398,8 +386,6 @@ const RecentActivityCard = ({
     )}
   </Card>
 )
-
-// ── Plants table ───────────────────────────────────────────────────
 
 const PlantsTable = ({ id }: { readonly id: string }) => {
   const [page, setPage] = useState(1)
@@ -504,8 +490,6 @@ const PlantsTable = ({ id }: { readonly id: string }) => {
   )
 }
 
-// ── Chat viewer (conversations → messages) ─────────────────────────
-
 const ConversationMessages = ({
   userId,
   conversationId,
@@ -601,8 +585,6 @@ const ChatViewer = ({ id }: { readonly id: string }) => {
     </Card>
   )
 }
-
-// ── Page ───────────────────────────────────────────────────────────
 
 export const UserDetailPage = () => {
   const { id = '' } = useParams()

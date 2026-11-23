@@ -178,7 +178,6 @@ export function RoomPicker({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ gap: 8 }}
       >
-        {/* No Room option */}
         <Pressable
           onPress={() => onSelect(null)}
           className={`h-9 px-4 rounded-full flex-row items-center gap-1.5 ${
@@ -198,7 +197,6 @@ export function RoomPicker({
           </Text>
         </Pressable>
 
-        {/* Room options */}
         {Array.map(roomsList, (room) => {
           const isSelected = value === room.id
           return (

@@ -41,7 +41,6 @@ export function SubscriptionCancelScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
@@ -50,7 +49,6 @@ export function SubscriptionCancelScreen() {
       </View>
 
       <View className="flex-1 px-4 pt-8">
-        {/* Sad plant icon */}
         <View className="items-center mb-6">
           <View className="w-20 h-20 rounded-full items-center justify-center bg-coral/10">
             <MaterialIcons
@@ -61,17 +59,14 @@ export function SubscriptionCancelScreen() {
           </View>
         </View>
 
-        {/* Title */}
         <Text className="text-2xl text-center mb-2 font-bold text-text-primary dark:text-white">
           {t('cancel.headline')}
         </Text>
 
-        {/* Subtitle */}
         <Text className="text-base text-center mb-8 text-text-secondary dark:text-slate-400">
           {t('cancel.subtitle')}
         </Text>
 
-        {/* Features lost */}
         <View className="rounded-2xl p-4 mb-8 gap-4 bg-surface dark:bg-surface-dark">
           {pipe(
             FEATURES_LOST,
@@ -92,7 +87,6 @@ export function SubscriptionCancelScreen() {
           )}
         </View>
 
-        {/* Info box */}
         <View className="flex-row rounded-xl p-4 mb-8 bg-primary-tint dark:bg-primary/20">
           <MaterialIcons
             name="info-outline"
@@ -105,10 +99,8 @@ export function SubscriptionCancelScreen() {
           </Text>
         </View>
 
-        {/* Spacer */}
         <View className="flex-1" />
 
-        {/* Action buttons */}
         <View className="gap-3 pb-4">
           {/* Keep subscription button */}
           <Pressable
@@ -120,7 +112,6 @@ export function SubscriptionCancelScreen() {
             </Text>
           </Pressable>
 
-          {/* Cancel button */}
           <Pressable
             onPress={handleOpenSubscriptionSettings}
             className="py-4 rounded-xl items-center border border-coral bg-transparent active:bg-coral/10"

@@ -127,7 +127,6 @@ export function LogCareSheet({
       },
       {
         onSuccess: () => {
-          // Reset form
           setPlantIds(defaultPlantId ? [defaultPlantId] : [])
           setCareType('watering')
           setDate(nowAsDate())
@@ -184,7 +183,6 @@ export function LogCareSheet({
 
           <CareTypeChips value={careType} onValueChange={setCareType} />
 
-          {/* Date & Time */}
           <View className="mb-6">
             <View className="flex-row items-center justify-between mb-2 ml-1">
               <Text className="text-sm font-bold text-text-muted dark:text-slate-400">
@@ -276,7 +274,6 @@ export function LogCareSheet({
               ))}
           </View>
 
-          {/* Notes */}
           <View className="mb-6">
             <Text className="text-sm mb-2 font-bold text-text-muted dark:text-slate-400 ml-1">
               {t('notesLabel')}
@@ -293,7 +290,6 @@ export function LogCareSheet({
             />
           </View>
 
-          {/* Photo */}
           {photo ? (
             <View className="relative mb-6">
               <AnimatedImage
@@ -331,7 +327,6 @@ export function LogCareSheet({
           )}
         </ScrollView>
 
-        {/* Save button with gradient background */}
         <View className="absolute bottom-0 left-0 right-0 pt-12 pb-2 px-0 bg-white dark:bg-surface-dark">
           <Button
             onPress={handleSave}

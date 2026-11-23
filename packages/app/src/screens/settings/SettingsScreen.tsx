@@ -147,7 +147,6 @@ export function SettingsScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
@@ -160,7 +159,6 @@ export function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 24 }}
       >
-        {/* Appearance Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
             {t('settings:sections.appearance')}
@@ -229,7 +227,6 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {/* Notifications Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
             {t('settings:sections.notifications')}
@@ -262,7 +259,6 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {/* Privacy Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
             {t('settings:sections.privacy')}
@@ -282,7 +278,6 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {/* Support Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
             {t('settings:sections.support')}
@@ -326,7 +321,6 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {/* Account Actions Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
             {t('settings:sections.account')}
@@ -347,7 +341,6 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {/* Delete Account Button */}
         <View className="mt-4">
           <Pressable
             className="bg-surface dark:bg-surface-dark rounded-2xl py-4 items-center shadow-sm border border-border/30 dark:border-slate-700/30"
@@ -385,7 +378,6 @@ export function SettingsScreen() {
           </Pressable>
         </View>
 
-        {/* Version Footer */}
         <View className="py-8 items-center">
           <Text className="text-xs font-medium text-text-muted dark:text-slate-400">
             {t('settings:about.version')} 1.0.0
@@ -393,7 +385,6 @@ export function SettingsScreen() {
         </View>
       </ScrollView>
 
-      {/* Theme Selection Modal */}
       <ThemeSelectionModal
         visible={showThemeModal}
         onClose={() => setShowThemeModal(false)}
@@ -401,13 +392,11 @@ export function SettingsScreen() {
         onSelect={setTheme}
       />
 
-      {/* Language Selection Modal */}
       <LanguageSelectionModal
         visible={showLanguageModal}
         onClose={() => setShowLanguageModal(false)}
       />
 
-      {/* Temperature Unit Modal */}
       <TemperatureUnitModal
         visible={showTempUnitModal}
         onClose={() => setShowTempUnitModal(false)}

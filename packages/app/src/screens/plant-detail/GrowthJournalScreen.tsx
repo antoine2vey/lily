@@ -116,7 +116,6 @@ export function GrowthJournalScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-border/10 dark:border-slate-700/10">
         <GlassBackButton />
         <View className="items-center">
@@ -133,7 +132,6 @@ export function GrowthJournalScreen() {
         <View className="w-10 h-10" />
       </View>
 
-      {/* Content */}
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
@@ -160,7 +158,6 @@ export function GrowthJournalScreen() {
           </Animated.View>
         ) : (
           <Animated.View entering={FadeIn.duration(300)}>
-            {/* Age + photo-count pill */}
             <View className="self-start mb-6 rounded-full bg-primary-tint dark:bg-primary/15 px-4 py-2">
               <Text className="text-sm font-semibold text-primary-dark dark:text-primary-light">
                 {pillText}
@@ -201,7 +198,6 @@ export function GrowthJournalScreen() {
         )}
       </ScrollView>
 
-      {/* Add-photo FAB */}
       <Pressable
         testID="journal-add-photo-fab"
         onPress={() => setShowPicker(true)}

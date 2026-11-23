@@ -248,7 +248,6 @@ function getErrorMessage(error: unknown): string {
  * Try to extract a known error from a value, handling nested structures
  */
 function tryExtractKnownError(value: unknown): Option.Option<ApiFailure> {
-  // Direct check
   if (isKnownError(value)) {
     return Option.some(value)
   }
@@ -276,31 +275,26 @@ function tryExtractKnownError(value: unknown): Option.Option<ApiFailure> {
  * Extract typed error from Effect Cause directly
  */
 function extractApiFailureFromCause(cause: Cause.Cause<unknown>): ApiFailure {
-  // Try to extract from Fail
   const failureOpt = Cause.findErrorOption(cause)
 
   if (Option.isSome(failureOpt)) {
     const failure = failureOpt.value
 
-    // Check if it's a known error type
     if (isKnownError(failure)) {
       return failure
     }
 
-    // Try nested extraction
     const extracted = tryExtractKnownError(failure)
     if (Option.isSome(extracted)) {
       return extracted.value
     }
 
-    // Return with message from the failure
     return {
       _tag: 'UnknownError' as const,
       message: getErrorMessage(failure),
     }
   }
 
-  // Try to extract from Die (defects)
   const defectResult = Cause.findDefect(cause)
   if (Result.isSuccess(defectResult)) {
     const defect = defectResult.success
@@ -317,7 +311,6 @@ function extractApiFailureFromCause(cause: Cause.Cause<unknown>): ApiFailure {
     }
   }
 
-  // Fallback
   return {
     _tag: 'UnknownError' as const,
     message: 'Unknown error occurred',

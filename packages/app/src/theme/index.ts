@@ -1,7 +1,3 @@
-/**
- * Fonts - Required for style prop (NativeWind limitation)
- * Use these with: style={{ fontFamily: fonts.semiBold }}
- */
 export const fonts = {
   regular: 'SpaceGrotesk_400Regular',
   medium: 'SpaceGrotesk_500Medium',

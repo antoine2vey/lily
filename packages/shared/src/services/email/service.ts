@@ -12,7 +12,6 @@ export interface IEmailService {
   ) => Effect.Effect<void, EmailSendError | EmailConfigError>
 }
 
-// Context tag for dependency injection
 export class EmailService extends Context.Service<
   EmailService,
   IEmailService

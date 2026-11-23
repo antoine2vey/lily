@@ -122,7 +122,6 @@ export function DelegationCreateScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 pt-2 pb-4">
         <GlassBackButton />
         <Text
@@ -152,7 +151,6 @@ export function DelegationCreateScreen() {
               onClear={() => setSelectedCaretaker(null)}
             />
 
-            {/* Plant Selector */}
             <PlantSelector
               selectedPlantIds={selectedPlantIds}
               onTogglePlant={handleTogglePlant}
@@ -160,7 +158,6 @@ export function DelegationCreateScreen() {
               onDeselectAll={handleDeselectAll}
             />
 
-            {/* Date Range */}
             <DateRangePicker
               startDate={startDate}
               endDate={endDate}
@@ -168,7 +165,6 @@ export function DelegationCreateScreen() {
               onEndDateChange={setEndDate}
             />
 
-            {/* Message */}
             <FormTextArea
               label={t('create.messageLabel')}
               placeholder={t('create.messagePlaceholder')}
@@ -178,7 +174,6 @@ export function DelegationCreateScreen() {
               showCharacterCount
             />
 
-            {/* Error Message */}
             {formError && (
               <View className="flex-row items-start p-4 rounded-xl bg-orange-50 dark:bg-orange-900/20">
                 <MaterialIcons
@@ -192,7 +187,6 @@ export function DelegationCreateScreen() {
               </View>
             )}
 
-            {/* Submit Button */}
             <Pressable
               onPress={handleSubmit}
               disabled={!isFormValid || isPending}

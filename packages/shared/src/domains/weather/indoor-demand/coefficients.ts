@@ -7,12 +7,7 @@
 
 import { Duration } from 'effect'
 
-// ─── Time Constants ──────────────────────────────────────────────────────────
-
 export const MS_PER_DAY = Duration.toMillis(Duration.days(1))
-
-// ─── Default Fallback Values ─────────────────────────────────────────────────
-// Used when weather data fields are null (sensor/API gaps)
 
 /** Moderate temperature assumed when temperatureMean is missing (Celsius) */
 export const DEFAULT_TEMPERATURE_MEAN_C = 20
@@ -32,8 +27,6 @@ export const DEFAULT_TEMPERATURE_MAX_C = 20
 /** Moderate temperature min assumed when temperatureMin is missing (Celsius) */
 export const DEFAULT_TEMPERATURE_MIN_C = 10
 
-// ─── Weather Factor Multipliers ──────────────────────────────────────────────
-
 // Temperature factors (outdoor)
 export const TEMP_FACTOR_HEAT_WAVE = 1.5
 export const TEMP_FACTOR_HOT_DAY = 1.2
@@ -44,11 +37,9 @@ export const TEMP_FACTOR_INDOOR_HEAT_WAVE = 1.15
 export const TEMP_FACTOR_INDOOR_HOT_DAY = 1.1
 export const TEMP_FACTOR_INDOOR_COLD_DAY = 0.85
 
-// Humidity factors
 export const HUMIDITY_FACTOR_HIGH = 0.85
 export const HUMIDITY_FACTOR_LOW = 1.15
 
-// Wind factors
 export const WIND_FACTOR_HIGH = 1.1
 export const WIND_FACTOR_LOW = 0.9
 
@@ -58,14 +49,7 @@ export const PRECIP_DAMPENING_FACTOR = 0.3
 // Consecutive hot days required to trigger heat wave
 export const HEAT_WAVE_CONSECUTIVE_DAYS = 3
 
-// Neutral factor (no adjustment)
 export const FACTOR_NEUTRAL = 1.0
-
-// ─── Indoor Light/Growth Model ───────────────────────────────────────────────
-// Drives the indoor watering DEMAND factor used when the user's latitude is
-// known (location-aware indoor care). Every sub-factor is centered at 1.0, so
-// missing data collapses to no change. Higher demand => fewer days => water
-// sooner. These are horticulture judgement calls — tune from care-log feedback.
 
 // Neutral fallbacks for plant ratings (0-100) when a field is absent
 export const DEFAULT_LIGHTING_RATING = 50

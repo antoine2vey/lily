@@ -17,21 +17,15 @@ import {
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// ── Configuration ──────────────────────────────────────────────────────
-
 const ACCESS_TOKEN_LIFETIME = Duration.hours(1)
 const REFRESH_TOKEN_LIFETIME = Duration.days(365)
 const AUTH_CODE_LIFETIME = Duration.minutes(10)
 
-// ── Interface ──────────────────────────────────────────────────────────
-
 export interface IOAuthService {
-  /** Look up a registered client by ID */
   readonly getClient: (
     clientId: string
   ) => Effect.Effect<Option.Option<OAuthClient>, SqlError>
 
-  /** Register a new dynamic OAuth client */
   readonly registerClient: (params: {
     readonly redirect_uris: readonly string[]
     readonly client_name?: string
@@ -87,7 +81,6 @@ export interface IOAuthService {
     OAuthError | SqlError
   >
 
-  /** Revoke an access or refresh token */
   readonly revokeToken: (params: {
     readonly token: string
     readonly token_type_hint?: 'access_token' | 'refresh_token'
@@ -102,8 +95,6 @@ export interface IOAuthService {
     AccessTokenNotFound | AccessTokenExpired | SqlError
   >
 }
-
-// ── Errors ─────────────────────────────────────────────────────────────
 
 export class OAuthError extends Schema.TaggedError<
   OAuthError,
@@ -129,14 +120,10 @@ export class AccessTokenExpired extends Schema.TaggedError<
   error_description: Schema.String,
 }) {}
 
-// ── Context Tag ────────────────────────────────────────────────────────
-
 export class OAuthService extends Context.Service<
   OAuthService,
   IOAuthService
 >()('OAuthService') {}
-
-// ── Helpers ────────────────────────────────────────────────────────────
 
 const generateToken = () => crypto.randomUUID()
 
@@ -158,8 +145,6 @@ const verifyPkceS256 = (
       .replace(/=+$/, '')
     return base64 === codeChallenge
   })
-
-// ── Live Layer ─────────────────────────────────────────────────────────
 
 export const OAuthServiceLive = Layer.effect(
   OAuthService,
@@ -219,7 +204,6 @@ export const OAuthServiceLive = Layer.effect(
             })
         )
 
-        // Verify code hasn't expired
         const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
         const codeExpiresAtMs = DateTime.toEpochMillis(
           DateTime.makeUnsafe(authCode.expiresAt)
@@ -231,7 +215,6 @@ export const OAuthServiceLive = Layer.effect(
           })
         }
 
-        // Verify client matches
         if (authCode.clientId !== params.clientId) {
           return yield* new OAuthError({
             error: 'invalid_grant',
@@ -239,7 +222,6 @@ export const OAuthServiceLive = Layer.effect(
           })
         }
 
-        // Verify PKCE
         const pkceValid = yield* verifyPkceS256(
           params.codeVerifier,
           authCode.codeChallenge
@@ -251,7 +233,6 @@ export const OAuthServiceLive = Layer.effect(
           })
         }
 
-        // Issue tokens
         const accessTokenValue = generateToken()
         const refreshTokenValue = generateToken()
         const now = DateTime.nowUnsafe()
@@ -315,7 +296,6 @@ export const OAuthServiceLive = Layer.effect(
               })
           )
 
-          // Verify not expired
           const refreshNowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
           const expiresAtMs = DateTime.toEpochMillis(
             DateTime.makeUnsafe(refreshToken.expiresAt)
@@ -327,7 +307,6 @@ export const OAuthServiceLive = Layer.effect(
             })
           }
 
-          // Verify client matches
           if (refreshToken.clientId !== params.clientId) {
             return yield* new OAuthError({
               error: 'invalid_grant',
@@ -335,7 +314,6 @@ export const OAuthServiceLive = Layer.effect(
             })
           }
 
-          // Issue new tokens
           const accessTokenValue = generateToken()
           const newRefreshTokenValue = generateToken()
           const now = DateTime.nowUnsafe()

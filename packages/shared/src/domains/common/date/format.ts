@@ -131,9 +131,6 @@ export const formatNextDate = (
   locale?: Intl.LocalesArgument
 ): string => `Next: ${formatDayOfWeek(dateTime, locale)}`
 
-/**
- * Relative time result types for localized formatting.
- */
 export type RelativeTimeResult =
   | { readonly _tag: 'now' }
   | { readonly _tag: 'minutes'; readonly value: number }
@@ -420,11 +417,6 @@ export const formatApiDateAsNextDate = (
   defaultValue = 'Not set'
 ): string => formatApiDateWith(formatNextDate, defaultValue)(dateInput)
 
-/**
- * Get the current hour of day (0-23).
- *
- * @returns Current hour (0-23)
- */
 export const getCurrentHour = (): number => {
   const current = DateTime.nowUnsafe()
   return DateTime.toParts(current).hour

@@ -262,7 +262,6 @@ export function VacationModeScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
@@ -317,7 +316,6 @@ export function VacationModeScreen() {
               </Button>
             )}
 
-            {/* Delegation suggestion */}
             <Pressable
               onPress={() => router.push('/delegation-create')}
               className="rounded-2xl p-4 bg-surface dark:bg-surface-dark border border-border/50 dark:border-slate-700/50 active:bg-surface-tinted dark:active:bg-slate-700"

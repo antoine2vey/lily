@@ -295,7 +295,6 @@ export function ManualAddScheduleScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ gap: 32, paddingBottom: 120 }}
         >
-          {/* Watering Section */}
           <FrequencyPicker
             icon={<MaterialIcons name="water-drop" size={22} color="#60A5FA" />}
             label={t('addPlant:schedule.watering')}
@@ -304,7 +303,6 @@ export function ManualAddScheduleScreen() {
             presets={WATERING_PRESETS}
           />
 
-          {/* Fertilizing Section */}
           <View className="gap-4">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
@@ -340,7 +338,6 @@ export function ManualAddScheduleScreen() {
             )}
           </View>
 
-          {/* Misting Section */}
           <View className="gap-4">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
@@ -380,7 +377,6 @@ export function ManualAddScheduleScreen() {
             )}
           </View>
 
-          {/* Repotting Section */}
           <View className="gap-4">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
@@ -420,7 +416,6 @@ export function ManualAddScheduleScreen() {
             )}
           </View>
 
-          {/* Reminders Toggle */}
           <View className="bg-white dark:bg-surface-dark p-4 px-5 rounded-xl shadow-sm border border-border dark:border-slate-700 flex-row items-center justify-between">
             <View>
               <Text className="text-base font-bold text-text-primary dark:text-white">
@@ -458,7 +453,6 @@ export function ManualAddScheduleScreen() {
             owner={owner}
           />
 
-          {/* Notes Section */}
           <FormTextArea
             label={t('addPlant:schedule.notesLabel')}
             value={notes}
@@ -467,7 +461,6 @@ export function ManualAddScheduleScreen() {
           />
         </ScrollView>
 
-        {/* Footer */}
         <View
           className="px-4 pt-4 bg-background dark:bg-background-dark"
           style={{ paddingBottom: insets.bottom + 16 }}

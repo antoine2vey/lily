@@ -1,7 +1,6 @@
 import { Data, Schema } from 'effect'
 import { CareType } from '../../domains/care/types'
 
-// Event schemas
 export const PlantCreatedEvent = Schema.TaggedStruct('PlantCreated', {
   userId: Schema.String,
   plantId: Schema.String,
@@ -82,7 +81,6 @@ export const PlantLifecycleChangedEvent = Schema.TaggedStruct(
   }
 )
 
-// Union of all events
 export const AppEvent = Schema.Union([
   PlantCreatedEvent,
   CareLogCreatedEvent,
@@ -114,7 +112,6 @@ export type ReminderRespondedEvent = typeof ReminderRespondedEvent.Type
 export type PlantSharedEvent = typeof PlantSharedEvent.Type
 export type UserFollowedEvent = typeof UserFollowedEvent.Type
 
-// Error types
 export class EventBusConnectionError extends Data.TaggedError(
   'EventBusConnectionError'
 )<{

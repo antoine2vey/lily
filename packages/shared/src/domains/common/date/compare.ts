@@ -86,12 +86,6 @@ export const isOverdue = (dateTime: DateTime.DateTime): boolean => {
   return DateTime.isLessThan(dateTime, current)
 }
 
-/**
- * Check if DateTime is in the future.
- *
- * @param dateTime - DateTime to check
- * @returns true if the DateTime is in the future
- */
 export const isFuture = (dateTime: DateTime.DateTime): boolean => {
   const current = DateTime.nowUnsafe()
   return DateTime.isGreaterThan(dateTime, current)

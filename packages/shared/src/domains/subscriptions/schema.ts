@@ -1,6 +1,5 @@
 import { Schema } from 'effect'
 
-// Enums
 export const SubscriptionTier = Schema.Literals(['free', 'paid'])
 export type SubscriptionTier = typeof SubscriptionTier.Type
 
@@ -34,7 +33,6 @@ export const SubscriptionEventType = Schema.Literals([
 ])
 export type SubscriptionEventType = typeof SubscriptionEventType.Type
 
-// Tier configuration
 export const TierConfig = Schema.Struct({
   tier: SubscriptionTier,
   name: Schema.String,
@@ -46,7 +44,6 @@ export const TierConfig = Schema.Struct({
 })
 export type TierConfig = typeof TierConfig.Type
 
-// Subscription
 export const Subscription = Schema.Struct({
   id: Schema.String,
   userId: Schema.String,
@@ -65,7 +62,6 @@ export const Subscription = Schema.Struct({
 })
 export type Subscription = typeof Subscription.Type
 
-// Usage tracking
 export const SubscriptionUsage = Schema.Struct({
   id: Schema.String,
   userId: Schema.String,
@@ -93,14 +89,12 @@ export const SubscriptionInfo = Schema.Struct({
 })
 export type SubscriptionInfo = typeof SubscriptionInfo.Type
 
-// Response schemas
 export const CancelSubscriptionResponse = Schema.Struct({
   subscription: Subscription,
   message: Schema.String,
 })
 export type CancelSubscriptionResponse = typeof CancelSubscriptionResponse.Type
 
-// Usage field type for tracking
 export const UsageField = Schema.Literals([
   'aiChats',
   'cardScans',

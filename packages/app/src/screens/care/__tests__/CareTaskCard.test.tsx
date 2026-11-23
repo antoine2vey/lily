@@ -86,7 +86,6 @@ describe('CareTaskCard', () => {
       />
     )
 
-    // Component should render with image
     expect(toJSON()).toBeTruthy()
   })
 

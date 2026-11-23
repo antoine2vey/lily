@@ -21,7 +21,6 @@ export { SectionHeader } from './SectionHeader'
 export { Slider } from './Slider'
 export { ToggleRow } from './ToggleRow'
 
-// UI components
 export { Button } from './ui/Button'
 export { IconButton } from './ui/IconButton'
 export { Input } from './ui/Input'

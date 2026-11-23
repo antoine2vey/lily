@@ -189,9 +189,7 @@ export const PlantCard = memo(function PlantCard({
       onPress={() => onPress(plant.id)}
       className="flex-row items-center p-3 bg-white dark:bg-surface-dark rounded-xl shadow-soft"
     >
-      {/* Image */}
       <View className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-700">
-        {/* Health indicator dot */}
         <View
           testID="health-dot"
           className={`absolute top-1 right-1 z-10 w-2.5 h-2.5 rounded-full ${healthDotClass} ring-1 ring-white`}
@@ -226,7 +224,6 @@ export const PlantCard = memo(function PlantCard({
         )}
       </View>
 
-      {/* Content */}
       <View className="flex-1 ml-3">
         <View className="flex-row items-center gap-1.5">
           <Text

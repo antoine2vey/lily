@@ -129,7 +129,6 @@ export function EditPlantScreen() {
     }
   }, [plant])
 
-  // Initialize form with plant data
   useEffect(() => {
     if (plant) {
       setPhoto(Option.getOrUndefined(Option.fromNullishOr(plant.imageUrl)))
@@ -304,7 +303,6 @@ export function EditPlantScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-border/30 dark:border-slate-700/30">
         <Pressable onPress={() => router.back()} className="py-2">
           <Text className="text-base font-medium text-text-secondary">
@@ -342,7 +340,6 @@ export function EditPlantScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 40 }}
         >
-          {/* Photo */}
           <View className="items-center py-8">
             <Pressable onPress={handleOpenPhotoPicker} className="relative">
               <AnimatedImage
@@ -364,7 +361,6 @@ export function EditPlantScreen() {
             </Pressable>
           </View>
 
-          {/* Basic Info Section */}
           <View className="gap-5 mb-8">
             <FormInput
               label={t('plantDetail:edit.nameLabel')}
@@ -394,7 +390,6 @@ export function EditPlantScreen() {
             />
           </View>
 
-          {/* Pot Size Section */}
           <View className="mb-8">
             <SectionHeader title={t('plantDetail:edit.potSize')} />
             <View className="mt-4 flex-row gap-4">
@@ -419,7 +414,6 @@ export function EditPlantScreen() {
             </View>
           </View>
 
-          {/* Care Needs Section */}
           <View className="mb-8">
             <SectionHeader title={t('plantDetail:edit.careNeeds')} />
             <View className="mt-4 bg-surface dark:bg-surface-dark p-5 rounded-2xl shadow-sm border border-border/30 dark:border-slate-700/30 gap-6">
@@ -460,7 +454,6 @@ export function EditPlantScreen() {
                 maxLabel={t('addPlant:careNeeds.humidity.high')}
               />
 
-              {/* Pet Safe Toggle */}
               <View className="flex-row items-center justify-between pt-2 border-t border-border/30 dark:border-slate-700/30">
                 <View className="flex-row items-center gap-3">
                   <View className="w-10 h-10 rounded-full items-center justify-center bg-primary/10 dark:bg-primary/20">
@@ -493,7 +486,6 @@ export function EditPlantScreen() {
             </View>
           </View>
 
-          {/* Care Schedule Section */}
           <View className="mb-8">
             <SectionHeader title={t('plantDetail:edit.careSchedule')} />
             <View className="mt-4 gap-6">
@@ -507,7 +499,6 @@ export function EditPlantScreen() {
                 presets={WATERING_PRESETS}
               />
 
-              {/* Fertilizing Schedule with Enable Toggle */}
               <View className="gap-4">
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center gap-2">
@@ -548,7 +539,6 @@ export function EditPlantScreen() {
                 )}
               </View>
 
-              {/* Misting Schedule with Enable Toggle */}
               <View className="gap-4">
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center gap-2">
@@ -593,7 +583,6 @@ export function EditPlantScreen() {
                 )}
               </View>
 
-              {/* Repotting Schedule with Enable Toggle */}
               <View className="gap-4">
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center gap-2">

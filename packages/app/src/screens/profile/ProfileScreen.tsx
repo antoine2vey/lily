@@ -109,7 +109,6 @@ export function ProfileScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
         <View className="w-12" />
         <Text className="text-lg font-bold text-text-primary dark:text-white">
@@ -134,7 +133,6 @@ export function ProfileScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: tabBarInset }}
           >
-            {/* Profile Header */}
             <ProfileHeader
               avatarUrl={pipe(
                 Option.fromNullishOr(user?.image),
@@ -183,10 +181,8 @@ export function ProfileScreen() {
               followingCount={followingCount}
             />
 
-            {/* Stats Card */}
             <StatsCard stats={stats} />
 
-            {/* Menu Items */}
             <View className="mt-4 gap-0">
               <ProfileMenuItem
                 icon={
@@ -342,7 +338,6 @@ export function ProfileScreen() {
               />
             </View>
 
-            {/* Sign Out Button */}
             <View className="items-center py-8">
               <Pressable onPress={() => setShowSignOutConfirm(true)}>
                 <Text className="text-base font-semibold text-coral">
@@ -354,7 +349,6 @@ export function ProfileScreen() {
         </Animated.View>
       )}
 
-      {/* Sign Out Confirmation Modal */}
       <ConfirmationModal
         visible={showSignOutConfirm}
         title={t('profile:signOut.title')}

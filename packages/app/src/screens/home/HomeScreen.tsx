@@ -463,7 +463,6 @@ export function HomeScreen() {
             scrollEventThrottle={16}
           >
             <View className="flex-1 px-6">
-              {/* Greeting - scrolls under sticky pills */}
               <View className="pt-4 pb-4" style={{ paddingRight: 190 }}>
                 <Text className="text-2xl text-text-primary dark:text-white tracking-tight leading-tight font-bold">
                   {getGreeting()},{'\n'}
@@ -486,7 +485,6 @@ export function HomeScreen() {
                 )}
               </View>
 
-              {/* Content */}
               {showSkeleton ? (
                 <Animated.View entering={FadeIn.duration(300)}>
                   <HomeContentSkeleton />

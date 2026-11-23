@@ -62,7 +62,6 @@ describe('Timeline', () => {
   it('renders multiple groups correctly', () => {
     render(<Timeline groups={mockGroups} onEventPress={mockOnEventPress} />)
 
-    // Both groups should be rendered
     expect(screen.getByText('Today')).toBeTruthy()
     expect(screen.getByText('Yesterday')).toBeTruthy()
   })

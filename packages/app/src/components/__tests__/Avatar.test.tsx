@@ -46,7 +46,6 @@ describe('Avatar', () => {
 
   it('handles three-word names correctly', () => {
     render(<Avatar name="John Paul Smith" />)
-    // Takes first two parts
     expect(screen.getByText('JP')).toBeTruthy()
   })
 
@@ -57,7 +56,6 @@ describe('Avatar', () => {
         name="John Doe"
       />
     )
-    // Component should render
     expect(toJSON()).toBeTruthy()
   })
 

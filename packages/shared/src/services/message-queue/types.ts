@@ -155,7 +155,6 @@ export const QueueMessage = Schema.Struct({
 })
 export type QueueMessage = typeof QueueMessage.Type
 
-// Error types
 export class QueueConnectionError extends Data.TaggedError(
   'QueueConnectionError'
 )<{

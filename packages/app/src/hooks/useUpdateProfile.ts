@@ -31,7 +31,6 @@ export function useUpdateProfile() {
         ])
       }
 
-      // Update name/bio/first/last via settings endpoint
       await apiEffectRunner('users', 'updateUserSettings', {
         payload: {
           ...(data.name !== undefined ? { name: data.name } : {}),

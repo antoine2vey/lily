@@ -9,8 +9,6 @@ import {
   usePromptPreview,
 } from '@/hooks/use-prompt-preview'
 
-// --- Collapsible Section ---
-
 const CollapsibleSection = ({
   step,
   title,
@@ -73,8 +71,6 @@ const CollapsibleSection = ({
   )
 }
 
-// --- Copy Button ---
-
 const CopyButton = ({ text }: { readonly text: string }) => {
   const [copied, setCopied] = useState(false)
 
@@ -95,8 +91,6 @@ const CopyButton = ({ text }: { readonly text: string }) => {
   )
 }
 
-// --- Health Badge ---
-
 const healthColor = (health: string) =>
   pipe(
     Match.value(health),
@@ -105,8 +99,6 @@ const healthColor = (health: string) =>
     Match.when('SICK', () => 'bg-red-100 text-red-800'),
     Match.orElse(() => 'bg-gray-100 text-gray-800')
   )
-
-// --- Rating Bar ---
 
 const RatingBar = ({
   label,
@@ -134,8 +126,6 @@ const RatingBar = ({
   </div>
 )
 
-// --- Similarity Badge ---
-
 const similarityColor = (similarity: number) =>
   pipe(
     Match.value(true),
@@ -153,8 +143,6 @@ const similarityColor = (similarity: number) =>
     ),
     Match.orElse(() => 'text-gray-700 bg-gray-50')
   )
-
-// --- RAG Chunk Card ---
 
 const RagChunkCard = ({ chunk }: { readonly chunk: PromptPreviewRagChunk }) => (
   <div className="rounded-lg border border-gray-200 bg-white p-3">
@@ -193,8 +181,6 @@ const RagChunkCard = ({ chunk }: { readonly chunk: PromptPreviewRagChunk }) => (
     </p>
   </div>
 )
-
-// --- Section Renderers ---
 
 const MessageSection = ({ data }: { readonly data: PromptPreviewResponse }) => (
   <div className="space-y-2">
@@ -379,8 +365,6 @@ const ConversationSection = ({
       )}
     </div>
   )
-
-// --- Main Page ---
 
 export const PromptPreviewPage = () => {
   const preview = usePromptPreview()

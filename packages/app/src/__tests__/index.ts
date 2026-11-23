@@ -9,9 +9,7 @@
  * ```
  */
 
-// Re-export fixtures
 export * from './fixtures'
-// Re-export navigation mocks
 export {
   mockRouter,
   mockSegments,
@@ -20,7 +18,6 @@ export {
   setMockSearchParams,
   setMockSegments,
 } from './mocks/navigation'
-// Re-export mock providers
 export {
   defaultMockUser,
   MockAuthProvider,
@@ -33,5 +30,4 @@ export {
   useMockAuth,
 } from './mocks/providers'
 export * from './utils/query-helpers'
-// Re-export render utilities
 export * from './utils/render'

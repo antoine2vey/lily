@@ -36,7 +36,6 @@ const getFirst = <T>(arr: T[]): T => {
   return first.value
 }
 
-// Helper to build a date relative to now
 const daysFromNow = (days: number) =>
   new Date(Date.now() + Duration.toMillis(Duration.days(days)))
 
@@ -63,7 +62,6 @@ interface DemoPlantData {
   schedules: PlantSchedule[]
 }
 
-// Demo plant data based on design mockup
 const DEMO_PLANTS: DemoPlantData[] = [
   // Plants needing water (shown in Hydration Card)
   {
@@ -82,13 +80,13 @@ const DEMO_PLANTS: DemoPlantData[] = [
         careType: 'watering',
         frequencyDays: 14,
         lastCareAt: daysFromNow(-15),
-        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+        nextCareAt: daysFromNow(-1),
       },
       {
         careType: 'fertilization',
         frequencyDays: 30,
         lastCareAt: daysFromNow(-25),
-        nextCareAt: daysFromNow(5), // In 5 days (this week)
+        nextCareAt: daysFromNow(5),
       },
     ],
   },
@@ -108,7 +106,7 @@ const DEMO_PLANTS: DemoPlantData[] = [
         careType: 'watering',
         frequencyDays: 7,
         lastCareAt: daysFromNow(-8),
-        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+        nextCareAt: daysFromNow(-1),
       },
     ],
   },
@@ -128,13 +126,13 @@ const DEMO_PLANTS: DemoPlantData[] = [
         careType: 'watering',
         frequencyDays: 3,
         lastCareAt: daysFromNow(-4),
-        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+        nextCareAt: daysFromNow(-1),
       },
       {
         careType: 'misting',
         frequencyDays: 2,
         lastCareAt: daysFromNow(-1),
-        nextCareAt: daysFromNow(1), // Tomorrow
+        nextCareAt: daysFromNow(1),
       },
     ],
   },
@@ -161,7 +159,7 @@ const DEMO_PLANTS: DemoPlantData[] = [
         careType: 'fertilization',
         frequencyDays: 14,
         lastCareAt: daysFromNow(-14),
-        nextCareAt: daysFromNow(0), // Today
+        nextCareAt: daysFromNow(0),
       },
       {
         careType: 'repotting',
@@ -182,7 +180,7 @@ const DEMO_PLANTS: DemoPlantData[] = [
     petToxicityRating: 30,
     wateringRating: 10,
     health: 'HEALTHY',
-    dateAdded: daysFromNow(-1), // Yesterday
+    dateAdded: daysFromNow(-1),
     schedules: [
       {
         careType: 'watering',
@@ -234,7 +232,7 @@ const DEMO_PLANTS: DemoPlantData[] = [
         careType: 'fertilization',
         frequencyDays: 21,
         lastCareAt: daysFromNow(-22),
-        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+        nextCareAt: daysFromNow(-1),
       },
       {
         careType: 'misting',
@@ -272,13 +270,13 @@ const DEMO_PLANTS: DemoPlantData[] = [
         careType: 'fertilization',
         frequencyDays: 30,
         lastCareAt: daysFromNow(-28),
-        nextCareAt: daysFromNow(2), // In 2 days (this week)
+        nextCareAt: daysFromNow(2),
       },
       {
         careType: 'misting',
         frequencyDays: 2,
         lastCareAt: daysFromNow(-1),
-        nextCareAt: daysFromNow(1), // Tomorrow
+        nextCareAt: daysFromNow(1),
       },
     ],
   },
@@ -339,19 +337,19 @@ const DEMO_PLANTS: DemoPlantData[] = [
         careType: 'watering',
         frequencyDays: 7,
         lastCareAt: daysFromNow(-5),
-        nextCareAt: daysFromNow(2), // In 2 days
+        nextCareAt: daysFromNow(2),
       },
       {
         careType: 'misting',
         frequencyDays: 2,
         lastCareAt: daysFromNow(-1),
-        nextCareAt: daysFromNow(1), // Tomorrow
+        nextCareAt: daysFromNow(1),
       },
       {
         careType: 'repotting',
         frequencyDays: 365,
         lastCareAt: daysFromNow(-300),
-        nextCareAt: daysFromNow(65), // In 2 months
+        nextCareAt: daysFromNow(65),
       },
     ],
   },
@@ -371,13 +369,13 @@ const DEMO_PLANTS: DemoPlantData[] = [
         careType: 'watering',
         frequencyDays: 5,
         lastCareAt: daysFromNow(-3),
-        nextCareAt: daysFromNow(2), // In 2 days
+        nextCareAt: daysFromNow(2),
       },
       {
         careType: 'misting',
         frequencyDays: 1,
         lastCareAt: daysFromNow(-1),
-        nextCareAt: daysFromNow(1), // Tomorrow
+        nextCareAt: daysFromNow(1),
       },
     ],
   },
@@ -554,7 +552,6 @@ const seedDemoData = Effect.gen(function* () {
 
   yield* Console.log('Seeding demo data for visual testing...')
 
-  // Wipe existing data for this user
   yield* Console.log('Wiping existing data for antoine@lily.app...')
   const existingUsers = yield* db
     .select({ id: users.id })
@@ -589,7 +586,6 @@ const seedDemoData = Effect.gen(function* () {
     yield* Console.log('  No existing data found')
   }
 
-  // Create demo user Alex
   yield* Console.log('Creating demo user Alex...')
   const demoUserResult = yield* db
     .insert(users)
@@ -626,7 +622,6 @@ const seedDemoData = Effect.gen(function* () {
   yield* Console.log(`  Created user: ${user.name} (${user.email})`)
   yield* Console.log(`  User ID: ${user.id}`)
 
-  // Create plants with care schedules
   yield* Console.log('Creating 12 demo plants...')
   const createdPlants: Array<{ id: string; name: string }> = []
 
@@ -649,7 +644,6 @@ const seedDemoData = Effect.gen(function* () {
     const plant = getFirst(result)
     createdPlants.push(plant)
 
-    // Create care schedules for this plant
     for (const schedule of schedules) {
       yield* db.insert(plantCareSchedules).values({
         plantId: plant.id,
@@ -740,10 +734,8 @@ const seedDemoData = Effect.gen(function* () {
     `  Created ${createdRooms.length} rooms, assigned ${assignments.length} plants`
   )
 
-  // Create comprehensive care log history for testing various scenarios
   yield* Console.log('Creating comprehensive care log history...')
 
-  // Helper to create date in the past
   const daysAgo = (days: number) =>
     new Date(Date.now() - Duration.toMillis(Duration.days(days)))
   const hoursAgo = (hours: number) =>
@@ -1431,13 +1423,9 @@ const seedDemoData = Effect.gen(function* () {
     )
   }
 
-  // ----------------------------------------------------------------
-  // Lily user (lily@lily.app) — follow data demo
-  // ----------------------------------------------------------------
   yield* Console.log('')
   yield* Console.log('Setting up Lily user (lily@lily.app)...')
 
-  // Wipe Lily's existing plants/care logs
   const existingLilyUsers = yield* db
     .select({ id: users.id })
     .from(users)
@@ -1459,7 +1447,6 @@ const seedDemoData = Effect.gen(function* () {
     yield* Console.log('  Wiped existing Lily plants, care logs, and schedules')
   }
 
-  // Upsert Lily
   const lilyResult = yield* db
     .insert(users)
     .values({
@@ -1496,7 +1483,6 @@ const seedDemoData = Effect.gen(function* () {
   const lily = getFirst(lilyResult)
   yield* Console.log(`  Upserted user: ${lily.name} (${lily.email})`)
 
-  // Insert Lily's plants with care schedules
   yield* Console.log('  Creating 6 plants for Lily...')
   const lilyCreatedPlants: Array<{ id: string; name: string }> = []
   for (const plantData of LILY_PLANTS) {
@@ -1514,7 +1500,6 @@ const seedDemoData = Effect.gen(function* () {
     const plant = getFirst(result)
     lilyCreatedPlants.push(plant)
 
-    // Create care schedules for this plant
     for (const schedule of schedules) {
       yield* db.insert(plantCareSchedules).values({
         plantId: plant.id,
@@ -1530,7 +1515,6 @@ const seedDemoData = Effect.gen(function* () {
     )
   }
 
-  // Care logs for Lily's plants
   yield* Console.log('  Creating care logs for Lily...')
   const daysAgoL = (d: number) =>
     new Date(Date.now() - Duration.toMillis(Duration.days(d)))
@@ -1549,9 +1533,6 @@ const seedDemoData = Effect.gen(function* () {
     `  Created ${lilyCreatedPlants.length * 6} care logs for Lily`
   )
 
-  // ----------------------------------------------------------------
-  // Follow relationships — wipe then re-create
-  // ----------------------------------------------------------------
   yield* Console.log('')
   yield* Console.log('Creating follow relationships...')
   yield* db

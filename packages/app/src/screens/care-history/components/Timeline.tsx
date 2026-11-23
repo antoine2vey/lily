@@ -23,13 +23,11 @@ interface TimelineProps {
 export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
   const iconColors = useIconColors()
 
-  // Theme-aware colors for timeline
   const lineColor = iconColors.isDark
     ? 'rgba(155, 199, 109, 0.4)'
     : 'rgba(120, 165, 90, 0.4)'
   const borderColor = iconColors.background
 
-  // Calculate total events for line rendering
   const allEvents = pipe(
     groups,
     Array.flatMap((g) => g.events)
@@ -44,7 +42,6 @@ export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
         groups,
         Array.map((group, groupIndex) => (
           <View key={group.date} className="mb-2">
-            {/* Date header */}
             <Text
               className="text-xl font-bold text-text-primary dark:text-white mb-4"
               style={{ marginTop: groupIndex > 0 ? 8 : 0 }}
@@ -52,7 +49,6 @@ export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
               {group.date}
             </Text>
 
-            {/* Events */}
             {pipe(
               group.events,
               Array.map((event) => {
@@ -63,9 +59,7 @@ export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
 
                 return (
                   <View key={event.id} className="flex-row gap-4 relative">
-                    {/* Timeline column */}
                     <View className="items-center w-10">
-                      {/* Top line segment */}
                       <View
                         className="w-0.5 h-6"
                         style={{
@@ -76,7 +70,6 @@ export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
                         }}
                       />
 
-                      {/* Icon circle with ring */}
                       <View
                         className="w-10 h-10 rounded-full items-center justify-center z-10"
                         style={{
@@ -92,7 +85,6 @@ export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
                         />
                       </View>
 
-                      {/* Bottom line segment */}
                       <View
                         className="w-0.5 flex-1"
                         style={{
@@ -104,7 +96,6 @@ export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
                       />
                     </View>
 
-                    {/* Card column */}
                     <View className="flex-1 pb-6 pt-1">
                       <CareEventCard
                         event={event}

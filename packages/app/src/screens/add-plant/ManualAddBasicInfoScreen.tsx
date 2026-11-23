@@ -64,14 +64,11 @@ export function ManualAddBasicInfoScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 120 }}
         >
-          {/* Photo Upload Area */}
           <View className="p-4 pt-6">
             <PhotoPicker photo={photo} onPickPhoto={setPhoto} />
           </View>
 
-          {/* Form Fields */}
           <View className="px-4 gap-6">
-            {/* Plant Name Input */}
             <View className="gap-2">
               <Text className="text-base pl-1 font-semibold text-text-primary dark:text-white">
                 {t('basicInfo.nameLabel')}{' '}
@@ -91,7 +88,6 @@ export function ManualAddBasicInfoScreen() {
               />
             </View>
 
-            {/* Category Select */}
             <CategoryPicker
               value={category}
               onSelect={setCategory}
@@ -100,7 +96,6 @@ export function ManualAddBasicInfoScreen() {
           </View>
         </ScrollView>
 
-        {/* Footer / Action Button */}
         <View
           className="absolute bottom-0 left-0 right-0 px-4 pt-4 bg-background dark:bg-background-dark"
           style={{ paddingBottom: insets.bottom + 16 }}

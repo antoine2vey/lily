@@ -3,10 +3,8 @@ import { CareDay } from '../care/care-day'
 import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 
-// Re-export errors for convenient imports
 export { CareLogNotFoundError } from './errors'
 
-// Care log schemas
 export const CareLog = Schema.Struct({
   id: Schema.String,
   type: CareType,
@@ -64,7 +62,6 @@ export const RecentActivitiesListResponse = Schema.Struct({
 export type RecentActivitiesListResponse =
   typeof RecentActivitiesListResponse.Type
 
-// Type exports
 export type CareLog = typeof CareLog.Type
 export type CareLogPerformer = typeof CareLogPerformer.Type
 export type CareLogHistoryItem = typeof CareLogHistoryItem.Type

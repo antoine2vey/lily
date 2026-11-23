@@ -353,7 +353,6 @@ export function PlantsScreen() {
       )
     }
 
-    // Room filter
     if (selectedRoomId === 'no-room') {
       result = Array.filter(result, (plant) => !plant.roomId)
     } else if (selectedRoomId !== null) {
@@ -435,7 +434,6 @@ export function PlantsScreen() {
           paddingRight: insets.right,
         }}
       >
-        {/* Header - always rendered */}
         <View className="flex-row items-center justify-between px-6 pt-4 pb-4">
           <Text className="text-2xl font-bold tracking-tight text-text-primary dark:text-white">
             {t('list.title')}
@@ -493,7 +491,6 @@ export function PlantsScreen() {
           counts={counts}
         />
 
-        {/* Room Filter */}
         {!Array.isReadonlyArrayEmpty(scopedRooms) && (
           <ScrollView
             horizontal
@@ -544,7 +541,6 @@ export function PlantsScreen() {
           </ScrollView>
         )}
 
-        {/* Content */}
         <PullToRefresh isRefreshing={isRefetching} onRefresh={handleRefresh}>
           {(scrollHandler) =>
             showSkeleton ? (

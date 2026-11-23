@@ -142,7 +142,7 @@ describe('CareScreen', () => {
     render(<CareScreen />)
 
     expect(screen.getByText('Overdue')).toBeTruthy()
-    expect(screen.getByText('1')).toBeTruthy() // Badge count
+    expect(screen.getByText('1')).toBeTruthy()
     expect(screen.getByText('Monstera')).toBeTruthy()
   })
 
@@ -228,7 +228,6 @@ describe('CareScreen', () => {
 
     render(<CareScreen />)
 
-    // Press the task card to trigger modal
     fireEvent.press(screen.getByText('Cactus'))
 
     expect(screen.getByText('Complete Early?')).toBeTruthy()

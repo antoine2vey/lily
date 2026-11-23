@@ -44,7 +44,6 @@ const getDateKey = (date: Date): string => {
   return `${String(parts.year)}-${month}-${day}`
 }
 
-// Order for sorting events by createdAt descending
 const eventCreatedAtOrder: Order.Order<CareEvent> = Order.mapInput(
   Order.flip(Order.String),
   (event) => event.createdAt
@@ -57,7 +56,6 @@ function groupByDate(
   logs: readonly CareLogHistoryItem[],
   canopyViewerId: Option.Option<string>
 ): CareHistoryGroup[] {
-  // Group logs by date key
   const grouped = pipe(
     logs,
     Array.reduce({} as Record<string, CareEvent[]>, (acc, log) => {
@@ -92,7 +90,6 @@ function groupByDate(
   const mapped = pipe(
     entries,
     Array.map(([dateKey, events]) => {
-      // Sort events by createdAt descending
       const sortedEvents = Array.sort(events, eventCreatedAtOrder)
       return {
         date: getApiDateGroupLabel(
@@ -110,7 +107,6 @@ function groupByDate(
     })
   )
 
-  // Sort by dateKey descending
   const sorted = Array.sort(
     mapped,
     Order.mapInput(
@@ -190,7 +186,6 @@ export function useCareHistory({
     }
   )
 
-  // Transform data to grouped format
   const groupedData = pipe(
     Option.fromNullishOr(query.data),
     Option.map((d) =>
@@ -215,5 +210,4 @@ export function useCareHistory({
   }
 }
 
-// Export types for consumers
 export type { CareEvent, CareHistoryGroup }

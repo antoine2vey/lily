@@ -156,7 +156,6 @@ export const PlantUpdateRequest = Schema.Struct({
   roomId: Schema.optional(Schema.NullOr(Schema.String)),
 })
 
-// Enhanced plant creation request
 export const EnhancedPlantCreateRequest = Schema.Struct({
   name: Schema.String,
   description: Schema.optional(Schema.String),
@@ -214,7 +213,6 @@ export const DetectResponse = Schema.Struct({
   detectedType: Schema.Literals(['plant', 'card', 'unknown']),
 })
 
-// Plant photo schema
 export const PlantPhoto = Schema.Struct({
   id: Schema.String,
   url: Schema.String,
@@ -275,7 +273,6 @@ export const PlantCorrectCareDatesRequest = Schema.Struct({
   lastFertilizedAt: Schema.optional(Schema.DateFromString),
 })
 
-// Type exports
 export type PlantCorrectCareDatesRequest =
   typeof PlantCorrectCareDatesRequest.Type
 export type Plant = typeof Plant.Type

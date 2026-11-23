@@ -89,7 +89,6 @@ export function AchievementsScreen() {
   const { achievements, level, unlockedCount, totalCount } = data
   const progress = unlockedCount / totalCount
 
-  // Group achievements by category
   const groupedAchievements = pipe(
     ['plants', 'care', 'streaks', 'special'] as AchievementCategory[],
     Array.map((category) => ({
@@ -107,7 +106,6 @@ export function AchievementsScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
@@ -117,7 +115,6 @@ export function AchievementsScreen() {
 
       <Animated.View entering={FadeIn.duration(300)} className="flex-1">
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          {/* Level Header */}
           <View className="px-6 py-6 items-center bg-surface dark:bg-surface-dark">
             <View className="w-20 h-20 rounded-full items-center justify-center mb-3 bg-achievement-gold">
               <MaterialIcons
@@ -143,7 +140,6 @@ export function AchievementsScreen() {
             </View>
           </View>
 
-          {/* Achievement Categories */}
           {pipe(
             groupedAchievements,
             Array.map((group) => (
@@ -168,7 +164,6 @@ export function AchievementsScreen() {
         </ScrollView>
       </Animated.View>
 
-      {/* Achievement Detail Modal */}
       <AchievementDetailModal
         visible={selectedAchievement !== null}
         onClose={() => setSelectedAchievement(null)}

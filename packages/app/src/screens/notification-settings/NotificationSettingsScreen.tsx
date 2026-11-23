@@ -244,7 +244,6 @@ export function NotificationSettingsScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
@@ -257,7 +256,6 @@ export function NotificationSettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 24 }}
       >
-        {/* Care Reminders Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
             {t('sections.careReminders')}
@@ -278,7 +276,6 @@ export function NotificationSettingsScreen() {
               showBorder
             />
 
-            {/* Notification Time Picker */}
             <Pressable
               onPress={() => setShowTimePicker('notificationTime')}
               className="p-4 bg-surface-tinted/50 dark:bg-slate-800/50"
@@ -304,7 +301,6 @@ export function NotificationSettingsScreen() {
           </View>
         </View>
 
-        {/* Updates & Alerts Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
             {t('sections.updatesAlerts')}
@@ -435,7 +431,6 @@ export function NotificationSettingsScreen() {
           )}
         </View>
 
-        {/* Timezone Settings Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
             {t('timezone.title')}

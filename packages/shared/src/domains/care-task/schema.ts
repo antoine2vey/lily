@@ -38,7 +38,6 @@ export const CareTasksResponse = Schema.Struct({
   windowDays: Schema.Array(Schema.String),
 })
 
-// Type exports
 export type PlantSharer = typeof PlantSharer.Type
 export type CareTask = typeof CareTask.Type
 export type CareTasksResponse = typeof CareTasksResponse.Type

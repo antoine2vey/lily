@@ -83,7 +83,6 @@ export function GrowthJournalEntryCard({
 
   return (
     <View testID="growth-journal-entry-card">
-      {/* Header */}
       <View className="flex-row items-center justify-between mb-1">
         <Text className="text-lg font-bold text-text-primary dark:text-white">
           {t('gallery.journalTitle')}
@@ -106,7 +105,6 @@ export function GrowthJournalEntryCard({
         )}
       </View>
 
-      {/* Age pill */}
       <View className="self-start mb-4 rounded-full bg-primary-tint dark:bg-primary/15 px-3 py-1">
         <Text className="text-xs font-semibold text-primary-dark dark:text-primary-light">
           {`🌱 ${growingFor}${
@@ -119,7 +117,6 @@ export function GrowthJournalEntryCard({
 
       {hasPhotos ? (
         <>
-          {/* Horizontally scrollable strip of fixed-size square thumbnails */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -146,7 +143,6 @@ export function GrowthJournalEntryCard({
             )}
           </ScrollView>
 
-          {/* Add-photo affordance */}
           <Pressable
             onPress={handleOpenPicker}
             className="flex-row items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border dark:border-slate-600 py-3 active:bg-surface-tinted dark:active:bg-primary/10"

@@ -21,7 +21,6 @@ const seedPlantCatalog = Effect.gen(function* () {
   let skipped = 0
 
   for (const entry of CATALOG) {
-    // Check if already exists by scientific name
     const existing = yield* db
       .select()
       .from(plantCatalog)
@@ -58,7 +57,6 @@ const seedPlantCatalog = Effect.gen(function* () {
       continue
     }
 
-    // Insert catalog entry
     const rows = yield* db
       .insert(plantCatalog)
       .values({
@@ -85,7 +83,6 @@ const seedPlantCatalog = Effect.gen(function* () {
     }
     const catalogId = insertedRow.id
 
-    // Insert translations
     yield* db.insert(plantCatalogTranslations).values([
       {
         catalogId,

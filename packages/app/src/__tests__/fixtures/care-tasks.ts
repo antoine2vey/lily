@@ -2,7 +2,6 @@ import type { CareTask, CareTasksResponse } from '@lily/shared'
 import type { Plant } from '@lily/shared/plant'
 import { careToday, makeSchedules } from '@/__tests__/fixtures/plants'
 
-// Helper to get dates relative to now
 const now = new Date()
 
 const yesterday = new Date(now)
@@ -20,7 +19,6 @@ inThreeDays.setDate(inThreeDays.getDate() + 3)
 const nextWeek = new Date(now)
 nextWeek.setDate(nextWeek.getDate() + 10)
 
-// Mock plants for care tasks testing
 export const mockPlantsForCareTasks: Plant[] = [
   {
     id: 'plant-1',
@@ -51,10 +49,10 @@ export const mockPlantsForCareTasks: Plant[] = [
     schedules: makeSchedules({
       wateringFrequencyDays: 7,
       lastWateredAt: new Date('2024-01-10'),
-      nextWateringAt: yesterday, // Overdue
+      nextWateringAt: yesterday,
       fertilizationFrequencyDays: 30,
       lastFertilizedAt: new Date('2024-01-01'),
-      nextFertilizationAt: tomorrow, // This week
+      nextFertilizationAt: tomorrow,
     }),
   },
   {
@@ -86,7 +84,7 @@ export const mockPlantsForCareTasks: Plant[] = [
     schedules: makeSchedules({
       wateringFrequencyDays: 14,
       lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: today, // Today
+      nextWateringAt: today,
       fertilizationFrequencyDays: null,
       lastFertilizedAt: null,
       nextFertilizationAt: null,
@@ -121,10 +119,10 @@ export const mockPlantsForCareTasks: Plant[] = [
     schedules: makeSchedules({
       wateringFrequencyDays: 10,
       lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: inThreeDays, // This week
+      nextWateringAt: inThreeDays,
       fertilizationFrequencyDays: 14,
       lastFertilizedAt: null,
-      nextFertilizationAt: inThreeDays, // This week
+      nextFertilizationAt: inThreeDays,
     }),
   },
   {
@@ -156,7 +154,7 @@ export const mockPlantsForCareTasks: Plant[] = [
     schedules: makeSchedules({
       wateringFrequencyDays: 30,
       lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: nextWeek, // Not this week
+      nextWateringAt: nextWeek,
       fertilizationFrequencyDays: null,
       lastFertilizedAt: null,
       nextFertilizationAt: null,
@@ -191,7 +189,7 @@ export const mockPlantsForCareTasks: Plant[] = [
     schedules: makeSchedules({
       wateringFrequencyDays: 7,
       lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: yesterday, // Overdue but belongs to user-2
+      nextWateringAt: yesterday,
       fertilizationFrequencyDays: null,
       lastFertilizedAt: null,
       nextFertilizationAt: null,
@@ -199,7 +197,6 @@ export const mockPlantsForCareTasks: Plant[] = [
   },
 ]
 
-// Mock plants with no pending care tasks
 export const mockPlantsNoCare: Plant[] = [
   {
     id: 'plant-no-care-1',
@@ -230,7 +227,7 @@ export const mockPlantsNoCare: Plant[] = [
     schedules: makeSchedules({
       wateringFrequencyDays: 7,
       lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: nextWeek, // Far in the future
+      nextWateringAt: nextWeek,
       fertilizationFrequencyDays: null,
       lastFertilizedAt: null,
       nextFertilizationAt: null,

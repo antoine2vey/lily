@@ -81,11 +81,9 @@ export async function uploadMultipart<T>(
     body: formData,
   })
 
-  // Handle token refresh if 401
   if (response.status === 401) {
     const newToken = await refreshAccessTokenAsync()
     if (newToken) {
-      // Retry with new token
       headers.Authorization = `Bearer ${newToken}`
       const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
         method,
@@ -145,7 +143,6 @@ export async function uploadMultipart<T>(
     )
   }
 
-  // Check if response has content
   const contentType = response.headers.get('content-type')
   if (
     contentType !== null &&

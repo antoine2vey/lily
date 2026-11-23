@@ -34,7 +34,6 @@ export function FrequencyPicker({
   }, [value])
   return (
     <View className="gap-4">
-      {/* Section Header - Outside the card */}
       <View className="flex-row items-center gap-2">
         {icon}
         <Text className="text-lg font-bold text-text-primary dark:text-white">
@@ -42,9 +41,7 @@ export function FrequencyPicker({
         </Text>
       </View>
 
-      {/* Card */}
       <View className="bg-white dark:bg-surface-dark p-5 rounded-xl shadow-sm border border-border dark:border-slate-700 gap-4">
-        {/* Input Field */}
         <View className="gap-2">
           <Text className="text-sm font-medium text-primary">
             {t('schedule.frequencyLabel')}
@@ -81,7 +78,6 @@ export function FrequencyPicker({
           </View>
         </View>
 
-        {/* Preset Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

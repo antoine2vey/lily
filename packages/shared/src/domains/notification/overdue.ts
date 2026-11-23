@@ -5,12 +5,12 @@ import { DndWindowBlockedError } from './errors'
 import { isInDndWindow, timeToMinutes } from './timezone'
 
 // Morning window: 6:00-8:00 local time (120 minutes)
-const MORNING_START = 6 * 60 // 360
-const MORNING_END = 8 * 60 // 480
+const MORNING_START = 6 * 60
+const MORNING_END = 8 * 60
 
 // Evening window: 18:00-22:00 local time (240 minutes)
-const EVENING_START = 18 * 60 // 1080
-const EVENING_END = 22 * 60 // 1320
+const EVENING_START = 18 * 60
+const EVENING_END = 22 * 60
 
 /**
  * Pick a random notification send time within the morning or evening window,
@@ -63,7 +63,6 @@ export const pickNotificationTime = (
     return windowStart + Math.floor(rv * range)
   }
 
-  // Pick primary window based on randomValue
   const preferMorning = randomValue < 0.5
   const primaryStart = preferMorning ? MORNING_START : EVENING_START
   const primaryEnd = preferMorning ? MORNING_END : EVENING_END
@@ -74,7 +73,6 @@ export const pickNotificationTime = (
   const subRandom = preferMorning ? randomValue * 2 : (randomValue - 0.5) * 2
 
   return pipe(
-    // Try primary window, fall back to secondary
     Option.some(primaryStart),
     Option.filter(() => !isWindowBlocked(primaryStart, primaryEnd)),
     Option.map(() => pickTimeInWindow(primaryStart, primaryEnd, subRandom)),

@@ -21,7 +21,6 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
   function* (params: { plantId: string }) {
     const apiClient = yield* ApiClient
 
-    // Fetch plant details and recent care logs in parallel
     const [plant, recentLogs] = yield* Effect.all(
       [
         apiClient.getPlant(params.plantId),

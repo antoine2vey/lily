@@ -139,7 +139,6 @@ export class FileService extends Context.Service<FileService>()('FileService', {
             Arr.fromIterable(files),
             (file) =>
               Effect.gen(function* () {
-                // Validate content type
                 const isAllowed = Arr.contains(
                   ALLOWED_IMAGE_TYPES,
                   file.contentType
@@ -156,7 +155,6 @@ export class FileService extends Context.Service<FileService>()('FileService', {
 
                 const buffer = yield* fileSystem.readFile(file.path)
 
-                // Validate file size
                 if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
                   return yield* Effect.fail(
                     new FileTooLargeError({

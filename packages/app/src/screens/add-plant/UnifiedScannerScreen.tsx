@@ -118,7 +118,6 @@ export function UnifiedScannerScreen() {
     heightCm: number
   } | null>(null)
 
-  // Hooks
   const { mutateAsync: detectPlant } = useDetectPlant()
   const { mutate: createPlant, isPending: isCreating } = useCreatePlant()
 
@@ -251,8 +250,6 @@ export function UnifiedScannerScreen() {
     setDetection((prev) => ({ ...prev, streak: 0 }))
   }, [enterPhase])
 
-  // MARK: - Shared Handlers
-
   const handlePickFromGallery = useCallback(async () => {
     if (scanPhaseRef.current !== 'idle') return
 
@@ -366,8 +363,6 @@ export function UnifiedScannerScreen() {
     )
   }, [result, createPlant, confirmedPot, t, returnTo, inCanopy])
 
-  // MARK: - Animated Styles
-
   const frameBaseSize = SCREEN_WIDTH * 0.7
   const cornerStyle = useAnimatedStyle(() => {
     const visible = plantVisibleSV.value
@@ -422,8 +417,6 @@ export function UnifiedScannerScreen() {
       },
     ],
   }))
-
-  // MARK: - Render
 
   return (
     <View className="flex-1 bg-black">
@@ -525,9 +518,7 @@ export function UnifiedScannerScreen() {
           </>
         )}
 
-        {/* Overlays on camera */}
         <View className="absolute inset-0" pointerEvents="box-none">
-          {/* Centered scan frame */}
           {!measureMode && (
             <Animated.View
               className="absolute inset-0 items-center justify-center"
@@ -596,7 +587,6 @@ export function UnifiedScannerScreen() {
             </Animated.View>
           )}
 
-          {/* Top bar */}
           <View
             className="absolute top-0 left-0 right-0 z-10 flex-row items-center justify-between px-4"
             style={{ paddingTop: insets.top + 8 }}
@@ -612,7 +602,6 @@ export function UnifiedScannerScreen() {
             <LuxOverlay level={detection.luxLevel} lux={detection.lux} />
           </View>
 
-          {/* Scan phase pill below top bar */}
           {!measureMode && showPhasePill && (
             <Animated.View
               entering={FadeIn.duration(200)}
@@ -629,7 +618,6 @@ export function UnifiedScannerScreen() {
               >
                 {scanPhase === 'result' && result ? (
                   <>
-                    {/* Result pill header */}
                     <View className="flex-row items-center px-4 pt-4 pb-2">
                       {capturedPhotoUri && (
                         <Image
@@ -681,7 +669,6 @@ export function UnifiedScannerScreen() {
                       </View>
                     </View>
 
-                    {/* Care chips */}
                     <View className="flex-row flex-wrap gap-1.5 px-4 pb-3">
                       {result.wateringFrequencyDays && (
                         <CareChip
@@ -715,7 +702,6 @@ export function UnifiedScannerScreen() {
                       )}
                     </View>
 
-                    {/* Action buttons */}
                     <View className="flex-row gap-2 px-4 pb-4">
                       <Pressable
                         onPress={handleAddToCollection}
@@ -811,7 +797,6 @@ export function UnifiedScannerScreen() {
                           : t('arMeasure.title')}
                 </Text>
 
-                {/* Measurement results */}
                 {(arWidthCm !== null || arHeightCm !== null) && (
                   <View className="flex-row justify-center gap-4 mt-2">
                     {arWidthCm !== null && (
@@ -851,7 +836,6 @@ export function UnifiedScannerScreen() {
                   </View>
                 )}
 
-                {/* Confirm/Reset buttons when both measurements done */}
                 {arWidthCm !== null && arHeightCm !== null && (
                   <View className="flex-row justify-center gap-3 mt-2">
                     <Pressable
@@ -888,7 +872,6 @@ export function UnifiedScannerScreen() {
 
                 {/* Step indicators: 4 dots (2 per axis) */}
                 <View className="flex-row justify-center items-center gap-1.5 mt-2">
-                  {/* Width dots */}
                   <View
                     className="w-2 h-2 rounded-full"
                     style={{
@@ -903,7 +886,6 @@ export function UnifiedScannerScreen() {
                         arPointCount >= 2 ? 'white' : 'rgba(255,255,255,0.3)',
                     }}
                   />
-                  {/* Separator */}
                   <View
                     className="mx-1"
                     style={{
@@ -912,7 +894,6 @@ export function UnifiedScannerScreen() {
                       backgroundColor: 'rgba(255,255,255,0.3)',
                     }}
                   />
-                  {/* Height dots */}
                   <View
                     className="w-2 h-2 rounded-full"
                     style={{
@@ -932,7 +913,6 @@ export function UnifiedScannerScreen() {
             </View>
           )}
 
-          {/* Bottom: buttons */}
           <View
             className="absolute bottom-0 left-0 right-0 items-center"
             style={{ paddingBottom: insets.bottom + 24 }}
@@ -1022,8 +1002,6 @@ export function UnifiedScannerScreen() {
     </View>
   )
 }
-
-// MARK: - Helper Components
 
 function CareChip({
   icon,

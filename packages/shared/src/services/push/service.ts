@@ -26,7 +26,6 @@ export interface IPushService {
   >
 }
 
-// Context tag for dependency injection
 export class PushService extends Context.Service<PushService, IPushService>()(
   'PushService'
 ) {}

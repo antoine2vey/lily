@@ -6,12 +6,6 @@ import { DateTime, Duration, Option, pipe } from 'effect'
  */
 export type DateInput = DateTime.DateTime.Input | null | undefined
 
-/**
- * Convert Effect DateTime to native JavaScript Date.
- * Uses toDateUtc() to get a standard Date object.
- *
- * Exported for use by sibling modules (format.ts).
- */
 export const toNativeDate = (dateTime: DateTime.DateTime): Date =>
   DateTime.toDateUtc(dateTime)
 

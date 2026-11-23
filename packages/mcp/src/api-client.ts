@@ -32,8 +32,6 @@ import {
   HttpClientResponse,
 } from 'effect/http'
 
-// ── Request-scoped context ─────────────────────────────────────────────
-
 /**
  * Request-scoped service carrying the authenticated user's API JWT.
  * Provided per-request via provideAuth so that HttpClient interceptors
@@ -65,10 +63,7 @@ export type KnowledgeQueryResult = typeof KnowledgeQueryResult.Type
 
 const MagicLinkSent = Schema.Struct({ message: Schema.String })
 
-// ── Interface ──────────────────────────────────────────────────────────
-
 export interface IApiClient {
-  // ── Internal endpoints (service-secret auth) ──────────────────────
   readonly sendMagicLink: (params: {
     readonly email: string
     readonly callbackUrl: string
@@ -132,8 +127,6 @@ export interface IApiClient {
   ) => Effect.Effect<RefreshTokenResponse, ExternalServiceError>
 }
 
-// ── Timeouts ───────────────────────────────────────────────────────────
-
 // API request spans ran p99 0.17 s and at most 5.2 s over the 14 days to
 // 2026-10-19, so 15 s only cuts off a hung API.
 const API_TIMEOUT = Duration.seconds(15)
@@ -164,13 +157,9 @@ const includeEveryPlant = {
   includeCanopy: 'true',
 } as const
 
-// ── Context Tag ────────────────────────────────────────────────────────
-
 export class ApiClient extends Context.Service<ApiClient, IApiClient>()(
   'ApiClient'
 ) {}
-
-// ── Live Layer ─────────────────────────────────────────────────────────
 
 export const ApiClientLive = Layer.unwrap(
   Effect.gen(function* () {
@@ -182,8 +171,6 @@ export const ApiClientLive = Layer.unwrap(
       ApiClient,
       Effect.gen(function* () {
         const baseClient = yield* HttpClient.HttpClient
-
-        // ── HttpClient interceptors ──────────────────────────────
 
         const internalClient = pipe(
           baseClient,
@@ -203,8 +190,6 @@ export const ApiClientLive = Layer.unwrap(
             )
           )
         )
-
-        // ── Execute + parse pipelines ────────────────────────────
 
         const wrapHttpError = (err: HttpClientError.HttpClientError) =>
           new ExternalServiceError({
@@ -270,8 +255,6 @@ export const ApiClientLive = Layer.unwrap(
         const unauthenticated = send(baseClient)
 
         return {
-          // ── Internal ──────────────────────────────────────────
-
           sendMagicLink: (params) =>
             HttpClientRequest.post(`${baseUrl}/internal/magic-link`).pipe(
               HttpClientRequest.bodyJsonUnsafe(params),
@@ -285,8 +268,6 @@ export const ApiClientLive = Layer.unwrap(
               internal(AuthResponse),
               Effect.withSpan('ApiClient.issueServiceToken')
             ),
-
-          // ── Authenticated ─────────────────────────────────────
 
           listPlants: (params) => {
             const query = new URLSearchParams(includeEveryPlant)

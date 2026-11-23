@@ -49,7 +49,6 @@ export function useRecentActivities(limit = 10) {
     { staleTime: StaleTime.short }
   )
 
-  // Transform API data to UI format
   const activities: UIActivity[] = pipe(
     Option.fromNullishOr(query.data?.items),
     Option.map(

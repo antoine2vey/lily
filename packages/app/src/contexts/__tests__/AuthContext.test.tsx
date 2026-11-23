@@ -6,7 +6,6 @@ import { mockUserSettings } from '@/__tests__/fixtures'
 import { USER_SETTINGS_QUERY_KEY } from '@/utils/query-keys'
 import { AuthProvider, useAuth } from '../AuthContext'
 
-// Mock expo-router
 const mockReplace = jest.fn()
 let mockSegments: string[] = ['(app)']
 jest.mock('expo-router', () => ({
@@ -18,14 +17,12 @@ jest.mock('expo-router', () => ({
   useSegments: () => mockSegments,
 }))
 
-// Mock expo-secure-store
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn().mockResolvedValue(null),
   setItemAsync: jest.fn().mockResolvedValue(undefined),
   deleteItemAsync: jest.fn().mockResolvedValue(undefined),
 }))
 
-// Mock storage utilities
 jest.mock('@/utils/storage', () => {
   const { Effect, Option } = require('effect')
   return {
@@ -53,7 +50,6 @@ const mockGetStoredUserProfile = jest
   .mockReturnValue(Effect.succeed(Option.none()))
 const mockRemoveStoredAccessToken = jest.fn().mockReturnValue(Effect.void)
 
-// Mock client utilities
 jest.mock('@/utils/client', () => ({
   apiEffectRunner: jest.fn(),
   extractErrorMessage: jest.fn((error: unknown) =>
@@ -71,7 +67,6 @@ jest.mock('@/utils/auth-telemetry', () => ({
   trackForcedLogout: jest.fn(),
 }))
 
-// Mock notification utilities
 jest.mock('@/utils/notifications', () => ({
   getDeviceLanguage: jest.fn().mockReturnValue('en'),
   getDeviceTimezone: jest.fn().mockReturnValue('UTC'),

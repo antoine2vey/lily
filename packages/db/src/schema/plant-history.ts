@@ -44,7 +44,6 @@ export const plantPhotosRelations = relations(plantPhotos, ({ one }) => ({
   }),
 }))
 
-// Unified care logs table
 export const careLogs = pgTable(
   'care_logs',
   {

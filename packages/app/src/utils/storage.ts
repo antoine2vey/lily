@@ -28,7 +28,6 @@ export const KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions = {
 // so Date fields round-trip as real Dates, not strings
 const UserProfileJson = Schema.fromJsonString(UserProfile)
 
-// Access Token
 export const storeAccessToken = (
   token: string
 ): Effect.Effect<void, StorageError> =>
@@ -58,7 +57,6 @@ export const removeStoredAccessToken: Effect.Effect<void, StorageError> =
       new StorageError({ message: 'Failed to remove access token', cause }),
   })
 
-// Refresh Token
 export const storeRefreshToken = (
   token: string
 ): Effect.Effect<void, StorageError> =>
@@ -76,7 +74,6 @@ export const removeStoredRefreshToken: Effect.Effect<void, StorageError> =
       new StorageError({ message: 'Failed to remove refresh token', cause }),
   })
 
-// User Email
 export const storeUserEmail = (
   email: string
 ): Effect.Effect<void, StorageError> =>
@@ -160,7 +157,6 @@ export const removeStoredUserProfile: Effect.Effect<void, StorageError> =
       new StorageError({ message: 'Failed to remove user profile', cause }),
   })
 
-// Clear all auth storage
 export const clearAuthStorage: Effect.Effect<void, StorageError> = Effect.all([
   removeStoredAccessToken,
   removeStoredRefreshToken,

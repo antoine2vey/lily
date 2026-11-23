@@ -80,7 +80,6 @@ export function PlantShareCard({
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Content overlay */}
       <View className="flex-1 items-start justify-center px-8">
         {/* Square plant photo — full width matching text (360 - 2*32px padding) */}
         <View
@@ -106,7 +105,6 @@ export function PlantShareCard({
           )}
         </View>
 
-        {/* Plant name + category — left aligned */}
         <View className="w-full mt-2">
           <Text
             className="text-5xl font-bold text-white"
@@ -138,7 +136,6 @@ export function PlantShareCard({
           )}
         </View>
 
-        {/* Info lines — left aligned */}
         <View className="w-full mt-3 gap-0.5">
           <Text
             className="text-sm text-white/70"
@@ -168,7 +165,6 @@ export function PlantShareCard({
           </Text>
         </View>
 
-        {/* Bottom bar — catchphrase left, branding right */}
         <View className="absolute bottom-8 left-8 right-8 flex-row items-center justify-between">
           <Text
             className="text-xs text-white/50"
