@@ -237,10 +237,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const bogusPlantId = '00000000-0000-0000-0000-000000000000'
         await expect(
           client.query(
-            'INSERT INTO care_logs (type, plant_id, date) VALUES ($1, $2, $3)',
-            ['watering', bogusPlantId, now]
+            'INSERT INTO care_logs (type, plant_id, date, care_day) VALUES ($1, $2, $3, $4)',
+            ['watering', bogusPlantId, now, careDayOf(now)]
           )
-        ).rejects.toThrow()
+        ).rejects.toThrow(/violates foreign key constraint/)
 
         // Transaction is now in an aborted state; rollback to release
         await client.query('ROLLBACK')

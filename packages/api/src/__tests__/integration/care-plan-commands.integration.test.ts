@@ -696,7 +696,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.result(diagnose({ ...rootRot, severity: 'NO SUCH SEVERITY' }))
         )
 
-        expect(Result.isFailure(failed)).toBe(true)
+        expect(failureOf(failed)._tag).toBe('SqlError')
         expect(await diagnosesNow()).toEqual([])
         expect(await plansNow()).toEqual([])
       })

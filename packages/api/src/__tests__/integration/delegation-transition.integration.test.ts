@@ -766,7 +766,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             Layer.fresh(AbsenceLive).pipe(Layer.provide(RequestsCannotBeStored))
           )
         )
-      ).rejects.toThrow()
+      ).rejects.toMatchObject({
+        _tag: 'SqlError',
+        reason: { message: 'injected outbox failure' },
+      })
 
       expect(await statuses()).toEqual(['active', 'active'])
       expect(await pendingReminders()).toEqual(before)
@@ -785,7 +788,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             NotificationsCannotBeRecorded
           )
         )
-      ).rejects.toThrow()
+      ).rejects.toMatchObject({
+        _tag: 'SqlError',
+        reason: { message: 'injected notification failure' },
+      })
 
       expect(await statuses()).toEqual(['active', 'active'])
       expect(await pendingReminders()).toEqual(before)

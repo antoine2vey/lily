@@ -9,11 +9,17 @@ or {
       `Exit.hasFails($_)`,
       `Exit.hasDies($_)`,
       `Cause.hasFails($_)`,
-      `Cause.hasDies($_)`
+      `Cause.hasDies($_)`,
+      `Result.isFailure($_)`
     }
   },
   `expect(Exit.isSuccess($_)).$matcher(false)`,
-  `expect($exit._tag).$matcher('Failure')`
+  `expect(Result.isSuccess($_)).$matcher(false)`,
+  `expect($exit._tag).$matcher('Failure')`,
+  `expect($_).rejects.$matcher()` where { $matcher <: or { `toThrow`, `toThrowError` } },
+  `expect(failureOf($_)).toMatchObject({ $props })` where {
+    $props <: not some `_tag: $_`
+  }
 } as $hit where {
-  register_diagnostic(span=$hit, message="Assert which error failed: use failureOf(exit) and check its _tag or class (Exit.isFailure alone passes on any error).")
+  register_diagnostic(span=$hit, message="Assert which error failed: use failureOf(exit or result) and check its _tag or class (Exit.isFailure, a toMatchObject without _tag or a bare rejects.toThrow() passes on any error).")
 }

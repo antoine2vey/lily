@@ -71,6 +71,7 @@ describe('JWTService', () => {
         )
 
         expect(failureOf(exit)).toMatchObject({
+          _tag: 'JWTError',
           code: 'INVALID_TOKEN',
           message: 'Invalid token',
         })

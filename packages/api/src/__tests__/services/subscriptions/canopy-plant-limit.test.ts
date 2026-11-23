@@ -136,7 +136,10 @@ describe('checkPlantLimit for a Canopy', () => {
       personalPlants: 0,
       subscriptions: { lily: premium('lily', -1) },
     })
-    expect(failureOf(exit)).toMatchObject({ feature: 'canopy_plants' })
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'LimitExceededError',
+      feature: 'canopy_plants',
+    })
   })
 
   it("keeps a member's personal cap their own", async () => {
@@ -146,6 +149,10 @@ describe('checkPlantLimit for a Canopy', () => {
       personalPlants: 5,
       subscriptions: { lily: premium('lily', 30) },
     })
-    expect(failureOf(exit)).toMatchObject({ feature: 'plants', limit: 5 })
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'LimitExceededError',
+      feature: 'plants',
+      limit: 5,
+    })
   })
 })
