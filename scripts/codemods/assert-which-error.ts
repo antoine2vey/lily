@@ -146,8 +146,6 @@ const rewriteOnce = (source: string) => {
   return lines.join('\n')
 }
 
-// One pass can expose a new match, such as a flagged line whose next line it
-// just deleted, so the codemod repeats until a pass changes nothing.
 const rewrite = (source: string): string => {
   const next = rewriteOnce(source)
   return next === source ? source : rewrite(next)

@@ -16,7 +16,6 @@ or {
       `$_ || $b` where { $b <: array_literal() }
     }
   },
-  // A helper handed the client and a key, as updatePaginatedTotal is.
   JsCallExpression(arguments=JsCallArguments(args=$args)) where {
     $args <: some `queryClient`,
     $args <: some array_literal()

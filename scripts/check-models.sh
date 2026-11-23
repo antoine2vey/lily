@@ -13,7 +13,6 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# CI caches the evaluator under these pins before this script runs.
 source scripts/quint.env
 QUINT=(npx -y "@informalsystems/quint@$QUINT_VERSION")
 STEPS=30
