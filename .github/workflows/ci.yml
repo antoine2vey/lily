@@ -108,6 +108,8 @@ jobs:
         run: bash scripts/test-ota-should-publish.sh
       - name: Check the replay harness
         run: bash scripts/test-replay-check.sh
+      - name: Check each lint rule against its fixture
+        run: bash scripts/test-lint-rules.sh
 
   integration:
     name: Integration tests (${{ matrix.shard }}/4)

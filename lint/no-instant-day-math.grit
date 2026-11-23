@@ -10,6 +10,8 @@ or {
   `86_400_000`,
   `864e5`,
   `8.64e7`,
+  `86400e3`,
+  `86_400e3`,
   // Each operand order of a product that spells one day in milliseconds, with
   // any multiplier on its left. GritQL has no arithmetic, so the text decides.
   `$a * $b` as $product where {
@@ -19,7 +21,10 @@ or {
       r"(?:.+ \*\s+)?1000 \*\s+(?:24 \*\s+60 \*\s+60|60 \*\s+24 \*\s+60|60 \*\s+60 \*\s+24|24 \*\s+3_?600|3_?600 \*\s+24|86_?400)",
       r"(?:.+ \*\s+)?3_?600 \*\s+(?:24 \*\s+1000|1000 \*\s+24)",
       r"(?:.+ \*\s+)?86_?400 \*\s+1000",
-      r"(?:.+ \*\s+)?3_?600_?000 \*\s+24"
+      r"(?:.+ \*\s+)?3_?600_?000 \*\s+24",
+      r"(?:.+ \*\s+)?(?:24 \*\s+60 \*\s+60_?000|24 \*\s+60_?000 \*\s+60|60 \*\s+24 \*\s+60_?000|60 \*\s+60_?000 \*\s+24|60_?000 \*\s+24 \*\s+60|60_?000 \*\s+60 \*\s+24)",
+      r"(?:.+ \*\s+)?(?:1_?440 \*\s+60 \*\s+1000|1_?440 \*\s+1000 \*\s+60|60 \*\s+1_?440 \*\s+1000|60 \*\s+1000 \*\s+1_?440|1000 \*\s+1_?440 \*\s+60|1000 \*\s+60 \*\s+1_?440)",
+      r"(?:.+ \*\s+)?(?:1_?440 \*\s+60_?000|60_?000 \*\s+1_?440)"
     }
   },
   `DateTime.$op($args)` where {
@@ -30,7 +35,7 @@ or {
     $args <: contains or {
       JsPropertyObjectMember(name=$key),
       JsShorthandPropertyObjectMember(name=$key)
-    } where { $key <: r"days|weeks|months" }
+    } where { $key <: r"['\x22]?(?:days|weeks|months)['\x22]?" }
   }
 } as $hit where {
   register_diagnostic(span=$hit, message="A calendar day is not 24 hours. When the result is read as a day, use CareDays.addDays(day, n) from @lily/shared. Use Duration.days(n) only for a lifetime or a TTL.")
