@@ -15,9 +15,10 @@ import {
   transition,
   transitionDecided,
   transitionEach,
+  transitionEachEither,
 } from '@lily/api/kernel/transition'
 import { notifications } from '@lily/db/schema'
-import { eq, or } from 'drizzle-orm'
+import { eq, or, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pg-proxy'
 import { Array, Cause, Effect, Exit, Record, String } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -123,6 +124,32 @@ describe('transition', () => {
     )
   })
 
+  it('picks one of two states for each row inside the one statement that moves them', async () => {
+    const { db, statements } = answering(NO_ROW)
+
+    await Effect.runPromise(
+      transitionEachEither(db, 'Notification', {
+        from: ['queued'],
+        when: sql`${notifications.retryCount} < ${2}`,
+        to: 'pending',
+        otherwise: 'failed',
+        where: eq(notifications.userId, 'u1'),
+      })
+    )
+
+    expect(statements).toHaveLength(1)
+    expect(statements[0]?.sql).toMatch(
+      /^update "notifications" set "status" = CASE WHEN "notifications"\."retry_count" < \$1 THEN \$2::notification_status ELSE \$3::notification_status END where "notifications"\."status" in \(\$4\) and \("notifications"\."user_id" = \$5\) returning /
+    )
+    expect(statements[0]?.params).toEqual([
+      2,
+      'pending',
+      'failed',
+      'queued',
+      'u1',
+    ])
+  })
+
   it('moves a vacation through the account write, on the row of one user', async () => {
     const { db, statements } = answering(NO_ROW)
 
@@ -151,6 +178,14 @@ describe('transition', () => {
         to: 'accepted',
         // @ts-expect-error the helper writes the status, the stamps cannot
         also: { status: 'completed' },
+      }),
+      transitionEachEither(db, 'Notification', {
+        from: ['queued'],
+        when: sql`true`,
+        to: 'sent',
+        // @ts-expect-error a queued notification cannot go back to queued
+        otherwise: 'queued',
+        where: undefined,
       }),
       // @ts-expect-error a vacation moves one account at a time
       transitionEach(db, 'Vacation', {

@@ -39,14 +39,18 @@ export const holdRowUntilWaited = async <A>(
   lockQuery: string,
   params: ReadonlyArray<unknown>,
   contenders: () => Promise<A>,
-  waiters = 2
+  waiters = 2,
+  signal?: AbortSignal
 ) => {
   const holder = await pool.connect()
   try {
     await holder.query('BEGIN')
     await holder.query(lockQuery, [...params])
     const result = contenders()
-    return { waiting: await sessionsWaitingForALock(pool, waiters), result }
+    return {
+      waiting: await sessionsWaitingForALock(pool, waiters, signal),
+      result,
+    }
   } finally {
     await holder.query('COMMIT').finally(() => holder.release())
   }

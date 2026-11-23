@@ -54,9 +54,25 @@ jobs:
               - 'package.json'
               - '.github/workflows/ci.yml'
               - '.github/actions/setup/**'
+            # The models and the code each one mirrors, named at the top of
+            # its file. The runs of each model against the real code are
+            # integration tests, which any api change already reruns.
             models:
               - '**/*.qnt'
               - 'scripts/check-models.sh'
+              - 'packages/api/src/kernel/transition.ts'
+              - 'packages/api/src/repositories/notification.repository.ts'
+              - 'packages/api/src/repositories/activity-push-token.repository.ts'
+              - 'packages/api/src/repositories/subscription.repository.ts'
+              - 'packages/api/src/services/notification-scheduler/scheduler.ts'
+              - 'packages/api/src/services/notification-scheduler/worker.ts'
+              - 'packages/api/src/services/message-queue/redis.provider.ts'
+              - 'packages/api/src/services/subscriptions/usage-tracker.ts'
+              - 'packages/api/src/services/ai-chat/chat-turns.ts'
+              - 'packages/api/src/services/ai-chat/endpoints/stream-chat-message.ts'
+              - 'packages/api/src/services/activity-scheduler/scheduler.ts'
+              - 'packages/api/src/services/activity-push-tokens/endpoints/**'
+              - 'packages/api/src/services/live-activity/subscriber.ts'
               - '.github/workflows/ci.yml'
       # The PR run that passed on this exact tree already ran integration,
       # zone-rules, web-layout and models. main still runs checks, whose Turbo cache writes PR runs read.

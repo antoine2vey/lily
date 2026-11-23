@@ -4,6 +4,7 @@ import {
   claimsMigration,
   knowledgeTables,
 } from '@lily/api/__tests__/integration/knowledge-tables'
+import { holdRowUntilWaited } from '@lily/api/__tests__/integration/lock-waits'
 import {
   IngestJobRepository,
   IngestJobRepositoryLive,
@@ -166,24 +167,45 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(empty).toBeNull()
     })
 
-    it('hands two concurrent claimers two different jobs', async () => {
-      await insertJob('pending', null, new Date('2024-01-01T00:00:00Z'))
-      await insertJob('pending', null, new Date('2024-01-02T00:00:00Z'))
+    it('hands two claimers two different jobs while a third session holds the oldest', async () => {
+      const held = await insertJob(
+        'pending',
+        null,
+        new Date('2024-01-01T00:00:00Z')
+      )
+      const free = [
+        await insertJob('pending', null, new Date('2024-01-02T00:00:00Z')),
+        await insertJob('pending', null, new Date('2024-01-03T00:00:00Z')),
+      ]
+      const settled = new AbortController()
 
-      const claimed = await run(
-        Effect.flatMap(IngestJobRepository, (repo) =>
-          Effect.forEach([1, 2], () => repo.claimNext, {
-            concurrency: 'unbounded',
-          })
-        )
+      const { waiting, result } = await holdRowUntilWaited(
+        pool,
+        'SELECT id FROM ingest_jobs WHERE id = $1 FOR UPDATE',
+        [held],
+        () => {
+          const claims = run(
+            Effect.flatMap(IngestJobRepository, (repo) =>
+              Effect.forEach([1, 2], () => repo.claimNext, {
+                concurrency: 'unbounded',
+              })
+            )
+          )
+          void claims.finally(() => settled.abort())
+          return claims
+        },
+        2,
+        settled.signal
       )
 
-      const ids = Array.map(
-        Array.filter(claimed, Predicate.isNotNull),
-        (job) => job.id
-      )
-      expect(ids).toHaveLength(2)
-      expect(Array.dedupe(ids)).toHaveLength(2)
+      expect(
+        Array.map(
+          Array.filter(await result, Predicate.isNotNull),
+          (job) => job.id
+        ).sort()
+      ).toEqual([...free].sort())
+      expect(waiting, 'claimers that waited for the held job').toBe(0)
+      expect(await jobStatus(held)).toBe('pending')
     })
 
     it('leaves a job whose claim was released to the worker that claims it next', async () => {

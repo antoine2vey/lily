@@ -284,7 +284,10 @@ export const BlogPostRepositoryLive = Layer.effect(
       ) {
         const [row] = yield* db
           .update(blogPosts)
-          .set(data)
+          .set({
+            reviewScore: data.reviewScore,
+            reviewFeedback: data.reviewFeedback,
+          })
           .where(eq(blogPosts.id, id))
           .returning()
         return Option.getOrNull(Option.fromNullishOr(row))

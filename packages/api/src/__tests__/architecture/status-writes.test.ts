@@ -8,6 +8,84 @@ import { describe, expect, it } from 'vitest'
 
 const PACKAGES = resolve(import.meta.dirname, '../../../..')
 
+const REGEX_MAY_FOLLOW =
+  /(?:^|[(,=:[!&|?{};+\-*%<>~^]|\b(?:return|typeof|case|in|of|void|throw|new|delete|do|else|yield|await))\s*$/
+
+// A `//` or a `/*` inside a string, a template or a regex is text, so the
+// comments are found by reading the file token by token.
+const withoutComments = (code: string): string => {
+  const interpolations: Array<number> = []
+  let kept = ''
+  let depth = 0
+  let at = 0
+  const keepUntil = (end: number) => {
+    kept += code.slice(at, end)
+    at = end
+  }
+  const afterQuoted = (from: number, quote: string): number => {
+    let inClass = false
+    for (let i = from; i < code.length; i++) {
+      const char = code.charAt(i)
+      if (char === '\\') i++
+      else if (char === '\n') return i
+      else if (quote === '/' && char === '[') inClass = true
+      else if (quote === '/' && char === ']') inClass = false
+      else if (char === quote && !inClass) return i + 1
+    }
+    return code.length
+  }
+  const afterTemplateText = (from: number): number => {
+    for (let i = from; i < code.length; i++) {
+      const char = code.charAt(i)
+      if (char === '\\') i++
+      else if (char === '`') return i + 1
+      else if (char === '$' && code.charAt(i + 1) === '{') {
+        interpolations.push(depth)
+        depth++
+        return i + 2
+      }
+    }
+    return code.length
+  }
+  while (at < code.length) {
+    const char = code.charAt(at)
+    const next = code.charAt(at + 1)
+    if (char === '/' && next === '/') {
+      const end = code.indexOf('\n', at)
+      at = end === -1 ? code.length : end
+    } else if (char === '/' && next === '*') {
+      const end = code.indexOf('*/', at + 2)
+      at = end === -1 ? code.length : end + 2
+      kept += ' '
+    } else if (char === "'" || char === '"') {
+      keepUntil(afterQuoted(at + 1, char))
+    } else if (char === '`') {
+      keepUntil(afterTemplateText(at + 1))
+    } else if (char === '/' && REGEX_MAY_FOLLOW.test(kept.slice(-12))) {
+      keepUntil(afterQuoted(at + 1, '/'))
+    } else if (char === '}' && interpolations.at(-1) === depth - 1) {
+      interpolations.pop()
+      depth--
+      keepUntil(afterTemplateText(at + 1))
+    } else {
+      if (char === '{') depth++
+      if (char === '}') depth--
+      keepUntil(at + 1)
+    }
+  }
+  return kept
+}
+
+interface Source {
+  readonly file: string
+  readonly code: string
+}
+
+const sourceOf = (file: string, text: string): Source => ({
+  file,
+  code: withoutComments(text),
+})
+
 const ROOTS = [
   'api/src',
   'db/src',
@@ -29,14 +107,7 @@ const walk = (dir: string): ReadonlyArray<string> =>
 const sources = ROOTS.map((root) => join(PACKAGES, root))
   .filter(existsSync)
   .flatMap(walk)
-  .map((file) => ({
-    file: relative(PACKAGES, file),
-    code: readFileSync(file, 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/\/\/.*$/gm, ''),
-  }))
-
-type Source = (typeof sources)[number]
+  .map((file) => sourceOf(relative(PACKAGES, file), readFileSync(file, 'utf8')))
 
 const CLOSER: Readonly<Record<string, string>> = {
   '(': ')',
@@ -44,7 +115,6 @@ const CLOSER: Readonly<Record<string, string>> = {
   '[': ']',
 }
 
-/** The text between the bracket at `open` and the bracket that closes it. */
 const enclosed = (code: string, open: number): string => {
   const stack: Array<string> = []
   for (let at = open; at < code.length; at++) {
@@ -77,16 +147,12 @@ const tables = Object.entries({ ...schema, ...knowledgeSchema }).flatMap(
       : []
 )
 
-/**
- * Whether a row of the table an expression names can hold a status. A name
- * the schema does not export may be any table under another name, so it can.
- */
+// A name the schema does not export may be any table under another name.
 const mayHoldStatus = (expression: string): boolean => {
   const name = expression.split('.').at(-1)
   return tables.find((table) => table.name === name)?.moves ?? true
 }
 
-/** `text` with everything inside a nested bracket blanked. */
 const atTopLevel = (text: string): string => {
   const stack: Array<string> = []
   return [...text]
@@ -108,11 +174,6 @@ const STATUS_KEY =
 const SPREAD = /(?<=(?:^|[{,])\s*)\.\.\.\s*([\w.]*)/g
 const COMPUTED_KEY = /(?<=(?:^|[{,])\s*)\[/
 
-/**
- * What stops a reader of `values`, the argument of a `.set(`, from seeing
- * that no status column is in it: a status key, or a part whose keys are
- * written somewhere else.
- */
 const hiddenIn = (table: string, values: string): ReadonlyArray<string> => {
   const literal = values.trim()
   const opaque = mayHoldStatus(table)
@@ -139,7 +200,7 @@ interface Write {
   readonly hides: string
 }
 
-const UPDATE = /\.update\(\s*[\w.]+\s*\)(?!\s*\.digest\()/g
+const UPDATE = /\.update\(\s*[\w.]+(?:\[[^\]]*\])?\s*\)(?!\s*\.digest\()/g
 const UPSERT = /\.onConflictDoUpdate\(/g
 
 const updatesOf = ({ file, code }: Source): ReadonlyArray<Write> =>
@@ -185,9 +246,15 @@ const upsertsOf = ({ file, code }: Source): ReadonlyArray<Write> =>
   })
 
 /**
- * Every write of a row that puts a status in it, or that hides its columns,
- * outside `transition`. Each has a reason no machine fits it. A new one
- * goes through `kernel/transition.ts`, or is added here with its reason.
+ * Every write outside `kernel/transition.ts` that sets a status key, that
+ * hides its columns behind a variable, a spread or a computed key on a table
+ * with a status column, or that upserts one. Each has a reason no machine
+ * fits it. A new one goes through the helper, or is added here with its
+ * reason.
+ *
+ * The test reads text. It does not see a status set by a function that
+ * builds the whole statement elsewhere, or an INSERT of a row in a later
+ * state.
  */
 const ALLOWED: ReadonlyArray<Write & { readonly why: string }> = [
   {
@@ -242,7 +309,7 @@ const ALLOWED: ReadonlyArray<Write & { readonly why: string }> = [
     file: 'api/src/repositories/subscription.repository.ts',
     table: 'userSubscriptions, on conflict',
     hides: 'the key status',
-    why: 'create mirrors what the store says of the subscription. The store is the authority, so its last word wins.',
+    why: 'create writes what an authority says the subscription is: the store, through sync-store-state.ts, or a redeemed gift code, through redeem-gift-code.ts. It takes no lock. A store write that lands out of order stays until the nightly reconciliation reads the store again.',
   },
   {
     file: 'api/src/repositories/subscription.repository.ts',
@@ -254,19 +321,7 @@ const ALLOWED: ReadonlyArray<Write & { readonly why: string }> = [
     file: 'api/src/repositories/subscription.repository.ts',
     table: 'userSubscriptions',
     hides: 'the variable updateData',
-    why: 'updateFromWebhook mirrors the store. sync-store-state.ts serializes the webhooks of one user.',
-  },
-  {
-    file: 'api/src/repositories/subscription.repository.ts',
-    table: 'userSubscriptions',
-    hides: 'the variable updateData',
-    why: 'updateByUserId, for an admin gift or its revocation.',
-  },
-  {
-    file: 'api/src/repositories/blog-post.repository.ts',
-    table: 'blogPosts',
-    hides: 'the variable data',
-    why: 'updateReview takes a score and a feedback, typed as exactly those two.',
+    why: 'updateByUserId. An admin revokes a gift, whatever the row said.',
   },
   {
     file: 'db/scripts/seed-reviewer.ts',
@@ -292,10 +347,20 @@ const accountWritesOf = ({ file, code }: Source): ReadonlyArray<Write> =>
       })
 
 const SETS_A_STATUS_IN_SQL =
-  /(?<![.\w])set\s+"?[\w.]+"?\s*=(?:(?!\bwhere\b)[^;])*?\b\w*status"?\s*=(?!=)|(?<![.\w])set\s+"?\w*status"?\s*=(?!=)/i
+  /(?<![.\w])set\s+"?[\w.]+"?\s*=(?:(?!\bwhere\b)[^;])*?\b\w*status"?\s*=(?!=)|(?<![.\w])set\s+"?(?:\w+\.)*\w*status"?\s*=(?!=)/i
 
-const RENAMED =
-  /\b(transition|transitionDecided|transitionEach|writeAccount)\s+as\s+\w|\b(update|set|onConflictDoUpdate)\s*:\s*\w+\s*[,}]\s*=|\[\s*['"`](update|set|onConflictDoUpdate)['"`]\s*\]/
+const INTERPOLATED_NAME = /\$\{\s*([\w.]+)\s*\}/g
+
+const RENAMED = new RegExp(
+  [
+    /\b(?:transition|transitionDecided|transitionEach|transitionEachEither|writeAccount)\s+as\s+\w/,
+    /\{[^{}]*\b(?:update|onConflictDoUpdate)\b[^{}]*\}\s*=(?![=>])/,
+    /\[\s*['"`](?:update|set|onConflictDoUpdate)['"`]\s*\]/,
+    /\.(?:update|set|onConflictDoUpdate)\s*\.\s*(?:bind|call|apply)\b/,
+  ]
+    .map((form) => form.source)
+    .join('|')
+)
 
 const writesOf = (source: Source): ReadonlyArray<string> => [
   ...[
@@ -303,13 +368,15 @@ const writesOf = (source: Source): ReadonlyArray<string> => [
     ...upsertsOf(source),
     ...accountWritesOf(source),
   ].map(({ file, table, hides }) => `${file} | ${table} | ${hides}`),
-  ...(SETS_A_STATUS_IN_SQL.test(source.code)
+  ...(SETS_A_STATUS_IN_SQL.test(source.code.replace(INTERPOLATED_NAME, '$1'))
     ? [`${source.file} | SQL text | a status set in a string`]
     : []),
   ...(RENAMED.test(source.code)
     ? [`${source.file} | a renamed write | whatever it sets`]
     : []),
 ]
+
+const slot = (name: string) => ['$', '{', name, '}'].join('')
 
 describe('status writes', () => {
   it('go through transition, or are named here with a reason', () => {
@@ -406,6 +473,59 @@ describe('status writes', () => {
       ['SQL text | a status set in a string'],
     ],
     [
+      'SQL text that sets an interpolated status column',
+      ['sql`UPDATE ', slot('t'), ' SET ', slot('t.status'), ' = $1`'].join(''),
+      ['SQL text | a status set in a string'],
+    ],
+    [
+      'SQL text that sets an interpolated status column after another',
+      [
+        'sql`UPDATE ',
+        slot('t'),
+        ' SET ',
+        slot('t.updatedAt'),
+        ' = now(), ',
+        slot('t.status'),
+        " = 'sent'`",
+      ].join(''),
+      ['SQL text | a status set in a string'],
+    ],
+    [
+      'a status key on the line of a string that holds //',
+      "await fetch('https://lily.app'); db.update(careDelegations).set({ status: 'canceled' })",
+      ['careDelegations | the key status'],
+    ],
+    [
+      'a status key between two strings that hold /* and */',
+      "const images = 'image/*'\ndb.update(careDelegations).set({ status: 'canceled' })\nconst any = '*/*'",
+      ['careDelegations | the key status'],
+    ],
+    [
+      'a status key after a regex that holds //',
+      "const slashes = /[//]+/\ndb.update(careDelegations).set({ status: 'canceled' })",
+      ['careDelegations | the key status'],
+    ],
+    [
+      'a table picked by index',
+      'db.update(tables[name]).set(values)',
+      ['tables[name] | the variable values'],
+    ],
+    [
+      'update pulled off the database under its own name',
+      'const { update } = db',
+      ['a renamed write | whatever it sets'],
+    ],
+    [
+      'update pulled off the database with a default',
+      'const { update = fallback, select } = db',
+      ['a renamed write | whatever it sets'],
+    ],
+    [
+      'update bound to the database',
+      'const change = db.update.bind(db)',
+      ['a renamed write | whatever it sets'],
+    ],
+    [
       'the helper imported under another name',
       "import { transitionDecided as move } from '@lily/api/kernel/transition'",
       ['a renamed write | whatever it sets'],
@@ -421,7 +541,7 @@ describe('status writes', () => {
       ['a renamed write | whatever it sets'],
     ],
   ])('are found when written as %s', (_, code, found) => {
-    expect(writesOf({ file: 'probe.ts', code })).toEqual(
+    expect(writesOf(sourceOf('probe.ts', code))).toEqual(
       found.map((write) => `probe.ts | ${write}`)
     )
   })
@@ -443,6 +563,14 @@ describe('status writes', () => {
       'SQL text that reads a status',
       "sql`UPDATE notifications n SET scheduled_at = v.scheduled_at FROM v WHERE n.status = 'pending'`",
     ],
+    [
+      'a write in a line comment',
+      "// db.update(careDelegations).set({ status: 'canceled' })",
+    ],
+    [
+      'a write in a block comment',
+      "/* db.update(careDelegations).set({ status: 'canceled' }) */",
+    ],
     ['a Ref', 'Ref.update(count, (n) => n + 1)'],
     ['a hash', "createHash('sha256').update(token).digest('hex')"],
     [
@@ -450,6 +578,6 @@ describe('status writes', () => {
       "transition(db, 'Invitation', id, { from: ['pending'], to: 'declined' })",
     ],
   ])('are not found in %s', (_, code) => {
-    expect(writesOf({ file: 'probe.ts', code })).toEqual([])
+    expect(writesOf(sourceOf('probe.ts', code))).toEqual([])
   })
 })

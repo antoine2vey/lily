@@ -152,7 +152,6 @@ export const createMockSubscriptionRepository = (
       subscription = rowFromCreate(subscription, data)
       return Effect.succeed(subscription)
     },
-    updateFromWebhook: () => Effect.succeed(subscription),
     updateByUserId: (userId, data) => {
       if (options.onUpdateByUserId) {
         options.onUpdateByUserId(userId, data)

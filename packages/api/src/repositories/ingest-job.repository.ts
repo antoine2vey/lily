@@ -56,8 +56,9 @@ export interface IIngestJobRepository {
     counts: { documentsFetched: number; chunksCreated: number }
   ) => Effect.Effect<void, SqlError>
   /**
-   * Both end a job this worker still holds. `LostRace` says its claim was
-   * released as abandoned, so the job is another worker's to end.
+   * Both end a job that is in progress. `LostRace` says it is not: its claim
+   * was released as abandoned. No claim token names the worker, so a job
+   * released and then claimed by another worker is ended all the same.
    */
   readonly complete: (
     id: string,

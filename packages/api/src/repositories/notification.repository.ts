@@ -4,7 +4,10 @@ import {
   rowsToLock,
 } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
-import { transitionEach } from '@lily/api/kernel/transition'
+import {
+  transitionEach,
+  transitionEachEither,
+} from '@lily/api/kernel/transition'
 import {
   extractCount,
   getPaginationParams,
@@ -560,6 +563,8 @@ export const NotificationRepositoryLive = Layer.effect(
       ) {
         if (Array.isReadonlyArrayEmpty(ids)) return []
         const retries = sql`${notifications.retryCount} < ${retryAtAfterFailures.length}`
+        const whenRetried = (value: SQL, otherwise: SQL) =>
+          sql`CASE WHEN ${retries} THEN ${value} ELSE ${otherwise} END`
         const locked = yield* lockedInIdOrder(
           and(
             inArray(notifications.id, [...ids]),
@@ -567,15 +572,14 @@ export const NotificationRepositoryLive = Layer.effect(
             eq(notifications.deliveryMessageId, heldBy)
           )
         )
-        const attempted = {
-          retryCount: sql`${notifications.retryCount} + 1`,
-          lastError: error,
-        }
-        const retried = yield* transitionEach(db, 'Notification', {
+        const rows = yield* transitionEachEither(db, 'Notification', {
           from: ['queued'],
+          when: retries,
           to: 'pending',
+          otherwise: 'failed',
           also: {
-            ...attempted,
+            retryCount: sql`${notifications.retryCount} + 1`,
+            lastError: error,
             scheduledAt: sql`CASE ${notifications.retryCount} ${sql.join(
               Array.map(
                 retryAtAfterFailures,
@@ -584,30 +588,22 @@ export const NotificationRepositoryLive = Layer.effect(
               ),
               sql` `
             )} ELSE ${notifications.scheduledAt} END`,
-            queuedAt: null,
-            deliveryMessageId: null,
+            queuedAt: whenRetried(sql`NULL`, sql`${notifications.queuedAt}`),
+            deliveryMessageId: whenRetried(
+              sql`NULL`,
+              sql`${notifications.deliveryMessageId}`
+            ),
           },
-          where: and(inArray(notifications.id, locked), retries),
-        })
-        // The rows just retried are no longer queued, so the same lock
-        // subquery now selects only the ones out of retries.
-        const failed = yield* transitionEach(db, 'Notification', {
-          from: ['queued'],
-          to: 'failed',
-          also: attempted,
           where: inArray(notifications.id, locked),
         })
-        const attemptOf =
-          (status: FailedAttempt['status']) =>
-          (row: typeof notifications.$inferSelect): FailedAttempt => ({
+        return Array.map(
+          rows,
+          (row): FailedAttempt => ({
             id: row.id,
-            status,
+            status: row.status === 'failed' ? 'failed' : 'pending',
             retryCount: row.retryCount,
           })
-        return [
-          ...Array.map(retried, attemptOf('pending')),
-          ...Array.map(failed, attemptOf('failed')),
-        ]
+        )
       }),
 
       deletePendingByUserIdAndTypes: Effect.fn(

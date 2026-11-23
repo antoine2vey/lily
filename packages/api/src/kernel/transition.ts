@@ -34,9 +34,10 @@ const machine = <
 
 /**
  * Every status column that moves through known states, with the states each
- * one may move to. A column that takes whatever an outside authority says (an
- * admin, a store, a device) has no machine: `status-writes.test.ts` names
- * each of those writes.
+ * one may move to. To add a status column or a move, add it here. A column
+ * that takes whatever an outside authority says (an admin, a store, a
+ * device) has no machine: `status-writes.test.ts` fails on a status written
+ * outside this file, and names each of those writes with its reason.
  */
 const ROW_MACHINES = {
   Delegation: machine(careDelegations, careDelegations.id, 'status', {
@@ -136,6 +137,15 @@ export interface Move<Name extends MachineName, From extends StateOf<Name>>
   readonly to: ReachableFrom<Name, From>
 }
 
+export interface EitherMove<
+  Name extends MachineName,
+  From extends StateOf<Name>,
+> extends Move<Name, From> {
+  /** Read on each row, before the write: true moves the row to `to`. */
+  readonly when: SQL
+  readonly otherwise: ReachableFrom<Name, From>
+}
+
 export interface DecidedMove<Name extends MachineName> extends Narrowing<Name> {
   readonly from: StateOf<Name>
   readonly to: StateOf<Name>
@@ -181,7 +191,7 @@ type Db = PgDrizzle['Service']
 
 interface Statement {
   readonly from: ReadonlyArray<string>
-  readonly to: string
+  readonly to: string | SQL
   readonly also?: Readonly<Record<string, unknown>>
   readonly where?: SQL | undefined
 }
@@ -245,6 +255,14 @@ const one = <Row>(rows: ReadonlyArray<Row>): Transition<Row> =>
     onSome: (row) => Transition.Moved({ row }),
   })
 
+const eitherOf = (
+  name: MachineName,
+  move: { readonly when: SQL; readonly to: string; readonly otherwise: string }
+): SQL => {
+  const type = sql.raw(MACHINES[name].status.getSQLType())
+  return sql`CASE WHEN ${move.when} THEN ${move.to}::${type} ELSE ${move.otherwise}::${type} END`
+}
+
 /**
  * Moves the row `id` of a machine from one of `from` to `to`, in one
  * `UPDATE ... WHERE status IN (from)`. The statement is built here, so the
@@ -300,3 +318,22 @@ export const transitionEach = <
   move: Move<Name, From> & { readonly where: SQL | undefined }
 ): Effect.Effect<ReadonlyArray<RowOf<Name>>, SqlError> =>
   Effect.map(movingRows(db, name, Option.none(), move), asRowsOf<Name>)
+
+/**
+ * `transitionEach` where each row goes to `to` or to `otherwise`, picked by
+ * `when` in the one statement that moves them all. Two statements would
+ * leave the rows of the second unlocked while the first ran, for a rival to
+ * take in the other order.
+ */
+export const transitionEachEither = <
+  Name extends RowMachineName,
+  From extends StateOf<Name>,
+>(
+  db: Db,
+  name: Name,
+  move: EitherMove<Name, From> & { readonly where: SQL | undefined }
+): Effect.Effect<ReadonlyArray<RowOf<Name>>, SqlError> =>
+  Effect.map(
+    movingRows(db, name, Option.none(), { ...move, to: eitherOf(name, move) }),
+    asRowsOf<Name>
+  )

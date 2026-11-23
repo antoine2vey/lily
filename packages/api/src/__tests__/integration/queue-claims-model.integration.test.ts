@@ -1,4 +1,8 @@
-import { holdRowUntilWaited } from '@lily/api/__tests__/integration/lock-waits'
+import {
+  deadlocks,
+  holdRowUntilWaited,
+  sessionsWaitingForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { createMockAlerter } from '@lily/api/__tests__/mocks/alerter'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
@@ -9,7 +13,10 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
-import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import {
+  NotificationRepository,
+  NotificationRepositoryLive,
+} from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { makeRedisMessageQueue } from '@lily/api/services/message-queue/redis.provider'
@@ -29,6 +36,7 @@ import {
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Duration, Effect, Layer, References } from 'effect'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import Redis from 'ioredis'
 import pg from 'pg'
 import {
@@ -48,6 +56,10 @@ const IN_FLIGHT_KEY = `${QUEUE_KEY}:in-flight`
 const CLAIMED_AT_KEY = `${QUEUE_KEY}:in-flight:claimed-at`
 const QUEUE_KEYS = [QUEUE_KEY, IN_FLIGHT_KEY, CLAIMED_AT_KEY]
 const PAST_VISIBILITY = Duration.toMillis(VISIBILITY_TIMEOUT) + 60_000
+const LAST_RETRY = 2
+const AFTER_A_RETRY = 4242
+const RETRIED = '00000000-0000-4000-8000-0000000000b1'
+const EXHAUSTED = '00000000-0000-4000-8000-0000000000b2'
 
 const DatabaseLive = Layer.mergeAll(
   NotificationRepositoryLive,
@@ -63,6 +75,24 @@ const DatabaseLive = Layer.mergeAll(
 
 const quiet = Effect.provideService(References.MinimumLogLevel, 'None')
 
+const CannotReadTheDatabase = Layer.effect(
+  NotificationRepository,
+  Effect.map(NotificationRepository, (repository) =>
+    NotificationRepository.of({
+      ...repository,
+      claimForDelivery: () =>
+        Effect.fail(
+          new SqlError({
+            reason: new UnknownError({
+              cause: new Error('database unreachable'),
+              message: 'database unreachable',
+            }),
+          })
+        ),
+    })
+  )
+).pipe(Layer.provide(DatabaseLive))
+
 describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
   'Runs of packages/api/models/queue-claims.qnt on Redis and Postgres - Integration',
   () => {
@@ -77,6 +107,8 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
     const sendsAtOnce = createMockPushService({
       onSendBatch: (messages) => pushes.push(...messages.map((m) => m.to)),
     })
+
+    const pushFails = createMockPushService({ shouldFail: true })
 
     const stopsAtTheSend = () => {
       const reached = Promise.withResolvers<void>()
@@ -110,7 +142,8 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
 
     const consume = (
       sends: Layer.Layer<PushService> = sendsAtOnce,
-      alerter = createMockAlerter()
+      alerter = createMockAlerter(),
+      rows: typeof CannotReadTheDatabase = DatabaseLive
     ) =>
       Effect.runPromiseExit(
         consumeNext.pipe(
@@ -121,7 +154,8 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
               alerter.layer,
               sends,
               createMockActivityPushTokenRepository(),
-              createMockCareLogRepository([])
+              createMockCareLogRepository([]),
+              rows
             )
           ),
           quiet
@@ -145,10 +179,11 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
         await redis.zadd(CLAIMED_AT_KEY, 'XX', staleAt, claim)
     }
 
-    const dueRow = async () => {
+    const dueRow = async (id?: string) => {
       const [row] = await db
         .insert(schema.notifications)
         .values({
+          ...(id === undefined ? {} : { id }),
           type: 'new_follower',
           title: 'New follower',
           body: 'Ada started following your plant journey',
@@ -169,6 +204,85 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
         .from(schema.notifications)
         .where(eq(schema.notifications.id, id))
       return row?.status
+    }
+
+    const row = async (id: string) => {
+      const [found] = await db
+        .select({
+          status: schema.notifications.status,
+          retryCount: schema.notifications.retryCount,
+          heldBy: schema.notifications.deliveryMessageId,
+        })
+        .from(schema.notifications)
+        .where(eq(schema.notifications.id, id))
+      return found
+    }
+
+    const deadLetters = async () => {
+      const stored = await db.execute(
+        sql`SELECT count(*)::int AS count FROM dead_letter_messages`
+      )
+      return stored.rows[0]?.count
+    }
+
+    const exhaustedAlerts = (alerter: ReturnType<typeof createMockAlerter>) =>
+      alerter.events.filter(
+        (event) =>
+          event._tag === 'warning' &&
+          event.summary === 'Message moved to dead letter queue'
+      ).length
+
+    const refuseDeadLetters = async () => {
+      const allow = sql.raw(`
+        DROP TRIGGER IF EXISTS refuse_dead_letter ON dead_letter_messages;
+        DROP FUNCTION IF EXISTS refuse_dead_letter();
+      `)
+      await db.execute(
+        sql.raw(`
+        CREATE FUNCTION refuse_dead_letter() RETURNS trigger AS $$
+        BEGIN
+          RAISE EXCEPTION 'dead letter refused';
+        END $$ LANGUAGE plpgsql;
+        CREATE TRIGGER refuse_dead_letter BEFORE INSERT ON dead_letter_messages
+          FOR EACH ROW EXECUTE FUNCTION refuse_dead_letter();
+      `)
+      )
+      onTestFinished(async () => {
+        await db.execute(allow)
+      })
+      return () => db.execute(allow)
+    }
+
+    const stopAfterARetryStatement = async () => {
+      await db.execute(
+        sql.raw(`
+        CREATE FUNCTION wait_after_a_retry() RETURNS trigger AS $$
+        BEGIN
+          IF EXISTS (SELECT 1 FROM moved WHERE status = 'pending' AND retry_count > 0) THEN
+            PERFORM pg_advisory_xact_lock(${AFTER_A_RETRY});
+          END IF;
+          RETURN NULL;
+        END $$ LANGUAGE plpgsql;
+        CREATE TRIGGER wait_after_a_retry AFTER UPDATE ON notifications
+          REFERENCING NEW TABLE AS moved
+          FOR EACH STATEMENT EXECUTE FUNCTION wait_after_a_retry();
+      `)
+      )
+      const holder = await pool.connect()
+      await holder.query('SELECT pg_advisory_lock($1)', [AFTER_A_RETRY])
+      const resume = async () => {
+        await holder.query('SELECT pg_advisory_unlock_all()')
+      }
+      onTestFinished(async () => {
+        await resume().finally(() => holder.release())
+        await db.execute(
+          sql.raw(`
+          DROP TRIGGER IF EXISTS wait_after_a_retry ON notifications;
+          DROP FUNCTION IF EXISTS wait_after_a_retry();
+        `)
+        )
+      })
+      return resume
     }
 
     const resetDb = async () => {
@@ -317,30 +431,8 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
         payload: { notificationIds: [id] },
       })
       await redis.lpush(QUEUE_KEY, poison)
-      const allowDeadLetters = sql.raw(`
-        DROP TRIGGER IF EXISTS refuse_dead_letter ON dead_letter_messages;
-        DROP FUNCTION IF EXISTS refuse_dead_letter();
-      `)
-      await db.execute(
-        sql.raw(`
-        CREATE FUNCTION refuse_dead_letter() RETURNS trigger AS $$
-        BEGIN
-          RAISE EXCEPTION 'dead letter refused';
-        END $$ LANGUAGE plpgsql;
-        CREATE TRIGGER refuse_dead_letter BEFORE INSERT ON dead_letter_messages
-          FOR EACH ROW EXECUTE FUNCTION refuse_dead_letter();
-      `)
-      )
-      onTestFinished(async () => {
-        await db.execute(allowDeadLetters)
-      })
+      const allowDeadLetters = await refuseDeadLetters()
       const alerter = createMockAlerter()
-      const deadLetters = async () => {
-        const stored = await db.execute(
-          sql`SELECT count(*)::int AS count FROM dead_letter_messages WHERE original_message_id = 'poison-1'`
-        )
-        return stored.rows[0]?.count
-      }
 
       await consume(sendsAtOnce, alerter)
 
@@ -350,7 +442,7 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
       ).toEqual([0, 0])
       expect(await redis.hlen(IN_FLIGHT_KEY)).toBe(1)
 
-      await db.execute(allowDeadLetters)
+      await allowDeadLetters()
       await claimsGoStale()
       await sweep()
       await consume(sendsAtOnce, alerter)
@@ -363,5 +455,123 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
       expect(pushes).toHaveLength(0)
       expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
     }, 20_000)
+
+    it('thirdFailureDeadLetterFails: a last failure whose dead letter cannot be written stays queued, and its redelivery fails the row once', async () => {
+      const id = await dueRow()
+      await db.execute(
+        sql`UPDATE notifications SET retry_count = ${LAST_RETRY} WHERE id = ${id}`
+      )
+      await poll()
+      const allowDeadLetters = await refuseDeadLetters()
+      const alerter = createMockAlerter()
+
+      await consume(pushFails, alerter)
+
+      expect(
+        [exhaustedAlerts(alerter), await deadLetters(), await row(id)],
+        'the row and its reports while the dead letter cannot be written'
+      ).toEqual([
+        0,
+        0,
+        expect.objectContaining({ status: 'queued', retryCount: LAST_RETRY }),
+      ])
+      expect(await redis.hlen(IN_FLIGHT_KEY)).toBe(1)
+
+      await allowDeadLetters()
+      await claimsGoStale()
+      await sweep()
+      await consume(pushFails, alerter)
+
+      expect(
+        [exhaustedAlerts(alerter), await deadLetters(), await row(id)],
+        'the row and its reports after the redelivery failed too'
+      ).toEqual([
+        1,
+        1,
+        expect.objectContaining({
+          status: 'failed',
+          retryCount: LAST_RETRY + 1,
+        }),
+      ])
+      expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
+    }, 20_000)
+
+    it('foreignRow: a message that fails without holding the row leaves it to the message that holds it', async () => {
+      const id = await dueRow()
+      await poll()
+      await db.execute(
+        sql`UPDATE notifications SET queued_at = now() - interval '11 minutes' WHERE id = ${id}`
+      )
+      await sweep()
+      await poll()
+      expect(await redis.llen(QUEUE_KEY)).toBe(2)
+
+      const holder = stopsAtTheSend()
+      const held = consume(holder.sends)
+      await holder.reached
+      const heldBy = (await row(id))?.heldBy
+      const alerter = createMockAlerter()
+
+      await consume(sendsAtOnce, alerter, CannotReadTheDatabase)
+      await consume(sendsAtOnce, alerter, CannotReadTheDatabase)
+
+      expect(heldBy).toEqual(expect.any(String))
+      expect(
+        [exhaustedAlerts(alerter), await deadLetters(), await row(id)],
+        'the row another message holds, after a message that could not claim it failed'
+      ).toEqual([0, 0, { status: 'queued', retryCount: 0, heldBy }])
+      expect(await redis.llen(QUEUE_KEY)).toBe(0)
+      expect(await redis.hlen(IN_FLIGHT_KEY)).toBe(1)
+
+      holder.resume()
+      await held
+      expect(await rowStatus(id)).toBe('sent')
+    }, 20_000)
+
+    it('retryLater is one UPDATE: the sweep that arrives behind it waits for both rows of the message and fails neither', async () => {
+      await dueRow(EXHAUSTED)
+      await dueRow(RETRIED)
+      await poll()
+      const [entry] = await redis.lrange(QUEUE_KEY, 0, 0)
+      const message = JSON.parse(entry ?? '{}')
+      await redis.del(QUEUE_KEY)
+      await redis.lpush(
+        QUEUE_KEY,
+        JSON.stringify({
+          ...message,
+          payload: {
+            ...message.payload,
+            notificationIds: [RETRIED, EXHAUSTED],
+          },
+        })
+      )
+      await db.execute(
+        sql`UPDATE notifications SET queued_at = now() - interval '2 hours'`
+      )
+      await db.execute(
+        sql`UPDATE notifications SET retry_count = ${LAST_RETRY} WHERE id = ${EXHAUSTED}`
+      )
+      const deadlocksBefore = await deadlocks(pool)
+      const resume = await stopAfterARetryStatement()
+      const alerter = createMockAlerter()
+
+      const retry = consume(pushFails, alerter)
+      expect(await sessionsWaitingForALock(pool, 1)).toBe(1)
+      const swept = sweep()
+      expect(await sessionsWaitingForALock(pool, 2)).toBe(2)
+      await resume()
+      await retry
+      await swept
+
+      expect(
+        [await row(RETRIED), await row(EXHAUSTED)],
+        'the two rows of one message after its push failed and the sweep ran behind the retry'
+      ).toEqual([
+        { status: 'pending', retryCount: 1, heldBy: null },
+        { status: 'failed', retryCount: LAST_RETRY + 1, heldBy: message.id },
+      ])
+      expect([exhaustedAlerts(alerter), await deadLetters()]).toEqual([1, 1])
+      expect((await deadlocks(pool)) - deadlocksBefore).toBe(0)
+    }, 30_000)
   }
 )
