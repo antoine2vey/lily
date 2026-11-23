@@ -15,6 +15,11 @@ import {
 } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
 import {
+  Transition,
+  transition,
+  transitionEach,
+} from '@lily/api/kernel/transition'
+import {
   ownedBy,
   ownerColumns,
   ownerOf,
@@ -147,7 +152,11 @@ export const allMoved = (
 export class RowsNotWrittenDefect extends Data.TaggedError(
   'RowsNotWrittenDefect'
 )<{
-  readonly write: 'MoveRooms' | 'RemoveMember' | 'SetOwner'
+  readonly write:
+    | 'MoveRooms'
+    | 'RemoveMember'
+    | 'ResolveInvitation'
+    | 'SetOwner'
   readonly named: number
   readonly written: number
 }> {}
@@ -726,30 +735,31 @@ export const CanopyStoreLive = Layer.effect(
           )
         },
         ResolveInvitation: (w) =>
-          Effect.asVoid(
-            db
-              .update(canopyDirectInvites)
-              .set({ status: w.to, resolvedAt: DateTime.toDateUtc(w.at) })
-              .where(eq(canopyDirectInvites.id, w.id))
+          Effect.flatMap(
+            transition(db, 'Invitation', w.id, {
+              from: ['pending'],
+              to: w.to,
+              also: { resolvedAt: DateTime.toDateUtc(w.at) },
+            }),
+            Transition.$match({
+              Moved: () => Effect.void,
+              LostRace: () => allWritten('ResolveInvitation', 1, 0),
+            })
           ),
         WithdrawInvitationsSentByOrTo: (w) =>
           Effect.asVoid(
-            db
-              .update(canopyDirectInvites)
-              .set({
-                status: 'withdrawn',
-                resolvedAt: DateTime.toDateUtc(w.at),
-              })
-              .where(
-                and(
-                  eq(canopyDirectInvites.canopyId, w.canopyId),
-                  or(
-                    eq(canopyDirectInvites.invitedByUserId, w.userId),
-                    eq(canopyDirectInvites.inviteeUserId, w.userId)
-                  ),
-                  eq(canopyDirectInvites.status, 'pending')
+            transitionEach(db, 'Invitation', {
+              from: ['pending'],
+              to: 'withdrawn',
+              also: { resolvedAt: DateTime.toDateUtc(w.at) },
+              where: and(
+                eq(canopyDirectInvites.canopyId, w.canopyId),
+                or(
+                  eq(canopyDirectInvites.invitedByUserId, w.userId),
+                  eq(canopyDirectInvites.inviteeUserId, w.userId)
                 )
-              )
+              ),
+            })
           ),
         Mute: (w) =>
           Effect.asVoid(

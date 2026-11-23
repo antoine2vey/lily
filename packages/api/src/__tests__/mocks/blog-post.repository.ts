@@ -1,3 +1,4 @@
+import { isLegal, Transition } from '@lily/api/kernel/transition'
 import {
   type BlogPost,
   BlogPostRepository,
@@ -13,6 +14,28 @@ export const createMockBlogPostRepository = (
   posts: BlogPost[]
 ): Layer.Layer<BlogPostRepository> => {
   const data = Array.map(posts, (p) => ({ ...p }))
+
+  const moved = (
+    id: string,
+    to: BlogPostStatus,
+    stamps: Partial<BlogPost>
+  ): Transition<BlogPost> =>
+    pipe(
+      Array.findFirst(
+        data,
+        (post) => post.id === id && isLegal('BlogPost', post.status, to)
+      ),
+      Option.match({
+        onNone: () => Transition.LostRace(),
+        onSome: (post) =>
+          Transition.Moved({
+            row: Object.assign(post, stamps, {
+              status: to,
+              updatedAt: new Date(),
+            }),
+          }),
+      })
+    )
 
   const repo: IBlogPostRepository = {
     create: (createData: CreateBlogPostData) =>
@@ -98,21 +121,9 @@ export const createMockBlogPostRepository = (
       )
     ),
 
-    updateStatus: (id: string, status: BlogPostStatus) =>
-      pipe(
-        Array.findFirst(data, (p) => p.id === id),
-        Option.match({
-          onNone: () => Effect.succeed(null),
-          onSome: (existing) => {
-            const updated: BlogPost = {
-              ...existing,
-              status,
-              updatedAt: new Date(),
-            }
-            return Effect.succeed(updated)
-          },
-        })
-      ),
+    moveTo: (id, to) => Effect.sync(() => moved(id, to, {})),
+
+    reject: (id) => Effect.sync(() => moved(id, 'rejected', {})),
 
     updateSources: (id: string, sources: BlogPostSource[]) =>
       pipe(
@@ -185,21 +196,8 @@ export const createMockBlogPostRepository = (
       ),
 
     markPublished: (id: string, commitShas: LocalizedText) =>
-      pipe(
-        Array.findFirst(data, (p) => p.id === id),
-        Option.match({
-          onNone: () => Effect.succeed(null),
-          onSome: (existing) => {
-            const updated: BlogPost = {
-              ...existing,
-              commitShas,
-              status: 'published' as const,
-              publishedAt: new Date(),
-              updatedAt: new Date(),
-            }
-            return Effect.succeed(updated)
-          },
-        })
+      Effect.sync(() =>
+        moved(id, 'published', { commitShas, publishedAt: new Date() })
       ),
   }
 

@@ -1,4 +1,5 @@
 import {
+  CanopyOnPostgresLive,
   dissolve,
   leave,
   leaveForDeletion,
@@ -8,10 +9,16 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { Canopy, JoinVia } from '@lily/api/contexts/canopy'
+import { CanopyWrite } from '@lily/api/contexts/canopy/domain/decide'
+import {
+  CanopyStore,
+  RowsNotWrittenDefect,
+} from '@lily/api/contexts/canopy/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import {
@@ -27,10 +34,10 @@ import { acceptCanopyInvitation } from '@lily/api/services/canopy/endpoints/acce
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { CanopyInviteNotFoundError } from '@lily/shared'
-import { failureOf } from '@lily/shared/testing'
+import { defectOf, failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Effect, Exit, Layer } from 'effect'
+import { Array, DateTime, Effect, Exit, Layer } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -51,6 +58,8 @@ const AppLive = Layer.mergeAll(
   createMockWeatherRepository(),
   createMockLimitChecker()
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
+
+const StoreLive = CanopyOnPostgresLive.pipe(Layer.provideMerge(AppLive))
 
 const run = <A, E>(
   effect: Effect.Effect<A, E, Layer.Success<typeof AppLive> | Outbox | Canopy>
@@ -256,6 +265,37 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).toEqual([])
       }
     )
+
+    it('dies instead of withdrawing an invitation that is no longer pending', async () => {
+      const { id } = await invite(lilyId, samId)
+      await db
+        .update(schema.canopyDirectInvites)
+        .set({ status: 'declined' })
+        .where(eq(schema.canopyDirectInvites.id, id))
+
+      const withdrawn = await Effect.runPromiseExit(
+        Effect.flatMap(CanopyStore, (store) =>
+          store.apply([
+            CanopyWrite.ResolveInvitation({
+              id,
+              to: 'withdrawn',
+              at: DateTime.nowUnsafe(),
+            }),
+          ])
+        ).pipe(transactInMemory, Effect.provide(StoreLive))
+      )
+
+      expect(defectOf(withdrawn)).toEqual(
+        new RowsNotWrittenDefect({
+          write: 'ResolveInvitation',
+          named: 1,
+          written: 0,
+        })
+      )
+      expect(Array.map(await invitationsFor(lilyId), (i) => i.status)).toEqual([
+        'declined',
+      ])
+    })
 
     it('admits the invitee once when they accept twice at the same time', async () => {
       const { id } = await invite(lilyId, samId)

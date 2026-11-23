@@ -152,7 +152,6 @@ export const createMockSubscriptionRepository = (
       subscription = rowFromCreate(subscription, data)
       return Effect.succeed(subscription)
     },
-    updateStatus: () => Effect.succeed(subscription),
     updateFromWebhook: () => Effect.succeed(subscription),
     updateByUserId: (userId, data) => {
       if (options.onUpdateByUserId) {
@@ -160,7 +159,6 @@ export const createMockSubscriptionRepository = (
       }
       return Effect.succeed(subscription)
     },
-    cancel: () => Effect.succeed(subscription),
     getTier: (name) =>
       Effect.succeed(
         byUser === undefined

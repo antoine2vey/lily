@@ -112,7 +112,7 @@ const buildLayers = (opts: {
 describe('processIngestJob', () => {
   it('should process documents through the full pipeline: in_progress -> completed', async () => {
     const doc = makeTestDoc()
-    const job = createTestIngestJob({ id: 'test-job-1' })
+    const job = createTestIngestJob({ id: 'test-job-1', status: 'in_progress' })
     const jobs = [job]
     const insertedChunks: CreateChunkData[] = []
 
@@ -136,7 +136,10 @@ describe('processIngestJob', () => {
 
   it('should produce parent + children for Reddit post with comments', async () => {
     const doc = makeRedditDocWithComments(2)
-    const job = createTestIngestJob({ id: 'test-job-reddit-parent-child' })
+    const job = createTestIngestJob({
+      id: 'test-job-reddit-parent-child',
+      status: 'in_progress',
+    })
     const jobs = [job]
     const insertedChunks: CreateChunkData[] = []
 
@@ -180,7 +183,10 @@ describe('processIngestJob', () => {
 
   it('should produce single child with no parent for Reddit post without comments', async () => {
     const doc = makeTestDoc() // source: 'reddit', no comments in metadata
-    const job = createTestIngestJob({ id: 'test-job-reddit-no-comments' })
+    const job = createTestIngestJob({
+      id: 'test-job-reddit-no-comments',
+      status: 'in_progress',
+    })
     const jobs = [job]
     const insertedChunks: CreateChunkData[] = []
 
@@ -222,7 +228,7 @@ describe('processIngestJob', () => {
       makeTestDoc({ sourceId: 'already-stored' }),
       makeTestDoc(),
     ]
-    const job = createTestIngestJob({ id: 'test-job-2' })
+    const job = createTestIngestJob({ id: 'test-job-2', status: 'in_progress' })
     const jobs = [job]
     const progress: { documentsFetched: number; chunksCreated: number }[] = []
     const completed: { documentsFetched: number; chunksCreated: number }[] = []
@@ -269,7 +275,10 @@ describe('processIngestJob', () => {
 
   it('does not count a document another worker inserted first', async () => {
     const doc = makeTestDoc({ sourceId: 'raced' })
-    const job = createTestIngestJob({ id: 'test-job-race' })
+    const job = createTestIngestJob({
+      id: 'test-job-race',
+      status: 'in_progress',
+    })
     const jobs = [job]
 
     // The pre-check misses the row and the insert hits the unique index.
@@ -324,7 +333,10 @@ describe('processIngestJob', () => {
     const newDoc = makeTestDoc({ sourceId: 'duplicate-source-id' })
     const freshDoc = makeTestDoc({ sourceId: 'new-source-id' })
 
-    const job = createTestIngestJob({ id: 'test-job-dedup' })
+    const job = createTestIngestJob({
+      id: 'test-job-dedup',
+      status: 'in_progress',
+    })
     const jobs = [job]
     const documents = [existingDoc]
     const insertedChunks: CreateChunkData[] = []
@@ -352,7 +364,10 @@ describe('processIngestJob', () => {
 
   it('should process documents without sourceId (no dedup check)', async () => {
     const doc = makeTestDoc({ sourceId: undefined as unknown as string })
-    const job = createTestIngestJob({ id: 'test-job-no-source' })
+    const job = createTestIngestJob({
+      id: 'test-job-no-source',
+      status: 'in_progress',
+    })
     const jobs = [job]
     const documents: RawDocument[] = []
     const insertedChunks: CreateChunkData[] = []
@@ -377,7 +392,10 @@ describe('processIngestJob', () => {
 
   it('should store chunks without embeddings when embedding fails', async () => {
     const doc = makeTestDoc()
-    const job = createTestIngestJob({ id: 'test-job-embed-fail' })
+    const job = createTestIngestJob({
+      id: 'test-job-embed-fail',
+      status: 'in_progress',
+    })
     const jobs = [job]
     const insertedChunks: CreateChunkData[] = []
 
@@ -412,7 +430,10 @@ describe('processIngestJob', () => {
   })
 
   it('should mark job as failed with error message on adapter failure', async () => {
-    const job = createTestIngestJob({ id: 'test-job-adapter-fail' })
+    const job = createTestIngestJob({
+      id: 'test-job-adapter-fail',
+      status: 'in_progress',
+    })
     const jobs = [job]
 
     mockedGetAdapter.mockReturnValueOnce(
@@ -433,7 +454,10 @@ describe('processIngestJob', () => {
   })
 
   it('should complete with 0 docs and 0 chunks for empty stream', async () => {
-    const job = createTestIngestJob({ id: 'test-job-empty' })
+    const job = createTestIngestJob({
+      id: 'test-job-empty',
+      status: 'in_progress',
+    })
     const jobs = [job]
     const insertedChunks: CreateChunkData[] = []
 
@@ -458,7 +482,10 @@ describe('processIngestJob', () => {
 
   it('should produce 0 chunks for documents with content too short to chunk', async () => {
     const shortDoc = makeTestDoc({ source: 'web', content: 'Short content' })
-    const job = createTestIngestJob({ id: 'test-job-short' })
+    const job = createTestIngestJob({
+      id: 'test-job-short',
+      status: 'in_progress',
+    })
     const jobs = [job]
     const insertedChunks: CreateChunkData[] = []
 
@@ -481,7 +508,10 @@ describe('processIngestJob', () => {
   })
 
   it('should mark job as failed when stream emits an error', async () => {
-    const job = createTestIngestJob({ id: 'test-job-stream-fail' })
+    const job = createTestIngestJob({
+      id: 'test-job-stream-fail',
+      status: 'in_progress',
+    })
     const jobs = [job]
 
     mockedGetAdapter.mockReturnValueOnce(
@@ -512,7 +542,10 @@ describe('processIngestJob', () => {
         'monstera watering schedule with proper moisture levels'
       ),
     })
-    const job = createTestIngestJob({ id: 'test-job-metadata' })
+    const job = createTestIngestJob({
+      id: 'test-job-metadata',
+      status: 'in_progress',
+    })
     const jobs = [job]
     const insertedChunks: CreateChunkData[] = []
 
@@ -547,7 +580,10 @@ describe('processIngestJob', () => {
 
   it('should store keywords in embeddingContent and keep content clean', async () => {
     const doc = makeTestDoc()
-    const job = createTestIngestJob({ id: 'test-job-keywords' })
+    const job = createTestIngestJob({
+      id: 'test-job-keywords',
+      status: 'in_progress',
+    })
     const jobs = [job]
     const insertedChunks: CreateChunkData[] = []
 

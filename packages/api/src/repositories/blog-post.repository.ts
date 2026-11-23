@@ -1,3 +1,8 @@
+import {
+  type Transition,
+  transition,
+  transitionEach,
+} from '@lily/api/kernel/transition'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   type BlogPostSource,
@@ -13,12 +18,15 @@ import type { SqlError } from 'effect/sql/SqlError'
 export type BlogPostStatus = (typeof blogPostStatusEnum.enumValues)[number]
 
 /** Non-terminal statuses indicating a post is actively being processed */
-export const IN_PROGRESS_STATUSES: readonly BlogPostStatus[] = [
+export const IN_PROGRESS_STATUSES = [
   'pending',
   'researching',
   'generating',
   'reviewing',
-]
+] as const satisfies ReadonlyArray<BlogPostStatus>
+
+/** The states a pipeline moves its post to, each from the step before it. */
+export type BlogPostStep = 'researching' | 'generating' | 'reviewing'
 
 export type BlogPost = typeof blogPosts.$inferSelect
 
@@ -50,10 +58,16 @@ export interface IBlogPostRepository {
     readonly { slug: string; title: LocalizedText }[],
     SqlError
   >
-  readonly updateStatus: (
+  /**
+   * `LostRace` says the post is not at the step before `to`: the stale
+   * sweep rejected it, so its pipeline must stop.
+   */
+  readonly moveTo: (
     id: string,
-    status: BlogPostStatus
-  ) => Effect.Effect<BlogPost | null, SqlError>
+    to: BlogPostStep
+  ) => Effect.Effect<Transition<BlogPost>, SqlError>
+  /** Rejects a post still in progress. A published post stays published. */
+  readonly reject: (id: string) => Effect.Effect<Transition<BlogPost>, SqlError>
   readonly updateSources: (
     id: string,
     sources: BlogPostSource[]
@@ -76,7 +90,7 @@ export interface IBlogPostRepository {
   readonly markPublished: (
     id: string,
     commitShas: LocalizedText
-  ) => Effect.Effect<BlogPost | null, SqlError>
+  ) => Effect.Effect<Transition<BlogPost>, SqlError>
 }
 
 export class BlogPostRepository extends Context.Service<
@@ -88,6 +102,27 @@ export const BlogPostRepositoryLive = Layer.effect(
   BlogPostRepository,
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
+
+    const step = {
+      researching: (id) =>
+        transition(db, 'BlogPost', id, {
+          from: ['pending'],
+          to: 'researching',
+        }),
+      generating: (id) =>
+        transition(db, 'BlogPost', id, {
+          from: ['researching', 'reviewing'],
+          to: 'generating',
+        }),
+      reviewing: (id) =>
+        transition(db, 'BlogPost', id, {
+          from: ['generating'],
+          to: 'reviewing',
+        }),
+    } satisfies Record<
+      BlogPostStep,
+      (id: string) => Effect.Effect<Transition<BlogPost>, SqlError>
+    >
 
     return {
       create: Effect.fn('BlogPostRepository.create')(function* (
@@ -187,31 +222,23 @@ export const BlogPostRepositoryLive = Layer.effect(
 
       rejectStalePosts: Effect.fn('BlogPostRepository.rejectStalePosts')(
         function* (staleBeforeDate: Date) {
-          const rows = yield* db
-            .update(blogPosts)
-            .set({ status: 'rejected' as const })
-            .where(
-              and(
-                inArray(blogPosts.status, [...IN_PROGRESS_STATUSES]),
-                lte(blogPosts.updatedAt, staleBeforeDate)
-              )
-            )
-            .returning({ id: blogPosts.id })
+          const rows = yield* transitionEach(db, 'BlogPost', {
+            from: IN_PROGRESS_STATUSES,
+            to: 'rejected',
+            where: lte(blogPosts.updatedAt, staleBeforeDate),
+          })
           return Array.length(rows)
         }
       ),
 
-      updateStatus: Effect.fn('BlogPostRepository.updateStatus')(function* (
-        id: string,
-        status: BlogPostStatus
-      ) {
-        const [row] = yield* db
-          .update(blogPosts)
-          .set({ status })
-          .where(eq(blogPosts.id, id))
-          .returning()
-        return Option.getOrNull(Option.fromNullishOr(row))
-      }),
+      moveTo: Effect.fn('BlogPostRepository.moveTo')((id, to) => step[to](id)),
+
+      reject: Effect.fn('BlogPostRepository.reject')((id) =>
+        transition(db, 'BlogPost', id, {
+          from: IN_PROGRESS_STATUSES,
+          to: 'rejected',
+        })
+      ),
 
       updateSources: Effect.fn('BlogPostRepository.updateSources')(function* (
         id: string,
@@ -267,16 +294,11 @@ export const BlogPostRepositoryLive = Layer.effect(
         id: string,
         commitShas: LocalizedText
       ) {
-        const [row] = yield* db
-          .update(blogPosts)
-          .set({
-            commitShas,
-            status: 'published' as const,
-            publishedAt: nowAsDate(),
-          })
-          .where(eq(blogPosts.id, id))
-          .returning()
-        return Option.getOrNull(Option.fromNullishOr(row))
+        return yield* transition(db, 'BlogPost', id, {
+          from: ['reviewing', 'rejected'],
+          to: 'published',
+          also: { commitShas, publishedAt: nowAsDate() },
+        })
       }),
     }
   })

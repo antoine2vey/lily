@@ -186,6 +186,46 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(Array.dedupe(ids)).toHaveLength(2)
     })
 
+    it('leaves a job whose claim was released to the worker that claims it next', async () => {
+      const released = await insertJob(
+        'pending',
+        null,
+        new Date('2024-01-01T00:00:00Z')
+      )
+
+      const [completed, failed] = await run(
+        Effect.flatMap(IngestJobRepository, (repo) =>
+          Effect.all([
+            repo.complete(released, { documentsFetched: 3, chunksCreated: 9 }),
+            repo.updateError(released, 'boom'),
+          ])
+        )
+      )
+
+      expect([completed._tag, failed._tag]).toEqual(['LostRace', 'LostRace'])
+      expect(await jobStatus(released)).toBe('pending')
+    })
+
+    it('ends a job once: a failure after the completion does not overwrite it', async () => {
+      const held = await insertJob(
+        'in_progress',
+        new Date(),
+        new Date('2024-01-01T00:00:00Z')
+      )
+
+      const [completed, failed] = await run(
+        Effect.flatMap(IngestJobRepository, (repo) =>
+          Effect.all([
+            repo.complete(held, { documentsFetched: 3, chunksCreated: 9 }),
+            repo.updateError(held, 'boom'),
+          ])
+        )
+      )
+
+      expect([completed._tag, failed._tag]).toEqual(['Moved', 'LostRace'])
+      expect(await jobStatus(held)).toBe('completed')
+    })
+
     it('re-queues abandoned and unstamped claims but not live ones', async () => {
       const cutoff = new Date(Date.now() - 15 * 60 * 1000)
       const abandoned = await insertJob(

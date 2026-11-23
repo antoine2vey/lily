@@ -466,15 +466,20 @@ export const createInMemoryCanopy = (
           ...opened,
         })
       }),
-      ResolveInvitation: change((w) =>
-        Array.forEach(data.invitations, (row) => {
-          if (row.id !== w.id) return
-          Object.assign(row, {
-            status: w.to,
-            resolvedAt: DateTime.toDateUtc(w.at),
-          })
-        })
-      ),
+      ResolveInvitation: (w) =>
+        Effect.suspend(() => {
+          const pending = Array.filter(
+            data.invitations,
+            (row) => row.id === w.id && row.status === 'pending'
+          )
+          Array.forEach(pending, (row) =>
+            Object.assign(row, {
+              status: w.to,
+              resolvedAt: DateTime.toDateUtc(w.at),
+            })
+          )
+          return allWritten('ResolveInvitation', 1, pending.length)
+        }),
       WithdrawInvitationsSentByOrTo: change((w) =>
         Array.forEach(data.invitations, (row) => {
           if (

@@ -4,6 +4,7 @@ import {
   rowsToLock,
 } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
+import { transitionEach } from '@lily/api/kernel/transition'
 import {
   extractCount,
   getPaginationParams,
@@ -441,27 +442,27 @@ export const NotificationRepositoryLive = Layer.effect(
           .orderBy(notifications.scheduledAt)
           .limit(limit)
           .for('update', { skipLocked: true })
-        const rows = yield* db
-          .update(notifications)
-          .set({ status: 'queued', queuedAt: now })
-          .where(inArray(notifications.id, due))
-          .returning()
+        const rows = yield* transitionEach(db, 'Notification', {
+          from: ['pending'],
+          to: 'queued',
+          also: { queuedAt: now },
+          where: inArray(notifications.id, due),
+        })
         return Array.map(rows, mapToNotification)
       }),
 
       releaseUnclaimed: Effect.fn('NotificationRepository.releaseUnclaimed')(
         function* (ids: ReadonlyArray<string>) {
           if (ids.length === 0) return
-          yield* db
-            .update(notifications)
-            .set({ status: 'pending', queuedAt: null })
-            .where(
-              and(
-                inArray(notifications.id, [...ids]),
-                eq(notifications.status, 'queued'),
-                isNull(notifications.deliveryMessageId)
-              )
-            )
+          yield* transitionEach(db, 'Notification', {
+            from: ['queued'],
+            to: 'pending',
+            also: { queuedAt: null },
+            where: and(
+              inArray(notifications.id, [...ids]),
+              isNull(notifications.deliveryMessageId)
+            ),
+          })
         }
       ),
 
@@ -478,28 +479,22 @@ export const NotificationRepositoryLive = Layer.effect(
           ),
           sql` `
         )} END`
-        yield* db
-          .update(notifications)
-          .set({
-            status: 'pending',
-            queuedAt: null,
-            deliveryMessageId: null,
-            scheduledAt,
-          })
-          .where(
-            and(
-              inArray(
-                notifications.id,
-                Array.map(rows, (row) => row.id)
-              ),
-              eq(notifications.status, 'queued'),
-              Option.match(heldBy, {
-                onNone: () => isNull(notifications.deliveryMessageId),
-                onSome: (messageId) =>
-                  eq(notifications.deliveryMessageId, messageId),
-              })
-            )
-          )
+        yield* transitionEach(db, 'Notification', {
+          from: ['queued'],
+          to: 'pending',
+          also: { queuedAt: null, deliveryMessageId: null, scheduledAt },
+          where: and(
+            inArray(
+              notifications.id,
+              Array.map(rows, (row) => row.id)
+            ),
+            Option.match(heldBy, {
+              onNone: () => isNull(notifications.deliveryMessageId),
+              onSome: (messageId) =>
+                eq(notifications.deliveryMessageId, messageId),
+            })
+          ),
+        })
       }),
 
       claimForDelivery: Effect.fn('NotificationRepository.claimForDelivery')(
@@ -527,39 +522,33 @@ export const NotificationRepositoryLive = Layer.effect(
       releaseUnclaimedOlderThan: Effect.fn(
         'NotificationRepository.releaseUnclaimedOlderThan'
       )(function* (queuedBefore: Date) {
-        const rows = yield* db
-          .update(notifications)
-          .set({ status: 'pending', queuedAt: null })
-          .where(
-            and(
-              eq(notifications.status, 'queued'),
-              isNull(notifications.deliveryMessageId),
-              lt(notifications.queuedAt, queuedBefore)
-            )
-          )
-          .returning({ id: notifications.id })
+        const rows = yield* transitionEach(db, 'Notification', {
+          from: ['queued'],
+          to: 'pending',
+          also: { queuedAt: null },
+          where: and(
+            isNull(notifications.deliveryMessageId),
+            lt(notifications.queuedAt, queuedBefore)
+          ),
+        })
         return Array.length(rows)
       }),
 
       failAbandonedDeliveries: Effect.fn(
         'NotificationRepository.failAbandonedDeliveries'
       )(function* (queuedBefore: Date, error: string) {
-        const rows = yield* db
-          .update(notifications)
-          .set({ status: 'failed', lastError: error })
-          .where(
+        const rows = yield* transitionEach(db, 'Notification', {
+          from: ['queued'],
+          to: 'failed',
+          also: { lastError: error },
+          where: or(
+            isNull(notifications.queuedAt),
             and(
-              eq(notifications.status, 'queued'),
-              or(
-                isNull(notifications.queuedAt),
-                and(
-                  isNotNull(notifications.deliveryMessageId),
-                  lt(notifications.queuedAt, queuedBefore)
-                )
-              )
+              isNotNull(notifications.deliveryMessageId),
+              lt(notifications.queuedAt, queuedBefore)
             )
-          )
-          .returning({ id: notifications.id })
+          ),
+        })
         return Array.length(rows)
       }),
 
@@ -571,8 +560,6 @@ export const NotificationRepositoryLive = Layer.effect(
       ) {
         if (Array.isReadonlyArrayEmpty(ids)) return []
         const retries = sql`${notifications.retryCount} < ${retryAtAfterFailures.length}`
-        const whenRetried = (value: SQL, otherwise: SQL) =>
-          sql`CASE WHEN ${retries} THEN ${value} ELSE ${otherwise} END`
         const locked = yield* lockedInIdOrder(
           and(
             inArray(notifications.id, [...ids]),
@@ -580,15 +567,15 @@ export const NotificationRepositoryLive = Layer.effect(
             eq(notifications.deliveryMessageId, heldBy)
           )
         )
-        const rows = yield* db
-          .update(notifications)
-          .set({
-            status: whenRetried(
-              sql`'pending'::notification_status`,
-              sql`'failed'::notification_status`
-            ),
-            retryCount: sql`${notifications.retryCount} + 1`,
-            lastError: error,
+        const attempted = {
+          retryCount: sql`${notifications.retryCount} + 1`,
+          lastError: error,
+        }
+        const retried = yield* transitionEach(db, 'Notification', {
+          from: ['queued'],
+          to: 'pending',
+          also: {
+            ...attempted,
             scheduledAt: sql`CASE ${notifications.retryCount} ${sql.join(
               Array.map(
                 retryAtAfterFailures,
@@ -597,26 +584,30 @@ export const NotificationRepositoryLive = Layer.effect(
               ),
               sql` `
             )} ELSE ${notifications.scheduledAt} END`,
-            queuedAt: whenRetried(sql`NULL`, sql`${notifications.queuedAt}`),
-            deliveryMessageId: whenRetried(
-              sql`NULL`,
-              sql`${notifications.deliveryMessageId}`
-            ),
-          })
-          .where(inArray(notifications.id, locked))
-          .returning({
-            id: notifications.id,
-            status: notifications.status,
-            retryCount: notifications.retryCount,
-          })
-        return Array.map(
-          rows,
-          (row): FailedAttempt => ({
+            queuedAt: null,
+            deliveryMessageId: null,
+          },
+          where: and(inArray(notifications.id, locked), retries),
+        })
+        // The rows just retried are no longer queued, so the same lock
+        // subquery now selects only the ones out of retries.
+        const failed = yield* transitionEach(db, 'Notification', {
+          from: ['queued'],
+          to: 'failed',
+          also: attempted,
+          where: inArray(notifications.id, locked),
+        })
+        const attemptOf =
+          (status: FailedAttempt['status']) =>
+          (row: typeof notifications.$inferSelect): FailedAttempt => ({
             id: row.id,
-            status: row.status === 'failed' ? 'failed' : 'pending',
+            status,
             retryCount: row.retryCount,
           })
-        )
+        return [
+          ...Array.map(retried, attemptOf('pending')),
+          ...Array.map(failed, attemptOf('failed')),
+        ]
       }),
 
       deletePendingByUserIdAndTypes: Effect.fn(
@@ -923,41 +914,31 @@ export const NotificationRepositoryLive = Layer.effect(
               Array.map(rows, (row) => sql`WHEN ${row.id} THEN ${column(row)}`),
               sql` `
             )} END`
-          yield* db
-            .update(notifications)
-            .set({
-              status: 'sent',
+          yield* transitionEach(db, 'Notification', {
+            from: ['queued'],
+            to: 'sent',
+            also: {
               sentAt: nowAsDate(),
               title: byId((row) => row.title),
               body: byId((row) => row.body),
-            })
-            .where(
-              and(
-                inArray(
-                  notifications.id,
-                  Array.map(rows, (row) => row.id)
-                ),
-                eq(notifications.status, 'queued')
-              )
-            )
+            },
+            where: inArray(
+              notifications.id,
+              Array.map(rows, (row) => row.id)
+            ),
+          })
         }
       ),
 
       markManyAsFailed: Effect.fn('NotificationRepository.markManyAsFailed')(
         function* (ids: readonly string[], error: string) {
           if (ids.length === 0) return
-          yield* db
-            .update(notifications)
-            .set({
-              status: 'failed',
-              lastError: error,
-            })
-            .where(
-              and(
-                inArray(notifications.id, [...ids]),
-                eq(notifications.status, 'queued')
-              )
-            )
+          yield* transitionEach(db, 'Notification', {
+            from: ['queued'],
+            to: 'failed',
+            also: { lastError: error },
+            where: inArray(notifications.id, [...ids]),
+          })
         }
       ),
 
