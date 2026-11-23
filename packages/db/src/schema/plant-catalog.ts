@@ -1,4 +1,5 @@
 import { languageCodeEnum } from '@lily/db/schema/enums'
+import { storedRef } from '@lily/db/schema/stored-ref'
 import { relations } from 'drizzle-orm'
 import {
   index,
@@ -17,7 +18,7 @@ export const plantCatalog = pgTable(
     scientificName: text('scientific_name'),
     family: text('family'),
     category: text('category'),
-    imageUrl: text('image_url'),
+    imageUrl: storedRef('image_url'),
 
     // Care frequencies (days)
     wateringFrequencyDays: integer('watering_frequency_days').notNull(),

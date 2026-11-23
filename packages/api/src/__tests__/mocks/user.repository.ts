@@ -3,33 +3,45 @@ import {
   type IUserRepository,
   UserRepository,
 } from '@lily/api/repositories/user.repository'
+import type { users as usersTable } from '@lily/db/schema'
 import type { User } from '@lily/shared'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
+
+type UserRow = typeof usersTable.$inferSelect
+
+export const asUserRow = (user: User): UserRow => ({
+  ...user,
+  image: Option.getOrNull(
+    Option.map(Option.fromNullishOr(user.image), mintStoredRef)
+  ),
+})
 
 export const createMockUserRepository = (
   users: User[]
 ): Layer.Layer<UserRepository> => {
+  const rows = () => Array.map(users, asUserRow)
   const repo: IUserRepository = {
-    findAll: Effect.succeed(users),
+    findAll: Effect.sync(rows),
 
     findById: (id: string) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(users, (u) => u.id === id),
+          Array.findFirst(rows(), (u) => u.id === id),
           Option.getOrNull
         )
       ),
 
     findByIds: (ids: ReadonlyArray<string>) =>
-      Effect.succeed(Array.filter(users, (u) => Array.contains(ids, u.id))),
+      Effect.succeed(Array.filter(rows(), (u) => Array.contains(ids, u.id))),
 
     findByIdsForKeyShare: (ids: ReadonlyArray<string>) =>
-      Effect.succeed(Array.filter(users, (u) => Array.contains(ids, u.id))),
+      Effect.succeed(Array.filter(rows(), (u) => Array.contains(ids, u.id))),
 
     findByEmail: (email: string) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(users, (u) => u.email === email),
+          Array.findFirst(rows(), (u) => u.email === email),
           Option.getOrNull
         )
       ),
@@ -38,7 +50,7 @@ export const createMockUserRepository = (
       Effect.succeed(
         pipe(
           Array.findFirst(
-            users,
+            rows(),
             (u) => u.name?.toLowerCase() === username.toLowerCase()
           ),
           Option.getOrNull
@@ -46,7 +58,7 @@ export const createMockUserRepository = (
       ),
 
     create: (data) => {
-      const newUser: User = {
+      const newUser: UserRow = {
         id: `user-${crypto.randomUUID()}`,
         name: data.name ?? null,
         firstName: data.firstName ?? null,
@@ -100,7 +112,7 @@ export const createMockUserRepository = (
             // the same test observe the update
             const updated = { ...users[i]!, ...data, updatedAt: new Date() }
             users[i] = updated
-            return updated
+            return asUserRow(updated)
           }),
       })
     },
@@ -108,7 +120,7 @@ export const createMockUserRepository = (
     delete: (id) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(users, (u) => u.id === id),
+          Array.findFirst(rows(), (u) => u.id === id),
           Option.getOrNull
         )
       ),
@@ -116,7 +128,7 @@ export const createMockUserRepository = (
     findAllPaginated: (filters: FindUsersFilters) =>
       Effect.succeed(
         (() => {
-          let filtered = users
+          let filtered = rows()
 
           if (filters.role) {
             filtered = Array.filter(filtered, (u) => u.role === filters.role)
@@ -145,7 +157,7 @@ export const createMockUserRepository = (
     countUsers: (filters) =>
       Effect.succeed(
         (() => {
-          let filtered = users
+          let filtered = rows()
 
           if (filters.role) {
             filtered = Array.filter(filtered, (u) => u.role === filters.role)
@@ -171,7 +183,7 @@ export const createMockUserRepository = (
       ),
 
     updateRole: (id, role) => {
-      const userOption = Array.findFirst(users, (u) => u.id === id)
+      const userOption = Array.findFirst(rows(), (u) => u.id === id)
       return Option.match(userOption, {
         onNone: () => Effect.succeed(null),
         onSome: (user) =>
@@ -180,7 +192,7 @@ export const createMockUserRepository = (
     },
 
     updateStatus: (id, status) => {
-      const userOption = Array.findFirst(users, (u) => u.id === id)
+      const userOption = Array.findFirst(rows(), (u) => u.id === id)
       return Option.match(userOption, {
         onNone: () => Effect.succeed(null),
         onSome: (user) =>
@@ -190,7 +202,7 @@ export const createMockUserRepository = (
 
     findWeatherEnabled: Effect.sync(() =>
       Array.filter(
-        users,
+        rows(),
         (u) =>
           u.weatherEnabled === true &&
           u.latitude !== null &&
@@ -199,11 +211,11 @@ export const createMockUserRepository = (
     ),
 
     findTipsEnabled: Effect.sync(() =>
-      Array.filter(users, (u) => u.tips === true)
+      Array.filter(rows(), (u) => u.tips === true)
     ),
 
     softDelete: (id: string) => {
-      const userOption = Array.findFirst(users, (u) => u.id === id)
+      const userOption = Array.findFirst(rows(), (u) => u.id === id)
       return Option.match(userOption, {
         onNone: () => Effect.succeed(null),
         onSome: (user) =>

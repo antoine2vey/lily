@@ -1,9 +1,10 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { RareIdentificationRepository } from '@lily/api/repositories/rare-identification.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import { Effect, Option, pipe, String } from 'effect'
 
-const nonEmptyUrl = (imageUrl: string | undefined) =>
+const nonEmptyUrl = <A extends string>(imageUrl: A | undefined) =>
   pipe(Option.fromNullishOr(imageUrl), Option.filter(String.isNonEmpty))
 
 export const rememberRareIdentification = Effect.fn(
@@ -11,7 +12,7 @@ export const rememberRareIdentification = Effect.fn(
 )(
   function* (identification: {
     readonly isRareHouseplant: boolean
-    readonly imageUrl: string
+    readonly imageUrl: StoredObjectRef | undefined
   }) {
     const { id: userId } = yield* CurrentUser
     const repo = yield* RareIdentificationRepository

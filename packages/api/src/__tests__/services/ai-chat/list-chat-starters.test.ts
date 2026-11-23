@@ -7,6 +7,7 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { listChatStarters } from '@lily/api/services/ai-chat/endpoints/list-chat-starters'
 import type { ChatConversation, ChatMessage } from '@lily/shared/ai-chat'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -172,7 +173,7 @@ describe('listChatStarters', () => {
         plant('bare', { name: 'Bare', dateAdded: new Date('2024-01-01') }),
         plant('pictured', {
           name: 'Pictured',
-          imageUrl: 'https://example.com/p.jpg',
+          imageUrl: mintStoredRef('https://example.com/p.jpg'),
           dateAdded: new Date('2024-01-02'),
         }),
       ],

@@ -1,4 +1,5 @@
 import { plants } from '@lily/db/schema/plants'
+import { storedRef } from '@lily/db/schema/stored-ref'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import {
@@ -56,7 +57,7 @@ export const chatMessages = pgTable(
     role: text('role').notNull(),
     content: text('content').notNull(),
     parts: jsonb('parts'), // UIMessage.parts array (text, tool-call, etc.)
-    imageKey: text('image_key'),
+    imageKey: storedRef('image_key'),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),

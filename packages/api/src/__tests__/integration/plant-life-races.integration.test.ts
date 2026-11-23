@@ -51,6 +51,7 @@ import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, count, eq, isNull, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Cause, Effect, Exit, Layer, Option, References } from 'effect'
@@ -238,7 +239,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               permit: chatPermit(plantId, alex),
               plantName: 'Fern',
               image: {
-                key: `users/${alex}/chat/${conversationId}/leaf.jpg`,
+                key: mintStoredRef(
+                  `users/${alex}/chat/${conversationId}/leaf.jpg`
+                ),
                 conversationId,
               },
             }).execute?.(

@@ -7,6 +7,7 @@ import {
   type UserRole,
   type UserStatus,
 } from '@lily/shared'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   and,
   asc,
@@ -36,7 +37,7 @@ export interface CreateUserData {
 export interface UpdateUserData {
   name?: string
   email?: string
-  image?: string | null
+  image?: StoredObjectRef | null
   bio?: string | null
   careReminders?: boolean
   weeklyDigest?: boolean

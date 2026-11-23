@@ -13,6 +13,7 @@ import { oauthIdentities } from '@lily/db/schema/oauth-identities'
 import { plants } from '@lily/db/schema/plants'
 import { rooms } from '@lily/db/schema/rooms'
 import { userFollows, userNudges } from '@lily/db/schema/social'
+import { storedRef } from '@lily/db/schema/stored-ref'
 import {
   subscriptionEvents,
   subscriptionUsage,
@@ -48,7 +49,7 @@ export const users = pgTable('users', {
     .notNull()
     .defaultNow(),
   emailVerified: boolean('email_verified').notNull(),
-  image: text('image'),
+  image: storedRef('image'),
   bio: text('bio'),
   careReminders: boolean('care_reminders').notNull().default(true),
   weeklyDigest: boolean('weekly_digest').notNull().default(true),

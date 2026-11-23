@@ -35,8 +35,10 @@ import {
   publicUrlOf,
   readStoredRef,
   type StoredObject,
+  type StoredObjectRef,
   scopePrefix,
 } from './stored-object'
+import { mintStoredRef } from './stored-ref-mint'
 
 export const GCSCredentialsSchema = Schema.Struct({
   type: Schema.String,
@@ -65,17 +67,12 @@ export interface GCSUploadRequest {
   readonly folder: string
 }
 
-// Upload Response Schema
-export const GCSUploadResponseSchema = Schema.Struct({
-  key: Schema.String,
-  url: Schema.String,
-  bucketName: Schema.String,
-  uploadedAt: Schema.DateFromString,
-})
-
-export type GCSUploadResponse = Schema.Schema.Type<
-  typeof GCSUploadResponseSchema
->
+export interface GCSUploadResponse {
+  readonly key: StoredObjectRef
+  readonly url: StoredObjectRef
+  readonly bucketName: string
+  readonly uploadedAt: Date
+}
 
 const FIRST_PAGE: GetFilesOptions = { autoPaginate: false, maxResults: 1000 }
 
@@ -168,7 +165,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
               message: `Failed to upload file to GCS: ${error instanceof Error ? error.message : 'Unknown error'}`,
             }),
         })
-        return key
+        return mintStoredRef(key)
       })
 
     return {
@@ -178,7 +175,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
         save(buckets.plant, request).pipe(
           Effect.map((key) => ({
             key,
-            url: publicUrlOf(buckets.plant.name, key),
+            url: mintStoredRef(publicUrlOf(buckets.plant.name, key)),
             bucketName: buckets.plant.name,
             uploadedAt: nowAsDate(),
           })),
@@ -264,7 +261,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
 
           return {
             key,
-            url,
+            url: mintStoredRef(url),
             bucketName: buckets.ai.name,
             uploadedAt: nowAsDate(),
           }
@@ -321,7 +318,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
       publish: (
         key: string,
         folder: string
-      ): Effect.Effect<{ readonly url: string }, GCSPublishError> => {
+      ): Effect.Effect<{ readonly url: StoredObjectRef }, GCSPublishError> => {
         const extension = pipe(
           key,
           String.lastIndexOf('.'),
@@ -339,7 +336,7 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
             }),
         }).pipe(
           Effect.as({
-            url: publicUrlOf(buckets.plant.name, publicKey),
+            url: mintStoredRef(publicUrlOf(buckets.plant.name, publicKey)),
           }),
           Effect.withSpan('GCS.publish')
         )

@@ -26,6 +26,7 @@ import { cleanupExpiredAccounts } from '@lily/api/services/account-cleanup/sched
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -261,7 +262,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.insert(schema.chatMessages).values({
         role: 'user',
         content: 'What is this?',
-        imageKey: `1700000000000-chat/${conversation.id}/old.png`,
+        imageKey: mintStoredRef(
+          `1700000000000-chat/${conversation.id}/old.png`
+        ),
         userId: alex,
         conversationId: conversation.id,
       })
@@ -273,7 +276,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         confidence: 80,
         symptoms: [],
         treatmentSteps: [],
-        imageKey: `1700000000000-chat/${conversation.id}/diagnosed.png`,
+        imageKey: mintStoredRef(
+          `1700000000000-chat/${conversation.id}/diagnosed.png`
+        ),
       })
 
       return {
@@ -353,11 +358,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const setPlantImage = (id: string, url: string) =>
       db
         .update(schema.plants)
-        .set({ imageUrl: url })
+        .set({ imageUrl: mintStoredRef(url) })
         .where(eq(schema.plants.id, id))
 
     const setAvatar = (id: string, url: string) =>
-      db.update(schema.users).set({ image: url }).where(eq(schema.users.id, id))
+      db
+        .update(schema.users)
+        .set({ image: mintStoredRef(url) })
+        .where(eq(schema.users.id, id))
 
     it.each([
       ['a query string', (url: string) => `${url}?v=1`],
@@ -405,7 +413,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.insert(schema.chatMessages).values({
         role: 'user',
         content: 'Is it sick?',
-        imageKey: key,
+        imageKey: mintStoredRef(key),
         userId: sam,
         conversationId: conversation.id,
       })
@@ -417,7 +425,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         confidence: 80,
         symptoms: [],
         treatmentSteps: [],
-        imageKey: key,
+        imageKey: mintStoredRef(key),
       })
       await setAvatar(alex, privateUrl(key))
 
@@ -434,7 +442,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           db.insert(schema.chatMessages).values({
             role: 'user',
             content: 'Is it sick?',
-            imageKey: key,
+            imageKey: mintStoredRef(key),
             userId: sam,
             conversationId,
           }),
@@ -450,7 +458,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             confidence: 80,
             symptoms: [],
             treatmentSteps: [],
-            imageKey: key,
+            imageKey: mintStoredRef(key),
           }),
       ],
     ])(

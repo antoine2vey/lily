@@ -4,6 +4,8 @@ import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import * as schema from '@lily/db/schema'
 import { wateringRatingFromFrequency } from '@lily/shared'
 import { DEFAULT_HUMIDITY_RATING } from '@lily/shared/indoor-demand'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Option, Order, Record } from 'effect'
@@ -51,7 +53,7 @@ interface Case {
   readonly lightingRating: number
   readonly petToxicityRating: number
   readonly description?: string
-  readonly imageUrl?: string
+  readonly imageUrl?: StoredObjectRef
   readonly category?: string
   readonly wateringDays?: number
   readonly fertilizationDays?: number
@@ -229,7 +231,7 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'MCP shaped with an image',
     ...mcpShape,
     dateAdded: MCP_ERA,
-    imageUrl: 'https://example.com/fern.jpg',
+    imageUrl: mintStoredRef('https://example.com/fern.jpg'),
     expected: { humidity: 0, watering: 0 },
   },
   {

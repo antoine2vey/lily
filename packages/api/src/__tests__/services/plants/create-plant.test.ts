@@ -158,18 +158,6 @@ describe('createPlant', () => {
     ])
   })
 
-  it('should set imageUrl when provided', async () => {
-    const { layer } = createTestLayer()
-    const result = await Effect.runPromise(
-      createPlant({
-        ...validRequest,
-        imageUrl: 'https://example.com/plant.jpg',
-      }).pipe(Effect.provide(layer))
-    )
-
-    expect(result.imageUrl).toBe('https://example.com/plant.jpg')
-  })
-
   it('should persist wateringRating when provided', async () => {
     const { layer } = createTestLayer()
     const result = await Effect.runPromise(

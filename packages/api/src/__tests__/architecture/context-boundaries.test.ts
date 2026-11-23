@@ -87,6 +87,18 @@ const resolveImport = (from: string, specifier: string): string | null => {
     : null
 }
 
+/** An `as` cast or an angle-bracket cast to one of `types`, a regex alternation. */
+const castsTo = (types: string): ReadonlyArray<RegExp> => [
+  new RegExp(
+    `\\bas\\s+(?:unknown\\s+as\\s+)?(?:(?:readonly\\s+)?[\\w.$]+\\s*[<|&]\\s*)*(?:readonly\\s+)?(${types})\\b`,
+    'g'
+  ),
+  new RegExp(
+    `(?<=(?:^|[(,=:?![{;&|]|\\breturn|\\byield|\\bawait|=>)\\s*)<\\s*(?:(?:readonly\\s+)?[\\w.$]+\\s*[<|&]\\s*)*(?:readonly\\s+)?(${types})\\b`,
+    'gm'
+  ),
+]
+
 const files = walk(SRC)
 const name = (file: string) => relative(SRC, file)
 const contextOf = (file: string): string | null =>
@@ -155,17 +167,7 @@ describe('bounded contexts', () => {
   })
 
   it('receive permits, owner proofs and seen rows built only where their check runs', () => {
-    const PROOF = 'PlantPermit|RecordPermit|PlanPermit|OwnerHeld|Seen'
-    const CASTS = [
-      new RegExp(
-        `\\bas\\s+(?:unknown\\s+as\\s+)?(?:(?:readonly\\s+)?[\\w.$]+\\s*[<|&]\\s*)*(?:readonly\\s+)?(${PROOF})\\b`,
-        'g'
-      ),
-      new RegExp(
-        `(?<=(?:^|[(,=:?![{;&|]|\\breturn|\\byield|\\bawait|=>)\\s*)<\\s*(?:(?:readonly\\s+)?[\\w.$]+\\s*[<|&]\\s*)*(?:readonly\\s+)?(${PROOF})\\b`,
-        'gm'
-      ),
-    ]
+    const CASTS = castsTo('PlantPermit|RecordPermit|PlanPermit|OwnerHeld|Seen')
     const builders = new Set(
       files.flatMap((file) =>
         CASTS.flatMap((cast) =>
@@ -509,5 +511,71 @@ describe('bounded contexts', () => {
 
     expectTypeOf<Extract<Created, DeferredCareType>>().toBeNever()
     expectTypeOf<Extract<Deleted, DeferredCareType>>().toBeNever()
+  })
+})
+
+const PACKAGES = resolve(SRC, '../..')
+const MINT = 'shared/src/services/file/stored-ref-mint.ts'
+const storedRefWriters = [
+  'api/src',
+  'db/src',
+  'db/scripts',
+  'shared/src',
+  'mcp/src',
+]
+  .flatMap((root) => walk(join(PACKAGES, root)))
+  .filter((file) => !file.endsWith('.test.ts'))
+  .filter((file) => relative(PACKAGES, file) !== MINT)
+
+describe('stored-object references', () => {
+  const MADE_ELSEWHERE =
+    'A StoredObjectRef comes from mintStoredRef, which only the upload path, readClientImage, readIssuedAvatar and the storedRef() column read call. A cast, a brand or a load of the mint anywhere else lets a client string reach a stored-object column.'
+
+  it('are minted only where the server reads or writes an object', () => {
+    const MINT_SITES = [
+      'shared/src/services/file/gcs.ts',
+      'api/src/services/helpers/client-image.ts',
+      'db/src/schema/stored-ref.ts',
+      'db/scripts/seed-demo-data.ts',
+      'db/scripts/seed-reviewer.ts',
+    ]
+    const NAMES_THE_MINT = /\bmintStoredRef\b/
+    const LOADS_THE_MINT =
+      /\bimport\s*\*\s*as\s+[\w$]+\s+from\s*['"`][^'"`]*stored-ref-mint|\bexport\s*\*[^;'"`]*from\s*['"`][^'"`]*stored-ref-mint|\b(?:import|require)\s*\(\s*['"`][^'"`]*stored-ref-mint/
+    const minters = storedRefWriters
+      .filter((file) => !MINT_SITES.includes(relative(PACKAGES, file)))
+      .filter((file) => {
+        const source = readFileSync(file, 'utf8')
+        return NAMES_THE_MINT.test(source) || LOADS_THE_MINT.test(source)
+      })
+      .map((file) => relative(PACKAGES, file))
+
+    expect(
+      MINT_SITES.filter((site) => !existsSync(join(PACKAGES, site)))
+    ).toEqual([])
+    expect(minters, MADE_ELSEWHERE).toEqual([])
+  })
+
+  it('are cast to nowhere in the packages that write them', () => {
+    const casters = storedRefWriters.filter((file) =>
+      castsTo('StoredObjectRef').some((cast) =>
+        cast.test(readFileSync(file, 'utf8'))
+      )
+    )
+
+    expect(
+      casters.map((file) => relative(PACKAGES, file)),
+      MADE_ELSEWHERE
+    ).toEqual([])
+  })
+
+  it('are branded only in the mint', () => {
+    const BRANDS =
+      /\bbrand\(\s*['"`]StoredObjectRef['"`]|\bBrand(?:ed)?\s*<[^>]*['"`]StoredObjectRef['"`]|\b(?:nominal|make|check|refined)\s*<\s*StoredObjectRef\b/
+    const branders = storedRefWriters
+      .filter((file) => BRANDS.test(readFileSync(file, 'utf8')))
+      .map((file) => relative(PACKAGES, file))
+
+    expect(branders, MADE_ELSEWHERE).toEqual([])
   })
 })

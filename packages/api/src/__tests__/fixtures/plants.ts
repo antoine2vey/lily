@@ -1,6 +1,7 @@
 import type { plants } from '@lily/db/schema'
 import { CareDay, type CareType } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 
 export type PlantRecord = typeof plants.$inferSelect
 
@@ -82,7 +83,7 @@ export const mockPlants: TestPlant[] = [
     id: 'plant-2',
     name: 'Snake Plant',
     description: 'Low maintenance indoor plant',
-    imageUrl: 'https://example.com/snake-plant.jpg',
+    imageUrl: mintStoredRef('https://example.com/snake-plant.jpg'),
     category: 'succulent',
     dateAdded: new Date('2024-01-02'),
     updatedAt: new Date('2024-01-02'),
@@ -142,13 +143,13 @@ export const mockPlants: TestPlant[] = [
 export const mockPlantPhotos: PlantPhoto[] = [
   {
     id: 'photo-1',
-    url: 'https://example.com/photo1.jpg',
+    url: mintStoredRef('https://example.com/photo1.jpg'),
     takenAt: new Date('2024-01-05'),
     plantId: 'plant-1',
   },
   {
     id: 'photo-2',
-    url: 'https://example.com/photo2.jpg',
+    url: mintStoredRef('https://example.com/photo2.jpg'),
     takenAt: new Date('2024-01-06'),
     plantId: 'plant-1',
   },

@@ -51,7 +51,6 @@ export interface PlantDraft {
   readonly name: string
   readonly description: Option.Option<string>
   readonly category: Option.Option<string>
-  readonly imageUrl: Option.Option<string>
   readonly humidityRating: number
   readonly lightingRating: number
   readonly petToxicityRating: number

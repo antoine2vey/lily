@@ -482,7 +482,6 @@ export const CareStoreLive = Layer.effect(
               name: w.draft.name,
               description: Option.getOrNull(w.draft.description),
               category: Option.getOrNull(w.draft.category),
-              imageUrl: Option.getOrNull(w.draft.imageUrl),
               humidityRating: w.draft.humidityRating,
               lightingRating: w.draft.lightingRating,
               petToxicityRating: w.draft.petToxicityRating,

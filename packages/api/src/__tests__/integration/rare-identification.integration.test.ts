@@ -18,6 +18,7 @@ import {
 } from '@lily/api/services/plants/helpers/rare-identification'
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, eq, inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, ConfigProvider, Effect, Layer } from 'effect'
@@ -35,7 +36,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let strangerId: string
     let holderId: string
 
-    const imageUrl = `https://storage.googleapis.com/lily/identify/${Date.now()}.jpg`
+    const imageUrl = mintStoredRef(
+      `https://storage.googleapis.com/lily/identify/${Date.now()}.jpg`
+    )
 
     const ReposLive = Layer.mergeAll(
       RareIdentificationRepositoryLive,
@@ -75,10 +78,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     }
 
     const identify = (userId: string, url: string, isRareHouseplant: boolean) =>
-      rememberRareIdentification({ isRareHouseplant, imageUrl: url }).pipe(
-        Effect.provide(as(userId)),
-        Effect.runPromise
-      )
+      rememberRareIdentification({
+        isRareHouseplant,
+        imageUrl: mintStoredRef(url),
+      }).pipe(Effect.provide(as(userId)), Effect.runPromise)
 
     const uploadOf = (userId: string, name: string) =>
       `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/users/${userId}/identify/${name}.jpg?X-Goog-Signature=abc`
@@ -90,7 +93,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(
           and(
             eq(schema.rarePlantIdentifications.userId, userId),
-            eq(schema.rarePlantIdentifications.imageUrl, url)
+            eq(schema.rarePlantIdentifications.imageUrl, mintStoredRef(url))
           )
         )
 
@@ -145,7 +148,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const notRareUrl = `${imageUrl}-pothos`
       await rememberRareIdentification({
         isRareHouseplant: false,
-        imageUrl: notRareUrl,
+        imageUrl: mintStoredRef(notRareUrl),
       }).pipe(Effect.provide(as(collectorId)), Effect.runPromise)
 
       const stored = await Effect.gen(function* () {
@@ -169,7 +172,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('records the same rare photo twice without an error', async () => {
       const identification = {
         userId: collectorId,
-        imageUrl: `${imageUrl}-recorded-twice`,
+        imageUrl: mintStoredRef(`${imageUrl}-recorded-twice`),
       }
 
       await Effect.gen(function* () {

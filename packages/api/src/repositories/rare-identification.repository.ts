@@ -1,10 +1,17 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { rarePlantIdentifications } from '@lily/db/schema'
-import { and, eq } from 'drizzle-orm'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import { and, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface RareIdentification {
+  readonly userId: string
+  readonly imageUrl: StoredObjectRef
+}
+
+/** A photo a client names by the URL its identify answered with. */
+export interface RareIdentificationLookup {
   readonly userId: string
   readonly imageUrl: string
 }
@@ -14,7 +21,7 @@ export interface IRareIdentificationRepository {
     identification: RareIdentification
   ) => Effect.Effect<void, SqlError>
   readonly exists: (
-    identification: RareIdentification
+    lookup: RareIdentificationLookup
   ) => Effect.Effect<boolean, SqlError>
 }
 
@@ -23,10 +30,10 @@ export class RareIdentificationRepository extends Context.Service<
   IRareIdentificationRepository
 >()('RareIdentificationRepository') {}
 
-const matches = (identification: RareIdentification) =>
+const matches = (lookup: RareIdentificationLookup) =>
   and(
-    eq(rarePlantIdentifications.userId, identification.userId),
-    eq(rarePlantIdentifications.imageUrl, identification.imageUrl)
+    eq(rarePlantIdentifications.userId, lookup.userId),
+    eq(rarePlantIdentifications.imageUrl, sql.param(lookup.imageUrl))
   )
 
 export const RareIdentificationRepositoryLive = Layer.effect(
@@ -50,12 +57,12 @@ export const RareIdentificationRepositoryLive = Layer.effect(
       }),
 
       exists: Effect.fn('RareIdentificationRepository.exists')(function* (
-        identification: RareIdentification
+        lookup: RareIdentificationLookup
       ) {
         const rows = yield* db
           .select({ id: rarePlantIdentifications.id })
           .from(rarePlantIdentifications)
-          .where(matches(identification))
+          .where(matches(lookup))
           .limit(1)
         return Array.isArrayNonEmpty(rows)
       }),

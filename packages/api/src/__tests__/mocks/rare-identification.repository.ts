@@ -1,6 +1,7 @@
 import {
   type IRareIdentificationRepository,
   type RareIdentification,
+  type RareIdentificationLookup,
   RareIdentificationRepository,
 } from '@lily/api/repositories/rare-identification.repository'
 import { Array, Effect, Layer } from 'effect'
@@ -9,7 +10,7 @@ export const createMockRareIdentificationRepository = (
   identifications: RareIdentification[] = []
 ): Layer.Layer<RareIdentificationRepository> => {
   const matches =
-    (identification: RareIdentification) => (row: RareIdentification) =>
+    (identification: RareIdentificationLookup) => (row: RareIdentification) =>
       row.userId === identification.userId &&
       row.imageUrl === identification.imageUrl
 

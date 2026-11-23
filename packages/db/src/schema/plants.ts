@@ -6,6 +6,7 @@ import { plantDeathCauseEnum, plantHealthEnum } from '@lily/db/schema/enums'
 import { notifications } from '@lily/db/schema/notifications'
 import { careLogs, plantPhotos } from '@lily/db/schema/plant-history'
 import { rooms } from '@lily/db/schema/rooms'
+import { storedRef } from '@lily/db/schema/stored-ref'
 import { users } from '@lily/db/schema/users'
 import { relations, sql } from 'drizzle-orm'
 import {
@@ -27,7 +28,7 @@ export const plants = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
     description: text('description'),
-    imageUrl: text('image_url'),
+    imageUrl: storedRef('image_url'),
     category: text('category'),
     dateAdded: timestamp('date_added', { withTimezone: true })
       .notNull()

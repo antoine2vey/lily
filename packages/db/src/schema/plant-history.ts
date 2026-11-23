@@ -1,5 +1,6 @@
 import { careLogTypeEnum, scanTypeEnum } from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
+import { storedRef } from '@lily/db/schema/stored-ref'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import {
@@ -16,7 +17,7 @@ export const plantPhotos = pgTable(
   'plant_photos',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    url: text('url').notNull(),
+    url: storedRef('url').notNull(),
     takenAt: timestamp('taken_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -52,7 +53,7 @@ export const careLogs = pgTable(
     notes: text('notes'),
     date: timestamp('date', { withTimezone: true }).notNull().defaultNow(),
     careDay: date('care_day').notNull(),
-    photoUrl: text('photo_url'),
+    photoUrl: storedRef('photo_url'),
     plantId: uuid('plant_id')
       .notNull()
       .references(() => plants.id, { onDelete: 'cascade' }),
@@ -112,7 +113,7 @@ export const rarePlantIdentifications = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    imageUrl: text('image_url').notNull(),
+    imageUrl: storedRef('image_url').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

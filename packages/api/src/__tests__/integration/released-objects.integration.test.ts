@@ -63,10 +63,11 @@ import {
   type BucketRole,
   namedObjects,
 } from '@lily/shared/services/file/stored-object'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Effect, Exit, Layer, References } from 'effect'
+import { Effect, Exit, Layer, Option, References } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -165,7 +166,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           role: 'user',
           status: 'active',
           timezone: 'UTC',
-          image,
+          image: Option.getOrUndefined(
+            Option.map(Option.fromUndefinedOr(image), mintStoredRef)
+          ),
         })
         .returning()
       if (!row) throw new Error(`user ${name} insert returned nothing`)
@@ -184,7 +187,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           lightingRating: 3,
           petToxicityRating: 1,
           wateringRating: 3,
-          imageUrl,
+          imageUrl: Option.getOrUndefined(
+            Option.map(Option.fromUndefinedOr(imageUrl), mintStoredRef)
+          ),
         })
         .returning()
       if (!row) throw new Error('plant insert returned nothing')
@@ -240,7 +245,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           userId,
           role: 'user',
           content: 'Look at this leaf',
-          imageKey,
+          imageKey: mintStoredRef(imageKey),
         })
       }
       return row.id
@@ -250,7 +255,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       plantId: string,
       userId: string,
       imageKey: string
-    ) => {
+    ) =>
       await db.insert(schema.diagnoses).values({
         plantId,
         userId,
@@ -259,9 +264,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         confidence: 80,
         symptoms: ['yellow leaves'],
         treatmentSteps: ['repot'],
-        imageKey,
+        imageKey: mintStoredRef(imageKey),
       })
-    }
 
     const diagnose = (plantId: string, key: string, conversationId: string) =>
       Effect.flatMap(Effect.context<ToolContext>(), (runtime) =>
@@ -271,7 +275,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             userId: alex,
             permit: chatPermit(plantId, alex),
             plantName: 'Fern',
-            image: { key, conversationId },
+            image: { key: mintStoredRef(key), conversationId },
           }).execute?.(
             {
               diseaseName: 'Root rot',

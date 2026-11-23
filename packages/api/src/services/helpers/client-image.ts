@@ -1,10 +1,15 @@
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { GCSService } from '@lily/shared/services/file/gcs'
+import { isPlannedKey } from '@lily/shared/services/file/image-upload'
 import {
   chatFolder,
+  publicUrlOf,
   type StoredObject,
+  type StoredObjectRef,
   scopePrefix,
+  userFolder,
 } from '@lily/shared/services/file/stored-object'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Data, Effect, Option, pipe, String } from 'effect'
 
 /**
@@ -14,7 +19,7 @@ import { Array, Data, Effect, Option, pipe, String } from 'effect'
  */
 export type ClientImage = Data.TaggedEnum<{
   /** A private object in the caller's own folder: a scan, identify or chat photo. */
-  OwnUpload: { readonly key: string }
+  OwnUpload: { readonly key: StoredObjectRef }
   /** Another host, another account's object, or an object in no account's folder. */
   Untrusted: {}
 }>
@@ -58,7 +63,7 @@ export const readClientImage = (
       onEmpty: () => ClientImage.Untrusted(),
       onNonEmpty: ([key, ...others]) =>
         Array.isReadonlyArrayEmpty(others)
-          ? ClientImage.OwnUpload({ key })
+          ? ClientImage.OwnUpload({ key: mintStoredRef(key) })
           : ClientImage.Untrusted(),
     })
   })
@@ -70,7 +75,11 @@ export const readClientImage = (
 export const readChatImageKey = (
   ref: string,
   conversationId: string
-): Effect.Effect<Option.Option<string>, never, GCSService | CurrentUser> =>
+): Effect.Effect<
+  Option.Option<StoredObjectRef>,
+  never,
+  GCSService | CurrentUser
+> =>
   Effect.gen(function* () {
     const { id: userId } = yield* CurrentUser
     const image = yield* readClientImage(ref)
@@ -79,5 +88,28 @@ export const readChatImageKey = (
       Option.liftPredicate(image, ClientImage.$is('OwnUpload')),
       Option.map(({ key }) => key),
       Option.filter(String.startsWith(`${chatFolder(userId, conversationId)}/`))
+    )
+  })
+
+/**
+ * The avatar `image` names, when it is the URL the avatar upload stores for
+ * `userId`.
+ */
+export const readIssuedAvatar = (
+  image: string,
+  userId: string
+): Effect.Effect<Option.Option<StoredObjectRef>, never, GCSService> =>
+  Effect.gen(function* () {
+    const gcs = yield* GCSService
+    const base = publicUrlOf(gcs.bucketNames.plant, '')
+    return pipe(
+      Option.liftPredicate(image, String.startsWith(base)),
+      Option.filter((url) =>
+        isPlannedKey(
+          userFolder(userId, 'avatars'),
+          String.slice(base.length)(url)
+        )
+      ),
+      Option.map(mintStoredRef)
     )
   })

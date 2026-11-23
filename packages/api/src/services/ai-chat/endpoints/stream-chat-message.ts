@@ -6,7 +6,10 @@ import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { ChatRepository } from '@lily/api/repositories/chat.repository'
+import {
+  ChatRepository,
+  type MessageToSave,
+} from '@lily/api/repositories/chat.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
@@ -38,6 +41,7 @@ import type {
 } from '@lily/shared/errors/plant'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import type { UIMessage } from 'ai'
 import {
   Array,
@@ -218,7 +222,7 @@ export const streamChatMessage = (
     const gcs = yield* GCSService
     yield* annotateSuggestion(request.suggestion)
 
-    const imageKey: string | undefined = yield* pipe(
+    const imageKey: StoredObjectRef | undefined = yield* pipe(
       Option.fromUndefinedOr(request.imageKey),
       Option.match({
         onNone: () => Effect.undefined,
@@ -254,6 +258,10 @@ export const streamChatMessage = (
         text: request.message,
       }) as UIMessage['parts'],
     }
+    const userTurn: MessageToSave = {
+      message: userMessage,
+      imageKey: Option.fromUndefinedOr(imageKey),
+    }
 
     const startStream = Effect.gen(function* () {
       const previousMessages = yield* chatRepo.getMessagesAsUIMessages(
@@ -264,7 +272,7 @@ export const streamChatMessage = (
       yield* chatRepo.saveChat({
         conversationId: conversation.id,
         userId,
-        messages: [userMessage],
+        messages: [userTurn],
       })
       yield* chatRepo.touchLastMessageAt(conversation.id)
 
@@ -312,7 +320,12 @@ export const streamChatMessage = (
       }).pipe(Effect.as<TurnOutcome>(outcome))
 
     const saveReply = (steps: readonly StepData[]) =>
-      persistChatCompletion({ conversation, userId, userMessage, steps }).pipe(
+      persistChatCompletion({
+        conversation,
+        userId,
+        userMessage: userTurn,
+        steps,
+      }).pipe(
         Effect.retry(postStreamRetryPolicy),
         Effect.as<TurnOutcome>('replied'),
         Effect.catchTag('SqlError', (error) =>

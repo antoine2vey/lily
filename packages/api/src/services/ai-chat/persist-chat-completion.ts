@@ -1,6 +1,9 @@
 import { CarePlans } from '@lily/api/contexts/care'
 import { EventBus, publishWithRetry } from '@lily/api/events'
-import { ChatRepository } from '@lily/api/repositories/chat.repository'
+import {
+  ChatRepository,
+  type MessageToSave,
+} from '@lily/api/repositories/chat.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import type { ChatConversation } from '@lily/shared/ai-chat'
@@ -14,7 +17,7 @@ import type { StepData } from './plant-chat'
 export interface PersistChatCompletionParams {
   readonly conversation: ChatConversation
   readonly userId: string
-  readonly userMessage: UIMessage
+  readonly userMessage: MessageToSave
   readonly steps: readonly StepData[]
 }
 
@@ -93,7 +96,8 @@ export const persistChatCompletion = (
     const diagnosisRepo = yield* DiagnosisRepository
     const carePlans = yield* CarePlans
     const eventBus = yield* EventBus
-    const { conversation, userId, userMessage, steps } = params
+    const { conversation, userId, steps } = params
+    const userMessage = params.userMessage.message
 
     const fullText = pipe(
       steps,
@@ -127,7 +131,10 @@ export const persistChatCompletion = (
     const savedMessages = yield* chatRepo.saveChat({
       conversationId: conversation.id,
       userId,
-      messages: [userMessage, assistantUIMessage],
+      messages: [
+        params.userMessage,
+        { message: assistantUIMessage, imageKey: Option.none() },
+      ],
     })
 
     yield* chatRepo.touchLastMessageAt(conversation.id)

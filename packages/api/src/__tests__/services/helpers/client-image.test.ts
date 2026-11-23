@@ -7,6 +7,7 @@ import {
   ClientImage,
   readClientImage,
 } from '@lily/api/services/helpers/client-image'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -37,7 +38,9 @@ describe('readClientImage', () => {
       privateUrl(ownKey, 'cdn.example'),
     ],
   ])("reads %s of the caller's upload as its key", async (_case, ref) => {
-    expect(await read(ref)).toEqual(ClientImage.OwnUpload({ key: ownKey }))
+    expect(await read(ref)).toEqual(
+      ClientImage.OwnUpload({ key: mintStoredRef(ownKey) })
+    )
   })
 
   it.each([

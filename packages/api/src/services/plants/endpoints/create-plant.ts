@@ -29,7 +29,7 @@ import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const createPlant = (
-  request: EnhancedPlantCreateRequest
+  request: Omit<EnhancedPlantCreateRequest, 'imageUrl'>
 ): Effect.Effect<
   Plant,
   | SqlError
@@ -71,7 +71,6 @@ export const createPlant = (
             name: request.name,
             description: Option.fromNullishOr(request.description),
             category: Option.fromNullishOr(request.category),
-            imageUrl: Option.fromNullishOr(request.imageUrl),
             humidityRating: pipe(
               Option.fromNullishOr(request.humidityRating),
               Option.getOrElse(() => DEFAULT_HUMIDITY_RATING)

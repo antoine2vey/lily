@@ -18,7 +18,9 @@ import { Effect, Struct } from 'effect'
 export const withScanPhoto = Effect.fn('PlantsService.withScanPhoto')(
   function* <E, R>(
     request: EnhancedPlantCreateRequest,
-    create: (request: EnhancedPlantCreateRequest) => Effect.Effect<Plant, E, R>
+    create: (
+      request: Omit<EnhancedPlantCreateRequest, 'imageUrl'>
+    ) => Effect.Effect<Plant, E, R>
   ) {
     const gcs = yield* GCSService
     const repo = yield* PlantRepository
