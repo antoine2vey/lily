@@ -17,3 +17,17 @@ export const storedRef = customType<{
 
 export const isStoredRefColumn = (column: Column): boolean =>
   Reflect.get(column, 'mapFrom') === fromDriver
+
+/**
+ * A jsonb column whose documents hold references, and the JSON path of the
+ * references in each document. A column type cannot mark a value inside a
+ * document, so `stored-ref-columns.test.ts` fails on a jsonb column that is
+ * neither here nor on its allowlist.
+ */
+export const JSON_REF_HOLDERS = [
+  {
+    table: 'chat_messages',
+    column: 'parts',
+    path: '$[*] ? (@.type == "file").url',
+  },
+] as const

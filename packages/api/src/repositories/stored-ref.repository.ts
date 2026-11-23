@@ -1,19 +1,25 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
+import type * as schema from '@lily/db/schema'
 import {
   careLogs,
   chatConversations,
   chatMessages,
   diagnoses,
+  isStoredRefColumn,
+  JSON_REF_HOLDERS,
   plantPhotos,
   plants,
   users,
 } from '@lily/db/schema'
+import { SCHEMA_COLUMNS } from '@lily/db/schema-columns'
 import {
   KEY_DISGUISE,
   type StoredObject,
+  type StoredObjectRef,
   searchRunOf,
 } from '@lily/shared/services/file/stored-object'
 import { and, eq, isNotNull } from 'drizzle-orm'
+import type { PgTable } from 'drizzle-orm/pg-core'
 import { Array, Context, Effect, Layer, Option, Record, Stream } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -24,28 +30,53 @@ export interface ChatRef {
   readonly ref: string
 }
 
+type Schema = typeof schema
+
+type StoredRefColumnOf<T> = T extends PgTable
+  ? {
+      [K in keyof T['_']['columns']]: T['_']['columns'][K]['_']['data'] extends StoredObjectRef
+        ? `${T['_']['name']}.${T['_']['columns'][K]['_']['name']}`
+        : never
+    }[keyof T['_']['columns']]
+  : never
+
+type JsonRefHolder = (typeof JSON_REF_HOLDERS)[number]
+
+/** A column that can point at a stored object, as `table.column`. */
+export type RefSource =
+  | { [K in keyof Schema]: StoredRefColumnOf<Schema[K]> }[keyof Schema]
+  | `${JsonRefHolder['table']}.${JsonRefHolder['column']}`
+
 /**
  * Each column that can point at a stored object, as the query of the
- * references it holds. The orphan sweep and the release check both read this
- * list, so an object a row holds is never swept nor released.
+ * references it holds: every `storedRef()` column and every jsonb holder of
+ * `JSON_REF_HOLDERS`. The orphan sweep and the release check both read it, so
+ * an object a row holds is never swept nor released.
+ *
+ * `RefSource` reads the same `storedRef()` columns from the types.
+ * `stored-refs.integration.test.ts` writes a row for each `RefSource` and fails
+ * when this list does not read it.
  */
-const REF_HOLDERS = {
-  'plants.image_url': 'SELECT image_url FROM plants',
-  'plant_photos.url': 'SELECT url FROM plant_photos',
-  'care_logs.photo_url': 'SELECT photo_url FROM care_logs',
-  'users.image': 'SELECT image FROM users',
-  'plant_catalog.image_url': 'SELECT image_url FROM plant_catalog',
-  'chat_messages.image_key': 'SELECT image_key FROM chat_messages',
-  'chat_messages.parts': `SELECT part #>> '{}' FROM chat_messages,
-      jsonb_path_query(parts, '$[*] ? (@.type == "file").url') AS part
-      WHERE jsonb_typeof(part) = 'string'`,
-  'diagnoses.image_key': 'SELECT image_key FROM diagnoses',
-  'rare_plant_identifications.image_url':
-    'SELECT image_url FROM rare_plant_identifications',
-} as const
-
-/** A column that can point at a stored object. */
-export type RefSource = keyof typeof REF_HOLDERS
+export const REF_HOLDERS = Record.fromEntries([
+  ...Array.map(
+    Array.filter(SCHEMA_COLUMNS, ({ column }) => isStoredRefColumn(column)),
+    ({ table, column }) =>
+      [
+        `${table}.${column.name}`,
+        `SELECT ${column.name} FROM ${table}`,
+      ] as const
+  ),
+  ...Array.map(
+    JSON_REF_HOLDERS,
+    ({ table, column, path }) =>
+      [
+        `${table}.${column}`,
+        `SELECT part #>> '{}' FROM ${table},
+          jsonb_path_query(${column}, '${path}') AS part
+          WHERE jsonb_typeof(part) = 'string'`,
+      ] as const
+  ),
+]) as Record<RefSource, string>
 
 /** Every reference a row holds, with the column that holds it. */
 const HELD_REFS = Array.join(
