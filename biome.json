@@ -9,17 +9,17 @@
     "ignoreUnknown": false,
     "includes": [
       "**",
-      "!**/dist",
-      "!**/.expo",
-      "!**/ios/Pods",
-      "!**/ios/build",
-      "!**/android/.gradle",
-      "!**/android/build",
-      "!**/.next",
-      "!**/out",
-      "!**/coverage",
+      "!**/dist/**",
+      "!**/.expo/**",
+      "!**/ios/Pods/**",
+      "!**/ios/build/**",
+      "!**/android/.gradle/**",
+      "!**/android/build/**",
+      "!**/.next/**",
+      "!**/out/**",
+      "!**/coverage/**",
       "!**/routeTree.gen.ts",
-      "!lint/__fixtures__"
+      "!lint/__fixtures__/**"
     ]
   },
   "plugins": [
@@ -60,20 +60,6 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "style": {
-        "noRestrictedImports": {
-          "level": "error",
-          "options": {
-            "patterns": [
-              {
-                "group": ["**/stored-ref-mint"],
-                "importNamePattern": "mintStoredRef",
-                "message": "Only the upload path, readClientImage, readIssuedAvatar and the storedRef() column read mint a StoredObjectRef. Take the reference one of them returns."
-              }
-            ]
-          }
-        }
-      },
       "suspicious": {
         "noShadowRestrictedNames": "off",
         "noUnknownAtRules": {
@@ -111,20 +97,6 @@
       "includes": ["packages/web/src/components/home/home.css"],
       "linter": {
         "rules": { "style": { "noDescendingSpecificity": "off" } }
-      }
-    },
-    {
-      "includes": [
-        "packages/shared/src/services/file/gcs.ts",
-        "packages/api/src/services/helpers/client-image.ts",
-        "packages/db/src/schema/stored-ref.ts",
-        "packages/db/scripts/seed-demo-data.ts",
-        "packages/db/scripts/seed-reviewer.ts",
-        "**/*.test.ts",
-        "**/__tests__/**"
-      ],
-      "linter": {
-        "rules": { "style": { "noRestrictedImports": "off" } }
       }
     },
     {

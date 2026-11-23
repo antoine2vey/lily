@@ -9,9 +9,8 @@ import { Brand } from 'effect'
 export type StoredObjectRef = string & Brand.Brand<'StoredObjectRef'>
 
 /**
- * The constructor of `StoredObjectRef`. The `noRestrictedImports` entry of
- * `biome.json` names the modules that may import it, and
- * `context-boundaries.test.ts` in the api fails on a cast to the type or a
- * brand of the same name made in any other module.
+ * The constructor of `StoredObjectRef`. `context-boundaries.test.ts` in the
+ * api lists the modules that may name or load it, and fails on a cast to the
+ * type or a brand of its name in any other module.
  */
 export const mintStoredRef = Brand.nominal<StoredObjectRef>()
