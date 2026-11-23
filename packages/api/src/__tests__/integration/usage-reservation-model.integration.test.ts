@@ -14,6 +14,7 @@ import {
 import { PgLive } from '@lily/db'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import * as schema from '@lily/db/schema'
+import { failureOf } from '@lily/shared/testing'
 import { asc, eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -41,10 +42,10 @@ import {
 
 const { Pool } = pg
 
-class ChatStreamFailed extends Schema.TaggedError<
-  ChatStreamFailed,
+class ModelFailed extends Schema.TaggedError<
+  ModelFailed,
   { readonly brand: unique symbol }
->()('ChatStreamFailed', {}) {}
+>()('ModelFailed', {}) {}
 
 // Each test replays the run of the same name in
 // packages/api/models/usage-reservation.qnt.
@@ -84,7 +85,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     // One chat turn as streamChatMessage meters it: the model stream is
     // `work`, and a reply bills a charge where a model error bills a refund.
-    const send = (work: Effect.Effect<void, ChatStreamFailed>) =>
+    const send = (work: Effect.Effect<void, ModelFailed>) =>
       Effect.gen(function* () {
         const tracker = yield* UsageTracker
         const chatTurns = yield* ChatTurns
@@ -97,13 +98,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
       })
 
-    const unitsByMonth = async () => {
+    const unitsByMonth = async (
+      count: 'aiChatsCount' | 'plantIdentifiesCount' = 'aiChatsCount'
+    ) => {
       const rows = await db
         .select()
         .from(schema.subscriptionUsage)
         .where(eq(schema.subscriptionUsage.userId, userId))
         .orderBy(asc(schema.subscriptionUsage.periodStart))
-      return Arr.map(rows, (row) => row.aiChatsCount)
+      return Arr.map(rows, (row) => row[count])
     }
 
     beforeAll(async () => {
@@ -154,7 +157,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const exits = await runtime.runPromise(
         Effect.gen(function* () {
           const repo = yield* SubscriptionRepository
-          // Taken at once so each racing send below finds an open connection.
+          // Taken at once to open one connection per racing send. On a cold
+          // pool the first send finishes while the others still connect, and
+          // a reserve that reads before it writes would pass.
           yield* Effect.all(
             Arr.makeBy(limit - 2, () =>
               repo.reserveUsage(userId, 'aiChats', null)
@@ -193,7 +198,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           const modelFails = yield* Deferred.make<void>()
           const january = yield* send(
             Deferred.await(modelFails).pipe(
-              Effect.andThen(Effect.fail(new ChatStreamFailed()))
+              Effect.andThen(Effect.fail(new ModelFailed()))
             )
           )
           yield* Effect.sync(() => vi.setSystemTime(Date.UTC(2026, 1, 1, 0, 1)))
@@ -211,6 +216,32 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await unitsByMonth(),
         'units left on [January, February] after the January turn failed in February'
       ).toEqual([0, 1])
+    })
+
+    it('rolloverRefundInRequest: an identify charged in January and failed in February gives January its unit back', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(Date.UTC(2026, 0, 31, 23, 59))
+
+      const exit = await runtime.runPromise(
+        Effect.exit(
+          Effect.gen(function* () {
+            const tracker = yield* UsageTracker
+            return yield* tracker.withReservation(
+              userId,
+              'plantIdentifies',
+              Effect.sync(() =>
+                vi.setSystemTime(Date.UTC(2026, 1, 1, 0, 1))
+              ).pipe(Effect.andThen(Effect.fail(new ModelFailed())))
+            )
+          })
+        )
+      )
+
+      expect(failureOf(exit)).toBeInstanceOf(ModelFailed)
+      expect(
+        await unitsByMonth('plantIdentifiesCount'),
+        'units left on January after the January identify failed in February'
+      ).toEqual([0])
     })
 
     it('shutdownMidTurn: a turn the shutdown cuts off gives its unit back', async () => {

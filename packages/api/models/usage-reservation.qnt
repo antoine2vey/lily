@@ -149,7 +149,8 @@ module usage_reservation {
   // restore(turn.start).pipe(Effect.onError(() => refund(usage, field))),
   // then turn.detach(settle). A start that fails or is interrupted, by a
   // client that left or by the end of the HTTP drain, refunds and forks
-  // nothing.
+  // nothing. withReservation, which meters scans and identifies, is this
+  // step alone: acquireUseRelease(reserve, body, refund unless it succeeds).
   action start(t: str, ok: bool, lands: bool): bool = {
     val me = turns.get(t)
     all {
@@ -416,6 +417,11 @@ module usage_reservation {
       .then(work("a", ChatStreamError)).then(bill("a", Saved, true))
       .then(work("b", Reply)).then(bill("b", Saved, true))
 
+  // An identify metered by withReservation is charged on the last day of a
+  // month and fails on the first day of the next.
+  run rolloverRefundInRequest =
+    init.then(reserve("a")).then(rollover).then(start("a", false, true))
+
   // A deploy lands while the model is still writing.
   run shutdownMidTurn =
     init
@@ -439,6 +445,8 @@ module usage_current {
   })
   run rolloverRefundTest =
     rolloverRefund.expect(counts.get(0) == 0 and counts.get(1) == 1)
+  run rolloverRefundInRequestTest =
+    rolloverRefundInRequest.expect(counts.get(0) == 0 and counts.get(1) == 0)
   run shutdownMidTurnTest =
     shutdownMidTurn.expect(counts.get(0) == 0 and turns.get("a").refunds == 1)
 }
@@ -462,6 +470,8 @@ module usage_refund_current_month {
 
   run rolloverRefundTest =
     rolloverRefund.expect(counts.get(0) == 1 and counts.get(1) == 0)
+  run rolloverRefundInRequestTest =
+    rolloverRefundInRequest.expect(counts.get(0) == 1 and counts.get(1) == 0)
 }
 
 module usage_shutdown_drops {
