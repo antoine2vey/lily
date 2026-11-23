@@ -16,16 +16,13 @@ export interface Reply {
 
 export const ok = (body?: unknown): Reply => ({ status: 200, body })
 
-type FormDataWithParts = FormData & {
-  getParts?: () => ReadonlyArray<Record<string, unknown>>
-}
-
-// A file part keeps its name and type, the bytes stay out of the record.
-const formEntries = (form: FormDataWithParts) =>
-  (form.getParts?.() ?? []).map((part) =>
-    'string' in part
-      ? [part.fieldName, part.string]
-      : [part.fieldName, { name: part.name, type: part.type }]
+// Jest runs Node's FormData, which turns the app's `{ name, type, bytes }`
+// file part into a string, so a file part records as its field name only.
+const formEntries = (form: FormData) =>
+  Array.from(form.entries(), ([field, value]) =>
+    typeof value === 'string' && value !== '[object Object]'
+      ? [field, value]
+      : [field, 'file']
   )
 
 const readBody = (body: BodyInit | null | undefined): unknown => {
