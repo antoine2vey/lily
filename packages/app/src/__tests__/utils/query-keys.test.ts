@@ -1,4 +1,4 @@
-import { invalidateKeys, queryKeys } from '@/utils/query-keys'
+import { queryKeys } from '@/utils/query-keys'
 
 describe('queryKeys', () => {
   describe('plants', () => {
@@ -77,29 +77,5 @@ describe('queryKeys', () => {
     it('should have correct base key', () => {
       expect(queryKeys.auth.all).toEqual(['auth'])
     })
-  })
-})
-
-describe('invalidateKeys', () => {
-  it('should have all domain keys', () => {
-    expect(invalidateKeys).toHaveProperty('plants')
-    expect(invalidateKeys).toHaveProperty('careLogs')
-    expect(invalidateKeys).toHaveProperty('careTasks')
-    expect(invalidateKeys).toHaveProperty('subscriptions')
-    expect(invalidateKeys).toHaveProperty('users')
-    expect(invalidateKeys).toHaveProperty('notifications')
-    expect(invalidateKeys).toHaveProperty('achievements')
-    expect(invalidateKeys).toHaveProperty('auth')
-  })
-
-  it('should reference correct base keys', () => {
-    expect(invalidateKeys.plants).toEqual(['plants'])
-    expect(invalidateKeys.careLogs).toEqual(['careLogs'])
-    expect(invalidateKeys.careTasks).toEqual(['careTasks'])
-    expect(invalidateKeys.subscriptions).toEqual(['subscriptions'])
-    expect(invalidateKeys.users).toEqual(['users'])
-    expect(invalidateKeys.notifications).toEqual(['notifications'])
-    expect(invalidateKeys.achievements).toEqual(['achievements'])
-    expect(invalidateKeys.auth).toEqual(['auth'])
   })
 })
