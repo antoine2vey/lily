@@ -6,6 +6,7 @@ import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { chatConversations, diagnoses } from '@lily/db/schema'
 import { paginate } from '@lily/shared'
 import type { Diagnosis, DiagnosisListResponse } from '@lily/shared/diagnosis'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import { and, count, desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -27,7 +28,7 @@ export interface CreateDiagnosisData {
   symptoms: string[]
   treatmentSteps: string[]
   preventionTips?: string[]
-  imageKey?: string
+  imageKey?: StoredObjectRef
 }
 
 const mapToDiagnosis = (row: typeof diagnoses.$inferSelect): Diagnosis => ({

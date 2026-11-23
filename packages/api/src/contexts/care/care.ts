@@ -50,6 +50,7 @@ import {
   type PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   Array,
   Context,
@@ -67,7 +68,7 @@ export interface RecordCare {
   readonly careType: CareType
   readonly on: CareWhen
   readonly notes: Option.Option<string>
-  readonly photoUrl: Option.Option<string>
+  readonly photoUrl: Option.Option<StoredObjectRef>
   readonly planStep: PlanStepChoice
 }
 

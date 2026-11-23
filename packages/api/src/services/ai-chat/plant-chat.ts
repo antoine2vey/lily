@@ -21,6 +21,7 @@ import { actorDayTimezone } from '@lily/api/services/plants/helpers/care-context
 import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import { daysSince } from '@lily/shared'
 import type { ChatConversation } from '@lily/shared/ai-chat'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   convertToModelMessages,
   type StreamTextResult,
@@ -76,7 +77,7 @@ export interface PlantChatResult {
 
 export interface PlantChatImageOptions {
   imageUrl?: string | undefined
-  imageKey?: string | undefined
+  imageKey?: StoredObjectRef | undefined
 }
 
 const appendImageToLastUserMessage = (

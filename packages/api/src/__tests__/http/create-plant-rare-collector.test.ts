@@ -26,6 +26,7 @@ import {
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import type { plants } from '@lily/db/schema'
 import { API_PREFIX } from '@lily/shared'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Effect, FileSystem, Layer, Path, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
@@ -63,9 +64,9 @@ const DependenciesLive = Layer.mergeAll(
   createMockPlantRepository({ plants: rows, sharesPlantsArray: true }),
   createMockCanopyRepository(),
   createMockRareIdentificationRepository([
-    { userId: alex, imageUrl: rareUrl },
-    { userId: alex, imageUrl: '' },
-    { userId: alex, imageUrl: scanUrl },
+    { userId: alex, imageUrl: mintStoredRef(rareUrl) },
+    { userId: alex, imageUrl: mintStoredRef('') },
+    { userId: alex, imageUrl: mintStoredRef(scanUrl) },
   ]),
   gcs.layer,
   createMockEventBus({ publishedEvents }),

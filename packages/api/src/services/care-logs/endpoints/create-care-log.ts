@@ -9,6 +9,7 @@ import {
 } from '@lily/api/services/helpers/release-objects'
 import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
 import type { CareLogCreateRequest } from '@lily/shared/care-log'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import { Effect, Option } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 
@@ -31,7 +32,7 @@ export const createCareLogWithPhoto = (
 const recordCareLog = (
   permit: PlantPermit<'care'>,
   request: CareLogCreateRequest,
-  photoUrl: Option.Option<string>
+  photoUrl: Option.Option<StoredObjectRef>
 ) =>
   transact(
     Effect.gen(function* () {

@@ -43,6 +43,7 @@ import {
 } from '@lily/shared'
 import type { CarePlanSource } from '@lily/shared/care-plan'
 import type { PlantDeathCause } from '@lily/shared/plant'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import { Array, Data, DateTime, Option, Order, pipe, Result } from 'effect'
 
 export type CareWrite = Data.TaggedEnum<{
@@ -54,7 +55,7 @@ export type CareWrite = Data.TaggedEnum<{
     readonly at: DateTime.Utc
     readonly by: Option.Option<string>
     readonly notes: Option.Option<string>
-    readonly photoUrl: Option.Option<string>
+    readonly photoUrl: Option.Option<StoredObjectRef>
   }
   ReplaceCare: {
     readonly id: string
@@ -373,7 +374,7 @@ export interface RecordInput {
   readonly careType: CareType
   readonly on: CareWhen
   readonly notes: Option.Option<string>
-  readonly photoUrl: Option.Option<string>
+  readonly photoUrl: Option.Option<StoredObjectRef>
   readonly planStep: PlanStepChoice
 }
 

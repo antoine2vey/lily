@@ -3,6 +3,7 @@ import {
   fertilizationSpec,
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 
 // Helper to get dates relative to now
 const now = new Date()
@@ -28,7 +29,7 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     id: 'plant-1',
     name: 'Monstera',
     description: 'A tropical plant',
-    imageUrl: 'https://example.com/monstera.jpg',
+    imageUrl: mintStoredRef('https://example.com/monstera.jpg'),
     category: 'tropical',
     dateAdded: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),

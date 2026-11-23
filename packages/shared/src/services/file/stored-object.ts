@@ -1,4 +1,19 @@
-import { Array, type DateTime, Match, Option, pipe, String } from 'effect'
+import {
+  Array,
+  type Brand,
+  type DateTime,
+  Match,
+  Option,
+  pipe,
+  String,
+} from 'effect'
+
+/**
+ * A reference to a stored object that the server made: the URL or key of an
+ * upload it wrote, or of a client upload `readClientImage` read. A column that
+ * holds one is a `storedRef()` column, so a client string cannot reach it.
+ */
+export type StoredObjectRef = string & Brand.Brand<'StoredObjectRef'>
 
 /**
  * Who an object is erased with. A user's objects go when the account is

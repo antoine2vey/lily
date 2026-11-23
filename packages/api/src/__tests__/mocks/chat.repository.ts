@@ -348,31 +348,20 @@ export const createMockChatRepository = (
       return Effect.succeed(uiMessages)
     },
 
-    create: (createData) => {
-      const newMessage: ChatMessage = {
-        id: `msg-${crypto.randomUUID()}`,
-        role: createData.role,
-        content: createData.content,
-        imageUrl: createData.imageKey,
-        conversationId: createData.conversationId,
-        userId: createData.userId,
-        createdAt: new Date(),
-      }
-      data.messages.push(newMessage)
-      return Effect.succeed(newMessage)
-    },
-
     saveChat: (params: SaveChatParams) => {
       if (data.saveChatFails) return Effect.fail(saveChatFailure)
       if (
         data.replySaveFails &&
-        Array.some(params.messages, (m) => m.role === 'assistant')
+        Array.some(
+          params.messages,
+          ({ message }) => message.role === 'assistant'
+        )
       ) {
         return Effect.fail(saveChatFailure)
       }
       const saved: SavedChatMessage[] = []
 
-      Array.forEach(params.messages, (msg) => {
+      Array.forEach(params.messages, ({ message: msg }) => {
         const textContent = pipe(
           msg.parts,
           Array.filter((p) => p.type === 'text'),

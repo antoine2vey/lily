@@ -17,6 +17,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { findCareTasks } from '@lily/api/services/care-tasks/endpoints/find-care-tasks'
 import { CARE_TASK_WINDOW_DAYS } from '@lily/shared'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Effect, Layer } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -42,7 +43,7 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       id: 'plant-1',
       name: 'Monstera',
       description: 'A tropical plant',
-      imageUrl: 'https://example.com/monstera.jpg',
+      imageUrl: mintStoredRef('https://example.com/monstera.jpg'),
       category: 'tropical',
       dateAdded: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),

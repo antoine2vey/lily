@@ -3,6 +3,7 @@ import type { Outbox } from '@lily/api/kernel/outbox'
 import type { PlantPermit } from '@lily/api/kernel/permit'
 import type { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { RagService } from '@lily/api/services/rag/service'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import type { ToolSet } from 'ai'
 import type { Context } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
@@ -19,7 +20,7 @@ export type ToolContext =
 
 /** A photo the user sent in the conversation the tools run for. */
 export interface ChatImage {
-  readonly key: string
+  readonly key: StoredObjectRef
   readonly conversationId: string
 }
 

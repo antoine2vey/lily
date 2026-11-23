@@ -15,8 +15,10 @@ import {
   publicUrlOf,
   readStoredRef,
   type StoredObject,
+  type StoredObjectRef,
   scopePrefix,
 } from '@lily/shared/services/file/stored-object'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, DateTime, Effect, Layer, Stream } from 'effect'
 
 export const MOCK_BUCKET_NAMES = {
@@ -25,7 +27,7 @@ export const MOCK_BUCKET_NAMES = {
 }
 
 export const mockPublicUrl = (key: string) =>
-  publicUrlOf(MOCK_BUCKET_NAMES.plant, key)
+  mintStoredRef(publicUrlOf(MOCK_BUCKET_NAMES.plant, key))
 
 const signedUrl = (key: string, query: string) =>
   `https://storage.googleapis.com/${MOCK_BUCKET_NAMES.ai}/${key}?${query}`
@@ -73,7 +75,7 @@ export const createInMemoryGCS = (
       request: GCSUploadRequest
     ): Effect.Effect<GCSUploadResponse, InvalidImageError> =>
       Effect.map(save('plant', request), ({ key }) => ({
-        key,
+        key: mintStoredRef(key),
         url: mockPublicUrl(key),
         bucketName: MOCK_BUCKET_NAMES.plant,
         uploadedAt: new Date(),
@@ -105,8 +107,8 @@ export const createInMemoryGCS = (
           Effect.sync(() => options.privateUploads?.push(request))
         ),
         ({ key }) => ({
-          key,
-          url: signedUrl(key, 'signed=true'),
+          key: mintStoredRef(key),
+          url: mintStoredRef(signedUrl(key, 'signed=true')),
           bucketName: MOCK_BUCKET_NAMES.ai,
           uploadedAt: new Date(),
         })
@@ -133,7 +135,7 @@ export const createInMemoryGCS = (
     publish: (
       key: string,
       folder: string
-    ): Effect.Effect<{ readonly url: string }, GCSPublishError> =>
+    ): Effect.Effect<{ readonly url: StoredObjectRef }, GCSPublishError> =>
       Effect.suspend(() => {
         if (!objects.ai.has(key)) {
           return Effect.fail(

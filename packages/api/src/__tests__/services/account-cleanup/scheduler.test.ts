@@ -1,6 +1,7 @@
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
+import { asUserRow } from '@lily/api/__tests__/mocks/user.repository'
 import { Absence } from '@lily/api/contexts/absence'
 import { Canopy } from '@lily/api/contexts/canopy'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -48,9 +49,12 @@ const accounts = (failedPurges = 0) => {
     Layer.mock(UserRepository, {
       findExpiredDeletions: (cutoff) =>
         Effect.succeed(
-          Array.filter(
-            pending,
-            (user) => user.deletedAt !== null && user.deletedAt <= cutoff
+          Array.map(
+            Array.filter(
+              pending,
+              (user) => user.deletedAt !== null && user.deletedAt <= cutoff
+            ),
+            asUserRow
           )
         ),
       delete: (id) =>

@@ -7,6 +7,7 @@ import { LifeState } from '@lily/api/contexts/care/domain/care-plant'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { createDiagnosisTool } from '@lily/api/services/ai-chat/tools/create-diagnosis'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import type { ToolExecutionOptions } from 'ai'
 import { Array, Effect, Layer, ManagedRuntime, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -60,7 +61,10 @@ describe('createDiagnosisTool', () => {
       userId: 'user-1',
       permit: chatPermit('plant-1'),
       plantName: 'Monstera',
-      image: { key: 'uploads/photo.jpg', conversationId: 'conversation-1' },
+      image: {
+        key: mintStoredRef('uploads/photo.jpg'),
+        conversationId: 'conversation-1',
+      },
     })
 
     const result = (await diagTool.execute!(

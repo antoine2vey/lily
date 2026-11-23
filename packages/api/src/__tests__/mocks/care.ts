@@ -364,7 +364,7 @@ export const createInMemoryCare = (
         name: w.draft.name,
         description: Option.getOrNull(w.draft.description),
         category: Option.getOrNull(w.draft.category),
-        imageUrl: Option.getOrNull(w.draft.imageUrl),
+        imageUrl: null,
         humidityRating: w.draft.humidityRating,
         lightingRating: w.draft.lightingRating,
         petToxicityRating: w.draft.petToxicityRating,

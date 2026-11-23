@@ -31,17 +31,14 @@ const createFrom = async (
 ) => {
   const gcs = createInMemoryGCS()
   for (const key of privateObjects) gcs.objects.ai.add(key)
-  const asked: EnhancedPlantCreateRequest[] = []
+  const asked: Partial<EnhancedPlantCreateRequest>[] = []
 
   const plants = createMockPlantRepository({ plants: [mockPlant1] })
   const { plant, saved } = await Effect.runPromise(
     Effect.gen(function* () {
       const plant = yield* withScanPhoto(request(imageUrl), (asking) => {
         asked.push(asking)
-        return Effect.succeed({
-          ...created,
-          imageUrl: asking.imageUrl ?? null,
-        })
+        return Effect.succeed(created)
       })
       const repo = yield* PlantRepository
       const row = yield* repo.findById(created.id)

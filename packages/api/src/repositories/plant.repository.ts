@@ -55,6 +55,7 @@ import {
   type PlantSort,
   paginate,
 } from '@lily/shared'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   and,
   asc,
@@ -141,7 +142,7 @@ export interface UpdatePlantData {
   name?: string
   description?: string | null
   category?: string | null
-  imageUrl?: string | null
+  imageUrl?: StoredObjectRef | null
   humidityRating?: number
   lightingRating?: number
   petToxicityRating?: number
@@ -193,7 +194,7 @@ export interface IPlantRepository {
   readonly addPhotos: (
     photos: Array<{
       plantId: string
-      url: string
+      url: StoredObjectRef
       takenAt: Date
       uploadedByUserId: string
     }>
@@ -767,7 +768,7 @@ export const PlantRepositoryLive = Layer.effect(
       addPhotos: Effect.fn('PlantRepository.addPhotos')(function* (
         photos: Array<{
           plantId: string
-          url: string
+          url: StoredObjectRef
           takenAt: Date
           uploadedByUserId: string
         }>

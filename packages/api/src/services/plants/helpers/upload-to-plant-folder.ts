@@ -1,7 +1,10 @@
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
-import { plantFolder } from '@lily/shared/services/file/stored-object'
+import {
+  plantFolder,
+  type StoredObjectRef,
+} from '@lily/shared/services/file/stored-object'
 import { Effect } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -11,7 +14,7 @@ export const uploadToPlantFolder = (
   plantId: string,
   file: PersistedFile
 ): Effect.Effect<
-  string,
+  StoredObjectRef,
   GCSUploadError | InvalidImageError | PlatformError,
   GCSService | FileSystem
 > =>

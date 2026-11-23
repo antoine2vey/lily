@@ -8,6 +8,7 @@ import { type SweepOptions, sweepOrphans } from '@lily/api/scripts/orphan-sweep'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { BucketRole } from '@lily/shared/services/file/stored-object'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Duration, Effect, Layer, References } from 'effect'
@@ -115,7 +116,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         role: 'user',
         status: 'active',
         timezone: 'UTC',
-        image: 'https://lh3.googleusercontent.com/a/oauth-avatar',
+        image: mintStoredRef(
+          'https://lh3.googleusercontent.com/a/oauth-avatar'
+        ),
       })
       const [plant] = await db
         .insert(schema.plants)
@@ -128,14 +131,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           lightingRating: 3,
           petToxicityRating: 1,
           wateringRating: 3,
-          imageUrl: `https://${MOCK_BUCKET_NAMES.plant}.storage.googleapis.com/${LEGACY_KEY}?X-Goog-Signature=abc`,
+          imageUrl: mintStoredRef(
+            `https://${MOCK_BUCKET_NAMES.plant}.storage.googleapis.com/${LEGACY_KEY}?X-Goog-Signature=abc`
+          ),
         })
         .returning()
       if (!plant) throw new Error('plant insert returned nothing')
       await db.insert(schema.plantPhotos).values([
         {
           plantId: plant.id,
-          url: `http://storage.cloud.google.com/${MOCK_BUCKET_NAMES.plant}/plants/p1/photo%20one.jpg`,
+          url: mintStoredRef(
+            `http://storage.cloud.google.com/${MOCK_BUCKET_NAMES.plant}/plants/p1/photo%20one.jpg`
+          ),
         },
         { plantId: plant.id, url: mockPublicUrl(HASH_KEY) },
         { plantId: plant.id, url: mockPublicUrl(QUERY_KEY) },
@@ -166,7 +173,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         userId: user.id,
         role: 'user',
         content: 'Look at these leaves',
-        imageKey: 'users/a/chat/first.jpg',
+        imageKey: mintStoredRef('users/a/chat/first.jpg'),
         parts: [
           { type: 'text', text: 'Look at these leaves' },
           {
@@ -189,7 +196,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         confidence: 80,
         symptoms: ['yellow leaves'],
         treatmentSteps: ['repot'],
-        imageKey: 'users/a/diagnosis.jpg',
+        imageKey: mintStoredRef('users/a/diagnosis.jpg'),
       })
       await db.insert(schema.diagnoses).values({
         plantId: plant.id,
@@ -199,11 +206,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         confidence: 70,
         symptoms: ['brown spots'],
         treatmentSteps: ['prune'],
-        imageKey: BARE_KEY,
+        imageKey: mintStoredRef(BARE_KEY),
       })
       await db.insert(schema.rarePlantIdentifications).values({
         userId: user.id,
-        imageUrl: signed(MOCK_BUCKET_NAMES.ai, 'users/a/rare.jpg'),
+        imageUrl: mintStoredRef(
+          signed(MOCK_BUCKET_NAMES.ai, 'users/a/rare.jpg')
+        ),
       })
     })
 

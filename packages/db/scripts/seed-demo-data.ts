@@ -23,6 +23,7 @@ import {
   userFollows,
   users,
 } from '@lily/db/schema'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, eq, inArray, or } from 'drizzle-orm'
 import { Array as A, Console, Duration, Effect, Option } from 'effect'
 import { careDayOf } from './care-day'
@@ -595,8 +596,9 @@ const seedDemoData = Effect.gen(function* () {
     .values({
       email: 'antoine@lily.app',
       name: 'Alex',
-      image:
-        'https://images.unsplash.com/photo-1624224416603-c908080780b1?w=400&h=400&fit=crop&crop=face',
+      image: mintStoredRef(
+        'https://images.unsplash.com/photo-1624224416603-c908080780b1?w=400&h=400&fit=crop&crop=face'
+      ),
       emailVerified: true,
       role: 'user',
       status: 'active',
@@ -612,8 +614,9 @@ const seedDemoData = Effect.gen(function* () {
       target: users.email,
       set: {
         name: 'Alex',
-        image:
-          'https://images.unsplash.com/photo-1624224416603-c908080780b1?w=400&h=400&fit=crop&crop=face',
+        image: mintStoredRef(
+          'https://images.unsplash.com/photo-1624224416603-c908080780b1?w=400&h=400&fit=crop&crop=face'
+        ),
         updatedAt: new Date(),
       },
     })
@@ -633,6 +636,7 @@ const seedDemoData = Effect.gen(function* () {
       .insert(plants)
       .values({
         ...plantFields,
+        imageUrl: mintStoredRef(plantFields.imageUrl),
         userId: user.id,
         createdByUserId: user.id,
         dateAdded: Option.getOrElse(
@@ -1461,8 +1465,9 @@ const seedDemoData = Effect.gen(function* () {
     .values({
       email: 'lily@lily.app',
       name: 'Lily',
-      image:
-        'https://images.unsplash.com/photo-1758598304332-94b40ce7c7b4?w=400&h=400&fit=crop&crop=face',
+      image: mintStoredRef(
+        'https://images.unsplash.com/photo-1758598304332-94b40ce7c7b4?w=400&h=400&fit=crop&crop=face'
+      ),
       bio: 'Plant enthusiast 🌿 Growing a little jungle at home.',
       emailVerified: true,
       role: 'user',
@@ -1480,8 +1485,9 @@ const seedDemoData = Effect.gen(function* () {
       target: users.email,
       set: {
         name: 'Lily',
-        image:
-          'https://images.unsplash.com/photo-1758598304332-94b40ce7c7b4?w=400&h=400&fit=crop&crop=face',
+        image: mintStoredRef(
+          'https://images.unsplash.com/photo-1758598304332-94b40ce7c7b4?w=400&h=400&fit=crop&crop=face'
+        ),
         updatedAt: new Date(),
       },
     })
@@ -1499,6 +1505,7 @@ const seedDemoData = Effect.gen(function* () {
       .insert(plants)
       .values({
         ...plantFields,
+        imageUrl: mintStoredRef(plantFields.imageUrl),
         userId: lily.id,
         createdByUserId: lily.id,
         dateAdded: new Date(),

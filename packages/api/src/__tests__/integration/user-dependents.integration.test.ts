@@ -30,6 +30,7 @@ import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { releaseAccount } from '@lily/api/services/user/helpers/release-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, eq, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -354,7 +355,7 @@ const SEEDS: Record<UserDependentColumn, Seed> = {
       await db
         .insert(schema.plantPhotos)
         .values({
-          url: 'https://example.com/leaf.jpg',
+          url: mintStoredRef('https://example.com/leaf.jpg'),
           plantId: w.canopyPlant,
           uploadedByUserId: w.subject,
         })
@@ -378,7 +379,10 @@ const SEEDS: Record<UserDependentColumn, Seed> = {
     const row = returned(
       await db
         .insert(schema.rarePlantIdentifications)
-        .values({ userId: w.subject, imageUrl: 'https://example.com/rare.jpg' })
+        .values({
+          userId: w.subject,
+          imageUrl: mintStoredRef('https://example.com/rare.jpg'),
+        })
         .returning()
     )
     return eq(schema.rarePlantIdentifications.id, row.id)

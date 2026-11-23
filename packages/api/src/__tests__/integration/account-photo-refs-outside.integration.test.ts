@@ -9,6 +9,7 @@ import {
   legacyStampOf,
   namedObjects,
 } from '@lily/shared/services/file/stored-object'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Layer, ManagedRuntime, Option } from 'effect'
@@ -130,7 +131,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it.each(SPELLINGS)(
       'finds a reference spelled with %s',
       async (_case, spelling) => {
-        await db.update(schema.plants).set({ imageUrl: spelling })
+        await db
+          .update(schema.plants)
+          .set({ imageUrl: mintStoredRef(spelling) })
 
         const found = await runtime.runPromise(
           Effect.flatMap(AccountPhotoRepository, (repo) =>

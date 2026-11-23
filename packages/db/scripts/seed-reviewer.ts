@@ -30,6 +30,7 @@ import {
   userSubscriptions,
   users,
 } from '@lily/db/schema'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { eq } from 'drizzle-orm'
 import { Array as A, Console, Effect, Option, pipe } from 'effect'
 import { careDayOf } from './care-day'
@@ -517,12 +518,16 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
       A.flatMap((plant, index) => [
         {
           plantId: plant.id,
-          url: `https://images.unsplash.com/photo-${1600000000000 + index}?w=800`,
+          url: mintStoredRef(
+            `https://images.unsplash.com/photo-${1600000000000 + index}?w=800`
+          ),
           takenAt: daysAgo(20),
         },
         {
           plantId: plant.id,
-          url: `https://images.unsplash.com/photo-${1600000000001 + index}?w=800`,
+          url: mintStoredRef(
+            `https://images.unsplash.com/photo-${1600000000001 + index}?w=800`
+          ),
           takenAt: daysAgo(10),
         },
       ])

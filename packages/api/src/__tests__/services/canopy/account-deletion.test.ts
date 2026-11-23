@@ -9,7 +9,10 @@ import {
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockRefreshTokenRepository } from '@lily/api/__tests__/mocks/refresh-token.repository'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import {
+  asUserRow,
+  createMockUserRepository,
+} from '@lily/api/__tests__/mocks/user.repository'
 import {
   canopyWorld,
   memberUsers,
@@ -22,7 +25,7 @@ import { AdminUser } from '@lily/api/services/admin/middleware'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import type { User } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
-import { Effect, Exit, Layer, Option } from 'effect'
+import { Array, Effect, Exit, Layer, Option } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'
 
@@ -109,7 +112,7 @@ const recordingUsers = (
           Effect.sync(() => writes.push(`hard:${id}`)),
           repo.delete(id)
         ),
-      findExpiredDeletions: () => Effect.succeed(expired),
+      findExpiredDeletions: () => Effect.succeed(Array.map(expired, asUserRow)),
     }))
   ).pipe(Layer.provide(createMockUserRepository(users)))
 

@@ -12,6 +12,7 @@ import type {
   ChatHistoryListResponse,
   ChatMessage,
 } from '@lily/shared/ai-chat'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import type { UIMessage } from 'ai'
 import {
   and,
@@ -43,18 +44,16 @@ export interface ListConversationsParams {
   limit?: number
 }
 
-export interface CreateChatMessageData {
-  role: 'user' | 'assistant'
-  content: string
-  imageKey?: string | undefined
-  conversationId: string
-  userId: string
+/** A message to save, with the upload its file part names. */
+export interface MessageToSave {
+  readonly message: UIMessage
+  readonly imageKey: Option.Option<StoredObjectRef>
 }
 
 export interface SaveChatParams {
   conversationId: string
   userId: string
-  messages: UIMessage[]
+  messages: ReadonlyArray<MessageToSave>
 }
 
 export interface SavedChatMessage {
@@ -172,9 +171,6 @@ export interface IChatRepository {
     conversationId: string,
     limit: number
   ) => Effect.Effect<UIMessage[], SqlError>
-  readonly create: (
-    data: CreateChatMessageData
-  ) => Effect.Effect<ChatMessage | null, SqlError>
   readonly saveChat: (
     params: SaveChatParams
   ) => Effect.Effect<SavedChatMessage[], SqlError>
@@ -461,22 +457,6 @@ export const ChatRepositoryLive = Layer.effect(
         }
       ),
 
-      create: Effect.fn('ChatRepository.create')(function* (
-        data: CreateChatMessageData
-      ) {
-        const [row] = yield* db
-          .insert(chatMessages)
-          .values({
-            role: data.role,
-            content: data.content,
-            imageKey: Option.getOrNull(Option.fromNullishOr(data.imageKey)),
-            conversationId: data.conversationId,
-            userId: data.userId,
-          })
-          .returning()
-        return row ? mapToChatMessage(row) : null
-      }),
-
       getMessagesAsUIMessages: Effect.fn(
         'ChatRepository.getMessagesAsUIMessages'
       )(function* (conversationId: string, limit: number) {
@@ -522,7 +502,7 @@ export const ChatRepositoryLive = Layer.effect(
       ) {
         const saved = yield* Effect.forEach(
           params.messages,
-          (msg) =>
+          ({ message: msg, imageKey }) =>
             Effect.gen(function* () {
               const textContent = pipe(
                 msg.parts,
@@ -543,28 +523,6 @@ export const ChatRepositoryLive = Layer.effect(
                 )
 
               if (Array.isArrayEmpty(existing)) {
-                const imageKey = pipe(
-                  msg.parts,
-                  Array.findFirst(
-                    (
-                      p
-                    ): p is {
-                      type: 'file'
-                      mediaType: string
-                      url: string
-                    } =>
-                      p.type === 'file' &&
-                      'mediaType' in p &&
-                      typeof (p as { mediaType?: string }).mediaType ===
-                        'string' &&
-                      (p as { mediaType: string }).mediaType.startsWith(
-                        'image/'
-                      )
-                  ),
-                  Option.map((p) => p.url),
-                  Option.getOrUndefined
-                )
-
                 const [row] = yield* db
                   .insert(chatMessages)
                   .values({
@@ -572,7 +530,7 @@ export const ChatRepositoryLive = Layer.effect(
                     role: msg.role,
                     content: textContent,
                     parts: msg.parts as unknown as Record<string, unknown>,
-                    imageKey,
+                    imageKey: Option.getOrNull(imageKey),
                     conversationId: params.conversationId,
                     userId: params.userId,
                   })

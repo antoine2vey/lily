@@ -11,6 +11,7 @@ import {
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { StoredObject } from '@lily/shared/services/file/stored-object'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer, Record, Stream } from 'effect'
@@ -74,7 +75,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           lightingRating: 3,
           petToxicityRating: 1,
           wateringRating: 3,
-          imageUrl: ref,
+          imageUrl: mintStoredRef(ref),
         })
         return { object: { bucket: 'plant', key: 'plants/p2/cover.jpg' }, ref }
       },
@@ -90,7 +91,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           type: 'watering',
           careDay: '2026-11-01',
           date: new Date('2026-11-01T09:00:00Z'),
-          photoUrl: ref,
+          photoUrl: mintStoredRef(ref),
           performedByUserId: userId,
         })
         return { object: { bucket: 'plant', key: 'plants/p1/care.jpg' }, ref }
@@ -104,7 +105,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           role: 'user',
           status: 'active',
           timezone: 'UTC',
-          image: ref,
+          image: mintStoredRef(ref),
         })
         return {
           object: { bucket: 'plant', key: 'users/b/avatars/me.jpg' },
@@ -114,7 +115,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       'plant_catalog.image_url': async () => {
         const ref = mockPublicUrl('catalog/fern.jpg')
         await db.insert(schema.plantCatalog).values({
-          imageUrl: ref,
+          imageUrl: mintStoredRef(ref),
           wateringFrequencyDays: 7,
           humidityRating: 50,
           lightingRating: 50,
@@ -130,7 +131,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           userId,
           role: 'user',
           content: 'Look',
-          imageKey: ref,
+          imageKey: mintStoredRef(ref),
         })
         return { object: { bucket: 'ai', key: ref }, ref }
       },
@@ -141,7 +142,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           userId,
           role: 'user',
           content: 'Look at these leaves',
-          imageKey: 'users/a/chat/c1/first.jpg',
+          imageKey: mintStoredRef('users/a/chat/c1/first.jpg'),
           parts: [
             { type: 'text', text: 'Look at these leaves' },
             {
@@ -164,7 +165,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           confidence: 80,
           symptoms: ['yellow leaves'],
           treatmentSteps: ['repot'],
-          imageKey: ref,
+          imageKey: mintStoredRef(ref),
         })
         return { object: { bucket: 'ai', key: ref }, ref }
       },
@@ -172,7 +173,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const ref = signed('users/a/identify/rare.jpg')
         await db.insert(schema.rarePlantIdentifications).values({
           userId,
-          imageUrl: ref,
+          imageUrl: mintStoredRef(ref),
         })
         return {
           object: { bucket: 'ai', key: 'users/a/identify/rare.jpg' },

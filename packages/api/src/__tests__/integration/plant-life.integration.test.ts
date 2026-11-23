@@ -114,7 +114,6 @@ const draft: PlantDraft = {
   name: 'Fern',
   description: Option.none(),
   category: Option.none(),
-  imageUrl: Option.none(),
   humidityRating: 3,
   lightingRating: 3,
   petToxicityRating: 1,

@@ -95,14 +95,15 @@ export const scanCardMultiple = (
         )
 
         // Use first uploaded image as the plant imageUrl
+        const imageUrl = Arr.head(urls)
         const identification = {
           ...result,
-          imageUrl: pipe(
-            Arr.head(urls),
-            Option.getOrElse(() => '')
-          ),
+          imageUrl: Option.getOrElse(imageUrl, () => ''),
         }
-        yield* rememberRareIdentification(identification)
+        yield* rememberRareIdentification({
+          isRareHouseplant: result.isRareHouseplant,
+          imageUrl: Option.getOrUndefined(imageUrl),
+        })
 
         return identification
       })

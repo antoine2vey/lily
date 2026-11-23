@@ -24,6 +24,7 @@ import {
   paginate,
 } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
@@ -70,6 +71,7 @@ export const createMockPlantRepository = (
     Option.getOrElse(Option.fromNullishOr(data.photos), () => []),
     (photo) => ({
       ...photo,
+      url: mintStoredRef(photo.url),
       uploadedByUserId: Option.getOrNull(
         Option.fromNullishOr(photo.uploadedByUserId)
       ),

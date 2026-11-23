@@ -1,4 +1,5 @@
 import type { diagnoses } from '@lily/db/schema'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 
 export type DiagnosisRecord = typeof diagnoses.$inferSelect
 
@@ -41,7 +42,7 @@ export const mockDiagnoses: DiagnosisRecord[] = [
       'Use pots with drainage holes',
       'Let soil dry between waterings',
     ],
-    imageKey: 'chat/plant-1/root-rot.jpg',
+    imageKey: mintStoredRef('chat/plant-1/root-rot.jpg'),
     createdAt: new Date('2024-01-10'),
     updatedAt: new Date('2024-01-20'),
   },

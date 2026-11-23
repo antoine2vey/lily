@@ -1,34 +1,16 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
+import { readIssuedAvatar } from '@lily/api/services/helpers/client-image'
 import { AuthError } from '@lily/shared'
 import type { AdminUserUpdateRequest } from '@lily/shared/admin'
 import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
-import { GCSService } from '@lily/shared/services/file/gcs'
-import {
-  InvalidImageError,
-  isPlannedKey,
-} from '@lily/shared/services/file/image-upload'
-import {
-  publicUrlOf,
-  userFolder,
-} from '@lily/shared/services/file/stored-object'
+import type { GCSService } from '@lily/shared/services/file/gcs'
+import { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import type { User } from '@lily/shared/user'
 import { usernameProblem } from '@lily/shared/username'
-import { Effect, Option, String } from 'effect'
+import { Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
-
-/** Whether `image` is the URL the avatar upload flow stores for the user. */
-const isIssuedAvatar = (bucketName: string, userId: string, image: string) => {
-  const base = publicUrlOf(bucketName, '')
-  return (
-    String.startsWith(base)(image) &&
-    isPlannedKey(
-      userFolder(userId, 'avatars'),
-      String.slice(base.length)(image)
-    )
-  )
-}
 
 export const updateUser = (
   id: string,
@@ -58,20 +40,28 @@ export const updateUser = (
       })
     }
 
-    if (typeof data.image === 'string') {
-      const gcs = yield* GCSService
-      if (!isIssuedAvatar(gcs.bucketNames.plant, id, data.image)) {
-        return yield* new InvalidImageError({
-          message: 'Image must be an avatar uploaded for this user, or null',
-        })
-      }
-    }
+    const image =
+      typeof data.image === 'string'
+        ? yield* Effect.flatMap(
+            readIssuedAvatar(data.image, id),
+            Option.match({
+              onNone: () =>
+                Effect.fail(
+                  new InvalidImageError({
+                    message:
+                      'Image must be an avatar uploaded for this user, or null',
+                  })
+                ),
+              onSome: Effect.succeed,
+            })
+          )
+        : data.image
 
     const updated = yield* repo.update(id, {
       ...(data.name !== undefined && { name: data.name }),
       ...(data.email !== undefined && { email: data.email }),
       ...(data.bio !== undefined && { bio: data.bio }),
-      ...(data.image !== undefined && { image: data.image }),
+      ...(image !== undefined && { image }),
       ...(data.emailVerified !== undefined && {
         emailVerified: data.emailVerified,
       }),

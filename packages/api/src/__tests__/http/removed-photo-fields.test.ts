@@ -32,6 +32,7 @@ import {
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import { API_PREFIX, CareDay } from '@lily/shared'
+import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Effect, Layer, Option, pipe, Redacted } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import { HttpApi, HttpApiBuilder } from 'effect/http-api'
@@ -169,7 +170,7 @@ describe('a plant edit from a build that still sends imageUrl', () => {
   const plant = createTestPlant({
     id: crypto.randomUUID(),
     userId: owner,
-    imageUrl: coverUrl,
+    imageUrl: mintStoredRef(coverUrl),
   })
   const rows = [plant]
   const makeHandler = () =>
