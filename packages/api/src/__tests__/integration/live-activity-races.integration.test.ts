@@ -291,26 +291,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return deliverConcurrently(await enqueueCarePushes(1))
     }
 
-    // The two tests below replay the runs of the same names in
-    // packages/api/models/la-start.qnt.
-    it('digestThenReminder: holds the reminder 2h18m after a digest the device never confirmed', async () => {
-      vi.useFakeTimers({ toFake: ['Date'] })
-      await seedTokens([])
-      const digest = await deliverBatch()
-      vi.setSystemTime(Date.now() + 138 * MINUTE)
-      const reminder = await deliverBatch()
-      expect(
-        count([...digest, ...reminder], 'LiveActivityStart', 'start-0'),
-        'push-to-start sends to a device that confirmed none of them'
-      ).toBe(1)
-    })
-
-    it('confirmedThenEnded: starts a fresh card once the confirmed one has ended', async () => {
-      vi.useFakeTimers({ toFake: ['Date'] })
-      await seedTokens([])
-      const digest = await deliverBatch()
+    const confirmThenEnd = async (
+      batch: ReadonlyArray<LiveActivityPushMessage>
+    ) => {
       const activityId = Option.getOrThrow(
-        Arr.findFirst(digest, (m) =>
+        Arr.findFirst(batch, (m) =>
           m._tag === 'LiveActivityStart' && m.to === 'start-0'
             ? Option.some(m.attributes.activityId)
             : Option.none()
@@ -331,6 +316,26 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await Effect.runPromise(
         endActivity(activityId).pipe(Effect.provide(DeviceLive))
       )
+    }
+
+    // The three tests below replay the runs of the same names in
+    // packages/api/models/la-start.qnt.
+    it('digestThenReminder: holds the reminder 2h18m after a digest the device never confirmed', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      const digest = await deliverBatch()
+      vi.setSystemTime(Date.now() + 138 * MINUTE)
+      const reminder = await deliverBatch()
+      expect(
+        count([...digest, ...reminder], 'LiveActivityStart', 'start-0'),
+        'push-to-start sends to a device that confirmed none of them'
+      ).toBe(1)
+    })
+
+    it('confirmedThenEnded: starts a fresh card once the confirmed one has ended', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      await confirmThenEnd(await deliverBatch())
       const reminder = await deliverBatch()
       expect(
         count(reminder, 'LiveActivityStart', 'start-0'),
@@ -340,6 +345,20 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         count(reminder, 'LiveActivityStart', 'start-1'),
         'push-to-start sends to a device that confirmed none of them'
       ).toBe(0)
+    })
+
+    it('confirmedLongAgo: holds the reminder after an unconfirmed digest, however old the last confirmation', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      await confirmThenEnd(await deliverBatch())
+      vi.setSystemTime(Date.now() + 601 * MINUTE)
+      const digest = await deliverBatch()
+      vi.setSystemTime(Date.now() + 120 * MINUTE)
+      const reminder = await deliverBatch()
+      expect(
+        count([...digest, ...reminder], 'LiveActivityStart', 'start-0'),
+        'push-to-start sends since the last confirmation, 10h back'
+      ).toBe(1)
     })
 
     it('updates the running card on every push and starts the other device once', async () => {
