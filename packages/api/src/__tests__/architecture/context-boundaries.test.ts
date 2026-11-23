@@ -157,7 +157,10 @@ describe('bounded contexts', () => {
   it('receive permits, owner proofs and seen rows built only where their check runs', () => {
     const PROOF = 'PlantPermit|RecordPermit|PlanPermit|OwnerHeld|Seen'
     const CASTS = [
-      new RegExp(`\\bas\\s+[^;,)\\n]*?\\b(${PROOF})\\b`, 'g'),
+      new RegExp(
+        `\\bas\\s+(?:unknown\\s+as\\s+)?(?:(?:readonly\\s+)?[\\w.$]+\\s*[<|&]\\s*)*(?:readonly\\s+)?(${PROOF})\\b`,
+        'g'
+      ),
       new RegExp(
         `(?<=(?:^|[(,=:?![{;&|]|\\breturn|\\byield|\\bawait|=>)\\s*)<\\s*(?:(?:readonly\\s+)?[\\w.$]+\\s*[<|&]\\s*)*(?:readonly\\s+)?(${PROOF})\\b`,
         'gm'
