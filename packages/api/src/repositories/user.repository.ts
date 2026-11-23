@@ -233,7 +233,7 @@ export const UserRepositoryLive = Layer.effect(
           db,
           id,
           { ...data, updatedAt: nowAsDate() },
-          (set) => set.where(eq(users.id, id)).returning()
+          (written) => written.returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
@@ -256,7 +256,7 @@ export const UserRepositoryLive = Layer.effect(
             status: 'pending_deletion',
             deletedAt: nowAsDate(),
           },
-          (set) => set.where(eq(users.id, id)).returning()
+          (written) => written.returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
@@ -319,7 +319,7 @@ export const UserRepositoryLive = Layer.effect(
           db,
           id,
           { role, updatedAt: nowAsDate() },
-          (set) => set.where(eq(users.id, id)).returning()
+          (written) => written.returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
@@ -332,7 +332,7 @@ export const UserRepositoryLive = Layer.effect(
           db,
           id,
           { status, updatedAt: nowAsDate() },
-          (set) => set.where(eq(users.id, id)).returning()
+          (written) => written.returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),

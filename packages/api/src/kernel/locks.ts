@@ -17,7 +17,7 @@ import {
   rooms,
   users,
 } from '@lily/db/schema'
-import { asc, getTableColumns, type SQL } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns, type SQL } from 'drizzle-orm'
 import {
   getTableConfig,
   type PgColumn,
@@ -197,26 +197,36 @@ export const accountWriteStrength = (
 
 type Db = PgDrizzle['Service']
 
-const settingAccount = (db: Db, values: PgUpdateSetSource<typeof users>) =>
-  db.update(users).set(values)
+const updatingAccount = (
+  db: Db,
+  userId: string,
+  values: PgUpdateSetSource<typeof users>,
+  also: SQL | undefined
+) =>
+  db
+    .update(users)
+    .set(values)
+    .where(and(eq(users.id, userId), also))
 
 /**
  * An `UPDATE` of an account row locks it without asking. This is the one
- * place that writes one, so that lock climbs the ladder like one that was
- * asked for, at the strength `values` gives it. `finish` adds the condition
- * and what the statement returns.
+ * place that writes one, and it writes the row of `userId` only, so that
+ * lock climbs the ladder like one that was asked for, at the strength
+ * `values` gives it. `also` narrows the write further. `finish` says what
+ * the statement returns.
  */
 export const writeAccount = <A, E, R>(
   db: Db,
   userId: string,
   values: PgUpdateSetSource<typeof users>,
-  finish: (write: ReturnType<typeof settingAccount>) => Effect.Effect<A, E, R>
+  finish: (write: ReturnType<typeof updatingAccount>) => Effect.Effect<A, E, R>,
+  also?: SQL
 ): Effect.Effect<A, E, R> =>
   climbing(
     'Account',
     accountWriteStrength(values),
     Option.some([userId]),
-    Effect.suspend(() => finish(settingAccount(db, values))),
+    Effect.suspend(() => finish(updatingAccount(db, userId, values, also))),
     () => [userId]
   )
 

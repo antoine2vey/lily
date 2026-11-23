@@ -656,17 +656,12 @@ export const AbsenceStoreLive = Layer.effect(
                 db,
                 w.userId,
                 { ...vacationColumnsOf(w.next), updatedAt: nowAsDate() },
-                (set) =>
-                  set
-                    .where(
-                      and(
-                        eq(users.id, w.userId),
-                        eq(users.vacationStatus, w.expected.status),
-                        storedAt(users.vacationStart, w.expected.start),
-                        storedAt(users.vacationEnd, w.expected.end)
-                      )
-                    )
-                    .returning({ id: users.id })
+                (written) => written.returning({ id: users.id }),
+                and(
+                  eq(users.vacationStatus, w.expected.status),
+                  storedAt(users.vacationStart, w.expected.start),
+                  storedAt(users.vacationEnd, w.expected.end)
+                )
               ),
               (set) => setOnce(w, set.length)
             ),

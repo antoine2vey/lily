@@ -271,10 +271,8 @@ export const AchievementRepositoryLive = Layer.effect(
           {
             historyViewCount: sql`${users.historyViewCount} + 1`,
           },
-          (set) =>
-            set
-              .where(eq(users.id, userId))
-              .returning({ historyViewCount: users.historyViewCount })
+          (written) =>
+            written.returning({ historyViewCount: users.historyViewCount })
         )
         return pipe(
           Option.fromNullishOr(result),

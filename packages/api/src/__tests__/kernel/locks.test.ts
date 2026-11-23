@@ -10,6 +10,9 @@ import {
 } from '@lily/api/kernel/locks'
 import { transactQuietly } from '@lily/api/kernel/transact'
 import type { PgDrizzle } from '@lily/db/effect-drizzle'
+import { users } from '@lily/db/schema'
+import { eq } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/pg-proxy'
 import { Array, Cause, Effect, Exit } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -34,7 +37,7 @@ const selecting = (...ids: ReadonlyArray<string>) => {
 }
 
 const db = {
-  update: () => ({ set: (values: unknown) => values }),
+  update: () => ({ set: () => ({ where: () => undefined }) }),
 } as unknown as PgDrizzle['Service']
 
 const inOneTransaction = <A, E>(
@@ -174,6 +177,31 @@ describe('the lock ladder', () => {
     expect(defectOf(exit)).toEqual(
       new LockOrderDefect({ wanted: 'Delegation', after: 'Notification' })
     )
+  })
+
+  it('writes the one account it records, whatever else narrows the write', async () => {
+    const real = drizzle(() => Promise.resolve({ rows: [] }))
+    const whole = await Effect.runPromise(
+      writeAccount(real, 'u1', { bio: 'b' }, (write) =>
+        Effect.succeed(write.returning().toSQL())
+      )
+    )
+    const narrowed = await Effect.runPromise(
+      writeAccount(
+        real,
+        'u1',
+        { bio: 'b' },
+        (write) => Effect.succeed(write.toSQL()),
+        eq(users.vacationStatus, 'none')
+      )
+    )
+
+    expect(whole.sql).toContain('where "users"."id" = $2 returning')
+    expect(whole.params).toEqual(['b', 'u1'])
+    expect(narrowed.sql).toContain(
+      'where ("users"."id" = $2 and "users"."vacation_status" = $3)'
+    )
+    expect(narrowed.params).toEqual(['b', 'u1', 'none'])
   })
 
   it('takes an account write for the lock its columns make it', () => {

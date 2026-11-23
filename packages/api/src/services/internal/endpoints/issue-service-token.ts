@@ -64,7 +64,7 @@ export const issueServiceToken = (input: {
                 emailVerified: true,
                 updatedAt: nowAsDate(),
               },
-              (set) => set.where(eq(users.id, existing.id)).returning()
+              (written) => written.returning()
             )
 
             return pipe(
