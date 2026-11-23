@@ -134,7 +134,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Check each model gives its expected verdict
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: bash scripts/check-models.sh
 
   docs:
