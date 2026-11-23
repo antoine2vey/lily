@@ -73,7 +73,6 @@ import {
   Cause,
   DateTime,
   Effect,
-  Equal,
   Exit,
   Layer,
   Option,
@@ -1008,14 +1007,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               pool.query('DELETE FROM users WHERE id = $1', [inviteeId])
             ),
           ])
-          return Exit.isSuccess(invited)
-            ? 'invited'
-            : Equal.equals(
-                  outcomeOf(invited),
-                  new UserNotFoundError({ userId: inviteeId })
-                )
-              ? 'refused'
-              : outcomeOf(invited)
+          if (Exit.isSuccess(invited)) return 'invited'
+          const refusal = failureOf(invited)
+          return refusal._tag === 'UserNotFoundError' &&
+            refusal.userId === inviteeId
+            ? 'refused'
+            : refusal
         }
 
         const rounds = []
