@@ -104,90 +104,9 @@ describe('AuthContext', () => {
         renderHook(() => useAuth())
       }).toThrow('useAuth must be used within an AuthProvider')
     })
-
-    it('provides auth state', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
-      })
-
-      expect(result.current.state).toBeDefined()
-      expect(result.current.state._tag).toBeDefined()
-    })
-
-    it('provides login function', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
-      })
-
-      expect(typeof result.current.login).toBe('function')
-    })
-
-    it('provides verifyMagicLink function', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
-      })
-
-      expect(typeof result.current.verifyMagicLink).toBe('function')
-    })
-
-    it('provides setUsername function', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
-      })
-
-      expect(typeof result.current.setUsername).toBe('function')
-    })
-
-    it('provides logout function', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
-      })
-
-      expect(typeof result.current.logout).toBe('function')
-    })
-
-    it('provides refreshUser function', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
-      })
-
-      expect(typeof result.current.refreshUser).toBe('function')
-    })
-
-    it('provides pendingEmail state', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
-      })
-
-      expect(result.current.pendingEmail).toBeDefined()
-    })
   })
 
   describe('AuthProvider', () => {
-    it('renders children', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
-      })
-
-      expect(result.current).toBeTruthy()
-    })
-
     it('transitions from Loading to Unauthenticated', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
 
@@ -195,46 +114,30 @@ describe('AuthContext', () => {
         expect(result.current.state._tag).toBe('Unauthenticated')
       })
     })
-
-    it('initializes pendingEmail as null', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
-      })
-
-      expect(
-        result.current.pendingEmail === null ||
-          typeof result.current.pendingEmail === 'string'
-      ).toBe(true)
-    })
   })
 
-  describe('login function', () => {
-    it('is async and returns result', async () => {
+  describe('login', () => {
+    afterEach(() => {
+      require('@/utils/client').apiEffectRunner.mockReset()
+    })
+
+    it('sends the magic link and keeps the email for the check-email screen', async () => {
       const { apiEffectRunner } = require('@/utils/client')
-      apiEffectRunner.mockResolvedValueOnce({})
-
+      const { storeUserEmail } = require('@/utils/storage')
+      apiEffectRunner.mockResolvedValue({})
       const { result } = renderHook(() => useAuth(), { wrapper })
-
       await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
+        expect(result.current.state._tag).toBe('Unauthenticated')
       })
 
-      // Login returns a promise
-      expect(result.current.login('test@example.com')).toBeInstanceOf(Promise)
-    })
-  })
+      await act(() => result.current.login('ada@example.com', 'en'))
 
-  describe('logout function', () => {
-    it('provides logout function', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper })
-
-      await waitFor(() => {
-        expect(result.current.state._tag).not.toBe('Loading')
+      expect(apiEffectRunner).toHaveBeenCalledWith('auth', 'sendMagicLink', {
+        payload: { email: 'ada@example.com', language: 'en' },
       })
-
-      expect(typeof result.current.logout).toBe('function')
+      expect(storeUserEmail).toHaveBeenCalledWith('ada@example.com')
+      expect(result.current.pendingEmail).toBe('ada@example.com')
+      expect(result.current.state._tag).toBe('Unauthenticated')
     })
   })
 
@@ -252,7 +155,16 @@ describe('AuthContext', () => {
       status: 'active',
     }
 
+    // The startup check retries a failed profile read twice, 1.5 s apart.
+    const pastStartupRetries = () =>
+      act(() => jest.advanceTimersByTimeAsync(3000))
+
+    beforeEach(() => {
+      jest.useFakeTimers()
+    })
+
     afterEach(() => {
+      jest.useRealTimers()
       const client = require('@/utils/client')
       mockGetStoredAccessToken.mockReturnValue(Effect.succeed(Option.none()))
       mockGetStoredUserProfile.mockReturnValue(Effect.succeed(Option.none()))
@@ -285,14 +197,12 @@ describe('AuthContext', () => {
       })
 
       const { result } = renderHook(() => useAuth(), { wrapper })
+      await pastStartupRetries()
 
-      await waitFor(
-        () => {
-          expect(result.current.state._tag).toBe('Authenticated')
-        },
-        { timeout: 10000, interval: 100 }
-      )
-    }, 15000)
+      await waitFor(() => {
+        expect(result.current.state._tag).toBe('Authenticated')
+      })
+    })
 
     it('falls back to Unauthenticated on transient failure without a cached profile', async () => {
       const { apiEffectRunner } = require('@/utils/client')
@@ -309,14 +219,17 @@ describe('AuthContext', () => {
       })
 
       const { result } = renderHook(() => useAuth(), { wrapper })
+      await pastStartupRetries()
 
-      await waitFor(
-        () => {
-          expect(result.current.state._tag).toBe('Unauthenticated')
-        },
-        { timeout: 10000, interval: 100 }
-      )
-    }, 15000)
+      await waitFor(() => {
+        expect(result.current.state._tag).toBe('Unauthenticated')
+      })
+      expect(
+        apiEffectRunner.mock.calls.filter(
+          ([, endpoint]: [string, string]) => endpoint === 'getCurrentUser'
+        )
+      ).toHaveLength(3)
+    })
 
     it('logs out and removes the token on a definitive auth failure', async () => {
       const { apiEffectRunner, isAuthFailureError } = require('@/utils/client')

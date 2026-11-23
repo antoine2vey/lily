@@ -1,120 +1,132 @@
-import { act, renderHook } from '@testing-library/react-native'
-import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
-
-// Mock upload utility
-jest.mock('@/utils/upload', () => ({
-  createFileFromUri: jest.fn((uri: string) => ({
-    uri,
-    name: 'photo.jpg',
-    type: 'image/jpeg',
-  })),
-  isLocalFileUri: (value: unknown): value is string =>
-    typeof value === 'string' && value.startsWith('file://'),
-  uploadMultipart: jest.fn().mockResolvedValue({}),
-}))
-
-import { API_PREFIX } from '@lily/shared'
-import { createFileFromUri, uploadMultipart } from '@/utils/upload'
+import { Plant, PlantsListResponse } from '@lily/shared'
+import { act, waitFor } from '@testing-library/react-native'
+import { Result, Schema } from 'effect'
+import { mockPlants } from '@/__tests__/fixtures'
+import { ok, type SentRequest, stubApi } from '@/__tests__/utils/fake-api'
+import {
+  afterApiRequest,
+  createCacheTestQueryClient,
+  renderQueryHook,
+} from '@/__tests__/utils/query-helpers'
+import { plantDetailKey } from '@/utils/plant-cache'
+import { usePlants } from '../usePlants'
 import { useUpdatePlant } from '../useUpdatePlant'
 
-const mockedUploadMultipart = uploadMultipart as jest.MockedFunction<
-  typeof uploadMultipart
->
-const mockedCreateFileFromUri = createFileFromUri as jest.MockedFunction<
-  typeof createFileFromUri
->
+const PLANT_ID = '6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b'
+const monstera: Plant = { ...mockPlants[0]!, id: PLANT_ID, name: 'Monstera' }
+
+const encodeList = Schema.encodeSync(PlantsListResponse)
+const encodePlant = Schema.encodeSync(Plant)
+
+/** One plant row: getPlants lists it and a PUT renames it. */
+const fakePlantApi = () => {
+  let row = monstera
+  return stubApi(({ method, path, body }: SentRequest) => {
+    if (method === 'PUT' && path === `/plants/${PLANT_ID}`) {
+      const [, data] = (body as Array<[string, unknown]>).find(
+        ([field]) => field === 'data'
+      )!
+      row = { ...row, ...JSON.parse(data as string) }
+      return ok(encodePlant(row))
+    }
+    if (method === 'GET' && path === '/plants') {
+      return ok(
+        encodeList({
+          items: [row],
+          total: 1,
+          page: 1,
+          limit: 20,
+          hasMore: false,
+        })
+      )
+    }
+    return undefined
+  })
+}
+
+const writesOf = (sent: ReadonlyArray<SentRequest>) =>
+  sent
+    .filter((request) => request.method !== 'GET')
+    .map(({ method, path, body }) => ({ method, path, body }))
 
 describe('useUpdatePlant', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-  })
-
-  it('returns mutation functions', () => {
-    const { result } = renderHook(() => useUpdatePlant(), {
-      wrapper: createQueryWrapper(),
-    })
-
-    expect(typeof result.current.mutate).toBe('function')
-    expect(typeof result.current.mutateAsync).toBe('function')
-  })
-
-  it('sends JSON data field via multipart PUT', async () => {
-    mockedUploadMultipart.mockResolvedValue({})
-
-    const { result } = renderHook(() => useUpdatePlant(), {
-      wrapper: createQueryWrapper(),
-    })
-
-    await act(async () => {
-      await result.current.mutateAsync({
-        path: { id: 'plant-1' },
-        payload: { name: 'Updated', wateringFrequencyDays: 7 },
-      })
-    })
-
-    expect(mockedUploadMultipart).toHaveBeenCalledWith(
-      `${API_PREFIX}/plants/plant-1`,
-      [],
-      'image',
-      { data: JSON.stringify({ name: 'Updated', wateringFrequencyDays: 7 }) },
-      'PUT'
+  it('sends the edit as a multipart PUT and shows it in the plant list', async () => {
+    const api = fakePlantApi()
+    const { result } = renderQueryHook(() => ({
+      names: usePlants().data?.items.map((row) => row.name),
+      update: useUpdatePlant(),
+    }))
+    await waitFor(
+      () => expect(result.current.names).toEqual(['Monstera']),
+      afterApiRequest
     )
-  })
 
-  it('uploads local file:// image as multipart file', async () => {
-    mockedUploadMultipart.mockResolvedValue({})
-
-    const { result } = renderHook(() => useUpdatePlant(), {
-      wrapper: createQueryWrapper(),
-    })
-
-    await act(async () => {
-      await result.current.mutateAsync({
-        path: { id: 'plant-1' },
+    await act(() =>
+      result.current.update.mutateAsync({
+        path: { id: PLANT_ID },
         payload: {
-          name: 'Updated',
-          imageUrl: 'file:///var/mobile/photo.jpg',
-        },
-      })
-    })
-
-    expect(mockedCreateFileFromUri).toHaveBeenCalledWith(
-      'file:///var/mobile/photo.jpg',
-      expect.objectContaining({ type: 'image/jpeg' })
-    )
-    expect(mockedUploadMultipart).toHaveBeenCalledWith(
-      `${API_PREFIX}/plants/plant-1`,
-      [expect.objectContaining({ uri: 'file:///var/mobile/photo.jpg' })],
-      'image',
-      { data: JSON.stringify({ name: 'Updated' }) },
-      'PUT'
-    )
-  })
-
-  it('sends the edit without the image URL the plant already has', async () => {
-    mockedUploadMultipart.mockResolvedValue({})
-
-    const { result } = renderHook(() => useUpdatePlant(), {
-      wrapper: createQueryWrapper(),
-    })
-
-    await act(async () => {
-      await result.current.mutateAsync({
-        path: { id: 'plant-1' },
-        payload: {
-          name: 'Updated',
+          name: 'Swiss cheese plant',
           imageUrl: 'https://storage.googleapis.com/photo.jpg',
         },
       })
-    })
-
-    expect(mockedCreateFileFromUri).not.toHaveBeenCalled()
-    expect(mockedUploadMultipart).toHaveBeenCalledWith(
-      `${API_PREFIX}/plants/plant-1`,
-      [],
-      'image',
-      { data: JSON.stringify({ name: 'Updated' }) },
-      'PUT'
     )
+
+    expect(writesOf(api.sent)).toEqual([
+      {
+        method: 'PUT',
+        path: `/plants/${PLANT_ID}`,
+        body: [['data', JSON.stringify({ name: 'Swiss cheese plant' })]],
+      },
+    ])
+    await waitFor(
+      () => expect(result.current.names).toEqual(['Swiss cheese plant']),
+      afterApiRequest
+    )
+  })
+
+  it('uploads a picked photo as the image part', async () => {
+    const api = fakePlantApi()
+    const { result } = renderQueryHook(() => useUpdatePlant())
+
+    await act(() =>
+      result.current.mutateAsync({
+        path: { id: PLANT_ID },
+        payload: { name: 'Monstera', imageUrl: 'file:///var/mobile/photo.jpg' },
+      })
+    )
+
+    expect(writesOf(api.sent)).toEqual([
+      {
+        method: 'PUT',
+        path: `/plants/${PLANT_ID}`,
+        body: [
+          [
+            'image',
+            {
+              name: expect.stringMatching(/^plant-.+\.jpg$/),
+              type: 'image/jpeg',
+              uri: 'file:///var/mobile/photo.jpg',
+            },
+          ],
+          ['data', JSON.stringify({ name: 'Monstera' })],
+        ],
+      },
+    ])
+  })
+
+  it('puts the plant detail back when the API refuses the edit', async () => {
+    stubApi(() => ({ status: 403, body: { _tag: 'PlantNotAuthorizedError' } }))
+    const detail = Result.succeed({ ...monstera, photos: [] })
+    const queryClient = createCacheTestQueryClient()
+    queryClient.setQueryData(plantDetailKey(PLANT_ID), detail)
+    const { result } = renderQueryHook(() => useUpdatePlant(), { queryClient })
+
+    await act(() =>
+      result.current
+        .mutateAsync({ path: { id: PLANT_ID }, payload: { name: 'Renamed' } })
+        .catch(() => undefined)
+    )
+
+    expect(queryClient.getQueryData(plantDetailKey(PLANT_ID))).toEqual(detail)
   })
 })

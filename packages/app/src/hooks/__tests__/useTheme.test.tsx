@@ -44,16 +44,6 @@ describe('useTheme', () => {
     expect(AsyncStorage.getItem).toHaveBeenCalledWith('app-theme')
   })
 
-  it('provides setTheme function', async () => {
-    const { result } = renderHook(() => useTheme(), { wrapper })
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(typeof result.current.setTheme).toBe('function')
-  })
-
   it('updates theme when setTheme is called', async () => {
     const { result } = renderHook(() => useTheme(), { wrapper })
 

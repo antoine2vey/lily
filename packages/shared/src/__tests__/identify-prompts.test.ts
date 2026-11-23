@@ -49,10 +49,6 @@ const identifyCalls: ReadonlyArray<{
 ]
 
 describe('the rarity question in the identify prompts', () => {
-  it('asks the model for isRareHouseplant', () => {
-    expect(rarityInstructions).toContain('Also answer isRareHouseplant')
-  })
-
   it.each(identifyCalls)('$name sends it to the model', async ({ run }) => {
     await Effect.runPromise(run())
 

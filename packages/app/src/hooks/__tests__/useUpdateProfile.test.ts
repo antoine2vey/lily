@@ -1,30 +1,80 @@
-import { renderQueryHook } from '@/__tests__/utils/query-helpers'
+import { UserSettings } from '@lily/shared'
+import { act, waitFor } from '@testing-library/react-native'
+import { Schema } from 'effect'
+import { mockUserSettings } from '@/__tests__/fixtures'
+import { ok, type SentRequest, stubApi } from '@/__tests__/utils/fake-api'
+import {
+  afterApiRequest,
+  renderQueryHook,
+} from '@/__tests__/utils/query-helpers'
+import { useEffectQuery } from '@/utils/client'
+import { USER_SETTINGS_PARAMS } from '@/utils/query-keys'
 import { useUpdateProfile } from '../useUpdateProfile'
 
+const encodeSettings = Schema.encodeSync(UserSettings)
+
 describe('useUpdateProfile', () => {
-  it('returns mutation object', () => {
-    const { result } = renderQueryHook(() => useUpdateProfile())
+  it('uploads the avatar, saves the given fields and shows the saved profile', async () => {
+    let settings: UserSettings = { ...mockUserSettings, lastName: 'Lovelace' }
+    const api = stubApi(({ method, path, body }: SentRequest) => {
+      if (method === 'POST' && path === '/users/avatar') {
+        return ok({ url: 'https://example.com/avatar.jpg' })
+      }
+      if (method === 'PUT' && path === '/users/settings') {
+        settings = { ...settings, ...(body as Partial<UserSettings>) }
+        return ok(encodeSettings(settings))
+      }
+      if (method === 'GET' && path === '/users/settings') {
+        return ok(encodeSettings(settings))
+      }
+      return undefined
+    })
+    const { result } = renderQueryHook(() => ({
+      settings: useEffectQuery('users', 'getUserSettings', USER_SETTINGS_PARAMS)
+        .data,
+      update: useUpdateProfile(),
+    }))
+    await waitFor(
+      () => expect(result.current.settings?.lastName).toBe('Lovelace'),
+      afterApiRequest
+    )
 
-    expect(result.current).toBeDefined()
-    expect(typeof result.current.mutate).toBe('function')
-    expect(typeof result.current.mutateAsync).toBe('function')
-  })
+    await act(() =>
+      result.current.update.mutateAsync({
+        avatarUri: 'file:///var/mobile/avatar.jpg',
+        firstName: 'Ada',
+        lastName: null,
+      })
+    )
 
-  it('has isPending state', () => {
-    const { result } = renderQueryHook(() => useUpdateProfile())
-
-    expect(result.current.isPending).toBe(false)
-  })
-
-  it('has isSuccess state', () => {
-    const { result } = renderQueryHook(() => useUpdateProfile())
-
-    expect(result.current.isSuccess).toBe(false)
-  })
-
-  it('has isError state', () => {
-    const { result } = renderQueryHook(() => useUpdateProfile())
-
-    expect(result.current.isError).toBe(false)
+    expect(
+      api.sent
+        .filter((request) => request.method !== 'GET')
+        .map(({ method, path, body }) => ({ method, path, body }))
+    ).toEqual([
+      {
+        method: 'POST',
+        path: '/users/avatar',
+        body: [
+          [
+            'files',
+            {
+              name: expect.stringMatching(/^avatar-.+\.jpg$/),
+              type: 'image/jpeg',
+              uri: 'file:///var/mobile/avatar.jpg',
+            },
+          ],
+        ],
+      },
+      {
+        method: 'PUT',
+        path: '/users/settings',
+        body: { firstName: 'Ada', lastName: null },
+      },
+    ])
+    await waitFor(() => {
+      expect(result.current.settings?.firstName).toBe('Ada')
+      expect(result.current.settings?.lastName).toBeNull()
+    }, afterApiRequest)
   })
 })
