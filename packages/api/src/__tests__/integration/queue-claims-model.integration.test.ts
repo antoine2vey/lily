@@ -58,6 +58,7 @@ const QUEUE_KEYS = [QUEUE_KEY, IN_FLIGHT_KEY, CLAIMED_AT_KEY]
 const PAST_VISIBILITY = Duration.toMillis(VISIBILITY_TIMEOUT) + 60_000
 const LAST_RETRY = 2
 const AFTER_A_RETRY = 4242
+const LOCK_NOT_AVAILABLE = '55P03'
 const RETRIED = '00000000-0000-4000-8000-0000000000b1'
 const EXHAUSTED = '00000000-0000-4000-8000-0000000000b2'
 
@@ -251,6 +252,27 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
         await db.execute(allow)
       })
       return () => db.execute(allow)
+    }
+
+    const heldByAnotherSession = async (id: string) => {
+      const prober = await pool.connect()
+      try {
+        await prober.query('BEGIN')
+        await prober.query(
+          'SELECT id FROM notifications WHERE id = $1 FOR UPDATE NOWAIT',
+          [id]
+        )
+        return false
+      } catch (error) {
+        if (
+          error instanceof pg.DatabaseError &&
+          error.code === LOCK_NOT_AVAILABLE
+        )
+          return true
+        throw error
+      } finally {
+        await prober.query('ROLLBACK').finally(() => prober.release())
+      }
     }
 
     const stopAfterARetryStatement = async () => {
@@ -528,50 +550,63 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
       expect(await rowStatus(id)).toBe('sent')
     }, 20_000)
 
-    it('retryLater is one UPDATE: the sweep that arrives behind it waits for both rows of the message and fails neither', async () => {
-      await dueRow(EXHAUSTED)
-      await dueRow(RETRIED)
-      await poll()
-      const [entry] = await redis.lrange(QUEUE_KEY, 0, 0)
-      const message = JSON.parse(entry ?? '{}')
-      await redis.del(QUEUE_KEY)
-      await redis.lpush(
-        QUEUE_KEY,
-        JSON.stringify({
-          ...message,
-          payload: {
-            ...message.payload,
-            notificationIds: [RETRIED, EXHAUSTED],
-          },
-        })
-      )
-      await db.execute(
-        sql`UPDATE notifications SET queued_at = now() - interval '2 hours'`
-      )
-      await db.execute(
-        sql`UPDATE notifications SET retry_count = ${LAST_RETRY} WHERE id = ${EXHAUSTED}`
-      )
-      const deadlocksBefore = await deadlocks(pool)
-      const resume = await stopAfterARetryStatement()
-      const alerter = createMockAlerter()
+    it.each([
+      ['the exhausted row', [EXHAUSTED, RETRIED]],
+      ['the retried row', [RETRIED, EXHAUSTED]],
+    ])(
+      'retryLater is one UPDATE: it holds both rows of the message once it has written one, and the sweep behind it fails neither (%s inserted first)',
+      async (_, inserted) => {
+        for (const id of inserted) await dueRow(id)
+        await poll()
+        const [entry] = await redis.lrange(QUEUE_KEY, 0, 0)
+        const message = JSON.parse(entry ?? '{}')
+        await redis.del(QUEUE_KEY)
+        await redis.lpush(
+          QUEUE_KEY,
+          JSON.stringify({
+            ...message,
+            payload: {
+              ...message.payload,
+              notificationIds: [RETRIED, EXHAUSTED],
+            },
+          })
+        )
+        await db.execute(
+          sql`UPDATE notifications SET queued_at = now() - interval '2 hours'`
+        )
+        await db.execute(
+          sql`UPDATE notifications SET retry_count = ${LAST_RETRY} WHERE id = ${EXHAUSTED}`
+        )
+        const deadlocksBefore = await deadlocks(pool)
+        const resume = await stopAfterARetryStatement()
+        const alerter = createMockAlerter()
 
-      const retry = consume(pushFails, alerter)
-      expect(await sessionsWaitingForALock(pool, 1)).toBe(1)
-      const swept = sweep()
-      expect(await sessionsWaitingForALock(pool, 2)).toBe(2)
-      await resume()
-      await retry
-      await swept
+        const retry = consume(pushFails, alerter)
+        expect(await sessionsWaitingForALock(pool, 1)).toBe(1)
+        expect(
+          [
+            await heldByAnotherSession(RETRIED),
+            await heldByAnotherSession(EXHAUSTED),
+          ],
+          'whether the retry holds the retried row and the exhausted row after the statement that retried one'
+        ).toEqual([true, true])
+        const swept = sweep()
+        expect(await sessionsWaitingForALock(pool, 2)).toBe(2)
+        await resume()
+        await retry
+        await swept
 
-      expect(
-        [await row(RETRIED), await row(EXHAUSTED)],
-        'the two rows of one message after its push failed and the sweep ran behind the retry'
-      ).toEqual([
-        { status: 'pending', retryCount: 1, heldBy: null },
-        { status: 'failed', retryCount: LAST_RETRY + 1, heldBy: message.id },
-      ])
-      expect([exhaustedAlerts(alerter), await deadLetters()]).toEqual([1, 1])
-      expect((await deadlocks(pool)) - deadlocksBefore).toBe(0)
-    }, 30_000)
+        expect(
+          [await row(RETRIED), await row(EXHAUSTED)],
+          'the two rows of one message after its push failed and the sweep ran behind the retry'
+        ).toEqual([
+          { status: 'pending', retryCount: 1, heldBy: null },
+          { status: 'failed', retryCount: LAST_RETRY + 1, heldBy: message.id },
+        ])
+        expect([exhaustedAlerts(alerter), await deadLetters()]).toEqual([1, 1])
+        expect((await deadlocks(pool)) - deadlocksBefore).toBe(0)
+      },
+      30_000
+    )
   }
 )
