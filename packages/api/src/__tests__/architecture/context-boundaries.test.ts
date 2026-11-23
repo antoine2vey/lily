@@ -100,6 +100,12 @@ const castsTo = (types: string): ReadonlyArray<RegExp> => [
 ]
 
 const files = walk(SRC)
+
+const PACKAGES = resolve(SRC, '../..')
+const serverCode = ['api/src', 'db/src', 'db/scripts', 'shared/src', 'mcp/src']
+  .flatMap((root) => walk(join(PACKAGES, root)))
+  .filter((file) => !file.endsWith('.test.ts'))
+
 const name = (file: string) => relative(SRC, file)
 const contextOf = (file: string): string | null =>
   file.startsWith(`${CONTEXTS}/`)
@@ -317,9 +323,9 @@ describe('bounded contexts', () => {
   })
 
   it('reach nothing in the tests', () => {
-    const reachers = files
+    const reachers = serverCode
       .filter((file) => readFileSync(file, 'utf8').includes('__tests__/'))
-      .map(name)
+      .map((file) => relative(PACKAGES, file))
 
     expect(
       reachers,
@@ -574,18 +580,10 @@ describe('bounded contexts', () => {
   })
 })
 
-const PACKAGES = resolve(SRC, '../..')
 const MINT = 'shared/src/services/file/stored-ref-mint.ts'
-const storedRefWriters = [
-  'api/src',
-  'db/src',
-  'db/scripts',
-  'shared/src',
-  'mcp/src',
-]
-  .flatMap((root) => walk(join(PACKAGES, root)))
-  .filter((file) => !file.endsWith('.test.ts'))
-  .filter((file) => relative(PACKAGES, file) !== MINT)
+const storedRefWriters = serverCode.filter(
+  (file) => relative(PACKAGES, file) !== MINT
+)
 
 describe('stored-object references', () => {
   const MADE_ELSEWHERE =
@@ -611,7 +609,12 @@ describe('stored-object references', () => {
       .map((file) => relative(PACKAGES, file))
 
     expect(
-      MINT_SITES.filter((site) => !existsSync(join(PACKAGES, site)))
+      MINT_SITES.filter(
+        (site) =>
+          !existsSync(join(PACKAGES, site)) ||
+          !NAMES_THE_MINT.test(readFileSync(join(PACKAGES, site), 'utf8'))
+      ),
+      'A listed site that no longer calls mintStoredRef keeps an exemption it does not use. Drop it from MINT_SITES.'
     ).toEqual([])
     expect(minters, MADE_ELSEWHERE).toEqual([])
   })
