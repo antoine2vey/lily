@@ -30,6 +30,17 @@ packages/api/models/la-start.qnt la_confirm_mid_batch noDuplicateCard breaks # 3
 packages/api/models/la-start.qnt la_lost_post - scenarios # 367 gap 2
 packages/api/models/la-start.qnt la_end_delivered noDuplicateCard,oneCardOnScreen holds
 packages/api/models/la-start.qnt la_stale_started_at - scenarios # 367 gap 4, createActivity before its fix
+packages/api/models/usage-reservation.qnt usage_current neverOverLimit,repliesWithinPlan,noChargeWithoutReply,noUnitTakenByAnotherRefund,settledExactlyOnce,refusedTurnStoresNothing holds
+packages/api/models/usage-reservation.qnt usage_check_then_count neverOverLimit breaks # before 80
+packages/api/models/usage-reservation.qnt usage_check_then_count noChargeWithoutReply breaks # before 80
+packages/api/models/usage-reservation.qnt usage_refund_current_month noChargeWithoutReply breaks # before 158
+packages/api/models/usage-reservation.qnt usage_refund_current_month noUnitTakenByAnotherRefund breaks # before 158
+packages/api/models/usage-reservation.qnt usage_shutdown_drops noChargeWithoutReply breaks # before 601e6752
+packages/api/models/usage-reservation.qnt usage_stores_refused refusedTurnStoresNothing breaks # before 148
+packages/api/models/usage-reservation.qnt usage_unmetered repliesWithinPlan breaks # before 147
+packages/api/models/usage-reservation.qnt usage_hard_kill noChargeWithoutReply breaks # 372 gap 1
+packages/api/models/usage-reservation.qnt usage_release_fails noChargeWithoutReply breaks # 372 gap 2
+packages/api/models/usage-reservation.qnt usage_late_refund_lost noChargeWithoutReply breaks # 372 gap 3
 '
 
 only=${1:-}
