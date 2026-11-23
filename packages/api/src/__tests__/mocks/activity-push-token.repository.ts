@@ -171,7 +171,7 @@ export const createMockActivityPushTokenRepository = (
         })
         return count
       }),
-    claimStartTokens: (userId, deviceTokenIds, cutoff) =>
+    claimStartTokens: (_userId, deviceTokenIds, cutoff) =>
       Effect.sync(() => {
         const now = new Date()
         const targets = new Set(deviceTokenIds)
@@ -187,13 +187,7 @@ export const createMockActivityPushTokenRepository = (
                 onSome: (confirmed) => confirmed >= sent,
               }),
           })
-          if (
-            row.kind === 'start' &&
-            row.status === 'active' &&
-            row.userId === userId &&
-            targets.has(row.deviceTokenId) &&
-            startResolved
-          ) {
+          if (targets.has(row.deviceTokenId) && startResolved) {
             store[i] = { ...row, lastStartSentAt: now, updatedAt: now }
             claimed.push(row.deviceTokenId)
           }
