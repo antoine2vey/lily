@@ -1,7 +1,7 @@
 import { Array, DateTime, Option, pipe, Record } from 'effect'
 
 import { TIME_ZONE_ALIASES } from '../../notification/time-zones.generated'
-import type { ZoneName } from './zone-name'
+import type { ServerZoneName, ZoneName } from './zone-name'
 
 /** Zero-pad a 1-2 digit number to a 2-char string (e.g. 6 -> "06"). */
 const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
@@ -42,7 +42,7 @@ const etcOffset = (zone: string): Option.Option<DateTime.TimeZone> =>
  * a zone newer than the phone's tzdata does.
  */
 export const zoneOnThisRuntime = (
-  zone: ZoneName
+  zone: ServerZoneName
 ): Option.Option<DateTime.TimeZone> =>
   zone === 'UTC'
     ? Option.some(DateTime.zoneMakeOffset(0))

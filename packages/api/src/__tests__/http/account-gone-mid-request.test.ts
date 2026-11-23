@@ -1,3 +1,4 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
@@ -11,7 +12,6 @@ import { RoomRepository } from '@lily/api/repositories/room.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AuthenticationBase } from '@lily/api/services/auth/middleware.impl'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
-import type { User } from '@lily/shared'
 import { API_PREFIX } from '@lily/shared'
 import {
   Cause,
@@ -57,7 +57,7 @@ const createRoomWhere = async (world: {
   readonly lookupAfterTheInsert?: 'fails'
   readonly owner?: 'canopy'
 }) => {
-  const users: User[] = [mockUser1]
+  const users: UserFixture[] = [mockUser1]
   let lookups = 0
   let inserted = false
   const errorsLogged: Array<{

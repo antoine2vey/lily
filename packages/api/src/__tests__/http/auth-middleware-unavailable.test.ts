@@ -1,3 +1,4 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import {
   mockAdminUser,
   mockSuspendedUser,
@@ -13,7 +14,6 @@ import { AdminAuthBase } from '@lily/api/services/admin/middleware.impl'
 import { AdminAuth } from '@lily/api/services/admin/middleware.types'
 import { AuthenticationBase } from '@lily/api/services/auth/middleware.impl'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
-import type { User } from '@lily/shared'
 import { Effect, FileSystem, Layer, Path, Schema } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import {
@@ -112,7 +112,7 @@ const activeAdmin = {
   status: 'active',
 } as const
 
-const usersOf = (users: User[]) => createMockUserRepository(users)
+const usersOf = (users: UserFixture[]) => createMockUserRepository(users)
 
 describe('auth middleware when the user lookup cannot reach the database', () => {
   it('Authentication answers 503, not 401', async () => {

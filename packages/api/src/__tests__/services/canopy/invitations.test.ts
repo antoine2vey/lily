@@ -1,4 +1,5 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
@@ -28,7 +29,6 @@ import {
   CanopyInviteExpiredError,
   CanopyInviteeAlreadyMemberError,
   CanopyInviteNotFoundError,
-  type User,
 } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { failureOf } from '@lily/shared/testing'
@@ -37,7 +37,7 @@ import { describe, expect, it } from 'vitest'
 
 const day = 24 * 60 * 60 * 1000
 
-const userNamed = (id: string, name: string): User => ({
+const userNamed = (id: string, name: string): UserFixture => ({
   ...mockUser1,
   id,
   name,

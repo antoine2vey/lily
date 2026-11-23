@@ -1,17 +1,21 @@
-import { DEFAULT_ZONE, type ZoneName, zoneOnThisRuntime } from '@lily/shared'
+import {
+  DEFAULT_ZONE,
+  type ServerZoneName,
+  ZoneName,
+  zoneOnThisRuntime,
+} from '@lily/shared'
 import * as Sentry from '@sentry/react-native'
 import { Option } from 'effect'
 
-const reported = new Set<ZoneName>()
+const reported = new Set<ServerZoneName>()
 
 /**
  * A zone from the api, or `DEFAULT_ZONE` when this phone's tzdata predates it
- * (an account zone set from a newer phone). Every date helper throws on such a
- * zone, so a zone the api sends goes through here before one sees it.
+ * (an account zone set from a newer phone), where every date helper throws.
  */
-export const zoneOnThisDevice = (zone: ZoneName): ZoneName =>
+export const zoneOnThisDevice = (zone: ServerZoneName): ZoneName =>
   Option.match(zoneOnThisRuntime(zone), {
-    onSome: () => zone,
+    onSome: () => ZoneName.make(zone),
     onNone: () => {
       if (!reported.has(zone)) {
         reported.add(zone)

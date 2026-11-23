@@ -29,12 +29,14 @@ const zoneOfFoldedName: ReadonlyMap<string, string> = new Map([
   ),
 ])
 
-const CanonicalZone = Schema.String.check(
+const ServerCanonicalZone = Schema.String.check(
   Schema.makeFilter(
     (zone) => canonicalZones.has(zone) || 'a canonical IANA time zone',
     { identifier: 'ZoneName' }
   )
-).pipe(Schema.brand('ZoneName'))
+).pipe(Schema.brand('ServerZoneName'))
+
+const CanonicalZone = ServerCanonicalZone.pipe(Schema.brand('ZoneName'))
 
 /**
  * A canonical IANA zone name, the form stored in `users.timezone` and
@@ -62,6 +64,8 @@ export const ZoneName = Schema.String.pipe(
 
 export type ZoneName = typeof ZoneName.Type
 
+export type ServerZoneName = typeof StoredZoneName.Type
+
 /**
  * The zone of an account or Canopy that has none stored or stores a name
  * `ZoneName` rejects, such as an offset: the `users.timezone` column default.
@@ -76,10 +80,14 @@ export const zoneNameOrDefault = (name: string): ZoneName =>
  * A zone name read back from storage, as the api returns it: `ZoneName`, or
  * `DEFAULT_ZONE` for a name it rejects. An app build can run against an api
  * that still returns a stored name unchanged.
+ *
+ * It decodes to `ServerZoneName`, which a date helper rejects: a phone whose
+ * tzdata predates the zone cannot compute in it, so the app resolves it
+ * through `zoneOnThisDevice` first. A `ZoneName` is a `ServerZoneName`.
  */
 export const StoredZoneName = Schema.String.pipe(
   Schema.decodeTo(
-    CanonicalZone,
+    ServerCanonicalZone,
     SchemaTransformation.transform({
       decode: (name: string): string => zoneNameOrDefault(name),
       encode: identity,

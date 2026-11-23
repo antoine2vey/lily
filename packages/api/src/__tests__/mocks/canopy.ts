@@ -1,3 +1,4 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
   createTestCanopyRow,
@@ -43,7 +44,7 @@ import {
   plants,
   rooms,
 } from '@lily/db/schema'
-import type { CanopyId, User } from '@lily/shared'
+import type { CanopyId } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   Array,
@@ -80,8 +81,11 @@ export interface MockCanopySurroundings {
   readonly limits?: Layer.Layer<LimitChecker>
 }
 
-type AccountSource = Pick<User, 'id' | 'timezone' | 'latitude' | 'longitude'> &
-  Partial<Pick<User, 'name' | 'language' | 'status' | 'deletedAt'>>
+type AccountSource = Pick<
+  UserFixture,
+  'id' | 'timezone' | 'latitude' | 'longitude'
+> &
+  Partial<Pick<UserFixture, 'name' | 'language' | 'status' | 'deletedAt'>>
 
 const toAccount = (user: AccountSource): Account => ({
   userId: user.id,

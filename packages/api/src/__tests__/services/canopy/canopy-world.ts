@@ -1,4 +1,5 @@
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
 import {
@@ -20,11 +21,10 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
-export const memberUsers = (store: MockCanopyStore): User[] =>
+export const memberUsers = (store: MockCanopyStore): UserFixture[] =>
   Array.map(store.members, (m) => ({
     ...mockUser1,
     id: m.userId,
@@ -39,7 +39,7 @@ export const canopyWorld = (
   schedules: CareScheduleRow[] = [],
   timeline = createOutboxTimeline(),
   around: MockCanopySurroundings = {},
-  outsiders: ReadonlyArray<User> = []
+  outsiders: ReadonlyArray<UserFixture> = []
 ) => {
   const plantsNow = () =>
     Array.map(store.plants, (p) =>

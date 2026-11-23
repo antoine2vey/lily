@@ -5,6 +5,7 @@ import {
   createTestPlant,
   type PlantRecord,
 } from '@lily/api/__tests__/fixtures/plants'
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
@@ -34,7 +35,7 @@ import type { NotificationContent } from '@lily/api/services/notification-schedu
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations/care'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import type { PushMessage } from '@lily/api/services/push/types'
-import type { NotificationTopic, User } from '@lily/shared'
+import type { NotificationTopic } from '@lily/shared'
 import { ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
@@ -85,7 +86,7 @@ type Delivered = QueueMessage & {
 const deliver = (
   message: QueueMessage,
   notifications: ReturnType<typeof createTestNotification>[],
-  users: User[],
+  users: UserFixture[],
   plantsData: PlantRecord[],
   schedules: CareScheduleRow[]
 ) => {
@@ -124,7 +125,7 @@ const deliver = (
 
 const runPollAndEnqueue = (
   notifications: ReturnType<typeof createTestNotification>[],
-  users: User[],
+  users: UserFixture[],
   onEnqueue?: (topic: NotificationTopic, message: Delivered) => void,
   plantsData: PlantRecord[] = [],
   schedules: CareScheduleRow[] = []

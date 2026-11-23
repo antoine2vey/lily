@@ -1,3 +1,4 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
@@ -6,7 +7,6 @@ import { Absence } from '@lily/api/contexts/absence'
 import { Canopy } from '@lily/api/contexts/canopy'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { startAccountCleanupScheduler } from '@lily/api/services/account-cleanup/scheduler'
-import type { User } from '@lily/shared'
 import {
   Array,
   Clock,
@@ -35,7 +35,7 @@ const databaseDown = new SqlError({
 
 const accounts = (failedPurges = 0) => {
   let failuresLeft = failedPurges
-  let pending: ReadonlyArray<User> = [
+  let pending: ReadonlyArray<UserFixture> = [
     {
       ...mockUser1,
       id: 'leaving',

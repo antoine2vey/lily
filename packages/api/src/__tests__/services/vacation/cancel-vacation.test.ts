@@ -1,11 +1,12 @@
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createVacationWorld } from '@lily/api/__tests__/mocks/vacation-world'
 import { Vacation } from '@lily/api/contexts/absence/domain/vacation'
 import type { AbsenceStore } from '@lily/api/contexts/absence/store'
 import { DueMove } from '@lily/api/contexts/care'
 import { cancelVacation } from '@lily/api/services/vacation/endpoints/cancel-vacation'
-import { CARE_TYPES, type User, ZoneName } from '@lily/shared'
+import { CARE_TYPES, ZoneName } from '@lily/shared'
 import {
   Array,
   Cause,
@@ -24,7 +25,7 @@ const daysFromNow = (days: number): Date =>
   new Date(Date.now() + days * 24 * 60 * 60 * 1000)
 
 const setup = (
-  users: User[],
+  users: UserFixture[],
   plants: ReturnType<typeof createTestPlant>[] = [],
   store?: (store: AbsenceStore['Service']) => AbsenceStore['Service']
 ) => createVacationWorld({ users, plants, store })

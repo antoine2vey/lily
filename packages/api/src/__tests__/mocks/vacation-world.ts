@@ -1,4 +1,5 @@
 import type { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import {
   type AbsenceSurroundings,
   createInMemoryAbsence,
@@ -20,12 +21,11 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
-import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Layer } from 'effect'
 
 export interface VacationWorld {
-  readonly users: User[]
+  readonly users: UserFixture[]
   readonly plants?: ReturnType<typeof createTestPlant>[] | undefined
   readonly schedules?: MockCareScheduleData['schedules']
   readonly memberships?: MockCareScheduleData['memberships']
