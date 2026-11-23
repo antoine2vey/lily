@@ -51,6 +51,8 @@ import {
   Exit,
   Layer,
   ManagedRuntime,
+  Option,
+  Predicate,
   References,
   Struct,
 } from 'effect'
@@ -326,6 +328,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       readonly tells: ReadonlyArray<string>
     }
 
+    const refusalOf = (exit: Exit.Exit<unknown, unknown>) =>
+      Option.map(Exit.findErrorOption(exit), (error) =>
+        Predicate.hasProperty(error, 'message') ? error.message : error
+      )
+
     const RACED: Record<'the scheduler' | 'the caretaker', Race> = {
       'the scheduler': {
         first: tick,
@@ -375,14 +382,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const secondWaited = await waitsForALock(pool, second)
         Deferred.doneUnsafe(release, Exit.void)
 
+        const answers = { first: await first, second: await second }
         expect({
-          first: await first,
-          second: await second,
+          ...answers,
           secondWaited,
+          secondRefusal: refusalOf(answers.second),
         }).toEqual({
           first: raced.firstAnswers,
           second: raced.secondAnswers,
           secondWaited: true,
+          secondRefusal: refusalOf(raced.secondAnswers),
         })
         expect(await currentStatus()).toBe(raced.ends)
         expect(await noticeTypes()).toEqual(raced.tells)

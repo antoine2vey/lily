@@ -24,7 +24,9 @@ or {
   } as $hit where {
     register_diagnostic(span=$hit, message="Assert which error failed: use failureOf(exit or result) and check its _tag or class (Exit.isFailure, a toMatchObject without _tag or a bare rejects.toThrow() passes on any error).")
   },
-  // An error's message is not enumerable, so these matchers skip it.
+  // An error's message is not enumerable, so these matchers skip it. The rule
+  // sees only an error built inside the expect call, not one held in a table
+  // or a variable.
   `expect($_).$matcher($expected)` as $hit where {
     $matcher <: or { `toEqual`, `toStrictEqual`, `toMatchObject` },
     $expected <: contains `new $class({ $props })` where {
