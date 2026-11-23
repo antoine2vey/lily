@@ -160,8 +160,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('keeps the subscription active when a stale EXPIRATION arrives after RENEWAL', async () => {
-      await deliver('RENEWAL', `renewal-${userId}`)
-      await deliver('EXPIRATION', `expiration-${userId}`)
+      expect((await deliver('RENEWAL', `renewal-${userId}`))._tag).toBe(
+        'Success'
+      )
+      expect((await deliver('EXPIRATION', `expiration-${userId}`))._tag).toBe(
+        'Success'
+      )
 
       const { webhookEvents, subscriptions, subscriptionEvents } =
         await stored()
