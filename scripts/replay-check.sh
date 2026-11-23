@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# Usage: REPLAY_FILES="path ..." [REPLAY_INSTALL=1] scripts/replay-check.sh <sha> -- <command...>
+# Usage: REPLAY_EXPECT=<regex> REPLAY_FILES="path ..." [REPLAY_INSTALL=1] \
+#   scripts/replay-check.sh <sha> -- <command...>
 # Runs <command> in a throwaway worktree at <sha>, with REPLAY_FILES copied in
-# from this tree, and succeeds only when the command fails there. A new check is
-# trusted once it fails on the past mistake it guards against. The command sees
-# this tree's root as $REPLAY_ROOT, so it can use its tools without an install.
+# from this tree. It succeeds only when the command fails there and its combined
+# output matches REPLAY_EXPECT, the diagnostic the check prints for the mistake.
+# Any other failure, such as a missing rule file or a missing target, means the
+# check never ran, so it exits 2. The command sees this tree's root as
+# $REPLAY_ROOT, so it can use its tools without an install.
 set -euo pipefail
 
-if [ $# -lt 3 ] || [ "$2" != -- ]; then
-	echo 'usage: REPLAY_FILES="path ..." scripts/replay-check.sh <sha> -- <command...>' >&2
+if [ $# -lt 3 ] || [ "$2" != -- ] || [ -z "${REPLAY_EXPECT:-}" ]; then
+	echo 'usage: REPLAY_EXPECT=<regex> REPLAY_FILES="path ..." scripts/replay-check.sh <sha> -- <command...>' >&2
 	exit 2
 fi
 sha=$1
@@ -27,13 +30,18 @@ if [ "${REPLAY_INSTALL:-0}" = 1 ]; then
 fi
 
 status=0
-(cd "$dir" && REPLAY_ROOT=$root "$@") || status=$?
-if [ "$status" -eq 126 ] || [ "$status" -eq 127 ]; then
-	echo "replay: the command could not run at $sha (exit $status)" >&2
-	exit 2
-fi
+out=$(cd "$dir" && REPLAY_ROOT=$root "$@" 2>&1) || status=$?
+printf '%s\n' "$out"
 if [ "$status" -eq 0 ]; then
 	echo "replay: check passed at $sha; it does not catch this mistake"
 	exit 1
+fi
+if [ "$status" -gt 128 ]; then
+	echo "replay: the command was killed at $sha (exit $status)" >&2
+	exit 2
+fi
+if ! grep -qE -- "$REPLAY_EXPECT" <<<"$out"; then
+	echo "replay: the command failed at $sha (exit $status) without printing /$REPLAY_EXPECT/" >&2
+	exit 2
 fi
 echo "replay: check failed at $sha as expected"
