@@ -16,7 +16,7 @@ import {
 } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { failureOf } from '@lily/shared/testing'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const ownerCurrentUser = Layer.succeed(CurrentUser, {
@@ -193,7 +193,6 @@ describe('cancelDelegation', () => {
       cancelDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -206,7 +205,6 @@ describe('cancelDelegation', () => {
       cancelDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -219,7 +217,6 @@ describe('cancelDelegation', () => {
       cancelDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -232,7 +229,6 @@ describe('cancelDelegation', () => {
       cancelDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotAuthorizedError)
   })
 
@@ -243,7 +239,6 @@ describe('cancelDelegation', () => {
       cancelDelegation('non-existent').pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotFoundError)
   })
 

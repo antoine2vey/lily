@@ -14,7 +14,8 @@ import type {
 import { CareDay } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import type { DeviceToken } from '@lily/shared/device-token'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 type SubRow = typeof userSubscriptions.$inferSelect
@@ -145,7 +146,7 @@ describe('getUserOverview', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 
   it('flags isStorePayer for an active paid sub with an external id', async () => {

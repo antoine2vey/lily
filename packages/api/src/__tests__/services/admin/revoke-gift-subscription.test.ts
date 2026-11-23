@@ -5,7 +5,8 @@ import type { CreateSubscriptionData } from '@lily/api/repositories/subscription
 import { revokeGiftSubscription } from '@lily/api/services/admin/endpoints/revoke-gift-subscription'
 import { AdminUser } from '@lily/api/services/admin/middleware'
 import type { UserProfile } from '@lily/shared/auth'
-import { Cause, Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const mockAdminContext: UserProfile = {
@@ -62,14 +63,7 @@ describe('revokeGiftSubscription', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('CannotModifySelfError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('CannotModifySelfError')
   })
 
   it('should fail when user not found', async () => {
@@ -77,14 +71,7 @@ describe('revokeGiftSubscription', () => {
       revokeGiftSubscription('non-existent').pipe(Effect.provide(baseLayers()))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('UserNotFoundError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 
   it('should refuse to revoke a real store payer', async () => {
@@ -115,13 +102,6 @@ describe('revokeGiftSubscription', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('StorePayerProtectedError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('StorePayerProtectedError')
   })
 })

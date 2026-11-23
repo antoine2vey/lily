@@ -309,7 +309,7 @@ describe('createPlant', () => {
       createPlant(validRequest).pipe(Effect.provide(layer))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('LimitExceededError')
     expect(rows).toHaveLength(mockPlants.length)
     expect(care.events).toEqual([])
   })

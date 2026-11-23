@@ -9,6 +9,7 @@ import {
 import { PgLive } from '@lily/db'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import * as schema from '@lily/db/schema'
+import { failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -16,7 +17,6 @@ import {
   ConfigProvider,
   DateTime,
   Effect,
-  Exit,
   Layer,
   ManagedRuntime,
   Schema,
@@ -129,7 +129,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toBeInstanceOf(TurnFailed)
       expect(await usageCounts()).toEqual([0])
     })
   }

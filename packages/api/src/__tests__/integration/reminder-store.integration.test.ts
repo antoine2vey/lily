@@ -27,6 +27,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { CareDay, CareDays } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { asc, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -625,7 +626,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         )
 
-        expect(exit._tag).toBe('Failure')
+        expect(failureOf(exit)).toMatchObject({
+          _tag: 'SqlError',
+          reason: { _tag: 'ConstraintError', cause: { code: '23503' } },
+        })
         expect(Array.map(await stored(), (r) => r.id)).toEqual([old])
       })
     })

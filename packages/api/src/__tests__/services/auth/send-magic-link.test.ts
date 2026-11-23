@@ -18,6 +18,7 @@ import {
 import { verifyMagicLink } from '@lily/api/services/auth/endpoints/verify-magic-link'
 import { RATE_LIMITS } from '@lily/api/services/rate-limiter/service'
 import { AuthError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer, Option } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -122,7 +123,10 @@ describe('sendMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid email format',
+    })
   })
 
   it('should fail with empty email', async () => {
@@ -130,7 +134,10 @@ describe('sendMagicLink', () => {
       sendMagicLink({ email: '' }, {}).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid email format',
+    })
   })
 
   it('should fail when rate limit exceeded', async () => {
@@ -140,7 +147,7 @@ describe('sendMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('RateLimitExceededError')
   })
 
   it('keeps an earlier link valid when a new one is requested', async () => {
@@ -311,7 +318,10 @@ describe('sendMagicLink', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'AuthError',
+        message: 'Invalid email format',
+      })
     })
 
     it('should still check rate limits when instant login is enabled', async () => {
@@ -326,7 +336,7 @@ describe('sendMagicLink', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)._tag).toBe('RateLimitExceededError')
     })
   })
 
@@ -397,7 +407,7 @@ describe('sendMagicLink', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)._tag).toBe('RateLimitExceededError')
     })
 
     it('should still validate email format for reviewer-pattern strings', async () => {
@@ -407,7 +417,10 @@ describe('sendMagicLink', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'AuthError',
+        message: 'Invalid email format',
+      })
     })
   })
 
@@ -418,7 +431,10 @@ describe('sendMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid email format',
+    })
   })
 
   it('should fail with email missing domain', async () => {
@@ -428,7 +444,10 @@ describe('sendMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid email format',
+    })
   })
 
   it('should fail with email missing local part', async () => {
@@ -438,7 +457,10 @@ describe('sendMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid email format',
+    })
   })
 
   it('should normalize uppercase email to lowercase', async () => {

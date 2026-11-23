@@ -21,6 +21,7 @@ import { processIngestJob } from '@lily/api/services/knowledge-ingestion/process
 import { DrizzleLive } from '@lily/db'
 import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
 import type { IngestJob } from '@lily/shared/knowledge'
+import { failureOf } from '@lily/shared/testing'
 import {
   ConfigProvider,
   Effect,
@@ -337,7 +338,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { _tag: 'ConstraintError', cause: { code: '23503' } },
+      })
       const stored = await storedDocument(sourceId)
       expect(stored.documents).toBe(0)
       const chunks = await pool.query('SELECT 1 FROM processed_chunks')

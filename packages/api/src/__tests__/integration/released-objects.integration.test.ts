@@ -492,11 +492,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
 
         expect({
-          failed: Exit.isFailure(exit),
+          failure: failureOf(exit),
           photos: (await db.select().from(schema.plantPhotos)).length,
           objects: [...gcs.objects.plant],
         }).toEqual({
-          failed: true,
+          failure: 'the caller rolls back',
           photos: 1,
           objects: [`plants/${fern}/photo.jpg`],
         })

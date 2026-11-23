@@ -3,7 +3,8 @@ import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.rep
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { unfollowUser } from '@lily/api/services/social/endpoints/unfollow-user'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const currentUserId = 'current-user'
@@ -62,29 +63,20 @@ describe('unfollowUser', () => {
     const exit = await Effect.runPromiseExit(
       unfollowUser(currentUserId).pipe(Effect.provide(buildLayer()))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('CannotFollowSelfError')
-    }
+    expect(failureOf(exit)._tag).toBe('CannotFollowSelfError')
   })
 
   it('should fail with UserNotFoundError when target does not exist', async () => {
     const exit = await Effect.runPromiseExit(
       unfollowUser('non-existent').pipe(Effect.provide(buildLayer()))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('UserNotFoundError')
-    }
+    expect(failureOf(exit)._tag).toBe('UserNotFoundError')
   })
 
   it('should fail with NotFollowingError when not currently following', async () => {
     const exit = await Effect.runPromiseExit(
       unfollowUser(targetUser.id).pipe(Effect.provide(buildLayer()))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('NotFollowingError')
-    }
+    expect(failureOf(exit)._tag).toBe('NotFollowingError')
   })
 })

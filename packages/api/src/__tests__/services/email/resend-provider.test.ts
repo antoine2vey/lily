@@ -6,6 +6,7 @@ import {
   wasEmailSentTo,
 } from '@lily/api/__tests__/mocks/email.service'
 import { EmailService } from '@lily/shared/server'
+import { failureOf } from '@lily/shared/testing'
 import { Effect } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -122,7 +123,7 @@ describe('EmailService (mock)', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)._tag).toBe('EmailSendError')
     })
 
     it('should not track emails when send fails', async () => {

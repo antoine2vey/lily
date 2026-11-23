@@ -81,6 +81,7 @@ import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { API_PREFIX } from '@lily/shared'
+import { defectOf } from '@lily/shared/testing'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -332,7 +333,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(defectOf(exit)).toBe('notification cleanup failed')
       expect(before).toEqual({
         delegation: 'active',
         user: 'active',
@@ -1106,7 +1107,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
         )
 
-        expect(Exit.isFailure(purged)).toBe(true)
+        expect(defectOf(purged)).toBe('delete failed')
         expect(await state(delegationId, caretaker)).toEqual({
           delegation: 'active',
           user: 'active',

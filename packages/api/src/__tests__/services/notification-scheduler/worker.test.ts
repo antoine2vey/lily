@@ -34,10 +34,7 @@ import {
   createSuccessPushService,
   type MockPushServiceOptions,
 } from '@lily/api/__tests__/mocks/push.service'
-import {
-  createInMemoryRedis,
-  createInMemoryRedisQueue,
-} from '@lily/api/__tests__/mocks/redis-queue'
+import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
@@ -88,9 +85,9 @@ import {
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
+import { failureOf } from '@lily/shared/testing'
 import {
   Array,
-  Cause,
   Clock,
   ConfigProvider,
   Duration,
@@ -411,7 +408,7 @@ describe('Notification Worker', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)._tag).toBe('PushSendError')
     })
 
     it('should include topic and metadata in push data', async () => {
@@ -1599,7 +1596,10 @@ describe('Notification Worker', () => {
         )
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        message: 'db down',
+      })
       expect(sends).toHaveLength(1)
       expect(acked).toEqual([])
       expect(row.status).toBe('queued')
@@ -1945,7 +1945,10 @@ describe('Notification Worker', () => {
         )
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        message: 'db down',
+      })
       expect(acked).toEqual([])
       expect(alerter.events).toEqual([])
     })
@@ -3713,9 +3716,7 @@ describe('Notification Worker', () => {
         )
       )
 
-      expect(
-        Exit.isFailure(exit) ? Cause.pretty(exit.cause) : 'started'
-      ).toContain('NOTIFICATION_CONSUMERS')
+      expect(String(failureOf(exit))).toContain('NOTIFICATION_CONSUMERS')
     })
 
     it('pushes a message once when its send outlasts the visibility timeout', async () => {

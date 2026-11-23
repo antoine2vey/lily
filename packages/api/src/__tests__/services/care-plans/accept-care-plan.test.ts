@@ -17,7 +17,8 @@ import type { CarePlanStepRow } from '@lily/api/repositories/care-plan.repositor
 import { acceptCarePlan } from '@lily/api/services/care-plans/endpoints/accept-care-plan'
 import { withCarePlanAuth } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import type { CareType } from '@lily/shared'
-import { Effect, Exit, Layer, Option, pipe } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const userId = 'user-1'
@@ -147,10 +148,7 @@ describe('acceptCarePlan', () => {
 
     const exit = await Effect.runPromiseExit(effect)
 
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('CarePlanNotProposedError')
-    }
+    expect(failureOf(exit)._tag).toBe('CarePlanNotProposedError')
     expect(dueDayOf(care, 'watering')).toBe(dueBeforeAccept)
     expect(dueDayOf(care, 'misting')).toBe(dueBeforeAccept)
     expect(care.writes).toEqual([])
@@ -158,10 +156,7 @@ describe('acceptCarePlan', () => {
 
   it('is invisible to another user', async () => {
     const exit = await Effect.runPromiseExit(accept({}, 'user-2').effect)
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('CarePlanNotFoundError')
-    }
+    expect(failureOf(exit)._tag).toBe('CarePlanNotFoundError')
   })
 
   it('moves no due day for a step that is already done (a change: accept used to move it back to the done step date)', async () => {

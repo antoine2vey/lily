@@ -8,6 +8,7 @@ import { updateUser } from '@lily/api/services/admin/endpoints/update-user'
 import { AdminUser } from '@lily/api/services/admin/middleware'
 import type { UserProfile } from '@lily/shared/auth'
 import { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { failureOf } from '@lily/shared/testing'
 import type { User } from '@lily/shared/user'
 import { Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -82,7 +83,7 @@ describe('updateUser', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 
   it('should fail when admin tries to modify own status', async () => {
@@ -92,7 +93,7 @@ describe('updateUser', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('CannotModifySelfError')
   })
 
   it('should allow admin to modify own non-status fields', async () => {

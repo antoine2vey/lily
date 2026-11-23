@@ -1,4 +1,5 @@
-import { Array, Cause, Effect, Exit, Option, Schema } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Array, Effect, Option, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { COUNTRY_TIME_ZONES } from '../domains/notification/time-zones.generated'
 import {
@@ -54,16 +55,13 @@ describe('Timezone Utilities', () => {
         validateTimezone('Invalid/Timezone')
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        expect(Cause.hasFails(result.cause)).toBe(true)
-      }
+      expect(failureOf(result)._tag).toBe('InvalidTimezoneError')
     })
 
     it('should fail for empty string', async () => {
       const result = await Effect.runPromiseExit(validateTimezone(''))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimezoneError')
     })
 
     it('should return InvalidTimezoneError with correct timezone', async () => {
@@ -71,13 +69,10 @@ describe('Timezone Utilities', () => {
         validateTimezone('NotReal/Zone')
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = Option.getOrThrow(Cause.findErrorOption(result.cause))
-        expect(error).toBeInstanceOf(InvalidTimezoneError)
-        expect(error._tag).toBe('InvalidTimezoneError')
-        expect(error.timezone).toBe('NotReal/Zone')
-      }
+      const error = failureOf(result)
+      expect(error).toBeInstanceOf(InvalidTimezoneError)
+      expect(error._tag).toBe('InvalidTimezoneError')
+      expect(error.timezone).toBe('NotReal/Zone')
     })
   })
 
@@ -109,61 +104,58 @@ describe('Timezone Utilities', () => {
     it('should fail for invalid hour - 24', async () => {
       const result = await Effect.runPromiseExit(validateTimeFormat('24:00'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should fail for invalid minute - 60', async () => {
       const result = await Effect.runPromiseExit(validateTimeFormat('12:60'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should fail for single digit hour', async () => {
       const result = await Effect.runPromiseExit(validateTimeFormat('9:30'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should fail for single digit minute', async () => {
       const result = await Effect.runPromiseExit(validateTimeFormat('09:5'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should fail for 12-hour format with AM/PM', async () => {
       const result = await Effect.runPromiseExit(validateTimeFormat('9:30 AM'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should fail for empty string', async () => {
       const result = await Effect.runPromiseExit(validateTimeFormat(''))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should fail for invalid separator', async () => {
       const result = await Effect.runPromiseExit(validateTimeFormat('09.30'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should fail for time with seconds', async () => {
       const result = await Effect.runPromiseExit(validateTimeFormat('09:30:00'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should return InvalidTimeFormatError with correct time', async () => {
       const result = await Effect.runPromiseExit(validateTimeFormat('invalid'))
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = Option.getOrThrow(Cause.findErrorOption(result.cause))
-        expect(error).toBeInstanceOf(InvalidTimeFormatError)
-        expect(error._tag).toBe('InvalidTimeFormatError')
-        expect(error.time).toBe('invalid')
-      }
+      const error = failureOf(result)
+      expect(error).toBeInstanceOf(InvalidTimeFormatError)
+      expect(error._tag).toBe('InvalidTimeFormatError')
+      expect(error.time).toBe('invalid')
     })
   })
 
@@ -199,19 +191,19 @@ describe('Timezone Utilities', () => {
     it('should fail for invalid time format', async () => {
       const result = await Effect.runPromiseExit(parseTime('invalid'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should fail for out of range hours', async () => {
       const result = await Effect.runPromiseExit(parseTime('25:00'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
 
     it('should fail for out of range minutes', async () => {
       const result = await Effect.runPromiseExit(parseTime('12:61'))
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('InvalidTimeFormatError')
     })
   })
 

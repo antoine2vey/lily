@@ -15,6 +15,8 @@ import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { uploadAvatar } from '@lily/api/services/user/endpoints/upload-avatar'
+import { NoFilesError } from '@lily/shared/services/file/fileservice'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
@@ -63,7 +65,7 @@ describe('uploadAvatar', () => {
       uploadAvatar([mockFile]).pipe(Effect.provide(layer))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({ _tag: 'UserNotFoundError' })
   })
 
   it('deletes the uploaded avatar when the user is gone', async () => {
@@ -122,6 +124,8 @@ describe('uploadAvatar', () => {
       uploadAvatar([]).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toEqual(
+      new NoFilesError({ message: 'No files provided' })
+    )
   })
 })

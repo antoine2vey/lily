@@ -46,7 +46,10 @@ describe('setUsername', () => {
       setUsername({ username: 'ab' }).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Username must be 3 to 30 letters, numbers, or underscores',
+    })
   })
 
   it('should fail when username too long', async () => {
@@ -57,7 +60,10 @@ describe('setUsername', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Username must be 3 to 30 letters, numbers, or underscores',
+    })
   })
 
   it('should fail with invalid characters', async () => {
@@ -67,7 +73,10 @@ describe('setUsername', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Username must be 3 to 30 letters, numbers, or underscores',
+    })
   })
 
   it('should fail with spaces in username', async () => {
@@ -77,17 +86,27 @@ describe('setUsername', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Username must be 3 to 30 letters, numbers, or underscores',
+    })
   })
 
   it('should fail when username already taken', async () => {
     const result = await Effect.runPromiseExit(
-      setUsername({ username: mockUser2.name ?? 'taken-username' }).pipe(
-        Effect.provide(createTestLayer())
+      setUsername({ username: 'takenname' }).pipe(
+        Effect.provide(
+          createTestLayer({
+            users: [mockUser1, { ...mockUser2, name: 'takenname' }],
+          })
+        )
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Username is already taken',
+    })
   })
 
   it('should allow same username for same user', async () => {
@@ -184,7 +203,10 @@ describe('setUsername', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Failed to update username',
+    })
   })
 
   it('should skip uniqueness check when username is same as current', async () => {

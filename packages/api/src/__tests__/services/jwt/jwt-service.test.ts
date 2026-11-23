@@ -2,7 +2,7 @@ import { mockAdminJWTPayload } from '@lily/api/__tests__/fixtures/jwt'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { JWTService, JWTServiceLive } from '@lily/api/services/jwt/service'
 import { failureOf } from '@lily/shared/testing'
-import { ConfigProvider, Effect, Exit, Layer } from 'effect'
+import { ConfigProvider, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Test config provider for JWT service
@@ -49,11 +49,10 @@ describe('JWTService', () => {
         }).pipe(Effect.provide(createMockJWTService({ shouldFailSign: true })))
       )
 
-      expect(result._tag).toBe('Failure')
-      if (result._tag === 'Failure') {
-        const error = result.cause
-        expect(Exit.isFailure(Exit.failCause(error))).toBe(true)
-      }
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'JWTError',
+        message: 'Failed to sign token',
+      })
     })
   })
 
@@ -116,7 +115,10 @@ describe('JWTService', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'JWTError',
+        code: 'EXPIRED_TOKEN',
+      })
     })
 
     it('should fail with INVALID_TOKEN for malformed token (mock)', async () => {
@@ -134,7 +136,10 @@ describe('JWTService', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'JWTError',
+        code: 'INVALID_TOKEN',
+      })
     })
 
     it('should fail when payload missing required fields', async () => {
@@ -148,7 +153,10 @@ describe('JWTService', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'JWTError',
+        code: 'INVALID_TOKEN',
+      })
     })
 
     it('should verify admin token correctly (mock)', async () => {

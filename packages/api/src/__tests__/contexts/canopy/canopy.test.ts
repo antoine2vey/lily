@@ -62,8 +62,8 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { failureOf } from '@lily/shared/testing'
-import { Array, Cause, DateTime, Effect, Exit, Layer, Option } from 'effect'
+import { defectOf, failureOf } from '@lily/shared/testing'
+import { Array, DateTime, Effect, Layer, Option } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -493,7 +493,10 @@ describe('Canopy', () => {
         )
       )
 
-      expect(Exit.hasDies(exit)).toBe(true)
+      expect(defectOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        message: 'notification refused',
+      })
       expect(timeline.events).toEqual(['begin', 'rollback'])
     })
 
@@ -866,7 +869,10 @@ describe('Canopy', () => {
         )
       )
 
-      expect(Exit.hasDies(exit)).toBe(true)
+      expect(defectOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        message: 'notification refused',
+      })
       expect(timeline.events).toEqual(['begin', 'rollback'])
     })
 
@@ -1197,7 +1203,7 @@ describe('Canopy', () => {
         ).pipe(transactInMemory, Effect.provide(world.storeLayer))
       )
 
-      expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toEqual(
+      expect(defectOf(exit)).toEqual(
         new PlantsNotMovedDefect({ plantIds: ['cactus', 'fern'], moved: 1 })
       )
     })
@@ -1745,7 +1751,7 @@ describe('Canopy', () => {
           )
         )
 
-        expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toEqual(
+        expect(defectOf(exit)).toEqual(
           new RowsNotWrittenDefect({ write, ...counts })
         )
       }

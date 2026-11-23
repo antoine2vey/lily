@@ -21,6 +21,7 @@ import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
 import { AdminUser } from '@lily/api/services/admin/middleware'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import type { User } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer, Option } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'
@@ -196,7 +197,10 @@ describe('account deletion', () => {
       )
     )
 
-    expect(Exit.isFailure(exit)).toBe(true)
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'SqlError',
+      message: 'database unreachable',
+    })
     expect(writes).toEqual([])
     expect(roleOf(store, 'alex')).toBe('owner')
   })

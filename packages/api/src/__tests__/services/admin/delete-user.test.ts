@@ -13,7 +13,8 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
 import { AdminUser } from '@lily/api/services/admin/middleware'
 import type { UserProfile } from '@lily/shared/auth'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const mockAdminContext: UserProfile = {
@@ -65,7 +66,7 @@ describe('deleteUser', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 
   it('should fail when trying to delete self', async () => {
@@ -77,6 +78,6 @@ describe('deleteUser', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('CannotModifySelfError')
   })
 })

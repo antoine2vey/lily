@@ -3,7 +3,8 @@ import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { getUserPlants } from '@lily/api/services/admin/endpoints/get-user-plants'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getUserPlants', () => {
@@ -60,6 +61,6 @@ describe('getUserPlants', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 })

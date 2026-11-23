@@ -20,7 +20,7 @@ import {
 import type { subscriptionUsage } from '@lily/db/schema'
 import { LimitExceededError, type UsageField } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { failureOf } from '@lily/shared/testing'
+import { defectOf, failureOf } from '@lily/shared/testing'
 import { Deferred, Effect, Exit, Fiber, FiberSet, Layer, Schema } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -172,7 +172,7 @@ describe('UsageTracker', () => {
         }).pipe(Effect.provide(layer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)._tag).toBe('OpenAIError')
       expect(reserved).toEqual(['plantIdentifies'])
       expect(released).toEqual(['plantIdentifies'])
     })
@@ -410,7 +410,7 @@ describe('UsageTracker', () => {
         }).pipe(Effect.provide(layer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(defectOf(exit)).toEqual(new Error('billing crashed'))
       expect(Exit.hasInterrupts(exit)).toBe(false)
       expect(released).toEqual(['aiChats'])
     })
@@ -472,7 +472,7 @@ describe('UsageTracker', () => {
         ).pipe(Effect.provide(layer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(defectOf(exit)).toEqual(new Error('fiber set gone'))
       expect(released).toEqual(['aiChats'])
     })
   })

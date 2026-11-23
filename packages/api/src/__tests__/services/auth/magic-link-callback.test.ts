@@ -8,7 +8,8 @@ import {
   createMockMagicLinkRepository,
 } from '@lily/api/__tests__/mocks/magic-link.repository'
 import { magicLinkCallback } from '@lily/api/services/auth/endpoints/magic-link-callback'
-import { Effect, Exit } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
 describe('magicLinkCallback', () => {
@@ -37,8 +38,10 @@ describe('magicLinkCallback', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
-    expect(Exit.hasFails(result)).toBe(true)
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid token format',
+    })
   })
 
   it('should fail with expired magic link', async () => {
@@ -50,7 +53,10 @@ describe('magicLinkCallback', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired magic link',
+    })
   })
 
   it('should fail with already used magic link', async () => {
@@ -62,7 +68,10 @@ describe('magicLinkCallback', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired magic link',
+    })
   })
 
   it('should fail when magic link not found', async () => {
@@ -73,7 +82,10 @@ describe('magicLinkCallback', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired magic link',
+    })
   })
 
   it('should handle uppercase UUID format', async () => {

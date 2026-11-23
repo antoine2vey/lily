@@ -11,7 +11,7 @@ import {
   DelegationNotFoundError,
 } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const ownerCurrentUser = Layer.succeed(CurrentUser, {
@@ -106,7 +106,6 @@ describe('getDelegation', () => {
       getDelegation('non-existent').pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotFoundError)
   })
 
@@ -117,7 +116,6 @@ describe('getDelegation', () => {
       getDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotAuthorizedError)
   })
 })

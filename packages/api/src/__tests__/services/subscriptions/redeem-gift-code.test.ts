@@ -6,6 +6,7 @@ import type { GiftCodeRecord } from '@lily/api/repositories/gift-code.repository
 import type { CreateSubscriptionData } from '@lily/api/repositories/subscription.repository'
 import { redeemGiftCode } from '@lily/api/services/subscriptions/endpoints/redeem-gift-code'
 import type { giftCodeRedemptions } from '@lily/db/schema'
+import { failureOf } from '@lily/shared/testing'
 import { Cause, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -126,14 +127,7 @@ describe('redeemGiftCode', () => {
       redeemGiftCode('user-1', 'NOTREAL').pipe(Effect.provide(baseLayers()))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('GiftCodeNotFoundError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('GiftCodeNotFoundError')
   })
 
   it('throttles guessing after five attempts in the window', async () => {
@@ -172,14 +166,7 @@ describe('redeemGiftCode', () => {
       redeemGiftCode('user-1', 'INACTIVE').pipe(Effect.provide(baseLayers()))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('GiftCodeInactiveError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('GiftCodeInactiveError')
   })
 
   it('should fail when code is expired', async () => {
@@ -187,14 +174,7 @@ describe('redeemGiftCode', () => {
       redeemGiftCode('user-1', 'EXPIRED').pipe(Effect.provide(baseLayers()))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('GiftCodeExpiredError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('GiftCodeExpiredError')
   })
 
   it('should fail when code is exhausted and grant nothing', async () => {
@@ -213,14 +193,7 @@ describe('redeemGiftCode', () => {
 
     expect(subscriptionCreated).toBe(false)
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('GiftCodeExhaustedError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('GiftCodeExhaustedError')
   })
 
   it('should fail when already redeemed by user', async () => {
@@ -247,14 +220,7 @@ describe('redeemGiftCode', () => {
 
     expect(subscriptionCreated).toBe(false)
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('GiftCodeAlreadyRedeemedError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('GiftCodeAlreadyRedeemedError')
   })
 
   it('should allow unlimited usage when maxUsages is 0', async () => {

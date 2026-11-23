@@ -7,7 +7,8 @@ import {
 import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getPublicProfile } from '@lily/api/services/social/endpoints/get-public-profile'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const currentUserId = 'user-1'
@@ -65,20 +66,14 @@ describe('getPublicProfile', () => {
     const exit = await Effect.runPromiseExit(
       getPublicProfile('non-existent').pipe(Effect.provide(buildLayer()))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('UserNotFoundError')
-    }
+    expect(failureOf(exit)._tag).toBe('UserNotFoundError')
   })
 
   it('should fail with UserNotPublicError for private user', async () => {
     const exit = await Effect.runPromiseExit(
       getPublicProfile(mockPrivateUser.id).pipe(Effect.provide(buildLayer()))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('UserNotPublicError')
-    }
+    expect(failureOf(exit)._tag).toBe('UserNotPublicError')
   })
 
   it('should include shareGrowthData flag', async () => {

@@ -1,4 +1,5 @@
 import { sendInternalMagicLink } from '@lily/api/services/internal/endpoints/send-magic-link'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mockUser1, mockUsers } from '../../fixtures/users'
@@ -64,7 +65,10 @@ describe('sendInternalMagicLink', () => {
       }).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(exit._tag).toBe('Failure')
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid email format',
+    })
   })
 
   it('should fail when rate limited', async () => {
@@ -75,7 +79,7 @@ describe('sendInternalMagicLink', () => {
       }).pipe(Effect.provide(createTestLayer({ shouldExceedRateLimit: true })))
     )
 
-    expect(exit._tag).toBe('Failure')
+    expect(failureOf(exit)._tag).toBe('RateLimitExceededError')
   })
 
   it('should create magic link token for existing user', async () => {

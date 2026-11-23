@@ -1,7 +1,8 @@
 import { mockIngestJobs } from '@lily/api/__tests__/fixtures/knowledge'
 import { createMockIngestJobRepository } from '@lily/api/__tests__/mocks/ingest-job.repository'
 import { getIngestJob } from '@lily/api/services/knowledge-ingestion/endpoints/get-ingest-job'
-import { Effect, Exit } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getIngestJob', () => {
@@ -28,10 +29,7 @@ describe('getIngestJob', () => {
       )
     )
 
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('IngestJobNotFoundError')
-    }
+    expect(failureOf(exit)._tag).toBe('IngestJobNotFoundError')
   })
 
   it('should return the correct job by id', async () => {

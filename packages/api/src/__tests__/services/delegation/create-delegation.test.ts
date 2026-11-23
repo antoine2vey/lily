@@ -27,7 +27,7 @@ import {
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import type { Notification } from '@lily/shared/notification'
 import { failureOf } from '@lily/shared/testing'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -155,7 +155,6 @@ describe('createDelegation', () => {
       createDelegation(validRequest).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(LimitExceededError)
     expect((failureOf(result) as LimitExceededError).feature).toBe(
       'care_delegation'
@@ -172,7 +171,6 @@ describe('createDelegation', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(CannotDelegateSelfError)
   })
 
@@ -186,7 +184,6 @@ describe('createDelegation', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(UserNotFoundError)
   })
 
@@ -201,7 +198,6 @@ describe('createDelegation', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationDateError)
     expect((failureOf(result) as DelegationDateError).message).toContain(
       'future'
@@ -219,7 +215,6 @@ describe('createDelegation', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationDateError)
     expect((failureOf(result) as DelegationDateError).message).toContain(
       'after start date'
@@ -245,7 +240,6 @@ describe('createDelegation', () => {
       createDelegation(validRequest).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationOverlapError)
   })
 
@@ -286,7 +280,6 @@ describe('createDelegation', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(PlantNotAuthorizedError)
   })
 
@@ -301,7 +294,6 @@ describe('createDelegation', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(PlantNotAuthorizedError)
   })
 
@@ -315,7 +307,6 @@ describe('createDelegation', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationDateError)
   })
 

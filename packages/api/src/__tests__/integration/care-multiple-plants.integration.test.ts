@@ -28,6 +28,7 @@ import {
   EventBus,
   type LiveActivityPushMessage,
 } from '@lily/shared/server'
+import { defectOf } from '@lily/shared/testing'
 import { count, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -291,7 +292,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
-      expect(Exit.isFailure(outcome)).toBe(true)
+      expect(defectOf(outcome)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { cause: { message: 'schedule write failed' } },
+      })
       expect(published).toEqual([])
       expect(laPushes).toEqual([])
       expect(await committedLogs(plantIds)).toBe(0)

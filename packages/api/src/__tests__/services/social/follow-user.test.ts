@@ -13,7 +13,8 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { FollowerNotification } from '@lily/api/repositories/follow.repository'
 import { followUser } from '@lily/api/services/social/endpoints/follow-user'
 import type { AppEvent, QueueMessage } from '@lily/shared/server'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const currentUserId = 'current-user'
@@ -95,30 +96,21 @@ describe('followUser', () => {
     const exit = await Effect.runPromiseExit(
       followUser(currentUserId).pipe(Effect.provide(buildLayer()))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('CannotFollowSelfError')
-    }
+    expect(failureOf(exit)._tag).toBe('CannotFollowSelfError')
   })
 
   it('should fail with UserNotFoundError when target does not exist', async () => {
     const exit = await Effect.runPromiseExit(
       followUser('non-existent').pipe(Effect.provide(buildLayer()))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('UserNotFoundError')
-    }
+    expect(failureOf(exit)._tag).toBe('UserNotFoundError')
   })
 
   it('should fail with UserNotPublicError when target profile is private', async () => {
     const exit = await Effect.runPromiseExit(
       followUser(privateUser.id).pipe(Effect.provide(buildLayer()))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('UserNotPublicError')
-    }
+    expect(failureOf(exit)._tag).toBe('UserNotPublicError')
   })
 
   it('should fail with AlreadyFollowingError when already following', async () => {
@@ -133,10 +125,7 @@ describe('followUser', () => {
     const exit = await Effect.runPromiseExit(
       followUser(publicUser.id).pipe(Effect.provide(layer))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('AlreadyFollowingError')
-    }
+    expect(failureOf(exit)._tag).toBe('AlreadyFollowingError')
   })
 
   it('should publish UserFollowed event on successful follow', async () => {

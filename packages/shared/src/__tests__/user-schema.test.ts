@@ -1,4 +1,5 @@
-import { Exit, Schema } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import {
   User,
@@ -402,7 +403,7 @@ describe('User Schemas', () => {
         timezone: 'Not/AZone',
       })
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('SchemaError')
     })
 
     it('should decode timezone and notification time update', () => {
@@ -421,13 +422,13 @@ describe('User Schemas', () => {
       const decode = Schema.decodeUnknownExit(UserSettingsUpdateRequest)
 
       expect(
-        Exit.isFailure(
+        failureOf(
           decode({ notifications: { doNotDisturbEnd: '9999999999:00' } })
-        )
-      ).toBe(true)
+        )._tag
+      ).toBe('SchemaError')
       expect(
-        Exit.isFailure(decode({ notifications: { doNotDisturbStart: '7:00' } }))
-      ).toBe(true)
+        failureOf(decode({ notifications: { doNotDisturbStart: '7:00' } }))._tag
+      ).toBe('SchemaError')
     })
 
     it('should decode full update', () => {

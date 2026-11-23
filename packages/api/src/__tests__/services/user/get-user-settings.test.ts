@@ -3,6 +3,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { getUserSettings } from '@lily/api/services/user/endpoints/get-user-settings'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -66,7 +67,7 @@ describe('getUserSettings', () => {
       getUserSettings.pipe(Effect.provide(createTestLayer('non-existent')))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 
   it('should return image when present', async () => {

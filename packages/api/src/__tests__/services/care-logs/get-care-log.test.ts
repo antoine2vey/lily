@@ -1,6 +1,7 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { getCareLog } from '@lily/api/services/care-logs/endpoints/get-care-log'
+import { failureOf } from '@lily/shared/testing'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -22,7 +23,7 @@ describe('getCareLog', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('CareLogNotFoundError')
   })
 
   it('should fail when log exists but belongs to different plant', async () => {
@@ -32,7 +33,7 @@ describe('getCareLog', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('CareLogNotFoundError')
   })
 
   it('should fail when store is empty', async () => {
@@ -42,7 +43,7 @@ describe('getCareLog', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('CareLogNotFoundError')
   })
 
   it('should return correct log for given id and plantId', async () => {

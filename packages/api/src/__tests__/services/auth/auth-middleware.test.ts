@@ -7,6 +7,7 @@ import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
 import { UnauthorizedError, type User } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer, Redacted } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -60,7 +61,10 @@ describe('Authentication Middleware (validateUserFromToken)', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'JWTError',
+      code: 'INVALID_TOKEN',
+    })
   })
 
   it('should fail with Unauthorized when user not found', async () => {
@@ -83,7 +87,7 @@ describe('Authentication Middleware (validateUserFromToken)', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)).toEqual(createError('Authentication failed'))
     if (Exit.isFailure(result)) {
       const error = result.cause
       expect(error).toBeDefined()
@@ -110,7 +114,7 @@ describe('Authentication Middleware (validateUserFromToken)', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)).toEqual(createError('Account is not active'))
   })
 
   it('should fail for expired token', async () => {
@@ -129,7 +133,10 @@ describe('Authentication Middleware (validateUserFromToken)', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'JWTError',
+      code: 'EXPIRED_TOKEN',
+    })
   })
 
   it('should require admin role when requireAdmin is true', async () => {
@@ -153,7 +160,7 @@ describe('Authentication Middleware (validateUserFromToken)', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)).toEqual(createError('Insufficient permissions'))
   })
 
   it('should allow admin when requireAdmin is true and user is admin', async () => {
@@ -229,6 +236,6 @@ describe('Authentication Middleware (validateUserFromToken)', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)).toEqual(createError('Account is not active'))
   })
 })

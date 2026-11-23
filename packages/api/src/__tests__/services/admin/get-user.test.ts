@@ -2,7 +2,7 @@ import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { getUser } from '@lily/api/services/admin/endpoints/get-user'
 import { failureOf } from '@lily/shared/testing'
-import { Effect, Exit } from 'effect'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getUser', () => {
@@ -24,7 +24,6 @@ describe('getUser', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 })

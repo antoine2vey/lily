@@ -12,7 +12,7 @@ export const mockMagicLink: MagicLink = {
 export const mockExpiredMagicLink: MagicLink = {
   id: 'magic-link-2',
   email: 'expired@example.com',
-  token: 'expired-token-1234-5678-9012-345678901234',
+  token: 'b2c3d4e5-f6a7-4890-bcde-f12345678901',
   expiresAt: new Date(Date.now() - 10 * 60 * 1000), // 10 minutes ago
   usedAt: null,
   createdAt: new Date(Date.now() - 20 * 60 * 1000),
@@ -21,7 +21,7 @@ export const mockExpiredMagicLink: MagicLink = {
 export const mockUsedMagicLink: MagicLink = {
   id: 'magic-link-3',
   email: 'used@example.com',
-  token: 'used-token-1234-5678-9012-345678901234',
+  token: 'c3d4e5f6-a7b8-4901-8def-123456789012',
   expiresAt: new Date(Date.now() + 10 * 60 * 1000), // Not expired
   usedAt: new Date(Date.now() - 5 * 60 * 1000), // Used 5 minutes ago
   createdAt: new Date(Date.now() - 10 * 60 * 1000),

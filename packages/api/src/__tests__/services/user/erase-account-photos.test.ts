@@ -9,7 +9,8 @@ import {
 } from '@lily/api/repositories/account-photo.repository'
 import { eraseAccountPhotos } from '@lily/api/services/user/helpers/erase-account-photos'
 import { GCSService } from '@lily/shared/services/file/gcs'
-import { Cause, Effect, Exit, Fiber, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Exit, Fiber, Layer } from 'effect'
 import { TestClock } from 'effect/testing'
 import { describe, expect, it } from 'vitest'
 
@@ -155,7 +156,10 @@ describe('eraseAccountPhotos', () => {
 
     const failed = await erase(gcs, {})
 
-    expect(Exit.isFailure(failed)).toBe(true)
+    expect(failureOf(failed)).toMatchObject({
+      _tag: 'GCSDeleteError',
+      message: 'bucket unreachable',
+    })
     expect(left(gcs).plant).toEqual(['users/alex/avatars/a.png'])
 
     gcs.outage.deletes = false
@@ -196,8 +200,6 @@ describe('eraseAccountPhotos', () => {
     )
 
     expect(exit.before).toBeUndefined()
-    expect(
-      Exit.isFailure(exit.exit) && Cause.squash(exit.exit.cause)
-    ).toMatchObject({ _tag: 'GCSDeleteError' })
+    expect(failureOf(exit.exit)._tag).toBe('GCSDeleteError')
   })
 })

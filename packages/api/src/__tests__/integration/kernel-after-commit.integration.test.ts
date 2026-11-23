@@ -1,6 +1,7 @@
 import { Transaction, transactQuietly } from '@lily/api/kernel/transact'
 import { PgLive } from '@lily/db'
-import { Data, Effect, Exit, ManagedRuntime } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Data, Effect, ManagedRuntime } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -115,10 +116,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
 
       expect({
-        failed: Exit.isFailure(exit),
+        failure: failureOf(exit),
         log,
         rowKept: await rowSeenByAnotherSession(),
-      }).toEqual({ failed: true, log: [], rowKept: false })
+      }).toEqual({ failure: new BodyFailed(), log: [], rowKept: false })
     })
   }
 )

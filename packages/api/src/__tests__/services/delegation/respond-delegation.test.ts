@@ -16,7 +16,7 @@ import {
 } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { failureOf } from '@lily/shared/testing'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const caretakerCurrentUser = Layer.succeed(CurrentUser, {
@@ -136,7 +136,6 @@ describe('respondToDelegation', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotFoundError)
   })
 
@@ -149,7 +148,6 @@ describe('respondToDelegation', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotAuthorizedError)
   })
 
@@ -163,7 +161,6 @@ describe('respondToDelegation', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -220,7 +217,6 @@ describe('respondToDelegation', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -237,7 +233,6 @@ describe('respondToDelegation', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 })

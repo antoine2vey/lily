@@ -5,7 +5,7 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { ACHIEVEMENTS } from '@lily/shared'
 import { ForbiddenError } from '@lily/shared/errors/admin'
 import { failureOf } from '@lily/shared/testing'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const createCurrentUserLayer = (
@@ -143,7 +143,6 @@ describe('unlockAchievement', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(ForbiddenError)
   })
 

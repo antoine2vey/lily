@@ -177,7 +177,10 @@ describe('handleRevenueCatWebhook', () => {
     const h = harness({ failingCreates: 1 })
 
     const failed = await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))
-    expect(failed._tag).toBe('Failure')
+    expect(failureOf(failed)).toMatchObject({
+      _tag: 'SqlError',
+      message: 'connection lost',
+    })
     expect((await h.currentRow())?.status).toBeUndefined()
 
     const retried = await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))

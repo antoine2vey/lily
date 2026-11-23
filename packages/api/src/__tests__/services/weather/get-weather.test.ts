@@ -9,7 +9,8 @@ import {
   getWeatherForLocation,
   getWeatherForUser,
 } from '@lily/api/services/weather/endpoints/get-weather'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getWeatherForLocation', () => {
@@ -54,7 +55,7 @@ describe('getWeatherForLocation', () => {
       getWeatherForLocation(48.86, 2.35).pipe(Effect.provide(layers))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('WeatherFetchError')
   })
 })
 
@@ -84,7 +85,7 @@ describe('getWeatherForUser', () => {
       getWeatherForUser.pipe(Effect.provide(layers))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('WeatherNotAvailableError')
   })
 
   it('should return forecast when user has weather enabled', async () => {

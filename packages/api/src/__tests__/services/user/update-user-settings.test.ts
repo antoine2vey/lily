@@ -15,6 +15,7 @@ import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import type { Notification } from '@lily/shared/notification'
+import { failureOf } from '@lily/shared/testing'
 import { UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Array as Arr, Effect, Layer, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -133,7 +134,7 @@ describe('updateUserSettings', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 
   it('should update privacy preferences', async () => {

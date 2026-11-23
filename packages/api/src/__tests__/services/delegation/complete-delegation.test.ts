@@ -15,7 +15,7 @@ import {
   DelegationNotFoundError,
 } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const ownerCurrentUser = Layer.succeed(CurrentUser, {
@@ -131,7 +131,6 @@ describe('completeDelegation', () => {
       completeDelegation(activeDelegation.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotAuthorizedError)
   })
 
@@ -144,7 +143,6 @@ describe('completeDelegation', () => {
       completeDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -157,7 +155,6 @@ describe('completeDelegation', () => {
       completeDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -170,7 +167,6 @@ describe('completeDelegation', () => {
       completeDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -181,7 +177,6 @@ describe('completeDelegation', () => {
       completeDelegation('non-existent').pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotFoundError)
   })
 })

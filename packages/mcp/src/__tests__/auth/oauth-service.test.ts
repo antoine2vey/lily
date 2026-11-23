@@ -8,7 +8,8 @@ import {
   type UserApiCredentials,
 } from '@lily/mcp/auth/oauth-repository'
 import { OAuthService, OAuthServiceLive } from '@lily/mcp/auth/oauth-service'
-import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 // ── In-memory repository mock ─────────────────────────────────────────
@@ -219,7 +220,11 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'OAuthError',
+        error: 'invalid_grant',
+        error_description: 'Authorization code not found or already used',
+      })
     })
 
     it('should fail for expired authorization code', async () => {
@@ -245,7 +250,11 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'OAuthError',
+        error: 'invalid_grant',
+        error_description: 'Authorization code expired',
+      })
     })
 
     it('should fail for client mismatch', async () => {
@@ -274,7 +283,11 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'OAuthError',
+        error: 'invalid_grant',
+        error_description: 'Client mismatch',
+      })
     })
 
     it('should consume the auth code (single use)', async () => {
@@ -333,7 +346,11 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'OAuthError',
+        error: 'invalid_grant',
+        error_description: 'Authorization code not found or already used',
+      })
     })
   })
 
@@ -348,7 +365,7 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)._tag).toBe('AccessTokenNotFound')
     })
 
     it('should fail for expired access token', async () => {
@@ -368,7 +385,7 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)._tag).toBe('AccessTokenExpired')
     })
 
     it('should return userId and scopes for valid token', async () => {
@@ -436,7 +453,11 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'OAuthError',
+        error: 'invalid_grant',
+        error_description: 'Refresh token not found',
+      })
     })
 
     it('should fail for expired refresh token', async () => {
@@ -459,7 +480,11 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'OAuthError',
+        error: 'invalid_grant',
+        error_description: 'Refresh token expired',
+      })
     })
 
     it('should fail for client mismatch', async () => {
@@ -485,7 +510,11 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'OAuthError',
+        error: 'invalid_grant',
+        error_description: 'Client mismatch',
+      })
     })
 
     it('should issue new tokens and revoke old refresh token', async () => {

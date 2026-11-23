@@ -670,7 +670,10 @@ describe('streamChatMessage', () => {
         )
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        message: 'database unreachable',
+      })
       expect(messages).toEqual([])
       expect(released).toEqual(['aiChats'])
     })

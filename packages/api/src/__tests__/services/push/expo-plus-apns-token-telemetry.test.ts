@@ -12,6 +12,7 @@ import {
   type LiveActivityPushMessage,
   PushService,
 } from '@lily/shared/server'
+import { failureOf } from '@lily/shared/testing'
 import {
   ConfigProvider,
   Effect,
@@ -178,7 +179,7 @@ describe('ExpoPlusApns sendLiveActivity telemetry', () => {
 
     const { exit, telemetry } = await sendUnderTelemetry(update)
 
-    expect(exit._tag).toBe('Failure')
+    expect(failureOf(exit)._tag).toBe('PushTokenInvalidatedError')
     expect(telemetry).toContain('PushTokenInvalidatedError')
     expect(telemetry).not.toContain(TOKEN)
   })

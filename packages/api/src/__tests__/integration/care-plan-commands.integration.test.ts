@@ -39,11 +39,11 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { CareDays } from '@lily/shared'
 import type { CarePlanStatus } from '@lily/shared/care-plan'
+import { defectOf, failureOf } from '@lily/shared/testing'
 import { and, asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array,
-  Cause,
   DateTime,
   Effect,
   Exit,
@@ -471,13 +471,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ),
       ]
 
-      expect(
-        Array.map(exits, (exit) =>
-          Exit.isFailure(exit) && Cause.hasDies(exit.cause)
-            ? String(Cause.squash(exit.cause))
-            : 'written'
-        )
-      ).toEqual(Array.replicate('PlanRowNotWrittenDefect', 6))
+      expect(Array.map(exits, (exit) => String(defectOf(exit)))).toEqual(
+        Array.replicate('PlanRowNotWrittenDefect', 6)
+      )
       expect((await planNow(planId)).plan?.status).toBe('proposed')
     })
 
@@ -639,7 +635,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const afterTheUnwritable = await plansNow()
         const written = await propose(['watering', 'misting'])
 
-        expect(Exit.isFailure(unwritable)).toBe(true)
+        expect(defectOf(unwritable)).toMatchObject({
+          _tag: 'SqlError',
+          reason: { cause: { code: '22P02' } },
+        })
         expect(afterTheUnwritable).toEqual([])
         if (!Exit.isSuccess(written)) throw new Error('proposal failed')
         const { plan, steps } = await planNow(written.value.planId)
@@ -717,7 +716,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.exit(diagnose().pipe(Effect.provide(whereTheLinkFails)))
         )
 
-        expect(Exit.isFailure(failed)).toBe(true)
+        expect(failureOf(failed)).toBe('the link failed')
         expect(await diagnosesNow()).toEqual([])
         expect(await plansNow()).toEqual([])
       })

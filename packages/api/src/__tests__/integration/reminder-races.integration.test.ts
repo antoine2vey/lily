@@ -45,10 +45,7 @@ import {
   CareScheduleRepository,
   CareScheduleRepositoryLive,
 } from '@lily/api/repositories/care-schedule.repository'
-import {
-  DelegationRepository,
-  DelegationRepositoryLive,
-} from '@lily/api/repositories/delegation.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import {
   NotificationRepository,
@@ -396,10 +393,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           unmutes,
           (exit) =>
             !Exit.isSuccess(exit) &&
-            !(
-              Exit.hasFails(exit) &&
-              failureOf(exit)._tag === 'PlantNotFoundError'
-            )
+            failureOf(exit)._tag !== 'PlantNotFoundError'
         )
       ).toEqual([])
     }, 60_000)

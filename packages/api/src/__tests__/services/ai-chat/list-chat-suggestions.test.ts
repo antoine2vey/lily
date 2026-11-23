@@ -25,7 +25,7 @@ import { listChatSuggestions } from '@lily/api/services/ai-chat/endpoints/list-c
 import type { LanguageCode } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { failureOf } from '@lily/shared/testing'
-import { Array, Effect, Layer, Option } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const alex = 'user-alex'

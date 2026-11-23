@@ -10,7 +10,8 @@ import { mintPlanPermit, systemPermit } from '@lily/api/kernel/permit'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CarePlanNotFoundError } from '@lily/shared/errors/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import { Cause, DateTime, Effect, Exit, Layer, Option } from 'effect'
+import { defectOf } from '@lily/shared/testing'
+import { DateTime, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const world = (
@@ -48,11 +49,7 @@ describe('CarePlans', () => {
       ).pipe(Effect.provide(layer))
     )
 
-    expect(
-      Exit.isFailure(exit) && Cause.hasDies(exit.cause)
-        ? Cause.squash(exit.cause)
-        : exit
-    ).toMatchObject({
+    expect(defectOf(exit)).toMatchObject({
       _tag: 'ProposalByAJobDefect',
       plantId: 'plant-1',
       job: 'digest',

@@ -45,6 +45,7 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { CareDay } from '@lily/shared'
 import type { PushMessage } from '@lily/shared/server'
+import { failureOf } from '@lily/shared/testing'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -498,7 +499,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const rows = await db
         .select({ userId: schema.notifications.userId })
         .from(schema.notifications)
-      expect(exit._tag).toBe('Failure')
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { _tag: 'ConstraintError', cause: { code: '23503' } },
+      })
       expect(rows).toEqual([{ userId: alex }])
     })
 

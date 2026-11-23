@@ -3,6 +3,7 @@ import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.rep
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { updateRoom } from '@lily/api/services/rooms/endpoints/update-room'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -72,7 +73,7 @@ describe('updateRoom', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('RoomNotFoundError')
   })
 
   it('should fail when user tries to update another users room', async () => {
@@ -83,6 +84,6 @@ describe('updateRoom', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('RoomNotFoundError')
   })
 })

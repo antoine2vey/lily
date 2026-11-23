@@ -11,7 +11,8 @@ import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { sendNudge } from '@lily/api/services/social/endpoints/send-nudge'
 import type { Notification } from '@lily/shared/notification'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const currentUserId = 'user-1'
@@ -74,10 +75,7 @@ describe('sendNudge', () => {
         Effect.provide(buildLayer())
       )
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('UserNotFoundError')
-    }
+    expect(failureOf(exit)._tag).toBe('UserNotFoundError')
   })
 
   it('should fail with NudgeNotAllowedError when not following target', async () => {
@@ -86,10 +84,7 @@ describe('sendNudge', () => {
     const exit = await Effect.runPromiseExit(
       sendNudge({ targetUserId: targetUser.id }).pipe(Effect.provide(layer))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('NudgeNotAllowedError')
-    }
+    expect(failureOf(exit)._tag).toBe('NudgeNotAllowedError')
   })
 
   it('should fail with NudgeRateLimitError when nudged within last 24h', async () => {
@@ -113,10 +108,7 @@ describe('sendNudge', () => {
     const exit = await Effect.runPromiseExit(
       sendNudge({ targetUserId: targetUser.id }).pipe(Effect.provide(layer))
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('NudgeRateLimitError')
-    }
+    expect(failureOf(exit)._tag).toBe('NudgeRateLimitError')
   })
 
   it('should allow nudge after 24h have passed', async () => {

@@ -1,5 +1,5 @@
-import { failureOf } from '@lily/shared/testing'
-import { Duration, Effect, Exit, Fiber, Semaphore } from 'effect'
+import { defectOf, failureOf } from '@lily/shared/testing'
+import { Duration, Effect, Fiber, Semaphore } from 'effect'
 import { TestClock } from 'effect/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -140,7 +140,7 @@ describe('OpenAI bulkhead size', () => {
       fresh('Plant detection', DEADLINE, openAICall)
     )
 
-    expect(Exit.hasDies(exit)).toBe(true)
+    expect(String(defectOf(exit))).toContain('OPENAI_MAX_CONCURRENT_CALLS')
     expect(started).toHaveLength(0)
   })
 })

@@ -9,7 +9,8 @@ import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { getCareAdjustments } from '@lily/api/services/weather/endpoints/get-care-adjustments'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Create a minimal plant fixture for this test
@@ -78,7 +79,7 @@ describe('getCareAdjustments', () => {
       getCareAdjustments.pipe(Effect.provide(layers))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('WeatherNotAvailableError')
   })
 
   it('should return adjustments for each plant when weather is enabled', async () => {

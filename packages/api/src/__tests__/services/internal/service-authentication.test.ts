@@ -62,7 +62,7 @@ describe('ServiceAuthenticationLive', () => {
 
     const exit = await Effect.runPromiseExit(authenticate('', emptySecretLayer))
 
-    expect(exit._tag).toBe('Failure')
+    expect(String(failureOf(exit))).toContain('SERVICE_TOKEN_SECRET')
   })
 
   it('should reject a secret with wrong length', async () => {

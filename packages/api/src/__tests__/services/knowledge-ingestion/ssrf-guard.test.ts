@@ -1,5 +1,6 @@
 import { lookup } from 'node:dns/promises'
 import { assertPublicUrl } from '@lily/api/services/knowledge-ingestion/adapters/ssrf-guard'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -28,12 +29,18 @@ describe('assertPublicUrl (SSRF guard)', () => {
     'http://[::1]/x',
   ])('blocks internal/private target %s (no DNS needed)', async (url) => {
     const exit = await run(url)
-    expect(Exit.isFailure(exit)).toBe(true)
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'AdapterError',
+      message: expect.stringMatching(/^Blocked /),
+    })
   })
 
   it('blocks non-HTTP(S) URL schemes', async () => {
     const exit = await run('ftp://example.com/x')
-    expect(Exit.isFailure(exit)).toBe(true)
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'AdapterError',
+      message: expect.stringMatching(/^Blocked non-HTTP\(S\) URL scheme/),
+    })
   })
 
   it('blocks a public hostname that resolves to a private IP', async () => {
@@ -41,7 +48,12 @@ describe('assertPublicUrl (SSRF guard)', () => {
       { address: '169.254.169.254', family: 4 },
     ])
     const exit = await run('http://sneaky.example.com/x')
-    expect(Exit.isFailure(exit)).toBe(true)
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'AdapterError',
+      message: expect.stringMatching(
+        /^Blocked request to private\/reserved address/
+      ),
+    })
   })
 
   it('allows a hostname that resolves to a public IP', async () => {
