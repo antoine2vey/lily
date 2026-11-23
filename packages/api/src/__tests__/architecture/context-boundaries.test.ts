@@ -157,9 +157,9 @@ describe('bounded contexts', () => {
   it('receive permits, owner proofs and seen rows built only where their check runs', () => {
     const PROOF = 'PlantPermit|RecordPermit|PlanPermit|OwnerHeld|Seen'
     const CASTS = [
-      new RegExp(`\\bas\\s+(?:unknown\\s+as\\s+)?(${PROOF})\\b`, 'g'),
+      new RegExp(`\\bas\\s+[^;,)\\n]*?\\b(${PROOF})\\b`, 'g'),
       new RegExp(
-        `(?<=(?:^|[(,=:?![{;&|]|\\breturn|\\byield|\\bawait|=>)\\s*)<\\s*(${PROOF})\\b`,
+        `(?<=(?:^|[(,=:?![{;&|]|\\breturn|\\byield|\\bawait|=>)\\s*)<\\s*(?:(?:readonly\\s+)?[\\w.$]+\\s*[<|&]\\s*)*(?:readonly\\s+)?(${PROOF})\\b`,
         'gm'
       ),
     ]
@@ -202,25 +202,41 @@ describe('bounded contexts', () => {
       .filter((file) => name(file) !== SEEN)
       .filter((file) => BRANDS.test(readFileSync(file, 'utf8')))
       .map(name)
-    const decoders = files
-      .filter((file) =>
-        (graph.get(file) ?? []).some(
-          (imported) =>
-            imported.target === join(SRC, SEEN) &&
-            /\bseen\b/.test(imported.names)
-        )
-      )
+    const SCHEMAS = ['services/care-plans/api.ts', 'services/diagnosis/api.ts']
+    const namesOf = (imported: Import): ReadonlyArray<string> => {
+      const named = /^\{([^}]*)\}$/.exec(imported.names.trim())?.[1]
+      return named === undefined
+        ? ['*']
+        : named
+            .split(',')
+            .map((part) => part.trim().replace(/^type\s+/, ''))
+            .map((part) => part.split(/\s+as\s+/)[0] ?? '')
+            .filter((part) => part !== '')
+    }
+    const mayImport = (file: string, imported: string) =>
+      imported === 'seenByCaller' ||
+      imported === 'Seen' ||
+      (imported === 'seen' && SCHEMAS.includes(name(file)))
+    const importers = files.flatMap((file) =>
+      (graph.get(file) ?? [])
+        .filter((imported) => imported.target === join(SRC, SEEN))
+        .flatMap(namesOf)
+        .filter((imported) => !mayImport(file, imported))
+        .map((imported) => `${imported} in ${name(file)}`)
+    )
+    const LOADS = /\b(?:import|require)\(\s*['"`][^'"`]*\/seen(?:\.ts)?['"`]/
+    const loaders = files
+      .filter((file) => LOADS.test(readFileSync(file, 'utf8')))
       .map(name)
-      .sort()
 
     expect(
       branders,
       'A Seen row comes from seenByCaller. A brand made elsewhere skips the redaction.'
     ).toEqual([])
     expect(
-      decoders,
-      'Decoding through `seen` makes a Seen row with nothing redacted, so only the success schemas use it.'
-    ).toEqual(['services/care-plans/api.ts', 'services/diagnosis/api.ts'])
+      [...importers, ...loaders],
+      'Decoding through `seen` makes a Seen row with nothing redacted, so only the success schemas import it. Elsewhere import seenByCaller or the type Seen by name.'
+    ).toEqual([])
   })
 
   it('reach nothing in the tests', () => {
