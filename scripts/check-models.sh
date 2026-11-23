@@ -41,6 +41,23 @@ packages/api/models/usage-reservation.qnt usage_unmetered repliesWithinPlan brea
 packages/api/models/usage-reservation.qnt usage_hard_kill noChargeWithoutReply breaks # 372 gap 1
 packages/api/models/usage-reservation.qnt usage_release_fails noChargeWithoutReply breaks # 372 gap 2
 packages/api/models/usage-reservation.qnt usage_late_refund_lost noChargeWithoutReply breaks # 372 gap 3
+packages/api/models/queue-claims.qnt queue_current unackedDeliveryStaysInRedis,ackRemovesOnlyItsOwnClaim,pushedAtMostOnce,deadLetteredOnce,alertedOnce,alertOnlyAfterDeadLetter,failedRowIsReported,failsOnlyRowsItHolds holds
+packages/api/models/queue-claims.qnt queue_before_82 pushedAtMostOnce breaks # before 82
+packages/api/models/queue-claims.qnt queue_no_delivery_claim pushedAtMostOnce breaks # before 82, the worker half alone
+packages/api/models/queue-claims.qnt queue_raw_claim unackedDeliveryStaysInRedis breaks # before 4db6c557
+packages/api/models/queue-claims.qnt queue_raw_claim ackRemovesOnlyItsOwnClaim breaks # before 4db6c557
+packages/api/models/queue-claims.qnt queue_raw_claim pushedAtMostOnce breaks # before 4db6c557
+packages/api/models/queue-claims.qnt queue_retry_requeues_copy pushedAtMostOnce breaks # before ab6b769b
+packages/api/models/queue-claims.qnt queue_retry_requeues_copy - scenarios # before ab6b769b, failsOnlyRowsItHolds
+packages/api/models/queue-claims.qnt queue_dead_letter_after_commit failedRowIsReported breaks # before a2f553f7
+packages/api/models/queue-claims.qnt queue_alert_first alertedOnce breaks # before 2717607b
+packages/api/models/queue-claims.qnt queue_alert_first alertOnlyAfterDeadLetter breaks # before 2717607b
+packages/api/models/queue-claims.qnt queue_quiet_consumer unackedDeliveryStaysInRedis,ackRemovesOnlyItsOwnClaim holds
+packages/api/models/queue-claims.qnt queue_quiet_consumer pushedAtMostOnce breaks # 379 gap 1
+packages/api/models/queue-claims.qnt queue_lost_after_push pushedAtMostOnce breaks # 379 gap 2
+packages/api/models/queue-claims.qnt queue_lost_after_dead_letter deadLetteredOnce breaks # 379 gap 3
+packages/api/models/queue-claims.qnt queue_lost_after_dead_letter alertedOnce breaks # 379 gap 3
+packages/api/models/queue-claims.qnt queue_lost_after_dead_letter failedRowIsReported breaks # 379 gap 3
 '
 
 only=${1:-}
