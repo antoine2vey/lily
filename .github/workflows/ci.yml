@@ -133,6 +133,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Quint fetches its evaluator through the GitHub API without a token,
+      # and a shared runner's address is often over that rate limit.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.quint
+          key: quint-evaluator-${{ runner.os }}-${{ hashFiles('scripts/check-models.sh') }}
+          restore-keys: quint-evaluator-${{ runner.os }}-
       - name: Check each model gives its expected verdict
         timeout-minutes: 10
         run: bash scripts/check-models.sh
