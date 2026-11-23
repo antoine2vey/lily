@@ -1,4 +1,12 @@
-import { identity, Option, Record, Schema, SchemaTransformation } from 'effect'
+import {
+  Array,
+  String as EffectString,
+  identity,
+  Option,
+  Record,
+  Schema,
+  SchemaTransformation,
+} from 'effect'
 
 import {
   CANONICAL_TIME_ZONES,
@@ -6,6 +14,20 @@ import {
 } from '../../notification/time-zones.generated'
 
 const canonicalZones: ReadonlySet<string> = new Set(CANONICAL_TIME_ZONES)
+
+const zoneOfFoldedName: ReadonlyMap<string, string> = new Map([
+  ...Array.map(CANONICAL_TIME_ZONES, (zone): readonly [string, string] => [
+    EffectString.toLowerCase(zone),
+    zone,
+  ]),
+  ...Array.map(
+    Record.toEntries(TIME_ZONE_ALIASES),
+    ([alias, zone]): readonly [string, string] => [
+      EffectString.toLowerCase(alias),
+      zone,
+    ]
+  ),
+])
 
 const CanonicalZone = Schema.String.check(
   Schema.makeFilter(
@@ -17,16 +39,22 @@ const CanonicalZone = Schema.String.check(
 /**
  * A canonical IANA zone name, the form stored in `users.timezone` and
  * `canopies.timezone`: a tzdata `Zone` line or a zone `zone.tab` lists.
- * Decoding maps a renamed or legacy name such as `Eire` to its zone
- * (`Europe/Dublin`) and fails on any other name. A stored zone stays canonical
- * so day math does not depend on whichever tzdata build a runtime ships.
+ * Decoding ignores case and maps a renamed or legacy name such as `Eire` or
+ * `PST8PDT` to its zone (`Europe/Dublin`, `America/Los_Angeles`). It fails on
+ * any other name, such as an offset. A stored zone stays canonical so day math
+ * does not depend on whichever tzdata build a runtime ships.
  */
 export const ZoneName = Schema.String.pipe(
   Schema.decodeTo(
     CanonicalZone,
     SchemaTransformation.transform({
-      decode: (zone: string) =>
-        Option.getOrElse(Record.get(TIME_ZONE_ALIASES, zone), () => zone),
+      decode: (name: string) =>
+        Option.getOrElse(
+          Option.fromNullishOr(
+            zoneOfFoldedName.get(EffectString.toLowerCase(name))
+          ),
+          () => name
+        ),
       encode: identity,
     })
   )
@@ -36,9 +64,7 @@ export type ZoneName = typeof ZoneName.Type
 
 /**
  * The zone of an account or Canopy that has none stored or stores a name
- * `ZoneName` rejects: the `users.timezone` column default. Before #243 the api
- * stored any name Intl accepted, and `0089_canonical_time_zones.sql` rewrote
- * only the aliases.
+ * `ZoneName` rejects, such as an offset: the `users.timezone` column default.
  */
 export const DEFAULT_ZONE: ZoneName = ZoneName.make('UTC')
 

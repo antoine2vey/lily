@@ -1,9 +1,30 @@
-import { DateTime, Option, pipe } from 'effect'
+import { Array, DateTime, Option, pipe, Record } from 'effect'
 
+import { TIME_ZONE_ALIASES } from '../../notification/time-zones.generated'
 import type { ZoneName } from './zone-name'
 
 /** Zero-pad a 1-2 digit number to a 2-char string (e.g. 6 -> "06"). */
 const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
+
+const MS_PER_HOUR = 3_600_000
+
+const aliasesOf: ReadonlyMap<string, ReadonlyArray<string>> = Array.reduce(
+  Record.toEntries(TIME_ZONE_ALIASES),
+  new Map<string, ReadonlyArray<string>>(),
+  (byZone, [alias, zone]) =>
+    byZone.set(zone, [...(byZone.get(zone) ?? []), alias])
+)
+
+// POSIX signs: Etc/GMT-5 is UTC+5.
+const etcOffset = (zone: string): Option.Option<DateTime.TimeZone> =>
+  pipe(
+    Option.fromNullishOr(/^Etc\/GMT(?:([+-])(\d{1,2}))?$/.exec(zone)),
+    Option.map(([, sign, hours]) =>
+      DateTime.zoneMakeOffset(
+        (sign === '+' ? -1 : 1) * Number(hours ?? 0) * MS_PER_HOUR
+      )
+    )
+  )
 
 /**
  * The zone every helper below hands to Effect.
@@ -13,14 +34,23 @@ const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
  * the resolved zone skips that parser. `'UTC'` maps to a fixed offset because
  * Hermes on Android lacks the Intl options a named zone needs.
  *
- * Throws when this runtime's Intl does not know `zone`. The api refuses to
- * start on zone rules older than `CANONICAL_TIME_ZONES`
- * (`packages/api/src/layers/zone-rules.ts`).
+ * Intl on a phone may know a zone only by an older name: Hermes on iOS accepts
+ * only `NSTimeZone.knownTimeZoneNames`, which lists `Asia/Calcutta` and no
+ * `Asia/Kolkata` or `Etc/GMT±N`, and stale Android tzdata lacks `Europe/Kyiv`.
+ * So a zone Intl rejects resolves through each alias that names it, then an
+ * `Etc/GMT±N` zone through its fixed offset. Throws only when all of them fail.
  */
 export const zoneFromName = (zone: ZoneName): DateTime.TimeZone =>
   zone === 'UTC'
     ? DateTime.zoneMakeOffset(0)
-    : DateTime.zoneMakeNamedUnsafe(zone)
+    : pipe(
+        DateTime.zoneMakeNamed(zone),
+        Option.orElse(() =>
+          Array.findFirst(aliasesOf.get(zone) ?? [], DateTime.zoneMakeNamed)
+        ),
+        Option.orElse(() => etcOffset(zone)),
+        Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(zone))
+      )
 
 /** `dateTime` in `zone`. */
 export const withTimeZone = (

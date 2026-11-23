@@ -1,8 +1,12 @@
 import { failureOf } from '@lily/shared/testing'
-import { Array, Effect, Option, Schema } from 'effect'
+import { Array, Effect, Option, Record, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_ZONE, ZoneName } from '../domains/common/date/zone-name'
-import { COUNTRY_TIME_ZONES } from '../domains/notification/time-zones.generated'
+import {
+  CANONICAL_TIME_ZONES,
+  COUNTRY_TIME_ZONES,
+  TIME_ZONE_ALIASES,
+} from '../domains/notification/time-zones.generated'
 import {
   DEFAULT_NOTIFICATION_TIME,
   InvalidTimeFormatError,
@@ -217,7 +221,27 @@ describe('Timezone Utilities', () => {
       ).toEqual([])
     })
 
-    it.each(['Not/AZone', 'europe/paris', 'PST8PDT', 'toString', ''])(
+    it.each([
+      ['europe/paris', 'Europe/Paris'],
+      ['utc', 'UTC'],
+      ['ASIA/CALCUTTA', 'Asia/Kolkata'],
+      ['EST5EDT', 'America/New_York'],
+      ['CST6CDT', 'America/Chicago'],
+      ['MST7MDT', 'America/Denver'],
+      ['PST8PDT', 'America/Los_Angeles'],
+      ['pst8pdt', 'America/Los_Angeles'],
+    ])('decodes %s to %s', (name, zone) => {
+      expect(decode(name)).toEqual(Option.some(zone))
+    })
+
+    it('folds no two zone names to the same spelling', () => {
+      const names = [...CANONICAL_TIME_ZONES, ...Record.keys(TIME_ZONE_ALIASES)]
+      expect(new Set(Array.map(names, (name) => name.toLowerCase())).size).toBe(
+        names.length
+      )
+    })
+
+    it.each(['Not/AZone', '+05:00', 'GMT+05:00', 'toString', 'tostring', ''])(
       'rejects %j',
       (zone) => {
         expect(decode(zone)).toEqual(Option.none())

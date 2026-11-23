@@ -96,7 +96,14 @@ const download = async (): Promise<string> => {
 
 // The Zone lines of `backward` (PST8PDT, EST5EDT, ...) are System V
 // compatibility zones that tzdata tells new software not to use, so they are
-// neither canonical nor an alias.
+// not canonical. Each becomes an alias of the US zone that keeps its rules.
+const LEGACY_ZONES: { readonly [zone: string]: string } = {
+  CST6CDT: 'America/Chicago',
+  EST5EDT: 'America/New_York',
+  MST7MDT: 'America/Denver',
+  PST8PDT: 'America/Los_Angeles',
+}
+
 const keepEntry =
   (file: (typeof SOURCE_FILES)[number]) =>
   (entry: Entry): boolean =>
@@ -159,10 +166,14 @@ const build = (
   const aliases = pipe(
     Record.keys(links),
     Array.appendAll(Record.keys(RENAMED_ZONES)),
+    Array.appendAll(Record.keys(LEGACY_ZONES)),
     Array.filter((name) => !zones.has(name)),
     Array.dedupe,
     Array.sort(Order.String),
-    Array.map((name) => [name, resolveTarget(name, new Set())] as const)
+    Array.map(
+      (name) =>
+        [name, resolveTarget(LEGACY_ZONES[name] ?? name, new Set())] as const
+    )
   )
   return {
     canonical: Array.sort([...zones], Order.String),
