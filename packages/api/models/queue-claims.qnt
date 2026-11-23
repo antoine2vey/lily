@@ -507,8 +507,8 @@ module queue_claims {
   // recoverStrandedDeliveries -> failAbandonedDeliveries: SET status =
   // 'failed' WHERE status = 'queued' AND (queued_at IS NULL OR
   // (delivery_message_id IS NOT NULL AND queued_at < now - DELIVERY_TIMEOUT)).
-  // Both writes of 'queued' set queued_at, so the first disjunct matches no
-  // row here.
+  // All three writes of 'queued' set queued_at, so the first disjunct matches
+  // no row here.
   action sweepFail = all {
     row.status == Queued,
     row.deliveryMessageId != NONE,
@@ -802,7 +802,7 @@ module queue_retry_requeues_copy {
   ).*
 
   run foreignRowTest = foreignRow.expect(and {
-    row.status == Failed, row.deliveryMessageId == 1, deadLetters.get(1) == 0,
+    not(failedRowHasItsHoldersDeadLetter),
     consumers.get("c2").pc == Claimed,
   })
 }

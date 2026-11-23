@@ -13,7 +13,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-QUINT=(npx -y @informalsystems/quint@0.34.0)
+# CI caches the evaluator under these pins before this script runs.
+source scripts/quint.env
+QUINT=(npx -y "@informalsystems/quint@$QUINT_VERSION")
 STEPS=30
 SAMPLES=30000
 SEED=0x11
@@ -61,6 +63,14 @@ packages/api/models/queue-claims.qnt queue_lost_after_dead_letter deadLetteredOn
 packages/api/models/queue-claims.qnt queue_lost_after_dead_letter alertedOnce breaks # 379 gap 3
 packages/api/models/queue-claims.qnt queue_lost_after_dead_letter failedRowIsReported breaks # 379 gap 3
 '
+
+wanted=$(npx -y -p "@informalsystems/quint@$QUINT_VERSION" -c \
+	'node -p "require(process.argv[1]).QUINT_EVALUATOR_VERSION" "$(dirname "$(command -v quint)")/../@informalsystems/quint/dist/src/rust/binaryManager.js"') ||
+	{ echo "Could not read which evaluator Quint $QUINT_VERSION runs." >&2; exit 2; }
+if [ "$wanted" != "$QUINT_EVALUATOR_VERSION" ]; then
+	echo "Quint $QUINT_VERSION runs evaluator $wanted, but scripts/quint.env pins $QUINT_EVALUATOR_VERSION. Set QUINT_EVALUATOR_VERSION=$wanted so CI caches the evaluator Quint runs."
+	exit 2
+fi
 
 only=${1:-}
 fails=0
