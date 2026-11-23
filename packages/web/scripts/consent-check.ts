@@ -20,6 +20,25 @@ const PRERENDERED_FRAMES = 10
 const GOOGLE =
   /(^|\.)(googletagmanager\.com|google-analytics\.com|analytics\.google\.com|doubleclick\.net)$/
 
+const ANALYTICS = 'packages/web/src/lib/analytics.ts'
+const FIXES = {
+  html: `Keep every Google Analytics host out of the prerendered HTML. ${ANALYTICS} is the only path that loads it, after the visitor accepts.`,
+  leak: `Nothing may contact Google or keep a _ga cookie before Accept or after Refuse. Load Google only through setAnalytics in ${ANALYTICS}, and add no preconnect, tag or cookie for it elsewhere.`,
+  missing: `Accept must load Google Analytics from the idle callback after load in ${ANALYTICS}. If the code is unchanged, this machine cannot reach Google.`,
+  banner:
+    'The prerendered banner shows only under <html data-consent="ask">, which CONSENT_SCRIPT in packages/web/src/lib/consent.ts writes before the first paint and a rule in packages/web/src/components/site/site.css reads. A hydrated banner carries data-live and always shows. Fix the link of that chain the failing step names.',
+  painted:
+    'A stored choice must keep the banner from every frame. CONSENT_SCRIPT in packages/web/src/lib/consent.ts must run in the head and write the choice to <html data-consent> before the first paint.',
+  clientId: `A reload after Accept must keep the _ga cookie. Only a Refuse may expire it, through stop() in ${ANALYTICS}.`,
+} as const
+type Problem = keyof typeof FIXES
+let failed = false
+const found = new Set<Problem>()
+const fail = (kind: Problem) => {
+  failed = true
+  found.add(kind)
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const profile = mkdtempSync(join(tmpdir(), 'lily-consent-'))
@@ -83,7 +102,12 @@ socket.addEventListener('message', (event) => {
   if (message.method === 'Network.requestWillBeSent' && message.params?.request)
     requests.push(message.params.request.url)
   if (message.method === 'Fetch.requestPaused' && message.params?.requestId)
-    void onBundle(message.params.requestId)
+    void (message.params.request?.url.includes('/g/collect')
+      ? send('Fetch.failRequest', {
+          requestId: message.params.requestId,
+          errorReason: 'BlockedByClient',
+        })
+      : onBundle(message.params.requestId))
 })
 
 const evaluate = async <T>(expression: string): Promise<T> =>
@@ -102,7 +126,6 @@ const until = async (what: string, expression: string) => {
   throw new Error(`timed out waiting for ${what}`)
 }
 
-let failed = false
 const onBundle = async (requestId: string) => {
   if (bundles === 'blocked')
     return send('Fetch.failRequest', {
@@ -170,11 +193,17 @@ const step = async (
     google: googleRequests(),
     cookies: Array.map(await gaCookies(), (c) => c.name),
   }
+  const google = Array.isReadonlyArrayNonEmpty(seen.google)
+  const cookies = Array.isReadonlyArrayNonEmpty(seen.cookies)
+  if (seen.banner !== expected.banner) fail('banner')
+  if ((google && !expected.google) || (cookies && !expected.cookies))
+    fail('leak')
+  if ((!google && expected.google) || (!cookies && expected.cookies))
+    fail('missing')
   const ok =
     seen.banner === expected.banner &&
-    Array.isReadonlyArrayNonEmpty(seen.google) === expected.google &&
-    Array.isReadonlyArrayNonEmpty(seen.cookies) === expected.cookies
-  if (!ok) failed = true
+    google === expected.google &&
+    cookies === expected.cookies
   console.log(
     `${ok ? 'ok  ' : 'FAIL'} ${name}\n     banner=${seen.banner} (want ${expected.banner})  google requests=${seen.google.length} (want ${expected.google ? 'some' : 'none'})  _ga cookies=[${seen.cookies.join(', ')}] (want ${expected.cookies ? 'some' : 'none'})`
   )
@@ -186,7 +215,7 @@ const step = async (
 
 const neverPainted = async (name: string) => {
   const painted = await evaluate<boolean>('window.consentPainted === true')
-  if (painted) failed = true
+  if (painted) fail('painted')
   console.log(
     `${painted ? 'FAIL' : 'ok  '} ${name}, the banner showed in no frame`
   )
@@ -200,12 +229,15 @@ try {
   await send('Page.enable')
   // A cached bundle skips the Fetch domain, so nothing would hold it.
   await send('Network.setCacheDisabled', { cacheDisabled: true })
-  await send('Fetch.enable', { patterns: [{ urlPattern: '*/assets/*.js' }] })
+  // A hit is still seen on the Network domain, then dropped before it reaches the production property.
+  await send('Fetch.enable', {
+    patterns: [{ urlPattern: '*/assets/*.js' }, { urlPattern: '*/g/collect*' }],
+  })
   await send('Page.addScriptToEvaluateOnNewDocument', { source: PAINT_PROBE })
 
   const html = await (await fetch(`${base}/en`)).text()
   const inHtml = /googletagmanager|google-analytics/.test(html)
-  if (inHtml) failed = true
+  if (inHtml) fail('html')
   console.log(
     `${inHtml ? 'FAIL' : 'ok  '} prerendered /en HTML names no Google Analytics host`
   )
@@ -246,7 +278,7 @@ try {
   await step('Accept, after a reload', { banner: false, ...LOADED })
   await neverPainted('Accept, after a reload')
   const reloaded = await clientId()
-  if (reloaded !== accepted) failed = true
+  if (reloaded !== accepted) fail('clientId')
   console.log(
     `${reloaded === accepted ? 'ok  ' : 'FAIL'} Accept, the _ga client id survives the reload\n     before=${accepted}  after=${reloaded}`
   )
@@ -325,5 +357,11 @@ try {
   chrome.kill()
   await chrome.exited
   rmSync(profile, { recursive: true, force: true })
+}
+if (found.size > 0) {
+  console.log(
+    '\nTo fix, see "Analytics needs consent" in packages/web/CLAUDE.md:'
+  )
+  for (const kind of found) console.log(`  ${kind}: ${FIXES[kind]}`)
 }
 process.exit(failed ? 1 : 0)
