@@ -16,9 +16,14 @@ import {
   rooms,
   users,
 } from '@lily/db/schema'
-import { asc, type SQL } from 'drizzle-orm'
-import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
-import { Array, Effect, Option, Ref, Result } from 'effect'
+import { asc, getTableColumns, type SQL } from 'drizzle-orm'
+import {
+  getTableConfig,
+  type PgColumn,
+  type PgTable,
+  type PgUpdateSetSource,
+} from 'drizzle-orm/pg-core'
+import { Array, Effect, Option, Predicate, Record, Ref, Result } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -147,18 +152,70 @@ export const rowsToLock = <Locked>(
 export const pinAccounts = <Pinned>(query: Lockable<Pinned>): Pinned =>
   inIdOrder('Account', 'key share', query)
 
-/**
- * An `UPDATE` of an account row locks it `FOR NO KEY UPDATE` without asking.
- * Every such write goes through here, so that lock climbs the ladder like
- * one that was asked for.
- */
-export const writeAccount = <A, E, R>(
-  userId: string,
-  write: Effect.Effect<A, E, R>
-): Effect.Effect<A, E, R> =>
-  climbing('Account', 'no key update', Option.some([userId]), write, () => [
-    userId,
+const ACCOUNT_COLUMNS = getTableColumns(users)
+
+const accountKeyColumns: ReadonlySet<string> = (() => {
+  const table = getTableConfig(users)
+  return new Set([
+    ...Array.flatMap(table.columns, (column) =>
+      column.primary || column.isUnique ? [column.name] : []
+    ),
+    ...Array.flatMap(table.primaryKeys, (key) =>
+      Array.map(key.columns, (column) => column.name)
+    ),
+    ...Array.flatMap(table.uniqueConstraints, (constraint) =>
+      Array.map(constraint.columns, (column) => column.name)
+    ),
+    ...Array.flatMap(table.indexes, (index) =>
+      index.config.unique
+        ? Array.flatMap(index.config.columns, (column) =>
+            'name' in column && Predicate.isString(column.name)
+              ? [column.name]
+              : []
+          )
+        : []
+    ),
   ])
+})()
+
+/**
+ * The lock an `UPDATE` of an account row takes for `values`: `FOR UPDATE`
+ * when it sets a column of a key or of a unique index, which a foreign key
+ * may point at, and `FOR NO KEY UPDATE` otherwise.
+ */
+export const accountWriteStrength = (
+  values: Readonly<Record<string, unknown>>
+): Strength =>
+  Array.some(
+    Record.toEntries(ACCOUNT_COLUMNS),
+    ([property, column]) =>
+      values[property] !== undefined && accountKeyColumns.has(column.name)
+  )
+    ? 'update'
+    : 'no key update'
+
+/**
+ * An `UPDATE` of an account row locks it without asking. Every such write
+ * goes through here with the values it sets, so that lock climbs the ladder
+ * like one that was asked for.
+ */
+export const writeAccount = <
+  V extends PgUpdateSetSource<typeof users>,
+  A,
+  E,
+  R,
+>(
+  userId: string,
+  values: V,
+  write: (values: V) => Effect.Effect<A, E, R>
+): Effect.Effect<A, E, R> =>
+  climbing(
+    'Account',
+    accountWriteStrength(values),
+    Option.some([userId]),
+    Effect.suspend(() => write(values)),
+    () => [userId]
+  )
 
 const advisory = (
   kind: 'UserKey' | 'ReminderPlantKey',

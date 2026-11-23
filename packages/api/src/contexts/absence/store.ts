@@ -654,18 +654,20 @@ export const AbsenceStoreLive = Layer.effect(
             Effect.flatMap(
               writeAccount(
                 w.userId,
-                db
-                  .update(users)
-                  .set({ ...vacationColumnsOf(w.next), updatedAt: nowAsDate() })
-                  .where(
-                    and(
-                      eq(users.id, w.userId),
-                      eq(users.vacationStatus, w.expected.status),
-                      storedAt(users.vacationStart, w.expected.start),
-                      storedAt(users.vacationEnd, w.expected.end)
+                { ...vacationColumnsOf(w.next), updatedAt: nowAsDate() },
+                (set) =>
+                  db
+                    .update(users)
+                    .set(set)
+                    .where(
+                      and(
+                        eq(users.id, w.userId),
+                        eq(users.vacationStatus, w.expected.status),
+                        storedAt(users.vacationStart, w.expected.start),
+                        storedAt(users.vacationEnd, w.expected.end)
+                      )
                     )
-                  )
-                  .returning({ id: users.id })
+                    .returning({ id: users.id })
               ),
               (set) => setOnce(w, set.length)
             ),

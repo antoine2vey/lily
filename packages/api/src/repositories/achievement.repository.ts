@@ -267,13 +267,15 @@ export const AchievementRepositoryLive = Layer.effect(
       )(function* (userId: string) {
         const [result] = yield* writeAccount(
           userId,
-          db
-            .update(users)
-            .set({
-              historyViewCount: sql`${users.historyViewCount} + 1`,
-            })
-            .where(eq(users.id, userId))
-            .returning({ historyViewCount: users.historyViewCount })
+          {
+            historyViewCount: sql`${users.historyViewCount} + 1`,
+          },
+          (set) =>
+            db
+              .update(users)
+              .set(set)
+              .where(eq(users.id, userId))
+              .returning({ historyViewCount: users.historyViewCount })
         )
         return pipe(
           Option.fromNullishOr(result),

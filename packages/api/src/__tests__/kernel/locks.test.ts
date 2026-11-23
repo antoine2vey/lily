@@ -2,6 +2,7 @@ import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { LockOrderDefect, type Strength } from '@lily/api/kernel/ladder'
 import {
+  accountWriteStrength,
   lockRows,
   lockRowsNamed,
   rowsToLock,
@@ -141,8 +142,7 @@ describe('the lock ladder', () => {
     const exit = await inOneTransaction(
       Effect.gen(function* () {
         yield* lockRows('Notification', 'update', selecting('n1').query)
-        yield* writeAccount(
-          'u1',
+        yield* writeAccount('u1', { bio: 'b' }, () =>
           Effect.sync(() => {
             written = true
           })
@@ -159,15 +159,41 @@ describe('the lock ladder', () => {
   it('counts an account write as a lock on the account', async () => {
     const exit = await inOneTransaction(
       Effect.gen(function* () {
-        yield* writeAccount('u1', Effect.void)
+        yield* writeAccount('u1', { bio: 'b' }, () => Effect.void)
         yield* lockRows('Notification', 'update', selecting('n1').query)
-        yield* writeAccount('u1', Effect.void)
+        yield* writeAccount('u1', { tips: false }, () => Effect.void)
         yield* lockRows('Delegation', 'update', selecting('d1').query)
       })
     )
 
     expect(defectOf(exit)).toEqual(
       new LockOrderDefect({ wanted: 'Delegation', after: 'Notification' })
+    )
+  })
+
+  it('takes an account write for the lock its columns make it', () => {
+    expect(accountWriteStrength({ bio: 'b', tips: false })).toBe(
+      'no key update'
+    )
+    expect(accountWriteStrength({ bio: 'b', name: 'lily' })).toBe('update')
+    expect(accountWriteStrength({ email: 'lily@example.com' })).toBe('update')
+    expect(accountWriteStrength({ id: 'u2' })).toBe('update')
+    expect(accountWriteStrength({ bio: 'b', name: undefined })).toBe(
+      'no key update'
+    )
+  })
+
+  it('dies when a rename follows a kind above an account held for a plain write', async () => {
+    const exit = await inOneTransaction(
+      Effect.gen(function* () {
+        yield* writeAccount('u1', { bio: 'b' }, () => Effect.void)
+        yield* lockRows('Notification', 'update', selecting('n1').query)
+        yield* writeAccount('u1', { name: 'lily' }, () => Effect.void)
+      })
+    )
+
+    expect(defectOf(exit)).toEqual(
+      new LockOrderDefect({ wanted: 'Account', after: 'Notification' })
     )
   })
 

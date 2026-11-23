@@ -231,11 +231,8 @@ export const UserRepositoryLive = Layer.effect(
       ) {
         const [user] = yield* writeAccount(
           id,
-          db
-            .update(users)
-            .set({ ...data, updatedAt: nowAsDate() })
-            .where(eq(users.id, id))
-            .returning()
+          { ...data, updatedAt: nowAsDate() },
+          (set) => db.update(users).set(set).where(eq(users.id, id)).returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
@@ -253,14 +250,11 @@ export const UserRepositoryLive = Layer.effect(
       ) {
         const [user] = yield* writeAccount(
           id,
-          db
-            .update(users)
-            .set({
-              status: 'pending_deletion',
-              deletedAt: nowAsDate(),
-            })
-            .where(eq(users.id, id))
-            .returning()
+          {
+            status: 'pending_deletion',
+            deletedAt: nowAsDate(),
+          },
+          (set) => db.update(users).set(set).where(eq(users.id, id)).returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
@@ -321,11 +315,8 @@ export const UserRepositoryLive = Layer.effect(
       ) {
         const [user] = yield* writeAccount(
           id,
-          db
-            .update(users)
-            .set({ role, updatedAt: nowAsDate() })
-            .where(eq(users.id, id))
-            .returning()
+          { role, updatedAt: nowAsDate() },
+          (set) => db.update(users).set(set).where(eq(users.id, id)).returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
@@ -336,11 +327,8 @@ export const UserRepositoryLive = Layer.effect(
       ) {
         const [user] = yield* writeAccount(
           id,
-          db
-            .update(users)
-            .set({ status, updatedAt: nowAsDate() })
-            .where(eq(users.id, id))
-            .returning()
+          { status, updatedAt: nowAsDate() },
+          (set) => db.update(users).set(set).where(eq(users.id, id)).returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),

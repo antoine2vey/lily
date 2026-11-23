@@ -156,14 +156,23 @@ describe('locks', () => {
   })
 
   it('cover every update of an account row', () => {
-    const WRAPPED = /\bwriteAccount\(\s*[\w.]+,\s*db\s*\.update\(users\)/g
-    const bare = files
-      .filter((file) =>
-        /\.update\(users\)/.test(codeOf(file).replace(WRAPPED, ''))
-      )
-      .map(name)
+    const WRAPPED =
+      /\bwriteAccount\((?:(?!\bwriteAccount\()[\s\S])*?=>\s*db\s*\.update\(users\)/g
+    const BARE =
+      /\.update\(\s*(\w+\s*\.\s*)?users\s*\)|\bupdate\s+(only\s+)?"?users"?(?![\w"])/i
+    const RENAMED = /\busers\s+as\s+\w|\busers\s*:\s*\w+\s*[,}]\s*=/
+    const sources = files.map((file) => ({ file, code: codeOf(file) }))
 
-    expect(bare).toEqual([])
+    expect(
+      sources
+        .filter(({ code }) => BARE.test(code.replace(WRAPPED, '')))
+        .map(({ file }) => name(file))
+    ).toEqual([])
+    expect(
+      sources
+        .filter(({ code }) => RENAMED.test(code))
+        .map(({ file }) => name(file))
+    ).toEqual([])
   })
 
   it('leave the reminder key of a plant to the notification repository', () => {
