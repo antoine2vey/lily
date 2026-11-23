@@ -8,6 +8,14 @@ if [ $? -ne 0 ]; then
 fi
 echo "✅ Docs passed!"
 
+echo "🗄️ Checking migrations..."
+bash scripts/check-migrations.sh
+if [ $? -ne 0 ]; then
+    echo "❌ A migration shares a number or leaves its lock waits unbounded. Fix the files listed above."
+    exit 1
+fi
+echo "✅ Migrations passed!"
+
 # Run linting
 echo "📝 Running lint..."
 bun run lint

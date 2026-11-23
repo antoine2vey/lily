@@ -71,6 +71,8 @@ jobs:
         run: bash scripts/check-turbo-inputs.sh
       - name: Check SQL applies no time zone but UTC
         run: bash scripts/check-sql-time-zones.sh
+      - name: Check migration numbers and lock timeouts
+        run: bash scripts/check-migrations.sh && bash scripts/test-check-migrations.sh
       - name: Check the AASA and assetlinks.json
         run: bun packages/web/scripts/check-well-known.ts
       - name: Run Turbo pipeline

@@ -5,5 +5,5 @@ Rules every package satisfies. To scaffold a new package, follow "Adding a packa
 - **tsconfig extends**: every package's `tsconfig.json` MUST `extends: "../../tsconfig.json"`. Exception: a package whose build tool needs a different base (today only the Expo app, on `expo/tsconfig.base`) explicitly mirrors the root's strict-plus flags.
 - **package.json `sideEffects`**: every package MUST declare `sideEffects` (either `false` or a precise glob list). Pure libraries are `false`; apps with CSS imports list them.
 - **TypeScript version**: every package's `typescript` devDependency MUST match the root version exactly.
-- **CI gate**: CI and the `.husky/pre-push` hook both run `scripts/check-docs.sh`, lint, `tsc` and tests. A hook failure blocks the push. CI runs after the push, on pull requests and on pushes to `main`. In an emergency, `HUSKY=0 git push` skips the hook.
+- **CI gate**: CI and the `.husky/pre-push` hook both run `scripts/check-docs.sh`, `scripts/check-migrations.sh`, lint, `tsc` and tests. A hook failure blocks the push. CI runs after the push, on pull requests and on pushes to `main`. In an emergency, `HUSKY=0 git push` skips the hook.
 - **Root composite build**: `bun run tsc:build` exercises the project-reference graph end-to-end. Run it locally before large refactors.
