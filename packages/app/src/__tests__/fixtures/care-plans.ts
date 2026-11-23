@@ -1,4 +1,5 @@
 import type { CarePlan } from '@lily/shared/care-plan'
+import { effectQueryKey } from '@/utils/query-keys'
 
 // The API client rejects ids that are not UUIDs before sending a request.
 export const carePlanIds = {
@@ -38,14 +39,12 @@ export const mockCarePlan: CarePlan = {
   updatedAt: new Date('2024-01-01'),
 }
 
-export const carePlansListKey = [
-  'carePlans',
-  'getCarePlans',
-  { query: { status: 'accepted' } },
-]
+export const carePlansListKey = effectQueryKey('carePlans', 'getCarePlans', {
+  query: { status: 'accepted' },
+})
 
-export const plantCarePlansKey = [
+export const plantCarePlansKey = effectQueryKey(
   'carePlans',
   'getPlantCarePlans',
-  { params: { plantId: carePlanIds.plant } },
-]
+  { params: { plantId: carePlanIds.plant } }
+)

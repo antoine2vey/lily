@@ -47,13 +47,10 @@ export function useUpdatePlant() {
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData(key)
 
-      queryClient.setQueryData(key, (old: unknown) => {
-        if (!old) return undefined
-        return Result.map(old as Result.Result<unknown, unknown>, (plant) => ({
-          ...(plant as Record<string, unknown>),
-          ...payload,
-        }))
-      })
+      queryClient.setQueryData(
+        key,
+        (old) => old && Result.map(old, (plant) => ({ ...plant, ...payload }))
+      )
 
       return { previous, key }
     },

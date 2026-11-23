@@ -1,11 +1,12 @@
 import type { CareTask, CareTasksResponse } from '@lily/shared'
 import type { QueryClient } from '@tanstack/react-query'
 import { Array as Arr } from 'effect'
-import { effectQueryKey, useEffectQuery } from '@/utils/client'
+import { useEffectQuery } from '@/utils/client'
 import {
   type CacheSnapshot,
   patchCachedResults,
 } from '@/utils/optimistic-cache'
+import { effectQueryKey } from '@/utils/query-keys'
 
 export const CARE_TASKS_PARAMS = { query: { includeCanopy: 'true' } }
 

@@ -1,3 +1,4 @@
+import type { CareTask, CareTasksResponse } from '@lily/shared'
 import type { Plant } from '@lily/shared/plant'
 import { careToday, makeSchedules } from '@/__tests__/fixtures/plants'
 
@@ -236,3 +237,32 @@ export const mockPlantsNoCare: Plant[] = [
     }),
   },
 ]
+
+export const mockCareTask = (
+  id: string,
+  overrides: Partial<CareTask> = {}
+): CareTask => ({
+  id,
+  plantId: `plant-${id}`,
+  plantName: `Plant ${id}`,
+  plantImageUrl: null,
+  roomName: null,
+  roomIcon: null,
+  type: 'watering',
+  dueDate: new Date('2025-01-01T00:00:00Z'),
+  dueDayOffset: 0,
+  localDueDate: '2025-01-01',
+  completed: false,
+  ...overrides,
+})
+
+export const mockCareTasksResponse = (
+  lists: Partial<CareTasksResponse>
+): CareTasksResponse => ({
+  overdue: [],
+  today: [],
+  upcoming: [],
+  completedToday: 0,
+  windowDays: [],
+  ...lists,
+})

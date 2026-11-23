@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react-native'
 import { Result } from 'effect'
+import { mockPlants } from '@/__tests__/fixtures'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 import { plantDetailKey, plantPhotosKey } from '@/utils/plant-cache'
 
@@ -45,7 +46,11 @@ const makeClient = () =>
 const seed = (client: QueryClient) => {
   client.setQueryData(
     plantDetailKey(PLANT_ID),
-    Result.succeed({ id: PLANT_ID, photos: [photo('a'), photo('b')] })
+    Result.succeed({
+      ...mockPlants[0]!,
+      id: PLANT_ID,
+      photos: [photo('a'), photo('b')],
+    })
   )
   client.setQueryData(
     plantPhotosKey(PLANT_ID),

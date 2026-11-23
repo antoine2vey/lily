@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react-native'
+import { Result } from 'effect'
 import type { ReactNode } from 'react'
 
 jest.mock('@/utils/client', () => ({
-  effectQueryKey: (...key: ReadonlyArray<unknown>) => key,
   runApiEffect: jest.fn(),
 }))
 jest.mock('@/hooks/useLocalization', () => ({
@@ -12,25 +12,21 @@ jest.mock('@/hooks/useLocalization', () => ({
 jest.mock('expo-router', () => ({ useIsFocused: jest.fn() }))
 
 import { useIsFocused } from 'expo-router'
+import { effectQueryKey } from '@/utils/query-keys'
 import { useChatSuggestionsVisit } from '../useChatSuggestions'
 
 const mockedUseIsFocused = useIsFocused as jest.Mock
 
-const followUpsKey = [
-  'aiChat',
-  'listChatFollowUps',
-  { query: { plantId: 'fern', language: 'en' } },
-]
-const startersKey = [
-  'aiChat',
-  'listChatSuggestions',
-  { query: { plantId: 'fern', language: 'en' } },
-]
+const fern = { query: { plantId: 'fern', language: 'en' } } as const
+const followUpsKey = effectQueryKey('aiChat', 'listChatFollowUps', fern)
+const startersKey = effectQueryKey('aiChat', 'listChatSuggestions', fern)
+const followUps = { suggestions: [{ id: 'f1', text: 'Fern follow-up' }] }
+const starters = { suggestions: [{ id: 's1', text: 'Fern starter' }] }
 
 const visitWithCachedChips = () => {
   const queryClient = new QueryClient()
-  queryClient.setQueryData(followUpsKey, 'fern follow-ups')
-  queryClient.setQueryData(startersKey, 'fern starters')
+  queryClient.setQueryData(followUpsKey, Result.succeed(followUps))
+  queryClient.setQueryData(startersKey, Result.succeed(starters))
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
@@ -55,7 +51,10 @@ describe('useChatSuggestionsVisit', () => {
 
     expect(result.current.isVisiting).toBe(true)
     expect(result.current.sentIn).toEqual(['conv-fern'])
-    expect(cachedChips()).toEqual(['fern follow-ups', 'fern starters'])
+    expect(cachedChips()).toEqual([
+      Result.succeed(followUps),
+      Result.succeed(starters),
+    ])
   })
 
   it('drops the chips and forgets the sent conversations when the chat loses focus', () => {

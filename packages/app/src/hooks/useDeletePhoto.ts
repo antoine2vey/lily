@@ -47,17 +47,14 @@ export function useDeletePhoto() {
       await queryClient.cancelQueries({ queryKey: detailKey })
       await queryClient.cancelQueries({ queryKey: photosKey })
 
-      const prevDetail =
-        queryClient.getQueryData<ApiResult<PlantDetail>>(detailKey)
-      const prevPhotos =
-        queryClient.getQueryData<ApiResult<PlantPhotosListResponse>>(photosKey)
+      const prevDetail = queryClient.getQueryData(detailKey)
+      const prevPhotos = queryClient.getQueryData(photosKey)
 
-      queryClient.setQueryData<ApiResult<PlantDetail>>(detailKey, (old) =>
+      queryClient.setQueryData(detailKey, (old) =>
         removePhotoFromDetail(old, photoId)
       )
-      queryClient.setQueryData<ApiResult<PlantPhotosListResponse>>(
-        photosKey,
-        (old) => removePhotoFromList(old, photoId)
+      queryClient.setQueryData(photosKey, (old) =>
+        removePhotoFromList(old, photoId)
       )
 
       return { prevDetail, prevPhotos, plantId } satisfies DeletePhotoContext

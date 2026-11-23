@@ -33,13 +33,13 @@ const seed = () => {
   return client
 }
 
-const plansIn = (client: ReturnType<typeof seed>, key: unknown[]) =>
+const plansIn = (client: ReturnType<typeof seed>, key: (typeof keys)[number]) =>
   Result.getOrThrow(client.getQueryData(key) as ApiResult<CarePlanListResponse>)
     .items
 
 const stepIn = (
   client: ReturnType<typeof seed>,
-  key: unknown[],
+  key: (typeof keys)[number],
   stepId: string
 ) => plansIn(client, key)[0]?.steps.find((step) => step.id === stepId)
 

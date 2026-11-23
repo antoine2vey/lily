@@ -3,7 +3,6 @@ import { useCompleteTask } from '../useCompleteTask'
 
 // Mock the client
 jest.mock('@/utils/client', () => ({
-  effectQueryKey: (...key: unknown[]) => key,
   apiEffectRunner: jest.fn(),
 }))
 

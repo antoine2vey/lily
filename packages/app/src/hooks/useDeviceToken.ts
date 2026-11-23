@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { Data, Effect, Option } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 import { useEffectMutation } from '@/utils/client'
@@ -59,12 +58,9 @@ const removeStoredDeviceTokenId = (): Effect.Effect<
  * Hook to register a device token for push notifications
  */
 export function useRegisterDeviceToken() {
-  const queryClient = useQueryClient()
-
   const mutation = useEffectMutation('deviceTokens', 'registerDeviceToken', {
     onSuccess: async (deviceToken) => {
       await Effect.runPromise(storeDeviceTokenId(deviceToken.id))
-      queryClient.invalidateQueries({ queryKey: ['deviceTokens'] })
     },
   })
 
@@ -102,13 +98,10 @@ export function useRegisterDeviceToken() {
  * Hook to unregister a device token
  */
 export function useUnregisterDeviceToken() {
-  const queryClient = useQueryClient()
-
   const mutation = useEffectMutation('deviceTokens', 'unregisterDeviceToken', {
     onSuccess: async () => {
       // Remove the stored token ID
       await Effect.runPromise(removeStoredDeviceTokenId())
-      queryClient.invalidateQueries({ queryKey: ['deviceTokens'] })
     },
   })
 

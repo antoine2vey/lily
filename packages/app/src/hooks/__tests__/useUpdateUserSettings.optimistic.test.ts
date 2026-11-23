@@ -11,18 +11,19 @@ const fetchMock = jest.spyOn(globalThis, 'fetch')
 afterEach(() => fetchMock.mockReset())
 
 import type { ApiResult } from '@/utils/client'
+import { USER_SETTINGS_QUERY_KEY } from '@/utils/query-keys'
 import { useUpdateUserSettings } from '../useUpdateUserSettings'
-
-const settingsKey = ['users', 'getUserSettings', {}]
 
 const seed = () => {
   const client = createCacheTestQueryClient()
-  client.setQueryData(settingsKey, Result.succeed(mockUserSettings))
+  client.setQueryData(USER_SETTINGS_QUERY_KEY, Result.succeed(mockUserSettings))
   return client
 }
 
 const cachedSettings = (client: ReturnType<typeof seed>) =>
-  Result.getOrThrow(client.getQueryData(settingsKey) as ApiResult<UserSettings>)
+  Result.getOrThrow(
+    client.getQueryData(USER_SETTINGS_QUERY_KEY) as ApiResult<UserSettings>
+  )
 
 describe('useUpdateUserSettings optimistic update', () => {
   it('merges only the sent fields before the API answers', () => {

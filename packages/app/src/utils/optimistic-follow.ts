@@ -126,10 +126,10 @@ export function optimisticFollowUpdate(
       )
   )
 
-  updatePaginatedTotal(queryClient, ['social', 'getFollowing'], followerDelta)
+  updatePaginatedTotal(queryClient, queryKeys.social.following(), followerDelta)
   updatePaginatedTotal(
     queryClient,
-    ['social', 'getUserFollowers'],
+    queryKeys.social.userFollowers(),
     followerDelta
   )
   return snapshot

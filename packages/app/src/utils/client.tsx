@@ -71,6 +71,7 @@ import {
   trackAuthAnomaly,
   trackForcedLogout,
 } from '@/utils/auth-telemetry'
+import { effectQueryKey } from '@/utils/query-keys'
 import { KEYCHAIN_OPTIONS } from '@/utils/storage'
 
 export const ACCESS_TOKEN_KEY = 'lily_access_token'
@@ -673,7 +674,7 @@ type ExcludeResponseModes<T> = Exclude<
   | HttpClientResponse.HttpClientResponse
 >
 
-type GetCleanSuccessType<
+export type GetCleanSuccessType<
   X extends keyof Client,
   Y extends keyof Client[X],
 > = ExcludeResponseModes<Effect.Success<GetReturnType<X, Y>>>
@@ -827,15 +828,6 @@ async function handleTokenRefreshAndRetry<
     },
   })
 }
-
-export const effectQueryKey = <
-  X extends keyof Client,
-  Y extends keyof Client[X],
->(
-  section: X,
-  method: Y,
-  params: GetRequestParams<X, Y>
-) => [section, method, params] as const
 
 export function useEffectQuery<
   X extends keyof Client,

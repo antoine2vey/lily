@@ -1,6 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
+import { Result } from 'effect'
 import type React from 'react'
+import { mockUserSettings } from '@/__tests__/fixtures'
+import { USER_SETTINGS_QUERY_KEY } from '@/utils/query-keys'
 import { AuthProvider, useAuth } from '../AuthContext'
 
 // Mock expo-router
@@ -356,7 +359,6 @@ describe('AuthContext', () => {
       role: 'user',
       status: 'active',
     }
-    const plantsKey = ['plants', 'getPlants', { query: { page: '1' } }]
 
     const signIn = async () => {
       const { apiEffectRunner } = require('@/utils/client')
@@ -377,7 +379,10 @@ describe('AuthContext', () => {
       await waitFor(() => {
         expect(result.current.state._tag).toBe('Authenticated')
       })
-      queryClient.setQueryData(plantsKey, { items: ['plant of user A'] })
+      queryClient.setQueryData(
+        USER_SETTINGS_QUERY_KEY,
+        Result.succeed(mockUserSettings)
+      )
       return { queryClient, result }
     }
 
@@ -394,7 +399,7 @@ describe('AuthContext', () => {
       await act(() => result.current.logout())
 
       expect(result.current.state._tag).toBe('Unauthenticated')
-      expect(queryClient.getQueryData(plantsKey)).toBeUndefined()
+      expect(queryClient.getQueryData(USER_SETTINGS_QUERY_KEY)).toBeUndefined()
     })
 
     it('drops the signed-out user cached data when the session expires', async () => {
@@ -407,7 +412,7 @@ describe('AuthContext', () => {
       await act(() => onAuthFailure())
 
       expect(result.current.state._tag).toBe('Unauthenticated')
-      expect(queryClient.getQueryData(plantsKey)).toBeUndefined()
+      expect(queryClient.getQueryData(USER_SETTINGS_QUERY_KEY)).toBeUndefined()
     })
   })
 

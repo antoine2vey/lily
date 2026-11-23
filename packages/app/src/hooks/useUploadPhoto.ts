@@ -74,19 +74,16 @@ export function useUploadPhoto() {
       await queryClient.cancelQueries({ queryKey: detailKey })
       await queryClient.cancelQueries({ queryKey: photosKey })
 
-      const prevDetail =
-        queryClient.getQueryData<ApiResult<PlantDetail>>(detailKey)
-      const prevPhotos =
-        queryClient.getQueryData<ApiResult<PlantPhotosListResponse>>(photosKey)
+      const prevDetail = queryClient.getQueryData(detailKey)
+      const prevPhotos = queryClient.getQueryData(photosKey)
 
       const tempPhoto = makeTempPhoto(plantId, photoUri)
 
-      queryClient.setQueryData<ApiResult<PlantDetail>>(detailKey, (old) =>
+      queryClient.setQueryData(detailKey, (old) =>
         addPhotoToDetail(old, tempPhoto)
       )
-      queryClient.setQueryData<ApiResult<PlantPhotosListResponse>>(
-        photosKey,
-        (old) => addPhotoToList(old, tempPhoto)
+      queryClient.setQueryData(photosKey, (old) =>
+        addPhotoToList(old, tempPhoto)
       )
 
       return { prevDetail, prevPhotos, plantId, tempId: tempPhoto.id }
@@ -109,13 +106,11 @@ export function useUploadPhoto() {
       // Warm the CDN image before swapping so the tile never flashes blank.
       await Image.prefetch(real.url).catch(() => false)
 
-      queryClient.setQueryData<ApiResult<PlantDetail>>(
-        plantDetailKey(context.plantId),
-        (old) => replacePhotoInDetail(old, context.tempId, real)
+      queryClient.setQueryData(plantDetailKey(context.plantId), (old) =>
+        replacePhotoInDetail(old, context.tempId, real)
       )
-      queryClient.setQueryData<ApiResult<PlantPhotosListResponse>>(
-        plantPhotosKey(context.plantId),
-        (old) => replacePhotoInList(old, context.tempId, real)
+      queryClient.setQueryData(plantPhotosKey(context.plantId), (old) =>
+        replacePhotoInList(old, context.tempId, real)
       )
     },
     onError: (_err, _vars, context) => {
