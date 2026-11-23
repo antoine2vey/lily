@@ -147,6 +147,19 @@ export const rowsToLock = <Locked>(
 export const pinAccounts = <Pinned>(query: Lockable<Pinned>): Pinned =>
   inIdOrder('Account', 'key share', query)
 
+/**
+ * An `UPDATE` of an account row locks it `FOR NO KEY UPDATE` without asking.
+ * Every such write goes through here, so that lock climbs the ladder like
+ * one that was asked for.
+ */
+export const writeAccount = <A, E, R>(
+  userId: string,
+  write: Effect.Effect<A, E, R>
+): Effect.Effect<A, E, R> =>
+  climbing('Account', 'no key update', Option.some([userId]), write, () => [
+    userId,
+  ])
+
 const advisory = (
   kind: 'UserKey' | 'ReminderPlantKey',
   keyspace: number,

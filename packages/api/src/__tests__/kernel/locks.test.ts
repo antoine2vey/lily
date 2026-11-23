@@ -1,7 +1,12 @@
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { LockOrderDefect, type Strength } from '@lily/api/kernel/ladder'
-import { lockRows, lockRowsNamed, rowsToLock } from '@lily/api/kernel/locks'
+import {
+  lockRows,
+  lockRowsNamed,
+  rowsToLock,
+  writeAccount,
+} from '@lily/api/kernel/locks'
 import { transactQuietly } from '@lily/api/kernel/transact'
 import { Array, Cause, Effect, Exit } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
@@ -130,6 +135,41 @@ describe('the lock ladder', () => {
       expect(exit).toEqual(Exit.succeed([{ id: 'd1' }]))
     }
   )
+
+  it('dies when an account is written after a kind above it', async () => {
+    let written = false
+    const exit = await inOneTransaction(
+      Effect.gen(function* () {
+        yield* lockRows('Notification', 'update', selecting('n1').query)
+        yield* writeAccount(
+          'u1',
+          Effect.sync(() => {
+            written = true
+          })
+        )
+      })
+    )
+
+    expect(defectOf(exit)).toEqual(
+      new LockOrderDefect({ wanted: 'Account', after: 'Notification' })
+    )
+    expect(written).toBe(false)
+  })
+
+  it('counts an account write as a lock on the account', async () => {
+    const exit = await inOneTransaction(
+      Effect.gen(function* () {
+        yield* writeAccount('u1', Effect.void)
+        yield* lockRows('Notification', 'update', selecting('n1').query)
+        yield* writeAccount('u1', Effect.void)
+        yield* lockRows('Delegation', 'update', selecting('d1').query)
+      })
+    )
+
+    expect(defectOf(exit)).toEqual(
+      new LockOrderDefect({ wanted: 'Delegation', after: 'Notification' })
+    )
+  })
 
   it('dies when one of the rows named again is not held', async () => {
     const exit = await inOneTransaction(

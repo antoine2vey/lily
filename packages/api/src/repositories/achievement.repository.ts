@@ -1,3 +1,4 @@
+import { writeAccount } from '@lily/api/kernel/locks'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careLogs,
@@ -264,13 +265,16 @@ export const AchievementRepositoryLive = Layer.effect(
       incrementHistoryViews: Effect.fn(
         'AchievementRepository.incrementHistoryViews'
       )(function* (userId: string) {
-        const [result] = yield* db
-          .update(users)
-          .set({
-            historyViewCount: sql`${users.historyViewCount} + 1`,
-          })
-          .where(eq(users.id, userId))
-          .returning({ historyViewCount: users.historyViewCount })
+        const [result] = yield* writeAccount(
+          userId,
+          db
+            .update(users)
+            .set({
+              historyViewCount: sql`${users.historyViewCount} + 1`,
+            })
+            .where(eq(users.id, userId))
+            .returning({ historyViewCount: users.historyViewCount })
+        )
         return pipe(
           Option.fromNullishOr(result),
           Option.flatMap((r) => Option.fromNullishOr(r.historyViewCount)),

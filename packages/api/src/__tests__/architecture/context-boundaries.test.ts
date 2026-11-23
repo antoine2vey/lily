@@ -155,6 +155,17 @@ describe('locks', () => {
     ).toEqual([INGEST_JOBS])
   })
 
+  it('cover every update of an account row', () => {
+    const WRAPPED = /\bwriteAccount\(\s*[\w.]+,\s*db\s*\.update\(users\)/g
+    const bare = files
+      .filter((file) =>
+        /\.update\(users\)/.test(codeOf(file).replace(WRAPPED, ''))
+      )
+      .map(name)
+
+    expect(bare).toEqual([])
+  })
+
   it('leave the reminder key of a plant to the notification repository', () => {
     const takers = files
       .filter((file) =>

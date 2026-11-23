@@ -81,8 +81,6 @@ export const createDiagnosisTool = (deps: PlantToolDeps): Tool =>
                   toProposedStep(step, timezone)
                 ),
               })
-              // After `propose`: removing the plant locks the plant and
-              // then its conversations, so this takes them in that order.
               const shown = yield* Option.match(
                 Option.fromNullishOr(deps.image),
                 {

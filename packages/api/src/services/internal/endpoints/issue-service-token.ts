@@ -1,3 +1,4 @@
+import { writeAccount } from '@lily/api/kernel/locks'
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -56,14 +57,17 @@ export const issueServiceToken = (input: {
           Effect.gen(function* () {
             if (existing.emailVerified) return existing
 
-            const updated = yield* db
-              .update(users)
-              .set({
-                emailVerified: true,
-                updatedAt: nowAsDate(),
-              })
-              .where(eq(users.id, existing.id))
-              .returning()
+            const updated = yield* writeAccount(
+              existing.id,
+              db
+                .update(users)
+                .set({
+                  emailVerified: true,
+                  updatedAt: nowAsDate(),
+                })
+                .where(eq(users.id, existing.id))
+                .returning()
+            )
 
             return pipe(
               updated,

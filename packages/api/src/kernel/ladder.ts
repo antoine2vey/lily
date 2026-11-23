@@ -1,8 +1,8 @@
 import { Array, Data, Option, Order, Result } from 'effect'
 
 /**
- * Every lock a transaction waits for, in the one order a transaction may take
- * them. Two transactions that both climb it cannot wait on each other.
+ * The kinds of lock a transaction waits for, in the one order it may first
+ * take each of them.
  *
  * Two locks have no place on it. `FOR KEY SHARE` on an account row is what a
  * foreign key takes at any insert, and its only rival is the erase of that

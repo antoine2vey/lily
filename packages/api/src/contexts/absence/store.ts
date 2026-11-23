@@ -20,6 +20,7 @@ import {
   lockRowsNamed,
   lockUsers,
   pinAccounts,
+  writeAccount,
 } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
@@ -651,18 +652,21 @@ export const AbsenceStoreLive = Layer.effect(
             ),
           SetVacation: (w) =>
             Effect.flatMap(
-              db
-                .update(users)
-                .set({ ...vacationColumnsOf(w.next), updatedAt: nowAsDate() })
-                .where(
-                  and(
-                    eq(users.id, w.userId),
-                    eq(users.vacationStatus, w.expected.status),
-                    storedAt(users.vacationStart, w.expected.start),
-                    storedAt(users.vacationEnd, w.expected.end)
+              writeAccount(
+                w.userId,
+                db
+                  .update(users)
+                  .set({ ...vacationColumnsOf(w.next), updatedAt: nowAsDate() })
+                  .where(
+                    and(
+                      eq(users.id, w.userId),
+                      eq(users.vacationStatus, w.expected.status),
+                      storedAt(users.vacationStart, w.expected.start),
+                      storedAt(users.vacationEnd, w.expected.end)
+                    )
                   )
-                )
-                .returning({ id: users.id }),
+                  .returning({ id: users.id })
+              ),
               (set) => setOnce(w, set.length)
             ),
           SweepMuted: (w) =>
