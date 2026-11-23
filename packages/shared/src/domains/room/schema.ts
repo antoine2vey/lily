@@ -55,7 +55,6 @@ export const RoomWithCount = Schema.Struct({
 
 export const RoomListWithCountsResponse = Schema.Array(RoomWithCount)
 
-// Type exports
 export type Room = typeof Room.Type
 export type RoomRef = typeof RoomRef.Type
 export type RoomCreateRequest = typeof RoomCreateRequest.Type

@@ -67,7 +67,6 @@ export const UnlockAchievementRequest = Schema.Struct({
   achievement: AchievementKey,
 })
 
-// Type exports
 export type AchievementKey = typeof AchievementKey.Type
 export type AchievementCategory = typeof AchievementCategory.Type
 export type AchievementRarity = typeof AchievementRarity.Type

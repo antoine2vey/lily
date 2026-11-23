@@ -92,7 +92,6 @@ const hoursAgo = (hours: number): Date => {
   return date
 }
 
-// Sample plant data
 const DEMO_PLANTS = [
   {
     name: 'Monstera Deliciosa',
@@ -143,9 +142,9 @@ const DEMO_PLANTS = [
     wateringFrequencyDays: 7,
     fertilizationFrequencyDays: 14,
     lastWateredAt: daysAgo(10),
-    nextWateringAt: daysAgo(3), // Overdue!
+    nextWateringAt: daysAgo(3),
     lastFertilizedAt: daysAgo(20),
-    nextFertilizationAt: daysAgo(6), // Overdue!
+    nextFertilizationAt: daysAgo(6),
     isFavorite: true,
   },
   {
@@ -204,7 +203,6 @@ const DEMO_PLANTS = [
   },
 ]
 
-// Achievements to unlock for demo
 const DEMO_ACHIEVEMENTS = [
   { achievement: 'FIRST_PLANT_ADDED' as const, daysAgo: 30 },
   { achievement: 'WATERING_NOVICE' as const, daysAgo: 25 },
@@ -213,7 +211,6 @@ const DEMO_ACHIEVEMENTS = [
   { achievement: 'PHOTO_PRO' as const, daysAgo: 10 },
 ] as const
 
-// Rooms for organizing plants
 const DEMO_ROOMS = [
   {
     name: 'Living Room',
@@ -230,7 +227,6 @@ const DEMO_ROOMS = [
 // Map plants to rooms by index: [Living Room, Living Room, Living Room, Bedroom, Bathroom, Balcony]
 const PLANT_ROOM_ASSIGNMENTS = [0, 0, 0, 1, 2, 3]
 
-// Daily tips for the content feed
 const DEMO_TIPS = [
   {
     title: { en: 'Morning Watering', fr: 'Arrosage matinal' },
@@ -289,7 +285,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
     )
     yield* Console.log('')
 
-    // 1. Create or update user
     const existingUsers = yield* db
       .select()
       .from(users)
@@ -333,7 +328,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
           return newUser
         })
 
-    // 2. Create magic link
     yield* db.delete(magicLinks).where(eq(magicLinks.email, config.email))
     const expiryDate = getExpiryDate()
     yield* db.insert(magicLinks).values({
@@ -360,7 +354,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
       .where(eq(subscriptionUsage.userId, user.id))
     yield* Console.log('Cleaned up existing demo data')
 
-    // 4. Create rooms
     const createdRooms = yield* db
       .insert(rooms)
       .values(
@@ -380,7 +373,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
 
     yield* Console.log(`Created ${createdRooms.length} rooms`)
 
-    // 5. Create demo plants with room assignments
     const createdPlants = yield* db
       .insert(plants)
       .values(
@@ -408,7 +400,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
 
     yield* Console.log(`Created ${createdPlants.length} demo plants`)
 
-    // 4b. Create care schedules for each plant
     const scheduleEntries = pipe(
       A.zip(createdPlants, DEMO_PLANTS),
       A.flatMap(([created, demo]) => {
@@ -436,7 +427,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
             nextCareAt: demo.nextFertilizationAt,
           })
         }
-        // Add misting for tropical/high-humidity plants
         if (demo.humidityRating >= 4) {
           entries.push({
             plantId: created.id,
@@ -459,13 +449,11 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
       `Created ${scheduleEntries.length} care schedule entries`
     )
 
-    // 5. Create care logs for each plant
     const careLogEntries = pipe(
       A.zip(createdPlants, DEMO_PLANTS),
       A.flatMap(([plant, demo]) => {
         const logs = []
 
-        // Add watering history
         for (let i = 0; i < 8; i++) {
           logs.push({
             type: 'watering' as const,
@@ -475,7 +463,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
           })
         }
 
-        // Add fertilization history
         if (demo.fertilizationFrequencyDays) {
           for (let i = 0; i < 3; i++) {
             logs.push({
@@ -487,7 +474,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
           }
         }
 
-        // Add misting history for tropical plants
         if (demo.humidityRating >= 4) {
           for (let i = 0; i < 5; i++) {
             logs.push({
@@ -512,7 +498,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
     )
     yield* Console.log(`Created ${careLogEntries.length} care log entries`)
 
-    // 6. Create plant photos for some plants
     const photoEntries = pipe(
       A.take(createdPlants, 3),
       A.flatMap((plant, index) => [
@@ -536,7 +521,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
     yield* db.insert(plantPhotos).values(photoEntries)
     yield* Console.log(`Created ${photoEntries.length} plant photos`)
 
-    // 7. Create achievements
     const achievementEntries = pipe(
       DEMO_ACHIEVEMENTS,
       A.map((a) => ({
@@ -593,7 +577,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
     yield* db.insert(chatMessages).values(chatEntries)
     yield* Console.log(`Created ${chatEntries.length} chat messages`)
 
-    // 9. Create sample notifications
     const notificationEntries: (typeof notifications.$inferInsert)[] = [
       {
         userId: user.id,
@@ -702,7 +685,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
     ])
     yield* Console.log('Created 2 diagnoses')
 
-    // 12. Create plant scans
     const scanEntries = pipe(
       A.range(0, 5),
       A.map((i) => ({
@@ -714,7 +696,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
     yield* db.insert(plantScans).values(scanEntries)
     yield* Console.log(`Created ${scanEntries.length} plant scans`)
 
-    // 13. Create daily tips
     const tipEntries = pipe(
       DEMO_TIPS,
       A.map((tip, index) => {
@@ -739,7 +720,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
       `Created ${tipEntries.length} daily tips (existing skipped)`
     )
 
-    // Print summary
     yield* Console.log('')
     yield* Console.log('='.repeat(60))
     yield* Console.log(`${config.label} Reviewer Account Created Successfully!`)

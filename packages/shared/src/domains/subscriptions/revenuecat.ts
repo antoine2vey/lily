@@ -1,6 +1,5 @@
 import { Schema } from 'effect'
 
-// RevenueCat Event Types
 export const RevenueCatEventType = Schema.Literals([
   'TEST',
   'INITIAL_PURCHASE',
@@ -14,7 +13,6 @@ export const RevenueCatEventType = Schema.Literals([
 ])
 export type RevenueCatEventType = typeof RevenueCatEventType.Type
 
-// Store type
 export const RevenueCatStore = Schema.Literals([
   'APP_STORE',
   'PLAY_STORE',
@@ -23,11 +21,9 @@ export const RevenueCatStore = Schema.Literals([
 ])
 export type RevenueCatStore = typeof RevenueCatStore.Type
 
-// Environment type
 export const RevenueCatEnvironment = Schema.Literals(['SANDBOX', 'PRODUCTION'])
 export type RevenueCatEnvironment = typeof RevenueCatEnvironment.Type
 
-// Period type
 export const RevenueCatPeriodType = Schema.Literals([
   'TRIAL',
   'INTRO',
@@ -36,7 +32,6 @@ export const RevenueCatPeriodType = Schema.Literals([
 ])
 export type RevenueCatPeriodType = typeof RevenueCatPeriodType.Type
 
-// Webhook event inner structure
 export const RevenueCatWebhookEventData = Schema.Struct({
   type: RevenueCatEventType,
   id: Schema.String,
@@ -49,26 +44,20 @@ export const RevenueCatWebhookEventData = Schema.Struct({
   environment: RevenueCatEnvironment,
   purchased_at_ms: Schema.Finite,
   expiration_at_ms: Schema.NullOr(Schema.Finite),
-  // Trial and period info
   is_trial_period: Schema.optional(Schema.NullOr(Schema.Boolean)),
   period_type: Schema.optional(Schema.NullOr(RevenueCatPeriodType)),
-  // Price info
   price: Schema.optional(Schema.NullOr(Schema.Finite)),
   price_in_purchased_currency: Schema.optional(Schema.NullOr(Schema.Finite)),
   currency: Schema.optional(Schema.NullOr(Schema.String)),
-  // Cancellation info
   cancel_reason: Schema.optional(Schema.NullOr(Schema.String)),
-  // Subscriber attributes
   subscriber_attributes: Schema.optional(
     Schema.NullOr(Schema.Record(Schema.String, Schema.Unknown))
   ),
-  // Transaction IDs
   transaction_id: Schema.optional(Schema.NullOr(Schema.String)),
   original_transaction_id: Schema.optional(Schema.NullOr(Schema.String)),
 })
 export type RevenueCatWebhookEventData = typeof RevenueCatWebhookEventData.Type
 
-// Full webhook payload
 export const RevenueCatWebhookEvent = Schema.Struct({
   api_version: Schema.String,
   event: RevenueCatWebhookEventData,
@@ -103,11 +92,9 @@ export const RevenueCatSubscriberInfo = Schema.Struct({
 })
 export type RevenueCatSubscriberInfo = typeof RevenueCatSubscriberInfo.Type
 
-// Request schema for sync endpoint
 export const SyncSubscriptionRequest = Schema.Struct({})
 export type SyncSubscriptionRequest = typeof SyncSubscriptionRequest.Type
 
-// Webhook headers schema
 export const RevenueCatWebhookHeaders = Schema.Struct({
   authorization: Schema.optional(Schema.String),
 })

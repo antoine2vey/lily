@@ -10,7 +10,6 @@ import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { subscriptionTiers } from '@lily/db/schema'
 import { Config, Console, Effect, Layer } from 'effect'
 
-// Test database configuration
 const TestPgLive = PgClient.layerConfig({
   url: Config.Redacted('DATABASE_URL_TEST'),
 })

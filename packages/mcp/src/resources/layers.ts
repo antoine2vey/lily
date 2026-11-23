@@ -8,8 +8,6 @@ import { PlantId } from '@lily/mcp/tools/definitions'
 import { Effect } from 'effect'
 import { McpSchema, McpServer } from 'effect/ai'
 
-// ── Plant Resource (templated) ─────────────────────────────────────────
-
 const plantIdParam = McpSchema.param('plantId', PlantId)
 
 /**
@@ -39,8 +37,6 @@ export const PlantResourceLayer = McpServer.resource`plant://${plantIdParam}`({
     return yield* authedPlantContent(plantId)
   }),
 })
-
-// ── Care Schedule Resource (static) ────────────────────────────────────
 
 /**
  * The care schedule resource wraps readCareScheduleResource() with bearer

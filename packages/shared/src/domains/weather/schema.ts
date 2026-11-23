@@ -1,6 +1,5 @@
 import { Schema } from 'effect'
 
-// Single day weather data snapshot
 export const WeatherData = Schema.Struct({
   date: Schema.String,
   temperatureMin: Schema.NullOr(Schema.Finite),
@@ -17,7 +16,6 @@ export const WeatherData = Schema.Struct({
 
 export type WeatherData = typeof WeatherData.Type
 
-// Multi-day forecast for a location
 export const WeatherForecast = Schema.Struct({
   latitude: Schema.Finite,
   longitude: Schema.Finite,
@@ -26,7 +24,6 @@ export const WeatherForecast = Schema.Struct({
 
 export type WeatherForecast = typeof WeatherForecast.Type
 
-// Algorithm output per plant
 export const CareAdjustment = Schema.Struct({
   plantId: Schema.String,
   wateringMultiplier: Schema.Finite,

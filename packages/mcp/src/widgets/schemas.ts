@@ -8,8 +8,6 @@
 
 import type { PlantOwnership } from '@lily/shared/plant'
 
-// ── Plant Summary (list_plants, get_overdue_plants) ─────────────────
-
 export interface PlantSummary {
   readonly id: string
   readonly name: string
@@ -23,8 +21,6 @@ export interface PlantSummary {
   readonly isDead: boolean
   readonly diedAt: string | null
 }
-
-// ── Plant Detail (get_plant_details) ────────────────────────────────
 
 export interface PlantScheduleItem {
   readonly careType: string
@@ -60,8 +56,6 @@ export interface PlantDetail {
   readonly needsFertilizing: boolean
 }
 
-// ── Care Tasks (get_care_tasks, get_overdue_plants) ─────────────────
-
 export interface CareTaskItem {
   readonly id: string
   readonly plantId: string
@@ -78,8 +72,6 @@ export interface CareTaskGroups {
   readonly today: readonly CareTaskItem[]
   readonly upcoming: readonly CareTaskItem[]
 }
-
-// ── Care Feedback (water_plant, care_plant) ─────────────────────────
 
 export interface CareFeedback {
   readonly plantName: string

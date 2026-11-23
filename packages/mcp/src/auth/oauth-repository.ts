@@ -11,8 +11,6 @@ import { eq, sql } from 'drizzle-orm'
 import { Array, Context, DateTime, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// ── Types ──────────────────────────────────────────────────────────────
-
 export interface OAuthClient {
   readonly client_id: string
   readonly client_secret?: string | undefined
@@ -64,8 +62,6 @@ export interface UserApiCredentials {
   readonly apiRefreshToken: string
 }
 
-// ── Interface ──────────────────────────────────────────────────────────
-
 export interface IOAuthRepository {
   readonly getClient: (
     clientId: string
@@ -107,11 +103,9 @@ export interface IOAuthRepository {
   readonly consumeRefreshToken: (
     token: string
   ) => Effect.Effect<Option.Option<RefreshToken>, SqlError>
-  /** Upsert API credentials for a user. */
   readonly upsertUserApiCredentials: (
     creds: UserApiCredentials
   ) => Effect.Effect<void, SqlError>
-  /** Get API credentials for a user. */
   readonly getUserApiCredentials: (
     userId: string
   ) => Effect.Effect<Option.Option<UserApiCredentials>, SqlError>
@@ -125,14 +119,10 @@ export interface IOAuthRepository {
   ) => Effect.Effect<number, SqlError>
 }
 
-// ── Context Tag ────────────────────────────────────────────────────────
-
 export class OAuthRepository extends Context.Service<
   OAuthRepository,
   IOAuthRepository
 >()('OAuthRepository') {}
-
-// ── Helpers ────────────────────────────────────────────────────────────
 
 const rowToClient = (row: typeof oauthClients.$inferSelect): OAuthClient => ({
   client_id: row.clientId,
@@ -189,16 +179,12 @@ const rowToRefreshToken = (
   ...(row.resource != null ? { resource: row.resource } : {}),
 })
 
-// ── Live Layer ─────────────────────────────────────────────────────────
-
 export const OAuthRepositoryLive = Layer.effect(
   OAuthRepository,
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      // ── Clients ──────────────────────────────────────────────────
-
       getClient: Effect.fn('OAuthRepository.getClient')(function* (
         clientId: string
       ) {
@@ -248,8 +234,6 @@ export const OAuthRepositoryLive = Layer.effect(
         } as OAuthClient
       }),
 
-      // ── Authorization Codes ──────────────────────────────────────
-
       saveAuthorizationCode: (code) =>
         db
           .insert(oauthAuthorizationCodes)
@@ -294,8 +278,6 @@ export const OAuthRepositoryLive = Layer.effect(
         return pipe(Array.head(rows), Option.map(rowToAuthCode))
       }),
 
-      // ── Access Tokens ────────────────────────────────────────────
-
       saveAccessToken: (token) =>
         db
           .insert(oauthAccessTokens)
@@ -326,8 +308,6 @@ export const OAuthRepositoryLive = Layer.effect(
             .where(eq(oauthAccessTokens.token, accessToken))
         }
       ),
-
-      // ── Refresh Tokens ───────────────────────────────────────────
 
       saveRefreshToken: (token) =>
         db
@@ -369,8 +349,6 @@ export const OAuthRepositoryLive = Layer.effect(
           return pipe(Array.head(rows), Option.map(rowToRefreshToken))
         }
       ),
-
-      // ── User API Credentials ─────────────────────────────────────
 
       upsertUserApiCredentials: Effect.fn(
         'OAuthRepository.upsertUserApiCredentials'

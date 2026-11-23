@@ -1,6 +1,5 @@
 import { Schema } from 'effect'
 
-// Email send request
 export interface SendEmailRequest {
   to: string
   subject: string
@@ -8,7 +7,6 @@ export interface SendEmailRequest {
   text?: string
 }
 
-// Email service errors
 export class EmailSendError extends Schema.TaggedError<
   EmailSendError,
   { readonly brand: unique symbol }

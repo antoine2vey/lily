@@ -2,7 +2,6 @@ import { Schema } from 'effect'
 
 import { LanguageCode, UserRole, UserStatus } from '../user/schema'
 
-// Auth request schemas
 export const MagicLinkRequest = Schema.Struct({
   email: Schema.String,
   language: Schema.optional(LanguageCode),
@@ -53,7 +52,6 @@ export const UserProfile = Schema.Struct({
   status: UserStatus,
 })
 
-// Auth response schemas
 export const AuthResponse = Schema.Struct({
   user: UserProfile,
   accessToken: Schema.String,
@@ -76,7 +74,6 @@ export const LogoutResponse = Schema.Struct({
   message: Schema.String,
 })
 
-// Type exports
 export type MagicLinkRequest = typeof MagicLinkRequest.Type
 export type MagicLinkVerifyRequest = typeof MagicLinkVerifyRequest.Type
 export type UsernameRequest = typeof UsernameRequest.Type

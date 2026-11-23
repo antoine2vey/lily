@@ -35,7 +35,6 @@ export * from './domains/device-token/schema'
 export * from './domains/diagnosis/schema'
 export * from './domains/gift-code/errors'
 export * from './domains/knowledge/errors'
-// Knowledge domain
 export * from './domains/knowledge/schema'
 export * from './domains/notification/errors'
 export * from './domains/notification/overdue'

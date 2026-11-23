@@ -29,6 +29,7 @@ The plant knowledge base for retrieval. This package holds the Drizzle schema fo
 ### Migrations
 
 - **Write each migration by hand and add its journal entry**, with a `when` later than the entry before. drizzle-kit migrate runs only the files the journal lists, and only those newer than the last one it applied. The production migrator reads the folder. A file missing from the journal runs in production and never locally, which once left every local worker failing on a missing `claimed_at`. `src/__tests__/migration-journal.test.ts` checks both conditions.
+- **Number each file after the highest.** `scripts/check-migrations.sh` fails on a shared number or a gap in `drizzle/`.
 - **Leave `db:generate` alone.** It diffs against the `0001` snapshot, so its output would add again the columns and indexes that later migrations created.
 - **Keep each database on one runner.** drizzle-kit records applied files in `drizzle.__drizzle_migrations`. The production migrator records them in the public `__drizzle_migrations`. A database that switches runner replays from `0000` and fails on the first type that exists.
 - **Create the extension before `db:migrate` on a fresh database.** No migration creates it, and `0000` uses the `halfvec` type. Run `CREATE EXTENSION IF NOT EXISTS vector` once, or start the database with `db:migrate:prod`, which runs it for you.

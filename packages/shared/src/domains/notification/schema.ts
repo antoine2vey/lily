@@ -2,10 +2,8 @@ import { Schema } from 'effect'
 import type { NotificationTopic } from '../../services/message-queue/types'
 import { PaginatedResponse } from '../common/pagination'
 
-// Re-export errors for convenient imports
 export { NotificationNotFoundError } from './errors'
 
-// Notification status enum
 export const NotificationStatus = Schema.Literals([
   'pending',
   'queued',
@@ -60,7 +58,6 @@ export type MetadataOf<T extends NotificationTopic> =
 
 export type NotificationMetadata = MetadataOf<NotificationTopic>
 
-// Notification schemas
 export const Notification = Schema.Struct({
   id: Schema.String,
   type: Schema.String,
@@ -82,18 +79,15 @@ export const Notification = Schema.Struct({
 export const NotificationsListResponse = PaginatedResponse(Notification)
 export type NotificationsListResponse = typeof NotificationsListResponse.Type
 
-// Filter type extending status with 'all'
 export const NotificationStatusFilter = Schema.Union([
   NotificationStatus,
   Schema.Literal('all'),
 ])
 export type NotificationStatusFilter = typeof NotificationStatusFilter.Type
 
-// Unread count response
 export const UnreadCountResponse = Schema.Struct({
   count: Schema.Finite,
 })
 export type UnreadCountResponse = typeof UnreadCountResponse.Type
 
-// Type exports
 export type Notification = typeof Notification.Type

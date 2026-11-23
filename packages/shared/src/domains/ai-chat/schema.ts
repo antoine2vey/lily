@@ -42,7 +42,6 @@ export const CreateConversationRequest = Schema.Struct({
 })
 export type CreateConversationRequest = typeof CreateConversationRequest.Type
 
-// Paginated lists
 export const ChatHistoryListResponse = PaginatedResponse(ChatMessage)
 export type ChatHistoryListResponse = typeof ChatHistoryListResponse.Type
 
@@ -86,5 +85,4 @@ export const ChatSuggestions = Schema.Struct({
 })
 export type ChatSuggestions = typeof ChatSuggestions.Type
 
-// Type exports
 export type ChatMessage = typeof ChatMessage.Type

@@ -13,8 +13,6 @@ import {
 } from 'effect'
 import { HttpServerRequest } from 'effect/http'
 
-// ── JWT helpers ────────────────────────────────────────────────────────
-
 /**
  * Decode the `exp` claim from a JWT payload without signature verification.
  * This is a heuristic for proactive refresh only — the API server is the
@@ -51,8 +49,6 @@ const isJwtExpired = (jwt: string): boolean => {
     })
   )
 }
-
-// ── API JWT refresh ────────────────────────────────────────────────────
 
 /**
  * Refresh the API JWT via POST /api/v1/auth/refresh (no JWT required)
@@ -105,8 +101,6 @@ export const refreshApiJwtIfNeeded = Effect.fn('MCP.refreshApiJwtIfNeeded')(
     })
   }
 )
-
-// ── Main resolver ──────────────────────────────────────────────────────
 
 interface AuthResult {
   readonly jwt: string
@@ -170,8 +164,6 @@ const resolveAuth = Effect.fn('MCP.resolveAuth')(function* (
 
   return { jwt, userId: validation.userId } satisfies AuthResult
 })
-
-// ── Auth provider ──────────────────────────────────────────────────────
 
 /**
  * Resolve auth — refreshApiJwt handles 401 retry internally.
