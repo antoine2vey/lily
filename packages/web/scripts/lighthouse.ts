@@ -1,7 +1,8 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Array, Option, Order, pipe, String as Str } from 'effect'
+import { launchChrome } from './chrome'
 
 // usage: bun scripts/lighthouse.ts [base=http://127.0.0.1:8088] [--stored-consent] [--language=en-US] [paths...]
 // Runs mobile Lighthouse 3 times per page against the prerendered build (`preview`) and fails on a budget breach.
@@ -16,9 +17,6 @@ import { Array, Option, Order, pipe, String as Str } from 'effect'
 // the browser language and the machine's own language would otherwise pick which copy a run measures.
 
 const RUNS = Number(process.env.LIGHTHOUSE_RUNS ?? 3)
-const CHROME =
-  process.env.CHROME_PATH ??
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
 // chrome-launcher's defaults, which Lighthouse used while it started Chrome itself.
 const CHROME_FLAGS = [
@@ -179,24 +177,6 @@ const stub = Bun.serve({
     ),
 })
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-const debugPort = async (profile: string): Promise<string> => {
-  for (let i = 0; i < 100; i++) {
-    try {
-      const [port = ''] = readFileSync(
-        join(profile, 'DevToolsActivePort'),
-        'utf8'
-      ).split('\n')
-      if (port !== '') return port
-    } catch {
-      // Chrome has not written the file yet.
-    }
-    await sleep(100)
-  }
-  throw new Error('Chrome did not open a debugging port')
-}
-
 interface Message {
   readonly id?: number
   readonly method?: string
@@ -266,22 +246,13 @@ const run = async (visit: Visit, i: number): Promise<Report> => {
     outDir,
     `${visit.path.replace(/\W+/g, '_')}-${visit.consent}-${visit.language}-${i}.json`
   )
-  const profile = mkdtempSync(join(tmpdir(), 'lily-lighthouse-chrome-'))
-  const chrome = Bun.spawn(
-    [
-      CHROME,
-      ...CHROME_FLAGS,
-      `--lang=${visit.language}`,
-      `--accept-lang=${visit.language}`,
-      '--remote-debugging-port=0',
-      `--user-data-dir=${profile}`,
-      'about:blank',
-    ],
-    { stdout: 'ignore', stderr: 'ignore' }
-  )
+  const chrome = await launchChrome([
+    ...CHROME_FLAGS,
+    `--lang=${visit.language}`,
+    `--accept-lang=${visit.language}`,
+  ])
   try {
-    const port = await debugPort(profile)
-    const socket = await prepareChrome(port, visit)
+    const socket = await prepareChrome(chrome.port, visit)
     const proc = Bun.spawn(
       [
         'bunx',
@@ -289,7 +260,7 @@ const run = async (visit: Visit, i: number): Promise<Report> => {
         'lighthouse@12',
         `${base}${visit.path}`,
         '--quiet',
-        `--port=${port}`,
+        `--port=${chrome.port}`,
         '--only-categories=performance,seo,accessibility,best-practices',
         '--throttling-method=devtools',
         '--output=json',
@@ -305,9 +276,7 @@ const run = async (visit: Visit, i: number): Promise<Report> => {
       )
     return JSON.parse(readFileSync(out, 'utf8')) as Report
   } finally {
-    chrome.kill()
-    await chrome.exited
-    rmSync(profile, { recursive: true, force: true })
+    await chrome.close()
   }
 }
 

@@ -35,6 +35,7 @@ Run every command from the monorepo root.
 - **Shared code comes through narrow subpaths only.** Page code imports `@lily/shared/indoor-demand` and `@lily/shared/plant-catalog`, never `@lily/shared` itself. The main entry pulls schemas, services and their dependencies into the browser bundle.
 - `public/.well-known/` holds the iOS universal link and Android app link files. They must match the bundle IDs and team in `packages/app/app.json`, and CI checks that with `scripts/check-well-known.ts`.
 - `public/tl/` holds the hero frames. Regenerate them from a source video with `scripts/tl-frames.sh`.
+- `scripts/chrome.ts` starts headless Chrome for every script that drives it. `launchChrome()` fails as soon as Chrome exits, with its exit code and the end of its stderr, and the script's exit stops Chrome and deletes its profile. `lint/one-chrome-launch.grit` fails any other Chrome launch in the repo.
 
 ## Rules
 

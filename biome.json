@@ -45,6 +45,11 @@
       "includes": ["packages/app/**", "packages/admin/**"]
     },
     {
+      "path": "./lint/one-chrome-launch.grit",
+      "resolutionKind": "config",
+      "includes": ["**", "!packages/web/scripts/chrome.ts"]
+    },
+    {
       "path": "./lint/exact-query-key.grit",
       "resolutionKind": "config",
       "includes": ["packages/app/**"]

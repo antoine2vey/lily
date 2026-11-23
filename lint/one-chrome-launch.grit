@@ -1,0 +1,32 @@
+// Each copy of the Chrome launch drifted on its own: one waited 60 s, four
+// waited 10 s, and none kept Chrome's stderr, so a slow cold start on CI
+// failed with no cause (#386). biome.json skips chrome.ts, the one launcher.
+language js
+
+or {
+  JsStringLiteralExpression() as $flag where {
+    $flag <: r"[\s\S]*--remote-debugging-(?:port|pipe)[\s\S]*"
+  },
+  JsTemplateExpression() as $flag where {
+    $flag <: r"[\s\S]*--remote-debugging-(?:port|pipe)[\s\S]*"
+  },
+  `$launch($command, $...)` where {
+    // RegExp has exec too, so only a bare exec() counts.
+    $launch <: or {
+      `spawn`,
+      `spawnSync`,
+      `execFile`,
+      `execFileSync`,
+      `exec`,
+      `execSync`,
+      `$_.spawn`,
+      `$_.spawnSync`,
+      `$_.execFile`,
+      `$_.execFileSync`,
+      `$_.execSync`
+    },
+    $command <: r"(?:\[\s*)?[^,\[]*?(?i:chrom(?:e|ium))[\s\S]*"
+  }
+} as $hit where {
+  register_diagnostic(span=$hit, message="Launch Chrome through launchChrome() in packages/web/scripts/chrome.ts. It reports why Chrome did not start and stops Chrome when the script exits.")
+}

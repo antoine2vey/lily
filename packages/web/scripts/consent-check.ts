@@ -1,17 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { Array, Duration, Option } from 'effect'
 import { en } from '../src/i18n/en'
 import { fr } from '../src/i18n/fr'
+import { launchChrome } from './chrome'
 
 // usage: bun scripts/consent-check.ts [base=http://127.0.0.1:8088]
 // Drives headless Chrome over CDP against the prerendered build (`preview`) and fails when the site contacts Google
 // or holds a Google Analytics cookie without consent. It needs network access to Google for the Accept steps.
 
-const CHROME =
-  process.env.CHROME_PATH ??
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const [base = 'http://127.0.0.1:8088'] = process.argv.slice(2)
 // The tag loads from an idle callback with a 5 s timeout, so a quiet page has settled after this.
 const SETTLE_MS = 6500
@@ -41,40 +36,9 @@ const fail = (kind: Problem) => {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-const profile = mkdtempSync(join(tmpdir(), 'lily-consent-'))
-const chrome = Bun.spawn(
-  [
-    CHROME,
-    '--headless=new',
-    '--remote-debugging-port=0',
-    `--user-data-dir=${profile}`,
-    '--use-mock-keychain',
-    '--password-store=basic',
-    '--no-first-run',
-    'about:blank',
-  ],
-  { stdout: 'ignore', stderr: 'ignore' }
-)
-
-const debugPort = async (): Promise<string> => {
-  for (let i = 0; i < 100; i++) {
-    try {
-      const [port = ''] = readFileSync(
-        join(profile, 'DevToolsActivePort'),
-        'utf8'
-      ).split('\n')
-      if (port !== '') return port
-    } catch {
-      // Chrome has not written the file yet.
-    }
-    await sleep(100)
-  }
-  throw new Error('Chrome did not open a debugging port')
-}
-
-const port = await debugPort()
+const chrome = await launchChrome()
 const target = (await (
-  await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {
+  await fetch(`http://127.0.0.1:${chrome.port}/json/new?about:blank`, {
     method: 'PUT',
   })
 ).json()) as { webSocketDebuggerUrl: string }
@@ -354,9 +318,7 @@ try {
   console.log(`FAIL ${error instanceof Error ? error.message : String(error)}`)
 } finally {
   socket.close()
-  chrome.kill()
-  await chrome.exited
-  rmSync(profile, { recursive: true, force: true })
+  await chrome.close()
 }
 if (found.size > 0) {
   console.log(
