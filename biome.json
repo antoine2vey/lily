@@ -33,6 +33,11 @@
         "!**/*.test.tsx",
         "!packages/shared/src/domains/care/care-day.ts"
       ]
+    },
+    {
+      "path": "./lint/assert-which-error.grit",
+      "resolutionKind": "config",
+      "includes": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
     }
   ],
   "formatter": {
