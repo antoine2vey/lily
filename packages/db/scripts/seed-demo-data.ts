@@ -23,7 +23,7 @@ import {
   userFollows,
   users,
 } from '@lily/db/schema'
-import type { ZoneName } from '@lily/shared'
+import { Rating, type ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, eq, inArray, or } from 'drizzle-orm'
 import { Array as A, Console, Duration, Effect, Option } from 'effect'
@@ -632,6 +632,10 @@ const seedDemoData = Effect.gen(function* () {
       .insert(plants)
       .values({
         ...plantFields,
+        humidityRating: Rating.make(plantFields.humidityRating),
+        lightingRating: Rating.make(plantFields.lightingRating),
+        petToxicityRating: Rating.make(plantFields.petToxicityRating),
+        wateringRating: Rating.make(plantFields.wateringRating),
         imageUrl: mintStoredRef(plantFields.imageUrl),
         userId: user.id,
         createdByUserId: user.id,
@@ -1492,6 +1496,10 @@ const seedDemoData = Effect.gen(function* () {
       .insert(plants)
       .values({
         ...plantFields,
+        humidityRating: Rating.make(plantFields.humidityRating),
+        lightingRating: Rating.make(plantFields.lightingRating),
+        petToxicityRating: Rating.make(plantFields.petToxicityRating),
+        wateringRating: Rating.make(plantFields.wateringRating),
         imageUrl: mintStoredRef(plantFields.imageUrl),
         userId: lily.id,
         createdByUserId: lily.id,

@@ -12,7 +12,7 @@ import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.reposit
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import type { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
-import { RoomNotFoundError } from '@lily/shared'
+import { Rating, RoomNotFoundError } from '@lily/shared'
 import { DEFAULT_HUMIDITY_RATING } from '@lily/shared/indoor-demand'
 import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Exit, Layer, Option } from 'effect'
@@ -32,8 +32,8 @@ describe('createPlant', () => {
     category: 'tropical',
     wateringFrequencyDays: 7,
     luxNeeded: 2000,
-    humidityRating: 3,
-    petToxicityRating: 1,
+    humidityRating: Rating.make(3),
+    petToxicityRating: Rating.make(1),
   }
 
   const createTestLayer = (
@@ -161,7 +161,7 @@ describe('createPlant', () => {
   it('should persist wateringRating when provided', async () => {
     const { layer } = createTestLayer()
     const result = await Effect.runPromise(
-      createPlant({ ...validRequest, wateringRating: 80 }).pipe(
+      createPlant({ ...validRequest, wateringRating: Rating.make(80) }).pipe(
         Effect.provide(layer)
       )
     )
@@ -193,7 +193,7 @@ describe('createPlant', () => {
   it('keeps a watering rating of 0, the drought tolerant end of the scale', async () => {
     const { layer } = createTestLayer()
     const result = await Effect.runPromise(
-      createPlant({ ...validRequest, wateringRating: 0 }).pipe(
+      createPlant({ ...validRequest, wateringRating: Rating.make(0) }).pipe(
         Effect.provide(layer)
       )
     )
@@ -214,7 +214,7 @@ describe('createPlant', () => {
   it('keeps a humidity rating of 0, the driest end of the scale', async () => {
     const { layer } = createTestLayer()
     const result = await Effect.runPromise(
-      createPlant({ ...validRequest, humidityRating: 0 }).pipe(
+      createPlant({ ...validRequest, humidityRating: Rating.make(0) }).pipe(
         Effect.provide(layer)
       )
     )
@@ -262,7 +262,7 @@ describe('createPlant', () => {
       createPlant({
         ...validRequest,
         luxNeeded: 5000,
-        lightingRating: 75,
+        lightingRating: Rating.make(75),
       }).pipe(Effect.provide(layer))
     )
 

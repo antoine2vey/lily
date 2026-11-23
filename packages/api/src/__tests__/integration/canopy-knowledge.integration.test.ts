@@ -16,6 +16,7 @@ import { getDiagnoses } from '@lily/api/services/diagnosis/endpoints/get-diagnos
 import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import type { CarePlanStatus } from '@lily/shared/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { failureOf } from '@lily/shared/testing'
@@ -55,10 +56,10 @@ const valueOf = <A, E>(exit: Exit.Exit<A, E>): A => {
 
 const plantValues = {
   name: 'Monstera',
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)

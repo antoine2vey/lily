@@ -61,7 +61,7 @@ import { recordFollow } from '@lily/api/services/social/endpoints/follow-user'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { ZoneName } from '@lily/shared'
+import { Rating, ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Layer, References } from 'effect'
@@ -147,10 +147,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: ownerId,
           name: 'Monstera',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
           dateAdded,
         })
         .returning()
@@ -861,10 +861,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             createdByUserId: active.id,
             name: 'Shared Fern',
             health: 'HEALTHY',
-            humidityRating: 3,
-            lightingRating: 3,
-            petToxicityRating: 1,
-            wateringRating: 3,
+            humidityRating: Rating.make(3),
+            lightingRating: Rating.make(3),
+            petToxicityRating: Rating.make(1),
+            wateringRating: Rating.make(3),
           })
           .returning()
         if (!plant) throw new Error('plant insert returned nothing')

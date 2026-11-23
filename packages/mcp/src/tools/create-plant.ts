@@ -1,6 +1,6 @@
 import { ApiClient } from '@lily/mcp/api-client'
 import { escapeInlineMarkdown, ownershipSuffix } from '@lily/mcp/tools/markdown'
-import { LUMINOSITY_LUX_VALUES } from '@lily/shared'
+import { LUMINOSITY_LUX_VALUES, PET_TOXICITY_RATING } from '@lily/shared'
 import { Effect, Match, pipe, Schema } from 'effect'
 
 export class CreatePlantRefusedError extends Schema.TaggedError<
@@ -9,7 +9,6 @@ export class CreatePlantRefusedError extends Schema.TaggedError<
 >()('CreatePlantRefusedError', { message: Schema.String }) {}
 
 const BRIGHT_INDIRECT_LUX = LUMINOSITY_LUX_VALUES[3]
-const PET_TOXICITY_RATING = { petSafe: 0, notMarkedSafe: 100 } as const
 
 export const createPlantEffect = Effect.fn('MCP.createPlant')(
   function* (params: {

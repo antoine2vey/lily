@@ -1,9 +1,32 @@
+import { failureOf } from '@lily/shared/testing'
+import { Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import {
   isPetSafe,
   ratingLevel,
   wateringRatingFromFrequency,
 } from '../domains/plant/rating'
+import { Rating } from '../domains/plant/schema'
+
+describe('Rating', () => {
+  it('decodes every whole number from 0 to 100 and encodes it unchanged', () => {
+    const decoded = [0, 1, 50, 99, 100].map((n) => Schema.decodeSync(Rating)(n))
+    expect(decoded.map((r) => Schema.encodeSync(Rating)(r))).toEqual([
+      0, 1, 50, 99, 100,
+    ])
+  })
+
+  it.each([-1, 101, 50.5, Number.NaN])(
+    'rejects %s with the range in the message',
+    (value) => {
+      const error = failureOf(Schema.decodeExit(Rating)(value))
+      expect(error._tag).toBe('SchemaError')
+      expect(error.message).toContain(
+        'A rating is a whole number from 0 to 100'
+      )
+    }
+  )
+})
 
 describe('ratingLevel', () => {
   it('splits 0-100 into five levels of 20 points', () => {

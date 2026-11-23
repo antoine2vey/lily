@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { PET_TOXICITY_RATING, Rating } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { Array, Match, Option, pipe, Result } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -216,10 +217,12 @@ export function ManualAddScheduleScreen() {
           mistingFrequencyDays: mistingEnabled ? mistingDays : undefined,
           repottingFrequencyDays: repottingEnabled ? repottingDays : undefined,
           luxNeeded: careNeeds.luxNeeded,
-          lightingRating: careNeeds.light,
-          humidityRating: careNeeds.humidity,
-          petToxicityRating: careNeeds.petSafe ? 0 : 100,
-          wateringRating: careNeeds.watering,
+          lightingRating: Rating.make(careNeeds.light),
+          humidityRating: Rating.make(careNeeds.humidity),
+          petToxicityRating: careNeeds.petSafe
+            ? PET_TOXICITY_RATING.petSafe
+            : PET_TOXICITY_RATING.notMarkedSafe,
+          wateringRating: Rating.make(careNeeds.watering),
           remindersEnabled: careReminders,
           roomId: roomId || undefined,
           ...(Option.isSome(canopy) ? { owner } : {}),

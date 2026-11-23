@@ -2,6 +2,7 @@ import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
 import { careToday, seen } from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { carePlantEffect } from '@lily/mcp/tools/care-plant'
+import { Rating } from '@lily/shared'
 import type { Plant } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -17,10 +18,10 @@ const mockPlant: Plant = {
   category: 'tropical',
   dateAdded: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
-  humidityRating: 4,
-  lightingRating: 3,
-  petToxicityRating: 2,
-  wateringRating: 3,
+  humidityRating: Rating.make(4),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(2),
+  wateringRating: Rating.make(3),
   health: 'HEALTHY',
   remindersEnabled: true,
   isFavorite: false,

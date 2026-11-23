@@ -7,6 +7,19 @@ import { StoredZoneName } from '../common/date/zone-name'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
 
+const RATING_RANGE = 'A rating is a whole number from 0 to 100'
+
+export const Rating = Schema.Number.check(
+  Schema.isInt({ message: RATING_RANGE }),
+  Schema.isBetween({ minimum: 0, maximum: 100 }, { message: RATING_RANGE })
+).pipe(Schema.brand('Rating'))
+export type Rating = typeof Rating.Type
+
+export const PET_TOXICITY_RATING = {
+  petSafe: Rating.make(0),
+  notMarkedSafe: Rating.make(100),
+} as const
+
 export const PlantHealthStatus = Schema.Literals([
   'THRIVING',
   'HEALTHY',
@@ -103,10 +116,10 @@ const plantFields = {
   category: Schema.NullOr(Schema.String),
   dateAdded: Schema.DateFromString,
   updatedAt: Schema.DateFromString,
-  humidityRating: Schema.Finite,
-  lightingRating: Schema.Finite,
-  petToxicityRating: Schema.Finite,
-  wateringRating: Schema.Finite,
+  humidityRating: Rating,
+  lightingRating: Rating,
+  petToxicityRating: Rating,
+  wateringRating: Rating,
   health: PlantHealthStatus,
   remindersEnabled: Schema.Boolean,
   isFavorite: Schema.Boolean,
@@ -146,10 +159,10 @@ export const PlantUpdateRequest = Schema.Struct({
   fertilizationFrequencyDays: Schema.optional(Schema.NullOr(Schema.Finite)),
   mistingFrequencyDays: Schema.optional(Schema.NullOr(Schema.Finite)),
   repottingFrequencyDays: Schema.optional(Schema.NullOr(Schema.Finite)),
-  humidityRating: Schema.optional(Schema.Finite),
-  lightingRating: Schema.optional(Schema.Finite),
-  petToxicityRating: Schema.optional(Schema.Finite),
-  wateringRating: Schema.optional(Schema.Finite),
+  humidityRating: Schema.optional(Rating),
+  lightingRating: Schema.optional(Rating),
+  petToxicityRating: Schema.optional(Rating),
+  wateringRating: Schema.optional(Rating),
   isFavorite: Schema.optional(Schema.Boolean),
   remindersEnabled: Schema.optional(Schema.Boolean),
   potWidthCm: Schema.optional(Schema.NullOr(Schema.Finite)),
@@ -167,10 +180,10 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   mistingFrequencyDays: Schema.optional(Schema.Finite),
   repottingFrequencyDays: Schema.optional(Schema.Finite),
   luxNeeded: Schema.Finite,
-  lightingRating: Schema.optional(Schema.Finite),
-  humidityRating: Schema.optional(Schema.Finite),
-  petToxicityRating: Schema.Finite,
-  wateringRating: Schema.optional(Schema.Finite),
+  lightingRating: Schema.optional(Rating),
+  humidityRating: Schema.optional(Rating),
+  petToxicityRating: Rating,
+  wateringRating: Schema.optional(Rating),
   remindersEnabled: Schema.optional(Schema.Boolean),
   potWidthCm: Schema.optional(Schema.NullOr(Schema.Finite)),
   potHeightCm: Schema.optional(Schema.NullOr(Schema.Finite)),

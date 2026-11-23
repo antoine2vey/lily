@@ -81,7 +81,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { API_PREFIX, ZoneName } from '@lily/shared'
+import { API_PREFIX, Rating, ZoneName } from '@lily/shared'
 import { defectOf } from '@lily/shared/testing'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -222,10 +222,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: owner,
           name: 'Fern',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
         })
         .returning()
       if (!plant) throw new Error('plant insert returned nothing')
@@ -595,10 +595,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               createdByUserId: owner,
               name: 'Fern',
               health: 'HEALTHY',
-              humidityRating: 3,
-              lightingRating: 3,
-              petToxicityRating: 1,
-              wateringRating: 3,
+              humidityRating: Rating.make(3),
+              lightingRating: Rating.make(3),
+              petToxicityRating: Rating.make(1),
+              wateringRating: Rating.make(3),
             })
             .returning()
           if (!plant) throw new Error('plant insert returned nothing')
@@ -749,10 +749,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const plantValues = {
       name: 'Fern',
       health: 'HEALTHY',
-      humidityRating: 3,
-      lightingRating: 3,
-      petToxicityRating: 1,
-      wateringRating: 3,
+      humidityRating: Rating.make(3),
+      lightingRating: Rating.make(3),
+      petToxicityRating: Rating.make(1),
+      wateringRating: Rating.make(3),
     } as const
 
     const away = async (userId: string) => {
@@ -1521,8 +1521,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         name,
         wateringFrequencyDays: 7,
         luxNeeded: 2000,
-        humidityRating: 3,
-        petToxicityRating: 1,
+        humidityRating: Rating.make(3),
+        petToxicityRating: Rating.make(1),
       })
 
       it('makes the create behind the delete wait for it, then answers that no account is behind the request and writes no plant', async () => {
@@ -1895,8 +1895,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         name,
         wateringFrequencyDays: 7,
         luxNeeded: 2000,
-        humidityRating: 3,
-        petToxicityRating: 1,
+        humidityRating: Rating.make(3),
+        petToxicityRating: Rating.make(1),
         owner: 'canopy' as const,
       })
 

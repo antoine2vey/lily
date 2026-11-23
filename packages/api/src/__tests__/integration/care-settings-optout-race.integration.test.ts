@@ -40,7 +40,7 @@ import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-mul
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { ZoneName } from '@lily/shared'
+import { Rating, ZoneName } from '@lily/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
@@ -143,10 +143,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: ownerId,
           name: 'Personal',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
         })
         .returning()
       if (!plant) throw new Error('Failed to create plant')

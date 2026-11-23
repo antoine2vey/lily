@@ -30,6 +30,7 @@ import {
   CareDay,
   LimitExceededError,
   type PlantOwner,
+  Rating,
   ZoneName,
 } from '@lily/shared'
 import { Array, DateTime, Option, Result } from 'effect'
@@ -42,10 +43,10 @@ const draft: PlantDraft = {
   name: 'Fern',
   description: Option.none(),
   category: Option.none(),
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
   potWidthCm: Option.none(),
   potHeightCm: Option.none(),
   roomId: Option.none(),

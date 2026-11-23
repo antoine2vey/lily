@@ -8,8 +8,8 @@ import {
   type MeasureAxis,
   type PhotoCapturedEvent,
 } from '@lily/plant-scanner'
-import { LUMINOSITY_LEVELS, luxToLuminosityLevel } from '@lily/shared'
-import { Effect, Match, Option, pipe } from 'effect'
+import { LUMINOSITY_LEVELS, luxToLuminosityLevel, Rating } from '@lily/shared'
+import { Effect, Match, Option, pipe, Schema } from 'effect'
 import { Image } from 'expo-image'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
@@ -50,6 +50,14 @@ import { UploadError } from '@/utils/upload'
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 const AUTO_CAPTURE_STREAK = 5
+
+// The AI may answer a fractional rating, which the stored scale has no step for.
+const ratingOf = (estimate: number | null): Option.Option<Rating> =>
+  pipe(
+    Option.fromNullishOr(estimate),
+    Option.map(Math.round),
+    Option.flatMap(Schema.decodeOption(Rating))
+  )
 
 const formatCm = (v: number) => String(Math.round(v * 10) / 10)
 
@@ -317,13 +325,12 @@ export function UnifiedScannerScreen() {
             Option.fromNullishOr(result.luxNeeded),
             () => 2000
           ),
-          humidityRating: Option.getOrElse(
-            Option.fromNullishOr(result.humidityRating),
-            () => 50
+          humidityRating: Option.getOrUndefined(
+            ratingOf(result.humidityRating)
           ),
           petToxicityRating: Option.getOrElse(
-            Option.fromNullishOr(result.petToxicityRating),
-            () => 50
+            ratingOf(result.petToxicityRating),
+            () => Rating.make(50)
           ),
           imageUrl: result.imageUrl,
           potWidthCm: confirmedPot?.widthCm,

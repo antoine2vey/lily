@@ -23,7 +23,7 @@ import { streakAtRisk } from '@lily/api/services/engagement-scheduler/scheduler'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { ZoneName } from '@lily/shared'
+import { Rating, ZoneName } from '@lily/shared'
 import { and, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer } from 'effect'
@@ -52,10 +52,10 @@ const achievements = Effect.flatMap(AchievementRepository, Effect.succeed)
 
 const plantValues = {
   name: 'Monstera',
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000)

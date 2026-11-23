@@ -65,7 +65,7 @@ import { withPermittedPlant } from '@lily/api/services/plants/helpers/with-plant
 import { uploadAvatar } from '@lily/api/services/user/endpoints/upload-avatar'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { ZoneName } from '@lily/shared'
+import { Rating, ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
@@ -188,10 +188,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: userId,
           name: 'Fern',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
           imageUrl: Option.getOrUndefined(
             Option.map(Option.fromUndefinedOr(imageUrl), mintStoredRef)
           ),

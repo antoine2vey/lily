@@ -1,6 +1,6 @@
 import { makePlant } from '@lily/mcp/__tests__/mocks/plant'
 import { ApiClient, ApiClientLive, CurrentJwt } from '@lily/mcp/api-client'
-import { API_PREFIX, ExternalServiceError } from '@lily/shared'
+import { API_PREFIX, ExternalServiceError, Rating } from '@lily/shared'
 import { Plant } from '@lily/shared/plant'
 import { ConfigProvider, Effect, Layer, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
@@ -96,7 +96,7 @@ describe('MCP API client plant scope', () => {
         name: 'Fern',
         wateringFrequencyDays: 7,
         luxNeeded: 2000,
-        petToxicityRating: 100,
+        petToxicityRating: Rating.make(100),
         owner: 'canopy',
       })
     )

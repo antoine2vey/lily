@@ -20,7 +20,7 @@ The terms `@lily/shared` defines for itself: its entry point, notification topic
 
 | Term | Meaning | Avoid |
 |---|---|---|
-| **Rating** | One of `wateringRating`, `lightingRating`, `humidityRating` and `petToxicityRating` on a plant or a catalog entry, on a scale from 0 to 100. | "a score from 1 to 5", the reading the code dropped |
+| **Rating** | One of `wateringRating`, `lightingRating`, `humidityRating` and `petToxicityRating` on a plant or a catalog entry, a whole number from 0 to 100. A 0 is a chosen rating, never a missing one. | "a score from 1 to 5", the reading the code dropped |
 | **Rating level** | The level from 1 to 5 that `ratingLevel` gives a rating, with a step every 20 points. | |
 | **Pet safe** | A plant whose `petToxicityRating` is at most `PET_SAFE_UP_TO`, which is 50. | |
 | **Luminosity level** | A light level from 1 to 5, from low light to full sun. `luxToLuminosityLevel` turns a lux reading into one, and a room suits a plant when both land on the same level. | |

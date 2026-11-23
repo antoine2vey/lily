@@ -31,7 +31,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { ZoneName } from '@lily/shared'
+import { Rating, ZoneName } from '@lily/shared'
 import { PlantUpdateRequest } from '@lily/shared/plant'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -160,10 +160,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: userId,
           name: 'Fern',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
         })
         .returning()
       if (!plant) throw new Error('Failed to create plant')

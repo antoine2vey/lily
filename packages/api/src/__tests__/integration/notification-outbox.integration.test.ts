@@ -53,6 +53,7 @@ import {
 } from '@lily/api/services/social/endpoints/follow-user'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { defectOf, failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -693,10 +694,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .insert(schema.plants)
         .values({
           name: 'Monstera',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
           userId,
         })
         .returning({ id: schema.plants.id })

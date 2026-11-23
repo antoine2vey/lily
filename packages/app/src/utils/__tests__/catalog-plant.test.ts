@@ -1,4 +1,5 @@
 import type { CatalogPlant } from '@lily/shared'
+import { Rating } from '@lily/shared'
 import { catalogPlantToCreateRequest } from '@/utils/catalog-plant'
 
 const peaceLily: CatalogPlant = {
@@ -13,10 +14,10 @@ const peaceLily: CatalogPlant = {
   fertilizationFrequencyDays: 30,
   mistingFrequencyDays: 3,
   repottingFrequencyDays: 365,
-  humidityRating: 70,
-  lightingRating: 30,
-  petToxicityRating: 80,
-  wateringRating: 40,
+  humidityRating: Rating.make(70),
+  lightingRating: Rating.make(30),
+  petToxicityRating: Rating.make(80),
+  wateringRating: Rating.make(40),
   luxNeeded: null,
 }
 
@@ -31,10 +32,10 @@ describe('catalogPlantToCreateRequest', () => {
       mistingFrequencyDays: 3,
       repottingFrequencyDays: 365,
       luxNeeded: 2500,
-      lightingRating: 30,
-      humidityRating: 70,
-      petToxicityRating: 80,
-      wateringRating: 40,
+      lightingRating: Rating.make(30),
+      humidityRating: Rating.make(70),
+      petToxicityRating: Rating.make(80),
+      wateringRating: Rating.make(40),
       remindersEnabled: true,
     })
   })

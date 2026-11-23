@@ -24,6 +24,7 @@ import { withPlantPermit } from '@lily/api/services/plants/helpers/with-plant-ac
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { and, count, eq, isNull, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -61,10 +62,10 @@ const appAs = (userId: string) =>
 
 const plantValues = {
   name: 'Monstera',
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(

@@ -11,7 +11,7 @@ import {
 import type { StoredObject } from '@lily/api/services/file/stored-object'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { ZoneName } from '@lily/shared'
+import { Rating, ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -72,10 +72,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: userId,
           name: 'Monstera',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
           imageUrl: mintStoredRef(ref),
         })
         return { object: { bucket: 'plant', key: 'plants/p2/cover.jpg' }, ref }
@@ -118,10 +118,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await db.insert(schema.plantCatalog).values({
           imageUrl: mintStoredRef(ref),
           wateringFrequencyDays: 7,
-          humidityRating: 50,
-          lightingRating: 50,
-          petToxicityRating: 0,
-          wateringRating: 50,
+          humidityRating: Rating.make(50),
+          lightingRating: Rating.make(50),
+          petToxicityRating: Rating.make(0),
+          wateringRating: Rating.make(50),
         })
         return { object: { bucket: 'plant', key: 'catalog/fern.jpg' }, ref }
       },
@@ -213,10 +213,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: user.id,
           name: 'Fern',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
         })
         .returning()
       if (!plant) throw new Error('plant insert returned nothing')
