@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { CareDays, formatShortDate, parseApiDate } from '@lily/shared'
+import { formatShortDate, parseApiDate } from '@lily/shared'
 import { Calendar } from '@marceloterreiro/flash-calendar'
 import { DateTime, Option, pipe } from 'effect'
 import { useCallback, useRef } from 'react'
@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { useCalendarTheme } from '@/hooks/useCalendarTheme'
 import { useIconColors } from '@/hooks/useIconColors'
+import { tomorrowId } from '@/utils/calendar-day'
 import { getDeviceTimezone } from '@/utils/notifications'
 
 interface DateRangePickerProps {
@@ -29,10 +30,7 @@ export function DateRangePicker({
   const calendarTheme = useCalendarTheme()
   const isSelectingEnd = useRef(false)
 
-  const tomorrowId = CareDays.addDays(
-    CareDays.today(getDeviceTimezone(), DateTime.nowUnsafe()),
-    1
-  )
+  const tomorrow = tomorrowId(getDeviceTimezone(), DateTime.nowUnsafe())
 
   const calendarActiveDateRanges = pipe(
     Option.fromNullishOr(startDate),
@@ -131,8 +129,8 @@ export function DateRangePicker({
         <Calendar.List
           calendarActiveDateRanges={calendarActiveDateRanges}
           onCalendarDayPress={handleDayPress}
-          calendarMinDateId={tomorrowId}
-          calendarInitialMonthId={tomorrowId}
+          calendarMinDateId={tomorrow}
+          calendarInitialMonthId={tomorrow}
           calendarFormatLocale={i18n.language}
           theme={calendarTheme}
         />

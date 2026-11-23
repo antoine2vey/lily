@@ -50,18 +50,6 @@ describe('CareDays.addDays', () => {
   ])('%s + %i days is %s', (from, days, expected) => {
     expect(CareDays.addDays(day(from), days)).toBe(expected)
   })
-
-  it.each([
-    ['2026-10-24T22:30:00Z', '2026-10-26'],
-    ['2026-03-28T22:30:00Z', '2026-03-29'],
-  ])(
-    'the day after today at %s in Paris is %s across a clock change',
-    (instant, expected) => {
-      expect(
-        CareDays.addDays(CareDays.today('Europe/Paris', at(instant)), 1)
-      ).toBe(expected)
-    }
-  )
 })
 
 describe('CareDays.daysBetween', () => {

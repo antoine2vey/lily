@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { useCalendarTheme } from '@/hooks/useCalendarTheme'
 import { useIconColors } from '@/hooks/useIconColors'
+import { tomorrowId } from '@/utils/calendar-day'
 import { getDeviceTimezone } from '@/utils/notifications'
 
 interface VacationDatePickerProps {
@@ -35,8 +36,10 @@ export function VacationDatePicker({
   const calendarTheme = useCalendarTheme()
   const isSelectingEnd = useRef(false)
 
-  const todayId = CareDays.today(getDeviceTimezone(), DateTime.nowUnsafe())
-  const tomorrowId = CareDays.addDays(todayId, 1)
+  const timezone = getDeviceTimezone()
+  const now = DateTime.nowUnsafe()
+  const today = CareDays.today(timezone, now)
+  const tomorrow = tomorrowId(timezone, now)
 
   const calendarActiveDateRanges = pipe(
     Option.fromNullishOr(startDate),
@@ -146,8 +149,8 @@ export function VacationDatePicker({
         <Calendar.List
           calendarActiveDateRanges={calendarActiveDateRanges}
           onCalendarDayPress={handleDayPress}
-          calendarMinDateId={endOnly ? tomorrowId : todayId}
-          calendarInitialMonthId={endOnly ? tomorrowId : todayId}
+          calendarMinDateId={endOnly ? tomorrow : today}
+          calendarInitialMonthId={endOnly ? tomorrow : today}
           calendarFormatLocale={i18n.language}
           theme={calendarTheme}
         />
