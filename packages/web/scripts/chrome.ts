@@ -26,10 +26,23 @@ interface Running {
 const removeProfile = (profile: string) =>
   rmSync(profile, { recursive: true, force: true, maxRetries: 3 })
 
+// The group is gone (ESRCH), or on macOS holds only exited processes (EPERM).
+const GROUP_GONE = new Set(['ESRCH', 'EPERM'])
+
+// Chrome runs as the leader of its own process group, so a signal to the group reaches its helpers too.
+const signalGroup = (proc: Running['proc'], signal: NodeJS.Signals) => {
+  try {
+    process.kill(-proc.pid, signal)
+  } catch (error) {
+    if (!GROUP_GONE.has((error as NodeJS.ErrnoException).code ?? ''))
+      throw error
+  }
+}
+
 const running = new Set<Running>()
 process.once('exit', () => {
   for (const { proc, profile } of running) {
-    proc.kill('SIGKILL')
+    signalGroup(proc, 'SIGKILL')
     removeProfile(profile)
   }
 })
@@ -50,7 +63,7 @@ const spawn = (profile: string, flags: ReadonlyArray<string>) => {
         ...flags,
         'about:blank',
       ],
-      { stdout: 'ignore', stderr: 'pipe' }
+      { stdout: 'ignore', stderr: 'pipe', detached: true }
     )
   } catch (error) {
     removeProfile(profile)
@@ -72,8 +85,10 @@ export const launchChrome = async (
   running.add(entry)
   const close = async () => {
     if (!running.delete(entry)) return
-    proc.kill()
+    signalGroup(proc, 'SIGTERM')
     await proc.exited
+    // Helpers outlive the browser by seconds and can recreate the profile directory after it is deleted.
+    signalGroup(proc, 'SIGKILL')
     removeProfile(profile)
   }
 
