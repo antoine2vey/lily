@@ -1082,19 +1082,24 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     describe('claimStartTokens', () => {
-      const insertStartToken = async () => {
+      const insertStartToken = async (
+        fields: Partial<typeof schema.activityPushTokens.$inferInsert> = {}
+      ) => {
         await db.insert(schema.activityPushTokens).values({
           userId,
           deviceTokenId,
           kind: 'start',
           token: 'push-to-start-token',
           status: 'active',
+          ...fields,
         })
       }
 
-      const claimStart = Effect.flatMap(ActivityPushTokenRepository, (repo) =>
-        repo.claimStartTokens(userId, [deviceTokenId], minutesAgo(600))
-      )
+      const claimStartAs = (claimant: string) =>
+        Effect.flatMap(ActivityPushTokenRepository, (repo) =>
+          repo.claimStartTokens(claimant, [deviceTokenId], minutesAgo(600))
+        )
+      const claimStart = Effect.suspend(() => claimStartAs(userId))
 
       it('lets exactly one of two concurrent callers start the device', async () => {
         await insertStartToken()
@@ -1118,6 +1123,34 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           .where(eq(schema.activityPushTokens.deviceTokenId, deviceTokenId))
 
         expect(await run(claimStart)).toEqual([deviceTokenId])
+      })
+
+      it('frees the device again once its unconfirmed start is older than the cutoff', async () => {
+        await insertStartToken({ lastStartSentAt: minutesAgo(601) })
+
+        expect(await run(claimStart)).toEqual([deviceTokenId])
+      })
+
+      it('never claims an ended start token', async () => {
+        await insertStartToken({ status: 'ended' })
+
+        expect(await run(claimStart)).toEqual([])
+      })
+
+      it('never claims the update token of a running card', async () => {
+        await insertStartToken({
+          kind: 'update',
+          activityId: 'running-card',
+          token: 'update-token',
+        })
+
+        expect(await run(claimStart)).toEqual([])
+      })
+
+      it("never claims another user's start token", async () => {
+        await insertStartToken()
+
+        expect(await run(claimStartAs(crypto.randomUUID()))).toEqual([])
       })
     })
   }

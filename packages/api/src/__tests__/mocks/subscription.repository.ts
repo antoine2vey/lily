@@ -1,7 +1,6 @@
 import type {
   CreateSubscriptionData,
   ISubscriptionRepository,
-  RevenueCatWebhookEventRecord,
 } from '@lily/api/repositories/subscription.repository'
 import {
   SubscriptionRepository,
@@ -53,8 +52,6 @@ interface MockSubscriptionOptions {
     eventType: SubscriptionEventType,
     metadata?: object
   ) => void
-  // Shared across layers to model the unique event-id table.
-  claimedWebhookEventIds?: Set<string>
   // The first `create` calls fail with a SqlError, then writes succeed.
   failingCreates?: number | undefined
   onReserveUsage?: (userId: string, field: UsageField) => void
@@ -105,8 +102,6 @@ export const createMockSubscriptionRepository = (
     Option.fromNullishOr(options.tier),
     Option.getOrElse(() => 'free' as SubscriptionTier)
   )
-  const claimedWebhookEventIds =
-    options.claimedWebhookEventIds ?? new Set<string>()
   let failingCreates = Option.getOrElse(
     Option.fromNullishOr(options.failingCreates),
     () => 0
@@ -137,12 +132,7 @@ export const createMockSubscriptionRepository = (
         ? [subscription]
         : []
     ),
-    claimWebhookEvent: (event: RevenueCatWebhookEventRecord) =>
-      Effect.sync(() => {
-        if (claimedWebhookEventIds.has(event.id)) return false
-        claimedWebhookEventIds.add(event.id)
-        return true
-      }),
+    claimWebhookEvent: () => Effect.succeed(true),
     findByExternalId: () => Effect.succeed(subscription),
     create: (data) => {
       if (failingCreates > 0) {
