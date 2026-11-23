@@ -8,11 +8,11 @@ import { listCarePlans } from '@lily/api/services/care-plans/endpoints/list-care
 import { listPlantCarePlans } from '@lily/api/services/care-plans/endpoints/list-plant-care-plans'
 import { uncompleteCarePlanStep } from '@lily/api/services/care-plans/endpoints/uncomplete-care-plan-step'
 import {
-  seenByCaller,
   withCarePlanAuth,
   withCarePlanStep,
 } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
+import { seenByCaller } from '@lily/api/services/plants/helpers/seen'
 import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import { Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'

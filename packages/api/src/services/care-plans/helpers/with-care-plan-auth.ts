@@ -16,7 +16,6 @@ import {
   knowledgeView,
   type PlantRole,
 } from '@lily/api/services/plants/helpers/plant-access'
-import { asSeenBy, type Seen } from '@lily/api/services/plants/helpers/seen'
 import {
   type PlantAccessContext,
   resolvePlantRole,
@@ -161,12 +160,4 @@ export const reloadPlan = (
       Option.fromNullishOr(yield* repo.findById(planId)),
       () => new CarePlanNotFoundError({ planId })
     )
-  })
-
-export const seenByCaller = (
-  plan: CarePlan
-): Effect.Effect<Seen<CarePlan>, never, CurrentUser> =>
-  Effect.gen(function* () {
-    const { id } = yield* CurrentUser
-    return asSeenBy(id)(plan)
   })

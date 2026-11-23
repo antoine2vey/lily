@@ -22,6 +22,8 @@ const CARE_STORE = 'contexts/care/store.ts'
 
 const OWNER_LOCK = 'services/plants/helpers/owner-lock.ts'
 
+const SEEN = 'services/plants/helpers/seen.ts'
+
 const PLANT_LIFE_ENDPOINTS = [
   'services/plants/endpoints/create-plant.ts',
   'services/plants/endpoints/mark-plant-dead.ts',
@@ -153,39 +155,82 @@ describe('bounded contexts', () => {
   })
 
   it('receive permits, owner proofs and seen rows built only where their check runs', () => {
-    const BUILDS =
-      /\bas\s+(?:unknown\s+as\s+)?(PlantPermit|RecordPermit|PlanPermit|OwnerHeld|Seen)\b/g
+    const PROOF = 'PlantPermit|RecordPermit|PlanPermit|OwnerHeld|Seen'
+    const CASTS = [
+      new RegExp(`\\bas\\s+(?:unknown\\s+as\\s+)?(${PROOF})\\b`, 'g'),
+      new RegExp(
+        `(?<=(?:^|[(,=:?![{;&|]|\\breturn|\\byield|\\bawait|=>)\\s*)<\\s*(${PROOF})\\b`,
+        'gm'
+      ),
+    ]
     const builders = new Set(
       files.flatMap((file) =>
-        [...readFileSync(file, 'utf8').matchAll(BUILDS)].map(
-          (match) => `${match[1]} in ${name(file)}`
+        CASTS.flatMap((cast) =>
+          [...readFileSync(file, 'utf8').matchAll(cast)].map(
+            (match) => `${match[1]} in ${name(file)}`
+          )
         )
       )
     )
 
     expect(
       [...builders].sort(),
-      'Get a permit through withPlantAuth, withPlantPermit, withRecordPermit or withCarePlanAuth, an OwnerHeld through withOwnerLock and a Seen row through asSeenBy. Building one anywhere else skips the role check, the lock or the redaction.'
+      'Get a permit through withPlantAuth, withPlantPermit, withRecordPermit or withCarePlanAuth, an OwnerHeld through withOwnerLock and a Seen row through seenByCaller. Building one anywhere else skips the role check, the lock or the redaction.'
     ).toEqual([
       `OwnerHeld in ${OWNER_LOCK}`,
       'PlanPermit in services/care-plans/helpers/with-care-plan-auth.ts',
       'PlantPermit in services/plants/helpers/with-plant-access.ts',
-      'Seen in services/plants/helpers/seen.ts',
+      `Seen in ${SEEN}`,
     ])
   })
 
-  it('import nothing from the tests', () => {
-    const importers = files
-      .filter((file) =>
-        (graph.get(file) ?? []).some((imported) =>
-          imported.target.startsWith(join(SRC, '__tests__/'))
-        )
-      )
+  it('cast nothing to never', () => {
+    const casters = files
+      .filter((file) => /\bas\s+never\b/.test(readFileSync(file, 'utf8')))
       .map(name)
 
     expect(
-      importers,
-      'The test mocks build permits with no role check, so production code must not import them.'
+      casters,
+      '`as never` fits any parameter, a permit or a Seen row included, so tsc stops checking it.'
+    ).toEqual([])
+  })
+
+  it('brand a row Seen only in seen.ts', () => {
+    const BRANDS =
+      /\bbrand\(\s*['"`]Seen['"`]|\bBrand\s*<\s*['"`]Seen['"`]|\bnominal\s*<\s*Seen\b/
+    const branders = files
+      .filter((file) => name(file) !== SEEN)
+      .filter((file) => BRANDS.test(readFileSync(file, 'utf8')))
+      .map(name)
+    const decoders = files
+      .filter((file) =>
+        (graph.get(file) ?? []).some(
+          (imported) =>
+            imported.target === join(SRC, SEEN) &&
+            /\bseen\b/.test(imported.names)
+        )
+      )
+      .map(name)
+      .sort()
+
+    expect(
+      branders,
+      'A Seen row comes from seenByCaller. A brand made elsewhere skips the redaction.'
+    ).toEqual([])
+    expect(
+      decoders,
+      'Decoding through `seen` makes a Seen row with nothing redacted, so only the success schemas use it.'
+    ).toEqual(['services/care-plans/api.ts', 'services/diagnosis/api.ts'])
+  })
+
+  it('reach nothing in the tests', () => {
+    const reachers = files
+      .filter((file) => readFileSync(file, 'utf8').includes('__tests__/'))
+      .map(name)
+
+    expect(
+      reachers,
+      'The test mocks build permits with no role check, so production code must not import or require them.'
     ).toEqual([])
   })
 
