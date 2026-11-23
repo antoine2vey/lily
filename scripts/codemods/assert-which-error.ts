@@ -101,7 +101,7 @@ const blockEnd = (lines: ReadonlyArray<string>, start: number) => {
   return -1
 }
 
-const rewrite = (source: string) => {
+const rewriteOnce = (source: string) => {
   let text = source
   for (const [pattern, replacement] of inlineRewrites) text = text.replace(pattern, replacement)
 
@@ -146,12 +146,17 @@ const rewrite = (source: string) => {
   return lines.join('\n')
 }
 
+const rewrite = (source: string): string => {
+  const next = rewriteOnce(source)
+  return next === source ? source : rewrite(next)
+}
+
 const addImport = (text: string, name: 'failureOf' | 'defectOf') => {
   if (!new RegExp(String.raw`\b${name}\(`).test(text)) return text
   const existing = /import \{([^}]*)\} from '@lily\/shared\/testing'/.exec(text)
   if (existing) {
     if (new RegExp(String.raw`\b${name}\b`).test(existing[1])) return text
-    return text.replace(existing[0], `import {${existing[1].trimEnd()}, ${name} } from '@lily/shared/testing'`)
+    return text.replace(existing[0], `import {${existing[1].replace(/,?\s*$/, '')}, ${name} } from '@lily/shared/testing'`)
   }
   if (new RegExp(String.raw`(?:const|function) ${name}\b`).test(text)) return text
   return `import { ${name} } from '@lily/shared/testing'\n${text}`

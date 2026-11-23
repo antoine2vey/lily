@@ -37,8 +37,17 @@ describe('decodeHalfvec', () => {
   })
 
   it('rejects a payload whose length disagrees with its dimension', () => {
-    expect(Result.isFailure(decodeHalfvec(hex('000300003c00')))).toBe(true)
-    expect(Result.isFailure(decodeHalfvec(hex('0000')))).toBe(true)
+    const rejection = (digits: string) =>
+      Option.getOrThrow(Result.getFailure(decodeHalfvec(hex(digits))))
+
+    expect(rejection('000300003c00')).toMatchObject({
+      _tag: 'PgTypesCodecError',
+      message: 'Malformed halfvec: 6 bytes for dim 3',
+    })
+    expect(rejection('0000')).toMatchObject({
+      _tag: 'PgTypesCodecError',
+      message: 'Malformed halfvec: 2 bytes for dim 0',
+    })
   })
 })
 

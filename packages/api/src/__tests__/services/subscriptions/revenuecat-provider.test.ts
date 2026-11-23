@@ -102,7 +102,10 @@ describe('RevenueCatProviderLive.constructWebhookEvent', () => {
       construct({ api_version: '1.0', event }, undefined)
     )
 
-    expect(failureOf(exit)).toMatchObject({ code: 'webhook_auth_invalid' })
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'PaymentProviderError',
+      code: 'webhook_auth_invalid',
+    })
   })
 })
 
@@ -191,6 +194,7 @@ describe('RevenueCatProviderLive.getSubscriberInfo', () => {
     )
 
     expect(failureOf(await fetchSubscriber())).toMatchObject({
+      _tag: 'PaymentProviderError',
       code: 'revenuecat_api_error',
     })
   })
@@ -202,6 +206,7 @@ describe('RevenueCatProviderLive.getSubscriberInfo', () => {
     )
 
     expect(failureOf(await fetchSubscriber())).toMatchObject({
+      _tag: 'PaymentProviderError',
       code: 'revenuecat_schema_invalid',
     })
   })

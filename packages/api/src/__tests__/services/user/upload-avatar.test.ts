@@ -124,8 +124,8 @@ describe('uploadAvatar', () => {
       uploadAvatar([]).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(failureOf(result)).toEqual(
-      new NoFilesError({ message: 'No files provided' })
-    )
+    const error = failureOf(result)
+    expect(error).toBeInstanceOf(NoFilesError)
+    expect(error.message).toBe('No files provided')
   })
 })

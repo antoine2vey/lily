@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { API_PREFIX } from '@lily/shared'
 import { API_BASE_URL } from '@/utils/client'
 
@@ -22,8 +23,6 @@ interface SentFile {
 }
 
 export const ok = (body?: unknown): Reply => ({ status: 200, body })
-
-const notFound: Reply = { status: 404, body: { error: 'No such route' } }
 
 interface FilePart {
   readonly name: string
@@ -70,50 +69,100 @@ const readBody = async (body: BodyInit | null | undefined) => {
   return body
 }
 
-type Answer = (
-  input: RequestInfo | URL,
-  init?: RequestInit
-) => Promise<Response>
+interface Stub {
+  readonly test: string
+  readonly reply: (request: SentRequest) => Reply | undefined
+  readonly sent: SentRequest[]
+  readonly unmatched: SentRequest[]
+}
 
-let answer: Answer | undefined
+const listed = (requests: ReadonlyArray<SentRequest>) =>
+  requests.map(({ method, path }) => `${method} ${path}`).join(', ')
+
+// Each request runs in the async context of the test that sent it, so one
+// that fires after its test ended is answered and reported as that test's.
+const sender = new AsyncLocalStorage<Stub | undefined>()
+let running: Stub | undefined
+let stubs: Stub[] = []
 
 afterEach(() => {
-  answer = undefined
+  const stub = running
+  running = undefined
+  if (stub === undefined || stub.unmatched.length === 0) return
+  const missed = stub.unmatched.splice(0)
+  throw new Error(
+    `stubApi had no reply for ${listed(missed)}. Answer every request the test makes.`
+  )
 })
 
+afterAll(() => {
+  const late = stubs.filter((stub) => stub.unmatched.length > 0)
+  stubs = []
+  if (late.length === 0) return
+  throw new Error(
+    late
+      .map(
+        (stub) =>
+          `"${stub.test}" sent ${listed(stub.unmatched)} after it ended, and stubApi had no reply.`
+      )
+      .join(' ')
+  )
+})
+
+const answer = async (
+  stub: Stub,
+  input: RequestInfo | URL,
+  init?: RequestInit
+) => {
+  const prefix = new URL(`${API_BASE_URL}${API_PREFIX}`).pathname
+  const url = new URL(input instanceof Request ? input.url : String(input))
+  if (url.protocol === 'file:') return new Response(url.href)
+  const request: SentRequest = {
+    method: init?.method ?? 'GET',
+    path: url.pathname.slice(prefix.length),
+    query: Object.fromEntries(url.searchParams),
+    body: await readBody(init?.body),
+  }
+  stub.sent.push(request)
+  const replied = stub.reply(request)
+  if (replied === undefined) stub.unmatched.push(request)
+  const { status, body } = replied ?? { status: 404 }
+  return body === undefined
+    ? new Response(null, { status })
+    : new Response(JSON.stringify(body), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      })
+}
+
 // The Effect HTTP client reads `fetch` once and keeps it for the whole file,
-// so the file gets one fake and each `stubApi` call swaps what it answers.
+// so the file gets one fake, which answers each request with its sender's stub.
 const fakeFetch: typeof fetch = (input, init) => {
-  if (answer === undefined) throw new Error('fetch called outside stubApi')
-  return answer(input, init)
+  const stub = sender.getStore() ?? running
+  if (stub === undefined) throw new Error('fetch called outside stubApi')
+  return answer(stub, input, init)
 }
 
 /**
  * Replace `fetch` with `reply`, the test's stand-in for the API, for the rest
  * of the test. Every API request lands in `sent`, in order. A request `reply`
- * returns nothing for gets a 404.
+ * returns nothing for gets a 404 and fails the test, so a test that expects a
+ * 404 returns it. A request sent after the test ended fails the file instead,
+ * naming the test, but goes unreported when it fires after this file's
+ * `afterAll`, as when only skipped tests follow or the file's own `afterAll`
+ * outlasts this one. A test calls `stubApi` once.
  */
 export const stubApi = (reply: (request: SentRequest) => Reply | undefined) => {
-  const sent: SentRequest[] = []
-  const prefix = new URL(`${API_BASE_URL}${API_PREFIX}`).pathname
-  global.fetch = fakeFetch
-  answer = async (input, init) => {
-    const url = new URL(input instanceof Request ? input.url : String(input))
-    if (url.protocol === 'file:') return new Response(url.href)
-    const request: SentRequest = {
-      method: init?.method ?? 'GET',
-      path: url.pathname.slice(prefix.length),
-      query: Object.fromEntries(url.searchParams),
-      body: await readBody(init?.body),
-    }
-    sent.push(request)
-    const { status, body } = reply(request) ?? notFound
-    return body === undefined
-      ? new Response(null, { status })
-      : new Response(JSON.stringify(body), {
-          status,
-          headers: { 'content-type': 'application/json' },
-        })
+  const test = expect.getState().currentTestName ?? 'a test'
+  if (running !== undefined) {
+    throw new Error(
+      `"${test}" called stubApi twice. Answer every request from one reply.`
+    )
   }
-  return { sent }
+  const stub: Stub = { test, reply, sent: [], unmatched: [] }
+  sender.enterWith(stub)
+  running = stub
+  stubs.push(stub)
+  global.fetch = fakeFetch
+  return { sent: stub.sent }
 }

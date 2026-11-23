@@ -56,7 +56,6 @@ import {
   type PlantOwner,
   RoomNotFoundError,
   TimeZone,
-  UnauthorizedError,
   UserNotFoundError,
 } from '@lily/shared'
 import {
@@ -203,9 +202,10 @@ describe('Canopy', () => {
         canopy.create({ by: 'ghost', name: 'Nowhere' })
       )
 
-      expect(error).toEqual(
-        new UnauthorizedError({ message: 'Authentication failed' })
-      )
+      expect(error).toMatchObject({
+        _tag: 'UnauthorizedError',
+        message: 'Authentication failed',
+      })
       expect(Array.map(world.store.canopies, (c) => c.name)).toEqual([
         'Home',
         'Cabin',

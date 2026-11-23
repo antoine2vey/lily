@@ -143,27 +143,6 @@ export const queryKeys = {
   },
 } as const
 
-/**
- * Helper to invalidate all queries for a domain
- */
-export const invalidateKeys = {
-  plants: queryKeys.plants.all,
-  careLogs: queryKeys.careLogs.all,
-  careTasks: queryKeys.careTasks.all,
-  carePlans: queryKeys.carePlans.all,
-  subscriptions: queryKeys.subscriptions.all,
-  users: queryKeys.users.all,
-  notifications: queryKeys.notifications.all,
-  rooms: queryKeys.rooms.all,
-  achievements: queryKeys.achievements.all,
-  auth: queryKeys.auth.all,
-  weather: queryKeys.weather.all,
-  social: queryKeys.social.all,
-  vacation: queryKeys.vacation.all,
-  delegations: queryKeys.delegations.all,
-  canopy: queryKeys.canopy.all,
-} as const
-
 // Exact keys of the queries an optimistic update writes. Each hook builds its
 // query from the same params.
 

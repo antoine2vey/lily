@@ -7,11 +7,7 @@ import {
   LimitCheckerLive,
 } from '@lily/api/services/subscriptions/limit-checker'
 import type { userSubscriptions } from '@lily/db/schema'
-import {
-  type CanopyId,
-  LimitExceededError,
-  type PlantOwner,
-} from '@lily/shared'
+import type { CanopyId, PlantOwner } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { DateTime, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -108,15 +104,14 @@ describe('checkPlantLimit for a Canopy', () => {
     })
 
     expect(Exit.isSuccess(under)).toBe(true)
-    expect(failureOf(at)).toEqual(
-      new LimitExceededError({
-        feature: 'canopy_plants',
-        limit: 5,
-        current: 5,
-        message:
-          'This Canopy has reached its limit of 5 plants. Any member going Premium lifts it.',
-      })
-    )
+    expect(failureOf(at)).toMatchObject({
+      _tag: 'LimitExceededError',
+      feature: 'canopy_plants',
+      limit: 5,
+      current: 5,
+      message:
+        'This Canopy has reached its limit of 5 plants. Any member going Premium lifts it.',
+    })
   })
 
   it('lifts the cap while any member is premium', async () => {
@@ -136,7 +131,10 @@ describe('checkPlantLimit for a Canopy', () => {
       personalPlants: 0,
       subscriptions: { lily: premium('lily', -1) },
     })
-    expect(failureOf(exit)).toMatchObject({ feature: 'canopy_plants' })
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'LimitExceededError',
+      feature: 'canopy_plants',
+    })
   })
 
   it("keeps a member's personal cap their own", async () => {
@@ -146,6 +144,10 @@ describe('checkPlantLimit for a Canopy', () => {
       personalPlants: 5,
       subscriptions: { lily: premium('lily', 30) },
     })
-    expect(failureOf(exit)).toMatchObject({ feature: 'plants', limit: 5 })
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'LimitExceededError',
+      feature: 'plants',
+      limit: 5,
+    })
   })
 })

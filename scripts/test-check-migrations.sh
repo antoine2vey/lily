@@ -46,8 +46,9 @@ expect() { # expect <name> <pass|fail> <dir> [output substring]
 dir=$(scratch)
 printf '%s\nALTER TABLE "plants" ADD COLUMN "x" text;\n' "$GUARD" >"$dir/$DB/0000_a.sql"
 printf -- '-- why this runs\n\n%s\nUPDATE "plants" SET "x" = 1;\n' "$GUARD" >"$dir/$DB/0001_b.sql"
-echo 'CREATE TABLE "t" ("p" uuid REFERENCES "plants" ON DELETE CASCADE ON UPDATE CASCADE);' >"$dir/$DB/0002_c.sql"
+printf '%s\nCREATE TABLE "t" ("p" uuid REFERENCES "plants" ON DELETE CASCADE ON UPDATE CASCADE);\n' "$GUARD" >"$dir/$DB/0002_c.sql"
 echo 'INSERT INTO "t" VALUES (1) ON CONFLICT DO UPDATE SET "p" = 1;' >"$dir/$DB/0003_d.sql"
+echo 'CREATE TABLE "u" ("id" uuid PRIMARY KEY, "note" text);' >"$dir/$DB/0006_g.sql"
 cat >"$dir/$DB/0004_e.sql" <<'SQL'
 -- migrate:no-transaction
 SET lock_timeout = '5s';
@@ -111,7 +112,11 @@ set -- \
 	'LOCK TABLE' 'LOCK TABLE "plants" IN SHARE MODE;' \
 	'CREATE INDEX' 'CREATE INDEX "plants_x_idx" ON "plants" ("x");' \
 	'CREATE UNIQUE INDEX' 'CREATE UNIQUE INDEX "plants_x_idx" ON "plants" ("x");' \
-	'CREATE TRIGGER' 'CREATE TRIGGER "t" BEFORE INSERT ON "plants" FOR EACH ROW EXECUTE FUNCTION f();'
+	'CREATE TRIGGER' 'CREATE TRIGGER "t" BEFORE INSERT ON "plants" FOR EACH ROW EXECUTE FUNCTION f();' \
+	'CREATE OR REPLACE TRIGGER' 'CREATE OR REPLACE TRIGGER "t" BEFORE INSERT ON "plants" FOR EACH ROW EXECUTE FUNCTION f();' \
+	'CREATE CONSTRAINT TRIGGER' 'CREATE CONSTRAINT TRIGGER "t" AFTER INSERT ON "plants" FOR EACH ROW EXECUTE FUNCTION f();' \
+	'DROP TRIGGER' 'DROP TRIGGER IF EXISTS "t" ON "plants";' \
+	'CREATE TABLE with REFERENCES' 'CREATE TABLE "t" ("p" uuid NOT NULL REFERENCES "plants"("id") ON DELETE CASCADE);'
 while [ $# -gt 0 ]; do
 	dir=$(scratch)
 	echo "$2" >"$dir/$DB/0000_a.sql"

@@ -10,6 +10,7 @@ import {
   type SimpleNotificationType,
 } from '@lily/api/services/notification-scheduler/translations'
 import type { LanguageCode } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Option, Record, Result, Struct } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -594,14 +595,14 @@ describe('renderFromParams', () => {
 
   it('fails on params that do not match the topic', () => {
     expect(
-      Result.isFailure(
+      failureOf(
         renderFromParams(
           'trial_ending',
           { trialDaysLeft: 'three' },
           Option.none(),
           'en'
         )
-      )
-    ).toBe(true)
+      )._tag
+    ).toBe('SchemaError')
   })
 })

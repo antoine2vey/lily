@@ -61,7 +61,6 @@ import {
   type PlantOwner,
   RoomNotFoundError,
   TimeZone,
-  UnauthorizedError,
   UserNotFoundError,
 } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
@@ -495,9 +494,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           await untilLockWaits(1)
           await client.query('COMMIT')
 
-          expect(outcomeOf(await creating)).toEqual(
-            new UnauthorizedError({ message: 'Authentication failed' })
-          )
+          expect(outcomeOf(await creating)).toMatchObject({
+            _tag: 'UnauthorizedError',
+            message: 'Authentication failed',
+          })
         } finally {
           client.release()
         }

@@ -9,7 +9,16 @@ pattern array_literal() {
 or {
   JsPropertyObjectMember(name=$name, value=$key) where {
     $name <: `queryKey`,
-    $key <: array_literal()
+    $key <: or {
+      array_literal(),
+      `$_ ? $a : $b` where { or { $a <: array_literal(), $b <: array_literal() } },
+      `$_ ?? $b` where { $b <: array_literal() },
+      `$_ || $b` where { $b <: array_literal() }
+    }
+  },
+  JsCallExpression(arguments=JsCallArguments(args=$args)) where {
+    $args <: some `queryClient`,
+    $args <: some array_literal()
   },
   `$_.$method($key, $...)` where {
     $method <: or { `getQueryData`, `setQueryData`, `getQueryState` },
