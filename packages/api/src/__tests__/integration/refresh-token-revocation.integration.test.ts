@@ -6,7 +6,7 @@ import {
 import { REFRESH_TOKEN_ROTATION_GRACE_MS } from '@lily/api/services/auth/constants'
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { ConfigProvider, Effect, Layer } from 'effect'
 import pg from 'pg'
@@ -41,9 +41,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }).pipe(Effect.provide(RepoLive))
       )
 
-    const issue = async (tokenHash: string) => {
+    const issue = async (
+      tokenHash: string,
+      expiresAt = new Date(Date.now() + 86_400_000)
+    ) => {
       const token = await run((repo) =>
-        repo.create(userId, tokenHash, new Date(Date.now() + 86_400_000))
+        repo.create(userId, tokenHash, expiresAt)
       )
       return token!
     }
@@ -93,6 +96,28 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(await findWithGrace(activeHash)).toBeNull()
       expect(await findWithGrace(rotatedHash)).toBeNull()
+    })
+
+    it('rejects a token rotated before the grace window', async () => {
+      const hash = `rotated-long-ago-${Date.now()}`
+      const token = await issue(hash)
+      await db
+        .update(schema.refreshTokens)
+        .set({
+          revokedAt: new Date(
+            Date.now() - REFRESH_TOKEN_ROTATION_GRACE_MS - 5_000
+          ),
+        })
+        .where(eq(schema.refreshTokens.id, token.id))
+
+      expect(await findWithGrace(hash)).toBeNull()
+    })
+
+    it('rejects an expired token that was never rotated', async () => {
+      const hash = `expired-${Date.now()}`
+      await issue(hash, new Date(Date.now() - 1_000))
+
+      expect(await findWithGrace(hash)).toBeNull()
     })
   }
 )
