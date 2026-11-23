@@ -228,7 +228,7 @@ const FIXES = {
   font: 'The page drew another font than the run forced. Load Space Grotesk only through the font-display: optional faces in packages/web/src/styles.css, and list "Space Grotesk Fallback" next to every "Space Grotesk Variable".',
   heading:
     'The page shows the wrong invite view or language. packages/web/src/lib/canopy-invite.ts maps the preview answer to a view, and site.css shows only the prerendered copy whose data-locale matches <html lang>.',
-  shift: `Give each skeleton bar in ${JOIN_INVITE} the box of the element that replaces it.`,
+  shift: `Give each skeleton bar in ${JOIN_INVITE} the box of the element that replaces it. When only the desktop shifts and the card moves sideways, a classic scrollbar appeared at hydration: keep scrollbar-gutter: stable on html in packages/web/src/components/site/site.css.`,
   cardTop: `Set the top offset of the card in ${JOIN_INVITE} from the viewport height alone, never from the card's own height (#265).`,
   width: `Let long names break (break-words) in ${JOIN_INVITE}, so no word widens the page.`,
   skeleton: `Resize the skeleton bars in ${JOIN_INVITE} until the skeleton card is within SKELETON_SLACK of the plain invite preview.`,
