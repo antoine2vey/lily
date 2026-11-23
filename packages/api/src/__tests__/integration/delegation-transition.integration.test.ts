@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   AbsenceOnPostgresLive,
   absenceOverStore,
@@ -41,11 +40,11 @@ import { pollAndTransition } from '@lily/api/services/delegation-scheduler/sched
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { DelegationInvalidStatusError } from '@lily/shared'
+import { defectOf, failureOf } from '@lily/shared/testing'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
-  Cause,
   DateTime,
   Deferred,
   Effect,
@@ -186,9 +185,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
-      expect(
-        Exit.isFailure(activated) && Cause.squash(activated.cause)
-      ).toEqual(
+      expect(defectOf(activated)).toEqual(
         new DelegationNotMovedDefect({
           delegationId,
           from: 'Accepted',
@@ -237,12 +234,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const status = await currentStatus()
       expect(Arr.filter(answers, Exit.isSuccess)).toHaveLength(1)
       expect(['accepted', 'rejected']).toContain(status)
-      expect(
-        Arr.map(
-          Arr.filter(answers, (answer) => Exit.isFailure(answer)),
-          failureOf
-        )
-      ).toEqual([
+      expect(Arr.map(Arr.filter(answers, Exit.isFailure), failureOf)).toEqual([
         new DelegationInvalidStatusError({
           currentStatus: status ?? '',
           expectedStatus: 'pending',

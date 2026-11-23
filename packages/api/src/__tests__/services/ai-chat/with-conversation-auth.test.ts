@@ -5,7 +5,8 @@ import {
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { withConversationAuth } from '@lily/api/services/ai-chat/helpers/assert-can-access-conversation'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Backs the `getConversation` endpoint: the chat screen relies on `plantId`
@@ -37,9 +38,6 @@ describe('withConversationAuth / getConversation', () => {
         Effect.provide(createTestLayer('someone-else'))
       )
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('ConversationNotFoundError')
-    }
+    expect(failureOf(exit)._tag).toBe('ConversationNotFoundError')
   })
 })

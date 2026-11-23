@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
@@ -8,6 +7,7 @@ import {
 } from '@lily/api/services/subscriptions/limit-checker'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
 import { LimitExceededError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { DateTime, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -86,7 +86,6 @@ describe('LimitChecker', () => {
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
       const error = failureOf(result)
       expect(error).toBeInstanceOf(LimitExceededError)
       expect((error as LimitExceededError).feature).toBe('plants')
@@ -228,7 +227,10 @@ describe('LimitChecker', () => {
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'LimitExceededError',
+        feature: 'plants',
+      })
     })
 
     it('should enforce free limits for cancelled subscription after period ends', async () => {
@@ -267,7 +269,10 @@ describe('LimitChecker', () => {
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'LimitExceededError',
+        feature: 'plants',
+      })
     })
 
     it('should allow canceled subscription with future period end', async () => {
@@ -384,7 +389,10 @@ describe('LimitChecker', () => {
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'LimitExceededError',
+        feature: 'plants',
+      })
     })
   })
 
@@ -425,7 +433,10 @@ describe('LimitChecker', () => {
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'LimitExceededError',
+        feature: 'plants',
+      })
     })
 
     it('should allow trialing user with valid period for the plant limit', async () => {
@@ -515,7 +526,10 @@ describe('LimitChecker', () => {
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'LimitExceededError',
+        feature: 'plants',
+      })
     })
 
     it('should allow canceled-during-trial with valid period', async () => {
@@ -606,7 +620,6 @@ describe('LimitChecker', () => {
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
       const error = failureOf(result) as LimitExceededError
       expect(error.feature).toBe('care_delegation')
       expect(error.message).toContain('premium feature')

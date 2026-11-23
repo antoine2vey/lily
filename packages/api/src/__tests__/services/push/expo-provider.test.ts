@@ -5,6 +5,7 @@ import {
 } from '@lily/api/__tests__/mocks/push.service'
 import { buildExpoMessage } from '@lily/api/services/push/expo-plus-apns.provider'
 import { PushService } from '@lily/shared/server'
+import { failureOf } from '@lily/shared/testing'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -60,7 +61,7 @@ describe('PushService (mock)', () => {
         }).pipe(Effect.provide(createFailingPushService()))
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)._tag).toBe('PushSendError')
     })
 
     it('should call onSendBatch callback with all messages', async () => {

@@ -123,6 +123,10 @@
       "types": "./src/domains/plant/selectors.ts",
       "default": "./src/domains/plant/selectors.ts"
     },
+    "./testing": {
+      "types": "./src/testing/exit.ts",
+      "default": "./src/testing/exit.ts"
+    },
     "./services/*": {
       "types": "./src/services/*.ts",
       "default": "./src/services/*.ts"

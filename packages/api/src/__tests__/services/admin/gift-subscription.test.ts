@@ -9,7 +9,8 @@ import { giftSubscription } from '@lily/api/services/admin/endpoints/gift-subscr
 import { AdminUser } from '@lily/api/services/admin/middleware'
 import type { UserProfile } from '@lily/shared/auth'
 import type { Notification } from '@lily/shared/notification'
-import { Cause, Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const mockAdminContext: UserProfile = {
@@ -102,14 +103,7 @@ describe('giftSubscription', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('CannotModifySelfError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('CannotModifySelfError')
   })
 
   it('should fail when user not found', async () => {
@@ -117,14 +111,7 @@ describe('giftSubscription', () => {
       giftSubscription('non-existent', '1m').pipe(Effect.provide(baseLayers()))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('UserNotFoundError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 
   it('should upsert over existing subscription', async () => {
@@ -204,13 +191,6 @@ describe('giftSubscription', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = Cause.findErrorOption(result.cause)
-      expect(error._tag).toBe('Some')
-      if (error._tag === 'Some') {
-        expect(error.value._tag).toBe('StorePayerProtectedError')
-      }
-    }
+    expect(failureOf(result)._tag).toBe('StorePayerProtectedError')
   })
 })

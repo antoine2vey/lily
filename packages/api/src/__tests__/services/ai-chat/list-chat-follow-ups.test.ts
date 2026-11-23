@@ -7,7 +7,6 @@ import {
   type DiagnosisRecord,
   mockDiagnoses,
 } from '@lily/api/__tests__/fixtures/diagnoses'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   createTestPlant,
   fertilizationSpec,
@@ -35,6 +34,7 @@ import type {
 import type { LanguageCode } from '@lily/shared'
 import type { ChatConversation, ChatMessage } from '@lily/shared/ai-chat'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Layer, type Tracer } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 

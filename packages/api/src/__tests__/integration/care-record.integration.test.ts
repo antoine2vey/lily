@@ -35,6 +35,7 @@ import * as schema from '@lily/db/schema'
 import { CareDays } from '@lily/shared'
 import type { AppEvent } from '@lily/shared/server'
 import { GCSService } from '@lily/shared/services/file/gcs'
+import { defectOf } from '@lily/shared/testing'
 import { asc, count, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Layer, Option, pipe, Result } from 'effect'
@@ -724,7 +725,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
         )
       )
 
-      expect(failed._tag).toBe('Failure')
+      expect(defectOf(failed)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { cause: { message: 'schedule write failed' } },
+      })
       expect(await logsOf([plantId])).toEqual([])
       expect(await pendingEvents()).toBe(0)
 

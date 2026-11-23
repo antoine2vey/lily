@@ -25,6 +25,7 @@ import {
   UserRepository,
 } from '@lily/api/repositories/user.repository'
 import { verifyMagicLink } from '@lily/api/services/auth/endpoints/verify-magic-link'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -112,7 +113,10 @@ describe('verifyMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid code format',
+    })
   })
 
   it('should fail with short code', async () => {
@@ -120,7 +124,10 @@ describe('verifyMagicLink', () => {
       verifyMagicLink({ code: '12345' }).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid code format',
+    })
   })
 
   it('should fail when rate limit exceeded', async () => {
@@ -130,7 +137,7 @@ describe('verifyMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('RateLimitExceededError')
   })
 
   it('should fail with expired magic link', async () => {
@@ -140,7 +147,10 @@ describe('verifyMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired code',
+    })
   })
 
   it('should fail with already used magic link', async () => {
@@ -150,7 +160,10 @@ describe('verifyMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired code',
+    })
   })
 
   it('should fail with non-existent magic link', async () => {
@@ -160,7 +173,10 @@ describe('verifyMagicLink', () => {
       }).pipe(Effect.provide(createTestLayer({ magicLinks: [] })))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired code',
+    })
   })
 
   it('should return existing user if exists', async () => {
@@ -196,7 +212,10 @@ describe('verifyMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Account is not active',
+    })
   })
 
   it('should fail for banned user', async () => {
@@ -222,7 +241,10 @@ describe('verifyMagicLink', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Account is not active',
+    })
   })
 
   it('should include user profile in response', async () => {

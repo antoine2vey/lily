@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
@@ -15,6 +14,7 @@ import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import type { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { RoomNotFoundError } from '@lily/shared'
 import { DEFAULT_HUMIDITY_RATING } from '@lily/shared/indoor-demand'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -309,7 +309,7 @@ describe('createPlant', () => {
       createPlant(validRequest).pipe(Effect.provide(layer))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('LimitExceededError')
     expect(rows).toHaveLength(mockPlants.length)
     expect(care.events).toEqual([])
   })

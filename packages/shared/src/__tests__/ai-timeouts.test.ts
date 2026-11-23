@@ -1,4 +1,5 @@
-import { Duration, Effect, Exit, Fiber, Option } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Duration, Effect, Fiber } from 'effect'
 import { TestClock } from 'effect/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -77,11 +78,10 @@ describe('OpenAI calls against a provider that never responds', () => {
         yield* TestClock.adjust(Duration.seconds(1))
         const exit = yield* Fiber.await(fiber)
 
-        expect(Exit.isFailure(exit)).toBe(true)
-        const error = Exit.findErrorOption(exit).pipe(Option.getOrUndefined)
+        const error = failureOf(exit)
         expect(error).toBeInstanceOf(OpenAIError)
-        expect((error as OpenAIError).code).toBe('server_error')
-        expect((error as OpenAIError).message).toContain('no response within')
+        expect(error.code).toBe('server_error')
+        expect(error.message).toContain('no response within')
         expect(signals[0]?.aborted).toBe(true)
       }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise)
   )

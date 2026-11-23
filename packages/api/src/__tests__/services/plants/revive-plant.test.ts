@@ -6,7 +6,6 @@ import {
   createTestCareLine,
   createTestCarePlant,
 } from '@lily/api/__tests__/fixtures/care-plants'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import {
@@ -33,6 +32,7 @@ import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import type { CanopyId, PlantOwner } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Cause, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 

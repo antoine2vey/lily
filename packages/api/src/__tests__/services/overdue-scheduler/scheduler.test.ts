@@ -33,6 +33,7 @@ import type { userSubscriptions } from '@lily/db/schema'
 import { pickNotificationTime } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import type { QueueMessage } from '@lily/shared/server'
+import { failureOf } from '@lily/shared/testing'
 import {
   Array as Arr,
   DateTime,
@@ -266,7 +267,7 @@ describe('pickNotificationTime', () => {
       const exit = Effect.runSyncExit(
         pickNotificationTime('test-user', 'UTC', true, '05:00', '23:00', 0.5)
       )
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)._tag).toBe('DndWindowBlockedError')
     })
 
     it('should ignore DND when disabled', () => {

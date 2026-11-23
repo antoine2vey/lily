@@ -1,4 +1,5 @@
-import { Effect, Exit } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('ai', () => ({
@@ -39,12 +40,7 @@ describe('embedText', () => {
     mockedEmbed.mockRejectedValueOnce(new Error('API rate limit'))
 
     const exit = await Effect.runPromiseExit(embedText('test query'))
-    expect(Exit.isFailure(exit)).toBe(true)
-
-    if (Exit.isFailure(exit)) {
-      const error = exit.cause
-      expect(String(error)).toContain('EmbeddingError')
-    }
+    expect(failureOf(exit)._tag).toBe('EmbeddingError')
   })
 
   it('sends a text the model would reject as its longest prefix that fits, cut between characters', async () => {
@@ -117,6 +113,6 @@ describe('embedTexts', () => {
     const exit = await Effect.runPromiseExit(
       embedTexts(['text one', 'text two'])
     )
-    expect(Exit.isFailure(exit)).toBe(true)
+    expect(failureOf(exit)._tag).toBe('EmbeddingError')
   })
 })

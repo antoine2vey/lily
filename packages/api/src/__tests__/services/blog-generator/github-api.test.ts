@@ -1,4 +1,5 @@
 import { publishBlogPost } from '@lily/api/services/blog-generator/github'
+import { failureOf } from '@lily/shared/testing'
 import { ConfigProvider, Effect } from 'effect'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -108,6 +109,9 @@ describe('GitHub API — publishBlogPost', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'GitHubPublishError',
+      message: 'Failed to get base branch ref',
+    })
   })
 })

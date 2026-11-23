@@ -1,0 +1,19 @@
+// A test that asserts only that an effect failed passes on any error, so a
+// change that fails it for another reason goes unseen.
+language js
+
+or {
+  `expect($asserted)` where {
+    $asserted <: contains or {
+      `Exit.isFailure($_)`,
+      `Exit.hasFails($_)`,
+      `Exit.hasDies($_)`,
+      `Cause.hasFails($_)`,
+      `Cause.hasDies($_)`
+    }
+  },
+  `expect(Exit.isSuccess($_)).$matcher(false)`,
+  `expect($exit._tag).$matcher('Failure')`
+} as $hit where {
+  register_diagnostic(span=$hit, message="Assert which error failed: use failureOf(exit) and check its _tag or class (Exit.isFailure alone passes on any error).")
+}

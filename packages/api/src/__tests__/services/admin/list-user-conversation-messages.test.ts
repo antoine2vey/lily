@@ -1,7 +1,8 @@
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { listUserConversationMessages } from '@lily/api/services/admin/endpoints/list-user-conversation-messages'
 import type { ChatConversation, ChatMessage } from '@lily/shared/ai-chat'
-import { Effect, Exit } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const conv = (id: string, userId: string): ChatConversation => ({
@@ -57,7 +58,7 @@ describe('listUserConversationMessages', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('ConversationNotFoundError')
   })
 
   it('fails with ConversationNotFoundError when the conversation is missing', async () => {
@@ -72,6 +73,6 @@ describe('listUserConversationMessages', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
+    expect(failureOf(result)._tag).toBe('ConversationNotFoundError')
   })
 })

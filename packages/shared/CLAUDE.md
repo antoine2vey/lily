@@ -23,6 +23,7 @@ This package holds the Effect schemas, typed errors, domain helpers and service 
 - `src/domains/common/api.ts` holds `API_PREFIX`, the versioned path every client calls. Build API URLs from it.
 - `FileService` and `GCSService` in `src/services/file/` build themselves. `OpenAIBulkhead` in `src/services/ai/call-openai.ts` is a `Context.Reference` that builds its own default. Every other tag in `src/services/` is an interface, implemented by a `*.provider.ts` file in `packages/api/src/services/`.
 - `src/services/push/types.ts` holds the Live Activity payloads. `CareTasksAttributes` mirrors `packages/app/modules/expo-live-activity-lily/ios/CareTasksAttributes.swift` in name and shape. The widget extension has no i18n catalog, so the server sends every visible string already localized.
+- `@lily/shared/testing` (`src/testing/exit.ts`) holds `failureOf` and `defectOf`, which every package's tests use to read the error of an `Exit`. Only tests import it.
 - `src/__tests__/` holds every test. Vitest collects only `src/__tests__/**/*.test.ts`.
 
 ## Rules

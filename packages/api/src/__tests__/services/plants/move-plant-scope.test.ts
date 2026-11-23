@@ -1,5 +1,4 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
@@ -46,6 +45,7 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { Notification } from '@lily/shared/notification'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

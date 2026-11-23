@@ -1,4 +1,5 @@
 import { planImageUpload } from '@lily/shared/services/file/image-upload'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -42,10 +43,7 @@ describe('planImageUpload', () => {
   ])('refuses %s', (_name, input) => {
     const exit = plan(input)
 
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(exit.cause.toString()).toContain('InvalidImageError')
-    }
+    expect(failureOf(exit)._tag).toBe('InvalidImageError')
   })
 
   it('refuses an image over 10 MB', () => {
@@ -54,6 +52,9 @@ describe('planImageUpload', () => {
 
     const exit = plan(big)
 
-    expect(Exit.isFailure(exit)).toBe(true)
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'InvalidImageError',
+      message: 'Image is larger than 10 MB',
+    })
   })
 })

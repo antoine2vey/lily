@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   absenceOverStore,
   leaveOnVacation,
@@ -46,10 +45,7 @@ import {
   CareScheduleRepository,
   CareScheduleRepositoryLive,
 } from '@lily/api/repositories/care-schedule.repository'
-import {
-  DelegationRepository,
-  DelegationRepositoryLive,
-} from '@lily/api/repositories/delegation.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import {
   NotificationRepository,
@@ -82,6 +78,7 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { TimeZone } from '@lily/shared'
 import type { PushMessage } from '@lily/shared/server'
+import { failureOf } from '@lily/shared/testing'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -396,10 +393,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           unmutes,
           (exit) =>
             !Exit.isSuccess(exit) &&
-            !(
-              Exit.hasFails(exit) &&
-              failureOf(exit)._tag === 'PlantNotFoundError'
-            )
+            failureOf(exit)._tag !== 'PlantNotFoundError'
         )
       ).toEqual([])
     }, 60_000)

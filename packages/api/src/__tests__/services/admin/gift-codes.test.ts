@@ -5,7 +5,8 @@ import { deleteGiftCode } from '@lily/api/services/admin/endpoints/delete-gift-c
 import { getGiftCode } from '@lily/api/services/admin/endpoints/get-gift-code'
 import { listGiftCodes } from '@lily/api/services/admin/endpoints/list-gift-codes'
 import { updateGiftCode } from '@lily/api/services/admin/endpoints/update-gift-code'
-import { Cause, Effect, Exit } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const mockCode: GiftCodeRecord = {
@@ -63,14 +64,7 @@ describe('Admin Gift Code CRUD', () => {
         }).pipe(Effect.provide(createMockGiftCodeRepository()))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = Cause.findErrorOption(result.cause)
-        expect(error._tag).toBe('Some')
-        if (error._tag === 'Some') {
-          expect(error.value._tag).toBe('GiftCodeExpiryInPastError')
-        }
-      }
+      expect(failureOf(result)._tag).toBe('GiftCodeExpiryInPastError')
     })
 
     it('should reject duplicate code', async () => {
@@ -84,14 +78,7 @@ describe('Admin Gift Code CRUD', () => {
         )
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = Cause.findErrorOption(result.cause)
-        expect(error._tag).toBe('Some')
-        if (error._tag === 'Some') {
-          expect(error.value._tag).toBe('GiftCodeDuplicateError')
-        }
-      }
+      expect(failureOf(result)._tag).toBe('GiftCodeDuplicateError')
     })
   })
 
@@ -130,14 +117,7 @@ describe('Admin Gift Code CRUD', () => {
         )
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = Cause.findErrorOption(result.cause)
-        expect(error._tag).toBe('Some')
-        if (error._tag === 'Some') {
-          expect(error.value._tag).toBe('GiftCodeNotFoundError')
-        }
-      }
+      expect(failureOf(result)._tag).toBe('GiftCodeNotFoundError')
     })
   })
 
@@ -162,14 +142,7 @@ describe('Admin Gift Code CRUD', () => {
         )
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = Cause.findErrorOption(result.cause)
-        expect(error._tag).toBe('Some')
-        if (error._tag === 'Some') {
-          expect(error.value._tag).toBe('GiftCodeExpiryInPastError')
-        }
-      }
+      expect(failureOf(result)._tag).toBe('GiftCodeExpiryInPastError')
     })
 
     it('should fail when code not found', async () => {
@@ -179,14 +152,7 @@ describe('Admin Gift Code CRUD', () => {
         )
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = Cause.findErrorOption(result.cause)
-        expect(error._tag).toBe('Some')
-        if (error._tag === 'Some') {
-          expect(error.value._tag).toBe('GiftCodeNotFoundError')
-        }
-      }
+      expect(failureOf(result)._tag).toBe('GiftCodeNotFoundError')
     })
 
     it('should reject maxUsages below currentUsages', async () => {
@@ -196,14 +162,7 @@ describe('Admin Gift Code CRUD', () => {
         )
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = Cause.findErrorOption(result.cause)
-        expect(error._tag).toBe('Some')
-        if (error._tag === 'Some') {
-          expect(error.value._tag).toBe('GiftCodeMaxUsagesTooLowError')
-        }
-      }
+      expect(failureOf(result)._tag).toBe('GiftCodeMaxUsagesTooLowError')
     })
 
     it('should allow setting maxUsages to 0 (unlimited)', async () => {
@@ -236,14 +195,7 @@ describe('Admin Gift Code CRUD', () => {
         )
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = Cause.findErrorOption(result.cause)
-        expect(error._tag).toBe('Some')
-        if (error._tag === 'Some') {
-          expect(error.value._tag).toBe('GiftCodeNotFoundError')
-        }
-      }
+      expect(failureOf(result)._tag).toBe('GiftCodeNotFoundError')
     })
   })
 })

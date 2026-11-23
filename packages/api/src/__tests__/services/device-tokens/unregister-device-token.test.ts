@@ -1,10 +1,10 @@
 import { mockDeviceTokens } from '@lily/api/__tests__/fixtures/device-tokens'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { unregisterDeviceToken } from '@lily/api/services/device-tokens/endpoints/unregister-device-token'
 import { DeviceTokenNotFoundError } from '@lily/shared'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('unregisterDeviceToken', () => {
@@ -29,11 +29,7 @@ describe('unregisterDeviceToken', () => {
       )
     )
 
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      const error = failureOf(exit)
-      expect(error).toBeInstanceOf(DeviceTokenNotFoundError)
-    }
+    expect(failureOf(exit)).toBeInstanceOf(DeviceTokenNotFoundError)
   })
 
   it('should fail when token belongs to another user', async () => {
@@ -41,11 +37,7 @@ describe('unregisterDeviceToken', () => {
       unregisterDeviceToken('token-3').pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      const error = failureOf(exit)
-      expect(error).toBeInstanceOf(DeviceTokenNotFoundError)
-    }
+    expect(failureOf(exit)).toBeInstanceOf(DeviceTokenNotFoundError)
   })
 
   it('should allow user to delete their own token', async () => {
@@ -63,7 +55,7 @@ describe('unregisterDeviceToken', () => {
       unregisterDeviceToken('').pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(Exit.isFailure(exit)).toBe(true)
+    expect(failureOf(exit)).toBeInstanceOf(DeviceTokenNotFoundError)
   })
 
   it('should allow second user to delete their token after first user deletes theirs', async () => {

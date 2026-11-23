@@ -1,6 +1,5 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   createCanopyStore,
   createTestCanopyRow,
@@ -17,6 +16,7 @@ import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-ca
 import { leaveMyCanopy } from '@lily/api/services/canopy/endpoints/leave-my-canopy'
 import { CanopyNotFoundError, NotCanopyOwnerError } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit } from 'effect'
 import { describe, expect, it } from 'vitest'
 

@@ -12,10 +12,7 @@ import {
   createMockPushService,
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
-import {
-  createInMemoryRedis,
-  createInMemoryRedisQueue,
-} from '@lily/api/__tests__/mocks/redis-queue'
+import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { AbsenceLive } from '@lily/api/contexts/absence'
 import { CareReadsLive } from '@lily/api/contexts/care'
@@ -55,6 +52,7 @@ import {
   QueueConnectionError,
   type QueueMessage,
 } from '@lily/shared/server'
+import { defectOf, failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Data, Duration, Effect, Exit, Layer, Logger, References } from 'effect'
@@ -259,7 +257,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }).pipe(Effect.provide(DatabaseLive))
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toBeInstanceOf(BusinessWriteFailed)
       expect(await notificationRows()).toEqual([])
     })
 
@@ -376,8 +374,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const refused = await consumeWhilePushIsDown(message, alerter)
       const refusedAgain = await consumeWhilePushIsDown(message, alerter)
 
-      expect(Exit.isFailure(refused.exit)).toBe(true)
-      expect(Exit.isFailure(refusedAgain.exit)).toBe(true)
+      expect(failureOf(refused.exit)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { cause: { message: 'dead letter refused' } },
+      })
+      expect(failureOf(refusedAgain.exit)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { cause: { message: 'dead letter refused' } },
+      })
       expect([...refused.acked, ...refusedAgain.acked]).toEqual([])
       expect(await attemptRows()).toEqual([
         { status: 'queued', retryCount: 2, deliveryMessageId: message.id },
@@ -462,7 +466,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       const refused = await consumeWhilePushIsDown(message)
 
-      expect(Exit.isFailure(refused.exit)).toBe(true)
+      expect(failureOf(refused.exit)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { cause: { message: 'commit refused' } },
+      })
       expect(refused.acked).toEqual([])
       expect(refused.alerts).toEqual([
         expect.objectContaining({
@@ -638,7 +645,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { cause: { message: 'notification refused' } },
+      })
       expect(await db.select().from(schema.userFollows)).toEqual([])
       expect(await db.select().from(schema.notifications)).toEqual([])
       expect(enqueued).toEqual([])
@@ -664,7 +674,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { _tag: 'UniqueViolation' },
+      })
       expect(await db.select().from(schema.notifications)).toEqual([])
     })
 
@@ -736,7 +749,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(defectOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { cause: { message: 'notification refused' } },
+      })
       expect(await db.select().from(schema.careDelegations)).toEqual([])
       expect(await db.select().from(schema.notifications)).toEqual([])
     })

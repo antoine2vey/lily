@@ -7,7 +7,8 @@ import {
   transact,
   transactQuietly,
 } from '@lily/api/kernel/transact'
-import { Data, Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Data, Effect, Layer } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'
 
@@ -92,8 +93,8 @@ describe('Transaction.afterCommit', () => {
         OPENERS[opener](Effect.andThen(registering(log), new BodyFailed()))
       )
 
-      expect({ failed: Exit.isFailure(exit), log }).toEqual({
-        failed: true,
+      expect({ failure: failureOf(exit), log }).toEqual({
+        failure: new BodyFailed(),
         log: ['body done'],
       })
     }

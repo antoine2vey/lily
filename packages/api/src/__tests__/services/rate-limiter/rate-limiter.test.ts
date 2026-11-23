@@ -3,6 +3,7 @@ import {
   createMockRateLimiterService,
 } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { RateLimiterService } from '@lily/api/services/rate-limiter/service'
+import { failureOf } from '@lily/shared/testing'
 import { Effect } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -44,7 +45,7 @@ describe('RateLimiterService', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)._tag).toBe('RateLimitExceededError')
     })
 
     it('should track request count per key', async () => {
@@ -64,7 +65,7 @@ describe('RateLimiterService', () => {
         }).pipe(Effect.provide(createMockRateLimiterService()))
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)._tag).toBe('RateLimitExceededError')
     })
 
     it('should track different keys independently', async () => {
@@ -106,12 +107,10 @@ describe('RateLimiterService', () => {
         )
       )
 
-      expect(result._tag).toBe('Failure')
-      if (result._tag === 'Failure') {
-        // Extract the error from the cause
-        const causeStr = String(result.cause)
-        expect(causeStr).toContain('45')
-      }
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'RateLimitExceededError',
+        retryAfter: 45,
+      })
     })
   })
 
@@ -160,7 +159,7 @@ describe('RateLimiterService', () => {
         }).pipe(Effect.provide(createMockRateLimiterService()))
       )
 
-      expect(result._tag).toBe('Failure')
+      expect(failureOf(result)._tag).toBe('RateLimitExceededError')
     })
   })
 })

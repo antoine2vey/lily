@@ -20,7 +20,8 @@ import { completeCarePlanStep } from '@lily/api/services/care-plans/endpoints/co
 import { uncompleteCarePlanStep } from '@lily/api/services/care-plans/endpoints/uncomplete-care-plan-step'
 import { withCarePlanStep } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import type { CarePlanStatus } from '@lily/shared/care-plan'
-import { Array, Effect, Exit, Layer, Option, References } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Array, Effect, Layer, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const userId = 'user-1'
@@ -152,10 +153,7 @@ describe('completeCarePlanStep', () => {
       tick('step-water').pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('CarePlanNotFoundError')
-    }
+    expect(failureOf(exit)._tag).toBe('CarePlanNotFoundError')
     expect(care.writes).toEqual([])
   })
 

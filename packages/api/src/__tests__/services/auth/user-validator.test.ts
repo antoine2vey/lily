@@ -1,9 +1,9 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
 import type { User } from '@lily/shared'
-import { Data, Effect, Exit, Layer, Redacted } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Data, Effect, Layer, Redacted } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Test fixtures
@@ -166,7 +166,10 @@ describe('validateUserFromToken', () => {
         }).pipe(Effect.provide(mockLayers))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'JWTError',
+        code: 'INVALID_TOKEN',
+      })
     })
 
     it('should fail when token is expired', async () => {
@@ -185,7 +188,10 @@ describe('validateUserFromToken', () => {
         }).pipe(Effect.provide(mockLayers))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'JWTError',
+        code: 'EXPIRED_TOKEN',
+      })
     })
   })
 
@@ -210,7 +216,6 @@ describe('validateUserFromToken', () => {
         }).pipe(Effect.provide(mockLayers))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
       expect(failureOf(result).message).toContain('Account is not active')
     })
 
@@ -234,7 +239,6 @@ describe('validateUserFromToken', () => {
         }).pipe(Effect.provide(mockLayers))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
       expect(failureOf(result).message).toContain('Account is not active')
     })
   })
@@ -260,7 +264,6 @@ describe('validateUserFromToken', () => {
         }).pipe(Effect.provide(mockLayers))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
       expect(failureOf(result).message).toContain('Authentication failed')
     })
   })
@@ -287,7 +290,6 @@ describe('validateUserFromToken', () => {
         }).pipe(Effect.provide(mockLayers))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
       expect(failureOf(result).message).toContain('Insufficient permissions')
     })
 
@@ -312,7 +314,6 @@ describe('validateUserFromToken', () => {
         }).pipe(Effect.provide(mockLayers))
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
       expect(failureOf(result).message).toContain('Insufficient permissions')
     })
   })

@@ -1,3 +1,4 @@
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Option } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 import {
@@ -51,7 +52,10 @@ describe('Storage Utilities', () => {
         storeAccessToken('test-access-token')
       )
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'StorageError',
+        message: 'Failed to store access token',
+      })
     })
   })
 
@@ -80,7 +84,10 @@ describe('Storage Utilities', () => {
 
       const result = await Effect.runPromiseExit(getStoredAccessToken)
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'StorageError',
+        message: 'Failed to get access token',
+      })
     })
   })
 
@@ -99,7 +106,10 @@ describe('Storage Utilities', () => {
 
       const result = await Effect.runPromiseExit(removeStoredAccessToken)
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)).toMatchObject({
+        _tag: 'StorageError',
+        message: 'Failed to remove access token',
+      })
     })
   })
 
@@ -201,7 +211,7 @@ describe('Storage Utilities', () => {
 
       const result = await Effect.runPromiseExit(clearAuthStorage)
 
-      expect(Exit.isFailure(result)).toBe(true)
+      expect(failureOf(result)._tag).toBe('StorageError')
     })
   })
 })

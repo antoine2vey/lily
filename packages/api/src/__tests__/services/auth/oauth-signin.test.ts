@@ -16,6 +16,7 @@ import {
 import { oauthSignIn } from '@lily/api/services/auth/endpoints/oauth-signin'
 import type { OAuthIdentity } from '@lily/api/services/oauth-verifier/service'
 import type { User } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -184,7 +185,10 @@ describe('oauthSignIn', () => {
         Effect.provide(layer)
       )
     )
-    expect(exit._tag).toBe('Failure')
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'invalid signature',
+    })
   })
 
   it('refuses merge when neither side is verified', async () => {
@@ -207,7 +211,10 @@ describe('oauthSignIn', () => {
         Effect.provide(layer)
       )
     )
-    expect(exit._tag).toBe('Failure')
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'AuthError',
+      message: expect.stringContaining('has not verified this email'),
+    })
     expect(store.identities.length).toBe(0)
   })
 

@@ -44,11 +44,11 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { type CareDay, CareDays, type PlantOwner } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { defectOf } from '@lily/shared/testing'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array,
-  Cause,
   DateTime,
   Effect,
   Exit,
@@ -319,7 +319,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           })
         )
 
-        expect(Exit.isFailure(exit)).toBe(true)
+        expect(defectOf(exit)).toMatchObject({
+          _tag: 'SqlError',
+          reason: { cause: { code: '22003' } },
+        })
         expect(await db.select().from(schema.plants)).toEqual([])
         expect(await published()).toEqual([])
       })
@@ -342,7 +345,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         )
 
-        expect(Exit.isFailure(exit)).toBe(true)
+        expect(defectOf(exit)).toMatchObject({
+          _tag: 'SqlError',
+          reason: { cause: { code: '22003' } },
+        })
         expect(await db.select().from(schema.plants)).toEqual([])
         expect(await published()).toEqual([])
       })
@@ -524,13 +530,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await applied(CareWrite.DeletePlant({ plantId: crypto.randomUUID() })),
       ]
 
-      expect(
-        Array.map(exits, (exit) =>
-          Exit.isFailure(exit) && Cause.hasDies(exit.cause)
-            ? String(Cause.squash(exit.cause))
-            : 'written'
-        )
-      ).toEqual(Array.replicate('PlantRowNotWrittenDefect', 3))
+      expect(Array.map(exits, (exit) => String(defectOf(exit)))).toEqual(
+        Array.replicate('PlantRowNotWrittenDefect', 3)
+      )
       const [stillDead] = await db
         .select({ cause: schema.plants.deathCause })
         .from(schema.plants)

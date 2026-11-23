@@ -1,11 +1,11 @@
 import { createTestUserAchievement } from '@lily/api/__tests__/fixtures/achievements'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { unlockAchievement } from '@lily/api/services/achievements/endpoints/unlock-achievement'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { ACHIEVEMENTS } from '@lily/shared'
 import { ForbiddenError } from '@lily/shared/errors/admin'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const createCurrentUserLayer = (
@@ -143,7 +143,6 @@ describe('unlockAchievement', () => {
       )
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(ForbiddenError)
   })
 

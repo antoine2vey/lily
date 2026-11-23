@@ -20,6 +20,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { TimeZone } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import type { UserSettingsUpdateRequest } from '@lily/shared/user'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -285,7 +286,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         EngagementFailingLive
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        message: 'injected engagement delete failure',
+      })
       expect(await storedSwitches()).toEqual({
         careReminders: true,
         tips: true,

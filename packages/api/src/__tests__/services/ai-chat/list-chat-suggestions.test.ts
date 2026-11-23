@@ -7,7 +7,6 @@ import {
   createTestCarePlanStep,
 } from '@lily/api/__tests__/fixtures/care-plans'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   createTestPlant,
   type TestPlant,
@@ -25,7 +24,8 @@ import type {
 import { listChatSuggestions } from '@lily/api/services/ai-chat/endpoints/list-chat-suggestions'
 import type { LanguageCode } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import { Array, Effect, Layer, Option } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const alex = 'user-alex'

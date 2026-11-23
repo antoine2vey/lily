@@ -1,4 +1,5 @@
-import { Effect, Exit } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('ai', async (importOriginal) => {
@@ -70,10 +71,7 @@ describe('enrichChunk', () => {
     await vi.runAllTimersAsync()
     const exit = await exitPromise
 
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('OpenAIError')
-    }
+    expect(failureOf(exit)._tag).toBe('OpenAIError')
   })
 
   it('should be recoverable with catchAll (graceful fallback pattern)', async () => {

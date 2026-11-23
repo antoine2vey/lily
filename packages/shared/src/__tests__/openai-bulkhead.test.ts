@@ -1,4 +1,5 @@
-import { Duration, Effect, Exit, Fiber, Option, Semaphore } from 'effect'
+import { defectOf, failureOf } from '@lily/shared/testing'
+import { Duration, Effect, Fiber, Semaphore } from 'effect'
 import { TestClock } from 'effect/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -30,9 +31,6 @@ const runWithPermits = <A, E>(permits: number, effect: Effect.Effect<A, E>) =>
     Effect.provide(TestClock.layer()),
     Effect.runPromise
   )
-
-const failureOf = (exit: Exit.Exit<unknown, OpenAIError>) =>
-  Exit.findErrorOption(exit).pipe(Option.getOrUndefined)
 
 describe('OpenAI bulkhead', () => {
   it('starts no more calls than there are permits', () =>
@@ -142,7 +140,7 @@ describe('OpenAI bulkhead size', () => {
       fresh('Plant detection', DEADLINE, openAICall)
     )
 
-    expect(Exit.hasDies(exit)).toBe(true)
+    expect(String(defectOf(exit))).toContain('OPENAI_MAX_CONCURRENT_CALLS')
     expect(started).toHaveLength(0)
   })
 })

@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   delivered,
   dissolve,
@@ -65,6 +64,7 @@ import {
   UserNotFoundError,
 } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { defectOf, failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -1854,7 +1854,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           )
         )
 
-        expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toEqual(
+        expect(defectOf(exit)).toEqual(
           new PlantsNotMovedDefect({ plantIds, moved: 1 })
         )
         expect(await whereIs(shared)).toMatchObject({ userId: null, canopyId })
@@ -2190,7 +2190,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             )
           )
 
-          expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toEqual(
+          expect(defectOf(exit)).toEqual(
             new RowsNotWrittenDefect({ write, named, written: named - 1 })
           )
           expect({

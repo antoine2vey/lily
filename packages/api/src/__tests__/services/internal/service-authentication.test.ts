@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { InternalApi } from '@lily/api/services/internal/api'
 import {
   ServiceAuth,
@@ -6,6 +5,7 @@ import {
 } from '@lily/api/services/internal/middleware'
 import { ServiceAuthenticationLive } from '@lily/api/services/internal/middleware.impl'
 import { UnauthorizedError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { ConfigProvider, Effect, Layer, Redacted } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 import type { HttpApiGroup } from 'effect/http-api'
@@ -62,7 +62,7 @@ describe('ServiceAuthenticationLive', () => {
 
     const exit = await Effect.runPromiseExit(authenticate('', emptySecretLayer))
 
-    expect(exit._tag).toBe('Failure')
+    expect(String(failureOf(exit))).toContain('SERVICE_TOKEN_SECRET')
   })
 
   it('should reject a secret with wrong length', async () => {

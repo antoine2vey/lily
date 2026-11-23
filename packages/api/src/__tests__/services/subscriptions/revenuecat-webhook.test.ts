@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockRevenueCatProvider } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
@@ -13,6 +12,7 @@ import {
   type RevenueCatSubscriberInfo,
   type RevenueCatSubscriberSubscription,
 } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -177,7 +177,10 @@ describe('handleRevenueCatWebhook', () => {
     const h = harness({ failingCreates: 1 })
 
     const failed = await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))
-    expect(failed._tag).toBe('Failure')
+    expect(failureOf(failed)).toMatchObject({
+      _tag: 'SqlError',
+      message: 'connection lost',
+    })
     expect((await h.currentRow())?.status).toBeUndefined()
 
     const retried = await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))

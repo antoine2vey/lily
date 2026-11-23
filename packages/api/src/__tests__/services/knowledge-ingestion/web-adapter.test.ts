@@ -1,7 +1,7 @@
 import { lookup } from 'node:dns/promises'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { webAdapter } from '@lily/api/services/knowledge-ingestion/adapters/web.adapter'
 import type { WebAdapterConfig } from '@lily/shared/knowledge'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Stream } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

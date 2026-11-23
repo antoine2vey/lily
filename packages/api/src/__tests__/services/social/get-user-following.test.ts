@@ -4,7 +4,8 @@ import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.rep
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { getUserFollowing } from '@lily/api/services/social/endpoints/get-user-following'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const currentUserId = 'user-1'
@@ -61,10 +62,7 @@ describe('getUserFollowing', () => {
         Effect.provide(buildLayer())
       )
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('UserNotFoundError')
-    }
+    expect(failureOf(exit)._tag).toBe('UserNotFoundError')
   })
 
   it('should fail with UserNotPublicError for private user', async () => {
@@ -73,9 +71,6 @@ describe('getUserFollowing', () => {
         Effect.provide(buildLayer())
       )
     )
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('UserNotPublicError')
-    }
+    expect(failureOf(exit)._tag).toBe('UserNotPublicError')
   })
 })

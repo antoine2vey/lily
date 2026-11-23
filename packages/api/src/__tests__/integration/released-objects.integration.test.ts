@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { delivered } from '@lily/api/__tests__/integration/canopy-layers'
 import { removeAsCurrentUser } from '@lily/api/__tests__/integration/care-layers'
 import {
@@ -64,6 +63,7 @@ import {
   type BucketRole,
   namedObjects,
 } from '@lily/shared/services/file/stored-object'
+import { failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Exit, Layer, References } from 'effect'
@@ -492,11 +492,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
 
         expect({
-          failed: Exit.isFailure(exit),
+          failure: failureOf(exit),
           photos: (await db.select().from(schema.plantPhotos)).length,
           objects: [...gcs.objects.plant],
         }).toEqual({
-          failed: true,
+          failure: 'the caller rolls back',
           photos: 1,
           objects: [`plants/${fern}/photo.jpg`],
         })

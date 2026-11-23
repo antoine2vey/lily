@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   dissolve,
   leave,
@@ -51,6 +50,7 @@ import {
 } from '@lily/shared'
 import { CarePlanNotFoundError } from '@lily/shared/errors/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { defectOf, failureOf } from '@lily/shared/testing'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Exit, Layer } from 'effect'
@@ -523,7 +523,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Effect.provide(settled(leave(lilyId)), AppLive)
       )
 
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(defectOf(exit)).toMatchObject({
+        _tag: 'SqlError',
+        reason: { cause: { message: 'notification refused' } },
+      })
       expect(await requestCount()).toBe(requestsBefore)
       const members = await db
         .select({ userId: schema.canopyMembers.userId })

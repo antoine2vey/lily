@@ -2,7 +2,6 @@ import {
   mockDelegation1,
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
@@ -15,7 +14,8 @@ import {
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
 } from '@lily/shared'
-import { Effect, Exit, Layer } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const ownerCurrentUser = Layer.succeed(CurrentUser, {
@@ -131,7 +131,6 @@ describe('completeDelegation', () => {
       completeDelegation(activeDelegation.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotAuthorizedError)
   })
 
@@ -144,7 +143,6 @@ describe('completeDelegation', () => {
       completeDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -157,7 +155,6 @@ describe('completeDelegation', () => {
       completeDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -170,7 +167,6 @@ describe('completeDelegation', () => {
       completeDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
@@ -181,7 +177,6 @@ describe('completeDelegation', () => {
       completeDelegation('non-existent').pipe(Effect.provide(layer))
     )
 
-    expect(Exit.isFailure(result)).toBe(true)
     expect(failureOf(result)).toBeInstanceOf(DelegationNotFoundError)
   })
 })

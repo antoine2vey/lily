@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { permitTo } from '@lily/api/__tests__/mocks/care'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
@@ -9,6 +8,7 @@ import type { RecordPermit } from '@lily/api/kernel/permit'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { deletePlantPhoto } from '@lily/api/services/plants/endpoints/delete-plant-photo'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

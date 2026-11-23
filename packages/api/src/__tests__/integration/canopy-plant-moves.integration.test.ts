@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { settled } from '@lily/api/__tests__/integration/canopy-layers'
 import { sessionsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -23,6 +22,7 @@ import { withPlantPermit } from '@lily/api/services/plants/helpers/with-plant-ac
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { failureOf } from '@lily/shared/testing'
 import { and, count, eq, isNull, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer } from 'effect'

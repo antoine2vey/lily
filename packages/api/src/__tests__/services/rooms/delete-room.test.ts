@@ -3,6 +3,7 @@ import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.rep
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { deleteRoom } from '@lily/api/services/rooms/endpoints/delete-room'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -37,7 +38,7 @@ describe('deleteRoom', () => {
       deleteRoom({ id: 'non-existent' }).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('RoomNotFoundError')
   })
 
   it('should fail when user tries to delete another users room', async () => {
@@ -48,6 +49,6 @@ describe('deleteRoom', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('RoomNotFoundError')
   })
 })

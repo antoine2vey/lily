@@ -1,4 +1,5 @@
 import { DeviceTokenCreateRequest } from '@lily/shared/device-token'
+import { failureOf } from '@lily/shared/testing'
 import { Exit, Schema } from 'effect'
 import Expo from 'expo-server-sdk'
 import { describe, expect, it } from 'vitest'
@@ -25,6 +26,6 @@ describe('DeviceTokenCreateRequest', () => {
     'ExponentPushToken[abc',
     '740f4707bebcf74f9b7c25d48e3358945f6aa01da5ddb387462c7eaf61bb78ad',
   ])('rejects %j', (token) => {
-    expect(Exit.isFailure(decode(token))).toBe(true)
+    expect(failureOf(decode(token))._tag).toBe('SchemaError')
   })
 })

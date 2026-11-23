@@ -1,5 +1,4 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
@@ -13,6 +12,7 @@ import {
   LimitExceededError,
   type PlantOwner,
 } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { DateTime, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

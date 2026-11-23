@@ -1,7 +1,8 @@
 import { ACCESS_TOKEN_EXPIRY_SECONDS } from '@lily/api/services/auth/constants'
 import { issueServiceToken } from '@lily/api/services/internal/endpoints/issue-service-token'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { Cause, Effect, Exit, Layer, Option } from 'effect'
+import { failureOf } from '@lily/shared/testing'
+import { Effect, type Exit, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   mockExpiredMagicLink,
@@ -69,14 +70,7 @@ describe('issueServiceToken', () => {
     exit: Exit.Exit<unknown, { message: string }>,
     message: string
   ) => {
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      const error = Cause.findErrorOption(exit.cause)
-      expect(Option.isSome(error)).toBe(true)
-      if (Option.isSome(error)) {
-        expect(error.value.message).toBe(message)
-      }
-    }
+    expect(failureOf(exit).message).toBe(message)
   }
 
   it('should return JWT and refresh token for valid magic link', async () => {

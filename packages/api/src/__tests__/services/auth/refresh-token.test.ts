@@ -17,6 +17,7 @@ import {
 } from '@lily/api/__tests__/mocks/refresh-token.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { refreshToken } from '@lily/api/services/auth/endpoints/refresh-token'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Cause, Effect, Exit, Layer, Option } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -65,7 +66,10 @@ describe('refreshToken', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired refresh token',
+    })
   })
 
   it('should fail with expired refresh token', async () => {
@@ -82,7 +86,10 @@ describe('refreshToken', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired refresh token',
+    })
   })
 
   it('should fail with revoked refresh token', async () => {
@@ -99,7 +106,10 @@ describe('refreshToken', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired refresh token',
+    })
   })
 
   it('should honor a token rotated within the grace window', async () => {
@@ -171,7 +181,10 @@ describe('refreshToken', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Invalid or expired refresh token',
+    })
   })
 
   it('should propagate RateLimitExceededError when throttled', async () => {
@@ -185,7 +198,7 @@ describe('refreshToken', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)._tag).toBe('RateLimitExceededError')
     const failure = Exit.isFailure(result)
       ? Option.getOrNull(Cause.findErrorOption(result.cause))
       : null
@@ -210,7 +223,10 @@ describe('refreshToken', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'User not found',
+    })
   })
 
   it('should fail for suspended user', async () => {
@@ -230,7 +246,10 @@ describe('refreshToken', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Account is not active',
+    })
   })
 
   it('should fail for banned user', async () => {
@@ -255,7 +274,10 @@ describe('refreshToken', () => {
       )
     )
 
-    expect(result._tag).toBe('Failure')
+    expect(failureOf(result)).toMatchObject({
+      _tag: 'AuthError',
+      message: 'Account is not active',
+    })
   })
 
   it('should return correct expiry time', async () => {
