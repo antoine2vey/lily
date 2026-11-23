@@ -52,14 +52,18 @@ jest.mock('@/hooks/usePlantCanopyActions', () => ({
 }))
 
 const mockLiveMutations = { current: false }
-jest.mock('@/utils/client', () => ({
-  useEffectQuery: jest.fn(),
-  useEffectMutation: jest.fn((...args: unknown[]) =>
-    mockLiveMutations.current
-      ? jest.requireActual('@/utils/client').useEffectMutation(...args)
-      : { mutate: jest.fn(), isPending: false }
-  ),
-}))
+jest.mock('@/utils/client', () => {
+  const actual = jest.requireActual('@/utils/client')
+  return {
+    useEffectQuery: jest.fn(),
+    useEffectMutation: jest.fn((...args: unknown[]) =>
+      mockLiveMutations.current
+        ? // biome-ignore lint/correctness/useHookAtTopLevel: the flag is set before the render and never changes under a mounted screen.
+          actual.useEffectMutation(...args)
+        : { mutate: jest.fn(), isPending: false }
+    ),
+  }
+})
 
 jest.mock('@/hooks/useUploadPhoto', () => ({
   useUploadPhoto: () => ({
@@ -68,12 +72,16 @@ jest.mock('@/hooks/useUploadPhoto', () => ({
   }),
 }))
 
-jest.mock('@/hooks/useCarePlant', () => ({
-  useCarePlant: () =>
-    mockLiveMutations.current
-      ? jest.requireActual('@/hooks/useCarePlant').useCarePlant()
-      : { mutate: jest.fn(), isPending: false },
-}))
+jest.mock('@/hooks/useCarePlant', () => {
+  const actual = jest.requireActual('@/hooks/useCarePlant')
+  return {
+    useCarePlant: () =>
+      mockLiveMutations.current
+        ? // biome-ignore lint/correctness/useHookAtTopLevel: the flag is set before the render and never changes under a mounted screen.
+          actual.useCarePlant()
+        : { mutate: jest.fn(), isPending: false },
+  }
+})
 
 const mockDeleteResult = {
   current: Result.succeed({}) as Result.Result<unknown, unknown>,
