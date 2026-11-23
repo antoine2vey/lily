@@ -1,5 +1,4 @@
 import { createTestDeviceToken } from '@lily/api/__tests__/fixtures/device-tokens'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -7,6 +6,7 @@ import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-pus
 import { registerStartToken } from '@lily/api/services/activity-push-tokens/endpoints/register-start-token'
 import { registerDeviceToken } from '@lily/api/services/device-tokens/endpoints/register-device-token'
 import { type ActivityPushToken, DeviceTokenNotFoundError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

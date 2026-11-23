@@ -1,5 +1,4 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
 import {
   createInMemoryCare,
@@ -23,6 +22,7 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { PlantDeathRequest } from '@lily/shared/plant'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

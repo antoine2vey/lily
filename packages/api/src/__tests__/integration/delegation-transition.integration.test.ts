@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   AbsenceOnPostgresLive,
   absenceOverStore,
@@ -41,6 +40,7 @@ import { pollAndTransition } from '@lily/api/services/delegation-scheduler/sched
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { DelegationInvalidStatusError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {

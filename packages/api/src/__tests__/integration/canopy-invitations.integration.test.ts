@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   dissolve,
   leave,
@@ -28,6 +27,7 @@ import { acceptCanopyInvitation } from '@lily/api/services/canopy/endpoints/acce
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { CanopyInviteNotFoundError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Exit, Layer } from 'effect'

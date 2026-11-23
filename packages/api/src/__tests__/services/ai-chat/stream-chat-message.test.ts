@@ -4,7 +4,6 @@ import {
   mockChatMessages,
   mockPlantConversation,
 } from '@lily/api/__tests__/fixtures/chat'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { recordSpans } from '@lily/api/__tests__/fixtures/spans'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
@@ -33,6 +32,7 @@ import type { UsageField } from '@lily/shared'
 import type { ChatMessage, ChatSuggestionTap } from '@lily/shared/ai-chat'
 import { ConversationNotFoundError } from '@lily/shared/ai-chat'
 import type { AppEvent } from '@lily/shared/server'
+import { failureOf } from '@lily/shared/testing'
 import {
   Array,
   type Duration,

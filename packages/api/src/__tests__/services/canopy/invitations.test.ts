@@ -1,5 +1,4 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import {
   createCanopyStore,
@@ -32,6 +31,7 @@ import {
   type User,
 } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Exit } from 'effect'
 import { describe, expect, it } from 'vitest'
 

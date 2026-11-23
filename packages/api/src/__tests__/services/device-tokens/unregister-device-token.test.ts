@@ -1,9 +1,9 @@
 import { mockDeviceTokens } from '@lily/api/__tests__/fixtures/device-tokens'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { unregisterDeviceToken } from '@lily/api/services/device-tokens/endpoints/unregister-device-token'
 import { DeviceTokenNotFoundError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

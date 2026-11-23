@@ -1,6 +1,5 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import {
   createCanopyStore,
@@ -37,6 +36,7 @@ import {
   TimeZone,
 } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Exit, String } from 'effect'
 import { describe, expect, it } from 'vitest'
 

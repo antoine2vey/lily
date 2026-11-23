@@ -2,7 +2,6 @@ import {
   mockDelegation1,
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
@@ -15,6 +14,7 @@ import {
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
 } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

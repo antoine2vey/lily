@@ -2,7 +2,6 @@ import {
   createTestMembership,
   mockCanopyId,
 } from '@lily/api/__tests__/fixtures/canopies'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockRooms } from '@lily/api/__tests__/fixtures/rooms'
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import {
@@ -16,6 +15,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createRoom } from '@lily/api/services/rooms/endpoints/create-room'
 import { CanopyNotFoundError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

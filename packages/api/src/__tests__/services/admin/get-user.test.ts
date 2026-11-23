@@ -1,7 +1,7 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { getUser } from '@lily/api/services/admin/endpoints/get-user'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit } from 'effect'
 import { describe, expect, it } from 'vitest'
 

@@ -1,7 +1,7 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockAdminJWTPayload } from '@lily/api/__tests__/fixtures/jwt'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { JWTService, JWTServiceLive } from '@lily/api/services/jwt/service'
+import { failureOf } from '@lily/shared/testing'
 import { ConfigProvider, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

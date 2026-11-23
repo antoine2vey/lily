@@ -1,9 +1,9 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestRoom } from '@lily/api/__tests__/fixtures/rooms'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { assertRoomFits } from '@lily/api/services/plants/helpers/assert-room-fits'
 import { type CanopyId, type PlantOwner, RoomNotFoundError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 

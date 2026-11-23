@@ -3,7 +3,6 @@ import {
   mockCanopyId,
 } from '@lily/api/__tests__/fixtures/canopies'
 import { mockDelegation2 } from '@lily/api/__tests__/fixtures/delegations'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
@@ -19,6 +18,7 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

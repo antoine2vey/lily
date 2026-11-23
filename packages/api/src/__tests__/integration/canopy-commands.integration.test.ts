@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   delivered,
   dissolve,
@@ -65,6 +64,7 @@ import {
   UserNotFoundError,
 } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {

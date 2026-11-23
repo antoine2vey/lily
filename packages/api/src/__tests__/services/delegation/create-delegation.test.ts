@@ -3,7 +3,6 @@ import {
   mockDelegation1,
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   createTestPlant,
   mockPlants,
@@ -27,6 +26,7 @@ import {
 } from '@lily/shared'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import type { Notification } from '@lily/shared/notification'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

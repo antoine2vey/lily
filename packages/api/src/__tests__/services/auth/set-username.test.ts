@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   mockUser1,
   mockUser2,
@@ -10,6 +9,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { setUsername } from '@lily/api/services/auth/endpoints/set-username'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { AuthError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer, Option, Predicate, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 

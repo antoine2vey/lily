@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
@@ -8,6 +7,7 @@ import {
 } from '@lily/api/services/subscriptions/limit-checker'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
 import { LimitExceededError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { DateTime, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 

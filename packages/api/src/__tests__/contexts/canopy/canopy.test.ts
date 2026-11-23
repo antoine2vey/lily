@@ -2,7 +2,6 @@ import {
   createTestMembership,
   mockCanopyId,
 } from '@lily/api/__tests__/fixtures/canopies'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestRoom } from '@lily/api/__tests__/fixtures/rooms'
@@ -63,6 +62,7 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Cause, DateTime, Effect, Exit, Layer, Option } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

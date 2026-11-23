@@ -1,9 +1,9 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import {
   RevenueCatProvider,
   RevenueCatProviderLive,
 } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
+import { failureOf } from '@lily/shared/testing'
 import { ConfigProvider, Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 

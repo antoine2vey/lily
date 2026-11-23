@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import {
   dissolve,
   leave,
@@ -51,6 +50,7 @@ import {
 } from '@lily/shared'
 import { CarePlanNotFoundError } from '@lily/shared/errors/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Exit, Layer } from 'effect'

@@ -1,5 +1,4 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestPlant, noCare } from '@lily/api/__tests__/fixtures/plants'
 import {
   createInMemoryCare,
@@ -12,6 +11,7 @@ import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

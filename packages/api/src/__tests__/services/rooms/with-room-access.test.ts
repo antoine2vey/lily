@@ -2,13 +2,13 @@ import {
   createTestMembership,
   mockCanopyId,
 } from '@lily/api/__tests__/fixtures/canopies'
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createTestRoom } from '@lily/api/__tests__/fixtures/rooms'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { withRoomAuth } from '@lily/api/services/rooms/helpers/with-room-access'
 import { type CanopyId, RoomNotFoundError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

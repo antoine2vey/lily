@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import {
@@ -31,6 +30,7 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { CanopyId, PlantOwner, UserStatus } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Exit, Layer, Option, Record, String } from 'effect'

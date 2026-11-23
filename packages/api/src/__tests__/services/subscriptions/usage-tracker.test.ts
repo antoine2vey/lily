@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -21,6 +20,7 @@ import {
 import type { subscriptionUsage } from '@lily/db/schema'
 import { LimitExceededError, type UsageField } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
+import { failureOf } from '@lily/shared/testing'
 import { Deferred, Effect, Exit, Fiber, FiberSet, Layer, Schema } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 

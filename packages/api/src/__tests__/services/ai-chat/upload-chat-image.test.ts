@@ -1,4 +1,3 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { HTML_BYTES } from '@lily/api/__tests__/fixtures/images'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
@@ -8,6 +7,7 @@ import { uploadChatImage } from '@lily/api/services/ai-chat/endpoints/upload-cha
 import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import type { GCSUploadRequest } from '@lily/shared/server'
 import { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Exit, Layer } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'

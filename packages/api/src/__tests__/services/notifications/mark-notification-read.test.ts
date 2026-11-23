@@ -1,9 +1,9 @@
-import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockNotifications } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { markNotificationRead } from '@lily/api/services/notifications/endpoints/mark-notification-read'
 import { NotificationNotFoundError } from '@lily/shared'
+import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
