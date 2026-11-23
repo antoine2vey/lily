@@ -1,4 +1,4 @@
-import { sessionsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
+import { holdRowUntilWaited } from '@lily/api/__tests__/integration/lock-waits'
 import {
   type IMagicLinkRepository,
   MagicLinkRepository,
@@ -104,26 +104,25 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     it('lets exactly one of two concurrent verifications spend the link', async () => {
       const token = await insertLink({ expiresAt: inMinutes(10) })
-      const holder = await pool.connect()
-      await holder.query('BEGIN')
-      await holder.query(
-        'SELECT 1 FROM magic_links WHERE token = $1 FOR UPDATE',
-        [token]
-      )
 
-      const verifications = run((repo) =>
-        Effect.all(
-          [repo.findValidAndMarkUsed(token), repo.findValidAndMarkUsed(token)],
-          { concurrency: 'unbounded' }
-        )
+      const { waiting, result } = await holdRowUntilWaited(
+        pool,
+        'SELECT 1 FROM magic_links WHERE token = $1 FOR UPDATE',
+        [token],
+        () =>
+          run((repo) =>
+            Effect.all(
+              [
+                repo.findValidAndMarkUsed(token),
+                repo.findValidAndMarkUsed(token),
+              ],
+              { concurrency: 'unbounded' }
+            )
+          )
       )
-      const waiting = await sessionsWaitingForALock(pool, 2)
-      await holder.query('COMMIT')
-      holder.release()
-      const results = await verifications
 
       expect(waiting).toBe(2)
-      expect(Arr.filter(results, (link) => link !== null)).toHaveLength(1)
+      expect(Arr.filter(await result, (link) => link !== null)).toHaveLength(1)
     })
   }
 )

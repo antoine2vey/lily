@@ -29,6 +29,29 @@ export const sessionsWaitingForALock = async (
   return 0
 }
 
+/**
+ * Starts `contenders` while another session holds the row `lockQuery` selects
+ * FOR UPDATE, and lets the row go once `waiters` sessions wait on it, so the
+ * contenders always overlap. `waiting` is how many sessions were seen waiting.
+ */
+export const holdRowUntilWaited = async <A>(
+  pool: pg.Pool,
+  lockQuery: string,
+  params: ReadonlyArray<unknown>,
+  contenders: () => Promise<A>,
+  waiters = 2
+) => {
+  const holder = await pool.connect()
+  try {
+    await holder.query('BEGIN')
+    await holder.query(lockQuery, [...params])
+    const result = contenders()
+    return { waiting: await sessionsWaitingForALock(pool, waiters), result }
+  } finally {
+    await holder.query('COMMIT').finally(() => holder.release())
+  }
+}
+
 export const sleepsBetweenAttempts = async (pool: pg.Pool) => {
   for (const _ of Array.range(1, IDLE_POLLS)) {
     const { rowCount } = await pool.query(

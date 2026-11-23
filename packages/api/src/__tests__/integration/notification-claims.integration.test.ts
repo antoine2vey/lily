@@ -1,3 +1,4 @@
+import { holdRowUntilWaited } from '@lily/api/__tests__/integration/lock-waits'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { type CareReads, CareReadsLive } from '@lily/api/contexts/care'
 import {
@@ -1104,11 +1105,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       it('lets exactly one of two concurrent callers start the device', async () => {
         await insertStartToken()
 
-        const results = await run(
-          Effect.all([claimStart, claimStart], { concurrency: 'unbounded' })
+        const { waiting, result } = await holdRowUntilWaited(
+          pool,
+          'SELECT 1 FROM activity_push_tokens WHERE device_token_id = $1 FOR UPDATE',
+          [deviceTokenId],
+          () =>
+            run(
+              Effect.all([claimStart, claimStart], { concurrency: 'unbounded' })
+            )
         )
 
-        expect(Arr.flatten(results)).toEqual([deviceTokenId])
+        expect(waiting).toBe(2)
+        expect(Arr.flatten(await result)).toEqual([deviceTokenId])
       })
 
       it('frees the device again once the phone confirmed the start', async () => {
