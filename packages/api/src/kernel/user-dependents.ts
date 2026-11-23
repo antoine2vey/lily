@@ -8,8 +8,8 @@ export type Policy = Data.TaggedEnum<{
   Withdraw: { readonly withdrawn: string }
   /** The row stays and the column no longer names the user. */
   Reassign: Record<never, never>
-  /** The row stays as it is. */
-  Keep: { readonly reason: string }
+  /** The row stays as it is, and still meets `live` when it is set. */
+  Keep: { readonly reason: string; readonly live?: string }
 }>
 
 export const Policy = Data.taggedEnum<Policy>()
@@ -28,21 +28,31 @@ export interface UserDependent {
   readonly departure: Policy
 }
 
-const notActive = Keep({
-  reason: 'the api refuses an account that is not active',
-})
+const NOT_ACTIVE = 'the api refuses an account that is not active'
+const PERSONAL = 'it belongs to the account, not the canopy'
+const notActive = Keep({ reason: NOT_ACTIVE })
 const history = Keep({ reason: 'history keeps who did it' })
-const personal = Keep({ reason: 'it belongs to the account, not the canopy' })
+const personal = Keep({ reason: PERSONAL })
+const activeSubscription = Keep({
+  reason: 'a restored account keeps its subscription',
+  live: "status = 'active'",
+})
 const ownChat = Keep({ reason: 'the user keeps their own chat' })
 const pendingInvitation = Withdraw({ withdrawn: "status = 'withdrawn'" })
 const canceledDelegation = Withdraw({ withdrawn: "status = 'canceled'" })
+const revokedLink = Withdraw({ withdrawn: 'revoked_at IS NOT NULL' })
+const pendingNonReminders = Cascade()
+const openDelegation = Keep({
+  reason: 'a delegation holds personal plants only',
+  live: "status = 'pending'",
+})
 
 /** Every foreign key column that references `users.id`, as `table.column`. */
 export const USER_DEPENDENTS = {
   'activity_push_tokens.user_id': {
     release: Cascade(),
     purge: Cascade(),
-    departure: personal,
+    departure: Keep({ reason: PERSONAL, live: "status = 'active'" }),
   },
   'canopy_direct_invites.invited_by_user_id': {
     release: pendingInvitation,
@@ -55,9 +65,9 @@ export const USER_DEPENDENTS = {
     departure: pendingInvitation,
   },
   'canopy_invites.created_by_user_id': {
-    release: Keep({ reason: 'a link belongs to the canopy' }),
+    release: revokedLink,
     purge: Reassign(),
-    departure: Keep({ reason: 'a link belongs to the canopy' }),
+    departure: revokedLink,
   },
   'canopy_members.user_id': {
     release: Cascade(),
@@ -72,12 +82,12 @@ export const USER_DEPENDENTS = {
   'care_delegations.caretaker_id': {
     release: canceledDelegation,
     purge: Cascade(),
-    departure: Keep({ reason: 'a delegation holds personal plants only' }),
+    departure: openDelegation,
   },
   'care_delegations.owner_id': {
     release: canceledDelegation,
     purge: Cascade(),
-    departure: Keep({ reason: 'a delegation holds personal plants only' }),
+    departure: openDelegation,
   },
   'care_logs.performed_by_user_id': {
     release: history,
@@ -85,9 +95,12 @@ export const USER_DEPENDENTS = {
     departure: history,
   },
   'care_plans.user_id': {
-    release: notActive,
+    release: Keep({ reason: NOT_ACTIVE, live: "status = 'proposed'" }),
     purge: Cascade(),
-    departure: Keep({ reason: 'a plan stays with its plant' }),
+    departure: Keep({
+      reason: 'a plan stays with its plant',
+      live: "status = 'proposed'",
+    }),
   },
   'chat_conversations.user_id': {
     release: notActive,
@@ -112,7 +125,7 @@ export const USER_DEPENDENTS = {
   'device_tokens.user_id': {
     release: Cascade(),
     purge: Cascade(),
-    departure: personal,
+    departure: Keep({ reason: PERSONAL, live: 'is_active' }),
   },
   'diagnoses.user_id': {
     release: notActive,
@@ -125,7 +138,7 @@ export const USER_DEPENDENTS = {
     departure: personal,
   },
   'notifications.user_id': {
-    release: Cascade(),
+    release: pendingNonReminders,
     purge: Cascade(),
     departure: Cascade(),
   },
@@ -226,10 +239,20 @@ export const USER_DEPENDENTS = {
     departure: personal,
   },
   'user_subscriptions.user_id': {
-    release: Keep({ reason: 'a restored account keeps its subscription' }),
+    release: activeSubscription,
     purge: Cascade(),
-    departure: personal,
+    departure: Keep({ reason: PERSONAL, live: "status = 'active'" }),
   },
 } as const satisfies Record<`${string}.${string}`, UserDependent>
 
 export type UserDependentColumn = keyof typeof USER_DEPENDENTS
+
+/** Columns named like a user id that have no foreign key to `users.id`, each with why. */
+export const UNLINKED_USER_COLUMNS = {
+  'oauth_authorization_codes.user_id':
+    'a code lives 10 minutes and is deleted when spent, and the tokens it buys have the foreign key',
+  'oauth_identities.provider_user_id':
+    "the provider's id for the user, not a Lily id",
+  'revenuecat_webhook_events.app_user_id':
+    "RevenueCat's app user id, kept as an audit of the webhook",
+} as const satisfies Record<`${string}.${string}`, string>

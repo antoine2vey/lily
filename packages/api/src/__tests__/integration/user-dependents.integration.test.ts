@@ -9,6 +9,7 @@ import { Canopy } from '@lily/api/contexts/canopy'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import {
   type Policy,
+  UNLINKED_USER_COLUMNS,
   USER_DEPENDENTS,
   type UserDependent,
   type UserDependentColumn,
@@ -551,12 +552,19 @@ const PURGED_BY: Record<
 interface Observed {
   readonly present: boolean
   readonly names: boolean
-  readonly withdrawn: boolean
+  readonly meets: boolean
 }
+
+const conditionOf = (policy: Policy): string =>
+  Match.value(policy).pipe(
+    Match.tag('Withdraw', (p) => p.withdrawn),
+    Match.tag('Keep', (p) => p.live ?? 'true'),
+    Match.orElse(() => 'true')
+  )
 
 const broken = (
   policy: Policy,
-  { present, names, withdrawn }: Observed
+  { present, names, meets }: Observed
 ): Option.Option<string> =>
   Match.value(policy).pipe(
     Match.tag('Cascade', () =>
@@ -567,7 +575,7 @@ const broken = (
     Match.tag('Withdraw', (p) =>
       !present
         ? Option.some(`Withdraw wants it kept with ${p.withdrawn}, it is gone`)
-        : withdrawn
+        : meets
           ? Option.none()
           : Option.some(`Withdraw wants ${p.withdrawn}, it is still live`)
     ),
@@ -583,11 +591,15 @@ const broken = (
     Match.tag('Keep', (p) =>
       !present
         ? Option.some(`Keep (${p.reason}) wants it kept, it is gone`)
-        : names
-          ? Option.none()
-          : Option.some(
+        : !names
+          ? Option.some(
               `Keep (${p.reason}) wants it unchanged, it no longer names the user`
             )
+          : meets
+            ? Option.none()
+            : Option.some(
+                `Keep (${p.reason}) wants it still ${p.live}, it no longer is`
+              )
     ),
     Match.exhaustive
   )
@@ -697,13 +709,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       subject: string
     ): Promise<Observed> => {
       const [table = '', name = ''] = String.split(column, '.')
-      const withdrawn =
-        policy._tag === 'Withdraw' ? sql.raw(policy.withdrawn) : sql`false`
-      const { rows } = await db.execute<{ names: boolean; withdrawn: boolean }>(
-        sql`SELECT ${sql.identifier(name)} IS NOT DISTINCT FROM ${subject}::uuid AS names, ${withdrawn} AS withdrawn FROM ${sql.identifier(table)} WHERE ${where}`
+      const { rows } = await db.execute<{ names: boolean; meets: boolean }>(
+        sql`SELECT ${sql.identifier(name)} IS NOT DISTINCT FROM ${subject}::uuid AS names, (${sql.raw(conditionOf(policy))}) AS meets FROM ${sql.identifier(table)} WHERE ${where}`
       )
       return Option.match(Array.head(rows), {
-        onNone: () => ({ present: false, names: false, withdrawn: false }),
+        onNone: () => ({ present: false, names: false, meets: false }),
         onSome: (row) => ({ present: true, ...row }),
       })
     }
@@ -720,7 +730,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await pool.end()
     })
 
-    it('lists every foreign key to users.id, with the ON DELETE its purge policy needs', async () => {
+    it('lists every foreign key to users.id with the ON DELETE its purge policy needs, and every column named like a user id', async () => {
       const { rows } = await db.execute<{ column: string; action: string }>(sql`
         SELECT c.conrelid::regclass::text || '.' || a.attname AS column,
                c.confdeltype AS action
@@ -732,7 +742,21 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const actions = Record.fromEntries(
         Array.map(rows, ({ column, action }) => [column, action])
       )
+      const named = await db.execute<{ column: string }>(sql`
+        SELECT c.table_name || '.' || c.column_name AS column
+        FROM information_schema.columns c
+        JOIN information_schema.tables t
+          ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+        WHERE c.table_schema = 'public'
+          AND t.table_type = 'BASE TABLE'
+          AND c.column_name ~ '(^|_)user_id$'
+      `)
+      const unlinked = Array.filter(
+        Array.map(named.rows, ({ column }) => column),
+        (column) => !(column in actions)
+      )
       const registered: Record<string, UserDependent> = USER_DEPENDENTS
+      const allowed: Record<string, string> = UNLINKED_USER_COLUMNS
 
       const problems = Array.getSomes([
         ...Array.map(Record.keys(actions), (column) =>
@@ -755,6 +779,20 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                     `${column} purges as ${dependent.purge._tag} in ${REGISTRY}, but its foreign key is ON DELETE ${ON_DELETE[action] ?? action}`
                   ),
           })
+        ),
+        ...Array.map(unlinked, (column) =>
+          column in allowed
+            ? Option.none()
+            : Option.some(
+                `${column} is named like a user id but has no foreign key to users.id. Add the foreign key and its USER_DEPENDENTS entry, or list it in UNLINKED_USER_COLUMNS with why (${REGISTRY})`
+              )
+        ),
+        ...Array.map(Record.keys(allowed), (column) =>
+          Array.contains(unlinked, column)
+            ? Option.none()
+            : Option.some(
+                `${column} is in UNLINKED_USER_COLUMNS (${REGISTRY}) but is not a user id column without a foreign key`
+              )
         ),
       ])
 
