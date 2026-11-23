@@ -230,9 +230,10 @@ export const UserRepositoryLive = Layer.effect(
         data: UpdateUserData
       ) {
         const [user] = yield* writeAccount(
+          db,
           id,
           { ...data, updatedAt: nowAsDate() },
-          (set) => db.update(users).set(set).where(eq(users.id, id)).returning()
+          (set) => set.where(eq(users.id, id)).returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
@@ -249,12 +250,13 @@ export const UserRepositoryLive = Layer.effect(
         id: string
       ) {
         const [user] = yield* writeAccount(
+          db,
           id,
           {
             status: 'pending_deletion',
             deletedAt: nowAsDate(),
           },
-          (set) => db.update(users).set(set).where(eq(users.id, id)).returning()
+          (set) => set.where(eq(users.id, id)).returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
@@ -314,9 +316,10 @@ export const UserRepositoryLive = Layer.effect(
         role: UserRole
       ) {
         const [user] = yield* writeAccount(
+          db,
           id,
           { role, updatedAt: nowAsDate() },
-          (set) => db.update(users).set(set).where(eq(users.id, id)).returning()
+          (set) => set.where(eq(users.id, id)).returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
@@ -326,9 +329,10 @@ export const UserRepositoryLive = Layer.effect(
         status: UserStatus
       ) {
         const [user] = yield* writeAccount(
+          db,
           id,
           { status, updatedAt: nowAsDate() },
-          (set) => db.update(users).set(set).where(eq(users.id, id)).returning()
+          (set) => set.where(eq(users.id, id)).returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),

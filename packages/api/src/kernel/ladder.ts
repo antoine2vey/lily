@@ -5,13 +5,9 @@ import { Array, Data, Option, Order, Result } from 'effect'
  * take each of them.
  *
  * Two locks have no place on it. `SKIP LOCKED` never waits. `FOR KEY SHARE` on
- * an account row is what a foreign key takes at any insert, and it waits only
- * for a transaction that holds the row `FOR UPDATE`. Three do. The erase of
- * the account is what each pin is placed against. A change of avatar and a
- * write of the email or name hold nothing before the account row and ask
- * after it for Notification rows at most, which no transaction holds when it
- * pins an account. So neither holds what a pinning transaction waits for
- * while it waits for the pin.
+ * an account row has no rank that fits every transaction. The foreign key of
+ * any insert that names an account takes it without asking, and nothing here
+ * sees that. One cycle through such an insert is known (issue #384).
  */
 export const LADDER = [
   'UserKey',

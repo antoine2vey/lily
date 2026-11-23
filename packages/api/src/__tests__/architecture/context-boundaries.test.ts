@@ -155,9 +155,7 @@ describe('locks', () => {
     ).toEqual([INGEST_JOBS])
   })
 
-  it('cover every update of an account row', () => {
-    const WRAPPED =
-      /\bwriteAccount\((?:(?!\bwriteAccount\()[\s\S])*?=>\s*db\s*\.update\(users\)/g
+  it('leave every update of an account row to the kernel', () => {
     const BARE =
       /\.update\(\s*(\w+\s*\.\s*)?users\s*\)|\bupdate\s+(only\s+)?"?users"?(?![\w"])/i
     const RENAMED = /\busers\s+as\s+\w|\busers\s*:\s*\w+\s*[,}]\s*=/
@@ -165,9 +163,9 @@ describe('locks', () => {
 
     expect(
       sources
-        .filter(({ code }) => BARE.test(code.replace(WRAPPED, '')))
+        .filter(({ code }) => BARE.test(code))
         .map(({ file }) => name(file))
-    ).toEqual([])
+    ).toEqual([KERNEL_LOCKS])
     expect(
       sources
         .filter(({ code }) => RENAMED.test(code))

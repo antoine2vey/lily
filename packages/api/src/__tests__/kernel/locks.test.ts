@@ -9,6 +9,7 @@ import {
   writeAccount,
 } from '@lily/api/kernel/locks'
 import { transactQuietly } from '@lily/api/kernel/transact'
+import type { PgDrizzle } from '@lily/db/effect-drizzle'
 import { Array, Cause, Effect, Exit } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -31,6 +32,10 @@ const selecting = (...ids: ReadonlyArray<string>) => {
     },
   }
 }
+
+const db = {
+  update: () => ({ set: (values: unknown) => values }),
+} as unknown as PgDrizzle['Service']
 
 const inOneTransaction = <A, E>(
   body: Effect.Effect<A, E, SqlClient.SqlClient>
@@ -142,7 +147,7 @@ describe('the lock ladder', () => {
     const exit = await inOneTransaction(
       Effect.gen(function* () {
         yield* lockRows('Notification', 'update', selecting('n1').query)
-        yield* writeAccount('u1', { bio: 'b' }, () =>
+        yield* writeAccount(db, 'u1', { bio: 'b' }, () =>
           Effect.sync(() => {
             written = true
           })
@@ -159,9 +164,9 @@ describe('the lock ladder', () => {
   it('counts an account write as a lock on the account', async () => {
     const exit = await inOneTransaction(
       Effect.gen(function* () {
-        yield* writeAccount('u1', { bio: 'b' }, () => Effect.void)
+        yield* writeAccount(db, 'u1', { bio: 'b' }, () => Effect.void)
         yield* lockRows('Notification', 'update', selecting('n1').query)
-        yield* writeAccount('u1', { tips: false }, () => Effect.void)
+        yield* writeAccount(db, 'u1', { tips: false }, () => Effect.void)
         yield* lockRows('Delegation', 'update', selecting('d1').query)
       })
     )
@@ -186,9 +191,9 @@ describe('the lock ladder', () => {
   it('dies when a rename follows a kind above an account held for a plain write', async () => {
     const exit = await inOneTransaction(
       Effect.gen(function* () {
-        yield* writeAccount('u1', { bio: 'b' }, () => Effect.void)
+        yield* writeAccount(db, 'u1', { bio: 'b' }, () => Effect.void)
         yield* lockRows('Notification', 'update', selecting('n1').query)
-        yield* writeAccount('u1', { name: 'lily' }, () => Effect.void)
+        yield* writeAccount(db, 'u1', { name: 'lily' }, () => Effect.void)
       })
     )
 

@@ -58,17 +58,13 @@ export const issueServiceToken = (input: {
             if (existing.emailVerified) return existing
 
             const updated = yield* writeAccount(
+              db,
               existing.id,
               {
                 emailVerified: true,
                 updatedAt: nowAsDate(),
               },
-              (set) =>
-                db
-                  .update(users)
-                  .set(set)
-                  .where(eq(users.id, existing.id))
-                  .returning()
+              (set) => set.where(eq(users.id, existing.id)).returning()
             )
 
             return pipe(

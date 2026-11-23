@@ -5,6 +5,7 @@ import {
   type Strength,
 } from '@lily/api/kernel/ladder'
 import { Transaction } from '@lily/api/kernel/transact'
+import type { PgDrizzle } from '@lily/db/effect-drizzle'
 import {
   canopies,
   canopyDirectInvites,
@@ -194,26 +195,28 @@ export const accountWriteStrength = (
     ? 'update'
     : 'no key update'
 
+type Db = PgDrizzle['Service']
+
+const settingAccount = (db: Db, values: PgUpdateSetSource<typeof users>) =>
+  db.update(users).set(values)
+
 /**
- * An `UPDATE` of an account row locks it without asking. Every such write
- * goes through here with the values it sets, so that lock climbs the ladder
- * like one that was asked for.
+ * An `UPDATE` of an account row locks it without asking. This is the one
+ * place that writes one, so that lock climbs the ladder like one that was
+ * asked for, at the strength `values` gives it. `finish` adds the condition
+ * and what the statement returns.
  */
-export const writeAccount = <
-  V extends PgUpdateSetSource<typeof users>,
-  A,
-  E,
-  R,
->(
+export const writeAccount = <A, E, R>(
+  db: Db,
   userId: string,
-  values: V,
-  write: (values: V) => Effect.Effect<A, E, R>
+  values: PgUpdateSetSource<typeof users>,
+  finish: (write: ReturnType<typeof settingAccount>) => Effect.Effect<A, E, R>
 ): Effect.Effect<A, E, R> =>
   climbing(
     'Account',
     accountWriteStrength(values),
     Option.some([userId]),
-    Effect.suspend(() => write(values)),
+    Effect.suspend(() => finish(settingAccount(db, values))),
     () => [userId]
   )
 

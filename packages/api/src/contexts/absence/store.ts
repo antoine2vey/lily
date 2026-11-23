@@ -653,12 +653,11 @@ export const AbsenceStoreLive = Layer.effect(
           SetVacation: (w) =>
             Effect.flatMap(
               writeAccount(
+                db,
                 w.userId,
                 { ...vacationColumnsOf(w.next), updatedAt: nowAsDate() },
                 (set) =>
-                  db
-                    .update(users)
-                    .set(set)
+                  set
                     .where(
                       and(
                         eq(users.id, w.userId),
