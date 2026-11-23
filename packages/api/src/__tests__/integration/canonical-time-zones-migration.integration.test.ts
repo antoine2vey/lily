@@ -18,6 +18,10 @@ const migrationPath = fileURLToPath(
   )
 )
 
+// Aliases the table gained after 0089. The column type reads a stored one as
+// its zone, so no migration rewrites it.
+const ADDED_AFTER_0089 = ['CST6CDT', 'EST5EDT', 'MST7MDT', 'PST8PDT']
+
 const PAIR = /^\s+\('([^']+)', '([^']+)'\)[,;]$/
 
 describe('0089 canonical time zones', () => {
@@ -30,8 +34,12 @@ describe('0089 canonical time zones', () => {
       }
     )
 
-    expect(Record.fromEntries(pairs)).toEqual(TIME_ZONE_ALIASES)
-    expect(pairs).toHaveLength(Record.size(TIME_ZONE_ALIASES))
+    const aliasesOf0089 = Record.filter(
+      TIME_ZONE_ALIASES,
+      (_zone, alias) => !Array.contains(ADDED_AFTER_0089, alias)
+    )
+    expect(Record.fromEntries(pairs)).toEqual(aliasesOf0089)
+    expect(pairs).toHaveLength(Record.size(aliasesOf0089))
   })
 })
 
