@@ -5,7 +5,7 @@ import { diagnoses } from '@lily/db/schema/diagnoses'
 import { plantDeathCauseEnum, plantHealthEnum } from '@lily/db/schema/enums'
 import { notifications } from '@lily/db/schema/notifications'
 import { careLogs, plantPhotos } from '@lily/db/schema/plant-history'
-import { rating } from '@lily/db/schema/rating'
+import { rating, ratingRange } from '@lily/db/schema/rating'
 import { rooms } from '@lily/db/schema/rooms'
 import { storedRef } from '@lily/db/schema/stored-ref'
 import { users } from '@lily/db/schema/users'
@@ -22,6 +22,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { Array } from 'effect'
 
 export const plants = pgTable(
   'plants',
@@ -79,6 +80,15 @@ export const plants = pgTable(
     check(
       'plants_one_owner',
       sql`num_nonnulls(${table.userId}, ${table.canopyId}) = 1`
+    ),
+    ...Array.map(
+      [
+        table.humidityRating,
+        table.lightingRating,
+        table.petToxicityRating,
+        table.wateringRating,
+      ],
+      (column) => ratingRange('plants', column)
     ),
   ]
 )

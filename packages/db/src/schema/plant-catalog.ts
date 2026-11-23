@@ -1,5 +1,5 @@
 import { languageCodeEnum } from '@lily/db/schema/enums'
-import { rating } from '@lily/db/schema/rating'
+import { rating, ratingRange } from '@lily/db/schema/rating'
 import { storedRef } from '@lily/db/schema/stored-ref'
 import { relations } from 'drizzle-orm'
 import {
@@ -11,6 +11,7 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { Array } from 'effect'
 
 export const plantCatalog = pgTable(
   'plant_catalog',
@@ -43,7 +44,18 @@ export const plantCatalog = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index('plant_catalog_category_idx').on(table.category)]
+  (table) => [
+    index('plant_catalog_category_idx').on(table.category),
+    ...Array.map(
+      [
+        table.humidityRating,
+        table.lightingRating,
+        table.petToxicityRating,
+        table.wateringRating,
+      ],
+      (column) => ratingRange('plant_catalog', column)
+    ),
+  ]
 )
 
 export const plantCatalogTranslations = pgTable(
