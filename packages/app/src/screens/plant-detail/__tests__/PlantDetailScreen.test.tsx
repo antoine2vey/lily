@@ -51,14 +51,9 @@ jest.mock('@/hooks/usePlantCanopyActions', () => ({
   useSetPlantMuted: () => ({ mutate: jest.fn() }),
 }))
 
-const mockLiveMutations = { current: false }
 jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
-  useEffectMutation: jest.fn((...args: unknown[]) =>
-    mockLiveMutations.current
-      ? jest.requireActual('@/utils/client').useEffectMutation(...args)
-      : { mutate: jest.fn(), isPending: false }
-  ),
+  useEffectMutation: jest.fn(),
 }))
 
 jest.mock('@/hooks/useUploadPhoto', () => ({
@@ -68,12 +63,7 @@ jest.mock('@/hooks/useUploadPhoto', () => ({
   }),
 }))
 
-jest.mock('@/hooks/useCarePlant', () => ({
-  useCarePlant: () =>
-    mockLiveMutations.current
-      ? jest.requireActual('@/hooks/useCarePlant').useCarePlant()
-      : { mutate: jest.fn(), isPending: false },
-}))
+jest.mock('@/hooks/useCarePlant', () => ({ useCarePlant: jest.fn() }))
 
 const mockDeleteResult = {
   current: Result.succeed({}) as Result.Result<unknown, unknown>,
@@ -133,10 +123,18 @@ jest.mock('@/hooks/useCorrectCareDates', () => ({
   }),
 }))
 
-import { useEffectQuery } from '@/utils/client'
+import { useCarePlant } from '@/hooks/useCarePlant'
+import { useEffectMutation, useEffectQuery } from '@/utils/client'
 import { PlantDetailScreen } from '../PlantDetailScreen'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock
+const mockedUseEffectMutation = useEffectMutation as jest.Mock
+const mockedUseCarePlant = useCarePlant as jest.Mock
+const actualClient: typeof import('@/utils/client') =
+  jest.requireActual('@/utils/client')
+const actualCarePlant: typeof import('@/hooks/useCarePlant') =
+  jest.requireActual('@/hooks/useCarePlant')
+const idleMutation = () => ({ mutate: jest.fn(), isPending: false })
 
 describe('PlantDetailScreen', () => {
   const mockPlant = {
@@ -164,7 +162,8 @@ describe('PlantDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockCanopy.current = null
-    mockLiveMutations.current = false
+    mockedUseEffectMutation.mockImplementation(idleMutation)
+    mockedUseCarePlant.mockImplementation(idleMutation)
     mockDeleteResult.current = Result.succeed({})
   })
 
@@ -410,7 +409,8 @@ describe('PlantDetailScreen', () => {
     const originalFetch = global.fetch
 
     beforeEach(() => {
-      mockLiveMutations.current = true
+      mockedUseEffectMutation.mockImplementation(actualClient.useEffectMutation)
+      mockedUseCarePlant.mockImplementation(actualCarePlant.useCarePlant)
       global.fetch = jest.fn(
         async () =>
           new Response(

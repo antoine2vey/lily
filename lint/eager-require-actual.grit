@@ -1,0 +1,30 @@
+// A jest.mock factory runs while the test file loads, outside any test's
+// timeout. A function inside it runs during a test, so a requireActual there
+// transforms the real module inside the test's 5 s on a cold Jest cache (#392).
+language js
+
+pattern function_in_factory_body() {
+  or {
+    JsArrowFunctionExpression(),
+    JsFunctionExpression(),
+    JsFunctionDeclaration(),
+    JsMethodObjectMember(),
+    JsGetterObjectMember(),
+    JsMethodClassMember()
+  } as $inner where {
+    $inner <: within `jest.$mock($_, $factory, $...)` where {
+      $mock <: or { `mock`, `doMock` },
+      $factory <: or {
+        `($...) => $body`,
+        `function $_($...) { $body }`,
+        `function ($...) { $body }`
+      },
+      $body <: contains $inner
+    }
+  }
+}
+
+`jest.requireActual($_)` as $hit where {
+  $hit <: within function_in_factory_body(),
+  register_diagnostic(span=$hit, message="Load the real module once at the top of the jest.mock factory (const actual = jest.requireActual(...)). Inside a nested function it loads during a test, and its cold-cache transform counts against the test timeout.")
+}
