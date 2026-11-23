@@ -152,9 +152,9 @@ describe('bounded contexts', () => {
     expect(cycles).toEqual([])
   })
 
-  it('receive permits and owner proofs built only where their check runs', () => {
+  it('receive permits, owner proofs and seen rows built only where their check runs', () => {
     const BUILDS =
-      /\bas\s+(?:unknown\s+as\s+)?(PlantPermit|RecordPermit|PlanPermit|OwnerHeld)\b/g
+      /\bas\s+(?:unknown\s+as\s+)?(PlantPermit|RecordPermit|PlanPermit|OwnerHeld|Seen)\b/g
     const builders = new Set(
       files.flatMap((file) =>
         [...readFileSync(file, 'utf8').matchAll(BUILDS)].map(
@@ -165,11 +165,12 @@ describe('bounded contexts', () => {
 
     expect(
       [...builders].sort(),
-      'Get a permit through withPlantAuth, withPlantPermit, withRecordPermit or withCarePlanAuth, and an OwnerHeld through withOwnerLock. Building one anywhere else skips the role check or the lock.'
+      'Get a permit through withPlantAuth, withPlantPermit, withRecordPermit or withCarePlanAuth, an OwnerHeld through withOwnerLock and a Seen row through asSeenBy. Building one anywhere else skips the role check, the lock or the redaction.'
     ).toEqual([
       `OwnerHeld in ${OWNER_LOCK}`,
       'PlanPermit in services/care-plans/helpers/with-care-plan-auth.ts',
       'PlantPermit in services/plants/helpers/with-plant-access.ts',
+      'Seen in services/plants/helpers/seen.ts',
     ])
   })
 

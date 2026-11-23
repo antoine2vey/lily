@@ -1,5 +1,6 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
-import { DiagnosisListResponse, PaginationParams } from '@lily/shared'
+import { seen } from '@lily/api/services/plants/helpers/seen'
+import { Diagnosis, PaginatedResponse, PaginationParams } from '@lily/shared'
 import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
@@ -10,12 +11,15 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 const plantIdParam = Schema.String.check(Schema.isGUID())
 
+const SeenDiagnosisList = PaginatedResponse(Diagnosis.pipe(seen))
+export type SeenDiagnosisList = typeof SeenDiagnosisList.Type
+
 export const DiagnosisApi = HttpApiGroup.make('diagnosis')
   .add(
     HttpApiEndpoint.get('getDiagnoses', '/plants/:plantId/diagnoses', {
       params: { plantId: plantIdParam },
       query: PaginationParams,
-      success: DiagnosisListResponse,
+      success: SeenDiagnosisList,
       error: [
         PlantNotFoundError,
         PlantNotAuthorizedError,

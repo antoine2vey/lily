@@ -1,11 +1,11 @@
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { resolveImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
+import type { SeenDiagnosisList } from '@lily/api/services/diagnosis/api'
 import {
-  asSeenBy,
   authorScope,
   type KnowledgeView,
 } from '@lily/api/services/plants/helpers/plant-access'
-import type { DiagnosisListResponse } from '@lily/shared/diagnosis'
+import { asSeenBy } from '@lily/api/services/plants/helpers/seen'
 import type { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Array, Effect } from 'effect'
@@ -21,7 +21,7 @@ export interface GetDiagnosesParams {
 export const getDiagnoses = (
   params: GetDiagnosesParams
 ): Effect.Effect<
-  DiagnosisListResponse,
+  SeenDiagnosisList,
   SqlError | GCSUploadError,
   DiagnosisRepository | GCSService
 > =>

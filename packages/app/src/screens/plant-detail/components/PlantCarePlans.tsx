@@ -1,5 +1,4 @@
-import type { CarePlan } from '@lily/shared/care-plan'
-import { Array, Option, pipe } from 'effect'
+import { Array, Option } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { SectionHeader } from '@/components/SectionHeader'
@@ -20,10 +19,9 @@ export function PlantCarePlans({ plantId }: PlantCarePlansProps) {
   const { data } = usePlantCarePlans(plantId)
   const { pendingStepIds, toggleStep, undoStep } = useCarePlanStepActions()
 
-  const plans = pipe(
-    Option.fromNullishOr(data?.items),
-    Option.getOrElse(() => [] as ReadonlyArray<CarePlan>),
-    Array.filter((p) => p.status === 'accepted')
+  const plans = Array.filter(
+    Option.getOrElse(Option.fromNullishOr(data?.items), Array.empty),
+    (p) => p.status === 'accepted'
   )
 
   if (!Array.isReadonlyArrayNonEmpty(plans)) return null
