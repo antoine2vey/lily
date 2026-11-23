@@ -5,12 +5,6 @@
 // (DEQUEUE_SCRIPT, ack, refreshClaim, REQUEUE_STALE_SCRIPT), worker.ts
 // (processMessage, retryLater, discardPoisonMessage, consumeNext,
 // recoverStrandedDeliveries) and notification.repository.ts.
-// Run by scripts/check-models.sh. queue-claims-model.integration.test.ts
-// replays doublePoll, backlogRelease, lateAck and deadLetterWriteFailsOnce
-// against the real worker, Redis and Postgres.
-// notification-outbox.integration.test.ts replays
-// thirdFailureDeadLetterFails, and the retryLater tests of
-// notification-claims.integration.test.ts hold the last step of foreignRow.
 //
 // What the model takes for granted, beyond the constants below:
 // - One message carries one row. A care digest carries several, and each
@@ -20,8 +14,8 @@
 // - A push is delivered or every ticket fails. A batch that fails for some
 //   devices counts as delivered, as in processMessage.
 // - A defect comes before the push, and it need not come back on the
-//   redelivery. An entry that cannot be decoded is a defect before the row
-//   claim, with ids the discard can still read.
+//   redelivery. An entry that cannot be decoded still gives the discard its
+//   ids, and its redelivery may decode.
 // - Time is three facts: a claim is fresh or stale, a queued row is younger
 //   than VISIBILITY_TIMEOUT, older, or older than DELIVERY_TIMEOUT. A retried
 //   row is due again at once.
@@ -55,11 +49,14 @@ module queue_claims {
   // "alertLast" is discardPoisonMessage. "alertFirst" is the shape before
   // 2717607b: alert, claim, fail the rows, then write the dead letter.
   const POISON_ORDER: str
-  // The three things today's code leans on, each false in queue_current.
+  // The four things today's code leans on, each false in queue_current.
   // A consumer that goes quiet past the visibility timeout and then carries
-  // on still holds its row: see queue_quiet_consumer. discardUndecodable
-  // runs outside keepClaim, so it leans on this for its whole length.
+  // on still holds its row: see queue_quiet_consumer.
   const QUIET_CONSUMER_RESUMES: bool
+  // discardUndecodable runs outside keepClaim, so nothing refreshes its
+  // claim. true lets that discard outlast the visibility timeout: see
+  // queue_slow_discard.
+  const DISCARD_OUTLASTS_CLAIM: bool
   // A consumer can stop between sendBatch and the sent mark: a crash, an
   // interrupt past the drain deadline, or a sent mark that failed followed
   // by a failed ack. See queue_lost_after_push.
@@ -70,7 +67,6 @@ module queue_claims {
   const LOSES_AFTER_DEAD_LETTER: bool
 
   pure val NONE = -1
-  pure val SWEEP = -2
   pure val MAX_MESSAGES = 3
   pure val MAX_DELIVERIES = 5
   // RETRY_DELAYS.length: the failure after this many retries is the last.
@@ -88,12 +84,9 @@ module queue_claims {
   type RowStatus = Pending | Queued | Sent | Failed
   type Row = {
     status: RowStatus,
-    // delivery_message_id
-    heldBy: int,
+    deliveryMessageId: int,
     retry: int,
-    // How old queued_at is.
-    age: int,
-    failedBy: int,
+    queuedAtAge: int,
   }
   type Message = { id: int, retry: int }
   type PollPc = Waiting | Holding | Enqueued
@@ -102,18 +95,15 @@ module queue_claims {
     pc: Pc,
     delivery: int,
     message: Message,
-    // The field of its entry in the in-flight hash.
-    key: int,
+    claim: int,
+    underKeepClaim: bool,
     stage: int,
-    // discardPoisonMessage claimed the row.
-    mine: bool,
-    // This handling wrote a dead letter.
-    stored: bool,
-    // This handling pushed and the sent mark has not landed.
-    unconfirmed: bool,
+    discardClaimedRow: bool,
+    wroteDeadLetter: bool,
+    sentMarkPending: bool,
   }
   type DeliveryState = Held | Requeued | Acked
-  type Delivery = { key: int, state: DeliveryState }
+  type Delivery = { claim: int, state: DeliveryState }
 
   var row: Row
   var pollers: str -> PollPc
@@ -129,14 +119,13 @@ module queue_claims {
   var pushes: int
   var deadLetters: int -> int
   var alerts: int -> int
-  // Not in the code: every dequeue so far, and two facts about past steps.
+  // Not in the code: every dequeue so far.
   var deliveries: List[Delivery]
-  var ackTookAnother: bool
-  var failedAnothersRow: bool
 
   pure val IDLE: Consumer = {
-    pc: Idle, delivery: NONE, message: { id: NONE, retry: 0 }, key: NONE,
-    stage: 0, mine: false, stored: false, unconfirmed: false,
+    pc: Idle, delivery: NONE, message: { id: NONE, retry: 0 }, claim: NONE,
+    underKeepClaim: false, stage: 0, discardClaimedRow: false, wroteDeadLetter: false,
+    sentMarkPending: false,
   }
 
   pure def without(entries: int -> a, key: int): int -> a =
@@ -145,23 +134,27 @@ module queue_claims {
   // claimForDelivery: status = 'queued' AND (delivery_message_id IS NULL OR
   // delivery_message_id = messageId).
   def claimable(m: Message): bool =
-    row.status == Queued and (row.heldBy == NONE or row.heldBy == m.id)
+    row.status == Queued and (row.deliveryMessageId == NONE or row.deliveryMessageId == m.id)
 
-  def tended(key: int): bool =
-    CONSUMERS.exists(c => consumers.get(c).pc != Idle and consumers.get(c).key == key)
+  // The consumer of this claim is at work and will ack inside the
+  // visibility timeout: keepClaim refreshes for it, or its discard is short.
+  def tended(claim: int): bool = CONSUMERS.exists(c => and {
+    consumers.get(c).pc != Idle,
+    consumers.get(c).claim == claim,
+    consumers.get(c).underKeepClaim or not(DISCARD_OUTLASTS_CLAIM),
+  })
 
   action pollSame = pollers' = pollers
   action queueSame = all {
     ready' = ready, inFlight' = inFlight, claimedAt' = claimedAt,
-    deliveries' = deliveries, ackTookAnother' = ackTookAnother,
+    deliveries' = deliveries,
   }
   action seenSame = all {
     pushes' = pushes, deadLetters' = deadLetters, alerts' = alerts,
-    failedAnothersRow' = failedAnothersRow,
   }
 
   action initWith(retry: int): bool = all {
-    row' = { status: Pending, heldBy: NONE, retry: retry, age: FRESH, failedBy: NONE },
+    row' = { status: Pending, deliveryMessageId: NONE, retry: retry, queuedAtAge: FRESH },
     pollers' = POLLERS.mapBy(_ => Waiting),
     consumers' = CONSUMERS.mapBy(_ => IDLE),
     ready' = List(), inFlight' = Map(), claimedAt' = Map(),
@@ -169,7 +162,7 @@ module queue_claims {
     pushes' = 0,
     deadLetters' = MESSAGES.mapBy(_ => 0),
     alerts' = MESSAGES.mapBy(_ => 0),
-    deliveries' = List(), ackTookAnother' = false, failedAnothersRow' = false,
+    deliveries' = List(),
   }
 
   // The row is new, or two pushes already failed for it.
@@ -186,7 +179,7 @@ module queue_claims {
     pollers.get(p) == Waiting,
     row.status == Pending,
     pollerMoves(p),
-    row' = if (SCHEDULER_CLAIMS) { ...row, status: Queued, age: FRESH } else row,
+    row' = if (SCHEDULER_CLAIMS) { ...row, status: Queued, queuedAtAge: FRESH } else row,
     pollers' = pollers.set(p, Holding),
     consumers' = consumers, nextMessage' = nextMessage, queueSame, seenSame,
   }
@@ -199,19 +192,18 @@ module queue_claims {
     ready' = if (ok) List({ id: nextMessage, retry: 0 }).concat(ready) else ready,
     nextMessage' = if (ok) nextMessage + 1 else nextMessage,
     row' =
-      if (not(ok) and SCHEDULER_CLAIMS and row.status == Queued and row.heldBy == NONE)
-        { ...row, status: Pending, age: FRESH }
+      if (not(ok) and SCHEDULER_CLAIMS and row.status == Queued and row.deliveryMessageId == NONE)
+        { ...row, status: Pending, queuedAtAge: FRESH }
       else row,
     pollers' = pollers.set(p, if (ok and not(SCHEDULER_CLAIMS)) Enqueued else Waiting),
     consumers' = consumers,
-    inFlight' = inFlight, claimedAt' = claimedAt, deliveries' = deliveries,
-    ackTookAnother' = ackTookAnother, seenSame,
+    inFlight' = inFlight, claimedAt' = claimedAt, deliveries' = deliveries, seenSame,
   }
 
   // Before #82: markManyAsQueued after the enqueue, WHERE id IN (ids) alone.
   action pollMark(p: str): bool = all {
     pollers.get(p) == Enqueued,
-    row' = { ...row, status: Queued, age: FRESH },
+    row' = { ...row, status: Queued, queuedAtAge: FRESH },
     pollers' = pollers.set(p, Waiting),
     consumers' = consumers, nextMessage' = nextMessage, queueSame, seenSame,
   }
@@ -229,18 +221,18 @@ module queue_claims {
   action dequeue(c: str): bool = {
     val last = ready.length() - 1
     val message = if (last >= 0) ready[last] else IDLE.message
-    val key = if (CLAIM_BY == "token") deliveries.length() else message.id
+    val claim = if (CLAIM_BY == "token") deliveries.length() else message.id
     all {
       consumers.get(c).pc == Idle,
       ready.length() > 0,
       deliveries.length() < MAX_DELIVERIES,
       ready' = ready.slice(0, last),
-      inFlight' = inFlight.put(key, message),
-      claimedAt' = claimedAt.put(key, true),
-      deliveries' = deliveries.append({ key: key, state: Held }),
+      inFlight' = inFlight.put(claim, message),
+      claimedAt' = claimedAt.put(claim, true),
+      deliveries' = deliveries.append({ claim: claim, state: Held }),
       consumers' = consumers.set(c,
-        { ...IDLE, pc: Took, delivery: deliveries.length(), message: message, key: key }),
-      ackTookAnother' = ackTookAnother,
+        { ...IDLE, pc: Took, delivery: deliveries.length(), message: message, claim: claim,
+          underKeepClaim: true }),
       row' = row, pollSame, nextMessage' = nextMessage, seenSame,
     }
   }
@@ -253,7 +245,9 @@ module queue_claims {
     val takes = not(DELIVERY_CLAIM) or claimable(me.message)
     all {
       me.pc == Took,
-      row' = if (ok and DELIVERY_CLAIM and takes) { ...row, heldBy: me.message.id } else row,
+      row' =
+        if (ok and DELIVERY_CLAIM and takes) { ...row, deliveryMessageId: me.message.id }
+        else row,
       consumers' = consumers.set(c,
         { ...me, pc: if (not(ok)) Failing else if (takes) Claimed else Done }),
       pollSame, nextMessage' = nextMessage, queueSame, seenSame,
@@ -268,8 +262,8 @@ module queue_claims {
       me.pc == Claimed,
       pushes' = if (ok) pushes + 1 else pushes,
       consumers' = consumers.set(c,
-        if (ok) { ...me, pc: Pushed, unconfirmed: true } else { ...me, pc: Failing }),
-      deadLetters' = deadLetters, alerts' = alerts, failedAnothersRow' = failedAnothersRow,
+        if (ok) { ...me, pc: Pushed, sentMarkPending: true } else { ...me, pc: Failing }),
+      deadLetters' = deadLetters, alerts' = alerts,
       row' = row, pollSame, nextMessage' = nextMessage, queueSame,
     }
   }
@@ -284,15 +278,10 @@ module queue_claims {
     all {
       me.pc == Pushed,
       row' = if (writes) { ...row, status: Sent } else row,
-      consumers' = consumers.set(c, { ...me, pc: Done, unconfirmed: not(writes) }),
+      consumers' = consumers.set(c, { ...me, pc: Done, sentMarkPending: not(writes) }),
       pollSame, nextMessage' = nextMessage, queueSame, seenSame,
     }
   }
-
-  // markManyAsFailed and the failed branch of retryLater. Neither is told
-  // who holds the row beyond its own WHERE clause.
-  def failedFor(m: Message): Row =
-    { ...row, status: Failed, failedBy: m.id }
 
   // worker.ts retryLater -> notification.repository.ts retryLater, one
   // UPDATE WHERE status = 'queued' AND delivery_message_id = heldBy: back to
@@ -306,7 +295,7 @@ module queue_claims {
   action retryLater(c: str, dlOk: bool): bool = {
     val me = consumers.get(c)
     val m = me.message
-    val holds = row.status == Queued and row.heldBy == m.id
+    val holds = row.status == Queued and row.deliveryMessageId == m.id
     val last = row.retry >= LAST_RETRY
     all {
       me.pc == Failing,
@@ -316,21 +305,18 @@ module queue_claims {
             ready' = List({ id: m.id, retry: m.retry + 1 }).concat(ready),
             row' = { ...row, retry: row.retry + 1 },
             consumers' = consumers.set(c, { ...me, pc: Done }),
-            deadLetters' = deadLetters, failedAnothersRow' = failedAnothersRow,
+            deadLetters' = deadLetters,
           }
         else
           all {
             ready' = ready,
-            row' = if (row.status == Queued) failedFor(m) else row,
-            consumers' = consumers.set(c, { ...me, pc: Done, stored: true }),
+            row' = if (row.status == Queued) { ...row, status: Failed } else row,
+            consumers' = consumers.set(c, { ...me, pc: Done, wroteDeadLetter: true }),
             deadLetters' = deadLetters.set(m.id, deadLetters.get(m.id) + 1),
-            failedAnothersRow' =
-              (failedAnothersRow or (row.status == Queued and row.heldBy != m.id)),
           }
       else
         all {
           ready' = ready,
-          failedAnothersRow' = failedAnothersRow,
           if (not(holds))
             all {
               row' = row, deadLetters' = deadLetters,
@@ -338,26 +324,31 @@ module queue_claims {
             }
           else if (not(last))
             all {
-              row' = { ...row, status: Pending, heldBy: NONE, retry: row.retry + 1, age: FRESH },
+              row' = {
+                ...row, status: Pending, deliveryMessageId: NONE, retry: row.retry + 1,
+                queuedAtAge: FRESH,
+              },
               deadLetters' = deadLetters,
               consumers' = consumers.set(c, { ...me, pc: Done }),
             }
           else if (dlOk)
             all {
-              row' = { ...failedFor(m), retry: row.retry + 1 },
+              row' = { ...row, status: Failed, retry: row.retry + 1 },
               deadLetters' = deadLetters.set(m.id, deadLetters.get(m.id) + 1),
-              consumers' = consumers.set(c, { ...me, pc: AlertDue, stored: true }),
+              consumers' = consumers.set(c, { ...me, pc: AlertDue, wroteDeadLetter: true }),
             }
           else
             all {
-              row' = if (DEAD_LETTER_IN_TX) row else { ...failedFor(m), retry: row.retry + 1 },
+              row' =
+                if (DEAD_LETTER_IN_TX) row
+                else { ...row, status: Failed, retry: row.retry + 1 },
               deadLetters' = deadLetters,
               consumers' = consumers.set(c, IDLE),
             },
         },
       pushes' = pushes, alerts' = alerts,
       inFlight' = inFlight, claimedAt' = claimedAt, deliveries' = deliveries,
-      ackTookAnother' = ackTookAnother, pollSame, nextMessage' = nextMessage,
+      pollSame, nextMessage' = nextMessage,
     }
   }
 
@@ -369,18 +360,29 @@ module queue_claims {
       me.pc == AlertDue,
       alerts' = alerts.set(me.message.id, alerts.get(me.message.id) + 1),
       consumers' = consumers.set(c, { ...me, pc: Done }),
-      pushes' = pushes, deadLetters' = deadLetters, failedAnothersRow' = failedAnothersRow,
+      pushes' = pushes, deadLetters' = deadLetters,
       row' = row, pollSame, nextMessage' = nextMessage, queueSame,
     }
   }
 
-  // consumeNext: Effect.catchDefect on processMessage, and
-  // QueueMessageDecodeError on the dequeue.
+  // consumeNext: Effect.catchDefect on processMessage, inside keepClaim.
   action defect(c: str): bool = {
     val me = consumers.get(c)
     all {
       me.pc == Took or me.pc == Claimed,
       consumers' = consumers.set(c, { ...me, pc: Discarding, stage: 0 }),
+      row' = row, pollSame, nextMessage' = nextMessage, queueSame, seenSame,
+    }
+  }
+
+  // consumeNext: QueueMessageDecodeError on the dequeue goes to
+  // discardUndecodable, which keepClaim does not wrap.
+  action undecodable(c: str): bool = {
+    val me = consumers.get(c)
+    all {
+      me.pc == Took,
+      consumers' = consumers.set(c,
+        { ...me, pc: Discarding, stage: 0, underKeepClaim: false }),
       row' = row, pollSame, nextMessage' = nextMessage, queueSame, seenSame,
     }
   }
@@ -398,23 +400,21 @@ module queue_claims {
       if (me.stage + 1 == POISON_STEPS.length()) { ...me, pc: Done }
       else { ...me, stage: me.stage + 1 }
     val takes = DELIVERY_CLAIM and claimable(m)
-    val fails = me.mine and row.status == Queued
+    val fails = me.discardClaimedRow and row.status == Queued
     all {
       me.pc == Discarding,
       row' =
-        if (doing == "claim" and takes) { ...row, heldBy: m.id }
-        else if (doing == "fail" and fails) failedFor(m)
+        if (doing == "claim" and takes) { ...row, deliveryMessageId: m.id }
+        else if (doing == "fail" and fails) { ...row, status: Failed }
         else row,
-      failedAnothersRow' =
-        (failedAnothersRow or (doing == "fail" and fails and row.heldBy != m.id)),
       deadLetters' =
         if (doing == "store" and dlOk) deadLetters.set(m.id, deadLetters.get(m.id) + 1)
         else deadLetters,
       alerts' =
         if (doing == "alert") alerts.set(m.id, alerts.get(m.id) + 1) else alerts,
       consumers' = consumers.set(c,
-        if (doing == "claim") { ...onward, mine: takes }
-        else if (doing == "store" and dlOk) { ...onward, stored: true }
+        if (doing == "claim") { ...onward, discardClaimedRow: takes }
+        else if (doing == "store" and dlOk) { ...onward, wroteDeadLetter: true }
         else if (doing == "store") IDLE
         else onward),
       pushes' = pushes, pollSame, nextMessage' = nextMessage, queueSame,
@@ -426,19 +426,14 @@ module queue_claims {
   // Before 4db6c557: LREM :processing 1 raw and ZREM claimed raw.
   action ack(c: str): bool = {
     val me = consumers.get(c)
-    val mine = if (me.pc == Done) deliveries[me.delivery] else { key: NONE, state: Acked }
+    val own = if (me.pc == Done) deliveries[me.delivery] else { claim: NONE, state: Acked }
     all {
       me.pc == Done,
-      inFlight' = inFlight.without(me.key),
-      claimedAt' = claimedAt.without(me.key),
+      inFlight' = inFlight.without(me.claim),
+      claimedAt' = claimedAt.without(me.claim),
       deliveries' =
-        if (mine.state == Held) deliveries.replaceAt(me.delivery, { ...mine, state: Acked })
+        if (own.state == Held) deliveries.replaceAt(me.delivery, { ...own, state: Acked })
         else deliveries,
-      ackTookAnother' = (ackTookAnother or deliveries.indices().exists(i => and {
-        i != me.delivery,
-        deliveries[i].key == me.key,
-        deliveries[i].state == Held,
-      })),
       consumers' = consumers.set(c, IDLE),
       ready' = ready, row' = row, pollSame, nextMessage' = nextMessage, seenSame,
     }
@@ -451,8 +446,8 @@ module queue_claims {
     val me = consumers.get(c)
     all {
       me.pc != Idle,
-      me.unconfirmed implies LOSES_AFTER_PUSH,
-      me.stored implies LOSES_AFTER_DEAD_LETTER,
+      me.sentMarkPending implies LOSES_AFTER_PUSH,
+      me.wroteDeadLetter implies LOSES_AFTER_DEAD_LETTER,
       consumers' = consumers.set(c, IDLE),
       row' = row, pollSame, nextMessage' = nextMessage, queueSame, seenSame,
     }
@@ -464,37 +459,35 @@ module queue_claims {
     all {
       REFRESHES,
       me.pc != Idle,
-      me.key.in(claimedAt.keys()),
-      not(claimedAt.get(me.key)),
-      claimedAt' = claimedAt.set(me.key, true),
+      me.underKeepClaim,
+      me.claim.in(claimedAt.keys()),
+      not(claimedAt.get(me.claim)),
+      claimedAt' = claimedAt.set(me.claim, true),
       ready' = ready, inFlight' = inFlight, deliveries' = deliveries,
-      ackTookAnother' = ackTookAnother,
       consumers' = consumers, row' = row, pollSame, nextMessage' = nextMessage, seenSame,
     }
   }
 
   // VISIBILITY_TIMEOUT passes with no refresh of this claim.
-  action expire(key: int): bool = all {
-    key.in(claimedAt.keys()),
-    claimedAt.get(key),
-    not(REFRESHES) or QUIET_CONSUMER_RESUMES or not(tended(key)),
-    claimedAt' = claimedAt.set(key, false),
+  action expire(claim: int): bool = all {
+    claim.in(claimedAt.keys()),
+    claimedAt.get(claim),
+    not(REFRESHES) or QUIET_CONSUMER_RESUMES or not(tended(claim)),
+    claimedAt' = claimedAt.set(claim, false),
     ready' = ready, inFlight' = inFlight, deliveries' = deliveries,
-    ackTookAnother' = ackTookAnother,
     consumers' = consumers, row' = row, pollSame, nextMessage' = nextMessage, seenSame,
   }
 
   // recoverStrandedDeliveries -> requeueStale, REQUEUE_STALE_SCRIPT: for
   // each claim scored at or before the cutoff, RPUSH its entry, HDEL, ZREM.
-  action sweepRequeue(key: int): bool = all {
-    key.in(claimedAt.keys()),
-    not(claimedAt.get(key)),
-    ready' = if (key.in(inFlight.keys())) ready.append(inFlight.get(key)) else ready,
-    inFlight' = inFlight.without(key),
-    claimedAt' = claimedAt.without(key),
+  action sweepRequeue(claim: int): bool = all {
+    claim.in(claimedAt.keys()),
+    not(claimedAt.get(claim)),
+    ready' = if (claim.in(inFlight.keys())) ready.append(inFlight.get(claim)) else ready,
+    inFlight' = inFlight.without(claim),
+    claimedAt' = claimedAt.without(claim),
     deliveries' = deliveries.foldl(List(), (swept, d) =>
-      swept.append(if (d.key == key and d.state == Held) { ...d, state: Requeued } else d)),
-    ackTookAnother' = ackTookAnother,
+      swept.append(if (d.claim == claim and d.state == Held) { ...d, state: Requeued } else d)),
     consumers' = consumers, row' = row, pollSame, nextMessage' = nextMessage, seenSame,
   }
 
@@ -503,27 +496,29 @@ module queue_claims {
   // queued_at < now - VISIBILITY_TIMEOUT.
   action sweepRelease = all {
     row.status == Queued,
-    row.heldBy == NONE,
-    row.age >= PAST_VISIBILITY,
-    row' = { ...row, status: Pending, age: FRESH },
+    row.deliveryMessageId == NONE,
+    row.queuedAtAge >= PAST_VISIBILITY,
+    row' = { ...row, status: Pending, queuedAtAge: FRESH },
     consumers' = consumers, pollSame, nextMessage' = nextMessage, queueSame, seenSame,
   }
 
   // recoverStrandedDeliveries -> failAbandonedDeliveries: SET status =
-  // 'failed' WHERE status = 'queued' AND delivery_message_id IS NOT NULL AND
-  // queued_at < now - DELIVERY_TIMEOUT.
+  // 'failed' WHERE status = 'queued' AND (queued_at IS NULL OR
+  // (delivery_message_id IS NOT NULL AND queued_at < now - DELIVERY_TIMEOUT)).
+  // Both writes of 'queued' set queued_at, so the first disjunct matches no
+  // row here.
   action sweepFail = all {
     row.status == Queued,
-    row.heldBy != NONE,
-    row.age == PAST_DELIVERY,
-    row' = { ...row, status: Failed, failedBy: SWEEP },
+    row.deliveryMessageId != NONE,
+    row.queuedAtAge == PAST_DELIVERY,
+    row' = { ...row, status: Failed },
     consumers' = consumers, pollSame, nextMessage' = nextMessage, queueSame, seenSame,
   }
 
   action rowAges = all {
     row.status == Queued,
-    row.age < PAST_DELIVERY,
-    row' = { ...row, age: row.age + 1 },
+    row.queuedAtAge < PAST_DELIVERY,
+    row' = { ...row, queuedAtAge: row.queuedAtAge + 1 },
     consumers' = consumers, pollSame, nextMessage' = nextMessage, queueSame, seenSame,
   }
 
@@ -543,8 +538,8 @@ module queue_claims {
       nextMessage + POLLERS.filter(q => pollers.get(q) == Holding).size() < MAX_MESSAGES,
     },
   }
-  def claimMoves(key: int): bool = or {
-    not(claimedAt.get(key)), not(REFRESHES), QUIET_CONSUMER_RESUMES, not(tended(key)),
+  def claimMoves(claim: int): bool = or {
+    not(claimedAt.get(claim)), not(REFRESHES), QUIET_CONSUMER_RESUMES, not(tended(claim)),
   }
 
   // Each branch draws an actor that has a move, so no draw is wasted, and
@@ -576,11 +571,13 @@ module queue_claims {
         refresh(c),
         all {
           rare == 0,
-          any { claimRows(c, false), markSent(c, false), defect(c), abandon(c) },
+          any {
+            claimRows(c, false), markSent(c, false), defect(c), undecodable(c), abandon(c),
+          },
         },
       },
-      nondet key = claimedAt.keys().filter(k => claimMoves(k)).oneOf()
-      any { expire(key), sweepRequeue(key) },
+      nondet claim = claimedAt.keys().filter(k => claimMoves(k)).oneOf()
+      any { expire(claim), sweepRequeue(claim) },
       all { rare == 0, any { sweepRelease, sweepFail, rowAges } },
       all {
         CONSUMERS.forall(d => not(consumerMoves(d))),
@@ -596,11 +593,8 @@ module queue_claims {
   // lost: nothing redelivers it if its consumer stops.
   val unackedDeliveryStaysInRedis = deliveries.indices().forall(i => {
     val d = deliveries[i]
-    d.state == Held implies (d.key.in(inFlight.keys()) and d.key.in(claimedAt.keys()))
+    d.state == Held implies (d.claim.in(inFlight.keys()) and d.claim.in(claimedAt.keys()))
   })
-
-  // No ack removed the entry of a delivery another consumer still holds.
-  val ackRemovesOnlyItsOwnClaim = not(ackTookAnother)
 
   // The phone gets the notification once. A retry follows a push that
   // reached no device, so no second delivered push is ever owed.
@@ -614,17 +608,27 @@ module queue_claims {
   // to read.
   val alertOnlyAfterDeadLetter = MESSAGES.forall(m => alerts.get(m) <= deadLetters.get(m))
 
-  // A row a message failed has that message's dead letter and alert, once
-  // no consumer is still working on the message.
+  // Only failAbandonedDeliveries fails a row with no dead letter, and it
+  // waits for DELIVERY_TIMEOUT. A younger failed row carries the id of the
+  // message that failed it, and that message has a dead letter. A message
+  // that fails a row another one holds leaves the holder's id on it.
+  val failedRowHasItsHoldersDeadLetter =
+    (row.status == Failed and row.queuedAtAge < PAST_DELIVERY) implies and {
+      row.deliveryMessageId != NONE,
+      deadLetters.get(row.deliveryMessageId) >= 1,
+    }
+
+  // The on-call hears of that row too, once no consumer is still working on
+  // the message.
   val failedRowIsReported = and {
     row.status == Failed,
-    row.failedBy != NONE,
-    row.failedBy != SWEEP,
-    CONSUMERS.forall(c => consumers.get(c).pc == Idle or consumers.get(c).message.id != row.failedBy),
-  } implies (deadLetters.get(row.failedBy) >= 1 and alerts.get(row.failedBy) >= 1)
-
-  // No message failed a row that another message held.
-  val failsOnlyRowsItHolds = not(failedAnothersRow)
+    row.queuedAtAge < PAST_DELIVERY,
+    row.deliveryMessageId != NONE,
+    CONSUMERS.forall(c => or {
+      consumers.get(c).pc == Idle,
+      consumers.get(c).message.id != row.deliveryMessageId,
+    }),
+  } implies (deadLetters.get(row.deliveryMessageId) >= 1 and alerts.get(row.deliveryMessageId) >= 1)
 
   // A poll that finds nothing due returns without enqueueing.
   action polls(p: str): bool =
@@ -719,7 +723,7 @@ module queue_current {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = true, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
@@ -732,7 +736,7 @@ module queue_current {
     deadLetters.get(0) == 1, alerts.get(0) == 1, row.status == Failed,
   })
   run foreignRowTest = foreignRow.expect(and {
-    not(failedAnothersRow), row.status == Queued, row.heldBy == 1,
+    row.status == Queued, row.deliveryMessageId == 1, deadLetters.get(0) == 0,
   })
 }
 
@@ -740,7 +744,7 @@ module queue_before_82 {
   import queue_claims(
     SCHEDULER_CLAIMS = false, DELIVERY_CLAIM = false, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
@@ -754,7 +758,7 @@ module queue_read_then_mark {
   import queue_claims(
     SCHEDULER_CLAIMS = false, DELIVERY_CLAIM = true, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
@@ -765,7 +769,7 @@ module queue_no_delivery_claim {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = false, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
@@ -776,12 +780,12 @@ module queue_raw_claim {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = true, CLAIM_BY = "raw",
     REFRESHES = false, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
   run lateAckTest = lateAck.expect(and {
-    ackTookAnother,
+    deliveries[1].state == Held,
     consumers.get("c2").pc == Claimed,
     inFlight.keys() == Set(),
   })
@@ -791,12 +795,13 @@ module queue_retry_requeues_copy {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = true, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "requeueCopy", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
   run foreignRowTest = foreignRow.expect(and {
-    failedAnothersRow, row.status == Failed, consumers.get("c2").pc == Claimed,
+    row.status == Failed, row.deliveryMessageId == 1, deadLetters.get(1) == 0,
+    consumers.get("c2").pc == Claimed,
   })
 }
 
@@ -804,7 +809,7 @@ module queue_dead_letter_after_commit {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = true, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = false,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
@@ -817,7 +822,7 @@ module queue_alert_first {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = true, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertFirst", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertFirst", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
@@ -829,12 +834,11 @@ module queue_quiet_consumer {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = true, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = true,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = true, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
   run lateAckTest = lateAck.expect(and {
-    not(ackTookAnother),
     deliveries[1].state == Held,
     inFlight.keys() == Set(1),
     claimedAt.keys() == Set(1),
@@ -843,11 +847,33 @@ module queue_quiet_consumer {
     lateAck.then(push("c2", true)).expect(pushes == 2)
 }
 
+module queue_slow_discard {
+  import queue_claims(
+    SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = true, CLAIM_BY = "token",
+    REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = true,
+    LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = false
+  ).*
+
+  // The discard of an entry that cannot be decoded stalls after its dead
+  // letter. The sweep requeues the entry and a second consumer discards it.
+  run slowDiscardTest =
+    initWith(0)
+      .then(polls("p1")).then(enqueues("p1"))
+      .then(dequeue("c1")).then(undecodable("c1"))
+      .then(discards("c1", true)).then(discards("c1", true))
+      .then(expire(0)).then(sweepRequeue(0))
+      .then(dequeue("c2")).then(undecodable("c2")).then(discardsToTheEnd("c2", true))
+      .then(ack("c2"))
+      .then(discardsToTheEnd("c1", true)).then(ack("c1"))
+      .expect(deadLetters.get(0) == 2 and alerts.get(0) == 2)
+}
+
 module queue_lost_after_push {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = true, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = true, LOSES_AFTER_DEAD_LETTER = false
   ).*
 
@@ -865,7 +891,7 @@ module queue_lost_after_dead_letter {
   import queue_claims(
     SCHEDULER_CLAIMS = true, DELIVERY_CLAIM = true, CLAIM_BY = "token",
     REFRESHES = true, RETRY = "postgres", DEAD_LETTER_IN_TX = true,
-    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false,
+    POISON_ORDER = "alertLast", QUIET_CONSUMER_RESUMES = false, DISCARD_OUTLASTS_CLAIM = false,
     LOSES_AFTER_PUSH = false, LOSES_AFTER_DEAD_LETTER = true
   ).*
 
