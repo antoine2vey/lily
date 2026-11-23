@@ -9,17 +9,17 @@
     "ignoreUnknown": false,
     "includes": [
       "**",
-      "!**/dist/**",
-      "!**/.expo/**",
-      "!**/ios/Pods/**",
-      "!**/ios/build/**",
-      "!**/android/.gradle/**",
-      "!**/android/build/**",
-      "!**/.next/**",
-      "!**/out/**",
-      "!**/coverage/**",
+      "!**/dist",
+      "!**/.expo",
+      "!**/ios/Pods",
+      "!**/ios/build",
+      "!**/android/.gradle",
+      "!**/android/build",
+      "!**/.next",
+      "!**/out",
+      "!**/coverage",
       "!**/routeTree.gen.ts",
-      "!lint/__fixtures__/**"
+      "!lint/__fixtures__"
     ]
   },
   "plugins": [
@@ -67,7 +67,8 @@
             "patterns": [
               {
                 "group": ["**/stored-ref-mint"],
-                "message": "Only the upload path, readClientImage and the storedRef() column read mint a StoredObjectRef. Take the reference one of them returns."
+                "importNamePattern": "mintStoredRef",
+                "message": "Only the upload path, readClientImage, readIssuedAvatar and the storedRef() column read mint a StoredObjectRef. Take the reference one of them returns."
               }
             ]
           }
@@ -117,7 +118,8 @@
         "packages/shared/src/services/file/gcs.ts",
         "packages/api/src/services/helpers/client-image.ts",
         "packages/db/src/schema/stored-ref.ts",
-        "packages/db/scripts/**",
+        "packages/db/scripts/seed-demo-data.ts",
+        "packages/db/scripts/seed-reviewer.ts",
         "**/*.test.ts",
         "**/__tests__/**"
       ],

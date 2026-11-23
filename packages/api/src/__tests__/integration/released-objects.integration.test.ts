@@ -59,7 +59,6 @@ import { withPermittedPlant } from '@lily/api/services/plants/helpers/with-plant
 import { uploadAvatar } from '@lily/api/services/user/endpoints/upload-avatar'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   type BucketRole,
   namedObjects,

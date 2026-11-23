@@ -21,7 +21,7 @@ import type {
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { userFolder } from '@lily/shared/services/file/stored-object'
-import { Array as Arr, Effect, Option, pipe } from 'effect'
+import { Array as Arr, Effect, Option } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'

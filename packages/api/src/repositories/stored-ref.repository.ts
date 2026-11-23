@@ -72,7 +72,7 @@ export const REF_HOLDERS = Record.fromEntries([
       [
         `${table}.${column}`,
         `SELECT part #>> '{}' FROM ${table},
-          jsonb_path_query(${column}, '${path}') AS part
+          jsonb_path_query(${column}::jsonb, '${path}') AS part
           WHERE jsonb_typeof(part) = 'string'`,
       ] as const
   ),

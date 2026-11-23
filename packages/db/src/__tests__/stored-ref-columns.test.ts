@@ -3,7 +3,8 @@ import { SCHEMA_COLUMNS, type SchemaColumn } from '@lily/db/schema-columns'
 import { Array, Record } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const NAMED_LIKE_A_REF = /url|image|photo|_key$/
+const NAMED_LIKE_A_REF =
+  /url|uri|image|photo|picture|avatar|thumbnail|icon|logo|banner|cover|media|file|attachment|_key$/
 
 /** The columns the rules below flag that never hold a stored object, and why. */
 const NOT_STORED_REFS: Record<string, string> = {
@@ -22,11 +23,19 @@ const NOT_STORED_REFS: Record<string, string> = {
   'diagnoses.prevention_tips': 'text',
   'notifications.metadata': 'the topic metadata, which names rows by id',
   'notifications.params': 'the values a notification text interpolates',
+  'oauth_authorization_codes.redirect_uri': 'a URL on the OAuth client',
+  'oauth_clients.client_uri': 'the home page the OAuth client registers',
+  'oauth_clients.logo_uri': 'a logo the OAuth client hosts and registers',
+  'oauth_clients.redirect_uris': 'URLs on the OAuth client',
   'outbox.event': 'a domain event, which names rows by id',
+  'rooms.icon': 'an emoji',
+  'users.public_profile': 'a flag',
+  'weather_snapshots.cloud_cover': 'a cloud cover reading',
 }
 
 const nameOf = ({ table, column }: SchemaColumn) => `${table}.${column.name}`
-const isJson = ({ column }: SchemaColumn) => column.getSQLType() === 'jsonb'
+const isJson = ({ column }: SchemaColumn) =>
+  column.getSQLType() === 'json' || column.getSQLType() === 'jsonb'
 const namedLikeARef = ({ column }: SchemaColumn) =>
   NAMED_LIKE_A_REF.test(column.name)
 const jsonHolders = Array.map(
@@ -56,7 +65,7 @@ const unclassified = (columns: ReadonlyArray<SchemaColumn>) => [
         isJson(c) && !Array.contains(jsonHolders, nameOf(c)) && !allowlisted(c)
     ),
     (c) =>
-      `${nameOf(c)}: a jsonb document may hold stored-object references. Add it to JSON_REF_HOLDERS in packages/db/src/schema/stored-ref.ts with the JSON path of those references, or to NOT_STORED_REFS in this test with the reason it holds none.`
+      `${nameOf(c)}: a json document may hold stored-object references. Add it to JSON_REF_HOLDERS in packages/db/src/schema/stored-ref.ts with the JSON path of those references, or to NOT_STORED_REFS in this test with the reason it holds none.`
   ),
 ]
 

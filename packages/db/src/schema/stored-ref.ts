@@ -19,10 +19,10 @@ export const isStoredRefColumn = (column: Column): boolean =>
   Reflect.get(column, 'mapFrom') === fromDriver
 
 /**
- * A jsonb column whose documents hold references, and the JSON path of the
- * references in each document. A column type cannot mark a value inside a
- * document, so `stored-ref-columns.test.ts` fails on a jsonb column that is
- * neither here nor on its allowlist.
+ * A json or jsonb column whose documents hold references, and the JSON path
+ * of the references in each document. A column type cannot mark a value
+ * inside a document, so `stored-ref-columns.test.ts` fails on a json column
+ * that is neither here nor on its allowlist.
  */
 export const JSON_REF_HOLDERS = [
   {
