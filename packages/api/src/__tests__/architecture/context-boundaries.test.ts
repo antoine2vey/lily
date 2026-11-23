@@ -55,8 +55,11 @@ const walk = (dir: string): ReadonlyArray<string> =>
     if (statSync(path).isDirectory()) {
       return name === '__tests__' ? [] : walk(path)
     }
-    return path.endsWith('.ts') ? [path] : []
+    return /\.[cm]?tsx?$/.test(path) ? [path] : []
   })
+
+const withoutComments = (source: string) =>
+  source.replace(/\/\*[\s\S]*?\*\/|(?<![:'"`])\/\/.*$/gm, '')
 
 interface Import {
   readonly specifier: string
@@ -104,7 +107,7 @@ const files = walk(SRC)
 const PACKAGES = resolve(SRC, '../..')
 const serverCode = ['api/src', 'db/src', 'db/scripts', 'shared/src', 'mcp/src']
   .flatMap((root) => walk(join(PACKAGES, root)))
-  .filter((file) => !file.endsWith('.test.ts'))
+  .filter((file) => !/\.test\.[cm]?tsx?$/.test(file))
 
 const name = (file: string) => relative(SRC, file)
 const contextOf = (file: string): string | null =>
@@ -324,7 +327,9 @@ describe('bounded contexts', () => {
 
   it('reach nothing in the tests', () => {
     const reachers = serverCode
-      .filter((file) => readFileSync(file, 'utf8').includes('__tests__/'))
+      .filter((file) =>
+        withoutComments(readFileSync(file, 'utf8')).includes('__tests__')
+      )
       .map((file) => relative(PACKAGES, file))
 
     expect(
@@ -608,11 +613,17 @@ describe('stored-object references', () => {
       })
       .map((file) => relative(PACKAGES, file))
 
+    const IMPORT_STATEMENT = /^\s*import\b[\s\S]*?\bfrom\s*['"][^'"]+['"]/gm
+    const usesTheMint = (site: string) =>
+      NAMES_THE_MINT.test(
+        withoutComments(readFileSync(join(PACKAGES, site), 'utf8')).replace(
+          IMPORT_STATEMENT,
+          ''
+        )
+      )
     expect(
       MINT_SITES.filter(
-        (site) =>
-          !existsSync(join(PACKAGES, site)) ||
-          !NAMES_THE_MINT.test(readFileSync(join(PACKAGES, site), 'utf8'))
+        (site) => !existsSync(join(PACKAGES, site)) || !usesTheMint(site)
       ),
       'A listed site that no longer calls mintStoredRef keeps an exemption it does not use. Drop it from MINT_SITES.'
     ).toEqual([])
