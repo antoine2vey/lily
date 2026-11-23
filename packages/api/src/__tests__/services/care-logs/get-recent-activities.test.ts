@@ -1,6 +1,10 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import {
+  CareLogRepository,
+  type FindRecentParams,
+} from '@lily/api/repositories/care-log.repository'
 import { getRecentActivities } from '@lily/api/services/care-logs/endpoints/get-recent-activities'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -82,19 +86,38 @@ describe('getRecentActivities', () => {
     expect(result.items).toEqual([])
   })
 
-  it('should use userId from CurrentUser context', async () => {
-    const layer = Layer.mergeAll(
-      createMockCareLogRepository(mockCareLogs),
-      createMockCurrentUser({ id: 'different-user' })
+  const askedFor = (params: { limit?: number }) => {
+    const asked: FindRecentParams[] = []
+    const recording = Layer.effect(
+      CareLogRepository,
+      Effect.gen(function* () {
+        const repo = yield* CareLogRepository
+        return {
+          ...repo,
+          findRecentByUserId: (p: FindRecentParams) => {
+            asked.push(p)
+            return repo.findRecentByUserId(p)
+          },
+        }
+      })
+    ).pipe(Layer.provide(createMockCareLogRepository(mockCareLogs)))
+    return Effect.runPromise(
+      getRecentActivities(params).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            recording,
+            createMockCurrentUser({ id: 'different-user' })
+          )
+        ),
+        Effect.as(asked)
+      )
     )
+  }
 
-    const result = await Effect.runPromise(
-      getRecentActivities({}).pipe(Effect.provide(layer))
-    )
-
-    // The mock repository returns all logs regardless of userId
-    // but the actual implementation should filter by userId
-    expect(result.items).toBeDefined()
+  it('reads the activities of the CurrentUser, with a limit of 10 by default', async () => {
+    expect(await askedFor({})).toEqual([
+      { userId: 'different-user', limit: 10 },
+    ])
   })
 
   it('should respect limit parameter when provided', async () => {
@@ -105,12 +128,9 @@ describe('getRecentActivities', () => {
     expect(result.items.length).toBe(1)
   })
 
-  it('should use default limit when not provided', async () => {
-    const result = await Effect.runPromise(
-      getRecentActivities({}).pipe(Effect.provide(createTestLayer()))
-    )
-
-    // Default limit should be applied
-    expect(result.items.length).toBeLessThanOrEqual(10)
+  it('passes a given limit through', async () => {
+    expect(await askedFor({ limit: 3 })).toEqual([
+      { userId: 'different-user', limit: 3 },
+    ])
   })
 })
