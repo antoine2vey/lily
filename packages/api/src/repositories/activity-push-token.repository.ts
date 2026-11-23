@@ -201,7 +201,9 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
       }),
 
       // A device has at most one UPDATE row (unique on device_token_id, kind);
-      // starting a new activity replaces the previous one.
+      // starting a new activity replaces the previous one. The soft TTL reads
+      // started_at as the age of the activity, so a new activity takes a new
+      // one, and the same activity posting a rotated token keeps its own.
       createActivity: Effect.fn('ActivityPushTokenRepository.createActivity')(
         function* (data: CreateActivityTokenData) {
           const rows = yield* db
@@ -213,6 +215,7 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
               activityId: data.activityId,
               token: data.token,
               status: 'active',
+              startedAt: nowAsDate(),
               endsAt: data.endsAt,
             })
             .onConflictDoUpdate({
@@ -225,6 +228,7 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
                 activityId: data.activityId,
                 token: data.token,
                 status: 'active',
+                startedAt: sql`CASE WHEN ${activityPushTokens.activityId} IS DISTINCT FROM excluded.activity_id THEN excluded.started_at ELSE ${activityPushTokens.startedAt} END`,
                 endsAt: data.endsAt,
                 updatedAt: nowAsDate(),
               },
