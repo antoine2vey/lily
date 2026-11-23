@@ -13,7 +13,6 @@ import {
   String as Str,
 } from 'effect'
 
-// OpenWeatherMap One Call 3.0 response shape (subset we use)
 interface OWMDailyEntry {
   readonly dt: number
   readonly temp: {

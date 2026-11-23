@@ -9,7 +9,6 @@ import {
 } from '@lily/shared/server'
 import { Effect, Layer, Queue, Schema } from 'effect'
 
-// Channel name for event bus pub-sub
 const CHANNEL = 'lily:events'
 
 // Redis pub-sub implementation of IEventBus.
@@ -30,11 +29,8 @@ export const RedisEventBusLive = Layer.effect(
     // Duplicate connection for subscriber (Redis requires separate connections for pub/sub)
     const subscriberRedis = publisherRedis.duplicate()
 
-    // Fan-out registry: every subscribe() appends its queue here; every
-    // inbound Redis message is offered to each.
     const subscribers = new Set<Queue.Queue<AppEvent>>()
 
-    // Subscribe to Redis channel
     yield* Effect.tryPromise({
       try: () => subscriberRedis.subscribe(CHANNEL),
       catch: (error) =>
@@ -51,7 +47,6 @@ export const RedisEventBusLive = Layer.effect(
     // Extract runtime so we can fork effects from the Redis callback
     const runtime = yield* Effect.context<never>()
 
-    // Listen for messages and fan out to every local subscriber queue
     subscriberRedis.on('message', (channel, message) => {
       if (channel === CHANNEL) {
         Effect.runForkWith(runtime)(
@@ -81,7 +76,6 @@ export const RedisEventBusLive = Layer.effect(
       }
     })
 
-    // Cleanup subscriber on scope close
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         subscriberRedis.unsubscribe(CHANNEL)

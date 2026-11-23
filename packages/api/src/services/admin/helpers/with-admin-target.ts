@@ -6,11 +6,6 @@ import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Shared guard for admin endpoints that target a specific user.
- * Yields the resolved AdminUser context, validates that the admin
- * is not targeting themselves, and fetches the target user.
- */
 export const withAdminTarget = (
   userId: string
 ): Effect.Effect<

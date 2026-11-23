@@ -57,8 +57,6 @@ describe('calculateScheduleDelta', () => {
     })
   })
 
-  // ─── Outdoor Cold ─────────────────────────────────────────────────────
-
   describe('outdoor cold scenarios', () => {
     it('Outdoor Foliage 7d + Paris winter → larger positive delta', () => {
       const ctx = buildWeatherCtx(parisWinterForecast)
@@ -74,8 +72,6 @@ describe('calculateScheduleDelta', () => {
       expect(delta.wateringDaysDelta).toBeLessThanOrEqual(4) // ceil(7/2) = 4
     })
   })
-
-  // ─── Heat & Drought ───────────────────────────────────────────────────
 
   describe('heat and drought scenarios', () => {
     it('Indoor Foliage 7d + Desert summer → small negative delta', () => {
@@ -115,8 +111,6 @@ describe('calculateScheduleDelta', () => {
     })
   })
 
-  // ─── Rain Scenarios (Outdoor Only) ────────────────────────────────────
-
   describe('rain scenarios', () => {
     it('Outdoor Foliage 7d + London autumn (frequent rain) → positive delta', () => {
       const ctx = buildWeatherCtx(londonAutumnForecast)
@@ -146,8 +140,6 @@ describe('calculateScheduleDelta', () => {
     })
   })
 
-  // ─── Transition Weather ───────────────────────────────────────────────
-
   describe('transition weather', () => {
     it('Outdoor 7d + heat wave then cold snap → moderate delta (average)', () => {
       const ctx = buildWeatherCtx(heatWaveThenColdForecast)
@@ -164,8 +156,6 @@ describe('calculateScheduleDelta', () => {
       expect(delta.wateringDaysDelta).toBeLessThanOrEqual(4)
     })
   })
-
-  // ─── Temporal Scenarios ───────────────────────────────────────────────
 
   describe('temporal scenarios', () => {
     it('Just watered (1h ago) + any weather → delta ~0', () => {
@@ -245,18 +235,14 @@ describe('calculateScheduleDelta', () => {
     })
   })
 
-  // ─── Stability ────────────────────────────────────────────────────────
-
   describe('stability (no jitter)', () => {
     it('Run 5x with identical Paris winter (indoor) → delta = 0 after first run', () => {
       const ctx = buildWeatherCtx(parisWinterForecast)
       // Use indoor plant where dampened factors produce small deltas that fit within cap
       const plant = { ...indoorFoliage7d }
 
-      // First run: get the delta
       const firstDelta = calculateScheduleDelta(plant, ctx, nowMs)
 
-      // Apply the delta to simulate the scheduler update
       const updatedPlant = {
         ...plant,
         nextWateringAt: new Date(
@@ -314,8 +300,6 @@ describe('calculateScheduleDelta', () => {
     })
   })
 
-  // ─── Cap Enforcement ──────────────────────────────────────────────────
-
   describe('cap enforcement', () => {
     it('7-day plant + extreme delta → capped at ±4 (ceil(7/2))', () => {
       const ctx = buildWeatherCtx(nordicWinterForecast)
@@ -341,8 +325,6 @@ describe('calculateScheduleDelta', () => {
       expect(Math.abs(delta.wateringDaysDelta)).toBeLessThanOrEqual(7)
     })
   })
-
-  // ─── Edge Cases ───────────────────────────────────────────────────────
 
   describe('edge cases', () => {
     it('Empty forecast → delta = 0', () => {
@@ -478,8 +460,6 @@ describe('calculateScheduleDelta', () => {
     })
   })
 
-  // ─── Fertilization Delta ──────────────────────────────────────────────
-
   describe('fertilization delta', () => {
     it('Fertilization due + extreme heat → delta = +1', () => {
       const plant = makeSchedulePlant({
@@ -530,7 +510,6 @@ describe('calculateScheduleDelta', () => {
 
       for (let i = 0; i < 10; i++) {
         const delta = calculateScheduleDelta(plant, ctx, nowMs)
-        // Apply delta
         plant = {
           ...plant,
           nextWateringAt: new Date(

@@ -11,10 +11,6 @@ import type { UsernameRequest, UserProfile } from '@lily/shared/auth'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Set or update username for the current user
- * Requires authentication middleware to provide CurrentUser context
- */
 export const setUsername = (
   request: UsernameRequest
 ): Effect.Effect<

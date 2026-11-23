@@ -71,7 +71,6 @@ export const updatePlant = (
       ? yield* uploadToPlantFolder(request.id, image)
       : undefined
 
-    // Build update data from request, excluding care-related fields
     const data = pipe(
       Record.fromEntries(
         Record.toEntries<string, unknown>({ ...request, imageUrl })

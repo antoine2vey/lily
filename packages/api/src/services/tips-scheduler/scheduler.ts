@@ -13,7 +13,6 @@ import {
 import { Array, Config, DateTime, Effect, Option, Random } from 'effect'
 import { generateDailyTip } from './generator'
 
-// Tip dedup period: no more than 1 tip per 3 days
 const TIP_DEDUP_DAYS = 3
 
 const getTodayDateString = (): string => {
@@ -24,7 +23,6 @@ const getTodayDateString = (): string => {
   return `${parts.year}-${month}-${day}`
 }
 
-/** Resolve localized text for a given language, falling back to English */
 const resolveLocalized = (
   localized: Record<string, string>,
   language: string
@@ -33,9 +31,7 @@ const resolveLocalized = (
     Option.getOrElse(Option.fromNullishOr(localized.en), () => '')
   )
 
-// Core effect: check if tip exists for today, generate if not, send notifications
 export const checkAndGenerateTip = Effect.gen(function* () {
-  // Feature flag check
   const enabled = yield* Config.withDefault(
     Config.Boolean('TIPS_GENERATION_ENABLED'),
     false
@@ -52,17 +48,14 @@ export const checkAndGenerateTip = Effect.gen(function* () {
 
   const today = getTodayDateString()
 
-  // Check if tip already exists for today
   const existingTip = yield* tipRepo.findByDate(today)
 
   if (existingTip) return
 
   yield* Effect.log('Generating daily tip', { date: today })
 
-  // Generate the tip
   const generatedTip = yield* generateDailyTip
 
-  // Store in database
   const tip = yield* tipRepo.create({
     title: { ...generatedTip.title },
     body: { ...generatedTip.body },

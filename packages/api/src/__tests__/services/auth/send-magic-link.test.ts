@@ -279,7 +279,6 @@ describe('sendMagicLink', () => {
     const store = getMagicLinkStore()
     const token = store[0]?.token
 
-    // UUID v4 format validation
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     expect(token).toMatch(uuidRegex)
@@ -298,7 +297,6 @@ describe('sendMagicLink', () => {
       )
       expect(result.instantCode).toBeDefined()
 
-      // Verify the instantCode matches the stored token
       const store = getMagicLinkStore()
       expect(store).toHaveLength(1)
       expect(result.instantCode).toBe(store[0]?.token)

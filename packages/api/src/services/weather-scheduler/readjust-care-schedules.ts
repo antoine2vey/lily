@@ -207,7 +207,6 @@ const readjustPlantSchedule = (
     const scheduleRepo = yield* CareScheduleRepository
     const care = yield* Care
 
-    // Fetch care schedules for this plant
     const schedules = yield* scheduleRepo.findByPlant(plant.id)
 
     const wateringSchedule = pipe(
@@ -234,7 +233,6 @@ const readjustPlantSchedule = (
     const nowDt = DateTime.nowUnsafe()
     const nowMs = Number(DateTime.toEpochMillis(nowDt))
 
-    // Compute the schedule delta using forecast-averaged gate model
     const delta = calculateScheduleDelta(
       {
         id: plant.id,

@@ -94,10 +94,6 @@ const MIN_COMMENT_SCORE = 3
 const MIN_POST_SCORE = 5
 const MIN_POST_COMMENTS = 2
 
-/**
- * Fetch JSON from a public Reddit URL with 429 retry handling.
- * Retries up to 5 times with exponential backoff on rate limits.
- */
 const fetchRedditJson = <T>(url: string) =>
   Effect.gen(function* () {
     const response = yield* Effect.tryPromise({
@@ -147,7 +143,6 @@ const fetchRedditJson = <T>(url: string) =>
 
     return json
   }).pipe(
-    // Sleep for the server-specified retry-after duration before each retry
     Effect.catchTag('RateLimitedError', (rle) =>
       Effect.sleep(Duration.seconds(rle.retryAfter)).pipe(
         Effect.andThen(Effect.fail(rle))
@@ -323,11 +318,8 @@ export const redditAdapter: ISourceAdapter = {
       Stream.fromIterable(config.subreddits),
       Stream.flatMap((subreddit) =>
         pipe(
-          // Fetch subreddit posts (with rate-limit delay)
           Stream.fromEffect(fetchSubredditPosts(subreddit, config)),
-          // Flatten posts into individual items
           Stream.flatMap((posts) => Stream.fromIterable(posts)),
-          // Fetch comments and convert each post to a document
           Stream.mapEffect((post) =>
             Effect.gen(function* () {
               yield* Effect.sleep(REQUEST_DELAY)

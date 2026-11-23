@@ -220,7 +220,6 @@ export const createMockPlantRepository = (
 
       const ownedItems: PlantWithRoom[] = Array.map(filtered, toPlantWithRoom)
 
-      // Add caretaking plants when requested
       const caretakingItems: PlantWithRoom[] =
         params.includeCaretaking &&
         Array.isReadonlyArrayNonEmpty(caretakingPlants)

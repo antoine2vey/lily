@@ -21,7 +21,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
       )
-      // Reset care schedule watering rows
       if (testPlantIds?.length > 0) {
         for (const plantId of testPlantIds) {
           const dueNow = new Date()
@@ -46,7 +45,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
 
-      // Clean slate
       await db.execute(sql`TRUNCATE TABLE care_logs RESTART IDENTITY CASCADE`)
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
@@ -61,7 +59,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(sql`TRUNCATE TABLE plants RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
 
-      // Create test user
       const timestamp = Date.now()
       const [user] = await db
         .insert(schema.users)
@@ -80,7 +77,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       testUserId = user.id
 
-      // Create test plants
       const plants = await db
         .insert(schema.plants)
         .values([
@@ -107,7 +103,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       testPlantIds = Arr.map(plants, (p) => p.id)
 
-      // Create watering schedules for each plant
       const [firstPlantId, secondPlantId] = testPlantIds
       const dueAt = new Date()
       await db.insert(schema.plantCareSchedules).values([
@@ -133,7 +128,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     afterAll(async () => {
-      // Clean up
       await db.execute(sql`TRUNCATE TABLE care_logs RESTART IDENTITY CASCADE`)
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
@@ -158,7 +152,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const now = new Date()
         const dueInAWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-        // Update watering schedules for both plants
         for (const plantId of testPlantIds) {
           await db
             .update(schema.plantCareSchedules)
@@ -175,7 +168,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             )
         }
 
-        // Insert care logs
         await db.insert(schema.careLogs).values(
           Arr.map(testPlantIds, (plantId) => ({
             type: 'watering' as const,
@@ -188,7 +180,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         await client.query('COMMIT')
 
-        // Verify schedules were updated
         const updatedSchedules = await db
           .select()
           .from(schema.plantCareSchedules)
@@ -202,7 +193,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           expect(schedule.lastCareAt).not.toBeNull()
         }
 
-        // Verify care logs were created
         const [careLogCount] = await db
           .select({ count: count() })
           .from(schema.careLogs)
@@ -226,7 +216,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const now = new Date()
         const dueInAWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-        // Update first plant's schedule within the transaction (succeeds)
         await client.query(
           `UPDATE plant_care_schedules SET last_care_at = $1, next_care_at = $2, due_day = $3
            WHERE plant_id = $4 AND care_type = 'watering'`,
@@ -248,7 +237,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         client.release()
       }
 
-      // Verify first plant's schedule was NOT updated (rolled back)
       const firstPlantId = pipe(
         Arr.head(testPlantIds),
         Option.getOrElse(() => '')
@@ -265,7 +253,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       expect(schedule?.lastCareAt).toBeNull()
 
-      // Verify no care logs were created
       const [careLogCount] = await db
         .select({ count: count() })
         .from(schema.careLogs)
@@ -282,7 +269,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const now = new Date()
       const dueInAWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-      // Update all plant schedules concurrently using Promise.all
       await Promise.all(
         Arr.map(testPlantIds, (plantId) =>
           db
@@ -301,7 +287,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
-      // Verify all schedules have the same lastCareAt timestamp
       const updatedSchedules = await db
         .select()
         .from(schema.plantCareSchedules)

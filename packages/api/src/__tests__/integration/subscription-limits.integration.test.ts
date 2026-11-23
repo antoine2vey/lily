@@ -64,7 +64,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
 
-      // Verify seed data
       const tiers = await db.select().from(schema.subscriptionTiers)
       if (tiers.length === 0) {
         throw new Error(
@@ -183,7 +182,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Option.getOrElse(() => 5)
       )
 
-      // Simulate limit check
       expect(plantCount).toBe(5)
       expect(plantCount >= maxPlants).toBe(true)
 

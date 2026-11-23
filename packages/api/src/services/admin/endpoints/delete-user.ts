@@ -27,7 +27,6 @@ export const deleteUser = (
   Effect.gen(function* () {
     const currentAdmin = yield* AdminUser
 
-    // Prevent admins from deleting themselves
     if (id === currentAdmin.id) {
       return yield* new CannotModifySelfError()
     }

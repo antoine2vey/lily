@@ -17,9 +17,6 @@ const notify = (userId: string, key: AchievementKey) =>
     Effect.flatMap((notifier) => notifier.notify(userId, key))
   )
 
-// Individual event handlers
-// Note: unlock() uses onConflictDoNothing() so we don't need to check hasAchievement first
-
 const onPlantCreated = (event: { userId: string }) =>
   Effect.gen(function* () {
     const repo = yield* AchievementRepository
@@ -34,7 +31,6 @@ const onPlantCreated = (event: { userId: string }) =>
       )
     )
 
-    // Check PLANT_COLLECTOR (5+ plants)
     const plantCount = yield* repo.countPlants(event.userId)
     const plantCollectorThreshold = pipe(
       Option.fromNullishOr(ACHIEVEMENTS.PLANT_COLLECTOR.threshold),
@@ -56,7 +52,6 @@ const onCareLogCreated = (event: { userId: string; type: CareType }) =>
   Effect.gen(function* () {
     const repo = yield* AchievementRepository
 
-    // Check thresholds, then unlock (DB handles duplicates)
     const careCount = yield* repo.countCareLogsByType(event.userId, event.type)
     if (event.type === 'watering' && careCount >= 10) {
       yield* unlock(event.userId, 'WATERING_NOVICE').pipe(
@@ -79,7 +74,6 @@ const onCareLogCreated = (event: { userId: string; type: CareType }) =>
       )
     }
 
-    // Check DEDICATED_CARETAKER (3-day streak)
     const streak = yield* repo.getCareStreak(event.userId)
     if (streak >= 3) {
       yield* unlock(event.userId, 'DEDICATED_CARETAKER').pipe(
@@ -107,7 +101,6 @@ const onPhotoUploaded = (event: { userId: string; plantId: string }) =>
   Effect.gen(function* () {
     const repo = yield* AchievementRepository
 
-    // Check PHOTO_PRO (10+ photos total)
     const photoCount = yield* repo.countPhotos(event.userId)
     const photoProThreshold = pipe(
       Option.fromNullishOr(ACHIEVEMENTS.PHOTO_PRO.threshold),
@@ -124,7 +117,6 @@ const onPhotoUploaded = (event: { userId: string; plantId: string }) =>
       )
     }
 
-    // Check GROWTH_TRACKER (5+ photos of same plant)
     const plantPhotoCount = yield* repo.countPhotosForPlant(
       event.userId,
       event.plantId
@@ -175,7 +167,6 @@ const onCareHistoryViewed = (event: { userId: string }) =>
   Effect.gen(function* () {
     const repo = yield* AchievementRepository
 
-    // Increment view count and check threshold
     const viewCount = yield* repo.incrementHistoryViews(event.userId)
     if (viewCount >= 5) {
       yield* unlock(event.userId, 'HISTORY_HERO').pipe(
@@ -229,7 +220,6 @@ const onPlantShared = (event: { userId: string }) =>
     )
   )
 
-// Pattern matching for events (exported for testing)
 export const processEvent = (event: AppEvent) =>
   Match.value(event).pipe(
     Match.tag('PlantCreated', onPlantCreated),
@@ -248,12 +238,10 @@ export const processEvent = (event: AppEvent) =>
     Match.exhaustive
   )
 
-// Start the achievement subscriber
 export const startAchievementSubscriber = Effect.gen(function* () {
   const eventBus = yield* EventBus
   const queue = yield* eventBus.subscribe
 
-  // Process events in background
   yield* Effect.forkScoped(
     Effect.forever(
       Effect.gen(function* () {

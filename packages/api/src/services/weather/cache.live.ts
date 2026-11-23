@@ -18,11 +18,9 @@ import {
   pipe,
 } from 'effect'
 
-// Generate a member ID from rounded coordinates
 const coordToId = (lat: number, lng: number): string =>
   `${roundCoord(lat)}_${roundCoord(lng)}`
 
-// Parse a member ID back to coordinates
 const idToCoord = (
   id: string
 ): Option.Option<{ latitude: number; longitude: number }> =>
@@ -56,7 +54,6 @@ export const WeatherCacheLive = Layer.effect(
     return {
       findNearest: (lat, lng, radiusKm) =>
         Effect.tryPromise(async () => {
-          // GEOSEARCH to find the closest cached location within radius
           const results = await redis.geosearch(
             WEATHER_GEO_KEY,
             'FROMLONLAT',
@@ -103,7 +100,6 @@ export const WeatherCacheLive = Layer.effect(
             roundCoord(lat),
             memberId
           )
-          // Store forecast data with TTL
           await redis.set(
             `${WEATHER_DATA_PREFIX}${memberId}`,
             JSON.stringify(data),

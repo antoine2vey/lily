@@ -23,7 +23,6 @@ import {
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Types for repository methods
 export interface CreateUserData {
   name?: string
   email: string
@@ -69,7 +68,6 @@ export interface FindUsersFilters {
   search?: string
 }
 
-// Repository service interface
 export interface IUserRepository {
   readonly findAll: Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
   readonly findById: (
@@ -145,13 +143,11 @@ const buildUserFilterConditions = (
   return conditions.length > 0 ? and(...conditions) : undefined
 }
 
-// Tag for dependency injection
 export class UserRepository extends Context.Service<
   UserRepository,
   IUserRepository
 >()('UserRepository') {}
 
-// Live implementation using PgDrizzle
 export const UserRepositoryLive = Layer.effect(
   UserRepository,
   Effect.gen(function* () {

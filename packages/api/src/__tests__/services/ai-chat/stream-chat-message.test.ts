@@ -156,7 +156,6 @@ describe('streamChatMessage', () => {
       )
     )
 
-    // The result is an HttpServerResponse
     expect(result).toBeDefined()
     expect(result.headers).toBeDefined()
   })
@@ -274,16 +273,13 @@ describe('streamChatMessage', () => {
       )
     )
 
-    // Drain the stream to trigger persistence via onComplete
     await drainSseStream(result)
 
-    // Both user and assistant messages should be saved
     expect(messages.length).toBe(2)
     expect(messages[0]?.role).toBe('user')
     expect(messages[1]?.role).toBe('assistant')
     expect(messages[1]?.content).toBe('AI says hello')
 
-    // ChatMessageSent event should have been published
     expect(publishedEvents.length).toBeGreaterThanOrEqual(1)
     expect(publishedEvents[0]?._tag).toBe('ChatMessageSent')
   })
@@ -330,10 +326,8 @@ describe('streamChatMessage', () => {
       )
     )
 
-    // Drain stream to trigger persistence
     await drainSseStream(result)
 
-    // Verify the custom user ID was used
     expect(messages.length).toBe(2)
     expect(messages[0]?.userId).toBe('custom-user-id')
     expect(messages[1]?.userId).toBe('custom-user-id')
@@ -357,7 +351,6 @@ describe('streamChatMessage', () => {
       )
     )
 
-    // HttpServerResponse should have headers
     expect(result.headers).toBeDefined()
   })
 
@@ -734,13 +727,10 @@ describe('streamChatMessage', () => {
         )
       )
 
-      // Drain the stream to trigger persistence
       await drainSseStream(result)
 
-      // Should have saved both messages
       expect(messages.length).toBe(2)
 
-      // Should have published ChatMessageSent + DiseaseIdentified events
       const eventTags = publishedEvents.map((e) => e._tag)
       expect(eventTags).toContain('ChatMessageSent')
       expect(eventTags).toContain('DiseaseIdentified')

@@ -12,10 +12,6 @@ import type { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Aggregate read for the admin user-detail page: profile + subscription +
-// curated engagement stats in one round-trip. Reuses the existing per-user
-// endpoints/repositories (none are caller-scoped — they all take an explicit
-// userId), so no new query logic is introduced.
 export const getUserOverview = (
   userId: string
 ): Effect.Effect<

@@ -2,7 +2,6 @@ import type { UserWithSettings } from '@lily/api/repositories/engagement.reposit
 import type { User } from '@lily/shared'
 import { daysAgoAsDate } from '@lily/shared'
 
-// Named user fixtures for direct access without array indexing
 export const mockUser1: User = {
   id: 'user-1',
   name: 'Test User',

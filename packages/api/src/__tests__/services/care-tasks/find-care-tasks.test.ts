@@ -21,7 +21,6 @@ import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Effect, Layer } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Create fixture dates dynamically based on a fixed reference time
 const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
   const yesterday = new Date(referenceDate)
   yesterday.setDate(yesterday.getDate() - 1)
@@ -256,7 +255,6 @@ const createMockPlantsNoCare = (referenceDate: Date): TestPlant[] => {
 const REFERENCE_DATE = new Date('2025-01-29T14:00:00Z')
 
 describe('findCareTasks', () => {
-  // Use fake timers for all tests to ensure consistent date behavior
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(REFERENCE_DATE)
@@ -266,7 +264,6 @@ describe('findCareTasks', () => {
     vi.useRealTimers()
   })
 
-  // Helper to create test layer with CurrentUser
   const createTestLayer = (
     userId = 'user-1',
     plants = createMockPlantsForCareTasks(REFERENCE_DATE)
@@ -368,7 +365,6 @@ describe('findCareTasks', () => {
       findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
-    // Check that task IDs follow the format plantId-type
     const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
     Array.forEach(allTasks, (task) => {
       expect(task.id).toBe(`${task.plantId}-${task.type}`)
@@ -428,7 +424,6 @@ describe('findCareTasks', () => {
       findCareTasks(false).pipe(Effect.provide(createTestLayer()))
     )
 
-    // Check upcoming is sorted by dueDate
     if (result.upcoming.length > 1) {
       Array.forEach(
         Array.zip(

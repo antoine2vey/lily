@@ -16,7 +16,6 @@ export const createMockEventBus = (
       return Effect.void
     },
     subscribe: Effect.sync(() => {
-      // Return an empty queue for testing
       return Queue.unbounded<AppEvent>().pipe(
         Effect.map((queue) => queue as Queue.Dequeue<AppEvent>),
         Effect.runSync

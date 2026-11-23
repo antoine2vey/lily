@@ -4,7 +4,6 @@ import { DeviceTokenNotFoundError } from '@lily/shared'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Unregister device token
 export const unregisterDeviceToken = (
   tokenId: string
 ): Effect.Effect<
@@ -16,14 +15,12 @@ export const unregisterDeviceToken = (
     const repo = yield* DeviceTokenRepository
     const { id: userId } = yield* CurrentUser
 
-    // Find the token and verify ownership
     const token = yield* repo.findById(tokenId)
 
     if (!token || token.userId !== userId) {
       return yield* new DeviceTokenNotFoundError()
     }
 
-    // Delete the token
     yield* repo.delete(tokenId)
 
     return { message: 'Device token unregistered successfully' }

@@ -56,7 +56,6 @@ export const createMockJWTService = (
           })
         }
 
-        // Simulate basic token validation
         if (!token || token.length === 0) {
           return yield* new JWTError({
             message: 'Invalid token',

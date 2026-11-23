@@ -147,7 +147,6 @@ const createPlantRow: typeof createRow = (overrides) =>
 const rowId = (label: string) =>
   `00000000-0000-4000-8000-${Buffer.from(label).toString('hex').padStart(12, '0')}`
 
-// Helper to create a test queue message
 const createTestQueueMessage = (
   overrides: Partial<QueueMessage> = {}
 ): QueueMessage => ({
@@ -1620,7 +1619,6 @@ describe('Notification Worker', () => {
         status: 'queued',
       })
 
-      // Use a mutable array for the queue
       const queueMessages: QueueMessage[] = [queueMessage]
 
       await Effect.runPromise(

@@ -12,17 +12,11 @@ import {
 } from 'effect'
 import { RateLimitExceededError } from './errors'
 
-/**
- * Rate limit configuration for different actions
- */
 export interface RateLimitConfig {
   maxRequests: number
   windowSeconds: number
 }
 
-/**
- * Predefined rate limit configurations
- */
 export const RATE_LIMITS = {
   MAGIC_LINK: { maxRequests: 3, windowSeconds: 60 },
   MAGIC_LINK_HOURLY: { maxRequests: 20, windowSeconds: 3600 },
@@ -39,9 +33,6 @@ export const RATE_LIMITS = {
   CHAT_IMAGE_UPLOAD_DAILY: { maxRequests: 50, windowSeconds: 86_400 },
 } as const
 
-/**
- * Rate limiter service interface
- */
 export interface IRateLimiterService {
   readonly checkRateLimit: (
     key: string,
@@ -50,17 +41,11 @@ export interface IRateLimiterService {
   readonly resetRateLimit: (key: string) => Effect.Effect<void, never>
 }
 
-/**
- * Rate limiter context tag
- */
 export class RateLimiterService extends Context.Service<
   RateLimiterService,
   IRateLimiterService
 >()('RateLimiterService') {}
 
-/**
- * Live implementation of Rate Limiter Service
- */
 export const RateLimiterServiceLive = Layer.effect(
   RateLimiterService,
   Effect.gen(function* () {

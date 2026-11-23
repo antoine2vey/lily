@@ -37,7 +37,6 @@ export const getCareAdjustments: Effect.Effect<
   const scheduleRepo = yield* CareScheduleRepository
   const weatherRepo = yield* WeatherRepository
 
-  // Get user and verify weather is enabled
   const user = yield* userRepo.findById(id)
   if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
     return yield* new WeatherNotAvailableError({})
@@ -46,17 +45,14 @@ export const getCareAdjustments: Effect.Effect<
   const rlat = roundCoord(user.latitude)
   const rlng = roundCoord(user.longitude)
 
-  // Fetch current weather forecast
   const forecast = yield* getWeatherForLocation(rlat, rlng)
 
-  // Get the user's plants
   const plantsResult = yield* plantRepo.findAll({
     userId: id,
     page: 1,
     limit: 1000,
   })
 
-  // Get recent weather history for multi-day trend analysis
   const recentSnapshots = yield* weatherRepo
     .findRecentByLocation(rlat, rlng, 7)
     .pipe(
@@ -69,7 +65,6 @@ export const getCareAdjustments: Effect.Effect<
       )
     )
 
-  // Convert snapshots to WeatherData format
   const recentHistory: ReadonlyArray<WeatherData> = Array.map(
     recentSnapshots,
     (snap) => ({
@@ -87,7 +82,6 @@ export const getCareAdjustments: Effect.Effect<
     })
   )
 
-  // Get today's weather (first day of forecast)
   const currentWeather = Option.getOrElse(
     Array.head(forecast.daily),
     () =>
@@ -106,14 +100,12 @@ export const getCareAdjustments: Effect.Effect<
       }) satisfies WeatherData
   )
 
-  // Fetch watering schedules for all plants and build a lookup
   const allSchedules = yield* Effect.forEach(
     plantsResult.items,
     (plant) => scheduleRepo.findByPlant(plant.id),
     { concurrency: 10 }
   )
 
-  // Calculate adjustments for each plant
   return Array.filterMap(
     Array.zip(plantsResult.items, allSchedules),
     Filter.fromPredicateOption(([plant, schedules]) => {
@@ -122,7 +114,6 @@ export const getCareAdjustments: Effect.Effect<
         Option.getOrNull
       )
 
-      // Skip plants without a watering schedule
       if (!wateringSchedule) {
         return Option.none()
       }

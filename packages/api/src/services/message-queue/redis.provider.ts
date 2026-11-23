@@ -19,7 +19,6 @@ import {
 } from 'effect'
 import Redis from 'ioredis'
 
-// Redis client service tag
 export class RedisClient extends Context.Service<RedisClient, Redis>()(
   'RedisClient'
 ) {}
@@ -164,13 +163,11 @@ export const makeRedisMessageQueue = (redis: Redis): IMessageQueue => ({
     ).pipe(Effect.withSpan('Redis.requeueStale')),
 })
 
-// Redis implementation of IMessageQueue
 export const RedisMessageQueueLive = Layer.effect(
   MessageQueue,
   Effect.map(RedisClient, makeRedisMessageQueue)
 )
 
-// Redis client layer
 export const RedisClientLive = Layer.effect(
   RedisClient,
   Effect.gen(function* () {
@@ -180,7 +177,6 @@ export const RedisClientLive = Layer.effect(
 
     const redis = new Redis(redisUrl)
 
-    // Wait for connection
     yield* Effect.tryPromise({
       try: () =>
         new Promise<void>((resolve, reject) => {
@@ -196,7 +192,6 @@ export const RedisClientLive = Layer.effect(
 
     yield* Effect.log('Connected to Redis', { url: redisUrl })
 
-    // Cleanup on scope close
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         redis.disconnect()
@@ -207,7 +202,6 @@ export const RedisClientLive = Layer.effect(
   })
 )
 
-// Combined layer for Redis message queue
 export const RedisMessageQueueFullLive = RedisMessageQueueLive.pipe(
   Layer.provide(RedisClientLive)
 )

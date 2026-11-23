@@ -18,7 +18,6 @@ import { HttpApiBuilder } from 'effect/http-api'
 export const AIChatApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'aiChat', (handlers) =>
     handlers
-      // ── Conversation routes ────────────────────────────────────
       .handle('createConversation', ({ payload }) =>
         createConversation({
           kind: payload.kind,

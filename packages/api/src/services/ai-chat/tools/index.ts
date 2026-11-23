@@ -28,7 +28,6 @@ export interface ToolDeps {
   readonly runtime: Context.Context<ToolContext>
   readonly userId: string
   readonly image?: ChatImage | undefined
-  // Present only when the conversation is anchored to a specific plant.
   readonly permit?: PlantPermit<'chat'> | undefined
   readonly plantName?: string | undefined
   // IANA timezone used to resolve relative due dates ("in 2 days") to the
@@ -36,11 +35,6 @@ export interface ToolDeps {
   readonly timezone?: string | undefined
 }
 
-/**
- * Build the toolset for a plant-anchored conversation.
- * Includes `searchPlantKnowledge` (RAG), `createDiagnosis` and
- * `proposeCarePlan`.
- */
 export const buildPlantChatTools = (
   deps: ToolDeps & { permit: PlantPermit<'chat'>; plantName: string }
 ): ToolSet => ({

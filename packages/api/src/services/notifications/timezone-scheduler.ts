@@ -40,7 +40,6 @@ export const preferredTimeOn = (
       Option.getOrElse(() => DEFAULT_NOTIFICATION_TIME)
     )
 
-    // Try to validate timezone, fall back to UTC if invalid
     const validTimezone = yield* pipe(
       validateTimezone(tz),
       Effect.catchTag('InvalidTimezoneError', () =>
@@ -53,7 +52,6 @@ export const preferredTimeOn = (
       )
     )
 
-    // Parse the preferred time
     const { hours, minutes } = yield* pipe(
       parseTime(time),
       Effect.catchTag('InvalidTimeFormatError', () =>
@@ -78,19 +76,15 @@ export const preferredTimeOn = (
       )
     )
 
-    // Create a zoned DateTime for the base date
     const zone = pipe(
       DateTime.zoneMakeNamed(validTimezone),
       Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
     )
 
-    // Create DateTime from the base date
     const baseDateTime = DateTime.makeUnsafe(baseDate)
 
-    // Adjust to the user's timezone
     const zonedDateTime = DateTime.setZone(baseDateTime, zone)
 
-    // Set the time to the user's preferred notification time
     const adjustedDateTime = pipe(
       zonedDateTime,
       DateTime.setParts({
@@ -126,15 +120,6 @@ export const calculateScheduledAt = (
       : at
   )
 
-/**
- * Recalculates all pending notifications for a user when their timezone
- * or preferred notification time changes.
- *
- * @param pendingNotifications - Array of pending notifications with their base dates
- * @param newTimezone - New IANA timezone string
- * @param newPreferredTime - New preferred notification time in HH:mm format
- * @returns Array of notification updates with new scheduledAt times
- */
 export interface NotificationWithBaseDate {
   notificationId: string
   baseDate: Date
@@ -207,7 +192,6 @@ export const adjustForDoNotDisturb = (
       Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
 
-    // Validate timezone, fallback to UTC
     const validTimezone = yield* pipe(
       validateTimezone(tz),
       Effect.catchTag('InvalidTimezoneError', () =>
@@ -220,13 +204,11 @@ export const adjustForDoNotDisturb = (
       Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
     )
 
-    // Convert scheduledAt to user's timezone
     const scheduledDateTime = pipe(
       DateTime.makeUnsafe(scheduledAt),
       DateTime.setZone(zone)
     )
 
-    // Get local time parts
     const parts = DateTime.toParts(scheduledDateTime)
     const scheduledMinutes = parts.hour * 60 + parts.minute
 
@@ -237,7 +219,6 @@ export const adjustForDoNotDisturb = (
       return scheduledAt
     }
 
-    // Adjust to DND end time
     const endHours = Math.floor(endMinutes / 60)
     const endMins = endMinutes % 60
 

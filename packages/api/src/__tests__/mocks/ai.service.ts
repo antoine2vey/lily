@@ -31,12 +31,10 @@ export interface ChatStreamCall {
   imageOptions?: { imageUrl?: string; imageKey?: string } | undefined
 }
 
-// Create an async generator to simulate the text stream
 async function* createTextStream(text: string): AsyncIterable<string> {
   yield text
 }
 
-// Create a mock UI message stream (async iterable of chunks)
 async function* createMockUIMessageStream(text: string) {
   yield { type: 'text-start' as const, id: 'mock-msg' }
   yield { type: 'text-delta' as const, delta: text, id: 'mock-msg' }

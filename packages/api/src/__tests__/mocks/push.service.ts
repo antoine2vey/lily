@@ -85,11 +85,9 @@ export const createMockPushService = (
   return Layer.succeed(PushService, service)
 }
 
-// Helper to create a push service that succeeds
 export const createSuccessPushService: Layer.Layer<PushService> =
   createMockPushService()
 
-// Helper to create a push service that always fails
 export const createFailingPushService = (
   errorMessage = 'Push notification failed'
 ): Layer.Layer<PushService> =>

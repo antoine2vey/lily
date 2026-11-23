@@ -34,8 +34,6 @@ import {
 } from '@lily/shared/indoor-demand'
 import { Array, Match, Option, pipe } from 'effect'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
 /**
  * Plant fields consumed by the indoor light/growth demand model. Optional so
  * existing callers compile unchanged; the production call sites provide them.
@@ -147,8 +145,6 @@ export interface ScheduleDelta {
   readonly fertilizationReason?: string
 }
 
-// ─── Step 6: Precipitation Check ────────────────────────────────────────────
-
 /**
  * Check whether precipitation should cause watering to be skipped.
  *
@@ -183,7 +179,6 @@ function checkPrecipitationSkip(
   forecast: ReadonlyArray<WeatherData>,
   isOutdoor: boolean
 ): { skip: boolean; reason?: string } {
-  // Indoor plants don't benefit from rainfall -- never skip watering
   if (!isOutdoor) return { skip: false }
 
   const currentPrecip = pipe(
@@ -198,7 +193,6 @@ function checkPrecipitationSkip(
     }
   }
 
-  // Check tomorrow's forecast (index 1 if available)
   const tomorrowPrecip = pipe(
     Array.get(forecast, 1),
     Option.flatMap((day) => Option.fromNullishOr(day.precipitation)),
@@ -214,8 +208,6 @@ function checkPrecipitationSkip(
 
   return { skip: false }
 }
-
-// ─── Step 8: Fertilization Check ────────────────────────────────────────────
 
 /**
  * Determine whether fertilization should be skipped based on temperature.
@@ -281,17 +273,6 @@ function checkFertilizationSkip(currentWeather: WeatherData): {
   return { skip: false }
 }
 
-// ─── Main Algorithm ─────────────────────────────────────────────────────────
-
-/**
- * Calculate weather-based care adjustments for a single plant.
- *
- * @param plant - Plant data with category, watering frequency, and water rating
- * @param currentWeather - Today's weather data
- * @param recentHistory - Last 3-7 days of weather data (most recent first)
- * @param forecast - Forecast data (today + upcoming days)
- * @returns CareAdjustment with multipliers, adjusted days, and skip flags
- */
 export function calculatePlantAdjustment(
   plant: PlantForAdjustment,
   currentWeather: WeatherData,
@@ -304,23 +285,19 @@ export function calculatePlantAdjustment(
     Option.getOrElse(() => DEFAULT_ET0_MM_PER_DAY)
   )
 
-  // Step 3: Temperature factor (dampened for indoor plants)
   const temperatureFactor = calculateTemperatureFactor(
     currentWeather,
     recentHistory,
     plant.isOutdoor
   )
 
-  // Step 4: Humidity factor (neutral for indoor plants)
   const humidityFactor = calculateHumidityFactor(
     currentWeather,
     plant.isOutdoor
   )
 
-  // Step 5: Wind factor (skipped for indoor plants)
   const windFactor = calculateWindFactor(currentWeather, plant.isOutdoor)
 
-  // Step 6: Precipitation check (skipped for indoor plants)
   const precipCheck = checkPrecipitationSkip(
     currentWeather,
     forecast,
@@ -345,7 +322,6 @@ export function calculatePlantAdjustment(
     combinedMultiplier
   )
 
-  // Step 8: Fertilization check
   const fertCheck = checkFertilizationSkip(currentWeather)
 
   return {
@@ -368,8 +344,6 @@ export function calculatePlantAdjustment(
     },
   }
 }
-
-// ─── Schedule Delta (Forecast-Averaged Gate Model) ──────────────────────────
 
 /**
  * Calculate the per-day weather multiplier for a single forecast day.
@@ -400,13 +374,11 @@ function calculateDayMultiplier(
 
   let multiplier = tempFactor * humFactor * windFactor
 
-  // Precipitation dampening for outdoor plants only
   if (plant.isOutdoor) {
     const precip = pipe(
       Option.fromNullishOr(day.precipitation),
       Option.getOrElse(() => 0)
     )
-    // Heavy rain (>6mm): plant was watered by nature -- only 30% of normal demand
     if (precip > PRECIP_SKIP_MM) {
       multiplier = multiplier * PRECIP_DAMPENING_FACTOR
     }
@@ -441,12 +413,10 @@ export function calculateScheduleDelta(
 ): ScheduleDelta {
   const { forecast, recentHistory } = weatherCtx
 
-  // Empty forecast -> no data to act on -> no change
   if (Array.isReadonlyArrayEmpty(forecast)) {
     return { wateringDaysDelta: 0, fertilizationDaysDelta: 0 }
   }
 
-  // Compute per-day multipliers and average them
   const dayMultipliers = Array.map(forecast, (day) =>
     calculateDayMultiplier(day, recentHistory, plant, latitude)
   )
@@ -456,24 +426,19 @@ export function calculateScheduleDelta(
     (sum) => sum / Array.length(dayMultipliers)
   )
 
-  // Compute adjusted frequency from the averaged multiplier
   const adjustedDays = adjustedWateringDays(
     plant.wateringFrequencyDays,
     avgMultiplier
   )
 
-  // idealNext = lastWateredAt + adjustedDays
   const lastWateredMs = plant.lastWateredAt.getTime()
   const oneDayMs = MS_PER_DAY
   const idealNextMs = lastWateredMs + adjustedDays * oneDayMs
 
-  // currentNext = plant.nextWateringAt
   const currentNextMs = plant.nextWateringAt.getTime()
 
-  // Raw delta in days
   const rawDelta = Math.round((idealNextMs - currentNextMs) / oneDayMs)
 
-  // Cap: max delay = ceil(baseFrequency / 2)
   const maxDelay = Math.ceil(plant.wateringFrequencyDays / 2)
   // Cap: max acceleration = -(baseFrequency / 2), but newNext must not be before
   // now or lastWateredAt + 1 day
@@ -481,21 +446,17 @@ export function calculateScheduleDelta(
 
   let cappedDelta = Math.max(maxAcceleration, Math.min(rawDelta, maxDelay))
 
-  // Ensure newNextWateringAt is not before now or lastWateredAt + 1 day
   const newNextMs = currentNextMs + cappedDelta * oneDayMs
   const minNextMs = Math.max(nowMs, lastWateredMs + oneDayMs)
   if (newNextMs < minNextMs) {
     cappedDelta = Math.round((minNextMs - currentNextMs) / oneDayMs)
-    // If the cap pushes us to zero or positive, just use 0
     if (cappedDelta >= 0 && rawDelta < 0) {
       cappedDelta = 0
     }
   }
 
-  // Only apply if |delta| >= 1
   const wateringDaysDelta = Math.abs(cappedDelta) >= 1 ? cappedDelta : 0
 
-  // Build reason string
   const wateringReason = pipe(
     Match.value(wateringDaysDelta),
     Match.when(

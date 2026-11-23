@@ -267,7 +267,6 @@ const sendLiveActivityForCare = Effect.fn('sendLiveActivityForCare')(function* (
   )
 })
 
-// Exponential backoff: 1s -> 2s -> 4s
 export const workerRetryPolicy = Schedule.max([
   Schedule.exponential('1 second'),
   Schedule.recurs(3),
@@ -482,7 +481,6 @@ export const processMessage = Effect.fn('notification-worker.process')(
             Array.dedupe
           )
 
-    // Get user's active device tokens
     const tokens = yield* deviceTokenRepo.findByUserId(message.payload.userId)
     const activeTokens = Array.filter(tokens, (t) => t.isActive)
 
@@ -511,7 +509,6 @@ export const processMessage = Effect.fn('notification-worker.process')(
 
     const interruptionLevel = resolveInterruptionLevel(message.topic)
 
-    // Send to all active devices
     const pushMessages = Array.map(activeTokens, (token) => ({
       to: token.token,
       ...delivery.push,

@@ -563,7 +563,6 @@ describe('processIngestJob', () => {
       )
     )
 
-    // Find child chunks (those that are not parent-only)
     const children = insertedChunks.filter(
       (c) =>
         c.embedding !== undefined ||

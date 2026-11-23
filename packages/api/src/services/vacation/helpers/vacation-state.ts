@@ -3,7 +3,6 @@ import type { users } from '@lily/db/schema'
 import type { VacationState } from '@lily/shared'
 import { DateTime, Match } from 'effect'
 
-/** Project the vacation columns of a user row into the API response shape. */
 export const toVacationState = (
   user: typeof users.$inferSelect
 ): VacationState => ({

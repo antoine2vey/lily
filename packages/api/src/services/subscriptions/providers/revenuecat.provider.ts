@@ -9,19 +9,16 @@ import {
 } from '@lily/shared'
 import { Config, Context, Effect, Layer, pipe, Schema } from 'effect'
 
-// RevenueCat provider interface (different from generic payment provider)
 export interface IRevenueCatProvider {
   // The only event environment this deployment applies. Events from the
   // other one are acknowledged and ignored.
   readonly environment: RevenueCatEnvironment
 
-  // Validate webhook authorization and parse event
   readonly constructWebhookEvent: (
     payload: string,
     authorization: string | undefined
   ) => Effect.Effect<RevenueCatWebhookEvent, PaymentProviderError>
 
-  // Fetch subscriber info from RevenueCat API
   readonly getSubscriberInfo: (
     appUserId: string
   ) => Effect.Effect<RevenueCatSubscriberInfo, PaymentProviderError>

@@ -67,7 +67,6 @@ export interface RevenueCatWebhookEventRecord {
 }
 
 export interface ISubscriptionRepository {
-  // Subscription CRUD
   readonly findByUserId: (
     userId: string
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
@@ -103,14 +102,12 @@ export interface ISubscriptionRepository {
     data: Partial<CreateSubscriptionData>
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
 
-  // Tier configuration
   readonly getTier: (
     tier: SubscriptionTier
   ) => Effect.Effect<TierConfig, SqlError>
 
   readonly getAllTiers: Effect.Effect<TierConfig[], SqlError>
 
-  // Usage tracking
   readonly getCurrentUsage: (
     userId: string
   ) => Effect.Effect<typeof subscriptionUsage.$inferSelect | null, SqlError>
@@ -135,7 +132,6 @@ export interface ISubscriptionRepository {
     field: UsageField
   ) => Effect.Effect<void, SqlError>
 
-  // Gift history
   readonly findGiftEvents: (params: {
     page: number
     limit: number
@@ -155,7 +151,6 @@ export interface ISubscriptionRepository {
     SqlError
   >
 
-  // Events
   readonly logEvent: (
     userId: string,
     eventType: SubscriptionEventType,

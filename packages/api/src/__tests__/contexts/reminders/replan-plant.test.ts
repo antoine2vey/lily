@@ -87,7 +87,6 @@ const replanPlant = (params: {
   )
 }
 
-// Helper to create a future date for scheduling
 const createFutureDate = (daysFromNow: number, hours = 12): Date => {
   const date = new Date()
   date.setDate(date.getDate() + daysFromNow)
@@ -504,7 +503,6 @@ describe('replanning one plant', () => {
 
       const delegation = createActiveDelegation(owner.id, caretaker.id)
 
-      // Run and check notifications for the caretaker
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* replanPlant({
@@ -596,7 +594,6 @@ describe('replanning one plant', () => {
 
       const delegation = createActiveDelegation(owner.id, caretaker.id)
 
-      // Check that owner has no pending notifications
       const ownerPending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* replanPlant({

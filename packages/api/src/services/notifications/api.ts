@@ -9,10 +9,8 @@ import {
 import { Effect, Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-// Path parameter for notification ID
 const notificationIdParam = Schema.String.check(Schema.isGUID())
 
-// Query parameters for notifications listing (extends base pagination)
 export const NotificationsQueryParams = Schema.Struct({
   ...PaginationParams.fields,
   status: Schema.String.pipe(
@@ -21,10 +19,8 @@ export const NotificationsQueryParams = Schema.Struct({
   ),
 })
 
-// Define the Notifications API group
 export const NotificationsApi = HttpApiGroup.make('notifications')
   .add(
-    // GET /notifications - List notifications with pagination
     HttpApiEndpoint.get('getNotifications', '/', {
       query: NotificationsQueryParams,
       success: NotificationsListResponse,
@@ -34,7 +30,6 @@ export const NotificationsApi = HttpApiGroup.make('notifications')
     })
   )
   .add(
-    // GET /notifications/unread-count - Get unread notification count
     HttpApiEndpoint.get('getUnreadCount', '/unread-count', {
       success: UnreadCountResponse,
       error: Schema.Struct({ error: Schema.String }).pipe(
@@ -43,7 +38,6 @@ export const NotificationsApi = HttpApiGroup.make('notifications')
     })
   )
   .add(
-    // PUT /notifications/read-all - Mark all notifications as read
     HttpApiEndpoint.put('markAllRead', '/read-all', {
       success: Schema.Void,
       error: Schema.Struct({ error: Schema.String }).pipe(
@@ -52,7 +46,6 @@ export const NotificationsApi = HttpApiGroup.make('notifications')
     })
   )
   .add(
-    // PUT /notifications/:notificationId/read - Mark notification as read
     HttpApiEndpoint.put('markNotificationRead', '/:notificationId/read', {
       params: { notificationId: notificationIdParam },
       success: Notification,
@@ -63,7 +56,6 @@ export const NotificationsApi = HttpApiGroup.make('notifications')
     })
   )
   .add(
-    // DELETE /notifications/:notificationId - Delete a notification
     HttpApiEndpoint.delete('deleteNotification', '/:notificationId', {
       params: { notificationId: notificationIdParam },
       success: Notification,

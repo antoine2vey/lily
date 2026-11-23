@@ -36,7 +36,6 @@ export const getDiagnoses = (
       ...(params.limit !== undefined && { limit: params.limit }),
     })
 
-    // Resolve any raw GCS keys to signed URLs (batch, parallel)
     const resolvedItems = yield* resolveImageUrls(
       yield* Effect.forEach(result.items, seenByCaller)
     )

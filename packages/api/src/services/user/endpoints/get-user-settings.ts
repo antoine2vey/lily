@@ -6,7 +6,6 @@ import type { UserSettings } from '@lily/shared/user'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Get user settings (profile + notification preferences)
 export const getUserSettings: Effect.Effect<
   UserSettings,
   SqlError | UserNotFoundError,

@@ -30,7 +30,6 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
 
     const octokit = new Octokit({ auth: token })
 
-    // 1. Get the base branch HEAD
     const { data: baseRef } = yield* Effect.tryPromise({
       try: () =>
         octokit.rest.git.getRef({
@@ -46,7 +45,6 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
     })
     const baseSha = baseRef.object.sha
 
-    // 2. Get the base commit's tree
     const { data: baseCommit } = yield* Effect.tryPromise({
       try: () =>
         octokit.rest.git.getCommit({
@@ -61,7 +59,6 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
         }),
     })
 
-    // 3. Create blobs for all locale files (in parallel — blobs are independent)
     const entries = Record.toEntries(content) as Array<[string, string]>
     const blobs = yield* Effect.forEach(
       entries,
@@ -91,7 +88,6 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
       { concurrency: 'unbounded' }
     )
 
-    // 4. Create a new tree with all files
     const { data: tree } = yield* Effect.tryPromise({
       try: () =>
         octokit.rest.git.createTree({
@@ -107,7 +103,6 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
         }),
     })
 
-    // 5. Create a single commit with all files
     const { data: commit } = yield* Effect.tryPromise({
       try: () =>
         octokit.rest.git.createCommit({
@@ -124,7 +119,6 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
         }),
     })
 
-    // 6. Fast-forward the base branch to the new commit
     yield* Effect.tryPromise({
       try: () =>
         octokit.rest.git.updateRef({
@@ -146,7 +140,6 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
       branch: baseBranch,
     })
 
-    // Return commit SHA keyed by locale
     return pipe(
       entries,
       Array.map(([locale]) => [locale, commit.sha] as const),

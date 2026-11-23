@@ -16,7 +16,6 @@ import type {
 import { Array, Effect, Layer, Option, pipe, Result } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 
-// Default free tier config
 const freeTierConfig: TierConfig = {
   tier: 'free',
   name: 'Free',

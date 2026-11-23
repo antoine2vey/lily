@@ -98,10 +98,8 @@ export const sendMagicLink = (
     const rateLimiter = yield* RateLimiterService
     const { disableVerification, reviewerEmails } = yield* MagicLinkConfig
 
-    // Normalize email
     const normalized = normalizeEmail(email)
 
-    // Validate email format
     yield* validateEmail(normalized)
 
     // The client IP is checked first, so a source over its limit is turned
@@ -112,10 +110,8 @@ export const sendMagicLink = (
     )
     yield* checkMagicLinkEmailLimits(normalized)
 
-    // Create magic link token
     const { token } = yield* createMagicLinkToken(normalized)
 
-    // Build callback URL for email
     const deepLink = `${APP_VERIFY_DEEP_LINK_PREFIX}${token}`
 
     // Allowlisted reviewer emails (App Store / Play Store reviewers) skip the
@@ -145,7 +141,6 @@ export const sendMagicLink = (
     }
 
     if (process.env.NODE_ENV === 'development') {
-      // In development, print QR code to console for easy testing on physical device
       yield* Console.log(`xcrun simctl openurl booted ${deepLink}`)
       yield* Console.log(`\n${'='.repeat(50)}`)
       yield* Console.log('🔗 Magic Link Deep Link:')

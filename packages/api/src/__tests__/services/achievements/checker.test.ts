@@ -6,7 +6,6 @@ import { AchievementNotifier } from '@lily/api/services/achievements/notifier'
 import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// No-op notifier for testing - just swallows notifications
 const MockAchievementNotifier = Layer.succeed(AchievementNotifier, {
   notify: () => Effect.void,
   subscribe: Effect.die('subscribe not implemented in tests'),
@@ -384,7 +383,6 @@ describe('Achievement Checker', () => {
         messageId: 'msg-1',
       }
 
-      // Process the same event multiple times
       await Effect.runPromise(processEvent(event).pipe(Effect.provide(layers)))
       await Effect.runPromise(processEvent(event).pipe(Effect.provide(layers)))
       await Effect.runPromise(processEvent(event).pipe(Effect.provide(layers)))
@@ -396,7 +394,6 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      // Should only have one AI_CONVERSATIONALIST achievement
       const aiConversationalistCount = Array.filter(
         result,
         (a) => a.achievement === 'AI_CONVERSATIONALIST'

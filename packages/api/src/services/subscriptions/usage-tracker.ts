@@ -31,7 +31,6 @@ import {
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// 80% threshold for approaching-limit notification
 const APPROACHING_LIMIT_THRESHOLD = 0.8
 
 const usageFieldMeta = (field: UsageField) =>

@@ -18,7 +18,6 @@ export const updateRole = (
     const repo = yield* UserRepository
     const currentAdmin = yield* AdminUser
 
-    // Prevent admins from changing their own role
     if (id === currentAdmin.id) {
       return yield* new CannotModifySelfError()
     }

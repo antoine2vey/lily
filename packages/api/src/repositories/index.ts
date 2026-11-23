@@ -1,4 +1,3 @@
-// Repository exports
 export * from '@lily/api/repositories/achievement.repository'
 export * from '@lily/api/repositories/activity-push-token.repository'
 export * from '@lily/api/repositories/blog-post.repository'
@@ -8,7 +7,6 @@ export * from '@lily/api/repositories/daily-tip.repository'
 export * from '@lily/api/repositories/dead-letter.repository'
 export * from '@lily/api/repositories/device-token.repository'
 export * from '@lily/api/repositories/helpers/pagination'
-// Knowledge repositories
 export * from '@lily/api/repositories/ingest-job.repository'
 export * from '@lily/api/repositories/magic-link.repository'
 export * from '@lily/api/repositories/notification.repository'

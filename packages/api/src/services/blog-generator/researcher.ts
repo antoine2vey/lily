@@ -10,7 +10,6 @@ import type { ResearchBrief, TopicSuggestion } from './types'
 
 export const researchTopic = (topic: TopicSuggestion) =>
   Effect.gen(function* () {
-    // Use GPT-4o to research and produce structured output in a single call
     const result = yield* callOpenAI(
       'Topic research',
       BLOG_OPENAI_TIMEOUTS.research,

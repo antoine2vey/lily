@@ -12,14 +12,12 @@ import { type CreateEmailRequestOptions, Resend } from 'resend'
 // most 0.47 s over the 60 days to 2026-10-19.
 const RESEND_SEND_TIMEOUT = Duration.seconds(10)
 
-// Environment configuration using Effect Config
 const ResendConfig = Config.all({
   apiKey: Config.Redacted('RESEND_API_KEY'),
   fromEmail: Config.String('EMAIL_FROM_ADDRESS'),
   fromName: Config.String('EMAIL_FROM_NAME').pipe(Config.withDefault('Lily')),
 })
 
-// Live layer for Resend email service
 export const ResendEmailServiceLive = Layer.effect(
   EmailService,
   Effect.gen(function* () {

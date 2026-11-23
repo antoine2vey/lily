@@ -59,17 +59,14 @@ describe('InMemoryEventBus', () => {
           Effect.gen(function* () {
             const eventBus = yield* EventBus
 
-            // Subscribe first
             const queue = yield* eventBus.subscribe
 
-            // Publish an event
             yield* eventBus.publish({
               _tag: 'PlantCreated',
               userId: 'user-1',
               plantId: 'plant-1',
             })
 
-            // Take the event from queue
             const event = yield* Queue.take(queue)
             events.push(event)
           })
@@ -89,7 +86,6 @@ describe('InMemoryEventBus', () => {
             const eventBus = yield* EventBus
             const queue = yield* eventBus.subscribe
 
-            // Publish different event types
             yield* eventBus.publish({
               _tag: 'PlantCreated',
               userId: 'user-1',
@@ -104,7 +100,6 @@ describe('InMemoryEventBus', () => {
               type: 'fertilization',
             })
 
-            // Collect events
             const event1 = yield* Queue.take(queue)
             const event2 = yield* Queue.take(queue)
             events.push(event1, event2)
@@ -128,7 +123,6 @@ describe('InMemoryEventBus', () => {
             const eventBus = yield* EventBus
             const queue = yield* eventBus.subscribe
 
-            // Publish events in order
             for (let i = 1; i <= 5; i++) {
               yield* eventBus.publish({
                 _tag: 'PlantCreated',
@@ -137,7 +131,6 @@ describe('InMemoryEventBus', () => {
               })
             }
 
-            // Collect all events
             for (let i = 0; i < 5; i++) {
               const event = yield* Queue.take(queue)
               receivedEvents.push(event)
@@ -147,7 +140,6 @@ describe('InMemoryEventBus', () => {
       )
 
       expect(receivedEvents).toHaveLength(5)
-      // Verify order
       for (let i = 0; i < 5; i++) {
         const event = receivedEvents[i]
         if (event?._tag === 'PlantCreated') {

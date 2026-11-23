@@ -7,7 +7,6 @@ import { ForbiddenError } from '@lily/shared/errors/admin'
 import { Array, Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Unlock achievement - restricted to admin users only
 export const unlockAchievement = (
   request: UnlockAchievementRequest
 ): Effect.Effect<
@@ -19,7 +18,6 @@ export const unlockAchievement = (
     const currentUser = yield* CurrentUser
     const { id: userId } = currentUser
 
-    // Only admins can manually unlock achievements
     if (currentUser.role !== 'admin') {
       return yield* new ForbiddenError({
         message: 'Only admins can manually unlock achievements',
@@ -29,7 +27,6 @@ export const unlockAchievement = (
     const unlocked = yield* repo.unlock(userId, request.achievement)
 
     if (!unlocked) {
-      // Achievement already exists - fetch and return it
       const existing = yield* repo.findByUserId(userId)
       const foundOption = Array.findFirst(
         existing,

@@ -14,13 +14,6 @@ export interface WeatherContext {
   readonly forecast: ReadonlyArray<WeatherData>
 }
 
-/**
- * Build the full weather context for a location: current weather,
- * recent history (7 days), and forecast.
- *
- * This is shared by the care-adjustments endpoint, the scheduler
- * readjustment, and the execute-plant-care helper.
- */
 export const getWeatherContext = (
   lat: number,
   lng: number
@@ -35,10 +28,8 @@ export const getWeatherContext = (
     const rlat = roundCoord(lat)
     const rlng = roundCoord(lng)
 
-    // Fetch current forecast (uses cache if available)
     const forecast = yield* getWeatherForLocation(rlat, rlng)
 
-    // Get recent weather history for trend analysis
     const recentSnapshots = yield* weatherRepo
       .findRecentByLocation(rlat, rlng, RECENT_HISTORY_DAYS)
       .pipe(
@@ -61,7 +52,6 @@ export const getWeatherContext = (
         )
       )
 
-    // Map snapshots to WeatherData format
     const recentHistory: ReadonlyArray<WeatherData> = Array.map(
       recentSnapshots,
       (snap) => ({
@@ -79,7 +69,6 @@ export const getWeatherContext = (
       })
     )
 
-    // Get today's weather (first day of forecast)
     const currentWeather: WeatherData = Option.getOrElse(
       Array.head(forecast.daily),
       () =>

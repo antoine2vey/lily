@@ -4,7 +4,6 @@ import type { WeatherData, WeatherForecast } from '@lily/shared'
 import { roundCoord } from '@lily/shared'
 import { Array, Effect, pipe } from 'effect'
 
-// Open-Meteo API response shape (subset we use)
 interface OpenMeteoResponse {
   readonly latitude: number
   readonly longitude: number

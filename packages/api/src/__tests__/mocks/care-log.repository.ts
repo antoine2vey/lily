@@ -37,7 +37,6 @@ export const createMockCareLogRepository = (
         filtered = Array.filter(filtered, (log) => log.type === params.type)
       }
 
-      // Sort by date descending
       const byDateDesc = Order.flip(
         Order.mapInput(Order.Date, (log: CareLog) => log.date)
       )
@@ -71,14 +70,12 @@ export const createMockCareLogRepository = (
         Option.getOrElse(() => 10)
       )
 
-      // Sort by date descending and take limit
       const byDateDesc = Order.flip(
         Order.mapInput(Order.Date, (log: CareLog) => log.date)
       )
       const sorted = Array.sort(careLogs, byDateDesc)
       const items = Array.take(sorted, limit)
 
-      // Map to RecentActivity format (mock plant names)
       const recentActivities = Array.map(items, (log) => ({
         id: log.id,
         type: log.type,

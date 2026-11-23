@@ -9,13 +9,11 @@ export interface MockRefreshTokenRepositoryData {
   tokens: RefreshToken[]
 }
 
-// Internal state for tracking refresh tokens
 let tokenStore: RefreshToken[] = []
 
 export const createMockRefreshTokenRepository = (
   data: MockRefreshTokenRepositoryData = { tokens: [] }
 ): Layer.Layer<RefreshTokenRepository> => {
-  // Initialize store with provided data
   tokenStore = [...data.tokens]
 
   const repo: IRefreshTokenRepository = {
@@ -95,10 +93,8 @@ export const createMockRefreshTokenRepository = (
   return Layer.succeed(RefreshTokenRepository, repo)
 }
 
-// Helper to get the current state of the store
 export const getRefreshTokenStore = () => [...tokenStore]
 
-// Helper to clear the store
 export const clearRefreshTokenStore = () => {
   tokenStore = []
 }

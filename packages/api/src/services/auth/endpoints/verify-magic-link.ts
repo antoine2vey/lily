@@ -36,14 +36,12 @@ export const verifyMagicLink = ({
     const userRepo = yield* UserRepository
     const rateLimiter = yield* RateLimiterService
 
-    // Validate UUID format
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (!uuidRegex.test(code)) {
       return yield* new AuthError({ message: 'Invalid code format' })
     }
 
-    // Check rate limit
     yield* rateLimiter.checkRateLimit(`verify:${code}`, RATE_LIMITS.VERIFY)
 
     // Atomically find valid magic link and mark as used (prevents TOCTOU race)
@@ -53,7 +51,6 @@ export const verifyMagicLink = ({
       return yield* new AuthError({ message: 'Invalid or expired code' })
     }
 
-    // Find or create user, syncing device fields on login
     const existingUser = yield* userRepo.findByEmail(magicLink.email)
 
     const user = yield* pipe(
@@ -90,7 +87,6 @@ export const verifyMagicLink = ({
       return yield* new AuthError({ message: 'Failed to create user' })
     }
 
-    // Check user status
     if (user.status !== 'active') {
       return yield* new AuthError({ message: 'Account is not active' })
     }

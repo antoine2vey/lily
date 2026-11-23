@@ -1,8 +1,6 @@
 import type { WeatherFetchError, WeatherForecast } from '@lily/shared'
 import { Context, type Effect } from 'effect'
 
-// Common interface that ALL weather providers must implement.
-// Each provider normalizes its API response to the WeatherForecast shape.
 export interface IWeatherProvider {
   readonly name: string
   readonly fetchForecast: (

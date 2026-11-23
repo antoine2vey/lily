@@ -83,14 +83,10 @@ export const WeatherRepositoryLive = Layer.effect(
               and(
                 eq(weatherSnapshots.latitude, lat),
                 eq(weatherSnapshots.longitude, lng)
-                // date is stored as ISO date string, lexicographic comparison works
-                // We want dates >= cutoffDate
-                // Since drizzle doesn't have gte for text easily, filter after
               )
             )
             .orderBy(desc(weatherSnapshots.date))
 
-          // Filter to only recent days (text comparison works for ISO dates)
           return Array.filter(results, (r) => r.date >= cutoffDateStr)
         }),
 

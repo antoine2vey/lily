@@ -26,7 +26,6 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Types
 export type CareScheduleRow = typeof plantCareSchedules.$inferSelect
 export type { CareType } from '@lily/shared'
 
@@ -49,7 +48,6 @@ export interface ReminderAudiencePlant {
   dateAdded: Date
 }
 
-// Repository interface
 export interface ICareScheduleRepository {
   readonly findByPlantAndType: (
     plantId: string,
@@ -70,20 +68,17 @@ export interface ICareScheduleRepository {
   ) => Effect.Effect<Array<OwnerScheduleRow>, SqlError>
 }
 
-// Tag for dependency injection
 export class CareScheduleRepository extends Context.Service<
   CareScheduleRepository,
   ICareScheduleRepository
 >()('CareScheduleRepository') {}
 
-// Shared room selection shape for joins
 const _roomSelect = {
   id: rooms.id,
   name: rooms.name,
   icon: rooms.icon,
 }
 
-// Live implementation
 export const CareScheduleRepositoryLive = Layer.effect(
   CareScheduleRepository,
   Effect.gen(function* () {

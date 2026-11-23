@@ -11,20 +11,10 @@ export class Session extends Context.Service<Session, SessionContext>()(
   'Session'
 ) {}
 
-/**
- * Wraps an effect to provide Session context from the current authenticated user.
- * Use this in handlers to inject the authenticated user's session.
- *
- * @example
- * .handle('createPlant', ({ payload }) =>
- *   withSession(plantsService.createPlant(payload))
- * )
- */
 export const withSession = <A, E, R>(
   effect: Effect.Effect<A, E, R | Session>
 ): Effect.Effect<A, E, Exclude<R, Session> | CurrentUser> =>
   Effect.gen(function* () {
-    // CurrentUser is provided by the auth middleware
     const user = yield* CurrentUser
 
     const userProfile: UserProfile = {

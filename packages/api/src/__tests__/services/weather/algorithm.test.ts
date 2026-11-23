@@ -35,8 +35,6 @@ const outdoorPlant: PlantForAdjustment = {
 }
 
 describe('calculatePlantAdjustment', () => {
-  // ─── Crop Coefficient (Kc) Tests ───────────────────────────────────────
-
   describe('crop coefficient mapping', () => {
     it('should use category-specific Kc for known categories', () => {
       const result = calculatePlantAdjustment(
@@ -82,8 +80,6 @@ describe('calculatePlantAdjustment', () => {
     })
   })
 
-  // ─── Temperature Factor Tests (Outdoor — full strength) ───────────────
-
   describe('temperature factor (outdoor)', () => {
     it('should return factor 1.0 for moderate temperature', () => {
       const result = calculatePlantAdjustment(
@@ -121,8 +117,6 @@ describe('calculatePlantAdjustment', () => {
       expect(result.factors.temperature).toBe(0.5)
     })
   })
-
-  // ─── Temperature Factor Tests (Indoor — dampened) ─────────────────────
 
   describe('temperature factor (indoor dampening)', () => {
     it('should return factor 1.0 for moderate temperature', () => {
@@ -171,8 +165,6 @@ describe('calculatePlantAdjustment', () => {
       expect(result.adjustedWateringDays).toBe(8)
     })
   })
-
-  // ─── Humidity Factor Tests ─────────────────────────────────────────────
 
   describe('humidity factor (outdoor)', () => {
     it('should return factor 0.85 for high humidity (>80%)', () => {
@@ -232,8 +224,6 @@ describe('calculatePlantAdjustment', () => {
     })
   })
 
-  // ─── Wind Factor Tests ─────────────────────────────────────────────────
-
   describe('wind factor', () => {
     it('should return factor 1.1 for outdoor plant in high wind (>5 m/s)', () => {
       const result = calculatePlantAdjustment(
@@ -271,8 +261,6 @@ describe('calculatePlantAdjustment', () => {
       expect(result.factors.wind).toBe(1.0)
     })
   })
-
-  // ─── Precipitation Skip Tests ──────────────────────────────────────────
 
   describe('precipitation skip', () => {
     it('should skip watering for outdoor plant when current precipitation > 6mm', () => {
@@ -339,8 +327,6 @@ describe('calculatePlantAdjustment', () => {
     })
   })
 
-  // ─── Fertilization Skip Tests ──────────────────────────────────────────
-
   describe('fertilization skip', () => {
     it('should skip fertilization in extreme heat (>30°C max)', () => {
       const result = calculatePlantAdjustment(
@@ -371,8 +357,6 @@ describe('calculatePlantAdjustment', () => {
       expect(result.skipFertilization).toBe(false)
     })
   })
-
-  // ─── Combined Multiplier & Clamping Tests ──────────────────────────────
 
   describe('combined multiplier and clamping', () => {
     it('should combine factors multiplicatively for outdoor plant', () => {
@@ -428,8 +412,6 @@ describe('calculatePlantAdjustment', () => {
       expect(result.adjustedWateringDays).toBeLessThanOrEqual(14)
     })
   })
-
-  // ─── Edge Cases ────────────────────────────────────────────────────────
 
   describe('edge cases', () => {
     it('should handle null values gracefully (use defaults)', () => {

@@ -10,11 +10,6 @@ import { DateTime, Effect } from 'effect'
 
 type UserRow = typeof users.$inferSelect
 
-/**
- * Build an `AuthResponse` for a verified user — signs a fresh access token,
- * mints + persists a refresh token, and shapes the user profile. Shared by the
- * magic-link and OAuth sign-in endpoints so token issuance stays in one place.
- */
 export const issueSession = (user: UserRow) =>
   Effect.gen(function* () {
     const jwtService = yield* JWTService

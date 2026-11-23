@@ -16,14 +16,12 @@ export const deleteNotification = (
     const repo = yield* NotificationRepository
     const { id: userId } = yield* CurrentUser
 
-    // Find the notification and verify ownership
     const notification = yield* repo.findById(notificationId)
 
     if (!notification || notification.userId !== userId) {
       return yield* new NotificationNotFoundError()
     }
 
-    // Delete the notification
     const deleted = yield* repo.delete(notificationId)
 
     return deleted as Notification

@@ -17,9 +17,6 @@ const joinNonEmpty = (parts: readonly string[], sep: string): string =>
     Array.join(sep)
   )
 
-/**
- * Recursively force-split a chunk that exceeds MAX_SIZE.
- */
 const forceSplit = (acc: ChunkAccumulator): ChunkAccumulator => {
   if (acc.currentChunk.length <= MAX_SIZE) {
     return acc
@@ -74,7 +71,6 @@ export const chunkContent = (content: string): string[] => {
           return { chunks: acc.chunks, currentChunk: combined }
         }
 
-        // Current chunk is full
         if (acc.currentChunk.length >= MIN_SIZE) {
           const overlapText = acc.currentChunk.slice(-OVERLAP)
           const newCurrent = joinNonEmpty([overlapText, cleanSegment], '\n\n')
@@ -85,7 +81,6 @@ export const chunkContent = (content: string): string[] => {
           })
         }
 
-        // Current chunk too small, merge with segment
         return forceSplit({
           chunks: acc.chunks,
           currentChunk: combined,
@@ -94,7 +89,6 @@ export const chunkContent = (content: string): string[] => {
     )
   )
 
-  // Push remaining chunk
   const finalChunk = result.currentChunk.trim()
   return (
     finalChunk.length >= MIN_SIZE
@@ -103,29 +97,21 @@ export const chunkContent = (content: string): string[] => {
   ) as string[]
 }
 
-/**
- * Find a good split point near the target position,
- * preferring sentence boundaries.
- */
 const findSplitPoint = (text: string, target: number): number => {
-  // Look for sentence endings near the target
   const searchStart = Math.max(0, target - 200)
   const searchEnd = Math.min(text.length, target + 200)
   const searchRegion = text.slice(searchStart, searchEnd)
 
-  // Find the last sentence boundary in the search region
   const sentenceEnd = searchRegion.lastIndexOf('. ')
   if (sentenceEnd !== -1) {
     return searchStart + sentenceEnd + 2
   }
 
-  // Fall back to newline
   const newlineEnd = searchRegion.lastIndexOf('\n')
   if (newlineEnd !== -1) {
     return searchStart + newlineEnd + 1
   }
 
-  // Fall back to space
   const spaceEnd = searchRegion.lastIndexOf(' ')
   if (spaceEnd !== -1) {
     return searchStart + spaceEnd + 1

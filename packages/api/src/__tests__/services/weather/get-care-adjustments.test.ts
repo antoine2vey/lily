@@ -13,7 +13,6 @@ import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// Create a minimal plant fixture for this test
 const mockPlant = {
   id: 'plant-1',
   name: 'Test Plant',

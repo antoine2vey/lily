@@ -29,8 +29,6 @@ import {
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// ── Types ──────────────────────────────────────────────────────────
-
 export interface FindChatHistoryParams {
   conversationId: string
   page?: number
@@ -70,8 +68,6 @@ export interface AskedPlant {
 export type ChatMessageRow = typeof chatMessages.$inferSelect
 export type ChatConversationRow = typeof chatConversations.$inferSelect
 
-// ── Mappers ────────────────────────────────────────────────────────
-
 const mapToChatMessage = (row: ChatMessageRow): ChatMessage => ({
   id: row.id,
   role: row.role as 'user' | 'assistant',
@@ -97,10 +93,7 @@ const mapToConversation = (row: ChatConversationRow): ChatConversation => ({
   lastMessageAt: row.lastMessageAt,
 })
 
-// ── Service interface ──────────────────────────────────────────────
-
 export interface IChatRepository {
-  // Conversations
   readonly findConversationById: (
     id: string
   ) => Effect.Effect<ChatConversationRow | null, SqlError>
@@ -155,7 +148,6 @@ export interface IChatRepository {
     title: string
   }) => Effect.Effect<void, SqlError>
 
-  // Messages
   readonly findById: (
     id: string
   ) => Effect.Effect<ChatMessageRow | null, SqlError>
@@ -175,8 +167,6 @@ export interface IChatRepository {
     params: SaveChatParams
   ) => Effect.Effect<SavedChatMessage[], SqlError>
 }
-
-// ── Tag + Live ─────────────────────────────────────────────────────
 
 export class ChatRepository extends Context.Service<
   ChatRepository,

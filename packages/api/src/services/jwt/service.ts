@@ -19,14 +19,8 @@ const JWTPayloadSchema = Schema.Struct({
   status: UserStatus,
 })
 
-/**
- * JWT payload structure - minimal claims
- */
 export type JWTPayload = typeof JWTPayloadSchema.Type
 
-/**
- * Input for signing access tokens
- */
 export interface SignAccessTokenInput {
   userId: string
   email: string
@@ -34,9 +28,6 @@ export interface SignAccessTokenInput {
   status: UserStatus
 }
 
-/**
- * JWT Service configuration
- */
 const JWTConfig = Config.all({
   secret: Config.Redacted('JWT_SECRET'),
   issuer: Config.withDefault(Config.String('JWT_ISSUER'), 'lily-api'),
@@ -46,9 +37,6 @@ const JWTConfig = Config.all({
   ),
 })
 
-/**
- * JWT Service interface
- */
 export interface IJWTService {
   readonly signAccessToken: (
     input: SignAccessTokenInput
@@ -60,16 +48,10 @@ export interface IJWTService {
   readonly hashRefreshToken: (token: string) => Effect.Effect<string, never>
 }
 
-/**
- * JWT Service context tag
- */
 export class JWTService extends Context.Service<JWTService, IJWTService>()(
   'JWTService'
 ) {}
 
-/**
- * Live implementation of JWT Service
- */
 export const JWTServiceLive = Layer.effect(
   JWTService,
   Effect.gen(function* () {
@@ -154,7 +136,6 @@ export const JWTServiceLive = Layer.effect(
           crypto.subtle.digest('SHA-256', data)
         )
         const hashArray = [...new Uint8Array(hashBuffer)]
-        // Convert to hex string
         const hashHex = pipe(
           Array.map(hashArray, (b) => b.toString(16).padStart(2, '0')),
           Array.join('')

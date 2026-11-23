@@ -41,10 +41,8 @@ export const issueServiceToken = (input: {
     const jwtService = yield* JWTService
     const db = yield* PgDrizzle.PgDrizzle
 
-    // Resolve email: either directly provided or via magic link code
     const email: string = yield* resolveEmail(input)
 
-    // Find or create user
     const existingUser = yield* userRepo.findByEmail(email)
     const user = yield* pipe(
       Option.fromNullishOr(existingUser),
@@ -80,7 +78,6 @@ export const issueServiceToken = (input: {
       return yield* new AuthError({ message: `Account is ${user.status}` })
     }
 
-    // Generate JWT access token
     const accessToken = yield* jwtService.signAccessToken({
       userId: user.id,
       email: user.email,
@@ -88,7 +85,6 @@ export const issueServiceToken = (input: {
       status: user.status,
     })
 
-    // Generate refresh token
     const refreshToken = yield* jwtService.generateRefreshToken
     const refreshTokenHash = yield* jwtService.hashRefreshToken(refreshToken)
     const refreshTokenExpiry = DateTime.toDateUtc(
@@ -125,9 +121,6 @@ export const issueServiceToken = (input: {
     Effect.withSpan('InternalService.issueServiceToken')
   )
 
-/**
- * Resolves the email from input: either directly or by consuming a magic link code.
- */
 const resolveEmail = (input: {
   magicLinkCode: string
 }): Effect.Effect<string, AuthError | SqlError, MagicLinkRepository> =>

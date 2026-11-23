@@ -11,14 +11,12 @@ import { failureOf } from '@lily/shared/testing'
 import { DateTime, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// Helpers to create dates relative to now using DateTime
 const now = DateTime.nowUnsafe()
 const dateFromNow = (parts: Partial<DateTime.DateTime.PartsForMath>): Date =>
   DateTime.toDateUtc(DateTime.add(now, parts))
 const nowAsDate = (): Date => DateTime.toDateUtc(now)
 
 describe('LimitChecker', () => {
-  // Helper to create test layers
   const createTestLayers = (options: {
     subscription?: typeof userSubscriptions.$inferSelect | null
     usage?: typeof subscriptionUsage.$inferSelect | null

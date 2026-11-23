@@ -291,7 +291,6 @@ describe('refreshToken', () => {
   })
 
   it('should generate new access token with user claims', async () => {
-    // Verify the access token is generated for the correct user
     const result = await Effect.runPromise(
       refreshToken({ refreshToken: 'valid-refresh-token' }).pipe(
         Effect.provide(

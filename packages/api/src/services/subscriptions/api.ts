@@ -19,15 +19,12 @@ import {
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-// RevenueCat webhook headers - authorization bearer token
 const RevenueCatWebhookHeaders = Schema.Struct({
   authorization: Schema.optional(Schema.String),
 })
 
-// Authenticated subscription endpoints
 export const SubscriptionsApi = HttpApiGroup.make('subscriptions')
   .add(
-    // GET /subscriptions/current - Get current subscription status
     HttpApiEndpoint.get('getCurrentSubscription', '/current', {
       success: SubscriptionInfo,
       error: Schema.Struct({ error: Schema.String }).pipe(
@@ -36,13 +33,11 @@ export const SubscriptionsApi = HttpApiGroup.make('subscriptions')
     })
   )
   .add(
-    // GET /subscriptions/tiers - Get all available tiers
     HttpApiEndpoint.get('getTiers', '/tiers', {
       success: Schema.Array(TierConfig),
     })
   )
   .add(
-    // POST /subscriptions/redeem-code - Redeem a gift code
     HttpApiEndpoint.post('redeemGiftCode', '/redeem-code', {
       payload: RedeemGiftCodeRequest,
       success: RedeemGiftCodeResponse,
@@ -64,7 +59,6 @@ export const SubscriptionWebhooksApi = HttpApiGroup.make(
   'subscription-webhooks'
 )
   .add(
-    // POST /subscriptions/webhook/revenuecat - Handle RevenueCat webhooks (no auth)
     HttpApiEndpoint.post('handleRevenueCatWebhook', '/webhook/revenuecat', {
       headers: RevenueCatWebhookHeaders,
       success: Schema.Struct({ received: Schema.Boolean }),

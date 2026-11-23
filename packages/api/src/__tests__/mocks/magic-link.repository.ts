@@ -9,13 +9,11 @@ export interface MockMagicLinkRepositoryData {
   magicLinks: MagicLink[]
 }
 
-// Internal state for tracking created/updated magic links
 let magicLinkStore: MagicLink[] = []
 
 export const createMockMagicLinkRepository = (
   data: MockMagicLinkRepositoryData = { magicLinks: [] }
 ): Layer.Layer<MagicLinkRepository> => {
-  // Initialize store with provided data
   magicLinkStore = [...data.magicLinks]
 
   const repo: IMagicLinkRepository = {
@@ -130,10 +128,8 @@ export const createMockMagicLinkRepository = (
   return Layer.succeed(MagicLinkRepository, repo)
 }
 
-// Helper to get the current state of the store
 export const getMagicLinkStore = () => [...magicLinkStore]
 
-// Helper to clear the store
 export const clearMagicLinkStore = () => {
   magicLinkStore = []
 }

@@ -101,13 +101,11 @@ export const PlantCatalogRepositoryLive = Layer.effect(
       ) {
         const pattern = `%${query}%`
 
-        // Search across translations in requested language + English, scientific name, family, category
         const rows = yield* db
           .select(selectCatalog(lang))
           .from(plantCatalog)
           .where(
             or(
-              // Search in translations for the requested language
               sql`EXISTS (
                 SELECT 1 FROM plant_catalog_translations t
                 WHERE t.catalog_id = "plant_catalog"."id"

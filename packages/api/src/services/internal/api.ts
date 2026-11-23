@@ -5,18 +5,12 @@ import { AuthResponse } from '@lily/shared/auth'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-/**
- * Service token request — validates a magic link code and issues a JWT.
- */
 export const ServiceTokenRequest = Schema.Struct({
   magicLinkCode: Schema.String,
 })
 
 export type ServiceTokenRequest = typeof ServiceTokenRequest.Type
 
-/**
- * Internal magic link request — send a magic link with a custom callback URL.
- */
 export const InternalMagicLinkRequest = Schema.Struct({
   email: Schema.String,
   callbackUrl: Schema.String.check(

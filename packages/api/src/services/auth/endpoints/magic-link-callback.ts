@@ -21,14 +21,12 @@ export const magicLinkCallback = ({
   Effect.gen(function* () {
     const magicLinkRepo = yield* MagicLinkRepository
 
-    // Validate UUID format
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (!uuidRegex.test(token)) {
       return yield* new AuthError({ message: 'Invalid token format' })
     }
 
-    // Check if token exists and is valid (not used, not expired)
     const magicLink = yield* magicLinkRepo.findValidByToken(token)
 
     if (!magicLink) {
@@ -39,6 +37,5 @@ export const magicLinkCallback = ({
     // Just redirect to app with the code
     const redirectUrl = `${APP_VERIFY_DEEP_LINK_PREFIX}${token}`
 
-    // Return redirect URL - the handler will perform the actual redirect
     return { redirectUrl }
   }).pipe(Effect.withSpan('AuthService.magicLinkCallback'))

@@ -46,7 +46,6 @@ const joinClauses = (
     Match.orElse(() => Array.join(parts, ` ${conjunction} `))
   )
 
-// Simple (non-care) notification translations
 type SimpleTranslation = {
   readonly title: (params: InternalNotificationParams) => string
   readonly body: (params: InternalNotificationParams) => string
@@ -833,7 +832,6 @@ export const buildGroupedPlantAnniversaryContent = (
 ): { title: string; body: string } =>
   groupedPlantAnniversary[language](plantNames)
 
-// Care reminder translations
 type CareTranslations = {
   readonly singleTitle: (plantName: string) => string
   readonly singleBody: (plantName: string) => string
@@ -1104,8 +1102,6 @@ const careTopicOrder: Order.Order<DeferredCareType> = Order.mapInput(
   careTopicRank
 )
 
-// Highest-priority topic among the given care types. Used by the scheduler to
-// pick a deterministic queue topic for a merged group.
 export const pickDominantCareTopic = (
   types: Array.NonEmptyReadonlyArray<DeferredCareType>
 ): DeferredCareType => Array.min(types, careTopicOrder)

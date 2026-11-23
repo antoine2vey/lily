@@ -53,7 +53,6 @@ const ConversationListParams = Schema.Struct({
 })
 
 export const AIChatApi = HttpApiGroup.make('aiChat')
-  // ── Conversation-centric routes (new) ─────────────────────────────
   .add(
     HttpApiEndpoint.post('createConversation', '/chat/conversations', {
       payload: CreateConversationRequest,

@@ -8,13 +8,8 @@ import { ForbiddenError } from '@lily/shared/errors/admin'
 import { Effect, Layer } from 'effect'
 import { AdminAuth, AdminUser } from './middleware.types'
 
-// Re-export types for convenience
 export { AdminAuth, AdminUser } from './middleware.types'
 
-/**
- * Base layer for AdminAuth middleware
- * Validates bearer token and checks admin role in one step
- */
 export const AdminAuthBase = Layer.effect(
   AdminAuth,
   Effect.gen(function* () {
@@ -42,10 +37,6 @@ export const AdminAuthBase = Layer.effect(
   })
 )
 
-/**
- * AdminAuth middleware with all dependencies bundled
- * Use this in handler files
- */
 export const AdminAuthLive = AdminAuthBase.pipe(
   Layer.provide(JWTServiceLive),
   Layer.provide(UserRepositoryLive)

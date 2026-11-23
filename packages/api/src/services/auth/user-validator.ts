@@ -17,14 +17,6 @@ export interface TokenValidationConfig<E> {
   requireAdmin?: boolean
 }
 
-/**
- * Validates a bearer token and returns the user data.
- * This helper encapsulates the common validation logic used by both
- * Authentication and AdminAuth middleware.
- *
- * @param config - Token and error configuration
- * @returns The validated user and their profile
- */
 export const validateUserFromToken = <E>(
   config: TokenValidationConfig<E>
 ): Effect.Effect<
@@ -39,7 +31,6 @@ export const validateUserFromToken = <E>(
 
     const tokenValue = Redacted.value(token)
 
-    // Verify JWT token
     const payload = yield* jwtService.verifyAccessToken(tokenValue)
 
     // Check user status from JWT payload (early exit before DB hit)
@@ -52,7 +43,6 @@ export const validateUserFromToken = <E>(
       return yield* Effect.fail(createError('Insufficient permissions'))
     }
 
-    // Fetch user from database
     const user = yield* pipe(
       userRepo.findById(payload.sub),
       Effect.catchTag('SqlError', (error) =>
@@ -80,12 +70,10 @@ export const validateUserFromToken = <E>(
       return yield* Effect.fail(createError('Account is not active'))
     }
 
-    // Check admin role from DB if required
     if (requireAdmin && user.role !== 'admin') {
       return yield* Effect.fail(createError('Insufficient permissions'))
     }
 
-    // Build user profile
     const profile: UserProfile = {
       id: user.id,
       email: user.email,

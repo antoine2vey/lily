@@ -29,7 +29,6 @@ export const isWeatherFetchHour = (
     (hour) => Array.contains(WEATHER_FETCH_HOURS, hour)
   )
 
-// Fetch weather for all active locations
 const refreshWeatherData = Effect.gen(function* () {
   const userRepo = yield* UserRepository
   const canopyRepo = yield* CanopyRepository
@@ -47,7 +46,6 @@ const refreshWeatherData = Effect.gen(function* () {
     return
   }
 
-  // Check if current UTC hour is a fetch hour for at least one timezone
   const nowDt = DateTime.nowUnsafe()
   const utcHour = DateTime.toParts(nowDt).hour
 
@@ -92,7 +90,6 @@ const refreshWeatherData = Effect.gen(function* () {
 
   yield* Effect.log(`Fetching weather for ${locationsToFetch.length} locations`)
 
-  // Fetch weather for each location with concurrency limit
   yield* Effect.forEach(
     locationsToFetch,
     (loc) =>
@@ -135,7 +132,6 @@ const refreshWeatherData = Effect.gen(function* () {
 
   yield* readjustCareSchedules(scopes, weatherContextMap)
 
-  // Run cleanup once per day (when UTC hour is 0)
   if (utcHour === 0) {
     const cleaned = yield* weatherRepo
       .cleanupOldSnapshots(CLEANUP_OLDER_THAN_DAYS)

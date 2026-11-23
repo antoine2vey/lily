@@ -212,8 +212,6 @@ export const EngagementRepositoryLive = Layer.effect(
       getPlantsWithoutRecentPhoto: Effect.fn(
         'EngagementRepository.getPlantsWithoutRecentPhoto'
       )(function* (userId: string, beforeDate: Date) {
-        // Single query: LEFT JOIN plants with their latest photo,
-        // filter to those with no photo or photo older than threshold
         const rows = yield* db
           .select({
             plantId: plants.id,

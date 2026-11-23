@@ -103,7 +103,6 @@ describe('searchPlantKnowledgeTool', () => {
     const tool = searchPlantKnowledgeTool(deps)
     await tool.execute!({ query: 'watering schedule' }, stubToolOptions)
 
-    // First query should be "Monstera: watering schedule"
     expect(retrieveCalls[0]).toBe('Monstera: watering schedule')
     await cleanup()
   })
