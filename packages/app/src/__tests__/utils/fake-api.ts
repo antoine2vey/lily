@@ -148,15 +148,18 @@ const fakeFetch: typeof fetch = (input, init) => {
  * of the test. Every API request lands in `sent`, in order. A request `reply`
  * returns nothing for gets a 404 and fails the test, so a test that expects a
  * 404 returns it. A request sent after the test ended fails the file instead,
- * naming the test.
+ * naming the test, but goes unreported when it fires after this file's
+ * `afterAll`, as when only skipped tests follow or the file's own `afterAll`
+ * outlasts this one. A test calls `stubApi` once.
  */
 export const stubApi = (reply: (request: SentRequest) => Reply | undefined) => {
-  const stub: Stub = {
-    test: expect.getState().currentTestName ?? 'a test',
-    reply,
-    sent: [],
-    unmatched: [],
+  const test = expect.getState().currentTestName ?? 'a test'
+  if (running !== undefined) {
+    throw new Error(
+      `"${test}" called stubApi twice. Answer every request from one reply.`
+    )
   }
+  const stub: Stub = { test, reply, sent: [], unmatched: [] }
   sender.enterWith(stub)
   running = stub
   stubs.push(stub)
