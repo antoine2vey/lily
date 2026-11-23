@@ -1,0 +1,25 @@
+// getQueryData, setQueryData and getQueryState match one key exactly. Every
+// queryKeys entry is a prefix for the filter methods, so it finds no entry here.
+// An effectQueryKey key carries the type of the ApiResult it holds, and a type
+// argument replaces that type without a check.
+language js
+
+pattern exact_read_or_write($key) {
+  or {
+    `$_.$method($key, $...)`,
+    `$_.$method<$_>($key, $...)`
+  } where {
+    $method <: or { `getQueryData`, `setQueryData`, `getQueryState` }
+  }
+}
+
+or {
+  exact_read_or_write($key) as $hit where {
+    $key <: r"^queryKeys\.[\s\S]*",
+    register_diagnostic(span=$hit, message="An exact cache read or write needs the query's own key; a queryKeys prefix matches no entry. Pass the effectQueryKey the query is built with.")
+  },
+  `$_.$method<$_>($...)` as $hit where {
+    $method <: or { `getQueryData`, `setQueryData`, `getQueryState` },
+    register_diagnostic(span=$hit, message="Drop the type argument: the key carries the type of its cached ApiResult, and a type argument overrides it unchecked.")
+  }
+}

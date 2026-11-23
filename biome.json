@@ -38,6 +38,16 @@
       "path": "./lint/assert-which-error.grit",
       "resolutionKind": "config",
       "includes": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"]
+    },
+    {
+      "path": "./lint/query-key-from-factory.grit",
+      "resolutionKind": "config",
+      "includes": ["packages/app/**", "packages/admin/**"]
+    },
+    {
+      "path": "./lint/exact-query-key.grit",
+      "resolutionKind": "config",
+      "includes": ["packages/app/**"]
     }
   ],
   "formatter": {

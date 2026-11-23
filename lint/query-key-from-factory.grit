@@ -1,0 +1,33 @@
+// React Query matches keys by value, so a key written out by hand finds no
+// entry once it drifts from the key the query uses, and nothing reports it.
+language js
+
+pattern array_literal() {
+  r"^\(?\[[\s\S]*"
+}
+
+or {
+  JsPropertyObjectMember(name=$name, value=$key) where {
+    $name <: `queryKey`,
+    $key <: array_literal()
+  },
+  `$_.$method($key, $...)` where {
+    $method <: or { `getQueryData`, `setQueryData`, `getQueryState` },
+    $key <: array_literal()
+  },
+  `$_.$method<$_>($key, $...)` where {
+    $method <: or { `getQueryData`, `setQueryData`, `getQueryState` },
+    $key <: array_literal()
+  },
+  // A key held in a constant, as the care tasks key once was.
+  `const $name = $key` where {
+    $name <: r".*(?:KEY|Key)",
+    $key <: or {
+      array_literal(),
+      `($_) => $body` where { $body <: array_literal() },
+      `() => $body` where { $body <: array_literal() }
+    }
+  }
+} as $hit where {
+  register_diagnostic(span=$hit, message="Use a key from queryKeys or effectQueryKey in query-keys.ts; a hand-written key can drift from the one the query uses.")
+}
