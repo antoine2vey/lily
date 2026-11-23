@@ -114,7 +114,8 @@ my $no_transaction = $sql =~ /\A-- migrate:no-transaction\r?\n/;
 $sql =~ s/--(?!> statement-breakpoint).*//g;
 $sql =~ s/\s+/ /g;
 my $locking = qr/
-	\b(?:ALTER\sTABLE|DELETE\sFROM|TRUNCATE|LOCK\sTABLE|CREATE\sTRIGGER|DROP\sTABLE
+	\b(?:ALTER\sTABLE|DELETE\sFROM|TRUNCATE|LOCK\sTABLE|DROP\sTABLE|REFERENCES
+	|CREATE\s(?:OR\sREPLACE\s)?(?:CONSTRAINT\s)?TRIGGER|DROP\sTRIGGER
 	|DROP\sINDEX(?!\sCONCURRENTLY)|CREATE\s(?:UNIQUE\s)?INDEX(?!\sCONCURRENTLY))\b
 	|(?<!\bON\s)(?<!\bDO\s)(?<!\bFOR\s)\bUPDATE\b
 /xi;
@@ -185,11 +186,11 @@ check_lock_timeouts() { # check_lock_timeouts <folder>
 		case "$status" in
 		0) ;;
 		10)
-			echo "$file: it alters, writes or indexes a table, so a lock wait could stall every query behind it. Add SET LOCAL lock_timeout = '5s'; and a --> statement-breakpoint line at the top, before the first statement." >&2
+			echo "$file: it alters, writes, indexes or references a table, so a lock wait could stall every query behind it. Add SET LOCAL lock_timeout = '5s'; and a --> statement-breakpoint line at the top, before the first statement." >&2
 			failed=1
 			;;
 		11)
-			echo "$file: it alters, writes or indexes a table outside a transaction, so a lock wait could stall every query behind it. Add SET lock_timeout = '5s'; before the first such statement and RESET lock_timeout; after the last, each followed by a --> statement-breakpoint line." >&2
+			echo "$file: it alters, writes, indexes or references a table outside a transaction, so a lock wait could stall every query behind it. Add SET lock_timeout = '5s'; before the first such statement and RESET lock_timeout; after the last, each followed by a --> statement-breakpoint line." >&2
 			failed=1
 			;;
 		*)
