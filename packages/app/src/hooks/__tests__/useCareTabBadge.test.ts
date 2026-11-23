@@ -1,6 +1,8 @@
+import { UnauthorizedError } from '@lily/shared'
 import { QueryClient } from '@tanstack/react-query'
 import { renderHook } from '@testing-library/react-native'
 import { Result } from 'effect'
+import { mockCareTask, mockCareTasksResponse } from '@/__tests__/fixtures'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 
 // Stub the fetcher so an unseeded mount doesn't hit the network.
@@ -21,14 +23,7 @@ jest.mock('@/utils/client', () => {
 })
 
 import { useCareTabBadge } from '../useCareTabBadge'
-
-const CARE_TASKS_QUERY_KEY = [
-  'careTasks',
-  'getCareTasks',
-  { query: { includeCanopy: 'true' } },
-]
-
-const task = (id: string) => ({ id })
+import { CARE_TASKS_QUERY_KEY } from '../useCareTasks'
 
 // staleTime: Infinity so seeded data is treated as fresh (no refetch overwrites it).
 const makeClient = () =>
@@ -45,12 +40,14 @@ const makeClient = () =>
 const seed = (client: QueryClient, overdue: number, today: number) =>
   client.setQueryData(
     CARE_TASKS_QUERY_KEY,
-    Result.succeed({
-      overdue: Array.from({ length: overdue }, (_, i) => task(`o${i}`)),
-      today: Array.from({ length: today }, (_, i) => task(`t${i}`)),
-      upcoming: [],
-      completedToday: 0,
-    })
+    Result.succeed(
+      mockCareTasksResponse({
+        overdue: Array.from({ length: overdue }, (_, i) =>
+          mockCareTask(`o${i}`)
+        ),
+        today: Array.from({ length: today }, (_, i) => mockCareTask(`t${i}`)),
+      })
+    )
   )
 
 describe('useCareTabBadge', () => {
@@ -83,7 +80,10 @@ describe('useCareTabBadge', () => {
 
     it('falls back to count 0 / not visible on a Left (error)', () => {
       const client = makeClient()
-      client.setQueryData(CARE_TASKS_QUERY_KEY, Result.fail({ _tag: 'Err' }))
+      client.setQueryData(
+        CARE_TASKS_QUERY_KEY,
+        Result.fail(new UnauthorizedError({ message: 'expired' }))
+      )
 
       const { result } = renderHook(() => useCareTabBadge(true), {
         wrapper: createQueryWrapper(client),

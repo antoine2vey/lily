@@ -1,6 +1,7 @@
 import { Match, pipe } from 'effect'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffectQuery } from '@/utils/client'
+import { USER_SETTINGS_PARAMS } from '@/utils/query-keys'
 
 export function useUser() {
   const { state } = useAuth()
@@ -12,10 +13,7 @@ export function useUser() {
     Match.orElse(() => false)
   )
 
-  return useEffectQuery(
-    'users',
-    'getUserSettings',
-    {},
-    { enabled: isAuthenticated }
-  )
+  return useEffectQuery('users', 'getUserSettings', USER_SETTINGS_PARAMS, {
+    enabled: isAuthenticated,
+  })
 }

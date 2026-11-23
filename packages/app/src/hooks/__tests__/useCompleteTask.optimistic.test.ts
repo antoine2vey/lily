@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react-native'
 import { Result } from 'effect'
+import { mockCareTask, mockCareTasksResponse } from '@/__tests__/fixtures'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 
 // Controls how the mocked completion API behaves. Must be `mock`-prefixed to be
@@ -27,23 +28,8 @@ jest.mock('@/utils/rating-prompt', () => ({
   recordPositiveMoment: jest.requireActual('effect').Effect.void,
 }))
 
+import { CARE_TASKS_QUERY_KEY } from '../useCareTasks'
 import { useCompleteTask } from '../useCompleteTask'
-
-const CARE_TASKS_QUERY_KEY = [
-  'careTasks',
-  'getCareTasks',
-  { query: { includeCanopy: 'true' } },
-]
-
-const task = (id: string) => ({
-  id,
-  plantId: `plant-${id}`,
-  plantName: `Plant ${id}`,
-  plantImageUrl: null,
-  type: 'watering' as const,
-  completed: false,
-  dueDate: new Date('2025-01-01T00:00:00Z'),
-})
 
 // gcTime: Infinity so the observer-less cache entry survives long enough to assert.
 const makeClient = () =>
@@ -57,12 +43,12 @@ const makeClient = () =>
 const seed = (client: QueryClient) =>
   client.setQueryData(
     CARE_TASKS_QUERY_KEY,
-    Result.succeed({
-      overdue: [task('1'), task('2')],
-      today: [task('3')],
-      upcoming: [],
-      completedToday: 0,
-    })
+    Result.succeed(
+      mockCareTasksResponse({
+        overdue: [mockCareTask('1'), mockCareTask('2')],
+        today: [mockCareTask('3')],
+      })
+    )
   )
 
 const snapshot = (client: QueryClient) =>

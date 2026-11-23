@@ -8,6 +8,7 @@ import {
   useGiftCode,
   useUpdateGiftCode,
 } from '@/hooks/use-gift-codes'
+import { queryKeys } from '@/lib/query-keys'
 
 const enLabels = pipe(
   Option.fromNullishOr(GIFT_DURATION_LABELS.en),
@@ -76,7 +77,7 @@ export const GiftCodeFormPage = () => {
     }
 
     const onSuccess = () => {
-      queryClient.invalidateQueries({ queryKey: ['gift-codes'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.giftCodes.all })
       navigate('/gift-codes')
     }
 

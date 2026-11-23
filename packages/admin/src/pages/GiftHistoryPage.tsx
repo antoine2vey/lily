@@ -4,6 +4,7 @@ import { Array, Option, pipe, Schema } from 'effect'
 import { useState } from 'react'
 import { type GiftEvent, useGiftHistory } from '@/hooks/use-gift-history'
 import { useRevokeGift } from '@/hooks/use-revoke-gift'
+import { queryKeys } from '@/lib/query-keys'
 
 const GiftMetadata = Schema.Struct({
   giftedBy: Schema.optional(Schema.String),
@@ -55,7 +56,7 @@ const RevokeButton = ({ event }: { event: GiftEvent }) => {
     }
     revoke.mutate(event.userId, {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['gift-history'] })
+        queryClient.invalidateQueries({ queryKey: queryKeys.giftHistory.all })
       },
     })
   }

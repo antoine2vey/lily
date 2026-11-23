@@ -1,26 +1,19 @@
-import type { Notification, NotificationsListResponse } from '@lily/shared'
+import type { Notification } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Result } from 'effect'
+import { apiEffectRunner, useEffectQuery } from '@/utils/client'
 import {
-  type ApiResult,
-  apiEffectRunner,
-  type GetRequestParams,
-  useEffectQuery,
-} from '@/utils/client'
-import { queryKeys } from '@/utils/query-keys'
-
-const NOTIFICATIONS_QUERY_KEY = [
-  'notifications',
-  'getNotifications',
-  {
-    query: { page: '1', limit: '20', status: 'sent' },
-  } satisfies GetRequestParams<'notifications', 'getNotifications'>,
-]
+  FIRST_NOTIFICATIONS_PAGE_KEY,
+  notificationsParams,
+  queryKeys,
+} from '@/utils/query-keys'
 
 export function useNotifications(page = 1) {
-  return useEffectQuery('notifications', 'getNotifications', {
-    query: { page: String(page), limit: '20', status: 'sent' },
-  })
+  return useEffectQuery(
+    'notifications',
+    'getNotifications',
+    notificationsParams(page)
+  )
 }
 
 export function useUnreadCount() {
@@ -44,28 +37,23 @@ export function useMarkNotificationRead() {
       await queryClient.cancelQueries({
         queryKey: queryKeys.notifications.lists(),
       })
-      const previous = queryClient.getQueryData<
-        ApiResult<NotificationsListResponse>
-      >(NOTIFICATIONS_QUERY_KEY)
+      const previous = queryClient.getQueryData(FIRST_NOTIFICATIONS_PAGE_KEY)
 
-      queryClient.setQueryData<ApiResult<NotificationsListResponse>>(
-        NOTIFICATIONS_QUERY_KEY,
-        (old) => {
-          if (!old) return undefined
-          return Result.map(old, (response) => ({
-            ...response,
-            items: response.items.map((n: Notification) =>
-              n.id === notificationId ? { ...n, isRead: true } : n
-            ),
-          }))
-        }
-      )
+      queryClient.setQueryData(FIRST_NOTIFICATIONS_PAGE_KEY, (old) => {
+        if (!old) return undefined
+        return Result.map(old, (response) => ({
+          ...response,
+          items: response.items.map((n: Notification) =>
+            n.id === notificationId ? { ...n, isRead: true } : n
+          ),
+        }))
+      })
 
       return { previous }
     },
     onError: (_, __, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, context.previous)
+        queryClient.setQueryData(FIRST_NOTIFICATIONS_PAGE_KEY, context.previous)
       }
     },
     onSettled: () => {
@@ -87,29 +75,24 @@ export function useMarkAllRead() {
       await queryClient.cancelQueries({
         queryKey: queryKeys.notifications.lists(),
       })
-      const previous = queryClient.getQueryData<
-        ApiResult<NotificationsListResponse>
-      >(NOTIFICATIONS_QUERY_KEY)
+      const previous = queryClient.getQueryData(FIRST_NOTIFICATIONS_PAGE_KEY)
 
-      queryClient.setQueryData<ApiResult<NotificationsListResponse>>(
-        NOTIFICATIONS_QUERY_KEY,
-        (old) => {
-          if (!old) return undefined
-          return Result.map(old, (response) => ({
-            ...response,
-            items: response.items.map((n: Notification) => ({
-              ...n,
-              isRead: true,
-            })),
-          }))
-        }
-      )
+      queryClient.setQueryData(FIRST_NOTIFICATIONS_PAGE_KEY, (old) => {
+        if (!old) return undefined
+        return Result.map(old, (response) => ({
+          ...response,
+          items: response.items.map((n: Notification) => ({
+            ...n,
+            isRead: true,
+          })),
+        }))
+      })
 
       return { previous }
     },
     onError: (_, __, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, context.previous)
+        queryClient.setQueryData(FIRST_NOTIFICATIONS_PAGE_KEY, context.previous)
       }
     },
     onSettled: () => {
@@ -134,29 +117,24 @@ export function useDeleteNotification() {
       await queryClient.cancelQueries({
         queryKey: queryKeys.notifications.lists(),
       })
-      const previous = queryClient.getQueryData<
-        ApiResult<NotificationsListResponse>
-      >(NOTIFICATIONS_QUERY_KEY)
+      const previous = queryClient.getQueryData(FIRST_NOTIFICATIONS_PAGE_KEY)
 
-      queryClient.setQueryData<ApiResult<NotificationsListResponse>>(
-        NOTIFICATIONS_QUERY_KEY,
-        (old) => {
-          if (!old) return undefined
-          return Result.map(old, (response) => ({
-            ...response,
-            items: response.items.filter(
-              (n: Notification) => n.id !== notificationId
-            ),
-            total: response.total - 1,
-          }))
-        }
-      )
+      queryClient.setQueryData(FIRST_NOTIFICATIONS_PAGE_KEY, (old) => {
+        if (!old) return undefined
+        return Result.map(old, (response) => ({
+          ...response,
+          items: response.items.filter(
+            (n: Notification) => n.id !== notificationId
+          ),
+          total: response.total - 1,
+        }))
+      })
 
       return { previous }
     },
     onError: (_, __, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, context.previous)
+        queryClient.setQueryData(FIRST_NOTIFICATIONS_PAGE_KEY, context.previous)
       }
     },
     onSettled: () => {

@@ -18,6 +18,7 @@ import {
 } from '@/hooks/use-gift-subscription'
 import { useRevokeGift } from '@/hooks/use-revoke-gift'
 import { formatShortDate } from '@/lib/format'
+import { queryKeys } from '@/lib/query-keys'
 
 // ── Formatting helpers ─────────────────────────────────────────────
 
@@ -210,7 +211,7 @@ const SubscriptionPanel = ({
   const blocked = overview.isStorePayer
 
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ['admin-user-overview', id] })
+    queryClient.invalidateQueries({ queryKey: queryKeys.users.overview(id) })
 
   const handleGift = () => {
     if (blocked) return

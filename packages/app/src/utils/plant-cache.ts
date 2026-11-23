@@ -6,7 +6,8 @@ import {
   type PlantPhotosListResponse,
 } from '@lily/shared'
 import { Array, Result } from 'effect'
-import type { ApiResult, GetRequestParams } from '@/utils/client'
+import type { ApiResult } from '@/utils/client'
+import { effectQueryKey } from '@/utils/query-keys'
 
 // Single source of truth for the Growth Journal photo pagination, shared by the
 // screen's query and the optimistic cache key so they can never drift.
@@ -17,31 +18,18 @@ export const PHOTOS_LIMIT = '100'
 // Mirror that cap so optimistic prepends match what a refetch returns.
 export const DETAIL_PHOTO_CAP = 10
 
-/**
- * Exact React Query keys produced by useEffectQuery (queryKey = [section,
- * method, params]). These MUST match the params objects the screens pass so
- * that optimistic setQueryData writes hit the cached entries.
- */
 export const plantDetailKey = (id: string) =>
-  [
-    'plants',
-    'getPlant',
-    { params: { id } } satisfies GetRequestParams<'plants', 'getPlant'>,
-  ] as const
+  effectQueryKey('plants', 'getPlant', { params: { id } })
 
 export const plantPhotosKey = (
   id: string,
   page = PHOTOS_PAGE,
   limit = PHOTOS_LIMIT
 ) =>
-  [
-    'plants',
-    'getPlantPhotos',
-    {
-      params: { id },
-      query: { page, limit },
-    } satisfies GetRequestParams<'plants', 'getPlantPhotos'>,
-  ] as const
+  effectQueryKey('plants', 'getPlantPhotos', {
+    params: { id },
+    query: { page, limit },
+  })
 
 /** Temp photos created optimistically carry this id prefix until the server replies. */
 export const TEMP_PHOTO_PREFIX = 'temp-'

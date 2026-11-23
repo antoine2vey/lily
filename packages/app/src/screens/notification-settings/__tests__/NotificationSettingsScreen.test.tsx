@@ -40,6 +40,7 @@ import {
   useNotificationSettings,
   useUpdateNotificationSettings,
 } from '@/hooks/useNotificationSettings'
+import { USER_SETTINGS_QUERY_KEY } from '@/utils/query-keys'
 import { NotificationSettingsScreen } from '../NotificationSettingsScreen'
 
 const mockedUseNotificationSettings = useNotificationSettings as jest.Mock
@@ -50,7 +51,7 @@ const mockedUseAuth = useAuth as jest.Mock
 const renderScreen = () => {
   const queryClient = createCacheTestQueryClient()
   queryClient.setQueryData(
-    ['users', 'getUserSettings', {}],
+    USER_SETTINGS_QUERY_KEY,
     Result.succeed(mockUserSettings)
   )
   return renderWithQuery(<NotificationSettingsScreen />, { queryClient })

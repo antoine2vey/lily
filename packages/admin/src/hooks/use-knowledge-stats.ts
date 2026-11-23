@@ -1,6 +1,7 @@
 import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
+import { queryKeys } from '@/lib/query-keys'
 
 export interface KnowledgeStats {
   readonly totalChunks: number
@@ -14,7 +15,7 @@ export interface KnowledgeStats {
 
 export const useKnowledgeStats = () =>
   useQuery({
-    queryKey: ['knowledge-stats'],
+    queryKey: queryKeys.knowledgeStats,
     queryFn: () => apiRequest<KnowledgeStats>(`${API_PREFIX}/knowledge/stats`),
     refetchInterval: 10_000,
   })

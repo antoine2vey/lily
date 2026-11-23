@@ -1,6 +1,8 @@
+import type { CareType } from '@lily/shared'
 import { QueryClient } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { Result } from 'effect'
+import { mockCareTask, mockCareTasksResponse } from '@/__tests__/fixtures'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 
 // The request the mocked careMultiplePlants sends. Pending unless a test
@@ -27,15 +29,8 @@ jest.mock('@/utils/client', () => {
 import { useCareAll } from '../useCareAll'
 import { CARE_TASKS_QUERY_KEY, useCareTasks } from '../useCareTasks'
 
-const task = (id: string, plantId: string, type: string) => ({
-  id,
-  plantId,
-  plantName: `Plant ${plantId}`,
-  plantImageUrl: null,
-  type,
-  completed: false,
-  dueDate: new Date('2025-01-01T00:00:00Z'),
-})
+const task = (id: string, plantId: string, type: CareType) =>
+  mockCareTask(id, { plantId, type })
 
 const makeClient = () =>
   new QueryClient({
@@ -54,12 +49,15 @@ describe('useCareAll optimistic update', () => {
     const client = makeClient()
     client.setQueryData(
       CARE_TASKS_QUERY_KEY,
-      Result.succeed({
-        overdue: [task('1', 'a', 'watering'), task('2', 'b', 'fertilizing')],
-        today: [task('3', 'b', 'watering')],
-        upcoming: [],
-        completedToday: 0,
-      })
+      Result.succeed(
+        mockCareTasksResponse({
+          overdue: [
+            task('1', 'a', 'watering'),
+            task('2', 'b', 'fertilization'),
+          ],
+          today: [task('3', 'b', 'watering')],
+        })
+      )
     )
     const wrapper = createQueryWrapper(client)
     const { result: tasks } = renderHook(() => useCareTasks(), { wrapper })
@@ -80,12 +78,12 @@ describe('useCareAll optimistic update', () => {
 
   it('restores the tasks when the request fails', async () => {
     mockRequest = () => Promise.reject(new Error('careMultiplePlants failed'))
-    const seeded = Result.succeed({
-      overdue: [task('1', 'a', 'watering')],
-      today: [task('3', 'b', 'watering')],
-      upcoming: [],
-      completedToday: 0,
-    })
+    const seeded = Result.succeed(
+      mockCareTasksResponse({
+        overdue: [task('1', 'a', 'watering')],
+        today: [task('3', 'b', 'watering')],
+      })
+    )
     const client = makeClient()
     client.setQueryData(CARE_TASKS_QUERY_KEY, seeded)
     const { result: careAll } = renderHook(() => useCareAll(), {

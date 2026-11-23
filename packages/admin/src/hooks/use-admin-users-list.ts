@@ -2,6 +2,7 @@ import type { PaginatedResponse } from '@lily/shared'
 import { API_PREFIX } from '@lily/shared'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
+import { queryKeys } from '@/lib/query-keys'
 
 export interface AdminUserListItem {
   readonly id: string
@@ -26,14 +27,13 @@ interface UseAdminUsersListParams {
 // the full Users table — so it always runs and exposes pagination.
 export const useAdminUsersList = (params: UseAdminUsersListParams) =>
   useQuery({
-    queryKey: [
-      'admin-users-list',
+    queryKey: queryKeys.users.list(
       params.page,
       params.limit ?? 20,
       params.search ?? '',
       params.role ?? '',
-      params.status ?? '',
-    ],
+      params.status ?? ''
+    ),
     queryFn: () => {
       const qs = new URLSearchParams()
       qs.set('page', String(params.page))

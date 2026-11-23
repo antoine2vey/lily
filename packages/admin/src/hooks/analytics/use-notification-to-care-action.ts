@@ -2,6 +2,7 @@ import { API_PREFIX } from '@lily/shared'
 import type { NotificationToCareActionResponse } from '@lily/shared/admin/analytics'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
+import { queryKeys } from '@/lib/query-keys'
 import {
   resolvePresetRange,
   useAnalyticsFilters,
@@ -10,7 +11,7 @@ import {
 export const useNotificationToCareAction = () => {
   const { preset } = useAnalyticsFilters()
   return useQuery({
-    queryKey: ['analytics', 'notification-to-care-action', preset],
+    queryKey: queryKeys.analytics.ranged('notification-to-care-action', preset),
     queryFn: () => {
       const { from, to } = resolvePresetRange(preset)
       return apiRequest<NotificationToCareActionResponse>(

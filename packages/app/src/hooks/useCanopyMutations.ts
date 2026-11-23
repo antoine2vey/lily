@@ -7,27 +7,20 @@ import {
 } from '@tanstack/react-query'
 import { Array as Arr, Result } from 'effect'
 import type { InviteToken } from '@/utils/canopy-invite-token'
-import {
-  type ApiFailure,
-  type ApiResult,
-  apiEffectRunner,
-} from '@/utils/client'
+import { type ApiFailure, apiEffectRunner } from '@/utils/client'
 import {
   type CacheSnapshot,
   patchCachedResults,
   restoreCachedResults,
 } from '@/utils/optimistic-cache'
-import { queryKeys } from '@/utils/query-keys'
+import { MY_CANOPY_QUERY_KEY, queryKeys } from '@/utils/query-keys'
 
 export const useCanopyMutation = <A, V = void, C = unknown>(
   options: UseMutationOptions<A, ApiFailure, V, C>
 ) => useMutation(options)
 
 const setMyCanopy = (queryClient: QueryClient, canopy: Canopy | null) =>
-  queryClient.setQueryData<ApiResult<CanopyResponse>>(
-    queryKeys.canopy.mine(),
-    Result.succeed({ canopy })
-  )
+  queryClient.setQueryData(MY_CANOPY_QUERY_KEY, Result.succeed({ canopy }))
 
 const patchMyCanopy = (
   queryClient: QueryClient,
@@ -35,7 +28,7 @@ const patchMyCanopy = (
 ): CacheSnapshot =>
   patchCachedResults<CanopyResponse>(
     queryClient,
-    { queryKey: queryKeys.canopy.mine(), exact: true },
+    { queryKey: MY_CANOPY_QUERY_KEY, exact: true },
     ({ canopy }) => ({ canopy: canopy && patch(canopy) })
   )
 

@@ -4,9 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Array, Result } from 'effect'
 import { useIsFocused } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
-import { FOLLOW_UPS_KEY } from '@/hooks/useChatFollowUps'
 import { useLocalization } from '@/hooks/useLocalization'
-import { effectQueryKey, runApiEffect } from '@/utils/client'
+import { runApiEffect } from '@/utils/client'
+import { effectQueryKey, queryKeys } from '@/utils/query-keys'
 
 export type PlantSuggestions =
   | { readonly _tag: 'Loading' }
@@ -16,7 +16,6 @@ export type PlantSuggestions =
     }
   | { readonly _tag: 'Failed' }
 
-const SUGGESTIONS_KEY = ['aiChat', 'listChatSuggestions'] as const
 const NEVER_REPLACE_RENDERED_CHIPS = Number.POSITIVE_INFINITY
 
 const suggestionsQuery = (plantId: string, language: LanguageCode) => {
@@ -54,8 +53,8 @@ export function useChatSuggestionsVisit(): ChatSuggestionsVisit {
   useEffect(() => {
     if (!isVisiting) return
     return () => {
-      queryClient.removeQueries({ queryKey: SUGGESTIONS_KEY })
-      queryClient.removeQueries({ queryKey: FOLLOW_UPS_KEY })
+      queryClient.removeQueries({ queryKey: queryKeys.aiChat.suggestions() })
+      queryClient.removeQueries({ queryKey: queryKeys.aiChat.followUps() })
       setSentIn([])
     }
   }, [isVisiting, queryClient])

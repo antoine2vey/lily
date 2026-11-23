@@ -1,4 +1,11 @@
-import type { CarePlan } from '@lily/shared/care-plan'
+import { Brand } from 'effect'
+import type { GetCleanSuccessType } from '@/utils/client'
+import { effectQueryKey } from '@/utils/query-keys'
+
+type SentCarePlan = GetCleanSuccessType<
+  'carePlans',
+  'getCarePlans'
+>['items'][number]
 
 // The API client rejects ids that are not UUIDs before sending a request.
 export const carePlanIds = {
@@ -8,8 +15,9 @@ export const carePlanIds = {
   doneStep: 'c6e8a0b2-4d1f-4a3c-9b75-5e6f7a8b9c44',
 } as const
 
-// One accepted plan with an open care-typed step and a done free-text step.
-export const mockCarePlan: CarePlan = {
+// One accepted plan with an open care-typed step and a done free-text step,
+// branded Seen as the API sends every plan it has redacted for the caller.
+export const mockCarePlan = Brand.nominal<SentCarePlan>()({
   id: carePlanIds.plan,
   plantId: carePlanIds.plant,
   plantName: 'Monstera',
@@ -36,16 +44,14 @@ export const mockCarePlan: CarePlan = {
   ],
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
-}
+})
 
-export const carePlansListKey = [
-  'carePlans',
-  'getCarePlans',
-  { query: { status: 'accepted' } },
-]
+export const carePlansListKey = effectQueryKey('carePlans', 'getCarePlans', {
+  query: { status: 'accepted' },
+})
 
-export const plantCarePlansKey = [
+export const plantCarePlansKey = effectQueryKey(
   'carePlans',
   'getPlantCarePlans',
-  { params: { plantId: carePlanIds.plant } },
-]
+  { params: { plantId: carePlanIds.plant } }
+)

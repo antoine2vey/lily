@@ -12,7 +12,7 @@ const fetchMock = jest.spyOn(globalThis, 'fetch')
 afterEach(() => fetchMock.mockReset())
 
 import type { ApiResult } from '@/utils/client'
-import { queryKeys } from '@/utils/query-keys'
+import { MY_CANOPY_QUERY_KEY } from '@/utils/query-keys'
 import {
   useRemoveCanopyMember,
   useWithdrawCanopyInvitation,
@@ -21,7 +21,7 @@ import {
 const seed = () => {
   const client = createCacheTestQueryClient()
   client.setQueryData(
-    queryKeys.canopy.mine(),
+    MY_CANOPY_QUERY_KEY,
     Result.succeed({ canopy: mockCanopy })
   )
   return client
@@ -29,7 +29,7 @@ const seed = () => {
 
 const cachedCanopy = (client: ReturnType<typeof seed>) =>
   Result.getOrThrow(
-    client.getQueryData(queryKeys.canopy.mine()) as ApiResult<CanopyResponse>
+    client.getQueryData(MY_CANOPY_QUERY_KEY) as ApiResult<CanopyResponse>
   ).canopy
 
 describe('useWithdrawCanopyInvitation optimistic update', () => {

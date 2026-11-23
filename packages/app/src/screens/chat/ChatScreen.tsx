@@ -52,6 +52,7 @@ import {
   type NewChatTarget,
   newConversationPayload,
 } from '@/screens/chat/new-chat-target'
+import { queryKeys } from '@/utils/query-keys'
 
 function hasNoVisibleContent(msg: UIMessage): boolean {
   const hasText = Array.some(
@@ -290,14 +291,12 @@ export function ChatScreen() {
 
   const refreshConversationQueries = useCallback(() => {
     queryClient.invalidateQueries({
-      queryKey: ['aiChat', 'getConversationMessages'],
+      queryKey: queryKeys.aiChat.conversationMessages(),
     })
     queryClient.invalidateQueries({
-      queryKey: ['aiChat', 'listConversations'],
+      queryKey: queryKeys.aiChat.conversations(),
     })
-    queryClient.invalidateQueries({
-      queryKey: ['aiChat', 'listChatStarters'],
-    })
+    queryClient.invalidateQueries({ queryKey: queryKeys.aiChat.starters() })
   }, [queryClient])
 
   const lastRequestOptionsRef = useRef<{ body?: { imageKey: string } }>({})

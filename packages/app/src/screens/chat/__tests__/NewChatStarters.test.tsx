@@ -4,7 +4,6 @@ import { Option, Result } from 'effect'
 import type { ReactElement } from 'react'
 
 jest.mock('@/utils/client', () => ({
-  effectQueryKey: (...key: ReadonlyArray<unknown>) => key,
   runApiEffect: jest.fn(),
 }))
 

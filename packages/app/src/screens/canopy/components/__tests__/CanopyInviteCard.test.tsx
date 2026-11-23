@@ -21,7 +21,7 @@ jest.mock('sonner-native', () => ({
 
 import { toast } from 'sonner-native'
 import { useMyCanopy } from '@/hooks/useMyCanopy'
-import { queryKeys } from '@/utils/query-keys'
+import { MY_CANOPY_QUERY_KEY } from '@/utils/query-keys'
 import { CanopyInviteCard } from '../CanopyInviteCard'
 
 // Confirms every alert with its destructive button.
@@ -42,7 +42,7 @@ function CanopyFromCache() {
 const renderCard = () => {
   const queryClient = createCacheTestQueryClient()
   queryClient.setQueryData(
-    queryKeys.canopy.mine(),
+    MY_CANOPY_QUERY_KEY,
     Result.succeed({ canopy: mockCanopy })
   )
   return renderWithQuery(<CanopyFromCache />, { queryClient })

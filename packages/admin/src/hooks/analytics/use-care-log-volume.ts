@@ -2,6 +2,7 @@ import { API_PREFIX } from '@lily/shared'
 import type { CareLogVolumeByTypeResponse } from '@lily/shared/admin/analytics'
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
+import { queryKeys } from '@/lib/query-keys'
 import {
   resolvePresetRange,
   useAnalyticsFilters,
@@ -10,7 +11,7 @@ import {
 export const useCareLogVolumeByType = () => {
   const { preset } = useAnalyticsFilters()
   return useQuery({
-    queryKey: ['analytics', 'care-log-volume', preset],
+    queryKey: queryKeys.analytics.ranged('care-log-volume', preset),
     queryFn: () => {
       const { from, to } = resolvePresetRange(preset)
       return apiRequest<CareLogVolumeByTypeResponse>(

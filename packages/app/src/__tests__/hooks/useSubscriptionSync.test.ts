@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 import { useSubscriptionSync } from '@/hooks/useSubscriptionSync'
+import { queryKeys } from '@/utils/query-keys'
 
 // Mock query client
 const mockInvalidateQueries = jest.fn()
@@ -38,7 +39,7 @@ describe('useSubscriptionSync', () => {
     })
 
     expect(mockInvalidateQueries).toHaveBeenCalledWith({
-      queryKey: ['subscriptions', 'getCurrentSubscription'],
+      queryKey: queryKeys.subscriptions.current(),
     })
   })
 
