@@ -91,6 +91,16 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: bun packages/web/scripts/calculator-check.ts
+      - name: Check the consent banner holds analytics until the visitor accepts
+        timeout-minutes: 5
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: bun packages/web/scripts/consent-check.ts
+      - name: Check the join page keeps its open button above the consent banner
+        timeout-minutes: 10
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: bun packages/web/scripts/join-check.ts
 
   docs:
     name: Docs references
