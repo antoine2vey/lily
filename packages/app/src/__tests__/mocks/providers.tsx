@@ -3,10 +3,6 @@ import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
 import { mockNow } from '../utils/dates'
 
-// ============================================================================
-// Mock Auth Context
-// ============================================================================
-
 type AuthState =
   | { _tag: 'Loading' }
   | { _tag: 'Authenticated'; user: UserProfile; accessToken: string }
@@ -91,10 +87,6 @@ export function useMockAuth(): AuthContextValue {
   }
   return context
 }
-
-// ============================================================================
-// Reset Mocks
-// ============================================================================
 
 export function resetProviderMocks() {
   mockAuthLogin.mockClear()

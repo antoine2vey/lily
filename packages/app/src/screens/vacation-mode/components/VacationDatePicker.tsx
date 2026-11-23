@@ -90,7 +90,6 @@ export function VacationDatePicker({
         {t('dateRange.label')}
       </Text>
 
-      {/* Selected range summary */}
       <View className="flex-row gap-3">
         <View className="flex-1 flex-row items-center rounded-2xl px-4 py-3.5 bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50">
           <MaterialIcons

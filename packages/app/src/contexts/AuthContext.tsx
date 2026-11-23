@@ -84,7 +84,6 @@ async function registerDeviceForPush(): Promise<string | null> {
       }
     )
 
-    // Store the token ID for later unregistration
     await SecureStore.setItemAsync(
       DEVICE_TOKEN_ID_KEY,
       result.id,
@@ -121,7 +120,6 @@ async function unregisterDeviceFromPush(): Promise<void> {
   }
 }
 
-// Auth state discriminated union
 export type AuthState =
   | { _tag: 'Loading' }
   | { _tag: 'Authenticated'; user: UserProfile; accessToken: string }
@@ -263,7 +261,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const handleAuthFailure = async () => {
       // The refresh path already captured the forced-logout event
       addAuthBreadcrumb('auth_failure_clearing_session')
-      // Clear all auth storage
       await Effect.runPromise(clearAuthStorage)
       setPendingEmail(null)
       setState({ _tag: 'Unauthenticated' })
@@ -276,7 +273,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [])
 
-  // Check for stored token on mount
   useEffect(() => {
     const checkAuth = Effect.gen(function* () {
       const tokenOption = yield* getStoredAccessToken
@@ -386,7 +382,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     Effect.runPromise(checkAuth)
   }, [])
 
-  // Handle navigation based on auth state
   useEffect(() => {
     if (state._tag === 'Loading') return
 
@@ -472,7 +467,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           },
         })
 
-        // Store both tokens
         await Effect.runPromise(storeAccessToken(response.accessToken))
         await Effect.runPromise(storeRefreshToken(response.refreshToken))
         persistUserProfile(response.user)
@@ -623,10 +617,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   )
 
   const logout = useCallback(async () => {
-    // Unregister device from push notifications before logout
     await unregisterDeviceFromPush()
 
-    // Clear RevenueCat identity
     try {
       await RevenueCatService.logout()
     } catch {

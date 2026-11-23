@@ -8,7 +8,6 @@ import type { ReactElement, ReactNode } from 'react'
 import { defaultMockUser, MockAuthProvider } from '../mocks/providers'
 import { createTestQueryClient } from './query-helpers'
 
-// Re-export everything from testing-library
 export * from '@testing-library/react-native'
 
 interface WrapperProps {
@@ -58,7 +57,6 @@ export function render(
   function Wrapper({ children }: WrapperProps) {
     let wrapped = children
 
-    // Wrap with Auth provider if needed
     if (withAuth) {
       wrapped = (
         <MockAuthProvider state={resolvedAuthState} pendingEmail={pendingEmail}>
@@ -67,7 +65,6 @@ export function render(
       )
     }
 
-    // Wrap with QueryClient provider if needed
     if (withQueryClient) {
       wrapped = (
         <QueryClientProvider client={client}>{wrapped}</QueryClientProvider>

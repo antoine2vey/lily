@@ -294,7 +294,6 @@ export function RoomsScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
         <GlassBackButton />
         <Text className="text-lg font-bold text-text-primary dark:text-white">
@@ -308,7 +307,6 @@ export function RoomsScreen() {
         </Pressable>
       </View>
 
-      {/* Content */}
       {showSkeleton ? (
         <Animated.View entering={FadeIn.duration(300)}>
           <RoomsContentSkeleton />
@@ -388,7 +386,6 @@ export function RoomsScreen() {
         </Animated.View>
       )}
 
-      {/* Create Room Sheet */}
       <BottomSheet
         visible={showCreateSheet}
         onClose={() => setShowCreateSheet(false)}
@@ -408,7 +405,6 @@ export function RoomsScreen() {
         />
       </BottomSheet>
 
-      {/* Edit Room Sheet */}
       <BottomSheet
         visible={showEditSheet}
         onClose={() => {
@@ -431,7 +427,6 @@ export function RoomsScreen() {
         />
       </BottomSheet>
 
-      {/* Delete Confirmation */}
       <ConfirmationModal
         visible={showDeleteConfirm}
         title={t('delete.title', { name: deletingRoom?.name })}

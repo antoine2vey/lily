@@ -56,8 +56,6 @@ const getRarityColor = (
 const getRarityLabel = (rarity: AchievementRarity, t: TFunction): string =>
   t(`rarity.${rarity}`)
 
-// --- Staggered fade-in wrapper ---
-
 function StaggerIn({
   delay,
   style: layoutStyle,
@@ -85,8 +83,6 @@ function StaggerIn({
 
   return <Animated.View style={[layoutStyle, style]}>{children}</Animated.View>
 }
-
-// --- One achievement page ---
 
 function AchievementPage({
   achievement,
@@ -147,8 +143,6 @@ function AchievementPage({
   )
 }
 
-// --- Page dot, tracking the swipe ---
-
 function PageDot({
   index,
   scrollX,
@@ -176,8 +170,6 @@ function PageDot({
     />
   )
 }
-
-// --- Modal content ---
 
 function AchievementModalContent({
   achievements,
@@ -374,8 +366,6 @@ function AchievementModalContent({
     </Animated.View>
   )
 }
-
-// --- Main export ---
 
 interface AchievementUnlockedModalProps {
   /** Pending unlocks; the modal opens while non-empty and shows them as one deck. */

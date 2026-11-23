@@ -80,7 +80,6 @@ export function TimezonePickerModal({
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-background dark:bg-background-dark">
-        {/* Modal Header */}
         <View className="flex-row items-center px-4 py-3">
           <Pressable
             onPress={onClose}
@@ -97,7 +96,6 @@ export function TimezonePickerModal({
           </Text>
         </View>
 
-        {/* Search Input */}
         <View className="px-4 py-3">
           <View className="flex-row items-center bg-surface dark:bg-surface-dark border border-border/30 dark:border-slate-700/30 rounded-xl px-4">
             <MaterialIcons
@@ -117,7 +115,6 @@ export function TimezonePickerModal({
           </View>
         </View>
 
-        {/* Timezone List */}
         <ScrollView
           className="flex-1 px-4"
           showsVerticalScrollIndicator={false}

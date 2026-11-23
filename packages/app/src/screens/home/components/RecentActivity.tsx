@@ -178,7 +178,6 @@ function ActivityItem({
       }}
       accessibilityLabel={`${title}, ${formatActivityTime(activity.timestamp, t, i18n)}`}
     >
-      {/* Plant image with activity icon badge */}
       <View className="shrink-0">
         <PlantImageBadge
           imageUrl={activity.plantImageUrl}
@@ -189,7 +188,6 @@ function ActivityItem({
         />
       </View>
 
-      {/* Content */}
       <View className="flex-1 min-w-0">
         <Text
           className="text-sm text-text-primary dark:text-white font-bold"

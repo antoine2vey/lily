@@ -12,7 +12,6 @@ jest.mock('@/utils/client', () => ({
   })),
 }))
 
-// Mock hooks
 jest.mock('@/hooks/usePlants', () => ({
   usePlants: jest.fn(() => ({
     data: { items: [], total: 0 },
@@ -49,7 +48,6 @@ describe('LogCareSheet', () => {
     const { toJSON } = render(
       <LogCareSheet visible={false} onClose={mockOnClose} />
     )
-    // When not visible, modal returns null
     expect(toJSON()).toBeNull()
   })
 })

@@ -113,7 +113,6 @@ export function AchievementDetailModal({
           className="w-[85%] rounded-3xl p-6 bg-surface"
           onPress={() => {}}
         >
-          {/* Close button */}
           <Pressable
             onPress={onClose}
             className="absolute top-4 right-4 w-8 h-8 items-center justify-center"
@@ -125,7 +124,6 @@ export function AchievementDetailModal({
             />
           </Pressable>
 
-          {/* Icon */}
           <View className="items-center mt-4">
             <View
               className="w-24 h-24 rounded-full items-center justify-center mb-4"
@@ -146,7 +144,6 @@ export function AchievementDetailModal({
               )}
             </View>
 
-            {/* Rarity badge */}
             <View
               className="px-3 py-1 rounded-full mb-3"
               style={{ backgroundColor: `${rarityColor}20` }}
@@ -159,17 +156,14 @@ export function AchievementDetailModal({
               </Text>
             </View>
 
-            {/* Name */}
             <Text className="text-xl text-center font-bold text-text-primary">
               {copy.name}
             </Text>
 
-            {/* Description */}
             <Text className="text-base text-center mt-2 font-regular text-text-secondary">
               {copy.description}
             </Text>
 
-            {/* Unlocked date or progress */}
             {achievement.unlocked ? (
               <View className="flex-row items-center mt-4">
                 <MaterialIcons

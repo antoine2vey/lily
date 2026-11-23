@@ -88,7 +88,6 @@ const ensureFreshToken = async (): Promise<string | null> => {
     return token
   }
 
-  // Token missing or expired — attempt proactive refresh
   if (!refreshPromise) {
     refreshPromise = tryRefresh().finally(() => {
       refreshPromise = null

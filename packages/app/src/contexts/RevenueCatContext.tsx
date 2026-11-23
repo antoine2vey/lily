@@ -48,7 +48,6 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
           RevenueCatService.initialize()
         }
 
-        // Then load offerings
         const result = await RevenueCatService.getOfferings()
         console.log('[RevenueCat] Offerings loaded:', result)
         setOfferings(result)

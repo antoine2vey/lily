@@ -88,7 +88,6 @@ export function DiagnosisCard({
         </View>
       </View>
 
-      {/* Confidence */}
       <View className="mb-3">
         <View className="flex-row items-center justify-between mb-1">
           <Text className="text-xs font-medium text-text-muted dark:text-slate-400">
@@ -106,7 +105,6 @@ export function DiagnosisCard({
         </View>
       </View>
 
-      {/* Symptoms */}
       <View className="mb-3">
         <Text
           className="text-xs text-text-muted dark:text-slate-400 uppercase tracking-wide mb-1.5"
@@ -126,7 +124,6 @@ export function DiagnosisCard({
         ))}
       </View>
 
-      {/* Treatment Steps */}
       <View className="mb-3">
         <Text
           className="text-xs text-text-muted dark:text-slate-400 uppercase tracking-wide mb-1.5"

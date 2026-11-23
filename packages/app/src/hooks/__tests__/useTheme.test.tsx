@@ -7,12 +7,9 @@ import { useTheme } from '../useTheme'
 // Unmock ThemeContext for this test file since we're testing the actual implementation
 jest.unmock('@/contexts/ThemeContext')
 
-// Wrapper that provides ThemeProvider
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <ThemeProvider>{children}</ThemeProvider>
 )
-
-// AsyncStorage is already mocked in expo-modules
 
 describe('useTheme', () => {
   beforeEach(() => {
@@ -75,10 +72,8 @@ describe('useTheme', () => {
   it('provides loading state initially then resolves', async () => {
     const { result } = renderHook(() => useTheme(), { wrapper })
 
-    // Initially loading
     expect(result.current.isLoading).toBe(true)
 
-    // Wait for async to complete
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })
@@ -93,7 +88,6 @@ describe('useTheme', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    // Should fall back to system
     expect(result.current.theme).toBe('system')
   })
 
@@ -108,7 +102,6 @@ describe('useTheme', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    // Should fall back to system
     expect(result.current.theme).toBe('system')
   })
 

@@ -12,10 +12,8 @@ describe('useOnboardingComplete', () => {
 
     const { result } = renderHook(() => useOnboardingComplete())
 
-    // Initially loading
     expect(result.current.isLoading).toBe(true)
 
-    // Wait for async to complete
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })

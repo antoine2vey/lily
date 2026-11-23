@@ -106,7 +106,6 @@ describe('PrivacySettingsScreen', () => {
 
     render(<PrivacySettingsScreen />)
 
-    // Find and toggle a switch
     const publicProfileToggle = screen.getByTestId('toggle-public-profile')
     fireEvent(publicProfileToggle, 'valueChange', false)
 

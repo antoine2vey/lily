@@ -150,14 +150,12 @@ function CareCard({
       className={`flex-row items-center p-4 rounded-xl ${styles.containerClass}`}
       testID={`care-card-${String.toLowerCase(label)}`}
     >
-      {/* Icon */}
       <View
         className={`w-10 h-10 rounded-full items-center justify-center ${styles.iconBgClass}`}
       >
         <MaterialIcons name={icon} size={20} color={iconColor} />
       </View>
 
-      {/* Text block */}
       <View className="flex-1 ml-3">
         <Text className="text-sm font-medium text-text-primary dark:text-white">
           {label}
@@ -170,7 +168,6 @@ function CareCard({
         </Text>
       </View>
 
-      {/* Actions */}
       {showDoNow && (
         <Pressable
           onPress={onDoNow}

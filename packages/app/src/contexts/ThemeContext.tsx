@@ -18,15 +18,11 @@ export type ResolvedTheme = 'light' | 'dark'
 const THEME_STORAGE_KEY = 'app-theme'
 
 interface ThemeContextValue {
-  /** User's theme preference (light, dark, or system) */
   preference: ThemePreference
   /** The actual theme being applied (light or dark) */
   resolvedTheme: ResolvedTheme
-  /** Convenience boolean for checking dark mode */
   isDark: boolean
-  /** Update the theme preference */
   setTheme: (theme: ThemePreference) => Promise<void>
-  /** True while loading the stored preference */
   isLoading: boolean
 }
 
@@ -54,7 +50,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // NativeWind's color scheme hook to apply the dark class
   const { setColorScheme } = useNativeWindColorScheme()
 
-  // Listen to system theme changes
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
       setSystemTheme(colorScheme)
@@ -62,7 +57,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     return () => subscription.remove()
   }, [])
 
-  // Load stored preference on mount
   useEffect(() => {
     const loadPreference = async () => {
       try {
@@ -72,7 +66,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
           setPreference(stored as ThemePreference)
         }
       } catch {
-        // Use default preference on error
       } finally {
         setIsLoading(false)
       }
@@ -81,7 +74,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     loadPreference()
   }, [])
 
-  // Resolve 'system' to actual theme
   const resolvedTheme: ResolvedTheme = useMemo(() => {
     if (preference === 'system') {
       return systemTheme === 'dark' ? 'dark' : 'light'

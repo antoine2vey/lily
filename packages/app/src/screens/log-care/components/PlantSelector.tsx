@@ -135,7 +135,6 @@ export function PlantSelector({
             )}
           </View>
 
-          {/* Plant name */}
           <Text
             className={`flex-1 text-base font-bold pr-10 ${
               !Array.isReadonlyArrayEmpty(selectedPlants)
@@ -153,7 +152,6 @@ export function PlantSelector({
             {displayText}
           </Text>
 
-          {/* Expand icon on right */}
           <View className="absolute right-5 top-0 bottom-0 justify-center">
             <MaterialIcons
               name="expand-more"

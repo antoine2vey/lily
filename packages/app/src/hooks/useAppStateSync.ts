@@ -26,7 +26,6 @@ export function useAppStateSync(isAuthenticated: boolean) {
     if (!isAuthenticated) return
 
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      // Detect background → foreground transition
       const isComingToForeground =
         (appStateRef.current === 'inactive' ||
           appStateRef.current === 'background') &&
@@ -37,9 +36,7 @@ export function useAppStateSync(isAuthenticated: boolean) {
         if (now - lastSyncRef.current >= SYNC_THROTTLE_MS) {
           lastSyncRef.current = now
           if (knowsLanguage) void requestChatFollowUps(language)
-          // Wake RevenueCat SDK (fetches latest from cache/network)
           await RevenueCatService.getCustomerInfo()
-          // Invalidate subscription query to refresh UI
           syncSubscription()
         }
       }

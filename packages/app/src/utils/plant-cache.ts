@@ -51,8 +51,6 @@ export const makeTempPhoto = (plantId: string, uri: string): PlantPhoto => ({
 type DetailResult = ApiResult<PlantDetail> | undefined
 type PhotosResult = ApiResult<PlantPhotosListResponse> | undefined
 
-// --- Pure cache transforms (operate THROUGH the Either wrapper) ---
-
 /**
  * Prepend a photo to the getPlant detail cache, keeping it capped to the same
  * number of photos the detail endpoint returns so the optimistic state matches

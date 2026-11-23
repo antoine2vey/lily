@@ -8,7 +8,6 @@ export type LocalizationState =
 
 export type TranslationResources = typeof en
 
-// Type-safe translation keys
 export type TranslationKey = ParseKeys<
   'common' | 'auth' | 'home' | 'plants' | 'care' | 'settings'
 >

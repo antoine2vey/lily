@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { LanguageSelectionModal } from '../LanguageSelectionModal'
 
-// Mock useLocalization with controllable state
 const mockSetLanguage = jest.fn().mockResolvedValue(undefined)
 let mockLanguage = 'en'
 
@@ -58,7 +57,6 @@ describe('LanguageSelectionModal', () => {
 
     fireEvent.press(screen.getByText('Français'))
 
-    // Wait for async setLanguage to complete
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(mockOnClose).toHaveBeenCalled()
@@ -82,18 +80,15 @@ describe('LanguageSelectionModal', () => {
     // We verify by the presence of the language option
     expect(screen.getByText('English')).toBeTruthy()
 
-    // Change to French
     mockLanguage = 'fr'
     rerender(<LanguageSelectionModal visible={true} onClose={mockOnClose} />)
 
-    // French should now be selected
     expect(screen.getByText('Français')).toBeTruthy()
   })
 
   it('renders all supported languages', () => {
     render(<LanguageSelectionModal visible={true} onClose={mockOnClose} />)
 
-    // Both languages should be displayed
     expect(screen.getByText('English')).toBeTruthy()
     expect(screen.getByText('Français')).toBeTruthy()
   })
@@ -106,7 +101,6 @@ describe('LanguageSelectionModal', () => {
 
     expect(mockSetLanguage).toHaveBeenCalledWith('en')
 
-    // Wait for async
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(mockOnClose).toHaveBeenCalled()

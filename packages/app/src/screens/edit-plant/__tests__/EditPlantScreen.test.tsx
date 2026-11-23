@@ -15,7 +15,6 @@ jest.mock('@/utils/client', () => ({
   })),
 }))
 
-// Mock hooks that use client
 jest.mock('@/hooks/useMarkPlantDead', () => ({
   useMarkPlantDead: jest.fn(() => ({
     mutate: jest.fn(),

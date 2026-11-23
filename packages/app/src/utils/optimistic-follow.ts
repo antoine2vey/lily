@@ -23,10 +23,6 @@ interface PaginatedData {
   readonly total: number
 }
 
-// ---------------------------------------------------------------------------
-// Type guards
-// ---------------------------------------------------------------------------
-
 function isFollowableItem(value: unknown): value is FollowableItem {
   return (
     typeof value === 'object' &&
@@ -68,10 +64,6 @@ function hasTotalField(value: unknown): value is { readonly total: number } {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Patch functions (pure, operate on unwrapped data)
-// ---------------------------------------------------------------------------
-
 function patchFollowableItems(
   items: ReadonlyArray<FollowableItem>,
   targetUserId: string,
@@ -81,10 +73,6 @@ function patchFollowableItems(
     item.id === targetUserId ? { ...item, isFollowing } : item
   )
 }
-
-// ---------------------------------------------------------------------------
-// Main update
-// ---------------------------------------------------------------------------
 
 /**
  * Optimistically update `isFollowing` across all cached social queries and

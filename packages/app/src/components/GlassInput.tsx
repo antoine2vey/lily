@@ -12,7 +12,6 @@ type GlassInputProps = TextInputProps & {
   error?: boolean
 }
 
-/** Pill text field for the mesh background. */
 export function GlassInput({
   icon,
   prefix,

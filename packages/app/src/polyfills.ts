@@ -11,7 +11,6 @@ import '@formatjs/intl-pluralrules/locale-data/fr'
 
 import { Buffer } from 'buffer'
 
-// Make Buffer globally available
 if (typeof global.Buffer === 'undefined') {
   global.Buffer = Buffer
 }

@@ -156,7 +156,6 @@ export function ManualAddCareNeedsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
       >
-        {/* Headline */}
         <View className="gap-1 py-4">
           <Text className="text-2xl font-bold text-text-primary dark:text-white">
             {t('careNeeds.title')}
@@ -166,7 +165,6 @@ export function ManualAddCareNeedsScreen() {
           </Text>
         </View>
 
-        {/* Sliders */}
         <View className="gap-8">
           <View className="gap-2">
             <Slider
@@ -284,10 +282,8 @@ export function ManualAddCareNeedsScreen() {
             </View>
           </View>
 
-          {/* Divider */}
           <View className="h-px w-full bg-surface-tinted dark:bg-slate-700" />
 
-          {/* Pet Safety Toggle */}
           <ToggleRow
             icon={
               <MaterialIcons name="pets" size={20} color={iconColors.primary} />
@@ -300,7 +296,6 @@ export function ManualAddCareNeedsScreen() {
         </View>
       </ScrollView>
 
-      {/* Footer Actions */}
       <View
         className="flex-row gap-4 px-6 pt-4 bg-background dark:bg-background-dark border-t border-surface-tinted dark:border-slate-700"
         style={{ paddingBottom: insets.bottom + 16 }}

@@ -29,13 +29,9 @@ import {
 import { NotificationsSkeleton } from '@/screens/notifications/components/NotificationsSkeleton'
 import { resolveNotificationRoute } from '@/utils/notifications'
 
-// ─── Types ──────────────────────────────────────────────────────
-
 type SectionItem =
   | { kind: 'header'; title: string }
   | { kind: 'notification'; data: Notification }
-
-// ─── Helpers ────────────────────────────────────────────────────
 
 const NOTIFICATION_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> =
   {
@@ -130,8 +126,6 @@ const groupByDate = (items: readonly Notification[]): SectionItem[] => {
   return result
 }
 
-// ─── Components ─────────────────────────────────────────────────
-
 function DeleteAction() {
   return (
     <View className="bg-error justify-center items-center w-20">
@@ -220,8 +214,6 @@ function NotificationRow({
   )
 }
 
-// ─── Main Screen ────────────────────────────────────────────────
-
 export function NotificationsScreen() {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
@@ -295,7 +287,6 @@ export function NotificationsScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center justify-between px-6 pt-4 pb-2">
         <View className="flex-row items-center gap-3">
           <GlassBackButton />
@@ -328,7 +319,6 @@ export function NotificationsScreen() {
         )}
       </View>
 
-      {/* Content */}
       {showSkeleton ? (
         <Animated.View entering={FadeIn.duration(300)}>
           <NotificationsSkeleton />

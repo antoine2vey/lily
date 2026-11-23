@@ -282,7 +282,6 @@ export function CarePlanCard({
       testID={`care-plan-card-${carePlanId}`}
       className="bg-surface dark:bg-surface-dark rounded-lg p-4 border border-border dark:border-slate-700 my-2"
     >
-      {/* Header */}
       <View className="flex-row items-center mb-3">
         <MaterialIcons
           name="checklist"

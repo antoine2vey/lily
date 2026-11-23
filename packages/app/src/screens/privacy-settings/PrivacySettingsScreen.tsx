@@ -123,7 +123,6 @@ export function PrivacySettingsScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
@@ -133,14 +132,12 @@ export function PrivacySettingsScreen() {
 
       <Animated.View entering={FadeIn.duration(300)} className="flex-1">
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          {/* Description */}
           <View className="px-6 py-4">
             <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
               {t('settings:privacy.description')}
             </Text>
           </View>
 
-          {/* Visibility & Personalization Section */}
           <View className="px-6 py-4">
             <SectionHeader
               title={t('settings:privacy.sections.visibilityPersonalization')}
@@ -193,7 +190,6 @@ export function PrivacySettingsScreen() {
             </View>
           </View>
 
-          {/* Weather & Location Section */}
           <View className="px-6 py-4 border-t border-border dark:border-slate-700">
             <SectionHeader
               title={t(
@@ -225,7 +221,6 @@ export function PrivacySettingsScreen() {
             </View>
           </View>
 
-          {/* Legal & Info Section */}
           <View className="px-6 py-4 border-t border-border dark:border-slate-700">
             <SectionHeader title={t('settings:privacy.sections.legalInfo')} />
             <View className="mt-3">
@@ -262,7 +257,6 @@ export function PrivacySettingsScreen() {
             </View>
           </View>
 
-          {/* Data Actions Section */}
           <View className="px-6 py-4 border-t border-border dark:border-slate-700">
             <SectionHeader title={t('settings:privacy.sections.yourData')} />
             <View className="mt-4 gap-4">

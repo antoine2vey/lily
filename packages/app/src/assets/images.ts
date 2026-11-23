@@ -2,7 +2,6 @@
 // Extracted from design mockups in ~/Downloads/lily_screens/
 
 export const images = {
-  // Login screen - watercolor plants illustration
   plantsIllustration: require('../../assets/images/plants-illustration.png'),
 
   // Check email screen - envelope with plant sprout

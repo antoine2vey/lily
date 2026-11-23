@@ -9,7 +9,6 @@ jest.mock('nativewind', () => ({
   useColorScheme: () => ({ colorScheme: 'light', setColorScheme: jest.fn() }),
 }))
 
-// expo-image-picker
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn().mockResolvedValue({
     canceled: false,
@@ -32,7 +31,6 @@ jest.mock('expo-image-picker', () => ({
   },
 }))
 
-// expo-secure-store
 jest.mock('expo-secure-store', () => ({
   AFTER_FIRST_UNLOCK: 0,
   getItemAsync: jest.fn().mockResolvedValue(null),
@@ -40,7 +38,6 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn().mockResolvedValue(undefined),
 }))
 
-// expo-notifications
 jest.mock('expo-notifications', () => ({
   getExpoPushTokenAsync: jest
     .fn()
@@ -61,7 +58,6 @@ jest.mock('expo-notifications', () => ({
   setBadgeCountAsync: jest.fn().mockResolvedValue(undefined),
 }))
 
-// expo-device
 jest.mock('expo-device', () => ({
   isDevice: false, // Tests should not attempt push registration
   brand: 'Apple',
@@ -70,7 +66,6 @@ jest.mock('expo-device', () => ({
   osVersion: '17.0',
 }))
 
-// expo-constants
 jest.mock('expo-constants', () => ({
   default: {
     expoConfig: {
@@ -89,7 +84,6 @@ jest.mock('expo-constants', () => ({
   },
 }))
 
-// @react-native-async-storage/async-storage
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn().mockResolvedValue(null),
   setItem: jest.fn().mockResolvedValue(undefined),
@@ -101,10 +95,8 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   multiRemove: jest.fn().mockResolvedValue(undefined),
 }))
 
-// @react-native-community/datetimepicker
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker')
 
-// @marceloterreiro/flash-calendar
 jest.mock('@marceloterreiro/flash-calendar', () => {
   const React = require('react')
   const { View } = require('react-native')
@@ -134,7 +126,6 @@ jest.mock('@marceloterreiro/flash-calendar', () => {
   }
 })
 
-// @shopify/flash-list
 jest.mock('@shopify/flash-list', () => {
   const { FlatList } = require('react-native')
   return {
@@ -143,7 +134,6 @@ jest.mock('@shopify/flash-list', () => {
   }
 })
 
-// expo-linking
 jest.mock('expo-linking', () => ({
   openURL: jest.fn().mockResolvedValue(undefined),
   canOpenURL: jest.fn().mockResolvedValue(true),
@@ -151,18 +141,15 @@ jest.mock('expo-linking', () => ({
   makeUrl: jest.fn((path: string) => `lily://${path}`),
 }))
 
-// expo-linear-gradient
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
 }))
 
-// expo-splash-screen
 jest.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: jest.fn().mockResolvedValue(undefined),
   hideAsync: jest.fn().mockResolvedValue(undefined),
 }))
 
-// @shopify/react-native-skia
 jest.mock('@shopify/react-native-skia', () => {
   const React = require('react')
   const { View } = require('react-native')

@@ -34,13 +34,9 @@ const extractE2ELocale = (url: string): Option.Option<LanguageCode> => {
 }
 
 interface LocalizationContextValue {
-  /** Current language code */
   language: LanguageCode
-  /** Update the language */
   setLanguage: (language: LanguageCode) => Promise<void>
-  /** True while loading the stored preference */
   isLoading: boolean
-  /** List of supported languages */
   supportedLanguages: typeof SUPPORTED_LANGUAGES
 }
 
@@ -64,7 +60,6 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
   const [language, setLanguageState] = useState<LanguageCode>(DEFAULT_LANGUAGE)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load stored preference on mount
   useEffect(() => {
     const loadPreference = async () => {
       try {
@@ -79,7 +74,6 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
         setLanguageState(resolvedLanguage)
         await i18n.changeLanguage(resolvedLanguage)
       } catch {
-        // Use device language on error
         const deviceLang = getDeviceLanguage()
         setLanguageState(deviceLang)
         await i18n.changeLanguage(deviceLang)

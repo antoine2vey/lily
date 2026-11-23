@@ -18,7 +18,6 @@ export function AvatarPicker({ avatarUrl, name, onPress }: AvatarPickerProps) {
     <View className="items-center pt-8 pb-8 gap-3">
       <Pressable onPress={onPress}>
         <View className="relative">
-          {/* Avatar */}
           <View className="w-28 h-28 rounded-full p-1 border-2 border-border dark:border-slate-700">
             {pipe(
               avatarUrl,
@@ -46,14 +45,12 @@ export function AvatarPicker({ avatarUrl, name, onPress }: AvatarPickerProps) {
             )}
           </View>
 
-          {/* Edit badge */}
           <View className="absolute bottom-0 right-0 w-8 h-8 rounded-full items-center justify-center bg-surface dark:bg-surface-dark shadow-md border border-border dark:border-slate-700">
             <MaterialIcons name="edit" size={18} color={iconColors.primary} />
           </View>
         </View>
       </Pressable>
 
-      {/* Change Photo text */}
       <Pressable onPress={onPress}>
         <Text className="text-sm font-bold text-primary">
           {t('edit.changePhoto')}

@@ -47,7 +47,6 @@ function PlantCircle({ plant, onPress, iconColors }: PlantCircleProps) {
         badgeColor={iconColors.waterBlue}
         badgeBgColor={isDark ? '#1E3050' : '#E3F2FD'}
       />
-      {/* Plant name */}
       <Text
         className="text-xs font-semibold"
         style={{ color: isDark ? '#D1D5DB' : '#374151' }}
@@ -137,7 +136,6 @@ export function HydrationCard({
         marginBottom: 16,
       }}
     >
-      {/* Header */}
       <View className="flex-row items-start justify-between mb-6">
         <View>
           <Text
@@ -153,7 +151,6 @@ export function HydrationCard({
             {t('hydration.plantsNeedWater', { count: Array.length(plants) })}
           </Text>
         </View>
-        {/* Water drop icon */}
         <View
           className="p-2 rounded-full"
           style={{
@@ -205,7 +202,6 @@ export function HydrationCard({
         ))}
       </ScrollView>
 
-      {/* Water All Button */}
       <Pressable
         onPress={onWaterAll}
         disabled={isLoading}

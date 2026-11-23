@@ -74,7 +74,6 @@ function AchievementRow({ achievement, iconColors, t }: AchievementRowProps) {
   return (
     <View className="gap-2">
       <View className="flex-row items-center gap-3">
-        {/* Achievement icon */}
         <View
           className="w-9 h-9 rounded-full items-center justify-center shrink-0"
           style={{
@@ -88,7 +87,6 @@ function AchievementRow({ achievement, iconColors, t }: AchievementRowProps) {
           />
         </View>
 
-        {/* Name + remaining */}
         <View className="flex-1 min-w-0">
           <Text
             className="text-sm font-semibold text-text-primary dark:text-white"
@@ -101,7 +99,6 @@ function AchievementRow({ achievement, iconColors, t }: AchievementRowProps) {
           </Text>
         </View>
 
-        {/* Progress fraction */}
         <Text
           className="text-xs font-bold shrink-0"
           style={{ color: rarityColor }}
@@ -110,7 +107,6 @@ function AchievementRow({ achievement, iconColors, t }: AchievementRowProps) {
         </Text>
       </View>
 
-      {/* Progress bar */}
       <View
         className="h-1.5 rounded-full overflow-hidden"
         style={{

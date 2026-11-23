@@ -33,7 +33,6 @@ async function optimizeImages() {
         `  ${file}: ${(originalSize / 1024).toFixed(0)}KB → ${(newSize / 1024).toFixed(0)}KB (-${saved}%)`
       )
     } else {
-      // Still re-encode for quality optimization
       const buffer = await sharp(inputPath).webp({ quality: 82 }).toBuffer()
 
       const originalSize = fs.statSync(inputPath).size

@@ -18,12 +18,10 @@ export function ChatCTA({ plantName, onPress }: ChatCTAProps) {
       testID="chat-cta"
     >
       <View className="flex-row items-center">
-        {/* AI Icon */}
         <View className="w-12 h-12 rounded-full bg-primary items-center justify-center mr-4">
           <MaterialIcons name="auto-awesome" size={24} color="white" />
         </View>
 
-        {/* Text Content */}
         <View className="flex-1">
           <Text className="text-base font-bold text-text-primary dark:text-white">
             {t('chatCta.title', { plantName })}
@@ -33,7 +31,6 @@ export function ChatCTA({ plantName, onPress }: ChatCTAProps) {
           </Text>
         </View>
 
-        {/* Arrow */}
         <View className="w-8 h-8 rounded-full bg-primary/10 items-center justify-center">
           <MaterialIcons
             name="arrow-forward"

@@ -12,7 +12,6 @@ export const NewJobPage = () => {
 
   const [adapterType, setAdapterType] = useState<'reddit' | 'web'>('reddit')
 
-  // Reddit fields
   const [subreddits, setSubreddits] = useState('')
   const [sort, setSort] = useState<'hot' | 'top' | 'new'>('top')
   const [timeFilter, setTimeFilter] = useState<
@@ -20,7 +19,6 @@ export const NewJobPage = () => {
   >('year')
   const [limit, setLimit] = useState(25)
 
-  // Web fields
   const [urls, setUrls] = useState('')
 
   const handleUrlPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {

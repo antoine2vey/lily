@@ -111,7 +111,6 @@ export function SubscriptionUsageScreen() {
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        {/* Header */}
         <View className="flex-row items-center px-4 py-3">
           <GlassBackButton />
           <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
@@ -135,7 +134,6 @@ export function SubscriptionUsageScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center px-4 py-3">
         <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
@@ -148,7 +146,6 @@ export function SubscriptionUsageScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 8 }}
       >
-        {/* Current Plan Card */}
         <View className="mt-2">
           <PlanCard planName={data.planName} status={data.status}>
             {pipe(
@@ -169,7 +166,6 @@ export function SubscriptionUsageScreen() {
           </PlanCard>
         </View>
 
-        {/* Cancel Subscription Button (Premium users only) */}
         {data.isPremium &&
           Array.contains(['active', 'trialing'], data.status) && (
             <View className="mx-4 mt-6">
@@ -184,25 +180,20 @@ export function SubscriptionUsageScreen() {
             </View>
           )}
 
-        {/* Premium Upgrade Card */}
         {!data.isPremium && (
           <View className="mx-4 mt-6 rounded-2xl p-6 items-center shadow-lg border border-primary/20 bg-surface dark:bg-surface-dark overflow-hidden">
-            {/* Star Icon */}
             <View className="w-14 h-14 rounded-full items-center justify-center mb-4 bg-primary-tint dark:bg-primary/20 border border-primary/20">
               <MaterialIcons name="star" size={28} color={iconColors.primary} />
             </View>
 
-            {/* Premium Access Label */}
             <Text className="text-sm mb-1 uppercase tracking-widest font-bold text-primary">
               {t('title')}
             </Text>
 
-            {/* Title */}
             <Text className="text-2xl mb-4 font-bold text-text-primary dark:text-white">
               {t('usage.upgradeTo')}
             </Text>
 
-            {/* Feature List */}
             <View className="w-full rounded-xl p-4 mb-4 gap-3 bg-background dark:bg-background-dark border border-border/30 dark:border-slate-700/30">
               {pipe(
                 PREMIUM_FEATURES,
@@ -221,7 +212,6 @@ export function SubscriptionUsageScreen() {
               )}
             </View>
 
-            {/* View Plans Button */}
             <Pressable
               onPress={() => router.push('/subscription/upgrade')}
               className="w-full py-4 rounded-xl items-center bg-primary active:bg-primary-dark"
@@ -233,7 +223,6 @@ export function SubscriptionUsageScreen() {
           </View>
         )}
 
-        {/* Restore Purchases */}
         <View className="items-center py-6">
           <Pressable onPress={handleRestorePurchases} disabled={isRestoring}>
             <Text className="text-sm font-medium text-text-muted dark:text-slate-400">

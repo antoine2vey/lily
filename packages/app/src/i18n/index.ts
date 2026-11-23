@@ -51,5 +51,4 @@ i18n
 
 export default i18n
 
-// Re-export types
 export * from './types'

@@ -71,9 +71,7 @@ export function useSaveCareLog() {
   return useMutation({
     mutationFn: saveCareLogApi,
     onSuccess: () => {
-      // Invalidate care logs
       queryClient.invalidateQueries({ queryKey: queryKeys.careLogs.all })
-      // Invalidate care tasks
       queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all })
       // Invalidate plants list (may update last watered/fertilized dates)
       queryClient.invalidateQueries({ queryKey: queryKeys.plants.all })
@@ -81,5 +79,4 @@ export function useSaveCareLog() {
   })
 }
 
-// Export types for consumers
 export type { SaveCareLogInput }

@@ -68,7 +68,6 @@ export function CareHistoryScreen() {
     refetch()
   }
 
-  // Filter history based on selected filter
   const filteredHistory =
     selectedFilter === 'all'
       ? history
@@ -95,12 +94,9 @@ export function CareHistoryScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-border/10 dark:border-slate-700/10">
-        {/* Back button */}
         <GlassBackButton />
 
-        {/* Center title */}
         <View className="items-center">
           <Text className="text-base font-bold text-text-primary dark:text-white">
             {t('history.title')}
@@ -112,7 +108,6 @@ export function CareHistoryScreen() {
           )}
         </View>
 
-        {/* Filter button */}
         <Pressable
           testID="filter-button"
           onPress={() => setShowFilterSheet(true)}
@@ -130,7 +125,6 @@ export function CareHistoryScreen() {
         </Pressable>
       </View>
 
-      {/* Content */}
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
@@ -165,7 +159,6 @@ export function CareHistoryScreen() {
         )}
       </ScrollView>
 
-      {/* FAB */}
       <Pressable
         testID="add-log-fab"
         onPress={handleAddLog}
@@ -177,7 +170,6 @@ export function CareHistoryScreen() {
         <MaterialIcons name="add" size={32} color={iconColors.white} />
       </Pressable>
 
-      {/* Filter Sheet */}
       <BottomSheet
         visible={showFilterSheet}
         onClose={() => setShowFilterSheet(false)}
@@ -202,7 +194,6 @@ export function CareHistoryScreen() {
         </View>
       </BottomSheet>
 
-      {/* Log Care Sheet */}
       <LogCareSheet
         visible={showLogCareSheet}
         onClose={() => setShowLogCareSheet(false)}

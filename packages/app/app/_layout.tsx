@@ -98,7 +98,6 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
   // Add app state sync for subscription (syncs when app returns to foreground)
   useAppStateSync(isAuthenticated)
 
-  // Check for OTA updates on foreground resume
   useOTAUpdates()
 
   // Set up notification listeners and RevenueCat identity when authenticated
