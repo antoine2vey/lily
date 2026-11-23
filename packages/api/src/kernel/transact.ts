@@ -1,3 +1,4 @@
+import { HELD_NOTHING, type Held } from '@lily/api/kernel/ladder'
 import { Outbox, type OutboxTopic } from '@lily/api/kernel/outbox'
 import {
   Array,
@@ -38,6 +39,12 @@ export class Transaction extends Context.Service<
      * dropped when this transaction, or one around it, rolls back.
      */
     readonly afterCommit: (effect: Effect.Effect<void>) => Effect.Effect<void>
+    /**
+     * The locks of the outermost transaction. A savepoint shares them and
+     * puts them back as it found them when it rolls back, as Postgres does.
+     * None when no database transaction is open behind this service.
+     */
+    readonly held: Option.Option<Ref.Ref<Held>>
   }
 >()('kernel/Transaction') {}
 
@@ -68,15 +75,24 @@ export const transactQuietly = <A, E, R>(
     const sql = yield* SqlClient.SqlClient
     const around = yield* Effect.serviceOption(Transaction)
     const registered = yield* Ref.make<ReadonlyArray<Effect.Effect<void>>>([])
-    const result = yield* sql.withTransaction(
-      Effect.provideService(
-        body,
-        Transaction,
-        Transaction.of({
-          afterCommit: (effect) => Ref.update(registered, Array.append(effect)),
-        })
-      )
+    const held = yield* Option.match(
+      Option.flatMap(around, (outer) => outer.held),
+      { onNone: () => Ref.make(HELD_NOTHING), onSome: Effect.succeed }
     )
+    const atEntry = yield* Ref.get(held)
+    const result = yield* sql
+      .withTransaction(
+        Effect.provideService(
+          body,
+          Transaction,
+          Transaction.of({
+            afterCommit: (effect) =>
+              Ref.update(registered, Array.append(effect)),
+            held: Option.some(held),
+          })
+        )
+      )
+      .pipe(Effect.onError(() => Ref.set(held, atEntry)))
     const committed = yield* Ref.get(registered)
     yield* Option.match(around, {
       onNone: () => Effect.forEach(committed, identity, { discard: true }),

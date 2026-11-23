@@ -1,3 +1,4 @@
+import { pinAccounts, writeAccount } from '@lily/api/kernel/locks'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { users } from '@lily/db/schema'
 import {
@@ -10,7 +11,6 @@ import {
 import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   and,
-  asc,
   desc,
   eq,
   ilike,
@@ -180,12 +180,12 @@ export const UserRepositoryLive = Layer.effect(
       findByIdsForKeyShare: Effect.fn('UserRepository.findByIdsForKeyShare')(
         function* (ids: ReadonlyArray<string>) {
           if (Array.isReadonlyArrayEmpty(ids)) return []
-          return yield* db
-            .select()
-            .from(users)
-            .where(inArray(users.id, [...ids]))
-            .orderBy(asc(users.id))
-            .for('key share')
+          return yield* pinAccounts(
+            db
+              .select()
+              .from(users)
+              .where(inArray(users.id, [...ids]))
+          )
         }
       ),
 
@@ -229,11 +229,12 @@ export const UserRepositoryLive = Layer.effect(
         id: string,
         data: UpdateUserData
       ) {
-        const [user] = yield* db
-          .update(users)
-          .set({ ...data, updatedAt: nowAsDate() })
-          .where(eq(users.id, id))
-          .returning()
+        const [user] = yield* writeAccount(
+          db,
+          id,
+          { ...data, updatedAt: nowAsDate() },
+          (written) => written.returning()
+        )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
@@ -248,14 +249,15 @@ export const UserRepositoryLive = Layer.effect(
       softDelete: Effect.fn('UserRepository.softDelete')(function* (
         id: string
       ) {
-        const [user] = yield* db
-          .update(users)
-          .set({
+        const [user] = yield* writeAccount(
+          db,
+          id,
+          {
             status: 'pending_deletion',
             deletedAt: nowAsDate(),
-          })
-          .where(eq(users.id, id))
-          .returning()
+          },
+          (written) => written.returning()
+        )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
@@ -313,11 +315,12 @@ export const UserRepositoryLive = Layer.effect(
         id: string,
         role: UserRole
       ) {
-        const [user] = yield* db
-          .update(users)
-          .set({ role, updatedAt: nowAsDate() })
-          .where(eq(users.id, id))
-          .returning()
+        const [user] = yield* writeAccount(
+          db,
+          id,
+          { role, updatedAt: nowAsDate() },
+          (written) => written.returning()
+        )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
@@ -325,11 +328,12 @@ export const UserRepositoryLive = Layer.effect(
         id: string,
         status: UserStatus
       ) {
-        const [user] = yield* db
-          .update(users)
-          .set({ status, updatedAt: nowAsDate() })
-          .where(eq(users.id, id))
-          .returning()
+        const [user] = yield* writeAccount(
+          db,
+          id,
+          { status, updatedAt: nowAsDate() },
+          (written) => written.returning()
+        )
         return Option.getOrNull(Option.fromNullishOr(user))
       }),
 

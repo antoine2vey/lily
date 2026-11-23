@@ -459,26 +459,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('keeps the canceledAt of a cancel that commits while the deletion waits on the delegation row', async () => {
       const caretaker = await insertUser('caretaker')
       const owner = await insertUser('owner')
-      const reached = Deferred.makeUnsafe<void>()
-      const release = Deferred.makeUnsafe<void>()
-      const deleting = as(
-        caretaker,
-        Effect.gen(function* () {
-          const repo = yield* UserRepository
-          return yield* deleteAccount().pipe(
-            Effect.provideService(UserRepository, {
-              ...repo,
-              softDelete: (id: string) =>
-                Deferred.succeed(reached, undefined).pipe(
-                  Effect.andThen(Deferred.await(release)),
-                  Effect.andThen(repo.softDelete(id))
-                ),
-            })
-          )
-        })
-      )
-      await Effect.runPromise(Deferred.await(reached))
-      // Created after the deletion locked the caretaker's delegations.
       const [created] = await db
         .insert(schema.careDelegations)
         .values({
@@ -492,14 +472,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       if (!created) throw new Error('delegation insert returned nothing')
       const canceledAt = new Date('2020-01-01T00:00:00.000Z')
       const client = await pool.connect()
+      await client.query('BEGIN')
+      await client.query(
+        "UPDATE care_delegations SET status = 'canceled', canceled_at = $1 WHERE id = $2",
+        [canceledAt, created.id]
+      )
+      const deleting = as(caretaker, deleteAccount())
       try {
-        await client.query('BEGIN')
-        await client.query(
-          "UPDATE care_delegations SET status = 'canceled', canceled_at = $1 WHERE id = $2",
-          [canceledAt, created.id]
-        )
-        Deferred.doneUnsafe(release, Exit.void)
-        await waitsForALock(pool, deleting)
+        expect(await waitsForALock(pool, deleting)).toBe(true)
         await client.query('COMMIT')
       } finally {
         client.release()

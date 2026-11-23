@@ -8,6 +8,7 @@ import {
   type StoredSchedule,
   seePlantCare,
 } from '@lily/api/contexts/care'
+import { lockRowsNamed } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
@@ -660,12 +661,15 @@ export const PlantRepositoryLive = Layer.effect(
       findByIdsForKeyShare: Effect.fn('PlantRepository.findByIdsForKeyShare')(
         function* (ids: readonly string[]) {
           if (Array.isReadonlyArrayEmpty(ids)) return []
-          const items = yield* db
-            .select()
-            .from(plants)
-            .where(inArray(plants.id, [...ids]))
-            .orderBy(asc(plants.id))
-            .for('key share')
+          const items = yield* lockRowsNamed(
+            'Plant',
+            'key share',
+            ids,
+            db
+              .select()
+              .from(plants)
+              .where(inArray(plants.id, [...ids]))
+          )
           return Array.map(items, withOwner)
         }
       ),
@@ -781,13 +785,17 @@ export const PlantRepositoryLive = Layer.effect(
         plantId: string,
         photoId: string
       ) {
-        const photos = yield* db
-          .select()
-          .from(plantPhotos)
-          .where(
-            and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId))
-          )
-          .for('update')
+        const photos = yield* lockRowsNamed(
+          'Photo',
+          'update',
+          [photoId],
+          db
+            .select()
+            .from(plantPhotos)
+            .where(
+              and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId))
+            )
+        )
         return Array.head(photos)
       }),
 

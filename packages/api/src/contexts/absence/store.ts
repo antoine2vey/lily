@@ -15,7 +15,13 @@ import {
   vacationOf,
 } from '@lily/api/contexts/absence/domain/vacation'
 import { Care, DueMove } from '@lily/api/contexts/care'
-import { lockUsers } from '@lily/api/kernel/locks'
+import {
+  lockRows,
+  lockRowsNamed,
+  lockUsers,
+  pinAccounts,
+  writeAccount,
+} from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
@@ -316,12 +322,12 @@ export const AbsenceStoreLive = Layer.effect(
 
     const partiesHeldAgainstDeletion = (userIds: ReadonlyArray<string>) =>
       Effect.map(
-        db
-          .select(partyColumns)
-          .from(users)
-          .where(inArray(users.id, Array.dedupe(userIds)))
-          .orderBy(asc(users.id))
-          .for('key share'),
+        pinAccounts(
+          db
+            .select(partyColumns)
+            .from(users)
+            .where(inArray(users.id, Array.dedupe(userIds)))
+        ),
         (rows) => new Map(Array.map(rows, (row) => [row.id, toParty(row)]))
       )
 
@@ -329,17 +335,20 @@ export const AbsenceStoreLive = Layer.effect(
       Array.isReadonlyArrayEmpty(plantIds)
         ? Effect.succeed([])
         : Effect.map(
-            db
-              .select({
-                id: plants.id,
-                userId: plants.userId,
-                canopyId: plants.canopyId,
-                diedAt: plants.diedAt,
-              })
-              .from(plants)
-              .where(inArray(plants.id, Array.dedupe(plantIds)))
-              .orderBy(asc(plants.id))
-              .for('key share'),
+            lockRowsNamed(
+              'Plant',
+              'key share',
+              plantIds,
+              db
+                .select({
+                  id: plants.id,
+                  userId: plants.userId,
+                  canopyId: plants.canopyId,
+                  diedAt: plants.diedAt,
+                })
+                .from(plants)
+                .where(inArray(plants.id, Array.dedupe(plantIds)))
+            ),
             Array.map((row) => ({
               id: row.id,
               owner: ownerOf(row),
@@ -401,18 +410,22 @@ export const AbsenceStoreLive = Layer.effect(
 
     const lockDelegation = (delegationId: string) =>
       Effect.gen(function* () {
-        const rows = yield* db
-          .select({
-            id: careDelegations.id,
-            ownerId: careDelegations.ownerId,
-            caretakerId: careDelegations.caretakerId,
-            status: careDelegations.status,
-            startDate: careDelegations.startDate,
-            endDate: careDelegations.endDate,
-          })
-          .from(careDelegations)
-          .where(eq(careDelegations.id, delegationId))
-          .for('update')
+        const rows = yield* lockRowsNamed(
+          'Delegation',
+          'update',
+          [delegationId],
+          db
+            .select({
+              id: careDelegations.id,
+              ownerId: careDelegations.ownerId,
+              caretakerId: careDelegations.caretakerId,
+              status: careDelegations.status,
+              startDate: careDelegations.startDate,
+              endDate: careDelegations.endDate,
+            })
+            .from(careDelegations)
+            .where(eq(careDelegations.id, delegationId))
+        )
         const delegated = yield* db
           .select({ id: plants.id, diedAt: plants.diedAt })
           .from(delegationPlants)
@@ -474,18 +487,22 @@ export const AbsenceStoreLive = Layer.effect(
 
     const accountHeld = (userId: string) =>
       Effect.map(
-        db
-          .select({
-            id: users.id,
-            status: users.status,
-            timezone: users.timezone,
-            vacationStatus: users.vacationStatus,
-            vacationStart: users.vacationStart,
-            vacationEnd: users.vacationEnd,
-          })
-          .from(users)
-          .where(eq(users.id, userId))
-          .for('no key update'),
+        lockRowsNamed(
+          'Account',
+          'no key update',
+          [userId],
+          db
+            .select({
+              id: users.id,
+              status: users.status,
+              timezone: users.timezone,
+              vacationStatus: users.vacationStatus,
+              vacationStart: users.vacationStart,
+              vacationEnd: users.vacationEnd,
+            })
+            .from(users)
+            .where(eq(users.id, userId))
+        ),
         Array.head
       )
 
@@ -501,31 +518,36 @@ export const AbsenceStoreLive = Layer.effect(
         eq(careDelegations.caretakerId, userId)
       )
 
-    const delegationsHeldInIdOrder = (where: SQL | undefined) =>
+    const delegationsHeld = (where: SQL | undefined) =>
       Effect.map(
-        db
-          .select({ id: careDelegations.id })
-          .from(careDelegations)
-          .where(where)
-          .orderBy(asc(careDelegations.id))
-          .for('update'),
+        lockRows(
+          'Delegation',
+          'update',
+          db
+            .select({ id: careDelegations.id })
+            .from(careDelegations)
+            .where(where)
+        ),
         Array.map((row) => row.id)
       )
 
     const holdForDeletion = (userId: string) =>
       Effect.asVoid(
-        Effect.andThen(
-          delegationsHeldInIdOrder(partyTo(userId)),
-          accountHeld(userId)
-        )
+        Effect.andThen(delegationsHeld(partyTo(userId)), accountHeld(userId))
       )
 
     const lockForRelease = (userId: string, now: DateTime.Utc) =>
       Effect.gen(function* () {
-        const openIds = yield* delegationsHeldInIdOrder(
-          and(partyTo(userId), inArray(careDelegations.status, OPEN_STATUSES))
+        const open = yield* db
+          .select({ id: careDelegations.id })
+          .from(careDelegations)
+          .where(
+            and(partyTo(userId), inArray(careDelegations.status, OPEN_STATUSES))
+          )
+          .orderBy(asc(careDelegations.id))
+        const openDelegations = yield* Effect.forEach(open, (row) =>
+          lockDelegation(row.id)
         )
-        const openDelegations = yield* Effect.forEach(openIds, lockDelegation)
         const account = yield* accountHeld(userId)
         return {
           openDelegations: Array.getSomes(openDelegations),
@@ -630,18 +652,17 @@ export const AbsenceStoreLive = Layer.effect(
             ),
           SetVacation: (w) =>
             Effect.flatMap(
-              db
-                .update(users)
-                .set({ ...vacationColumnsOf(w.next), updatedAt: nowAsDate() })
-                .where(
-                  and(
-                    eq(users.id, w.userId),
-                    eq(users.vacationStatus, w.expected.status),
-                    storedAt(users.vacationStart, w.expected.start),
-                    storedAt(users.vacationEnd, w.expected.end)
-                  )
+              writeAccount(
+                db,
+                w.userId,
+                { ...vacationColumnsOf(w.next), updatedAt: nowAsDate() },
+                (written) => written.returning({ id: users.id }),
+                and(
+                  eq(users.vacationStatus, w.expected.status),
+                  storedAt(users.vacationStart, w.expected.start),
+                  storedAt(users.vacationEnd, w.expected.end)
                 )
-                .returning({ id: users.id }),
+              ),
               (set) => setOnce(w, set.length)
             ),
           SweepMuted: (w) =>

@@ -1,4 +1,10 @@
 import {
+  lockReminderPlants,
+  lockRows,
+  rowsToLock,
+} from '@lily/api/kernel/locks'
+import type { Transaction } from '@lily/api/kernel/transact'
+import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
@@ -39,6 +45,7 @@ import {
   sql,
 } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Types for repository methods
@@ -127,8 +134,6 @@ export const exceptReminders = (
 ): ReadonlyArray<OtherTopic> =>
   Array.filter(topics, (topic): topic is OtherTopic => !isReminderTopic(topic))
 
-const REMINDER_PLANT_KEYSPACE = 2
-
 // Repository service interface
 export interface INotificationRepository {
   readonly findByUserId: (
@@ -187,7 +192,7 @@ export interface INotificationRepository {
    */
   readonly lockReminderPlants: (
     plantIds: ReadonlyArray<string>
-  ) => Effect.Effect<void, SqlError>
+  ) => Effect.Effect<void, SqlError, SqlClient.SqlClient | Transaction>
   /** The users who hold a care reminder that is pending or queued on these plants. */
   readonly findHoldersOfWaitingReminders: (
     plantIds: ReadonlyArray<string>
@@ -316,12 +321,11 @@ export const NotificationRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
     const lockedInIdOrder = (where: SQL | undefined) =>
-      db
-        .select({ id: notifications.id })
-        .from(notifications)
-        .where(where)
-        .orderBy(asc(notifications.id))
-        .for('update')
+      rowsToLock(
+        'Notification',
+        'update',
+        db.select({ id: notifications.id }).from(notifications).where(where)
+      )
     return {
       findByUserId: Effect.fn('NotificationRepository.findByUserId')(function* (
         params: FindNotificationsParams
@@ -501,24 +505,20 @@ export const NotificationRepositoryLive = Layer.effect(
       claimForDelivery: Effect.fn('NotificationRepository.claimForDelivery')(
         function* (ids: ReadonlyArray<string>, messageId: string) {
           if (ids.length === 0) return []
+          const locked = yield* lockedInIdOrder(
+            and(
+              inArray(notifications.id, [...ids]),
+              eq(notifications.status, 'queued'),
+              or(
+                isNull(notifications.deliveryMessageId),
+                eq(notifications.deliveryMessageId, messageId)
+              )
+            )
+          )
           const rows = yield* db
             .update(notifications)
             .set({ deliveryMessageId: messageId })
-            .where(
-              inArray(
-                notifications.id,
-                lockedInIdOrder(
-                  and(
-                    inArray(notifications.id, [...ids]),
-                    eq(notifications.status, 'queued'),
-                    or(
-                      isNull(notifications.deliveryMessageId),
-                      eq(notifications.deliveryMessageId, messageId)
-                    )
-                  )
-                )
-              )
-            )
+            .where(inArray(notifications.id, locked))
             .returning({ id: notifications.id })
           return Array.map(rows, (row) => row.id)
         }
@@ -573,6 +573,13 @@ export const NotificationRepositoryLive = Layer.effect(
         const retries = sql`${notifications.retryCount} < ${retryAtAfterFailures.length}`
         const whenRetried = (value: SQL, otherwise: SQL) =>
           sql`CASE WHEN ${retries} THEN ${value} ELSE ${otherwise} END`
+        const locked = yield* lockedInIdOrder(
+          and(
+            inArray(notifications.id, [...ids]),
+            eq(notifications.status, 'queued'),
+            eq(notifications.deliveryMessageId, heldBy)
+          )
+        )
         const rows = yield* db
           .update(notifications)
           .set({
@@ -596,18 +603,7 @@ export const NotificationRepositoryLive = Layer.effect(
               sql`${notifications.deliveryMessageId}`
             ),
           })
-          .where(
-            inArray(
-              notifications.id,
-              lockedInIdOrder(
-                and(
-                  inArray(notifications.id, [...ids]),
-                  eq(notifications.status, 'queued'),
-                  eq(notifications.deliveryMessageId, heldBy)
-                )
-              )
-            )
-          )
+          .where(inArray(notifications.id, locked))
           .returning({
             id: notifications.id,
             status: notifications.status,
@@ -627,34 +623,20 @@ export const NotificationRepositoryLive = Layer.effect(
         'NotificationRepository.deletePendingByUserIdAndTypes'
       )(function* (userId: string, types: ReadonlyArray<OtherTopic>) {
         if (types.length === 0) return
-        yield* db
-          .delete(notifications)
-          .where(
-            inArray(
-              notifications.id,
-              lockedInIdOrder(
-                and(
-                  eq(notifications.userId, userId),
-                  inArray(notifications.type, [...types]),
-                  eq(notifications.status, 'pending')
-                )
-              )
-            )
+        const locked = yield* lockedInIdOrder(
+          and(
+            eq(notifications.userId, userId),
+            inArray(notifications.type, [...types]),
+            eq(notifications.status, 'pending')
           )
+        )
+        yield* db.delete(notifications).where(inArray(notifications.id, locked))
       }),
 
-      lockReminderPlants: Effect.fn(
-        'NotificationRepository.lockReminderPlants'
-      )(function* (plantIds: ReadonlyArray<string>) {
-        if (Array.isReadonlyArrayEmpty(plantIds)) return
-        const values = sql.join(
-          Array.map(plantIds, (plantId) => sql`(${plantId}::text)`),
-          sql`, `
-        )
-        yield* db.execute(
-          sql`SELECT pg_advisory_xact_lock(${REMINDER_PLANT_KEYSPACE}, key) FROM (SELECT DISTINCT hashtext(v.plant_id) AS key FROM (VALUES ${values}) AS v(plant_id) ORDER BY 1) AS keys`
-        )
-      }),
+      lockReminderPlants: (plantIds) =>
+        lockReminderPlants(plantIds).pipe(
+          Effect.withSpan('NotificationRepository.lockReminderPlants')
+        ),
 
       findHoldersOfWaitingReminders: Effect.fn(
         'NotificationRepository.findHoldersOfWaitingReminders'
@@ -695,12 +677,14 @@ export const NotificationRepositoryLive = Layer.effect(
             inArray(notifications.status, ['pending', 'queued']),
             isNull(notifications.deliveryMessageId)
           )
-          const locked = yield* db
-            .select(columns)
-            .from(notifications)
-            .where(and(ofThePlants, waiting))
-            .orderBy(asc(notifications.id))
-            .for('update')
+          const locked = yield* lockRows(
+            'Notification',
+            'update',
+            db
+              .select(columns)
+              .from(notifications)
+              .where(and(ofThePlants, waiting))
+          )
           const handedOver = yield* db
             .select(columns)
             .from(notifications)
@@ -745,20 +729,16 @@ export const NotificationRepositoryLive = Layer.effect(
       writeReminders: Effect.fn('NotificationRepository.writeReminders')(
         function* (writes: ReminderWrites) {
           if (Array.isReadonlyArrayNonEmpty(writes.removeIds)) {
+            const locked = yield* lockedInIdOrder(
+              and(
+                inArray(notifications.id, [...writes.removeIds]),
+                inArray(notifications.status, ['pending', 'queued']),
+                isNull(notifications.deliveryMessageId)
+              )
+            )
             yield* db
               .delete(notifications)
-              .where(
-                inArray(
-                  notifications.id,
-                  lockedInIdOrder(
-                    and(
-                      inArray(notifications.id, [...writes.removeIds]),
-                      inArray(notifications.status, ['pending', 'queued']),
-                      isNull(notifications.deliveryMessageId)
-                    )
-                  )
-                )
-              )
+              .where(inArray(notifications.id, locked))
           }
           if (Array.isReadonlyArrayNonEmpty(writes.retimes)) {
             const values = sql.join(
@@ -843,55 +823,43 @@ export const NotificationRepositoryLive = Layer.effect(
       deleteUndeliveredNonCareForMemberOnCanopy: Effect.fn(
         'NotificationRepository.deleteUndeliveredNonCareForMemberOnCanopy'
       )(function* (userId: string, canopyId: string) {
-        yield* db
-          .delete(notifications)
-          .where(
+        const locked = yield* lockedInIdOrder(
+          and(
+            eq(notifications.userId, userId),
+            inArray(notifications.status, ['pending', 'queued']),
+            notInArray(notifications.type, [...CARE_TOPICS]),
             inArray(
-              notifications.id,
-              lockedInIdOrder(
-                and(
-                  eq(notifications.userId, userId),
-                  inArray(notifications.status, ['pending', 'queued']),
-                  notInArray(notifications.type, [...CARE_TOPICS]),
-                  inArray(
-                    notifications.plantId,
-                    db
-                      .select({ id: plants.id })
-                      .from(plants)
-                      .where(eq(plants.canopyId, canopyId))
-                  )
-                )
-              )
+              notifications.plantId,
+              db
+                .select({ id: plants.id })
+                .from(plants)
+                .where(eq(plants.canopyId, canopyId))
             )
           )
+        )
+        yield* db.delete(notifications).where(inArray(notifications.id, locked))
       }),
 
       deleteUndeliveredNonCareOfNonOwners: Effect.fn(
         'NotificationRepository.deleteUndeliveredNonCareOfNonOwners'
       )(function* (plantIds: ReadonlyArray<string>) {
         if (Array.isReadonlyArrayEmpty(plantIds)) return
-        yield* db
-          .delete(notifications)
-          .where(
-            inArray(
-              notifications.id,
-              lockedInIdOrder(
-                and(
-                  inArray(notifications.plantId, [...plantIds]),
-                  inArray(notifications.status, ['pending', 'queued']),
-                  isNull(notifications.deliveryMessageId),
-                  notInArray(notifications.type, [...CARE_TOPICS]),
-                  notInArray(
-                    notifications.plantId,
-                    db
-                      .select({ id: plants.id })
-                      .from(plants)
-                      .where(eq(plants.userId, notifications.userId))
-                  )
-                )
-              )
+        const locked = yield* lockedInIdOrder(
+          and(
+            inArray(notifications.plantId, [...plantIds]),
+            inArray(notifications.status, ['pending', 'queued']),
+            isNull(notifications.deliveryMessageId),
+            notInArray(notifications.type, [...CARE_TOPICS]),
+            notInArray(
+              notifications.plantId,
+              db
+                .select({ id: plants.id })
+                .from(plants)
+                .where(eq(plants.userId, notifications.userId))
             )
           )
+        )
+        yield* db.delete(notifications).where(inArray(notifications.id, locked))
       }),
 
       deleteByIds: Effect.fn('NotificationRepository.deleteByIds')(function* (

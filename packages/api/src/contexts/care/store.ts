@@ -12,6 +12,7 @@ import {
 } from '@lily/api/contexts/care/domain/decide'
 import type { Plan, PlanStep } from '@lily/api/contexts/care/domain/plan'
 import { seePlantCare } from '@lily/api/contexts/care/plant-care'
+import { lockRowsNamed, pinAccounts } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import {
@@ -37,7 +38,7 @@ import {
   type CareType,
   type PlantOwner,
 } from '@lily/shared'
-import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -533,19 +534,22 @@ export const CareStoreLive = Layer.effect(
         return new Map<string, CarePlant>()
       }
       const ids = [...plantIds]
-      const locked = yield* db
-        .select({
-          id: plants.id,
-          userId: plants.userId,
-          canopyId: plants.canopyId,
-          health: plants.health,
-          diedAt: plants.diedAt,
-          timezone: careTimezoneSql,
-        })
-        .from(plants)
-        .where(inArray(plants.id, ids))
-        .orderBy(asc(plants.id))
-        .for(lock, { of: plants })
+      const locked = yield* lockRowsNamed(
+        'Plant',
+        lock,
+        ids,
+        db
+          .select({
+            id: plants.id,
+            userId: plants.userId,
+            canopyId: plants.canopyId,
+            health: plants.health,
+            diedAt: plants.diedAt,
+            timezone: careTimezoneSql,
+          })
+          .from(plants)
+          .where(inArray(plants.id, ids))
+      )
       const scheduleRows = yield* db
         .select()
         .from(plantCareSchedules)
@@ -641,12 +645,12 @@ export const CareStoreLive = Layer.effect(
       Array.isReadonlyArrayEmpty(userIds)
         ? Effect.succeed(new Set<string>())
         : Effect.map(
-            db
-              .select({ id: users.id })
-              .from(users)
-              .where(inArray(users.id, [...userIds]))
-              .orderBy(asc(users.id))
-              .for('key share'),
+            pinAccounts(
+              db
+                .select({ id: users.id })
+                .from(users)
+                .where(inArray(users.id, [...userIds]))
+            ),
             (rows) => new Set(Array.map(rows, (row) => row.id))
           )
 

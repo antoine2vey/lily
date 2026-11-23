@@ -1,3 +1,4 @@
+import { lockRowsNamed } from '@lily/api/kernel/locks'
 import {
   extractCount,
   getPaginationParams,
@@ -86,12 +87,16 @@ export const DiagnosisRepositoryLive = Layer.effect(
     return {
       holdConversation: Effect.fn('DiagnosisRepository.holdConversation')(
         function* (conversationId: string) {
-          const rows = yield* db
-            .select({ id: chatConversations.id })
-            .from(chatConversations)
-            .where(eq(chatConversations.id, conversationId))
-            .for('key share')
-          return Array.isArrayNonEmpty(rows)
+          const rows = yield* lockRowsNamed(
+            'Conversation',
+            'key share',
+            [conversationId],
+            db
+              .select({ id: chatConversations.id })
+              .from(chatConversations)
+              .where(eq(chatConversations.id, conversationId))
+          )
+          return Array.isReadonlyArrayNonEmpty(rows)
         }
       ),
 

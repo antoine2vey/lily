@@ -116,6 +116,78 @@ const graph = new Map(
   ])
 )
 
+const KERNEL_LOCKS = 'kernel/locks.ts'
+
+// knowledge-db is another database, and its one lock is a SKIP LOCKED claim
+// written as SQL text.
+const INGEST_JOBS = 'repositories/ingest-job.repository.ts'
+
+const codeOf = (file: string) =>
+  readFileSync(file, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '')
+
+const takersOf = (kind: string) =>
+  files
+    .filter((file) =>
+      new RegExp(`\\b(lockRows|lockRowsNamed|rowsToLock)\\(\\s*'${kind}'`).test(
+        codeOf(file)
+      )
+    )
+    .map(name)
+
+describe('locks', () => {
+  it('are written in the kernel, so each one climbs the ladder', () => {
+    const WAITS =
+      /(?<!Symbol)\.for\(\s*(?!'update',\s*\{\s*skipLocked:\s*true\s*\}\s*\))|\bfor\s+(no\s+key\s+)?update\b(?!\s+skip\s+locked)|\bfor\s+(key\s+)?share\b|\bpg_(try_)?advisory/i
+    const SKIPS = /\bfor\s+update\s+skip\s+locked\b/i
+    const sources = files.map((file) => ({ file, code: codeOf(file) }))
+
+    expect(
+      sources
+        .filter(({ code }) => WAITS.test(code))
+        .map(({ file }) => name(file))
+    ).toEqual([KERNEL_LOCKS])
+    expect(
+      sources
+        .filter(({ code }) => SKIPS.test(code))
+        .map(({ file }) => name(file))
+    ).toEqual([INGEST_JOBS])
+  })
+
+  it('leave every update of an account row to the kernel', () => {
+    const BARE =
+      /\.update\(\s*(\w+\s*\.\s*)?users\s*\)|\bupdate\s+(only\s+)?"?users"?(?![\w"])/i
+    const RENAMED = /\busers\s+as\s+\w|\busers\s*:\s*\w+\s*[,}]\s*=/
+    const sources = files.map((file) => ({ file, code: codeOf(file) }))
+
+    expect(
+      sources
+        .filter(({ code }) => BARE.test(code))
+        .map(({ file }) => name(file))
+    ).toEqual([KERNEL_LOCKS])
+    expect(
+      sources
+        .filter(({ code }) => RENAMED.test(code))
+        .map(({ file }) => name(file))
+    ).toEqual([])
+  })
+
+  it('leave the reminder key of a plant to the notification repository', () => {
+    const takers = files
+      .filter((file) =>
+        (graph.get(file) ?? []).some(
+          (imported) =>
+            imported.target === join(SRC, KERNEL_LOCKS) &&
+            /\blockReminderPlants\b/.test(imported.names)
+        )
+      )
+      .map(name)
+
+    expect(takers).toEqual([NOTIFICATION_REPOSITORY])
+  })
+})
+
 describe('bounded contexts', () => {
   it('are imported through their index only', () => {
     const deepImports = files.flatMap((file) =>
@@ -365,13 +437,7 @@ describe('bounded contexts', () => {
   })
 
   it('lock a canopy row only in the Canopy store', () => {
-    const LOCKS =
-      /\.(from|innerJoin|leftJoin|rightJoin|fullJoin)\(\s*(schema\.)?canopies\b(?:(?!\n\s*\n|\byield\*|\bconst\b|\breturn\b)[\s\S])*?\.for\(|\bfrom\s+"?canopies"?\b[^`;]*?\bfor\s+(no\s+key\s+update|update|key\s+share|share)\b/i
-    const lockers = files
-      .filter((file) => LOCKS.test(readFileSync(file, 'utf8')))
-      .map(name)
-
-    expect(lockers).toEqual([CANOPY_STORE])
+    expect(takersOf('Canopy')).toEqual([CANOPY_STORE])
   })
 
   it('hear about Canopy changes through its topic', () => {
@@ -406,13 +472,7 @@ describe('bounded contexts', () => {
   })
 
   it('lock a delegation row only in the Absence store', () => {
-    const LOCKS =
-      /\.(from|innerJoin|leftJoin|rightJoin|fullJoin)\(\s*(schema\.)?careDelegations\b(?:(?!\n\s*\n|\byield\*|\bconst\b|\breturn\b)[\s\S])*?\.for\(|\bfrom\s+"?care_delegations"?\b[^`;]*?\bfor\s+(no\s+key\s+update|update|key\s+share|share)\b/i
-    const lockers = files
-      .filter((file) => LOCKS.test(readFileSync(file, 'utf8')))
-      .map(name)
-
-    expect(lockers).toEqual([ABSENCE_STORE])
+    expect(takersOf('Delegation')).toEqual([ABSENCE_STORE])
   })
 
   it('give a vacation column a value only in the Absence store', () => {
