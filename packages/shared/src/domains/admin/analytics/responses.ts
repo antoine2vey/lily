@@ -5,10 +5,6 @@ import {
 } from '../../subscriptions/schema'
 import { UserStatus } from '../../user/schema'
 
-// ============================================================================
-// Shared primitives
-// ============================================================================
-
 export const TimeSeriesPoint = Schema.Struct({
   date: Schema.String,
   value: Schema.Finite,
@@ -34,10 +30,6 @@ export const FunnelStep = Schema.Struct({
 })
 export type FunnelStep = typeof FunnelStep.Type
 
-// ============================================================================
-// #1 Users by status (LIVE)
-// ============================================================================
-
 export const UsersByStatusResponse = Schema.Struct({
   total: Schema.Finite,
   byStatus: Schema.Array(
@@ -49,10 +41,6 @@ export const UsersByStatusResponse = Schema.Struct({
 })
 export type UsersByStatusResponse = typeof UsersByStatusResponse.Type
 
-// ============================================================================
-// #2 DAU / WAU / MAU
-// ============================================================================
-
 export const DauWauMauResponse = Schema.Struct({
   dau: Schema.Finite,
   wau: Schema.Finite,
@@ -62,20 +50,12 @@ export const DauWauMauResponse = Schema.Struct({
 })
 export type DauWauMauResponse = typeof DauWauMauResponse.Type
 
-// ============================================================================
-// #3 Signup → first plant
-// ============================================================================
-
 export const SignupToFirstPlantResponse = Schema.Struct({
   cohortSize: Schema.Finite,
   steps: Schema.Array(FunnelStep),
   medianHoursToFirstPlant: Schema.NullOr(Schema.Finite),
 })
 export type SignupToFirstPlantResponse = typeof SignupToFirstPlantResponse.Type
-
-// ============================================================================
-// #4 Trial → paid
-// ============================================================================
 
 export const TrialToPaidResponse = Schema.Struct({
   trialsStarted: Schema.Finite,
@@ -85,19 +65,11 @@ export const TrialToPaidResponse = Schema.Struct({
 })
 export type TrialToPaidResponse = typeof TrialToPaidResponse.Type
 
-// ============================================================================
-// #5 Paywall attribution
-// ============================================================================
-
 export const PaywallAttributionResponse = Schema.Struct({
   totalConversions: Schema.Finite,
   byLimit: Schema.Array(CategoryCount),
 })
 export type PaywallAttributionResponse = typeof PaywallAttributionResponse.Type
-
-// ============================================================================
-// #6 Active subscribers by tier (LIVE)
-// ============================================================================
 
 export const ActiveSubscribersByTierResponse = Schema.Struct({
   total: Schema.Finite,
@@ -112,29 +84,17 @@ export const ActiveSubscribersByTierResponse = Schema.Struct({
 export type ActiveSubscribersByTierResponse =
   typeof ActiveSubscribersByTierResponse.Type
 
-// ============================================================================
-// #7 MRR estimate
-// ============================================================================
-
 export const MrrEstimateResponse = Schema.Struct({
   currentCents: Schema.Finite,
   trend: Schema.Array(TimeSeriesPoint),
 })
 export type MrrEstimateResponse = typeof MrrEstimateResponse.Type
 
-// ============================================================================
-// #8 Paid churn (monthly)
-// ============================================================================
-
 export const PaidChurnResponse = Schema.Struct({
   currentRate: Schema.Finite,
   trend: Schema.Array(TimeSeriesPoint),
 })
 export type PaidChurnResponse = typeof PaidChurnResponse.Type
-
-// ============================================================================
-// #9 Plants per user distribution (LIVE)
-// ============================================================================
 
 export const PlantsPerUserDistributionResponse = Schema.Struct({
   totalUsers: Schema.Finite,
@@ -143,10 +103,6 @@ export const PlantsPerUserDistributionResponse = Schema.Struct({
 })
 export type PlantsPerUserDistributionResponse =
   typeof PlantsPerUserDistributionResponse.Type
-
-// ============================================================================
-// #10 Care log volume by type (LIVE)
-// ============================================================================
 
 export const CareLogVolumeSeries = Schema.Struct({
   type: Schema.String,
@@ -161,10 +117,6 @@ export const CareLogVolumeByTypeResponse = Schema.Struct({
 export type CareLogVolumeByTypeResponse =
   typeof CareLogVolumeByTypeResponse.Type
 
-// ============================================================================
-// #11 AI chat volume
-// ============================================================================
-
 export const AiChatVolumeResponse = Schema.Struct({
   totalMessages: Schema.Finite,
   uniqueUsers: Schema.Finite,
@@ -178,10 +130,6 @@ export const AiChatVolumeResponse = Schema.Struct({
 })
 export type AiChatVolumeResponse = typeof AiChatVolumeResponse.Type
 
-// ============================================================================
-// #12 Diagnosis resolution rate
-// ============================================================================
-
 export const DiagnosisResolutionRateResponse = Schema.Struct({
   total: Schema.Finite,
   resolved: Schema.Finite,
@@ -191,10 +139,6 @@ export const DiagnosisResolutionRateResponse = Schema.Struct({
 export type DiagnosisResolutionRateResponse =
   typeof DiagnosisResolutionRateResponse.Type
 
-// ============================================================================
-// #13 Notification → care action
-// ============================================================================
-
 export const NotificationToCareActionResponse = Schema.Struct({
   remindersSent: Schema.Finite,
   actedOnWithin24h: Schema.Finite,
@@ -202,10 +146,6 @@ export const NotificationToCareActionResponse = Schema.Struct({
 })
 export type NotificationToCareActionResponse =
   typeof NotificationToCareActionResponse.Type
-
-// ============================================================================
-// #14 Dead-letter volume (LIVE)
-// ============================================================================
 
 export const DeadLetterSeries = Schema.Struct({
   topic: Schema.String,

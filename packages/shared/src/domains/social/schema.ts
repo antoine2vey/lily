@@ -35,25 +35,21 @@ export const UserCard = Schema.Struct({
 })
 export type UserCard = typeof UserCard.Type
 
-// Follow/unfollow response
 export const FollowActionResponse = Schema.Struct({
   success: Schema.Boolean,
 })
 export type FollowActionResponse = typeof FollowActionResponse.Type
 
-// Nudge request
 export const NudgeRequest = Schema.Struct({
   targetUserId: Schema.String,
 })
 export type NudgeRequest = typeof NudgeRequest.Type
 
-// Nudge response
 export const NudgeResponse = Schema.Struct({
   success: Schema.Boolean,
 })
 export type NudgeResponse = typeof NudgeResponse.Type
 
-// Search query params
 export const UserSearchParams = Schema.Struct({
   query: Schema.String,
   page: Schema.String.pipe(
@@ -67,6 +63,5 @@ export const UserSearchParams = Schema.Struct({
 })
 export type UserSearchParams = typeof UserSearchParams.Type
 
-// Paginated responses
 export const UserCardListResponse = PaginatedResponse(UserCard)
 export type UserCardListResponse = typeof UserCardListResponse.Type

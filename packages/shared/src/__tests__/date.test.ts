@@ -39,7 +39,6 @@ import {
   withTimeZone,
 } from '../domains/common/date'
 
-// Helper to create a fixed DateTime for testing
 const createFixedDateTime = (
   year: number,
   month: number,
@@ -338,7 +337,6 @@ describe('Date Utilities', () => {
     it('should format with weekday, month, and day', () => {
       const dateTime = createFixedDateTime(2024, 6, 17) // Monday
       const result = formatShortDate(dateTime)
-      // Should contain day number
       expect(result).toContain('17')
       expect(result.length).toBeGreaterThan(0)
     })
@@ -348,7 +346,6 @@ describe('Date Utilities', () => {
     it('should format with month, day, and year', () => {
       const dateTime = createFixedDateTime(2024, 6, 15)
       const result = formatLongDate(dateTime)
-      // Should contain year
       expect(result).toContain('2024')
       expect(result).toContain('15')
       expect(result.length).toBeGreaterThan(0)
@@ -811,7 +808,6 @@ describe('Date Utilities', () => {
         const diffMs =
           DateTime.toEpochMillis(afterDst.value) -
           DateTime.toEpochMillis(beforeDst.value)
-        // Should be exactly 9 hours difference
         expect(diffMs).toBe(9 * 60 * 60 * 1000)
       }
     })
@@ -856,7 +852,6 @@ describe('Date Utilities', () => {
     })
 
     it('should handle last day of month', () => {
-      // December 31
       const dec31 = createFixedDateTime(2024, 12, 31)
       const formatted = formatShortDate(dec31)
       expect(formatted).toContain('31')
@@ -922,11 +917,9 @@ describe('Date Utilities', () => {
       const ref = createFixedDateTime(2025, 1, 29, 12, 0)
       const target = createFixedDateTime(2025, 1, 29, 8, 0)
 
-      // isToday with UTC timezone
       expect(isToday(target, ref, 'UTC')).toBe(true)
       expect(isToday(target, DateTime.nowUnsafe(), 'UTC')).toBe(true)
 
-      // startOfDay with UTC timezone
       const sod = startOfDay(ref, 'UTC')
       const parts = DateTime.toParts(sod)
       expect(parts.hour).toBe(0)
@@ -939,7 +932,6 @@ describe('Date Utilities', () => {
       const date = createFixedDateTime(2024, 6, 17)
       const nativeDate = new Date(Date.UTC(2024, 5, 17, 12, 0, 0))
 
-      // The result should match what toLocaleDateString returns
       const expected = nativeDate.toLocaleDateString(undefined, {
         weekday: 'long',
       })

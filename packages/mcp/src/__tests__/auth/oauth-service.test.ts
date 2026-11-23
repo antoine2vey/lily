@@ -12,8 +12,6 @@ import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-// ── In-memory repository mock ─────────────────────────────────────────
-
 const createInMemoryOAuthRepository = () => {
   const clients: OAuthClient[] = []
   let authCodes: AuthorizationCode[] = []
@@ -138,8 +136,6 @@ const createInMemoryOAuthRepository = () => {
   }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────
-
 describe('OAuthService', () => {
   let repoMock: ReturnType<typeof createInMemoryOAuthRepository>
   let serviceLayer: Layer.Layer<OAuthService>
@@ -148,8 +144,6 @@ describe('OAuthService', () => {
     repoMock = createInMemoryOAuthRepository()
     serviceLayer = OAuthServiceLive.pipe(Layer.provide(repoMock.layer))
   })
-
-  // ── Client Registration ─────────────────────────────────────────────
 
   describe('getClient / registerClient', () => {
     it('should return None for non-existent client', async () => {
@@ -182,8 +176,6 @@ describe('OAuthService', () => {
     })
   })
 
-  // ── Authorization Code ──────────────────────────────────────────────
-
   describe('createAuthorizationCode', () => {
     it('should create an authorization code', async () => {
       const code = await Effect.runPromise(
@@ -204,8 +196,6 @@ describe('OAuthService', () => {
       expect(repoMock.getState().authCodes).toHaveLength(1)
     })
   })
-
-  // ── Token Exchange ──────────────────────────────────────────────────
 
   describe('exchangeAuthorizationCode', () => {
     it('should fail for non-existent code', async () => {
@@ -294,7 +284,6 @@ describe('OAuthService', () => {
       const futureDate = new Date()
       futureDate.setHours(futureDate.getHours() + 1)
 
-      // Generate proper PKCE challenge
       const verifier = 'test-verifier-string-that-is-long-enough-for-pkce'
       const encoder = new TextEncoder()
       const digest = await crypto.subtle.digest(
@@ -317,7 +306,6 @@ describe('OAuthService', () => {
       }
       repoMock.getState().authCodes.push(authCode)
 
-      // First exchange should succeed
       const result = await Effect.runPromise(
         Effect.gen(function* () {
           const service = yield* OAuthService
@@ -353,8 +341,6 @@ describe('OAuthService', () => {
       })
     })
   })
-
-  // ── Validate Bearer Token ───────────────────────────────────────────
 
   describe('validateBearerToken', () => {
     it('should fail for non-existent token', async () => {
@@ -429,7 +415,6 @@ describe('OAuthService', () => {
         }).pipe(Effect.provide(serviceLayer))
       )
 
-      // Token should have been revoked
       expect(
         Array.findFirst(
           repoMock.getState().accessTokens,
@@ -438,8 +423,6 @@ describe('OAuthService', () => {
       ).toEqual(Option.none())
     })
   })
-
-  // ── Refresh Token ───────────────────────────────────────────────────
 
   describe('refreshAccessToken', () => {
     it('should fail for non-existent refresh token', async () => {
@@ -545,7 +528,6 @@ describe('OAuthService', () => {
       expect(result.token_type).toBe('Bearer')
       expect(result.scope).toBe('plants:read plants:write')
 
-      // Old refresh token should be revoked
       expect(
         Array.findFirst(
           repoMock.getState().refreshTokens,
@@ -553,13 +535,10 @@ describe('OAuthService', () => {
         )
       ).toEqual(Option.none())
 
-      // New tokens should exist
       expect(repoMock.getState().accessTokens).toHaveLength(1)
       expect(repoMock.getState().refreshTokens).toHaveLength(1)
     })
   })
-
-  // ── Token Revocation ────────────────────────────────────────────────
 
   describe('revokeToken', () => {
     it('should revoke access token with hint', async () => {

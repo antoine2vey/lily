@@ -23,7 +23,6 @@ export interface CatalogEntry {
 }
 
 export const CATALOG: ReadonlyArray<CatalogEntry> = [
-  // Tropical
   {
     scientificName: 'Monstera deliciosa',
     family: 'Araceae',
@@ -197,7 +196,6 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     },
   },
 
-  // Succulents & Cacti
   {
     scientificName: 'Sansevieria trifasciata',
     family: 'Asparagaceae',
@@ -345,7 +343,6 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     },
   },
 
-  // Vines & Trailing
   {
     scientificName: 'Epipremnum aureum',
     family: 'Araceae',
@@ -422,7 +419,6 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     },
   },
 
-  // Ferns
   {
     scientificName: 'Nephrolepis exaltata',
     family: 'Nephrolepidaceae',
@@ -472,7 +468,6 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     },
   },
 
-  // Flowering
   {
     scientificName: 'Spathiphyllum wallisii',
     family: 'Araceae',
@@ -547,7 +542,6 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     },
   },
 
-  // Low light / Air purifiers
   {
     scientificName: 'Zamioculcas zamiifolia',
     family: 'Araceae',
@@ -622,7 +616,6 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     },
   },
 
-  // Herbs
   {
     scientificName: 'Ocimum basilicum',
     family: 'Lamiaceae',
@@ -690,7 +683,6 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     },
   },
 
-  // Palms
   {
     scientificName: 'Dypsis lutescens',
     family: 'Arecaceae',
@@ -740,7 +732,6 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     },
   },
 
-  // Other popular
   {
     scientificName: 'Pilea peperomioides',
     family: 'Urticaceae',

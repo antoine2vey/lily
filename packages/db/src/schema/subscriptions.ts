@@ -10,7 +10,6 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-// Enums
 export const subscriptionTierEnum = pgEnum('subscription_tier', [
   'free',
   'paid',
@@ -59,7 +58,6 @@ export const subscriptionTiers = pgTable('subscription_tiers', {
     .defaultNow(),
 })
 
-// User's subscription state
 export const userSubscriptions = pgTable('user_subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id')
@@ -69,11 +67,9 @@ export const userSubscriptions = pgTable('user_subscriptions', {
   tier: subscriptionTierEnum('tier').notNull().default('free'),
   status: subscriptionStatusEnum('status').notNull().default('active'),
 
-  // Trial tracking
   trialStartsAt: timestamp('trial_starts_at', { withTimezone: true }),
   trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
 
-  // Subscription lifecycle
   currentPeriodStart: timestamp('current_period_start', {
     withTimezone: true,
   }).notNull(),
@@ -82,12 +78,11 @@ export const userSubscriptions = pgTable('user_subscriptions', {
   }).notNull(),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),
 
-  // RevenueCat provider fields
   externalSubscriptionId: text('external_subscription_id'),
   externalCustomerId: text('external_customer_id'),
   provider: paymentProviderEnum('provider').notNull().default('revenuecat'),
   productId: text('product_id'), // e.g. "lily_monthly", "lily_annual"
-  store: appStoreEnum('store'), // APP_STORE or PLAY_STORE
+  store: appStoreEnum('store'),
 
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
@@ -97,7 +92,6 @@ export const userSubscriptions = pgTable('user_subscriptions', {
     .defaultNow(),
 })
 
-// Monthly usage tracking
 export const subscriptionUsage = pgTable(
   'subscription_usage',
   {
@@ -130,7 +124,6 @@ export const subscriptionUsage = pgTable(
   ]
 )
 
-// Subscription events (audit log)
 export const subscriptionEvents = pgTable('subscription_events', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id')
@@ -156,7 +149,6 @@ export const revenuecatWebhookEvents = pgTable('revenuecat_webhook_events', {
     .defaultNow(),
 })
 
-// Relations
 export const userSubscriptionsRelations = relations(
   userSubscriptions,
   ({ one }) => ({

@@ -1,8 +1,6 @@
 import { APICallError, RetryError } from 'ai'
 import { Match, Option, Schema } from 'effect'
 
-// ── OpenAI error codes ─────────────────────────────────────────────
-
 const OpenAIErrorCodeSchema = Schema.Literals([
   'rate_limited',
   'authentication_failed',
@@ -14,8 +12,6 @@ const OpenAIErrorCodeSchema = Schema.Literals([
 
 export type OpenAIErrorCode = Schema.Schema.Type<typeof OpenAIErrorCodeSchema>
 
-// ── OpenAI error ───────────────────────────────────────────────────
-
 export class OpenAIError extends Schema.TaggedError<
   OpenAIError,
   { readonly brand: unique symbol }
@@ -24,8 +20,6 @@ export class OpenAIError extends Schema.TaggedError<
   message: Schema.String,
   statusCode: Schema.optional(Schema.Finite),
 }) {}
-
-// ── Conversation lookup error ──────────────────────────────────────
 
 export class ConversationNotFoundError extends Schema.TaggedError<
   ConversationNotFoundError,

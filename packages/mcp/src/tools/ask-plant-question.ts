@@ -18,7 +18,6 @@ export const askPlantQuestionEffect = Effect.fn('MCP.askPlantQuestion')(
       return 'No relevant information found in the knowledge base for this question. Try rephrasing your question or asking about common houseplant topics.'
     }
 
-    // Build markdown from the answer and sources
     const sourceLines = pipe(
       result.sources,
       Array.map(

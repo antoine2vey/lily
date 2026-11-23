@@ -78,7 +78,6 @@ const FIRST_PAGE: GetFilesOptions = { autoPaginate: false, maxResults: 1000 }
 
 export class GCSService extends Context.Service<GCSService>()('GCSService', {
   make: Effect.gen(function* () {
-    // Get GCS configuration from environment variables
     const config = yield* Effect.gen(function* () {
       const projectIdRedacted = yield* Config.Redacted('GCP_PROJECT_ID')
       const credentialsJsonRedacted = yield* Config.Redacted(
@@ -87,7 +86,6 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
 
       const credentialsJson = Redacted.value(credentialsJsonRedacted)
 
-      // Parse the credentials JSON
       const credentials = yield* Effect.try({
         try: () => JSON.parse(credentialsJson) as unknown,
         catch: (error) =>
@@ -96,7 +94,6 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
           }),
       })
 
-      // Validate credentials against schema
       const validatedCredentials = yield* Schema.decodeUnknownEffect(
         GCSCredentialsSchema
       )(credentials).pipe(

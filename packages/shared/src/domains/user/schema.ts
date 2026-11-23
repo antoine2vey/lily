@@ -3,7 +3,6 @@ import { Schema } from 'effect'
 import { TimeString, TimeZone } from '../notification/timezone'
 import { VacationStatus } from '../vacation/schema'
 
-// Role, status, and language literals
 export const UserRole = Schema.Literals(['user', 'admin'])
 export const UserStatus = Schema.Literals([
   'active',
@@ -145,7 +144,6 @@ export const UserSettingsUpdateRequest = Schema.Struct({
   ),
 })
 
-// Type exports
 export type User = typeof User.Type
 export type UserCreateRequest = typeof UserCreateRequest.Type
 export type UserUpdateRequest = typeof UserUpdateRequest.Type

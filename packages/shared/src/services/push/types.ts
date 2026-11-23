@@ -12,7 +12,6 @@ export const InterruptionLevel = Schema.Literals([
 ])
 export type InterruptionLevel = typeof InterruptionLevel.Type
 
-// Push message to send to a device
 export const PushMessage = Schema.Struct({
   to: Schema.String, // Expo push token
   title: Schema.String,
@@ -40,7 +39,6 @@ export const PushTicketErrorCode = Schema.Union([
 ])
 export type PushTicketErrorCode = typeof PushTicketErrorCode.Type
 
-// Response from push service
 export const PushTicket = Schema.Union([
   Schema.Struct({
     id: Schema.String,
@@ -53,14 +51,6 @@ export const PushTicket = Schema.Union([
   }),
 ])
 export type PushTicket = typeof PushTicket.Type
-
-// ============================================================================
-// Live Activity (iOS 16.2+, push-to-start requires 17.2+)
-//
-// The server pre-renders localized strings (`headline`, `subheadline`) and
-// ships them in `ContentState`. The widget extension is a pure render layer
-// — it has no network and no access to the app's i18next catalog.
-// ============================================================================
 
 export const CareGroupContent = Schema.Struct({
   careType: CareType,
@@ -138,7 +128,6 @@ export const LiveActivityPushMessage = Schema.Union(
 )
 export type LiveActivityPushMessage = typeof LiveActivityPushMessage.Type
 
-// Error types
 export class PushSendError extends Data.TaggedError('PushSendError')<{
   message: string
   cause?: unknown

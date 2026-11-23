@@ -17,7 +17,6 @@ export type PaginationParams = typeof PaginationParams.Type
 // Largest page any client asks for (the rooms screen loads 200 plants)
 export const MAX_PAGE_SIZE = 200
 
-// Parse pagination params from URL strings to numbers
 export const parsePaginationParams = (
   params: PaginationParams,
   maxLimit = MAX_PAGE_SIZE
@@ -36,7 +35,6 @@ export const PaginatedResponse = <T extends Schema.Top>(itemSchema: T) =>
     hasMore: Schema.Boolean,
   })
 
-// Type helper
 export type PaginatedResponse<T> = {
   items: readonly T[]
   total: number
@@ -45,7 +43,6 @@ export type PaginatedResponse<T> = {
   hasMore: boolean
 }
 
-// Helper to build paginated response in repositories/services
 export const paginate = <T>(
   items: readonly T[],
   total: number,

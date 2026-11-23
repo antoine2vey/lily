@@ -28,20 +28,16 @@ export const AdminUserUpdateRequest = Schema.Struct({
   status: Schema.optional(UserStatus),
 })
 
-// Role change request
 export const AdminRoleChangeRequest = Schema.Struct({
   role: UserRole,
 })
 
-// Status change request
 export const AdminStatusChangeRequest = Schema.Struct({
   status: UserStatus,
 })
 
 // Re-export User as AdminUser for clarity in admin context
 export { User as AdminUser }
-
-// --- Admin user overview (detail page aggregate) ---
 
 // Curated per-user engagement counts shown on the admin user-detail page.
 export const AdminUserStats = Schema.Struct({
@@ -69,8 +65,6 @@ export const AdminUserOverview = Schema.Struct({
   recentActivity: Schema.Array(RecentActivity),
 })
 export type AdminUserOverview = typeof AdminUserOverview.Type
-
-// --- Prompt Preview schemas ---
 
 export const PromptPreviewMessage = Schema.Struct({
   id: Schema.String,
@@ -133,8 +127,6 @@ export const PromptPreviewResponse = Schema.Struct({
   hasImage: Schema.Boolean,
 })
 
-// --- Gift History schemas ---
-
 export const AdminGiftEvent = Schema.Struct({
   id: Schema.String,
   userId: Schema.String,
@@ -146,8 +138,6 @@ export const AdminGiftEvent = Schema.Struct({
 })
 export type AdminGiftEvent = typeof AdminGiftEvent.Type
 
-// --- Gift Revoke schemas ---
-
 export const AdminRevokeGiftResponse = Schema.Struct({
   message: Schema.String,
   userId: Schema.String,
@@ -155,8 +145,6 @@ export const AdminRevokeGiftResponse = Schema.Struct({
   status: SubscriptionStatus,
 })
 export type AdminRevokeGiftResponse = typeof AdminRevokeGiftResponse.Type
-
-// --- Gift Subscription schemas ---
 
 export const GiftDuration = Schema.Literals(['7d', '1m', '1y', 'infinite'])
 export type GiftDuration = typeof GiftDuration.Type
@@ -196,8 +184,6 @@ export const AdminGiftSubscriptionResponse = Schema.Struct({
 export type AdminGiftSubscriptionResponse =
   typeof AdminGiftSubscriptionResponse.Type
 
-// --- Live Activity diagnostic ---
-
 // Per-token outcome from a manual LA-start trigger. The `kind` distinguishes
 // successful APNs handoff from the various failure modes so the operator can
 // tell at a glance whether the issue is server-side or device-side.
@@ -225,8 +211,6 @@ export const AdminLiveActivityTriggerResponse = Schema.Struct({
 })
 export type AdminLiveActivityTriggerResponse =
   typeof AdminLiveActivityTriggerResponse.Type
-
-// --- Gift Code schemas ---
 
 export const GiftCode = Schema.Struct({
   id: Schema.String,
@@ -288,7 +272,6 @@ export const RedeemGiftCodeResponse = Schema.Struct({
 })
 export type RedeemGiftCodeResponse = typeof RedeemGiftCodeResponse.Type
 
-// Type exports
 export type AdminUserListParams = typeof AdminUserListParams.Type
 export type AdminUserUpdateRequest = typeof AdminUserUpdateRequest.Type
 export type AdminRoleChangeRequest = typeof AdminRoleChangeRequest.Type

@@ -1,6 +1,5 @@
 import { Schema } from 'effect'
 
-// Re-export errors for convenient imports
 export { DeviceTokenNotFoundError } from './errors'
 
 // What `Notifications.getExpoPushTokenAsync` returns. Stricter than the
@@ -12,7 +11,6 @@ export const ExpoPushToken = Schema.String.check(
   })
 )
 
-// Device token schemas
 export const DeviceToken = Schema.Struct({
   id: Schema.String,
   token: Schema.String,
@@ -28,6 +26,5 @@ export const DeviceTokenCreateRequest = Schema.Struct({
   platform: Schema.Literals(['ios', 'android', 'web']),
 })
 
-// Type exports
 export type DeviceToken = typeof DeviceToken.Type
 export type DeviceTokenCreateRequest = typeof DeviceTokenCreateRequest.Type

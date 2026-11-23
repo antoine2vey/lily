@@ -8,8 +8,6 @@ import { clientIp } from '@lily/shared/services/http/client-ip'
 import { Effect, Layer, Schema } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
-// ── Validation Schema ─────────────────────────────────────────────────
-
 const SCRIPT_SCHEMES = new Set(['javascript:', 'data:', 'vbscript:'])
 
 // Custom schemes stay allowed: native MCP clients register `myapp://...`
@@ -31,8 +29,6 @@ const ClientRegistrationBody = Schema.Struct({
   token_endpoint_auth_method: Schema.optionalKey(Schema.String),
 })
 
-// ── Helpers ────────────────────────────────────────────────────────────
-
 // A real client registers once per connection; this only stops floods
 const MAX_REGISTRATIONS_PER_WINDOW = 10
 const REGISTRATION_WINDOW_SECONDS = 3600
@@ -49,10 +45,7 @@ const parseFormBody = (request: HttpServerRequest.HttpServerRequest) =>
     return new URLSearchParams(body)
   })
 
-// ── Combined Router ────────────────────────────────────────────────────
-
 export const OAuthRoutes = Layer.mergeAll(
-  // ── Server Metadata ────────────────────────────────────────────────
   HttpRouter.add(
     'GET',
     '/.well-known/oauth-authorization-server',
@@ -73,7 +66,6 @@ export const OAuthRoutes = Layer.mergeAll(
     })
   ),
 
-  // ── MCP Discovery Metadata ───────────────────────────────────────
   HttpRouter.add(
     'GET',
     '/.well-known/mcp.json',
@@ -94,7 +86,6 @@ export const OAuthRoutes = Layer.mergeAll(
     })
   ),
 
-  // ── Protected Resource Metadata ────────────────────────────────────
   HttpRouter.add(
     'GET',
     '/.well-known/oauth-protected-resource',
@@ -110,7 +101,6 @@ export const OAuthRoutes = Layer.mergeAll(
     })
   ),
 
-  // ── Client Registration ────────────────────────────────────────────
   HttpRouter.add(
     'POST',
     '/oauth/register',
@@ -157,7 +147,6 @@ export const OAuthRoutes = Layer.mergeAll(
     )
   ),
 
-  // ── Authorize (redirect to consent) ────────────────────────────────
   HttpRouter.add(
     'GET',
     '/oauth/authorize',
@@ -183,7 +172,6 @@ export const OAuthRoutes = Layer.mergeAll(
     )
   ),
 
-  // ── Token Exchange ─────────────────────────────────────────────────
   HttpRouter.add(
     'POST',
     '/oauth/token',
@@ -259,7 +247,6 @@ export const OAuthRoutes = Layer.mergeAll(
     )
   ),
 
-  // ── Token Revocation ───────────────────────────────────────────────
   HttpRouter.add(
     'POST',
     '/oauth/revoke',

@@ -33,7 +33,6 @@ export interface IMessageQueue {
   ) => Effect.Effect<number, QueueOperationError>
 }
 
-// Context tag for dependency injection
 export class MessageQueue extends Context.Service<
   MessageQueue,
   IMessageQueue
