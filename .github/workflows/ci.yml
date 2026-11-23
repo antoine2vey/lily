@@ -134,12 +134,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # Quint fetches its evaluator through the GitHub API without a token,
-      # and a shared runner's address is often over that rate limit.
+      # and a shared runner's address is often over that rate limit. Quint
+      # 0.34.0, pinned in scripts/check-models.sh, wants evaluator v0.8.0.
       - uses: actions/cache@v6
+        id: evaluator
         with:
-          path: ~/.quint
-          key: quint-evaluator-${{ runner.os }}-${{ hashFiles('scripts/check-models.sh') }}
-          restore-keys: quint-evaluator-${{ runner.os }}-
+          path: ~/.quint/rust-evaluator-v0.8.0
+          key: quint-0.34.0-rust-evaluator-v0.8.0-${{ runner.os }}-${{ runner.arch }}
+      - name: Fetch the Quint evaluator with a token
+        if: steps.evaluator.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir=~/.quint/rust-evaluator-v0.8.0
+          asset=quint_evaluator-x86_64-unknown-linux-gnu.tar.gz
+          mkdir -p "$dir"
+          gh release download evaluator/v0.8.0 --repo quint-co/quint --pattern "$asset" --dir "$RUNNER_TEMP"
+          tar -xzf "$RUNNER_TEMP/$asset" -C "$dir"
+          chmod +x "$dir/quint_evaluator"
       - name: Check each model gives its expected verdict
         timeout-minutes: 10
         run: bash scripts/check-models.sh
