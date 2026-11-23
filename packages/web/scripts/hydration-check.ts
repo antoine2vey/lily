@@ -1,7 +1,5 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { Array, Option, pipe, Record, String as Str } from 'effect'
+import { launchChrome } from './chrome'
 
 // usage: bun scripts/hydration-check.ts [base=http://127.0.0.1:8088]
 // Opens one page per route and locale of the prerendered build (`preview`) in headless Chrome and fails when a page
@@ -9,9 +7,6 @@ import { Array, Option, pipe, Record, String as Str } from 'effect'
 // HTML holds.
 // It answers the invite preview call itself and blocks every other request that leaves `base`, so no run reaches the API.
 
-const CHROME =
-  process.env.CHROME_PATH ??
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const [base = 'http://127.0.0.1:8088'] = process.argv.slice(2)
 
 // The noindex pages are missing from sitemap.xml. nginx serves the prerendered /join page at every /join/<token>, the one
@@ -28,7 +23,7 @@ type Head = Record<HeadTag, ReadonlyArray<string>>
 const sameValues = Array.makeEquivalence<string>((x, y) => x === y)
 
 const WAIT_MS = 10_000
-// A cold CI runner took about 8 s to serve the sitemap and start Chrome, so startup gets its own wide budget.
+// A cold CI runner took about 8 s to serve the sitemap and start Chrome, so serving the sitemap gets its own wide budget.
 const STARTUP_MS = 60_000
 const HYDRATED = `Object.keys(document.body).some((key) => key.startsWith('__reactFiber$'))`
 // After a mismatch React throws the prerendered nodes away and renders the page again on the client, some time after
@@ -80,40 +75,9 @@ const samplePaths = (sitemap: string) =>
 
 const PATHS = [...samplePaths(await served()), ...NOINDEX_PATHS]
 
-const profile = mkdtempSync(join(tmpdir(), 'lily-hydration-'))
-const chrome = Bun.spawn(
-  [
-    CHROME,
-    '--headless=new',
-    '--remote-debugging-port=0',
-    `--user-data-dir=${profile}`,
-    '--use-mock-keychain',
-    '--password-store=basic',
-    '--no-first-run',
-    'about:blank',
-  ],
-  { stdout: 'ignore', stderr: 'ignore' }
-)
-
-const debugPort = async (): Promise<string> => {
-  for (let waited = 0; waited < STARTUP_MS; waited += 100) {
-    try {
-      const [port = ''] = readFileSync(
-        join(profile, 'DevToolsActivePort'),
-        'utf8'
-      ).split('\n')
-      if (port !== '') return port
-    } catch {
-      // Chrome has not written the file yet.
-    }
-    await sleep(100)
-  }
-  throw new Error('Chrome did not open a debugging port')
-}
-
-const port = await debugPort()
+const chrome = await launchChrome()
 const target = (await (
-  await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {
+  await fetch(`http://127.0.0.1:${chrome.port}/json/new?about:blank`, {
     method: 'PUT',
   })
 ).json()) as { webSocketDebuggerUrl: string }
@@ -326,9 +290,7 @@ try {
   console.log(`FAIL ${error instanceof Error ? error.message : error}`)
 } finally {
   socket.close()
-  chrome.kill()
-  await chrome.exited
-  rmSync(profile, { recursive: true, force: true })
+  await chrome.close()
 }
 console.log(
   `${PATHS.length} pages in ${((performance.now() - started) / 1000).toFixed(1)} s`

@@ -1,11 +1,9 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { CANOPY_NAME_MAX_LENGTH } from '@lily/shared'
 import { usernameProblem } from '@lily/shared/username'
 import { Array, Option, Predicate } from 'effect'
 import { en, type Messages } from '../src/i18n/en'
 import { fr } from '../src/i18n/fr'
+import { launchChrome } from './chrome'
 
 // usage: bun scripts/join-check.ts [base=http://127.0.0.1:8088]
 // Drives headless Chrome over CDP against the prerendered build (`preview`), in English and in French. It fails
@@ -13,9 +11,6 @@ import { fr } from '../src/i18n/fr'
 // page, when the skeleton is not about as tall as the plain invite preview, and when the consent banner covers the
 // open button. It answers the invite preview call itself, so no run reaches the API.
 
-const CHROME =
-  process.env.CHROME_PATH ??
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const [base = 'http://127.0.0.1:8088'] = process.argv.slice(2)
 
 const CANOPY = 'Probe canopy'
@@ -242,40 +237,9 @@ const problem = (kind: Problem, detail: string) => ({ kind, detail })
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-const profile = mkdtempSync(join(tmpdir(), 'lily-join-'))
-const chrome = Bun.spawn(
-  [
-    CHROME,
-    '--headless=new',
-    '--remote-debugging-port=0',
-    `--user-data-dir=${profile}`,
-    '--use-mock-keychain',
-    '--password-store=basic',
-    '--no-first-run',
-    'about:blank',
-  ],
-  { stdout: 'ignore', stderr: 'ignore' }
-)
-
-const debugPort = async (): Promise<string> => {
-  for (let i = 0; i < 100; i++) {
-    try {
-      const [port = ''] = readFileSync(
-        join(profile, 'DevToolsActivePort'),
-        'utf8'
-      ).split('\n')
-      if (port !== '') return port
-    } catch {
-      // Chrome has not written the file yet.
-    }
-    await sleep(100)
-  }
-  throw new Error('Chrome did not open a debugging port')
-}
-
-const port = await debugPort()
+const chrome = await launchChrome()
 const target = (await (
-  await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {
+  await fetch(`http://127.0.0.1:${chrome.port}/json/new?about:blank`, {
     method: 'PUT',
   })
 ).json()) as { webSocketDebuggerUrl: string }
@@ -572,9 +536,7 @@ try {
   console.log(`FAIL ${error instanceof Error ? error.message : String(error)}`)
 } finally {
   socket.close()
-  chrome.kill()
-  await chrome.exited
-  rmSync(profile, { recursive: true, force: true })
+  await chrome.close()
 }
 if (found.size > 0) {
   console.log(
