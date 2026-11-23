@@ -34,6 +34,7 @@ import {
   Array,
   Context,
   DateTime,
+  Duration,
   Effect,
   Layer,
   Option,
@@ -54,7 +55,7 @@ export const resolveRange = (
   to: string | undefined
 ): AnalyticsRange => {
   const current = DateTime.nowUnsafe()
-  const defaultFrom = DateTime.subtract(current, { days: 30 })
+  const defaultFrom = DateTime.subtractDuration(current, Duration.days(30))
   return {
     from: DateTime.toDate(
       pipe(

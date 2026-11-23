@@ -11,7 +11,7 @@ import {
   NudgeRateLimitError,
   UserNotFoundError,
 } from '@lily/shared'
-import { DateTime, Effect, Option, pipe } from 'effect'
+import { DateTime, Duration, Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 
 export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
@@ -43,7 +43,7 @@ export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
   const lastNudge = yield* followRepo.getLastNudge(currentUserId, targetUserId)
   if (lastNudge) {
     const oneDayAgo = DateTime.toDateUtc(
-      DateTime.subtract(DateTime.nowUnsafe(), { days: 1 })
+      DateTime.subtractDuration(DateTime.nowUnsafe(), Duration.days(1))
     )
     if (lastNudge > oneDayAgo) {
       return yield* new NudgeRateLimitError({

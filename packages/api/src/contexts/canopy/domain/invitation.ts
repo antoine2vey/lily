@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import type { CanopyInvitationStatus, CanopyInvitationView } from '@lily/shared'
-import { DateTime, Effect } from 'effect'
+import { DateTime, Duration, Effect } from 'effect'
 
 const TOKEN_BYTES = 32
 const DECLINE_COOLDOWN_DAYS = 7
@@ -56,9 +56,10 @@ export const planInvitation = (
     existing.resolvedAt !== null &&
     DateTime.isLessThan(
       now,
-      DateTime.add(DateTime.makeUnsafe(existing.resolvedAt), {
-        days: DECLINE_COOLDOWN_DAYS,
-      })
+      DateTime.addDuration(
+        DateTime.makeUnsafe(existing.resolvedAt),
+        Duration.days(DECLINE_COOLDOWN_DAYS)
+      )
     )
     ? 'declinedRecently'
     : 'send'

@@ -24,7 +24,7 @@ import {
   users,
 } from '@lily/db/schema'
 import { and, eq, inArray, or } from 'drizzle-orm'
-import { Array as A, Console, Effect, Option } from 'effect'
+import { Array as A, Console, Duration, Effect, Option } from 'effect'
 import { careDayOf } from './care-day'
 
 const getFirst = <T>(arr: T[]): T => {
@@ -37,7 +37,7 @@ const getFirst = <T>(arr: T[]): T => {
 
 // Helper to build a date relative to now
 const daysFromNow = (days: number) =>
-  new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+  new Date(Date.now() + Duration.toMillis(Duration.days(days)))
 
 // Care schedule data attached to each plant definition
 interface PlantSchedule {
@@ -741,7 +741,7 @@ const seedDemoData = Effect.gen(function* () {
 
   // Helper to create date in the past
   const daysAgo = (days: number) =>
-    new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    new Date(Date.now() - Duration.toMillis(Duration.days(days)))
   const hoursAgo = (hours: number) =>
     new Date(Date.now() - hours * 60 * 60 * 1000)
 
@@ -1525,7 +1525,8 @@ const seedDemoData = Effect.gen(function* () {
 
   // Care logs for Lily's plants
   yield* Console.log('  Creating care logs for Lily...')
-  const daysAgoL = (d: number) => new Date(Date.now() - d * 24 * 60 * 60 * 1000)
+  const daysAgoL = (d: number) =>
+    new Date(Date.now() - Duration.toMillis(Duration.days(d)))
 
   for (const plant of lilyCreatedPlants) {
     yield* insertCareLogs(lily, [

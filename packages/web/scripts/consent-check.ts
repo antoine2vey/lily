@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Array, Option } from 'effect'
+import { Array, Duration, Option } from 'effect'
 import { en } from '../src/i18n/en'
 import { fr } from '../src/i18n/fr'
 
@@ -17,7 +17,6 @@ const [base = 'http://127.0.0.1:8088'] = process.argv.slice(2)
 const SETTLE_MS = 6500
 // Every page bundle is held until the prerendered page has painted this many frames, so no load hydrates before the paint probe has seen it.
 const PRERENDERED_FRAMES = 10
-const DAY_MS = 24 * 60 * 60 * 1000
 const GOOGLE =
   /(^|\.)(googletagmanager\.com|google-analytics\.com|analytics\.google\.com|doubleclick\.net)$/
 
@@ -278,7 +277,7 @@ try {
   await step('Refuse again, after a reload', { banner: false, ...NONE })
 
   await evaluate(
-    `localStorage.setItem('analytics-consent', 'granted:' + (Date.now() - ${400 * DAY_MS}))`
+    `localStorage.setItem('analytics-consent', 'granted:' + (Date.now() - ${Duration.toMillis(Duration.days(400))}))`
   )
   await reload()
   await step('an Accept older than 180 days, after a reload', {

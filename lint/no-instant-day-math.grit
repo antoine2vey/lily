@@ -1,0 +1,42 @@
+// A local day lasts 23, 24 or 25 hours, so a day counted on an instant lands on
+// the wrong date across a clock change. biome.json skips two places. Tests place
+// instants by elapsed time from a fixed clock. care-day.ts counts on UTC
+// midnights, where every day lasts 24 hours. DateTime.add on a zoned value moves
+// its wall-clock date, so such a site takes a biome-ignore that says it is zoned.
+language js
+
+or {
+  `86400000`,
+  `86_400_000`,
+  `864e5`,
+  `8.64e7`,
+  `86400e3`,
+  `86_400e3`,
+  // Each operand order of a product that spells one day in milliseconds, with
+  // any multiplier on its left. GritQL has no arithmetic, so the text decides.
+  `$a * $b` as $product where {
+    $product <: or {
+      r"(?:.+ \*\s+)?24 \*\s+(?:60 \*\s+60 \*\s+1000|60 \*\s+1000 \*\s+60|1000 \*\s+60 \*\s+60|3_?600 \*\s+1000|1000 \*\s+3_?600|3_?600_?000)",
+      r"(?:.+ \*\s+)?60 \*\s+(?:24 \*\s+60 \*\s+1000|24 \*\s+1000 \*\s+60|60 \*\s+24 \*\s+1000|60 \*\s+1000 \*\s+24|1000 \*\s+24 \*\s+60|1000 \*\s+60 \*\s+24)",
+      r"(?:.+ \*\s+)?1000 \*\s+(?:24 \*\s+60 \*\s+60|60 \*\s+24 \*\s+60|60 \*\s+60 \*\s+24|24 \*\s+3_?600|3_?600 \*\s+24|86_?400)",
+      r"(?:.+ \*\s+)?3_?600 \*\s+(?:24 \*\s+1000|1000 \*\s+24)",
+      r"(?:.+ \*\s+)?86_?400 \*\s+1000",
+      r"(?:.+ \*\s+)?3_?600_?000 \*\s+24",
+      r"(?:.+ \*\s+)?(?:24 \*\s+60 \*\s+60_?000|24 \*\s+60_?000 \*\s+60|60 \*\s+24 \*\s+60_?000|60 \*\s+60_?000 \*\s+24|60_?000 \*\s+24 \*\s+60|60_?000 \*\s+60 \*\s+24)",
+      r"(?:.+ \*\s+)?(?:1_?440 \*\s+60 \*\s+1000|1_?440 \*\s+1000 \*\s+60|60 \*\s+1_?440 \*\s+1000|60 \*\s+1000 \*\s+1_?440|1000 \*\s+1_?440 \*\s+60|1000 \*\s+60 \*\s+1_?440)",
+      r"(?:.+ \*\s+)?(?:1_?440 \*\s+60_?000|60_?000 \*\s+1_?440)"
+    }
+  },
+  `DateTime.$op($args)` where {
+    $op <: or {
+      `add`,
+      `subtract`
+    },
+    $args <: contains or {
+      JsPropertyObjectMember(name=$key),
+      JsShorthandPropertyObjectMember(name=$key)
+    } where { $key <: r"['\x22]?(?:days|weeks|months)['\x22]?" }
+  }
+} as $hit where {
+  register_diagnostic(span=$hit, message="A calendar day is not 24 hours. When the result is read as a day, use CareDays.addDays(day, n) from @lily/shared. Use Duration.days(n) only for a lifetime or a TTL.")
+}

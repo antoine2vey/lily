@@ -1,4 +1,4 @@
-import { DateTime, Option } from 'effect'
+import { DateTime, Duration, Option } from 'effect'
 import { useSyncExternalStore } from 'react'
 
 export type Choice = 'granted' | 'denied'
@@ -10,7 +10,7 @@ export interface Consent {
 
 const KEY = 'analytics-consent'
 // The CNIL recommends asking again after about six months, for a refusal as for a consent.
-const MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
+const MAX_AGE_MS = Duration.toMillis(Duration.days(180))
 
 const isChoice = (s: string): s is Choice => s === 'granted' || s === 'denied'
 

@@ -1,5 +1,5 @@
 import type { GiftDuration } from '@lily/shared/admin'
-import { DateTime, Match, Option, pipe } from 'effect'
+import { DateTime, Duration, Match, Option, pipe } from 'effect'
 
 export const durationToDays = (duration: GiftDuration): Option.Option<number> =>
   pipe(
@@ -19,6 +19,10 @@ export const computePeriodEnd = (duration: GiftDuration): Date =>
     Option.match({
       onNone: () => DateTime.toDate(INFINITE_END),
       onSome: (days) =>
-        pipe(DateTime.nowUnsafe(), DateTime.add({ days }), DateTime.toDate),
+        pipe(
+          DateTime.nowUnsafe(),
+          DateTime.addDuration(Duration.days(days)),
+          DateTime.toDate
+        ),
     })
   )

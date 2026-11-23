@@ -93,8 +93,7 @@ const getDayOfYear = (timestamp: number): number =>
         month: 1,
         day: 1,
       })
-      const distanceMs = Duration.toMillis(DateTime.distance(startOfYear, dt))
-      return Math.floor(distanceMs / (1000 * 60 * 60 * 24)) + 1
+      return Math.floor(Duration.toDays(DateTime.distance(startOfYear, dt))) + 1
     },
   })
 

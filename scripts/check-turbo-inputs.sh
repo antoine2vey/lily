@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-ROOT_CONFIGS=(tsconfig.json biome.json)
+ROOT_CONFIGS=(tsconfig.json biome.json lint/*.grit)
 
 dry=$(bun x turbo run lint tsc test build --dry=json)
 failed=0

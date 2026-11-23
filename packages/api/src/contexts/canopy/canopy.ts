@@ -87,6 +87,7 @@ import {
   Context,
   Data,
   DateTime,
+  Duration,
   Effect,
   Layer,
   Match,
@@ -545,7 +546,10 @@ export const CanopyLive = Layer.effect(
         Effect.gen(function* () {
           const { token, tokenHash } = yield* newInviteToken
           const now = yield* DateTime.now
-          const expiresAt = DateTime.add(now, { days: CANOPY_INVITE_TTL_DAYS })
+          const expiresAt = DateTime.addDuration(
+            now,
+            Duration.days(CANOPY_INVITE_TTL_DAYS)
+          )
           yield* run('canopy.createLink', ofMember(by), (held) =>
             createLink(held, { by, tokenHash, expiresAt, now })
           )
@@ -586,7 +590,10 @@ export const CanopyLive = Layer.effect(
                 by,
                 invitee,
                 newInvitationId: crypto.randomUUID(),
-                expiresAt: DateTime.add(now, { days: CANOPY_INVITE_TTL_DAYS }),
+                expiresAt: DateTime.addDuration(
+                  now,
+                  Duration.days(CANOPY_INVITE_TTL_DAYS)
+                ),
                 now,
               })
           )

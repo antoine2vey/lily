@@ -1,7 +1,7 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { weatherSnapshots } from '@lily/db/schema'
 import { and, desc, eq, lt } from 'drizzle-orm'
-import { Array, Context, DateTime, Effect, Layer } from 'effect'
+import { Array, Context, DateTime, Duration, Effect, Layer } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface IWeatherRepository {
@@ -70,9 +70,10 @@ export const WeatherRepositoryLive = Layer.effect(
 
       findRecentByLocation: (lat, lng, days) =>
         Effect.gen(function* () {
-          const cutoffDt = DateTime.subtract(DateTime.nowUnsafe(), {
-            days,
-          })
+          const cutoffDt = DateTime.subtractDuration(
+            DateTime.nowUnsafe(),
+            Duration.days(days)
+          )
           const cutoffDateStr = DateTime.formatIsoDateUtc(cutoffDt)
 
           const results = yield* db
@@ -95,9 +96,10 @@ export const WeatherRepositoryLive = Layer.effect(
 
       cleanupOldSnapshots: (olderThanDays) =>
         Effect.gen(function* () {
-          const cutoffDt = DateTime.subtract(DateTime.nowUnsafe(), {
-            days: olderThanDays,
-          })
+          const cutoffDt = DateTime.subtractDuration(
+            DateTime.nowUnsafe(),
+            Duration.days(olderThanDays)
+          )
           const cutoff = DateTime.toDateUtc(cutoffDt)
 
           const result = yield* db

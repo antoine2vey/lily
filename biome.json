@@ -18,9 +18,23 @@
       "!**/.next/**",
       "!**/out/**",
       "!**/coverage/**",
-      "!**/routeTree.gen.ts"
+      "!**/routeTree.gen.ts",
+      "!lint/__fixtures__/**"
     ]
   },
+  "plugins": [
+    {
+      "path": "./lint/no-instant-day-math.grit",
+      "resolutionKind": "config",
+      "includes": [
+        "**",
+        "!**/__tests__/**",
+        "!**/*.test.ts",
+        "!**/*.test.tsx",
+        "!packages/shared/src/domains/care/care-day.ts"
+      ]
+    }
+  ],
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
