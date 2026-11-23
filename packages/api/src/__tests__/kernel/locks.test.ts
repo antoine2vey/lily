@@ -11,7 +11,7 @@ import {
 import { transactQuietly } from '@lily/api/kernel/transact'
 import type { PgDrizzle } from '@lily/db/effect-drizzle'
 import { users } from '@lily/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pg-proxy'
 import { Array, Cause, Effect, Exit } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
@@ -199,9 +199,26 @@ describe('the lock ladder', () => {
     expect(whole.sql).toContain('where "users"."id" = $2 returning')
     expect(whole.params).toEqual(['b', 'u1'])
     expect(narrowed.sql).toContain(
-      'where ("users"."id" = $2 and "users"."vacation_status" = $3)'
+      'where ("users"."id" = $2 and ("users"."vacation_status" = $3))'
     )
     expect(narrowed.params).toEqual(['b', 'u1', 'none'])
+  })
+
+  it('keeps the account condition over a further one that has an OR', async () => {
+    const real = drizzle(() => Promise.resolve({ rows: [] }))
+    const written = await Effect.runPromise(
+      writeAccount(
+        real,
+        'u1',
+        { bio: 'b' },
+        (write) => Effect.succeed(write.toSQL()),
+        sql`true or true`
+      )
+    )
+
+    expect(written.sql).toContain(
+      'where ("users"."id" = $2 and (true or true))'
+    )
   })
 
   it('takes an account write for the lock its columns make it', () => {

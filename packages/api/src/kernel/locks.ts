@@ -17,7 +17,7 @@ import {
   rooms,
   users,
 } from '@lily/db/schema'
-import { and, asc, eq, getTableColumns, type SQL } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns, type SQL, sql } from 'drizzle-orm'
 import {
   getTableConfig,
   type PgColumn,
@@ -206,7 +206,14 @@ const updatingAccount = (
   db
     .update(users)
     .set(values)
-    .where(and(eq(users.id, userId), also))
+    .where(
+      and(
+        eq(users.id, userId),
+        Option.getOrUndefined(
+          Option.map(Option.fromUndefinedOr(also), (more) => sql`(${more})`)
+        )
+      )
+    )
 
 /**
  * An `UPDATE` of an account row locks it without asking. This is the one
