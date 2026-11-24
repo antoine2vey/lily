@@ -1,12 +1,16 @@
 import { openai } from '@ai-sdk/openai'
 import type { Conversation } from '@lily/api/repositories/chat.repository'
-import { chatContextFor } from '@lily/api/services/ai-chat/chat-context'
+import {
+  generalChatContext,
+  plantChatContext,
+} from '@lily/api/services/ai-chat/chat-context'
 import {
   buildGeneralChatTools,
   buildPlantChatTools,
   type ToolContext,
 } from '@lily/api/services/ai-chat/tools'
-import { caller } from '@lily/api/services/plants/helpers/with-plant-access'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
 import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   convertToModelMessages,
@@ -69,8 +73,7 @@ export const chatStream = (
   imageOptions?: PlantChatImageOptions
 ) =>
   Effect.gen(function* () {
-    const who = yield* caller
-    const { userId } = who
+    const { id: userId } = yield* CurrentUser
     const runtime = yield* Effect.context<ToolContext>()
 
     const image = pipe(
@@ -79,23 +82,30 @@ export const chatStream = (
       Option.getOrUndefined
     )
 
-    const context = yield* chatContextFor(who, conversation, {
-      withImage: Boolean(imageOptions?.imageUrl),
-    })
+    const turn = { withImage: Boolean(imageOptions?.imageUrl) }
 
-    const tools = pipe(
-      Match.value(context),
+    const { context, tools } = yield* pipe(
+      Match.value(conversation),
       Match.discriminatorsExhaustive('kind')({
-        plant: ({ permit, plant, timezone }) =>
-          buildPlantChatTools({
-            runtime,
-            userId,
-            permit,
-            image,
-            plantName: plant.name,
-            timezone,
+        plant: ({ plantId }) =>
+          Effect.gen(function* () {
+            const known = yield* withPlantKnowledge(plantId, 'chat')
+            const context = yield* plantChatContext(known, turn)
+            const tools = buildPlantChatTools({
+              runtime,
+              userId,
+              permit: known.permit,
+              image,
+              plantName: known.plant.name,
+              timezone: context.timezone,
+            })
+            return { context, tools }
           }),
-        general: () => buildGeneralChatTools({ runtime, userId, image }),
+        general: () =>
+          Effect.succeed({
+            context: generalChatContext(turn),
+            tools: buildGeneralChatTools({ runtime, userId, image }),
+          }),
       })
     )
 

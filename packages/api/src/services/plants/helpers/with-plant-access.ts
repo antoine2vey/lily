@@ -58,7 +58,10 @@ export const caller: Effect.Effect<
   CurrentUser | CanopyRepository
 > = Effect.flatMap(CurrentUser, ({ id }) => callerFor(id))
 
-/** `userId` as a caller, for an admin who looks at a plant as that user. */
+/**
+ * `userId` as a caller, for an admin who looks at a plant as that user. It
+ * reads roles only: no permit is minted for a caller built here.
+ */
 export const callerFor = (
   userId: string
 ): Effect.Effect<Caller, never, CanopyRepository> =>
@@ -200,21 +203,36 @@ export const withPlantKnowledge = <A extends PlantAction>(
   PlantKnowledge<A>,
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
-> => Effect.flatMap(caller, (who) => plantKnowledgeFor(who, plantId, action))
+> =>
+  Effect.map(
+    Effect.flatMap(caller, (who) => plantInRole(who, plantId, action)),
+    ({ plant, role, viewerId }) => ({
+      plant,
+      view: knowledgeView(role, viewerId),
+      permit: mintPermit(plant.id, action, Actor.User({ userId: viewerId })),
+    })
+  )
 
-export interface PlantKnowledge<A extends PlantAction> {
+export interface PlantView {
   readonly plant: PlantWithRoom
   readonly view: KnowledgeView
+}
+
+export interface PlantKnowledge<A extends PlantAction> extends PlantView {
   readonly permit: PlantPermit<A>
 }
 
-/** `withPlantKnowledge` for an explicit caller. */
-export const plantKnowledgeFor = <A extends PlantAction>(
+/**
+ * The plant and what `who` sees of it, when `who` may perform `action`.
+ * It mints no permit, so code that acts on the plant goes through
+ * `withPlantKnowledge` and the current user.
+ */
+export const plantViewFor = (
   who: Caller,
   plantId: string,
-  action: A
+  action: PlantAction
 ): Effect.Effect<
-  PlantKnowledge<A>,
+  PlantView,
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | DelegationRepository
 > =>
@@ -223,7 +241,6 @@ export const plantKnowledgeFor = <A extends PlantAction>(
     ({ plant, role, viewerId }) => ({
       plant,
       view: knowledgeView(role, viewerId),
-      permit: mintPermit(plant.id, action, Actor.User({ userId: viewerId })),
     })
   )
 
