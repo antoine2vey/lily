@@ -12,6 +12,7 @@ import {
   pickDominantCareTopic,
 } from '@lily/api/services/notification-scheduler/translations/care'
 import type { LanguageCode } from '@lily/shared'
+import type { GiftDuration } from '@lily/shared/admin'
 import { failureOf } from '@lily/shared/testing'
 import { Array, Option, Record, Result, Struct } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -224,15 +225,24 @@ describe('buildSimpleContent — new notification translations', () => {
   })
 
   describe('gift_subscription', () => {
+    const body = (duration: GiftDuration, language: LanguageCode) =>
+      buildSimpleContent('gift_subscription', { duration }, language).body
+
     it('names the gifted duration in the language of the push', () => {
-      const body = (language: LanguageCode) =>
-        buildSimpleContent('gift_subscription', { duration: '1m' }, language)
-          .body
-      expect(body('en')).toBe(
-        "You've been gifted Lily Premium for 1 Month. Enjoy every feature! 🌿"
+      expect(body('1m', 'en')).toBe(
+        "You've been gifted Lily Premium for 1 month. Enjoy every feature! 🌿"
       )
-      expect(body('fr')).toBe(
-        "On t'a offert Lily Premium pour 1 Mois. Profites-en pleinement ! 🌿"
+      expect(body('1m', 'fr')).toBe(
+        "On t'a offert Lily Premium pour 1 mois. Profites-en pleinement ! 🌿"
+      )
+    })
+
+    it('says a lifetime gift lasts forever', () => {
+      expect(body('infinite', 'en')).toBe(
+        "You've been gifted Lily Premium forever. Enjoy every feature! 🌿"
+      )
+      expect(body('infinite', 'fr')).toBe(
+        "On t'a offert Lily Premium pour toujours. Profites-en pleinement ! 🌿"
       )
     })
   })
