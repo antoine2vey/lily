@@ -1,12 +1,5 @@
-import {
-  caredForBy,
-  memberCanopyIdOf,
-} from '@lily/api/repositories/helpers/care-visibility'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
-import {
-  ownerOf,
-  withCanopyOwner,
-} from '@lily/api/repositories/helpers/plant-owner'
+import { withCanopyOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { isReachableUser } from '@lily/api/repositories/helpers/reachable-user'
 import { tending } from '@lily/api/repositories/helpers/tending'
 import { hasUserOwner } from '@lily/api/repositories/helpers/user-owner'
@@ -18,25 +11,15 @@ import {
   delegationPlants,
   plantCareSchedules,
   plants,
-  rooms,
   users,
 } from '@lily/db/schema'
-import type { CareType, PlantOwner } from '@lily/shared'
+import type { PlantOwner } from '@lily/shared'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type CareScheduleRow = typeof plantCareSchedules.$inferSelect
 export type { CareType } from '@lily/shared'
-
-export interface OwnerScheduleRow {
-  schedule: CareScheduleRow
-  plant: {
-    id: string
-    owner: PlantOwner
-    remindersEnabled: boolean
-  }
-}
 
 export interface ReminderAudiencePlant {
   id: string
@@ -49,10 +32,6 @@ export interface ReminderAudiencePlant {
 }
 
 export interface ICareScheduleRepository {
-  readonly findByPlantAndType: (
-    plantId: string,
-    careType: CareType
-  ) => Effect.Effect<CareScheduleRow | null, SqlError>
   readonly findByPlant: (
     plantId: string
   ) => Effect.Effect<Array<CareScheduleRow>, SqlError>
@@ -63,9 +42,6 @@ export interface ICareScheduleRepository {
   readonly findReminderAudience: (
     plantIds: ReadonlyArray<string>
   ) => Effect.Effect<Record<string, Array<ReminderAudiencePlant>>, SqlError>
-  readonly findByOwnerWithPlant: (
-    userId: string
-  ) => Effect.Effect<Array<OwnerScheduleRow>, SqlError>
 }
 
 export class CareScheduleRepository extends Context.Service<
@@ -73,33 +49,12 @@ export class CareScheduleRepository extends Context.Service<
   ICareScheduleRepository
 >()('CareScheduleRepository') {}
 
-const _roomSelect = {
-  id: rooms.id,
-  name: rooms.name,
-  icon: rooms.icon,
-}
-
 export const CareScheduleRepositoryLive = Layer.effect(
   CareScheduleRepository,
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findByPlantAndType: Effect.fn(
-        'CareScheduleRepository.findByPlantAndType'
-      )(function* (plantId: string, careType: CareType) {
-        const [row] = yield* db
-          .select()
-          .from(plantCareSchedules)
-          .where(
-            and(
-              eq(plantCareSchedules.plantId, plantId),
-              eq(plantCareSchedules.careType, careType)
-            )
-          )
-        return pipe(Option.fromNullishOr(row), Option.getOrNull)
-      }),
-
       findByPlant: Effect.fn('CareScheduleRepository.findByPlant')(function* (
         plantId: string
       ) {
@@ -205,33 +160,6 @@ export const CareScheduleRepositoryLive = Layer.effect(
           ),
           (p) => p.audienceUserId
         )
-      }),
-
-      findByOwnerWithPlant: Effect.fn(
-        'CareScheduleRepository.findByOwnerWithPlant'
-      )(function* (userId: string) {
-        const canopyId = yield* memberCanopyIdOf(db, userId)
-        const rows = yield* db
-          .select({
-            schedule: plantCareSchedules,
-            plant: {
-              id: plants.id,
-              userId: plants.userId,
-              canopyId: plants.canopyId,
-              remindersEnabled: plants.remindersEnabled,
-            },
-          })
-          .from(plantCareSchedules)
-          .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-          .where(and(caredForBy(db, userId, canopyId), isLivingPlant()))
-        return Array.map(rows, (row) => ({
-          schedule: row.schedule,
-          plant: {
-            id: row.plant.id,
-            owner: ownerOf(row.plant),
-            remindersEnabled: row.plant.remindersEnabled,
-          },
-        }))
       }),
     }
   })

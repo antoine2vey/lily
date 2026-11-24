@@ -22,8 +22,6 @@ export const createMockUserRepository = (
 ): Layer.Layer<UserRepository> => {
   const rows = () => Array.map(users, asUserRow)
   const repo: IUserRepository = {
-    findAll: Effect.sync(rows),
-
     findById: (id: string) =>
       Effect.succeed(
         pipe(
@@ -208,10 +206,6 @@ export const createMockUserRepository = (
           u.latitude !== null &&
           u.longitude !== null
       )
-    ),
-
-    findTipsEnabled: Effect.sync(() =>
-      Array.filter(rows(), (u) => u.tips === true)
     ),
 
     softDelete: (id: string) => {

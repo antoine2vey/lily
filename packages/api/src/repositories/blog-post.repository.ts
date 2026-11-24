@@ -40,10 +40,6 @@ export interface IBlogPostRepository {
   readonly create: (
     data: CreateBlogPostData
   ) => Effect.Effect<BlogPost | null, SqlError>
-  readonly findBySlug: (
-    slug: string
-  ) => Effect.Effect<BlogPost | null, SqlError>
-  readonly findById: (id: string) => Effect.Effect<BlogPost | null, SqlError>
   readonly findAllSlugs: Effect.Effect<string[], SqlError>
   readonly findRecentCategories: (
     limit: number
@@ -136,26 +132,6 @@ export const BlogPostRepositoryLive = Layer.effect(
           .values(data)
           .onConflictDoNothing({ target: blogPosts.slug })
           .returning()
-        return Option.getOrNull(Option.fromNullishOr(row))
-      }),
-
-      findBySlug: Effect.fn('BlogPostRepository.findBySlug')(function* (
-        slug: string
-      ) {
-        const [row] = yield* db
-          .select()
-          .from(blogPosts)
-          .where(eq(blogPosts.slug, slug))
-        return Option.getOrNull(Option.fromNullishOr(row))
-      }),
-
-      findById: Effect.fn('BlogPostRepository.findById')(function* (
-        id: string
-      ) {
-        const [row] = yield* db
-          .select()
-          .from(blogPosts)
-          .where(eq(blogPosts.id, id))
         return Option.getOrNull(Option.fromNullishOr(row))
       }),
 

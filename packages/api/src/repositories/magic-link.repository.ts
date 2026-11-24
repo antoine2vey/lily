@@ -22,16 +22,12 @@ export interface IMagicLinkRepository {
     token: string,
     expiresAt: Date
   ) => Effect.Effect<MagicLink | null, SqlError>
-  readonly findByToken: (
-    token: string
-  ) => Effect.Effect<MagicLink | null, SqlError>
   readonly findValidByToken: (
     token: string
   ) => Effect.Effect<MagicLink | null, SqlError>
   readonly findValidAndMarkUsed: (
     token: string
   ) => Effect.Effect<MagicLink | null, SqlError>
-  readonly markUsed: (id: string) => Effect.Effect<MagicLink | null, SqlError>
   readonly deleteExpired: Effect.Effect<number, SqlError>
   /** Deletes the address's used and expired links; live ones stay valid. */
   readonly deleteSpentByEmail: (
@@ -63,17 +59,6 @@ export const MagicLinkRepositoryLive = Layer.effect(
             expiresAt,
           })
           .returning()
-
-        return pipe(results, Array.head, Option.getOrNull)
-      }),
-
-      findByToken: Effect.fn('MagicLinkRepository.findByToken')(function* (
-        token: string
-      ) {
-        const results = yield* db
-          .select()
-          .from(magicLinks)
-          .where(eq(magicLinks.token, token))
 
         return pipe(results, Array.head, Option.getOrNull)
       }),
@@ -117,20 +102,6 @@ export const MagicLinkRepositoryLive = Layer.effect(
               gt(magicLinks.expiresAt, currentTime)
             )
           )
-          .returning()
-
-        return pipe(results, Array.head, Option.getOrNull)
-      }),
-
-      markUsed: Effect.fn('MagicLinkRepository.markUsed')(function* (
-        id: string
-      ) {
-        const results = yield* db
-          .update(magicLinks)
-          .set({
-            usedAt: nowAsDate(),
-          })
-          .where(eq(magicLinks.id, id))
           .returning()
 
         return pipe(results, Array.head, Option.getOrNull)

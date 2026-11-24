@@ -8,7 +8,7 @@ import { giftCodeRedemptions, giftCodes, users } from '@lily/db/schema'
 import { compact } from '@lily/shared'
 import type { GiftDuration } from '@lily/shared/admin'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, String as Str } from 'effect'
+import { Array, Context, Effect, Layer, String as Str } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type GiftCodeRecord = Omit<typeof giftCodes.$inferSelect, 'duration'> & {
@@ -69,11 +69,6 @@ export interface IGiftCodeRepository {
     giftCodeId: string,
     userId: string
   ) => Effect.Effect<typeof giftCodeRedemptions.$inferSelect, SqlError>
-
-  readonly findRedemption: (
-    giftCodeId: string,
-    userId: string
-  ) => Effect.Effect<typeof giftCodeRedemptions.$inferSelect | null, SqlError>
 
   readonly findRedemptionsByCode: (
     giftCodeId: string,
@@ -223,22 +218,6 @@ export const GiftCodeRepositoryLive = Layer.effect(
           return rows[0]!
         }
       ),
-
-      findRedemption: Effect.fn('GiftCodeRepository.findRedemption')(function* (
-        giftCodeId: string,
-        userId: string
-      ) {
-        const [found] = yield* db
-          .select()
-          .from(giftCodeRedemptions)
-          .where(
-            and(
-              eq(giftCodeRedemptions.giftCodeId, giftCodeId),
-              eq(giftCodeRedemptions.userId, userId)
-            )
-          )
-        return Option.getOrNull(Option.fromNullishOr(found))
-      }),
 
       findRedemptionsByCode: Effect.fn(
         'GiftCodeRepository.findRedemptionsByCode'

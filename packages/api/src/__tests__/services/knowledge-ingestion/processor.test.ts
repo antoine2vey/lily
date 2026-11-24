@@ -285,7 +285,6 @@ describe('processIngestJob', () => {
     const racingDocs = Layer.succeed(RawDocumentRepository, {
       findBySourceId: () => Effect.succeed(null),
       createIfNew: () => Effect.succeed(null),
-      countByJobId: () => Effect.succeed(0),
     })
 
     mockedGetAdapter.mockReturnValueOnce(

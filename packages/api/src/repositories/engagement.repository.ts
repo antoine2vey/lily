@@ -25,7 +25,7 @@ import {
   type VacationStatus,
 } from '@lily/shared'
 import type { NotificationTopic } from '@lily/shared/server'
-import { and, count, desc, eq, gte, inArray, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, or, sql } from 'drizzle-orm'
 import {
   Array,
   Context,

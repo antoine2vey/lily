@@ -8,11 +8,7 @@ import {
   type SavedChatMessage,
 } from '@lily/api/repositories/chat.repository'
 import { paginate } from '@lily/shared'
-import type {
-  ChatConversation,
-  ChatConversationKind,
-  ChatMessage,
-} from '@lily/shared/ai-chat'
+import type { ChatConversation, ChatMessage } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
 import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'

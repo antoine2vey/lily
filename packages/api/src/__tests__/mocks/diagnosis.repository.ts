@@ -89,15 +89,6 @@ export const createMockDiagnosisRepository = (
       )
     },
 
-    findById: (id: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(diagnosesData, (d) => d.id === id),
-          Option.map(mapToDiagnosis),
-          Option.getOrNull
-        )
-      ),
-
     linkChatMessage: (diagnosisId: string, chatMessageId: string) => {
       const idx = diagnosesData.findIndex((d) => d.id === diagnosisId)
       if (idx !== -1) {

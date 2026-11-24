@@ -4,7 +4,7 @@ import {
   rawDocuments,
 } from '@lily/knowledge-db'
 import type { ContentCategory, RawDocument } from '@lily/shared/knowledge'
-import { count, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -78,7 +78,6 @@ export interface IRawDocumentRepository {
   readonly findBySourceId: (
     sourceId: string
   ) => Effect.Effect<RawDocument | null, SqlError>
-  readonly countByJobId: (jobId: string) => Effect.Effect<number, SqlError>
 }
 
 export class RawDocumentRepository extends Context.Service<
@@ -147,21 +146,6 @@ export const RawDocumentRepositoryLive = Layer.effect(
           )
         }
       ),
-
-      countByJobId: Effect.fn('RawDocumentRepository.countByJobId')(function* (
-        jobId: string
-      ) {
-        const result = yield* db
-          .select({ value: count() })
-          .from(rawDocuments)
-          .where(eq(rawDocuments.ingestJobId, jobId))
-
-        return pipe(
-          Array.head(result),
-          Option.map((r) => r.value),
-          Option.getOrElse(() => 0)
-        )
-      }),
     }
   })
 )

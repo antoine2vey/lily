@@ -4,9 +4,7 @@ import type { CareReads } from '@lily/api/contexts/care'
 import {
   CareScheduleRepository,
   type CareScheduleRow,
-  type CareType,
   type ICareScheduleRepository,
-  type OwnerScheduleRow,
   type ReminderAudiencePlant,
 } from '@lily/api/repositories/care-schedule.repository'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
@@ -55,18 +53,6 @@ export const createMockCareScheduleRepository = (
   const isMuted = (userId: string, plantId: string) =>
     Array.some(mutes, (m) => m.userId === userId && m.plantId === plantId)
 
-  const caredForBy =
-    (userId: string, canopyId: string | null) => (p: PlantRecord) =>
-      p.userId === userId ||
-      (canopyId !== null && p.canopyId === canopyId && !isMuted(userId, p.id))
-
-  const memberCanopyOf = (userId: string) =>
-    pipe(
-      Array.findFirst(memberships, (m) => m.userId === userId),
-      Option.map((m): string => m.canopyId),
-      Option.getOrNull
-    )
-
   const recipientsOf = (p: PlantRecord): ReadonlyArray<string> =>
     p.userId !== null
       ? [p.userId]
@@ -87,25 +73,7 @@ export const createMockCareScheduleRepository = (
           Option.getOrElse(() => userId)
         )
 
-  const _resolveRoom = (roomId: string | null) =>
-    pipe(
-      Option.fromNullishOr(roomId),
-      Option.flatMap((id) => Array.findFirst(roomsData, (r) => r.id === id)),
-      Option.getOrNull
-    )
-
   const repo: ICareScheduleRepository = {
-    findByPlantAndType: (plantId: string, careType: CareType) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(
-            schedulesData,
-            (s) => s.plantId === plantId && s.careType === careType
-          ),
-          Option.getOrNull
-        )
-      ),
-
     findByPlant: (plantId: string) =>
       Effect.succeed(Array.filter(schedulesData, (s) => s.plantId === plantId)),
 
@@ -133,32 +101,6 @@ export const createMockCareScheduleRepository = (
             )
           ),
           Array.groupBy((p) => p.audienceUserId)
-        )
-      ),
-
-    findByOwnerWithPlant: (userId: string) =>
-      Effect.succeed(
-        pipe(
-          Array.filter(
-            plantsData,
-            (p) =>
-              caredForBy(userId, memberCanopyOf(userId))(p) && p.diedAt === null
-          ),
-          Array.flatMap((plant) =>
-            pipe(
-              Array.filter(schedulesData, (s) => s.plantId === plant.id),
-              Array.map(
-                (schedule): OwnerScheduleRow => ({
-                  schedule,
-                  plant: {
-                    id: plant.id,
-                    owner: ownerOf(plant),
-                    remindersEnabled: plant.remindersEnabled,
-                  },
-                })
-              )
-            )
-          )
         )
       ),
   }

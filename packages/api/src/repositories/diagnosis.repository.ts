@@ -67,7 +67,6 @@ export interface IDiagnosisRepository {
   readonly findByPlantId: (
     params: FindDiagnosesParams
   ) => Effect.Effect<DiagnosisListResponse, SqlError>
-  readonly findById: (id: string) => Effect.Effect<Diagnosis | null, SqlError>
   readonly linkChatMessage: (
     diagnosisId: string,
     chatMessageId: string
@@ -158,21 +157,6 @@ export const DiagnosisRepositoryLive = Layer.effect(
           .orderBy(desc(diagnoses.createdAt))
 
         return paginate(Array.map(rows, mapToDiagnosis), total, page, limit)
-      }),
-
-      findById: Effect.fn('DiagnosisRepository.findById')(function* (
-        id: string
-      ) {
-        const rows = yield* db
-          .select()
-          .from(diagnoses)
-          .where(eq(diagnoses.id, id))
-
-        return pipe(
-          Array.head(rows),
-          Option.map(mapToDiagnosis),
-          Option.getOrNull
-        )
       }),
 
       linkChatMessage: Effect.fn('DiagnosisRepository.linkChatMessage')(

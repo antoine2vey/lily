@@ -120,18 +120,6 @@ export const createMockGiftCodeRepository = (
       return Effect.succeed(redemption)
     },
 
-    findRedemption: (giftCodeId, userId) =>
-      Effect.succeed(
-        pipe(
-          Option.fromNullishOr(
-            redemptions.find(
-              (r) => r.giftCodeId === giftCodeId && r.userId === userId
-            )
-          ),
-          Option.getOrNull
-        )
-      ),
-
     findRedemptionsByCode: (giftCodeId) => {
       const items = redemptions
         .filter((r) => r.giftCodeId === giftCodeId)

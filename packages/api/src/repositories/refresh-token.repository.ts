@@ -22,9 +22,6 @@ export interface IRefreshTokenRepository {
     tokenHash: string,
     expiresAt: Date
   ) => Effect.Effect<RefreshToken | null, SqlError>
-  readonly findByTokenHash: (
-    tokenHash: string
-  ) => Effect.Effect<RefreshToken | null, SqlError>
   readonly findValidByTokenHash: (
     tokenHash: string,
     rotationGraceMs?: number
@@ -61,17 +58,6 @@ export const RefreshTokenRepositoryLive = Layer.effect(
 
         return pipe(results, Array.head, Option.getOrNull)
       }),
-
-      findByTokenHash: Effect.fn('RefreshTokenRepository.findByTokenHash')(
-        function* (tokenHash: string) {
-          const results = yield* db
-            .select()
-            .from(refreshTokens)
-            .where(eq(refreshTokens.tokenHash, tokenHash))
-
-          return pipe(results, Array.head, Option.getOrNull)
-        }
-      ),
 
       findValidByTokenHash: Effect.fn(
         'RefreshTokenRepository.findValidByTokenHash'

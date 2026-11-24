@@ -130,31 +130,6 @@ export const createMockFollowRepository = (
         )
       ),
 
-    getFollowerCount: (userId) =>
-      Effect.succeed(
-        Array.filter(follows, (f) => f.followingId === userId).length
-      ),
-
-    getFollowingCount: (userId) =>
-      Effect.succeed(
-        Array.filter(follows, (f) => f.followerId === userId).length
-      ),
-
-    getFollowingStatuses: (currentUserId, userIds) =>
-      Effect.succeed(
-        new Set(
-          pipe(
-            follows,
-            Array.filter(
-              (f) =>
-                f.followerId === currentUserId &&
-                Array.contains(userIds, f.followingId)
-            ),
-            Array.map((f) => f.followingId)
-          )
-        )
-      ),
-
     searchUsers: (params) =>
       Effect.succeed(
         pipe(

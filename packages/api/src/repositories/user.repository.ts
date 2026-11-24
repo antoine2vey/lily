@@ -69,7 +69,6 @@ export interface FindUsersFilters {
 }
 
 export interface IUserRepository {
-  readonly findAll: Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
   readonly findById: (
     id: string
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
@@ -114,10 +113,6 @@ export interface IUserRepository {
     Array<typeof users.$inferSelect>,
     SqlError
   >
-  readonly findTipsEnabled: Effect.Effect<
-    Array<typeof users.$inferSelect>,
-    SqlError
-  >
   readonly softDelete: (
     id: string
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
@@ -154,10 +149,6 @@ export const UserRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findAll: Effect.suspend(() => db.select().from(users)).pipe(
-        Effect.withSpan('UserRepository.findAll')
-      ),
-
       findById: Effect.fn('UserRepository.findById')(function* (id: string) {
         const [user] = yield* db.select().from(users).where(eq(users.id, id))
         return Option.getOrNull(Option.fromNullishOr(user))
@@ -345,10 +336,6 @@ export const UserRepositoryLive = Layer.effect(
             )
           )
       ).pipe(Effect.withSpan('UserRepository.findWeatherEnabled')),
-
-      findTipsEnabled: Effect.suspend(() =>
-        db.select().from(users).where(eq(users.tips, true))
-      ).pipe(Effect.withSpan('UserRepository.findTipsEnabled')),
     }
   })
 )

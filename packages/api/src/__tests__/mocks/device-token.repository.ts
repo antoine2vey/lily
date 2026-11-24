@@ -32,20 +32,6 @@ export const createMockDeviceTokenRepository = (
     findByUserId: (userId: string) =>
       Effect.succeed(Array.filter(store, (t) => t.userId === userId)),
 
-    create: (data) => {
-      const newToken: DeviceToken = {
-        id: `token-${crypto.randomUUID()}`,
-        token: data.token,
-        platform: data.platform,
-        isActive: true,
-        userId: data.userId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      store.push(newToken)
-      return Effect.succeed(newToken)
-    },
-
     upsertByToken: (data) => {
       const idx = store.findIndex((t) => t.token === data.token)
       if (idx === -1) {
@@ -67,18 +53,6 @@ export const createMockDeviceTokenRepository = (
         userId: data.userId,
         platform: data.platform,
         isActive: true,
-        updatedAt: new Date(),
-      }
-      store[idx] = updated
-      return Effect.succeed(updated)
-    },
-
-    update: (id, data) => {
-      const idx = store.findIndex((t) => t.id === id)
-      if (idx === -1) return Effect.succeed(null)
-      const updated: DeviceToken = {
-        ...store[idx]!,
-        ...data,
         updatedAt: new Date(),
       }
       store[idx] = updated

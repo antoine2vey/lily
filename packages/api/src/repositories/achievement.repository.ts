@@ -23,11 +23,6 @@ export interface IAchievementRepository {
 
   readonly countByUserId: (userId: string) => Effect.Effect<number, SqlError>
 
-  readonly hasAchievement: (
-    userId: string,
-    key: AchievementKey
-  ) => Effect.Effect<boolean, SqlError>
-
   readonly unlock: (
     userId: string,
     key: AchievementKey
@@ -98,27 +93,6 @@ export const AchievementRepositoryLive = Layer.effect(
             Option.fromNullishOr(result),
             Option.flatMap((r) => Option.fromNullishOr(r.count)),
             Option.getOrElse(() => 0)
-          )
-        }
-      ),
-
-      hasAchievement: Effect.fn('AchievementRepository.hasAchievement')(
-        function* (userId: string, key: AchievementKey) {
-          const [result] = yield* db
-            .select({ count: count() })
-            .from(userAchievements)
-            .where(
-              and(
-                eq(userAchievements.userId, userId),
-                eq(userAchievements.achievement, key)
-              )
-            )
-          return (
-            pipe(
-              Option.fromNullishOr(result),
-              Option.flatMap((r) => Option.fromNullishOr(r.count)),
-              Option.getOrElse(() => 0)
-            ) > 0
           )
         }
       ),

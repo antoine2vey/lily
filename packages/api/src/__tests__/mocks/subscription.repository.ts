@@ -132,7 +132,6 @@ export const createMockSubscriptionRepository = (
         : []
     ),
     claimWebhookEvent: () => Effect.succeed(true),
-    findByExternalId: () => Effect.succeed(subscription),
     create: (data) => {
       if (failingCreates > 0) {
         failingCreates--

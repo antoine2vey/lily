@@ -1,7 +1,6 @@
 import type { MockMembership } from '@lily/api/__tests__/mocks/canopy.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
-  ownerColumns,
   sameOwner,
   withCanopyOwner,
   withOwner,

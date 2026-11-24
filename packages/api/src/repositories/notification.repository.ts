@@ -237,9 +237,6 @@ export interface INotificationRepository {
     userId: string,
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
-  readonly findPendingByUserId: (
-    userId: string
-  ) => Effect.Effect<NotificationRow[], SqlError>
   readonly markManyAsSent: (
     rows: ReadonlyArray<SentNotification>
   ) => Effect.Effect<void, SqlError>
@@ -875,22 +872,6 @@ export const NotificationRepositoryLive = Layer.effect(
             Option.getOrElse(() => 0)
           ) > 0
         )
-      }),
-
-      findPendingByUserId: Effect.fn(
-        'NotificationRepository.findPendingByUserId'
-      )(function* (userId: string) {
-        const rows = yield* db
-          .select()
-          .from(notifications)
-          .where(
-            and(
-              eq(notifications.userId, userId),
-              eq(notifications.status, 'pending')
-            )
-          )
-          .orderBy(notifications.scheduledAt)
-        return Array.map(rows, mapToNotification)
       }),
 
       markManyAsSent: Effect.fn('NotificationRepository.markManyAsSent')(

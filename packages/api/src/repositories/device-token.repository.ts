@@ -37,15 +37,8 @@ export interface IDeviceTokenRepository {
   readonly findByUserId: (
     userId: string
   ) => Effect.Effect<DeviceToken[], SqlError>
-  readonly create: (
-    data: CreateDeviceTokenData
-  ) => Effect.Effect<DeviceToken | null, SqlError>
   readonly upsertByToken: (
     data: CreateDeviceTokenData
-  ) => Effect.Effect<DeviceToken | null, SqlError>
-  readonly update: (
-    id: string,
-    data: UpdateDeviceTokenData
   ) => Effect.Effect<DeviceToken | null, SqlError>
   readonly delete: (id: string) => Effect.Effect<DeviceToken | null, SqlError>
   readonly deleteByUserId: (userId: string) => Effect.Effect<void, SqlError>
@@ -101,20 +94,6 @@ export const DeviceTokenRepositoryLive = Layer.effect(
         return Array.map(rows, mapToDeviceToken)
       }),
 
-      create: Effect.fn('DeviceTokenRepository.create')(function* (
-        data: CreateDeviceTokenData
-      ) {
-        const [row] = yield* db
-          .insert(deviceTokens)
-          .values({
-            token: data.token,
-            platform: data.platform,
-            userId: data.userId,
-          })
-          .returning()
-        return row ? mapToDeviceToken(row) : null
-      }),
-
       // Atomic upsert keyed on the unique `token` column. Handles three cases
       // in a single SQL statement (no TOCTOU window):
       //  - no row → INSERT
@@ -144,21 +123,6 @@ export const DeviceTokenRepositoryLive = Layer.effect(
           return row ? mapToDeviceToken(row) : null
         }
       ),
-
-      update: Effect.fn('DeviceTokenRepository.update')(function* (
-        id: string,
-        data: UpdateDeviceTokenData
-      ) {
-        const [row] = yield* db
-          .update(deviceTokens)
-          .set({
-            ...data,
-            updatedAt: nowAsDate(),
-          })
-          .where(eq(deviceTokens.id, id))
-          .returning()
-        return row ? mapToDeviceToken(row) : null
-      }),
 
       delete: Effect.fn('DeviceTokenRepository.delete')(function* (id: string) {
         const [row] = yield* db

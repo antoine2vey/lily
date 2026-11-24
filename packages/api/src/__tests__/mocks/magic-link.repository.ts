@@ -31,14 +31,6 @@ export const createMockMagicLinkRepository = (
         return newMagicLink
       }),
 
-    findByToken: (token: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(magicLinkStore, (ml) => ml.token === token),
-          Option.getOrNull
-        )
-      ),
-
     findValidByToken: (token: string) =>
       Effect.succeed(
         pipe(
@@ -62,26 +54,6 @@ export const createMockMagicLinkRepository = (
             ml.usedAt === null &&
             ml.expiresAt > new Date()
         )
-        if (Option.isNone(index)) {
-          return null
-        }
-
-        const magicLink = magicLinkStore[index.value]
-        if (!magicLink) {
-          return null
-        }
-
-        const updated = {
-          ...magicLink,
-          usedAt: new Date(),
-        }
-        magicLinkStore[index.value] = updated
-        return updated
-      }),
-
-    markUsed: (id: string) =>
-      Effect.gen(function* () {
-        const index = Array.findFirstIndex(magicLinkStore, (ml) => ml.id === id)
         if (Option.isNone(index)) {
           return null
         }

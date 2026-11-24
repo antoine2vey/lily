@@ -22,7 +22,6 @@ import {
   desc,
   eq,
   ilike,
-  inArray,
   isNull,
   ne,
   or,
@@ -105,17 +104,6 @@ export interface IFollowRepository {
     { items: ReadonlyArray<UserCardRow>; total: number },
     SqlError
   >
-
-  readonly getFollowerCount: (userId: string) => Effect.Effect<number, SqlError>
-
-  readonly getFollowingCount: (
-    userId: string
-  ) => Effect.Effect<number, SqlError>
-
-  readonly getFollowingStatuses: (
-    currentUserId: string,
-    userIds: ReadonlyArray<string>
-  ) => Effect.Effect<Set<string>, SqlError>
 
   readonly searchUsers: (params: {
     query: string
@@ -326,42 +314,6 @@ export const FollowRepositoryLive = Layer.effect(
             .limit(limit)
 
           return { items: rows, total }
-        }
-      ),
-
-      getFollowerCount: Effect.fn('FollowRepository.getFollowerCount')(
-        function* (userId: string) {
-          const result = yield* db
-            .select({ value: count() })
-            .from(userFollows)
-            .where(eq(userFollows.followingId, userId))
-          return extractCount(result)
-        }
-      ),
-
-      getFollowingCount: Effect.fn('FollowRepository.getFollowingCount')(
-        function* (userId: string) {
-          const result = yield* db
-            .select({ value: count() })
-            .from(userFollows)
-            .where(eq(userFollows.followerId, userId))
-          return extractCount(result)
-        }
-      ),
-
-      getFollowingStatuses: Effect.fn('FollowRepository.getFollowingStatuses')(
-        function* (currentUserId: string, userIds: ReadonlyArray<string>) {
-          if (userIds.length === 0) return new Set<string>()
-          const rows = yield* db
-            .select({ followingId: userFollows.followingId })
-            .from(userFollows)
-            .where(
-              and(
-                eq(userFollows.followerId, currentUserId),
-                inArray(userFollows.followingId, [...userIds])
-              )
-            )
-          return new Set(Array.map(rows, (r) => r.followingId))
         }
       ),
 
