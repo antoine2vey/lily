@@ -14,7 +14,7 @@ import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.r
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { Canopy, JoinVia } from '@lily/api/contexts/canopy'
-import { CanopyWrite } from '@lily/api/contexts/canopy/domain/decide'
+import { CanopyWrite } from '@lily/api/contexts/canopy/domain/vocabulary'
 import { CanopyStore } from '@lily/api/contexts/canopy/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'

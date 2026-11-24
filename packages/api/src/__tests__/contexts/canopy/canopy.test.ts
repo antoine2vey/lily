@@ -26,7 +26,10 @@ import {
   hashInviteToken,
   JoinVia,
 } from '@lily/api/contexts/canopy'
-import { CanopyWrite, RoomMove } from '@lily/api/contexts/canopy/domain/decide'
+import {
+  CanopyWrite,
+  RoomMove,
+} from '@lily/api/contexts/canopy/domain/vocabulary'
 import {
   CanopyStore,
   Find,

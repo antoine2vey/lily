@@ -6,7 +6,10 @@ import {
   type Held,
   memberOf,
 } from '@lily/api/contexts/canopy/domain/canopy'
-import { CanopyWrite, RoomMove } from '@lily/api/contexts/canopy/domain/decide'
+import {
+  CanopyWrite,
+  RoomMove,
+} from '@lily/api/contexts/canopy/domain/vocabulary'
 import {
   lockRows,
   lockRowsNamed,

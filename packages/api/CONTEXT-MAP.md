@@ -147,7 +147,7 @@ The schema is `plants` in `packages/db/src/schema/plants.ts`. These are the only
 - **create** is `InsertPlant` in the Care store (`src/contexts/care/store.ts`), decided by `PlantLife.plant` and called only from `src/services/plants/endpoints/create-plant.ts`.
 - **update** is `PlantRepository.update` (`src/repositories/plant.repository.ts`), called only from `src/services/plants/endpoints/update-plant.ts`. The data is the request minus `id`, `wateringFrequencyDays`, `fertilizationFrequencyDays`, `mistingFrequencyDays` and `repottingFrequencyDays`, cast to `Record<string, unknown>`. So the writable set is `PlantUpdateRequest` (`packages/shared/src/domains/plant/schema.ts`), not `UpdatePlantData`.
 - **bury, revive and remove** are `BuryPlant`, `RevivePlant` and `DeletePlant` in the Care store, decided by `PlantLife.bury`, `PlantLife.revive` and `PlantLife.remove`, from the endpoints `markPlantDead`, `revivePlant` and `deletePlant` in `src/services/plants/endpoints/`.
-- **MovePlants** is the one write that changes the owner of a plant after insert, in `src/contexts/canopy/store.ts`. `src/contexts/canopy/domain/decide.ts` emits it for a share, an unshare, a give-back and the heir's part of a dissolved canopy.
+- **MovePlants** is the one write that changes the owner of a plant after insert, in `src/contexts/canopy/store.ts`. `src/contexts/canopy/domain/moves.ts` emits it for a share and an unshare, and `src/contexts/canopy/domain/endings.ts` for a give-back and the heir's part of a dissolved canopy.
 
 `src/repositories/follow.repository.ts` reads `plants` and writes nothing to it.
 
