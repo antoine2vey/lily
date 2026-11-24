@@ -51,7 +51,9 @@ export interface EngagementRule<U extends Recipient, R> {
   readonly name: string
   /**
    * The nudges owed to the user, given their resolved zone. They share one
-   * slot, so they go out in one push. SkipUserError names why there are none.
+   * slot, so they go out in one push. SkipUserError names why there are
+   * none, and the run logs it. An empty list is logged nowhere: it is for the
+   * rule that concerns few of its users on a given day.
    */
   readonly decide: (
     user: U,
@@ -94,9 +96,7 @@ const runRule = <U extends Recipient, R>(
         Effect.gen(function* () {
           const timezone = resolveTimezone(user.timezone)
           const nudges = yield* rule.decide(user, timezone)
-          if (Array.isReadonlyArrayEmpty(nudges)) {
-            return yield* new SkipUserError({ reason: 'already_sent' })
-          }
+          if (Array.isReadonlyArrayEmpty(nudges)) return
           // A slot already past would be delivered at once, at any hour of the
           // night. With no window left today, a run of the next local day
           // takes the user.

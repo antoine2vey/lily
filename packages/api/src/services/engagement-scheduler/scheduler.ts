@@ -110,6 +110,9 @@ export const photoReminder: EngagementRule<
           (sent) => !sent
         )
       )
+      if (Array.isReadonlyArrayEmpty(unreminded)) {
+        return yield* new SkipUserError({ reason: 'already_sent' })
+      }
       return Array.map(
         unreminded,
         (plant): Nudge => ({
@@ -251,9 +254,7 @@ export const plantAnniversary = (
       Effect.gen(function* () {
         const notificationRepo = yield* NotificationRepository
         const theirs = Option.fromNullishOr(plantsOf[user.id])
-        if (Option.isNone(theirs)) {
-          return yield* new SkipUserError({ reason: 'no_anniversary' })
-        }
+        if (Option.isNone(theirs)) return []
 
         const uncelebrated = yield* Effect.filter(theirs.value, (plant) =>
           Effect.map(
@@ -268,6 +269,9 @@ export const plantAnniversary = (
             (sent) => !sent
           )
         )
+        if (Array.isReadonlyArrayEmpty(uncelebrated)) {
+          return yield* new SkipUserError({ reason: 'already_sent' })
+        }
         return Array.map(
           uncelebrated,
           (plant): Nudge => ({
