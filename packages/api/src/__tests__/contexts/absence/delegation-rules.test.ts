@@ -2,10 +2,7 @@ import type {
   AbsenceEvent,
   DelegationEndReason,
 } from '@lily/api/contexts/absence'
-import {
-  asDelegationError,
-  asOpenError,
-} from '@lily/api/contexts/absence/absence'
+import { asError } from '@lily/api/contexts/absence/absence'
 import {
   Delegation,
   DelegationCommand,
@@ -212,24 +209,13 @@ describe('what a command does to a delegation', () => {
       return
     }
     if (expected === 'stays') {
-      expect(decided).toEqual(
-        Result.succeed(decision({ value: Option.none(), notices: [] }))
-      )
+      expect(decided).toEqual(Result.succeed(decision(Option.none())))
       return
     }
     expect(decided).toEqual(
       Result.succeed(
         decision(
-          {
-            value: Option.some(expected.to),
-            notices: Array.map(expected.tells ?? [], ([kind, role]) => ({
-              kind,
-              to: PARTY_IN[role],
-              from: PARTY_IN[OTHER[role]],
-              delegationId: terms.id,
-              livingPlants: 2,
-            })),
-          },
+          Option.some(expected.to),
           [
             DelegationWrite.MoveDelegation({
               id: terms.id,
@@ -238,7 +224,14 @@ describe('what a command does to a delegation', () => {
               at: afterTheEnd,
             }),
           ],
-          factOf(expected.fact)
+          factOf(expected.fact),
+          Array.map(expected.tells ?? [], ([kind, role]) => ({
+            kind,
+            to: PARTY_IN[role],
+            from: PARTY_IN[OTHER[role]],
+            delegationId: terms.id,
+            livingPlants: 2,
+          }))
         )
       )
     )
@@ -251,7 +244,7 @@ describe('what the scheduler waits for', () => {
   const advance = (state: Delegation, now: DateTime.Utc) =>
     Result.map(
       transition(state, DelegationCommand.Advance(), now),
-      (decided) => decided.outcome.value
+      (decided) => decided.outcome
     )
 
   it('leaves a request nobody answered until its start', () => {
@@ -273,7 +266,7 @@ describe('what the scheduler waits for', () => {
       start
     )
 
-    expect(Result.map(lapsed, (decided) => decided.outcome.notices)).toEqual(
+    expect(Result.map(lapsed, (decided) => decided.notices)).toEqual(
       Result.succeed([
         {
           kind: 'Lapsed',
@@ -322,7 +315,7 @@ describe('what the scheduler waits for', () => {
         justBefore(start)
       )
 
-      expect(Result.map(decided, (made) => made.outcome.value)).toEqual(
+      expect(Result.map(decided, (made) => made.outcome)).toEqual(
         Result.succeed(Option.some('Canceled'))
       )
     }
@@ -506,18 +499,7 @@ describe('opening a delegation', () => {
     expect(open(facts, request, env)).toEqual(
       Result.succeed(
         decision(
-          {
-            value: { delegationId: 'new-delegation' },
-            notices: [
-              {
-                kind: 'Requested',
-                to: lily,
-                from: alex,
-                delegationId: 'new-delegation',
-                livingPlants: 2,
-              },
-            ],
-          },
+          { delegationId: 'new-delegation' },
           [
             DelegationWrite.OpenDelegation({
               id: 'new-delegation',
@@ -528,6 +510,16 @@ describe('opening a delegation', () => {
               message: Option.some('Back soon'),
               plantIds: ['fern', 'monstera'],
             }),
+          ],
+          [],
+          [
+            {
+              kind: 'Requested',
+              to: lily,
+              from: alex,
+              delegationId: 'new-delegation',
+              livingPlants: 2,
+            },
           ]
         )
       )
@@ -590,13 +582,13 @@ describe('the error a refusal answers with', () => {
   }
 
   it('answers a delegation that is gone with not found', () => {
-    expect(
-      asDelegationError(DelegationRefusal.Gone({ delegationId: 'gone' }))
-    ).toEqual(new DelegationNotFoundError({ delegationId: 'gone' }))
+    expect(asError(DelegationRefusal.Gone({ delegationId: 'gone' }))).toEqual(
+      new DelegationNotFoundError({ delegationId: 'gone' })
+    )
   })
 
   it.each(USER_COMMANDS)('%s by the wrong person', (command) => {
-    const error = asDelegationError(DelegationRefusal.NotAllowed({ command }))
+    const error = asError(DelegationRefusal.NotAllowed({ command }))
 
     expect(error).toBeInstanceOf(DelegationNotAuthorizedError)
     expect(error.message).toBe(ANSWERED[command].notAllowed)
@@ -604,9 +596,7 @@ describe('the error a refusal answers with', () => {
 
   it.each(USER_COMMANDS)('%s in the wrong status', (command) => {
     expect(
-      asDelegationError(
-        DelegationRefusal.WrongStatus({ command, current: 'Completed' })
-      )
+      asError(DelegationRefusal.WrongStatus({ command, current: 'Completed' }))
     ).toMatchObject({
       _tag: 'DelegationInvalidStatusError',
       currentStatus: 'completed',
@@ -650,7 +640,7 @@ describe('the error a refusal answers with', () => {
 
   it.each(Struct.keys(OPENING))('%s when opening', (tag) => {
     const [refusal, error] = OPENING[tag]
-    const answered = asOpenError(refusal)
+    const answered = asError(refusal)
 
     expect(answered).toEqual(error)
     expect(answered.message).toBe(error.message)
