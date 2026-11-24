@@ -10,8 +10,9 @@ import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import type { FollowerNotification } from '@lily/api/repositories/follow.repository'
+import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { followUser } from '@lily/api/services/social/endpoints/follow-user'
+import type { Notification } from '@lily/shared/notification'
 import type { AppEvent, QueueMessage } from '@lily/shared/server'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
@@ -60,11 +61,8 @@ const buildLayer = (
   }> = [],
   eventData: MockEventBusData = { publishedEvents: [] },
   options: {
-    readonly onFollow?: (
-      followerId: string,
-      followingId: string,
-      notification: FollowerNotification
-    ) => void
+    readonly onFollow?: (followerId: string, followingId: string) => void
+    readonly notifications?: Notification[]
     readonly onEnqueue?: (topic: string, message: QueueMessage) => void
     readonly timeline?: ReturnType<typeof createOutboxTimeline>
   } = {}
@@ -79,7 +77,10 @@ const buildLayer = (
     }),
     createMockUserRepository([publicUser, privateUser]),
     createMockEventBus(eventData),
-    createMockNotificationRepository([], options.timeline?.notificationOptions),
+    createMockNotificationRepository(
+      options.notifications ?? [],
+      options.timeline?.notificationOptions
+    ),
     options.timeline?.queue ??
       createMockMessageQueue({ onEnqueue: options.onEnqueue ?? (() => {}) })
   )
@@ -139,15 +140,11 @@ describe('followUser', () => {
     expect(eventData.publishedEvents[0]?._tag).toBe('UserFollowed')
   })
 
-  it('records the follower notification with the follow and pushes the recorded id', async () => {
-    const recorded: Array<{
-      followingId: string
-      notification: FollowerNotification
-    }> = []
+  it('records one queued follower notification for a new follow and pushes its id', async () => {
+    const notifications: Notification[] = []
     const enqueued: QueueMessage[] = []
     const layer = buildLayer([], undefined, {
-      onFollow: (_, followingId, notification) =>
-        recorded.push({ followingId, notification }),
+      notifications,
       onEnqueue: (_, message) => enqueued.push(message),
     })
 
@@ -155,27 +152,98 @@ describe('followUser', () => {
       followUser(publicUser.id).pipe(Effect.provide(layer))
     )
 
-    expect(recorded).toEqual([
-      {
-        followingId: publicUser.id,
-        notification: {
-          title: '👋 New follower!',
-          body: 'Test User started following your plant journey',
-          params: { senderName: 'Test User' },
-          metadata: { senderId: currentUserId },
-        },
-      },
+    expect(notifications).toEqual([
+      expect.objectContaining({
+        type: 'new_follower',
+        userId: publicUser.id,
+        status: 'queued',
+        title: '👋 New follower!',
+        body: 'Test User started following your plant journey',
+        params: { senderName: 'Test User' },
+        metadata: { senderId: currentUserId },
+      }),
     ])
-    expect(enqueued).toHaveLength(1)
-    expect(enqueued[0]?.topic).toBe('new_follower')
-    expect(enqueued[0]?.payload).toMatchObject({
-      userId: publicUser.id,
-      notificationIds: [`notification-${publicUser.id}`],
-      metadata: { senderId: currentUserId },
-    })
+    expect(notifications[0]?.plantId).toBeUndefined()
+    expect(enqueued.map((message) => [message.topic, message.payload])).toEqual(
+      [
+        [
+          'new_follower',
+          {
+            userId: publicUser.id,
+            notificationIds: [notifications[0]?.id],
+            plantIds: [],
+            metadata: { senderId: currentUserId },
+          },
+        ],
+      ]
+    )
   })
 
-  it('writes the follow and its notification in one statement, then pushes before publishing', async () => {
+  it('records no notification when the caller already follows the user', async () => {
+    const notifications: Notification[] = []
+    const enqueued: QueueMessage[] = []
+    const layer = buildLayer(
+      [
+        {
+          followerId: currentUserId,
+          followingId: publicUser.id,
+          createdAt: new Date(),
+        },
+      ],
+      undefined,
+      { notifications, onEnqueue: (_, message) => enqueued.push(message) }
+    )
+
+    const exit = await Effect.runPromiseExit(
+      followUser(publicUser.id).pipe(Effect.provide(layer))
+    )
+
+    expect(failureOf(exit)._tag).toBe('AlreadyFollowingError')
+    expect(notifications).toEqual([])
+    expect(enqueued).toEqual([])
+  })
+
+  it('records no notification when a concurrent request inserted the follow first', async () => {
+    const notifications: Notification[] = []
+    const eventData = { publishedEvents: [] as AppEvent[] }
+    const timeline = createOutboxTimeline()
+    const layer = buildLayer(
+      [
+        {
+          followerId: currentUserId,
+          followingId: publicUser.id,
+          createdAt: new Date(),
+        },
+      ],
+      eventData,
+      { notifications, timeline }
+    )
+    const checkedBeforeTheOtherInsert = Layer.effect(
+      FollowRepository,
+      Effect.gen(function* () {
+        const follows = yield* FollowRepository
+        return { ...follows, isFollowing: () => Effect.succeed(false) }
+      })
+    )
+
+    const exit = await Effect.runPromiseExit(
+      followUser(publicUser.id).pipe(
+        Effect.provide(
+          checkedBeforeTheOtherInsert.pipe(Layer.provideMerge(layer))
+        )
+      )
+    )
+
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'SqlError',
+      reason: { _tag: 'UniqueViolation' },
+    })
+    expect(notifications).toEqual([])
+    expect(timeline.events).toEqual(['begin', 'rollback'])
+    expect(eventData.publishedEvents).toEqual([])
+  })
+
+  it('commits the follow with its notification, then pushes before publishing', async () => {
     const timeline = createOutboxTimeline()
     const layer = buildLayer(
       [],
@@ -194,7 +262,10 @@ describe('followUser', () => {
     )
 
     expect(timeline.events).toEqual([
+      'begin',
       `follow ${publicUser.id}`,
+      `insert new_follower ${publicUser.id}`,
+      'commit',
       `enqueue new_follower ${publicUser.id}`,
       'publish UserFollowed',
     ])

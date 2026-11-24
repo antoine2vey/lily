@@ -1,5 +1,4 @@
 import {
-  type FollowerNotification,
   FollowRepository,
   type IFollowRepository,
   type PublicPlantPreviewRow,
@@ -7,6 +6,7 @@ import {
   type UserCardRow,
 } from '@lily/api/repositories/follow.repository'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { SqlError, UniqueViolation } from 'effect/sql/SqlError'
 
 interface FollowRecord {
   followerId: string
@@ -36,11 +36,7 @@ interface MockFollowRepositoryData {
   follows?: FollowRecord[]
   nudges?: NudgeRecord[]
   users?: MockUser[]
-  onFollow?: (
-    followerId: string,
-    followingId: string,
-    notification: FollowerNotification
-  ) => void
+  onFollow?: (followerId: string, followingId: string) => void
 }
 
 export const createMockFollowRepository = (
@@ -88,15 +84,25 @@ export const createMockFollowRepository = (
   }
 
   const repo: IFollowRepository = {
-    follow: (followerId, followingId, notification) =>
-      Effect.sync(() => {
+    follow: (followerId, followingId) =>
+      Effect.suspend(() => {
+        if (isFollowing(followerId, followingId)) {
+          return Effect.fail(
+            new SqlError({
+              reason: new UniqueViolation({
+                cause: new Error('duplicate key'),
+                constraint: 'user_follows_follower_following_idx',
+              }),
+            })
+          )
+        }
         follows.push({
           followerId,
           followingId,
           createdAt: new Date(),
         })
-        data.onFollow?.(followerId, followingId, notification)
-        return `notification-${followingId}`
+        data.onFollow?.(followerId, followingId)
+        return Effect.void
       }),
 
     unfollow: (followerId, followingId) =>

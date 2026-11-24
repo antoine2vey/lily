@@ -3,19 +3,9 @@ import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
   getPaginationParams,
-  unwrapPgRows,
 } from '@lily/api/repositories/helpers/pagination'
-import type { ParamsOf } from '@lily/api/services/notification-scheduler/translations'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import {
-  notifications,
-  plants,
-  userFollows,
-  userNudges,
-  users,
-} from '@lily/db/schema'
-import { nowAsDate } from '@lily/shared'
-import type { MetadataOf } from '@lily/shared/notification'
+import { plants, userFollows, userNudges, users } from '@lily/db/schema'
 import {
   and,
   count,
@@ -60,20 +50,12 @@ export interface PublicProfileRow {
   recentPlants: ReadonlyArray<PublicPlantPreviewRow>
 }
 
-export interface FollowerNotification {
-  readonly title: string
-  readonly body: string
-  readonly params: ParamsOf<'new_follower'>
-  readonly metadata: MetadataOf<'new_follower'>
-}
-
 export interface IFollowRepository {
-  /** Inserts the follow and its queued new_follower row in one statement; returns the notification id. */
+  /** Fails with a unique violation when the follow already exists. */
   readonly follow: (
     followerId: string,
-    followingId: string,
-    notification: FollowerNotification
-  ) => Effect.Effect<string, SqlError>
+    followingId: string
+  ) => Effect.Effect<void, SqlError>
 
   readonly unfollow: (
     followerId: string,
@@ -169,31 +151,9 @@ export const FollowRepositoryLive = Layer.effect(
     return {
       follow: Effect.fn('FollowRepository.follow')(function* (
         followerId: string,
-        followingId: string,
-        notification: FollowerNotification
+        followingId: string
       ) {
-        const now = nowAsDate().toISOString()
-        const result = yield* db.execute(sql`
-          WITH followed AS (
-            INSERT INTO ${userFollows} (follower_id, following_id)
-            VALUES (${followerId}, ${followingId})
-            RETURNING following_id
-          )
-          INSERT INTO ${notifications} (type, title, body, params, scheduled_at, user_id, status, queued_at, metadata)
-          SELECT 'new_follower', ${notification.title}, ${notification.body}, ${JSON.stringify(notification.params)}::jsonb, ${now}::timestamptz,
-            following_id, 'queued', ${now}::timestamptz, ${JSON.stringify(notification.metadata)}::jsonb
-          FROM followed
-          RETURNING id
-        `)
-        return yield* pipe(
-          unwrapPgRows<{ id: string }>(result),
-          Array.head,
-          Option.match({
-            onNone: () =>
-              Effect.die(new Error('Follow insert returned no notification')),
-            onSome: ({ id }) => Effect.succeed(id),
-          })
-        )
+        yield* db.insert(userFollows).values({ followerId, followingId })
       }),
 
       unfollow: Effect.fn('FollowRepository.unfollow')(function* (

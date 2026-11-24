@@ -21,10 +21,7 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
-import {
-  FollowRepository,
-  FollowRepositoryLive,
-} from '@lily/api/repositories/follow.repository'
+import { FollowRepositoryLive } from '@lily/api/repositories/follow.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
@@ -44,7 +41,10 @@ import {
   consumeNext,
   recoverStrandedDeliveries,
 } from '@lily/api/services/notification-scheduler/worker'
-import { followUser } from '@lily/api/services/social/endpoints/follow-user'
+import {
+  followUser,
+  recordFollow,
+} from '@lily/api/services/social/endpoints/follow-user'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import {
@@ -660,18 +660,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .insert(schema.userFollows)
         .values({ followerId: userId, followingId: targetId })
 
+      const enqueued: QueueMessage[] = []
+
       const exit = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const follows = yield* FollowRepository
-          return yield* follows.follow(userId, targetId, {
-            title: 'title',
-            body: 'body',
-            params: { senderName: 'Ada' },
-            metadata: { senderId: userId },
-          })
-        }).pipe(
-          Effect.provide(FollowRepositoryLive.pipe(Layer.provide(DatabaseLive)))
-        )
+        recordFollow(userId, {
+          id: targetId,
+          language: 'en',
+          followerName: 'Ada',
+        }).pipe(Effect.provide(followLayer(enqueued)))
       )
 
       expect(failureOf(exit)).toMatchObject({
@@ -679,6 +675,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         reason: { _tag: 'UniqueViolation' },
       })
       expect(await db.select().from(schema.notifications)).toEqual([])
+      expect(enqueued).toEqual([])
     })
 
     it('rolls a new delegation back when its notification insert fails', async () => {

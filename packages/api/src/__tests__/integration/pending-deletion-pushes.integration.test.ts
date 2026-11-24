@@ -30,10 +30,7 @@ import {
   EngagementRepository,
   EngagementRepositoryLive,
 } from '@lily/api/repositories/engagement.repository'
-import {
-  FollowRepository,
-  FollowRepositoryLive,
-} from '@lily/api/repositories/follow.repository'
+import { FollowRepositoryLive } from '@lily/api/repositories/follow.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
@@ -45,10 +42,10 @@ import {
   UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
-import { dispatchNow } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
+import { recordFollow } from '@lily/api/services/social/endpoints/follow-user'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -564,21 +561,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       followingId: string
     ) =>
       run(
-        Effect.gen(function* () {
-          const repo = yield* FollowRepository
-          const metadata = { senderId: followerId }
-          const id = yield* repo.follow(followerId, followingId, {
-            title: 'New follower',
-            body: 'Someone followed you',
-            params: { senderName: 'Someone' },
-            metadata,
-          })
-          yield* dispatchNow({
-            id,
-            type: 'new_follower',
-            userId: followingId,
-            metadata,
-          })
+        recordFollow(followerId, {
+          id: followingId,
+          language: 'en',
+          followerName: 'Someone',
         })
       )
 
