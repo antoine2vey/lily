@@ -1,4 +1,5 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
+import { PlantIdParam } from '@lily/api/services/plants/helpers/plant-id-param'
 import { seen } from '@lily/api/services/plants/helpers/seen'
 import { Diagnosis, PaginatedResponse, PaginationParams } from '@lily/shared'
 import {
@@ -9,15 +10,13 @@ import { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const plantIdParam = Schema.String.check(Schema.isGUID())
-
 const SeenDiagnosisList = PaginatedResponse(Diagnosis.pipe(seen))
 export type SeenDiagnosisList = typeof SeenDiagnosisList.Type
 
 export const DiagnosisApi = HttpApiGroup.make('diagnosis')
   .add(
     HttpApiEndpoint.get('getDiagnoses', '/plants/:plantId/diagnoses', {
-      params: { plantId: plantIdParam },
+      params: { plantId: PlantIdParam },
       query: PaginationParams,
       success: SeenDiagnosisList,
       error: [

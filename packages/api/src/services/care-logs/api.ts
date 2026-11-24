@@ -1,4 +1,5 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
+import { PlantIdParam } from '@lily/api/services/plants/helpers/plant-id-param'
 import { PaginationParams } from '@lily/shared'
 import {
   CareLog,
@@ -21,7 +22,6 @@ import { Effect, Schema } from 'effect'
 import { Multipart } from 'effect/http'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const plantIdParam = Schema.String.check(Schema.isGUID())
 const logIdParam = Schema.String.check(Schema.isGUID())
 
 export const CareLogsQueryParams = Schema.Struct({
@@ -56,7 +56,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
   )
   .add(
     HttpApiEndpoint.get('getCareLogs', '/plants/:plantId/logs', {
-      params: { plantId: plantIdParam },
+      params: { plantId: PlantIdParam },
       query: CareLogsQueryParams,
       success: CareLogsListResponse,
       error: [
@@ -70,7 +70,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
     // POST /plants/:plantId/logs - Add a log entry, as JSON or as multipart
     // with the photo
     HttpApiEndpoint.post('createCareLog', '/plants/:plantId/logs', {
-      params: { plantId: plantIdParam },
+      params: { plantId: PlantIdParam },
       payload: [CareLogCreateRequest, CareLogCreateUpload],
       success: CareLog.pipe(HttpApiSchema.status(201)),
       error: [
@@ -88,7 +88,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
   )
   .add(
     HttpApiEndpoint.get('getCareLog', '/plants/:plantId/logs/:logId', {
-      params: { plantId: plantIdParam, logId: logIdParam },
+      params: { plantId: PlantIdParam, logId: logIdParam },
       success: CareLog,
       error: [
         CareLogNotFoundError,
@@ -100,7 +100,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
   )
   .add(
     HttpApiEndpoint.put('updateCareLog', '/plants/:plantId/logs/:logId', {
-      params: { plantId: plantIdParam, logId: logIdParam },
+      params: { plantId: PlantIdParam, logId: logIdParam },
       payload: CareLogUpdateRequest,
       success: CareLog,
       error: [
@@ -115,7 +115,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
   )
   .add(
     HttpApiEndpoint.delete('deleteCareLog', '/plants/:plantId/logs/:logId', {
-      params: { plantId: plantIdParam, logId: logIdParam },
+      params: { plantId: PlantIdParam, logId: logIdParam },
       success: Schema.Struct({ message: Schema.String }),
       error: [
         CareLogNotFoundError,
