@@ -57,16 +57,6 @@ export const User = Schema.Struct({
   vacationEnd: Schema.NullOr(Schema.DateFromString),
 })
 
-export const UserCreateRequest = Schema.Struct({
-  email: Schema.String,
-  name: Schema.String,
-})
-
-export const UserUpdateRequest = Schema.Struct({
-  name: Schema.optional(Schema.String),
-  email: Schema.optional(Schema.String),
-})
-
 // User settings schemas - simplified to use existing user fields plus default notification settings
 export const UserSettings = Schema.Struct({
   name: Schema.NullOr(Schema.String),
@@ -145,21 +135,5 @@ export const UserSettingsUpdateRequest = Schema.Struct({
 })
 
 export type User = typeof User.Type
-export type UserCreateRequest = typeof UserCreateRequest.Type
-export type UserUpdateRequest = typeof UserUpdateRequest.Type
 export type UserSettings = typeof UserSettings.Type
 export type UserSettingsUpdateRequest = typeof UserSettingsUpdateRequest.Type
-
-export class UserByIdRequest extends Schema.Class<
-  UserByIdRequest,
-  { readonly brand: unique symbol }
->('UserByIdRequest')({
-  id: Schema.String,
-}) {}
-
-export class UserDeleteRequest extends Schema.Class<
-  UserDeleteRequest,
-  { readonly brand: unique symbol }
->('UserDeleteRequest')({
-  id: Schema.String,
-}) {}

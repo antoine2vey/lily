@@ -9,7 +9,6 @@ import {
   formatDateHeader,
   formatDateWithWeekday,
   formatDayOfWeek,
-  formatDayOfWeekShort,
   formatDaysUntilHuman,
   formatIsoDate,
   formatLongDate,
@@ -21,10 +20,8 @@ import {
   formatShortDate,
   formatTime,
   getApiDateGroupLabel,
-  getCurrentHour,
   getDateGroupLabel,
   getRelativeTime,
-  getTimeBasedGreeting,
   isFuture,
   isOverdue,
   isToday,
@@ -183,24 +180,6 @@ describe('Date Utilities', () => {
       const monday = createFixedDateTime(2024, 6, 17)
       const friday = createFixedDateTime(2024, 6, 21)
       expect(formatDayOfWeek(monday)).not.toBe(formatDayOfWeek(friday))
-    })
-  })
-
-  describe('formatDayOfWeekShort', () => {
-    it('should return short day name', () => {
-      const monday = createFixedDateTime(2024, 6, 17)
-      const result = formatDayOfWeekShort(monday)
-      // Short name should be shorter than full name
-      expect(result.length).toBeLessThanOrEqual(4)
-      expect(result.length).toBeGreaterThan(0)
-    })
-
-    it('should return different values for different days', () => {
-      const monday = createFixedDateTime(2024, 6, 17)
-      const friday = createFixedDateTime(2024, 6, 21)
-      expect(formatDayOfWeekShort(monday)).not.toBe(
-        formatDayOfWeekShort(friday)
-      )
     })
   })
 
@@ -583,71 +562,6 @@ describe('Date Utilities', () => {
       expect(instantOf(startOfWeek(instant, 'Eire'))).toBe(
         instantOf(startOfWeek(instant, 'Europe/Dublin'))
       )
-    })
-  })
-
-  describe('getCurrentHour', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
-    it('should return current hour in UTC', () => {
-      vi.setSystemTime(new Date('2024-06-15T14:30:00Z'))
-      expect(getCurrentHour()).toBe(14)
-    })
-
-    it('should handle midnight', () => {
-      vi.setSystemTime(new Date('2024-06-15T00:30:00Z'))
-      expect(getCurrentHour()).toBe(0)
-    })
-
-    it('should handle end of day', () => {
-      vi.setSystemTime(new Date('2024-06-15T23:59:00Z'))
-      expect(getCurrentHour()).toBe(23)
-    })
-  })
-
-  describe('getTimeBasedGreeting', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
-    it('should return "Good morning" before noon', () => {
-      vi.setSystemTime(new Date('2024-06-15T08:00:00Z'))
-      expect(getTimeBasedGreeting()).toBe('Good morning')
-    })
-
-    it('should return "Good morning" at 11:59', () => {
-      vi.setSystemTime(new Date('2024-06-15T11:59:00Z'))
-      expect(getTimeBasedGreeting()).toBe('Good morning')
-    })
-
-    it('should return "Good afternoon" at noon', () => {
-      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
-      expect(getTimeBasedGreeting()).toBe('Good afternoon')
-    })
-
-    it('should return "Good afternoon" in early afternoon', () => {
-      vi.setSystemTime(new Date('2024-06-15T14:00:00Z'))
-      expect(getTimeBasedGreeting()).toBe('Good afternoon')
-    })
-
-    it('should return "Good evening" after 5 PM', () => {
-      vi.setSystemTime(new Date('2024-06-15T17:00:00Z'))
-      expect(getTimeBasedGreeting()).toBe('Good evening')
-    })
-
-    it('should return "Good evening" at night', () => {
-      vi.setSystemTime(new Date('2024-06-15T21:00:00Z'))
-      expect(getTimeBasedGreeting()).toBe('Good evening')
     })
   })
 

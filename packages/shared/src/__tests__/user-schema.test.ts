@@ -3,14 +3,10 @@ import { Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import {
   User,
-  UserByIdRequest,
-  UserCreateRequest,
-  UserDeleteRequest,
   UserRole,
   UserSettings,
   UserSettingsUpdateRequest,
   UserStatus,
-  UserUpdateRequest,
 } from '../domains/user/schema'
 
 // Test fixtures - use ISO strings for dates as that's what the schema expects for decoding
@@ -153,72 +149,6 @@ describe('User Schemas', () => {
       expect(typeof result.publicProfile).toBe('boolean')
       expect(typeof result.shareGrowthData).toBe('boolean')
       expect(typeof result.personalizedTips).toBe('boolean')
-    })
-  })
-
-  describe('UserCreateRequest', () => {
-    it('should decode a valid create request', () => {
-      const request = {
-        email: 'new@example.com',
-        name: 'New User',
-      }
-
-      const result = Schema.decodeSync(UserCreateRequest)(request)
-
-      expect(result.email).toBe('new@example.com')
-      expect(result.name).toBe('New User')
-    })
-
-    it('should reject missing email', () => {
-      const request = { name: 'New User' }
-
-      expect(() =>
-        Schema.decodeSync(UserCreateRequest)(request as never)
-      ).toThrow()
-    })
-
-    it('should reject missing name', () => {
-      const request = { email: 'new@example.com' }
-
-      expect(() =>
-        Schema.decodeSync(UserCreateRequest)(request as never)
-      ).toThrow()
-    })
-  })
-
-  describe('UserUpdateRequest', () => {
-    it('should decode empty update request', () => {
-      const result = Schema.decodeSync(UserUpdateRequest)({})
-
-      expect(result).toEqual({})
-    })
-
-    it('should decode name update', () => {
-      const request = { name: 'Updated Name' }
-
-      const result = Schema.decodeSync(UserUpdateRequest)(request)
-
-      expect(result.name).toBe('Updated Name')
-    })
-
-    it('should decode email update', () => {
-      const request = { email: 'updated@example.com' }
-
-      const result = Schema.decodeSync(UserUpdateRequest)(request)
-
-      expect(result.email).toBe('updated@example.com')
-    })
-
-    it('should decode both fields update', () => {
-      const request = {
-        name: 'Updated Name',
-        email: 'updated@example.com',
-      }
-
-      const result = Schema.decodeSync(UserUpdateRequest)(request)
-
-      expect(result.name).toBe('Updated Name')
-      expect(result.email).toBe('updated@example.com')
     })
   })
 
@@ -461,34 +391,6 @@ describe('User Schemas', () => {
       expect(result.name).toBe('Updated Name')
       expect(result.notifications?.doNotDisturb).toBe(true)
       expect(result.privacy?.publicProfile).toBe(true)
-    })
-  })
-
-  describe('UserByIdRequest', () => {
-    it('should decode valid request', () => {
-      const request = new UserByIdRequest({ id: 'user-123' })
-
-      expect(request.id).toBe('user-123')
-    })
-
-    it('should be a Schema.Class', () => {
-      const request = new UserByIdRequest({ id: 'user-123' })
-
-      expect(request).toBeInstanceOf(UserByIdRequest)
-    })
-  })
-
-  describe('UserDeleteRequest', () => {
-    it('should decode valid request', () => {
-      const request = new UserDeleteRequest({ id: 'user-456' })
-
-      expect(request.id).toBe('user-456')
-    })
-
-    it('should be a Schema.Class', () => {
-      const request = new UserDeleteRequest({ id: 'user-456' })
-
-      expect(request).toBeInstanceOf(UserDeleteRequest)
     })
   })
 })
