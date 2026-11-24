@@ -54,15 +54,15 @@ const approachingLimit = (
 })
 
 const GIFT_DURATION: Record<GiftDuration, string> = {
-  '7d': '7 Jours',
-  '1m': '1 Mois',
-  '1y': '1 An',
-  infinite: 'À Vie',
+  '7d': 'pour 7 jours',
+  '1m': 'pour 1 mois',
+  '1y': 'pour 1 an',
+  infinite: 'pour toujours',
 }
 
 const gift = (duration: string): NotificationContent => ({
   title: '🎁 Un cadeau pour toi !',
-  body: `On t'a offert Lily Premium pour ${duration}. Profites-en pleinement ! 🌿`,
+  body: `On t'a offert Lily Premium ${duration}. Profites-en pleinement ! 🌿`,
 })
 
 const healthyPlants = (n: number): string =>
@@ -215,7 +215,7 @@ export const fr: Language = {
   legacy: {
     approaching_limit: ({ usageCount, usageMax, featureName }) =>
       approachingLimit(usageCount, usageMax, featureName),
-    gift_subscription: ({ giftDuration }) => gift(giftDuration),
+    gift_subscription: ({ giftDuration }) => gift(`pour ${giftDuration}`),
     plant_anniversary: (params) =>
       anniversary(
         params.plantName,
