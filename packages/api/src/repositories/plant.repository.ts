@@ -556,6 +556,38 @@ export const PlantRepositoryLive = Layer.effect(
       }
     )
 
+    const findWithRoomByIds = Effect.fn('PlantRepository.findWithRoomByIds')(
+      function* (ids: readonly string[]) {
+        if (Array.isReadonlyArrayEmpty(ids)) return []
+        const now = yield* DateTime.now
+        const rows = yield* db
+          .select({
+            plant: plants,
+            room: roomSelect,
+            canopy: canopySelect,
+            creator: creatorSelect,
+            careTimezone: careTimezoneSql,
+          })
+          .from(plants)
+          .leftJoin(rooms, eq(plants.roomId, rooms.id))
+          .leftJoin(canopies, eq(plants.canopyId, canopies.id))
+          .leftJoin(users, eq(plants.createdByUserId, users.id))
+          .where(inArray(plants.id, [...ids]))
+        const schedules = schedulesFor(
+          yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
+        )
+        return Array.flatMap(rows, ({ canopy, ...row }): PlantWithRoom[] => {
+          const care: CareInput = {
+            careTimezone: row.careTimezone,
+            schedules: schedules(row.plant.id),
+            now,
+          }
+          if (row.plant.canopyId === null) return [toOwnedPlant(row, care)]
+          return canopy ? [toCanopyPlant({ ...row, canopy }, care)] : []
+        })
+      }
+    )
+
     return {
       findAll: Effect.fn('PlantRepository.findAll')(function* (
         params: FindPlantsParams
@@ -698,78 +730,10 @@ export const PlantRepositoryLive = Layer.effect(
       }),
 
       findById: Effect.fn('PlantRepository.findById')(function* (id: string) {
-        const [row] = yield* db
-          .select({
-            plant: plants,
-            room: roomSelect,
-            careTimezone: careTimezoneSql,
-          })
-          .from(plants)
-          .leftJoin(rooms, eq(plants.roomId, rooms.id))
-          .where(eq(plants.id, id))
-
-        if (!row) return null
-
-        const scheduleRows = yield* db
-          .select(scheduleRow)
-          .from(plantCareSchedules)
-          .where(eq(plantCareSchedules.plantId, id))
-        const care: CareInput = {
-          careTimezone: row.careTimezone,
-          schedules: Array.map(scheduleRows, (r) => ({
-            ...r,
-            dueDay: CareDay.make(r.dueDay),
-          })),
-          now: yield* DateTime.now,
-        }
-
-        if (row.plant.canopyId === null) return toOwnedPlant(row, care)
-
-        const [scope] = yield* db
-          .select({ canopy: canopySelect, creator: creatorSelect })
-          .from(canopies)
-          .leftJoin(
-            users,
-            row.plant.createdByUserId === null
-              ? sql`false`
-              : eq(users.id, row.plant.createdByUserId)
-          )
-          .where(eq(canopies.id, row.plant.canopyId))
-        if (!scope) return null
-        return toCanopyPlant({ ...row, ...scope }, care)
+        return Option.getOrNull(Array.head(yield* findWithRoomByIds([id])))
       }),
 
-      findWithRoomByIds: Effect.fn('PlantRepository.findWithRoomByIds')(
-        function* (ids: readonly string[]) {
-          if (Array.isReadonlyArrayEmpty(ids)) return []
-          const now = yield* DateTime.now
-          const rows = yield* db
-            .select({
-              plant: plants,
-              room: roomSelect,
-              canopy: canopySelect,
-              creator: creatorSelect,
-              careTimezone: careTimezoneSql,
-            })
-            .from(plants)
-            .leftJoin(rooms, eq(plants.roomId, rooms.id))
-            .leftJoin(canopies, eq(plants.canopyId, canopies.id))
-            .leftJoin(users, eq(plants.createdByUserId, users.id))
-            .where(inArray(plants.id, [...ids]))
-          const schedules = schedulesFor(
-            yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
-          )
-          return Array.flatMap(rows, ({ canopy, ...row }): PlantWithRoom[] => {
-            const care: CareInput = {
-              careTimezone: row.careTimezone,
-              schedules: schedules(row.plant.id),
-              now,
-            }
-            if (row.plant.canopyId === null) return [toOwnedPlant(row, care)]
-            return canopy ? [toCanopyPlant({ ...row, canopy }, care)] : []
-          })
-        }
-      ),
+      findWithRoomByIds,
 
       update: Effect.fn('PlantRepository.update')(function* (
         id: string,
