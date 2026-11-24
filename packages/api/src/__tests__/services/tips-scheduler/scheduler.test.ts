@@ -17,7 +17,7 @@ import { checkAndGenerateTip } from '@lily/api/services/tips-scheduler/scheduler
 import type { Notification } from '@lily/shared/notification'
 import { defectOf } from '@lily/shared/testing'
 import { Array, ConfigProvider, Effect, Layer } from 'effect'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@lily/api/services/tips-scheduler/generator', async () => {
   const { Effect } = await import('effect')
@@ -41,7 +41,10 @@ const enabledConfig = ConfigProvider.layer(
 
 const emptyConfig = ConfigProvider.layer(ConfigProvider.fromUnknown({}))
 
-const todayTip: DailyTip = {
+// 00:30 in Paris, the zone of the fixture users: both slots of the day are ahead.
+const JUST_AFTER_LOCAL_MIDNIGHT = '2026-06-14T22:30:00.000Z'
+
+const todayTip = (): DailyTip => ({
   id: 'tip-today',
   title: { en: 'Today tip', fr: 'Conseil du jour' },
   body: { en: 'Body', fr: 'Corps' },
@@ -49,7 +52,7 @@ const todayTip: DailyTip = {
   tags: ['watering'],
   publishDate: new Date().toISOString().slice(0, 10),
   createdAt: new Date(),
-}
+})
 
 const notifications: Notification[] = []
 
@@ -60,6 +63,15 @@ const baseDeps = Layer.mergeAll(
 )
 
 describe('checkAndGenerateTip', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(JUST_AFTER_LOCAL_MIDNIGHT))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('skips when TIPS_GENERATION_ENABLED is false', async () => {
     const layer = Layer.mergeAll(
       baseDeps,
@@ -89,7 +101,7 @@ describe('checkAndGenerateTip', () => {
         usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
       }),
       createMockRagService(),
-      createMockDailyTipRepository([todayTip]),
+      createMockDailyTipRepository([todayTip()]),
       enabledConfig
     )
 
@@ -174,6 +186,72 @@ describe('checkAndGenerateTip', () => {
     await Effect.runPromise(checkAndGenerateTip.pipe(Effect.provide(layer)))
 
     expect(Array.map(recorded, (n) => n.type)).toEqual([type])
+  })
+
+  const tipsOfferedAt = async (
+    now: string,
+    lastTipAt: ReadonlyArray<string>
+  ) => {
+    vi.setSystemTime(new Date(now))
+    const recorded: Notification[] = Array.map(lastTipAt, (createdAt) =>
+      createTestNotification({
+        userId: 'user-1',
+        type: 'daily_tip',
+        createdAt: new Date(createdAt),
+      })
+    )
+    const before = recorded.length
+    await Effect.runPromise(
+      checkAndGenerateTip.pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockNotificationRepository(recorded),
+            createMockEngagementRepository({
+              usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
+              notifications: recorded,
+            }),
+            createMockRagService(),
+            createMockDailyTipRepository([]),
+            enabledConfig
+          )
+        )
+      )
+    )
+    return Array.drop(recorded, before)
+  }
+
+  it('schedules nothing for a user who comes due at 22:30 local, after both slots of the day', async () => {
+    expect(await tipsOfferedAt('2026-06-15T20:30:00.000Z', [])).toEqual([])
+  })
+
+  it('schedules a tip only for an instant still ahead', async () => {
+    const now = '2026-06-15T08:30:00.000Z'
+    const offered = await Promise.all(
+      Array.makeBy(20, () => tipsOfferedAt(now, []))
+    )
+
+    expect(
+      Array.filter(
+        Array.flatten(offered),
+        (n) => n.scheduledAt <= new Date(now)
+      )
+    ).toEqual([])
+  })
+
+  describe('after a tip recorded at 20:00 local on June 12', () => {
+    const lastTip = ['2026-06-12T18:00:00.000Z']
+
+    it('offers none just after local midnight on June 14', async () => {
+      expect(await tipsOfferedAt('2026-06-13T22:30:00.000Z', lastTip)).toEqual(
+        []
+      )
+    })
+
+    it('offers the next just after local midnight on June 15, not 72 hours after the last', async () => {
+      expect(
+        await tipsOfferedAt('2026-06-14T22:30:00.000Z', lastTip)
+      ).toMatchObject([{ userId: 'user-1', type: 'daily_tip' }])
+    })
   })
 
   it('reads the same number of times for forty users as for two', async () => {
