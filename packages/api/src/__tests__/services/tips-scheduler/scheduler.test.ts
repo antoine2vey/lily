@@ -3,10 +3,15 @@ import { createMockDailyTipRepository } from '@lily/api/__tests__/mocks/daily-ti
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
-import type { DailyTip } from '@lily/api/repositories/daily-tip.repository'
+import {
+  type DailyTip,
+  DailyTipRepository,
+} from '@lily/api/repositories/daily-tip.repository'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { checkAndGenerateTip } from '@lily/api/services/tips-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
-import { ConfigProvider, Effect, Layer } from 'effect'
+import { defectOf } from '@lily/shared/testing'
+import { Array, ConfigProvider, Effect, Layer } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@lily/api/services/tips-scheduler/generator', async () => {
@@ -130,5 +135,63 @@ describe('checkAndGenerateTip', () => {
         tipBody: 'Turn each pot a quarter every week.',
       },
     })
+  })
+
+  it('reaches on the next run the users a run that died left without the tip', async () => {
+    const recorded: Notification[] = []
+    const users = Array.map(['user-1', 'user-2', 'user-3', 'user-4'], (id) =>
+      makeUserWithSettings({ id })
+    )
+    const tips = createMockDailyTipRepository([])
+    const repositories = Layer.mergeAll(
+      createMockNotificationRepository(recorded),
+      createMockEngagementRepository({
+        usersWithTips: users,
+        notifications: recorded,
+      }),
+      createMockRagService(),
+      tips,
+      enabledConfig
+    )
+    const dyingAfter = (survivors: number) =>
+      Layer.effect(
+        NotificationRepository,
+        Effect.gen(function* () {
+          const repo = yield* NotificationRepository
+          return {
+            ...repo,
+            create: (data: Parameters<typeof repo.create>[0]) =>
+              recorded.length < survivors
+                ? repo.create(data)
+                : Effect.die('process killed'),
+          }
+        })
+      ).pipe(Layer.provide(repositories))
+
+    const firstRun = await Effect.runPromiseExit(
+      checkAndGenerateTip.pipe(
+        Effect.provide(Layer.merge(repositories, dyingAfter(1)))
+      )
+    )
+    expect(defectOf(firstRun)).toBe('process killed')
+    expect(Array.map(recorded, (n) => n.userId)).toHaveLength(1)
+
+    await Effect.runPromise(
+      checkAndGenerateTip.pipe(Effect.provide(repositories))
+    )
+
+    expect(Array.map(recorded, (n) => n.userId).sort()).toEqual([
+      'user-1',
+      'user-2',
+      'user-3',
+      'user-4',
+    ])
+    const published = await Effect.runPromise(
+      Effect.gen(function* () {
+        const repo = yield* DailyTipRepository
+        return yield* repo.findRecent(10)
+      }).pipe(Effect.provide(tips))
+    )
+    expect(published).toHaveLength(1)
   })
 })

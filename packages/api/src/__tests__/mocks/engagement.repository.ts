@@ -6,7 +6,8 @@ import {
   type TrialingUser,
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
-import { Effect, Layer, Option, pipe } from 'effect'
+import type { Notification } from '@lily/shared/notification'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 interface MockEngagementRepositoryData {
   usersWithTips?: ReadonlyArray<UserWithSettings>
@@ -18,6 +19,8 @@ interface MockEngagementRepositoryData {
     ReadonlyArray<PlantWithoutRecentPhoto>
   >
   notificationsInPeriod?: Record<string, boolean>
+  /** The notification rows, shared with the notification mock. */
+  notifications?: ReadonlyArray<Notification>
   notificationsForPlantInPeriod?: Record<string, boolean>
   healthyPlantCounts?: Record<string, number>
   careLogsForWeek?: Record<string, number>
@@ -53,6 +56,10 @@ export const createMockEngagementRepository = (
   const notificationsInPeriod = pipe(
     Option.fromNullishOr(data.notificationsInPeriod),
     Option.getOrElse(() => ({}) as Record<string, boolean>)
+  )
+  const recorded = pipe(
+    Option.fromNullishOr(data.notifications),
+    Option.getOrElse(() => [] as ReadonlyArray<Notification>)
   )
   const notificationsForPlantInPeriod = pipe(
     Option.fromNullishOr(data.notificationsForPlantInPeriod),
@@ -94,12 +101,18 @@ export const createMockEngagementRepository = (
         )
       ),
 
-    hasNotificationInPeriod: (userId: string, type: string, _sinceDate: Date) =>
-      Effect.succeed(
-        pipe(
-          Option.fromNullishOr(notificationsInPeriod[`${userId}:${type}`]),
-          Option.getOrElse(() => false)
-        )
+    hasNotificationInPeriod: (userId: string, type: string, sinceDate: Date) =>
+      Effect.sync(
+        () =>
+          notificationsInPeriod[`${userId}:${type}`] === true ||
+          Array.some(
+            recorded,
+            (n) =>
+              n.userId === userId &&
+              n.type === type &&
+              Array.contains(['pending', 'queued', 'sent'], n.status) &&
+              n.createdAt >= sinceDate
+          )
       ),
 
     hasNotificationForPlantInPeriod: (
