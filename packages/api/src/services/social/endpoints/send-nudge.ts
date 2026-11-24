@@ -5,13 +5,14 @@ import {
   dispatchNow,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import { signedBy } from '@lily/api/services/notification-scheduler/translations/params'
 import type { NudgeRequest } from '@lily/shared'
 import {
   NudgeNotAllowedError,
   NudgeRateLimitError,
   UserNotFoundError,
 } from '@lily/shared'
-import { DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { DateTime, Duration, Effect } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 
 export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
@@ -50,11 +51,6 @@ export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
     }
   }
 
-  const nudgerName = pipe(
-    Option.fromNullishOr(currentUserName),
-    Option.getOrElse(() => 'A friend')
-  )
-
   const sql = yield* SqlClient.SqlClient
   const notification = yield* sql.withTransaction(
     followRepo
@@ -64,7 +60,7 @@ export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
           recordNotification(
             'nudge_to_water',
             targetUserId,
-            { senderName: nudgerName },
+            signedBy(currentUserName),
             targetUser.language,
             { senderId: currentUserId }
           )

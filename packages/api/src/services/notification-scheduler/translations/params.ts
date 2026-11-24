@@ -1,7 +1,7 @@
 import { UsageField } from '@lily/shared'
 import { GiftDuration } from '@lily/shared/admin'
 import type { DeferredCareType, NotificationTopic } from '@lily/shared/server'
-import { Schema } from 'effect'
+import { Option, Schema } from 'effect'
 
 export type SimpleNotificationType = Exclude<
   NotificationTopic,
@@ -11,6 +11,13 @@ export type SimpleNotificationType = Exclude<
 // A sender with no name on their account has no senderName, and each
 // language words that absence itself.
 const Sender = Schema.Struct({ senderName: Schema.optional(Schema.String) })
+
+/** The sender params of a user whose account may have no name. */
+export const signedBy = (name: string | null | undefined): typeof Sender.Type =>
+  Option.match(Option.fromNullishOr(name), {
+    onNone: () => ({}),
+    onSome: (senderName) => ({ senderName }),
+  })
 
 const PlantCount = Schema.Struct({ plantCount: Schema.Finite })
 const CanopyEvent = Schema.Struct({
