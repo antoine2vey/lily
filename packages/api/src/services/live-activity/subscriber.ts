@@ -1,14 +1,15 @@
 import { Reminders } from '@lily/api/contexts/reminders'
-import { type AppEvent, EventBus } from '@lily/api/events'
+import type { AppEvent } from '@lily/api/events'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
+import { createSubscriber } from '@lily/api/services/helpers/create-subscriber'
 import {
   type IPushService,
   type LiveActivityPushMessage,
   PushService,
 } from '@lily/shared/server'
-import { Array, Effect, Match, Option, pipe, Queue } from 'effect'
+import { Array, Effect, Match, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // Send a Live Activity push and swallow all three push-error tags with
@@ -131,25 +132,7 @@ export const processEvent = (event: AppEvent) =>
     Match.orElse(() => Effect.void)
   )
 
-export const startLiveActivitySubscriber = Effect.gen(function* () {
-  const eventBus = yield* EventBus
-  const queue = yield* eventBus.subscribe
-
-  yield* Effect.forkScoped(
-    Effect.forever(
-      Effect.gen(function* () {
-        const event = yield* Queue.take(queue)
-        yield* processEvent(event).pipe(
-          Effect.withSpan('live-activity.process', {
-            attributes: { 'event._tag': event._tag },
-          }),
-          Effect.catchTag('SqlError', (e) =>
-            Effect.logWarning('[live-activity] event processing failed', {
-              error: String(e),
-            })
-          )
-        )
-      })
-    )
-  )
+export const startLiveActivitySubscriber = createSubscriber({
+  name: 'live-activity',
+  handle: processEvent,
 })
