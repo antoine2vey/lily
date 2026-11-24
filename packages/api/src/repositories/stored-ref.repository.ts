@@ -1,4 +1,9 @@
 import { lockRowsNamed } from '@lily/api/kernel/locks'
+import {
+  KEY_DISGUISE,
+  type StoredObject,
+  searchRunOf,
+} from '@lily/api/services/file/stored-object'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import type * as schema from '@lily/db/schema'
 import {
@@ -13,12 +18,7 @@ import {
   users,
 } from '@lily/db/schema'
 import { SCHEMA_COLUMNS } from '@lily/db/schema-columns'
-import {
-  KEY_DISGUISE,
-  type StoredObject,
-  type StoredObjectRef,
-  searchRunOf,
-} from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, eq, isNotNull } from 'drizzle-orm'
 import type { PgTable } from 'drizzle-orm/pg-core'
 import { Array, Context, Effect, Layer, Option, Record, Stream } from 'effect'

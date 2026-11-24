@@ -2,12 +2,12 @@ import { coversRecordOf, type RecordPermit } from '@lily/api/kernel/permit'
 import { transactQuietly } from '@lily/api/kernel/transact'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { StoredRefRepository } from '@lily/api/repositories/stored-ref.repository'
+import type { GCSService } from '@lily/api/services/file/gcs'
 import {
   plantHeld,
   releasing,
 } from '@lily/api/services/helpers/release-objects'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
-import type { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect, Option } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'

@@ -1,10 +1,10 @@
-import { Array, Effect, Option } from 'effect'
-import { describe, expect, it } from 'vitest'
-import type { PlantAIResult } from '../services/ai/plant-schema'
+import type { PlantAIResult } from '@lily/api/services/ai/plant-schema'
 import {
   isPlantResultSufficient,
   withQualityRetry,
-} from '../services/ai/quality-check'
+} from '@lily/api/services/ai/quality-check'
+import { Array, Effect, Option } from 'effect'
+import { describe, expect, it } from 'vitest'
 
 const makeResult = (overrides: Partial<PlantAIResult> = {}): PlantAIResult => ({
   name: 'Monstera deliciosa',

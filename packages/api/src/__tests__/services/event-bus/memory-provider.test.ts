@@ -1,6 +1,6 @@
 import { InMemoryEventBusLive } from '@lily/api/services/event-bus/memory.provider'
-import type { AppEvent } from '@lily/shared/server'
-import { EventBus } from '@lily/shared/server'
+import { EventBus } from '@lily/api/services/event-bus/service'
+import type { AppEvent } from '@lily/api/services/event-bus/types'
 import { Effect, Queue } from 'effect'
 import { describe, expect, it } from 'vitest'
 

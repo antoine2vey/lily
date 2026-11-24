@@ -1,8 +1,9 @@
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import type { CareEvent, LifeChange } from '@lily/api/contexts/care'
 import { eventBusForwarder } from '@lily/api/events/care-forwarder'
+import type { EventBus } from '@lily/api/services/event-bus/service'
+import type { AppEvent } from '@lily/api/services/event-bus/types'
 import { CareDay, type PlantOwner } from '@lily/shared'
-import type { AppEvent, EventBus } from '@lily/shared/server'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 

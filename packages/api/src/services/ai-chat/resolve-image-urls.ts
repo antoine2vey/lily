@@ -1,5 +1,5 @@
-import { GCSService } from '@lily/shared/services/file/gcs'
-import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
+import { GCSService } from '@lily/api/services/file/gcs'
+import type { GCSUploadError } from '@lily/api/services/file/gcs-errors'
 import type { UIMessage } from 'ai'
 import { Array, Effect, Filter, Option, pipe } from 'effect'
 

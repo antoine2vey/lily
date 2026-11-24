@@ -11,8 +11,8 @@ import { isReminderTopic } from '@lily/api/repositories/notification.repository'
 import type { PlantRow } from '@lily/api/repositories/plant.repository'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { notifications, plants, users } from '@lily/db/schema'
+import { CARE_TOPICS, type DeferredCareType } from '@lily/shared'
 import type { NotificationStatus } from '@lily/shared/notification'
-import { CARE_TOPICS, type DeferredCareType } from '@lily/shared/server'
 import {
   and,
   asc,

@@ -1,8 +1,8 @@
 import {
   EmailService,
   type IEmailService,
-  type SendEmailRequest,
-} from '@lily/shared/server'
+} from '@lily/api/services/email/service'
+import type { SendEmailRequest } from '@lily/api/services/email/types'
 import { Effect, Layer } from 'effect'
 
 export const ConsoleEmailServiceLive = Layer.succeed(

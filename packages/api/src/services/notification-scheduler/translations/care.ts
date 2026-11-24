@@ -3,8 +3,7 @@ import {
   listNames,
   type NotificationContent,
 } from '@lily/api/services/notification-scheduler/translations/catalog'
-import type { LanguageCode } from '@lily/shared'
-import type { DeferredCareType } from '@lily/shared/server'
+import type { DeferredCareType, LanguageCode } from '@lily/shared'
 import { Array, Option, Order, pipe, String } from 'effect'
 
 type CareTranslations = {

@@ -12,8 +12,8 @@ import type {
 import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
 import { checkAndCreateEngagementNotifications } from '@lily/api/services/engagement-scheduler/scheduler'
 import { checkAndCreateWeeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
+import type { NotificationTopic } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import type { NotificationTopic } from '@lily/shared/server'
 import { Array, Effect, Layer, Order, Random } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

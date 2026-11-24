@@ -1,11 +1,12 @@
 import { openai } from '@ai-sdk/openai'
+import { callOpenAI } from '@lily/api/services/ai/call-openai'
 import { FAST_MODEL } from '@lily/api/services/ai/models'
 import type { Fact } from '@lily/api/services/ai-chat/follow-up-facts'
 import type {
   FollowUp,
   FollowUpBasis,
 } from '@lily/api/services/ai-chat/follow-up-set'
-import { type CareDay, callOpenAI } from '@lily/shared'
+import type { CareDay } from '@lily/shared'
 import type { OpenAIError } from '@lily/shared/ai-chat'
 import { generateText, Output } from 'ai'
 import { Array, Duration, type Effect, Option, pipe, String } from 'effect'

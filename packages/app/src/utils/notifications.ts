@@ -3,10 +3,9 @@ import {
   type LanguageCode,
   type MetadataOf,
   NOTIFICATION_METADATA,
+  type NotificationTopic,
   TimeZone,
 } from '@lily/shared'
-// Type-only import — erased at compile time, so no server code is bundled
-import type { NotificationTopic } from '@lily/shared/server'
 import {
   Array as Arr,
   Match,

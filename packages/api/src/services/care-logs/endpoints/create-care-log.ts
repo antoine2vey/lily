@@ -9,7 +9,7 @@ import {
 } from '@lily/api/services/helpers/release-objects'
 import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
 import type { CareLogCreateRequest } from '@lily/shared/care-log'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Effect, Option } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 

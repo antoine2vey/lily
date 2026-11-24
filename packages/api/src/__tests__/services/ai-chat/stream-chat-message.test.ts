@@ -28,10 +28,10 @@ import { createMockUsageTracker } from '@lily/api/__tests__/mocks/usage-tracker'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { ChatTurns } from '@lily/api/services/ai-chat/chat-turns'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
+import type { AppEvent } from '@lily/api/services/event-bus/types'
 import type { UsageField } from '@lily/shared'
 import type { ChatMessage, ChatSuggestionTap } from '@lily/shared/ai-chat'
 import { ConversationNotFoundError } from '@lily/shared/ai-chat'
-import type { AppEvent } from '@lily/shared/server'
 import { failureOf } from '@lily/shared/testing'
 import {
   Array,

@@ -28,6 +28,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { remindOverdue } from '@lily/api/contexts/reminders'
 import type { CanopyRow } from '@lily/api/repositories/canopy.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
+import type { QueueMessage } from '@lily/api/services/message-queue/types'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import type { userSubscriptions } from '@lily/db/schema'
 import {
@@ -36,7 +37,6 @@ import {
   type TierConfig,
 } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import type { QueueMessage } from '@lily/shared/server'
 import { failureOf } from '@lily/shared/testing'
 import {
   Array as Arr,

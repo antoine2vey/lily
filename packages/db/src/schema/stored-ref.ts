@@ -1,5 +1,7 @@
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
-import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
+import {
+  mintStoredRef,
+  type StoredObjectRef,
+} from '@lily/shared/services/file/stored-ref-mint'
 import type { Column } from 'drizzle-orm'
 import { customType } from 'drizzle-orm/pg-core'
 

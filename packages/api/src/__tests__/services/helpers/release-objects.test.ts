@@ -8,12 +8,12 @@ import {
 } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
 import { transactQuietly } from '@lily/api/kernel/transact'
+import { GCSService } from '@lily/api/services/file/gcs'
 import {
   Holder,
   releaseObjects,
   releasing,
 } from '@lily/api/services/helpers/release-objects'
-import { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect, Layer, Logger, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 

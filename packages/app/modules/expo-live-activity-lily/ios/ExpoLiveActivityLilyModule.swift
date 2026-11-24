@@ -12,7 +12,7 @@ import ExpoModulesCore
 //
 // All user-facing strings live in the `ContentState` sent from the server —
 // the widget extension reads them verbatim. Keep the `CareTasksAttributes`
-// struct in sync with the shared schema in `@lily/shared/server`.
+// struct in sync with the api schema in `packages/api/src/services/push/types.ts`.
 
 // No class-level `@available` gate — the module must instantiate on every
 // iOS version we support (down to 15.1) so JS can call `isPushToStartSupported`

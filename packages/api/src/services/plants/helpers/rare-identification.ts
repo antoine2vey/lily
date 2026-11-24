@@ -1,7 +1,7 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { RareIdentificationRepository } from '@lily/api/repositories/rare-identification.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Effect, Option, pipe, String } from 'effect'
 
 const nonEmptyUrl = <A extends string>(imageUrl: A | undefined) =>

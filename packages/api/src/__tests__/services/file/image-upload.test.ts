@@ -1,4 +1,4 @@
-import { planImageUpload } from '@lily/shared/services/file/image-upload'
+import { planImageUpload } from '@lily/api/services/file/image-upload'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit } from 'effect'
 import { describe, expect, it } from 'vitest'

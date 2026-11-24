@@ -1,5 +1,5 @@
+import { MAX_FILE_SIZE_BYTES } from '@lily/shared'
 import { Array, Effect, Option, pipe, Schema, String } from 'effect'
-import { MAX_FILE_SIZE_BYTES } from '../../domains/plant/constants'
 
 export class InvalidImageError extends Schema.TaggedError<
   InvalidImageError,

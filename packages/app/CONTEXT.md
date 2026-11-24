@@ -49,5 +49,5 @@ A term listed under **Avoid** is a synonym that means something else in this cod
 ## Relationships
 
 - **api** owns plants, cares, care plans, canopies, delegations, vacations and reminders. The app calls its routes through `src/utils/client.tsx` and uses those terms with their api meaning. See [packages/api/CONTEXT.md](../api/CONTEXT.md).
-- **shared** owns the request and response schemas, `API_PREFIX`, `CARE_TASK_UNDO_TIMEOUT_MS`, the luminosity levels and the Live Activity payload. The app bundles the client-safe entry and imports only types from the server-only entry. See [packages/shared/CONTEXT.md](../shared/CONTEXT.md).
+- **shared** owns the request and response schemas, `API_PREFIX`, `CARE_TASK_UNDO_TIMEOUT_MS`, the luminosity levels and the notification topics. The app bundles the client-safe entry. The api owns the Live Activity payload in `packages/api/src/services/push/types.ts`. See [packages/shared/CONTEXT.md](../shared/CONTEXT.md).
 - **plant-scanner** owns the scanner terms of the iOS add-plant flow, such as frame analysis, lux level and measure mode. See [packages/plant-scanner/CONTEXT.md](../plant-scanner/CONTEXT.md).

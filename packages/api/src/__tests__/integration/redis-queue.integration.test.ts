@@ -3,8 +3,8 @@ import { makeRedisMessageQueue } from '@lily/api/services/message-queue/redis.pr
 import type {
   DequeuedMessage,
   IMessageQueue,
-  QueueMessage,
-} from '@lily/shared/server'
+} from '@lily/api/services/message-queue/service'
+import type { QueueMessage } from '@lily/api/services/message-queue/types'
 import { Array, Cause, Duration, Effect, Exit, Option, Record } from 'effect'
 import Redis from 'ioredis'
 import {

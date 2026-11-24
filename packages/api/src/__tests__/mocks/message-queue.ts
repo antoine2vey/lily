@@ -1,11 +1,13 @@
 import {
   type IMessageQueue,
   MessageQueue,
-  type NotificationTopic,
-  type QueueConnectionError,
-  type QueueMessage,
-  type QueueOperationError,
-} from '@lily/shared/server'
+} from '@lily/api/services/message-queue/service'
+import type {
+  QueueConnectionError,
+  QueueMessage,
+  QueueOperationError,
+} from '@lily/api/services/message-queue/types'
+import type { NotificationTopic } from '@lily/shared'
 import { Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockMessageQueueOptions {

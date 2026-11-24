@@ -7,10 +7,10 @@ import {
   validateEmail,
 } from '@lily/api/services/auth/helpers/create-magic-link'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
+import type { EmailService } from '@lily/api/services/email/service'
 import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import type { RateLimiterService } from '@lily/api/services/rate-limiter/service'
 import type { AuthError, LanguageCode } from '@lily/shared'
-import type { EmailService } from '@lily/shared/server'
 import { Console, Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 

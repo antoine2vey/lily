@@ -55,16 +55,16 @@ import { deleteConversation } from '@lily/api/services/ai-chat/endpoints/delete-
 import type { ToolContext } from '@lily/api/services/ai-chat/tools'
 import { createDiagnosisTool } from '@lily/api/services/ai-chat/tools/create-diagnosis'
 import { deleteCareLog } from '@lily/api/services/care-logs/endpoints/delete-care-log'
+import {
+  type BucketRole,
+  namedObjects,
+} from '@lily/api/services/file/stored-object'
 import { deletePlantPhoto } from '@lily/api/services/plants/endpoints/delete-plant-photo'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { withPermittedPlant } from '@lily/api/services/plants/helpers/with-plant-access'
 import { uploadAvatar } from '@lily/api/services/user/endpoints/upload-avatar'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import {
-  type BucketRole,
-  namedObjects,
-} from '@lily/shared/services/file/stored-object'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'

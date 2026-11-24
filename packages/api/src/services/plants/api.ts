@@ -1,4 +1,16 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
+import {
+  FileTooLargeError,
+  InvalidFileTypeError,
+  MultipleFilesError,
+  NoFilesError,
+  TooManyFilesError,
+} from '@lily/api/services/file/fileservice'
+import {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/api/services/file/gcs-errors'
+import { InvalidImageError } from '@lily/api/services/file/image-upload'
 import { PlantIdParam } from '@lily/api/services/plants/helpers/plant-id-param'
 import {
   CanopyNotFoundError,
@@ -34,18 +46,6 @@ import {
   PlantsListResponse,
   PlantUpdateRequest,
 } from '@lily/shared/plant'
-import {
-  FileTooLargeError,
-  InvalidFileTypeError,
-  MultipleFilesError,
-  NoFilesError,
-  TooManyFilesError,
-} from '@lily/shared/services/file/fileservice'
-import {
-  GCSConfigError,
-  GCSUploadError,
-} from '@lily/shared/services/file/gcs-errors'
-import { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Effect, Schema } from 'effect'
 import { Multipart } from 'effect/http'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'

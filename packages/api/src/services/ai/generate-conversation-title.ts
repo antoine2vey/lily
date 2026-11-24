@@ -1,8 +1,7 @@
 import { openai } from '@ai-sdk/openai'
+import type { OpenAIError } from '@lily/shared'
 import { generateText } from 'ai'
 import { type Effect, String as Str } from 'effect'
-
-import type { OpenAIError } from '../../domains/ai-chat/errors'
 import { callOpenAI, OPENAI_TIMEOUTS } from './call-openai'
 
 const systemPrompt = `You generate ultra-short titles for chat conversations between a user and a plant-care assistant.

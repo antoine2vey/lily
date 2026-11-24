@@ -21,19 +21,19 @@ import {
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { makeRedisMessageQueue } from '@lily/api/services/message-queue/redis.provider'
+import {
+  type IMessageQueue,
+  MessageQueue,
+} from '@lily/api/services/message-queue/service'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import {
   consumeNext,
   recoverStrandedDeliveries,
   VISIBILITY_TIMEOUT,
 } from '@lily/api/services/notification-scheduler/worker'
+import { PushService } from '@lily/api/services/push/service'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import {
-  type IMessageQueue,
-  MessageQueue,
-  PushService,
-} from '@lily/shared/server'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Duration, Effect, Layer, References } from 'effect'

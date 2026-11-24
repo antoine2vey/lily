@@ -7,7 +7,7 @@ import { ReminderStore } from '@lily/api/contexts/reminders/store/rows'
 import { isReminderTopic } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { CARE_TOPICS } from '@lily/shared/server'
+import { CARE_TOPICS } from '@lily/shared'
 import { Array, Effect, Layer, pipe } from 'effect'
 
 /**

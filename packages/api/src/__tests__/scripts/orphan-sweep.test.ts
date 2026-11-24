@@ -12,7 +12,7 @@ import {
   summaryLines,
   sweepOrphans,
 } from '@lily/api/scripts/orphan-sweep'
-import type { BucketRole } from '@lily/shared/services/file/stored-object'
+import type { BucketRole } from '@lily/api/services/file/stored-object'
 import { Array, DateTime, Duration, Effect, Layer, Stream } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'

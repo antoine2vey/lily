@@ -1,15 +1,15 @@
 import type { Conversation } from '@lily/api/repositories/chat.repository'
-import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
 import {
   type GenerateConversationTitleInput,
   generateConversationTitle,
-} from '@lily/shared/services/ai/generate-conversation-title'
+} from '@lily/api/services/ai/generate-conversation-title'
 import {
   plantCardScan,
   plantCardScanMultiple,
-} from '@lily/shared/services/ai/plant-card-scan'
-import { plantDetect } from '@lily/shared/services/ai/plant-detect'
-import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
+} from '@lily/api/services/ai/plant-card-scan'
+import { plantDetect } from '@lily/api/services/ai/plant-detect'
+import { plantRecognition } from '@lily/api/services/ai/plant-recognition'
+import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
 import type { UIMessage } from 'ai'
 import { Context, Effect, Layer } from 'effect'
 

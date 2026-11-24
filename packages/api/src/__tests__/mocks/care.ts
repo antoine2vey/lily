@@ -41,9 +41,10 @@ import {
   ownerColumns,
   withOwner,
 } from '@lily/api/repositories/helpers/plant-owner'
+import type { EventBus } from '@lily/api/services/event-bus/service'
+import type { AppEvent } from '@lily/api/services/event-bus/types'
 import type { plants as plantsTable } from '@lily/db/schema'
 import { CareDays, type CareType, type PlantOwner } from '@lily/shared'
-import type { AppEvent, EventBus } from '@lily/shared/server'
 import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
 
 type PlantRow = typeof plantsTable.$inferSelect

@@ -6,8 +6,8 @@ import {
   type TrialingUser,
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
+import { CARE_TOPICS } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { CARE_TOPICS } from '@lily/shared/server'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 interface MockEngagementRepositoryData {

@@ -1,12 +1,12 @@
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { GCSService } from '@lily/api/services/file/gcs'
+import { plantFolder } from '@lily/api/services/file/stored-object'
 import {
   ClientImage,
   readClientImage,
 } from '@lily/api/services/helpers/client-image'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
-import { GCSService } from '@lily/shared/services/file/gcs'
-import { plantFolder } from '@lily/shared/services/file/stored-object'
 import { Effect, Struct } from 'effect'
 
 /**

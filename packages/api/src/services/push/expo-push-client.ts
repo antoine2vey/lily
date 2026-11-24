@@ -1,4 +1,4 @@
-import { PushSendError } from '@lily/shared/server'
+import { PushSendError } from '@lily/api/services/push/types'
 import { Array, Context, Duration, Effect, Layer } from 'effect'
 import Expo, {
   type ExpoPushMessage,

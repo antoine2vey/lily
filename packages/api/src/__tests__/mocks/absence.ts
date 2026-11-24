@@ -41,9 +41,13 @@ import {
   NotificationRepository,
 } from '@lily/api/repositories/notification.repository'
 import { careDelegations, users } from '@lily/db/schema'
-import { CARE_TYPES, type User, type VacationFields } from '@lily/shared'
+import {
+  CARE_TYPES,
+  type User,
+  VACATION_MUTED_TOPICS,
+  type VacationFields,
+} from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import {
   Array,
   DateTime,

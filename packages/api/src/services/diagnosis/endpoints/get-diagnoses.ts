@@ -2,13 +2,13 @@ import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository
 import { resolveImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { SeenDiagnosisList } from '@lily/api/services/diagnosis/api'
+import type { GCSService } from '@lily/api/services/file/gcs'
+import type { GCSUploadError } from '@lily/api/services/file/gcs-errors'
 import {
   authorScope,
   type KnowledgeView,
 } from '@lily/api/services/plants/helpers/plant-access'
 import { seenByCaller } from '@lily/api/services/plants/helpers/seen'
-import type { GCSService } from '@lily/shared/services/file/gcs'
-import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 

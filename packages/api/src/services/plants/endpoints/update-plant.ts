@@ -10,6 +10,12 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import type { StoredRefRepository } from '@lily/api/repositories/stored-ref.repository'
+import type { GCSService } from '@lily/api/services/file/gcs'
+import type {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/api/services/file/gcs-errors'
+import type { InvalidImageError } from '@lily/api/services/file/image-upload'
 import {
   Holder,
   plantHeld,
@@ -25,12 +31,6 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { PlantUpdateRequest } from '@lily/shared/plant'
-import type { GCSService } from '@lily/shared/services/file/gcs'
-import type {
-  GCSConfigError,
-  GCSUploadError,
-} from '@lily/shared/services/file/gcs-errors'
-import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Effect, Option, Struct } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'

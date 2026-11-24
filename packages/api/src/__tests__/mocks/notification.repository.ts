@@ -9,7 +9,7 @@ import {
   type INotificationRepository,
   NotificationRepository,
 } from '@lily/api/repositories/notification.repository'
-import { CARE_TOPICS } from '@lily/shared/server'
+import { CARE_TOPICS } from '@lily/shared'
 import { Array, Effect, Layer, Option } from 'effect'
 
 export const createMockNotificationRepository = (

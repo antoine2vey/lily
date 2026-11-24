@@ -1,3 +1,4 @@
+import { STAMP_DISGUISE } from '@lily/api/services/file/stored-object'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careLogs,
@@ -8,7 +9,6 @@ import {
   plants,
   users,
 } from '@lily/db/schema'
-import { STAMP_DISGUISE } from '@lily/shared/services/file/stored-object'
 import {
   and,
   type Column,

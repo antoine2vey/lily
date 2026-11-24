@@ -20,14 +20,14 @@ import {
 } from '@lily/api/__tests__/mocks/push.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
+import type { AppEvent } from '@lily/api/services/event-bus/types'
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
-import type { ActivityPushToken } from '@lily/shared'
 import {
-  type AppEvent,
   type LiveActivityPushMessage,
   PushSendError,
   PushTokenInvalidatedError,
-} from '@lily/shared/server'
+} from '@lily/api/services/push/types'
+import type { ActivityPushToken } from '@lily/shared'
 import { Array, Effect, Exit, Layer, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 

@@ -2,14 +2,14 @@ import {
   type RefSource,
   StoredRefRepository,
 } from '@lily/api/repositories/stored-ref.repository'
-import { GCSService } from '@lily/shared/server'
+import { GCSService } from '@lily/api/services/file/gcs'
 import {
   BUCKET_ROLES,
   type BucketRole,
   type ListedObject,
   legacyStampOf,
   readStoredRef,
-} from '@lily/shared/services/file/stored-object'
+} from '@lily/api/services/file/stored-object'
 import {
   Array,
   Console,

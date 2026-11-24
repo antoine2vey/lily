@@ -8,7 +8,7 @@ Google counts data sent to a service provider that processes it only on your beh
 
 - Cloudflare relays every request to `withlily.app` and `api.withlily.app`, so it sees the client IP address and the requested URL. The API reads the client IP from the `cf-connecting-ip` header (`packages/shared/src/services/http/client-ip.ts`).
 - OpenAI receives plant photos and chat text (`packages/api/src/services/ai/`). Confirm that the OpenAI API terms still exclude API data from training.
-- Google Cloud Storage stores plant photos and profile pictures (`packages/shared/src/services/file/gcs.ts`).
+- Google Cloud Storage stores plant photos and profile pictures (`packages/api/src/services/file/gcs.ts`).
 - Resend sends the magic link and other emails to the user's address (`packages/api/src/services/email/resend.provider.ts`).
 - Open-Meteo receives the coordinates of a user or a Canopy for the weather signal (`packages/api/src/services/weather/providers/open-meteo.provider.ts`). OpenWeatherMap is the backup provider and receives the same coordinates when `OPENWEATHERMAP_API_KEY` is set (`packages/api/src/services/weather/providers/openweathermap.provider.ts`).
 - RevenueCat receives the Lily user ID and the store purchases (`packages/app/src/services/revenuecat.ts`).

@@ -53,7 +53,7 @@ import {
   type PlantSort,
   paginate,
 } from '@lily/shared'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import {
   and,
   asc,

@@ -1,5 +1,5 @@
+import { CareType } from '@lily/shared'
 import { Data, Schema } from 'effect'
-import { CareType } from '../../domains/care/types'
 
 export const PlantCreatedEvent = Schema.TaggedStruct('PlantCreated', {
   userId: Schema.String,

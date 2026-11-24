@@ -1,12 +1,11 @@
-import { RedisClient } from '@lily/api/services/message-queue/redis.provider'
+import { EventBus, type IEventBus } from '@lily/api/services/event-bus/service'
 import {
   type AppEvent,
   AppEvent as AppEventSchema,
-  EventBus,
   EventBusConnectionError,
   EventBusPublishError,
-  type IEventBus,
-} from '@lily/shared/server'
+} from '@lily/api/services/event-bus/types'
+import { RedisClient } from '@lily/api/services/message-queue/redis.provider'
 import { Effect, Layer, Queue, Schema } from 'effect'
 
 const CHANNEL = 'lily:events'

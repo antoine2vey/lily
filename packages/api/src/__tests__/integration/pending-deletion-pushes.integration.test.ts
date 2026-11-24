@@ -48,19 +48,19 @@ import {
   UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
+import { MessageQueue } from '@lily/api/services/message-queue/service'
+import type { QueueMessage } from '@lily/api/services/message-queue/types'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
+import type {
+  LiveActivityPushMessage,
+  PushMessage,
+} from '@lily/api/services/push/types'
 import { recordFollow } from '@lily/api/services/social/endpoints/follow-user'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import {
-  type LiveActivityPushMessage,
-  MessageQueue,
-  type PushMessage,
-  type QueueMessage,
-} from '@lily/shared/server'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Layer, References } from 'effect'

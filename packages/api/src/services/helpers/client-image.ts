@@ -1,15 +1,17 @@
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { GCSService } from '@lily/shared/services/file/gcs'
-import { isPlannedKey } from '@lily/shared/services/file/image-upload'
+import { GCSService } from '@lily/api/services/file/gcs'
+import { isPlannedKey } from '@lily/api/services/file/image-upload'
 import {
   chatFolder,
   publicUrlOf,
   type StoredObject,
-  type StoredObjectRef,
   scopePrefix,
   userFolder,
-} from '@lily/shared/services/file/stored-object'
-import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
+} from '@lily/api/services/file/stored-object'
+import {
+  mintStoredRef,
+  type StoredObjectRef,
+} from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Data, Effect, Option, pipe, String } from 'effect'
 
 /**

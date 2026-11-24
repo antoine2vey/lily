@@ -13,8 +13,8 @@ import {
   type CareType,
   isOnVacation,
   type PlantOwner,
+  TOPIC_CATEGORY,
 } from '@lily/shared'
-import { TOPIC_CATEGORY } from '@lily/shared/server'
 import { Array, Data, DateTime, Effect, Option, pipe } from 'effect'
 
 const MIN_DEFERRAL = '5 minutes'

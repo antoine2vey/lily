@@ -1,5 +1,10 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { NotificationDelivery } from '@lily/api/repositories/notification-delivery.repository'
+import { MessageQueue } from '@lily/api/services/message-queue/service'
+import type {
+  QueueConnectionError,
+  QueueOperationError,
+} from '@lily/api/services/message-queue/types'
 import {
   buildSimpleContent,
   type ParamsOf,
@@ -12,11 +17,6 @@ import type {
   MetadataOf,
   NotificationMetadata,
 } from '@lily/shared/notification'
-import {
-  MessageQueue,
-  type QueueConnectionError,
-  type QueueOperationError,
-} from '@lily/shared/server'
 import { Effect, Option, Schema } from 'effect'
 
 export interface RecordedNotification {

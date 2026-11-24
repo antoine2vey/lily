@@ -1,23 +1,12 @@
 # Shared domain language
 
-The terms `@lily/shared` defines for itself: its two entry points, the service vocabulary the api implements, notification topics and the plant rating scales. Most schemas here carry the names of concepts that `packages/api/CONTEXT.md` owns, such as plant, care day and canopy. Those keep their api meaning, and this file links to them instead of defining them again.
+The terms `@lily/shared` defines for itself: its entry point, notification topics and the plant rating scales. Most schemas here carry the names of concepts that `packages/api/CONTEXT.md` owns, such as plant, care day and canopy. Those keep their api meaning, and this file links to them instead of defining them again.
 
 ## Entry points
 
 | Term | Meaning | Avoid |
 |---|---|---|
 | **Client-safe entry** | `@lily/shared`, from `src/index.ts`. The app and admin bundle it, so everything it reaches runs in a phone or a browser. | |
-| **Server-only entry** | `@lily/shared/server`, from `src/server.ts`. It exports the services that need Node or a server SDK. The app may import types from it and nothing else. | |
-
-## Services
-
-| Term | Meaning | Avoid |
-|---|---|---|
-| **Service interface** | A `Context.Service` tag with an `I<Name>` interface and no implementation, such as `MessageQueue` with `IMessageQueue`. | |
-| **Provider** | The layer that implements a service interface. Providers live in the api as `*.provider.ts` files, such as `RedisMessageQueueLive`. | |
-| **App event** | One member of `AppEvent`, published on the `EventBus`, such as `PlantCreated` or `CareLogCreated`. Delivery is fire-and-forget, so a subscriber that is not listening misses it. The api's achievements and Live Activities listen for them. | "fact", which is what an api context publishes on the outbox |
-| **Queue message** | A `QueueMessage` on the `MessageQueue`. It asks for the delivery of the notifications it names under one notification topic, and the queue delivers it at least once. | |
-| **Claim** | The handle `dequeue` returns with a queue message. `ack` finishes it, `refreshClaim` keeps it alive, and `requeueStale` puts back every message whose claim is older than a given duration. The [knowledge-db Claim](../knowledge-db/CONTEXT.md#ingestion) is a different mechanism, on ingest jobs. | |
 
 ## Notifications
 

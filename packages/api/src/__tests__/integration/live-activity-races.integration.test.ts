@@ -20,16 +20,16 @@ import { endActivity } from '@lily/api/services/activity-push-tokens/endpoints/e
 import { registerActivityToken } from '@lily/api/services/activity-push-tokens/endpoints/register-activity-token'
 import { expireStaleActivities } from '@lily/api/services/activity-scheduler/scheduler'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { QueueMessage } from '@lily/api/services/message-queue/types'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
-import { DrizzleLive, PgLive } from '@lily/db'
-import * as schema from '@lily/db/schema'
+import { PushService } from '@lily/api/services/push/service'
 import {
   type LiveActivityPushMessage,
   PushSendError,
-  PushService,
-  type QueueMessage,
-} from '@lily/shared/server'
+} from '@lily/api/services/push/types'
+import { DrizzleLive, PgLive } from '@lily/db'
+import * as schema from '@lily/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {

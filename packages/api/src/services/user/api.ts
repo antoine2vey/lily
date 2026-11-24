@@ -1,15 +1,15 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
-import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
-import { AuthError, UnauthorizedError, UserNotFoundError } from '@lily/shared'
 import {
   MultipleFilesError,
   NoFilesError,
-} from '@lily/shared/services/file/fileservice'
+} from '@lily/api/services/file/fileservice'
 import {
   GCSConfigError,
   GCSUploadError,
-} from '@lily/shared/services/file/gcs-errors'
-import { InvalidImageError } from '@lily/shared/services/file/image-upload'
+} from '@lily/api/services/file/gcs-errors'
+import { InvalidImageError } from '@lily/api/services/file/image-upload'
+import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
+import { AuthError, UnauthorizedError, UserNotFoundError } from '@lily/shared'
 import { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Schema } from 'effect'
 import { Multipart } from 'effect/http'

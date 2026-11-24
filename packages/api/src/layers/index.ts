@@ -54,6 +54,8 @@ import { MagicLinkConfigLive } from '@lily/api/services/auth/endpoints/send-magi
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { ConsoleEmailServiceLive } from '@lily/api/services/email/console.provider'
 import { ResendEmailServiceLive } from '@lily/api/services/email/resend.provider'
+import { FileService } from '@lily/api/services/file/fileservice'
+import { GCSService } from '@lily/api/services/file/gcs'
 import { ServiceAuthenticationLive } from '@lily/api/services/internal/middleware.impl'
 import { JWTServiceLive } from '@lily/api/services/jwt/service'
 import {
@@ -73,8 +75,6 @@ import { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker
 import { WeatherCacheLive } from '@lily/api/services/weather/cache.live'
 import { WeatherProviderLive } from '@lily/api/services/weather/provider.live'
 import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
-import { FileService } from '@lily/shared/services/file/fileservice'
-import { GCSService } from '@lily/shared/services/file/gcs'
 import { Config, Effect, Layer, Option, Redacted } from 'effect'
 
 export { BunServices } from '@effect/platform-bun'
@@ -82,6 +82,8 @@ export { RedisEventBusLive } from '@lily/api/events'
 export { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
 export { AiService } from '@lily/api/services/ai/service'
 export { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
+export { FileService } from '@lily/api/services/file/fileservice'
+export { GCSService } from '@lily/api/services/file/gcs'
 export { JWTServiceLive } from '@lily/api/services/jwt/service'
 export {
   RedisClientLive,
@@ -91,8 +93,6 @@ export { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
 export { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 export { RevenueCatProviderLive } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
 export { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
-export { FileService } from '@lily/shared/services/file/fileservice'
-export { GCSService } from '@lily/shared/services/file/gcs'
 
 // Split into two groups to stay under Layer.mergeAll's 20-argument overload limit
 const RepositoriesGroup1 = Layer.mergeAll(

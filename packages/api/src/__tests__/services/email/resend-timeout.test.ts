@@ -1,6 +1,7 @@
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { ResendEmailServiceLive } from '@lily/api/services/email/resend.provider'
-import { EmailSendError, EmailService } from '@lily/shared/server'
+import { EmailService } from '@lily/api/services/email/service'
+import { EmailSendError } from '@lily/api/services/email/types'
 import {
   ConfigProvider,
   Duration,

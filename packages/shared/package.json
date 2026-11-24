@@ -11,10 +11,6 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./server": {
-      "types": "./src/server.ts",
-      "default": "./src/server.ts"
-    },
     "./achievement": {
       "types": "./src/domains/achievement/schema.ts",
       "default": "./src/domains/achievement/schema.ts"
@@ -142,15 +138,12 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@types/node": "^24.19.2",
     "tsc-alias": "^1.9.8",
     "typescript": "7.0.2",
     "vitest": "^5.0.5"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.109",
-    "@google-cloud/storage": "^8.4.0",
-    "ai": "^7.0.163",
-    "effect": "^4.0.5",
-    "zod": "^4.6.7"
+    "effect": "^4.0.5"
   }
 }

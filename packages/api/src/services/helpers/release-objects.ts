@@ -3,8 +3,8 @@ import {
   type ChatRef,
   StoredRefRepository,
 } from '@lily/api/repositories/stored-ref.repository'
-import { GCSService } from '@lily/shared/services/file/gcs'
-import { GCSDeleteError } from '@lily/shared/services/file/gcs-errors'
+import { GCSService } from '@lily/api/services/file/gcs'
+import { GCSDeleteError } from '@lily/api/services/file/gcs-errors'
 import {
   legacyOwnerOf,
   mayNameKey,
@@ -14,7 +14,7 @@ import {
   sameObject,
   scopePrefix,
   userFolder,
-} from '@lily/shared/services/file/stored-object'
+} from '@lily/api/services/file/stored-object'
 import {
   Array,
   Data,

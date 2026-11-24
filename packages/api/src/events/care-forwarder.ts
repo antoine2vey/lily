@@ -5,7 +5,8 @@ import {
   ConsumerFailed,
   consumer,
 } from '@lily/api/kernel/outbox'
-import { type AppEvent, EventBus } from '@lily/shared/server'
+import { EventBus } from '@lily/api/services/event-bus/service'
+import type { AppEvent } from '@lily/api/services/event-bus/types'
 import { type Context, Effect, Match } from 'effect'
 
 const NAME = 'event-bus'

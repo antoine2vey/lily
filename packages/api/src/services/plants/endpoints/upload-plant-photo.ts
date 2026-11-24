@@ -1,14 +1,14 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
-import { nowAsDate, type PlantPhotoUploadResponse } from '@lily/shared'
-import type { GCSService } from '@lily/shared/services/file/gcs'
+import type { GCSService } from '@lily/api/services/file/gcs'
 import type {
   GCSConfigError,
   GCSUploadError,
-} from '@lily/shared/services/file/gcs-errors'
-import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
+} from '@lily/api/services/file/gcs-errors'
+import type { InvalidImageError } from '@lily/api/services/file/image-upload'
+import { uploadToPlantFolder } from '@lily/api/services/plants/helpers/upload-to-plant-folder'
+import { nowAsDate, type PlantPhotoUploadResponse } from '@lily/shared'
 import { Effect } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'

@@ -1,6 +1,6 @@
 import { type AppEvent, EventBus } from '@lily/api/events'
+import type { EventBusConnectionError } from '@lily/api/services/event-bus/types'
 import { drainOnInterrupt } from '@lily/api/services/helpers/create-scheduler'
-import type { EventBusConnectionError } from '@lily/shared/server'
 import { Cause, Effect, Queue, type Scope } from 'effect'
 
 export const createSubscriber = <E, R>(config: {

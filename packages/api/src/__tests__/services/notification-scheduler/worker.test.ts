@@ -54,6 +54,12 @@ import {
   makeAlerter,
 } from '@lily/api/services/alerting/service'
 import { decodeQueueEntry } from '@lily/api/services/message-queue/redis.provider'
+import { MessageQueue } from '@lily/api/services/message-queue/service'
+import {
+  MAX_NOTIFICATION_IDS,
+  type QueueMessage,
+  QueueOperationError,
+} from '@lily/api/services/message-queue/types'
 import {
   buildGroupedPlantAnniversaryContent,
   buildSimpleContent,
@@ -67,24 +73,23 @@ import {
   startNotificationWorker,
   VISIBILITY_TIMEOUT,
 } from '@lily/api/services/notification-scheduler/worker'
-import type { ActivityPushToken, CanopyId } from '@lily/shared'
-import type { DeviceToken } from '@lily/shared/device-token'
-import type { Notification } from '@lily/shared/notification'
+import { PushService } from '@lily/api/services/push/service'
 import {
   type LiveActivityPushMessage,
-  MAX_NOTIFICATION_IDS,
-  MessageQueue,
-  type NotificationTopic,
   PushConfigError,
   type PushMessage,
   PushSendError,
-  PushService,
   type PushTicket,
   type PushTicketErrorCode,
   PushTokenInvalidatedError,
-  type QueueMessage,
-  QueueOperationError,
-} from '@lily/shared/server'
+} from '@lily/api/services/push/types'
+import type {
+  ActivityPushToken,
+  CanopyId,
+  NotificationTopic,
+} from '@lily/shared'
+import type { DeviceToken } from '@lily/shared/device-token'
+import type { Notification } from '@lily/shared/notification'
 import { failureOf } from '@lily/shared/testing'
 import {
   Array,

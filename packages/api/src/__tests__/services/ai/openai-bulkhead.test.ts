@@ -1,10 +1,9 @@
+import { callOpenAI, OpenAIBulkhead } from '@lily/api/services/ai/call-openai'
+import { OpenAIError } from '@lily/shared'
 import { defectOf, failureOf } from '@lily/shared/testing'
 import { Duration, Effect, Fiber, Semaphore } from 'effect'
 import { TestClock } from 'effect/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { OpenAIError } from '../domains/ai-chat/errors'
-import { callOpenAI, OpenAIBulkhead } from '../services/ai/call-openai'
 
 // Each call reaching OpenAI is recorded and stays open until the test settles
 // it, so the test decides when a permit frees up.
@@ -111,7 +110,7 @@ describe('OpenAI bulkhead size', () => {
 
   const freshCallOpenAI = async () => {
     vi.resetModules()
-    return (await import('../services/ai/call-openai')).callOpenAI
+    return (await import('@lily/api/services/ai/call-openai')).callOpenAI
   }
 
   const countStarted = (fresh: typeof callOpenAI, calls: number) =>

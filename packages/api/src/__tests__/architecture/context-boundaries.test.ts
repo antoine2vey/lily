@@ -6,7 +6,7 @@ import type {
 } from '@lily/api/contexts/reminders/store/rows'
 import type { Transaction } from '@lily/api/kernel/transact'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import type { DeferredCareType } from '@lily/shared/server'
+import type { DeferredCareType } from '@lily/shared'
 import type { Effect } from 'effect'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
@@ -674,7 +674,7 @@ describe('stored-object references', () => {
 
   it('are minted only where the server reads or writes an object', () => {
     const MINT_SITES = [
-      'shared/src/services/file/gcs.ts',
+      'api/src/services/file/gcs.ts',
       'api/src/services/helpers/client-image.ts',
       'db/src/schema/stored-ref.ts',
       'db/scripts/seed-demo-data.ts',

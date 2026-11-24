@@ -1,13 +1,12 @@
+import { type IPushService, PushService } from '@lily/api/services/push/service'
 import {
-  type IPushService,
   type LiveActivityPushMessage,
   type PushConfigError,
   type PushMessage,
   PushSendError,
-  PushService,
   type PushTicket,
   type PushTokenInvalidatedError,
-} from '@lily/shared/server'
+} from '@lily/api/services/push/types'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockPushServiceOptions {

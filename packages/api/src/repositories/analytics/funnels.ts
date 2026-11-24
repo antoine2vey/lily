@@ -1,7 +1,7 @@
 import type { AnalyticsRange } from '@lily/api/repositories/analytics.repository'
 import { queryOne, queryRows } from '@lily/api/repositories/helpers/raw-query'
 import type * as PgDrizzle from '@lily/db/effect-drizzle'
-import { CARE_TOPICS } from '@lily/shared/server'
+import { CARE_TOPICS } from '@lily/shared'
 import { sql } from 'drizzle-orm'
 import { Array, Effect, Schema } from 'effect'
 

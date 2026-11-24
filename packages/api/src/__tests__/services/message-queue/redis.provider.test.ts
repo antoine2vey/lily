@@ -2,7 +2,10 @@ import {
   createInMemoryRedis,
   createInMemoryRedisQueue,
 } from '@lily/api/__tests__/mocks/redis-queue'
-import { MAX_NOTIFICATION_IDS, QueueMessage } from '@lily/shared/server'
+import {
+  MAX_NOTIFICATION_IDS,
+  QueueMessage,
+} from '@lily/api/services/message-queue/types'
 import { Array as Arr, Effect, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 

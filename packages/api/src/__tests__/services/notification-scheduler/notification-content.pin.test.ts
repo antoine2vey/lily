@@ -13,8 +13,8 @@ import {
   buildLiveActivitySubheadline,
   buildLiveActivityTitle,
 } from '@lily/api/services/notification-scheduler/translations/live-activity'
+import type { DeferredCareType } from '@lily/shared'
 import { CARE_TYPES, type LanguageCode } from '@lily/shared'
-import type { DeferredCareType } from '@lily/shared/server'
 import { Array, Option, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
 

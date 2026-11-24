@@ -7,8 +7,8 @@ import {
   summaryLines,
   sweepOrphans,
 } from '@lily/api/scripts/orphan-sweep'
+import { GCSService } from '@lily/api/services/file/gcs'
 import { DrizzleLive, PgLive } from '@lily/db'
-import { GCSService } from '@lily/shared/server'
 import { Array, Console, Effect, Layer } from 'effect'
 
 const sweep = Effect.gen(function* () {

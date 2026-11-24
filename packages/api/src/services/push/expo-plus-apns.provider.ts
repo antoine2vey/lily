@@ -16,17 +16,16 @@ import {
   type RetireReason,
   retireExpoTokens,
 } from '@lily/api/services/push/retire-expo-tokens'
+import { type IPushService, PushService } from '@lily/api/services/push/service'
 import {
   CARE_TASKS_ATTRIBUTES_TYPE,
-  type IPushService,
   type LiveActivityPushMessage,
   PushConfigError,
   type PushMessage,
   PushSendError,
-  PushService,
   type PushTicket,
   PushTokenInvalidatedError,
-} from '@lily/shared/server'
+} from '@lily/api/services/push/types'
 import {
   Array,
   DateTime,

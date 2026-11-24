@@ -11,7 +11,7 @@ import {
 } from '@lily/api/services/ai-chat/tools'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import {
   convertToModelMessages,
   type StreamTextResult,
