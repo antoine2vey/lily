@@ -233,9 +233,11 @@ export interface INotificationRepository {
   readonly deleteByIds: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<void, SqlError>
+  /** A notification about the plant was sent to the user on today's day in `timezone`. */
   readonly hasNotificationToday: (
     userId: string,
-    plantId: string
+    plantId: string,
+    timezone: string
   ) => Effect.Effect<boolean, SqlError>
   readonly markManyAsSent: (
     rows: ReadonlyArray<SentNotification>
@@ -849,9 +851,9 @@ export const NotificationRepositoryLive = Layer.effect(
 
       hasNotificationToday: Effect.fn(
         'NotificationRepository.hasNotificationToday'
-      )(function* (userId: string, plantId: string) {
-        const today = startOfTodayAsDate()
-        const tomorrow = startOfTomorrowAsDate()
+      )(function* (userId: string, plantId: string, timezone: string) {
+        const today = startOfTodayAsDate(timezone)
+        const tomorrow = startOfTomorrowAsDate(timezone)
 
         const [result] = yield* db
           .select({ count: count() })

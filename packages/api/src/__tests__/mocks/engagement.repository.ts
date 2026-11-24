@@ -6,7 +6,9 @@ import {
   type TrialingUser,
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
-import { Effect, Layer, Option, pipe } from 'effect'
+import type { Notification } from '@lily/shared/notification'
+import { CARE_TOPICS } from '@lily/shared/server'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 interface MockEngagementRepositoryData {
   usersWithTips?: ReadonlyArray<UserWithSettings>
@@ -18,6 +20,8 @@ interface MockEngagementRepositoryData {
     ReadonlyArray<PlantWithoutRecentPhoto>
   >
   notificationsInPeriod?: Record<string, boolean>
+  /** The notification rows, shared with the notification mock. */
+  notifications?: ReadonlyArray<Notification>
   notificationsForPlantInPeriod?: Record<string, boolean>
   healthyPlantCounts?: Record<string, number>
   careLogsForWeek?: Record<string, number>
@@ -53,6 +57,10 @@ export const createMockEngagementRepository = (
   const notificationsInPeriod = pipe(
     Option.fromNullishOr(data.notificationsInPeriod),
     Option.getOrElse(() => ({}) as Record<string, boolean>)
+  )
+  const recorded = pipe(
+    Option.fromNullishOr(data.notifications),
+    Option.getOrElse(() => [] as ReadonlyArray<Notification>)
   )
   const notificationsForPlantInPeriod = pipe(
     Option.fromNullishOr(data.notificationsForPlantInPeriod),
@@ -94,12 +102,39 @@ export const createMockEngagementRepository = (
         )
       ),
 
-    hasNotificationInPeriod: (userId: string, type: string, _sinceDate: Date) =>
-      Effect.succeed(
+    getTipFatigueNotifications: ({ tipsSince, careRemindersSince }) =>
+      Effect.sync(() =>
         pipe(
-          Option.fromNullishOr(notificationsInPeriod[`${userId}:${type}`]),
-          Option.getOrElse(() => false)
+          Array.filter(recorded, (n) =>
+            Array.contains(['pending', 'queued', 'sent'], n.status)
+          ),
+          Array.map((n) => ({
+            userId: n.userId,
+            kind:
+              n.type === 'daily_tip'
+                ? ('tip' as const)
+                : ('careReminder' as const),
+            since: n.type === 'daily_tip' ? tipsSince : careRemindersSince,
+            counted:
+              n.type === 'daily_tip' || Array.contains(CARE_TOPICS, n.type),
+            createdAt: n.createdAt,
+          })),
+          Array.filter((n) => n.counted && n.createdAt >= n.since)
         )
+      ),
+
+    hasNotificationInPeriod: (userId: string, type: string, sinceDate: Date) =>
+      Effect.sync(
+        () =>
+          notificationsInPeriod[`${userId}:${type}`] === true ||
+          Array.some(
+            recorded,
+            (n) =>
+              n.userId === userId &&
+              n.type === type &&
+              Array.contains(['pending', 'queued', 'sent'], n.status) &&
+              n.createdAt >= sinceDate
+          )
       ),
 
     hasNotificationForPlantInPeriod: (

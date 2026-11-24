@@ -134,5 +134,69 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(await recordedToday(timezone, now, createdAt)).toBe(expected)
       }
     )
+
+    const sentToday = async (timezone: string, now: string, sentAt: string) => {
+      vi.setSystemTime(new Date(now))
+      const [user] = await db
+        .insert(schema.users)
+        .values({
+          email: 'sent-today@example.com',
+          name: 'sent-today',
+          emailVerified: true,
+          timezone,
+        })
+        .returning()
+      if (!user) throw new Error('user insert returned nothing')
+      const [plant] = await db
+        .insert(schema.plants)
+        .values({
+          userId: user.id,
+          createdByUserId: user.id,
+          name: 'Monstera',
+          health: 'HEALTHY',
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 1,
+          wateringRating: 3,
+        })
+        .returning()
+      if (!plant) throw new Error('plant insert returned nothing')
+      await db.insert(schema.notifications).values({
+        type: 'watering_reminder',
+        status: 'sent',
+        scheduledAt: new Date(sentAt),
+        sentAt: new Date(sentAt),
+        userId: user.id,
+        plantId: plant.id,
+      })
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          const repo = yield* NotificationRepository
+          return yield* repo.hasNotificationToday(user.id, plant.id, timezone)
+        }).pipe(Effect.provide(DatabaseLive))
+      )
+    }
+
+    it.each([
+      {
+        timezone: 'America/Los_Angeles',
+        clock: '17:30, on a reminder sent at 09:00 the same local day',
+        now: '2026-06-16T00:30:00.000Z',
+        sentAt: '2026-06-15T16:00:00.000Z',
+        expected: true,
+      },
+      {
+        timezone: 'America/Los_Angeles',
+        clock: '09:00, on a reminder sent at 21:00 the evening before',
+        now: '2026-06-15T16:00:00.000Z',
+        sentAt: '2026-06-15T04:00:00.000Z',
+        expected: false,
+      },
+    ])(
+      'answers $expected for a sent reminder in $timezone at $clock',
+      async ({ timezone, now, sentAt, expected }) => {
+        expect(await sentToday(timezone, now, sentAt)).toBe(expected)
+      }
+    )
   }
 )
