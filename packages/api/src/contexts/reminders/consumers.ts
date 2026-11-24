@@ -16,8 +16,8 @@ import {
 } from '@lily/api/kernel/outbox'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { DEFAULT_TIMEZONE } from '@lily/shared'
-import { type Context, Effect, Option } from 'effect'
+import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
+import { type Context, Effect } from 'effect'
 
 export type RemindersConsumerContext = ReplanContext | EventBus
 
@@ -42,10 +42,7 @@ export const acknowledgeCare = ({
     const sentToday = yield* notifications.hasNotificationToday(
       by,
       plantId,
-      Option.getOrElse(
-        Option.fromNullishOr(user.timezone),
-        () => DEFAULT_TIMEZONE
-      )
+      resolveTimezone(user.timezone)
     )
     if (sentToday) {
       yield* eventBus

@@ -9,9 +9,19 @@ import {
   localDayKey,
   nowAsDate,
   pickNotificationTime,
+  startOfLocalDay,
   startOfTodayAsDate,
 } from '@lily/shared'
-import { Array, Config, DateTime, Effect, Option, Order, Random } from 'effect'
+import {
+  Array,
+  Config,
+  DateTime,
+  Effect,
+  Option,
+  Order,
+  pipe,
+  Random,
+} from 'effect'
 import { generateDailyTip } from './generator'
 
 const TIP_DEDUP_DAYS = 3
@@ -84,52 +94,59 @@ export const checkAndGenerateTip = Effect.gen(function* () {
 
   if (!Array.isReadonlyArrayNonEmpty(users)) return
 
-  yield* Effect.log('Sending daily tip notifications', {
-    userCount: Array.length(users),
-  })
-
+  const now = DateTime.nowUnsafe()
   const awaited = Array.map(users, (user) => {
     const timezone = Option.getOrElse(
       Option.fromNullishOr(user.timezone),
       () => DEFAULT_TIMEZONE
     )
-    return { user, timezone, today: startOfTodayAsDate(timezone) }
+    return {
+      user,
+      timezone,
+      today: startOfTodayAsDate(timezone),
+      // A user comes due at their own midnight, so the first run after it
+      // still has both slots of the day ahead. A window counted back from now
+      // would start each cycle later than the last.
+      tipsSince: pipe(
+        startOfLocalDay(
+          localDayKey(now, timezone),
+          timezone,
+          1 - TIP_DEDUP_DAYS
+        ),
+        Option.map(DateTime.toDateUtc),
+        Option.getOrElse(() => daysAgoAsDate(TIP_DEDUP_DAYS))
+      ),
+    }
   })
 
   // One read for every user, whatever their number: the hourly run must not
   // cost a query per user.
   const recent = yield* engagementRepo.getTipFatigueNotifications({
-    tipsSince: daysAgoAsDate(TIP_DEDUP_DAYS),
+    tipsSince: Array.min(
+      Array.map(awaited, ({ tipsSince }) => tipsSince),
+      Order.Date
+    ),
     careRemindersSince: Array.min(
       Array.map(awaited, ({ today }) => today),
       Order.Date
     ),
   })
-  const tippedRecently = new Set(
-    Array.map(
-      Array.filter(recent, (n) => n.kind === 'tip'),
-      (n) => n.userId
-    )
-  )
-  const careRemindersOf = Array.groupBy(
-    Array.filter(recent, (n) => n.kind === 'careReminder'),
-    (n) => n.userId
-  )
+  const recentOf = Array.groupBy(recent, (n) => n.userId)
 
-  // Fatigue prevention: no tip within three days of the last one, and none on
-  // a local day that already has a care reminder.
+  // Fatigue prevention: one tip per three local days, and none on a local day
+  // that already has a care reminder.
   const due = Array.filter(
     awaited,
-    ({ user, today }) =>
-      !tippedRecently.has(user.id) &&
+    ({ user, today, tipsSince }) =>
       !Array.some(
-        Option.getOrElse(
-          Option.fromNullishOr(careRemindersOf[user.id]),
-          () => []
-        ),
-        (n) => n.createdAt >= today
+        Option.getOrElse(Option.fromNullishOr(recentOf[user.id]), () => []),
+        (n) => n.createdAt >= (n.kind === 'tip' ? tipsSince : today)
       )
   )
+
+  yield* Effect.log('Sending daily tip notifications', {
+    userCount: Array.length(due),
+  })
 
   // Create pending notification records with randomized send times
   // within morning/evening windows, respecting DND — same as overdue reminders
@@ -146,6 +163,9 @@ export const checkAndGenerateTip = Effect.gen(function* () {
           user.doNotDisturbEnd,
           randomValue
         )
+        // Both slots are on today's local date. One that has passed would go
+        // out at once, at any hour, so the user waits for a later run.
+        if (scheduledAt <= nowAsDate()) return
 
         const language = Option.getOrElse(
           Option.fromNullishOr(user.language),
@@ -180,7 +200,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   )
 
   yield* Effect.log('Daily tip notifications created', {
-    userCount: Array.length(users),
+    userCount: Array.length(due),
   })
 }).pipe(Effect.withSpan('tips-scheduler.check'))
 
