@@ -33,9 +33,8 @@ export const refusals =
   <R extends Tagged>() =>
   <M extends RefusalTable<R>>(table: M): RefusalMapper<R, M> =>
   <F extends R>(refusal: F) => {
+    const tag: F['_tag'] = refusal._tag
     // TypeScript cannot tie the entry it picks to the tag of `refusal`.
-    const answer = table[refusal._tag as F['_tag']] as unknown as (
-      refusal: F
-    ) => ErrorOf<R, M, F>
+    const answer = table[tag] as unknown as (refusal: F) => ErrorOf<R, M, F>
     return answer(refusal)
   }
