@@ -1,7 +1,7 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { Transaction, transactQuietly } from '@lily/api/kernel/transact'
 import { FollowRepository } from '@lily/api/repositories/follow.repository'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
@@ -15,8 +15,8 @@ import {
   UserNotFoundError,
   UserNotPublicError,
 } from '@lily/shared'
-import type { MessageQueue } from '@lily/shared/server'
-import { Effect, Option, pipe } from 'effect'
+import { MessageQueue } from '@lily/shared/server'
+import { Context, Effect, Option, pipe } from 'effect'
 
 /**
  * The follow and the notification it owes commit together. A follow that
@@ -35,9 +35,12 @@ export const recordFollow = (
     Effect.gen(function* () {
       const follows = yield* FollowRepository
       const transaction = yield* Transaction
-      const context = yield* Effect.context<
-        MessageQueue | NotificationRepository
-      >()
+      // Only these two: the full context holds this transaction's connection,
+      // which is back in the pool by the time the dispatch runs.
+      const dispatchContext = Context.pick(
+        MessageQueue,
+        NotificationRepository
+      )(yield* Effect.context<MessageQueue | NotificationRepository>())
       yield* follows.follow(followerId, followed.id)
       const recorded = yield* recordNotification(
         'new_follower',
@@ -47,7 +50,7 @@ export const recordFollow = (
         { senderId: followerId }
       )
       yield* transaction.afterCommit(
-        Effect.provide(dispatchNow(recorded), context)
+        Effect.provide(dispatchNow(recorded), dispatchContext)
       )
     })
   )
