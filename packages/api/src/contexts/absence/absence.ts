@@ -33,19 +33,17 @@ import {
   type Releasable,
   statusOf,
 } from '@lily/api/contexts/absence/store'
-import type { Outbox } from '@lily/api/kernel/outbox'
+import { eachIsolated, type Tally } from '@lily/api/kernel/each-isolated'
+import { Outbox } from '@lily/api/kernel/outbox'
 import { type RefusalTable, refusals } from '@lily/api/kernel/refusals'
+import { servicesOf } from '@lily/api/kernel/services'
 import {
   commandsOf,
   decision,
   type Decision as KernelDecision,
   type Transaction,
 } from '@lily/api/kernel/transact'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import {
-  eachIsolated,
-  type Tally,
-} from '@lily/api/services/helpers/create-scheduler'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   dispatchAll,
   type RecordedNotification,
@@ -65,7 +63,7 @@ import {
   VacationNotFoundError,
 } from '@lily/shared'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
-import type { MessageQueue } from '@lily/shared/server'
+import { MessageQueue } from '@lily/shared/server'
 import {
   Array,
   Context,
@@ -77,7 +75,7 @@ import {
   pipe,
   Result,
 } from 'effect'
-import type * as SqlClient from 'effect/sql/SqlClient'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type OpenDelegationError =
@@ -357,9 +355,12 @@ export const AbsenceLive = Layer.effect(
   Absence,
   Effect.gen(function* () {
     const store = yield* AbsenceStore
-    const context = yield* Effect.context<
-      Outbox | SqlClient.SqlClient | NotificationRepository | MessageQueue
-    >()
+    const context = yield* servicesOf(
+      Outbox,
+      SqlClient.SqlClient,
+      NotificationRepository,
+      MessageQueue
+    )
 
     const { run, body } = commandsOf(
       {

@@ -20,9 +20,7 @@ import {
   DELEGATION_IN,
   DUE_AT,
   heldVacationOf,
-  movedOnce,
   OPEN_STATUSES,
-  setOnce,
   stampOf,
   statusOf,
   storedVacationOf,
@@ -32,6 +30,7 @@ import {
 } from '@lily/api/contexts/absence/store'
 import { Care, DueMove } from '@lily/api/contexts/care'
 import { Outbox } from '@lily/api/kernel/outbox'
+import { expectWritten } from '@lily/api/kernel/written'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import {
   type OwnerColumns,
@@ -41,6 +40,7 @@ import {
   exceptReminders,
   NotificationRepository,
 } from '@lily/api/repositories/notification.repository'
+import { careDelegations, users } from '@lily/db/schema'
 import { CARE_TYPES, type User, type VacationFields } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
@@ -265,7 +265,7 @@ export const createInMemoryAbsence = (
                 updatedAt: new Date(),
               })
             })
-            return movedOnce(w, moving.length)
+            return expectWritten(careDelegations, w)(moving)
           }),
         MoveDueDaysAfterAbsence: (w) =>
           care.moveDueDays({
@@ -297,7 +297,7 @@ export const createInMemoryAbsence = (
                 ...vacationColumnsOf(w.next),
               }
             })
-            return setOnce(w, holding.length)
+            return expectWritten(users, w)(holding)
           }),
         SweepMuted: (w) =>
           sent.deletePendingByUserIdAndTypes(

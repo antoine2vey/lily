@@ -9,7 +9,7 @@ import {
   calculatePlantAdjustment,
   calculateScheduleDelta,
   type IndoorPlantContext,
-} from '@lily/api/services/weather/algorithm'
+} from '@lily/api/services/weather/algorithm/adjustment'
 import type { WeatherData } from '@lily/shared'
 import { describe, expect, it } from 'vitest'
 

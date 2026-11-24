@@ -1,4 +1,4 @@
-import type { PlantForScheduleDelta } from '@lily/api/services/weather/algorithm'
+import type { PlantForScheduleDelta } from '@lily/api/services/weather/algorithm/adjustment'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherData, WeatherForecast } from '@lily/shared'
 

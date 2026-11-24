@@ -15,12 +15,13 @@ import { seePlantCare } from '@lily/api/contexts/care/plant-care'
 import { lockRowsNamed, pinAccounts } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { Transition, transitionDecided } from '@lily/api/kernel/transition'
+import { expectWritten } from '@lily/api/kernel/written'
 import { careTimezoneSql } from '@lily/api/repositories/helpers/care-timezone'
 import {
   ownerColumns,
   ownerOf,
 } from '@lily/api/repositories/helpers/plant-owner'
-import type { PlantForAdjustment } from '@lily/api/services/weather/algorithm'
+import type { PlantForAdjustment } from '@lily/api/services/weather/algorithm/adjustment'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   canopies,
@@ -44,7 +45,6 @@ import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
-  Data,
   DateTime,
   Effect,
   Layer,
@@ -157,55 +157,7 @@ const toHistory = (
     )
   )
 
-type PlanWrite = Extract<
-  CareWrite,
-  {
-    readonly _tag:
-      | 'CompletePlanStep'
-      | 'ReopenPlanStep'
-      | 'DeletePlanStep'
-      | 'SetPlanStatus'
-      | 'DeletePlan'
-      | 'LinkPlanToDiagnosis'
-  }
->
-
-type PlantLifeWrite = Extract<
-  CareWrite,
-  { readonly _tag: 'BuryPlant' | 'RevivePlant' | 'DeletePlant' }
->
-
-export class PlantRowNotWrittenDefect extends Data.TaggedError(
-  'PlantRowNotWrittenDefect'
-)<{
-  readonly write: PlantLifeWrite
-  readonly written: number
-}> {}
-
-const plantWrittenOnce =
-  (write: PlantLifeWrite) =>
-  (rows: ReadonlyArray<unknown>): Effect.Effect<void> =>
-    rows.length === 1
-      ? Effect.void
-      : Effect.die(
-          new PlantRowNotWrittenDefect({ write, written: rows.length })
-        )
-
 export type PlantRowLock = 'no key update' | 'update'
-
-export class PlanRowNotWrittenDefect extends Data.TaggedError(
-  'PlanRowNotWrittenDefect'
-)<{
-  readonly write: PlanWrite
-  readonly written: number
-}> {}
-
-export const writtenOnce =
-  (write: PlanWrite) =>
-  (rows: ReadonlyArray<unknown>): Effect.Effect<void> =>
-    rows.length === 1
-      ? Effect.void
-      : Effect.die(new PlanRowNotWrittenDefect({ write, written: rows.length }))
 
 type SetPlanStatus = Extract<CareWrite, { readonly _tag: 'SetPlanStatus' }>
 
@@ -394,7 +346,7 @@ export const CareStoreLive = Layer.effect(
                 )
               )
               .returning({ id: carePlanSteps.id }),
-            writtenOnce(w)
+            expectWritten(carePlanSteps, w)
           ),
         ReopenPlanStep: (w) =>
           Effect.flatMap(
@@ -408,7 +360,7 @@ export const CareStoreLive = Layer.effect(
                 )
               )
               .returning({ id: carePlanSteps.id }),
-            writtenOnce(w)
+            expectWritten(carePlanSteps, w)
           ),
         DeletePlanStep: (w) =>
           Effect.flatMap(
@@ -416,7 +368,7 @@ export const CareStoreLive = Layer.effect(
               .delete(carePlanSteps)
               .where(eq(carePlanSteps.id, w.stepId))
               .returning({ id: carePlanSteps.id }),
-            writtenOnce(w)
+            expectWritten(carePlanSteps, w)
           ),
         SetPlanStatus: (w) =>
           Effect.flatMap(
@@ -430,7 +382,7 @@ export const CareStoreLive = Layer.effect(
             }),
             Transition.$match({
               Moved: () => Effect.void,
-              LostRace: () => writtenOnce(w)([]),
+              LostRace: () => expectWritten(carePlans, w)([]),
             })
           ),
         DeletePlan: (w) =>
@@ -439,7 +391,7 @@ export const CareStoreLive = Layer.effect(
               .delete(carePlans)
               .where(eq(carePlans.id, w.planId))
               .returning({ id: carePlans.id }),
-            writtenOnce(w)
+            expectWritten(carePlans, w)
           ),
         InsertPlan: (w) =>
           Effect.gen(function* () {
@@ -471,7 +423,7 @@ export const CareStoreLive = Layer.effect(
               .set({ diagnosisId: w.diagnosisId })
               .where(eq(carePlans.id, w.planId))
               .returning({ id: carePlans.id }),
-            writtenOnce(w)
+            expectWritten(carePlans, w)
           ),
         InsertPlant: (w) =>
           Effect.asVoid(
@@ -504,7 +456,7 @@ export const CareStoreLive = Layer.effect(
               })
               .where(and(eq(plants.id, w.plantId), isNull(plants.diedAt)))
               .returning({ id: plants.id }),
-            plantWrittenOnce(w)
+            expectWritten(plants, w)
           ),
         RevivePlant: (w) =>
           Effect.flatMap(
@@ -513,7 +465,7 @@ export const CareStoreLive = Layer.effect(
               .set({ diedAt: null, deathCause: null, deathNote: null })
               .where(and(eq(plants.id, w.plantId), isNotNull(plants.diedAt)))
               .returning({ id: plants.id }),
-            plantWrittenOnce(w)
+            expectWritten(plants, w)
           ),
         DeletePlant: (w) =>
           Effect.flatMap(
@@ -521,7 +473,7 @@ export const CareStoreLive = Layer.effect(
               .delete(plants)
               .where(eq(plants.id, w.plantId))
               .returning({ id: plants.id }),
-            plantWrittenOnce(w)
+            expectWritten(plants, w)
           ),
       })
 

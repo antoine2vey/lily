@@ -1,7 +1,6 @@
 import type { CapOf } from '@lily/api/contexts/reminders'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import { canopyPlantCapFrom } from '@lily/api/services/subscriptions/canopy-plant-cap'
 import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import type { PlantOwner } from '@lily/shared'
 import { Array, Effect, Filter, Match, Option, pipe, Record } from 'effect'
@@ -73,14 +72,13 @@ export const plantCapsFor = (
         Option.getOrElse(() => freeCap)
       )
     const capOfCanopy = (canopyId: string): number | null =>
-      canopyPlantCapFrom(
-        pipe(
-          Record.get(membersByCanopy, canopyId),
-          Option.getOrElse((): ReadonlyArray<string> => []),
-          Array.map(capOfUser)
-        ),
-        freeCap
+      pipe(
+        Record.get(membersByCanopy, canopyId),
+        Option.getOrElse((): ReadonlyArray<string> => []),
+        Array.some((userId) => capOfUser(userId) === null)
       )
+        ? null
+        : freeCap
 
     return (owner) =>
       Option.fromNullishOr(

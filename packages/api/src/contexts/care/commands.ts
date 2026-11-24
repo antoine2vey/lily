@@ -7,11 +7,12 @@ import type {
 import { CareTopic } from '@lily/api/contexts/care/domain/events'
 import { asError } from '@lily/api/contexts/care/refusals'
 import { CareStore, type PlantRowLock } from '@lily/api/contexts/care/store'
-import type { Outbox } from '@lily/api/kernel/outbox'
+import { Outbox } from '@lily/api/kernel/outbox'
+import { servicesOf } from '@lily/api/kernel/services'
 import { commandsOf, noNotices } from '@lily/api/kernel/transact'
 import type { CareType } from '@lily/shared'
 import { Effect, Option, Predicate, type Result } from 'effect'
-import type * as SqlClient from 'effect/sql/SqlClient'
+import * as SqlClient from 'effect/sql/SqlClient'
 
 /**
  * What the plant row is held with: a row lock alone, or the default lock and
@@ -26,7 +27,7 @@ const NO_ACCOUNT_HELD: AccountsHeld = new Set()
 /** How the three Care services run a command, over the one `CareStore`. */
 export const careCommands = Effect.gen(function* () {
   const store = yield* CareStore
-  const context = yield* Effect.context<Outbox | SqlClient.SqlClient>()
+  const context = yield* servicesOf(Outbox, SqlClient.SqlClient)
   const { run } = commandsOf(
     { topic: CareTopic, apply: store.apply, notices: noNotices, asError },
     context

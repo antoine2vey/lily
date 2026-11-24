@@ -16,7 +16,7 @@ import {
 import {
   calculatePlantAdjustment,
   type PlantForAdjustment,
-} from '@lily/api/services/weather/algorithm'
+} from '@lily/api/services/weather/algorithm/adjustment'
 import { describe, expect, it } from 'vitest'
 
 // Standard indoor plant for testing

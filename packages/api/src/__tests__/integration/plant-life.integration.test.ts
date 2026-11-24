@@ -529,9 +529,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await applied(CareWrite.DeletePlant({ plantId: crypto.randomUUID() })),
       ]
 
-      expect(Array.map(exits, (exit) => String(defectOf(exit)))).toEqual(
-        Array.replicate('PlantRowNotWrittenDefect', 3)
-      )
+      expect(Array.map(exits, (exit) => String(defectOf(exit)))).toEqual([
+        'RowsNotWrittenDefect: BuryPlant wrote 0 of 1 rows of plants',
+        'RowsNotWrittenDefect: RevivePlant wrote 0 of 1 rows of plants',
+        'RowsNotWrittenDefect: DeletePlant wrote 0 of 1 rows of plants',
+      ])
       const [stillDead] = await db
         .select({ cause: schema.plants.deathCause })
         .from(schema.plants)

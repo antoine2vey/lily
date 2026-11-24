@@ -3,10 +3,18 @@ import {
   mockPublicUrl,
 } from '@lily/api/__tests__/mocks/gcs.service'
 import {
+  createMockSqlClient,
+  MockTransactionConnection,
+} from '@lily/api/__tests__/mocks/sql-client'
+import { createMockStoredRefRepository } from '@lily/api/__tests__/mocks/stored-ref.repository'
+import { transactQuietly } from '@lily/api/kernel/transact'
+import {
   Holder,
   releaseObjects,
+  releasing,
 } from '@lily/api/services/helpers/release-objects'
-import { Effect, Logger, References } from 'effect'
+import { GCSService } from '@lily/shared/services/file/gcs'
+import { Effect, Layer, Logger, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const FERN = '0b7e5a52-3c8f-4d0e-9a51-6f2d1c4b8e90'
@@ -73,6 +81,53 @@ describe('releaseObjects', () => {
       plant: [],
       ai: [],
       warnings: [],
+    })
+  })
+})
+
+describe('releasing', () => {
+  it('deletes after the commit without the connection the transaction gave back', async () => {
+    const gcs = createInMemoryGCS()
+    gcs.objects.plant.add(PHOTO)
+    const connectionAtDelete: boolean[] = []
+
+    await Effect.runPromise(
+      transactQuietly(
+        releasing(
+          Effect.succeed([
+            {
+              holder: Holder.Plant({ plantId: FERN }),
+              ref: mockPublicUrl(PHOTO),
+            },
+          ]),
+          Effect.void
+        )
+      ).pipe(
+        Effect.updateService(GCSService, (service) => ({
+          ...service,
+          deleteObjects: (objects) =>
+            Effect.serviceOption(MockTransactionConnection).pipe(
+              Effect.tap((connection) =>
+                Effect.sync(() => {
+                  connectionAtDelete.push(Option.isSome(connection))
+                })
+              ),
+              Effect.andThen(service.deleteObjects(objects))
+            ),
+        })),
+        Effect.provide(
+          Layer.mergeAll(
+            gcs.layer,
+            createMockSqlClient(),
+            createMockStoredRefRepository()
+          )
+        )
+      )
+    )
+
+    expect({ connectionAtDelete, plant: [...gcs.objects.plant] }).toEqual({
+      connectionAtDelete: [false],
+      plant: [],
     })
   })
 })

@@ -33,12 +33,11 @@ import {
   InvitationScope,
   lockPlan,
   PlantScope,
-  PlantsNotMovedDefect,
   RoomScope,
-  RowsNotWrittenDefect,
 } from '@lily/api/contexts/canopy/store'
 import { Actor } from '@lily/api/kernel/permit'
 import type { Transaction } from '@lily/api/kernel/transact'
+import { RowsNotWrittenDefect } from '@lily/api/kernel/written'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   AlreadyInCanopyError,
@@ -1188,24 +1187,29 @@ describe('Canopy', () => {
       expect(world.plans).toEqual([])
     })
 
-    it('dies with PlantsNotMovedDefect when a move changes fewer plants than it names', async () => {
+    it('dies with RowsNotWrittenDefect when a move changes fewer plants than it names', async () => {
       const { world } = garden()
+      const move = CanopyWrite.MovePlants({
+        plantIds: ['cactus', 'fern'],
+        from: ofHome,
+        to: ofLily,
+        room: RoomMove.Clear(),
+      })
 
       const exit = await Effect.runPromiseExit(
-        Effect.flatMap(CanopyStore, (store) =>
-          store.apply([
-            CanopyWrite.MovePlants({
-              plantIds: ['cactus', 'fern'],
-              from: ofHome,
-              to: ofLily,
-              room: RoomMove.Clear(),
-            }),
-          ])
-        ).pipe(transactInMemory, Effect.provide(world.storeLayer))
+        Effect.flatMap(CanopyStore, (store) => store.apply([move])).pipe(
+          transactInMemory,
+          Effect.provide(world.storeLayer)
+        )
       )
 
       expect(defectOf(exit)).toEqual(
-        new PlantsNotMovedDefect({ plantIds: ['cactus', 'fern'], moved: 1 })
+        new RowsNotWrittenDefect({
+          table: 'plants',
+          write: move,
+          expected: 2,
+          written: 1,
+        })
       )
     })
   })
@@ -1724,12 +1728,12 @@ describe('Canopy', () => {
       [
         'RemoveMember',
         CanopyWrite.RemoveMember({ canopyId: mockCanopyId, userId: 'sam' }),
-        { named: 1, written: 0 },
+        { table: 'canopy_members', expected: 1, written: 0 },
       ],
       [
         'SetOwner',
         CanopyWrite.SetOwner({ canopyId: otherCanopyId, userId: 'lily' }),
-        { named: 1, written: 0 },
+        { table: 'canopy_members', expected: 1, written: 0 },
       ],
       [
         'MoveRooms',
@@ -1738,22 +1742,22 @@ describe('Canopy', () => {
           canopyId: mockCanopyId,
           toUserId: 'alex',
         }),
-        { named: 2, written: 1 },
+        { table: 'rooms', expected: 2, written: 1 },
       ],
     ] as const)(
       'dies with RowsNotWrittenDefect when %s changes another number of rows than it names',
-      async (write, named, counts) => {
+      async (_name, write, { table, expected, written }) => {
         const world = household()
 
         const exit = await Effect.runPromiseExit(
-          Effect.flatMap(CanopyStore, (store) => store.apply([named])).pipe(
+          Effect.flatMap(CanopyStore, (store) => store.apply([write])).pipe(
             transactInMemory,
             Effect.provide(world.storeLayer)
           )
         )
 
         expect(defectOf(exit)).toEqual(
-          new RowsNotWrittenDefect({ write, ...counts })
+          new RowsNotWrittenDefect({ table, write, expected, written })
         )
       }
     )

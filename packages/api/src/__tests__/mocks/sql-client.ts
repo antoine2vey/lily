@@ -1,5 +1,6 @@
 import { Effect, Exit, Layer } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
+import type * as Connection from 'effect/sql/SqlConnection'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 
 export type TransactionEvent = 'begin' | 'commit' | 'rollback'
@@ -20,6 +21,14 @@ const unanswered = new SqlError({
   }),
 })
 
+/**
+ * The connection the mock provides inside a transaction, under the key a real
+ * client uses, so a test can see which effects still hold it.
+ */
+export const MockTransactionConnection = SqlClient.TransactionConnection(-1)
+
+const transactionConnection = {} as Connection.Connection
+
 export const createMockSqlClient = (
   options: MockSqlClientOptions = {}
 ): Layer.Layer<SqlClient.SqlClient> => {
@@ -30,6 +39,7 @@ export const createMockSqlClient = (
     })
   const client = Object.assign(() => Effect.succeed([]), {
     join: () => () => [],
+    transactionService: MockTransactionConnection,
     withTransaction: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
       signalOutermost('begin').pipe(
         Effect.andThen(
@@ -37,7 +47,15 @@ export const createMockSqlClient = (
             depth++
           })
         ),
-        Effect.andThen(effect),
+        Effect.andThen(
+          Effect.withSpan(
+            Effect.provideService(effect, MockTransactionConnection, [
+              transactionConnection,
+              depth,
+            ]),
+            'sql.transaction'
+          )
+        ),
         Effect.onExit((exit) =>
           Effect.sync(() => {
             depth--

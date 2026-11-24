@@ -10,7 +10,7 @@ import type { UserRepository } from '@lily/api/repositories/user.repository'
 import {
   calculateScheduleDelta,
   toIndoorPlantContext,
-} from '@lily/api/services/weather/algorithm'
+} from '@lily/api/services/weather/algorithm/adjustment'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import { CanopyId, type PlantOwner, roundCoord } from '@lily/shared'
 import {

@@ -1,9 +1,10 @@
 import { CareStore, type WeatherProfile } from '@lily/api/contexts/care/store'
-import type { WeatherRepository } from '@lily/api/repositories/weather.repository'
-import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
-import type { WeatherCache } from '@lily/api/services/weather/cache'
+import { servicesOf } from '@lily/api/kernel/services'
+import { WeatherRepository } from '@lily/api/repositories/weather.repository'
+import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm/adjustment'
+import { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import type { WeatherProvider } from '@lily/api/services/weather/provider'
+import { WeatherProvider } from '@lily/api/services/weather/provider'
 import { roundCoord } from '@lily/shared'
 import { Array, Context, Effect, Layer, Option } from 'effect'
 
@@ -37,9 +38,11 @@ export const WeatherAdvisorLive = Layer.effect(
   WeatherAdvisor,
   Effect.gen(function* () {
     const store = yield* CareStore
-    const context = yield* Effect.context<
-      WeatherProvider | WeatherCache | WeatherRepository
-    >()
+    const context = yield* servicesOf(
+      WeatherProvider,
+      WeatherCache,
+      WeatherRepository
+    )
     return WeatherAdvisor.of({
       wateringDays: (plantIds) =>
         store.weatherProfiles(plantIds).pipe(

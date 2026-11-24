@@ -39,13 +39,14 @@ import {
 import { Outbox } from '@lily/api/kernel/outbox'
 import { Actor, type PlantPermit } from '@lily/api/kernel/permit'
 import { type RefusalTable, refusals } from '@lily/api/kernel/refusals'
+import { servicesOf } from '@lily/api/kernel/services'
 import {
   commandsOf,
   type Transaction,
   transact,
 } from '@lily/api/kernel/transact'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   dispatchAll,
   recordNotification,
@@ -73,7 +74,7 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import type { MessageQueue } from '@lily/shared/server'
+import { MessageQueue } from '@lily/shared/server'
 import {
   Array,
   Context,
@@ -372,9 +373,12 @@ export const CanopyLive = Layer.effect(
     const store = yield* CanopyStore
     const delegations = yield* DelegationRepository
     const limits = yield* LimitChecker
-    const context = yield* Effect.context<
-      Outbox | SqlClient.SqlClient | NotificationRepository | MessageQueue
-    >()
+    const context = yield* servicesOf(
+      Outbox,
+      SqlClient.SqlClient,
+      NotificationRepository,
+      MessageQueue
+    )
     const sql = yield* SqlClient.SqlClient
     const outbox = yield* Outbox
 

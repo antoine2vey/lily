@@ -23,7 +23,6 @@ import {
   AbsenceStore,
   AbsenceStoreLive,
   storedVacationOf,
-  VacationNotSetDefect,
 } from '@lily/api/contexts/absence/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -160,14 +159,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
-      expect(defectOf(activated)).toEqual(
-        new VacationNotSetDefect({
-          userId,
-          expected: 'scheduled',
-          next: 'Active',
-          set: 0,
-        })
-      )
+      expect(defectOf(activated)).toMatchObject({
+        _tag: 'RowsNotWrittenDefect',
+        table: 'users',
+        write: {
+          _tag: 'SetVacation',
+          userId: userId,
+          expected: { status: 'scheduled' },
+          next: { _tag: 'Active' },
+        },
+        expected: 1,
+        written: 0,
+      })
       expect(await currentVacation()).toEqual({
         vacationStatus: 'none',
         vacationStart: null,
@@ -197,14 +200,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
-      expect(defectOf(ended)).toEqual(
-        new VacationNotSetDefect({
-          userId,
-          expected: 'active',
-          next: 'None',
-          set: 0,
-        })
-      )
+      expect(defectOf(ended)).toMatchObject({
+        _tag: 'RowsNotWrittenDefect',
+        table: 'users',
+        write: {
+          _tag: 'SetVacation',
+          userId: userId,
+          expected: { status: 'active' },
+          next: { _tag: 'None' },
+        },
+        expected: 1,
+        written: 0,
+      })
       const current = await currentVacation()
       expect(current?.vacationStatus).toBe('active')
       expect(current?.vacationEnd).toEqual(extendedEnd)
@@ -239,14 +246,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
-      expect(defectOf(started)).toEqual(
-        new VacationNotSetDefect({
-          userId,
-          expected: 'scheduled',
-          next: 'Active',
-          set: 0,
-        })
-      )
+      expect(defectOf(started)).toMatchObject({
+        _tag: 'RowsNotWrittenDefect',
+        table: 'users',
+        write: {
+          _tag: 'SetVacation',
+          userId: userId,
+          expected: { status: 'scheduled' },
+          next: { _tag: 'Active' },
+        },
+        expected: 1,
+        written: 0,
+      })
       expect(await currentVacation()).toEqual({
         vacationStatus: 'scheduled',
         vacationStart: laterStart,
@@ -276,14 +287,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
-      expect(defectOf(calledOff)).toEqual(
-        new VacationNotSetDefect({
-          userId,
-          expected: 'scheduled',
-          next: 'None',
-          set: 0,
-        })
-      )
+      expect(defectOf(calledOff)).toMatchObject({
+        _tag: 'RowsNotWrittenDefect',
+        table: 'users',
+        write: {
+          _tag: 'SetVacation',
+          userId: userId,
+          expected: { status: 'scheduled' },
+          next: { _tag: 'None' },
+        },
+        expected: 1,
+        written: 0,
+      })
       expect(await currentVacation()).toEqual({
         vacationStatus: 'active',
         vacationStart: start,

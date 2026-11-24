@@ -5,7 +5,7 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import {
   calculatePlantAdjustment,
   toIndoorPlantContext,
-} from '@lily/api/services/weather/algorithm'
+} from '@lily/api/services/weather/algorithm/adjustment'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { userWeatherPlace } from '@lily/api/services/weather/endpoints/get-weather'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'

@@ -203,15 +203,12 @@ export const releasing = <A, E, R>(
     const refs = yield* StoredRefRepository
     const transaction = yield* Transaction
     const gcs = yield* GCSService
-    const storage = yield* Effect.context<GCSService>()
     const dropped = yield* held
     const result = yield* write
     const kept = yield* refs.stillHeld(
       Array.flatMap(dropped, releasable(gcs.readRef))
     )
-    yield* transaction.afterCommit(
-      Effect.provide(releaseObjects({ scopes, dropped, kept }), storage)
-    )
+    yield* transaction.afterCommit(releaseObjects({ scopes, dropped, kept }))
     return result
   })
 

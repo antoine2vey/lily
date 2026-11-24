@@ -30,9 +30,7 @@ import {
   type LockPlan,
   lockPlan,
   PlantScope,
-  PlantsNotMovedDefect,
   RoomScope,
-  RowsNotWrittenDefect,
 } from '@lily/api/contexts/canopy/store'
 import {
   Care,
@@ -44,6 +42,7 @@ import {
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { Actor } from '@lily/api/kernel/permit'
 import { type Transaction, transact } from '@lily/api/kernel/transact'
+import { RowsNotWrittenDefect } from '@lily/api/kernel/written'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
@@ -1832,28 +1831,27 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(await canBeDeleted()).toBe(true)
       })
 
-      it('dies with PlantsNotMovedDefect and moves nothing when a move names a plant its old owner does not hold', async () => {
+      it('dies with RowsNotWrittenDefect and moves nothing when a move names a plant its old owner does not hold', async () => {
         const mine = await plantOf({ userId: alexId, createdByUserId: alexId })
         const shared = await plantOf({ canopyId, createdByUserId: alexId })
-        const plantIds = [mine, shared] as const
+        const move = CanopyWrite.MovePlants({
+          plantIds: [mine, shared],
+          from: { _tag: 'Canopy', canopyId },
+          to: { _tag: 'User', userId: lilyId },
+          room: RoomMove.Clear(),
+        })
 
         const exit = await exitOf(
-          transact(
-            Effect.flatMap(CanopyStore, (store) =>
-              store.apply([
-                CanopyWrite.MovePlants({
-                  plantIds,
-                  from: { _tag: 'Canopy', canopyId },
-                  to: { _tag: 'User', userId: lilyId },
-                  room: RoomMove.Clear(),
-                }),
-              ])
-            )
-          )
+          transact(Effect.flatMap(CanopyStore, (store) => store.apply([move])))
         )
 
         expect(defectOf(exit)).toEqual(
-          new PlantsNotMovedDefect({ plantIds, moved: 1 })
+          new RowsNotWrittenDefect({
+            table: 'plants',
+            write: move,
+            expected: 2,
+            written: 1,
+          })
         )
         expect(await whereIs(shared)).toMatchObject({ userId: null, canopyId })
       })
@@ -2146,30 +2144,30 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       it.each<
         readonly [
-          RowsNotWrittenDefect['write'],
+          string,
           (rooms: readonly [string, string]) => CanopyWrite,
           number,
         ]
       >([
         [
-          'RemoveMember',
+          'canopy_members',
           () => CanopyWrite.RemoveMember({ canopyId, userId: samId }),
           1,
         ],
         [
-          'SetOwner',
+          'canopy_members',
           () => CanopyWrite.SetOwner({ canopyId, userId: samId }),
           1,
         ],
         [
-          'MoveRooms',
+          'rooms',
           (roomIds) =>
             CanopyWrite.MoveRooms({ roomIds, canopyId, toUserId: alexId }),
           2,
         ],
       ])(
-        'dies with RowsNotWrittenDefect and writes nothing when %s names a row the canopy does not have',
-        async (write, writeOf, named) => {
+        'dies with RowsNotWrittenDefect and writes nothing when a write of %s names a row the canopy does not have',
+        async (table, writeOf, expected) => {
           const cabinId = await canopyOf(samId, 'Cabin')
           const kitchenId = await roomOf({ canopyId })
           const roomIds = [
@@ -2177,19 +2175,26 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             await roomOf({ canopyId: cabinId }),
           ] as const
 
+          const write = writeOf(roomIds)
+
           const exit = await exitOf(
             transact(
               Effect.flatMap(CanopyStore, (store) =>
                 store.apply([
                   CanopyWrite.RemoveMember({ canopyId, userId: lilyId }),
-                  writeOf(roomIds),
+                  write,
                 ])
               )
             )
           )
 
           expect(defectOf(exit)).toEqual(
-            new RowsNotWrittenDefect({ write, named, written: named - 1 })
+            new RowsNotWrittenDefect({
+              table,
+              write,
+              expected,
+              written: expected - 1,
+            })
           )
           expect({
             lily: await membershipsOf(lilyId),
