@@ -18,8 +18,6 @@ export const createMockProcessedChunkRepository = (data: {
 
     countBySource: Effect.sync(() => data.sourceBreakdown ?? []),
 
-    countByJobId: () => Effect.succeed(data.insertedChunks.length),
-
     findUnembedded: (limit) =>
       Effect.sync(() =>
         pipe(

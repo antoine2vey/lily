@@ -33,20 +33,6 @@ export const formatDayOfWeek = (
   toNativeDate(dateTime).toLocaleDateString(locale, { weekday: 'long' })
 
 /**
- * Format date as short day of week (e.g., "Mon").
- * Uses user's locale for localized day names.
- *
- * @param dateTime - DateTime to format
- * @param locale - Optional locale (e.g., 'fr', 'en-US')
- * @returns Short day name in user's locale
- */
-export const formatDayOfWeekShort = (
-  dateTime: DateTime.DateTime,
-  locale?: Intl.LocalesArgument
-): string =>
-  toNativeDate(dateTime).toLocaleDateString(locale, { weekday: 'short' })
-
-/**
  * Anchor a plain YYYY-MM-DD date key at noon UTC.
  *
  * Backend day keys carry no time. Anchoring at noon (not midnight) means that
@@ -416,32 +402,6 @@ export const formatApiDateAsNextDate = (
   dateInput: DateInput,
   defaultValue = 'Not set'
 ): string => formatApiDateWith(formatNextDate, defaultValue)(dateInput)
-
-export const getCurrentHour = (): number => {
-  const current = DateTime.nowUnsafe()
-  return DateTime.toParts(current).hour
-}
-
-/**
- * Get time-based greeting based on current hour.
- *
- * @returns "Good morning", "Good afternoon", or "Good evening"
- */
-export const getTimeBasedGreeting = (): string => {
-  const hour = getCurrentHour()
-  return pipe(
-    Match.value(hour),
-    Match.when(
-      (h) => h < 12,
-      () => 'Good morning'
-    ),
-    Match.when(
-      (h) => h < 17,
-      () => 'Good afternoon'
-    ),
-    Match.orElse(() => 'Good evening')
-  )
-}
 
 /**
  * Get date group label for grouping items (e.g., "Today", "Yesterday", "Monday, Jan 15").

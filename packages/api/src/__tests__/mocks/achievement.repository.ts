@@ -41,14 +41,6 @@ export const createMockAchievementRepository = (
         )
       ),
 
-    hasAchievement: (userId: string, key: AchievementKey) =>
-      Effect.succeed(
-        Array.some(
-          unlockedAchievements,
-          (a) => a.userId === userId && a.achievement === key
-        )
-      ),
-
     unlock: (userId: string, key: AchievementKey) => {
       const existingOption = Array.findFirst(
         unlockedAchievements,

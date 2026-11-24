@@ -57,22 +57,6 @@ export const createMockBlogPostRepository = (
         updatedAt: new Date(),
       }),
 
-    findBySlug: (slug: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(data, (p) => p.slug === slug),
-          Option.getOrNull
-        )
-      ),
-
-    findById: (id: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(data, (p) => p.id === id),
-          Option.getOrNull
-        )
-      ),
-
     findAllSlugs: Effect.sync(() => Array.map(data, (p) => p.slug)),
 
     findRecentCategories: (limit: number) =>

@@ -14,5 +14,3 @@ export const AnalyticsFilters = Schema.Struct({
   to: Schema.optional(Schema.String),
 })
 export type AnalyticsFilters = typeof AnalyticsFilters.Type
-
-export const ANALYTICS_TZ = 'UTC'

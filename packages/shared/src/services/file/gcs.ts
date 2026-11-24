@@ -54,8 +54,6 @@ export const GCSCredentialsSchema = Schema.Struct({
   universe_domain: Schema.optional(Schema.String),
 })
 
-export type GCSCredentials = Schema.Schema.Type<typeof GCSCredentialsSchema>
-
 export const GCSConfigSchema = Schema.Struct({
   projectId: Schema.String,
   credentials: GCSCredentialsSchema,

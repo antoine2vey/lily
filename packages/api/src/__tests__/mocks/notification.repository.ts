@@ -465,14 +465,6 @@ export const createMockNotificationRepository = (
     hasNotificationToday: (_userId: string, _plantId: string) =>
       Effect.succeed(false),
 
-    findPendingByUserId: (userId: string) =>
-      Effect.succeed(
-        Array.filter(
-          notificationsState,
-          (n) => n.userId === userId && n.status === 'pending'
-        )
-      ),
-
     markManyAsSent: (rows) =>
       Effect.sync(() => {
         Array.forEach(rows, ({ id, title, body }) => {

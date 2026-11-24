@@ -1,8 +1,4 @@
-import {
-  KnowledgeDrizzle,
-  processedChunks,
-  rawDocuments,
-} from '@lily/knowledge-db'
+import { KnowledgeDrizzle, processedChunks } from '@lily/knowledge-db'
 import type { ChunkSearchResult, ContentCategory } from '@lily/shared/knowledge'
 import { count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
@@ -43,7 +39,6 @@ export interface IProcessedChunkRepository {
     { source: string; count: number }[],
     SqlError
   >
-  readonly countByJobId: (jobId: string) => Effect.Effect<number, SqlError>
   /**
    * Up to `limit` chunks that should have an embedding and have none. A
    * parent chunk has none on purpose and is left out: a parent is a chunk
@@ -190,26 +185,6 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
           .from(processedChunks)
           .groupBy(processedChunks.source)
       ).pipe(Effect.withSpan('ProcessedChunkRepository.countBySource')),
-
-      countByJobId: (jobId: string) =>
-        db
-          .select({ value: count() })
-          .from(processedChunks)
-          .innerJoin(
-            rawDocuments,
-            eq(processedChunks.documentId, rawDocuments.id)
-          )
-          .where(eq(rawDocuments.ingestJobId, jobId))
-          .pipe(
-            Effect.map((result) =>
-              pipe(
-                Array.head(result),
-                Option.map((r) => r.value),
-                Option.getOrElse(() => 0)
-              )
-            ),
-            Effect.withSpan('ProcessedChunkRepository.countByJobId')
-          ),
 
       findUnembedded: Effect.fn('ProcessedChunkRepository.findUnembedded')(
         function* (limit: number) {

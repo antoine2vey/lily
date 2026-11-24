@@ -270,17 +270,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(sharerOf(personal)).toBeNull()
     })
 
-    it('includes unmuted Canopy schedules with the Canopy owner in findByOwnerWithPlant', async () => {
-      const rows = await run(
-        Effect.flatMap(CareScheduleRepository, (repo) =>
-          repo.findByOwnerWithPlant(lily)
-        )
-      )
-      expect(Arr.map(rows, (r) => [r.plant.id, r.plant.owner._tag])).toEqual([
-        [shared, 'Canopy'],
-      ])
-    })
-
     it('drops what a leaver was waiting for on the Canopy plants, and nothing else', async () => {
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`

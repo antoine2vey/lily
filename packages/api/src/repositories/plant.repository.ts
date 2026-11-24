@@ -18,7 +18,6 @@ import {
 import {
   type CanopyOwner,
   ownedBy,
-  ownerColumns,
   type UserOwner,
   type WithOwner,
   withCanopyOwner,
@@ -48,7 +47,6 @@ import {
   type Orientation,
   type PaginatedResponse,
   type PlantCreator,
-  type PlantDeathCause,
   type PlantFilter,
   type PlantHealthStatus,
   type PlantOwner,
@@ -64,8 +62,6 @@ import {
   eq,
   inArray,
   isNotNull,
-  isNull,
-  lt,
   max,
   sql,
 } from 'drizzle-orm'

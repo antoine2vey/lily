@@ -19,7 +19,6 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { Dirty, replan } from '@lily/api/contexts/reminders'
 import type { CareReminderType } from '@lily/api/contexts/reminders/domain/plan'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { CareDays, type CareType, type PlantOwner } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
@@ -87,6 +86,9 @@ const replanPlant = (params: {
   )
 }
 
+const pendingFor = (rows: ReadonlyArray<Notification>, userId: string) =>
+  Array.filter(rows, (n) => n.userId === userId && n.status === 'pending')
+
 const createFutureDate = (daysFromNow: number, hours = 12): Date => {
   const date = new Date()
   date.setDate(date.getDate() + daysFromNow)
@@ -104,16 +106,16 @@ const runAndGetPendingNotifications = (
   }
 ) => {
   const allUsers = [user, ...(options?.extraUsers ?? [])]
+  const rows: Notification[] = []
   return Effect.runPromise(
     Effect.gen(function* () {
       yield* replanPlant(params)
-      const repo = yield* NotificationRepository
-      return yield* repo.findPendingByUserId(user.id)
+      return pendingFor(rows, user.id)
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
           MockSqlClientLive,
-          createMockNotificationRepository([]),
+          createMockNotificationRepository(rows),
           createMockUserRepository(allUsers),
           createMockCanopyRepository(),
           createMockDelegationRepository({
@@ -332,6 +334,7 @@ describe('replanning one plant', () => {
         doNotDisturbEnd: '25:99',
       })
 
+      const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* replanPlant({
@@ -339,13 +342,12 @@ describe('replanning one plant', () => {
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
           })
-          const repo = yield* NotificationRepository
-          return yield* repo.findPendingByUserId(user.id)
+          return pendingFor(rows, user.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository([]),
+              createMockNotificationRepository(rows),
               createMockUserRepository([user]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -503,6 +505,7 @@ describe('replanning one plant', () => {
 
       const delegation = createActiveDelegation(owner.id, caretaker.id)
 
+      const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* replanPlant({
@@ -510,13 +513,12 @@ describe('replanning one plant', () => {
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
           })
-          const repo = yield* NotificationRepository
-          return yield* repo.findPendingByUserId(caretaker.id)
+          return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository([]),
+              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -594,6 +596,7 @@ describe('replanning one plant', () => {
 
       const delegation = createActiveDelegation(owner.id, caretaker.id)
 
+      const rows: Notification[] = []
       const ownerPending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* replanPlant({
@@ -601,13 +604,12 @@ describe('replanning one plant', () => {
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
           })
-          const repo = yield* NotificationRepository
-          return yield* repo.findPendingByUserId(owner.id)
+          return pendingFor(rows, owner.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository([]),
+              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -646,6 +648,7 @@ describe('replanning one plant', () => {
 
       const delegation = createActiveDelegation(owner.id, caretaker.id)
 
+      const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* replanPlant({
@@ -653,13 +656,12 @@ describe('replanning one plant', () => {
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
           })
-          const repo = yield* NotificationRepository
-          return yield* repo.findPendingByUserId(caretaker.id)
+          return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository([]),
+              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -695,6 +697,7 @@ describe('replanning one plant', () => {
 
       const delegation = createActiveDelegation(owner.id, caretaker.id)
 
+      const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* replanPlant({
@@ -702,13 +705,12 @@ describe('replanning one plant', () => {
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
           })
-          const repo = yield* NotificationRepository
-          return yield* repo.findPendingByUserId(caretaker.id)
+          return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository([]),
+              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -828,6 +830,7 @@ describe('replanning one plant', () => {
       })
       const delegation = createActiveDelegation(owner.id, caretaker.id)
 
+      const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* replanPlant({
@@ -835,13 +838,12 @@ describe('replanning one plant', () => {
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
           })
-          const repo = yield* NotificationRepository
-          return yield* repo.findPendingByUserId(caretaker.id)
+          return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository([]),
+              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -872,6 +874,7 @@ describe('replanning one plant', () => {
       })
       const delegation = createActiveDelegation(owner.id, caretaker.id)
 
+      const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
           yield* replanPlant({
@@ -879,13 +882,12 @@ describe('replanning one plant', () => {
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
           })
-          const repo = yield* NotificationRepository
-          return yield* repo.findPendingByUserId(caretaker.id)
+          return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository([]),
+              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({

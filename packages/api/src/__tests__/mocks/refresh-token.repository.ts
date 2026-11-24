@@ -31,14 +31,6 @@ export const createMockRefreshTokenRepository = (
         return newToken
       }),
 
-    findByTokenHash: (tokenHash: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(tokenStore, (t) => t.tokenHash === tokenHash),
-          Option.getOrNull
-        )
-      ),
-
     findValidByTokenHash: (tokenHash: string, rotationGraceMs = 0) =>
       Effect.succeed(
         pipe(

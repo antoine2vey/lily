@@ -58,6 +58,5 @@ export const backfillEmbeddings = Effect.gen(function* () {
 export const startEmbeddingBackfillScheduler = createDrainableScheduler({
   name: 'knowledge-embedding-backfill',
   interval: '10 minutes',
-  runOnStartup: false,
   task: backfillEmbeddings,
 })

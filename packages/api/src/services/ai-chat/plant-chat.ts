@@ -245,27 +245,3 @@ const buildPlantContext = (
 
     return { systemPrompt, tools }
   })
-
-/**
- * @deprecated Prefer `chatStream(conversation, ...)`. Retained for the
- * legacy `/plants/:plantId/chat/stream` compatibility shim.
- */
-export const plantChat = (
-  plantId: string,
-  messages: UIMessage[],
-  imageOptions?: PlantChatImageOptions
-) =>
-  chatStream(
-    {
-      // Synthetic conversation row used only for dispatch; persistence
-      // routes through a real conversation resolved at the handler layer.
-      id: 'legacy-plant',
-      userId: 'legacy',
-      kind: 'plant',
-      plantId,
-      createdAt: new Date(0),
-      lastMessageAt: new Date(0),
-    },
-    messages,
-    imageOptions
-  )

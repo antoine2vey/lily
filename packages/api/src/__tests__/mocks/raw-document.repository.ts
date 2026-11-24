@@ -47,13 +47,6 @@ export const createMockRawDocumentRepository = (data: {
           Option.getOrNull
         )
       ),
-
-    countByJobId: (jobId: string) =>
-      Effect.succeed(
-        Array.length(
-          Array.filter(data.documents, (d) => d.ingestJobId === jobId)
-        )
-      ),
   }
 
   return Layer.succeed(RawDocumentRepository, repo)

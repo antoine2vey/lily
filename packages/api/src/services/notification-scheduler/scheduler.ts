@@ -274,6 +274,5 @@ export const pollAndEnqueue = Effect.gen(function* () {
 export const startNotificationScheduler = createDrainableScheduler({
   name: 'notification-scheduler',
   interval: '1 minute',
-  runOnStartup: false,
   task: pollAndEnqueue,
 })

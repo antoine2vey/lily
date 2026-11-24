@@ -205,7 +205,6 @@ describe('scheduler loops keep their v3 cadence', () => {
           createDrainableScheduler({
             name: 'test-drainable',
             interval: '1 minute',
-            runOnStartup: false,
             task: Clock.currentTimeMillis.pipe(
               Effect.map((t) => {
                 times.push(t)

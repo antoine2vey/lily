@@ -4,25 +4,9 @@ import type { PlantOwner } from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export interface CareContext {
-  readonly timezone: string
-  readonly weather: {
-    readonly enabled: boolean
-    readonly latitude: number | null
-    readonly longitude: number | null
-  }
-}
-
-const noWeather = { enabled: false, latitude: null, longitude: null } as const
-
-export const DEFAULT_CARE_CONTEXT: CareContext = {
-  timezone: 'UTC',
-  weather: noWeather,
-}
-
-export const careContext = (
+const careTimezone = (
   owner: PlantOwner
-): Effect.Effect<CareContext, SqlError, UserRepository | CanopyRepository> =>
+): Effect.Effect<string, SqlError, UserRepository | CanopyRepository> =>
   pipe(
     Match.value(owner),
     Match.tag('User', ({ userId }) =>
@@ -31,20 +15,8 @@ export const careContext = (
         (user) =>
           pipe(
             Option.fromNullishOr(user),
-            Option.match({
-              onNone: () => DEFAULT_CARE_CONTEXT,
-              onSome: (u): CareContext => ({
-                timezone: pipe(
-                  Option.fromNullishOr(u.timezone),
-                  Option.getOrElse(() => 'UTC')
-                ),
-                weather: {
-                  enabled: u.weatherEnabled === true,
-                  latitude: u.latitude,
-                  longitude: u.longitude,
-                },
-              }),
-            })
+            Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
+            Option.getOrElse(() => 'UTC')
           )
       )
     ),
@@ -54,17 +26,8 @@ export const careContext = (
         (canopy) =>
           pipe(
             Option.fromNullishOr(canopy),
-            Option.match({
-              onNone: () => DEFAULT_CARE_CONTEXT,
-              onSome: (c): CareContext => ({
-                timezone: c.timezone,
-                weather: {
-                  enabled: c.latitude !== null && c.longitude !== null,
-                  latitude: c.latitude,
-                  longitude: c.longitude,
-                },
-              }),
-            })
+            Option.map((c) => c.timezone),
+            Option.getOrElse(() => 'UTC')
           )
       )
     ),
@@ -77,8 +40,7 @@ export const actorDayTimezone = (
 ): Effect.Effect<string, SqlError, UserRepository | CanopyRepository> =>
   pipe(
     Match.value(owner),
-    Match.tag('User', () => careContext({ _tag: 'User', userId: actorId })),
-    Match.tag('Canopy', (canopyOwner) => careContext(canopyOwner)),
-    Match.exhaustive,
-    Effect.map((context) => context.timezone)
+    Match.tag('User', () => careTimezone({ _tag: 'User', userId: actorId })),
+    Match.tag('Canopy', (canopyOwner) => careTimezone(canopyOwner)),
+    Match.exhaustive
   )

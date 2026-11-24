@@ -89,10 +89,6 @@ export interface ISubscriptionRepository {
     event: RevenueCatWebhookEventRecord
   ) => Effect.Effect<boolean, SqlError>
 
-  readonly findByExternalId: (
-    externalSubscriptionId: string
-  ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
-
   readonly create: (
     data: CreateSubscriptionData
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
@@ -227,21 +223,6 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .onConflictDoNothing()
             .returning({ id: revenuecatWebhookEvents.id })
           return Array.isReadonlyArrayNonEmpty(inserted)
-        }
-      ),
-
-      findByExternalId: Effect.fn('SubscriptionRepository.findByExternalId')(
-        function* (externalSubscriptionId: string) {
-          const [subscription] = yield* db
-            .select()
-            .from(userSubscriptions)
-            .where(
-              eq(
-                userSubscriptions.externalSubscriptionId,
-                externalSubscriptionId
-              )
-            )
-          return Option.getOrNull(Option.fromNullishOr(subscription))
         }
       ),
 
