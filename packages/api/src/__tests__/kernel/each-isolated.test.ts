@@ -1,4 +1,4 @@
-import { eachIsolated } from '@lily/api/services/helpers/create-scheduler'
+import { eachIsolated } from '@lily/api/kernel/each-isolated'
 import { Effect, Exit, Fiber, identity } from 'effect'
 import { describe, expect, it } from 'vitest'
 
