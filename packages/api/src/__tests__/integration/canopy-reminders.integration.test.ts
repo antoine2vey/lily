@@ -38,6 +38,7 @@ import {
   type NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
@@ -69,6 +70,7 @@ const RepositoriesLive = Layer.mergeAll(
   CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
   ReminderStoreLive,
   CareLogRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
@@ -90,6 +92,7 @@ const WorkerLive = Layer.mergeAll(
   CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
   ReminderStoreLive,
   CareLogRepositoryLive,
   PlantRepositoryLive,

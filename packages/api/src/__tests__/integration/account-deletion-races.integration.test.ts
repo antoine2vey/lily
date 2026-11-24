@@ -51,6 +51,7 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import {
   PlantRepository,
   PlantRepositoryLive,
@@ -122,6 +123,7 @@ const BaseLive = Layer.mergeAll(
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
   ReminderStoreLive,
   PlantRepositoryLive,
   RefreshTokenRepositoryLive,

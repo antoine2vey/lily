@@ -3,9 +3,9 @@ import {
   lockRows,
   lockRowsNamed,
   pinAccounts,
-  rowsToLock,
 } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
+import { lockedInIdOrder } from '@lily/api/repositories/helpers/notification-row'
 import { withOwner } from '@lily/api/repositories/helpers/plant-owner'
 import { isReminderTopic } from '@lily/api/repositories/notification.repository'
 import type { PlantRow } from '@lily/api/repositories/plant.repository'
@@ -22,7 +22,6 @@ import {
   isNull,
   notInArray,
   or,
-  type SQL,
   sql,
 } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
@@ -126,12 +125,6 @@ export const ReminderStoreLive = Layer.effect(
   ReminderStore,
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
-    const lockedInIdOrder = (where: SQL | undefined) =>
-      rowsToLock(
-        'Notification',
-        'update',
-        db.select({ id: notifications.id }).from(notifications).where(where)
-      )
     return ReminderStore.of({
       lockReminderPlants: (plantIds) =>
         lockReminderPlants(plantIds).pipe(
@@ -257,6 +250,7 @@ export const ReminderStoreLive = Layer.effect(
       ) {
         if (Array.isReadonlyArrayNonEmpty(writes.removeIds)) {
           const locked = yield* lockedInIdOrder(
+            db,
             and(
               inArray(notifications.id, [...writes.removeIds]),
               inArray(notifications.status, ['pending', 'queued']),

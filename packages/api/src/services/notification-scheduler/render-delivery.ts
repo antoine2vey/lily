@@ -1,7 +1,5 @@
-import type {
-  NotificationRow,
-  SentNotification,
-} from '@lily/api/repositories/notification.repository'
+import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
+import type { SentNotification } from '@lily/api/repositories/notification-delivery.repository'
 import {
   buildCareDigestContent,
   buildGroupedPlantAnniversaryContent,

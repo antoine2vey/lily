@@ -31,6 +31,7 @@ import {
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import {
   UserRepository,
@@ -75,6 +76,7 @@ const AppLive = Layer.mergeAll(
   CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
   ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,

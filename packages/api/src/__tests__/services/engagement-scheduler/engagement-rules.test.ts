@@ -9,7 +9,7 @@ import type {
   PlantWithoutRecentPhoto,
   TrialingUser,
 } from '@lily/api/repositories/engagement.repository'
-import type { NotificationRow } from '@lily/api/repositories/notification.repository'
+import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
 import { checkAndCreateEngagementNotifications } from '@lily/api/services/engagement-scheduler/scheduler'
 import { checkAndCreateWeeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'

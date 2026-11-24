@@ -36,7 +36,7 @@ const mockAdminLayer = Layer.mergeAll(
   createMockCanopyRepository(),
   createMockCareScheduleRepository(),
   createInMemoryAbsence().layer,
-  notificationMocks([]).repository,
+  notificationMocks([]).notices,
   createMockMessageQueue(),
   createMockPlantRepository({ plants: [] }),
   MockSqlClientLive,

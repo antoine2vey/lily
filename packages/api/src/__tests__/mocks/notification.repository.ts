@@ -3,17 +3,14 @@ import {
   type MockNotificationsOptions,
   type MutableNotification,
   type NotificationTable,
-  untested,
   waiting,
 } from '@lily/api/__tests__/mocks/notification-table'
 import {
-  type FindNotificationsParams,
   type INotificationRepository,
   NotificationRepository,
 } from '@lily/api/repositories/notification.repository'
-import { paginate } from '@lily/shared'
 import { CARE_TOPICS } from '@lily/shared/server'
-import { Array, Effect, Equal, Layer, Option, pipe, Result } from 'effect'
+import { Array, Effect, Layer, Option } from 'effect'
 
 export const createMockNotificationRepository = (
   table: NotificationTable,
@@ -22,62 +19,6 @@ export const createMockNotificationRepository = (
   const { rows: notificationsState, queuedAt, deliveryClaims } = table
 
   const repo: INotificationRepository = {
-    findByUserId: (params: FindNotificationsParams) => {
-      const page = pipe(
-        Option.fromNullishOr(params.page),
-        Option.getOrElse(() => 1)
-      )
-      const limit = pipe(
-        Option.fromNullishOr(params.limit),
-        Option.getOrElse(() => 20)
-      )
-      const offset = (page - 1) * limit
-
-      let filtered = Array.filter(
-        notificationsState,
-        (n) => n.userId === params.userId
-      )
-
-      if (params.status && params.status !== 'all') {
-        filtered = Array.filter(filtered, (n) => n.status === params.status)
-      }
-
-      const sorted = [...filtered].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-
-      const total = sorted.length
-      const items = sorted.slice(offset, offset + limit)
-
-      return Effect.succeed(paginate(items, total, page, limit))
-    },
-
-    findByIds: (ids: ReadonlyArray<string>) =>
-      Effect.succeed(
-        Array.filter(notificationsState, (n) => Array.contains(ids, n.id))
-      ),
-
-    findById: (id: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(notificationsState, (n) => n.id === id),
-          Option.getOrNull
-        )
-      ),
-
-    markAsRead: (id: string) => {
-      const notificationOption = Array.findFirst(
-        notificationsState,
-        (n) => n.id === id
-      )
-      return Option.match(notificationOption, {
-        onNone: () => Effect.succeed(null),
-        onSome: (notification) =>
-          Effect.succeed({ ...notification, isRead: true }),
-      })
-    },
-
     create: (data) => {
       const status = data.status ?? 'pending'
       const newNotification: MutableNotification = {
@@ -100,142 +41,6 @@ export const createMockNotificationRepository = (
       options.onCreate?.(newNotification)
       return Effect.succeed(newNotification)
     },
-
-    delete: untested('delete'),
-
-    claimPendingToSchedule: (limit: number) =>
-      Effect.sync(() => {
-        const now = new Date()
-        const claimed = pipe(
-          Array.filter(
-            notificationsState,
-            (n) => n.status === 'pending' && n.scheduledAt <= now
-          ),
-          Array.take(limit)
-        )
-        Array.forEach(claimed, (n) => {
-          n.status = 'queued'
-          queuedAt.set(n.id, now)
-        })
-        return claimed
-      }),
-
-    releaseUnclaimed: (ids) =>
-      Effect.sync(() => {
-        Array.forEach(notificationsState, (n) => {
-          if (
-            Array.contains(ids, n.id) &&
-            n.status === 'queued' &&
-            !deliveryClaims.has(n.id)
-          ) {
-            n.status = 'pending'
-            queuedAt.delete(n.id)
-          }
-        })
-      }),
-
-    deferUntil: (rows, heldBy) =>
-      Effect.sync(() => {
-        Array.forEach(rows, ({ id, until }) => {
-          const n = Array.findFirst(notificationsState, (row) => row.id === id)
-          const holder = Option.fromNullishOr(deliveryClaims.get(id))
-          if (
-            Option.isNone(n) ||
-            n.value.status !== 'queued' ||
-            !Equal.equals(holder, heldBy)
-          ) {
-            return
-          }
-          n.value.status = 'pending'
-          n.value.scheduledAt = until
-          queuedAt.delete(id)
-          deliveryClaims.delete(id)
-        })
-      }),
-
-    claimForDelivery: (ids, messageId) =>
-      Effect.sync(() => {
-        const claimed: string[] = []
-        Array.forEach(notificationsState, (n) => {
-          const owner = Option.fromNullishOr(deliveryClaims.get(n.id))
-          const claimable =
-            Array.contains(ids, n.id) &&
-            n.status === 'queued' &&
-            Option.getOrElse(
-              Option.map(owner, (id) => id === messageId),
-              () => true
-            )
-          if (!claimable) return
-          deliveryClaims.set(n.id, messageId)
-          claimed.push(n.id)
-        })
-        return claimed
-      }),
-
-    releaseUnclaimedOlderThan: (queuedBefore) =>
-      Effect.sync(() => {
-        let count = 0
-        Array.forEach(notificationsState, (n) => {
-          const at = queuedAt.get(n.id)
-          if (
-            n.status === 'queued' &&
-            !deliveryClaims.has(n.id) &&
-            at !== undefined &&
-            at < queuedBefore
-          ) {
-            n.status = 'pending'
-            queuedAt.delete(n.id)
-            count++
-          }
-        })
-        return count
-      }),
-
-    failAbandonedDeliveries: (queuedBefore, error) =>
-      Effect.sync(() => {
-        let count = 0
-        Array.forEach(notificationsState, (n) => {
-          const at = queuedAt.get(n.id)
-          const abandoned =
-            at === undefined || (deliveryClaims.has(n.id) && at < queuedBefore)
-          if (n.status === 'queued' && abandoned) {
-            n.status = 'failed'
-            n.lastError = error
-            count++
-          }
-        })
-        return count
-      }),
-
-    retryLater: (ids, heldBy, retryAtAfterFailures, error) =>
-      Effect.sync(() => {
-        options.onRetryLater?.(ids)
-        return Array.filterMap(notificationsState, (n) => {
-          if (
-            !Array.contains(ids, n.id) ||
-            n.status !== 'queued' ||
-            deliveryClaims.get(n.id) !== heldBy
-          ) {
-            return Result.failVoid
-          }
-          const due = Array.get(retryAtAfterFailures, n.retryCount)
-          n.retryCount += 1
-          n.lastError = error
-          if (Option.isNone(due)) {
-            n.status = 'failed'
-          } else {
-            n.status = 'pending'
-            n.scheduledAt = due.value
-            queuedAt.delete(n.id)
-            deliveryClaims.delete(n.id)
-          }
-          return Result.succeed({
-            id: n.id,
-            status: n.status,
-            retryCount: n.retryCount,
-          })
-        })
-      }),
 
     deletePendingByUserIdAndTypes: (
       userId: string,
@@ -286,16 +91,6 @@ export const createMockNotificationRepository = (
         )
       }),
 
-    deleteByIds: (ids: ReadonlyArray<string>) =>
-      Effect.sync(() => {
-        const toKeep = Array.filter(
-          notificationsState,
-          (n) => !Array.contains(ids, n.id)
-        )
-        notificationsState.length = 0
-        notificationsState.push(...toKeep)
-      }),
-
     hasNotificationIn: ({ userId, topics, plantId, counting, from, until }) =>
       Effect.sync(() =>
         Array.some(notificationsState, (n) => {
@@ -315,54 +110,6 @@ export const createMockNotificationRepository = (
           )
         })
       ),
-
-    markManyAsSent: (rows) =>
-      Effect.sync(() => {
-        Array.forEach(rows, ({ id, title, body }) => {
-          const n = Array.findFirst(
-            notificationsState,
-            (n) => n.id === id && n.status === 'queued'
-          )
-          Option.map(n, (notification) => {
-            notification.status = 'sent'
-            notification.sentAt = new Date()
-            notification.title = title
-            notification.body = body
-          })
-        })
-      }),
-
-    markManyAsFailed: (ids: readonly string[], error: string) =>
-      Effect.sync(() => {
-        Array.forEach(ids, (id) => {
-          const n = Array.findFirst(
-            notificationsState,
-            (n) => n.id === id && n.status === 'queued'
-          )
-          Option.map(n, (notification) => {
-            notification.status = 'failed'
-            notification.lastError = error
-          })
-        })
-      }),
-
-    countUnreadByUserId: untested('countUnreadByUserId'),
-
-    markAllAsReadByUserId: untested('markAllAsReadByUserId'),
-
-    setQueuedContent: (ids: readonly string[], title: string, body: string) =>
-      Effect.sync(() => {
-        Array.forEach(ids, (id) => {
-          const n = Array.findFirst(
-            notificationsState,
-            (n) => n.id === id && n.status === 'queued'
-          )
-          Option.map(n, (notification) => {
-            notification.title = title
-            notification.body = body
-          })
-        })
-      }),
   }
 
   return Layer.succeed(NotificationRepository, repo)

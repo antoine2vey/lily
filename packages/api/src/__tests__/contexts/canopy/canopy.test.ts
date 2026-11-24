@@ -463,6 +463,7 @@ describe('Canopy', () => {
     it('rolls the join back and sends nothing when a notice cannot be recorded', async () => {
       const world = linkTo(home(), otherCanopyId, 'cabin-token')
       const timeline = createOutboxTimeline()
+      const mocks = notificationMocks([])
       const refusingNotifications = Layer.effect(
         NotificationRepository,
         Effect.map(NotificationRepository, (repo) => ({
@@ -477,7 +478,7 @@ describe('Canopy', () => {
               })
             ),
         }))
-      ).pipe(Layer.provide(notificationMocks([]).repository))
+      ).pipe(Layer.provide(mocks.repository), Layer.merge(mocks.delivery))
 
       const exit = await Effect.runPromiseExit(
         Effect.flatMap(Canopy, byLink('sam', 'cabin-token')).pipe(
@@ -516,7 +517,7 @@ describe('Canopy', () => {
                   MockOutboxLive,
                   timeline.sql,
                   timeline.queue,
-                  notificationMocks([], timeline.notificationOptions).repository
+                  notificationMocks([], timeline.notificationOptions).notices
                 )
               )
             )
@@ -836,6 +837,7 @@ describe('Canopy', () => {
     it('rolls the invitation back and sends nothing when its notice cannot be recorded', async () => {
       const world = home()
       const timeline = createOutboxTimeline()
+      const mocks = notificationMocks([])
       const refusingNotifications = Layer.effect(
         NotificationRepository,
         Effect.map(NotificationRepository, (repo) => ({
@@ -850,7 +852,7 @@ describe('Canopy', () => {
               })
             ),
         }))
-      ).pipe(Layer.provide(notificationMocks([]).repository))
+      ).pipe(Layer.provide(mocks.repository), Layer.merge(mocks.delivery))
 
       const exit = await Effect.runPromiseExit(
         Effect.flatMap(Canopy, invite('alex', 'sam')).pipe(
@@ -1607,7 +1609,7 @@ describe('Canopy', () => {
               MockOutboxLive,
               timeline.sql,
               timeline.queue,
-              notificationMocks([], timeline.notificationOptions).repository
+              notificationMocks([], timeline.notificationOptions).notices
             )
           )
         )

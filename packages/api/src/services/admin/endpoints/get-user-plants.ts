@@ -6,7 +6,7 @@ import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { getUser } from '@lily/api/services/admin/endpoints/get-user'
 import { type PaginationParams, parsePaginationParams } from '@lily/shared'
 import type { UserNotFoundError } from '@lily/shared/errors/user'
-import { Effect, Option } from 'effect'
+import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const getUserPlants = (

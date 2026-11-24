@@ -1,4 +1,5 @@
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import type { NotificationDelivery } from '@lily/api/repositories/notification-delivery.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { assertNotStorePayer } from '@lily/api/services/admin/helpers/assert-not-store-payer'
@@ -37,6 +38,7 @@ export const giftSubscription = (
   | SubscriptionRepository
   | AdminUser
   | NotificationRepository
+  | NotificationDelivery
   | MessageQueue
   | SqlClient.SqlClient
 > =>

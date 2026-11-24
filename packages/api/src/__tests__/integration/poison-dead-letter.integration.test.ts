@@ -11,6 +11,7 @@ import { createInMemoryRedisQueue } from '@lily/api/__tests__/mocks/redis-queue'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
@@ -29,6 +30,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const RepositoriesLive = Layer.mergeAll(
       NotificationRepositoryLive,
+      NotificationDeliveryLive,
       DeadLetterRepositoryLive
     ).pipe(
       Layer.provide(DrizzleLive),

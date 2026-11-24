@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 describe('getNotifications', () => {
   const createTestLayer = (userId: string = 'user-1') =>
     Layer.mergeAll(
-      notificationMocks([...mockNotifications]).repository,
+      notificationMocks([...mockNotifications]).inbox,
       createMockCurrentUser({ id: userId })
     )
 

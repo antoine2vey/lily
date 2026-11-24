@@ -182,7 +182,7 @@ const observe = async (
               plantId: 'plant-1',
               status: 'queued',
             }),
-          ]).repository,
+          ]).notices,
           createMockDeadLetterRepository(),
           createMockCareScheduleRepository({
             plants: [...world.plants],

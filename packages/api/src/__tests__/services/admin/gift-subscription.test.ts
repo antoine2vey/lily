@@ -36,7 +36,7 @@ const baseLayers = (
     MockSqlClientLive,
     createMockUserRepository([...mockUsers]),
     createMockSubscriptionRepository(opts),
-    notificationMocks(notifications).repository,
+    notificationMocks(notifications).notices,
     createMockMessageQueue(),
     mockAdminLayer
   )

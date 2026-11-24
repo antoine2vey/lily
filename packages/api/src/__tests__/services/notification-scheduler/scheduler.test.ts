@@ -102,7 +102,7 @@ const deliver = (
         createMockDeviceTokenRepository(
           Arr.map(users, (user) => createTestDeviceToken({ userId: user.id }))
         ),
-        notificationMocks(copies).repository,
+        notificationMocks(copies).delivery,
         createMockActivityPushTokenRepository(),
         createMockCareLogRepository([]),
         gateMocks(schedules),
@@ -137,7 +137,7 @@ const runPollAndEnqueue = (
       const filledBatch = yield* pollAndEnqueue.pipe(
         Effect.provide(
           Layer.mergeAll(
-            notificationMocks(notifications).repository,
+            notificationMocks(notifications).delivery,
             createMockMessageQueue({
               onEnqueue: (_, message) => enqueued.push(message),
             }),
@@ -321,7 +321,7 @@ describe('Notification Scheduler', () => {
           Effect.flatMap(dispatchNow),
           Effect.provide(
             Layer.mergeAll(
-              notificationMocks(notifications).repository,
+              notificationMocks(notifications).notices,
               createMockMessageQueue({
                 enqueueFailure: new QueueConnectionError({
                   message: 'redis down',
@@ -546,7 +546,7 @@ describe('Notification Scheduler', () => {
             Layer.mergeAll(
               notificationMocks([
                 follow('follow-bad', JSON.parse('{"senderId":5}')),
-              ]).repository,
+              ]).delivery,
               createMockMessageQueue({}),
               GateMocksLive,
               createMockUserRepository([defaultUser]),
@@ -1799,7 +1799,7 @@ describe('Notification Scheduler', () => {
           pollAndEnqueue.pipe(
             Effect.provide(
               Layer.mergeAll(
-                notificationMocks([notification]).repository,
+                notificationMocks([notification]).delivery,
                 createMockMessageQueue({}),
                 GateMocksLive,
                 createMockUserRepository([user]),
@@ -1864,7 +1864,7 @@ describe('Notification Scheduler', () => {
           pollAndEnqueue.pipe(
             Effect.provide(
               Layer.mergeAll(
-                notificationMocks(notifications).repository,
+                notificationMocks(notifications).delivery,
                 createMockMessageQueue({}),
                 GateMocksLive,
                 createMockUserRepository([user]),
@@ -2333,7 +2333,7 @@ describe('Notification Scheduler', () => {
         pollAndEnqueue.pipe(
           Effect.provide(
             Layer.mergeAll(
-              notificationMocks([notification]).repository,
+              notificationMocks([notification]).delivery,
               createMockMessageQueue({
                 enqueueFailure: new QueueOperationError({
                   message: 'redis down',

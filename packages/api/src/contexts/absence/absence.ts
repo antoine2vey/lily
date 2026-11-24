@@ -44,6 +44,7 @@ import {
   type Transaction,
 } from '@lily/api/kernel/transact'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationDelivery } from '@lily/api/repositories/notification-delivery.repository'
 import {
   dispatchAll,
   type RecordedNotification,
@@ -359,6 +360,7 @@ export const AbsenceLive = Layer.effect(
       Outbox,
       SqlClient.SqlClient,
       NotificationRepository,
+      NotificationDelivery,
       MessageQueue
     )
 

@@ -17,6 +17,7 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -56,6 +57,7 @@ const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
     DelegationRepositoryLive,
     CanopyRepositoryLive,
     notifications,
+    NotificationDeliveryLive,
     ReminderStoreLive,
     createMockEventBus(),
     createMockMessageQueue(),

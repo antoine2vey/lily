@@ -8,10 +8,8 @@ import {
 } from '@lily/api/services/auth/constants'
 import { JWTService } from '@lily/api/services/jwt/service'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { users } from '@lily/db/schema/users'
 import { AuthError, nowAsDate } from '@lily/shared'
 import type { AuthResponse } from '@lily/shared/auth'
-import { eq } from 'drizzle-orm'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 

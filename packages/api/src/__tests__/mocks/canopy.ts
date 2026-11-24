@@ -611,7 +611,7 @@ export const createInMemoryCanopy = (
         Option.flatMapNullishOr((plant) => plant.userId),
         Option.getOrNull
       ),
-  }).repository
+  }).notices
 
   return {
     store: data,

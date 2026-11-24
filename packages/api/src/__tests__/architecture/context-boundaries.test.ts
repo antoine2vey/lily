@@ -13,7 +13,13 @@ import { describe, expect, expectTypeOf, it } from 'vitest'
 const SRC = resolve(import.meta.dirname, '../..')
 const CONTEXTS = join(SRC, 'contexts')
 
-const NOTIFICATION_REPOSITORY = 'repositories/notification.repository.ts'
+// The writers of every row but a reminder: what produces a notification,
+// what the user does in the inbox, and how delivery moves a row.
+const NOTIFICATION_REPOSITORIES = [
+  'repositories/notification-delivery.repository.ts',
+  'repositories/notification-inbox.repository.ts',
+  'repositories/notification.repository.ts',
+]
 
 // The rows of a reminder type, and the locks a replan takes.
 const REMINDER_STORE_ROWS = 'contexts/reminders/store/rows.ts'
@@ -569,8 +575,9 @@ describe('bounded contexts', () => {
     const writers = files
       .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
       .map(name)
+      .sort()
 
-    expect(writers).toEqual([REMINDER_STORE_ROWS, NOTIFICATION_REPOSITORY])
+    expect(writers).toEqual([REMINDER_STORE_ROWS, ...NOTIFICATION_REPOSITORIES])
   })
 
   it('let the Reminders store insert reminder rows only', () => {
@@ -600,7 +607,7 @@ describe('bounded contexts', () => {
 
   it('let delivery alone move a notification by id or drop it', () => {
     const MOVES =
-      /\b[nN]otifications?(Repo)?\s*\.(deleteByIds|deferUntil|retryLater|markManyAsSent|markManyAsFailed|claimPendingToSchedule|claimForDelivery|releaseUnclaimed|releaseUnclaimedOlderThan|failAbandonedDeliveries|setQueuedContent)\(/
+      /\.(deleteByIds|deferUntil|retryLater|markManyAsSent|markManyAsFailed|claimPendingToSchedule|claimForDelivery|releaseUnclaimed|releaseUnclaimedOlderThan|failAbandonedDeliveries|setQueuedContent)\(/
     const movers = files
       .filter((file) => MOVES.test(readFileSync(file, 'utf8')))
       .map(name)

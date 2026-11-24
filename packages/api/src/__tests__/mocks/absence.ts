@@ -469,7 +469,7 @@ export const createInMemoryAbsence = (
   const sent = notificationMocks(
     notifications,
     around.timeline?.notificationOptions
-  ).repository
+  ).notices
 
   const service = AbsenceLive.pipe(
     Layer.provide(

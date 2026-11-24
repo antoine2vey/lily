@@ -80,7 +80,7 @@ const buildLayer = (
     notificationMocks(
       options.notifications ?? [],
       options.timeline?.notificationOptions
-    ).repository,
+    ).notices,
     options.timeline?.queue ??
       createMockMessageQueue({ onEnqueue: options.onEnqueue ?? (() => {}) })
   )

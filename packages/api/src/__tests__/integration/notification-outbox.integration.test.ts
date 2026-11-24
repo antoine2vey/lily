@@ -23,6 +23,7 @@ import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repo
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { FollowRepositoryLive } from '@lily/api/repositories/follow.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { Alerter } from '@lily/api/services/alerting'
@@ -74,6 +75,7 @@ class BusinessWriteFailed extends Data.TaggedError('BusinessWriteFailed') {}
 
 const DatabaseLive = Layer.mergeAll(
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
   UserRepositoryLive,
   PlantRepositoryLive,
   DeviceTokenRepositoryLive,

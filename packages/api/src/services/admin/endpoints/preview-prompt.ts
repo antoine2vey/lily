@@ -27,7 +27,7 @@ export const previewPrompt = (messageId: string) =>
     const conversation = yield* chatRepo.findConversationById(
       messageRow.conversationId
     )
-    if (!conversation || conversation.kind !== 'plant') {
+    if (conversation?.kind !== 'plant') {
       return yield* notAvailable(messageId)
     }
 

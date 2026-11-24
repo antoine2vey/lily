@@ -35,6 +35,7 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
@@ -72,6 +73,7 @@ const StoreLive = AbsenceStoreLive.pipe(
     Layer.mergeAll(
       CanopyRepositoryLive,
       NotificationRepositoryLive,
+      NotificationDeliveryLive,
       ReminderStoreLive,
       createStubCare().layer
     )
@@ -82,6 +84,7 @@ const StoreLive = AbsenceStoreLive.pipe(
 
 const CommandsLive = Layer.mergeAll(
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
   ReminderStoreLive,
   CanopyRepositoryLive,
   PlantRepositoryLive,
@@ -464,6 +467,7 @@ const ReminderServicesLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CareReadsLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
   ReminderStoreLive,
   UserRepositoryLive,
   CanopyRepositoryLive,

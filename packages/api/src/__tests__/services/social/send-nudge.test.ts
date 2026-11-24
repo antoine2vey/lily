@@ -44,7 +44,7 @@ const buildLayer = (
       users: mockFollowUsers,
     }),
     createMockUserRepository([targetUser]),
-    notificationMocks(notifications).repository,
+    notificationMocks(notifications).notices,
     createMockMessageQueue()
   )
 

@@ -1,8 +1,8 @@
+import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
 import {
   type DeferredNotification,
-  NotificationRepository,
-  type NotificationRow,
-} from '@lily/api/repositories/notification.repository'
+  NotificationDelivery,
+} from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
@@ -56,7 +56,7 @@ const decodeMetadata = (topic: NotificationTopic, metadata: unknown) =>
 
 // Returns true when a full batch was found (more rows likely waiting).
 export const pollAndEnqueue = Effect.gen(function* () {
-  const notificationRepo = yield* NotificationRepository
+  const notificationRepo = yield* NotificationDelivery
   const plantRepo = yield* PlantRepository
   const userRepo = yield* UserRepository
   const queue = yield* MessageQueue

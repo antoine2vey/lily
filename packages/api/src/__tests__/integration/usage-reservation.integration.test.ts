@@ -13,6 +13,7 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { GiftCodeRepositoryLive } from '@lily/api/repositories/gift-code.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import {
@@ -89,6 +90,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         RoomRepositoryLive,
         CanopyRepositoryLive,
         NotificationRepositoryLive,
+        NotificationDeliveryLive,
         ReminderStoreLive,
         UserRepositoryLive,
         DelegationRepositoryLive

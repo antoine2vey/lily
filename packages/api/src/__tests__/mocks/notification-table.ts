@@ -1,6 +1,8 @@
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockNotificationDelivery } from '@lily/api/__tests__/mocks/notification-delivery.repository'
+import { createMockNotificationInbox } from '@lily/api/__tests__/mocks/notification-inbox.repository'
 import { createMockReminderStore } from '@lily/api/__tests__/mocks/reminder-store'
-import type { NotificationRow } from '@lily/api/repositories/notification.repository'
+import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Record } from 'effect'
 
@@ -68,17 +70,21 @@ export const notificationMocks = (
     occasionDays: new Map(Record.toEntries(options.occasionDays ?? {})),
   }
   const repository = createMockNotificationRepository(table, options)
+  const delivery = createMockNotificationDelivery(table, options)
   const reminderStore = createMockReminderStore(table)
+  /** What recording a notice and dispatching it ask for. */
+  const notices = Layer.mergeAll(repository, delivery)
   return {
     repository,
+    inbox: createMockNotificationInbox(table),
+    delivery,
     reminderStore,
+    notices,
     /**
-     * `layers` with the notification repository and the reminder store, whose
-     * key-share reads go to the user and plant repositories of `layers`.
+     * `layers` with the notices and the reminder store, whose key-share reads
+     * go to the user and plant repositories of `layers`.
      */
     over: <ROut, E, RIn>(layers: Layer.Layer<ROut, E, RIn>) =>
-      Layer.mergeAll(repository, reminderStore).pipe(
-        Layer.provideMerge(layers)
-      ),
+      Layer.mergeAll(notices, reminderStore).pipe(Layer.provideMerge(layers)),
   }
 }
