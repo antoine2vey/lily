@@ -84,6 +84,8 @@ describe('giftSubscription', () => {
       userId: 'user-1',
       type: 'gift_subscription',
       status: 'queued',
+      params: { duration: '7d' },
+      body: "You've been gifted Lily Premium for 7 Days. Enjoy every feature! 🌿",
       metadata: {},
     })
   })

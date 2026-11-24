@@ -153,6 +153,7 @@ describe('UsageTracker', () => {
         userId: mockUser1.id,
         type: 'approaching_limit',
         status: 'pending',
+        params: { usageCount: 3, usageMax: 3, feature: 'plantIdentifies' },
         metadata: {},
       })
     })

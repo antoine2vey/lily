@@ -25,10 +25,8 @@ import {
   recordNotificationAt,
 } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
-import {
-  buildCareDigestContent,
-  buildSimpleContent,
-} from '@lily/api/services/notification-scheduler/translations'
+import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations/care'
 import { consumeNext } from '@lily/api/services/notification-scheduler/worker'
 import { getNotifications } from '@lily/api/services/notifications/endpoints/get-notifications'
 import { followUser } from '@lily/api/services/social/endpoints/follow-user'

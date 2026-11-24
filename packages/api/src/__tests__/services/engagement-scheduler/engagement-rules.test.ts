@@ -297,7 +297,7 @@ describe('engagement rules, pinned on a fixed clock and roll', () => {
           "body": "Tu prends soin de ta Aloe depuis le 14 mars 2026. Encore plein d'autres à venir ! 🌿",
           "params": {
             "anniversaryMonths": 3,
-            "dateAdded": "14 mars 2026",
+            "plantAddedAt": "2026-03-14T09:00:00.000Z",
             "plantName": "Aloe",
           },
           "plantId": "plant-anniversary-quarter",
@@ -311,7 +311,7 @@ describe('engagement rules, pinned on a fixed clock and roll', () => {
           "body": "Tu prends soin de ta Ficus depuis le 14 juin 2025. Encore plein d'autres à venir ! 🌿",
           "params": {
             "anniversaryMonths": 12,
-            "dateAdded": "14 juin 2025",
+            "plantAddedAt": "2025-06-14T09:00:00.000Z",
             "plantName": "Ficus",
           },
           "plantId": "plant-anniversary-year",

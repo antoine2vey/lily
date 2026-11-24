@@ -55,10 +55,10 @@ import {
 } from '@lily/api/services/alerting/service'
 import { decodeQueueEntry } from '@lily/api/services/message-queue/redis.provider'
 import {
-  buildCareDigestContent,
   buildGroupedPlantAnniversaryContent,
   buildSimpleContent,
 } from '@lily/api/services/notification-scheduler/translations'
+import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations/care'
 import {
   CLAIM_REFRESH_INTERVAL,
   consumeNext,
@@ -932,7 +932,11 @@ describe('Notification Worker', () => {
             status: 'queued',
             plantId,
           }),
-          { plantName, anniversaryMonths: 12, dateAdded: 'Apr 3, 2025' }
+          {
+            plantName,
+            anniversaryMonths: 12,
+            plantAddedAt: '2025-04-03T12:00:00.000Z',
+          }
         )
       const rows = [
         anniversary('anniv-1', 'plant-1', 'Monstera'),
@@ -960,7 +964,7 @@ describe('Notification Worker', () => {
           {
             plantName,
             anniversaryMonths: 12,
-            dateAdded: 'Apr 3, 2025',
+            plantAddedAt: new Date('2025-04-03T12:00:00.000Z'),
           },
           'fr'
         )

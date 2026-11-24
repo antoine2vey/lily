@@ -5,6 +5,7 @@ import {
   type ParamsOf,
   type SimpleNotificationType,
 } from '@lily/api/services/notification-scheduler/translations'
+import { NOTIFICATION_PARAMS } from '@lily/api/services/notification-scheduler/translations/params'
 import type { LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
 import type {
@@ -16,7 +17,7 @@ import {
   type QueueConnectionError,
   type QueueOperationError,
 } from '@lily/shared/server'
-import { Effect, Option } from 'effect'
+import { Effect, Option, Schema } from 'effect'
 
 export interface RecordedNotification {
   readonly id: string
@@ -40,12 +41,15 @@ const insertSimpleNotification = <T extends SimpleNotificationType>(
   Effect.gen(function* () {
     const notifications = yield* NotificationRepository
     const { title, body } = buildSimpleContent(type, params, language)
+    const stored = yield* Schema.encodeUnknownEffect(NOTIFICATION_PARAMS[type])(
+      params
+    ).pipe(Effect.orDie)
     const row = yield* notifications.create({
       userId,
       type,
       title,
       body,
-      params,
+      params: stored,
       metadata,
       ...delivery,
     })

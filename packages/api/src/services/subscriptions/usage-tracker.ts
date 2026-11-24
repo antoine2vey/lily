@@ -9,7 +9,6 @@ import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
 import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
 import { resolveTierConfig } from '@lily/api/services/subscriptions/effective-tier'
 import { limitsDisabled } from '@lily/api/services/subscriptions/limits-config'
-import type { LanguageCode } from '@lily/shared'
 import {
   LimitExceededError,
   pickNotificationTime,
@@ -42,8 +41,6 @@ const usageFieldMeta = (field: UsageField) =>
       countKey: 'aiChatsCount' as const,
       limitKey: 'maxAiChatsMonthly' as const,
       feature: 'ai_chats' as const,
-      featureNameEn: 'AI chats',
-      featureNameFr: 'discussions IA',
       limitMessage: (limit: number) =>
         `You've used all ${limit} AI chats this month. Upgrade to Premium for unlimited AI features!`,
     })),
@@ -51,8 +48,6 @@ const usageFieldMeta = (field: UsageField) =>
       countKey: 'cardScansCount' as const,
       limitKey: 'maxCardScansMonthly' as const,
       feature: 'card_scans' as const,
-      featureNameEn: 'card scans',
-      featureNameFr: 'scans de cartes',
       limitMessage: (limit: number) =>
         `You've used all ${limit} card scans this month. Upgrade to Premium for unlimited scans!`,
     })),
@@ -60,8 +55,6 @@ const usageFieldMeta = (field: UsageField) =>
       countKey: 'plantIdentifiesCount' as const,
       limitKey: 'maxPlantIdentifiesMonthly' as const,
       feature: 'plant_identifies' as const,
-      featureNameEn: 'plant identifications',
-      featureNameFr: 'identifications de plantes',
       limitMessage: (limit: number) =>
         `You've used all ${limit} plant identifications this month. Upgrade to Premium for unlimited AI features!`,
     })),
@@ -169,9 +162,7 @@ export const UsageTrackerLive = Layer.effect(
         const language = Option.getOrElse(
           Option.fromNullishOr(user.language),
           () => 'en' as const
-        ) as LanguageCode
-        const featureName =
-          language === 'fr' ? meta.featureNameFr : meta.featureNameEn
+        )
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* Effect.catchTag(
@@ -183,7 +174,7 @@ export const UsageTrackerLive = Layer.effect(
         yield* recordNotificationAt(
           'approaching_limit',
           userId,
-          { usageCount: current, usageMax: max, featureName },
+          { usageCount: current, usageMax: max, feature: field },
           language,
           {},
           { scheduledAt }
