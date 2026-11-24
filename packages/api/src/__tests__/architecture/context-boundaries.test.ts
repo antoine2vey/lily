@@ -554,7 +554,7 @@ describe('bounded contexts', () => {
 
   it('keep every write of the notifications table in its repository', () => {
     const WRITES =
-      /\.(insert|update|delete)\(\s*(schema\.)?notifications\s*\)|(insert into|update|delete from)\s+"?notifications\b/i
+      /\.(insert|update|delete)\(\s*(schema\.)?notifications\s*\)|(insert into|update|delete from)\s+("?notifications\b|\$\{\s*(schema\.)?notifications\s*\})/i
     const writers = files
       .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
       .map(name)
