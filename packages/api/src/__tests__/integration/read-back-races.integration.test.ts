@@ -515,7 +515,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                   id: plantId,
                   name: 'Boston fern',
                   wateringFrequencyDays: 5,
-                }).pipe(readingThePlantBack(seams), pausingCare(seams))
+                }).pipe(
+                  Effect.filterOrFail(
+                    (edited) => edited.name === 'Boston fern',
+                    () => ({ _tag: 'EditNotAnswered' })
+                  ),
+                  readingThePlantBack(seams),
+                  pausingCare(seams)
+                )
               )
             )
         ),
