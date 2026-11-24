@@ -14,6 +14,8 @@ import {
   LimitExceededError,
   pickNotificationTime,
   type SubscriptionUsage,
+  startOfTodayAsDate,
+  startOfTomorrowAsDate,
   type UsageField,
 } from '@lily/shared'
 import {
@@ -155,12 +157,13 @@ export const UsageTrackerLive = Layer.effect(
 
         const timezone = resolveTimezone(user.timezone)
 
-        const alreadySent =
-          yield* notificationRepo.hasNotificationOfTypeTodayForUser(
-            userId,
-            timezone,
-            'approaching_limit'
-          )
+        const alreadySent = yield* notificationRepo.hasNotificationIn({
+          userId,
+          topics: ['approaching_limit'],
+          counting: 'produced',
+          from: startOfTodayAsDate(timezone),
+          until: startOfTomorrowAsDate(timezone),
+        })
         if (alreadySent) return
 
         const language = Option.getOrElse(

@@ -1,3 +1,4 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
@@ -141,15 +142,16 @@ describe('processWeeklyRecap', () => {
     if (!sundayTz) return
 
     const user = makeUserWithSettings({ id: 'user-1', timezone: sundayTz })
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'weekly_recap',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({
         careLogsForWeek: { 'user-1': 5 },
         healthyPlantCounts: { 'user-1': 3 },
-        notificationsInPeriod: {
-          'user-1:weekly_recap': true,
-        },
       }),
       createMockNotificationRepository(notifications),
       createMockAchievementRepository({
@@ -162,7 +164,7 @@ describe('processWeeklyRecap', () => {
       processWeeklyRecap([user]).pipe(Effect.provide(layer))
     )
 
-    expect(notifications).toHaveLength(0)
+    expect(notifications).toEqual([sent])
   })
 
   it('handles empty user list', async () => {

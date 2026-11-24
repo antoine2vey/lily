@@ -1,3 +1,4 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
@@ -93,14 +94,14 @@ describe('processPlantParentMilestones', () => {
       id: 'user-1',
       createdAt: daysAgo(90),
     })
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'plant_parent_milestone',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
-      createMockEngagementRepository({
-        notificationsInPeriod: {
-          'user-1:plant_parent_milestone': true,
-        },
-      }),
+      createMockEngagementRepository({}),
       createMockNotificationRepository(notifications)
     )
 
@@ -108,7 +109,7 @@ describe('processPlantParentMilestones', () => {
       processPlantParentMilestones([user]).pipe(Effect.provide(layer))
     )
 
-    expect(notifications).toHaveLength(0)
+    expect(notifications).toEqual([sent])
   })
 
   it('handles empty user list without errors', async () => {

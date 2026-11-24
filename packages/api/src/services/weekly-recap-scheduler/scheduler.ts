@@ -3,6 +3,7 @@ import {
   EngagementRepository,
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   processUsers,
@@ -26,6 +27,7 @@ export const processWeeklyRecap = Effect.fn(
 )(function* (usersWithDigest: ReadonlyArray<UserWithSettings>) {
   const achievementRepo = yield* AchievementRepository
   const engagementRepo = yield* EngagementRepository
+  const notificationRepo = yield* NotificationRepository
 
   yield* processUsers({
     schedulerName: 'weekly-recap-scheduler',
@@ -41,11 +43,12 @@ export const processWeeklyRecap = Effect.fn(
           return yield* new SkipUserError({ reason: 'not_sunday' })
         }
 
-        const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
-          user.id,
-          'weekly_recap',
-          daysAgoAsDate(6)
-        )
+        const alreadySent = yield* notificationRepo.hasNotificationIn({
+          userId: user.id,
+          topics: ['weekly_recap'],
+          counting: 'produced',
+          from: daysAgoAsDate(6),
+        })
         if (alreadySent) {
           return yield* new SkipUserError({ reason: 'already_sent' })
         }

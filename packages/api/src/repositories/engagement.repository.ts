@@ -24,7 +24,7 @@ import {
   startOfWeek,
   type VacationStatus,
 } from '@lily/shared'
-import { CARE_TOPICS, type NotificationTopic } from '@lily/shared/server'
+import { CARE_TOPICS } from '@lily/shared/server'
 import { and, count, desc, eq, gte, inArray, or, sql } from 'drizzle-orm'
 import {
   Array,
@@ -110,17 +110,6 @@ export interface IEngagementRepository {
     readonly tipsSince: Date
     readonly careRemindersSince: Date
   }) => Effect.Effect<ReadonlyArray<TipFatigueNotification>, SqlError>
-  readonly hasNotificationInPeriod: (
-    userId: string,
-    type: NotificationTopic,
-    sinceDate: Date
-  ) => Effect.Effect<boolean, SqlError>
-  readonly hasNotificationForPlantInPeriod: (
-    userId: string,
-    type: NotificationTopic,
-    plantId: string,
-    sinceDate: Date
-  ) => Effect.Effect<boolean, SqlError>
   readonly getUsersWithCareRemindersEnabled: Effect.Effect<
     ReadonlyArray<UserWithSettings>,
     SqlError
@@ -282,56 +271,6 @@ export const EngagementRepositoryLive = Layer.effect(
             kind: type === 'daily_tip' ? 'tip' : 'careReminder',
             createdAt,
           })
-        )
-      }),
-
-      hasNotificationInPeriod: Effect.fn(
-        'EngagementRepository.hasNotificationInPeriod'
-      )(function* (userId: string, type: NotificationTopic, sinceDate: Date) {
-        const [result] = yield* db
-          .select({
-            value: sql<boolean>`EXISTS (
-                SELECT 1 FROM ${notifications}
-                WHERE ${notifications.userId} = ${userId}
-                  AND ${notifications.type} = ${type}
-                  AND ${notifications.status} IN ('pending', 'queued', 'sent')
-                  AND ${notifications.createdAt} >= ${sinceDate}
-              )`.as('has_notification'),
-          })
-          .from(sql`(VALUES (1)) AS _`)
-
-        return pipe(
-          Option.fromNullishOr(result),
-          Option.map((r) => r.value),
-          Option.getOrElse(() => false)
-        )
-      }),
-
-      hasNotificationForPlantInPeriod: Effect.fn(
-        'EngagementRepository.hasNotificationForPlantInPeriod'
-      )(function* (
-        userId: string,
-        type: NotificationTopic,
-        plantId: string,
-        sinceDate: Date
-      ) {
-        const [result] = yield* db
-          .select({
-            value: sql<boolean>`EXISTS (
-                SELECT 1 FROM ${notifications}
-                WHERE ${notifications.userId} = ${userId}
-                  AND ${notifications.type} = ${type}
-                  AND ${notifications.plantId} = ${plantId}
-                  AND ${notifications.status} IN ('pending', 'queued', 'sent')
-                  AND ${notifications.createdAt} >= ${sinceDate}
-              )`.as('has_notification'),
-          })
-          .from(sql`(VALUES (1)) AS _`)
-
-        return pipe(
-          Option.fromNullishOr(result),
-          Option.map((r) => r.value),
-          Option.getOrElse(() => false)
         )
       }),
 

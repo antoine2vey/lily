@@ -1,3 +1,4 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -74,14 +75,16 @@ describe('processPlantAnniversaries', () => {
       plantId: 'plant-1',
       userId: 'user-1',
     })
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'plant_anniversary',
+      plantId: 'plant-1',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({
         plantsWithAnniversary: [plant],
-        notificationsForPlantInPeriod: {
-          'user-1:plant_anniversary:plant-1': true,
-        },
       }),
       createMockNotificationRepository(notifications)
     )
@@ -90,7 +93,7 @@ describe('processPlantAnniversaries', () => {
       processPlantAnniversaries([user]).pipe(Effect.provide(layer))
     )
 
-    expect(notifications).toHaveLength(0)
+    expect(notifications).toEqual([sent])
   })
 
   it('handles multiple plants for the same user', async () => {

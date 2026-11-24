@@ -1,3 +1,4 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type { TrialingUser } from '@lily/api/repositories/engagement.repository'
@@ -22,9 +23,7 @@ const makeTrialingUser = (
 })
 
 describe('processTrialEnding', () => {
-  it('creates notifications for both trial thresholds (3-day and 1-day)', async () => {
-    // processTrialEnding loops over [3, 1], calling processUsers for each.
-    // The mock returns the same users for both thresholds.
+  it('tells a user once when both thresholds list them: the 1-day pass sees the 3-day row', async () => {
     const trialingUser = makeTrialingUser({
       id: 'user-1',
       trialEndsAt: daysFromNow(3),
@@ -40,15 +39,18 @@ describe('processTrialEnding', () => {
 
     await Effect.runPromise(processTrialEnding().pipe(Effect.provide(layer)))
 
-    // 2 notifications: one for 3-day threshold, one for 1-day threshold
-    expect(notifications).toHaveLength(2)
-    expect(notifications[0]?.type).toBe('trial_ending')
-    expect(notifications[0]?.userId).toBe('user-1')
-    expect(notifications[0]?.status).toBe('pending')
-    expect(notifications[0]?.metadata).toEqual({})
+    expect(notifications).toMatchObject([
+      {
+        type: 'trial_ending',
+        userId: 'user-1',
+        status: 'pending',
+        metadata: {},
+        params: { trialDaysLeft: 3 },
+      },
+    ])
   })
 
-  it('creates notifications for multiple trialing users', async () => {
+  it('creates one notification per trialing user', async () => {
     const users = [
       makeTrialingUser({ id: 'user-1' }),
       makeTrialingUser({ id: 'user-2' }),
@@ -62,30 +64,30 @@ describe('processTrialEnding', () => {
 
     await Effect.runPromise(processTrialEnding().pipe(Effect.provide(layer)))
 
-    // 4 total: 2 users × 2 thresholds (3-day + 1-day)
-    expect(notifications).toHaveLength(4)
-    const userIds = notifications.map((n) => n.userId)
-    expect(userIds).toContain('user-1')
-    expect(userIds).toContain('user-2')
+    expect(notifications.map((n) => n.userId).sort()).toEqual([
+      'user-1',
+      'user-2',
+    ])
   })
 
   it('dedup: skips if already sent for this threshold', async () => {
     const trialingUser = makeTrialingUser({ id: 'user-1' })
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'trial_ending',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({
         trialingUsers: [trialingUser],
-        notificationsInPeriod: {
-          'user-1:trial_ending': true,
-        },
       }),
       createMockNotificationRepository(notifications)
     )
 
     await Effect.runPromise(processTrialEnding().pipe(Effect.provide(layer)))
 
-    expect(notifications).toHaveLength(0)
+    expect(notifications).toEqual([sent])
   })
 
   it('does nothing when no users are trialing', async () => {

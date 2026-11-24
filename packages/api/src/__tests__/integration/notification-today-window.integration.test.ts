@@ -4,6 +4,7 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { startOfTodayAsDate, startOfTomorrowAsDate } from '@lily/shared'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Layer } from 'effect'
@@ -75,11 +76,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return Effect.runPromise(
         Effect.gen(function* () {
           const repo = yield* NotificationRepository
-          return yield* repo.hasNotificationOfTypeTodayForUser(
-            user.id,
-            timezone,
-            'streak_at_risk'
-          )
+          return yield* repo.hasNotificationIn({
+            userId: user.id,
+            topics: ['streak_at_risk'],
+            counting: 'produced',
+            from: startOfTodayAsDate(timezone),
+            until: startOfTomorrowAsDate(timezone),
+          })
         }).pipe(Effect.provide(DatabaseLive))
       )
     }
@@ -172,7 +175,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return Effect.runPromise(
         Effect.gen(function* () {
           const repo = yield* NotificationRepository
-          return yield* repo.hasNotificationToday(user.id, plant.id, timezone)
+          return yield* repo.hasNotificationIn({
+            userId: user.id,
+            plantId: plant.id,
+            counting: 'sent',
+            from: startOfTodayAsDate(timezone),
+            until: startOfTomorrowAsDate(timezone),
+          })
         }).pipe(Effect.provide(DatabaseLive))
       )
     }
@@ -198,5 +207,73 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(await sentToday(timezone, now, sentAt)).toBe(expected)
       }
     )
+
+    it('counts a waiting row of the plant since the bound, and no failed one', async () => {
+      vi.setSystemTime(new Date('2026-06-15T12:00:00.000Z'))
+      const [user] = await db
+        .insert(schema.users)
+        .values({
+          email: 'since@example.com',
+          name: 'since',
+          emailVerified: true,
+        })
+        .returning()
+      if (!user) throw new Error('user insert returned nothing')
+      const [fern, palm] = await db
+        .insert(schema.plants)
+        .values(
+          ['Fern', 'Palm'].map((name) => ({
+            userId: user.id,
+            createdByUserId: user.id,
+            name,
+            health: 'HEALTHY' as const,
+            humidityRating: 3,
+            lightingRating: 3,
+            petToxicityRating: 1,
+            wateringRating: 3,
+          }))
+        )
+        .returning()
+      if (!fern || !palm) throw new Error('plant insert returned nothing')
+      await db.insert(schema.notifications).values([
+        {
+          type: 'photo_reminder',
+          status: 'pending',
+          scheduledAt: new Date('2026-06-15T18:00:00.000Z'),
+          createdAt: new Date('2026-06-14T12:00:00.000Z'),
+          userId: user.id,
+          plantId: fern.id,
+        },
+        {
+          type: 'photo_reminder',
+          status: 'failed',
+          scheduledAt: new Date('2026-06-15T18:00:00.000Z'),
+          createdAt: new Date('2026-06-14T12:00:00.000Z'),
+          userId: user.id,
+          plantId: palm.id,
+        },
+      ])
+      const since = (plantId: string, from: string) =>
+        Effect.runPromise(
+          Effect.gen(function* () {
+            const repo = yield* NotificationRepository
+            return yield* repo.hasNotificationIn({
+              userId: user.id,
+              topics: ['photo_reminder'],
+              plantId,
+              counting: 'produced',
+              from: new Date(from),
+            })
+          }).pipe(Effect.provide(DatabaseLive))
+        )
+
+      expect(
+        await Promise.all([
+          since(fern.id, '2026-06-14T12:00:00.000Z'),
+          since(fern.id, '2026-06-14T12:00:00.001Z'),
+          since(palm.id, '2026-06-01T00:00:00.000Z'),
+        ])
+      ).toEqual([true, false, false])
+    })
   }
 )

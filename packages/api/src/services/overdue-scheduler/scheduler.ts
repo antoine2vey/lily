@@ -11,7 +11,13 @@ import {
   type UserNotificationSettings,
 } from '@lily/api/services/plants/helpers/user-settings'
 import { plantCapsFor } from '@lily/api/services/subscriptions/plant-caps'
-import { DEFAULT_TIMEZONE, isOnVacation, nowAsDate } from '@lily/shared'
+import {
+  DEFAULT_TIMEZONE,
+  isOnVacation,
+  nowAsDate,
+  startOfTodayAsDate,
+  startOfTomorrowAsDate,
+} from '@lily/shared'
 import { Array, Effect, Option, pipe, Record } from 'effect'
 
 const timezoneOf = (settings: UserNotificationSettings) =>
@@ -34,12 +40,14 @@ const nudgeOverflow = (
       return
     }
     const notificationRepo = yield* NotificationRepository
-    const alreadySentNudge =
-      yield* notificationRepo.hasNotificationOfTypeTodayForUser(
-        userId,
-        timezoneOf(settings),
-        'resubscribe_nudge'
-      )
+    const timezone = timezoneOf(settings)
+    const alreadySentNudge = yield* notificationRepo.hasNotificationIn({
+      userId,
+      topics: ['resubscribe_nudge'],
+      counting: 'produced',
+      from: startOfTodayAsDate(timezone),
+      until: startOfTomorrowAsDate(timezone),
+    })
     if (alreadySentNudge) return
     yield* recordNotification(
       'resubscribe_nudge',

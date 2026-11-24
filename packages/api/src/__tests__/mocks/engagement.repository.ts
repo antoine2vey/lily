@@ -19,10 +19,8 @@ interface MockEngagementRepositoryData {
     string,
     ReadonlyArray<PlantWithoutRecentPhoto>
   >
-  notificationsInPeriod?: Record<string, boolean>
   /** The notification rows, shared with the notification mock. */
   notifications?: ReadonlyArray<Notification>
-  notificationsForPlantInPeriod?: Record<string, boolean>
   healthyPlantCounts?: Record<string, number>
   careLogsForWeek?: Record<string, number>
   trialingUsers?: ReadonlyArray<TrialingUser>
@@ -54,17 +52,9 @@ export const createMockEngagementRepository = (
       () => ({}) as Record<string, ReadonlyArray<PlantWithoutRecentPhoto>>
     )
   )
-  const notificationsInPeriod = pipe(
-    Option.fromNullishOr(data.notificationsInPeriod),
-    Option.getOrElse(() => ({}) as Record<string, boolean>)
-  )
   const recorded = pipe(
     Option.fromNullishOr(data.notifications),
     Option.getOrElse(() => [] as ReadonlyArray<Notification>)
-  )
-  const notificationsForPlantInPeriod = pipe(
-    Option.fromNullishOr(data.notificationsForPlantInPeriod),
-    Option.getOrElse(() => ({}) as Record<string, boolean>)
   )
 
   const repo: IEngagementRepository = {
@@ -121,41 +111,6 @@ export const createMockEngagementRepository = (
           })),
           Array.filter((n) => n.counted && n.createdAt >= n.since)
         )
-      ),
-
-    hasNotificationInPeriod: (userId: string, type: string, sinceDate: Date) =>
-      Effect.sync(
-        () =>
-          notificationsInPeriod[`${userId}:${type}`] === true ||
-          Array.some(
-            recorded,
-            (n) =>
-              n.userId === userId &&
-              n.type === type &&
-              Array.contains(['pending', 'queued', 'sent'], n.status) &&
-              n.createdAt >= sinceDate
-          )
-      ),
-
-    hasNotificationForPlantInPeriod: (
-      userId: string,
-      type: string,
-      plantId: string,
-      sinceDate: Date
-    ) =>
-      Effect.sync(
-        () =>
-          notificationsForPlantInPeriod[`${userId}:${type}:${plantId}`] ===
-            true ||
-          Array.some(
-            recorded,
-            (n) =>
-              n.userId === userId &&
-              n.type === type &&
-              n.plantId === plantId &&
-              Array.contains(['pending', 'queued', 'sent'], n.status) &&
-              n.createdAt >= sinceDate
-          )
       ),
 
     getUsersWithCareRemindersEnabled: Effect.succeed(usersWithTips),

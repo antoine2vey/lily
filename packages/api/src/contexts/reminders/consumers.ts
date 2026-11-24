@@ -16,7 +16,11 @@ import {
 } from '@lily/api/kernel/outbox'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { DEFAULT_TIMEZONE } from '@lily/shared'
+import {
+  DEFAULT_TIMEZONE,
+  startOfTodayAsDate,
+  startOfTomorrowAsDate,
+} from '@lily/shared'
 import { type Context, Effect, Option } from 'effect'
 
 export type RemindersConsumerContext = ReplanContext | EventBus
@@ -39,14 +43,17 @@ export const acknowledgeCare = ({
     if (by === null) return
     const user = yield* users.findById(by)
     if (user === null) return
-    const sentToday = yield* notifications.hasNotificationToday(
-      by,
-      plantId,
-      Option.getOrElse(
-        Option.fromNullishOr(user.timezone),
-        () => DEFAULT_TIMEZONE
-      )
+    const timezone = Option.getOrElse(
+      Option.fromNullishOr(user.timezone),
+      () => DEFAULT_TIMEZONE
     )
+    const sentToday = yield* notifications.hasNotificationIn({
+      userId: by,
+      plantId,
+      counting: 'sent',
+      from: startOfTodayAsDate(timezone),
+      until: startOfTomorrowAsDate(timezone),
+    })
     if (sentToday) {
       yield* eventBus
         .publish({ _tag: 'ReminderResponded', userId: by, plantId })

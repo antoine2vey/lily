@@ -1,3 +1,4 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
@@ -70,15 +71,16 @@ describe('processInactivityNudges', () => {
 
   it('skips user already notified in last 7 days', async () => {
     const user = makeUser({ id: 'user-1' })
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'inactivity_nudge',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({
         lastCareDates: { 'user-1': daysAgo(10) },
         plantCounts: { 'user-1': 2 },
-        notificationsInPeriod: {
-          'user-1:inactivity_nudge': true,
-        },
       }),
       createMockNotificationRepository(notifications)
     )
@@ -87,7 +89,7 @@ describe('processInactivityNudges', () => {
       processInactivityNudges([user]).pipe(Effect.provide(layer))
     )
 
-    expect(notifications).toHaveLength(0)
+    expect(notifications).toEqual([sent])
   })
 
   it('skips user with no plants', async () => {

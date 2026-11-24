@@ -5,11 +5,7 @@ import {
   NotificationRepository,
   type NotificationRow,
 } from '@lily/api/repositories/notification.repository'
-import {
-  paginate,
-  startOfTodayAsDate,
-  startOfTomorrowAsDate,
-} from '@lily/shared'
+import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { CARE_TOPICS } from '@lily/shared/server'
 import {
@@ -52,8 +48,6 @@ export const createMockNotificationRepository = (
 
   const waiting = (n: MutableNotification) =>
     n.status === 'pending' || n.status === 'queued'
-  const isToday = (timezone: string) => (at: Date) =>
-    at >= startOfTodayAsDate(timezone) && at < startOfTomorrowAsDate(timezone)
   const deleteWhere = (covers: (n: MutableNotification) => boolean) => {
     const toKeep = Array.filter(notificationsState, (n) => !covers(n))
     notificationsState.length = 0
@@ -468,16 +462,24 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
-    hasNotificationToday: (userId: string, plantId: string, timezone: string) =>
+    hasNotificationIn: ({ userId, topics, plantId, counting, from, until }) =>
       Effect.sync(() =>
-        Array.some(
-          notificationsState,
-          (n) =>
+        Array.some(notificationsState, (n) => {
+          const counted =
+            counting === 'sent'
+              ? { at: n.sentAt, statuses: ['sent'] }
+              : { at: n.createdAt, statuses: ['pending', 'queued', 'sent'] }
+          return (
             n.userId === userId &&
-            n.plantId === plantId &&
-            n.status === 'sent' &&
-            Option.exists(Option.fromNullishOr(n.sentAt), isToday(timezone))
-        )
+            (topics === undefined || Array.contains(topics, n.type)) &&
+            (plantId === undefined || n.plantId === plantId) &&
+            Array.contains(counted.statuses, n.status) &&
+            Option.exists(
+              Option.fromNullishOr(counted.at),
+              (at) => at >= from && (until === undefined || at < until)
+            )
+          )
+        })
       ),
 
     markManyAsSent: (rows) =>
@@ -545,24 +547,6 @@ export const createMockNotificationRepository = (
           })
         })
       }),
-
-    hasNotificationOfTypeTodayForUser: (
-      userId: string,
-      timezone: string,
-      type: string
-    ) =>
-      Effect.sync(() =>
-        Array.some(
-          notificationsState,
-          (n) =>
-            n.userId === userId &&
-            n.type === type &&
-            (n.status === 'pending' ||
-              n.status === 'queued' ||
-              n.status === 'sent') &&
-            isToday(timezone)(n.createdAt)
-        )
-      ),
   }
 
   return Layer.succeed(NotificationRepository, repo)

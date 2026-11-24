@@ -1,3 +1,4 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type {
@@ -92,7 +93,12 @@ describe('processPhotoReminders', () => {
 
   it('dedup: skips plant already notified in last 30 days', async () => {
     const user = makeUser({ id: 'user-1' })
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'photo_reminder',
+      plantId: 'plant-1',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({
@@ -104,9 +110,6 @@ describe('processPhotoReminders', () => {
             }),
           ],
         },
-        notificationsForPlantInPeriod: {
-          'user-1:photo_reminder:plant-1': true,
-        },
       }),
       createMockNotificationRepository(notifications)
     )
@@ -115,7 +118,7 @@ describe('processPhotoReminders', () => {
       processPhotoReminders([user]).pipe(Effect.provide(layer))
     )
 
-    expect(notifications).toHaveLength(0)
+    expect(notifications).toEqual([sent])
   })
 
   it('creates one notification per stale plant', async () => {
@@ -171,7 +174,12 @@ describe('processPhotoReminders', () => {
 
   it('mixed: some plants already notified, some not', async () => {
     const user = makeUser({ id: 'user-1' })
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'photo_reminder',
+      plantId: 'plant-1',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({
@@ -187,9 +195,6 @@ describe('processPhotoReminders', () => {
             }),
           ],
         },
-        notificationsForPlantInPeriod: {
-          'user-1:photo_reminder:plant-1': true,
-        },
       }),
       createMockNotificationRepository(notifications)
     )
@@ -198,8 +203,7 @@ describe('processPhotoReminders', () => {
       processPhotoReminders([user]).pipe(Effect.provide(layer))
     )
 
-    expect(notifications).toHaveLength(1)
-    expect(notifications[0]?.plantId).toBe('plant-2')
+    expect(notifications.map((n) => n.plantId)).toEqual(['plant-1', 'plant-2'])
   })
 
   it('skips user within DND window gracefully', async () => {
