@@ -7,6 +7,7 @@ import {
   DEFAULT_TIMEZONE,
   daysAgoAsDate,
   isOnVacation,
+  localDayKey,
   nowAsDate,
   pickNotificationTime,
 } from '@lily/shared'
@@ -14,14 +15,6 @@ import { Array, Config, DateTime, Effect, Option, Random } from 'effect'
 import { generateDailyTip } from './generator'
 
 const TIP_DEDUP_DAYS = 3
-
-const getTodayDateString = (): string => {
-  const now = DateTime.nowUnsafe()
-  const parts = DateTime.toParts(now)
-  const month = String(parts.month).padStart(2, '0')
-  const day = String(parts.day).padStart(2, '0')
-  return `${parts.year}-${month}-${day}`
-}
 
 const resolveLocalized = (
   localized: Record<string, string>,
@@ -31,6 +24,43 @@ const resolveLocalized = (
     Option.getOrElse(Option.fromNullishOr(localized.en), () => '')
   )
 
+/** Today's tip, generated on the first run of the UTC day. */
+const tipOfToday = Effect.gen(function* () {
+  const tipRepo = yield* DailyTipRepository
+  const today = localDayKey(DateTime.nowUnsafe(), 'UTC')
+
+  const existing = Option.fromNullishOr(yield* tipRepo.findByDate(today))
+  if (Option.isSome(existing)) return existing
+
+  yield* Effect.log('Generating daily tip', { date: today })
+
+  const generatedTip = yield* generateDailyTip
+
+  const created = Option.fromNullishOr(
+    yield* tipRepo.create({
+      title: { ...generatedTip.title },
+      body: { ...generatedTip.body },
+      category: generatedTip.category,
+      tags: [...generatedTip.tags],
+      publishDate: today,
+    })
+  )
+
+  yield* Option.match(created, {
+    onNone: () => Effect.logWarning('Failed to create daily tip record'),
+    onSome: (tip) =>
+      Effect.log('Daily tip created', {
+        tipId: tip.id,
+        category: tip.category,
+      }),
+  })
+
+  return created
+})
+
+// Every run offers today's tip to every user. A run that stopped midway is
+// finished by the next one, and the three-day check below keeps a user who
+// already has the tip from getting it again.
 export const checkAndGenerateTip = Effect.gen(function* () {
   const enabled = yield* Config.withDefault(
     Config.Boolean('TIPS_GENERATION_ENABLED'),
@@ -42,37 +72,12 @@ export const checkAndGenerateTip = Effect.gen(function* () {
     return
   }
 
-  const tipRepo = yield* DailyTipRepository
   const notificationRepo = yield* NotificationRepository
   const engagementRepo = yield* EngagementRepository
 
-  const today = getTodayDateString()
-
-  const existingTip = yield* tipRepo.findByDate(today)
-
-  if (existingTip) return
-
-  yield* Effect.log('Generating daily tip', { date: today })
-
-  const generatedTip = yield* generateDailyTip
-
-  const tip = yield* tipRepo.create({
-    title: { ...generatedTip.title },
-    body: { ...generatedTip.body },
-    category: generatedTip.category,
-    tags: [...generatedTip.tags],
-    publishDate: today,
-  })
-
-  if (!tip) {
-    yield* Effect.logWarning('Failed to create daily tip record')
-    return
-  }
-
-  yield* Effect.log('Daily tip created', {
-    tipId: tip.id,
-    category: tip.category,
-  })
+  const published = yield* tipOfToday
+  if (Option.isNone(published)) return
+  const tip = published.value
 
   // Find all users with tips enabled — minus those on vacation
   const allUsers = yield* engagementRepo.getUsersWithTipsEnabled

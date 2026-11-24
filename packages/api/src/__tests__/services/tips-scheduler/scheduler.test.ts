@@ -7,7 +7,10 @@ import {
   type DailyTip,
   DailyTipRepository,
 } from '@lily/api/repositories/daily-tip.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import {
+  type INotificationRepository,
+  NotificationRepository,
+} from '@lily/api/repositories/notification.repository'
 import { checkAndGenerateTip } from '@lily/api/services/tips-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
 import { defectOf } from '@lily/shared/testing'
@@ -76,15 +79,23 @@ describe('checkAndGenerateTip', () => {
     await Effect.runPromise(checkAndGenerateTip.pipe(Effect.provide(layer)))
   })
 
-  it('skips when tip already exists for today', async () => {
+  it('offers the tip already published today instead of generating another', async () => {
+    const recorded: Notification[] = []
     const layer = Layer.mergeAll(
-      baseDeps,
+      createMockNotificationRepository(recorded),
+      createMockEngagementRepository({
+        usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
+      }),
+      createMockRagService(),
       createMockDailyTipRepository([todayTip]),
       enabledConfig
     )
 
-    // Should return early because findByDate(today) returns a tip
     await Effect.runPromise(checkAndGenerateTip.pipe(Effect.provide(layer)))
+
+    expect(recorded).toMatchObject([
+      { userId: 'user-1', params: { tipTitle: 'Today tip', tipBody: 'Body' } },
+    ])
   })
 
   it('skips with explicit false even when no tip exists', async () => {
@@ -158,13 +169,14 @@ describe('checkAndGenerateTip', () => {
         NotificationRepository,
         Effect.gen(function* () {
           const repo = yield* NotificationRepository
-          return {
+          const dying: INotificationRepository = {
             ...repo,
-            create: (data: Parameters<typeof repo.create>[0]) =>
+            create: (data) =>
               recorded.length < survivors
                 ? repo.create(data)
                 : Effect.die('process killed'),
           }
+          return dying
         })
       ).pipe(Layer.provide(repositories))
 
