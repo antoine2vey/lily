@@ -944,18 +944,6 @@ const translations: Record<LanguageCode, TranslationMap> = {
   },
 }
 
-const getCareTranslations = (
-  language: LanguageCode,
-  type: DeferredCareType
-): CareTranslations => translations[language][type]
-
-export const buildSinglePlantContent = (
-  type: DeferredCareType,
-  plantName: string,
-  language: LanguageCode
-): { title: string; body: string } =>
-  buildNotificationContent(type, [plantName], language)
-
 // ============================================================================
 // Live Activity translations
 //
@@ -1080,7 +1068,7 @@ export const buildNotificationContent = (
   plantNames: readonly string[],
   language: LanguageCode
 ): { title: string; body: string } => {
-  const t = getCareTranslations(language, type)
+  const t = translations[language][type]
   const count = plantNames.length
 
   if (count === 1) {
@@ -1116,7 +1104,7 @@ export const buildNotificationContent = (
 
 // Fixed ordering for both the label list inside a plant and the topic chosen
 // for the merged queue message. Overdue first: it is the most urgent signal.
-export const CARE_TOPIC_PRIORITY = [
+const CARE_TOPIC_PRIORITY = [
   'overdue_reminder',
   'watering_reminder',
   'fertilization_reminder',
