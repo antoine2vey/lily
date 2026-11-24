@@ -4,7 +4,8 @@ import {
   MockTransactionConnection,
 } from '@lily/api/__tests__/mocks/sql-client'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
-import { CanopyStore, lockPlan } from '@lily/api/contexts/canopy/store'
+import { CanopyStore } from '@lily/api/contexts/canopy/store'
+import { lockPlan } from '@lily/api/contexts/canopy/store/lock-plan'
 import {
   Transaction,
   transact,

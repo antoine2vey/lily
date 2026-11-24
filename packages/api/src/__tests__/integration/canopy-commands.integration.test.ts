@@ -26,15 +26,15 @@ import {
   CanopyWrite,
   RoomMove,
 } from '@lily/api/contexts/canopy/domain/vocabulary'
+import { CanopyStore } from '@lily/api/contexts/canopy/store'
 import {
-  CanopyStore,
   Find,
   InvitationScope,
   type LockPlan,
   lockPlan,
   PlantScope,
   RoomScope,
-} from '@lily/api/contexts/canopy/store'
+} from '@lily/api/contexts/canopy/store/lock-plan'
 import {
   Care,
   CareReadsLive,

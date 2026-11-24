@@ -16,7 +16,9 @@ const DELIVERY = [
   'services/helpers/schedule-notification.ts',
 ]
 
-const CANOPY_STORE = 'contexts/canopy/store.ts'
+const CANOPY_STORE_WRITES = 'contexts/canopy/store/write.ts'
+
+const CANOPY_STORE_LOCKS = 'contexts/canopy/store/lock.ts'
 
 const CARE_STORE = 'contexts/care/store.ts'
 
@@ -426,7 +428,7 @@ describe('bounded contexts', () => {
       .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
       .map(name)
 
-    expect(writers).toEqual([CANOPY_STORE])
+    expect(writers).toEqual([CANOPY_STORE_WRITES])
   })
 
   it("change a plant's or a room's owner only in the Canopy store", () => {
@@ -440,15 +442,15 @@ describe('bounded contexts', () => {
         .sort()
 
     expect(matching(OWNER_COLUMNS)).toEqual([
-      CANOPY_STORE,
+      CANOPY_STORE_WRITES,
       CARE_STORE,
       'repositories/room.repository.ts',
     ])
-    expect(matching(SETS_OWNER)).toEqual([CANOPY_STORE])
+    expect(matching(SETS_OWNER)).toEqual([CANOPY_STORE_WRITES])
   })
 
   it('lock a canopy row only in the Canopy store', () => {
-    expect(takersOf('Canopy')).toEqual([CANOPY_STORE])
+    expect(takersOf('Canopy')).toEqual([CANOPY_STORE_LOCKS])
   })
 
   it('hear about Canopy changes through its topic', () => {

@@ -17,7 +17,7 @@ import {
   canopyWorld,
   memberUsers,
 } from '@lily/api/__tests__/services/canopy/canopy-world'
-import { Find } from '@lily/api/contexts/canopy/store'
+import { Find } from '@lily/api/contexts/canopy/store/lock-plan'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { cleanupExpiredAccounts } from '@lily/api/services/account-cleanup/scheduler'
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'

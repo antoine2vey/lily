@@ -30,14 +30,14 @@ import {
   CanopyWrite,
   RoomMove,
 } from '@lily/api/contexts/canopy/domain/vocabulary'
+import { CanopyStore } from '@lily/api/contexts/canopy/store'
 import {
-  CanopyStore,
   Find,
   InvitationScope,
   lockPlan,
   PlantScope,
   RoomScope,
-} from '@lily/api/contexts/canopy/store'
+} from '@lily/api/contexts/canopy/store/lock-plan'
 import { Actor } from '@lily/api/kernel/permit'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { RowsNotWrittenDefect } from '@lily/api/kernel/written'
