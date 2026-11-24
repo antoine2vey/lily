@@ -273,6 +273,16 @@ function checkFertilizationSkip(currentWeather: WeatherData): {
   return { skip: false }
 }
 
+const rainDampening = (day: WeatherData, isOutdoor: boolean): number =>
+  pipe(
+    Option.fromNullishOr(day.precipitation),
+    Option.filter((mm) => isOutdoor && mm > PRECIP_SKIP_MM),
+    Option.match({
+      onNone: () => 1,
+      onSome: () => PRECIP_DAMPENING_FACTOR,
+    })
+  )
+
 interface DayDemand {
   readonly temperature: number
   readonly humidity: number
@@ -285,8 +295,9 @@ interface DayDemand {
  *
  * The temperature, humidity and wind factors multiply because they compound:
  * a hot, dry, windy day gives 1.2 x 1.15 x 1.1 = 1.518, where a sum (1.45)
- * would understate the stress. Indoor plants with a known latitude take the
- * location-aware light/growth + VPD demand model instead.
+ * would understate the stress. A heavy rain day waters an outdoor plant, so it
+ * is dampened. Indoor plants with a known latitude take the location-aware
+ * light/growth + VPD demand model instead.
  */
 const dayDemand = (
   day: WeatherData,
@@ -308,7 +319,8 @@ const dayDemand = (
     multiplier: pipe(
       indoorDemandInput(plant, latitude, day, recentHistory),
       Option.match({
-        onNone: () => temperature * humidity * wind,
+        onNone: () =>
+          temperature * humidity * wind * rainDampening(day, plant.isOutdoor),
         onSome: calculateIndoorDemandFactor,
       })
     ),
@@ -358,23 +370,6 @@ export function calculatePlantAdjustment(
 }
 
 /**
- * A heavy rain day waters an outdoor plant, so the scheduler dampens it.
- */
-const rainDampened = (
-  day: WeatherData,
-  plant: IndoorPlantContext,
-  multiplier: number
-): number =>
-  pipe(
-    Option.fromNullishOr(day.precipitation),
-    Option.filter((mm) => plant.isOutdoor && mm > PRECIP_SKIP_MM),
-    Option.match({
-      onNone: () => multiplier,
-      onSome: () => multiplier * PRECIP_DAMPENING_FACTOR,
-    })
-  )
-
-/**
  * Calculate how many days to shift a plant's watering and fertilization
  * schedule based on the full weather forecast.
  *
@@ -404,12 +399,9 @@ export function calculateScheduleDelta(
     return { wateringDaysDelta: 0, fertilizationDaysDelta: 0 }
   }
 
-  const dayMultipliers = Array.map(forecast, (day) =>
-    rainDampened(
-      day,
-      plant,
-      dayDemand(day, recentHistory, plant, latitude).multiplier
-    )
+  const dayMultipliers = Array.map(
+    forecast,
+    (day) => dayDemand(day, recentHistory, plant, latitude).multiplier
   )
 
   const avgMultiplier = pipe(

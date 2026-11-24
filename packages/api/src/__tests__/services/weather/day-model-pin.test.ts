@@ -153,7 +153,7 @@ const CASES = [
     plant: OUTDOOR,
     latitude: 48.86,
     days: [COLD_WET],
-    app: { multiplier: '0.38', adjustedDays: 14, skipWatering: true },
+    app: { multiplier: '0.11', adjustedDays: 14, skipWatering: true },
     schedulerToday: { multiplier: '0.11', adjustedDays: 14 },
     schedulerForecast: { multiplier: '0.11', adjustedDays: 14 },
   },
@@ -162,7 +162,7 @@ const CASES = [
     plant: OUTDOOR,
     latitude: 48.86,
     days: [MILD_RAIN],
-    app: { multiplier: '1.00', adjustedDays: 7, skipWatering: true },
+    app: { multiplier: '0.30', adjustedDays: 14, skipWatering: true },
     schedulerToday: { multiplier: '0.30', adjustedDays: 14 },
     schedulerForecast: { multiplier: '0.30', adjustedDays: 14 },
   },
@@ -216,7 +216,7 @@ const CASES = [
     plant: OUTDOOR,
     latitude: 48.86,
     days: [COLD_WET, HOT_DRY, MILD],
-    app: { multiplier: '0.38', adjustedDays: 14, skipWatering: true },
+    app: { multiplier: '0.11', adjustedDays: 14, skipWatering: true },
     schedulerToday: { multiplier: '0.11', adjustedDays: 14 },
     schedulerForecast: { multiplier: '0.88', adjustedDays: 8 },
   },
@@ -243,5 +243,15 @@ describe('weather day model, both entry points', () => {
       schedulerToday: pin.schedulerToday,
       schedulerForecast: pin.schedulerForecast,
     })
+  })
+})
+
+describe('the app reads the scheduler day model', () => {
+  it.each(CASES)('$name', (pin) => {
+    const today = forecastOf(pin.days).slice(0, 1)
+    const { multiplier, adjustedDays } = app(pin.plant, today, pin.latitude)
+    expect({ multiplier, adjustedDays }).toEqual(
+      scheduler(pin.plant, today, pin.latitude)
+    )
   })
 })
