@@ -16,7 +16,6 @@ import {
 } from '@lily/api/__tests__/fixtures/weather'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -95,11 +94,11 @@ const readjust = async (
           createMockPlantRepository({
             plants,
             rooms: [indoorRoom, outdoorRoom, dimRoom],
+            schedules,
           }),
           createMockNotificationRepository([]),
           createMockCanopyRepository(),
-          createMockDelegationRepository(),
-          createMockCareScheduleRepository({ schedules, plants })
+          createMockDelegationRepository()
         )
       )
     )

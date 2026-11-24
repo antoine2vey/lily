@@ -1,4 +1,3 @@
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { WeatherRepository } from '@lily/api/repositories/weather.repository'
@@ -21,7 +20,6 @@ export const getCareAdjustments: Effect.Effect<
   | CurrentUser
   | UserRepository
   | PlantRepository
-  | CareScheduleRepository
   | WeatherProvider
   | WeatherCache
   | WeatherRepository
@@ -29,7 +27,6 @@ export const getCareAdjustments: Effect.Effect<
   const { id } = yield* CurrentUser
   const userRepo = yield* UserRepository
   const plantRepo = yield* PlantRepository
-  const scheduleRepo = yield* CareScheduleRepository
 
   const user = yield* userRepo.findById(id)
   if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
@@ -40,45 +37,31 @@ export const getCareAdjustments: Effect.Effect<
     user.latitude,
     user.longitude
   )
-
-  const plantsResult = yield* plantRepo.findAll({
+  const plants = yield* plantRepo.findLivingByOwner({
+    _tag: 'User',
     userId: id,
-    page: 1,
-    limit: 1000,
   })
 
-  const allSchedules = yield* Effect.forEach(
-    plantsResult.items,
-    (plant) => scheduleRepo.findByPlant(plant.id),
-    { concurrency: 10 }
-  )
-
   return Array.filterMap(
-    Array.zip(plantsResult.items, allSchedules),
-    Filter.fromPredicateOption(([plant, schedules]) => {
-      const wateringSchedule = pipe(
-        Array.findFirst(schedules, (s) => s.careType === 'watering'),
-        Option.getOrNull
-      )
-
-      if (!wateringSchedule) {
-        return Option.none()
-      }
-
-      return Option.some(
-        calculatePlantAdjustment(
-          {
-            id: plant.id,
-            wateringFrequencyDays: wateringSchedule.frequencyDays,
-            wateringRating: plant.wateringRating,
-            ...toIndoorPlantContext(plant),
-          },
-          currentWeather,
-          recentHistory,
-          forecast,
-          user.latitude
+    plants,
+    Filter.fromPredicateOption((plant) =>
+      pipe(
+        Array.findFirst(plant.schedules, (s) => s.careType === 'watering'),
+        Option.map((wateringSchedule) =>
+          calculatePlantAdjustment(
+            {
+              id: plant.id,
+              wateringFrequencyDays: wateringSchedule.frequencyDays,
+              wateringRating: plant.wateringRating,
+              ...toIndoorPlantContext(plant),
+            },
+            currentWeather,
+            recentHistory,
+            forecast,
+            user.latitude
+          )
         )
       )
-    })
+    )
   )
 })

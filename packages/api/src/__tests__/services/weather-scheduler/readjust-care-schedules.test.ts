@@ -15,7 +15,6 @@ import {
   createTestCanopyRow,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -76,14 +75,14 @@ const readjust = async (
           MockSqlClientLive,
           care.layer,
           createMockUserRepository([weatherUser]),
-          createMockPlantRepository({ plants, rooms }),
+          createMockPlantRepository({
+            plants,
+            rooms,
+            schedules: schedulesFromPlants(plants),
+          }),
           createMockNotificationRepository([]),
           createMockCanopyRepository(),
-          createMockDelegationRepository(),
-          createMockCareScheduleRepository({
-            schedules: schedulesFromPlants(plants),
-            plants,
-          })
+          createMockDelegationRepository()
         )
       )
     )
