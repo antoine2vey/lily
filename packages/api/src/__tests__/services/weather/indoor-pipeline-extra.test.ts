@@ -31,7 +31,6 @@ import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { buildWeatherCtx } from '@lily/api/__tests__/fixtures/weather'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -172,11 +171,10 @@ const runScheduler = async (
     care.layer,
     MockSqlClientLive,
     createMockUserRepository([user]),
-    createMockPlantRepository({ plants, rooms: allRooms }),
+    createMockPlantRepository({ plants, rooms: allRooms, schedules }),
     createMockNotificationRepository([]),
     createMockCanopyRepository(),
-    createMockDelegationRepository(),
-    createMockCareScheduleRepository({ schedules, plants })
+    createMockDelegationRepository()
   )
   await Effect.runPromise(
     readjustCareSchedules(
@@ -517,11 +515,14 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         care.layer,
         MockSqlClientLive,
         createMockUserRepository([noLatUser]),
-        createMockPlantRepository({ plants: [plant], rooms: allRooms }),
+        createMockPlantRepository({
+          plants: [plant],
+          rooms: allRooms,
+          schedules,
+        }),
         createMockNotificationRepository([]),
         createMockCanopyRepository(),
-        createMockDelegationRepository(),
-        createMockCareScheduleRepository({ schedules, plants: [plant] })
+        createMockDelegationRepository()
       )
 
       // Any context map — the user is skipped before lookup.

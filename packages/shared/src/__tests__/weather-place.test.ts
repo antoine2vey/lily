@@ -1,6 +1,6 @@
-import { weatherPlaceOf } from '@lily/api/contexts/care/store'
 import { Option } from 'effect'
 import { describe, expect, it } from 'vitest'
+import { weatherPlaceOf } from '../domains/common/geo'
 
 describe('weatherPlaceOf', () => {
   it('keeps a coordinate of exactly zero', () => {

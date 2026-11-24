@@ -286,12 +286,12 @@ export const createMockPlantRepository = (
       })
     },
 
-    findLivingByCanopy: (canopyId: string) =>
+    findLivingByOwner: (owner: PlantOwner) =>
       Effect.succeed(
         pipe(
           Array.filter(
             plantsData,
-            (p) => p.canopyId === canopyId && p.diedAt === null
+            (p) => sameOwner(withOwner(p).owner, owner) && p.diedAt === null
           ),
           Array.map(toPlantWithRoom)
         )

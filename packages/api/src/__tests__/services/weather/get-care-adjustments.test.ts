@@ -1,7 +1,6 @@
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { mockForecast } from '@lily/api/__tests__/fixtures/weather'
-import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
@@ -65,13 +64,13 @@ describe('getCareAdjustments', () => {
         status: mockUser1.status,
       }),
       createMockUserRepository([mockUser1]), // weatherEnabled = false
-      createMockPlantRepository({ plants: [mockPlant] }),
+      createMockPlantRepository({
+        plants: [mockPlant],
+        schedules: mockCareSchedules,
+      }),
       createMockWeatherCache(),
       createMockWeatherProvider(mockForecast),
-      createMockWeatherRepository(),
-      createMockCareScheduleRepository({
-        schedules: mockCareSchedules,
-      })
+      createMockWeatherRepository()
     )
 
     const result = await Effect.runPromiseExit(
@@ -104,13 +103,13 @@ describe('getCareAdjustments', () => {
         status: weatherUser.status,
       }),
       createMockUserRepository([weatherUser]),
-      createMockPlantRepository({ plants: [mockPlant] }),
+      createMockPlantRepository({
+        plants: [mockPlant],
+        schedules: mockCareSchedules,
+      }),
       createMockWeatherCache(mockForecast),
       createMockWeatherProvider(mockForecast),
-      createMockWeatherRepository(),
-      createMockCareScheduleRepository({
-        schedules: mockCareSchedules,
-      })
+      createMockWeatherRepository()
     )
 
     const result = await Effect.runPromise(
@@ -152,8 +151,7 @@ describe('getCareAdjustments', () => {
       createMockPlantRepository({ plants: [] }), // No plants
       createMockWeatherCache(mockForecast),
       createMockWeatherProvider(mockForecast),
-      createMockWeatherRepository(),
-      createMockCareScheduleRepository({})
+      createMockWeatherRepository()
     )
 
     const result = await Effect.runPromise(
@@ -162,4 +160,48 @@ describe('getCareAdjustments', () => {
 
     expect(result.length).toBe(0)
   })
+
+  it.each([
+    { place: 'on the equator', latitude: 0, longitude: 2.35 },
+    { place: 'on the prime meridian', latitude: 51.48, longitude: 0 },
+  ])(
+    'returns adjustments for a user $place',
+    async ({ latitude, longitude }) => {
+      const weatherUser = {
+        ...mockUser1,
+        weatherEnabled: true,
+        latitude,
+        longitude,
+      }
+      const layers = Layer.mergeAll(
+        Layer.succeed(CurrentUser, {
+          id: weatherUser.id,
+          email: weatherUser.email,
+          name: weatherUser.name,
+          firstName: null,
+          lastName: null,
+          createdAt: weatherUser.createdAt,
+          updatedAt: weatherUser.updatedAt,
+          role: weatherUser.role,
+          status: weatherUser.status,
+        }),
+        createMockUserRepository([weatherUser]),
+        createMockPlantRepository({
+          plants: [mockPlant],
+          schedules: mockCareSchedules,
+        }),
+        createMockWeatherCache(mockForecast),
+        createMockWeatherProvider(mockForecast),
+        createMockWeatherRepository()
+      )
+
+      const result = await Effect.runPromise(
+        getCareAdjustments.pipe(Effect.provide(layers))
+      )
+
+      expect(result.map((adjustment) => adjustment.plantId)).toEqual([
+        'plant-1',
+      ])
+    }
+  )
 })

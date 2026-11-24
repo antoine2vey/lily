@@ -1,21 +1,18 @@
 import { Care, DueMove } from '@lily/api/contexts/care'
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  type PlantWithRoom,
+} from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import {
   calculateScheduleDelta,
   toIndoorPlantContext,
 } from '@lily/api/services/weather/algorithm'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import {
-  CanopyId,
-  type Orientation,
-  type PlantOwner,
-  roundCoord,
-} from '@lily/shared'
+import { CanopyId, type PlantOwner, roundCoord } from '@lily/shared'
 import {
   Array,
   DateTime,
@@ -85,7 +82,6 @@ export const weatherLocationKey = (latitude: number, longitude: number) =>
 type ReadjustContext =
   | Care
   | PlantRepository
-  | CareScheduleRepository
   | NotificationRepository
   | UserRepository
   | DelegationRepository
@@ -118,24 +114,10 @@ const readjustScopePlants = (
   scope: WeatherScope,
   weatherContextMap: ReadonlyMap<string, WeatherContext>
 ): Effect.Effect<void, never, ReadjustContext> => {
-  const { label, listPlants } = pipe(
+  const label = pipe(
     Match.value(scope.owner),
-    Match.tag('User', ({ userId }) => ({
-      label: `user ${userId}`,
-      listPlants: Effect.flatMap(PlantRepository, (plantRepo) =>
-        plantRepo.findAll({
-          userId,
-          page: 1,
-          limit: 1000,
-        })
-      ).pipe(Effect.map((result) => result.items)),
-    })),
-    Match.tag('Canopy', ({ canopyId }) => ({
-      label: `canopy ${canopyId}`,
-      listPlants: Effect.flatMap(PlantRepository, (plantRepo) =>
-        plantRepo.findLivingByCanopy(canopyId)
-      ),
-    })),
+    Match.tag('User', ({ userId }) => `user ${userId}`),
+    Match.tag('Canopy', ({ canopyId }) => `canopy ${canopyId}`),
     Match.exhaustive
   )
 
@@ -154,7 +136,8 @@ const readjustScopePlants = (
       `[Readjust] Processing ${label} at ${locationKey} (tz=${scope.timezone})`
     )
 
-    const plants = yield* listPlants
+    const plantRepo = yield* PlantRepository
+    const plants = yield* plantRepo.findLivingByOwner(scope.owner)
 
     yield* Effect.log(`[Readjust] ${label} has ${plants.length} plants`)
 
@@ -182,40 +165,20 @@ const readjustScopePlants = (
 }
 
 const readjustPlantSchedule = (
-  plant: {
-    id: string
-    owner: PlantOwner
-    name: string
-    category: string | null
-    wateringRating: number
-    lightingRating: number
-    humidityRating: number
-    remindersEnabled: boolean
-    room: {
-      id: string
-      name: string
-      icon: string
-      luminosity: number | null
-      orientation: Orientation | null
-      isOutdoor: boolean
-    } | null
-  },
+  plant: PlantWithRoom,
   latitude: number,
   weatherCtx: WeatherContext
 ): Effect.Effect<void, SqlError, ReadjustContext> =>
   Effect.gen(function* () {
-    const scheduleRepo = yield* CareScheduleRepository
     const care = yield* Care
 
-    const schedules = yield* scheduleRepo.findByPlant(plant.id)
-
     const wateringSchedule = pipe(
-      Array.findFirst(schedules, (s) => s.careType === 'watering'),
+      Array.findFirst(plant.schedules, (s) => s.careType === 'watering'),
       Option.getOrNull
     )
 
     const fertSchedule = pipe(
-      Array.findFirst(schedules, (s) => s.careType === 'fertilization'),
+      Array.findFirst(plant.schedules, (s) => s.careType === 'fertilization'),
       Option.getOrNull
     )
 

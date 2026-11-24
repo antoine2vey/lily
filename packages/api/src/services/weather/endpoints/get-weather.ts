@@ -9,8 +9,9 @@ import {
   WEATHER_ZONE_RADIUS_KM,
   type WeatherFetchError,
   WeatherNotAvailableError,
+  weatherPlaceOf,
 } from '@lily/shared'
-import { Effect, Option } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const getWeatherForLocation = (
@@ -73,6 +74,26 @@ export const getWeatherForLocation = (
     return forecast
   })
 
+/** A user's coordinates, when weather is on. */
+export const userWeatherPlace = (
+  user: {
+    readonly weatherEnabled: boolean
+    readonly latitude: number | null
+    readonly longitude: number | null
+  } | null
+): Effect.Effect<
+  { readonly latitude: number; readonly longitude: number },
+  WeatherNotAvailableError
+> =>
+  Effect.fromOption(
+    pipe(
+      Option.fromNullishOr(user),
+      Option.filter((u) => u.weatherEnabled),
+      Option.flatMap(weatherPlaceOf)
+    ),
+    () => new WeatherNotAvailableError({})
+  )
+
 export const getWeatherForUser: Effect.Effect<
   WeatherForecast,
   SqlError | WeatherFetchError | WeatherNotAvailableError,
@@ -85,11 +106,8 @@ export const getWeatherForUser: Effect.Effect<
   const { id } = yield* CurrentUser
   const userRepo = yield* UserRepository
 
-  const user = yield* userRepo.findById(id)
-
-  if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
-    return yield* new WeatherNotAvailableError({})
-  }
-
-  return yield* getWeatherForLocation(user.latitude, user.longitude)
+  const { latitude, longitude } = yield* userWeatherPlace(
+    yield* userRepo.findById(id)
+  )
+  return yield* getWeatherForLocation(latitude, longitude)
 })

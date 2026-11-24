@@ -173,8 +173,8 @@ export interface IPlantRepository {
   readonly findAll: (
     params: FindPlantsParams
   ) => Effect.Effect<FindPlantsResult, SqlError>
-  readonly findLivingByCanopy: (
-    canopyId: string
+  readonly findLivingByOwner: (
+    owner: PlantOwner
   ) => Effect.Effect<Array<PlantWithRoom>, SqlError>
   readonly findByIds: (
     ids: readonly string[]
@@ -651,31 +651,66 @@ export const PlantRepositoryLive = Layer.effect(
         return paginate(paginated, Array.length(sorted), page, limit)
       }),
 
-      findLivingByCanopy: Effect.fn('PlantRepository.findLivingByCanopy')(
-        function* (canopyId: string) {
+      findLivingByOwner: Effect.fn('PlantRepository.findLivingByOwner')(
+        function* (owner: PlantOwner) {
           const now = yield* DateTime.now
-          const rows = yield* db
-            .select({
-              plant: plants,
-              room: roomSelect,
-              canopy: canopySelect,
-              creator: creatorSelect,
-              careTimezone: careTimezoneSql,
-            })
-            .from(plants)
-            .innerJoin(canopies, eq(plants.canopyId, canopies.id))
-            .leftJoin(rooms, eq(plants.roomId, rooms.id))
-            .leftJoin(users, eq(plants.createdByUserId, users.id))
-            .where(and(eq(plants.canopyId, canopyId), isLivingPlant()))
-          const schedules = schedulesFor(
-            yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
-          )
-          return Array.map(rows, (row) =>
-            toCanopyPlant(row, {
-              careTimezone: row.careTimezone,
-              schedules: schedules(row.plant.id),
-              now,
-            })
+          return yield* pipe(
+            Match.value(owner),
+            Match.tag('User', ({ userId }) =>
+              Effect.gen(function* () {
+                const rows = yield* db
+                  .select({
+                    plant: plants,
+                    room: roomSelect,
+                    careTimezone: careTimezoneSql,
+                  })
+                  .from(plants)
+                  .leftJoin(rooms, eq(plants.roomId, rooms.id))
+                  .where(and(eq(plants.userId, userId), isLivingPlant()))
+                const schedules = schedulesFor(
+                  yield* fetchSchedulesForPlants(
+                    Array.map(rows, (r) => r.plant.id)
+                  )
+                )
+                return Array.map(rows, (row) =>
+                  toOwnedPlant(row, {
+                    careTimezone: row.careTimezone,
+                    schedules: schedules(row.plant.id),
+                    now,
+                  })
+                )
+              })
+            ),
+            Match.tag('Canopy', ({ canopyId }) =>
+              Effect.gen(function* () {
+                const rows = yield* db
+                  .select({
+                    plant: plants,
+                    room: roomSelect,
+                    canopy: canopySelect,
+                    creator: creatorSelect,
+                    careTimezone: careTimezoneSql,
+                  })
+                  .from(plants)
+                  .innerJoin(canopies, eq(plants.canopyId, canopies.id))
+                  .leftJoin(rooms, eq(plants.roomId, rooms.id))
+                  .leftJoin(users, eq(plants.createdByUserId, users.id))
+                  .where(and(eq(plants.canopyId, canopyId), isLivingPlant()))
+                const schedules = schedulesFor(
+                  yield* fetchSchedulesForPlants(
+                    Array.map(rows, (r) => r.plant.id)
+                  )
+                )
+                return Array.map(rows, (row) =>
+                  toCanopyPlant(row, {
+                    careTimezone: row.careTimezone,
+                    schedules: schedules(row.plant.id),
+                    now,
+                  })
+                )
+              })
+            ),
+            Match.exhaustive
           )
         }
       ),
