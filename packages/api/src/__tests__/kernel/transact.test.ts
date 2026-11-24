@@ -1,5 +1,8 @@
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
-import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
+import {
+  createMockSqlClient,
+  MockTransactionConnection,
+} from '@lily/api/__tests__/mocks/sql-client'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { CanopyStore, lockPlan } from '@lily/api/contexts/canopy/store'
 import {
@@ -8,7 +11,8 @@ import {
   transactQuietly,
 } from '@lily/api/kernel/transact'
 import { failureOf } from '@lily/shared/testing'
-import { Data, Effect, Layer } from 'effect'
+import { Context, Data, Effect, Layer, Option, Tracer } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'
 
@@ -97,6 +101,60 @@ describe('Transaction.afterCommit', () => {
         failure: new BodyFailed(),
         log: ['body done'],
       })
+    }
+  )
+})
+
+class Greeting extends Context.Service<Greeting, string>()('test/Greeting') {}
+
+describe('Transaction.afterCommit, once the transaction has committed', () => {
+  const seenAfterCommit = (registerInside: boolean) =>
+    Effect.gen(function* () {
+      const seen: unknown[] = []
+      const looking = Effect.gen(function* () {
+        seen.push({
+          greeting: yield* Greeting,
+          connection: Option.isSome(
+            yield* Effect.serviceOption(MockTransactionConnection)
+          ),
+          transaction: Option.isSome(yield* Effect.serviceOption(Transaction)),
+          span: Option.map(
+            yield* Effect.serviceOption(Tracer.ParentSpan),
+            (span) => (span._tag === 'Span' ? span.name : 'external')
+          ),
+        })
+      })
+      const registering = Effect.flatMap(Transaction, (transaction) =>
+        transaction.afterCommit(looking)
+      ).pipe(
+        Effect.provideService(Greeting, 'registered'),
+        Effect.withSpan('inside the transaction')
+      )
+      const body: Effect.Effect<
+        void,
+        SqlError,
+        Transaction | SqlClient.SqlClient
+      > = registerInside ? transactQuietly(registering) : registering
+      yield* transactQuietly(body).pipe(
+        Effect.withSpan('around the transaction')
+      )
+      return seen
+    }).pipe(Effect.provide(createMockSqlClient()))
+
+  it.each([
+    ['the outermost transaction', false],
+    ['a savepoint', true],
+  ])(
+    'runs what %s registered with the services it was registered with, minus the connection, the transaction and the span',
+    async (_where, registerInside) => {
+      expect(await Effect.runPromise(seenAfterCommit(registerInside))).toEqual([
+        {
+          greeting: 'registered',
+          connection: false,
+          transaction: false,
+          span: Option.some('around the transaction'),
+        },
+      ])
     }
   )
 })

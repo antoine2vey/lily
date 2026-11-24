@@ -585,6 +585,41 @@ describe('bounded contexts', () => {
   })
 })
 
+// The kernel runs an after-commit effect with the services of the fiber
+// that registered it, minus the transaction's own. Only these two files read
+// a whole context: transact.ts strips it, services.ts picks from it.
+const TRANSACT = 'kernel/transact.ts'
+const SERVICES_OF = 'kernel/services.ts'
+const CAPTURES_CONTEXT = /\bEffect\.context\b/
+
+describe('captured contexts', () => {
+  it('never reach an after-commit effect', () => {
+    const capturers = files
+      .filter((file) => name(file) !== TRANSACT)
+      .filter((file) => /\.afterCommit\b/.test(codeOf(file)))
+      .filter((file) => CAPTURES_CONTEXT.test(codeOf(file)))
+      .map(name)
+
+    expect(
+      capturers,
+      'Effect.context returns the whole fiber context. Captured inside a transaction it holds the connection the commit gives back to the pool, and an effect provided with it overrides what afterCommit strips. Pass the effect to afterCommit with its requirements instead.'
+    ).toEqual([])
+  })
+
+  it('are taken in contexts and the kernel only through servicesOf', () => {
+    const capturers = files
+      .filter((file) => /^(contexts|kernel)\//.test(name(file)))
+      .filter((file) => name(file) !== TRANSACT && name(file) !== SERVICES_OF)
+      .filter((file) => CAPTURES_CONTEXT.test(codeOf(file)))
+      .map(name)
+
+    expect(
+      capturers,
+      'A context built in a layer holds the scope of the layer, and one built in a command holds its transaction. servicesOf keeps only the services it names.'
+    ).toEqual([])
+  })
+})
+
 const MINT = 'shared/src/services/file/stored-ref-mint.ts'
 const storedRefWriters = serverCode.filter(
   (file) => relative(PACKAGES, file) !== MINT

@@ -15,6 +15,7 @@ import {
   Ref,
   type Result,
   type Schema,
+  Tracer,
 } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -44,10 +45,13 @@ export class Transaction extends Context.Service<
   Transaction,
   {
     /**
-     * Runs `effect` once the outermost transaction has committed. It is
-     * dropped when this transaction, or one around it, rolls back.
+     * Runs `effect` once the outermost transaction has committed, with the
+     * services of the fiber that registered it. It is dropped when this
+     * transaction, or one around it, rolls back.
      */
-    readonly afterCommit: (effect: Effect.Effect<void>) => Effect.Effect<void>
+    readonly afterCommit: <R>(
+      effect: Effect.Effect<void, never, R>
+    ) => Effect.Effect<void, never, R>
     /**
      * The locks of the outermost transaction. A savepoint shares them and
      * puts them back as it found them when it rolls back, as Postgres does.
@@ -107,6 +111,23 @@ export const commandBody = <Agg, W, E, A, N, Recorded, Refusal, R>(
   })
 
 /**
+ * What an after-commit effect keeps of the fiber that registered it: every
+ * service but those of the transaction. Its connection is back in the pool,
+ * where another request may hold it, its `Transaction` registers into a list
+ * already run, and its span has ended.
+ */
+const afterTheTransaction =
+  (sql: SqlClient.SqlClient) =>
+  <R>(registeredIn: Context.Context<R>) =>
+    // No after-commit effect requires the omitted services, so the context
+    // still covers R. One that requires `Transaction` dies when it runs.
+    Context.omit(
+      sql.transactionService,
+      Transaction,
+      Tracer.ParentSpan
+    )(registeredIn) as Context.Context<R>
+
+/**
  * One transaction (a savepoint when the caller already holds one) with no
  * relay wake, for a body that appends nothing to the outbox. What the body
  * registered with `afterCommit` runs here when this is the outermost
@@ -135,7 +156,17 @@ export const transactQuietly = <A, E, R>(
           Transaction,
           Transaction.of({
             afterCommit: (effect) =>
-              Ref.update(registered, Array.append(effect)),
+              Effect.flatMap(Effect.context(), (registeredIn) =>
+                Ref.update(
+                  registered,
+                  Array.append(
+                    Effect.provide(
+                      effect,
+                      afterTheTransaction(sql)(registeredIn)
+                    )
+                  )
+                )
+              ),
             held: Option.some(held),
           })
         )
@@ -199,6 +230,7 @@ export const commandsOf = <
   },
   context: Context.Context<Outbox | SqlClient.SqlClient>
 ) => {
+  const services = Context.pick(Outbox, SqlClient.SqlClient)(context)
   /**
    * One command in the transaction of its caller, for a caller that puts
    * more in that transaction. Fails with the refusal itself, and keeps
@@ -214,7 +246,10 @@ export const commandsOf = <
       decide,
       apply: config.apply,
       notices: config.notices,
-    }).pipe(Effect.catchTag('SchemaError', Effect.die), Effect.provide(context))
+    }).pipe(
+      Effect.catchTag('SchemaError', Effect.die),
+      Effect.provide(services)
+    )
 
   /**
    * One command in one transaction (a savepoint when the caller already
@@ -231,7 +266,7 @@ export const commandsOf = <
       Effect.catchTag('SqlError', Effect.die),
       Effect.withSpan(name),
       Effect.mapError((refusal: F) => config.asError(refusal)),
-      Effect.provide(context)
+      Effect.provide(services)
     )
 
   return { run, body }

@@ -1,5 +1,5 @@
 import { Transaction } from '@lily/api/kernel/transact'
-import { Array, Effect, identity, Option, Ref } from 'effect'
+import { Array, Context, Effect, identity, Option, Ref, Tracer } from 'effect'
 
 export const transactInMemory = <A, E, R>(
   effect: Effect.Effect<A, E, R>
@@ -10,8 +10,22 @@ export const transactInMemory = <A, E, R>(
       effect,
       Transaction,
       Transaction.of({
-        afterCommit: (registering) =>
-          Ref.update(registered, Array.append(registering)),
+        afterCommit: <RA>(registering: Effect.Effect<void, never, RA>) =>
+          Effect.flatMap(Effect.context<RA>(), (registeredIn) =>
+            Ref.update(
+              registered,
+              Array.append(
+                Effect.provide(
+                  registering,
+                  // As `transactQuietly` does, with no connection to omit.
+                  Context.omit(
+                    Transaction,
+                    Tracer.ParentSpan
+                  )(registeredIn) as Context.Context<RA>
+                )
+              )
+            )
+          ),
         held: Option.none(),
       })
     )
