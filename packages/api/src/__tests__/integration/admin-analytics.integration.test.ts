@@ -301,6 +301,69 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).toEqual([{ label: limitLabel, count: 1 }])
     })
 
+    it('rates diagnoses by how their latest care plan closed', async () => {
+      const before = await analytics((repo) => repo.diagnosisResolutionRate)
+      const userId = await createUser()
+      const [plant] = await db
+        .insert(schema.plants)
+        .values({ ...plantValues, userId, createdByUserId: userId })
+        .returning()
+      if (!plant) throw new Error('DB insertion failed.')
+      const diagnosed = at('01T00:00:00')
+      const diagnoses = await db
+        .insert(schema.diagnoses)
+        .values(
+          Array.makeBy(5, () => ({
+            plantId: plant.id,
+            userId,
+            diseaseName: 'Root rot',
+            severity: 'MODERATE' as const,
+            confidence: 80,
+            symptoms: [],
+            treatmentSteps: [],
+            createdAt: diagnosed,
+          }))
+        )
+        .returning()
+      const [completed, dismissed, accepted, , reopened] = diagnoses
+      if (!completed || !dismissed || !accepted || !reopened)
+        throw new Error('DB insertion failed.')
+      const plan = (
+        diagnosisId: string,
+        status: 'accepted' | 'completed' | 'dismissed',
+        createdAt: Date,
+        completedAt: Date | null = null
+      ) => ({
+        plantId: plant.id,
+        userId,
+        diagnosisId,
+        title: 'Treat root rot',
+        status,
+        createdAt,
+        completedAt,
+      })
+      await db
+        .insert(schema.carePlans)
+        .values([
+          plan(completed.id, 'completed', diagnosed, at('01T06:00:00')),
+          plan(dismissed.id, 'dismissed', diagnosed),
+          plan(accepted.id, 'accepted', diagnosed),
+          plan(reopened.id, 'completed', diagnosed, at('01T02:00:00')),
+          plan(reopened.id, 'accepted', at('02T00:00:00')),
+        ])
+
+      const after = await analytics((repo) => repo.diagnosisResolutionRate)
+
+      expect({
+        total: after.total - before.total,
+        resolved: after.resolved - before.resolved,
+      }).toEqual({ total: 2, resolved: 1 })
+      expect(after.resolutionRate).toBe(after.resolved / after.total)
+      // The median spans every closed diagnosis, so it is exact only when this
+      // suite's are the only ones.
+      if (before.total === 0) expect(after.medianHoursToResolve).toBe(6)
+    })
+
     it('measures signup to first plant', async () => {
       const result = await analytics((repo) => repo.signupToFirstPlant)
 

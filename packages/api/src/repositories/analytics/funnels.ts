@@ -34,17 +34,27 @@ const ratio = (part: number, whole: number) => (whole === 0 ? 0 : part / whole)
 
 /** Rates and conversions from one step of the product to the next. */
 export const funnelMetrics = (db: PgDrizzle.PgDrizzle['Service']) => {
+  // A diagnosis is closed once its latest care plan is completed or dismissed;
+  // one still proposed or accepted, or with no plan, stays out of the count.
   const diagnosisResolutionRate = Effect.gen(function* () {
     const row = yield* db
       .execute(sql`
+        WITH latest AS (
+          SELECT DISTINCT ON (d.id)
+            d.created_at, p.status, p.completed_at
+          FROM diagnoses d
+          INNER JOIN care_plans p ON p.diagnosis_id = d.id
+          ORDER BY d.id, p.created_at DESC
+        )
         SELECT
           count(*)::int AS total,
-          count(*) FILTER (WHERE status = 'RESOLVED')::int AS resolved,
+          count(*) FILTER (WHERE status = 'completed')::int AS resolved,
           percentile_cont(0.5) WITHIN GROUP (
-            ORDER BY EXTRACT(EPOCH FROM (resolved_at - created_at)) / 3600
-          ) FILTER (WHERE status = 'RESOLVED' AND resolved_at IS NOT NULL)
+            ORDER BY EXTRACT(EPOCH FROM (completed_at - created_at)) / 3600
+          ) FILTER (WHERE status = 'completed' AND completed_at IS NOT NULL)
             AS median_hours
-        FROM diagnoses
+        FROM latest
+        WHERE status IN ('completed', 'dismissed')
       `)
       .pipe(queryOne(DiagnosisTotalsRow))
     return {
