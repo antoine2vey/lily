@@ -175,9 +175,9 @@ describe('UsageTracker', () => {
           const repo = yield* NotificationRepository
           const observed: INotificationRepository = {
             ...repo,
-            hasNotificationOfTypeTodayForUser: (...args) =>
+            hasNotificationIn: (window) =>
               repo
-                .hasNotificationOfTypeTodayForUser(...args)
+                .hasNotificationIn(window)
                 .pipe(Effect.ensuring(Effect.sync(checked.resolve))),
           }
           return observed

@@ -14,12 +14,7 @@ import {
 } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { notifications, plants } from '@lily/db/schema'
-import {
-  nowAsDate,
-  paginate,
-  startOfTodayAsDate,
-  startOfTomorrowAsDate,
-} from '@lily/shared'
+import { nowAsDate, paginate } from '@lily/shared'
 import type {
   MetadataOf,
   Notification,
@@ -38,6 +33,7 @@ import {
   count,
   desc,
   eq,
+  gte,
   inArray,
   isNotNull,
   isNull,
@@ -233,11 +229,9 @@ export interface INotificationRepository {
   readonly deleteByIds: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<void, SqlError>
-  /** A notification about the plant was sent to the user on today's day in `timezone`. */
-  readonly hasNotificationToday: (
-    userId: string,
-    plantId: string,
-    timezone: string
+  /** The user has a notification in the window. */
+  readonly hasNotificationIn: (
+    window: NotificationWindow
   ) => Effect.Effect<boolean, SqlError>
   readonly markManyAsSent: (
     rows: ReadonlyArray<SentNotification>
@@ -246,11 +240,6 @@ export interface INotificationRepository {
     ids: readonly string[],
     error: string
   ) => Effect.Effect<void, SqlError>
-  readonly hasNotificationOfTypeTodayForUser: (
-    userId: string,
-    timezone: string,
-    type: NotificationTopic
-  ) => Effect.Effect<boolean, SqlError>
   readonly countUnreadByUserId: (
     userId: string
   ) => Effect.Effect<number, SqlError>
@@ -285,6 +274,31 @@ export interface StoredReminder {
   readonly retryCount: number
   readonly scheduledAt: Date
   readonly occasionDay: string | null
+}
+
+/**
+ * `sent` counts the rows delivered in the window, by `sent_at`. `produced`
+ * counts the rows recorded in it, by `created_at`, that are pending, queued or
+ * sent, so a notification still waiting for its slot counts too.
+ */
+const COUNTING = {
+  sent: { at: notifications.sentAt, statuses: ['sent'] },
+  produced: {
+    at: notifications.createdAt,
+    statuses: ['pending', 'queued', 'sent'],
+  },
+} as const
+
+export interface NotificationWindow {
+  readonly userId: string
+  /** Every topic when absent. */
+  readonly topics?: Array.NonEmptyReadonlyArray<NotificationTopic>
+  readonly plantId?: string
+  readonly counting: keyof typeof COUNTING
+  /** Instants, computed by the caller in the user's zone. */
+  readonly from: Date
+  /** Open-ended when absent. */
+  readonly until?: Date
 }
 
 export interface OverdueReminderQuery {
@@ -849,32 +863,30 @@ export const NotificationRepositoryLive = Layer.effect(
           .where(inArray(notifications.id, [...ids]))
       }),
 
-      hasNotificationToday: Effect.fn(
-        'NotificationRepository.hasNotificationToday'
-      )(function* (userId: string, plantId: string, timezone: string) {
-        const today = startOfTodayAsDate(timezone)
-        const tomorrow = startOfTomorrowAsDate(timezone)
-
-        const [result] = yield* db
-          .select({ count: count() })
-          .from(notifications)
-          .where(
-            and(
-              eq(notifications.userId, userId),
-              eq(notifications.plantId, plantId),
-              eq(notifications.status, 'sent'),
-              sql`${notifications.sentAt} >= ${today}`,
-              sql`${notifications.sentAt} < ${tomorrow}`
+      hasNotificationIn: Effect.fn('NotificationRepository.hasNotificationIn')(
+        function* (window: NotificationWindow) {
+          const { at, statuses } = COUNTING[window.counting]
+          const rows = yield* db
+            .select({ id: notifications.id })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.userId, window.userId),
+                window.topics === undefined
+                  ? undefined
+                  : inArray(notifications.type, [...window.topics]),
+                window.plantId === undefined
+                  ? undefined
+                  : eq(notifications.plantId, window.plantId),
+                inArray(notifications.status, [...statuses]),
+                gte(at, window.from),
+                window.until === undefined ? undefined : lt(at, window.until)
+              )
             )
-          )
-        return (
-          pipe(
-            Option.fromNullishOr(result),
-            Option.flatMap((r) => Option.fromNullishOr(r.count)),
-            Option.getOrElse(() => 0)
-          ) > 0
-        )
-      }),
+            .limit(1)
+          return Array.isReadonlyArrayNonEmpty(rows)
+        }
+      ),
 
       markManyAsSent: Effect.fn('NotificationRepository.markManyAsSent')(
         function* (rows: ReadonlyArray<SentNotification>) {
@@ -956,33 +968,6 @@ export const NotificationRepositoryLive = Layer.effect(
             )
         }
       ),
-
-      hasNotificationOfTypeTodayForUser: Effect.fn(
-        'NotificationRepository.hasNotificationOfTypeTodayForUser'
-      )(function* (userId: string, timezone: string, type: NotificationTopic) {
-        const today = startOfTodayAsDate(timezone)
-        const tomorrow = startOfTomorrowAsDate(timezone)
-
-        const [result] = yield* db
-          .select({ count: count() })
-          .from(notifications)
-          .where(
-            and(
-              eq(notifications.userId, userId),
-              eq(notifications.type, type),
-              inArray(notifications.status, ['pending', 'queued', 'sent']),
-              sql`${notifications.createdAt} >= ${today}`,
-              sql`${notifications.createdAt} < ${tomorrow}`
-            )
-          )
-        return (
-          pipe(
-            Option.fromNullishOr(result),
-            Option.flatMap((r) => Option.fromNullishOr(r.count)),
-            Option.getOrElse(() => 0)
-          ) > 0
-        )
-      }),
     }
   })
 )

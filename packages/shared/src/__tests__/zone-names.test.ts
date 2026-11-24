@@ -33,7 +33,18 @@ const everyHelper = (timezone: string) => ({
   startOfTodayAsDate: iso(startOfTodayAsDate(timezone)),
   startOfTomorrowAsDate: iso(startOfTomorrowAsDate(timezone)),
   pickNotificationTime: iso(
-    Effect.runSync(pickNotificationTime('user', timezone, false, null, null, 0))
+    Effect.runSync(
+      pickNotificationTime(
+        {
+          id: 'user',
+          timezone,
+          doNotDisturb: false,
+          doNotDisturbStart: null,
+          doNotDisturbEnd: null,
+        },
+        0
+      )
+    )
   ),
 })
 

@@ -1,8 +1,14 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import type { PlantAnniversary } from '@lily/api/repositories/engagement.repository'
-import { processPlantAnniversaries } from '@lily/api/services/engagement-scheduler/scheduler'
+import type {
+  PlantAnniversary,
+  UserWithSettings,
+} from '@lily/api/repositories/engagement.repository'
+import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
+import { plantAnniversary } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import { daysAgoAsDate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
@@ -16,6 +22,13 @@ const makeAnniversaryPlant = (
   dateAdded: daysAgoAsDate(90),
   ...overrides,
 })
+
+const processPlantAnniversaries = (users: ReadonlyArray<UserWithSettings>) =>
+  Effect.gen(function* () {
+    const repo = yield* EngagementRepository
+    const plants = yield* repo.getPlantsWithAnniversary([1, 3, 6, 12])
+    yield* runRules('engagement-scheduler', users, [plantAnniversary(plants)])
+  })
 
 describe('processPlantAnniversaries', () => {
   it('creates notification for plant with anniversary', async () => {
@@ -74,14 +87,16 @@ describe('processPlantAnniversaries', () => {
       plantId: 'plant-1',
       userId: 'user-1',
     })
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'plant_anniversary',
+      plantId: 'plant-1',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({
         plantsWithAnniversary: [plant],
-        notificationsForPlantInPeriod: {
-          'user-1:plant_anniversary:plant-1': true,
-        },
       }),
       createMockNotificationRepository(notifications)
     )
@@ -90,7 +105,7 @@ describe('processPlantAnniversaries', () => {
       processPlantAnniversaries([user]).pipe(Effect.provide(layer))
     )
 
-    expect(notifications).toHaveLength(0)
+    expect(notifications).toEqual([sent])
   })
 
   it('handles multiple plants for the same user', async () => {

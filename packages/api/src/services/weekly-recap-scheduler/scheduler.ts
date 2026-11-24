@@ -3,86 +3,56 @@ import {
   EngagementRepository,
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
+import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
-  processUsers,
+  type EngagementRule,
+  runRules,
   SkipUserError,
-} from '@lily/api/services/helpers/process-users'
-import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
-import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
-import {
-  daysAgoAsDate,
-  isOnVacation,
-  nowAsDate,
-  pickNotificationTime,
-  withTimeZone,
-} from '@lily/shared'
-import { Array, DateTime, Effect, Random } from 'effect'
+  sinceDaysAgo,
+  unlessNotified,
+} from '@lily/api/services/helpers/engagement-rules'
+import { isOnVacation, nowAsDate, withTimeZone } from '@lily/shared'
+import { Array, DateTime, Effect } from 'effect'
 
 const SUNDAY = 0
 
-export const processWeeklyRecap = Effect.fn(
-  'weekly-recap-scheduler.processWeeklyRecap'
-)(function* (usersWithDigest: ReadonlyArray<UserWithSettings>) {
-  const achievementRepo = yield* AchievementRepository
-  const engagementRepo = yield* EngagementRepository
+export const weeklyRecap: EngagementRule<
+  UserWithSettings,
+  AchievementRepository | EngagementRepository | NotificationRepository
+> = {
+  name: 'weekly_recap',
+  pastSlot: 'deliver',
+  decide: (user, timezone) =>
+    Effect.gen(function* () {
+      const achievementRepo = yield* AchievementRepository
+      const engagementRepo = yield* EngagementRepository
 
-  yield* processUsers({
-    schedulerName: 'weekly-recap-scheduler',
-    notificationType: 'weekly_recap',
-    users: usersWithDigest,
-    processUser: (user) =>
-      Effect.gen(function* () {
-        const timezone = resolveTimezone(user.timezone)
+      const localNow = withTimeZone(DateTime.nowUnsafe(), timezone)
+      if (DateTime.toParts(localNow).weekDay !== SUNDAY) {
+        return yield* new SkipUserError({ reason: 'not_sunday' })
+      }
 
-        const localNow = withTimeZone(DateTime.nowUnsafe(), timezone)
-        const { weekDay } = DateTime.toParts(localNow)
-        if (weekDay !== SUNDAY) {
-          return yield* new SkipUserError({ reason: 'not_sunday' })
-        }
+      yield* unlessNotified(sinceDaysAgo(user.id, 'weekly_recap', 6))
 
-        const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
-          user.id,
-          'weekly_recap',
-          daysAgoAsDate(6)
-        )
-        if (alreadySent) {
-          return yield* new SkipUserError({ reason: 'already_sent' })
-        }
+      const [tasksCompleted, streak, healthyCount] = yield* Effect.all([
+        engagementRepo.getCareLogsCountForWeek(user.id, timezone),
+        achievementRepo.getCareStreak(user.id),
+        engagementRepo.getHealthyPlantCountForUser(user.id),
+      ])
+      if (tasksCompleted === 0 && streak === 0) {
+        return yield* new SkipUserError({ reason: 'no_activity' })
+      }
+      return [
+        {
+          topic: 'weekly_recap',
+          params: { tasksCompleted, streakCount: streak, healthyCount },
+        },
+      ]
+    }),
+}
 
-        const [tasksCompleted, streak, healthyCount] = yield* Effect.all([
-          engagementRepo.getCareLogsCountForWeek(user.id, timezone),
-          achievementRepo.getCareStreak(user.id),
-          engagementRepo.getHealthyPlantCountForUser(user.id),
-        ])
-
-        if (tasksCompleted === 0 && streak === 0) {
-          return yield* new SkipUserError({ reason: 'no_activity' })
-        }
-
-        const randomValue = yield* Random.next
-        const scheduledAt = yield* pickNotificationTime(
-          user.id,
-          timezone,
-          user.doNotDisturb,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd,
-          randomValue
-        )
-
-        yield* recordNotificationAt(
-          'weekly_recap',
-          user.id,
-          { tasksCompleted, streakCount: streak, healthyCount },
-          user.language,
-          {},
-          { scheduledAt }
-        )
-      }),
-  })
-})
-
-const checkAndCreateWeeklyRecap = Effect.gen(function* () {
+export const checkAndCreateWeeklyRecap = Effect.gen(function* () {
   yield* Effect.log('Running weekly recap check...')
 
   const engagementRepo = yield* EngagementRepository
@@ -95,9 +65,7 @@ const checkAndCreateWeeklyRecap = Effect.gen(function* () {
     (u) => !isOnVacation(u, nowAsDate())
   )
 
-  if (Array.isReadonlyArrayEmpty(usersWithDigest)) return
-
-  yield* processWeeklyRecap(usersWithDigest)
+  yield* runRules('weekly-recap-scheduler', usersWithDigest, [weeklyRecap])
 }).pipe(Effect.withSpan('weekly-recap-scheduler.check'))
 
 export const startWeeklyRecapScheduler = createScheduler({

@@ -1,7 +1,9 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
-import { processPlantParentMilestones } from '@lily/api/services/engagement-scheduler/scheduler'
+import { plantParentMilestone } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -24,6 +26,9 @@ const makeUser = (
   vacationEnd: null,
   ...overrides,
 })
+
+const processPlantParentMilestones = (users: ReadonlyArray<UserWithSettings>) =>
+  runRules('engagement-scheduler', users, [plantParentMilestone])
 
 describe('processPlantParentMilestones', () => {
   it('creates notification on exact 7-day milestone', async () => {
@@ -93,14 +98,14 @@ describe('processPlantParentMilestones', () => {
       id: 'user-1',
       createdAt: daysAgo(90),
     })
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'plant_parent_milestone',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
-      createMockEngagementRepository({
-        notificationsInPeriod: {
-          'user-1:plant_parent_milestone': true,
-        },
-      }),
+      createMockEngagementRepository({}),
       createMockNotificationRepository(notifications)
     )
 
@@ -108,7 +113,7 @@ describe('processPlantParentMilestones', () => {
       processPlantParentMilestones([user]).pipe(Effect.provide(layer))
     )
 
-    expect(notifications).toHaveLength(0)
+    expect(notifications).toEqual([sent])
   })
 
   it('handles empty user list without errors', async () => {

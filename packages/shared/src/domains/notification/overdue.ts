@@ -12,35 +12,44 @@ const MORNING_END = 8 * 60
 const EVENING_START = 18 * 60
 const EVENING_END = 22 * 60
 
+/** Who a send time is picked for. */
+export interface SlotRecipient {
+  readonly id: string
+  /** IANA zone, read as UTC when unknown. */
+  readonly timezone: string
+  readonly doNotDisturb: boolean
+  /** HH:mm, 22:00 when absent. */
+  readonly doNotDisturbStart: string | null
+  /** HH:mm, 07:00 when absent. */
+  readonly doNotDisturbEnd: string | null
+}
+
 /**
- * Pick a random notification send time within the morning or evening window,
- * respecting DND settings. Fails with DndWindowBlockedError if both windows
- * are blocked.
+ * Pick a random send time today, in the recipient's morning or evening
+ * window, outside their do-not-disturb hours. Fails with
+ * DndWindowBlockedError when both windows are blocked.
  *
- * @param userId - User ID (for error context)
- * @param timezone - IANA timezone string, UTC when unknown
- * @param dndEnabled - Whether DND is active
- * @param dndStart - DND start time in HH:mm format
- * @param dndEnd - DND end time in HH:mm format
- * @param randomValue - A number in [0, 1) for deterministic testing
- * @returns Effect<Date, DndWindowBlockedError>
+ * @param randomValue - A number in [0, 1), passed in for deterministic tests
  */
 export const pickNotificationTime = (
-  userId: string,
-  timezone: string,
-  dndEnabled: boolean,
-  dndStart: string | null,
-  dndEnd: string | null,
+  recipient: SlotRecipient,
   randomValue: number
 ): Effect.Effect<Date, DndWindowBlockedError> => {
+  const { id: userId, timezone, doNotDisturb: dndEnabled } = recipient
   const dndStartMinutes = dndEnabled
     ? timeToMinutes(
-        Option.getOrElse(Option.fromNullishOr(dndStart), () => '22:00')
+        Option.getOrElse(
+          Option.fromNullishOr(recipient.doNotDisturbStart),
+          () => '22:00'
+        )
       )
     : -1
   const dndEndMinutes = dndEnabled
     ? timeToMinutes(
-        Option.getOrElse(Option.fromNullishOr(dndEnd), () => '07:00')
+        Option.getOrElse(
+          Option.fromNullishOr(recipient.doNotDisturbEnd),
+          () => '07:00'
+        )
       )
     : -1
 

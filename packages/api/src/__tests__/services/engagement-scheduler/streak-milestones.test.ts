@@ -1,10 +1,18 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { processStreakMilestones } from '@lily/api/services/engagement-scheduler/scheduler'
+import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
+import { streakMilestone } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const processStreakMilestones = (
+  users: ReadonlyArray<UserWithSettings>,
+  streaks: ReadonlyMap<string, number>
+) => runRules('engagement-scheduler', users, [streakMilestone(streaks)])
 
 describe('processStreakMilestones', () => {
   it('creates notification on exact 7-day streak milestone', async () => {
@@ -83,14 +91,14 @@ describe('processStreakMilestones', () => {
   it('dedup: skips if already sent for this milestone', async () => {
     const user = makeUserWithSettings({ id: 'user-1' })
     const streakMap = new Map([['user-1', 14]])
-    const notifications: Notification[] = []
+    const sent = createTestNotification({
+      userId: 'user-1',
+      type: 'streak_milestone',
+    })
+    const notifications: Notification[] = [sent]
 
     const layer = Layer.mergeAll(
-      createMockEngagementRepository({
-        notificationsInPeriod: {
-          'user-1:streak_milestone': true,
-        },
-      }),
+      createMockEngagementRepository({}),
       createMockNotificationRepository(notifications)
     )
 
@@ -98,7 +106,7 @@ describe('processStreakMilestones', () => {
       processStreakMilestones([user], streakMap).pipe(Effect.provide(layer))
     )
 
-    expect(notifications).toHaveLength(0)
+    expect(notifications).toEqual([sent])
   })
 
   it('handles multiple users with different milestone eligibility', async () => {

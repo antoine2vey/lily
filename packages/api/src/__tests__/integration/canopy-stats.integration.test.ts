@@ -19,7 +19,8 @@ import {
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { processEvent } from '@lily/api/services/achievements/checker'
 import { AchievementNotifier } from '@lily/api/services/achievements/notifier'
-import { processStreakAtRisk } from '@lily/api/services/engagement-scheduler/scheduler'
+import { streakAtRisk } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { and, eq, sql } from 'drizzle-orm'
@@ -223,9 +224,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const streakWarnings = async (userId: string) => {
       await run(
-        processStreakAtRisk(
+        runRules(
+          'engagement-scheduler',
           [makeUserWithSettings({ id: userId, timezone: eveningZone() })],
-          new Map([[userId, 5]])
+          [streakAtRisk(new Map([[userId, 5]]))]
         )
       )
       const sent = await db
