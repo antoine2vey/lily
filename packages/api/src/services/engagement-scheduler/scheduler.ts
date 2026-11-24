@@ -499,11 +499,6 @@ export const processPlantAnniversaries = Effect.fn(
             const monthsSinceAdded = Math.round(
               daysSince(plant.dateAdded) / 30.44
             )
-            const years = Math.floor(monthsSinceAdded / 12)
-            const anniversaryDuration =
-              monthsSinceAdded >= 12
-                ? `${years} year${years > 1 ? 's' : ''}`
-                : `${monthsSinceAdded} month${monthsSinceAdded > 1 ? 's' : ''}`
 
             const dateAddedStr = new Intl.DateTimeFormat(user.language, {
               month: 'short',
@@ -516,7 +511,7 @@ export const processPlantAnniversaries = Effect.fn(
               user.id,
               {
                 plantName: plant.plantName,
-                anniversaryDuration,
+                anniversaryMonths: monthsSinceAdded,
                 dateAdded: dateAddedStr,
               },
               user.language,

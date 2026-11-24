@@ -23,6 +23,25 @@ const enPlural = (n: number, singular: string, plural: string): string =>
 const frPlural = (n: number, singular: string, plural: string): string =>
   n <= 1 ? singular : plural
 
+const MONTHS_PER_YEAR = 12
+
+const anniversaryDuration = (
+  params: InternalNotificationParams,
+  years: (count: number) => string,
+  months: (count: number) => string,
+  fallback: string
+): string =>
+  pipe(
+    Option.fromNullishOr(params.anniversaryMonths),
+    Option.map((total) =>
+      total >= MONTHS_PER_YEAR
+        ? years(Math.floor(total / MONTHS_PER_YEAR))
+        : months(total)
+    ),
+    Option.orElse(() => Option.fromNullishOr(params.anniversaryDuration)),
+    Option.getOrElse(() => fallback)
+  )
+
 // Keep a recap clause only when its count is non-zero. Without this guard a 0
 // reaches the reader as "a 0-day streak" or "0 plants thriving" — technically
 // correct, emotionally wrong. We'd rather drop the clause than report a zero.
@@ -109,11 +128,20 @@ export const NOTIFICATION_PARAMS = {
     usageMax: Schema.Finite,
     featureName: Schema.String,
   }),
-  plant_anniversary: Schema.Struct({
-    plantName: Schema.String,
-    anniversaryDuration: Schema.String,
-    dateAdded: Schema.String,
-  }),
+  plant_anniversary: Schema.Union([
+    Schema.Struct({
+      plantName: Schema.String,
+      anniversaryMonths: Schema.Finite,
+      dateAdded: Schema.String,
+    }),
+    // Rows queued before anniversaryMonths existed carry the duration as
+    // English text and render at delivery. Drop this member once they drain.
+    Schema.Struct({
+      plantName: Schema.String,
+      anniversaryDuration: Schema.String,
+      dateAdded: Schema.String,
+    }),
+  ]),
 } as const satisfies Record<SimpleNotificationType, Schema.Top>
 
 export type ParamsOf<T extends SimpleNotificationType> =
@@ -139,6 +167,7 @@ type InternalNotificationParams = {
   readonly usageCount?: number
   readonly usageMax?: number
   readonly featureName?: string
+  readonly anniversaryMonths?: number
   readonly anniversaryDuration?: string
   readonly dateAdded?: string
 }
@@ -425,9 +454,11 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     },
     plant_anniversary: {
       title: (p) => {
-        const duration = Option.getOrElse(
-          Option.fromNullishOr(p.anniversaryDuration),
-          () => 'some time'
+        const duration = anniversaryDuration(
+          p,
+          (count) => `${count} ${enPlural(count, 'year', 'years')}`,
+          (count) => `${count} ${enPlural(count, 'month', 'months')}`,
+          'some time'
         )
         return `🎂 Happy ${duration} together!`
       },
@@ -721,9 +752,11 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     },
     plant_anniversary: {
       title: (p) => {
-        const duration = Option.getOrElse(
-          Option.fromNullishOr(p.anniversaryDuration),
-          () => 'un moment'
+        const duration = anniversaryDuration(
+          p,
+          (count) => `${count} ${frPlural(count, 'an', 'ans')}`,
+          (count) => `${count} mois`,
+          'un moment'
         )
         return `🎂 Joyeux ${duration} ensemble !`
       },

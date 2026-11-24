@@ -932,7 +932,7 @@ describe('Notification Worker', () => {
             status: 'queued',
             plantId,
           }),
-          { plantName, anniversaryDuration: '1 year', dateAdded: 'Apr 3, 2025' }
+          { plantName, anniversaryMonths: 12, dateAdded: 'Apr 3, 2025' }
         )
       const rows = [
         anniversary('anniv-1', 'plant-1', 'Monstera'),
@@ -959,7 +959,7 @@ describe('Notification Worker', () => {
           'plant_anniversary',
           {
             plantName,
-            anniversaryDuration: '1 year',
+            anniversaryMonths: 12,
             dateAdded: 'Apr 3, 2025',
           },
           'fr'

@@ -225,12 +225,12 @@ describe('buildSimpleContent — new notification translations', () => {
         'plant_anniversary',
         {
           plantName: 'Ficus',
-          anniversaryDuration: '6 months',
+          anniversaryMonths: 6,
           dateAdded: 'Oct 3, 2025',
         },
         'en'
       )
-      expect(title).toContain('6 months')
+      expect(title).toBe('🎂 Happy 6 months together!')
       expect(body).toContain('Ficus')
       expect(body).toContain('Oct 3, 2025')
     })
@@ -240,14 +240,34 @@ describe('buildSimpleContent — new notification translations', () => {
         'plant_anniversary',
         {
           plantName: 'Ficus',
-          anniversaryDuration: '6 mois',
+          anniversaryMonths: 6,
           dateAdded: '3 oct. 2025',
         },
         'fr'
       )
-      expect(title).toContain('6 mois')
+      expect(title).toBe('🎂 Joyeux 6 mois ensemble !')
       expect(body).toContain('Ficus')
       expect(body).toContain('3 oct. 2025')
+    })
+
+    it.each([
+      { months: 1, en: '1 month', fr: '1 mois' },
+      { months: 3, en: '3 months', fr: '3 mois' },
+      { months: 12, en: '1 year', fr: '1 an' },
+      { months: 24, en: '2 years', fr: '2 ans' },
+    ])('writes $months months as "$en" and "$fr"', ({ months, en, fr }) => {
+      const title = (language: LanguageCode) =>
+        buildSimpleContent(
+          'plant_anniversary',
+          {
+            plantName: 'Ficus',
+            anniversaryMonths: months,
+            dateAdded: 'Oct 3, 2025',
+          },
+          language
+        ).title
+      expect(title('en')).toBe(`🎂 Happy ${en} together!`)
+      expect(title('fr')).toBe(`🎂 Joyeux ${fr} ensemble !`)
     })
   })
 
@@ -271,7 +291,7 @@ describe('buildSimpleContent — new notification translations', () => {
         type: 'plant_anniversary' as const,
         params: {
           plantName: 'Fern',
-          anniversaryDuration: '1 year',
+          anniversaryMonths: 12,
           dateAdded: 'Apr 3, 2025',
         },
       },
@@ -479,7 +499,7 @@ const SAMPLE_PARAMS: { [K in SimpleNotificationType]: ParamsOf<K> } = {
   approaching_limit: { usageCount: 4, usageMax: 5, featureName: 'plants' },
   plant_anniversary: {
     plantName: 'Fern',
-    anniversaryDuration: '1 year',
+    anniversaryMonths: 12,
     dateAdded: 'Apr 3, 2025',
   },
 }
@@ -521,6 +541,24 @@ describe('renderFromParams', () => {
         body: "Ta Monstera a encore besoin de soins aujourd'hui. Garde le rythme !",
       })
     )
+  })
+
+  it('still renders an anniversary row queued with the duration as text', () => {
+    expect(
+      Result.map(
+        renderFromParams(
+          'plant_anniversary',
+          {
+            plantName: 'Fern',
+            anniversaryDuration: '1 year',
+            dateAdded: 'Apr 3, 2025',
+          },
+          Option.none(),
+          'en'
+        ),
+        (content) => content.title
+      )
+    ).toEqual(Result.succeed('🎂 Happy 1 year together!'))
   })
 
   it('names the plant by its current name over the one stored', () => {
