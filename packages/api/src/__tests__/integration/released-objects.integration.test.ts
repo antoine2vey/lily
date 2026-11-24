@@ -29,6 +29,7 @@ import {
   CareReadsLive,
   type PlantLife,
 } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { transactQuietly } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -42,6 +43,7 @@ import {
   DiagnosisRepositoryLive,
 } from '@lily/api/repositories/diagnosis.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import {
@@ -84,6 +86,8 @@ const ReposLive = Layer.mergeAll(
   DeviceTokenRepositoryLive,
   DiagnosisRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
+  NotificationDeliveryLive,
   PlantRepositoryLive,
   RoomRepositoryLive,
   StoredRefRepositoryLive,

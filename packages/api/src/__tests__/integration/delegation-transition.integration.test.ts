@@ -26,6 +26,7 @@ import {
   ReminderStoreLive,
   Reminders,
 } from '@lily/api/contexts/reminders'
+import { ReminderStore } from '@lily/api/contexts/reminders/store/rows'
 import { Outbox } from '@lily/api/kernel/outbox'
 import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -420,11 +421,13 @@ const injected = (message: string) =>
   )
 
 const RemindersCannotBePlanned = Layer.effect(
-  NotificationRepository,
-  Effect.map(NotificationRepository, (repo) => ({
-    ...repo,
-    lockReminders: () => injected('injected replan failure'),
-  }))
+  ReminderStore,
+  Effect.map(ReminderStore, (store) =>
+    ReminderStore.of({
+      ...store,
+      lockReminders: () => injected('injected replan failure'),
+    })
+  )
 )
 
 const NotificationsCannotBeRecorded = Layer.effect(

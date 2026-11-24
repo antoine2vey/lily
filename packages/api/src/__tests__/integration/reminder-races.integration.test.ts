@@ -50,6 +50,7 @@ import {
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
@@ -106,6 +107,7 @@ const BaseLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CareReadsLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
   ReminderStoreLive,
   UserRepositoryLive,
   CarePlanRepositoryLive,

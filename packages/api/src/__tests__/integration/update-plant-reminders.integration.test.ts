@@ -20,6 +20,7 @@ import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import {
   PlantRepository,
   PlantRepositoryLive,
@@ -51,6 +52,7 @@ const AppLive = CareOnPostgresLive.pipe(
         CareScheduleRepositoryLive,
         CareReadsLive,
         NotificationRepositoryLive,
+        NotificationDeliveryLive,
         ReminderStoreLive,
         UserRepositoryLive,
         CanopyRepositoryLive,

@@ -24,6 +24,7 @@ import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-lim
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { hashInviteToken } from '@lily/api/contexts/canopy/domain/invitation'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import {
   CanopyRepository,
@@ -44,6 +45,7 @@ import {
 } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import {
   PlantRepository,
   PlantRepositoryLive,
@@ -116,6 +118,8 @@ const BaseLive = Layer.mergeAll(
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
+  NotificationDeliveryLive,
   PlantRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,

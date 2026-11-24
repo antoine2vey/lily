@@ -7,6 +7,7 @@ import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { Canopy } from '@lily/api/contexts/canopy'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import {
   type Policy,
   UNLINKED_USER_COLUMNS,
@@ -22,6 +23,7 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
@@ -63,6 +65,8 @@ const BaseLive = Layer.mergeAll(
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
+  NotificationDeliveryLive,
   PlantRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
