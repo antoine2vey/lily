@@ -1,3 +1,4 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockDailyTipRepository } from '@lily/api/__tests__/mocks/daily-tip.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
@@ -146,6 +147,31 @@ describe('checkAndGenerateTip', () => {
         tipBody: 'Turn each pot a quarter every week.',
       },
     })
+  })
+
+  it.each([
+    'watering_reminder',
+    'fertilization_reminder',
+    'misting_reminder',
+    'repotting_reminder',
+    'overdue_reminder',
+  ] as const)('offers no tip to a user who got a %s today', async (type) => {
+    const recorded: Notification[] = [
+      createTestNotification({ userId: 'user-1', type }),
+    ]
+    const layer = Layer.mergeAll(
+      createMockNotificationRepository(recorded),
+      createMockEngagementRepository({
+        usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
+      }),
+      createMockRagService(),
+      createMockDailyTipRepository([]),
+      enabledConfig
+    )
+
+    await Effect.runPromise(checkAndGenerateTip.pipe(Effect.provide(layer)))
+
+    expect(Array.map(recorded, (n) => n.type)).toEqual([type])
   })
 
   it('reaches on the next run the users a run that died left without the tip', async () => {
