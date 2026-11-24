@@ -50,6 +50,7 @@ import {
   type RecordedNotification,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import { signedBy } from '@lily/api/services/notification-scheduler/translations/params'
 import {
   CannotDelegateSelfError,
   CanopyPlantNotDelegableError,
@@ -249,9 +250,8 @@ const errorOf = {
 
 export const asError = refusals<Refusal>()(errorOf)
 
-const signedBySender = (notice: Notice) => ({
-  senderName: Option.getOrElse(notice.from.name, () => 'Someone'),
-})
+const signedBySender = (notice: Notice) =>
+  signedBy(Option.getOrNull(notice.from.name))
 
 const countingLivingPlants = (notice: Notice) => ({
   plantCount: notice.livingPlants,

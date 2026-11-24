@@ -25,10 +25,8 @@ import {
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
-import {
-  buildNotificationContent,
-  type NotificationContent,
-} from '@lily/api/services/notification-scheduler/translations'
+import type { NotificationContent } from '@lily/api/services/notification-scheduler/translations'
+import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations/care'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'

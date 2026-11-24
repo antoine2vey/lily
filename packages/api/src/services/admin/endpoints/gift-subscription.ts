@@ -10,10 +10,9 @@ import {
   dispatchNow,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
-import {
-  type AdminGiftSubscriptionResponse,
-  GIFT_DURATION_LABELS,
-  type GiftDuration,
+import type {
+  AdminGiftSubscriptionResponse,
+  GiftDuration,
 } from '@lily/shared/admin'
 import type {
   CannotModifySelfError,
@@ -21,7 +20,7 @@ import type {
 } from '@lily/shared/errors/admin'
 import type { UserNotFoundError } from '@lily/shared/errors/user'
 import type { MessageQueue } from '@lily/shared/server'
-import { DateTime, Effect, Option, pipe } from 'effect'
+import { DateTime, Effect } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -68,15 +67,7 @@ export const giftSubscription = (
         return yield* recordNotification(
           'gift_subscription',
           userId,
-          {
-            giftDuration: pipe(
-              Option.fromNullishOr(GIFT_DURATION_LABELS[user.language]),
-              Option.flatMap((labels) =>
-                Option.fromNullishOr(labels[duration])
-              ),
-              Option.getOrElse(() => duration)
-            ),
-          },
+          { duration },
           user.language,
           {}
         )

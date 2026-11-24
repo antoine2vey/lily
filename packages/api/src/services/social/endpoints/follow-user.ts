@@ -7,6 +7,7 @@ import {
   dispatchNow,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import { signedBy } from '@lily/api/services/notification-scheduler/translations/params'
 import {
   AlreadyFollowingError,
   CannotFollowSelfError,
@@ -14,7 +15,7 @@ import {
   UserNotFoundError,
   UserNotPublicError,
 } from '@lily/shared'
-import { Effect, Option, pipe } from 'effect'
+import { Effect } from 'effect'
 
 /**
  * The follow and the notification it owes commit together. A follow that
@@ -26,7 +27,7 @@ export const recordFollow = (
   followed: {
     readonly id: string
     readonly language: LanguageCode
-    readonly followerName: string
+    readonly followerName: string | null
   }
 ) =>
   transactQuietly(
@@ -37,7 +38,7 @@ export const recordFollow = (
       const recorded = yield* recordNotification(
         'new_follower',
         followed.id,
-        { senderName: followed.followerName },
+        signedBy(followed.followerName),
         followed.language,
         { senderId: followerId }
       )
@@ -78,15 +79,10 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
     return yield* new AlreadyFollowingError({ targetUserId })
   }
 
-  const followerName = pipe(
-    Option.fromNullishOr(currentUserName),
-    Option.getOrElse(() => 'Someone')
-  )
-
   yield* recordFollow(currentUserId, {
     id: targetUserId,
     language: targetUser.language,
-    followerName,
+    followerName: currentUserName,
   })
 
   yield* publishWithRetry(

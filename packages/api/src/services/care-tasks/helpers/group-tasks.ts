@@ -8,7 +8,7 @@ import {
   buildLiveActivityHeadline,
   buildLiveActivitySubheadline,
   buildLiveActivityTitle,
-} from '@lily/api/services/notification-scheduler/translations'
+} from '@lily/api/services/notification-scheduler/translations/live-activity'
 import { CareDay, CareDays, type CareType } from '@lily/shared'
 import type {
   CareGroupContent,

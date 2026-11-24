@@ -18,7 +18,7 @@ import {
   recipientLanguage,
   renderDelivery,
 } from '@lily/api/services/notification-scheduler/render-delivery'
-import { pickDominantCareTopic } from '@lily/api/services/notification-scheduler/translations'
+import { pickDominantCareTopic } from '@lily/api/services/notification-scheduler/translations/care'
 import {
   NOTIFICATION_METADATA,
   type NotificationMetadata,

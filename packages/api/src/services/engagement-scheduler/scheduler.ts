@@ -279,11 +279,7 @@ export const plantAnniversary = (
             params: {
               plantName: plant.plantName,
               anniversaryMonths: Math.round(daysSince(plant.dateAdded) / 30.44),
-              dateAdded: new Intl.DateTimeFormat(user.language, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              }).format(plant.dateAdded),
+              plantAddedAt: plant.dateAdded,
             },
             plantId: plant.plantId,
           })

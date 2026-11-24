@@ -60,6 +60,7 @@ import {
   dispatchAll,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import { signedBy } from '@lily/api/services/notification-scheduler/translations/params'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
   AlreadyInCanopyError,
@@ -288,18 +289,12 @@ const errorOf = {
 
 const asError = refusals<Refusal>()(errorOf)
 
-const senderNameOf = (name: string | null): { readonly senderName?: string } =>
-  Option.match(Option.fromNullishOr(name), {
-    onNone: () => ({}),
-    onSome: (senderName) => ({ senderName }),
-  })
-
 const record = Notice.$match({
   MemberJoined: ({ to, joinerName, canopyName }) =>
     recordNotification(
       'canopy_member_joined',
       to.userId,
-      { ...senderNameOf(joinerName), canopyName },
+      { ...signedBy(joinerName), canopyName },
       to.language,
       {}
     ),
@@ -307,7 +302,7 @@ const record = Notice.$match({
     recordNotification(
       'canopy_member_left',
       to.userId,
-      { ...senderNameOf(leaverName), canopyName },
+      { ...signedBy(leaverName), canopyName },
       to.language,
       {}
     ),
@@ -323,7 +318,7 @@ const record = Notice.$match({
     recordNotification(
       'canopy_invitation',
       to.userId,
-      { ...senderNameOf(inviterName), canopyName },
+      { ...signedBy(inviterName), canopyName },
       to.language,
       { invitationId }
     ),

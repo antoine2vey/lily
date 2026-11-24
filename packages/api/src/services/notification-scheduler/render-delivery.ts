@@ -1,12 +1,12 @@
 import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
 import type { SentNotification } from '@lily/api/repositories/notification-delivery.repository'
 import {
-  buildCareDigestContent,
   buildGroupedPlantAnniversaryContent,
   type NotificationContent,
   renderFromParams,
   type SimpleNotificationType,
 } from '@lily/api/services/notification-scheduler/translations'
+import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations/care'
 import type { LanguageCode } from '@lily/shared'
 import {
   type DeferredCareType,

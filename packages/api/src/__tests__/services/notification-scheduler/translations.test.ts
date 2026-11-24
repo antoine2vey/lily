@@ -1,14 +1,16 @@
 import {
-  buildCareDigestContent,
   buildGroupedPlantAnniversaryContent,
-  buildNotificationContent,
   buildSimpleContent,
-  type CareDigestItem,
   type ParamsOf,
-  pickDominantCareTopic,
   renderFromParams,
   type SimpleNotificationType,
 } from '@lily/api/services/notification-scheduler/translations'
+import {
+  buildCareDigestContent,
+  buildNotificationContent,
+  type CareDigestItem,
+  pickDominantCareTopic,
+} from '@lily/api/services/notification-scheduler/translations/care'
 import type { LanguageCode } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { Array, Option, Record, Result, Struct } from 'effect'
@@ -194,60 +196,73 @@ describe('buildSimpleContent — new notification translations', () => {
   })
 
   describe('approaching_limit', () => {
-    it('en: includes usage count, max, and feature name', () => {
-      const { title, body } = buildSimpleContent(
-        'approaching_limit',
-        { usageCount: 4, usageMax: 5, featureName: 'plants' },
-        'en'
-      )
-      expect(title).toContain('limit')
-      expect(body).toContain('4/5')
-      expect(body).toContain('plants')
-      expect(body).toContain('Premium')
-    })
+    it.each([
+      { feature: 'aiChats', en: 'AI chats', fr: 'discussions IA' },
+      { feature: 'cardScans', en: 'card scans', fr: 'scans de cartes' },
+      {
+        feature: 'plantIdentifies',
+        en: 'plant identifications',
+        fr: 'identifications de plantes',
+      },
+    ] as const)(
+      'names $feature in the language of the push',
+      ({ feature, en, fr }) => {
+        const body = (language: LanguageCode) =>
+          buildSimpleContent(
+            'approaching_limit',
+            { usageCount: 8, usageMax: 10, feature },
+            language
+          ).body
+        expect(body('en')).toBe(
+          `You've used 8/10 ${en} this month. Go Premium for unlimited access!`
+        )
+        expect(body('fr')).toBe(
+          `Tu as utilisé 8/10 ${fr} ce mois-ci. Passe à Premium pour un accès illimité !`
+        )
+      }
+    )
+  })
 
-    it('fr: includes usage and French feature name', () => {
-      const { title, body } = buildSimpleContent(
-        'approaching_limit',
-        { usageCount: 8, usageMax: 10, featureName: 'discussions IA' },
-        'fr'
+  describe('gift_subscription', () => {
+    it('names the gifted duration in the language of the push', () => {
+      const body = (language: LanguageCode) =>
+        buildSimpleContent('gift_subscription', { duration: '1m' }, language)
+          .body
+      expect(body('en')).toBe(
+        "You've been gifted Lily Premium for 1 Month. Enjoy every feature! 🌿"
       )
-      expect(title).toContain('limite')
-      expect(body).toContain('8/10')
-      expect(body).toContain('discussions IA')
-      expect(body).toContain('Premium')
+      expect(body('fr')).toBe(
+        "On t'a offert Lily Premium pour 1 Mois. Profites-en pleinement ! 🌿"
+      )
     })
   })
 
   describe('plant_anniversary', () => {
+    // Noon UTC is Oct 3 in every zone the tests run in.
+    const ADDED_AT = new Date('2025-10-03T12:00:00Z')
+
     it('en: includes plant name, duration, and date', () => {
       const { title, body } = buildSimpleContent(
         'plant_anniversary',
-        {
-          plantName: 'Ficus',
-          anniversaryMonths: 6,
-          dateAdded: 'Oct 3, 2025',
-        },
+        { plantName: 'Ficus', anniversaryMonths: 6, plantAddedAt: ADDED_AT },
         'en'
       )
       expect(title).toBe('🎂 Happy 6 months together!')
-      expect(body).toContain('Ficus')
-      expect(body).toContain('Oct 3, 2025')
+      expect(body).toBe(
+        "You've been caring for your Ficus since Oct 3, 2025. Here's to many more! 🌿"
+      )
     })
 
     it('fr: includes plant name, duration, and date in French', () => {
       const { title, body } = buildSimpleContent(
         'plant_anniversary',
-        {
-          plantName: 'Ficus',
-          anniversaryMonths: 6,
-          dateAdded: '3 oct. 2025',
-        },
+        { plantName: 'Ficus', anniversaryMonths: 6, plantAddedAt: ADDED_AT },
         'fr'
       )
       expect(title).toBe('🎂 Joyeux 6 mois ensemble !')
-      expect(body).toContain('Ficus')
-      expect(body).toContain('3 oct. 2025')
+      expect(body).toBe(
+        "Tu prends soin de ta Ficus depuis le 3 oct. 2025. Encore plein d'autres à venir ! 🌿"
+      )
     })
 
     it.each([
@@ -262,50 +277,13 @@ describe('buildSimpleContent — new notification translations', () => {
           {
             plantName: 'Ficus',
             anniversaryMonths: months,
-            dateAdded: 'Oct 3, 2025',
+            plantAddedAt: ADDED_AT,
           },
           language
         ).title
       expect(title('en')).toBe(`🎂 Happy ${en} together!`)
       expect(title('fr')).toBe(`🎂 Joyeux ${fr} ensemble !`)
     })
-  })
-
-  describe('all 6 types produce non-empty title and body for both languages', () => {
-    const types = [
-      {
-        type: 'streak_at_risk' as const,
-        params: { streakCount: 7, plantName: 'Rose' },
-      },
-      { type: 'streak_milestone' as const, params: { streakCount: 14 } },
-      {
-        type: 'weekly_recap' as const,
-        params: { tasksCompleted: 5, streakCount: 3, healthyCount: 2 },
-      },
-      { type: 'trial_ending' as const, params: { trialDaysLeft: 3 } },
-      {
-        type: 'approaching_limit' as const,
-        params: { usageCount: 4, usageMax: 5, featureName: 'plants' },
-      },
-      {
-        type: 'plant_anniversary' as const,
-        params: {
-          plantName: 'Fern',
-          anniversaryMonths: 12,
-          dateAdded: 'Apr 3, 2025',
-        },
-      },
-    ] as const
-
-    for (const { type, params } of types) {
-      for (const lang of ['en', 'fr'] as const) {
-        it(`${type} (${lang}): non-empty title and body`, () => {
-          const { title, body } = buildSimpleContent(type, params, lang)
-          expect(title.length).toBeGreaterThan(0)
-          expect(body.length).toBeGreaterThan(0)
-        })
-      }
-    }
   })
 })
 
@@ -490,17 +468,17 @@ const SAMPLE_PARAMS: { [K in SimpleNotificationType]: ParamsOf<K> } = {
   inactivity_nudge: { plantCount: 3 },
   photo_reminder: { plantName: 'Fern', daysSincePhoto: 30 },
   plant_parent_milestone: { daysSinceJoin: 100 },
-  gift_subscription: { giftDuration: '1 month' },
+  gift_subscription: { duration: '1m' },
   resubscribe_nudge: { plantCount: 3 },
   streak_at_risk: { streakCount: 12, plantName: 'Monstera' },
   streak_milestone: { streakCount: 14 },
   weekly_recap: { tasksCompleted: 5, streakCount: 3, healthyCount: 2 },
   trial_ending: { trialDaysLeft: 3 },
-  approaching_limit: { usageCount: 4, usageMax: 5, featureName: 'plants' },
+  approaching_limit: { usageCount: 4, usageMax: 5, feature: 'cardScans' },
   plant_anniversary: {
     plantName: 'Fern',
     anniversaryMonths: 12,
-    dateAdded: 'Apr 3, 2025',
+    plantAddedAt: new Date('2025-04-03T12:00:00Z'),
   },
 }
 

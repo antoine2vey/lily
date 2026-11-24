@@ -9,6 +9,7 @@ import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { sendNudge } from '@lily/api/services/social/endpoints/send-nudge'
 import type { Notification } from '@lily/shared/notification'
 import { failureOf } from '@lily/shared/testing'
@@ -181,6 +182,44 @@ describe('sendNudge', () => {
     )
     expect(notifications).toEqual([
       expect.objectContaining({ params: { senderName: 'Current User' } }),
+    ])
+  })
+
+  it('leaves a nameless nudger to the words of the recipient language', async () => {
+    const notifications: Notification[] = []
+    const frenchTarget = createTestUser({ ...targetUser, language: 'fr' })
+    const layer = Layer.mergeAll(
+      MockSqlClientLive,
+      createMockCurrentUser({ id: currentUserId }),
+      createMockFollowRepository({
+        follows: [
+          {
+            followerId: currentUserId,
+            followingId: frenchTarget.id,
+            createdAt: new Date(),
+          },
+        ],
+        nudges: [],
+        users: mockFollowUsers,
+      }),
+      createMockUserRepository([frenchTarget]),
+      notificationMocks(notifications).notices,
+      createMockMessageQueue()
+    )
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const me = yield* CurrentUser
+        yield* sendNudge({ targetUserId: frenchTarget.id }).pipe(
+          Effect.provideService(CurrentUser, { ...me, name: null })
+        )
+      }).pipe(Effect.provide(layer))
+    )
+    expect(notifications).toEqual([
+      expect.objectContaining({
+        params: {},
+        body: "Un ami pense que tes plantes mériteraient un peu d'attention !",
+      }),
     ])
   })
 })
