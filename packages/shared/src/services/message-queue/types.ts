@@ -102,8 +102,6 @@ type TopicsOfCategory<C extends TopicCategory> = {
 }[NotificationTopic]
 
 export type DeferredCareType = TopicsOfCategory<'care'>
-export type SocialNotificationType = TopicsOfCategory<'social'>
-export type EngagementNotificationType = TopicsOfCategory<'engagement'>
 
 const UNPAIRED_SURROGATE =
   /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g
