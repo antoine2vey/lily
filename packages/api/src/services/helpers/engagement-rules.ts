@@ -8,10 +8,9 @@ import type { ParamsOf } from '@lily/api/services/notification-scheduler/transla
 import {
   daysAgoAsDate,
   type LanguageCode,
-  nowAsDate,
-  pickNotificationTime,
+  pickUpcomingNotificationTime,
 } from '@lily/shared'
-import { Array, Data, Effect, Random, Ref } from 'effect'
+import { Array, Data, Effect, Option, pipe, Random, Ref } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export class SkipUserError extends Data.TaggedError('SkipUserError')<{
@@ -51,13 +50,10 @@ export interface EngagementRule<U extends Recipient, R> {
   /** The tag of the rule's log lines. */
   readonly name: string
   /**
-   * A slot earlier than now: `deliver` records it anyway, and delivery sends
-   * it at once; `skip` leaves the user to a later run.
-   */
-  readonly pastSlot: 'deliver' | 'skip'
-  /**
    * The nudges owed to the user, given their resolved zone. They share one
-   * slot, so they go out in one push. SkipUserError names why there are none.
+   * slot, so they go out in one push. SkipUserError names why there are
+   * none, and the run logs it. An empty list is logged nowhere: it is for the
+   * rule that concerns few of its users on a given day.
    */
   readonly decide: (
     user: U,
@@ -100,16 +96,20 @@ const runRule = <U extends Recipient, R>(
         Effect.gen(function* () {
           const timezone = resolveTimezone(user.timezone)
           const nudges = yield* rule.decide(user, timezone)
-          if (Array.isReadonlyArrayEmpty(nudges)) {
-            return yield* new SkipUserError({ reason: 'already_sent' })
-          }
-          const scheduledAt = yield* pickNotificationTime(
-            { ...user, timezone },
-            yield* Random.next
+          if (Array.isReadonlyArrayEmpty(nudges)) return
+          // A slot already past would be delivered at once, at any hour of the
+          // night. With no window left today, a run of the next local day
+          // takes the user.
+          const scheduledAt = yield* pipe(
+            yield* pickUpcomingNotificationTime(
+              { ...user, timezone },
+              yield* Random.next
+            ),
+            Option.match({
+              onNone: () => new SkipUserError({ reason: 'slot_passed' }),
+              onSome: Effect.succeed,
+            })
           )
-          if (rule.pastSlot === 'skip' && scheduledAt <= nowAsDate()) {
-            return yield* new SkipUserError({ reason: 'slot_passed' })
-          }
           yield* Effect.forEach(
             nudges,
             ({ topic, params, plantId }) =>
@@ -157,8 +157,9 @@ const runRule = <U extends Recipient, R>(
 
 /**
  * Runs each rule over the users in turn: the rule decides what a user is
- * owed, then the runner picks one slot for it and records it. A user the
- * rule skips, whom do-not-disturb blocks or whose query fails is logged and
+ * owed, then the runner picks one slot for it, later today in the user's
+ * zone, and records it. A user the rule skips, whom do-not-disturb blocks,
+ * whose windows of the day are over or whose query fails is logged and
  * passed over.
  */
 export const runRules = <U extends Recipient, R>(

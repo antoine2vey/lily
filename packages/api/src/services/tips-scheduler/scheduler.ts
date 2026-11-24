@@ -33,11 +33,8 @@ const resolveLocalized = (
     Option.getOrElse(Option.fromNullishOr(localized.en), () => '')
   )
 
-// Both slots are on today's local date. One that has passed would go out at
-// once, at any hour, so the user waits for a later run.
 const dailyTip = (tip: DailyTip): EngagementRule<UserWithSettings, never> => ({
   name: 'daily_tip',
-  pastSlot: 'skip',
   decide: (user) =>
     Effect.succeed([
       {

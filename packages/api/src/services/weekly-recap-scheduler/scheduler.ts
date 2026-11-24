@@ -22,7 +22,6 @@ export const weeklyRecap: EngagementRule<
   AchievementRepository | EngagementRepository | NotificationRepository
 > = {
   name: 'weekly_recap',
-  pastSlot: 'deliver',
   decide: (user, timezone) =>
     Effect.gen(function* () {
       const achievementRepo = yield* AchievementRepository

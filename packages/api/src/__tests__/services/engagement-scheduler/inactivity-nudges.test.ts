@@ -1,3 +1,7 @@
+import {
+  freezeClock,
+  SUNDAY_10_IN_PARIS,
+} from '@lily/api/__tests__/fixtures/clock'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -7,6 +11,9 @@ import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+// The runner records a slot only while a window of the local day is left.
+freezeClock(SUNDAY_10_IN_PARIS)
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000)
 
