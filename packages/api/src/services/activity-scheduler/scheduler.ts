@@ -35,7 +35,7 @@ export const expireStaleActivities = Effect.gen(function* () {
 // is fire-and-forget, so a missed event can leave a stuck activity. This
 // re-derives each user's backlog and ends any row whose backlog is empty.
 // Idempotent on already-ended rows.
-const reconcileActiveActivities = Effect.gen(function* () {
+export const reconcileActiveActivities = Effect.gen(function* () {
   const activityRepo = yield* ActivityPushTokenRepository
   const pushService = yield* PushService
 
