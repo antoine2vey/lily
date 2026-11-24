@@ -141,15 +141,21 @@ export const createMockEngagementRepository = (
       userId: string,
       type: string,
       plantId: string,
-      _sinceDate: Date
+      sinceDate: Date
     ) =>
-      Effect.succeed(
-        pipe(
-          Option.fromNullishOr(
-            notificationsForPlantInPeriod[`${userId}:${type}:${plantId}`]
-          ),
-          Option.getOrElse(() => false)
-        )
+      Effect.sync(
+        () =>
+          notificationsForPlantInPeriod[`${userId}:${type}:${plantId}`] ===
+            true ||
+          Array.some(
+            recorded,
+            (n) =>
+              n.userId === userId &&
+              n.type === type &&
+              n.plantId === plantId &&
+              Array.contains(['pending', 'queued', 'sent'], n.status) &&
+              n.createdAt >= sinceDate
+          )
       ),
 
     getUsersWithCareRemindersEnabled: Effect.succeed(usersWithTips),

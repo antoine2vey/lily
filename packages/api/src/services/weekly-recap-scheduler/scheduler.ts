@@ -82,7 +82,7 @@ export const processWeeklyRecap = Effect.fn(
   })
 })
 
-const checkAndCreateWeeklyRecap = Effect.gen(function* () {
+export const checkAndCreateWeeklyRecap = Effect.gen(function* () {
   yield* Effect.log('Running weekly recap check...')
 
   const engagementRepo = yield* EngagementRepository
