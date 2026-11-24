@@ -68,12 +68,12 @@ export const createMockChatRepository = (
 
   const repo: IChatRepository = {
     findConversationById: (id) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(conversations, (c) => c.id === id),
-          Option.map((c) => conversationFromRow(conversationToRow(c))),
-          Option.getOrNull
-        )
+      Option.match(
+        Array.findFirst(conversations, (c) => c.id === id),
+        {
+          onNone: () => Effect.succeed(null),
+          onSome: (c) => conversationFromRow(conversationToRow(c)),
+        }
       ),
 
     findOrCreatePlantConversation: ({ userId, plantId }) => {

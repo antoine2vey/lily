@@ -21,3 +21,15 @@ export class EntityMutationDefect extends Data.TaggedError(
 export class StreamTransformError extends Data.TaggedError(
   'StreamTransformError'
 )<{ readonly message: string; readonly cause?: unknown }> {}
+
+/**
+ * A `chat_conversations` row whose kind disagrees with its plant id, which
+ * the check constraint `chat_conversations_kind_plant_consistency` forbids.
+ */
+export class ConversationKindDefect extends Data.TaggedError(
+  'ConversationKindDefect'
+)<{
+  readonly conversationId: string
+  readonly kind: string
+  readonly plantId: string | null
+}> {}
