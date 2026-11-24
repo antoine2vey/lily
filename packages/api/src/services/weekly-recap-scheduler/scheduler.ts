@@ -65,11 +65,7 @@ export const processWeeklyRecap = Effect.fn(
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
-          user.id,
-          timezone,
-          user.doNotDisturb,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd,
+          { ...user, timezone },
           randomValue
         )
 

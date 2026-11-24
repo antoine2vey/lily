@@ -156,11 +156,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
       Effect.gen(function* () {
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
-          user.id,
-          timezone,
-          user.doNotDisturb,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd,
+          { ...user, timezone },
           randomValue
         )
         // Both slots are on today's local date. One that has passed would go

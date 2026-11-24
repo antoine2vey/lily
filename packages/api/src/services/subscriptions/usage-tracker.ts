@@ -175,14 +175,7 @@ export const UsageTrackerLive = Layer.effect(
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* Effect.catchTag(
-          pickNotificationTime(
-            userId,
-            timezone,
-            user.doNotDisturb,
-            user.doNotDisturbStart,
-            user.doNotDisturbEnd,
-            randomValue
-          ),
+          pickNotificationTime({ ...user, timezone }, randomValue),
           'DndWindowBlockedError',
           () => Effect.succeed(new Date())
         )

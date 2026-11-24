@@ -331,14 +331,10 @@ export const loadDigest = (
     const user = account.value
     const timezone = zoneOf(user.timezone).id
     const day = CareDays.of(loaded.now, timezone)
-    const slot = yield* pickNotificationTime(
-      user.id,
-      timezone,
-      user.doNotDisturb,
-      user.doNotDisturbStart,
-      user.doNotDisturbEnd,
-      roll
-    ).pipe(Effect.map(DateTime.makeUnsafe), Effect.option)
+    const slot = yield* pickNotificationTime({ ...user, timezone }, roll).pipe(
+      Effect.map(DateTime.makeUnsafe),
+      Effect.option
+    )
     const alreadyReminded = yield* notificationRepo.hasOverdueReminderOn({
       userId: user.id,
       day,

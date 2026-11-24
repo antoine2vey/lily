@@ -96,11 +96,7 @@ export const processInactivityNudges = Effect.fn(
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
-          user.id,
-          timezone,
-          user.doNotDisturb,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd,
+          { ...user, timezone },
           randomValue
         )
 
@@ -141,11 +137,7 @@ export const processPhotoReminders = Effect.fn(
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
-          user.id,
-          timezone,
-          user.doNotDisturb,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd,
+          { ...user, timezone },
           randomValue
         )
 
@@ -221,11 +213,7 @@ export const processPlantParentMilestones = Effect.fn(
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
-          user.id,
-          timezone,
-          user.doNotDisturb,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd,
+          { ...user, timezone },
           randomValue
         )
 
@@ -296,11 +284,7 @@ export const processStreakAtRisk = Effect.fn(
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
-          user.id,
-          timezone,
-          user.doNotDisturb,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd,
+          { ...user, timezone },
           randomValue
         )
 
@@ -366,11 +350,7 @@ export const processStreakMilestones = Effect.fn(
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
-          user.id,
-          timezone,
-          user.doNotDisturb,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd,
+          { ...user, timezone },
           randomValue
         )
 
@@ -415,11 +395,7 @@ const processTrialEndingForThreshold = (
 
           const randomValue = yield* Random.next
           const scheduledAt = yield* pickNotificationTime(
-            user.id,
-            timezone,
-            user.doNotDisturb,
-            user.doNotDisturbStart,
-            user.doNotDisturbEnd,
+            { ...user, timezone },
             randomValue
           )
 
@@ -488,11 +464,7 @@ export const processPlantAnniversaries = Effect.fn(
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
-          user.id,
-          timezone,
-          user.doNotDisturb,
-          user.doNotDisturbStart,
-          user.doNotDisturbEnd,
+          { ...user, timezone },
           randomValue
         )
 
