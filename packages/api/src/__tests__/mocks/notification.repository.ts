@@ -36,6 +36,14 @@ export interface MockNotificationRepositoryOptions {
   onRetryLater?: (ids: ReadonlyArray<string>) => void
 }
 
+// No unit test reaches these, so the mock does not copy their SQL. The
+// integration suites run them against Postgres.
+const UNTESTED = (what: string) =>
+  `the notification mock does not implement ${what}; test it in an integration suite`
+
+const untested = (method: string) => () =>
+  Effect.die(new Error(UNTESTED(method)))
+
 export const createMockNotificationRepository = (
   notifications: Notification[],
   options: MockNotificationRepositoryOptions = {}
@@ -134,12 +142,7 @@ export const createMockNotificationRepository = (
       return Effect.succeed(newNotification)
     },
 
-    delete: (id) => {
-      const idx = notificationsState.findIndex((n) => n.id === id)
-      if (idx === -1) return Effect.succeed(null)
-      const [removed] = notificationsState.splice(idx, 1)
-      return Effect.succeed(Option.getOrNull(Option.fromNullishOr(removed)))
-    },
+    delete: untested('delete'),
 
     claimPendingToSchedule: (limit: number) =>
       Effect.sync(() => {
@@ -314,14 +317,9 @@ export const createMockNotificationRepository = (
     lockReminders: (query) =>
       Effect.sync(() =>
         Array.flatMap(notificationsState, (n) => {
-          const waiting =
-            (n.status === 'pending' || n.status === 'queued') &&
-            !deliveryClaims.has(n.id)
           const occasionDay = occasionDays.get(n.id) ?? null
           const read =
-            waiting ||
-            n.status === 'pending' ||
-            n.status === 'queued' ||
+            waiting(n) ||
             (occasionDay !== null &&
               Array.contains(query.occasionDays, occasionDay))
           return n.plantId !== undefined &&
@@ -358,26 +356,18 @@ export const createMockNotificationRepository = (
         )
         notificationsState.length = 0
         notificationsState.push(...toKeep)
-        Array.forEach(writes.retimes, (retime) => {
-          const row = notificationsState.find((n) => n.id === retime.id)
-          if (row?.status !== 'pending' || row.retryCount > 0) return
-          row.scheduledAt = retime.scheduledAt
-          occasionDays.set(row.id, retime.occasionDay)
-        })
+        if (Array.isReadonlyArrayNonEmpty(writes.retimes)) {
+          throw new Error(UNTESTED('a retime'))
+        }
         Array.forEach(writes.inserts, (insert) => {
-          const standing = notificationsState.find(
+          const standing = notificationsState.some(
             (n) =>
               n.userId === insert.userId &&
               n.plantId === insert.plantId &&
               n.type === insert.type &&
               occasionDays.get(n.id) === insert.occasionDay
           )
-          if (standing !== undefined) {
-            if (standing.status === 'pending' && standing.retryCount === 0) {
-              standing.scheduledAt = insert.scheduledAt
-            }
-            return
-          }
+          if (standing) throw new Error(UNTESTED('an insert on a standing row'))
           const id = `notification-${crypto.randomUUID()}`
           occasionDays.set(id, insert.occasionDay)
           notificationsState.push({
@@ -512,27 +502,9 @@ export const createMockNotificationRepository = (
         })
       }),
 
-    countUnreadByUserId: (userId: string) =>
-      Effect.succeed(
-        Array.filter(
-          notificationsState,
-          (n) =>
-            n.userId === userId && n.status === 'sent' && n.isRead === false
-        ).length
-      ),
+    countUnreadByUserId: untested('countUnreadByUserId'),
 
-    markAllAsReadByUserId: (userId: string) =>
-      Effect.sync(() => {
-        Array.forEach(
-          Array.filter(
-            notificationsState,
-            (n) => n.userId === userId && !n.isRead
-          ),
-          (n) => {
-            n.isRead = true
-          }
-        )
-      }),
+    markAllAsReadByUserId: untested('markAllAsReadByUserId'),
 
     setQueuedContent: (ids: readonly string[], title: string, body: string) =>
       Effect.sync(() => {
