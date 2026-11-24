@@ -223,6 +223,37 @@ describe('processPlantAnniversaries', () => {
     expect(notifications).toHaveLength(0)
   })
 
+  it.each([
+    { language: 'fr', days: 365, title: '🎂 Joyeux 1 an ensemble !' },
+    { language: 'fr', days: 91, title: '🎂 Joyeux 3 mois ensemble !' },
+    { language: 'en', days: 365, title: '🎂 Happy 1 year together!' },
+    { language: 'en', days: 30, title: '🎂 Happy 1 month together!' },
+  ] as const)(
+    'writes the $days-day duration in the language of a $language user',
+    async ({ language, days, title }) => {
+      const user = makeUserWithSettings({ id: 'user-1', language })
+      const notifications: Notification[] = []
+
+      const layer = Layer.mergeAll(
+        createMockEngagementRepository({
+          plantsWithAnniversary: [
+            makeAnniversaryPlant({
+              plantId: 'plant-1',
+              dateAdded: daysAgoAsDate(days),
+            }),
+          ],
+        }),
+        createMockNotificationRepository(notifications)
+      )
+
+      await Effect.runPromise(
+        processPlantAnniversaries([user]).pipe(Effect.provide(layer))
+      )
+
+      expect(notifications[0]?.title).toBe(title)
+    }
+  )
+
   it('skips user within DND window gracefully', async () => {
     const user = makeUserWithSettings({
       id: 'user-1',
