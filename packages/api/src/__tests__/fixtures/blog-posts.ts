@@ -54,7 +54,7 @@ export const mockBlogPost2: BlogPost = {
   updatedAt: new Date('2026-03-07T10:00:00Z'),
 }
 
-export const mockPendingBlogPost: BlogPost = {
+const mockPendingBlogPost: BlogPost = {
   id: 'blog-3',
   slug: 'propagation-basics',
   title: {

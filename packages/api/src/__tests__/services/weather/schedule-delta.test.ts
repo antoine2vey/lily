@@ -20,7 +20,7 @@ import {
   rainyThenClearForecast,
   tropicalMonsoonForecast,
 } from '@lily/api/__tests__/fixtures/weather'
-import { calculateScheduleDelta } from '@lily/api/services/weather/algorithm'
+import { calculateScheduleDelta } from '@lily/api/services/weather/algorithm/adjustment'
 import { describe, expect, it } from 'vitest'
 
 const oneDayMs = 24 * 60 * 60 * 1000

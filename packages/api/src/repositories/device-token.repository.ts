@@ -13,10 +13,6 @@ export interface CreateDeviceTokenData {
   userId: string
 }
 
-export interface UpdateDeviceTokenData {
-  isActive?: boolean
-}
-
 const mapToDeviceToken = (
   row: typeof deviceTokens.$inferSelect
 ): DeviceToken => ({

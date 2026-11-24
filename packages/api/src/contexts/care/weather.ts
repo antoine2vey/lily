@@ -1,6 +1,6 @@
 import { CareStore, type WeatherProfile } from '@lily/api/contexts/care/store'
 import type { WeatherRepository } from '@lily/api/repositories/weather.repository'
-import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
+import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm/adjustment'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'

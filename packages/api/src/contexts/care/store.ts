@@ -20,7 +20,7 @@ import {
   ownerColumns,
   ownerOf,
 } from '@lily/api/repositories/helpers/plant-owner'
-import type { PlantForAdjustment } from '@lily/api/services/weather/algorithm'
+import type { PlantForAdjustment } from '@lily/api/services/weather/algorithm/adjustment'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   canopies,

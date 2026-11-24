@@ -80,7 +80,7 @@ One row per directory of `src/services/`, in directory order. "Repositories" nam
 | `username` | Username availability and claim. | Identity & Access | generic | User |
 | `vacation` | Endpoints over the `Absence` service that get, set and cancel a vacation. | Absence | supporting | User |
 | `vacation-scheduler` | Calls `Absence.advanceVacations` at startup and every 5 minutes. It starts and ends vacations on their dates. | Absence | supporting | none |
-| `weather` | Weather endpoint, care-adjustment endpoint, providers, cache and algorithm. | Weather. `src/services/weather/algorithm.ts`, `src/services/weather/algorithm/` and `src/services/weather/endpoints/get-care-adjustments.ts` are Care (inferred). | supporting | Weather, User, Plant, CareSchedule |
+| `weather` | Weather endpoint, care-adjustment endpoint, providers, cache and algorithm. | Weather. `src/services/weather/algorithm/` and `src/services/weather/endpoints/get-care-adjustments.ts` are Care (inferred). | supporting | Weather, User, Plant, CareSchedule |
 | `weather-scheduler` | Hourly weather fetch and snapshot cleanup. `src/services/weather-scheduler/readjust-care-schedules.ts` moves watering due days. | Weather. That file is Care (inferred). | supporting | User, Plant, Canopy, CareSchedule, Weather, Notification, Delegation |
 | `weekly-recap-scheduler` | Sunday recap push. | Engagement | supporting | Engagement, Achievement |
 
