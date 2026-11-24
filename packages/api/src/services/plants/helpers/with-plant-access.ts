@@ -140,21 +140,6 @@ const authorizedRole = (
       })
   )
 
-export const assertPlantAction = (
-  requestedId: string,
-  plant: PlantRow,
-  action: PlantAction
-): Effect.Effect<
-  void,
-  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
-  PlantAccessContext
-> =>
-  Effect.asVoid(
-    Effect.flatMap(caller, (who) =>
-      authorizedRole(who, requestedId, plant, action)
-    )
-  )
-
 export const canPerform = (
   who: Caller,
   plant: PlantRow,
