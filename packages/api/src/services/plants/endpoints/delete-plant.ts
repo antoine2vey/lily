@@ -8,7 +8,7 @@ import {
   plantAndChatHeld,
   releasing,
 } from '@lily/api/services/helpers/release-objects'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
@@ -16,8 +16,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 export const deletePlant = (
   plant: PlantWithRoom,
-  permit: PlantPermit<'delete'>,
-  requestedId: string = plant.id
+  permit: PlantPermit<'delete'>
 ): Effect.Effect<
   PlantWithRoom,
   PlantNotFoundError | SqlError,
@@ -31,10 +30,6 @@ export const deletePlant = (
         plantAndChatHeld(plant.id),
         life.remove({ permit, seenOwner: plant.owner }),
         [{ _tag: 'Plant', plantId: plant.id }]
-      )
-    ).pipe(
-      Effect.catchTag('PlantNotFoundError', () =>
-        Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
       )
     )
 

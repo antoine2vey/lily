@@ -39,8 +39,8 @@ const world = (stored: ReadonlyArray<Row>) => {
   }
 }
 
-const remove = (seen: PlantWithRoom, requestedId?: string) =>
-  deletePlant(seen, permitTo('delete', seen.id), requestedId)
+const remove = (seen: PlantWithRoom) =>
+  deletePlant(seen, permitTo('delete', seen.id))
 
 describe('deletePlant', () => {
   it('returns the plant it deleted', async () => {
@@ -99,13 +99,11 @@ describe('deletePlant', () => {
   it('fails with PlantNotFoundError when the row is already gone', async () => {
     const plant = createTestPlant({ id: 'plant-1' })
     const exit = await Effect.runPromiseExit(
-      remove(asPlantWithRoom(plant), 'PLANT-1').pipe(
-        Effect.provide(world([]).layer)
-      )
+      remove(asPlantWithRoom(plant)).pipe(Effect.provide(world([]).layer))
     )
 
     expect(failureOf(exit)).toEqual(
-      new PlantNotFoundError({ plantId: 'PLANT-1' })
+      new PlantNotFoundError({ plantId: 'plant-1' })
     )
   })
 

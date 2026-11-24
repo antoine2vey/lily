@@ -18,8 +18,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 export const markPlantDead = (
   plant: PlantWithRoom,
   permit: PlantPermit<'markDead'>,
-  request: PlantDeathRequest,
-  requestedId: string = plant.id
+  request: PlantDeathRequest
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantAlreadyDeadError,
@@ -30,22 +29,16 @@ export const markPlantDead = (
       const life = yield* PlantLife
       const repo = yield* PlantRepository
 
-      yield* life
-        .bury({
-          permit,
-          seenOwner: plant.owner,
-          cause: request.cause,
-          note: Option.fromNullishOr(request.note),
-        })
-        .pipe(
-          Effect.catchTag('PlantNotFoundError', () =>
-            Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
-          )
-        )
+      yield* life.bury({
+        permit,
+        seenOwner: plant.owner,
+        cause: request.cause,
+        note: Option.fromNullishOr(request.note),
+      })
 
       const fresh = yield* repo.findById(plant.id)
       if (!fresh) {
-        return yield* new PlantNotFoundError({ plantId: requestedId })
+        return yield* new PlantNotFoundError({ plantId: plant.id })
       }
       return fresh
     })

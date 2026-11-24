@@ -3,27 +3,18 @@ import type { PlantPermit } from '@lily/api/kernel/permit'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-const setMute = (
-  permit: PlantPermit<'mute'>,
-  muted: boolean,
-  requestedId: string
-) =>
-  Effect.flatMap(Canopy, (canopy) => canopy.setMute({ permit, muted })).pipe(
-    Effect.mapError(() => new PlantNotFoundError({ plantId: requestedId }))
-  )
+const setMute = (permit: PlantPermit<'mute'>, muted: boolean) =>
+  Effect.flatMap(Canopy, (canopy) => canopy.setMute({ permit, muted }))
 
 export const mutePlant = Effect.fn('PlantsService.mutePlant')(
-  (permit: PlantPermit<'mute'>, requestedId: string = permit.plantId) =>
-    setMute(permit, true, requestedId)
+  (permit: PlantPermit<'mute'>) => setMute(permit, true)
 )
 
 export const unmutePlant = Effect.fn('PlantsService.unmutePlant')(
-  (permit: PlantPermit<'mute'>, requestedId: string = permit.plantId) =>
-    setMute(permit, false, requestedId)
+  (permit: PlantPermit<'mute'>) => setMute(permit, false)
 )
 
 // Muting is per member, so only the caller's own state is reported, and only

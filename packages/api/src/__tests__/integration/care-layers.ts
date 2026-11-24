@@ -88,17 +88,15 @@ export const buryAsCurrentUser = (
   request: PlantDeathRequest = { cause: 'unknown' }
 ) =>
   withPermittedPlant(plantId, 'markDead').pipe(
-    Effect.flatMap(({ plant, permit }) =>
-      markPlantDead(plant, permit, request, plantId)
-    )
+    Effect.flatMap(({ plant, permit }) => markPlantDead(plant, permit, request))
   )
 
 export const reviveAsCurrentUser = (plantId: string) =>
   withPermittedPlant(plantId, 'revive').pipe(
-    Effect.flatMap(({ plant, permit }) => revivePlant(plant, permit, plantId))
+    Effect.flatMap(({ plant, permit }) => revivePlant(plant, permit))
   )
 
 export const removeAsCurrentUser = (plantId: string) =>
   withPermittedPlant(plantId, 'delete').pipe(
-    Effect.flatMap(({ plant, permit }) => deletePlant(plant, permit, plantId))
+    Effect.flatMap(({ plant, permit }) => deletePlant(plant, permit))
   )

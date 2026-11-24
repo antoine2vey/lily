@@ -20,8 +20,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 export const revivePlant = (
   plant: PlantWithRoom,
-  permit: PlantPermit<'revive'>,
-  requestedId: string = plant.id
+  permit: PlantPermit<'revive'>
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError | PlantNotDeadError | LimitExceededError,
@@ -38,7 +37,7 @@ export const revivePlant = (
     const repo = yield* PlantRepository
     const limitChecker = yield* LimitChecker
     const notFound = () =>
-      Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
+      Effect.fail(new PlantNotFoundError({ plantId: plant.id }))
 
     return yield* withOwnerLock(plant.owner)((held) =>
       Effect.gen(function* () {
@@ -55,10 +54,7 @@ export const revivePlant = (
         }
         return fresh
       })
-    ).pipe(
-      Effect.catchTag('CanopyNotFoundError', notFound),
-      Effect.catchTag('PlantNotFoundError', notFound)
-    )
+    ).pipe(Effect.catchTag('CanopyNotFoundError', notFound))
   }).pipe(
     Effect.withSpan('PlantsService.revivePlant', {
       attributes: { 'plant.id': plant.id },

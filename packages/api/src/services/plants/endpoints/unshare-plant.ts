@@ -8,23 +8,19 @@ import { Effect, Option } from 'effect'
 
 export const unsharePlant = Effect.fn('PlantsService.unsharePlant')(function* (
   permit: PlantPermit<'unshare'>,
-  request: MovePlantScopeRequest,
-  requestedId: string = permit.plantId
+  request: MovePlantScopeRequest
 ) {
   const canopy = yield* Canopy
   const repo = yield* PlantRepository
   return yield* transact(
     Effect.gen(function* () {
-      yield* canopy
-        .unsharePlant({ permit, roomId: Option.fromNullishOr(request.roomId) })
-        .pipe(
-          Effect.catchTag('PlantNotFoundError', () =>
-            Effect.fail(new PlantNotFoundError({ plantId: requestedId }))
-          )
-        )
+      yield* canopy.unsharePlant({
+        permit,
+        roomId: Option.fromNullishOr(request.roomId),
+      })
       const fresh = yield* repo.findById(permit.plantId)
       if (fresh === null) {
-        return yield* new PlantNotFoundError({ plantId: requestedId })
+        return yield* new PlantNotFoundError({ plantId: permit.plantId })
       }
       return fresh
     })

@@ -58,13 +58,8 @@ const world = (stored: Row) => {
   }
 }
 
-const bury = (
-  seen: PlantWithRoom,
-  request: PlantDeathRequest,
-  by = 'user-1',
-  requestedId?: string
-) =>
-  markPlantDead(seen, permitTo('markDead', seen.id, by), request, requestedId)
+const bury = (seen: PlantWithRoom, request: PlantDeathRequest, by = 'user-1') =>
+  markPlantDead(seen, permitTo('markDead', seen.id, by), request)
 
 describe('markPlantDead', () => {
   it('sets diedAt, cause and note on a living plant', async () => {
@@ -208,7 +203,7 @@ describe('markPlantDead', () => {
     expect(care.events).toEqual([])
   })
 
-  it('answers not found, with the id as the caller sent it, once the plant has left the owner the caller saw', async () => {
+  it('answers not found, with the stored id, once the plant has left the owner the caller saw', async () => {
     const seen = createTestPlant({ id: 'plant-1', userId: 'user-1' })
     const shared = { ...seen, userId: null, canopyId: mockCanopyId }
     const { care, layer } = world(shared)
@@ -216,7 +211,7 @@ describe('markPlantDead', () => {
     const exit = await Effect.runPromiseExit(
       Effect.gen(function* () {
         const failure = yield* Effect.flip(
-          bury(asPlantWithRoom(seen), { cause: 'pests' }, 'user-1', 'PLANT-1')
+          bury(asPlantWithRoom(seen), { cause: 'pests' })
         )
         const after = yield* Effect.flatMap(PlantRepository, (repo) =>
           repo.findById('plant-1')
@@ -227,7 +222,7 @@ describe('markPlantDead', () => {
 
     if (!Exit.isSuccess(exit)) throw new Error('test setup failed')
     expect(exit.value.failure).toEqual(
-      new PlantNotFoundError({ plantId: 'PLANT-1' })
+      new PlantNotFoundError({ plantId: 'plant-1' })
     )
     expect(exit.value.after?.diedAt).toBeNull()
     expect(care.events).toEqual([])
