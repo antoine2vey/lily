@@ -1,99 +1,9 @@
 import { Reminders } from '@lily/api/contexts/reminders'
 import type { AppEvent } from '@lily/api/events'
-import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import { createSubscriber } from '@lily/api/services/helpers/create-subscriber'
-import {
-  type IPushService,
-  type LiveActivityPushMessage,
-  PushService,
-} from '@lily/shared/server'
+import { syncCards } from '@lily/api/services/live-activity/cards'
 import { Array, Effect, Match, Option, pipe } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
-
-// Send a Live Activity push and swallow all three push-error tags with
-// uniform logging. On invalidation, optionally run a one-shot cleanup
-// (used by the `update` path to mark the dead row ended).
-const sendWithLogging = (
-  pushService: IPushService,
-  kind: 'end' | 'update',
-  message: LiveActivityPushMessage,
-  onInvalidated?: (reason: string) => Effect.Effect<void, SqlError>
-) => {
-  const warn = (suffix: string) => (e: { readonly message: string }) =>
-    Effect.logWarning(`[live-activity] ${kind} ${suffix}: ${e.message}`)
-  return pushService.sendLiveActivity(message).pipe(
-    Effect.tap((ticket) =>
-      Effect.log(`[live-activity] ${kind} push accepted by APNs`, {
-        apnsId: ticket.id,
-      })
-    ),
-    Effect.catchTags({
-      PushSendError: warn('failed'),
-      PushConfigError: warn('config error'),
-      PushTokenInvalidatedError: (e) =>
-        Effect.logInfo(
-          `[live-activity] ${kind} token invalidated: ${e.reason}`
-        ).pipe(
-          Effect.andThen(
-            Option.match(Option.fromNullishOr(onInvalidated), {
-              onNone: () => Effect.void,
-              onSome: (cb) => cb(e.reason),
-            })
-          )
-        ),
-    }),
-    Effect.ignore
-  )
-}
-
-const refreshLiveActivity = (userId: string) =>
-  Effect.gen(function* () {
-    const activityRepo = yield* ActivityPushTokenRepository
-    const pushService = yield* PushService
-    const activities = yield* activityRepo.findActiveActivitiesByUserId(userId)
-    if (Array.isReadonlyArrayEmpty(activities)) return
-
-    const contentState = yield* buildLiveActivityContentState(userId)
-
-    yield* Effect.forEach(
-      activities,
-      (active) => {
-        const markEnded = Option.match(
-          Option.fromNullishOr(active.activityId),
-          {
-            onNone: () => Effect.void,
-            onSome: (id) => Effect.asVoid(activityRepo.markEnded(id)),
-          }
-        )
-
-        if (!contentState) {
-          return markEnded.pipe(
-            Effect.andThen(
-              sendWithLogging(pushService, 'end', {
-                _tag: 'LiveActivityEnd',
-                to: active.token,
-                dismissalPolicy: 'immediate',
-              })
-            )
-          )
-        }
-
-        return sendWithLogging(
-          pushService,
-          'update',
-          {
-            _tag: 'LiveActivityUpdate',
-            to: active.token,
-            contentState,
-          },
-          () => markEnded
-        )
-      },
-      { concurrency: 'unbounded', discard: true }
-    )
-  })
 
 const refreshCardsFor = (params: { actorId: string; plantId: string }) =>
   Effect.gen(function* () {
@@ -117,7 +27,7 @@ const refreshCardsFor = (params: { actorId: string; plantId: string }) =>
     )
     yield* Effect.forEach(
       Array.dedupe([params.actorId, ...owner, ...recipients]),
-      refreshLiveActivity,
+      (userId) => syncCards(userId, 'update'),
       { discard: true }
     )
   })

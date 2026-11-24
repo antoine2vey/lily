@@ -1,32 +1,18 @@
 import { API_PREFIX } from '@lily/shared'
+import type {
+  AdminLiveActivityTriggerOutcome,
+  AdminLiveActivityTriggerResponse,
+} from '@lily/shared/admin'
 import { useMutation } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
-export type TriggerOutcomeKind =
-  | 'accepted'
-  | 'send-error'
-  | 'config-error'
-  | 'token-invalidated'
-
-export interface TriggerOutcome {
-  readonly deviceTokenId: string
-  readonly kind: TriggerOutcomeKind
-  readonly apnsId?: string
-  readonly reason?: string
-}
-
-export interface TriggerLiveActivityResponse {
-  readonly userId: string
-  readonly activityId: string
-  readonly contentStateBuilt: boolean
-  readonly startTokenCount: number
-  readonly outcomes: ReadonlyArray<TriggerOutcome>
-}
+export type TriggerOutcomeKind = AdminLiveActivityTriggerOutcome['kind']
+export type TriggerPushKind = AdminLiveActivityTriggerOutcome['push']
 
 export const useTriggerLiveActivity = () =>
   useMutation({
     mutationFn: (userId: string) =>
-      apiRequest<TriggerLiveActivityResponse>(
+      apiRequest<AdminLiveActivityTriggerResponse>(
         `${API_PREFIX}/admin/users/${userId}/live-activity/trigger-start`,
         { method: 'POST' }
       ),

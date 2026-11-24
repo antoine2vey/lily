@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAdminUsers } from '@/hooks/use-admin-users'
 import {
   type TriggerOutcomeKind,
+  type TriggerPushKind,
   useTriggerLiveActivity,
 } from '@/hooks/use-trigger-live-activity'
 
@@ -38,6 +39,15 @@ const outcomeLabel = (kind: TriggerOutcomeKind): string =>
     Match.when('send-error', () => 'Send error'),
     Match.when('config-error', () => 'Config error'),
     Match.when('token-invalidated', () => 'Token invalidated'),
+    Match.exhaustive
+  )
+
+const pushLabel = (push: TriggerPushKind): string =>
+  pipe(
+    Match.value(push),
+    Match.when('start', () => 'Start'),
+    Match.when('update', () => 'Update'),
+    Match.when('end', () => 'End'),
     Match.exhaustive
   )
 
@@ -223,10 +233,10 @@ export const LiveActivityPage = () => {
 
             {Array.isReadonlyArrayEmpty(trigger.data.outcomes) ? (
               <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-700">
-                No push attempts were made.{' '}
+                No push was sent.{' '}
                 {trigger.data.contentStateBuilt
-                  ? 'User has no active push-to-start tokens — open the app on the device to register one.'
-                  : 'User has nothing due today, so no Live Activity payload to send.'}
+                  ? 'User shows no card and has no active push-to-start token. Open the app on the device to register one.'
+                  : 'User has nothing due today and shows no card to end.'}
               </div>
             ) : (
               <div className="overflow-hidden rounded-md border border-gray-200">
@@ -234,6 +244,7 @@ export const LiveActivityPage = () => {
                   <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                       <th className="px-3 py-2">Device token</th>
+                      <th className="px-3 py-2">Push</th>
                       <th className="px-3 py-2">Outcome</th>
                       <th className="px-3 py-2">APNs ID / reason</th>
                     </tr>
@@ -242,9 +253,12 @@ export const LiveActivityPage = () => {
                     {pipe(
                       trigger.data.outcomes,
                       Array.map((outcome) => (
-                        <tr key={outcome.deviceTokenId}>
+                        <tr key={`${outcome.push}-${outcome.deviceTokenId}`}>
                           <td className="px-3 py-2 font-mono text-xs text-gray-600">
                             {outcome.deviceTokenId}
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-700">
+                            {pushLabel(outcome.push)}
                           </td>
                           <td className="px-3 py-2">
                             <span
@@ -266,8 +280,8 @@ export const LiveActivityPage = () => {
 
             <p className="text-xs text-gray-500">
               An <span className="font-medium">accepted</span> outcome means
-              APNs took the push. The activity has actually started on-device
-              only once a corresponding{' '}
+              APNs took the push. A started activity runs on-device only once a
+              corresponding{' '}
               <span className="font-mono">activity_push_tokens</span> row of
               kind <span className="font-mono">update</span> appears for this
               user (the device replies via{' '}

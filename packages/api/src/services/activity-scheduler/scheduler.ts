@@ -1,8 +1,7 @@
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
-import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
-import { PushService } from '@lily/shared/server'
-import { DateTime, Duration, Effect } from 'effect'
+import { syncCards } from '@lily/api/services/live-activity/cards'
+import { Array, DateTime, Duration, Effect } from 'effect'
 
 // 10h leaves headroom under Apple's 12h hard cap; expiring the row forces
 // the next cycle to take the `start` path instead of attempting an update.
@@ -31,48 +30,20 @@ export const expireStaleActivities = Effect.gen(function* () {
   }
 })
 
-// Safety-net for dropped CareLogCreated events — the Redis pub/sub EventBus
-// is fire-and-forget, so a missed event can leave a stuck activity. This
-// re-derives each user's backlog and ends any row whose backlog is empty.
-// Idempotent on already-ended rows.
-const reconcileActiveActivities = Effect.gen(function* () {
+// Safety net for a dropped CareLogCreated: the Redis EventBus is
+// fire-and-forget, so a missed event can leave a card up after its backlog
+// emptied. A card with work is left alone, since an update every sweep would
+// spend the user's APNs budget for priority-10 pushes.
+export const reconcileActiveActivities = Effect.gen(function* () {
   const activityRepo = yield* ActivityPushTokenRepository
-  const pushService = yield* PushService
-
   const active = yield* activityRepo.findAllActiveUpdateTokens
-  if (active.length === 0) return
-
-  let endedCount = 0
-  yield* Effect.forEach(
-    active,
-    (row) =>
-      Effect.gen(function* () {
-        const contentState = yield* buildLiveActivityContentState(row.userId)
-        if (contentState) return // backlog still has work, leave alone
-
-        if (row.activityId) {
-          yield* activityRepo.markEnded(row.activityId)
-        }
-        // DB row is already marked ended; any push error (terminal or
-        // transient) is acceptable — next care cycle takes the start path.
-        yield* pushService
-          .sendLiveActivity({
-            _tag: 'LiveActivityEnd',
-            to: row.token,
-            dismissalPolicy: 'immediate',
-          })
-          .pipe(
-            Effect.catchTags({
-              PushSendError: () => Effect.void,
-              PushConfigError: () => Effect.void,
-              PushTokenInvalidatedError: () => Effect.void,
-            })
-          )
-        endedCount++
-      }),
+  const users = Array.dedupe(Array.map(active, (row) => row.userId))
+  const ended = yield* Effect.forEach(
+    users,
+    (userId) => syncCards(userId, 'keep'),
     { concurrency: 4 }
   )
-
+  const endedCount = Array.length(Array.flatten(ended))
   if (endedCount > 0) {
     yield* Effect.log(
       `[activity-scheduler] Reconciled ${endedCount} stuck activities`

@@ -1,4 +1,3 @@
-import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import {
   type CreateDeadLetterData,
   DeadLetterRepository,
@@ -13,12 +12,11 @@ import {
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
-import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import {
   createScheduler,
   drainOnInterrupt,
 } from '@lily/api/services/helpers/create-scheduler'
-import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
+import { startCards } from '@lily/api/services/live-activity/cards'
 import {
   DEFER_MESSAGE,
   Decision,
@@ -32,11 +30,8 @@ import {
   recipientLanguage,
   renderDelivery,
 } from '@lily/api/services/notification-scheduler/render-delivery'
-import type { ActivityPushToken } from '@lily/shared'
 import {
   type InterruptionLevel,
-  type LiveActivityAlert,
-  type LiveActivityContentState,
   MAX_NOTIFICATION_IDS,
   MessageQueue,
   NotificationId,
@@ -73,19 +68,6 @@ import {
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// How long a push-to-start we dispatched is presumed to still be alive on
-// the device. A started activity only becomes visible to us once the device
-// registers its update token, and that registration needs the app to run in
-// the foreground with an unlocked keychain — a push-to-start that lands while
-// the phone sits on the nightstand is confirmed hours later, if at all. Until
-// that confirmation arrives, every further care message for the user (the
-// overdue digest at a random morning slot, then the regular reminder at the
-// preferred time) falls through to the start path and creates another
-// identical card. So the guard spans the activity's own lifetime: it mirrors
-// the 10h soft TTL after which the activity scheduler expires update rows,
-// and stays well under the 24h cadence of the next day's reminder.
-const LA_START_COOLDOWN = Duration.hours(10)
-
 export const VISIBILITY_TIMEOUT = Duration.minutes(10)
 export const CLAIM_REFRESH_INTERVAL = Duration.minutes(1)
 const DELIVERY_TIMEOUT = Duration.hours(1)
@@ -97,175 +79,6 @@ const resolveInterruptionLevel = (
   topic: NotificationTopic
 ): InterruptionLevel | undefined =>
   TOPIC_CATEGORY[topic] === 'care' ? 'time-sensitive' : undefined
-
-// The scheduler merges all of a user's due care reminders into one queue
-// message, so this runs once per user per delivery batch. The start guard
-// below covers what the merge cannot: worker retries, back-to-back polls, and
-// a second care batch later the same day (overdue digests are scheduled at a
-// random morning slot, regular reminders at the user's preferred time).
-//
-// Update path is silent — the regular Expo push already showed the banner.
-// Start path requires an `alert` (iOS production drops push-to-start without
-// one), so the caller passes title/body and we forward them. Users on the
-// start path see two banners back-to-back (regular Expo + LA-start);
-// consolidating to one is a separate UX change.
-//
-//   - Active update token → send an `update`.
-//   - Else push-to-start token (iOS 17.2+) with no unresolved earlier start
-//     → send a `start`.
-//   - Else silently skip.
-const sendLiveActivityForCare = Effect.fn('sendLiveActivityForCare')(function* (
-  userId: string,
-  startAlert: LiveActivityAlert
-) {
-  const pushService = yield* PushService
-  const activityRepo = yield* ActivityPushTokenRepository
-
-  const contentState: LiveActivityContentState | null =
-    yield* buildLiveActivityContentState(userId)
-  if (!contentState) return
-
-  const [activities, allStartTokens] = yield* Effect.all(
-    [
-      activityRepo.findActiveActivitiesByUserId(userId),
-      activityRepo.findStartTokensByUserId(userId),
-    ],
-    { concurrency: 'unbounded' }
-  )
-
-  const assumeCardStillShown =
-    (activity: ActivityPushToken, warning: string) => (e: unknown) =>
-      Effect.logWarning(warning, {
-        deviceTokenId: activity.deviceTokenId,
-        error: String(e),
-      }).pipe(Effect.as(true))
-
-  const stillShowsCard = (activity: ActivityPushToken) =>
-    pushService
-      .sendLiveActivity({
-        _tag: 'LiveActivityUpdate',
-        to: activity.token,
-        contentState,
-      })
-      .pipe(
-        Effect.as(true),
-        Effect.catchTags({
-          PushSendError: assumeCardStillShown(
-            activity,
-            '[worker] LA update failed'
-          ),
-          PushConfigError: assumeCardStillShown(
-            activity,
-            '[worker] LA update config error'
-          ),
-          PushTokenInvalidatedError: (e) =>
-            Effect.gen(function* () {
-              yield* Effect.logInfo(
-                '[worker] LA update token invalidated — retrying as start',
-                { deviceTokenId: activity.deviceTokenId, reason: e.reason }
-              )
-              if (activity.activityId) {
-                yield* activityRepo.markEnded(activity.activityId)
-              }
-              return false
-            }),
-        })
-      )
-
-  const devicesWithCard = Array.map(
-    yield* Effect.filter(activities, stillShowsCard, {
-      concurrency: 'unbounded',
-    }),
-    (activity) => activity.deviceTokenId
-  )
-
-  const startCandidates = Array.filter(
-    allStartTokens,
-    (tok) => !Array.contains(devicesWithCard, tok.deviceTokenId)
-  )
-  if (Array.isReadonlyArrayEmpty(startCandidates)) {
-    if (Array.isReadonlyArrayEmpty(devicesWithCard)) {
-      yield* Effect.logInfo('[worker] LA start skipped — no start tokens', {
-        userId,
-      })
-    }
-    return
-  }
-
-  const cutoff = DateTime.toDateUtc(
-    DateTime.subtractDuration(DateTime.nowUnsafe(), LA_START_COOLDOWN)
-  )
-  const claimedDeviceIds = yield* activityRepo.claimStartTokens(
-    userId,
-    Array.map(startCandidates, (tok) => tok.deviceTokenId),
-    cutoff
-  )
-  const startTokens = Array.filter(startCandidates, (tok) =>
-    Array.contains(claimedDeviceIds, tok.deviceTokenId)
-  )
-  const unresolved = startCandidates.length - startTokens.length
-  if (unresolved > 0) {
-    yield* Effect.logInfo(
-      '[worker] LA start skipped — earlier start still unconfirmed',
-      { userId, skippedCount: unresolved }
-    )
-  }
-  if (Array.isReadonlyArrayEmpty(startTokens)) return
-
-  const activityId = crypto.randomUUID()
-  yield* Effect.logInfo('[worker] LA start dispatching', {
-    userId,
-    activityId,
-    startTokenCount: startTokens.length,
-  })
-  yield* Effect.forEach(
-    startTokens,
-    (tok) => {
-      const logCtx = {
-        userId,
-        activityId,
-        deviceTokenId: tok.deviceTokenId,
-      }
-      return pushService
-        .sendLiveActivity({
-          _tag: 'LiveActivityStart',
-          to: tok.token,
-          attributes: { userId, activityId },
-          contentState,
-          alert: startAlert,
-        })
-        .pipe(
-          Effect.tap((ticket) =>
-            Effect.logInfo('[worker] LA start accepted by APNs', {
-              ...logCtx,
-              apnsId: ticket.id,
-            })
-          ),
-          Effect.catchTags({
-            PushSendError: (e) =>
-              Effect.logWarning('[worker] LA start failed', {
-                ...logCtx,
-                error: String(e),
-              }),
-            PushConfigError: (e) =>
-              Effect.logWarning('[worker] LA start config error', {
-                ...logCtx,
-                error: String(e),
-              }),
-            PushTokenInvalidatedError: (e) =>
-              Effect.logWarning('[worker] LA start-to-push token invalidated', {
-                ...logCtx,
-                reason: e.reason,
-              }).pipe(
-                Effect.andThen(retireStartTokenForDevice(tok.deviceTokenId))
-              ),
-          }),
-          Effect.ignore
-        )
-    },
-    { concurrency: 'unbounded' }
-  )
-})
 
 export const workerRetryPolicy = Schedule.max([
   Schedule.exponential('1 second'),
@@ -296,15 +109,16 @@ const completeDelivery = (
       .markManyAsSent(rendered.sent)
       .pipe(Effect.retry(workerRetryPolicy))
 
-    // For care topics on iOS 17.2+ subscribers, refresh the LA card. Updates
-    // are silent; starts re-use the regular banner's title/body as the LA
-    // alert because production iOS drops alert-less push-to-start. Users on
-    // the start path see the banner twice (regular + LA-start) — acceptable
-    // for now; consolidating those is a separate UX change.
+    // The scheduler merges a user's due care reminders into one message, so
+    // this runs once per user per batch. Updates are silent, as the regular
+    // push already showed the banner. A start reuses that banner's title and
+    // body as its alert, so a user on the start path sees it twice; making
+    // that one banner is a separate UX change.
     if (TOPIC_CATEGORY[message.topic] === 'care') {
-      yield* sendLiveActivityForCare(message.payload.userId, {
-        ...rendered.push,
-        sound: 'default',
+      const alert = { ...rendered.push, sound: 'default' as const }
+      yield* startCards(message.payload.userId, {
+        alert: () => alert,
+        bypassCooldown: false,
       }).pipe(Effect.retry(workerRetryPolicy))
     }
 

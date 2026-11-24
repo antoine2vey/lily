@@ -108,7 +108,7 @@ module la_start {
     nextCard' = nextCard, writes' = writes, workers' = workers,
   }
 
-  // worker.ts sendLiveActivityForCare: the two reads that open a batch.
+  // live-activity/cards.ts startCards: the two reads that open a batch.
   action findActivities(w: str): bool = all {
     workers.get(w).pc == Idle,
     workers' = workers.set(w, {
@@ -125,7 +125,8 @@ module la_start {
     nextCard' = nextCard, writes' = writes,
   }
 
-  // worker.ts stillShowsCard: a failed update counts as a card still shown.
+  // live-activity/cards.ts stillShowsCard: a failed update counts as a card
+  // still shown.
   // An invalidated token ends the row and the batch goes on to the start path.
   action stillShowsCard(w: str, failed: bool): bool = {
     val me = workers.get(w)
@@ -165,9 +166,9 @@ module la_start {
     }
   }
 
-  // worker.ts sendLiveActivityForCare: the LiveActivityStart send, after the
+  // live-activity/cards.ts sendStarts: the LiveActivityStart send, after the
   // stamp. A failed send keeps the stamp, and a dead token retires the row.
-  action sendLiveActivityStart(w: str, outcome: Send): bool = {
+  action sendStarts(w: str, outcome: Send): bool = {
     val me = workers.get(w)
     all {
       me.pc == Claimed,
@@ -235,9 +236,10 @@ module la_start {
     nextCard' = nextCard, writes' = writes, workers' = workers,
   }
 
-  // live-activity/subscriber.ts refreshLiveActivity, empty backlog: the row
-  // ends first, and a lost End push leaves the card on the device.
-  action refreshLiveActivity(endDelivered: bool): bool = all {
+  // live-activity/cards.ts endCards: an empty backlog ends the cards, whichever
+  // caller finds it. The row ends first, and a lost End push leaves the card
+  // on the device.
+  action endCards(endDelivered: bool): bool = all {
     updateRow.status == Active,
     updateRow' = { ...updateRow, status: Ended },
     cards' =
@@ -276,7 +278,7 @@ module la_start {
       stillShowsCard(w, failed),
       claimStartTokens(w),
       nondet outcome = Set(Delivered, Failed, PushTokenInvalidated).oneOf()
-      sendLiveActivityStart(w, outcome),
+      sendStarts(w, outcome),
     },
     registerStartToken,
     nondet card = cards.oneOf()
@@ -287,7 +289,7 @@ module la_start {
       swipeAway(card),
     },
     nondet endDelivered = (if (END_PUSH_LOST) Set(true, false) else Set(true)).oneOf()
-    refreshLiveActivity(endDelivered),
+    endCards(endDelivered),
     expireStaleActivities,
     expireStaleStartTokens,
   }
@@ -314,7 +316,7 @@ module la_start {
         all { workers.get(w).pc != StartPath, unchanged },
       })
       .then(any {
-        sendLiveActivityStart(w, Delivered),
+        sendStarts(w, Delivered),
         all { workers.get(w).pc != Claimed, unchanged },
       })
 
@@ -368,13 +370,13 @@ module la_start {
     init
       .then(deliver("digest"))
       .then(nondet card = cards.oneOf() registerActivityToken(card, false))
-      .then(refreshLiveActivity(false))
+      .then(endCards(false))
       .then(deliver("digest"))
       .then(
         nondet old = cards.filter(c => c.id == 0).oneOf()
         registerActivityToken(old, true)
       )
-      .then(refreshLiveActivity(false))
+      .then(endCards(false))
       .then(deliver("reminder"))
 }
 

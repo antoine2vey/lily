@@ -1,124 +1,63 @@
-import type { CareReads } from '@lily/api/contexts/care'
-import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
-import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
-import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import type { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
-import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
+import { startCards } from '@lily/api/services/live-activity/cards'
 import type { AdminLiveActivityTriggerResponse } from '@lily/shared/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
-import { PushService } from '@lily/shared/server'
-import { Array, Effect } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
+import { Array, Effect, Match } from 'effect'
 
 type Outcome = AdminLiveActivityTriggerResponse['outcomes'][number]
 
-// Diagnostic: bypass the notification worker and force a fresh
-// `LiveActivityStart` per active start token. Returns each token's APNs
-// outcome so an operator can immediately tell whether the issue is at the
-// server (config, send error) or downstream on the device.
-export const triggerLiveActivityStart = (
-  userId: string
-): Effect.Effect<
-  AdminLiveActivityTriggerResponse,
-  UserNotFoundError | SqlError,
-  | UserRepository
-  | ActivityPushTokenRepository
-  | DeviceTokenRepository
-  | PushService
-  | CareLogRepository
-  | CareReads
-  | CanopyRepository
-> =>
+// Diagnostic: push the user's cards now, past the start cooldown, and return
+// each push's APNs outcome so an operator can tell whether the issue is at
+// the server (config, send error) or downstream on the device.
+export const triggerLiveActivityStart = (userId: string) =>
   Effect.gen(function* () {
     const userRepo = yield* UserRepository
-    const activityRepo = yield* ActivityPushTokenRepository
-    const pushService = yield* PushService
-
     const user = yield* userRepo.findById(userId)
     if (!user) return yield* new UserNotFoundError()
 
-    const contentState = yield* buildLiveActivityContentState(userId)
-    const startTokens = yield* activityRepo.findStartTokensByUserId(userId)
-    const activityId = crypto.randomUUID()
-
-    if (!contentState || Array.isReadonlyArrayEmpty(startTokens)) {
-      return {
-        userId,
-        activityId,
-        contentStateBuilt: contentState !== null,
-        startTokenCount: startTokens.length,
-        outcomes: [],
-      } satisfies AdminLiveActivityTriggerResponse
-    }
-
-    const outcomes = yield* Effect.forEach(
-      startTokens,
-      (
-        tok
-      ): Effect.Effect<
-        Outcome,
-        SqlError,
-        ActivityPushTokenRepository | DeviceTokenRepository
-      > =>
-        pushService
-          .sendLiveActivity({
-            _tag: 'LiveActivityStart',
-            to: tok.token,
-            attributes: { userId, activityId },
-            contentState,
-            alert: {
-              title: contentState.title,
-              body: contentState.headline,
-              sound: 'default',
-            },
-          })
-          .pipe(
-            Effect.map(
-              (ticket): Outcome => ({
-                deviceTokenId: tok.deviceTokenId,
-                kind: 'accepted',
-                apnsId: ticket.id,
-              })
-            ),
-            Effect.catchTags({
-              PushSendError: (e) =>
-                Effect.succeed<Outcome>({
-                  deviceTokenId: tok.deviceTokenId,
-                  kind: 'send-error',
-                  reason: e.message,
-                }),
-              PushConfigError: (e) =>
-                Effect.succeed<Outcome>({
-                  deviceTokenId: tok.deviceTokenId,
-                  kind: 'config-error',
-                  reason: e.message,
-                }),
-              PushTokenInvalidatedError: (e) =>
-                retireStartTokenForDevice(tok.deviceTokenId).pipe(
-                  Effect.as<Outcome>({
-                    deviceTokenId: tok.deviceTokenId,
-                    kind: 'token-invalidated',
-                    reason: e.reason,
-                  })
-                ),
+    const sync = yield* startCards(userId, {
+      alert: (state) => ({
+        title: state.title,
+        body: state.headline,
+        sound: 'default',
+      }),
+      bypassCooldown: true,
+    })
+    const outcomes = Array.map(
+      sync.pushes,
+      ({ push, deviceTokenId, outcome }) =>
+        Match.value(outcome).pipe(
+          Match.when(
+            { kind: 'accepted' },
+            ({ kind, apnsId }): Outcome => ({
+              deviceTokenId,
+              push,
+              kind,
+              apnsId,
             })
           ),
-      { concurrency: 'unbounded' }
+          Match.orElse(
+            ({ kind, reason }): Outcome => ({
+              deviceTokenId,
+              push,
+              kind,
+              reason,
+            })
+          )
+        )
     )
 
     yield* Effect.logInfo('[admin] LA trigger-start completed', {
       userId,
-      activityId,
+      activityId: sync.activityId,
       outcomes,
     })
 
     return {
       userId,
-      activityId,
-      contentStateBuilt: true,
-      startTokenCount: startTokens.length,
+      activityId: sync.activityId,
+      contentStateBuilt: sync.due,
+      startTokenCount: sync.startTokenCount,
       outcomes,
     } satisfies AdminLiveActivityTriggerResponse
   }).pipe(

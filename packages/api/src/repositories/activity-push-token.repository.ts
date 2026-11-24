@@ -327,9 +327,9 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
       }),
 
       // Stamp the moment a push-to-start was dispatched to these devices. The
-      // worker reads this back to enforce a start cooldown (see
-      // sendLiveActivityForCare); the stamp is written BEFORE the APNs call so
-      // a retry after a timeout cannot double-start.
+      // stamp enforces the start cooldown (see sendStarts in
+      // services/live-activity/cards.ts) and is written BEFORE the APNs call,
+      // so a retry after a timeout cannot double-start.
       claimStartTokens: Effect.fn(
         'ActivityPushTokenRepository.claimStartTokens'
       )(function* (
