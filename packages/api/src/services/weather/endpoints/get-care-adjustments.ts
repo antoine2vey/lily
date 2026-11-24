@@ -7,10 +7,14 @@ import {
   toIndoorPlantContext,
 } from '@lily/api/services/weather/algorithm'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
+import { userWeatherPlace } from '@lily/api/services/weather/endpoints/get-weather'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
-import type { CareAdjustment } from '@lily/shared'
-import { type WeatherFetchError, WeatherNotAvailableError } from '@lily/shared'
+import type {
+  CareAdjustment,
+  WeatherFetchError,
+  WeatherNotAvailableError,
+} from '@lily/shared'
 import { Array, Effect, Filter, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -28,14 +32,12 @@ export const getCareAdjustments: Effect.Effect<
   const userRepo = yield* UserRepository
   const plantRepo = yield* PlantRepository
 
-  const user = yield* userRepo.findById(id)
-  if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
-    return yield* new WeatherNotAvailableError({})
-  }
-
+  const { latitude, longitude } = yield* userWeatherPlace(
+    yield* userRepo.findById(id)
+  )
   const { currentWeather, recentHistory, forecast } = yield* getWeatherContext(
-    user.latitude,
-    user.longitude
+    latitude,
+    longitude
   )
   const plants = yield* plantRepo.findLivingByOwner({
     _tag: 'User',
@@ -58,7 +60,7 @@ export const getCareAdjustments: Effect.Effect<
             currentWeather,
             recentHistory,
             forecast,
-            user.latitude
+            latitude
           )
         )
       )

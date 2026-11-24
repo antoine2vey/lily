@@ -160,4 +160,48 @@ describe('getCareAdjustments', () => {
 
     expect(result.length).toBe(0)
   })
+
+  it.each([
+    { place: 'on the equator', latitude: 0, longitude: 2.35 },
+    { place: 'on the prime meridian', latitude: 51.48, longitude: 0 },
+  ])(
+    'returns adjustments for a user $place',
+    async ({ latitude, longitude }) => {
+      const weatherUser = {
+        ...mockUser1,
+        weatherEnabled: true,
+        latitude,
+        longitude,
+      }
+      const layers = Layer.mergeAll(
+        Layer.succeed(CurrentUser, {
+          id: weatherUser.id,
+          email: weatherUser.email,
+          name: weatherUser.name,
+          firstName: null,
+          lastName: null,
+          createdAt: weatherUser.createdAt,
+          updatedAt: weatherUser.updatedAt,
+          role: weatherUser.role,
+          status: weatherUser.status,
+        }),
+        createMockUserRepository([weatherUser]),
+        createMockPlantRepository({
+          plants: [mockPlant],
+          schedules: mockCareSchedules,
+        }),
+        createMockWeatherCache(mockForecast),
+        createMockWeatherProvider(mockForecast),
+        createMockWeatherRepository()
+      )
+
+      const result = await Effect.runPromise(
+        getCareAdjustments.pipe(Effect.provide(layers))
+      )
+
+      expect(result.map((adjustment) => adjustment.plantId)).toEqual([
+        'plant-1',
+      ])
+    }
+  )
 })
