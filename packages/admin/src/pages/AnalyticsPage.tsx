@@ -374,7 +374,7 @@ export const AnalyticsPage = () => {
               }
               hint={
                 diagnosisRate.data
-                  ? `${diagnosisRate.data.resolved.toLocaleString()} / ${diagnosisRate.data.total.toLocaleString()} — median ${pipe(
+                  ? `${diagnosisRate.data.resolved.toLocaleString()} / ${diagnosisRate.data.total.toLocaleString()} closed — median ${pipe(
                       Option.fromNullishOr(
                         diagnosisRate.data.medianHoursToResolve
                       ),
