@@ -6,7 +6,7 @@ import {
   sleepsBetweenAttempts,
 } from '@lily/api/__tests__/integration/lock-waits'
 import { CareReadsLive } from '@lily/api/contexts/care'
-import { replanPlants } from '@lily/api/contexts/reminders'
+import { ReminderStoreLive, replanPlants } from '@lily/api/contexts/reminders'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
@@ -34,6 +34,7 @@ const StoreLive = Layer.mergeAll(
   CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   DelegationRepositoryLive

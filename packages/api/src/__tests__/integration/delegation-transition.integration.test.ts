@@ -21,7 +21,12 @@ import {
   AbsenceStoreLive,
 } from '@lily/api/contexts/absence/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
-import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import {
+  Dirty,
+  ReminderStoreLive,
+  Reminders,
+} from '@lily/api/contexts/reminders'
+import { ReminderStore } from '@lily/api/contexts/reminders/store/rows'
 import { Outbox } from '@lily/api/kernel/outbox'
 import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -31,6 +36,7 @@ import {
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
@@ -68,6 +74,8 @@ const StoreLive = AbsenceStoreLive.pipe(
     Layer.mergeAll(
       CanopyRepositoryLive,
       NotificationRepositoryLive,
+      NotificationDeliveryLive,
+      ReminderStoreLive,
       createStubCare().layer
     )
   ),
@@ -77,6 +85,8 @@ const StoreLive = AbsenceStoreLive.pipe(
 
 const CommandsLive = Layer.mergeAll(
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
+  ReminderStoreLive,
   CanopyRepositoryLive,
   PlantRepositoryLive,
   CareScheduleRepositoryLive,
@@ -411,11 +421,13 @@ const injected = (message: string) =>
   )
 
 const RemindersCannotBePlanned = Layer.effect(
-  NotificationRepository,
-  Effect.map(NotificationRepository, (repo) => ({
-    ...repo,
-    lockReminders: () => injected('injected replan failure'),
-  }))
+  ReminderStore,
+  Effect.map(ReminderStore, (store) =>
+    ReminderStore.of({
+      ...store,
+      lockReminders: () => injected('injected replan failure'),
+    })
+  )
 )
 
 const NotificationsCannotBeRecorded = Layer.effect(
@@ -458,6 +470,8 @@ const ReminderServicesLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CareReadsLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
+  ReminderStoreLive,
   UserRepositoryLive,
   CanopyRepositoryLive,
   DelegationRepositoryLive

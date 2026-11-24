@@ -2,17 +2,15 @@ import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type {
   EngagementRepository,
   TrialingUser,
 } from '@lily/api/repositories/engagement.repository'
-import type {
-  NotificationRepository,
-  NotificationRow,
-} from '@lily/api/repositories/notification.repository'
+import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
+import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   inactivityNudge,
   photoReminder,
@@ -104,7 +102,7 @@ const run = async (
   vi.setSystemTime(now)
   const ago = (ms: number) => new Date(now.getTime() - ms)
   const layer = Layer.mergeAll(
-    createMockNotificationRepository(rows),
+    notificationMocks(rows).repository,
     createMockEngagementRepository({
       notifications: rows,
       lastCareDates: { [USER]: ago(10 * DAY) },

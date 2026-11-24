@@ -19,6 +19,8 @@ import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.rep
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
+import { NotificationInboxLive } from '@lily/api/repositories/notification-inbox.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import {
@@ -58,6 +60,8 @@ const RepositoriesLive = Layer.mergeAll(
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
+  NotificationInboxLive,
+  NotificationDeliveryLive,
   PlantRepositoryLive,
   UserRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))

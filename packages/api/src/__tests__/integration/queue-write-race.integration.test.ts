@@ -11,10 +11,11 @@ import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repositor
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import {
-  NotificationRepository,
-  NotificationRepositoryLive,
-} from '@lily/api/repositories/notification.repository'
+  NotificationDelivery,
+  NotificationDeliveryLive,
+} from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
@@ -166,9 +167,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const pushes: PushMessage[] = []
       const writes: Array<{ title: string; body: string }> = []
       const WrappedNotifications = Layer.effect(
-        NotificationRepository,
+        NotificationDelivery,
         Effect.gen(function* () {
-          const base = yield* NotificationRepository
+          const base = yield* NotificationDelivery
           return {
             ...base,
             setQueuedContent: (
@@ -183,7 +184,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               ),
           }
         })
-      ).pipe(Layer.provide(NotificationRepositoryLive))
+      ).pipe(Layer.provide(NotificationDeliveryLive))
       const push = Layer.effect(
         PushService,
         Effect.gen(function* () {
@@ -219,6 +220,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
       const workerLayer = Layer.mergeAll(
         NotificationRepositoryLive,
+        NotificationDeliveryLive,
         OtherRepositories,
         common
       ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))

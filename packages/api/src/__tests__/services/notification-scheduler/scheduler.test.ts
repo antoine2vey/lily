@@ -14,7 +14,7 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockPushService } from '@lily/api/__tests__/mocks/push.service'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
@@ -102,7 +102,7 @@ const deliver = (
         createMockDeviceTokenRepository(
           Arr.map(users, (user) => createTestDeviceToken({ userId: user.id }))
         ),
-        createMockNotificationRepository(copies),
+        notificationMocks(copies).delivery,
         createMockActivityPushTokenRepository(),
         createMockCareLogRepository([]),
         gateMocks(schedules),
@@ -137,7 +137,7 @@ const runPollAndEnqueue = (
       const filledBatch = yield* pollAndEnqueue.pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockNotificationRepository(notifications),
+            notificationMocks(notifications).delivery,
             createMockMessageQueue({
               onEnqueue: (_, message) => enqueued.push(message),
             }),
@@ -321,7 +321,7 @@ describe('Notification Scheduler', () => {
           Effect.flatMap(dispatchNow),
           Effect.provide(
             Layer.mergeAll(
-              createMockNotificationRepository(notifications),
+              notificationMocks(notifications).notices,
               createMockMessageQueue({
                 enqueueFailure: new QueueConnectionError({
                   message: 'redis down',
@@ -544,9 +544,9 @@ describe('Notification Scheduler', () => {
         pollAndEnqueue.pipe(
           Effect.provide(
             Layer.mergeAll(
-              createMockNotificationRepository([
+              notificationMocks([
                 follow('follow-bad', JSON.parse('{"senderId":5}')),
-              ]),
+              ]).delivery,
               createMockMessageQueue({}),
               GateMocksLive,
               createMockUserRepository([defaultUser]),
@@ -1799,7 +1799,7 @@ describe('Notification Scheduler', () => {
           pollAndEnqueue.pipe(
             Effect.provide(
               Layer.mergeAll(
-                createMockNotificationRepository([notification]),
+                notificationMocks([notification]).delivery,
                 createMockMessageQueue({}),
                 GateMocksLive,
                 createMockUserRepository([user]),
@@ -1864,7 +1864,7 @@ describe('Notification Scheduler', () => {
           pollAndEnqueue.pipe(
             Effect.provide(
               Layer.mergeAll(
-                createMockNotificationRepository(notifications),
+                notificationMocks(notifications).delivery,
                 createMockMessageQueue({}),
                 GateMocksLive,
                 createMockUserRepository([user]),
@@ -2333,7 +2333,7 @@ describe('Notification Scheduler', () => {
         pollAndEnqueue.pipe(
           Effect.provide(
             Layer.mergeAll(
-              createMockNotificationRepository([notification]),
+              notificationMocks([notification]).delivery,
               createMockMessageQueue({
                 enqueueFailure: new QueueOperationError({
                   message: 'redis down',

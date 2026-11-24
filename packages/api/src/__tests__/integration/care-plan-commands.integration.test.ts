@@ -15,6 +15,7 @@ import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-pro
 import { CarePlans, CareReadsLive } from '@lily/api/contexts/care'
 import { CareWrite } from '@lily/api/contexts/care/domain/decide'
 import { CareStore, CareStoreLive } from '@lily/api/contexts/care/store'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
@@ -22,6 +23,7 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DiagnosisRepositoryLive } from '@lily/api/repositories/diagnosis.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import type { ToolContext } from '@lily/api/services/ai-chat/tools'
@@ -68,6 +70,8 @@ const RepositoriesLive = Layer.mergeAll(
   DelegationRepositoryLive,
   DiagnosisRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
+  NotificationDeliveryLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue(),

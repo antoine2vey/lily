@@ -1,4 +1,4 @@
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationInbox } from '@lily/api/repositories/notification-inbox.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { NotificationNotFoundError } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
@@ -10,10 +10,10 @@ export const deleteNotification = (
 ): Effect.Effect<
   Notification,
   SqlError | NotificationNotFoundError,
-  NotificationRepository | CurrentUser
+  NotificationInbox | CurrentUser
 > =>
   Effect.gen(function* () {
-    const repo = yield* NotificationRepository
+    const repo = yield* NotificationInbox
     const { id: userId } = yield* CurrentUser
 
     const notification = yield* repo.findById(notificationId)

@@ -15,7 +15,7 @@ import {
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { mintPermit, systemPermit } from '@lily/api/__tests__/mocks/permits'
@@ -463,6 +463,7 @@ describe('Canopy', () => {
     it('rolls the join back and sends nothing when a notice cannot be recorded', async () => {
       const world = linkTo(home(), otherCanopyId, 'cabin-token')
       const timeline = createOutboxTimeline()
+      const mocks = notificationMocks([])
       const refusingNotifications = Layer.effect(
         NotificationRepository,
         Effect.map(NotificationRepository, (repo) => ({
@@ -477,7 +478,7 @@ describe('Canopy', () => {
               })
             ),
         }))
-      ).pipe(Layer.provide(createMockNotificationRepository([])))
+      ).pipe(Layer.provide(mocks.repository), Layer.merge(mocks.delivery))
 
       const exit = await Effect.runPromiseExit(
         Effect.flatMap(Canopy, byLink('sam', 'cabin-token')).pipe(
@@ -516,10 +517,7 @@ describe('Canopy', () => {
                   MockOutboxLive,
                   timeline.sql,
                   timeline.queue,
-                  createMockNotificationRepository(
-                    [],
-                    timeline.notificationOptions
-                  )
+                  notificationMocks([], timeline.notificationOptions).notices
                 )
               )
             )
@@ -839,6 +837,7 @@ describe('Canopy', () => {
     it('rolls the invitation back and sends nothing when its notice cannot be recorded', async () => {
       const world = home()
       const timeline = createOutboxTimeline()
+      const mocks = notificationMocks([])
       const refusingNotifications = Layer.effect(
         NotificationRepository,
         Effect.map(NotificationRepository, (repo) => ({
@@ -853,7 +852,7 @@ describe('Canopy', () => {
               })
             ),
         }))
-      ).pipe(Layer.provide(createMockNotificationRepository([])))
+      ).pipe(Layer.provide(mocks.repository), Layer.merge(mocks.delivery))
 
       const exit = await Effect.runPromiseExit(
         Effect.flatMap(Canopy, invite('alex', 'sam')).pipe(
@@ -1610,7 +1609,7 @@ describe('Canopy', () => {
               MockOutboxLive,
               timeline.sql,
               timeline.queue,
-              createMockNotificationRepository([], timeline.notificationOptions)
+              notificationMocks([], timeline.notificationOptions).notices
             )
           )
         )

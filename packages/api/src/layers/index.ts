@@ -2,6 +2,7 @@ import { BunServices } from '@effect/platform-bun'
 import { AbsenceLive } from '@lily/api/contexts/absence'
 import { CanopyLive } from '@lily/api/contexts/canopy'
 import { CareLive, CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AppOutboxLive } from '@lily/api/layers/outbox'
 import { AccountPhotoRepositoryLive } from '@lily/api/repositories/account-photo.repository'
@@ -26,6 +27,8 @@ import { GiftCodeRepositoryLive } from '@lily/api/repositories/gift-code.reposit
 import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repository'
 import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
+import { NotificationInboxLive } from '@lily/api/repositories/notification-inbox.repository'
 import { OAuthIdentityRepositoryLive } from '@lily/api/repositories/oauth-identity.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { PlantCatalogRepositoryLive } from '@lily/api/repositories/plant-catalog.repository'
@@ -131,7 +134,9 @@ const RepositoriesGroup2 = Layer.mergeAll(
   WeatherRepositoryLive,
   CareReadsLive,
   ChatFollowUpRepositoryLive,
-  StoredRefRepositoryLive
+  StoredRefRepositoryLive,
+  NotificationInboxLive,
+  NotificationDeliveryLive
 )
 
 export const AllRepositoriesLive = Layer.mergeAll(
@@ -237,7 +242,8 @@ const AllInfrastructureLive = Layer.mergeAll(
 const ContextsLive = CanopyLive.pipe(
   Layer.provideMerge(AbsenceLive),
   Layer.provideMerge(CareLive),
-  Layer.provideMerge(AppOutboxLive)
+  Layer.provideMerge(AppOutboxLive),
+  Layer.provideMerge(ReminderStoreLive)
 )
 
 export const AppLive = ContextsLive.pipe(

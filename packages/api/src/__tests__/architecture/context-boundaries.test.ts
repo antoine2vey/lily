@@ -1,13 +1,28 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
+import type {
+  ReminderStore,
+  ReminderWrites,
+} from '@lily/api/contexts/reminders/store/rows'
+import type { Transaction } from '@lily/api/kernel/transact'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { DeferredCareType } from '@lily/shared/server'
+import type { Effect } from 'effect'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
 const SRC = resolve(import.meta.dirname, '../..')
 const CONTEXTS = join(SRC, 'contexts')
 
-const NOTIFICATION_REPOSITORY = 'repositories/notification.repository.ts'
+// The writers of every row but a reminder: what produces a notification,
+// what the user does in the inbox, and how delivery moves a row.
+const NOTIFICATION_REPOSITORIES = [
+  'repositories/notification-delivery.repository.ts',
+  'repositories/notification-inbox.repository.ts',
+  'repositories/notification.repository.ts',
+]
+
+// The rows of a reminder type, and the locks a replan takes.
+const REMINDER_STORE_ROWS = 'contexts/reminders/store/rows.ts'
 
 // Delivery moves a row through its statuses and drops the ones it must not
 // send. It never plans one.
@@ -184,7 +199,7 @@ describe('locks', () => {
     ).toEqual([])
   })
 
-  it('leave the reminder key of a plant to the notification repository', () => {
+  it('leave the reminder key of a plant to the Reminders store', () => {
     const takers = files
       .filter((file) =>
         (graph.get(file) ?? []).some(
@@ -195,7 +210,7 @@ describe('locks', () => {
       )
       .map(name)
 
-    expect(takers).toEqual([NOTIFICATION_REPOSITORY])
+    expect(takers).toEqual([REMINDER_STORE_ROWS])
   })
 })
 
@@ -401,11 +416,11 @@ describe('bounded contexts', () => {
 
   it('leave reminder rows, their locks and their planning to Reminders', () => {
     const ROWS =
-      /\.(writeReminders|lockReminders|lockReminderPlants|findHoldersOfWaitingReminders)\(/
+      /\.(writeReminders|lockReminders|lockReminderPlants|findHoldersOfWaitingReminders|findAccountsForKeyShare|findPlantsForKeyShare|hasOverdueReminderOn|findPlantIdsOfWaitingReminders)\(/
     const PLANNING = /\b(replan|replanPlants)\b/
     const reminders = join(CONTEXTS, 'reminders')
     const plans = (imported: Import & { readonly target: string }) =>
-      imported.target === join(reminders, 'store.ts') ||
+      imported.target.startsWith(join(reminders, 'store', '/')) ||
       imported.target === join(reminders, 'replan.ts') ||
       (imported.target === join(reminders, 'index.ts') &&
         PLANNING.test(imported.names))
@@ -554,19 +569,45 @@ describe('bounded contexts', () => {
     ).toEqual([])
   })
 
-  it('keep every write of the notifications table in its repository', () => {
+  it('write reminder rows in the Reminders store and every other notification in the repository', () => {
     const WRITES =
       /\.(insert|update|delete)\(\s*(schema\.)?notifications\s*\)|(insert into|update|delete from)\s+("?notifications\b|\$\{\s*(schema\.)?notifications\s*\})/i
     const writers = files
       .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
       .map(name)
+      .sort()
 
-    expect(writers).toEqual([NOTIFICATION_REPOSITORY])
+    expect(writers).toEqual([REMINDER_STORE_ROWS, ...NOTIFICATION_REPOSITORIES])
+  })
+
+  it('let the Reminders store insert reminder rows only', () => {
+    type Inserted = ReminderWrites['inserts'][number]['type']
+
+    expectTypeOf<Exclude<Inserted, DeferredCareType>>().toBeNever()
+  })
+
+  it('run every reminder lock and write inside a transaction', () => {
+    type Store = ReminderStore['Service']
+    type Needs<K extends keyof Store> = Store[K] extends (
+      ...args: never
+    ) => Effect.Effect<unknown, unknown, infer R>
+      ? R
+      : never
+
+    expectTypeOf<Transaction>().toExtend<Needs<'lockReminderPlants'>>()
+    expectTypeOf<Transaction>().toExtend<
+      Needs<'findHoldersOfWaitingReminders'>
+    >()
+    expectTypeOf<Transaction>().toExtend<Needs<'findAccountsForKeyShare'>>()
+    expectTypeOf<Transaction>().toExtend<Needs<'findPlantsForKeyShare'>>()
+    expectTypeOf<Transaction>().toExtend<Needs<'lockReminders'>>()
+    expectTypeOf<Transaction>().toExtend<Needs<'writeReminders'>>()
+    expectTypeOf<Transaction>().toExtend<Needs<'hasOverdueReminderOn'>>()
   })
 
   it('let delivery alone move a notification by id or drop it', () => {
     const MOVES =
-      /\b[nN]otifications?(Repo)?\s*\.(deleteByIds|deferUntil|retryLater|markManyAsSent|markManyAsFailed|claimPendingToSchedule|claimForDelivery|releaseUnclaimed|releaseUnclaimedOlderThan|failAbandonedDeliveries|setQueuedContent)\(/
+      /\.(deleteByIds|deferUntil|retryLater|markManyAsSent|markManyAsFailed|claimPendingToSchedule|claimForDelivery|releaseUnclaimed|releaseUnclaimedOlderThan|failAbandonedDeliveries|setQueuedContent)\(/
     const movers = files
       .filter((file) => MOVES.test(readFileSync(file, 'utf8')))
       .map(name)

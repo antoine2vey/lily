@@ -18,7 +18,12 @@ import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-pro
 import type { Absence } from '@lily/api/contexts/absence'
 import type { Canopy } from '@lily/api/contexts/canopy'
 import { CareReadsLive } from '@lily/api/contexts/care'
-import { Dirty, Reminders, replan } from '@lily/api/contexts/reminders'
+import {
+  Dirty,
+  ReminderStoreLive,
+  Reminders,
+  replan,
+} from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -32,6 +37,7 @@ import {
 } from '@lily/api/repositories/engagement.repository'
 import { FollowRepositoryLive } from '@lily/api/repositories/follow.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import {
   PlantRepository,
   PlantRepositoryLive,
@@ -76,6 +82,8 @@ const RepositoriesLive = Layer.mergeAll(
   EngagementRepositoryLive,
   FollowRepositoryLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   RefreshTokenRepositoryLive,
   SubscriptionRepositoryLive,

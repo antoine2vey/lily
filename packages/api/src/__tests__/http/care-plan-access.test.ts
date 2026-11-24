@@ -13,7 +13,7 @@ import { createCarePlanRows } from '@lily/api/__tests__/mocks/care-plan.reposito
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -144,7 +144,7 @@ const RepositoriesLive = Layer.mergeAll(
   ]),
   createMockDelegationRepository({}),
   createMockCareScheduleRepository({ schedules: [], plants: [plant] }),
-  createMockNotificationRepository([]),
+  notificationMocks([]).repository,
   createMockCareLogRepository([]),
   createMockUserRepository([]),
   createMockEventBus(),

@@ -4,7 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/clock'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
 import { plantParentMilestone } from '@lily/api/services/engagement-scheduler/scheduler'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
@@ -47,7 +47,7 @@ describe('processPlantParentMilestones', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -70,7 +70,7 @@ describe('processPlantParentMilestones', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -90,7 +90,7 @@ describe('processPlantParentMilestones', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -113,7 +113,7 @@ describe('processPlantParentMilestones', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({}),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -128,7 +128,7 @@ describe('processPlantParentMilestones', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -156,7 +156,7 @@ describe('processPlantParentMilestones', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -185,7 +185,7 @@ describe('processPlantParentMilestones', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(

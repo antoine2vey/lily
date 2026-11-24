@@ -20,7 +20,7 @@ import {
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
@@ -96,28 +96,29 @@ const check = (
 ) =>
   checkAndCreateOverdueReminders.pipe(
     Effect.provide(
-      Layer.mergeAll(
-        createMockCareScheduleRepository({
-          schedules: schedulesFromPlants(plantsData),
-          plants: plantsData,
-          memberships,
-          mutes,
-          caretakers: activeCaretakers(delegationData),
-          timezones: Object.fromEntries([
-            ...Arr.map(users, (u) => [u.id, u.timezone ?? 'UTC'] as const),
-            ...Arr.map(canopies, (c) => [c.id, c.timezone] as const),
-          ]),
-        }),
-        createMockCanopyRepository(
-          createCanopyStore({ members: memberships, mutes, canopies })
-        ),
-        createMockPlantRepository({ plants: plantsData }),
-        createMockNotificationRepository(notifications),
-        createMockUserRepository(users),
-        createMockDelegationRepository(delegationData),
-        createMockSubscriptionRepository(subscriptionOptions),
-        queue,
-        MockSqlClientLive
+      notificationMocks(notifications).over(
+        Layer.mergeAll(
+          createMockCareScheduleRepository({
+            schedules: schedulesFromPlants(plantsData),
+            plants: plantsData,
+            memberships,
+            mutes,
+            caretakers: activeCaretakers(delegationData),
+            timezones: Object.fromEntries([
+              ...Arr.map(users, (u) => [u.id, u.timezone ?? 'UTC'] as const),
+              ...Arr.map(canopies, (c) => [c.id, c.timezone] as const),
+            ]),
+          }),
+          createMockCanopyRepository(
+            createCanopyStore({ members: memberships, mutes, canopies })
+          ),
+          createMockPlantRepository({ plants: plantsData }),
+          createMockUserRepository(users),
+          createMockDelegationRepository(delegationData),
+          createMockSubscriptionRepository(subscriptionOptions),
+          queue,
+          MockSqlClientLive
+        )
       )
     ),
     Effect.provideService(References.MinimumLogLevel, 'None')
@@ -138,17 +139,18 @@ const skipOf = async (
   const { outcomes } = await Effect.runPromise(
     remindOverdue(() => Effect.succeed(() => Option.none())).pipe(
       Effect.provide(
-        Layer.mergeAll(
-          createMockCareScheduleRepository({
-            schedules: schedulesFromPlants(plantsData),
-            plants: plantsData,
-          }),
-          createMockCanopyRepository(createCanopyStore({})),
-          createMockPlantRepository({ plants: plantsData }),
-          createMockNotificationRepository(notifications),
-          createMockUserRepository(users),
-          createMockDelegationRepository({}),
-          MockSqlClientLive
+        notificationMocks(notifications).over(
+          Layer.mergeAll(
+            createMockCareScheduleRepository({
+              schedules: schedulesFromPlants(plantsData),
+              plants: plantsData,
+            }),
+            createMockCanopyRepository(createCanopyStore({})),
+            createMockPlantRepository({ plants: plantsData }),
+            createMockUserRepository(users),
+            createMockDelegationRepository({}),
+            MockSqlClientLive
+          )
         )
       ),
       Effect.provideService(References.MinimumLogLevel, 'None')

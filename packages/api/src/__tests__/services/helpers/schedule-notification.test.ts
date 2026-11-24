@@ -1,6 +1,6 @@
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
+import { NotificationDelivery } from '@lily/api/repositories/notification-delivery.repository'
 import {
   dispatchNow,
   recordNotification,
@@ -22,7 +22,7 @@ const recordAndDispatch = (
     }).pipe(
       Effect.flatMap(dispatchNow),
       Effect.provide(
-        Layer.mergeAll(createMockNotificationRepository(notifications), queue)
+        Layer.mergeAll(notificationMocks(notifications).notices, queue)
       ),
       Effect.provideService(References.MinimumLogLevel, 'None')
     )
@@ -39,7 +39,7 @@ describe('recordNotification', () => {
         { senderName: 'Ada' },
         'en',
         { senderId: 'ada' }
-      ).pipe(Effect.provide(createMockNotificationRepository(notifications)))
+      ).pipe(Effect.provide(notificationMocks(notifications).notices))
     )
 
     expect(notifications).toEqual([
@@ -67,7 +67,7 @@ describe('recordNotification', () => {
       ).pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockNotificationRepository([]),
+            notificationMocks([]).notices,
             createMockMessageQueue({
               onEnqueue: (_, message) => enqueued.push(message),
             })
@@ -93,7 +93,7 @@ describe('recordNotificationAt', () => {
         'en',
         {},
         { scheduledAt: at, plantId: 'plant-1' }
-      ).pipe(Effect.provide(createMockNotificationRepository(notifications)))
+      ).pipe(Effect.provide(notificationMocks(notifications).notices))
     )
 
     expect(
@@ -150,9 +150,10 @@ describe('dispatchNow', () => {
 
   it('succeeds and leaves the row queued for the sweep when the hand-back fails too', async () => {
     const notifications: Notification[] = []
+    const mocks = notificationMocks(notifications)
     const releaseFails = Layer.effect(
-      NotificationRepository,
-      Effect.map(NotificationRepository, (repo) => ({
+      NotificationDelivery,
+      Effect.map(NotificationDelivery, (repo) => ({
         ...repo,
         releaseUnclaimed: () =>
           Effect.fail(
@@ -164,7 +165,7 @@ describe('dispatchNow', () => {
             })
           ),
       }))
-    ).pipe(Layer.provide(createMockNotificationRepository(notifications)))
+    ).pipe(Layer.provide(mocks.delivery), Layer.merge(mocks.repository))
 
     await Effect.runPromise(
       recordNotification(

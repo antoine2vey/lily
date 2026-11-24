@@ -5,7 +5,7 @@ import {
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type {
   PlantAnniversary,
   UserWithSettings,
@@ -51,7 +51,7 @@ describe('processPlantAnniversaries', () => {
       createMockEngagementRepository({
         plantsWithAnniversary: [plant],
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -77,7 +77,7 @@ describe('processPlantAnniversaries', () => {
       createMockEngagementRepository({
         plantsWithAnniversary: [plant],
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     // Pass empty user list — user-not-in-list is not eligible
@@ -105,7 +105,7 @@ describe('processPlantAnniversaries', () => {
       createMockEngagementRepository({
         plantsWithAnniversary: [plant],
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -135,7 +135,7 @@ describe('processPlantAnniversaries', () => {
       createMockEngagementRepository({
         plantsWithAnniversary: plants,
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -176,7 +176,7 @@ describe('processPlantAnniversaries', () => {
       createMockEngagementRepository({
         plantsWithAnniversary: plants,
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -214,7 +214,7 @@ describe('processPlantAnniversaries', () => {
       createMockEngagementRepository({
         plantsWithAnniversary: plants,
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -235,7 +235,7 @@ describe('processPlantAnniversaries', () => {
       createMockEngagementRepository({
         plantsWithAnniversary: [],
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -265,7 +265,7 @@ describe('processPlantAnniversaries', () => {
             }),
           ],
         }),
-        createMockNotificationRepository(notifications)
+        notificationMocks(notifications).repository
       )
 
       await Effect.runPromise(
@@ -293,7 +293,7 @@ describe('processPlantAnniversaries', () => {
       createMockEngagementRepository({
         plantsWithAnniversary: [plant],
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(

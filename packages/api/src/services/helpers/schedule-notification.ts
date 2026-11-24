@@ -1,4 +1,5 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationDelivery } from '@lily/api/repositories/notification-delivery.repository'
 import {
   buildSimpleContent,
   type ParamsOf,
@@ -89,7 +90,7 @@ export const recordNotificationAt = <T extends SimpleNotificationType>(
 export const dispatchNow = (notification: RecordedNotification) =>
   Effect.gen(function* () {
     const queue = yield* MessageQueue
-    const notifications = yield* NotificationRepository
+    const notifications = yield* NotificationDelivery
     const { id, type, userId, metadata } = notification
     const release = (error: QueueOperationError | QueueConnectionError) =>
       Effect.logWarning(

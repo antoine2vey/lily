@@ -25,10 +25,12 @@ import {
   storedVacationOf,
 } from '@lily/api/contexts/absence/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -56,6 +58,8 @@ const StoreLive = AbsenceStoreLive.pipe(
     Layer.mergeAll(
       CanopyRepositoryLive,
       NotificationRepositoryLive,
+      ReminderStoreLive,
+      NotificationDeliveryLive,
       createStubCare().layer
     )
   ),
@@ -340,6 +344,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
                 Layer.mergeAll(
                   CanopyRepositoryLive,
                   NotificationRepositoryLive,
+                  ReminderStoreLive,
+                  NotificationDeliveryLive,
                   care.layer
                 )
               ),
@@ -369,6 +375,8 @@ const VacationServicesLive = Layer.mergeAll(
   DelegationRepositoryLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
+  NotificationDeliveryLive,
   createMockEventBus(),
   createMockMessageQueue(),
   createMockWeatherProvider(),

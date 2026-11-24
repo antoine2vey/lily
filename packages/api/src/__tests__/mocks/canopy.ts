@@ -6,7 +6,7 @@ import {
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import type { CanopyEvent } from '@lily/api/contexts/canopy'
 import { CanopyLive } from '@lily/api/contexts/canopy/canopy'
@@ -603,7 +603,7 @@ export const createInMemoryCanopy = (
       )
     )
   )
-  const notificationsLive = createMockNotificationRepository(notifications, {
+  const notificationsLive = notificationMocks(notifications, {
     canopyPlants,
     plantOwner: (plantId) =>
       pipe(
@@ -611,7 +611,7 @@ export const createInMemoryCanopy = (
         Option.flatMapNullishOr((plant) => plant.userId),
         Option.getOrNull
       ),
-  })
+  }).notices
 
   return {
     store: data,

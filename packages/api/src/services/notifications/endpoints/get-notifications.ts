@@ -1,4 +1,4 @@
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationInbox } from '@lily/api/repositories/notification-inbox.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type {
   NotificationStatusFilter,
@@ -14,10 +14,10 @@ export const getNotifications = (params: {
 }): Effect.Effect<
   NotificationsListResponse,
   SqlError,
-  NotificationRepository | CurrentUser
+  NotificationInbox | CurrentUser
 > =>
   Effect.gen(function* () {
-    const repo = yield* NotificationRepository
+    const repo = yield* NotificationInbox
     const { id: userId } = yield* CurrentUser
 
     return yield* repo.findByUserId({

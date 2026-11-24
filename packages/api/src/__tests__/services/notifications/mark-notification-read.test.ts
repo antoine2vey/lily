@@ -1,5 +1,5 @@
 import { mockNotifications } from '@lily/api/__tests__/fixtures/notifications'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { markNotificationRead } from '@lily/api/services/notifications/endpoints/mark-notification-read'
 import { NotificationNotFoundError } from '@lily/shared'
@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 describe('markNotificationRead', () => {
   const createTestLayer = (userId: string = 'user-1') =>
     Layer.mergeAll(
-      createMockNotificationRepository([...mockNotifications]),
+      notificationMocks([...mockNotifications]).inbox,
       createMockCurrentUser({ id: userId })
     )
 

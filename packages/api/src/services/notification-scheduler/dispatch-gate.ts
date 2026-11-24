@@ -1,6 +1,6 @@
 import { CareReads, DueScope, DueWindow } from '@lily/api/contexts/care'
 import { Reminders } from '@lily/api/contexts/reminders'
-import type { NotificationRow } from '@lily/api/repositories/notification.repository'
+import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
 import {
   adjustForDoNotDisturb,
   decodeDndBounds,

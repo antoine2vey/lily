@@ -1,10 +1,10 @@
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import type { MockNotificationRepositoryOptions } from '@lily/api/__tests__/mocks/notification.repository'
+import type { MockNotificationsOptions } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 
 export const createOutboxTimeline = () => {
   const events: string[] = []
-  const notificationOptions: MockNotificationRepositoryOptions = {
+  const notificationOptions: MockNotificationsOptions = {
     onCreate: (n) => {
       events.push(`insert ${n.type} ${n.userId}`)
     },

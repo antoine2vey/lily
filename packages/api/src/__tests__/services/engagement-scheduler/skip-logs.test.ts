@@ -5,7 +5,7 @@ import {
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type {
   EngagementRepository,
   UserWithSettings,
@@ -48,7 +48,7 @@ const logsOf = async (
     runRules('engagement-scheduler', [user], [rule]).pipe(
       Effect.provide(
         Layer.mergeAll(
-          createMockNotificationRepository([...sent]),
+          notificationMocks([...sent]).repository,
           createMockEngagementRepository({
             plantsWithoutRecentPhoto: {
               'user-1': [{ ...plant, lastPhotoAt: ago(45) }],

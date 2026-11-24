@@ -17,7 +17,7 @@ import {
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -96,7 +96,7 @@ const readjust = async (
             rooms: [indoorRoom, outdoorRoom, dimRoom],
             schedules,
           }),
-          createMockNotificationRepository([]),
+          notificationMocks([]).repository,
           createMockCanopyRepository(),
           createMockDelegationRepository()
         )

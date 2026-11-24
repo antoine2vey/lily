@@ -5,7 +5,7 @@ import {
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -44,7 +44,7 @@ const buildLayer = (
       users: mockFollowUsers,
     }),
     createMockUserRepository([targetUser]),
-    createMockNotificationRepository(notifications),
+    notificationMocks(notifications).notices,
     createMockMessageQueue()
   )
 

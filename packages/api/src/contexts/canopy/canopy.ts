@@ -55,6 +55,7 @@ import {
 } from '@lily/api/kernel/transact'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationDelivery } from '@lily/api/repositories/notification-delivery.repository'
 import {
   dispatchAll,
   recordNotification,
@@ -385,6 +386,7 @@ export const CanopyLive = Layer.effect(
       Outbox,
       SqlClient.SqlClient,
       NotificationRepository,
+      NotificationDelivery,
       MessageQueue
     )
     const sql = yield* SqlClient.SqlClient

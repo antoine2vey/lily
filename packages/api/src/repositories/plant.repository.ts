@@ -179,9 +179,6 @@ export interface IPlantRepository {
   readonly findByIds: (
     ids: readonly string[]
   ) => Effect.Effect<Array<PlantRow>, SqlError>
-  readonly findByIdsForKeyShare: (
-    ids: readonly string[]
-  ) => Effect.Effect<Array<PlantRow>, SqlError>
   readonly findPersonalReminderPlantIds: (
     userId: string
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
@@ -725,22 +722,6 @@ export const PlantRepositoryLive = Layer.effect(
           .where(inArray(plants.id, [...ids]))
         return Array.map(items, withOwner)
       }),
-
-      findByIdsForKeyShare: Effect.fn('PlantRepository.findByIdsForKeyShare')(
-        function* (ids: readonly string[]) {
-          if (Array.isReadonlyArrayEmpty(ids)) return []
-          const items = yield* lockRowsNamed(
-            'Plant',
-            'key share',
-            ids,
-            db
-              .select()
-              .from(plants)
-              .where(inArray(plants.id, [...ids]))
-          )
-          return Array.map(items, withOwner)
-        }
-      ),
 
       findPersonalReminderPlantIds: Effect.fn(
         'PlantRepository.findPersonalReminderPlantIds'

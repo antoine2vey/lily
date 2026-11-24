@@ -3,13 +3,13 @@ import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type {
   PlantAnniversary,
   PlantWithoutRecentPhoto,
   TrialingUser,
 } from '@lily/api/repositories/engagement.repository'
-import type { NotificationRow } from '@lily/api/repositories/notification.repository'
+import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
 import { checkAndCreateEngagementNotifications } from '@lily/api/services/engagement-scheduler/scheduler'
 import { checkAndCreateWeeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
@@ -237,7 +237,7 @@ describe('engagement rules, pinned on a fixed clock and roll', () => {
     ]
 
     const layer = Layer.mergeAll(
-      createMockNotificationRepository(rows),
+      notificationMocks(rows).repository,
       createMockEngagementRepository({
         usersWithTips: users,
         notifications: rows,
@@ -514,7 +514,7 @@ describe('engagement rules, pinned on a fixed clock and roll', () => {
     const before = rows.length
 
     const layer = Layer.mergeAll(
-      createMockNotificationRepository(rows),
+      notificationMocks(rows).repository,
       createMockEngagementRepository({
         usersWithTips: users,
         notifications: rows,

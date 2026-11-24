@@ -110,7 +110,7 @@ Reminders decides which care reminders exist, for whom and when. It plans them f
 
 ### Rules
 
-1. **One writer.** Only Reminders writes, re-times, locks or removes a care or overdue reminder. Delivery moves its status and drops it when it must not be sent.
+1. **One writer.** Only Reminders writes, re-times, locks or removes a care or overdue reminder, and it does so in its store, inside a transaction. Delivery moves its status and drops it when it must not be sent.
 2. **Ask, do not plan.** A change that makes reminders stale sends a request in its own transaction. A replan that fails does not undo the change. It is retried.
 3. **A vacation silences the plant.** A caretaker on vacation is barred and nobody takes their place. The owner is not reminded while the delegation runs.
 

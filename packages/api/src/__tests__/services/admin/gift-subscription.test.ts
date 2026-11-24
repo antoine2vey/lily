@@ -1,6 +1,6 @@
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -36,7 +36,7 @@ const baseLayers = (
     MockSqlClientLive,
     createMockUserRepository([...mockUsers]),
     createMockSubscriptionRepository(opts),
-    createMockNotificationRepository(notifications),
+    notificationMocks(notifications).notices,
     createMockMessageQueue(),
     mockAdminLayer
   )

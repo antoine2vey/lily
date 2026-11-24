@@ -4,7 +4,12 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { CareReadsLive } from '@lily/api/contexts/care'
-import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import {
+  Dirty,
+  ReminderStoreLive,
+  Reminders,
+} from '@lily/api/contexts/reminders'
+import { ReminderStore } from '@lily/api/contexts/reminders/store/rows'
 import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -41,12 +46,12 @@ const injected = (message: string) =>
   )
 
 const RemindersCannotBePlanned = Layer.effect(
-  NotificationRepository,
-  Effect.map(NotificationRepository, (repo) => ({
-    ...repo,
+  ReminderStore,
+  Effect.map(ReminderStore, (store) => ({
+    ...store,
     lockReminders: () => injected('injected replan failure'),
   }))
-).pipe(Layer.provide(NotificationRepositoryLive))
+).pipe(Layer.provide(ReminderStoreLive))
 
 const EngagementDeleteFails = Layer.effect(
   NotificationRepository,
@@ -59,7 +64,10 @@ const EngagementDeleteFails = Layer.effect(
   }))
 ).pipe(Layer.provide(NotificationRepositoryLive))
 
-const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
+const makeLayer = (
+  notifications: typeof NotificationRepositoryLive,
+  reminders: typeof ReminderStoreLive = ReminderStoreLive
+) =>
   Layer.mergeAll(
     PlantRepositoryLive,
     UserRepositoryLive,
@@ -69,11 +77,15 @@ const makeLayer = (notifications: typeof NotificationRepositoryLive) =>
     DelegationRepositoryLive,
     CanopyRepositoryLive,
     notifications,
+    reminders,
     createMockEventBus()
   ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const HealthyLive = makeLayer(NotificationRepositoryLive)
-const UnplannableLive = makeLayer(RemindersCannotBePlanned)
+const UnplannableLive = makeLayer(
+  NotificationRepositoryLive,
+  RemindersCannotBePlanned
+)
 const EngagementFailingLive = makeLayer(EngagementDeleteFails)
 
 const localHour = (date: Date, timeZone: string) =>

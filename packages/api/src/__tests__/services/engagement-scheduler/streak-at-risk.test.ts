@@ -5,7 +5,7 @@ import {
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
 import { streakAtRisk } from '@lily/api/services/engagement-scheduler/scheduler'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
@@ -59,7 +59,7 @@ describe('processStreakAtRisk', () => {
       createMockEngagementRepository({
         plantNames: { 'user-1': ['Monstera'] },
       }),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockCareLogRepository([])
     )
 
@@ -81,7 +81,7 @@ describe('processStreakAtRisk', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockCareLogRepository([])
     )
 
@@ -98,7 +98,7 @@ describe('processStreakAtRisk', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockCareLogRepository([], {
         todayCountByUser: { 'user-1': 2 },
       })
@@ -122,7 +122,7 @@ describe('processStreakAtRisk', () => {
       createMockEngagementRepository({
         plantNames: { 'user-1': ['Monstera'] },
       }),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockCareLogRepository([], {
         todayCountByUser: { 'user-1': 0 },
         performedTodayCountByUser: { 'user-1': 1 },
@@ -152,7 +152,7 @@ describe('processStreakAtRisk', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockCareLogRepository([])
     )
 
@@ -170,7 +170,7 @@ describe('processStreakAtRisk', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockCareLogRepository([])
     )
 
@@ -198,7 +198,7 @@ describe('processStreakAtRisk', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockCareLogRepository([])
     )
 
@@ -223,7 +223,7 @@ describe('processStreakAtRisk', () => {
       createMockEngagementRepository({
         plantNames: { 'user-1': ['Ficus'] },
       }),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockCareLogRepository([])
     )
 
@@ -239,7 +239,7 @@ describe('processStreakAtRisk', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockCareLogRepository([])
     )
 

@@ -13,10 +13,11 @@ import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import {
-  NotificationRepository,
-  NotificationRepositoryLive,
-} from '@lily/api/repositories/notification.repository'
+  NotificationDelivery,
+  NotificationDeliveryLive,
+} from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { makeRedisMessageQueue } from '@lily/api/services/message-queue/redis.provider'
@@ -64,6 +65,7 @@ const EXHAUSTED = '00000000-0000-4000-8000-0000000000b2'
 
 const DatabaseLive = Layer.mergeAll(
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
   DeadLetterRepositoryLive,
   UserRepositoryLive,
   PlantRepositoryLive,
@@ -77,9 +79,9 @@ const DatabaseLive = Layer.mergeAll(
 const quiet = Effect.provideService(References.MinimumLogLevel, 'None')
 
 const CannotReadTheDatabase = Layer.effect(
-  NotificationRepository,
-  Effect.map(NotificationRepository, (repository) =>
-    NotificationRepository.of({
+  NotificationDelivery,
+  Effect.map(NotificationDelivery, (repository) =>
+    NotificationDelivery.of({
       ...repository,
       claimForDelivery: () =>
         Effect.fail(

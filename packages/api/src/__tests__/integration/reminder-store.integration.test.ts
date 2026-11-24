@@ -2,6 +2,7 @@ import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import {
   Change,
   linesOf,
@@ -19,9 +20,9 @@ import type { Transaction } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import {
-  NotificationRepository,
-  NotificationRepositoryLive,
-} from '@lily/api/repositories/notification.repository'
+  NotificationDelivery,
+  NotificationDeliveryLive,
+} from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -50,13 +51,16 @@ const { Pool } = pg
 const StoreLive = Layer.mergeAll(
   CareReadsLive,
   CanopyRepositoryLive,
-  NotificationRepositoryLive,
+  NotificationDeliveryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   DelegationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
-const run = <A, E>(effect: Effect.Effect<A, E, StoreContext | Transaction>) =>
+const run = <A, E>(
+  effect: Effect.Effect<A, E, StoreContext | NotificationDelivery | Transaction>
+) =>
   Effect.runPromise(
     effect.pipe(
       transactInMemory,
@@ -582,7 +586,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await run(apply([put(alex, sendTime(dueDay, 'UTC', 9))]))
 
         await run(
-          Effect.flatMap(NotificationRepository, (repo) =>
+          Effect.flatMap(NotificationDelivery, (repo) =>
             repo.releaseUnclaimed([queued])
           )
         )

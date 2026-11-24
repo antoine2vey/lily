@@ -4,7 +4,7 @@ import {
   type MockDelegationRepositoryData,
 } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import type { AbsenceEvent } from '@lily/api/contexts/absence'
@@ -466,10 +466,10 @@ export const createInMemoryAbsence = (
       ).pipe(Layer.provide(delivering)),
   })
 
-  const sent = createMockNotificationRepository(
+  const sent = notificationMocks(
     notifications,
     around.timeline?.notificationOptions
-  )
+  ).notices
 
   const service = AbsenceLive.pipe(
     Layer.provide(

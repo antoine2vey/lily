@@ -1,4 +1,4 @@
-import { pinAccounts, writeAccount } from '@lily/api/kernel/locks'
+import { writeAccount } from '@lily/api/kernel/locks'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { users } from '@lily/db/schema'
 import {
@@ -73,10 +73,6 @@ export interface IUserRepository {
     id: string
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
   readonly findByIds: (
-    ids: ReadonlyArray<string>
-  ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
-  /** In id order, each row locked against deletion until the transaction ends. */
-  readonly findByIdsForKeyShare: (
     ids: ReadonlyArray<string>
   ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
   readonly findByEmail: (
@@ -163,18 +159,6 @@ export const UserRepositoryLive = Layer.effect(
           .from(users)
           .where(inArray(users.id, [...ids]))
       }),
-
-      findByIdsForKeyShare: Effect.fn('UserRepository.findByIdsForKeyShare')(
-        function* (ids: ReadonlyArray<string>) {
-          if (Array.isReadonlyArrayEmpty(ids)) return []
-          return yield* pinAccounts(
-            db
-              .select()
-              .from(users)
-              .where(inArray(users.id, [...ids]))
-          )
-        }
-      ),
 
       findByEmail: Effect.fn('UserRepository.findByEmail')(function* (
         email: string

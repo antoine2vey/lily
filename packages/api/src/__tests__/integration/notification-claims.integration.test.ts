@@ -18,10 +18,13 @@ import {
   DelegationRepositoryLive,
 } from '@lily/api/repositories/delegation.repository'
 import {
-  type INotificationRepository,
   NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import {
+  NotificationDelivery,
+  NotificationDeliveryLive,
+} from '@lily/api/repositories/notification-delivery.repository'
 import {
   type PlantRepository,
   PlantRepositoryLive,
@@ -94,6 +97,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     let deviceTokenId: string
     let RepositoriesLive: Layer.Layer<
       | NotificationRepository
+      | NotificationDelivery
       | ActivityPushTokenRepository
       | UserRepository
       | PlantRepository
@@ -108,13 +112,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       effect: Effect.Effect<
         A,
         E,
-        NotificationRepository | ActivityPushTokenRepository
+        | NotificationRepository
+        | NotificationDelivery
+        | ActivityPushTokenRepository
       >
     ) => Effect.runPromise(effect.pipe(Effect.provide(RepositoriesLive)))
 
     const withRepo = <A, E>(
-      f: (repo: INotificationRepository) => Effect.Effect<A, E>
-    ) => run(Effect.flatMap(NotificationRepository, f))
+      f: (repo: NotificationDelivery['Service']) => Effect.Effect<A, E>
+    ) => run(Effect.flatMap(NotificationDelivery, f))
 
     const insertRows = async (rows: ReadonlyArray<SeedRow>) => {
       const inserted = await db
@@ -165,6 +171,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       db = drizzle(pool, { schema })
       RepositoriesLive = Layer.mergeAll(
         NotificationRepositoryLive,
+        NotificationDeliveryLive,
         ActivityPushTokenRepositoryLive,
         UserRepositoryLive,
         PlantRepositoryLive,
@@ -266,15 +273,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
 
       it('never returns a row inserted directly as queued', async () => {
-        const created = await withRepo((repo) =>
-          repo.create({
-            type: 'new_follower',
-            params: { senderName: 'Ada' },
-            scheduledAt: new Date(),
-            userId,
-            status: 'queued',
-            metadata: { senderId: 'ada' },
-          })
+        const created = await run(
+          Effect.flatMap(NotificationRepository, (repo) =>
+            repo.create({
+              type: 'new_follower',
+              params: { senderName: 'Ada' },
+              scheduledAt: new Date(),
+              userId,
+              status: 'queued',
+              metadata: { senderId: 'ada' },
+            })
+          )
         )
         const claimed = await withRepo((repo) =>
           repo.claimPendingToSchedule(10)

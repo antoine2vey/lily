@@ -15,7 +15,7 @@ import {
   DueScope,
   DueWindow,
 } from '@lily/api/contexts/care'
-import { replanPlants } from '@lily/api/contexts/reminders'
+import { ReminderStoreLive, replanPlants } from '@lily/api/contexts/reminders'
 import { Change } from '@lily/api/contexts/reminders/domain/plan'
 import { apply } from '@lily/api/contexts/reminders/store'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
@@ -38,6 +38,7 @@ import {
   type NotificationRepository,
   NotificationRepositoryLive,
 } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
@@ -69,6 +70,8 @@ const RepositoriesLive = Layer.mergeAll(
   CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
+  ReminderStoreLive,
   CareLogRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
@@ -89,6 +92,8 @@ const WorkerLive = Layer.mergeAll(
   CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
+  NotificationDeliveryLive,
+  ReminderStoreLive,
   CareLogRepositoryLive,
   PlantRepositoryLive,
   UserRepositoryLive,

@@ -1,4 +1,4 @@
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationInbox } from '@lily/api/repositories/notification-inbox.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { UnreadCountResponse } from '@lily/shared/notification'
 import { Effect } from 'effect'
@@ -7,9 +7,9 @@ import type { SqlError } from 'effect/sql/SqlError'
 export const getUnreadCount: Effect.Effect<
   UnreadCountResponse,
   SqlError,
-  NotificationRepository | CurrentUser
+  NotificationInbox | CurrentUser
 > = Effect.gen(function* () {
-  const repo = yield* NotificationRepository
+  const repo = yield* NotificationInbox
   const { id: userId } = yield* CurrentUser
 
   const count = yield* repo.countUnreadByUserId(userId)

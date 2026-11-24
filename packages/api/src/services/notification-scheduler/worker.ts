@@ -3,12 +3,12 @@ import {
   DeadLetterRepository,
 } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
+import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
 import {
   type DeferredNotification,
   type FailedAttempt,
-  NotificationRepository,
-  type NotificationRow,
-} from '@lily/api/repositories/notification.repository'
+  NotificationDelivery,
+} from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
@@ -92,7 +92,7 @@ const completeDelivery = (
   deviceCount: number
 ) =>
   Effect.gen(function* () {
-    const notificationRepo = yield* NotificationRepository
+    const notificationRepo = yield* NotificationDelivery
     const alerter = yield* Alerter
 
     const failures = Array.filter(results, (r) => r.status === 'error')
@@ -162,7 +162,7 @@ const gateClaimedRows = (
   claimedIds: ReadonlyArray<string>
 ) =>
   Effect.gen(function* () {
-    const notificationRepo = yield* NotificationRepository
+    const notificationRepo = yield* NotificationDelivery
     const plantRepo = yield* PlantRepository
     const userRepo = yield* UserRepository
     const rows = yield* notificationRepo.findByIds(claimedIds)
@@ -227,7 +227,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
     yield* Effect.annotateCurrentSpan('userId', message.payload.userId)
     const pushService = yield* PushService
     const deviceTokenRepo = yield* DeviceTokenRepository
-    const notificationRepo = yield* NotificationRepository
+    const notificationRepo = yield* NotificationDelivery
 
     const claimedIds = yield* notificationRepo.claimForDelivery(
       notificationIds,
@@ -375,7 +375,7 @@ const retryLater = Effect.fn('notification-worker.retryLater')(function* (
   message: QueueMessage,
   cause: SqlError | PushSendError | PushConfigError
 ) {
-  const notificationRepo = yield* NotificationRepository
+  const notificationRepo = yield* NotificationDelivery
   const deadLetterRepo = yield* DeadLetterRepository
   const alerter = yield* Alerter
   const sql = yield* SqlClient.SqlClient
@@ -500,7 +500,7 @@ const discardPoisonMessage = (
     const error = toPostgresText(rawError)
     const alerter = yield* Alerter
     const deadLetterRepo = yield* DeadLetterRepository
-    const notificationRepo = yield* NotificationRepository
+    const notificationRepo = yield* NotificationDelivery
 
     const headline = pipe(error, Str.split('\n'), Array.headNonEmpty)
 
@@ -673,7 +673,7 @@ export const consumeNext = Effect.gen(function* () {
 
 export const recoverStrandedDeliveries = Effect.gen(function* () {
   const queue = yield* MessageQueue
-  const notificationRepo = yield* NotificationRepository
+  const notificationRepo = yield* NotificationDelivery
 
   // Rows are settled before messages go back on the queue: a worker can take a
   // requeued message at once, and a pre-fix message's row must already be

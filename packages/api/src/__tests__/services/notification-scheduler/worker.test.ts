@@ -26,7 +26,7 @@ import {
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import {
   createFailingPushService,
@@ -47,7 +47,7 @@ import type {
   DelegationRepository,
   DelegationRow,
 } from '@lily/api/repositories/delegation.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationDelivery } from '@lily/api/repositories/notification-delivery.repository'
 import { Alerter } from '@lily/api/services/alerting'
 import {
   type AlertEvent,
@@ -194,7 +194,7 @@ const runAndCapturePushes = async (
             onSendBatch: (msgs) => sentMessages.push(...msgs),
           }),
           createMockDeviceTokenRepository(tokens),
-          createMockNotificationRepository(notifications),
+          notificationMocks(notifications).delivery,
           LaMocksLive,
           LivingPlantsLive
         )
@@ -227,7 +227,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification]),
+              notificationMocks([notification]).delivery,
               LaMocksLive,
               LivingPlantsLive
             )
@@ -398,7 +398,7 @@ describe('Notification Worker', () => {
               MockAlerterLive,
               createFailingPushService('Push failed'),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification]),
+              notificationMocks([notification]).delivery,
               LaMocksLive,
               LivingPlantsLive
             )
@@ -440,7 +440,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification]),
+              notificationMocks([notification]).delivery,
               LaMocksLive,
               LivingPlantsLive
             )
@@ -484,7 +484,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification]),
+              notificationMocks([notification]).delivery,
               LaMocksLive,
               LivingPlantsLive
             )
@@ -526,7 +526,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification]),
+              notificationMocks([notification]).delivery,
               LaMocksLive,
               LivingPlantsLive
             )
@@ -629,7 +629,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository(notifications),
+              notificationMocks(notifications).delivery,
               LaMocksLive,
               LivingPlantsLive
             )
@@ -686,7 +686,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => pushes.push(...msgs),
               }),
               createMockDeviceTokenRepository(devices),
-              createMockNotificationRepository(rows),
+              notificationMocks(rows).delivery,
               createMockActivityPushTokenRepository(),
               createMockCareScheduleRepository({ dueUnlessScheduled: true }),
               createMockCareLogRepository([]),
@@ -1044,7 +1044,7 @@ describe('Notification Worker', () => {
       }
       const alerter = createMockAlerter()
       const deadLetters = createMockDeadLetterRepositoryWithCapture()
-      const notificationRepo = createMockNotificationRepository(rows, options)
+      const notificationRepo = notificationMocks(rows, options).delivery
       const layer = Layer.mergeAll(
         alerter.layer,
         createMockPushService(push),
@@ -1081,7 +1081,7 @@ describe('Notification Worker', () => {
           )
         )
       const relay = Effect.gen(function* () {
-        const repo = yield* NotificationRepository
+        const repo = yield* NotificationDelivery
         const due = yield* repo.claimPendingToSchedule(100)
         return createTestQueueMessage({
           payload: {
@@ -1335,12 +1335,12 @@ describe('Notification Worker', () => {
         reason: new UnknownError({ cause: 'db down', message: 'db down' }),
       })
       const readFails = Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        NotificationDelivery,
+        Effect.map(NotificationDelivery, (repo) => ({
           ...repo,
           findByIds: () => Effect.fail(dbDown),
         }))
-      ).pipe(Layer.provide(createMockNotificationRepository([row])))
+      ).pipe(Layer.provide(notificationMocks([row]).delivery))
       const acked: string[] = []
       const sends: PushMessage[][] = []
 
@@ -1559,12 +1559,12 @@ describe('Notification Worker', () => {
         reason: new UnknownError({ cause: 'db down', message: 'db down' }),
       })
       const retryWriteFails = Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        NotificationDelivery,
+        Effect.map(NotificationDelivery, (repo) => ({
           ...repo,
           retryLater: () => Effect.fail(dbDown),
         }))
-      ).pipe(Layer.provide(createMockNotificationRepository([row])))
+      ).pipe(Layer.provide(notificationMocks([row]).delivery))
       const acked: string[] = []
       const sends: PushMessage[][] = []
 
@@ -1641,7 +1641,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification]),
+              notificationMocks([notification]).delivery,
               createMockDeadLetterRepository(),
               LaMocksLive,
               LivingPlantsLive
@@ -1667,7 +1667,7 @@ describe('Notification Worker', () => {
               createMockMessageQueue(), // Empty queue
               createSuccessPushService,
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([]),
+              notificationMocks([]).delivery,
               createMockDeadLetterRepository(),
               LaMocksLive,
               LivingPlantsLive
@@ -1693,7 +1693,7 @@ describe('Notification Worker', () => {
               Layer.succeed(MessageQueue, queue),
               createSuccessPushService,
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([]),
+              notificationMocks([]).delivery,
               dlqLayer,
               LaMocksLive,
               LivingPlantsLive
@@ -1750,7 +1750,7 @@ describe('Notification Worker', () => {
                 Layer.succeed(MessageQueue, queue),
                 createSuccessPushService,
                 createMockDeviceTokenRepository(mockDeviceTokens),
-                createMockNotificationRepository([]),
+                notificationMocks([]).delivery,
                 dlqLayer,
                 LaMocksLive,
                 LivingPlantsLive
@@ -1782,7 +1782,7 @@ describe('Notification Worker', () => {
               Layer.succeed(MessageQueue, queue),
               createSuccessPushService,
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([]),
+              notificationMocks([]).delivery,
               dlqLayer,
               LaMocksLive,
               LivingPlantsLive
@@ -1824,8 +1824,8 @@ describe('Notification Worker', () => {
       const overLimit = (chunk: ReadonlyArray<string>) =>
         chunk.length + 3 > 65_535
       const layer = Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        NotificationDelivery,
+        Effect.map(NotificationDelivery, (repo) => ({
           ...repo,
           claimForDelivery: (chunk: ReadonlyArray<string>) => {
             if (overLimit(chunk)) return Effect.fail(dbDown())
@@ -1838,7 +1838,7 @@ describe('Notification Worker', () => {
             return Effect.void
           },
         }))
-      ).pipe(Layer.provide(createMockNotificationRepository([])))
+      ).pipe(Layer.provide(notificationMocks([]).delivery))
       return { layer, claimed, marked }
     }
 
@@ -1847,7 +1847,7 @@ describe('Notification Worker', () => {
 
     const consumeWithRepo = async (
       raw: string,
-      repo: Layer.Layer<NotificationRepository>
+      repo: Layer.Layer<NotificationDelivery>
     ) => {
       const { layer: dlqLayer, capturedMessages } =
         createMockDeadLetterRepositoryWithCapture()
@@ -1933,7 +1933,7 @@ describe('Notification Worker', () => {
               Layer.succeed(MessageQueue, queue),
               createSuccessPushService,
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([]),
+              notificationMocks([]).delivery,
               failingDeadLetters,
               LaMocksLive,
               LivingPlantsLive
@@ -2018,9 +2018,9 @@ describe('Notification Worker', () => {
         ...(failLiveActivity ? { failLiveActivity } : {}),
       }),
       createMockDeviceTokenRepository(mockDeviceTokens),
-      createMockNotificationRepository(notifications, {
+      notificationMocks(notifications, {
         onRetryLater: (ids) => retried.push(...ids),
-      }),
+      }).delivery,
       activityRepo,
       createMockCareScheduleRepository({
         plants,
@@ -2438,7 +2438,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository(notifications),
+              notificationMocks(notifications).delivery,
               createMockPlantRepository({ plants }),
               LaMocksLive,
               canopyLayer ?? Layer.empty,
@@ -2781,7 +2781,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository(rows),
+              notificationMocks(rows).delivery,
               createMockPlantRepository({ plants: [buried, living] }),
               LaMocksLive
             )
@@ -2837,7 +2837,7 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository(rows),
+              notificationMocks(rows).delivery,
               createMockPlantRepository({ plants }),
               LaMocksLive,
               createMockUserRepository([
@@ -3021,7 +3021,7 @@ describe('Notification Worker', () => {
       createPlantRow({ id, userId: 'user-1', status: 'queued' })
 
     const deliveryLayer = (
-      notificationRepo: Layer.Layer<NotificationRepository>,
+      notificationRepo: Layer.Layer<NotificationDelivery>,
       onSendBatch: (msgs: PushMessage[]) => void
     ) =>
       Layer.mergeAll(
@@ -3036,9 +3036,9 @@ describe('Notification Worker', () => {
     it('sends nothing for a message whose rows another message already claimed', async () => {
       const batches: PushMessage[][] = []
       const layer = deliveryLayer(
-        createMockNotificationRepository([queuedRow('notification-1')], {
+        notificationMocks([queuedRow('notification-1')], {
           deliveryClaims: { 'notification-1': 'msg-first' },
-        }),
+        }).delivery,
         (msgs) => batches.push(msgs)
       )
       const run = (id: string) =>
@@ -3066,12 +3066,12 @@ describe('Notification Worker', () => {
         reason: new UnknownError({ cause: 'db down', message: 'db down' }),
       })
       const bookkeepingFails = Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        NotificationDelivery,
+        Effect.map(NotificationDelivery, (repo) => ({
           ...repo,
           markManyAsSent: () => Effect.fail(dbDown),
         }))
-      ).pipe(Layer.provide(createMockNotificationRepository([notification])))
+      ).pipe(Layer.provide(notificationMocks([notification]).delivery))
       const queueMessages = [createTestQueueMessage({ id: 'msg-once' })]
       const layer = Layer.mergeAll(
         alerter.layer,
@@ -3132,10 +3132,10 @@ describe('Notification Worker', () => {
           onSendLiveActivity: (m) => laMessages.push(m),
         }),
         createMockDeviceTokenRepository(mockDeviceTokens),
-        createMockNotificationRepository([
+        notificationMocks([
           queuedRow('notification-1'),
           queuedRow('notification-2'),
-        ]),
+        ]).delivery,
         createMockActivityPushTokenRepository({
           tokens: [
             {
@@ -3251,10 +3251,10 @@ describe('Notification Worker', () => {
         options.queue,
         options.push,
         createMockDeviceTokenRepository(mockDeviceTokens),
-        createMockNotificationRepository(options.rows, {
+        notificationMocks(options.rows, {
           deliveryClaims: options.deliveryClaims ?? {},
           queuedAt: options.queuedAt ?? {},
-        }),
+        }).delivery,
         pipe(
           Option.fromNullishOr(options.deadLetters),
           Option.getOrElse(() => createMockDeadLetterRepository())
@@ -3855,14 +3855,14 @@ describe('Notification Worker', () => {
                   return 0
                 },
               }),
-              createMockNotificationRepository(Record.values(rows), {
+              notificationMocks(Record.values(rows), {
                 queuedAt: {
                   lost: minutesAgo(11),
                   slow: minutesAgo(1),
                   abandoned: minutesAgo(90),
                 },
                 deliveryClaims: { abandoned: 'msg-abandoned' },
-              })
+              }).delivery
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -3894,7 +3894,7 @@ describe('Notification Worker', () => {
                   return 1
                 },
               }),
-              createMockNotificationRepository([legacy])
+              notificationMocks([legacy]).delivery
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
@@ -3928,7 +3928,7 @@ describe('Notification Worker', () => {
           Effect.provide(
             Layer.mergeAll(
               Layer.succeed(MessageQueue, redis.queue),
-              createMockNotificationRepository([])
+              notificationMocks([]).delivery
             )
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')

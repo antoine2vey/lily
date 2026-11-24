@@ -15,6 +15,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { Absence } from '@lily/api/contexts/absence'
 import { CanopyLive } from '@lily/api/contexts/canopy'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import { Actor } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
@@ -28,6 +29,7 @@ import {
 } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
@@ -66,6 +68,8 @@ const BaseLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CareReadsLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
+  NotificationDeliveryLive,
   UserRepositoryLive,
   CarePlanRepositoryLive,
   CanopyRepositoryLive,

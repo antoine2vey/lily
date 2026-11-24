@@ -12,7 +12,7 @@ import {
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -85,49 +85,52 @@ const run = (
       onSome: (ids) => replanPlants(ids, Option.some(userId)),
     }).pipe(
       Effect.provide(
-        Layer.mergeAll(
-          MockSqlClientLive,
-          createMockNotificationRepository(existing, {
-            occasionDays: options.occasionDays ?? {},
-          }),
-          createMockUserRepository([
-            createTestUser({
-              id: 'alex',
-              timezone: 'UTC',
-              preferredNotificationTime: '08:00',
-            }),
-            createTestUser({
-              id: 'lily',
-              timezone: 'UTC',
-              preferredNotificationTime: '19:00',
-            }),
-          ]),
-          createMockCanopyRepository(
-            createCanopyStore({
-              canopies: [
-                createTestCanopyRow({
-                  id: mockCanopyId,
-                  timezone: 'Europe/Paris',
+        notificationMocks(existing, {
+          occasionDays: options.occasionDays ?? {},
+        }).reminderStore.pipe(
+          Layer.provideMerge(
+            Layer.mergeAll(
+              MockSqlClientLive,
+              createMockUserRepository([
+                createTestUser({
+                  id: 'alex',
+                  timezone: 'UTC',
+                  preferredNotificationTime: '08:00',
                 }),
-              ],
-              members,
-              plants: plants.map((p) => ({
-                id: p.id,
-                canopyId: p.canopyId,
-                userId: p.userId,
-                remindersEnabled: p.remindersEnabled,
-                diedAt: p.diedAt,
-              })),
-            })
-          ),
-          createMockCareScheduleRepository({
-            plants,
-            schedules,
-            memberships: members,
-            timezones: { [mockCanopyId]: 'Europe/Paris' },
-          }),
-          createMockPlantRepository({ plants }),
-          createMockDelegationRepository()
+                createTestUser({
+                  id: 'lily',
+                  timezone: 'UTC',
+                  preferredNotificationTime: '19:00',
+                }),
+              ]),
+              createMockCanopyRepository(
+                createCanopyStore({
+                  canopies: [
+                    createTestCanopyRow({
+                      id: mockCanopyId,
+                      timezone: 'Europe/Paris',
+                    }),
+                  ],
+                  members,
+                  plants: plants.map((p) => ({
+                    id: p.id,
+                    canopyId: p.canopyId,
+                    userId: p.userId,
+                    remindersEnabled: p.remindersEnabled,
+                    diedAt: p.diedAt,
+                  })),
+                })
+              ),
+              createMockCareScheduleRepository({
+                plants,
+                schedules,
+                memberships: members,
+                timezones: { [mockCanopyId]: 'Europe/Paris' },
+              }),
+              createMockPlantRepository({ plants }),
+              createMockDelegationRepository()
+            )
+          )
         )
       ),
       Effect.provideService(References.MinimumLogLevel, 'None')
