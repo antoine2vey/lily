@@ -454,7 +454,7 @@ describe('unmutePlant', () => {
     expect(store.mutes).toEqual([{ userId: 'alex', plantId: 'sam-ivy' }])
   })
 
-  it('answers not found, with the id as the caller sent it, once the plant has left the Canopy, and keeps the mute', async () => {
+  it('answers not found, with the stored id, once the plant has left the Canopy, and keeps the mute', async () => {
     const store = home()
     store.mutes.push({ userId: 'sam', plantId: 'lily-cactus' })
     const stale = await Effect.runPromise(
@@ -465,13 +465,13 @@ describe('unmutePlant', () => {
     const unshared = [{ ...sharedByLily, userId: 'lily', canopyId: null }]
 
     const exit = await Effect.runPromiseExit(
-      unmutePlant(stale, 'LILY-CACTUS').pipe(
+      unmutePlant(stale).pipe(
         Effect.provide(world({ actor: 'sam', store, plants: unshared }))
       )
     )
 
     expect(failureOf(exit)).toEqual(
-      new PlantNotFoundError({ plantId: 'LILY-CACTUS' })
+      new PlantNotFoundError({ plantId: 'lily-cactus' })
     )
     expect(store.mutes).toEqual([{ userId: 'sam', plantId: 'lily-cactus' }])
   })

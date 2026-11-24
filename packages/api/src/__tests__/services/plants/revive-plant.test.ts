@@ -105,8 +105,8 @@ const world = (options: {
   }
 }
 
-const revived = (seen: PlantWithRoom, requestedId?: string) =>
-  revivePlant(seen, permitTo('revive', seen.id), requestedId)
+const revived = (seen: PlantWithRoom) =>
+  revivePlant(seen, permitTo('revive', seen.id))
 
 const failureTag = (exit: Exit.Exit<unknown, { _tag: string }>) =>
   Exit.isFailure(exit)
@@ -261,17 +261,17 @@ describe('revivePlant', () => {
     expect(failureTag(exit)).toEqual(Option.some('PlantNotDeadError'))
   })
 
-  it('answers not found, with the id as the caller sent it, once the plant has left the owner the caller saw', async () => {
+  it('answers not found, with the stored id, once the plant has left the owner the caller saw', async () => {
     const seen = deadPlant()
     const shared = { ...seen, userId: null, canopyId: mockCanopyId }
     const { care, rows, layer } = world({ plant: shared })
 
     const exit = await Effect.runPromiseExit(
-      revived(asPlantWithRoom(seen), 'PLANT-1').pipe(Effect.provide(layer))
+      revived(asPlantWithRoom(seen)).pipe(Effect.provide(layer))
     )
 
     expect(failureOf(exit)).toEqual(
-      new PlantNotFoundError({ plantId: 'PLANT-1' })
+      new PlantNotFoundError({ plantId: 'plant-1' })
     )
     expect(rows[0]?.diedAt).not.toBeNull()
     expect(care.events).toEqual([])

@@ -1,4 +1,5 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
+import { PlantIdParam } from '@lily/api/services/plants/helpers/plant-id-param'
 import {
   CanopyNotFoundError,
   LimitExceededError,
@@ -49,7 +50,6 @@ import { Effect, Schema } from 'effect'
 import { Multipart } from 'effect/http'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const plantIdParam = Schema.String.check(Schema.isGUID())
 const photoIdParam = Schema.String.check(Schema.isGUID())
 
 export const PlantsQueryParams = Schema.Struct({
@@ -196,7 +196,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.get('getPlant', '/:id', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       success: PlantDetail,
       error: [
         PlantNotFoundError,
@@ -207,7 +207,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.put('updatePlant', '/:id', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       payload: Schema.Struct({
         data: Schema.fromJsonString(PlantUpdateRequest),
         image: Multipart.SingleFileSchema.pipe(Schema.optional),
@@ -227,7 +227,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.delete('deletePlant', '/:id', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       success: Plant,
       error: [
         PlantNotFoundError,
@@ -238,7 +238,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.post('markPlantDead', '/:id/death', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       payload: PlantDeathRequest,
       success: Plant,
       error: [
@@ -251,7 +251,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.delete('revivePlant', '/:id/death', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       success: Plant,
       error: [
         PlantNotFoundError,
@@ -264,7 +264,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.get('getPlantPhotos', '/:id/photos', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       query: PaginationParams,
       success: PlantPhotosListResponse,
       error: [
@@ -276,7 +276,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.post('uploadPlantPhoto', '/:id/photos', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       payload: Schema.Struct({
         files: Multipart.FilesSchema,
       }).pipe(HttpApiSchema.asMultipart()),
@@ -293,7 +293,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.delete('deletePlantPhoto', '/:id/photos/:photoId', {
-      params: { id: plantIdParam, photoId: photoIdParam },
+      params: { id: PlantIdParam, photoId: photoIdParam },
       success: Schema.Void,
       error: [
         PlantNotFoundError,
@@ -305,7 +305,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.post('carePlant', '/:id/care', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       payload: PlantCareRequest,
       success: Plant,
       error: [
@@ -320,7 +320,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.patch('correctCareDates', '/:id/care-dates', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       payload: PlantCorrectCareDatesRequest,
       success: Plant,
       error: [
@@ -335,7 +335,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.post('sharePlant', '/:id/share', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       success: Schema.Void,
       error: [
         PlantNotFoundError,
@@ -346,7 +346,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.post('sharePlantWithCanopy', '/:id/share-with-canopy', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       payload: MovePlantScopeRequest,
       success: Plant,
       error: [
@@ -362,7 +362,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.post('unsharePlant', '/:id/unshare', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       payload: MovePlantScopeRequest,
       success: Plant,
       error: [
@@ -377,7 +377,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.put('mutePlant', '/:id/mute', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       success: Schema.Void,
       error: [
         PlantNotFoundError,
@@ -388,7 +388,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     HttpApiEndpoint.delete('unmutePlant', '/:id/mute', {
-      params: { id: plantIdParam },
+      params: { id: PlantIdParam },
       success: Schema.Void,
       error: [
         PlantNotFoundError,

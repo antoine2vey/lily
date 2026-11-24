@@ -112,8 +112,8 @@ export const resolvePlantRole = (
 /**
  * A plant the caller has no role on reads as not found, with the same body
  * as a plant that doesn't exist, so plant ids can't be probed: both echo the
- * id exactly as the caller sent it. A role that exists but lacks the action
- * gets 403: that caller can already see the plant.
+ * id the caller asked for. A role that exists but lacks the action gets 403:
+ * that caller can already see the plant.
  */
 const authorizedRole = (
   who: Caller,
@@ -138,21 +138,6 @@ const authorizedRole = (
             ? Effect.succeed(role)
             : Effect.fail(new PlantNotAuthorizedError()),
       })
-  )
-
-export const assertPlantAction = (
-  requestedId: string,
-  plant: PlantRow,
-  action: PlantAction
-): Effect.Effect<
-  void,
-  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
-  PlantAccessContext
-> =>
-  Effect.asVoid(
-    Effect.flatMap(caller, (who) =>
-      authorizedRole(who, requestedId, plant, action)
-    )
   )
 
 export const canPerform = (

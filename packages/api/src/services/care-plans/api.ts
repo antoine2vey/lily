@@ -1,4 +1,5 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
+import { PlantIdParam } from '@lily/api/services/plants/helpers/plant-id-param'
 import { seen } from '@lily/api/services/plants/helpers/seen'
 import { CarePlan, CarePlanListParams } from '@lily/shared/care-plan'
 import {
@@ -16,7 +17,6 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 const planIdParam = Schema.String.check(Schema.isGUID())
 const stepIdParam = Schema.String.check(Schema.isGUID())
-const plantIdParam = Schema.String.check(Schema.isGUID())
 
 const Unauthorized = Schema.Struct({ error: Schema.String })
 
@@ -34,7 +34,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
   )
   .add(
     HttpApiEndpoint.get('getPlantCarePlans', '/plant/:plantId', {
-      params: { plantId: plantIdParam },
+      params: { plantId: PlantIdParam },
       success: SeenCarePlanList,
       error: [
         PlantNotFoundError,
