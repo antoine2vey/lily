@@ -1,8 +1,5 @@
 import type { AbsenceEvent } from '@lily/api/contexts/absence'
-import {
-  asCancelVacationError,
-  asSetVacationError,
-} from '@lily/api/contexts/absence/absence'
+import { asError } from '@lily/api/contexts/absence/absence'
 import {
   type After,
   type Away,
@@ -666,7 +663,7 @@ describe('the errors a vacation refusal answers with', () => {
   it.each(Struct.keys(RANGE_MESSAGES))(
     'a range refused as %s is a date error that says why',
     (why) => {
-      const error = asSetVacationError(VacationRefusal.BadRange({ why }))
+      const error = asError(VacationRefusal.BadRange({ why }))
 
       expect(error).toBeInstanceOf(VacationDateError)
       expect(error.message).toBe(RANGE_MESSAGES[why])
@@ -674,16 +671,16 @@ describe('the errors a vacation refusal answers with', () => {
   )
 
   it('a missing account is a user that is not found, for a set and for a cancel', () => {
-    expect(asSetVacationError(VacationRefusal.NoAccount())).toBeInstanceOf(
+    expect(asError(VacationRefusal.NoAccount())).toBeInstanceOf(
       UserNotFoundError
     )
-    expect(asCancelVacationError(VacationRefusal.NoAccount())).toBeInstanceOf(
+    expect(asError(VacationRefusal.NoAccount())).toBeInstanceOf(
       UserNotFoundError
     )
   })
 
   it('a cancel with nothing to cancel is a vacation that is not found', () => {
-    expect(asCancelVacationError(VacationRefusal.NoVacation())).toBeInstanceOf(
+    expect(asError(VacationRefusal.NoVacation())).toBeInstanceOf(
       VacationNotFoundError
     )
   })

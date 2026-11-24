@@ -91,11 +91,6 @@ export interface Notice {
   readonly livingPlants: number
 }
 
-export interface Noticed<A> {
-  readonly value: A
-  readonly notices: ReadonlyArray<Notice>
-}
-
 export type Handover = Data.TaggedEnum<{
   None: Record<never, never>
   Started: Record<never, never>
@@ -223,7 +218,12 @@ export type DelegationWrite = Data.TaggedEnum<{
 }>
 export const DelegationWrite = Data.taggedEnum<DelegationWrite>()
 
-export type Decision<A> = KernelDecision<DelegationWrite, AbsenceEvent, A>
+export type Decision<A> = KernelDecision<
+  DelegationWrite,
+  AbsenceEvent,
+  A,
+  Notice
+>
 
 export type DelegationRefusal = Data.TaggedEnum<{
   Gone: { readonly delegationId: string }
@@ -277,9 +277,9 @@ const factsOf = (
   })
 }
 
-export type Moved = Noticed<Option.Option<Status>>
+export type Moved = Option.Option<Status>
 
-const stayed: Decision<Moved> = decision({ value: Option.none(), notices: [] })
+const stayed: Decision<Moved> = decision(Option.none())
 
 const followed = (
   rule: NeverRefused,
@@ -292,7 +292,7 @@ const followed = (
       Move: ({ to, due, handover, tell }) =>
         IS_DUE[due](state, now)
           ? decision(
-              { value: Option.some(to), notices: noticesOf(tell, state) },
+              Option.some(to),
               [
                 DelegationWrite.MoveDelegation({
                   id: state.id,
@@ -301,7 +301,8 @@ const followed = (
                   at: now,
                 }),
               ],
-              factsOf(handover, state)
+              factsOf(handover, state),
+              noticesOf(tell, state)
             )
           : stayed,
     })
@@ -432,17 +433,16 @@ const CHECKED_AFTER_THE_CARETAKER: ReadonlyArray<OpeningCheck> = [
     ),
 ]
 
-export type Opened = Noticed<{ readonly delegationId: string }>
+export interface Opened {
+  readonly delegationId: string
+}
 
 const opened = (
   terms: Terms,
   message: Option.Option<string>
 ): Decision<Opened> =>
   decision(
-    {
-      value: { delegationId: terms.id },
-      notices: noticesOf(['Requested'], terms),
-    },
+    { delegationId: terms.id },
     [
       DelegationWrite.OpenDelegation({
         id: terms.id,
@@ -453,7 +453,9 @@ const opened = (
         message,
         plantIds: Array.map(terms.plants, (plant) => plant.id),
       }),
-    ]
+    ],
+    [],
+    noticesOf(['Requested'], terms)
   )
 
 export const open = (

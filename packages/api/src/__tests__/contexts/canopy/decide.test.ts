@@ -447,12 +447,10 @@ describe('join', () => {
       expect(byLink(withLink)).toEqual(
         Result.succeed(
           decision(
-            {
-              value: { canopyId: homeId },
-              notices: [noticeTo('alex'), noticeTo('lily')],
-            },
+            { canopyId: homeId },
             [addSam],
-            [samJoined]
+            [samJoined],
+            [noticeTo('alex'), noticeTo('lily')]
           )
         )
       )
@@ -487,12 +485,10 @@ describe('join', () => {
       expect(byInvitation(invited())).toEqual(
         Result.succeed(
           decision(
-            {
-              value: { canopyId: homeId },
-              notices: [noticeTo('alex'), noticeTo('lily')],
-            },
+            { canopyId: homeId },
             [addSam, accept],
-            [samJoined]
+            [samJoined],
+            [noticeTo('alex'), noticeTo('lily')]
           )
         )
       )
@@ -511,24 +507,20 @@ describe('join', () => {
 
   it('lets a member in again by link with no write, no fact and no notice', () => {
     expect(byLink(withLink, 'lily')).toEqual(
-      Result.succeed(decision({ value: { canopyId: homeId }, notices: [] }))
+      Result.succeed(decision({ canopyId: homeId }))
     )
   })
 
   it('spends the open invitation of someone who is already a member, and nothing else', () => {
     expect(byInvitation(invited({ invitee: 'lily' }), 'lily')).toEqual(
-      Result.succeed(
-        decision({ value: { canopyId: homeId }, notices: [] }, [accept])
-      )
+      Result.succeed(decision({ canopyId: homeId }, [accept]))
     )
   })
 
   it('lets a member in again by the invitation they already accepted, with no write', () => {
     expect(
       byInvitation(invited({ invitee: 'lily', status: 'accepted' }), 'lily')
-    ).toEqual(
-      Result.succeed(decision({ value: { canopyId: homeId }, notices: [] }))
-    )
+    ).toEqual(Result.succeed(decision({ canopyId: homeId })))
   })
 
   it('refuses the member past the limit, and admits the one who fills the last seat', () => {
@@ -589,17 +581,7 @@ describe('invite', () => {
   const opened = (id: string, by: string, inviterName: string | null) =>
     Result.succeed(
       decision(
-        {
-          value: { canopyId: homeId },
-          notices: [
-            Notice.Invited({
-              to: account({ userId: 'sam', name: 'Sam', language: 'fr' }),
-              inviterName,
-              canopyName: 'Home',
-              invitationId: id,
-            }),
-          ],
-        },
+        { canopyId: homeId },
         [
           CanopyWrite.OpenInvitation({
             id,
@@ -609,13 +591,20 @@ describe('invite', () => {
             expiresAt: inAWeek,
             at: now,
           }),
+        ],
+        [],
+        [
+          Notice.Invited({
+            to: account({ userId: 'sam', name: 'Sam', language: 'fr' }),
+            inviterName,
+            canopyName: 'Home',
+            invitationId: id,
+          }),
         ]
       )
     )
 
-  const quiet = Result.succeed(
-    decision({ value: { canopyId: homeId }, notices: [] }, [])
-  )
+  const quiet = Result.succeed(decision({ canopyId: homeId }, []))
 
   const fullOf = (held: Held): Held => ({
     ...held,
@@ -1358,20 +1347,7 @@ describe('leave', () => {
     expect(leaving(living(household), 'lily')).toEqual(
       Result.succeed(
         decision(
-          {
-            value: 'left',
-            notices: [
-              Notice.MemberLeft({
-                to: account({
-                  userId: 'alex',
-                  name: 'alex the gardener',
-                  language: 'fr',
-                }),
-                leaverName: 'lily the gardener',
-                canopyName: 'Home',
-              }),
-            ],
-          },
+          'left',
           [
             backToLily.write,
             ...goneFromHome('lily'),
@@ -1389,6 +1365,17 @@ describe('leave', () => {
               userId: 'lily',
               reason: 'left',
             },
+          ],
+          [
+            Notice.MemberLeft({
+              to: account({
+                userId: 'alex',
+                name: 'alex the gardener',
+                language: 'fr',
+              }),
+              leaverName: 'lily the gardener',
+              canopyName: 'Home',
+            }),
           ]
         )
       )
@@ -1404,8 +1391,8 @@ describe('leave', () => {
       )
     ).toEqual(Result.succeed([]))
     expect(
-      Result.map(decided, ({ outcome }) =>
-        Array.map(outcome.notices, (notice) => notice.to.userId)
+      Result.map(decided, ({ notices }) =>
+        Array.map(notices, (notice) => notice.to.userId)
       )
     ).toEqual(Result.succeed(['alex']))
   })
@@ -1425,8 +1412,8 @@ describe('leave', () => {
       ])
     )
     expect(
-      Result.map(decided, ({ outcome }) =>
-        Array.map(outcome.notices, (notice) => notice.to.userId)
+      Result.map(decided, ({ notices }) =>
+        Array.map(notices, (notice) => notice.to.userId)
       )
     ).toEqual(Result.succeed(['sam']))
   })
@@ -1501,9 +1488,7 @@ describe('leave', () => {
       )
 
       expect(leaving(living(alone), 'alex', { plants })).toEqual(
-        Result.succeed(
-          decision({ value: 'dissolved', notices: [] }, writes, events)
-        )
+        Result.succeed(decision('dissolved', writes, events))
       )
     }
   )
@@ -1541,19 +1526,7 @@ describe('removeMember', () => {
     expect(removing(living(household), 'alex', 'lily')).toEqual(
       Result.succeed(
         decision(
-          {
-            value: { canopyId: homeId },
-            notices: [
-              Notice.MemberRemoved({
-                to: account({
-                  userId: 'lily',
-                  name: 'lily the gardener',
-                  language: 'fr',
-                }),
-                canopyName: 'Home',
-              }),
-            ],
-          },
+          { canopyId: homeId },
           [
             backToLily.write,
             ...goneFromHome('lily'),
@@ -1571,6 +1544,16 @@ describe('removeMember', () => {
               userId: 'lily',
               reason: 'removed',
             },
+          ],
+          [
+            Notice.MemberRemoved({
+              to: account({
+                userId: 'lily',
+                name: 'lily the gardener',
+                language: 'fr',
+              }),
+              canopyName: 'Home',
+            }),
           ]
         )
       )

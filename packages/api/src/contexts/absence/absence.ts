@@ -1,9 +1,7 @@
 import {
-  type Decision,
   DelegationCommand,
   DelegationRefusal,
   type Notice,
-  type Noticed,
   type NoticeKind,
   OpenRefusal,
   type OpenRequest,
@@ -27,7 +25,6 @@ import {
   type Vacation,
   type Decision as VacationDecision,
   VacationRefusal,
-  type RefusalOf as VacationRefusalOf,
 } from '@lily/api/contexts/absence/domain/vacation'
 import {
   AbsenceStore,
@@ -37,12 +34,12 @@ import {
   statusOf,
 } from '@lily/api/contexts/absence/store'
 import type { Outbox } from '@lily/api/kernel/outbox'
+import { type RefusalTable, refusals } from '@lily/api/kernel/refusals'
 import {
-  commandBody,
+  commandsOf,
   decision,
   type Decision as KernelDecision,
-  Transaction,
-  transact,
+  type Transaction,
 } from '@lily/api/kernel/transact'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
@@ -76,7 +73,6 @@ import {
   Effect,
   identity,
   Layer,
-  Match,
   Option,
   pipe,
   Result,
@@ -216,12 +212,16 @@ const ANSWERS = {
   }
 >
 
-type RefusalOf<
-  R extends { readonly _tag: string },
-  T extends R['_tag'],
-> = Extract<R, { readonly _tag: T }>
+const RANGE_ANSWERS = {
+  EndNotAfterStart: 'End date must be after start date',
+  EndInPast: 'End date must be in the future',
+  TooLong: `Vacation cannot be longer than ${VACATION_MAX_DURATION_DAYS} days`,
+  StartOfActiveChanged: 'Cannot change the start date of an active vacation',
+} satisfies Record<BadRange, string>
 
-const delegationErrorOf = {
+type Refusal = DelegationRefusal | OpenRefusal | VacationRefusal
+
+const errorOf = {
   Gone: ({ delegationId }) => new DelegationNotFoundError({ delegationId }),
   NotAllowed: ({ command }) =>
     new DelegationNotAuthorizedError({ message: ANSWERS[command].notAllowed }),
@@ -231,17 +231,6 @@ const delegationErrorOf = {
       expectedStatus: ANSWERS[command].expectedStatus,
       message: ANSWERS[command].wrongStatus,
     }),
-} satisfies {
-  readonly [T in DelegationRefusal['_tag']]: (
-    refusal: RefusalOf<DelegationRefusal, T>
-  ) => DelegationError
-}
-
-export const asDelegationError = Match.type<DelegationRefusal>().pipe(
-  Match.tagsExhaustive(delegationErrorOf)
-)
-
-const openErrorOf = {
   Self: () => new CannotDelegateSelfError(),
   CaretakerUnknown: ({ caretakerId }) =>
     new UserNotFoundError({ userId: caretakerId }),
@@ -254,43 +243,12 @@ const openErrorOf = {
   CanopyPlant: ({ plantId }) => new CanopyPlantNotDelegableError({ plantId }),
   NotOwner: () => new PlantNotAuthorizedError(),
   Overlap: ({ plantIds }) => new DelegationOverlapError({ plantIds }),
-} satisfies {
-  readonly [T in OpenRefusal['_tag']]: (
-    refusal: RefusalOf<OpenRefusal, T>
-  ) => OpenDelegationError
-}
+  NoAccount: () => new UserNotFoundError(),
+  NoVacation: () => new VacationNotFoundError(),
+  BadRange: ({ why }) => new VacationDateError({ message: RANGE_ANSWERS[why] }),
+} satisfies RefusalTable<Refusal>
 
-export const asOpenError = Match.type<OpenRefusal>().pipe(
-  Match.tagsExhaustive(openErrorOf)
-)
-
-const RANGE_ANSWERS = {
-  EndNotAfterStart: 'End date must be after start date',
-  EndInPast: 'End date must be in the future',
-  TooLong: `Vacation cannot be longer than ${VACATION_MAX_DURATION_DAYS} days`,
-  StartOfActiveChanged: 'Cannot change the start date of an active vacation',
-} satisfies Record<BadRange, string>
-
-const noAccount = () => new UserNotFoundError()
-
-export const asSetVacationError = Match.type<
-  VacationRefusalOf<'NoAccount' | 'BadRange'>
->().pipe(
-  Match.tagsExhaustive({
-    NoAccount: noAccount,
-    BadRange: ({ why }) =>
-      new VacationDateError({ message: RANGE_ANSWERS[why] }),
-  })
-)
-
-export const asCancelVacationError = Match.type<
-  VacationRefusalOf<'NoAccount' | 'NoVacation'>
->().pipe(
-  Match.tagsExhaustive({
-    NoAccount: noAccount,
-    NoVacation: () => new VacationNotFoundError(),
-  })
-)
+export const asError = refusals<Refusal>()(errorOf)
 
 const signedBySender = (notice: Notice) => ({
   senderName: Option.getOrElse(notice.from.name, () => 'Someone'),
@@ -373,7 +331,7 @@ export const releasedForDeletion = (
   now: DateTime.Utc
 ): KernelDecision<AbsenceWrite, AbsenceEvent, void> => {
   const decided: ReadonlyArray<
-    KernelDecision<AbsenceWrite, AbsenceEvent, unknown>
+    KernelDecision<AbsenceWrite, AbsenceEvent, unknown, Notice>
   > = [
     ...Array.map(openDelegations, (delegation) =>
       releaseForDeletedAccount(delegation, now)
@@ -403,57 +361,22 @@ export const AbsenceLive = Layer.effect(
       Outbox | SqlClient.SqlClient | NotificationRepository | MessageQueue
     >()
 
-    const runNoticed = <Loaded, A, R extends { readonly _tag: string }>(
-      name: string,
-      load: Effect.Effect<Loaded, SqlError, Transaction>,
-      decide: (loaded: Loaded) => Result.Result<Decision<Noticed<A>>, R>
-    ) =>
-      transact(
-        Effect.gen(function* () {
-          const transaction = yield* Transaction
-          const { value, notices } = yield* commandBody({
-            name,
-            topic: AbsenceTopic,
-            load,
-            decide,
-            apply: store.apply,
-          })
-          const recorded = yield* Effect.forEach(notices, (notice) =>
-            record[notice.kind](notice)
-          )
-          yield* transaction.afterCommit(
-            Effect.provide(dispatchAll(recorded), context)
-          )
-          return value
-        })
-      ).pipe(
-        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-        Effect.withSpan(name),
-        Effect.provide(context)
-      )
+    const { run, body } = commandsOf(
+      {
+        topic: AbsenceTopic,
+        apply: store.apply,
+        notices: {
+          record: (notice: Notice) =>
+            Effect.provide(record[notice.kind](notice), context),
+          dispatch: (recorded) =>
+            Effect.provide(dispatchAll(recorded), context),
+        },
+        asError,
+      },
+      context
+    )
 
-    const run = <Loaded, A, R extends { readonly _tag: string }>(
-      name: string,
-      load: Effect.Effect<Loaded, SqlError, Transaction>,
-      decide: (
-        loaded: Loaded
-      ) => Result.Result<KernelDecision<AbsenceWrite, AbsenceEvent, A>, R>
-    ) =>
-      transact(
-        commandBody({
-          name,
-          topic: AbsenceTopic,
-          load,
-          decide,
-          apply: store.apply,
-        })
-      ).pipe(
-        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-        Effect.withSpan(name),
-        Effect.provide(context)
-      )
-
-    const onVacation = <R extends { readonly _tag: string }>(
+    const onVacation = <R extends VacationRefusal>(
       name: string,
       userId: string,
       now: DateTime.Utc,
@@ -474,7 +397,7 @@ export const AbsenceLive = Layer.effect(
             Result.succeed(advance(held, now))
           ).pipe(
             Effect.map((after) => after.changed),
-            Effect.catchTag('NoAccount', () => Effect.succeed(false))
+            Effect.catchTag('UserNotFoundError', () => Effect.succeed(false))
           )
         )
       )
@@ -485,7 +408,7 @@ export const AbsenceLive = Layer.effect(
       command: DelegationCommand,
       now: DateTime.Utc
     ) =>
-      runNoticed(name, store.lockDelegation(delegationId), (held) =>
+      run(name, store.lockDelegation(delegationId), (held) =>
         pipe(
           held,
           Result.fromOption(() => DelegationRefusal.Gone({ delegationId })),
@@ -496,7 +419,7 @@ export const AbsenceLive = Layer.effect(
     const asked = (name: string, delegationId: string, command: UserCommand) =>
       Effect.flatMap(DateTime.now, (now) =>
         onDelegation(name, delegationId, command, now)
-      ).pipe(Effect.mapError(asDelegationError), Effect.asVoid)
+      ).pipe(Effect.asVoid)
 
     const advanceDue = (edge: Edge, now: DateTime.Utc) =>
       Effect.flatMap(store.dueDelegations(edge, now), (delegationIds) =>
@@ -508,7 +431,9 @@ export const AbsenceLive = Layer.effect(
             now
           ).pipe(
             Effect.map(Option.isSome),
-            Effect.catchTag('Gone', () => Effect.succeed(false))
+            Effect.catchTag('DelegationNotFoundError', () =>
+              Effect.succeed(false)
+            )
           )
         )
       )
@@ -516,7 +441,7 @@ export const AbsenceLive = Layer.effect(
     return Absence.of({
       openDelegation: (request) =>
         Effect.flatMap(DateTime.now, (now) =>
-          runNoticed(
+          run(
             'absence.openDelegation',
             store.lockForOpening(request),
             (facts) =>
@@ -531,7 +456,7 @@ export const AbsenceLive = Layer.effect(
                 )
               )
           )
-        ).pipe(Effect.mapError(asOpenError)),
+        ),
       respondToDelegation: ({ by, delegationId, accept }) =>
         asked(
           'absence.respondToDelegation',
@@ -563,16 +488,13 @@ export const AbsenceLive = Layer.effect(
           onVacation('absence.setVacation', userId, now, (held) =>
             request(held, { start, end }, now)
           )
-        ).pipe(
-          Effect.map((after) => after.vacation),
-          Effect.mapError(asSetVacationError)
-        ),
+        ).pipe(Effect.map((after) => after.vacation)),
       cancelVacation: ({ userId }) =>
         Effect.flatMap(DateTime.now, (now) =>
           onVacation('absence.cancelVacation', userId, now, (held) =>
             callOff(held, now)
           )
-        ).pipe(Effect.asVoid, Effect.mapError(asCancelVacationError)),
+        ).pipe(Effect.asVoid),
       advanceVacations: Effect.gen(function* () {
         const now = yield* DateTime.now
         const started = yield* advanceDueVacations('start', now)
@@ -585,18 +507,10 @@ export const AbsenceLive = Layer.effect(
           .pipe(Effect.withSpan('absence.holdForDeletion')),
       releaseForDeletion: (userId) =>
         Effect.flatMap(DateTime.now, (now) =>
-          commandBody({
-            name: 'absence.releaseForDeletion',
-            topic: AbsenceTopic,
-            load: store.lockForRelease(userId, now),
-            decide: (held) => Result.succeed(releasedForDeletion(held, now)),
-            apply: store.apply,
-          })
-        ).pipe(
-          Effect.catchTag('SchemaError', Effect.die),
-          Effect.withSpan('absence.releaseForDeletion'),
-          Effect.provide(context)
-        ),
+          body(store.lockForRelease(userId, now), (held) =>
+            Result.succeed(releasedForDeletion(held, now))
+          )
+        ).pipe(Effect.withSpan('absence.releaseForDeletion')),
     })
   })
 )

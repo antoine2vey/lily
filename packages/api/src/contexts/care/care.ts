@@ -1,3 +1,4 @@
+import { careCommands } from '@lily/api/contexts/care/commands'
 import {
   type CarePlant,
   CareWhen,
@@ -7,7 +8,6 @@ import {
 } from '@lily/api/contexts/care/domain/care-plant'
 import {
   type AmendInput,
-  type AmendRefusal,
   amendCare,
   authorOf,
   type CorrectRefusal,
@@ -20,27 +20,21 @@ import {
   RecordOutcome,
   Refusal,
   type RefusalOf,
-  type RemoveRefusal,
   recordCareOnAll,
   removeCare,
-  type SkipReason,
   setSchedule,
 } from '@lily/api/contexts/care/domain/decide'
-import {
-  CareTopic,
-  type ScheduleChangeReason,
-} from '@lily/api/contexts/care/domain/events'
+import type { ScheduleChangeReason } from '@lily/api/contexts/care/domain/events'
 import { asError } from '@lily/api/contexts/care/refusals'
 import { CareStore } from '@lily/api/contexts/care/store'
 import { WeatherAdvisor } from '@lily/api/contexts/care/weather'
-import type { Outbox } from '@lily/api/kernel/outbox'
 import {
   actingUserId,
   type PlantAction,
   type PlantPermit,
   type RecordPermit,
 } from '@lily/api/kernel/permit'
-import { decision, runCommand } from '@lily/api/kernel/transact'
+import { decision } from '@lily/api/kernel/transact'
 import type { CareType } from '@lily/shared'
 import type { CareLogNotFoundError } from '@lily/shared/errors/care-log'
 import {
@@ -62,7 +56,6 @@ import {
   pipe,
   Result,
 } from 'effect'
-import type * as SqlClient from 'effect/sql/SqlClient'
 
 export interface RecordCare {
   readonly careType: CareType
@@ -196,7 +189,7 @@ export const CareLive = Layer.effect(
   Effect.gen(function* () {
     const store = yield* CareStore
     const advisor = yield* WeatherAdvisor
-    const context = yield* Effect.context<Outbox | SqlClient.SqlClient>()
+    const { run, onPlant } = yield* careCommands
 
     const record: Care['Service']['record'] = (command) =>
       Effect.gen(function* () {
@@ -228,13 +221,12 @@ export const CareLive = Layer.effect(
           by,
         })
 
-        return yield* runCommand({
-          name: 'care.record',
-          topic: CareTopic,
-          load: store.lockAndLoadFor(actorIdsOf(permits), plantIds, [
+        return yield* run(
+          'care.record',
+          store.lockAndLoadFor(actorIdsOf(permits), plantIds, [
             command.careType,
           ]),
-          decide: ({ plants, accountsHeld }) =>
+          ({ plants, accountsHeld }) =>
             Result.map(
               Result.all(
                 Array.map(permits, (permit) =>
@@ -270,10 +262,9 @@ export const CareLive = Layer.effect(
                   decided.events
                 )
               }
-            ),
-          apply: store.apply,
-        })
-      }).pipe(Effect.provide(context), Effect.mapError(asError))
+            )
+        )
+      })
 
     const envOf = (
       permit: PlantPermit<PlantAction>,
@@ -292,25 +283,17 @@ export const CareLive = Layer.effect(
         })
       })
 
-    const onPlant = <R extends Refusal>(
-      name: string,
-      permit: PlantPermit<PlantAction>,
-      careTypes: ReadonlyArray<CareType>,
-      gone: R,
-      decide: (plant: CarePlant) => Result.Result<Decision<void>, R>
-    ) =>
-      runCommand({
-        name,
-        topic: CareTopic,
-        load: store.lockAndLoad([permit.plantId], careTypes),
-        decide: (plants) =>
-          pipe(
-            Option.fromNullishOr(plants.get(permit.plantId)),
-            Result.fromOption(() => gone),
-            Result.flatMap(decide)
-          ),
-        apply: store.apply,
-      }).pipe(Effect.provide(context))
+    const present =
+      <A, R extends Refusal, G extends Refusal>(
+        gone: G,
+        decide: (plant: CarePlant) => Result.Result<A, R>
+      ) =>
+      (plant: Option.Option<CarePlant>): Result.Result<A, R | G> =>
+        pipe(
+          plant,
+          Result.fromOption(() => gone),
+          Result.flatMap(decide)
+        )
 
     const careTypeOf = (permit: PlantPermit<PlantAction>, careLogId: string) =>
       store.careLogKey(careLogId).pipe(
@@ -318,7 +301,8 @@ export const CareLive = Layer.effect(
         Effect.map(Option.filter((key) => key.plantId === permit.plantId)),
         Effect.flatMap(
           Option.match({
-            onNone: () => Effect.fail(Refusal.CareNotFound({ careLogId })),
+            onNone: () =>
+              Effect.fail(asError(Refusal.CareNotFound({ careLogId }))),
             onSome: (key) => Effect.succeed(key.careType),
           })
         )
@@ -331,27 +315,29 @@ export const CareLive = Layer.effect(
           permit,
           Option.isSome(input.on) ? [careType] : []
         )
-        yield* onPlant<AmendRefusal>(
+        yield* onPlant(
           'care.amend',
-          permit,
+          permit.plantId,
           [careType],
-          Refusal.CareNotFound({ careLogId }),
-          (plant) => amendCare(plant, permit, careLogId, careType, input, env())
+          present(Refusal.CareNotFound({ careLogId }), (plant) =>
+            amendCare(plant, permit, careLogId, careType, input, env())
+          )
         )
-      }).pipe(Effect.mapError(asError))
+      })
 
     const remove: Care['Service']['remove'] = ({ permit, careLogId }) =>
       Effect.gen(function* () {
         const careType = yield* careTypeOf(permit, careLogId)
         const env = yield* envOf(permit, [])
-        yield* onPlant<RemoveRefusal>(
+        yield* onPlant(
           'care.remove',
-          permit,
+          permit.plantId,
           [careType],
-          Refusal.CareNotFound({ careLogId }),
-          (plant) => removeCare(plant, permit, careLogId, careType, env())
+          present(Refusal.CareNotFound({ careLogId }), (plant) =>
+            removeCare(plant, permit, careLogId, careType, env())
+          )
         )
-      }).pipe(Effect.mapError(asError))
+      })
 
     const correct: Care['Service']['correctLastCare'] = ({
       permit,
@@ -361,18 +347,14 @@ export const CareLive = Layer.effect(
         if (Array.isReadonlyArrayEmpty(corrections)) return
         const careTypes = Array.map(corrections, (c) => c.careType)
         const env = yield* envOf(permit, careTypes)
-        yield* runCommand({
-          name: 'care.correctLastCare',
-          topic: CareTopic,
-          load: store.lockAndLoadFor(
-            actorIdsOf([permit]),
-            [permit.plantId],
-            careTypes
-          ),
-          decide: ({
-            plants,
-            accountsHeld,
-          }): Result.Result<
+        yield* onPlant(
+          'care.correctLastCare',
+          permit.plantId,
+          careTypes,
+          (
+            found,
+            accountsHeld
+          ): Result.Result<
             Decision<void>,
             CorrectRefusal | RefusalOf<'PlantGone' | 'ActorGone'>
           > =>
@@ -382,9 +364,8 @@ export const CareLive = Layer.effect(
                 permit.actor,
                 permit.plantId
               )
-              const plant = yield* Result.fromOption(
-                Option.fromNullishOr(plants.get(permit.plantId)),
-                () => Refusal.PlantGone({ plantId: permit.plantId })
+              const plant = yield* Result.fromOption(found, () =>
+                Refusal.PlantGone({ plantId: permit.plantId })
               )
               return yield* mergeDecisions(
                 Array.map(
@@ -400,9 +381,9 @@ export const CareLive = Layer.effect(
                 )
               )
             }),
-          apply: store.apply,
-        }).pipe(Effect.provide(context))
-      }).pipe(Effect.mapError(asError))
+          { actorIds: actorIdsOf([permit]) }
+        )
+      })
 
     const setSchedules: Care['Service']['setSchedules'] = ({
       permit,
@@ -410,33 +391,32 @@ export const CareLive = Layer.effect(
     }) =>
       Array.isReadonlyArrayEmpty(frequencies)
         ? Effect.void
-        : onPlant<Extract<SkipReason, { _tag: 'Dead' | 'PlantGone' }>>(
+        : onPlant(
             'care.setSchedules',
-            permit,
+            permit.plantId,
             Array.map(frequencies, ([careType]) => careType),
-            Refusal.PlantGone({ plantId: permit.plantId }),
-            (plant) =>
+            present(Refusal.PlantGone({ plantId: permit.plantId }), (plant) =>
               mergeDecisions(
                 Array.map(frequencies, ([careType, frequency]) =>
                   setSchedule(plant, careType, frequency)
                 )
               )
-          ).pipe(Effect.mapError(asError))
+            )
+          )
 
     const moveDueDays: Care['Service']['moveDueDays'] = ({ reason, moves }) =>
       Array.isReadonlyArrayEmpty(moves)
         ? Effect.void
-        : runCommand({
-            name: 'care.moveDueDays',
-            topic: CareTopic,
-            load: store.lockAndLoad(
+        : run(
+            'care.moveDueDays',
+            store.lockAndLoad(
               Array.sort(
                 Array.dedupe(Array.map(moves, (m) => m.plantId)),
                 Order.String
               ),
               Array.dedupe(Array.map(moves, (m) => m.careType))
             ),
-            decide: (plants) =>
+            (plants) =>
               mergeDecisions(
                 Array.map(moves, ({ plantId, careType, move }) =>
                   Result.succeed(
@@ -450,9 +430,8 @@ export const CareLive = Layer.effect(
                     )
                   )
                 )
-              ),
-            apply: store.apply,
-          }).pipe(Effect.provide(context))
+              )
+          )
 
     return Care.of({
       record,

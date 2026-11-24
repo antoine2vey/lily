@@ -1,10 +1,8 @@
 import { type Held, takesASlot } from '@lily/api/contexts/canopy/domain/canopy'
 import {
   type CanopyChanges,
-  type CanopyWrite,
   createCanopy,
   createLink,
-  type Decision,
   declineInvitation,
   dissolve,
   Entry,
@@ -13,10 +11,8 @@ import {
   type LeaveOutcome,
   leave,
   Notice,
-  type Noticed,
   type Placement,
   type Refusal,
-  type RefusalOf,
   RoomMove,
   removeMember,
   revokeLink,
@@ -26,10 +22,7 @@ import {
   updateCanopy,
   withdrawInvitation,
 } from '@lily/api/contexts/canopy/domain/decide'
-import {
-  type CanopyEvent,
-  CanopyTopic,
-} from '@lily/api/contexts/canopy/domain/events'
+import { CanopyTopic } from '@lily/api/contexts/canopy/domain/events'
 import {
   hashInviteToken,
   newInviteToken,
@@ -45,11 +38,10 @@ import {
 } from '@lily/api/contexts/canopy/store'
 import { Outbox } from '@lily/api/kernel/outbox'
 import { Actor, type PlantPermit } from '@lily/api/kernel/permit'
+import { type RefusalTable, refusals } from '@lily/api/kernel/refusals'
 import {
-  type CommandSpec,
-  commandBody,
-  runCommand,
-  Transaction,
+  commandsOf,
+  type Transaction,
   transact,
 } from '@lily/api/kernel/transact'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
@@ -90,9 +82,7 @@ import {
   Duration,
   Effect,
   Layer,
-  Match,
   Option,
-  type Result,
 } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -284,16 +274,9 @@ const errorOf = {
   PlantNotYours: () => new PlantNotAuthorizedError(),
   RoomNotFound: ({ roomId }) => new RoomNotFoundError({ roomId }),
   OverLimit: ({ error }) => error,
-} satisfies {
-  readonly [T in Refusal['_tag']]: (refusal: RefusalOf<T>) => unknown
-}
+} satisfies RefusalTable<Refusal>
 
-type ErrorOf<T extends Refusal['_tag']> = ReturnType<(typeof errorOf)[T]>
-
-const refusalAsError = Match.type<Refusal>().pipe(Match.tagsExhaustive(errorOf))
-
-const asError = <R extends Refusal>(refusal: R) =>
-  refusalAsError(refusal) as ErrorOf<R['_tag']>
+const asError = refusals<Refusal>()(errorOf)
 
 const senderNameOf = (name: string | null): { readonly senderName?: string } =>
   Option.match(Option.fromNullishOr(name), {
@@ -395,43 +378,19 @@ export const CanopyLive = Layer.effect(
     const sql = yield* SqlClient.SqlClient
     const outbox = yield* Outbox
 
-    const spec = <Loaded, A, R extends Refusal>(
-      name: string,
-      load: Effect.Effect<Loaded, SqlError, Transaction>,
-      decide: (loaded: Loaded) => Result.Result<Decision<A>, R>
-    ): CommandSpec<Loaded, CanopyWrite, CanopyEvent, A, R, Transaction> => ({
-      name,
-      topic: CanopyTopic,
-      load,
-      decide,
-      apply: store.apply,
-    })
-
-    const run = <A, R extends Refusal>(
-      name: string,
-      plan: LockPlan,
-      decide: (held: Held) => Result.Result<Decision<A>, R>
-    ) =>
-      runCommand(spec(name, store.lockAndLoad(plan), decide)).pipe(
-        Effect.mapError(asError),
-        Effect.provide(context)
-      )
-
-    const runInformed = <Facts, A, R extends Refusal>(
-      name: string,
-      plan: LockPlan,
-      factsUnder: (held: Held) => Effect.Effect<Facts, SqlError>,
-      decide: (held: Held, facts: Facts) => Result.Result<Decision<A>, R>
-    ) =>
-      runCommand(
-        spec(
-          name,
-          Effect.flatMap(store.lockAndLoad(plan), (held) =>
-            Effect.map(factsUnder(held), (facts) => ({ held, facts }))
-          ),
-          ({ held, facts }) => decide(held, facts)
-        )
-      ).pipe(Effect.mapError(asError), Effect.provide(context))
+    const { run, body } = commandsOf(
+      {
+        topic: CanopyTopic,
+        apply: store.apply,
+        notices: {
+          record: (notice: Notice) => Effect.provide(record(notice), context),
+          dispatch: (recorded) =>
+            Effect.provide(dispatchAll(recorded), context),
+        },
+        asError,
+      },
+      context
+    )
 
     const overLimit = (held: Held, plantId: string, receiver: PlantOwner) =>
       Array.some(
@@ -446,33 +405,12 @@ export const CanopyLive = Layer.effect(
             )
         : Effect.succeed(Option.none<LimitExceededError>())
 
-    const noticed = <A, R extends Refusal>(
-      name: string,
+    const informed = <Facts>(
       plan: LockPlan,
-      decide: (held: Held) => Result.Result<Decision<Noticed<A>>, R>
+      factsUnder: (held: Held) => Effect.Effect<Facts, SqlError>
     ) =>
-      Effect.gen(function* () {
-        const transaction = yield* Transaction
-        const { value, notices } = yield* commandBody(
-          spec(name, store.lockAndLoad(plan), decide)
-        )
-        const recorded = yield* Effect.forEach(notices, record)
-        yield* transaction.afterCommit(
-          Effect.provide(dispatchAll(recorded), context)
-        )
-        return value
-      }).pipe(Effect.provide(context))
-
-    const runNoticed = <A, R extends Refusal>(
-      name: string,
-      plan: LockPlan,
-      decide: (held: Held) => Result.Result<Decision<Noticed<A>>, R>
-    ) =>
-      transact(noticed(name, plan, decide)).pipe(
-        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-        Effect.mapError(asError),
-        Effect.withSpan(name),
-        Effect.provide(context)
+      Effect.flatMap(store.lockAndLoad(plan), (held) =>
+        Effect.map(factsUnder(held), (facts) => ({ held, facts }))
       )
 
     const ofMember = (userId: string) =>
@@ -483,7 +421,9 @@ export const CanopyLive = Layer.effect(
         Effect.flatMap(DateTime.now, (now) =>
           run(
             'canopy.create',
-            lockPlan({ actor: Option.some(by), accounts: [by] }),
+            store.lockAndLoad(
+              lockPlan({ actor: Option.some(by), accounts: [by] })
+            ),
             (held) =>
               createCanopy(held, {
                 by,
@@ -494,35 +434,36 @@ export const CanopyLive = Layer.effect(
           )
         ),
       update: ({ by, changes }) =>
-        run('canopy.update', ofMember(by), (held) =>
+        run('canopy.update', store.lockAndLoad(ofMember(by)), (held) =>
           updateCanopy(held, { by, changes })
         ),
       leave: ({ by }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          runNoticed('canopy.leave', ending(by), (held) =>
+          run('canopy.leave', store.lockAndLoad(ending(by)), (held) =>
             leave(held, { by, plants: 'return', reason: 'left', now })
           )
         ),
       removeMember: ({ by, target }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          runNoticed('canopy.removeMember', ending(by), (held) =>
+          run('canopy.removeMember', store.lockAndLoad(ending(by)), (held) =>
             removeMember(held, { by, target, now })
           )
         ),
       dissolve: ({ by }) =>
-        run('canopy.dissolve', ending(by), (held) => dissolve(held, { by })),
+        run('canopy.dissolve', store.lockAndLoad(ending(by)), (held) =>
+          dissolve(held, { by })
+        ),
       leaveForDeletion: (userId) => (deletion) =>
         Effect.flatMap(DateTime.now, (now) =>
           transact(
             Effect.andThen(
-              noticed(
-                'canopy.leaveForDeletion',
-                {
+              body(
+                store.lockAndLoad({
                   ...ending(userId),
                   actor: Option.some(userId),
                   absenceOf: Option.some(userId),
                   plants: PlantScope.Leaver({ userId }),
-                },
+                }),
                 (held) =>
                   leave(held, {
                     by: userId,
@@ -537,7 +478,6 @@ export const CanopyLive = Layer.effect(
         ).pipe(
           Effect.provideService(SqlClient.SqlClient, sql),
           Effect.provideService(Outbox, outbox),
-          Effect.catchTag('SchemaError', Effect.die),
           Effect.withSpan('canopy.leaveForDeletion', {
             attributes: { 'user.id': userId },
           })
@@ -550,41 +490,47 @@ export const CanopyLive = Layer.effect(
             now,
             Duration.days(CANOPY_INVITE_TTL_DAYS)
           )
-          yield* run('canopy.createLink', ofMember(by), (held) =>
-            createLink(held, { by, tokenHash, expiresAt, now })
+          yield* run(
+            'canopy.createLink',
+            store.lockAndLoad(ofMember(by)),
+            (held) => createLink(held, { by, tokenHash, expiresAt, now })
           )
           return { token, expiresAt }
         }),
       revokeLink: ({ by }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          run('canopy.revokeLink', ofMember(by), (held) =>
+          run('canopy.revokeLink', store.lockAndLoad(ofMember(by)), (held) =>
             revokeLink(held, { by, now })
           )
         ),
       join: ({ joiner, via }) => {
         const { entry, canopy, invitations } = viaAsEntry(via)
         return Effect.flatMap(DateTime.now, (now) =>
-          runNoticed(
+          run(
             'canopy.join',
-            lockPlan({
-              actor: Option.some(joiner),
-              canopy,
-              accounts: [joiner],
-              invitations,
-            }),
+            store.lockAndLoad(
+              lockPlan({
+                actor: Option.some(joiner),
+                canopy,
+                accounts: [joiner],
+                invitations,
+              })
+            ),
             (held) => join(held, { joiner, via: entry, now })
           )
         )
       },
       invite: ({ by, invitee }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          runNoticed(
+          run(
             'canopy.invite',
-            lockPlan({
-              canopy: Find.OfMember({ userId: by }),
-              accounts: [invitee],
-              invitations: InvitationScope.OfInvitee({ invitee }),
-            }),
+            store.lockAndLoad(
+              lockPlan({
+                canopy: Find.OfMember({ userId: by }),
+                accounts: [invitee],
+                invitations: InvitationScope.OfInvitee({ invitee }),
+              })
+            ),
             (held) =>
               invite(held, {
                 by,
@@ -602,10 +548,12 @@ export const CanopyLive = Layer.effect(
         Effect.flatMap(DateTime.now, (now) =>
           run(
             'canopy.withdrawInvitation',
-            lockPlan({
-              canopy: Find.OfMember({ userId: by }),
-              invitations: InvitationScope.One({ invitationId }),
-            }),
+            store.lockAndLoad(
+              lockPlan({
+                canopy: Find.OfMember({ userId: by }),
+                invitations: InvitationScope.One({ invitationId }),
+              })
+            ),
             (held) => withdrawInvitation(held, { by, invitationId, now })
           )
         ),
@@ -613,16 +561,17 @@ export const CanopyLive = Layer.effect(
         Effect.flatMap(DateTime.now, (now) =>
           run(
             'canopy.declineInvitation',
-            lockPlan({ invitations: InvitationScope.One({ invitationId }) }),
+            store.lockAndLoad(
+              lockPlan({ invitations: InvitationScope.One({ invitationId }) })
+            ),
             (held) => declineInvitation(held, { by, invitationId, now })
           )
         ),
       sharePlant: ({ permit, roomId }) =>
         Effect.flatMap(userOf(permit), (by) =>
-          runInformed(
+          run(
             'canopy.sharePlant',
-            movePlan(by, permit.plantId, roomId),
-            (held) =>
+            informed(movePlan(by, permit.plantId, roomId), (held) =>
               Effect.all({
                 inOpenDelegation: delegations.hasOpenDelegationForPlant(
                   permit.plantId
@@ -636,8 +585,9 @@ export const CanopyLive = Layer.effect(
                       canopyId: canopy.id,
                     }),
                 }),
-              }),
-            (held, facts) =>
+              })
+            ),
+            ({ held, facts }) =>
               sharePlant(held, {
                 by,
                 plantId: permit.plantId,
@@ -648,15 +598,15 @@ export const CanopyLive = Layer.effect(
         ),
       unsharePlant: ({ permit, roomId }) =>
         Effect.flatMap(userOf(permit), (by) =>
-          runInformed(
+          run(
             'canopy.unsharePlant',
-            movePlan(by, permit.plantId, roomId),
-            (held) =>
+            informed(movePlan(by, permit.plantId, roomId), (held) =>
               Effect.map(
                 overLimit(held, permit.plantId, { _tag: 'User', userId: by }),
                 (limit) => ({ overLimit: limit })
-              ),
-            (held, facts) =>
+              )
+            ),
+            ({ held, facts }) =>
               unsharePlant(held, {
                 by,
                 plantId: permit.plantId,
@@ -669,10 +619,12 @@ export const CanopyLive = Layer.effect(
         Effect.flatMap(userOf(permit), (by) =>
           run(
             'canopy.setMute',
-            lockPlan({
-              canopy: Find.OfMember({ userId: by }),
-              plants: PlantScope.Pin({ plantId: permit.plantId }),
-            }),
+            store.lockAndLoad(
+              lockPlan({
+                canopy: Find.OfMember({ userId: by }),
+                plants: PlantScope.Pin({ plantId: permit.plantId }),
+              })
+            ),
             (held) => setMute(held, { by, plantId: permit.plantId, muted })
           )
         ),

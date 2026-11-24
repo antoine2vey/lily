@@ -148,11 +148,6 @@ export type Notice = Data.TaggedEnum<{
 }>
 export const Notice = Data.taggedEnum<Notice>()
 
-export interface Noticed<A> {
-  readonly value: A
-  readonly notices: ReadonlyArray<Notice>
-}
-
 export type Refusal = Data.TaggedEnum<{
   NotMember: Record<never, never>
   NotOwner: Record<never, never>
@@ -177,7 +172,7 @@ export type RefusalOf<T extends Refusal['_tag']> = Extract<
   { readonly _tag: T }
 >
 
-export type Decision<A> = KernelDecision<CanopyWrite, CanopyEvent, A>
+export type Decision<A> = KernelDecision<CanopyWrite, CanopyEvent, A, Notice>
 type Decided<A, R extends Refusal['_tag']> = Result.Result<
   Decision<A>,
   RefusalOf<R>
@@ -452,7 +447,7 @@ export const join = (
     readonly now: DateTime.Utc
   }
 ): Decided<
-  Noticed<{ readonly canopyId: CanopyId }>,
+  { readonly canopyId: CanopyId },
   'InviteNotFound' | 'InviteExpired' | 'AlreadyInCanopy' | 'CanopyFull'
 > =>
   Result.gen(function* () {
@@ -467,7 +462,7 @@ export const join = (
       CanopyWrite.ResolveInvitation({ id, to: 'accepted', at: now })
     )
     if (Option.isSome(memberOf(canopy, joiner))) {
-      return decision({ value: { canopyId: canopy.id }, notices: [] }, spent)
+      return decision({ canopyId: canopy.id }, spent)
     }
     const elsewhere = Option.filter(
       held.actorCanopy,
@@ -488,24 +483,7 @@ export const join = (
       )
     }
     return decision(
-      {
-        value: { canopyId: canopy.id },
-        notices: pipe(
-          canopy.members,
-          Array.flatMap((member) =>
-            Option.toArray(
-              Option.fromNullishOr(held.accounts.get(member.userId))
-            )
-          ),
-          Array.map((to) =>
-            Notice.MemberJoined({
-              to,
-              joinerName: account.name,
-              canopyName: canopy.name,
-            })
-          )
-        ),
-      },
+      { canopyId: canopy.id },
       [
         CanopyWrite.AddMember({
           canopyId: canopy.id,
@@ -515,7 +493,20 @@ export const join = (
         }),
         ...spent,
       ],
-      [{ _tag: 'MemberJoined', canopyId: canopy.id, userId: joiner }]
+      [{ _tag: 'MemberJoined', canopyId: canopy.id, userId: joiner }],
+      pipe(
+        canopy.members,
+        Array.flatMap((member) =>
+          Option.toArray(Option.fromNullishOr(held.accounts.get(member.userId)))
+        ),
+        Array.map((to) =>
+          Notice.MemberJoined({
+            to,
+            joinerName: account.name,
+            canopyName: canopy.name,
+          })
+        )
+      )
     )
   })
 
@@ -529,7 +520,7 @@ export const invite = (
     readonly now: DateTime.Utc
   }
 ): Decided<
-  Noticed<{ readonly canopyId: CanopyId }>,
+  { readonly canopyId: CanopyId },
   'NotMember' | 'InviteeNotFound' | 'InviteeAlreadyMember' | 'CanopyFull'
 > =>
   Result.gen(function* () {
@@ -556,28 +547,14 @@ export const invite = (
     )
     const value = { canopyId: canopy.id }
     if (planInvitation(Option.getOrNull(earlier), now) !== 'send') {
-      return decision({ value, notices: [] }, [])
+      return decision(value, [])
     }
     const id = Option.match(earlier, {
       onNone: () => command.newInvitationId,
       onSome: (invitation) => invitation.id,
     })
     return decision(
-      {
-        value,
-        notices: [
-          Notice.Invited({
-            to: invitee,
-            inviterName: pipe(
-              Option.fromNullishOr(held.accounts.get(by)),
-              Option.flatMapNullishOr((account) => account.name),
-              Option.getOrNull
-            ),
-            canopyName: canopy.name,
-            invitationId: id,
-          }),
-        ],
-      },
+      value,
       [
         CanopyWrite.OpenInvitation({
           id,
@@ -586,6 +563,19 @@ export const invite = (
           invitedBy: by,
           expiresAt: command.expiresAt,
           at: now,
+        }),
+      ],
+      [],
+      [
+        Notice.Invited({
+          to: invitee,
+          inviterName: pipe(
+            Option.fromNullishOr(held.accounts.get(by)),
+            Option.flatMapNullishOr((account) => account.name),
+            Option.getOrNull
+          ),
+          canopyName: canopy.name,
+          invitationId: id,
         }),
       ]
     )
@@ -965,33 +955,18 @@ export const leave = (
     readonly reason: Exclude<MemberLeftReason, 'removed'>
     readonly now: DateTime.Utc
   }
-): Decided<Noticed<LeaveOutcome>, 'NotMember'> =>
+): Decided<LeaveOutcome, 'NotMember'> =>
   Result.map(seatOf(held, command.by), ({ canopy }) => {
     const { by, now } = command
     return Option.match(successorOf(canopy, by), {
-      onNone: (): Decision<Noticed<LeaveOutcome>> => {
+      onNone: (): Decision<LeaveOutcome> => {
         const { writes, events } = dissolution(held, canopy, by)
-        return decision({ value: 'dissolved', notices: [] }, writes, events)
+        return decision('dissolved', writes, events)
       },
-      onSome: (successor): Decision<Noticed<LeaveOutcome>> => {
+      onSome: (successor): Decision<LeaveOutcome> => {
         const gone = departure(held, canopy, by, command.plants, now)
         return decision(
-          {
-            value: 'left',
-            notices: Array.map(
-              Option.toArray(accountOf(held, successor.userId)),
-              (to) =>
-                Notice.MemberLeft({
-                  to,
-                  leaverName: pipe(
-                    accountOf(held, by),
-                    Option.flatMapNullishOr((account) => account.name),
-                    Option.getOrNull
-                  ),
-                  canopyName: canopy.name,
-                })
-            ),
-          },
+          'left',
           [
             ...gone.writes,
             CanopyWrite.RevokeLinks({
@@ -1016,7 +991,18 @@ export const leave = (
               userId: by,
               reason: command.reason,
             },
-          ]
+          ],
+          Array.map(Option.toArray(accountOf(held, successor.userId)), (to) =>
+            Notice.MemberLeft({
+              to,
+              leaverName: pipe(
+                accountOf(held, by),
+                Option.flatMapNullishOr((account) => account.name),
+                Option.getOrNull
+              ),
+              canopyName: canopy.name,
+            })
+          )
         )
       },
     })
@@ -1030,7 +1016,7 @@ export const removeMember = (
     readonly now: DateTime.Utc
   }
 ): Decided<
-  Noticed<{ readonly canopyId: CanopyId }>,
+  { readonly canopyId: CanopyId },
   'NotMember' | 'NotOwner' | 'MemberNotFound'
 > =>
   Result.gen(function* () {
@@ -1042,13 +1028,7 @@ export const removeMember = (
     )
     const gone = departure(held, canopy, removed.userId, 'return', now)
     return decision(
-      {
-        value: { canopyId: canopy.id },
-        notices: Array.map(
-          Option.toArray(accountOf(held, removed.userId)),
-          (to) => Notice.MemberRemoved({ to, canopyName: canopy.name })
-        ),
-      },
+      { canopyId: canopy.id },
       [
         ...gone.writes,
         CanopyWrite.RevokeLinks({
@@ -1065,7 +1045,10 @@ export const removeMember = (
           userId: removed.userId,
           reason: 'removed',
         },
-      ]
+      ],
+      Array.map(Option.toArray(accountOf(held, removed.userId)), (to) =>
+        Notice.MemberRemoved({ to, canopyName: canopy.name })
+      )
     )
   })
 
