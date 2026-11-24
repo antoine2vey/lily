@@ -14,7 +14,7 @@ const walk = (dir: string): ReadonlyArray<string> =>
   })
 
 const SCHEDULER_EXPORT =
-  /^export const (\w+) = create(?:Drainable)?Scheduler\(/gm
+  /^export const (\w+) = create(?:(?:Drainable)?Scheduler|Subscriber)\(/gm
 
 describe('schedulers', () => {
   it('are all launched by src/server.ts', () => {
@@ -27,6 +27,7 @@ describe('schedulers', () => {
     )
 
     expect(schedulers).toContain('startAuthCleanupScheduler')
+    expect(schedulers).toContain('startLiveActivitySubscriber')
     expect(
       schedulers.filter((name) => !new RegExp(`\\b${name}\\b`).test(server))
     ).toEqual([])

@@ -1,9 +1,10 @@
-import { type AppEvent, EventBus } from '@lily/api/events'
+import type { AppEvent } from '@lily/api/events'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { AchievementNotifier } from '@lily/api/services/achievements/notifier'
+import { createSubscriber } from '@lily/api/services/helpers/create-subscriber'
 import type { AchievementKey, CareType } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
-import { Effect, Match, Option, pipe, Queue } from 'effect'
+import { Effect, Match, Option, pipe } from 'effect'
 
 const unlock = (userId: string, key: AchievementKey) =>
   pipe(
@@ -238,26 +239,7 @@ export const processEvent = (event: AppEvent) =>
     Match.exhaustive
   )
 
-export const startAchievementSubscriber = Effect.gen(function* () {
-  const eventBus = yield* EventBus
-  const queue = yield* eventBus.subscribe
-
-  yield* Effect.forkScoped(
-    Effect.forever(
-      Effect.gen(function* () {
-        const event = yield* Queue.take(queue)
-        yield* processEvent(event).pipe(
-          Effect.tap(() =>
-            Effect.annotateCurrentSpan('event._tag', event._tag)
-          ),
-          Effect.withSpan('achievement-checker.process'),
-          Effect.catchTag('SqlError', (e) =>
-            Effect.logWarning('[achievement-checker] Event processing failed', {
-              error: String(e),
-            })
-          )
-        )
-      })
-    )
-  )
+export const startAchievementSubscriber = createSubscriber({
+  name: 'achievement-checker',
+  handle: processEvent,
 })
