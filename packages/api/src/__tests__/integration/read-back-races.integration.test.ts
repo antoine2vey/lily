@@ -75,18 +75,21 @@ import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
 import { createDelegation } from '@lily/api/services/delegation/endpoints/create-delegation'
 import { respondToDelegation } from '@lily/api/services/delegation/endpoints/respond-delegation'
+import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
 import { carePlant } from '@lily/api/services/plants/endpoints/care-plant'
 import { correctCareDates } from '@lily/api/services/plants/endpoints/correct-care-dates'
 import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
 import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-plant-with-canopy'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
+import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { withPermittedPlant } from '@lily/api/services/plants/helpers/with-plant-access'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
+  Array,
   Cause,
   Deferred,
   Effect,
@@ -174,6 +177,7 @@ const readingThePlantBack =
       Effect.provideService(endpoint, PlantRepository, {
         ...repo,
         findById: (id) => behindTheRival(repo.findById(id)),
+        findWithRoomByIds: (ids) => behindTheRival(repo.findWithRoomByIds(ids)),
       })
     )
 
@@ -486,6 +490,34 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             carePlant(carePermit(plantId, owner), {
               careType: 'watering',
             }).pipe(readingThePlantBack(seams), pausingCare(seams))
+        ),
+      'plants cared for together': () =>
+        onAPlant(
+          (plantId) => (seams) =>
+            careMultiplePlants({
+              plantIds: [plantId],
+              careType: 'watering',
+            }).pipe(
+              Effect.filterOrFail(
+                Array.every((result) => result.success),
+                () => ({ _tag: 'CaredPlantNotAnswered' })
+              ),
+              readingThePlantBack(seams),
+              pausingCare(seams)
+            )
+        ),
+      'an edited plant': () =>
+        onAPlant(
+          (plantId) => (seams) =>
+            withPermittedPlant(plantId, 'edit').pipe(
+              Effect.flatMap(({ plant, permit }) =>
+                updatePlant(plant, permit, {
+                  id: plantId,
+                  name: 'Boston fern',
+                  wateringFrequencyDays: 5,
+                }).pipe(readingThePlantBack(seams), pausingCare(seams))
+              )
+            )
         ),
       'a plant with a corrected care date': () =>
         onAPlant(
