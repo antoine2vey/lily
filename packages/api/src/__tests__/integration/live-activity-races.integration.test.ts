@@ -619,15 +619,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
         return Arr.map(sent, (m) => `${m._tag}:${m.to}`)
       }
-      // The owner's devices stay untouched whether or not the caretaker's
-      // card lists the delegated plant.
+      // A caretaker's backlog holds only their own plants, so with nothing of
+      // theirs due the card ends. The owner's devices stay untouched.
       const delegatedOnly = await deliver()
-      expect(
-        Arr.filter(
-          delegatedOnly,
-          (m) => m !== 'LiveActivityUpdate:caretaker-update'
-        )
-      ).toEqual([])
+      expect(delegatedOnly).toEqual(['LiveActivityEnd:caretaker-update'])
 
       const [ownPlant] = await db
         .insert(schema.plants)
@@ -656,7 +651,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .set({ status: 'queued' })
         .where(eq(schema.notifications.userId, caretaker.id))
       const withOwnPlant = await deliver()
-      expect(withOwnPlant).toEqual(['LiveActivityUpdate:caretaker-update'])
+      expect(withOwnPlant).toEqual(['LiveActivityStart:caretaker-start'])
       await db
         .delete(schema.careDelegations)
         .where(eq(schema.careDelegations.id, delegation.id))
