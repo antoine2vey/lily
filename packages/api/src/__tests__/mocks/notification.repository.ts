@@ -5,7 +5,11 @@ import {
   NotificationRepository,
   type NotificationRow,
 } from '@lily/api/repositories/notification.repository'
-import { paginate } from '@lily/shared'
+import {
+  paginate,
+  startOfTodayAsDate,
+  startOfTomorrowAsDate,
+} from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { CARE_TOPICS } from '@lily/shared/server'
 import {
@@ -48,6 +52,8 @@ export const createMockNotificationRepository = (
 
   const waiting = (n: MutableNotification) =>
     n.status === 'pending' || n.status === 'queued'
+  const isToday = (timezone: string) => (at: Date) =>
+    at >= startOfTodayAsDate(timezone) && at < startOfTomorrowAsDate(timezone)
   const deleteWhere = (covers: (n: MutableNotification) => boolean) => {
     const toKeep = Array.filter(notificationsState, (n) => !covers(n))
     notificationsState.length = 0
@@ -462,8 +468,17 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
-    hasNotificationToday: (_userId: string, _plantId: string) =>
-      Effect.succeed(false),
+    hasNotificationToday: (userId: string, plantId: string, timezone: string) =>
+      Effect.sync(() =>
+        Array.some(
+          notificationsState,
+          (n) =>
+            n.userId === userId &&
+            n.plantId === plantId &&
+            n.status === 'sent' &&
+            Option.exists(Option.fromNullishOr(n.sentAt), isToday(timezone))
+        )
+      ),
 
     markManyAsSent: (rows) =>
       Effect.sync(() => {
@@ -533,10 +548,10 @@ export const createMockNotificationRepository = (
 
     hasNotificationOfTypeTodayForUser: (
       userId: string,
-      _timezone: string,
+      timezone: string,
       type: string
     ) =>
-      Effect.succeed(
+      Effect.sync(() =>
         Array.some(
           notificationsState,
           (n) =>
@@ -544,7 +559,8 @@ export const createMockNotificationRepository = (
             n.type === type &&
             (n.status === 'pending' ||
               n.status === 'queued' ||
-              n.status === 'sent')
+              n.status === 'sent') &&
+            isToday(timezone)(n.createdAt)
         )
       ),
   }

@@ -1,3 +1,4 @@
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -154,6 +155,62 @@ describe('UsageTracker', () => {
         status: 'pending',
         metadata: {},
       })
+    })
+
+    it('does not nudge again later in the same local day, past UTC midnight', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-06-16T02:00:00.000Z'))
+      const user = { ...mockUser1, timezone: 'America/Los_Angeles' }
+      const notifications: Notification[] = [
+        createTestNotification({
+          userId: user.id,
+          type: 'approaching_limit',
+          createdAt: new Date('2026-06-15T20:00:00.000Z'),
+        }),
+      ]
+      const checked = Promise.withResolvers<void>()
+      const notificationRepo = Layer.effect(
+        NotificationRepository,
+        Effect.gen(function* () {
+          const repo = yield* NotificationRepository
+          const observed: INotificationRepository = {
+            ...repo,
+            hasNotificationOfTypeTodayForUser: (...args) =>
+              repo
+                .hasNotificationOfTypeTodayForUser(...args)
+                .pipe(Effect.ensuring(Effect.sync(checked.resolve))),
+          }
+          return observed
+        })
+      ).pipe(Layer.provide(createMockNotificationRepository(notifications)))
+      const layer = UsageTrackerLive.pipe(
+        Layer.provide(
+          Layer.mergeAll(
+            MockAlerterLive,
+            createMockSubscriptionRepository({
+              usage: usageAt({ userId: user.id, plantIdentifiesCount: 2 }),
+            }),
+            notificationRepo,
+            createMockUserRepository([user])
+          )
+        )
+      )
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const tracker = yield* UsageTracker
+          return yield* tracker.withReservation(
+            user.id,
+            'plantIdentifies',
+            Effect.void
+          )
+        }).pipe(Effect.provide(layer))
+      )
+      await checked.promise
+      await new Promise((resolve) => setImmediate(resolve))
+      vi.useRealTimers()
+
+      expect(notifications).toHaveLength(1)
     })
 
     it('refunds the unit and surfaces the error when the body fails', async () => {

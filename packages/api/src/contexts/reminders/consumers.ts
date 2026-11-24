@@ -26,7 +26,10 @@ export const REPLAN_CONSUMER = 'reminders-replan'
 
 type Recorded = Extract<CareEvent, { _tag: 'CareRecorded' }>
 
-const acknowledgeCare = ({ plantId, by }: Recorded) =>
+export const acknowledgeCare = ({
+  plantId,
+  by,
+}: Pick<Recorded, 'plantId' | 'by'>) =>
   Effect.gen(function* () {
     const notifications = yield* NotificationRepository
     const eventBus = yield* EventBus
