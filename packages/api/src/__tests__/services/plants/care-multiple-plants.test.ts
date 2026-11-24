@@ -229,14 +229,14 @@ describe('careMultiplePlants', () => {
     expect(result[0]?.plant?.room?.name).toBe('Living Room')
   })
 
-  it('reads the cared plants before the transaction of the care commits', async () => {
+  it('reads the cared plants in one query, before the transaction of the care commits', async () => {
     const events: string[] = []
     const test = setup({
       reading: (repo) => ({
-        findById: (id) =>
+        findWithRoomByIds: (ids) =>
           Effect.andThen(
             Effect.sync(() => events.push('read')),
-            repo.findById(id)
+            repo.findWithRoomByIds(ids)
           ),
       }),
       sql: createMockSqlClient({
@@ -246,12 +246,12 @@ describe('careMultiplePlants', () => {
 
     await careFor(['plant-1', 'plant-2'], test)
 
-    expect(events).toEqual(['begin', 'read', 'read', 'commit'])
+    expect(events).toEqual(['begin', 'read', 'commit'])
   })
 
   it('answers PlantNotFoundError, not success: false, when a plant it cared for cannot be read', async () => {
     const test = setup({
-      reading: () => ({ findById: () => Effect.succeed(null) }),
+      reading: () => ({ findWithRoomByIds: () => Effect.succeed([]) }),
     })
 
     const exit = await Effect.runPromiseExit(caring(['plant-1'], test))

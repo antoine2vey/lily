@@ -3,7 +3,6 @@ import {
   dueOnOrBefore,
   duePrune,
   hasOverdueCare,
-  type PlantCondition,
   type SeenSchedule,
   type StoredSchedule,
   seePlantCare,
@@ -138,19 +137,30 @@ export type PlantWithRoom = Omit<RawPlant, 'health'> &
 
 export type FindPlantsResult = PaginatedResponse<PlantWithRoom>
 
-export interface UpdatePlantData {
-  name?: string
-  description?: string | null
-  category?: string | null
-  imageUrl?: StoredObjectRef | null
-  humidityRating?: number
-  lightingRating?: number
-  petToxicityRating?: number
-  wateringRating?: number
-  health?: PlantCondition
-  potWidthCm?: number | null
-  potHeightCm?: number | null
-  roomId?: string | null
+type EditablePlantColumn =
+  | 'name'
+  | 'description'
+  | 'category'
+  | 'imageUrl'
+  | 'humidityRating'
+  | 'lightingRating'
+  | 'petToxicityRating'
+  | 'wateringRating'
+  | 'isFavorite'
+  | 'remindersEnabled'
+  | 'potWidthCm'
+  | 'potHeightCm'
+  | 'roomId'
+
+/**
+ * The columns `update` may set, and no other. Every other column of a plant
+ * has one writer elsewhere: Care for its life and health, Canopy for its
+ * owner. A key that is `undefined` is left as it is.
+ */
+export type UpdatePlantData = {
+  readonly [Column in EditablePlantColumn]?:
+    | (typeof plants.$inferInsert)[Column]
+    | undefined
 }
 
 export interface FindPhotosParams {
@@ -182,6 +192,10 @@ export interface IPlantRepository {
   readonly findById: (
     id: string
   ) => Effect.Effect<PlantWithRoom | null, SqlError>
+  /** What `findById` answers for each id that names a plant, in no order. */
+  readonly findWithRoomByIds: (
+    ids: readonly string[]
+  ) => Effect.Effect<Array<PlantWithRoom>, SqlError>
   readonly update: (
     id: string,
     owner: PlantOwner,
@@ -724,6 +738,38 @@ export const PlantRepositoryLive = Layer.effect(
         if (!scope) return null
         return toCanopyPlant({ ...row, ...scope }, care)
       }),
+
+      findWithRoomByIds: Effect.fn('PlantRepository.findWithRoomByIds')(
+        function* (ids: readonly string[]) {
+          if (Array.isReadonlyArrayEmpty(ids)) return []
+          const now = yield* DateTime.now
+          const rows = yield* db
+            .select({
+              plant: plants,
+              room: roomSelect,
+              canopy: canopySelect,
+              creator: creatorSelect,
+              careTimezone: careTimezoneSql,
+            })
+            .from(plants)
+            .leftJoin(rooms, eq(plants.roomId, rooms.id))
+            .leftJoin(canopies, eq(plants.canopyId, canopies.id))
+            .leftJoin(users, eq(plants.createdByUserId, users.id))
+            .where(inArray(plants.id, [...ids]))
+          const schedules = schedulesFor(
+            yield* fetchSchedulesForPlants(Array.map(rows, (r) => r.plant.id))
+          )
+          return Array.flatMap(rows, ({ canopy, ...row }): PlantWithRoom[] => {
+            const care: CareInput = {
+              careTimezone: row.careTimezone,
+              schedules: schedules(row.plant.id),
+              now,
+            }
+            if (row.plant.canopyId === null) return [toOwnedPlant(row, care)]
+            return canopy ? [toCanopyPlant({ ...row, canopy }, care)] : []
+          })
+        }
+      ),
 
       update: Effect.fn('PlantRepository.update')(function* (
         id: string,
