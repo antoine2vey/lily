@@ -4,7 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/clock'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
 import { inactivityNudge } from '@lily/api/services/engagement-scheduler/scheduler'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
@@ -47,7 +47,7 @@ describe('processInactivityNudges', () => {
         lastCareDates: { 'user-1': daysAgo(10) },
         plantCounts: { 'user-1': 3 },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -70,7 +70,7 @@ describe('processInactivityNudges', () => {
         lastCareDates: { 'user-1': daysAgo(3) },
         plantCounts: { 'user-1': 5 },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -93,7 +93,7 @@ describe('processInactivityNudges', () => {
         lastCareDates: { 'user-1': daysAgo(10) },
         plantCounts: { 'user-1': 2 },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -112,7 +112,7 @@ describe('processInactivityNudges', () => {
         lastCareDates: { 'user-1': daysAgo(14) },
         plantCounts: { 'user-1': 0 },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -127,7 +127,7 @@ describe('processInactivityNudges', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -146,7 +146,7 @@ describe('processInactivityNudges', () => {
         lastCareDates: { 'user-1': null },
         plantCounts: { 'user-1': 2 },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -177,7 +177,7 @@ describe('processInactivityNudges', () => {
           'user-noplants': 0,
         },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -204,7 +204,7 @@ describe('processInactivityNudges', () => {
         lastCareDates: { 'user-1': daysAgo(10) },
         plantCounts: { 'user-1': 3 },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(

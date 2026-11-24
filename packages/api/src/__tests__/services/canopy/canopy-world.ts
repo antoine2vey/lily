@@ -10,7 +10,7 @@ import {
   type MockCanopyStore,
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createOutboxTimeline } from '@lily/api/__tests__/mocks/outbox-timeline'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -64,7 +64,7 @@ export const canopyWorld = (
             Array.map(withOwner)
           )
         )
-      return { ...repo, findByIds: findNow, findByIdsForKeyShare: findNow }
+      return { ...repo, findByIds: findNow }
     })
   ).pipe(Layer.provide(createMockPlantRepository({ plants })))
   const canopyPlants = (canopyId: string) =>
@@ -93,25 +93,26 @@ export const canopyWorld = (
           },
         ]),
   ]
-  const repositories = Layer.mergeAll(
-    createMockCanopyRepository(store),
-    createMockNotificationRepository(notifications, {
-      ...timeline.notificationOptions,
-      canopyPlants,
-      plantOwner,
-    }),
-    timeline.queue,
-    createMockCareScheduleRepository({
-      schedules,
-      plants,
-      memberships: store.members,
-    }),
-    plantRepository,
-    createMockUserRepository(users),
-    createInMemoryAbsence({ users }, { notifications, timeline }).layer,
-    createMockRateLimiterService(),
-    timeline.sql,
-    createMockCurrentUser({ id: actor.id, name: actor.name ?? actor.id })
+  const repositories = notificationMocks(notifications, {
+    ...timeline.notificationOptions,
+    canopyPlants,
+    plantOwner,
+  }).over(
+    Layer.mergeAll(
+      createMockCanopyRepository(store),
+      timeline.queue,
+      createMockCareScheduleRepository({
+        schedules,
+        plants,
+        memberships: store.members,
+      }),
+      plantRepository,
+      createMockUserRepository(users),
+      createInMemoryAbsence({ users }, { notifications, timeline }).layer,
+      createMockRateLimiterService(),
+      timeline.sql,
+      createMockCurrentUser({ id: actor.id, name: actor.name ?? actor.id })
+    )
   )
   return {
     notifications,

@@ -19,6 +19,8 @@ import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.r
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
+import { ReminderStore } from '@lily/api/contexts/reminders/store/rows'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -26,10 +28,7 @@ import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.reposit
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
-import {
-  NotificationRepository,
-  NotificationRepositoryLive,
-} from '@lily/api/repositories/notification.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import {
@@ -64,6 +63,7 @@ const BaseLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CareReadsLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   UserRepositoryLive,
   CarePlanRepositoryLive,
   CanopyRepositoryLive,
@@ -223,8 +223,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       release: Deferred.Deferred<void>
     ) =>
       Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        ReminderStore,
+        Effect.map(ReminderStore, (repo) => ({
           ...repo,
           lockReminders: (query) =>
             Deferred.succeed(reached, undefined).pipe(

@@ -1,9 +1,4 @@
-import {
-  lockReminderPlants,
-  lockRows,
-  rowsToLock,
-} from '@lily/api/kernel/locks'
-import type { Transaction } from '@lily/api/kernel/transact'
+import { rowsToLock } from '@lily/api/kernel/locks'
 import {
   transitionEach,
   transitionEachEither,
@@ -29,7 +24,6 @@ import {
 } from '@lily/shared/server'
 import {
   and,
-  asc,
   count,
   desc,
   eq,
@@ -44,8 +38,7 @@ import {
   type SQL,
   sql,
 } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
-import type * as SqlClient from 'effect/sql/SqlClient'
+import { Array, Context, Effect, Layer, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface FindNotificationsParams {
@@ -183,34 +176,6 @@ export interface INotificationRepository {
     types: ReadonlyArray<OtherTopic>
   ) => Effect.Effect<void, SqlError>
   /**
-   * Serializes the planning of each of these plants until the transaction
-   * ends. The first lock a replan takes.
-   */
-  readonly lockReminderPlants: (
-    plantIds: ReadonlyArray<string>
-  ) => Effect.Effect<void, SqlError, SqlClient.SqlClient | Transaction>
-  /** The users who hold a care reminder that is pending or queued on these plants. */
-  readonly findHoldersOfWaitingReminders: (
-    plantIds: ReadonlyArray<string>
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
-  /**
-   * The care reminders of these plants. Those not yet handed to a worker
-   * are locked in id order until the transaction ends.
-   */
-  readonly lockReminders: (
-    query: ReminderQuery
-  ) => Effect.Effect<ReadonlyArray<StoredReminder>, SqlError>
-  readonly writeReminders: (
-    writes: ReminderWrites
-  ) => Effect.Effect<void, SqlError>
-  readonly hasOverdueReminderOn: (
-    query: OverdueReminderQuery
-  ) => Effect.Effect<boolean, SqlError>
-  /** The plants on which the user holds a care reminder that is pending or queued. */
-  readonly findPlantIdsOfWaitingReminders: (
-    userId: string
-  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
-  /**
    * Deletes what the user is waiting to be told about the Canopy's plants,
    * care reminders aside: those belong to Reminders.
    */
@@ -258,24 +223,6 @@ export class NotificationRepository extends Context.Service<
   INotificationRepository
 >()('NotificationRepository') {}
 
-export interface ReminderQuery {
-  readonly plantIds: ReadonlyArray<string>
-  /** Delivered rows are read only when they are about one of these days. */
-  readonly occasionDays: ReadonlyArray<string>
-}
-
-export interface StoredReminder {
-  readonly id: string
-  readonly userId: string
-  readonly plantId: string
-  readonly type: DeferredCareType
-  readonly status: NotificationStatus
-  readonly inFlight: boolean
-  readonly retryCount: number
-  readonly scheduledAt: Date
-  readonly occasionDay: string | null
-}
-
 /**
  * `sent` counts the rows delivered in the window, by `sent_at`. `produced`
  * counts the rows recorded in it, by `created_at`, that are pending, queued or
@@ -299,31 +246,6 @@ export interface NotificationWindow {
   readonly from: Date
   /** Open-ended when absent. */
   readonly until?: Date
-}
-
-export interface OverdueReminderQuery {
-  readonly userId: string
-  /** The recipient's calendar day the reminder is about. */
-  readonly day: string
-  /** The bounds of that day, for a row written before rows recorded their day. */
-  readonly from: Date
-  readonly until: Date
-}
-
-export interface ReminderWrites {
-  readonly removeIds: ReadonlyArray<string>
-  readonly retimes: ReadonlyArray<{
-    readonly id: string
-    readonly scheduledAt: Date
-    readonly occasionDay: string
-  }>
-  readonly inserts: ReadonlyArray<{
-    readonly type: NotificationTopic
-    readonly userId: string
-    readonly plantId: string
-    readonly scheduledAt: Date
-    readonly occasionDay: string
-  }>
 }
 
 export const NotificationRepositoryLive = Layer.effect(
@@ -623,193 +545,6 @@ export const NotificationRepositoryLive = Layer.effect(
           )
         )
         yield* db.delete(notifications).where(inArray(notifications.id, locked))
-      }),
-
-      lockReminderPlants: (plantIds) =>
-        lockReminderPlants(plantIds).pipe(
-          Effect.withSpan('NotificationRepository.lockReminderPlants')
-        ),
-
-      findHoldersOfWaitingReminders: Effect.fn(
-        'NotificationRepository.findHoldersOfWaitingReminders'
-      )(function* (plantIds: ReadonlyArray<string>) {
-        if (Array.isReadonlyArrayEmpty(plantIds)) return []
-        const rows = yield* db
-          .selectDistinct({ userId: notifications.userId })
-          .from(notifications)
-          .where(
-            and(
-              inArray(notifications.plantId, [...plantIds]),
-              inArray(notifications.type, [...CARE_TOPICS]),
-              inArray(notifications.status, ['pending', 'queued'])
-            )
-          )
-        return Array.map(rows, (row) => row.userId)
-      }),
-
-      lockReminders: Effect.fn('NotificationRepository.lockReminders')(
-        function* (query: ReminderQuery) {
-          if (Array.isReadonlyArrayEmpty(query.plantIds)) return []
-          const columns = {
-            id: notifications.id,
-            userId: notifications.userId,
-            plantId: notifications.plantId,
-            type: notifications.type,
-            status: notifications.status,
-            deliveryMessageId: notifications.deliveryMessageId,
-            retryCount: notifications.retryCount,
-            scheduledAt: notifications.scheduledAt,
-            occasionDay: notifications.occasionDay,
-          }
-          const ofThePlants = and(
-            inArray(notifications.plantId, [...query.plantIds]),
-            inArray(notifications.type, [...CARE_TOPICS])
-          )
-          const waiting = and(
-            inArray(notifications.status, ['pending', 'queued']),
-            isNull(notifications.deliveryMessageId)
-          )
-          const locked = yield* lockRows(
-            'Notification',
-            'update',
-            db
-              .select(columns)
-              .from(notifications)
-              .where(and(ofThePlants, waiting))
-          )
-          const handedOver = yield* db
-            .select(columns)
-            .from(notifications)
-            .where(
-              and(
-                ofThePlants,
-                Array.isReadonlyArrayNonEmpty(locked)
-                  ? notInArray(
-                      notifications.id,
-                      Array.map(locked, (row) => row.id)
-                    )
-                  : undefined,
-                or(
-                  inArray(notifications.status, ['pending', 'queued']),
-                  Array.isReadonlyArrayNonEmpty(query.occasionDays)
-                    ? inArray(notifications.occasionDay, [
-                        ...query.occasionDays,
-                      ])
-                    : undefined
-                )
-              )
-            )
-            .orderBy(asc(notifications.id))
-          return Array.flatMap(
-            [...locked, ...handedOver],
-            ({ deliveryMessageId, plantId, status, type, ...row }) =>
-              plantId === null || !isReminderTopic(type)
-                ? []
-                : [
-                    {
-                      ...row,
-                      plantId,
-                      type,
-                      status: status as NotificationStatus,
-                      inFlight: deliveryMessageId !== null,
-                    },
-                  ]
-          )
-        }
-      ),
-
-      writeReminders: Effect.fn('NotificationRepository.writeReminders')(
-        function* (writes: ReminderWrites) {
-          if (Array.isReadonlyArrayNonEmpty(writes.removeIds)) {
-            const locked = yield* lockedInIdOrder(
-              and(
-                inArray(notifications.id, [...writes.removeIds]),
-                inArray(notifications.status, ['pending', 'queued']),
-                isNull(notifications.deliveryMessageId)
-              )
-            )
-            yield* db
-              .delete(notifications)
-              .where(inArray(notifications.id, locked))
-          }
-          if (Array.isReadonlyArrayNonEmpty(writes.retimes)) {
-            const values = sql.join(
-              Array.map(
-                writes.retimes,
-                (row) =>
-                  sql`(${row.id}::uuid, ${row.scheduledAt.toISOString()}::timestamptz, ${row.occasionDay}::date)`
-              ),
-              sql`, `
-            )
-            yield* db.execute(
-              sql`UPDATE notifications n
-                SET scheduled_at = v.scheduled_at, occasion_day = v.occasion_day
-                FROM (VALUES ${values}) AS v(id, scheduled_at, occasion_day)
-                WHERE n.id = v.id AND n.status = 'pending' AND n.retry_count = 0`
-            )
-          }
-          if (Array.isReadonlyArrayNonEmpty(writes.inserts)) {
-            const values = sql.join(
-              Array.map(
-                writes.inserts,
-                (row) =>
-                  sql`(${row.type}::notification_type, ${row.scheduledAt.toISOString()}::timestamptz, ${row.userId}::uuid, ${row.plantId}::uuid, ${row.occasionDay}::date)`
-              ),
-              sql`, `
-            )
-            yield* db.execute(
-              sql`INSERT INTO notifications (type, scheduled_at, user_id, plant_id, occasion_day, status, metadata)
-                SELECT v.type, v.scheduled_at, v.user_id, v.plant_id, v.occasion_day, 'pending'::notification_status, '{}'::jsonb
-                FROM (VALUES ${values}) AS v(type, scheduled_at, user_id, plant_id, occasion_day)
-                ON CONFLICT (user_id, plant_id, type, occasion_day) WHERE occasion_day IS NOT NULL
-                DO UPDATE SET scheduled_at = excluded.scheduled_at
-                WHERE notifications.status = 'pending' AND notifications.retry_count = 0`
-            )
-          }
-        }
-      ),
-
-      hasOverdueReminderOn: Effect.fn(
-        'NotificationRepository.hasOverdueReminderOn'
-      )(function* (query: OverdueReminderQuery) {
-        const rows = yield* db
-          .select({ id: notifications.id })
-          .from(notifications)
-          .where(
-            and(
-              eq(notifications.userId, query.userId),
-              eq(notifications.type, 'overdue_reminder'),
-              or(
-                eq(notifications.occasionDay, query.day),
-                and(
-                  isNull(notifications.occasionDay),
-                  sql`${notifications.createdAt} >= ${query.from.toISOString()}::timestamptz`,
-                  sql`${notifications.createdAt} < ${query.until.toISOString()}::timestamptz`
-                )
-              )
-            )
-          )
-          .limit(1)
-        return Array.isReadonlyArrayNonEmpty(rows)
-      }),
-
-      findPlantIdsOfWaitingReminders: Effect.fn(
-        'NotificationRepository.findPlantIdsOfWaitingReminders'
-      )(function* (userId: string) {
-        const rows = yield* db
-          .selectDistinct({ plantId: notifications.plantId })
-          .from(notifications)
-          .where(
-            and(
-              eq(notifications.userId, userId),
-              inArray(notifications.status, ['pending', 'queued']),
-              inArray(notifications.type, [...CARE_TOPICS]),
-              isNotNull(notifications.plantId)
-            )
-          )
-        return Array.flatMap(rows, ({ plantId }) =>
-          plantId === null ? [] : [plantId]
-        )
       }),
 
       deleteUndeliveredNonCareForMemberOnCanopy: Effect.fn(

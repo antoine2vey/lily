@@ -36,7 +36,11 @@ import {
   CareReadsLive,
   type PlantLife,
 } from '@lily/api/contexts/care'
-import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import {
+  Dirty,
+  ReminderStoreLive,
+  Reminders,
+} from '@lily/api/contexts/reminders'
 import { Outbox } from '@lily/api/kernel/outbox'
 import { Actor } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
@@ -83,6 +87,7 @@ const ReposLive = Layer.mergeAll(
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   StoredRefRepositoryLive,
   RefreshTokenRepositoryLive,

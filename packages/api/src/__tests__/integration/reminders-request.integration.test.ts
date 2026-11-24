@@ -4,6 +4,7 @@ import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { CareReadsLive, CareTopic } from '@lily/api/contexts/care'
 import {
   Dirty,
+  ReminderStoreLive,
   Reminders,
   redriveReminders,
   repairDrift,
@@ -44,6 +45,7 @@ const StoreLive = Layer.mergeAll(
   CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   DelegationRepositoryLive

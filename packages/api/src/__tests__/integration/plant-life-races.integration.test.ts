@@ -27,6 +27,7 @@ import {
   CareReadsLive,
   type PlantLife,
 } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -73,6 +74,7 @@ const RepositoriesLive = Layer.mergeAll(
   DeviceTokenRepositoryLive,
   DiagnosisRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   StoredRefRepositoryLive,
   RefreshTokenRepositoryLive,

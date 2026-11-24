@@ -42,6 +42,7 @@ import {
   PlanStepChoice,
   PlantLife,
 } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { Actor } from '@lily/api/kernel/permit'
 import { type Transaction, transact } from '@lily/api/kernel/transact'
@@ -91,6 +92,7 @@ const AppLive = Layer.mergeAll(
   CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue(),

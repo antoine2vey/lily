@@ -27,6 +27,7 @@ import {
 } from '@lily/api/contexts/care'
 import { CareWrite } from '@lily/api/contexts/care/domain/decide'
 import { CareStore, CareStoreLive } from '@lily/api/contexts/care/store'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -71,6 +72,7 @@ const ReposLive = Layer.mergeAll(
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   StoredRefRepositoryLive,
   RefreshTokenRepositoryLive,

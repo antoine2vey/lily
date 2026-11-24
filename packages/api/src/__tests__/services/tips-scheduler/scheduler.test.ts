@@ -2,7 +2,7 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockDailyTipRepository } from '@lily/api/__tests__/mocks/daily-tip.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import {
   type DailyTip,
@@ -57,7 +57,7 @@ const todayTip = (): DailyTip => ({
 const notifications: Notification[] = []
 
 const baseDeps = Layer.mergeAll(
-  createMockNotificationRepository(notifications),
+  notificationMocks(notifications).repository,
   createMockEngagementRepository(),
   createMockRagService()
 )
@@ -96,7 +96,7 @@ describe('checkAndGenerateTip', () => {
   it('offers the tip already published today instead of generating another', async () => {
     const recorded: Notification[] = []
     const layer = Layer.mergeAll(
-      createMockNotificationRepository(recorded),
+      notificationMocks(recorded).repository,
       createMockEngagementRepository({
         usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
       }),
@@ -138,7 +138,7 @@ describe('checkAndGenerateTip', () => {
   it('records one pending daily_tip carrying the generated tip', async () => {
     const recorded: Notification[] = []
     const layer = Layer.mergeAll(
-      createMockNotificationRepository(recorded),
+      notificationMocks(recorded).repository,
       createMockEngagementRepository({
         usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
       }),
@@ -173,7 +173,7 @@ describe('checkAndGenerateTip', () => {
       createTestNotification({ userId: 'user-1', type }),
     ]
     const layer = Layer.mergeAll(
-      createMockNotificationRepository(recorded),
+      notificationMocks(recorded).repository,
       createMockEngagementRepository({
         usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
         notifications: recorded,
@@ -205,7 +205,7 @@ describe('checkAndGenerateTip', () => {
       checkAndGenerateTip.pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockNotificationRepository(recorded),
+            notificationMocks(recorded).repository,
             createMockEngagementRepository({
               usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
               notifications: recorded,
@@ -273,7 +273,7 @@ describe('checkAndGenerateTip', () => {
           },
         })
       const mocks = Layer.mergeAll(
-        createMockNotificationRepository(recorded),
+        notificationMocks(recorded).repository,
         createMockEngagementRepository({
           usersWithTips: Array.makeBy(userCount, (n) =>
             makeUserWithSettings({ id: `user-${n}` })
@@ -340,7 +340,7 @@ describe('checkAndGenerateTip', () => {
     )
     const tips = createMockDailyTipRepository([])
     const repositories = Layer.mergeAll(
-      createMockNotificationRepository(recorded),
+      notificationMocks(recorded).repository,
       createMockEngagementRepository({
         usersWithTips: users,
         notifications: recorded,

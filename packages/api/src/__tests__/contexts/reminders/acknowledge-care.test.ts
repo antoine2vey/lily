@@ -1,7 +1,7 @@
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { acknowledgeCare } from '@lily/api/contexts/reminders/consumers'
 import type { AppEvent } from '@lily/shared/server'
@@ -17,14 +17,14 @@ const answersTo = async (sentAt: string, caredAt: string) => {
     acknowledgeCare({ plantId: 'plant-1', by: user.id }).pipe(
       Effect.provide(
         Layer.mergeAll(
-          createMockNotificationRepository([
+          notificationMocks([
             createTestNotification({
               userId: user.id,
               plantId: 'plant-1',
               status: 'sent',
               sentAt: new Date(sentAt),
             }),
-          ]),
+          ]).repository,
           createMockUserRepository([user]),
           createMockEventBus({ publishedEvents })
         )

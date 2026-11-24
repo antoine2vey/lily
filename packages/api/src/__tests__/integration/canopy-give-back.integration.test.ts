@@ -13,6 +13,7 @@ import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import type { Canopy } from '@lily/api/contexts/canopy'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -38,6 +39,7 @@ const ReposLive = Layer.mergeAll(
   CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue(),

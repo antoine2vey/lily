@@ -18,6 +18,7 @@ import { type Canopy, hashInviteToken } from '@lily/api/contexts/canopy'
 import { CanopyWrite } from '@lily/api/contexts/canopy/domain/vocabulary'
 import { CanopyStore } from '@lily/api/contexts/canopy/store'
 import { CarePlans, CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import {
   CanopyRepository,
@@ -74,6 +75,7 @@ const AppLive = Layer.mergeAll(
   CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue(),

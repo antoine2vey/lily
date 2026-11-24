@@ -11,7 +11,7 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import {
   createMockPushService,
@@ -175,14 +175,14 @@ const observe = async (
             ...(world.fail ? { failLiveActivity: world.fail } : {}),
           }),
           createMockDeviceTokenRepository(mockDeviceTokens),
-          createMockNotificationRepository([
+          notificationMocks([
             createTestNotification({
               id: 'notification-1',
               userId: 'user-1',
               plantId: 'plant-1',
               status: 'queued',
             }),
-          ]),
+          ]).repository,
           createMockDeadLetterRepository(),
           createMockCareScheduleRepository({
             plants: [...world.plants],

@@ -2,6 +2,7 @@ import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import {
   Change,
   linesOf,
@@ -51,12 +52,19 @@ const StoreLive = Layer.mergeAll(
   CareReadsLive,
   CanopyRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   DelegationRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
-const run = <A, E>(effect: Effect.Effect<A, E, StoreContext | Transaction>) =>
+const run = <A, E>(
+  effect: Effect.Effect<
+    A,
+    E,
+    StoreContext | NotificationRepository | Transaction
+  >
+) =>
   Effect.runPromise(
     effect.pipe(
       transactInMemory,

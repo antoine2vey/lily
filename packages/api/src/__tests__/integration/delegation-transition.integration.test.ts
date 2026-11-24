@@ -21,7 +21,11 @@ import {
   AbsenceStoreLive,
 } from '@lily/api/contexts/absence/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
-import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import {
+  Dirty,
+  ReminderStoreLive,
+  Reminders,
+} from '@lily/api/contexts/reminders'
 import { Outbox } from '@lily/api/kernel/outbox'
 import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -68,6 +72,7 @@ const StoreLive = AbsenceStoreLive.pipe(
     Layer.mergeAll(
       CanopyRepositoryLive,
       NotificationRepositoryLive,
+      ReminderStoreLive,
       createStubCare().layer
     )
   ),
@@ -77,6 +82,7 @@ const StoreLive = AbsenceStoreLive.pipe(
 
 const CommandsLive = Layer.mergeAll(
   NotificationRepositoryLive,
+  ReminderStoreLive,
   CanopyRepositoryLive,
   PlantRepositoryLive,
   CareScheduleRepositoryLive,
@@ -458,6 +464,7 @@ const ReminderServicesLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CareReadsLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   UserRepositoryLive,
   CanopyRepositoryLive,
   DelegationRepositoryLive

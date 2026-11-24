@@ -12,7 +12,7 @@ import {
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -40,12 +40,15 @@ const personalPlant = (ownerId: string, remindersEnabled: boolean) => ({
 
 // The plant and its schedule as the database holds them when the reminder
 // for that schedule is reconciled.
-const replanPlant = (params: {
-  plant: { id: string; owner: PlantOwner; remindersEnabled: boolean }
-  type: CareReminderType
-  scheduledDate: Date
-  careTimezone?: string
-}) => {
+const replanPlant = (
+  params: {
+    plant: { id: string; owner: PlantOwner; remindersEnabled: boolean }
+    type: CareReminderType
+    scheduledDate: Date
+    careTimezone?: string
+  },
+  notifications: ReturnType<typeof notificationMocks>
+) => {
   const plants = [
     createTestPlant({
       id: params.plant.id,
@@ -64,23 +67,27 @@ const replanPlant = (params: {
       : params.plant.owner.canopyId
   return replan(Dirty.Plants({ plantIds: [params.plant.id] })).pipe(
     Effect.provide(
-      Layer.mergeAll(
-        createMockPlantRepository({ plants }),
-        createMockCareScheduleRepository({
-          plants,
-          timezones: { [ownerId]: params.careTimezone ?? 'UTC' },
-          schedules: [
-            createTestSchedule({
-              plantId: params.plant.id,
-              careType: params.type.replace('_reminder', '') as CareType,
-              nextCareAt: params.scheduledDate,
-              dueDay: CareDays.of(
-                DateTime.makeUnsafe(params.scheduledDate),
-                params.careTimezone ?? 'UTC'
-              ),
-            }),
-          ],
-        })
+      notifications.reminderStore.pipe(
+        Layer.provideMerge(
+          Layer.mergeAll(
+            createMockPlantRepository({ plants }),
+            createMockCareScheduleRepository({
+              plants,
+              timezones: { [ownerId]: params.careTimezone ?? 'UTC' },
+              schedules: [
+                createTestSchedule({
+                  plantId: params.plant.id,
+                  careType: params.type.replace('_reminder', '') as CareType,
+                  nextCareAt: params.scheduledDate,
+                  dueDay: CareDays.of(
+                    DateTime.makeUnsafe(params.scheduledDate),
+                    params.careTimezone ?? 'UTC'
+                  ),
+                }),
+              ],
+            })
+          )
+        )
       )
     )
   )
@@ -109,13 +116,12 @@ const runAndGetPendingNotifications = (
   const rows: Notification[] = []
   return Effect.runPromise(
     Effect.gen(function* () {
-      yield* replanPlant(params)
+      yield* replanPlant(params, notificationMocks(rows))
       return pendingFor(rows, user.id)
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
           MockSqlClientLive,
-          createMockNotificationRepository(rows),
           createMockUserRepository(allUsers),
           createMockCanopyRepository(),
           createMockDelegationRepository({
@@ -337,17 +343,19 @@ describe('replanning one plant', () => {
       const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
-          yield* replanPlant({
-            plant: personalPlant(user.id, true),
-            type: 'watering_reminder',
-            scheduledDate: createFutureDate(7),
-          })
+          yield* replanPlant(
+            {
+              plant: personalPlant(user.id, true),
+              type: 'watering_reminder',
+              scheduledDate: createFutureDate(7),
+            },
+            notificationMocks(rows)
+          )
           return pendingFor(rows, user.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository(rows),
               createMockUserRepository([user]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -508,17 +516,19 @@ describe('replanning one plant', () => {
       const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
-          yield* replanPlant({
-            plant: personalPlant(owner.id, true),
-            type: 'watering_reminder',
-            scheduledDate: createFutureDate(7),
-          })
+          yield* replanPlant(
+            {
+              plant: personalPlant(owner.id, true),
+              type: 'watering_reminder',
+              scheduledDate: createFutureDate(7),
+            },
+            notificationMocks(rows)
+          )
           return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -599,17 +609,19 @@ describe('replanning one plant', () => {
       const rows: Notification[] = []
       const ownerPending = await Effect.runPromise(
         Effect.gen(function* () {
-          yield* replanPlant({
-            plant: personalPlant(owner.id, true),
-            type: 'watering_reminder',
-            scheduledDate: createFutureDate(7),
-          })
+          yield* replanPlant(
+            {
+              plant: personalPlant(owner.id, true),
+              type: 'watering_reminder',
+              scheduledDate: createFutureDate(7),
+            },
+            notificationMocks(rows)
+          )
           return pendingFor(rows, owner.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -651,17 +663,19 @@ describe('replanning one plant', () => {
       const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
-          yield* replanPlant({
-            plant: personalPlant(owner.id, true),
-            type: 'watering_reminder',
-            scheduledDate: createFutureDate(7),
-          })
+          yield* replanPlant(
+            {
+              plant: personalPlant(owner.id, true),
+              type: 'watering_reminder',
+              scheduledDate: createFutureDate(7),
+            },
+            notificationMocks(rows)
+          )
           return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -700,17 +714,19 @@ describe('replanning one plant', () => {
       const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
-          yield* replanPlant({
-            plant: personalPlant(owner.id, true),
-            type: 'watering_reminder',
-            scheduledDate: createFutureDate(7),
-          })
+          yield* replanPlant(
+            {
+              plant: personalPlant(owner.id, true),
+              type: 'watering_reminder',
+              scheduledDate: createFutureDate(7),
+            },
+            notificationMocks(rows)
+          )
           return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -833,17 +849,19 @@ describe('replanning one plant', () => {
       const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
-          yield* replanPlant({
-            plant: personalPlant(owner.id, true),
-            type: 'watering_reminder',
-            scheduledDate: createFutureDate(7),
-          })
+          yield* replanPlant(
+            {
+              plant: personalPlant(owner.id, true),
+              type: 'watering_reminder',
+              scheduledDate: createFutureDate(7),
+            },
+            notificationMocks(rows)
+          )
           return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -877,17 +895,19 @@ describe('replanning one plant', () => {
       const rows: Notification[] = []
       const pending = await Effect.runPromise(
         Effect.gen(function* () {
-          yield* replanPlant({
-            plant: personalPlant(owner.id, true),
-            type: 'watering_reminder',
-            scheduledDate: createFutureDate(7),
-          })
+          yield* replanPlant(
+            {
+              plant: personalPlant(owner.id, true),
+              type: 'watering_reminder',
+              scheduledDate: createFutureDate(7),
+            },
+            notificationMocks(rows)
+          )
           return pendingFor(rows, caretaker.id)
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository(rows),
               createMockUserRepository([owner, caretaker]),
               createMockCanopyRepository(),
               createMockDelegationRepository({
@@ -943,18 +963,20 @@ describe('replanning one plant', () => {
     ) => {
       const rows: Notification[] = options.existing ?? []
       return Effect.runPromise(
-        replanPlant({
-          plant: canopyPlant,
-          type: 'watering_reminder',
-          scheduledDate: options.scheduledDate ?? createFutureDate(7),
-          careTimezone: options.canopyTimezone ?? 'UTC',
-        }).pipe(
+        replanPlant(
+          {
+            plant: canopyPlant,
+            type: 'watering_reminder',
+            scheduledDate: options.scheduledDate ?? createFutureDate(7),
+            careTimezone: options.canopyTimezone ?? 'UTC',
+          },
+          notificationMocks(rows, {
+            occasionDays: options.occasionDays ?? {},
+          })
+        ).pipe(
           Effect.provide(
             Layer.mergeAll(
               MockSqlClientLive,
-              createMockNotificationRepository(rows, {
-                occasionDays: options.occasionDays ?? {},
-              }),
               createMockUserRepository(users),
               createMockCanopyRepository(
                 createCanopyStore({

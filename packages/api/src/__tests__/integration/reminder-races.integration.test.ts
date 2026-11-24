@@ -36,7 +36,8 @@ import {
   CareReadsLive,
   type DueQuery,
 } from '@lily/api/contexts/care'
-import { replanPlants } from '@lily/api/contexts/reminders'
+import { ReminderStoreLive, replanPlants } from '@lily/api/contexts/reminders'
+import { ReminderStore } from '@lily/api/contexts/reminders/store/rows'
 import { Actor } from '@lily/api/kernel/permit'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
@@ -48,10 +49,7 @@ import {
 } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
-import {
-  NotificationRepository,
-  NotificationRepositoryLive,
-} from '@lily/api/repositories/notification.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
@@ -108,6 +106,7 @@ const BaseLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CareReadsLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   UserRepositoryLive,
   CarePlanRepositoryLive,
   CanopyRepositoryLive,
@@ -662,8 +661,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const reached = Deferred.makeUnsafe<void>()
       const release = Deferred.makeUnsafe<void>()
       const PausedBeforeReplace = Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        ReminderStore,
+        Effect.map(ReminderStore, (repo) => ({
           ...repo,
           writeReminders: (writes) =>
             Deferred.succeed(reached, undefined).pipe(
@@ -741,8 +740,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const overdueLandsAfterKeys = (userId: string, plantId: string) =>
       Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        ReminderStore,
+        Effect.map(ReminderStore, (repo) => ({
           ...repo,
           lockReminders: (query) =>
             Effect.promise(() =>
@@ -768,16 +767,16 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       release: Deferred.Deferred<void>
     ) =>
       Layer.effect(
-        UserRepository,
-        Effect.map(UserRepository, (repo) => ({
+        ReminderStore,
+        Effect.map(ReminderStore, (repo) => ({
           ...repo,
-          findByIdsForKeyShare: (ids) =>
+          findAccountsForKeyShare: (ids) =>
             Arr.contains(ids, userId)
               ? Deferred.succeed(reached, undefined).pipe(
                   Effect.andThen(Deferred.await(release)),
-                  Effect.andThen(repo.findByIdsForKeyShare(ids))
+                  Effect.andThen(repo.findAccountsForKeyShare(ids))
                 )
-              : repo.findByIdsForKeyShare(ids),
+              : repo.findAccountsForKeyShare(ids),
         }))
       )
 
@@ -810,8 +809,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const reached = Deferred.makeUnsafe<void>()
         const release = Deferred.makeUnsafe<void>()
         const PausedAfterFirstReplace = Layer.effect(
-          NotificationRepository,
-          Effect.map(NotificationRepository, (repo) => ({
+          ReminderStore,
+          Effect.map(ReminderStore, (repo) => ({
             ...repo,
             writeReminders: (writes) =>
               repo
@@ -1031,8 +1030,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const reached = Deferred.makeUnsafe<void>()
         const release = Deferred.makeUnsafe<void>()
         const PausedBeforeKeys = Layer.effect(
-          NotificationRepository,
-          Effect.map(NotificationRepository, (repo) => ({
+          ReminderStore,
+          Effect.map(ReminderStore, (repo) => ({
             ...repo,
             lockReminderPlants: (plantIds) =>
               Deferred.succeed(reached, undefined).pipe(
@@ -1079,8 +1078,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const reached = Deferred.makeUnsafe<void>()
         const release = Deferred.makeUnsafe<void>()
         const PausedBeforeKeys = Layer.effect(
-          NotificationRepository,
-          Effect.map(NotificationRepository, (repo) => ({
+          ReminderStore,
+          Effect.map(ReminderStore, (repo) => ({
             ...repo,
             lockReminderPlants: (plantIds) =>
               Deferred.succeed(reached, undefined).pipe(
@@ -1293,8 +1292,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       release: Deferred.Deferred<void>
     ) =>
       Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        ReminderStore,
+        Effect.map(ReminderStore, (repo) => ({
           ...repo,
           lockReminderPlants: (plantIds) =>
             repo
@@ -1343,8 +1342,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       release: Deferred.Deferred<void>
     ) =>
       Layer.effect(
-        NotificationRepository,
-        Effect.map(NotificationRepository, (repo) => ({
+        ReminderStore,
+        Effect.map(ReminderStore, (repo) => ({
           ...repo,
           lockReminders: (
             ...args: Parameters<typeof repo.lockReminders>
@@ -1882,8 +1881,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             }))
           ),
           Layer.effect(
-            NotificationRepository,
-            Effect.map(NotificationRepository, (repo) => ({
+            ReminderStore,
+            Effect.map(ReminderStore, (repo) => ({
               ...repo,
               hasOverdueReminderOn: (
                 query: Parameters<typeof repo.hasOverdueReminderOn>[0]

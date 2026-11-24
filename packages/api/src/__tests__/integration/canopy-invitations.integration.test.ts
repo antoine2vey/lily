@@ -17,6 +17,7 @@ import { Canopy, JoinVia } from '@lily/api/contexts/canopy'
 import { CanopyWrite } from '@lily/api/contexts/canopy/domain/vocabulary'
 import { CanopyStore } from '@lily/api/contexts/canopy/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { RowsNotWrittenDefect } from '@lily/api/kernel/written'
 import {
@@ -47,6 +48,7 @@ const AppLive = Layer.mergeAll(
   CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue(),

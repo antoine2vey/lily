@@ -11,7 +11,11 @@ import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.r
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { CareReadsLive } from '@lily/api/contexts/care'
-import { Dirty, Reminders } from '@lily/api/contexts/reminders'
+import {
+  Dirty,
+  ReminderStoreLive,
+  Reminders,
+} from '@lily/api/contexts/reminders'
 import { transact } from '@lily/api/kernel/transact'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -47,6 +51,7 @@ const AppLive = CareOnPostgresLive.pipe(
         CareScheduleRepositoryLive,
         CareReadsLive,
         NotificationRepositoryLive,
+        ReminderStoreLive,
         UserRepositoryLive,
         CanopyRepositoryLive,
         RoomRepositoryLive

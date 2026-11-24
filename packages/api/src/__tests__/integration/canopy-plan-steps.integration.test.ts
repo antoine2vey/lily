@@ -7,6 +7,7 @@ import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.r
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
@@ -35,6 +36,7 @@ const RepositoriesLive = Layer.mergeAll(
   CareReadsLive,
   DelegationRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   UserRepositoryLive,
   createMockMessageQueue()

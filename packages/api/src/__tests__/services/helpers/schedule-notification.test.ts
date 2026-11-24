@@ -1,5 +1,5 @@
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   dispatchNow,
@@ -22,7 +22,7 @@ const recordAndDispatch = (
     }).pipe(
       Effect.flatMap(dispatchNow),
       Effect.provide(
-        Layer.mergeAll(createMockNotificationRepository(notifications), queue)
+        Layer.mergeAll(notificationMocks(notifications).repository, queue)
       ),
       Effect.provideService(References.MinimumLogLevel, 'None')
     )
@@ -39,7 +39,7 @@ describe('recordNotification', () => {
         { senderName: 'Ada' },
         'en',
         { senderId: 'ada' }
-      ).pipe(Effect.provide(createMockNotificationRepository(notifications)))
+      ).pipe(Effect.provide(notificationMocks(notifications).repository))
     )
 
     expect(notifications).toEqual([
@@ -67,7 +67,7 @@ describe('recordNotification', () => {
       ).pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockNotificationRepository([]),
+            notificationMocks([]).repository,
             createMockMessageQueue({
               onEnqueue: (_, message) => enqueued.push(message),
             })
@@ -93,7 +93,7 @@ describe('recordNotificationAt', () => {
         'en',
         {},
         { scheduledAt: at, plantId: 'plant-1' }
-      ).pipe(Effect.provide(createMockNotificationRepository(notifications)))
+      ).pipe(Effect.provide(notificationMocks(notifications).repository))
     )
 
     expect(
@@ -164,7 +164,7 @@ describe('dispatchNow', () => {
             })
           ),
       }))
-    ).pipe(Layer.provide(createMockNotificationRepository(notifications)))
+    ).pipe(Layer.provide(notificationMocks(notifications).repository))
 
     await Effect.runPromise(
       recordNotification(

@@ -1,66 +1,25 @@
 import {
+  deleteWhere,
+  type MockNotificationsOptions,
+  type MutableNotification,
+  type NotificationTable,
+  untested,
+  waiting,
+} from '@lily/api/__tests__/mocks/notification-table'
+import {
   type FindNotificationsParams,
   type INotificationRepository,
-  isReminderTopic,
   NotificationRepository,
-  type NotificationRow,
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
-import type { Notification } from '@lily/shared/notification'
 import { CARE_TOPICS } from '@lily/shared/server'
-import {
-  Array,
-  Effect,
-  Equal,
-  Layer,
-  Option,
-  pipe,
-  Record,
-  Result,
-} from 'effect'
-
-type MutableNotification = {
-  -readonly [K in keyof NotificationRow]: NotificationRow[K]
-}
-
-export interface MockNotificationRepositoryOptions {
-  queuedAt?: Record<string, Date>
-  deliveryClaims?: Record<string, string>
-  /** The occasion day of a seeded row, by notification id. */
-  occasionDays?: Record<string, string>
-  /** The ids of a Canopy's plants at call time, like the real subquery. */
-  canopyPlants?: (canopyId: string) => ReadonlyArray<string>
-  /** The user who owns a plant at call time, null for a Canopy plant. */
-  plantOwner?: (plantId: string) => string | null
-  onCreate?: (notification: Notification) => void
-  onRetryLater?: (ids: ReadonlyArray<string>) => void
-}
-
-// No unit test reaches these, so the mock does not copy their SQL. The
-// integration suites run them against Postgres.
-const UNTESTED = (what: string) =>
-  `the notification mock does not implement ${what}; test it in an integration suite`
-
-const untested = (method: string) => () =>
-  Effect.die(new Error(UNTESTED(method)))
+import { Array, Effect, Equal, Layer, Option, pipe, Result } from 'effect'
 
 export const createMockNotificationRepository = (
-  notifications: Notification[],
-  options: MockNotificationRepositoryOptions = {}
+  table: NotificationTable,
+  options: MockNotificationsOptions = {}
 ): Layer.Layer<NotificationRepository> => {
-  // Use the passed array directly so callers can observe mutations
-  const notificationsState = notifications as MutableNotification[]
-  const queuedAt = new Map(Record.toEntries(options.queuedAt ?? {}))
-  const deliveryClaims = new Map(Record.toEntries(options.deliveryClaims ?? {}))
-  const occasionDays = new Map(Record.toEntries(options.occasionDays ?? {}))
-
-  const waiting = (n: MutableNotification) =>
-    n.status === 'pending' || n.status === 'queued'
-  const deleteWhere = (covers: (n: MutableNotification) => boolean) => {
-    const toKeep = Array.filter(notificationsState, (n) => !covers(n))
-    notificationsState.length = 0
-    notificationsState.push(...toKeep)
-  }
+  const { rows: notificationsState, queuedAt, deliveryClaims } = table
 
   const repo: INotificationRepository = {
     findByUserId: (params: FindNotificationsParams) => {
@@ -296,123 +255,6 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
-    lockReminderPlants: () => Effect.void,
-
-    findHoldersOfWaitingReminders: (plantIds) =>
-      Effect.sync(() =>
-        pipe(
-          notificationsState,
-          Array.filter(
-            (n) =>
-              waiting(n) &&
-              n.plantId !== undefined &&
-              Array.contains(plantIds, n.plantId) &&
-              Array.contains(CARE_TOPICS, n.type)
-          ),
-          Array.map((n) => n.userId),
-          Array.dedupe
-        )
-      ),
-
-    lockReminders: (query) =>
-      Effect.sync(() =>
-        Array.flatMap(notificationsState, (n) => {
-          const occasionDay = occasionDays.get(n.id) ?? null
-          const read =
-            waiting(n) ||
-            (occasionDay !== null &&
-              Array.contains(query.occasionDays, occasionDay))
-          return n.plantId !== undefined &&
-            Array.contains(query.plantIds, n.plantId) &&
-            isReminderTopic(n.type) &&
-            read
-            ? [
-                {
-                  id: n.id,
-                  userId: n.userId,
-                  plantId: n.plantId,
-                  type: n.type,
-                  status: n.status,
-                  inFlight: deliveryClaims.has(n.id),
-                  retryCount: n.retryCount,
-                  scheduledAt: n.scheduledAt,
-                  occasionDay,
-                },
-              ]
-            : []
-        })
-      ),
-
-    writeReminders: (writes) =>
-      Effect.sync(() => {
-        const toKeep = Array.filter(
-          notificationsState,
-          (n) =>
-            !(
-              Array.contains(writes.removeIds, n.id) &&
-              (n.status === 'pending' || n.status === 'queued') &&
-              !deliveryClaims.has(n.id)
-            )
-        )
-        notificationsState.length = 0
-        notificationsState.push(...toKeep)
-        if (Array.isReadonlyArrayNonEmpty(writes.retimes)) {
-          throw new Error(UNTESTED('a retime'))
-        }
-        Array.forEach(writes.inserts, (insert) => {
-          const standing = notificationsState.some(
-            (n) =>
-              n.userId === insert.userId &&
-              n.plantId === insert.plantId &&
-              n.type === insert.type &&
-              occasionDays.get(n.id) === insert.occasionDay
-          )
-          if (standing) throw new Error(UNTESTED('an insert on a standing row'))
-          const id = `notification-${crypto.randomUUID()}`
-          occasionDays.set(id, insert.occasionDay)
-          notificationsState.push({
-            id,
-            type: insert.type,
-            scheduledAt: insert.scheduledAt,
-            isRead: false,
-            status: 'pending',
-            retryCount: 0,
-            userId: insert.userId,
-            plantId: insert.plantId,
-            createdAt: new Date(),
-          })
-        })
-      }),
-
-    hasOverdueReminderOn: (query) =>
-      Effect.sync(() =>
-        Array.some(notificationsState, (n) => {
-          const occasionDay = occasionDays.get(n.id) ?? null
-          return (
-            n.userId === query.userId &&
-            n.type === 'overdue_reminder' &&
-            (occasionDay === null
-              ? n.createdAt >= query.from && n.createdAt < query.until
-              : occasionDay === query.day)
-          )
-        })
-      ),
-
-    findPlantIdsOfWaitingReminders: (userId: string) =>
-      Effect.sync(() =>
-        pipe(
-          notificationsState,
-          Array.filter(
-            (n) =>
-              n.userId === userId &&
-              waiting(n) &&
-              Array.contains(CARE_TOPICS, n.type)
-          ),
-          Array.flatMap((n) => (n.plantId === undefined ? [] : [n.plantId])),
-          Array.dedupe
-        )
-      ),
-
     deleteUndeliveredNonCareForMemberOnCanopy: (
       userId: string,
       canopyId: string
@@ -420,6 +262,7 @@ export const createMockNotificationRepository = (
       Effect.sync(() => {
         const plantIds = options.canopyPlants?.(canopyId) ?? []
         deleteWhere(
+          table,
           (n) =>
             n.userId === userId &&
             waiting(n) &&
@@ -432,6 +275,7 @@ export const createMockNotificationRepository = (
     deleteUndeliveredNonCareOfNonOwners: (plantIds: ReadonlyArray<string>) =>
       Effect.sync(() => {
         deleteWhere(
+          table,
           (n) =>
             n.plantId !== undefined &&
             Array.contains(plantIds, n.plantId) &&

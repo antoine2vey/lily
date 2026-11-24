@@ -31,7 +31,7 @@ import {
   frequencyOfDays,
   type PlantLife,
 } from '@lily/api/contexts/care'
-import { replanPlants } from '@lily/api/contexts/reminders'
+import { ReminderStoreLive, replanPlants } from '@lily/api/contexts/reminders'
 import type { Outbox } from '@lily/api/kernel/outbox'
 import { Actor } from '@lily/api/kernel/permit'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
@@ -94,6 +94,7 @@ const ReposLive = Layer.mergeAll(
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   PlantRepositoryLive,
   StoredRefRepositoryLive,
   RefreshTokenRepositoryLive,

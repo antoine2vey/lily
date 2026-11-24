@@ -5,7 +5,7 @@ import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
@@ -36,7 +36,7 @@ const mockAdminLayer = Layer.mergeAll(
   createMockCanopyRepository(),
   createMockCareScheduleRepository(),
   createInMemoryAbsence().layer,
-  createMockNotificationRepository([]),
+  notificationMocks([]).repository,
   createMockMessageQueue(),
   createMockPlantRepository({ plants: [] }),
   MockSqlClientLive,

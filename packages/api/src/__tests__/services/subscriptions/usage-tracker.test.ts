@@ -1,7 +1,7 @@
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
@@ -131,7 +131,7 @@ describe('UsageTracker', () => {
             createMockSubscriptionRepository({
               usage: usageAt({ userId: mockUser1.id, plantIdentifiesCount: 2 }),
             }),
-            createMockNotificationRepository(notifications),
+            notificationMocks(notifications).repository,
             createMockUserRepository([mockUser1])
           )
         )
@@ -182,7 +182,7 @@ describe('UsageTracker', () => {
           }
           return observed
         })
-      ).pipe(Layer.provide(createMockNotificationRepository(notifications)))
+      ).pipe(Layer.provide(notificationMocks(notifications).repository))
       const layer = UsageTrackerLive.pipe(
         Layer.provide(
           Layer.mergeAll(

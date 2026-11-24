@@ -20,6 +20,7 @@ export {
 } from './overdue'
 export { type ReplanContext, replan, replanPlants } from './replan'
 export { Dirty, RECIPIENT_SETTINGS } from './store'
+export { ReminderStoreLive } from './store/rows'
 
 /**
  * What other contexts and delivery may ask of Reminders: `request` a replan

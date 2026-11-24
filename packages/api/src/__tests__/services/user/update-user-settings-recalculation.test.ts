@@ -18,7 +18,7 @@ import {
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
@@ -87,23 +87,24 @@ const update = (
       Effect.provide(
         DeliveringOutboxLive.pipe(
           Layer.provideMerge(
-            Layer.mergeAll(
-              createMockDelegationRepository(),
-              MockSqlClientLive,
-              scenario.canopy ?? createMockCanopyRepository(),
-              createMockRateLimiterService(),
-              createMockUserRepository([scenario.user ?? testUser]),
-              createMockCurrentUser({ id: 'user-1' }),
-              createMockNotificationRepository(scenario.notifications),
-              createMockPlantRepository({ plants }),
-              createMockCareLogRepository([]),
-              createMockCareScheduleRepository({
-                schedules: schedulesFromPlants(plants),
-                plants,
-                ...(scenario.careTimezones
-                  ? { timezones: scenario.careTimezones }
-                  : {}),
-              })
+            notificationMocks(scenario.notifications).over(
+              Layer.mergeAll(
+                createMockDelegationRepository(),
+                MockSqlClientLive,
+                scenario.canopy ?? createMockCanopyRepository(),
+                createMockRateLimiterService(),
+                createMockUserRepository([scenario.user ?? testUser]),
+                createMockCurrentUser({ id: 'user-1' }),
+                createMockPlantRepository({ plants }),
+                createMockCareLogRepository([]),
+                createMockCareScheduleRepository({
+                  schedules: schedulesFromPlants(plants),
+                  plants,
+                  ...(scenario.careTimezones
+                    ? { timezones: scenario.careTimezones }
+                    : {}),
+                })
+              )
             )
           )
         )

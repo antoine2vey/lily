@@ -10,18 +10,17 @@ import {
   type Recipient,
   type ReminderRow,
 } from '@lily/api/contexts/reminders/domain/plan'
+import {
+  ReminderStore,
+  type StoredReminder,
+} from '@lily/api/contexts/reminders/store/rows'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
-  NotificationRepository,
-  type StoredReminder,
-} from '@lily/api/repositories/notification.repository'
-import {
   PlantRepository,
   type PlantRow,
 } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
 import {
   adjustForDoNotDisturb,
   decodeDndBounds,
@@ -48,8 +47,7 @@ import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type StoreContext =
-  | NotificationRepository
-  | UserRepository
+  | ReminderStore
   | DelegationRepository
   | CanopyRepository
   | PlantRepository
@@ -102,7 +100,7 @@ export const plantsOf = (
 ): Effect.Effect<
   ReadonlyArray<string>,
   SqlError,
-  PlantRepository | CanopyRepository | NotificationRepository
+  PlantRepository | CanopyRepository | ReminderStore
 > =>
   Dirty.$match(dirty, {
     Plants: ({ plantIds }) => Effect.succeed(Array.dedupe(plantIds)),
@@ -114,15 +112,14 @@ export const plantsOf = (
       Effect.gen(function* () {
         const plantRepo = yield* PlantRepository
         const canopyRepo = yield* CanopyRepository
-        const notificationRepo = yield* NotificationRepository
+        const store = yield* ReminderStore
         const personal = yield* plantRepo.findPersonalReminderPlantIds(userId)
         const membership = yield* canopyRepo.findMembershipByUser(userId)
         const shared =
           membership === null
             ? []
             : yield* canopyRepo.findPlantIdsOfCanopy(membership.canopyId)
-        const stillHeld =
-          yield* notificationRepo.findPlantIdsOfWaitingReminders(userId)
+        const stillHeld = yield* store.findPlantIdsOfWaitingReminders(userId)
         return Array.dedupe([...personal, ...shared, ...stillHeld])
       }),
   })
@@ -218,23 +215,22 @@ const loadWithAccounts = (
   Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
     const careReads = yield* CareReads
-    const userRepo = yield* UserRepository
-    const notificationRepo = yield* NotificationRepository
+    const store = yield* ReminderStore
 
-    yield* notificationRepo.lockReminderPlants(plantIds)
+    yield* store.lockReminderPlants(plantIds)
     const seen = yield* plantRepo.findByIds(plantIds)
     const addressed = yield* audiencesOf(seen)
-    const holders = yield* notificationRepo.findHoldersOfWaitingReminders(
+    const holders = yield* store.findHoldersOfWaitingReminders(
       Array.map(seen, (plant) => plant.id)
     )
-    const accounts = yield* userRepo.findByIdsForKeyShare(
+    const accounts = yield* store.findAccountsForKeyShare(
       Array.dedupe([
         ...Array.flatMap(addressed, ([, audience]) => audience),
         ...holders,
         ...alsoAccounts,
       ])
     )
-    const remaining = yield* plantRepo.findByIdsForKeyShare(
+    const remaining = yield* store.findPlantsForKeyShare(
       Array.map(seen, (plant) => plant.id)
     )
     const audiences = Array.filter(addressed, ([plant]) =>
@@ -260,7 +256,7 @@ const loadWithAccounts = (
         )
       )
     )
-    const stored = yield* notificationRepo.lockReminders({
+    const stored = yield* store.lockReminders({
       plantIds: ids,
       occasionDays: Array.dedupe(Array.map(cares, (care) => care.dueDay)),
     })
@@ -319,7 +315,7 @@ export const loadDigest = (
   StoreContext | Transaction
 > =>
   Effect.gen(function* () {
-    const notificationRepo = yield* NotificationRepository
+    const store = yield* ReminderStore
     const { loaded, accounts } = yield* loadWithAccounts(plantIds, [
       recipientId,
     ])
@@ -335,7 +331,7 @@ export const loadDigest = (
       Effect.map(DateTime.makeUnsafe),
       Effect.option
     )
-    const alreadyReminded = yield* notificationRepo.hasOverdueReminderOn({
+    const alreadyReminded = yield* store.hasOverdueReminderOn({
       userId: user.id,
       day,
       from: DateTime.toDateUtc(CareDays.startOf(day, timezone)),
@@ -358,14 +354,14 @@ export const apply = (
 ): Effect.Effect<
   void,
   SqlError,
-  NotificationRepository | SqlClient.SqlClient | Transaction
+  ReminderStore | SqlClient.SqlClient | Transaction
 > =>
   Effect.gen(function* () {
     if (Array.isReadonlyArrayEmpty(changes)) return
     const sql = yield* SqlClient.SqlClient
-    const notificationRepo = yield* NotificationRepository
+    const store = yield* ReminderStore
     yield* sql.withTransaction(
-      notificationRepo.writeReminders({
+      store.writeReminders({
         removeIds: pipe(
           changes,
           Array.filter(Change.$is('Remove')),

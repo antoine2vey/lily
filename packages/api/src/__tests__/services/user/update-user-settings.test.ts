@@ -6,7 +6,7 @@ import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.rep
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
@@ -24,20 +24,21 @@ describe('updateUserSettings', () => {
   const createTestLayer = (userId: string) =>
     DeliveringOutboxLive.pipe(
       Layer.provideMerge(
-        Layer.mergeAll(
-          createMockDelegationRepository(),
-          MockSqlClientLive,
-          createMockCanopyRepository(),
-          createMockRateLimiterService(),
-          createMockUserRepository([...mockUsers]),
-          createMockCurrentUser({ id: userId }),
-          createMockNotificationRepository([]),
-          createMockPlantRepository({ plants: mockPlants }),
-          createMockCareLogRepository([]),
-          createMockCareScheduleRepository({
-            schedules: schedulesFromPlants(mockPlants),
-            plants: mockPlants,
-          })
+        notificationMocks([]).over(
+          Layer.mergeAll(
+            createMockDelegationRepository(),
+            MockSqlClientLive,
+            createMockCanopyRepository(),
+            createMockRateLimiterService(),
+            createMockUserRepository([...mockUsers]),
+            createMockCurrentUser({ id: userId }),
+            createMockPlantRepository({ plants: mockPlants }),
+            createMockCareLogRepository([]),
+            createMockCareScheduleRepository({
+              schedules: schedulesFromPlants(mockPlants),
+              plants: mockPlants,
+            })
+          )
         )
       )
     )
@@ -173,22 +174,23 @@ describe('updateUserSettings', () => {
     ]
     const layer = DeliveringOutboxLive.pipe(
       Layer.provideMerge(
-        Layer.mergeAll(
-          createMockDelegationRepository(),
-          MockSqlClientLive,
-          createMockCanopyRepository(),
-          createMockRateLimiterService(),
-          createMockUserRepository([...mockUsers]),
-          createMockCurrentUser({ id: 'user-1' }),
-          createMockNotificationRepository(notifications, {
-            deliveryClaims: { 'in-flight': 'message-1' },
-          }),
-          createMockPlantRepository({ plants: mockPlants }),
-          createMockCareLogRepository([]),
-          createMockCareScheduleRepository({
-            schedules: schedulesFromPlants(mockPlants),
-            plants: mockPlants,
-          })
+        notificationMocks(notifications, {
+          deliveryClaims: { 'in-flight': 'message-1' },
+        }).over(
+          Layer.mergeAll(
+            createMockDelegationRepository(),
+            MockSqlClientLive,
+            createMockCanopyRepository(),
+            createMockRateLimiterService(),
+            createMockUserRepository([...mockUsers]),
+            createMockCurrentUser({ id: 'user-1' }),
+            createMockPlantRepository({ plants: mockPlants }),
+            createMockCareLogRepository([]),
+            createMockCareScheduleRepository({
+              schedules: schedulesFromPlants(mockPlants),
+              plants: mockPlants,
+            })
+          )
         )
       )
     )

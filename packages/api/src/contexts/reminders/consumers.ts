@@ -23,7 +23,11 @@ import {
 } from '@lily/shared'
 import { type Context, Effect, Option } from 'effect'
 
-export type RemindersConsumerContext = ReplanContext | EventBus
+export type RemindersConsumerContext =
+  | ReplanContext
+  | EventBus
+  | NotificationRepository
+  | UserRepository
 
 export const CARE_CONSUMER = 'reminders'
 export const CANOPY_CONSUMER = 'reminders-canopy'

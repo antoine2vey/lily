@@ -2,7 +2,7 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import { weeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
@@ -70,7 +70,7 @@ describe('processWeeklyRecap', () => {
         careLogsForWeek: { 'user-1': 8 },
         healthyPlantCounts: { 'user-1': 5 },
       }),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockAchievementRepository({
         achievements: [],
         careStreak: 4,
@@ -102,7 +102,7 @@ describe('processWeeklyRecap', () => {
         careLogsForWeek: { 'user-1': 5 },
         healthyPlantCounts: { 'user-1': 3 },
       }),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockAchievementRepository({
         achievements: [],
         careStreak: 7,
@@ -128,7 +128,7 @@ describe('processWeeklyRecap', () => {
         careLogsForWeek: { 'user-1': 0 },
         healthyPlantCounts: { 'user-1': 3 },
       }),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockAchievementRepository({
         achievements: [],
         careStreak: 0,
@@ -158,7 +158,7 @@ describe('processWeeklyRecap', () => {
         careLogsForWeek: { 'user-1': 5 },
         healthyPlantCounts: { 'user-1': 3 },
       }),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockAchievementRepository({
         achievements: [],
         careStreak: 7,
@@ -177,7 +177,7 @@ describe('processWeeklyRecap', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockAchievementRepository({ achievements: [] })
     )
 
@@ -204,7 +204,7 @@ describe('processWeeklyRecap', () => {
         careLogsForWeek: { 'user-1': 5 },
         healthyPlantCounts: { 'user-1': 3 },
       }),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).repository,
       createMockAchievementRepository({
         achievements: [],
         careStreak: 7,

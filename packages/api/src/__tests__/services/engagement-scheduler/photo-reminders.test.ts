@@ -4,7 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/clock'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type {
   PlantWithoutRecentPhoto,
   UserWithSettings,
@@ -69,7 +69,7 @@ describe('processPhotoReminders', () => {
           ],
         },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -92,7 +92,7 @@ describe('processPhotoReminders', () => {
       createMockEngagementRepository({
         plantsWithoutRecentPhoto: { 'user-1': [] },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -122,7 +122,7 @@ describe('processPhotoReminders', () => {
           ],
         },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -155,7 +155,7 @@ describe('processPhotoReminders', () => {
           ],
         },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -173,7 +173,7 @@ describe('processPhotoReminders', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository(),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -207,7 +207,7 @@ describe('processPhotoReminders', () => {
           ],
         },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(
@@ -237,7 +237,7 @@ describe('processPhotoReminders', () => {
           ],
         },
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(

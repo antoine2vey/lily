@@ -2,6 +2,7 @@ import { BunServices } from '@effect/platform-bun'
 import { AbsenceLive } from '@lily/api/contexts/absence'
 import { CanopyLive } from '@lily/api/contexts/canopy'
 import { CareLive, CareReadsLive } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AppOutboxLive } from '@lily/api/layers/outbox'
 import { AccountPhotoRepositoryLive } from '@lily/api/repositories/account-photo.repository'
@@ -237,7 +238,8 @@ const AllInfrastructureLive = Layer.mergeAll(
 const ContextsLive = CanopyLive.pipe(
   Layer.provideMerge(AbsenceLive),
   Layer.provideMerge(CareLive),
-  Layer.provideMerge(AppOutboxLive)
+  Layer.provideMerge(AppOutboxLive),
+  Layer.provideMerge(ReminderStoreLive)
 )
 
 export const AppLive = ContextsLive.pipe(

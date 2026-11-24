@@ -19,6 +19,7 @@ import {
   PlanStepChoice,
   type RecordOutcome,
 } from '@lily/api/contexts/care'
+import { ReminderStoreLive } from '@lily/api/contexts/reminders'
 import { Actor } from '@lily/api/kernel/permit'
 import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -52,6 +53,7 @@ const RepositoriesLive = Layer.mergeAll(
   CareScheduleRepositoryLive,
   CareReadsLive,
   NotificationRepositoryLive,
+  ReminderStoreLive,
   UserRepositoryLive,
   CanopyRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))

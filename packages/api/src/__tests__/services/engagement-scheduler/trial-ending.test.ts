@@ -6,7 +6,7 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { TrialingUser } from '@lily/api/repositories/engagement.repository'
 import { checkAndCreateEngagementNotifications } from '@lily/api/services/engagement-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
@@ -53,7 +53,7 @@ describe('trial ending', () => {
       createMockEngagementRepository({
         trialingUsers: [trialingUser],
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))
@@ -78,7 +78,7 @@ describe('trial ending', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({ trialingUsers: users }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))
@@ -101,7 +101,7 @@ describe('trial ending', () => {
       createMockEngagementRepository({
         trialingUsers: [trialingUser],
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))
@@ -114,7 +114,7 @@ describe('trial ending', () => {
 
     const layer = Layer.mergeAll(
       createMockEngagementRepository({ trialingUsers: [] }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))
@@ -135,7 +135,7 @@ describe('trial ending', () => {
       createMockEngagementRepository({
         trialingUsers: [trialingUser],
       }),
-      createMockNotificationRepository(notifications)
+      notificationMocks(notifications).repository
     )
 
     await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))

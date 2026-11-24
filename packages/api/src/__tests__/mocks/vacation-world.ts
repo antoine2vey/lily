@@ -13,7 +13,7 @@ import {
   type MockCareScheduleData,
 } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -45,18 +45,19 @@ export const createVacationWorld = (world: VacationWorld) => {
   const delegations = world.delegations ?? []
   const delegationPlants = world.delegationPlants ?? []
   const care = createStubCare()
-  const replanned = Layer.mergeAll(
-    MockSqlClientLive,
-    createMockUserRepository(world.users),
-    createMockNotificationRepository(notifications),
-    createMockPlantRepository({ plants }),
-    createMockCareScheduleRepository({
-      plants,
-      ...(world.schedules ? { schedules: world.schedules } : {}),
-      ...(world.memberships ? { memberships: world.memberships } : {}),
-    }),
-    createMockCanopyRepository(world.canopies ?? world.memberships ?? []),
-    createMockDelegationRepository({ delegations, delegationPlants })
+  const replanned = notificationMocks(notifications).over(
+    Layer.mergeAll(
+      MockSqlClientLive,
+      createMockUserRepository(world.users),
+      createMockPlantRepository({ plants }),
+      createMockCareScheduleRepository({
+        plants,
+        ...(world.schedules ? { schedules: world.schedules } : {}),
+        ...(world.memberships ? { memberships: world.memberships } : {}),
+      }),
+      createMockCanopyRepository(world.canopies ?? world.memberships ?? []),
+      createMockDelegationRepository({ delegations, delegationPlants })
+    )
   )
   const absence = createInMemoryAbsence(
     { users: world.users, plants, delegations, delegationPlants },

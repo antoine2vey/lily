@@ -15,7 +15,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { DeliveringOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockRoomRepository } from '@lily/api/__tests__/mocks/room.repository'
@@ -165,26 +165,27 @@ const world = (options: {
         }
       : {}
   )
-  const repositories = Layer.mergeAll(
-    createMockPlantRepository({
-      plants,
-      sharesPlantsArray: true,
-      memberships: store.members.map((m) => ({ ...m, canopyName: 'Home' })),
-    }),
-    createMockCanopyRepository(store),
-    createMockRoomRepository([]),
-    delegations,
-    createMockNotificationRepository(options.notifications ?? []),
-    createMockCareScheduleRepository(),
-    createInMemoryCare([], { plantRows: plants }).layer,
-    createMockUserRepository([
-      { ...mockUser1, id: options.actor, email: `${options.actor}@x.y` },
-    ]),
-    createMockEventBus(),
-    createMockMessageQueue(),
-    limits,
-    MockSqlClientLive,
-    createMockCurrentUser({ id: options.actor })
+  const repositories = notificationMocks(options.notifications ?? []).over(
+    Layer.mergeAll(
+      createMockPlantRepository({
+        plants,
+        sharesPlantsArray: true,
+        memberships: store.members.map((m) => ({ ...m, canopyName: 'Home' })),
+      }),
+      createMockCanopyRepository(store),
+      createMockRoomRepository([]),
+      delegations,
+      createMockCareScheduleRepository(),
+      createInMemoryCare([], { plantRows: plants }).layer,
+      createMockUserRepository([
+        { ...mockUser1, id: options.actor, email: `${options.actor}@x.y` },
+      ]),
+      createMockEventBus(),
+      createMockMessageQueue(),
+      limits,
+      MockSqlClientLive,
+      createMockCurrentUser({ id: options.actor })
+    )
   )
   return createInMemoryCanopy(store, [], {
     plants,
