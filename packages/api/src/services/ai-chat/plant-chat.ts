@@ -1,26 +1,12 @@
 import { openai } from '@ai-sdk/openai'
-import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
-import {
-  buildGeneralSystemPrompt,
-  buildPlantSystemPrompt,
-  formatCareHistoryText,
-  formatCarePlansText,
-} from '@lily/api/services/ai-chat/build-system-prompt'
+import type { Conversation } from '@lily/api/repositories/chat.repository'
+import { chatContextFor } from '@lily/api/services/ai-chat/chat-context'
 import {
   buildGeneralChatTools,
   buildPlantChatTools,
-  type ChatImage,
   type ToolContext,
 } from '@lily/api/services/ai-chat/tools'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { seesCarePlan } from '@lily/api/services/care-plans/helpers/care-plan-access'
-import { actorDayTimezone } from '@lily/api/services/plants/helpers/care-context'
-import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
-import { daysSince } from '@lily/shared'
-import type { ChatConversation } from '@lily/shared/ai-chat'
+import { caller } from '@lily/api/services/plants/helpers/with-plant-access'
 import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   convertToModelMessages,
@@ -32,10 +18,10 @@ import {
 } from 'ai'
 import {
   Array,
-  DateTime,
   Deferred,
   Effect,
   Exit,
+  Match,
   Option,
   pipe,
   Schema,
@@ -78,34 +64,44 @@ export interface PlantChatImageOptions {
 }
 
 export const chatStream = (
-  conversation: ChatConversation,
+  conversation: Conversation,
   messages: UIMessage[],
   imageOptions?: PlantChatImageOptions
 ) =>
   Effect.gen(function* () {
-    const { id: userId } = yield* CurrentUser
+    const who = yield* caller
+    const { userId } = who
     const runtime = yield* Effect.context<ToolContext>()
 
-    const isPlant =
-      conversation.kind === 'plant' && Boolean(conversation.plantId)
     const image = pipe(
       Option.fromNullishOr(imageOptions?.imageKey),
       Option.map((key) => ({ key, conversationId: conversation.id })),
       Option.getOrUndefined
     )
 
-    const { systemPrompt, tools } = isPlant
-      ? yield* buildPlantContext(conversation.plantId!, image, runtime, userId)
-      : {
-          systemPrompt: buildGeneralSystemPrompt(),
-          tools: buildGeneralChatTools({ runtime, userId, image }),
-        }
+    const context = yield* chatContextFor(who, conversation, {
+      withImage: Boolean(imageOptions?.imageUrl),
+    })
+
+    const tools = pipe(
+      Match.value(context),
+      Match.discriminatorsExhaustive('kind')({
+        plant: ({ permit, plant, timezone }) =>
+          buildPlantChatTools({
+            runtime,
+            userId,
+            permit,
+            image,
+            plantName: plant.name,
+            timezone,
+          }),
+        general: () => buildGeneralChatTools({ runtime, userId, image }),
+      })
+    )
 
     const modelMessages = yield* Effect.promise(() =>
       convertToModelMessages(messages)
     )
-
-    const useVisionModel = Boolean(imageOptions?.imageUrl)
 
     const completionDeferred = yield* Deferred.make<
       readonly StepData[],
@@ -113,9 +109,9 @@ export const chatStream = (
     >()
 
     const stream: PlantChatStreamResult = streamText({
-      model: openai(useVisionModel ? CHAT_MODEL : FAST_MODEL),
+      model: openai(context.model),
       maxRetries: 0,
-      system: systemPrompt,
+      system: context.systemPrompt,
       messages: modelMessages,
       tools,
       stopWhen: stepCountIs(3),
@@ -144,59 +140,4 @@ export const chatStream = (
     })
 
     return { stream, completionDeferred }
-  })
-
-const buildPlantContext = (
-  plantId: string,
-  image: ChatImage | undefined,
-  runtime: ReturnType<typeof Effect.context<ToolContext>> extends Effect.Effect<
-    infer R,
-    unknown,
-    unknown
-  >
-    ? R
-    : never,
-  userId: string
-) =>
-  Effect.gen(function* () {
-    const careLogRepo = yield* CareLogRepository
-    const scheduleRepo = yield* CareScheduleRepository
-    const carePlanRepo = yield* CarePlanRepository
-
-    const { plant, view, permit } = yield* withPlantKnowledge(plantId, 'chat')
-
-    const schedules = yield* scheduleRepo.findByPlant(plantId)
-    const careLogsResponse = yield* careLogRepo.findByPlantId({
-      plantId,
-      limit: 10,
-    })
-    const careHistoryText = formatCareHistoryText(careLogsResponse.items)
-    const daysSinceAdded = daysSince(plant.dateAdded)
-
-    const carePlans = Array.filter(
-      yield* carePlanRepo.findByPlant(plantId),
-      seesCarePlan(view)
-    )
-    const timezone = yield* actorDayTimezone(plant.owner, userId)
-    const carePlansText = formatCarePlansText(carePlans, timezone)
-
-    const systemPrompt = buildPlantSystemPrompt({
-      plant: { ...plant, schedules },
-      daysSinceAdded,
-      careHistoryText,
-      carePlansText,
-      timezone,
-      now: yield* DateTime.now,
-    })
-
-    const tools = buildPlantChatTools({
-      runtime,
-      userId,
-      permit,
-      image,
-      plantName: plant.name,
-      timezone,
-    })
-
-    return { systemPrompt, tools }
   })

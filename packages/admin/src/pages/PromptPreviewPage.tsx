@@ -4,7 +4,6 @@ import { useState } from 'react'
 import {
   type PromptPreviewCareEntry,
   type PromptPreviewConversationEntry,
-  type PromptPreviewRagChunk,
   type PromptPreviewResponse,
   usePromptPreview,
 } from '@/hooks/use-prompt-preview'
@@ -126,62 +125,6 @@ const RatingBar = ({
   </div>
 )
 
-const similarityColor = (similarity: number) =>
-  pipe(
-    Match.value(true),
-    Match.when(
-      () => similarity >= 0.9,
-      () => 'text-green-700 bg-green-50'
-    ),
-    Match.when(
-      () => similarity >= 0.8,
-      () => 'text-blue-700 bg-blue-50'
-    ),
-    Match.when(
-      () => similarity >= 0.7,
-      () => 'text-amber-700 bg-amber-50'
-    ),
-    Match.orElse(() => 'text-gray-700 bg-gray-50')
-  )
-
-const RagChunkCard = ({ chunk }: { readonly chunk: PromptPreviewRagChunk }) => (
-  <div className="rounded-lg border border-gray-200 bg-white p-3">
-    <div className="mb-2 flex flex-wrap items-center gap-2">
-      <span
-        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${similarityColor(chunk.similarity)}`}
-      >
-        {Math.round(chunk.similarity * 100)}%
-      </span>
-      <span className="text-xs text-gray-500">{chunk.source}</span>
-      {pipe(
-        Option.fromNullishOr(chunk.plantType),
-        Option.match({
-          onNone: () => null,
-          onSome: (pt) => (
-            <span className="rounded-sm bg-primary-50 px-1.5 py-0.5 text-xs text-primary-700">
-              {pt}
-            </span>
-          ),
-        })
-      )}
-      {pipe(
-        Option.fromNullishOr(chunk.category),
-        Option.match({
-          onNone: () => null,
-          onSome: (cat) => (
-            <span className="rounded-sm bg-coral-50 px-1.5 py-0.5 text-xs text-coral-600">
-              {cat}
-            </span>
-          ),
-        })
-      )}
-    </div>
-    <p className="whitespace-pre-wrap text-xs leading-relaxed text-gray-700">
-      {chunk.content}
-    </p>
-  </div>
-)
-
 const MessageSection = ({ data }: { readonly data: PromptPreviewResponse }) => (
   <div className="space-y-2">
     <div className="flex items-center gap-2">
@@ -299,38 +242,6 @@ const CareHistorySection = ({
       )}
     </div>
   )
-
-const RagSection = ({
-  ragQuery,
-  ragChunks,
-}: {
-  readonly ragQuery: string
-  readonly ragChunks: ReadonlyArray<PromptPreviewRagChunk>
-}) => (
-  <div className="space-y-3">
-    <div>
-      <p className="mb-1 text-xs font-medium text-gray-700">RAG Query</p>
-      <p className="rounded-sm bg-purple-50 px-3 py-2 font-mono text-xs text-purple-800">
-        {ragQuery}
-      </p>
-    </div>
-    {Array.isReadonlyArrayEmpty(ragChunks) ? (
-      <p className="text-sm text-gray-500">
-        No matching knowledge chunks found
-      </p>
-    ) : (
-      <div className="space-y-2">
-        <p className="text-xs text-gray-500">
-          {ragChunks.length} chunk{ragChunks.length !== 1 ? 's' : ''} retrieved
-        </p>
-        {pipe(
-          ragChunks,
-          Array.map((chunk) => <RagChunkCard key={chunk.id} chunk={chunk} />)
-        )}
-      </div>
-    )}
-  </div>
-)
 
 const ConversationSection = ({
   history,
@@ -454,15 +365,6 @@ export const PromptPreviewPage = () => {
 
           <CollapsibleSection
             step={4}
-            title="RAG Knowledge Retrieval"
-            description="Knowledge chunks retrieved via semantic search to augment the AI's response"
-            color="bg-purple-600"
-          >
-            <RagSection ragQuery={data.ragQuery} ragChunks={data.ragChunks} />
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            step={5}
             title="Conversation History"
             description="Previous messages the AI sees as context for this conversation"
             color="bg-gray-600"
@@ -471,29 +373,7 @@ export const PromptPreviewPage = () => {
           </CollapsibleSection>
 
           <CollapsibleSection
-            step={6}
-            title="Formatted RAG Context"
-            description="The exact markdown string injected into the system prompt from RAG retrieval"
-            color="bg-purple-400"
-          >
-            <div className="space-y-2">
-              <div className="flex justify-end">
-                <CopyButton text={data.formattedRagContext} />
-              </div>
-              {String.isEmpty(data.formattedRagContext) ? (
-                <p className="text-sm text-gray-500">
-                  No RAG context was generated (no matching chunks)
-                </p>
-              ) : (
-                <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-700">
-                  {data.formattedRagContext}
-                </pre>
-              )}
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            step={7}
+            step={5}
             title="Full System Prompt"
             description="The complete system prompt sent to the AI model — the final assembled instruction"
             color="bg-red-600"

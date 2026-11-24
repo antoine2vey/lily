@@ -1,5 +1,5 @@
+import type { Conversation } from '@lily/api/repositories/chat.repository'
 import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
-import type { ChatConversation } from '@lily/shared/ai-chat'
 import {
   type GenerateConversationTitleInput,
   generateConversationTitle,
@@ -31,7 +31,7 @@ export class AiService extends Context.Service<AiService>()('AiService', {
       // errors (PlantNotFoundError), not OpenAI errors — the AI SDK streams
       // errors asynchronously outside the Effect channel.
       chatStream: (
-        conversation: ChatConversation,
+        conversation: Conversation,
         messages: UIMessage[],
         imageOptions?: PlantChatImageOptions
       ) =>
