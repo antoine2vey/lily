@@ -5,12 +5,12 @@ import {
 } from '@lily/api/repositories/subscription.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
+import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
 import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
 import { resolveTierConfig } from '@lily/api/services/subscriptions/effective-tier'
 import { limitsDisabled } from '@lily/api/services/subscriptions/limits-config'
 import type { LanguageCode } from '@lily/shared'
 import {
-  DEFAULT_TIMEZONE,
   LimitExceededError,
   pickNotificationTime,
   type SubscriptionUsage,
@@ -150,21 +150,19 @@ export const UsageTrackerLive = Layer.effect(
         // subsequent increment)
         if (current !== threshold) return
 
+        const user = yield* userRepo.findById(userId)
+        if (!user) return
+
+        const timezone = resolveTimezone(user.timezone)
+
         const alreadySent =
           yield* notificationRepo.hasNotificationOfTypeTodayForUser(
             userId,
-            'UTC',
+            timezone,
             'approaching_limit'
           )
         if (alreadySent) return
 
-        const user = yield* userRepo.findById(userId)
-        if (!user) return
-
-        const timezone = Option.getOrElse(
-          Option.fromNullishOr(user.timezone),
-          () => DEFAULT_TIMEZONE
-        )
         const language = Option.getOrElse(
           Option.fromNullishOr(user.language),
           () => 'en' as const
