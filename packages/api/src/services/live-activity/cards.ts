@@ -114,10 +114,10 @@ const pushCard = (
         })
       ),
       Match.when({ kind: 'token-invalidated' }, ({ reason }) =>
-        Effect.logInfo(`[live-activity] LA ${push} token invalidated`, {
-          deviceTokenId,
-          reason,
-        })
+        (push === 'start' ? Effect.logWarning : Effect.logInfo)(
+          `[live-activity] LA ${push} token invalidated`,
+          { deviceTokenId, reason }
+        )
       ),
       Match.orElse(({ kind, reason }) =>
         Effect.logWarning(
@@ -200,8 +200,7 @@ const sendStarts = (
     if (Array.isReadonlyArrayEmpty(candidates)) {
       if (Array.isReadonlyArrayEmpty(devicesWithCard)) {
         yield* Effect.logInfo(
-          '[live-activity] LA start skipped — no start tokens',
-          { userId }
+          '[live-activity] LA start skipped — no start tokens'
         )
       }
       return []
@@ -225,13 +224,12 @@ const sendStarts = (
     if (unresolved > 0) {
       yield* Effect.logInfo(
         '[live-activity] LA start skipped — earlier start still unconfirmed',
-        { userId, skippedCount: unresolved }
+        { skippedCount: unresolved }
       )
     }
     if (Array.isReadonlyArrayEmpty(startable)) return []
 
     yield* Effect.logInfo('[live-activity] LA start dispatching', {
-      userId,
       activityId,
       startTokenCount: startable.length,
     })
@@ -277,54 +275,54 @@ const alignCards = <R>(
 
 // Brings a user's running cards in line with their backlog without starting
 // one: `update` refreshes them, `keep` leaves a card with work alone.
-export const syncCards = Effect.fn('LiveActivity.syncCards')(function* (
-  userId: string,
-  whenDue: 'keep' | 'update'
-) {
-  const activityRepo = yield* ActivityPushTokenRepository
-  const cards = yield* activityRepo.findActiveActivitiesByUserId(userId)
-  if (Array.isReadonlyArrayEmpty(cards)) return []
-  const { pushes } = yield* alignCards(userId, cards, (state) =>
-    Match.value(whenDue).pipe(
-      Match.when('keep', () => Effect.succeed<ReadonlyArray<CardPush>>([])),
-      Match.when('update', () => updateCards(cards, state)),
-      Match.exhaustive
+export const syncCards = Effect.fn('LiveActivity.syncCards')(
+  function* (userId: string, whenDue: 'keep' | 'update') {
+    const activityRepo = yield* ActivityPushTokenRepository
+    const cards = yield* activityRepo.findActiveActivitiesByUserId(userId)
+    if (Array.isReadonlyArrayEmpty(cards)) return []
+    const { pushes } = yield* alignCards(userId, cards, (state) =>
+      Match.value(whenDue).pipe(
+        Match.when('keep', () => Effect.succeed<ReadonlyArray<CardPush>>([])),
+        Match.when('update', () => updateCards(cards, state)),
+        Match.exhaustive
+      )
     )
-  )
-  return pushes
-})
+    return pushes
+  },
+  (effect, userId) => Effect.annotateLogs(effect, { userId })
+)
 
 // Updates each running card and starts one on every other device.
-export const startCards = Effect.fn('LiveActivity.startCards')(function* (
-  userId: string,
-  start: CardStart
-) {
-  const activityRepo = yield* ActivityPushTokenRepository
-  const activityId = crypto.randomUUID()
-  const [cards, startTokens] = yield* Effect.all(
-    [
-      activityRepo.findActiveActivitiesByUserId(userId),
-      activityRepo.findStartTokensByUserId(userId),
-    ],
-    { concurrency: 'unbounded' }
-  )
-  const sync = yield* alignCards(userId, cards, (state) =>
-    Effect.gen(function* () {
-      const updates = yield* updateCards(cards, state)
-      const devicesWithCard = pipe(
-        Array.filter(updates, stillShowsCard),
-        Array.map((update) => update.deviceTokenId)
-      )
-      const starts = yield* sendStarts(
-        userId,
-        activityId,
-        startTokens,
-        devicesWithCard,
-        state,
-        start
-      )
-      return [...updates, ...starts]
-    })
-  )
-  return { ...sync, activityId, startTokenCount: startTokens.length }
-})
+export const startCards = Effect.fn('LiveActivity.startCards')(
+  function* (userId: string, start: CardStart) {
+    const activityRepo = yield* ActivityPushTokenRepository
+    const activityId = crypto.randomUUID()
+    const [cards, startTokens] = yield* Effect.all(
+      [
+        activityRepo.findActiveActivitiesByUserId(userId),
+        activityRepo.findStartTokensByUserId(userId),
+      ],
+      { concurrency: 'unbounded' }
+    )
+    const sync = yield* alignCards(userId, cards, (state) =>
+      Effect.gen(function* () {
+        const updates = yield* updateCards(cards, state)
+        const devicesWithCard = pipe(
+          Array.filter(updates, stillShowsCard),
+          Array.map((update) => update.deviceTokenId)
+        )
+        const starts = yield* sendStarts(
+          userId,
+          activityId,
+          startTokens,
+          devicesWithCard,
+          state,
+          start
+        )
+        return [...updates, ...starts]
+      })
+    )
+    return { ...sync, activityId, startTokenCount: startTokens.length }
+  },
+  (effect, userId) => Effect.annotateLogs(effect, { userId })
+)

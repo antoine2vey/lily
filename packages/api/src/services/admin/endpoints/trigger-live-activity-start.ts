@@ -2,12 +2,12 @@ import { UserRepository } from '@lily/api/repositories/user.repository'
 import { startCards } from '@lily/api/services/live-activity/cards'
 import type { AdminLiveActivityTriggerResponse } from '@lily/shared/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
-import { Array, Effect, Match, pipe } from 'effect'
+import { Array, Effect, Match } from 'effect'
 
 type Outcome = AdminLiveActivityTriggerResponse['outcomes'][number]
 
 // Diagnostic: push the user's cards now, past the start cooldown, and return
-// each start's APNs outcome so an operator can tell whether the issue is at
+// each push's APNs outcome so an operator can tell whether the issue is at
 // the server (config, send error) or downstream on the device.
 export const triggerLiveActivityStart = (userId: string) =>
   Effect.gen(function* () {
@@ -23,19 +23,28 @@ export const triggerLiveActivityStart = (userId: string) =>
       }),
       bypassCooldown: true,
     })
-    const outcomes = pipe(
-      Array.filter(sync.pushes, ({ push }) => push === 'start'),
-      Array.map(({ deviceTokenId, outcome }) =>
+    const outcomes = Array.map(
+      sync.pushes,
+      ({ push, deviceTokenId, outcome }) =>
         Match.value(outcome).pipe(
           Match.when(
             { kind: 'accepted' },
-            ({ kind, apnsId }): Outcome => ({ deviceTokenId, kind, apnsId })
+            ({ kind, apnsId }): Outcome => ({
+              deviceTokenId,
+              push,
+              kind,
+              apnsId,
+            })
           ),
           Match.orElse(
-            ({ kind, reason }): Outcome => ({ deviceTokenId, kind, reason })
+            ({ kind, reason }): Outcome => ({
+              deviceTokenId,
+              push,
+              kind,
+              reason,
+            })
           )
         )
-      )
     )
 
     yield* Effect.logInfo('[admin] LA trigger-start completed', {

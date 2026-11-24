@@ -170,11 +170,12 @@ export const AdminGiftSubscriptionResponse = Schema.Struct({
 export type AdminGiftSubscriptionResponse =
   typeof AdminGiftSubscriptionResponse.Type
 
-// Per-token outcome from a manual LA-start trigger. The `kind` distinguishes
-// successful APNs handoff from the various failure modes so the operator can
-// tell at a glance whether the issue is server-side or device-side.
+// One push of a manual LA trigger. The `kind` distinguishes a successful
+// APNs handoff from the failure modes so the operator can tell at a glance
+// whether the issue is server-side or device-side.
 export const AdminLiveActivityTriggerOutcome = Schema.Struct({
   deviceTokenId: Schema.String,
+  push: Schema.Literals(['start', 'update', 'end']),
   kind: Schema.Literals([
     'accepted',
     'send-error',

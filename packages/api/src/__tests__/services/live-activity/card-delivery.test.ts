@@ -20,6 +20,7 @@ import {
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { reconcileActiveActivities } from '@lily/api/services/activity-scheduler/scheduler'
 import { triggerLiveActivityStart } from '@lily/api/services/admin/endpoints/trigger-live-activity-start'
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
@@ -46,6 +47,8 @@ interface World {
   readonly tokens: ReadonlyArray<ActivityPushToken>
   readonly fail?: MockPushServiceOptions['failLiveActivity']
   readonly eventPlantId?: string
+  // user-2 owns plant-1 and has delegated it to user-1.
+  readonly delegated?: boolean
 }
 
 const DUE = new Date(Date.now() - 60_000)
@@ -76,6 +79,21 @@ const row = (
 const CARD_AND_STARTS = [row('update', 1), row('start', 1), row('start', 2)]
 
 const living = (id: string) => createTestPlant({ id, userId: 'user-1' })
+
+const ownerToUser1: DelegationRow = {
+  id: 'delegation-1',
+  ownerId: 'user-2',
+  caretakerId: 'user-1',
+  status: 'active',
+  message: null,
+  startDate: new Date(Date.now() - 86_400_000),
+  endDate: new Date(Date.now() + 86_400_000),
+  respondedAt: null,
+  canceledAt: null,
+  completedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
 
 const describePush = (m: LiveActivityPushMessage): string =>
   Match.value(m).pipe(
@@ -122,7 +140,10 @@ const runPath = (path: Path, world: World) =>
       Effect.map(triggerLiveActivityStart('user-1'), (r) => ({
         contentStateBuilt: r.contentStateBuilt,
         startTokenCount: r.startTokenCount,
-        outcomes: Array.map(r.outcomes, (o) => `${o.deviceTokenId} ${o.kind}`),
+        outcomes: Array.map(
+          r.outcomes,
+          (o) => `${o.push} ${o.deviceTokenId} ${o.kind}`
+        ),
       }))
     ),
     Match.exhaustive
@@ -169,10 +190,18 @@ const observe = async (
           }),
           createMockPlantRepository({ plants: [...world.plants] }),
           createMockCareLogRepository([]),
-          createMockDelegationRepository(),
+          world.delegated
+            ? createMockDelegationRepository({
+                delegations: [ownerToUser1],
+                delegationPlants: [
+                  { delegationId: ownerToUser1.id, plantId: 'plant-1' },
+                ],
+              })
+            : createMockDelegationRepository(),
           createMockCanopyRepository(),
           createMockUserRepository([
             createTestUser({ id: 'user-1', timezone: 'UTC' }),
+            createTestUser({ id: 'user-2', timezone: 'UTC' }),
           ])
         )
       ),
@@ -258,7 +287,9 @@ describe('Live Activity card delivery, every caller', () => {
           ],
           "admin": {
             "contentStateBuilt": false,
-            "outcomes": [],
+            "outcomes": [
+              "end token-1 accepted",
+            ],
             "startTokenCount": 2,
           },
           "pushes": [
@@ -317,7 +348,8 @@ describe('Live Activity card delivery, every caller', () => {
           "admin": {
             "contentStateBuilt": true,
             "outcomes": [
-              "token-2 accepted",
+              "update token-1 accepted",
+              "start token-2 accepted",
             ],
             "startTokenCount": 2,
           },
@@ -386,7 +418,8 @@ describe('Live Activity card delivery, every caller', () => {
           "admin": {
             "contentStateBuilt": true,
             "outcomes": [
-              "token-2 accepted",
+              "update token-1 accepted",
+              "start token-2 accepted",
             ],
             "startTokenCount": 2,
           },
@@ -485,8 +518,8 @@ describe('Live Activity card delivery, every caller', () => {
           "admin": {
             "contentStateBuilt": true,
             "outcomes": [
-              "token-1 accepted",
-              "token-2 accepted",
+              "start token-1 accepted",
+              "start token-2 accepted",
             ],
             "startTokenCount": 2,
           },
@@ -545,7 +578,8 @@ describe('Live Activity card delivery, every caller', () => {
           "admin": {
             "contentStateBuilt": true,
             "outcomes": [
-              "token-2 send-error",
+              "update token-1 send-error",
+              "start token-2 send-error",
             ],
             "startTokenCount": 2,
           },
@@ -605,8 +639,9 @@ describe('Live Activity card delivery, every caller', () => {
           "admin": {
             "contentStateBuilt": true,
             "outcomes": [
-              "token-1 token-invalidated",
-              "token-2 token-invalidated",
+              "update token-1 token-invalidated",
+              "start token-1 token-invalidated",
+              "start token-2 token-invalidated",
             ],
             "startTokenCount": 2,
           },
@@ -646,6 +681,78 @@ describe('Live Activity card delivery, every caller', () => {
     `)
   })
 
+  // A caretaker's backlog holds only their own plants, as their care tasks
+  // do, so a reminder about a delegated plant finds it empty. The owner's
+  // card is never touched.
+  it('a caretaker reminded about a delegated plant, nothing of their own due', async () => {
+    expect(
+      await observeAll({
+        plants: [createTestPlant({ id: 'plant-1', userId: 'user-2' })],
+        schedules: [
+          createTestSchedule({ plantId: 'plant-1', nextCareAt: DUE }),
+        ],
+        tokens: [
+          ...CARD_AND_STARTS,
+          {
+            ...row('update', 2),
+            id: 'apt-owner',
+            userId: 'user-2',
+            token: 'owner-update',
+          },
+        ],
+        delegated: true,
+      })
+    ).toMatchInlineSnapshot(`
+      {
+        "admin": {
+          "active": [
+            "start-token-1",
+            "start-token-2",
+          ],
+          "admin": {
+            "contentStateBuilt": false,
+            "outcomes": [
+              "end token-1 accepted",
+            ],
+            "startTokenCount": 2,
+          },
+          "pushes": [
+            "end update-token-1 immediate",
+          ],
+        },
+        "subscriber": {
+          "active": [
+            "start-token-1",
+            "start-token-2",
+          ],
+          "pushes": [
+            "end update-token-1 immediate",
+            "update owner-update "1 plant needs care today"",
+          ],
+        },
+        "sweep": {
+          "active": [
+            "start-token-1",
+            "start-token-2",
+          ],
+          "pushes": [
+            "end update-token-1 immediate",
+          ],
+        },
+        "worker": {
+          "active": [
+            "start-token-1",
+            "start-token-2",
+          ],
+          "pushes": [
+            "end update-token-1 immediate",
+          ],
+          "regularPushes": 2,
+        },
+      }
+    `)
+  })
+
   it('empty backlog after the only due plant died', async () => {
     expect(
       await observeAll({
@@ -673,7 +780,9 @@ describe('Live Activity card delivery, every caller', () => {
           ],
           "admin": {
             "contentStateBuilt": false,
-            "outcomes": [],
+            "outcomes": [
+              "end token-1 accepted",
+            ],
             "startTokenCount": 2,
           },
           "pushes": [
@@ -731,7 +840,9 @@ describe('Live Activity card delivery, every caller', () => {
           ],
           "admin": {
             "contentStateBuilt": false,
-            "outcomes": [],
+            "outcomes": [
+              "end token-1 token-invalidated",
+            ],
             "startTokenCount": 2,
           },
           "pushes": [
