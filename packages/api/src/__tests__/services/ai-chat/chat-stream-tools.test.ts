@@ -11,9 +11,9 @@ import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
+import type { PlantConversation } from '@lily/api/repositories/chat.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { chatStream } from '@lily/api/services/ai-chat/plant-chat'
-import type { ChatConversation } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
 import { convertArrayToReadableStream, MockLanguageModelV4 } from 'ai/test'
 import { Array, Deferred, Effect, Layer, ManagedRuntime, Option } from 'effect'
@@ -33,7 +33,7 @@ const USER_ID = 'user-1'
 const PLANT_ID = 'plant-1'
 const CALL_ID = 'call-1'
 
-const conversation: ChatConversation = {
+const conversation: PlantConversation = {
   id: 'conversation-1',
   userId: USER_ID,
   kind: 'plant',

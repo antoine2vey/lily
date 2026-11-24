@@ -1,38 +1,23 @@
-import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import {
   type ChatMessageRow,
   ChatRepository,
 } from '@lily/api/repositories/chat.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { plantChatContext } from '@lily/api/services/ai-chat/chat-context'
 import {
-  buildSystemPrompt,
-  formatCareHistoryText,
-} from '@lily/api/services/ai-chat/build-system-prompt'
-import { RagService } from '@lily/api/services/rag/service'
-import { daysSince, formatIsoDate } from '@lily/shared'
-import type { PromptPreviewResponse } from '@lily/shared/admin'
+  callerFor,
+  plantViewFor,
+} from '@lily/api/services/plants/helpers/with-plant-access'
+import { formatIsoDate } from '@lily/shared'
 import { ChatMessageNotFoundError } from '@lily/shared/errors/admin'
-import { Array, DateTime, Effect, Option, pipe } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
+import { Array, Effect, Option, pipe } from 'effect'
 
-export const previewPrompt = (
-  messageId: string
-): Effect.Effect<
-  PromptPreviewResponse,
-  SqlError | ChatMessageNotFoundError,
-  | ChatRepository
-  | PlantRepository
-  | CareLogRepository
-  | CareScheduleRepository
-  | RagService
-> =>
+/**
+ * The prompt the chat would send for the next turn after `messageId`, built
+ * by the chat itself, as the conversation's user sees the plant.
+ */
+export const previewPrompt = (messageId: string) =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
-    const plantRepo = yield* PlantRepository
-    const careLogRepo = yield* CareLogRepository
-    const scheduleRepo = yield* CareScheduleRepository
-    const ragService = yield* RagService
 
     const messageRow = yield* chatRepo.findById(messageId)
     if (!messageRow) {
@@ -42,60 +27,30 @@ export const previewPrompt = (
     const conversation = yield* chatRepo.findConversationById(
       messageRow.conversationId
     )
-    if (!conversation || !conversation.plantId) {
-      return yield* new ChatMessageNotFoundError({
-        message: `Plant conversation not found for message (id: ${messageId})`,
-      })
-    }
-    const plantIdForMessage = conversation.plantId
-
-    const plant = yield* plantRepo.findById(plantIdForMessage)
-    if (!plant) {
-      return yield* new ChatMessageNotFoundError({
-        message: `Plant not found for message (plantId: ${plantIdForMessage})`,
-      })
+    if (!conversation || conversation.kind !== 'plant') {
+      return yield* notAvailable(messageId)
     }
 
-    const schedules = yield* scheduleRepo.findByPlant(plant.id)
-
-    const careLogsResponse = yield* careLogRepo.findByPlantId({
-      plantId: plantIdForMessage,
-      limit: 10,
-    })
-
-    const careHistoryText = formatCareHistoryText(careLogsResponse.items)
-
-    const ragQuery = `${plant.name}: ${messageRow.content}`
-    const ragChunks = yield* ragService.retrieve({
-      query: ragQuery,
-    })
-    const formattedRagContext = ragService.formatContext(ragChunks)
-
-    const daysSinceAdded = daysSince(plant.dateAdded)
-    const systemPrompt = buildSystemPrompt({
-      plant: { ...plant, schedules },
-      daysSinceAdded,
-      careHistoryText,
-      timezone: 'UTC',
-      now: yield* DateTime.now,
-    })
+    const hasImage = messageRow.imageKey !== null
+    const { plant, view } = yield* plantViewFor(
+      yield* callerFor(conversation.userId),
+      conversation.plantId,
+      'chat'
+    ).pipe(
+      Effect.catchTags({
+        PlantNotFoundError: () => notAvailable(messageId),
+        PlantNotAuthorizedError: () => notAvailable(messageId),
+      })
+    )
+    const context = yield* plantChatContext(
+      { plant, view },
+      { withImage: hasImage }
+    )
 
     const previousRows = yield* chatRepo.findMessagesBefore({
       conversationId: messageRow.conversationId,
       beforeDate: messageRow.createdAt,
     })
-
-    const conversationHistory = Array.map(
-      previousRows,
-      (row: ChatMessageRow) => ({
-        role: row.role as 'user' | 'assistant',
-        content: row.content,
-        createdAt: row.createdAt,
-      })
-    )
-
-    const hasImage = Boolean(messageRow.imageKey)
-    const model = hasImage ? 'gpt-4o' : 'gpt-4o-mini'
 
     return {
       message: {
@@ -115,32 +70,31 @@ export const previewPrompt = (
         wateringRating: plant.wateringRating,
         petToxicityRating: plant.petToxicityRating,
         dateAdded: plant.dateAdded.toISOString(),
-        daysSinceAdded,
+        daysSinceAdded: context.daysSinceAdded,
       },
-      careHistory: Array.map(careLogsResponse.items, (log) => ({
+      careHistory: Array.map(context.careHistory, (log) => ({
         type: log.type,
         date: formatIsoDate(log.date),
         notes: pipe(Option.fromNullishOr(log.notes), Option.getOrNull),
       })),
-      ragQuery,
-      ragChunks: Array.map(ragChunks, (chunk) => ({
-        id: chunk.id,
-        content: chunk.content,
-        source: chunk.source,
-        sourceUrl: chunk.sourceUrl,
-        plantType: chunk.plantType,
-        category: chunk.category,
-        metadata: chunk.metadata,
-        similarity: chunk.similarity,
+      conversationHistory: Array.map(previousRows, (row: ChatMessageRow) => ({
+        role: row.role as 'user' | 'assistant',
+        content: row.content,
+        createdAt: row.createdAt,
       })),
-      formattedRagContext,
-      conversationHistory,
-      systemPrompt,
-      model,
+      systemPrompt: context.systemPrompt,
+      model: context.model,
       hasImage,
     }
   }).pipe(
     Effect.withSpan('AdminService.previewPrompt', {
       attributes: { 'message.id': messageId },
+    })
+  )
+
+const notAvailable = (messageId: string) =>
+  Effect.fail(
+    new ChatMessageNotFoundError({
+      message: `Plant conversation not found for message (id: ${messageId})`,
     })
   )

@@ -1,26 +1,16 @@
 import { openai } from '@ai-sdk/openai'
-import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
-import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
+import type { Conversation } from '@lily/api/repositories/chat.repository'
 import {
-  buildGeneralSystemPrompt,
-  buildPlantSystemPrompt,
-  formatCareHistoryText,
-  formatCarePlansText,
-} from '@lily/api/services/ai-chat/build-system-prompt'
+  generalChatContext,
+  plantChatContext,
+} from '@lily/api/services/ai-chat/chat-context'
 import {
   buildGeneralChatTools,
   buildPlantChatTools,
-  type ChatImage,
   type ToolContext,
 } from '@lily/api/services/ai-chat/tools'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { seesCarePlan } from '@lily/api/services/care-plans/helpers/care-plan-access'
-import { actorDayTimezone } from '@lily/api/services/plants/helpers/care-context'
 import { withPlantKnowledge } from '@lily/api/services/plants/helpers/with-plant-access'
-import { daysSince } from '@lily/shared'
-import type { ChatConversation } from '@lily/shared/ai-chat'
 import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
 import {
   convertToModelMessages,
@@ -32,16 +22,13 @@ import {
 } from 'ai'
 import {
   Array,
-  DateTime,
   Deferred,
   Effect,
   Exit,
   Match,
   Option,
-  Predicate,
   pipe,
   Schema,
-  Struct,
 } from 'effect'
 
 // Type alias to avoid TS4023: bun's module resolution prevents TS
@@ -80,45 +67,8 @@ export interface PlantChatImageOptions {
   imageKey?: StoredObjectRef | undefined
 }
 
-const appendImageToLastUserMessage = (
-  modelMessages: ReturnType<typeof convertToModelMessages> extends Promise<
-    infer T
-  >
-    ? T
-    : never,
-  imageUrl: string | undefined
-) => {
-  if (!imageUrl) return modelMessages
-  const lastIndex = modelMessages.length - 1
-  return pipe(
-    Array.get(modelMessages, lastIndex),
-    Option.filter((msg) => msg.role === 'user'),
-    Option.map((lastMsg) => {
-      const imageContent = {
-        type: 'image' as const,
-        image: new URL(imageUrl),
-      }
-      const updatedContent = pipe(
-        Match.value(lastMsg.content),
-        Match.when(Predicate.isString, (str) => [
-          { type: 'text' as const, text: str },
-          imageContent,
-        ]),
-        Match.orElse((arr) =>
-          Array.append(arr as { type: string }[], imageContent)
-        )
-      )
-      return pipe(
-        Array.take(modelMessages, lastIndex),
-        Array.append(Struct.evolve(lastMsg, { content: () => updatedContent }))
-      ) as typeof modelMessages
-    }),
-    Option.getOrElse(() => modelMessages)
-  )
-}
-
 export const chatStream = (
-  conversation: ChatConversation,
+  conversation: Conversation,
   messages: UIMessage[],
   imageOptions?: PlantChatImageOptions
 ) =>
@@ -126,31 +76,42 @@ export const chatStream = (
     const { id: userId } = yield* CurrentUser
     const runtime = yield* Effect.context<ToolContext>()
 
-    const isPlant =
-      conversation.kind === 'plant' && Boolean(conversation.plantId)
     const image = pipe(
       Option.fromNullishOr(imageOptions?.imageKey),
       Option.map((key) => ({ key, conversationId: conversation.id })),
       Option.getOrUndefined
     )
 
-    const { systemPrompt, tools } = isPlant
-      ? yield* buildPlantContext(conversation.plantId!, image, runtime, userId)
-      : {
-          systemPrompt: buildGeneralSystemPrompt(),
-          tools: buildGeneralChatTools({ runtime, userId, image }),
-        }
+    const turn = { withImage: Boolean(imageOptions?.imageUrl) }
+
+    const { context, tools } = yield* pipe(
+      Match.value(conversation),
+      Match.discriminatorsExhaustive('kind')({
+        plant: ({ plantId }) =>
+          Effect.gen(function* () {
+            const known = yield* withPlantKnowledge(plantId, 'chat')
+            const context = yield* plantChatContext(known, turn)
+            const tools = buildPlantChatTools({
+              runtime,
+              userId,
+              permit: known.permit,
+              image,
+              plantName: known.plant.name,
+              timezone: context.timezone,
+            })
+            return { context, tools }
+          }),
+        general: () =>
+          Effect.succeed({
+            context: generalChatContext(turn),
+            tools: buildGeneralChatTools({ runtime, userId, image }),
+          }),
+      })
+    )
 
     const modelMessages = yield* Effect.promise(() =>
       convertToModelMessages(messages)
     )
-
-    const finalModelMessages = appendImageToLastUserMessage(
-      modelMessages,
-      imageOptions?.imageUrl
-    )
-
-    const useVisionModel = Boolean(imageOptions?.imageUrl)
 
     const completionDeferred = yield* Deferred.make<
       readonly StepData[],
@@ -158,10 +119,10 @@ export const chatStream = (
     >()
 
     const stream: PlantChatStreamResult = streamText({
-      model: openai(useVisionModel ? CHAT_MODEL : FAST_MODEL),
+      model: openai(context.model),
       maxRetries: 0,
-      system: systemPrompt,
-      messages: finalModelMessages,
+      system: context.systemPrompt,
+      messages: modelMessages,
       tools,
       stopWhen: stepCountIs(3),
       maxOutputTokens: CHAT_MAX_OUTPUT_TOKENS,
@@ -189,59 +150,4 @@ export const chatStream = (
     })
 
     return { stream, completionDeferred }
-  })
-
-const buildPlantContext = (
-  plantId: string,
-  image: ChatImage | undefined,
-  runtime: ReturnType<typeof Effect.context<ToolContext>> extends Effect.Effect<
-    infer R,
-    unknown,
-    unknown
-  >
-    ? R
-    : never,
-  userId: string
-) =>
-  Effect.gen(function* () {
-    const careLogRepo = yield* CareLogRepository
-    const scheduleRepo = yield* CareScheduleRepository
-    const carePlanRepo = yield* CarePlanRepository
-
-    const { plant, view, permit } = yield* withPlantKnowledge(plantId, 'chat')
-
-    const schedules = yield* scheduleRepo.findByPlant(plantId)
-    const careLogsResponse = yield* careLogRepo.findByPlantId({
-      plantId,
-      limit: 10,
-    })
-    const careHistoryText = formatCareHistoryText(careLogsResponse.items)
-    const daysSinceAdded = daysSince(plant.dateAdded)
-
-    const carePlans = Array.filter(
-      yield* carePlanRepo.findByPlant(plantId),
-      seesCarePlan(view)
-    )
-    const timezone = yield* actorDayTimezone(plant.owner, userId)
-    const carePlansText = formatCarePlansText(carePlans, timezone)
-
-    const systemPrompt = buildPlantSystemPrompt({
-      plant: { ...plant, schedules },
-      daysSinceAdded,
-      careHistoryText,
-      carePlansText,
-      timezone,
-      now: yield* DateTime.now,
-    })
-
-    const tools = buildPlantChatTools({
-      runtime,
-      userId,
-      permit,
-      image,
-      plantName: plant.name,
-      timezone,
-    })
-
-    return { systemPrompt, tools }
   })

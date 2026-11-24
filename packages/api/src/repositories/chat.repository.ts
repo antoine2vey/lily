@@ -1,3 +1,4 @@
+import { ConversationKindDefect } from '@lily/api/errors/defects'
 import {
   extractCount,
   getPaginationParams,
@@ -26,7 +27,16 @@ import {
   max,
   sql,
 } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import {
+  Array,
+  Context,
+  Effect,
+  Layer,
+  Match,
+  Option,
+  Predicate,
+  pipe,
+} from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface FindChatHistoryParams {
@@ -83,20 +93,55 @@ const mapToChatMessage = (row: ChatMessageRow): ChatMessage => ({
   createdAt: row.createdAt,
 })
 
-const mapToConversation = (row: ChatConversationRow): ChatConversation => ({
-  id: row.id,
-  userId: row.userId,
-  kind: row.kind as ChatConversationKind,
-  plantId: Option.getOrUndefined(Option.fromNullishOr(row.plantId)),
-  title: Option.getOrUndefined(Option.fromNullishOr(row.title)),
-  createdAt: row.createdAt,
-  lastMessageAt: row.lastMessageAt,
-})
+type ConversationFields = Omit<ChatConversation, 'kind' | 'plantId'>
+
+/** A conversation about one plant. */
+export interface PlantConversation extends ConversationFields {
+  readonly kind: 'plant'
+  readonly plantId: string
+}
+
+/** A free-form conversation, about no plant in particular. */
+export interface GeneralConversation extends ConversationFields {
+  readonly kind: 'general'
+}
+
+export type Conversation = PlantConversation | GeneralConversation
+
+export const conversationFromRow = (
+  row: ChatConversationRow
+): Effect.Effect<Conversation> => {
+  const fields: ConversationFields = {
+    id: row.id,
+    userId: row.userId,
+    title: Option.getOrUndefined(Option.fromNullishOr(row.title)),
+    createdAt: row.createdAt,
+    lastMessageAt: row.lastMessageAt,
+  }
+  return pipe(
+    Match.value(row),
+    Match.when(
+      { kind: 'plant', plantId: Predicate.isString },
+      ({ plantId }): Effect.Effect<Conversation> =>
+        Effect.succeed({ ...fields, kind: 'plant', plantId })
+    ),
+    Match.when(
+      { kind: 'general', plantId: Predicate.isNull },
+      (): Effect.Effect<Conversation> =>
+        Effect.succeed({ ...fields, kind: 'general' })
+    ),
+    Match.orElse(({ id, kind, plantId }) =>
+      Effect.die(
+        new ConversationKindDefect({ conversationId: id, kind, plantId })
+      )
+    )
+  )
+}
 
 export interface IChatRepository {
   readonly findConversationById: (
     id: string
-  ) => Effect.Effect<ChatConversationRow | null, SqlError>
+  ) => Effect.Effect<Conversation | null, SqlError>
   readonly findOrCreatePlantConversation: (params: {
     userId: string
     plantId: string
@@ -185,7 +230,10 @@ export const ChatRepositoryLive = Layer.effect(
             .select()
             .from(chatConversations)
             .where(eq(chatConversations.id, id))
-          return pipe(Option.fromNullishOr(row), Option.getOrNull)
+          return yield* Option.match(Option.fromNullishOr(row), {
+            onNone: () => Effect.succeed(null),
+            onSome: conversationFromRow,
+          })
         }
       ),
 
@@ -203,7 +251,7 @@ export const ChatRepositoryLive = Layer.effect(
             )
           )
         if (existing) {
-          return mapToConversation(existing)
+          return yield* conversationFromRow(existing)
         }
         const [created] = yield* db
           .insert(chatConversations)
@@ -214,7 +262,7 @@ export const ChatRepositoryLive = Layer.effect(
           })
           .returning()
         // The partial unique index guarantees insert succeeds when no row exists
-        return mapToConversation(created!)
+        return yield* conversationFromRow(created!)
       }),
 
       createGeneralConversation: Effect.fn(
@@ -228,7 +276,7 @@ export const ChatRepositoryLive = Layer.effect(
             title: Option.getOrNull(Option.fromNullishOr(params.title)),
           })
           .returning()
-        return mapToConversation(created!)
+        return yield* conversationFromRow(created!)
       }),
 
       listConversations: Effect.fn('ChatRepository.listConversations')(
@@ -257,7 +305,7 @@ export const ChatRepositoryLive = Layer.effect(
           )
 
           return paginate(
-            Array.map(rows, mapToConversation),
+            yield* Effect.forEach(rows, conversationFromRow),
             extractCount(countResult),
             page,
             limit

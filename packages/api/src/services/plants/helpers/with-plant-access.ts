@@ -56,14 +56,22 @@ export const caller: Effect.Effect<
   Caller,
   never,
   CurrentUser | CanopyRepository
-> = Effect.gen(function* () {
-  const { id: userId } = yield* CurrentUser
-  const canopyRepo = yield* CanopyRepository
-  const membership = yield* Effect.cached(
-    canopyRepo.findMembershipByUser(userId)
-  )
-  return { userId, membership }
-})
+> = Effect.flatMap(CurrentUser, ({ id }) => callerFor(id))
+
+/**
+ * `userId` as a caller, for an admin who looks at a plant as that user. It
+ * reads roles only: no permit is minted for a caller built here.
+ */
+export const callerFor = (
+  userId: string
+): Effect.Effect<Caller, never, CanopyRepository> =>
+  Effect.gen(function* () {
+    const canopyRepo = yield* CanopyRepository
+    const membership = yield* Effect.cached(
+      canopyRepo.findMembershipByUser(userId)
+    )
+    return { userId, membership }
+  })
 
 type RoleInput = Pick<PlantRow, 'id' | 'owner' | 'createdByUserId'>
 
@@ -108,16 +116,17 @@ export const resolvePlantRole = (
  * gets 403: that caller can already see the plant.
  */
 const authorizedRole = (
+  who: Caller,
   requestedId: string,
   plant: RoleInput,
   action: PlantAction
 ): Effect.Effect<
   PlantRole,
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
-  PlantAccessContext
+  DelegationRepository
 > =>
   Effect.flatMap(
-    resolvePlantRole(plant),
+    plantRoleFor(who, plant),
     (
       role
     ): Effect.Effect<PlantRole, PlantNotFoundError | PlantNotAuthorizedError> =>
@@ -139,7 +148,12 @@ export const assertPlantAction = (
   void,
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantAccessContext
-> => Effect.asVoid(authorizedRole(requestedId, plant, action))
+> =>
+  Effect.asVoid(
+    Effect.flatMap(caller, (who) =>
+      authorizedRole(who, requestedId, plant, action)
+    )
+  )
 
 export const canPerform = (
   who: Caller,
@@ -149,6 +163,7 @@ export const canPerform = (
   Effect.map(plantRoleFor(who, plant), Option.exists(allows(action)))
 
 const plantInRole = (
+  who: Caller,
   plantId: string,
   action: PlantAction
 ): Effect.Effect<
@@ -158,20 +173,19 @@ const plantInRole = (
     readonly viewerId: string
   },
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
-  PlantRepository | PlantAccessContext
+  PlantRepository | DelegationRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const { id: viewerId } = yield* CurrentUser
     const plant = yield* repo.findById(plantId)
 
     if (!plant) {
       return yield* new PlantNotFoundError({ plantId })
     }
 
-    const role = yield* authorizedRole(plantId, plant, action)
+    const role = yield* authorizedRole(who, plantId, plant, action)
 
-    return { plant, role, viewerId }
+    return { plant, role, viewerId: who.userId }
   }).pipe(Effect.withSpan('withPlantAuth', { attributes: { action } }))
 
 /**
@@ -186,19 +200,49 @@ export const withPlantKnowledge = <A extends PlantAction>(
   plantId: string,
   action: A
 ): Effect.Effect<
-  {
-    readonly plant: PlantWithRoom
-    readonly view: KnowledgeView
-    readonly permit: PlantPermit<A>
-  },
+  PlantKnowledge<A>,
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
 > =>
-  Effect.map(plantInRole(plantId, action), ({ plant, role, viewerId }) => ({
-    plant,
-    view: knowledgeView(role, viewerId),
-    permit: mintPermit(plant.id, action, Actor.User({ userId: viewerId })),
-  }))
+  Effect.map(
+    Effect.flatMap(caller, (who) => plantInRole(who, plantId, action)),
+    ({ plant, role, viewerId }) => ({
+      plant,
+      view: knowledgeView(role, viewerId),
+      permit: mintPermit(plant.id, action, Actor.User({ userId: viewerId })),
+    })
+  )
+
+export interface PlantView {
+  readonly plant: PlantWithRoom
+  readonly view: KnowledgeView
+}
+
+export interface PlantKnowledge<A extends PlantAction> extends PlantView {
+  readonly permit: PlantPermit<A>
+}
+
+/**
+ * The plant and what `who` sees of it, when `who` may perform `action`.
+ * It mints no permit, so code that acts on the plant goes through
+ * `withPlantKnowledge` and the current user.
+ */
+export const plantViewFor = (
+  who: Caller,
+  plantId: string,
+  action: PlantAction
+): Effect.Effect<
+  PlantView,
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantRepository | DelegationRepository
+> =>
+  Effect.map(
+    plantInRole(who, plantId, action),
+    ({ plant, role, viewerId }) => ({
+      plant,
+      view: knowledgeView(role, viewerId),
+    })
+  )
 
 export const withPlantAuth = (
   plantId: string,
@@ -245,12 +289,15 @@ export const withRecordPermit = <A extends RecordAction>(
   PlantNotFoundError | PlantNotAuthorizedError | SqlError,
   PlantRepository | PlantAccessContext
 > =>
-  Effect.map(plantInRole(plantId, add), ({ plant, role, viewerId }) => {
-    const actor = Actor.User({ userId: viewerId })
-    return allows('curate')(role)
-      ? mintPermit(plant.id, 'curate', actor)
-      : mintPermit(plant.id, add, actor)
-  })
+  Effect.map(
+    Effect.flatMap(caller, (who) => plantInRole(who, plantId, add)),
+    ({ plant, role, viewerId }) => {
+      const actor = Actor.User({ userId: viewerId })
+      return allows('curate')(role)
+        ? mintPermit(plant.id, 'curate', actor)
+        : mintPermit(plant.id, add, actor)
+    }
+  )
 
 export const plantPermits = <A extends PlantAction>(
   plantIds: ReadonlyArray<string>,

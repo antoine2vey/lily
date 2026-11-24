@@ -1,6 +1,7 @@
-import type { ChatConversation, ChatMessage } from '@lily/shared/ai-chat'
+import type { PlantConversation } from '@lily/api/repositories/chat.repository'
+import type { ChatMessage } from '@lily/shared/ai-chat'
 
-export const mockPlantConversation: ChatConversation = {
+export const mockPlantConversation: PlantConversation = {
   id: 'conv-plant-1',
   userId: 'user-1',
   kind: 'plant',

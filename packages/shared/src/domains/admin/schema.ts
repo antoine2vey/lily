@@ -93,17 +93,6 @@ export const PromptPreviewCareEntry = Schema.Struct({
   notes: Schema.NullOr(Schema.String),
 })
 
-export const PromptPreviewRagChunk = Schema.Struct({
-  id: Schema.String,
-  content: Schema.String,
-  source: Schema.String,
-  sourceUrl: Schema.optional(Schema.String),
-  plantType: Schema.optional(Schema.String),
-  category: Schema.optional(Schema.String),
-  metadata: Schema.optional(Schema.Unknown),
-  similarity: Schema.Finite,
-})
-
 export const PromptPreviewConversationEntry = Schema.Struct({
   role: Schema.Union([Schema.Literal('user'), Schema.Literal('assistant')]),
   content: Schema.String,
@@ -118,9 +107,6 @@ export const PromptPreviewResponse = Schema.Struct({
   message: PromptPreviewMessage,
   plant: PromptPreviewPlant,
   careHistory: Schema.Array(PromptPreviewCareEntry),
-  ragQuery: Schema.String,
-  ragChunks: Schema.Array(PromptPreviewRagChunk),
-  formattedRagContext: Schema.String,
   conversationHistory: Schema.Array(PromptPreviewConversationEntry),
   systemPrompt: Schema.String,
   model: Schema.String,
@@ -279,7 +265,6 @@ export type AdminStatusChangeRequest = typeof AdminStatusChangeRequest.Type
 export type PromptPreviewMessage = typeof PromptPreviewMessage.Type
 export type PromptPreviewPlant = typeof PromptPreviewPlant.Type
 export type PromptPreviewCareEntry = typeof PromptPreviewCareEntry.Type
-export type PromptPreviewRagChunk = typeof PromptPreviewRagChunk.Type
 export type PromptPreviewConversationEntry =
   typeof PromptPreviewConversationEntry.Type
 export type PromptPreviewRequest = typeof PromptPreviewRequest.Type
