@@ -48,6 +48,5 @@ export const pollIngestJobs = Effect.gen(function* () {
 export const startKnowledgeIngestionWorker = createDrainableScheduler({
   name: 'knowledge-ingestion-worker',
   interval: '30 seconds',
-  runOnStartup: false,
   task: pollIngestJobs,
 })

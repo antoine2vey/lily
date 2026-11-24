@@ -135,7 +135,6 @@ describe('scheduler shutdown', () => {
         createDrainableScheduler({
           name: 'test-drainable',
           interval: '1 minute',
-          runOnStartup: false,
           task: slowTick(events).pipe(Effect.as(true)),
         }),
       shutdownAt: 7_000,

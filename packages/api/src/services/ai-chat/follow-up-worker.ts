@@ -193,6 +193,5 @@ export const pollFollowUpRequests = Effect.gen(function* () {
 export const startChatFollowUpWorker = createDrainableScheduler({
   name: NAME,
   interval: '15 seconds',
-  runOnStartup: false,
   task: pollFollowUpRequests,
 })

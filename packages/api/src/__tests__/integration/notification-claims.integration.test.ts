@@ -572,7 +572,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               yield* createDrainableScheduler({
                 name: 'drain-test',
                 interval: '1 hour',
-                runOnStartup: false,
                 task: pollAndEnqueue,
               })
               return yield* Effect.promise(() => firstEnqueue.promise).pipe(
