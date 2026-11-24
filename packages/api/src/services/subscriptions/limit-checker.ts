@@ -1,15 +1,14 @@
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import { canopyPlantCapFrom } from '@lily/api/services/subscriptions/canopy-plant-cap'
 import { resolveTierConfig } from '@lily/api/services/subscriptions/effective-tier'
-import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import {
   DisableLimitsConfig,
   NodeEnvConfig,
 } from '@lily/api/services/subscriptions/limits-config'
+import { plantCapsFor } from '@lily/api/services/subscriptions/plant-caps'
 import { LimitExceededError, type PlantOwner } from '@lily/shared'
-import { Array, Context, Effect, Layer, Match, pipe } from 'effect'
+import { Context, Effect, Layer, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface ILimitChecker {
@@ -71,45 +70,17 @@ export const LimitCheckerLive = Layer.effect(
       }
     })
 
-    const canopyPlantCap = (canopyId: string) =>
-      Effect.gen(function* () {
-        const members = yield* canopyRepo.findMembersByJoinDate(canopyId)
-        const subscriptions = yield* subRepo.findByUserIds(
-          Array.map(members, (m) => m.userId)
-        )
-        const memberTiers = yield* Effect.forEach(
-          pipe(
-            subscriptions,
-            Array.filter(hasPremiumAccess),
-            Array.map((sub) => sub.tier),
-            Array.dedupe
-          ),
-          subRepo.getTier
-        )
-        const free = yield* subRepo.getTier('free')
-        return canopyPlantCapFrom(
-          Array.map(memberTiers, (tier) => tier.maxPlants),
-          free.maxPlants
-        )
-      })
-
     const checkPlantLimit = Effect.fn('LimitChecker.checkPlantLimit')(
       function* (owner: PlantOwner) {
-        const maxPlants = yield* Match.value(owner).pipe(
-          Match.tag('User', ({ userId }) =>
-            Effect.map(
-              resolveTierConfig(subRepo, userId),
-              (tier) => tier.maxPlants
-            )
-          ),
-          Match.tag('Canopy', ({ canopyId }) => canopyPlantCap(canopyId)),
-          Match.exhaustive
+        const capOf = yield* plantCapsFor([owner]).pipe(
+          Effect.provideService(SubscriptionRepository, subRepo),
+          Effect.provideService(CanopyRepository, canopyRepo)
         )
-
-        // null means unlimited
-        if (maxPlants === null) {
+        const cap = capOf(owner)
+        if (Option.isNone(cap)) {
           return
         }
+        const maxPlants = cap.value
 
         // Dead plants free their slot; the cemetery is not capped.
         const currentCount = yield* achievementRepo.countLivingPlants(owner)

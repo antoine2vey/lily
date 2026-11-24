@@ -30,7 +30,7 @@ import type { CanopyRow } from '@lily/api/repositories/canopy.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import type { userSubscriptions } from '@lily/db/schema'
-import { pickNotificationTime } from '@lily/shared'
+import { pickNotificationTime, type TierConfig } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import type { QueueMessage } from '@lily/shared/server'
 import { failureOf } from '@lily/shared/testing'
@@ -1089,6 +1089,59 @@ describe('checkAndCreateOverdueReminders', () => {
         (n) => n.type === 'resubscribe_nudge'
       )
       expect(nudges.length).toBe(0)
+    })
+
+    describe('when the tier table has gaps, as the plant limit reads it', () => {
+      const freeRow: TierConfig = {
+        tier: 'free',
+        name: 'Free',
+        priceMonthly: 0,
+        maxPlants: 5,
+        maxAiChatsMonthly: 10,
+        maxCardScansMonthly: 5,
+        maxPlantIdentifiesMonthly: 3,
+      }
+      const eightOverdue = Arr.makeBy(8, (i) =>
+        createTestPlant({
+          id: `plant-${i}`,
+          userId: 'user-1',
+          dateAdded: daysAgo(100 - i),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+      const overdueReminders = (notifications: Notification[]) =>
+        Arr.filter(notifications, (n) => n.type === 'overdue_reminder')
+
+      it('caps a premium user at the free default when their tier has no row', async () => {
+        const notifications: Notification[] = []
+
+        await runCheck(
+          eightOverdue,
+          [defaultUser],
+          notifications,
+          {},
+          {
+            subscriptionsByUser: { 'user-1': premium('user-1') },
+            tierRows: [freeRow],
+          }
+        )
+
+        expect(overdueReminders(notifications).length).toBe(5)
+      })
+
+      it('reminds a free user of every plant when the free tier has no plant limit', async () => {
+        const notifications: Notification[] = []
+
+        await runCheck(
+          eightOverdue,
+          [defaultUser],
+          notifications,
+          {},
+          { tierRows: [{ ...freeRow, maxPlants: null }] }
+        )
+
+        expect(overdueReminders(notifications).length).toBe(8)
+      })
     })
 
     it('should cap notifications to maxPlants oldest plants for free-tier users', async () => {

@@ -6,7 +6,7 @@ import {
   LimitCheckerLive,
 } from '@lily/api/services/subscriptions/limit-checker'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
-import { LimitExceededError } from '@lily/shared'
+import { LimitExceededError, type TierConfig } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { DateTime, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -391,6 +391,89 @@ describe('LimitChecker', () => {
         _tag: 'LimitExceededError',
         feature: 'plants',
       })
+    })
+  })
+
+  describe('plant cap when the tier table has gaps', () => {
+    const freeRow: TierConfig = {
+      tier: 'free',
+      name: 'Free',
+      priceMonthly: 0,
+      maxPlants: 5,
+      maxAiChatsMonthly: 10,
+      maxCardScansMonthly: 5,
+      maxPlantIdentifiesMonthly: 3,
+    }
+    const paidSubscription: typeof userSubscriptions.$inferSelect = {
+      id: 'sub-1',
+      userId: 'user-1',
+      tier: 'paid',
+      status: 'active',
+      trialStartsAt: null,
+      trialEndsAt: null,
+      currentPeriodStart: nowAsDate(),
+      currentPeriodEnd: dateFromNow({ days: 30 }),
+      externalSubscriptionId: 'sub_123',
+      externalCustomerId: 'cus_123',
+      provider: 'revenuecat',
+      productId: null,
+      store: null,
+      canceledAt: null,
+      createdAt: nowAsDate(),
+      updatedAt: nowAsDate(),
+    }
+    const checkWith = (options: {
+      subscription: typeof userSubscriptions.$inferSelect | null
+      tierRows: ReadonlyArray<TierConfig>
+      livingPlants: number
+    }) =>
+      Effect.runPromiseExit(
+        Effect.flatMap(LimitChecker, (checker) =>
+          checker.checkPlantLimit({ _tag: 'User', userId: 'user-1' })
+        ).pipe(
+          Effect.provide(
+            LimitCheckerLive.pipe(
+              Layer.provide(
+                Layer.mergeAll(
+                  createMockSubscriptionRepository({
+                    subscription: options.subscription,
+                    tierRows: options.tierRows,
+                  }),
+                  createMockAchievementRepository({
+                    achievements: [],
+                    livingPlantCount: options.livingPlants,
+                  }),
+                  createMockCanopyRepository()
+                )
+              )
+            )
+          )
+        )
+      )
+
+    it('caps a premium user at the free default when their tier has no row', async () => {
+      const exit = await checkWith({
+        subscription: paidSubscription,
+        tierRows: [freeRow],
+        livingPlants: 5,
+      })
+
+      expect(failureOf(exit)).toMatchObject({
+        _tag: 'LimitExceededError',
+        feature: 'plants',
+        limit: 5,
+        current: 5,
+      })
+    })
+
+    it('leaves a free user uncapped when the free tier has no plant limit', async () => {
+      const exit = await checkWith({
+        subscription: null,
+        tierRows: [{ ...freeRow, maxPlants: null }],
+        livingPlants: 50,
+      })
+
+      expect(Exit.isSuccess(exit)).toBe(true)
     })
   })
 

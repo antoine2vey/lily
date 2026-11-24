@@ -56,6 +56,9 @@ interface MockSubscriptionOptions {
   onReserveUsage?: (userId: string, field: UsageField) => void
   onReleaseUsage?: (usageId: UsageId, field: UsageField) => void
   subscriptionsByUser?: Record<string, typeof userSubscriptions.$inferSelect>
+  // The rows of `subscription_tiers`. A tier with no row reads as the free
+  // default, as in the real repository.
+  tierRows?: ReadonlyArray<TierConfig>
 }
 
 const rowFromCreate = (
@@ -158,13 +161,30 @@ export const createMockSubscriptionRepository = (
     },
     getTier: (name) =>
       Effect.succeed(
-        byUser === undefined
-          ? tierConfig
-          : name === 'paid'
-            ? paidTierConfig
-            : freeTierConfig
+        pipe(
+          Option.fromNullishOr(options.tierRows),
+          Option.map((rows) =>
+            pipe(
+              Array.findFirst(rows, (row) => row.tier === name),
+              Option.getOrElse(() => freeTierConfig)
+            )
+          ),
+          Option.getOrElse(() =>
+            byUser === undefined
+              ? tierConfig
+              : name === 'paid'
+                ? paidTierConfig
+                : freeTierConfig
+          )
+        )
       ),
-    getAllTiers: Effect.succeed([freeTierConfig, paidTierConfig]),
+    getAllTiers: Effect.succeed(
+      pipe(
+        Option.fromNullishOr(options.tierRows),
+        Option.map((rows) => [...rows]),
+        Option.getOrElse(() => [freeTierConfig, paidTierConfig])
+      )
+    ),
     getCurrentUsage: () => Effect.succeed(usage),
     reserveUsage: (userId, field, limit) => {
       const countKey = `${field}Count` as const
