@@ -42,7 +42,7 @@ export const previewPrompt = (
     const conversation = yield* chatRepo.findConversationById(
       messageRow.conversationId
     )
-    if (!conversation || !conversation.plantId) {
+    if (!conversation || conversation.kind !== 'plant') {
       return yield* new ChatMessageNotFoundError({
         message: `Plant conversation not found for message (id: ${messageId})`,
       })

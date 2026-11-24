@@ -1,6 +1,8 @@
-import { ChatRepository } from '@lily/api/repositories/chat.repository'
+import {
+  ChatRepository,
+  type Conversation,
+} from '@lily/api/repositories/chat.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import type { ChatConversation } from '@lily/shared/ai-chat'
 import { ConversationNotFoundError } from '@lily/shared/ai-chat'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -8,26 +10,18 @@ import type { SqlError } from 'effect/sql/SqlError'
 export const withConversationAuth = (
   conversationId: string
 ): Effect.Effect<
-  ChatConversation,
+  Conversation,
   ConversationNotFoundError | SqlError,
   ChatRepository | CurrentUser
 > =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const { id: userId } = yield* CurrentUser
-    const row = yield* chatRepo.findConversationById(conversationId)
-    if (!row || row.userId !== userId) {
+    const conversation = yield* chatRepo.findConversationById(conversationId)
+    if (!conversation || conversation.userId !== userId) {
       return yield* new ConversationNotFoundError({ id: conversationId })
     }
-    return {
-      id: row.id,
-      userId: row.userId,
-      kind: row.kind as ChatConversation['kind'],
-      ...(row.plantId ? { plantId: row.plantId } : {}),
-      ...(row.title ? { title: row.title } : {}),
-      createdAt: row.createdAt,
-      lastMessageAt: row.lastMessageAt,
-    }
+    return conversation
   }).pipe(
     Effect.withSpan('withConversationAuth', {
       attributes: { 'conversation.id': conversationId },

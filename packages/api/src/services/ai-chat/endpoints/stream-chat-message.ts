@@ -8,6 +8,7 @@ import type { CarePlanRepository } from '@lily/api/repositories/care-plan.reposi
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import {
   ChatRepository,
+  type Conversation,
   type MessageToSave,
 } from '@lily/api/repositories/chat.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
@@ -31,7 +32,6 @@ import {
   UsageTracker,
 } from '@lily/api/services/subscriptions/usage-tracker'
 import {
-  type ChatConversation,
   type ChatSuggestionTap,
   ConversationNotFoundError,
 } from '@lily/shared/ai-chat'
@@ -183,7 +183,7 @@ const isEmptyReply = (steps: readonly StepData[]) =>
   )
 
 export const streamChatMessage = (
-  conversation: ChatConversation,
+  conversation: Conversation,
   request: StreamChatRequest
 ): Effect.Effect<
   HttpServerResponse.HttpServerResponse,

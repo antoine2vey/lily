@@ -83,20 +83,41 @@ const mapToChatMessage = (row: ChatMessageRow): ChatMessage => ({
   createdAt: row.createdAt,
 })
 
-const mapToConversation = (row: ChatConversationRow): ChatConversation => ({
-  id: row.id,
-  userId: row.userId,
-  kind: row.kind as ChatConversationKind,
-  plantId: Option.getOrUndefined(Option.fromNullishOr(row.plantId)),
-  title: Option.getOrUndefined(Option.fromNullishOr(row.title)),
-  createdAt: row.createdAt,
-  lastMessageAt: row.lastMessageAt,
-})
+type ConversationFields = Omit<ChatConversation, 'kind' | 'plantId'>
+
+/** A conversation about one plant. */
+export interface PlantConversation extends ConversationFields {
+  readonly kind: 'plant'
+  readonly plantId: string
+}
+
+/** A free-form conversation, about no plant in particular. */
+export interface GeneralConversation extends ConversationFields {
+  readonly kind: 'general'
+}
+
+export type Conversation = PlantConversation | GeneralConversation
+
+// The check constraint chat_conversations_kind_plant_consistency gives a
+// plant id to every plant conversation and to no general one.
+export const conversationFromRow = (row: ChatConversationRow): Conversation => {
+  const fields: ConversationFields = {
+    id: row.id,
+    userId: row.userId,
+    title: Option.getOrUndefined(Option.fromNullishOr(row.title)),
+    createdAt: row.createdAt,
+    lastMessageAt: row.lastMessageAt,
+  }
+  return Option.match(Option.fromNullishOr(row.plantId), {
+    onNone: (): Conversation => ({ ...fields, kind: 'general' }),
+    onSome: (plantId): Conversation => ({ ...fields, kind: 'plant', plantId }),
+  })
+}
 
 export interface IChatRepository {
   readonly findConversationById: (
     id: string
-  ) => Effect.Effect<ChatConversationRow | null, SqlError>
+  ) => Effect.Effect<Conversation | null, SqlError>
   readonly findOrCreatePlantConversation: (params: {
     userId: string
     plantId: string
@@ -185,7 +206,11 @@ export const ChatRepositoryLive = Layer.effect(
             .select()
             .from(chatConversations)
             .where(eq(chatConversations.id, id))
-          return pipe(Option.fromNullishOr(row), Option.getOrNull)
+          return pipe(
+            Option.fromNullishOr(row),
+            Option.map(conversationFromRow),
+            Option.getOrNull
+          )
         }
       ),
 
@@ -203,7 +228,7 @@ export const ChatRepositoryLive = Layer.effect(
             )
           )
         if (existing) {
-          return mapToConversation(existing)
+          return conversationFromRow(existing)
         }
         const [created] = yield* db
           .insert(chatConversations)
@@ -214,7 +239,7 @@ export const ChatRepositoryLive = Layer.effect(
           })
           .returning()
         // The partial unique index guarantees insert succeeds when no row exists
-        return mapToConversation(created!)
+        return conversationFromRow(created!)
       }),
 
       createGeneralConversation: Effect.fn(
@@ -228,7 +253,7 @@ export const ChatRepositoryLive = Layer.effect(
             title: Option.getOrNull(Option.fromNullishOr(params.title)),
           })
           .returning()
-        return mapToConversation(created!)
+        return conversationFromRow(created!)
       }),
 
       listConversations: Effect.fn('ChatRepository.listConversations')(
@@ -257,7 +282,7 @@ export const ChatRepositoryLive = Layer.effect(
           )
 
           return paginate(
-            Array.map(rows, mapToConversation),
+            Array.map(rows, conversationFromRow),
             extractCount(countResult),
             page,
             limit

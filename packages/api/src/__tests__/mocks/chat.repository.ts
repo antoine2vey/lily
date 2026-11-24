@@ -1,6 +1,7 @@
 import {
   type ChatConversationRow,
   ChatRepository,
+  conversationFromRow,
   type FindChatHistoryParams,
   type IChatRepository,
   type ListConversationsParams,
@@ -70,7 +71,7 @@ export const createMockChatRepository = (
       Effect.succeed(
         pipe(
           Array.findFirst(conversations, (c) => c.id === id),
-          Option.map(conversationToRow),
+          Option.map((c) => conversationFromRow(conversationToRow(c))),
           Option.getOrNull
         )
       ),

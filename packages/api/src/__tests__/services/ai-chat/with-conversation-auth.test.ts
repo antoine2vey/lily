@@ -27,9 +27,7 @@ describe('withConversationAuth / getConversation', () => {
         Effect.provide(createTestLayer())
       )
     )
-    expect(result.id).toBe(mockPlantConversation.id)
-    expect(result.kind).toBe('plant')
-    expect(result.plantId).toBe(mockPlantConversation.plantId)
+    expect(result).toEqual(mockPlantConversation)
   })
 
   it('hides the conversation from another user', async () => {
