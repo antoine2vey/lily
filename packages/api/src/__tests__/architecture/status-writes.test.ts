@@ -397,7 +397,7 @@ describe('status writes', () => {
         .map(({ file }) => file)
     ).toEqual([
       'api/src/contexts/absence/store.ts',
-      'api/src/contexts/care/store.ts',
+      'api/src/contexts/care/store/write.ts',
     ])
   })
 

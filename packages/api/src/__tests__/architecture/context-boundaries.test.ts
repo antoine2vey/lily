@@ -20,7 +20,7 @@ const CANOPY_STORE_WRITES = 'contexts/canopy/store/write.ts'
 
 const CANOPY_STORE_LOCKS = 'contexts/canopy/store/lock.ts'
 
-const CARE_STORE = 'contexts/care/store.ts'
+const CARE_STORE_WRITES = 'contexts/care/store/write.ts'
 
 const OWNER_LOCK = 'services/plants/helpers/owner-lock.ts'
 
@@ -361,7 +361,7 @@ describe('bounded contexts', () => {
       .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
       .map(name)
 
-    expect(writers).toEqual([CARE_STORE])
+    expect(writers).toEqual([CARE_STORE_WRITES])
   })
 
   it('leave care plans and their steps to the Care store', () => {
@@ -371,7 +371,7 @@ describe('bounded contexts', () => {
       .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
       .map(name)
 
-    expect(writers).toEqual([CARE_STORE])
+    expect(writers).toEqual([CARE_STORE_WRITES])
   })
 
   it('leave the creation, the death, the revival and the removal of a plant to the Care store', () => {
@@ -381,7 +381,7 @@ describe('bounded contexts', () => {
       .filter((file) => WRITES.test(readFileSync(file, 'utf8')))
       .map(name)
 
-    expect(writers).toEqual([CARE_STORE])
+    expect(writers).toEqual([CARE_STORE_WRITES])
   })
 
   it('let the plant life endpoints tell Reminders and the app nothing themselves', () => {
@@ -443,7 +443,7 @@ describe('bounded contexts', () => {
 
     expect(matching(OWNER_COLUMNS)).toEqual([
       CANOPY_STORE_WRITES,
-      CARE_STORE,
+      CARE_STORE_WRITES,
       'repositories/room.repository.ts',
     ])
     expect(matching(SETS_OWNER)).toEqual([CANOPY_STORE_WRITES])
