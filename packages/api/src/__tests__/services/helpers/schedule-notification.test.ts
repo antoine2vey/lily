@@ -54,6 +54,31 @@ describe('recordNotification', () => {
     ])
   })
 
+  it('records the row with its stored text when a param does not encode', async () => {
+    const notifications: Notification[] = []
+
+    await Effect.runPromise(
+      recordNotification(
+        'streak_at_risk',
+        'user-1',
+        { streakCount: Number.NaN },
+        'en',
+        {}
+      ).pipe(
+        Effect.provide(notificationMocks(notifications).notices),
+        Effect.provideService(References.MinimumLogLevel, 'None')
+      )
+    )
+
+    expect(notifications).toEqual([
+      expect.objectContaining({
+        type: 'streak_at_risk',
+        status: 'queued',
+        params: { streakCount: Number.NaN },
+      }),
+    ])
+  })
+
   it('enqueues nothing until the row is dispatched', async () => {
     const enqueued: QueueMessage[] = []
 

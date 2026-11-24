@@ -41,9 +41,18 @@ const insertSimpleNotification = <T extends SimpleNotificationType>(
   Effect.gen(function* () {
     const notifications = yield* NotificationRepository
     const { title, body } = buildSimpleContent(type, params, language)
+    // A value its schema rejects still records the row: delivery then sends the
+    // stored title and body, so one bad value never stops a scheduler's batch.
     const stored = yield* Schema.encodeUnknownEffect(NOTIFICATION_PARAMS[type])(
       params
-    ).pipe(Effect.orDie)
+    ).pipe(
+      Effect.catchTag('SchemaError', (error) =>
+        Effect.logWarning('Recording params that do not encode').pipe(
+          Effect.annotateLogs({ type, userId, issue: error.message }),
+          Effect.as<unknown>(params)
+        )
+      )
+    )
     const row = yield* notifications.create({
       userId,
       type,
