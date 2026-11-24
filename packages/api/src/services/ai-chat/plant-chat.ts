@@ -36,12 +36,9 @@ import {
   Deferred,
   Effect,
   Exit,
-  Match,
   Option,
-  Predicate,
   pipe,
   Schema,
-  Struct,
 } from 'effect'
 
 // Type alias to avoid TS4023: bun's module resolution prevents TS
@@ -80,43 +77,6 @@ export interface PlantChatImageOptions {
   imageKey?: StoredObjectRef | undefined
 }
 
-const appendImageToLastUserMessage = (
-  modelMessages: ReturnType<typeof convertToModelMessages> extends Promise<
-    infer T
-  >
-    ? T
-    : never,
-  imageUrl: string | undefined
-) => {
-  if (!imageUrl) return modelMessages
-  const lastIndex = modelMessages.length - 1
-  return pipe(
-    Array.get(modelMessages, lastIndex),
-    Option.filter((msg) => msg.role === 'user'),
-    Option.map((lastMsg) => {
-      const imageContent = {
-        type: 'image' as const,
-        image: new URL(imageUrl),
-      }
-      const updatedContent = pipe(
-        Match.value(lastMsg.content),
-        Match.when(Predicate.isString, (str) => [
-          { type: 'text' as const, text: str },
-          imageContent,
-        ]),
-        Match.orElse((arr) =>
-          Array.append(arr as { type: string }[], imageContent)
-        )
-      )
-      return pipe(
-        Array.take(modelMessages, lastIndex),
-        Array.append(Struct.evolve(lastMsg, { content: () => updatedContent }))
-      ) as typeof modelMessages
-    }),
-    Option.getOrElse(() => modelMessages)
-  )
-}
-
 export const chatStream = (
   conversation: ChatConversation,
   messages: UIMessage[],
@@ -145,11 +105,6 @@ export const chatStream = (
       convertToModelMessages(messages)
     )
 
-    const finalModelMessages = appendImageToLastUserMessage(
-      modelMessages,
-      imageOptions?.imageUrl
-    )
-
     const useVisionModel = Boolean(imageOptions?.imageUrl)
 
     const completionDeferred = yield* Deferred.make<
@@ -161,7 +116,7 @@ export const chatStream = (
       model: openai(useVisionModel ? CHAT_MODEL : FAST_MODEL),
       maxRetries: 0,
       system: systemPrompt,
-      messages: finalModelMessages,
+      messages: modelMessages,
       tools,
       stopWhen: stepCountIs(3),
       maxOutputTokens: CHAT_MAX_OUTPUT_TOKENS,
