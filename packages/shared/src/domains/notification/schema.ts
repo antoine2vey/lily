@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
-import type { NotificationTopic } from '../../services/message-queue/types'
 import { PaginatedResponse } from '../common/pagination'
+import type { NotificationTopic } from './topics'
 
 export { NotificationNotFoundError } from './errors'
 

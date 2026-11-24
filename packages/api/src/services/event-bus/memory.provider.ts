@@ -1,4 +1,5 @@
-import { type AppEvent, EventBus, type IEventBus } from '@lily/shared/server'
+import { EventBus, type IEventBus } from '@lily/api/services/event-bus/service'
+import type { AppEvent } from '@lily/api/services/event-bus/types'
 import { Effect, Layer, Queue } from 'effect'
 
 export const InMemoryEventBusLive = Layer.effect(

@@ -6,6 +6,7 @@ import {
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
+import { MessageQueue } from '@lily/api/services/message-queue/service'
 import {
   DEFER_MESSAGE,
   Decision,
@@ -20,15 +21,14 @@ import {
 } from '@lily/api/services/notification-scheduler/render-delivery'
 import { pickDominantCareTopic } from '@lily/api/services/notification-scheduler/translations/care'
 import {
+  type DeferredCareType,
+  type NotificationTopic,
+  TOPIC_CATEGORY,
+} from '@lily/shared'
+import {
   NOTIFICATION_METADATA,
   type NotificationMetadata,
 } from '@lily/shared/notification'
-import {
-  type DeferredCareType,
-  MessageQueue,
-  type NotificationTopic,
-  TOPIC_CATEGORY,
-} from '@lily/shared/server'
 import {
   Array,
   DateTime,

@@ -7,11 +7,11 @@ import {
 } from '@lily/api/__tests__/mocks/expo-push'
 import type { ApnsClient } from '@lily/api/services/push/apns-live-activity'
 import { ExpoPlusApnsPushServiceLive } from '@lily/api/services/push/expo-plus-apns.provider'
-import {
-  type LiveActivityContentState,
-  type LiveActivityPushMessage,
-  PushService,
-} from '@lily/shared/server'
+import { PushService } from '@lily/api/services/push/service'
+import type {
+  LiveActivityContentState,
+  LiveActivityPushMessage,
+} from '@lily/api/services/push/types'
 import { failureOf } from '@lily/shared/testing'
 import {
   ConfigProvider,

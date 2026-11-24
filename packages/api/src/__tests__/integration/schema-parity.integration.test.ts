@@ -1,6 +1,6 @@
 import { readdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { NOTIFICATION_TOPICS } from '@lily/shared/server'
+import { NOTIFICATION_TOPICS } from '@lily/shared'
 import { Array, Order, pipe, String } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

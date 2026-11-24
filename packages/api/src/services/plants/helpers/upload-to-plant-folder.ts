@@ -1,10 +1,8 @@
-import { GCSService } from '@lily/shared/services/file/gcs'
-import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
-import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
-import {
-  plantFolder,
-  type StoredObjectRef,
-} from '@lily/shared/services/file/stored-object'
+import { GCSService } from '@lily/api/services/file/gcs'
+import type { GCSUploadError } from '@lily/api/services/file/gcs-errors'
+import type { InvalidImageError } from '@lily/api/services/file/image-upload'
+import { plantFolder } from '@lily/api/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Effect } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'

@@ -4,10 +4,11 @@ import {
   BlogPostRepository,
   type BlogPostStep,
 } from '@lily/api/repositories/blog-post.repository'
+import { callOpenAI } from '@lily/api/services/ai/call-openai'
 import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import { iterate } from '@lily/api/services/helpers/iterate'
 import type { LocalizedText } from '@lily/db/schema'
-import { callOpenAI, type LanguageCode } from '@lily/shared'
+import type { LanguageCode } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array, Effect, Option, pipe, Record } from 'effect'
 import { BlogGenerationError } from './errors'

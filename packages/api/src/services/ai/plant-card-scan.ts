@@ -1,8 +1,7 @@
 import { openai } from '@ai-sdk/openai'
+import type { OpenAIError } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array, type Effect } from 'effect'
-
-import type { OpenAIError } from '../../domains/ai-chat/errors'
 import { callOpenAI, OPENAI_TIMEOUTS } from './call-openai'
 import type { PlantAIResult } from './plant-schema'
 import { plantSchema } from './plant-schema'

@@ -255,6 +255,18 @@ Social lets users follow each other, open each other's profiles and nudge the pe
 6. **A nudge commits with its notification.** `recordNudge` and the `nudge_to_water` notification are written in one transaction. The push goes out after the commit, through `dispatchNow`.
 7. **Your own id is not exempt.** The by-id lists, `getUserFollowers` and `getUserFollowing`, check privacy even when the id is yours. A private user who asks for their own list by id gets `UserNotPublicError`. The own lists, `getFollowers` and `getFollowing`, have no privacy check, and the app reads its own lists through them.
 
+## Infrastructure services
+
+The services in `src/services/email/`, `src/services/event-bus/`, `src/services/message-queue/` and `src/services/push/`.
+
+| Term | Meaning | Avoid |
+|---|---|---|
+| **Service interface** | A `Context.Service` tag with an `I<Name>` interface and no implementation, such as `MessageQueue` with `IMessageQueue`. | |
+| **Provider** | The layer that implements a service interface. It sits beside the interface as a `*.provider.ts` file, such as `RedisMessageQueueLive` in `src/services/message-queue/redis.provider.ts`. | |
+| **App event** | One member of `AppEvent`, published on the `EventBus`, such as `PlantCreated` or `CareLogCreated`. Delivery is fire-and-forget, so a subscriber that is not listening misses it. Achievements and Live Activities listen for them. | "fact", which is what an api context publishes on the outbox |
+| **Queue message** | A `QueueMessage` on the `MessageQueue`. It asks for the delivery of the notifications it names under one notification topic, and the queue delivers it at least once. | |
+| **Claim** | The handle `dequeue` returns with a queue message. `ack` finishes it, `refreshClaim` keeps it alive, and `requeueStale` puts back every message whose claim is older than a given duration. The [knowledge-db Claim](../knowledge-db/CONTEXT.md#ingestion) is a different mechanism, on ingest jobs. | |
+
 ## Relationships
 
 - **db** owns the stored form of these terms: the tables, the enums and the migrations. The contexts and repositories read and write them through `DrizzleLive`. See [packages/db/CONTEXT.md](../db/CONTEXT.md).

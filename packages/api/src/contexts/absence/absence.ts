@@ -50,6 +50,7 @@ import {
   type RecordedNotification,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import { MessageQueue } from '@lily/api/services/message-queue/service'
 import { signedBy } from '@lily/api/services/notification-scheduler/translations/params'
 import {
   CannotDelegateSelfError,
@@ -65,7 +66,6 @@ import {
   VacationNotFoundError,
 } from '@lily/shared'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
-import { MessageQueue } from '@lily/shared/server'
 import {
   Array,
   Context,

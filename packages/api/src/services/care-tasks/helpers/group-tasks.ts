@@ -9,11 +9,11 @@ import {
   buildLiveActivitySubheadline,
   buildLiveActivityTitle,
 } from '@lily/api/services/notification-scheduler/translations/live-activity'
-import { CareDay, CareDays, type CareType } from '@lily/shared'
 import type {
   CareGroupContent,
   LiveActivityContentState,
-} from '@lily/shared/server'
+} from '@lily/api/services/push/types'
+import { CareDay, CareDays, type CareType } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 

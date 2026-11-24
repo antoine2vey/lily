@@ -1,9 +1,11 @@
 import {
-  EmailSendError,
   EmailService,
   type IEmailService,
+} from '@lily/api/services/email/service'
+import {
+  EmailSendError,
   type SendEmailRequest,
-} from '@lily/shared/server'
+} from '@lily/api/services/email/types'
 import { Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockEmailServiceOptions {

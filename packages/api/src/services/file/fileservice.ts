@@ -48,13 +48,13 @@ export {
   ALLOWED_IMAGE_TYPES,
   MAX_FILE_SIZE_BYTES,
   MAX_SCAN_FILES,
-} from '../../domains/plant/constants'
+} from '@lily/shared'
 
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_FILE_SIZE_BYTES,
   MAX_SCAN_FILES,
-} from '../../domains/plant/constants'
+} from '@lily/shared'
 
 export const PersistedFileBuffer = Schema.Struct({
   buffer: Schema.Uint8Array,

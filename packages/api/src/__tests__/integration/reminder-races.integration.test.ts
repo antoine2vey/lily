@@ -72,12 +72,12 @@ import {
   unmutePlant,
 } from '@lily/api/services/plants/endpoints/mute-plant'
 import { unsharePlant } from '@lily/api/services/plants/endpoints/unshare-plant'
+import type { PushMessage } from '@lily/api/services/push/types'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { TimeZone } from '@lily/shared'
-import type { PushMessage } from '@lily/shared/server'
 import { failureOf } from '@lily/shared/testing'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'

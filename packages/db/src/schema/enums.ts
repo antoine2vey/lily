@@ -1,4 +1,4 @@
-import { NOTIFICATION_TOPICS } from '@lily/shared/services/message-queue/types'
+import { NOTIFICATION_TOPICS } from '@lily/shared'
 import { pgEnum } from 'drizzle-orm/pg-core'
 
 export const careLogTypeEnum = pgEnum('care_log_type', [

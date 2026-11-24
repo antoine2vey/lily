@@ -60,6 +60,7 @@ import {
   dispatchAll,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import { MessageQueue } from '@lily/api/services/message-queue/service'
 import { signedBy } from '@lily/api/services/notification-scheduler/translations/params'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
@@ -84,7 +85,6 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { MessageQueue } from '@lily/shared/server'
 import {
   Array,
   Context,

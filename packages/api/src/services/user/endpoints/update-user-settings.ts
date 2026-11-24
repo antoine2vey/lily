@@ -18,9 +18,13 @@ import {
   claimUsername,
   usernameTakenOnConflict,
 } from '@lily/api/services/username/claim-username'
-import { type AuthError, compact, trimAndNullify } from '@lily/shared'
+import {
+  type AuthError,
+  compact,
+  ENGAGEMENT_TOPICS,
+  trimAndNullify,
+} from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
-import { ENGAGEMENT_TOPICS } from '@lily/shared/server'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Array, Effect, Option, pipe } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'

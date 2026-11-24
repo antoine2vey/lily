@@ -1,6 +1,6 @@
+import type { DeferredCareType, NotificationTopic } from '@lily/shared'
 import { UsageField } from '@lily/shared'
 import { GiftDuration } from '@lily/shared/admin'
-import type { DeferredCareType, NotificationTopic } from '@lily/shared/server'
 import { Option, Schema } from 'effect'
 
 export type SimpleNotificationType = Exclude<

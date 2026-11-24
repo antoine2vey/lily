@@ -1,5 +1,5 @@
+import { CareType } from '@lily/shared'
 import { Data, Schema } from 'effect'
-import { CareType } from '../../domains/care/types'
 
 // iOS interruption levels (mapped 1:1 onto APS `interruption-level`).
 // `time-sensitive` breaks through Focus modes and appears prominently on

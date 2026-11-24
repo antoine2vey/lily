@@ -41,6 +41,7 @@ export * from './domains/notification/overdue'
 export * from './domains/notification/schema'
 export * from './domains/notification/time-zones.generated'
 export * from './domains/notification/timezone'
+export * from './domains/notification/topics'
 export * from './domains/plant/constants'
 export * from './domains/plant/errors'
 export * from './domains/plant/rating'
@@ -62,11 +63,3 @@ export * from './domains/vacation/schema'
 export * from './domains/weather/constants'
 export * from './domains/weather/errors'
 export * from './domains/weather/schema'
-
-// AI utilities (client-safe - no Node.js dependencies)
-export * from './services/ai/call-openai'
-export * from './services/ai/quality-check'
-
-// Note: Server-only services (GCS, Email, Push, MessageQueue, EventBus)
-// are exported from '@lily/shared/server' to avoid bundling Node.js
-// dependencies in React Native apps.

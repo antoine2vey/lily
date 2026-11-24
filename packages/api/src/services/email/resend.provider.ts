@@ -1,10 +1,12 @@
 import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
 import {
-  EmailSendError,
   EmailService,
   type IEmailService,
+} from '@lily/api/services/email/service'
+import {
+  EmailSendError,
   type SendEmailRequest,
-} from '@lily/shared/server'
+} from '@lily/api/services/email/types'
 import { Config, Duration, Effect, Layer, Redacted } from 'effect'
 import { type CreateEmailRequestOptions, Resend } from 'resend'
 

@@ -12,7 +12,7 @@ import {
   type DeferredCareType,
   type NotificationTopic,
   TOPIC_CATEGORY,
-} from '@lily/shared/server'
+} from '@lily/shared'
 import { Array, Filter, Option, pipe, Record, Result } from 'effect'
 
 const isCareTopic = (topic: NotificationTopic): topic is DeferredCareType =>

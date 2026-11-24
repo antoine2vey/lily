@@ -3,6 +3,11 @@ import {
   type GetFilesOptions,
   Storage,
 } from '@google-cloud/storage'
+import { nowAsDate, nowAsEpochMillis } from '@lily/shared'
+import {
+  mintStoredRef,
+  type StoredObjectRef,
+} from '@lily/shared/services/file/stored-ref-mint'
 import {
   Array,
   Config,
@@ -18,7 +23,6 @@ import {
   Stream,
   String,
 } from 'effect'
-import { nowAsDate, nowAsEpochMillis } from '../../domains/common/date'
 import {
   GCSConfigError,
   GCSDeleteError,
@@ -35,10 +39,8 @@ import {
   publicUrlOf,
   readStoredRef,
   type StoredObject,
-  type StoredObjectRef,
   scopePrefix,
 } from './stored-object'
-import { mintStoredRef } from './stored-ref-mint'
 
 export const GCSCredentialsSchema = Schema.Struct({
   type: Schema.String,

@@ -1,10 +1,9 @@
-import {
-  type IPushService,
-  type LiveActivityPushMessage,
-  type PushMessage,
-  PushService,
-  type PushTicket,
-} from '@lily/shared/server'
+import { type IPushService, PushService } from '@lily/api/services/push/service'
+import type {
+  LiveActivityPushMessage,
+  PushMessage,
+  PushTicket,
+} from '@lily/api/services/push/types'
 import { Array, Effect, Layer, Match } from 'effect'
 
 const makeTicket = (): PushTicket => ({

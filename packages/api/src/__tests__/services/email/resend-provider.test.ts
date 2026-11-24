@@ -5,7 +5,7 @@ import {
   getSentEmails,
   wasEmailSentTo,
 } from '@lily/api/__tests__/mocks/email.service'
-import { EmailService } from '@lily/shared/server'
+import { EmailService } from '@lily/api/services/email/service'
 import { failureOf } from '@lily/shared/testing'
 import { Effect } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'

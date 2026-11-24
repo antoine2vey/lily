@@ -10,7 +10,7 @@ import {
   type CanopyInvitePreview,
   isFuture,
 } from '@lily/shared'
-import { clientIp } from '@lily/shared/server'
+import { clientIp } from '@lily/shared/services/http/client-ip'
 import { DateTime, Effect } from 'effect'
 
 export const previewCanopyInvite = Effect.fn(

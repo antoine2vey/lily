@@ -3,7 +3,7 @@ import type {
   QueueMessage,
   QueueMessageDecodeError,
   QueueOperationError,
-} from '@lily/shared/services/message-queue/types'
+} from '@lily/api/services/message-queue/types'
 import { Context, type Duration, type Effect } from 'effect'
 
 export interface DequeuedMessage {

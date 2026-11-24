@@ -7,7 +7,7 @@ import {
   NoFilesError,
   type PersistedFileBuffer,
   type TooManyFilesError,
-} from '@lily/shared/services/file/fileservice'
+} from '@lily/api/services/file/fileservice'
 import { Effect, Layer } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 

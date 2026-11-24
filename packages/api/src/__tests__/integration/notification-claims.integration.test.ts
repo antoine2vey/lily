@@ -34,13 +34,14 @@ import {
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
 import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
+import type { QueueMessage } from '@lily/api/services/message-queue/types'
 import {
   BATCH_SIZE,
   pollAndEnqueue,
 } from '@lily/api/services/notification-scheduler/scheduler'
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import type { NotificationTopic, QueueMessage } from '@lily/shared/server'
+import type { NotificationTopic } from '@lily/shared'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {

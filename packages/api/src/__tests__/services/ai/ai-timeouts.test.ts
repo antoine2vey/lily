@@ -1,16 +1,16 @@
+import { generateConversationTitle } from '@lily/api/services/ai/generate-conversation-title'
+import {
+  plantCardScan,
+  plantCardScanMultiple,
+} from '@lily/api/services/ai/plant-card-scan'
+import { plantDetect } from '@lily/api/services/ai/plant-detect'
+import { plantRecognition } from '@lily/api/services/ai/plant-recognition'
+
+import { OpenAIError } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { Duration, Effect, Fiber } from 'effect'
 import { TestClock } from 'effect/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { OpenAIError } from '../domains/ai-chat/errors'
-import { generateConversationTitle } from '../services/ai/generate-conversation-title'
-import {
-  plantCardScan,
-  plantCardScanMultiple,
-} from '../services/ai/plant-card-scan'
-import { plantDetect } from '../services/ai/plant-detect'
-import { plantRecognition } from '../services/ai/plant-recognition'
 
 const signals: AbortSignal[] = []
 

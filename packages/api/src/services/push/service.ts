@@ -5,7 +5,7 @@ import type {
   PushSendError,
   PushTicket,
   PushTokenInvalidatedError,
-} from '@lily/shared/services/push/types'
+} from '@lily/api/services/push/types'
 import { Context, type Effect } from 'effect'
 
 // Provider-agnostic push notification interface

@@ -1,11 +1,11 @@
 import { rowsToLock } from '@lily/api/kernel/locks'
 import type * as PgDrizzle from '@lily/db/effect-drizzle'
 import { notifications } from '@lily/db/schema'
+import type { NotificationTopic } from '@lily/shared'
 import type {
   Notification,
   NotificationStatus,
 } from '@lily/shared/notification'
-import type { NotificationTopic } from '@lily/shared/server'
 import type { SQL } from 'drizzle-orm'
 import { Option } from 'effect'
 

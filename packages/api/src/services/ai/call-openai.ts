@@ -1,3 +1,4 @@
+import { OpenAIError } from '@lily/shared'
 import {
   Config,
   ConfigProvider,
@@ -7,8 +8,7 @@ import {
   Schema,
   Semaphore,
 } from 'effect'
-
-import { mapOpenAIError, OpenAIError } from '../../domains/ai-chat/errors'
+import { mapOpenAIError } from './map-openai-error'
 
 // Per-call deadlines for the vision calls in this folder. Over the 60 days to
 // 2026-10-19, `AiService.classifyAndIdentify` (one detect call plus up to

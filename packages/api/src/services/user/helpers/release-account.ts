@@ -8,7 +8,7 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { NOTIFICATION_TOPICS } from '@lily/shared/server'
+import { NOTIFICATION_TOPICS } from '@lily/shared'
 import { Effect } from 'effect'
 
 export const releaseAccount = (userId: string) =>

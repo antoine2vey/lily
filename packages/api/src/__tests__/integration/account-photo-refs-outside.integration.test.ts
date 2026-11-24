@@ -3,12 +3,12 @@ import {
   AccountPhotoRepository,
   AccountPhotoRepositoryLive,
 } from '@lily/api/repositories/account-photo.repository'
-import { DrizzleLive, PgLive } from '@lily/db'
-import * as schema from '@lily/db/schema'
 import {
   legacyStampOf,
   namedObjects,
-} from '@lily/shared/services/file/stored-object'
+} from '@lily/api/services/file/stored-object'
+import { DrizzleLive, PgLive } from '@lily/db'
+import * as schema from '@lily/db/schema'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'

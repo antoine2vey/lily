@@ -1,12 +1,14 @@
-import { NOTIFICATION_METADATA } from '@lily/shared/notification'
 import {
   type IMessageQueue,
   MessageQueue,
+} from '@lily/api/services/message-queue/service'
+import {
   QueueConnectionError,
   QueueMessage,
   QueueMessageDecodeError,
   QueueOperationError,
-} from '@lily/shared/server'
+} from '@lily/api/services/message-queue/types'
+import { NOTIFICATION_METADATA } from '@lily/shared/notification'
 import {
   Clock,
   Config,

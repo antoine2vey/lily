@@ -6,8 +6,11 @@ import {
   recordNotification,
   recordNotificationAt,
 } from '@lily/api/services/helpers/schedule-notification'
+import {
+  QueueConnectionError,
+  type QueueMessage,
+} from '@lily/api/services/message-queue/types'
 import type { Notification } from '@lily/shared/notification'
-import { QueueConnectionError, type QueueMessage } from '@lily/shared/server'
 import { Array as Arr, Effect, Layer, References } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { describe, expect, it } from 'vitest'

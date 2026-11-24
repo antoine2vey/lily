@@ -7,13 +7,12 @@ export {
   InMemoryEventBusLive,
   RedisEventBusLive,
 } from '@lily/api/services/event-bus'
-export {
-  type AppEvent,
-  type CareLogCreatedEvent,
-  type ChatMessageSentEvent,
-  EventBus,
-  type IEventBus,
-  type PhotoUploadedEvent,
-  type PlantCreatedEvent,
-  type PlantScannedEvent,
-} from '@lily/shared/server'
+export { EventBus, type IEventBus } from '@lily/api/services/event-bus/service'
+export type {
+  AppEvent,
+  CareLogCreatedEvent,
+  ChatMessageSentEvent,
+  PhotoUploadedEvent,
+  PlantCreatedEvent,
+  PlantScannedEvent,
+} from '@lily/api/services/event-bus/types'

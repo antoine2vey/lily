@@ -4,7 +4,7 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { acknowledgeCare } from '@lily/api/contexts/reminders/consumers'
-import type { AppEvent } from '@lily/shared/server'
+import type { AppEvent } from '@lily/api/services/event-bus/types'
 import { Effect, Layer } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

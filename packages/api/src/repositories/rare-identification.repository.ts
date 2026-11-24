@@ -1,6 +1,6 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { rarePlantIdentifications } from '@lily/db/schema'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'

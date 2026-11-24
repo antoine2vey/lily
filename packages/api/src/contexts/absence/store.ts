@@ -46,10 +46,10 @@ import {
   type LanguageCode,
   nowAsDate,
   type UserStatus,
+  VACATION_MUTED_TOPICS,
   type VacationFields,
   type VacationStatus,
 } from '@lily/shared'
-import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import {
   and,
   asc,

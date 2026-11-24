@@ -1,13 +1,12 @@
-import { Effect } from 'effect'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import {
   plantCardScan,
   plantCardScanMultiple,
-} from '../services/ai/plant-card-scan'
-import { plantDetect } from '../services/ai/plant-detect'
-import { plantRecognition } from '../services/ai/plant-recognition'
-import { rarityInstructions } from '../services/ai/prompts'
+} from '@lily/api/services/ai/plant-card-scan'
+import { plantDetect } from '@lily/api/services/ai/plant-detect'
+import { plantRecognition } from '@lily/api/services/ai/plant-recognition'
+import { rarityInstructions } from '@lily/api/services/ai/prompts'
+import { Effect } from 'effect'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const systemPrompts: string[] = []
 

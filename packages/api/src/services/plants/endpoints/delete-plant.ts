@@ -4,12 +4,12 @@ import type { PlantPermit } from '@lily/api/kernel/permit'
 import { transact } from '@lily/api/kernel/transact'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import type { StoredRefRepository } from '@lily/api/repositories/stored-ref.repository'
+import type { GCSService } from '@lily/api/services/file/gcs'
 import {
   plantAndChatHeld,
   releasing,
 } from '@lily/api/services/helpers/release-objects'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
-import type { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'

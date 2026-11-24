@@ -8,6 +8,7 @@ import {
   validateEmail,
 } from '@lily/api/services/auth/helpers/create-magic-link'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
+import type { EmailService } from '@lily/api/services/email/service'
 import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import {
   RATE_LIMITS,
@@ -15,7 +16,7 @@ import {
 } from '@lily/api/services/rate-limiter/service'
 import { AuthError, type LanguageCode } from '@lily/shared'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
-import { clientIp, type EmailService } from '@lily/shared/server'
+import { clientIp } from '@lily/shared/services/http/client-ip'
 import {
   Array,
   Config,

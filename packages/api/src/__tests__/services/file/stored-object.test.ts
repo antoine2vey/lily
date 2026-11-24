@@ -1,12 +1,12 @@
-import { Option } from 'effect'
-import { describe, expect, it } from 'vitest'
-import { storageFailureMessage } from '../services/file/gcs-errors'
+import { storageFailureMessage } from '@lily/api/services/file/gcs-errors'
 import {
   legacyOwnerOf,
   namedObjects,
   readStoredRef,
   searchRunOf,
-} from '../services/file/stored-object'
+} from '@lily/api/services/file/stored-object'
+import { Option } from 'effect'
+import { describe, expect, it } from 'vitest'
 
 const named = namedObjects({ plant: 'lily-plants', ai: 'lily-ai' })
 

@@ -2,7 +2,7 @@ import type {
   AppEvent,
   EventBusConnectionError,
   EventBusPublishError,
-} from '@lily/shared/services/event-bus/types'
+} from '@lily/api/services/event-bus/types'
 import { Context, type Effect, type Queue, type Scope } from 'effect'
 
 // Provider-agnostic event bus interface

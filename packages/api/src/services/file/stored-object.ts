@@ -1,7 +1,5 @@
 import { Array, type DateTime, Match, Option, pipe, String } from 'effect'
 
-export type { StoredObjectRef } from './stored-ref-mint'
-
 /**
  * Who an object is erased with. A user's objects go when the account is
  * purged. A plant's objects go with the plant, so they outlive the uploader

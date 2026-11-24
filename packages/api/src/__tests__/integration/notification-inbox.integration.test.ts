@@ -24,6 +24,8 @@ import {
   recordNotification,
   recordNotificationAt,
 } from '@lily/api/services/helpers/schedule-notification'
+import { MessageQueue } from '@lily/api/services/message-queue/service'
+import type { QueueMessage } from '@lily/api/services/message-queue/types'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import { buildCareDigestContent } from '@lily/api/services/notification-scheduler/translations/care'
@@ -33,7 +35,6 @@ import { followUser } from '@lily/api/services/social/endpoints/follow-user'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { NotificationsListResponse } from '@lily/shared/notification'
-import { MessageQueue, type QueueMessage } from '@lily/shared/server'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer, References, Schema } from 'effect'

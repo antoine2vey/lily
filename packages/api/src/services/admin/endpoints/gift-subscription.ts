@@ -10,6 +10,7 @@ import {
   dispatchNow,
   recordNotification,
 } from '@lily/api/services/helpers/schedule-notification'
+import type { MessageQueue } from '@lily/api/services/message-queue/service'
 import type {
   AdminGiftSubscriptionResponse,
   GiftDuration,
@@ -19,7 +20,6 @@ import type {
   StorePayerProtectedError,
 } from '@lily/shared/errors/admin'
 import type { UserNotFoundError } from '@lily/shared/errors/user'
-import type { MessageQueue } from '@lily/shared/server'
 import { DateTime, Effect } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'

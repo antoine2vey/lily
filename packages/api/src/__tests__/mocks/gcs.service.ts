@@ -1,13 +1,16 @@
-import type { GCSUploadRequest, GCSUploadResponse } from '@lily/shared/server'
-import { GCSService } from '@lily/shared/server'
+import type {
+  GCSUploadRequest,
+  GCSUploadResponse,
+} from '@lily/api/services/file/gcs'
+import { GCSService } from '@lily/api/services/file/gcs'
 import {
   GCSDeleteError,
   GCSPublishError,
-} from '@lily/shared/services/file/gcs-errors'
+} from '@lily/api/services/file/gcs-errors'
 import {
   type InvalidImageError,
   planImageUpload,
-} from '@lily/shared/services/file/image-upload'
+} from '@lily/api/services/file/image-upload'
 import {
   type BucketRole,
   type ListedObject,
@@ -15,10 +18,12 @@ import {
   publicUrlOf,
   readStoredRef,
   type StoredObject,
-  type StoredObjectRef,
   scopePrefix,
-} from '@lily/shared/services/file/stored-object'
-import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
+} from '@lily/api/services/file/stored-object'
+import {
+  mintStoredRef,
+  type StoredObjectRef,
+} from '@lily/shared/services/file/stored-ref-mint'
 import { Array, DateTime, Effect, Layer, Stream } from 'effect'
 
 export const MOCK_BUCKET_NAMES = {

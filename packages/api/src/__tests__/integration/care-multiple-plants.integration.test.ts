@@ -20,15 +20,13 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
+import { EventBus } from '@lily/api/services/event-bus/service'
+import type { AppEvent } from '@lily/api/services/event-bus/types'
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
+import type { LiveActivityPushMessage } from '@lily/api/services/push/types'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import {
-  type AppEvent,
-  EventBus,
-  type LiveActivityPushMessage,
-} from '@lily/shared/server'
 import { defectOf } from '@lily/shared/testing'
 import { count, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'

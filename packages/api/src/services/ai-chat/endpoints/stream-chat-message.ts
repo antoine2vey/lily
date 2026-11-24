@@ -25,6 +25,8 @@ import type {
 } from '@lily/api/services/ai-chat/plant-chat'
 import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { GCSService } from '@lily/api/services/file/gcs'
+import type { GCSUploadError } from '@lily/api/services/file/gcs-errors'
 import { readChatImageKey } from '@lily/api/services/helpers/client-image'
 import type { RagService } from '@lily/api/services/rag/service'
 import {
@@ -39,9 +41,7 @@ import type {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { GCSService } from '@lily/shared/services/file/gcs'
-import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import type { UIMessage } from 'ai'
 import {
   Array,

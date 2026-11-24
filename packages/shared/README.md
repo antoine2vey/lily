@@ -1,15 +1,14 @@
 # @lily/shared
 
-The schemas, typed errors, domain helpers and service interfaces that the Lily api, app, admin, mcp and db packages share. It is written with Effect `Schema`, so one declaration gives both the TypeScript type and the runtime decoder, and the api and its clients use the same one.
+The schemas, typed errors and domain helpers that the Lily api, app, admin, mcp and db packages share. It is written with Effect `Schema`, so one declaration gives both the TypeScript type and the runtime decoder, and the api and its clients use the same one.
 
 ## Entry points
 
 | Import | Source | Use |
 |---|---|---|
 | `@lily/shared` | `src/index.ts` | Schemas, errors and helpers safe to bundle into the app and admin |
-| `@lily/shared/server` | `src/server.ts` | Email, event bus, file storage, client IP, message queue and push, for server code only |
 | `@lily/shared/<domain>` | `src/domains/<domain>/` | One domain's schemas, for the domains that `package.json` lists, such as `@lily/shared/plant` |
-| `@lily/shared/services/<path>` | `src/services/` | One service file, such as the AI SDK calls the api makes |
+| `@lily/shared/services/<path>` | `src/services/` | `clientIp` for the api and mcp, and `mintStoredRef` for the api and db |
 
 ## How it builds
 

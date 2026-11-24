@@ -2,7 +2,7 @@ import type {
   EmailConfigError,
   EmailSendError,
   SendEmailRequest,
-} from '@lily/shared/services/email/types'
+} from '@lily/api/services/email/types'
 import { Context, type Effect } from 'effect'
 
 // Email service interface - provider agnostic

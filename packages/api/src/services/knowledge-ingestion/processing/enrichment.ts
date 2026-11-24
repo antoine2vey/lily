@@ -1,6 +1,7 @@
 import { openai } from '@ai-sdk/openai'
+import { mapOpenAIError } from '@lily/api/services/ai/map-openai-error'
 import { FAST_MODEL } from '@lily/api/services/ai/models'
-import { mapOpenAIError, type OpenAIError } from '@lily/shared'
+import type { OpenAIError } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Effect, Option, Schedule, Schema } from 'effect'
 import { z } from 'zod'

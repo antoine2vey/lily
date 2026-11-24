@@ -25,12 +25,12 @@ import { reconcileActiveActivities } from '@lily/api/services/activity-scheduler
 import { triggerLiveActivityStart } from '@lily/api/services/admin/endpoints/trigger-live-activity-start'
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
-import type { ActivityPushToken } from '@lily/shared'
 import {
   type LiveActivityPushMessage,
   PushSendError,
   PushTokenInvalidatedError,
-} from '@lily/shared/server'
+} from '@lily/api/services/push/types'
+import type { ActivityPushToken } from '@lily/shared'
 import { Array, Effect, Layer, Match, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 

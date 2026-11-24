@@ -7,8 +7,8 @@ import {
   type AccountPhotoRefs,
   AccountPhotoRepository,
 } from '@lily/api/repositories/account-photo.repository'
+import { GCSService } from '@lily/api/services/file/gcs'
 import { eraseAccountPhotos } from '@lily/api/services/user/helpers/erase-account-photos'
-import { GCSService } from '@lily/shared/services/file/gcs'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Fiber, Layer } from 'effect'
 import { TestClock } from 'effect/testing'

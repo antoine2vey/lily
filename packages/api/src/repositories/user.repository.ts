@@ -8,7 +8,7 @@ import {
   type UserRole,
   type UserStatus,
 } from '@lily/shared'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import {
   and,
   desc,

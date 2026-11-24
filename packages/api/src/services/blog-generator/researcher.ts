@@ -1,6 +1,6 @@
 import { openai } from '@ai-sdk/openai'
+import { callOpenAI } from '@lily/api/services/ai/call-openai'
 import { FAST_MODEL } from '@lily/api/services/ai/models'
-import { callOpenAI } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Effect } from 'effect'
 import { RESEARCH_PROMPT } from './prompts'

@@ -1,13 +1,13 @@
 import { AccountPhotoRepository } from '@lily/api/repositories/account-photo.repository'
-import { GCSService } from '@lily/shared/services/file/gcs'
-import { GCSDeleteError } from '@lily/shared/services/file/gcs-errors'
+import { GCSService } from '@lily/api/services/file/gcs'
+import { GCSDeleteError } from '@lily/api/services/file/gcs-errors'
 import {
   legacyOwnerOf,
   legacyStampOf,
   mayNameKey,
   type StoredObject,
   sameObject,
-} from '@lily/shared/services/file/stored-object'
+} from '@lily/api/services/file/stored-object'
 import { Array, Duration, Effect, Match, Option, Result } from 'effect'
 
 const STORAGE_TIME_LIMIT = Duration.minutes(2)

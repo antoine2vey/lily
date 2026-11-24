@@ -19,12 +19,12 @@ import {
   users,
 } from '@lily/db/schema'
 import {
+  CARE_TOPICS,
   CareDay,
   type LanguageCode,
   startOfWeek,
   type VacationStatus,
 } from '@lily/shared'
-import { CARE_TOPICS } from '@lily/shared/server'
 import { and, count, desc, eq, gte, inArray, or, sql } from 'drizzle-orm'
 import {
   Array,

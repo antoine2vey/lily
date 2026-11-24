@@ -13,7 +13,7 @@ import type {
   ChatHistoryListResponse,
   ChatMessage,
 } from '@lily/shared/ai-chat'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import type { UIMessage } from 'ai'
 import {
   and,

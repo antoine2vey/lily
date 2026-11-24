@@ -43,7 +43,7 @@ import {
 } from '@lily/shared'
 import type { CarePlanSource } from '@lily/shared/care-plan'
 import type { PlantDeathCause } from '@lily/shared/plant'
-import type { StoredObjectRef } from '@lily/shared/services/file/stored-object'
+import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Data, DateTime, Option, Order, pipe, Result } from 'effect'
 
 export type CareWrite = Data.TaggedEnum<{

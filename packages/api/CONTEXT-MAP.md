@@ -227,7 +227,7 @@ An event goes from its publisher to its consumer, and a call goes from the calle
 
 Notes on events:
 
-- `packages/shared/src/services/event-bus/types.ts` defines the EventBus event tags.
+- `packages/api/src/services/event-bus/types.ts` defines the EventBus event tags.
 - `RarePlantIdentified` is published when a user saves a plant whose photo the identification model answered as rare for that user. The identify endpoints record the rare answer, and the `createPlant` handler in `src/services/plants/handlers.ts` publishes after the commit (`src/services/plants/helpers/rare-identification.ts`).
 - Care events, Canopy and Absence facts and replan requests skip the EventBus. They are rows in the `outbox` table, written in the transaction of the writer, delivered after the commit, retried, then dead-lettered (`src/kernel/outbox.ts`, `src/kernel/transact.ts`). `appConsumers` in `src/layers/outbox.ts` lists every consumer.
 - The EventBus is fire-and-forget. `src/services/activity-scheduler/scheduler.ts` is a safety net for a dropped `CareLogCreated`.

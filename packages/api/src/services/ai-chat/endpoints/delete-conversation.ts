@@ -2,11 +2,11 @@ import { transactQuietly } from '@lily/api/kernel/transact'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import type { StoredRefRepository } from '@lily/api/repositories/stored-ref.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import type { GCSService } from '@lily/api/services/file/gcs'
 import {
   conversationHeld,
   releasing,
 } from '@lily/api/services/helpers/release-objects'
-import type { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect } from 'effect'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'

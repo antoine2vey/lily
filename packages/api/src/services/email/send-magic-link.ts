@@ -1,10 +1,10 @@
 import { APP_VERIFY_DEEP_LINK_PREFIX } from '@lily/api/services/auth/constants'
-import type { LanguageCode } from '@lily/shared'
-import { EmailService } from '@lily/shared/server'
+import { EmailService } from '@lily/api/services/email/service'
 import type {
   EmailConfigError,
   EmailSendError,
-} from '@lily/shared/services/email/types'
+} from '@lily/api/services/email/types'
+import type { LanguageCode } from '@lily/shared'
 import { type Config, Effect, Match, pipe } from 'effect'
 
 interface SendMagicLinkEmailRequest {
