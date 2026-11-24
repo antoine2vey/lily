@@ -2,8 +2,13 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import type { PlantAnniversary } from '@lily/api/repositories/engagement.repository'
-import { processPlantAnniversaries } from '@lily/api/services/engagement-scheduler/scheduler'
+import type {
+  PlantAnniversary,
+  UserWithSettings,
+} from '@lily/api/repositories/engagement.repository'
+import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
+import { plantAnniversary } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import { daysAgoAsDate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
@@ -17,6 +22,13 @@ const makeAnniversaryPlant = (
   dateAdded: daysAgoAsDate(90),
   ...overrides,
 })
+
+const processPlantAnniversaries = (users: ReadonlyArray<UserWithSettings>) =>
+  Effect.gen(function* () {
+    const repo = yield* EngagementRepository
+    const plants = yield* repo.getPlantsWithAnniversary([1, 3, 6, 12])
+    yield* runRules('engagement-scheduler', users, [plantAnniversary(plants)])
+  })
 
 describe('processPlantAnniversaries', () => {
   it('creates notification for plant with anniversary', async () => {

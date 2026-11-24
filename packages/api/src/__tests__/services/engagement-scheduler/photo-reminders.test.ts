@@ -5,7 +5,8 @@ import type {
   PlantWithoutRecentPhoto,
   UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
-import { processPhotoReminders } from '@lily/api/services/engagement-scheduler/scheduler'
+import { photoReminder } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -40,6 +41,9 @@ const makeStalePlant = (
   dateAdded: daysAgo(60),
   ...overrides,
 })
+
+const processPhotoReminders = (users: ReadonlyArray<UserWithSettings>) =>
+  runRules('engagement-scheduler', users, [photoReminder])
 
 describe('processPhotoReminders', () => {
   it('creates notification for plant without recent photo', async () => {

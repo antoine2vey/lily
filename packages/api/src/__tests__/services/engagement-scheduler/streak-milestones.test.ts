@@ -2,10 +2,17 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { processStreakMilestones } from '@lily/api/services/engagement-scheduler/scheduler'
+import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
+import { streakMilestone } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const processStreakMilestones = (
+  users: ReadonlyArray<UserWithSettings>,
+  streaks: ReadonlyMap<string, number>
+) => runRules('engagement-scheduler', users, [streakMilestone(streaks)])
 
 describe('processStreakMilestones', () => {
   it('creates notification on exact 7-day streak milestone', async () => {

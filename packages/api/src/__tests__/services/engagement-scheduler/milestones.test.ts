@@ -2,7 +2,8 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
-import { processPlantParentMilestones } from '@lily/api/services/engagement-scheduler/scheduler'
+import { plantParentMilestone } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -25,6 +26,9 @@ const makeUser = (
   vacationEnd: null,
   ...overrides,
 })
+
+const processPlantParentMilestones = (users: ReadonlyArray<UserWithSettings>) =>
+  runRules('engagement-scheduler', users, [plantParentMilestone])
 
 describe('processPlantParentMilestones', () => {
   it('creates notification on exact 7-day milestone', async () => {

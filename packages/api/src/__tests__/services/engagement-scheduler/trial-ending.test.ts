@@ -1,8 +1,10 @@
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
+import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type { TrialingUser } from '@lily/api/repositories/engagement.repository'
-import { processTrialEnding } from '@lily/api/services/engagement-scheduler/scheduler'
+import { checkAndCreateEngagementNotifications } from '@lily/api/services/engagement-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -22,7 +24,17 @@ const makeTrialingUser = (
   ...overrides,
 })
 
-describe('processTrialEnding', () => {
+// No user has tips or care reminders on, so the task runs only the trial rule.
+const processTrialEnding = checkAndCreateEngagementNotifications.pipe(
+  Effect.provide(
+    Layer.mergeAll(
+      createMockAchievementRepository({ achievements: [] }),
+      createMockCareLogRepository([])
+    )
+  )
+)
+
+describe('trial ending', () => {
   it('tells a user once when both thresholds list them: the 1-day pass sees the 3-day row', async () => {
     const trialingUser = makeTrialingUser({
       id: 'user-1',
@@ -37,7 +49,7 @@ describe('processTrialEnding', () => {
       createMockNotificationRepository(notifications)
     )
 
-    await Effect.runPromise(processTrialEnding().pipe(Effect.provide(layer)))
+    await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))
 
     expect(notifications).toMatchObject([
       {
@@ -62,7 +74,7 @@ describe('processTrialEnding', () => {
       createMockNotificationRepository(notifications)
     )
 
-    await Effect.runPromise(processTrialEnding().pipe(Effect.provide(layer)))
+    await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))
 
     expect(notifications.map((n) => n.userId).sort()).toEqual([
       'user-1',
@@ -85,7 +97,7 @@ describe('processTrialEnding', () => {
       createMockNotificationRepository(notifications)
     )
 
-    await Effect.runPromise(processTrialEnding().pipe(Effect.provide(layer)))
+    await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))
 
     expect(notifications).toEqual([sent])
   })
@@ -98,7 +110,7 @@ describe('processTrialEnding', () => {
       createMockNotificationRepository(notifications)
     )
 
-    await Effect.runPromise(processTrialEnding().pipe(Effect.provide(layer)))
+    await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))
 
     expect(notifications).toHaveLength(0)
   })
@@ -119,7 +131,7 @@ describe('processTrialEnding', () => {
       createMockNotificationRepository(notifications)
     )
 
-    await Effect.runPromise(processTrialEnding().pipe(Effect.provide(layer)))
+    await Effect.runPromise(processTrialEnding.pipe(Effect.provide(layer)))
 
     expect(notifications).toHaveLength(0)
   })

@@ -1,27 +1,26 @@
-import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
-import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
-import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
-import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
 import {
-  DEFAULT_TIMEZONE,
+  type DailyTip,
+  DailyTipRepository,
+} from '@lily/api/repositories/daily-tip.repository'
+import {
+  EngagementRepository,
+  type UserWithSettings,
+} from '@lily/api/repositories/engagement.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
+import {
+  type EngagementRule,
+  runRules,
+} from '@lily/api/services/helpers/engagement-rules'
+import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
+import {
   daysAgoAsDate,
   isOnVacation,
   localDayKey,
   nowAsDate,
-  pickNotificationTime,
   startOfLocalDay,
   startOfTodayAsDate,
 } from '@lily/shared'
-import {
-  Array,
-  Config,
-  DateTime,
-  Effect,
-  Option,
-  Order,
-  pipe,
-  Random,
-} from 'effect'
+import { Array, Config, DateTime, Effect, Option, Order, pipe } from 'effect'
 import { generateDailyTip } from './generator'
 
 const TIP_DEDUP_DAYS = 3
@@ -33,6 +32,23 @@ const resolveLocalized = (
   Option.getOrElse(Option.fromNullishOr(localized[language]), () =>
     Option.getOrElse(Option.fromNullishOr(localized.en), () => '')
   )
+
+// Both slots are on today's local date. One that has passed would go out at
+// once, at any hour, so the user waits for a later run.
+const dailyTip = (tip: DailyTip): EngagementRule<UserWithSettings, never> => ({
+  name: 'daily_tip',
+  pastSlot: 'skip',
+  decide: (user) =>
+    Effect.succeed([
+      {
+        topic: 'daily_tip',
+        params: {
+          tipTitle: resolveLocalized(tip.title, user.language),
+          tipBody: resolveLocalized(tip.body, user.language),
+        },
+      },
+    ]),
+})
 
 /** Today's tip, generated on the first run of the UTC day. */
 const tipOfToday = Effect.gen(function* () {
@@ -96,13 +112,9 @@ export const checkAndGenerateTip = Effect.gen(function* () {
 
   const now = DateTime.nowUnsafe()
   const awaited = Array.map(users, (user) => {
-    const timezone = Option.getOrElse(
-      Option.fromNullishOr(user.timezone),
-      () => DEFAULT_TIMEZONE
-    )
+    const timezone = resolveTimezone(user.timezone)
     return {
       user,
-      timezone,
       today: startOfTodayAsDate(timezone),
       // A user comes due at their own midnight, so the first run after it
       // still has both slots of the day ahead. A window counted back from now
@@ -148,56 +160,11 @@ export const checkAndGenerateTip = Effect.gen(function* () {
     userCount: Array.length(due),
   })
 
-  // Create pending notification records with randomized send times
-  // within morning/evening windows, respecting DND — same as overdue reminders
-  yield* Effect.forEach(
-    due,
-    ({ user, timezone }) =>
-      Effect.gen(function* () {
-        const randomValue = yield* Random.next
-        const scheduledAt = yield* pickNotificationTime(
-          { ...user, timezone },
-          randomValue
-        )
-        // Both slots are on today's local date. One that has passed would go
-        // out at once, at any hour, so the user waits for a later run.
-        if (scheduledAt <= nowAsDate()) return
-
-        const language = Option.getOrElse(
-          Option.fromNullishOr(user.language),
-          () => 'en' as const
-        )
-
-        yield* recordNotificationAt(
-          'daily_tip',
-          user.id,
-          {
-            tipTitle: resolveLocalized(tip.title, language),
-            tipBody: resolveLocalized(tip.body, language),
-          },
-          language,
-          {},
-          { scheduledAt }
-        )
-      }).pipe(
-        Effect.catchTags({
-          DndWindowBlockedError: () =>
-            Effect.log('[tips-scheduler] Skipped — DND window', {
-              userId: user.id,
-            }),
-          SqlError: (e) =>
-            Effect.logWarning('[tips-scheduler] Failed for user', {
-              userId: user.id,
-              error: String(e),
-            }),
-        })
-      ),
-    { concurrency: 10 }
+  yield* runRules(
+    'tips-scheduler',
+    Array.map(due, ({ user }) => user),
+    [dailyTip(tip)]
   )
-
-  yield* Effect.log('Daily tip notifications created', {
-    userCount: Array.length(due),
-  })
 }).pipe(Effect.withSpan('tips-scheduler.check'))
 
 export const startTipsScheduler = createScheduler({

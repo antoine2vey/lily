@@ -2,7 +2,9 @@ import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { processStreakAtRisk } from '@lily/api/services/engagement-scheduler/scheduler'
+import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
+import { streakAtRisk } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import type { Notification } from '@lily/shared/notification'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -30,6 +32,11 @@ const findEveningTimezone = (): string | null => {
   }
   return null
 }
+
+const processStreakAtRisk = (
+  users: ReadonlyArray<UserWithSettings>,
+  streaks: ReadonlyMap<string, number>
+) => runRules('engagement-scheduler', users, [streakAtRisk(streaks)])
 
 describe('processStreakAtRisk', () => {
   const streakMap = new Map([['user-1', 5]])

@@ -2,7 +2,8 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
-import { processInactivityNudges } from '@lily/api/services/engagement-scheduler/scheduler'
+import { inactivityNudge } from '@lily/api/services/engagement-scheduler/scheduler'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -25,6 +26,9 @@ const makeUser = (
   vacationEnd: null,
   ...overrides,
 })
+
+const processInactivityNudges = (users: ReadonlyArray<UserWithSettings>) =>
+  runRules('engagement-scheduler', users, [inactivityNudge])
 
 describe('processInactivityNudges', () => {
   it('creates notification for user inactive 7+ days', async () => {

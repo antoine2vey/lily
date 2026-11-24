@@ -2,36 +2,30 @@ import { AchievementRepository } from '@lily/api/repositories/achievement.reposi
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import {
   EngagementRepository,
+  type PlantAnniversary,
+  type TrialingUser,
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
-  processUsers,
+  type EngagementRule,
+  type Nudge,
+  runRules,
   SkipUserError,
-} from '@lily/api/services/helpers/process-users'
-import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
-import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
+  sinceDaysAgo,
+  unlessNotified,
+} from '@lily/api/services/helpers/engagement-rules'
 import {
   daysAgoAsDate,
   daysSince,
   isOnVacation,
   nowAsDate,
-  pickNotificationTime,
   startOfTodayAsDate,
   startOfTomorrowAsDate,
   withTimeZone,
 } from '@lily/shared'
-import {
-  Array,
-  DateTime,
-  Effect,
-  Option,
-  pipe,
-  Random,
-  Record,
-  Ref,
-} from 'effect'
+import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
 const INACTIVITY_DAYS = 7
 const PHOTO_STALENESS_DAYS = 30
@@ -40,6 +34,7 @@ const MILESTONES = [7, 30, 90, 180, 365] as const
 
 const INACTIVITY_DEDUP_DAYS = 7
 const PHOTO_DEDUP_DAYS = 30
+const ANNIVERSARY_DEDUP_DAYS = 32
 
 const STREAK_AT_RISK_MIN = 3
 const STREAK_AT_RISK_HOUR = 18 // 6 PM local time
@@ -53,468 +48,252 @@ const TRIAL_ENDING_DAYS = [3, 1] as const
 
 const SCHEDULER_NAME = 'engagement-scheduler'
 
-export const processInactivityNudges = Effect.fn(
-  'engagement-scheduler.inactivityNudges'
-)(function* (usersWithTips: ReadonlyArray<UserWithSettings>) {
-  const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
+const streakOf = (streaks: ReadonlyMap<string, number>, userId: string) =>
+  Option.getOrElse(Option.fromNullishOr(streaks.get(userId)), () => 0)
 
-  yield* processUsers({
-    schedulerName: SCHEDULER_NAME,
-    notificationType: 'inactivity',
-    users: usersWithTips,
-    processUser: (user) =>
-      Effect.gen(function* () {
-        const timezone = resolveTimezone(user.timezone)
-
-        const alreadySent = yield* notificationRepo.hasNotificationIn({
-          userId: user.id,
-          topics: ['inactivity_nudge'],
-          counting: 'produced',
-          from: daysAgoAsDate(INACTIVITY_DEDUP_DAYS),
-        })
-        if (alreadySent) {
-          return yield* new SkipUserError({ reason: 'already_sent' })
-        }
-
-        const lastCareDate = yield* engagementRepo.getLastCareDate(user.id)
-        yield* pipe(
-          Option.fromNullishOr(lastCareDate),
-          Option.match({
-            onNone: () => Effect.void,
-            onSome: (date) =>
-              daysSince(date) < INACTIVITY_DAYS
-                ? new SkipUserError({ reason: 'recent_care' })
-                : Effect.void,
-          })
-        )
-
-        const plantCount = yield* engagementRepo.getPlantCountForUser(user.id)
-        if (plantCount === 0) {
-          return yield* new SkipUserError({ reason: 'no_plants' })
-        }
-
-        const randomValue = yield* Random.next
-        const scheduledAt = yield* pickNotificationTime(
-          { ...user, timezone },
-          randomValue
-        )
-
-        yield* recordNotificationAt(
-          'inactivity_nudge',
-          user.id,
-          { plantCount },
-          user.language,
-          {},
-          { scheduledAt }
-        )
-      }),
-  })
-})
-
-export const processPhotoReminders = Effect.fn(
-  'engagement-scheduler.photoReminders'
-)(function* (usersWithTips: ReadonlyArray<UserWithSettings>) {
-  const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
-
-  yield* processUsers({
-    schedulerName: SCHEDULER_NAME,
-    notificationType: 'photo_reminder',
-    users: usersWithTips,
-    processUser: (user) =>
-      Effect.gen(function* () {
-        const timezone = resolveTimezone(user.timezone)
-
-        const stalePlants = yield* engagementRepo.getPlantsWithoutRecentPhoto(
-          user.id,
-          daysAgoAsDate(PHOTO_STALENESS_DAYS)
-        )
-
-        if (Array.isReadonlyArrayEmpty(stalePlants)) {
-          return yield* new SkipUserError({ reason: 'no_stale_plants' })
-        }
-
-        const randomValue = yield* Random.next
-        const scheduledAt = yield* pickNotificationTime(
-          { ...user, timezone },
-          randomValue
-        )
-
-        yield* Effect.forEach(stalePlants, (plant) =>
-          Effect.gen(function* () {
-            const alreadySent = yield* notificationRepo.hasNotificationIn({
-              userId: user.id,
-              topics: ['photo_reminder'],
-              plantId: plant.plantId,
-              counting: 'produced',
-              from: daysAgoAsDate(PHOTO_DEDUP_DAYS),
-            })
-            if (alreadySent) return
-
-            const daysSincePhotoVal = pipe(
-              Option.fromNullishOr(plant.lastPhotoAt),
-              Option.match({
-                onNone: () => daysSince(plant.dateAdded),
-                onSome: (date) => daysSince(date),
-              })
-            )
-
-            yield* recordNotificationAt(
-              'photo_reminder',
-              user.id,
-              {
-                plantName: plant.plantName,
-                daysSincePhoto: daysSincePhotoVal,
-              },
-              user.language,
-              {},
-              { scheduledAt, plantId: plant.plantId }
-            )
-          })
-        )
-      }),
-  })
-})
-
-export const processPlantParentMilestones = Effect.fn(
-  'engagement-scheduler.milestones'
-)(function* (usersWithTips: ReadonlyArray<UserWithSettings>) {
-  const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
-
-  yield* processUsers({
-    schedulerName: SCHEDULER_NAME,
-    notificationType: 'milestone',
-    users: usersWithTips,
-    processUser: (user) =>
-      Effect.gen(function* () {
-        const timezone = resolveTimezone(user.timezone)
-        const daysSinceJoin = daysSince(user.createdAt)
-
-        const milestone = yield* pipe(
-          Array.findFirst(MILESTONES, (m) => m === daysSinceJoin),
-          Option.match({
-            onNone: () => new SkipUserError({ reason: 'no_milestone' }),
-            onSome: Effect.succeed,
-          })
-        )
-
-        // Use a long lookback (milestone value + 1 day) to prevent re-sends
-        const alreadySent = yield* notificationRepo.hasNotificationIn({
-          userId: user.id,
-          topics: ['plant_parent_milestone'],
-          counting: 'produced',
-          from: daysAgoAsDate(milestone + 1),
-        })
-        if (alreadySent) {
-          return yield* new SkipUserError({ reason: 'already_sent' })
-        }
-
-        const randomValue = yield* Random.next
-        const scheduledAt = yield* pickNotificationTime(
-          { ...user, timezone },
-          randomValue
-        )
-
-        yield* recordNotificationAt(
-          'plant_parent_milestone',
-          user.id,
-          { daysSinceJoin: milestone },
-          user.language,
-          {},
-          { scheduledAt }
-        )
-      }),
-  })
-})
-
-export const processStreakAtRisk = Effect.fn(
-  'engagement-scheduler.streakAtRisk'
-)(function* (
-  usersWithCareReminders: ReadonlyArray<UserWithSettings>,
-  streakMap: ReadonlyMap<string, number>
-) {
-  const careLogRepo = yield* CareLogRepository
-  const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
-
-  yield* processUsers({
-    schedulerName: SCHEDULER_NAME,
-    notificationType: 'streak_at_risk',
-    users: usersWithCareReminders,
-    processUser: (user) =>
-      Effect.gen(function* () {
-        const timezone = resolveTimezone(user.timezone)
-
-        const streak = pipe(
-          Option.fromNullishOr(streakMap.get(user.id)),
-          Option.getOrElse(() => 0)
-        )
-        if (streak < STREAK_AT_RISK_MIN) {
-          return yield* new SkipUserError({ reason: 'streak_too_short' })
-        }
-
-        const localNow = withTimeZone(DateTime.nowUnsafe(), timezone)
-        const { hour: hours } = DateTime.toParts(localNow)
-        if (hours < STREAK_AT_RISK_HOUR) {
-          return yield* new SkipUserError({ reason: 'before_6pm' })
-        }
-
-        const alreadySent = yield* notificationRepo.hasNotificationIn({
-          userId: user.id,
-          topics: ['streak_at_risk'],
-          counting: 'produced',
-          from: startOfTodayAsDate(timezone),
-          until: startOfTomorrowAsDate(timezone),
-        })
-        if (alreadySent) {
-          return yield* new SkipUserError({ reason: 'already_sent' })
-        }
-
-        const todayCount = yield* careLogRepo.countTodayPerformedByUser(
-          user.id,
-          timezone
-        )
-        if (todayCount > 0) {
-          return yield* new SkipUserError({ reason: 'care_done_today' })
-        }
-
-        const plantNames = yield* engagementRepo.getPlantNamesForUser(user.id)
-
-        const randomValue = yield* Random.next
-        const scheduledAt = yield* pickNotificationTime(
-          { ...user, timezone },
-          randomValue
-        )
-
-        const params = pipe(
-          Array.head(plantNames),
-          Option.match({
-            onNone: () => ({ streakCount: streak }),
-            onSome: (name) => ({ streakCount: streak, plantName: name }),
-          })
-        )
-
-        yield* recordNotificationAt(
-          'streak_at_risk',
-          user.id,
-          params,
-          user.language,
-          {},
-          { scheduledAt }
-        )
-      }),
-  })
-})
-
-export const processStreakMilestones = Effect.fn(
-  'engagement-scheduler.streakMilestones'
-)(function* (
-  usersWithCareReminders: ReadonlyArray<UserWithSettings>,
-  streakMap: ReadonlyMap<string, number>
-) {
-  const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
-
-  yield* processUsers({
-    schedulerName: SCHEDULER_NAME,
-    notificationType: 'streak_milestone',
-    users: usersWithCareReminders,
-    processUser: (user) =>
-      Effect.gen(function* () {
-        const timezone = resolveTimezone(user.timezone)
-
-        const streak = pipe(
-          Option.fromNullishOr(streakMap.get(user.id)),
-          Option.getOrElse(() => 0)
-        )
-
-        yield* pipe(
-          Array.findFirst(STREAK_MILESTONES, (m) => m === streak),
-          Option.match({
-            onNone: () => new SkipUserError({ reason: 'no_milestone' }),
-            onSome: Effect.succeed,
-          })
-        )
-
-        const alreadySent = yield* notificationRepo.hasNotificationIn({
-          userId: user.id,
-          topics: ['streak_milestone'],
-          counting: 'produced',
-          from: daysAgoAsDate(streak + 1),
-        })
-        if (alreadySent) {
-          return yield* new SkipUserError({ reason: 'already_sent' })
-        }
-
-        const randomValue = yield* Random.next
-        const scheduledAt = yield* pickNotificationTime(
-          { ...user, timezone },
-          randomValue
-        )
-
-        yield* recordNotificationAt(
-          'streak_milestone',
-          user.id,
-          { streakCount: streak },
-          user.language,
-          {},
-          { scheduledAt }
-        )
-      }),
-  })
-})
-
-const processTrialEndingForThreshold = (
-  daysLeft: number,
-  engagementRepo: EngagementRepository['Service']
-) =>
-  Effect.gen(function* () {
-    const notificationRepo = yield* NotificationRepository
-    const trialingUsers =
-      yield* engagementRepo.getTrialingUsersWithTrialEndingSoon(daysLeft)
-
-    yield* processUsers({
-      schedulerName: SCHEDULER_NAME,
-      notificationType: 'trial_ending',
-      users: trialingUsers,
-      processUser: (user) =>
-        Effect.gen(function* () {
-          const timezone = resolveTimezone(user.timezone)
-
-          const alreadySent = yield* notificationRepo.hasNotificationIn({
-            userId: user.id,
-            topics: ['trial_ending'],
-            counting: 'produced',
-            from: daysAgoAsDate(daysLeft + 1),
-          })
-          if (alreadySent) {
-            return yield* new SkipUserError({ reason: 'already_sent' })
-          }
-
-          const randomValue = yield* Random.next
-          const scheduledAt = yield* pickNotificationTime(
-            { ...user, timezone },
-            randomValue
-          )
-
-          yield* recordNotificationAt(
-            'trial_ending',
-            user.id,
-            { trialDaysLeft: daysLeft },
-            user.language,
-            {},
-            { scheduledAt }
-          )
-        }),
-    })
-  })
-
-export const processTrialEnding = Effect.fn('engagement-scheduler.trialEnding')(
-  function* () {
-    const engagementRepo = yield* EngagementRepository
-
-    yield* Effect.all(
-      Array.map(TRIAL_ENDING_DAYS, (daysLeft) =>
-        processTrialEndingForThreshold(daysLeft, engagementRepo)
+export const inactivityNudge: EngagementRule<
+  UserWithSettings,
+  EngagementRepository | NotificationRepository
+> = {
+  name: 'inactivity',
+  pastSlot: 'deliver',
+  decide: (user) =>
+    Effect.gen(function* () {
+      const engagementRepo = yield* EngagementRepository
+      yield* unlessNotified(
+        sinceDaysAgo(user.id, 'inactivity_nudge', INACTIVITY_DEDUP_DAYS)
       )
-    )
-  }
-)
 
-export const processPlantAnniversaries = Effect.fn(
-  'engagement-scheduler.plantAnniversaries'
-)(function* (usersWithCareReminders: ReadonlyArray<UserWithSettings>) {
-  const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
+      const lastCareDate = yield* engagementRepo.getLastCareDate(user.id)
+      yield* pipe(
+        Option.fromNullishOr(lastCareDate),
+        Option.match({
+          onNone: () => Effect.void,
+          onSome: (date) =>
+            daysSince(date) < INACTIVITY_DAYS
+              ? new SkipUserError({ reason: 'recent_care' })
+              : Effect.void,
+        })
+      )
 
-  const anniversaryPlants =
-    yield* engagementRepo.getPlantsWithAnniversary(ANNIVERSARY_MONTHS)
+      const plantCount = yield* engagementRepo.getPlantCountForUser(user.id)
+      if (plantCount === 0) {
+        return yield* new SkipUserError({ reason: 'no_plants' })
+      }
+      return [{ topic: 'inactivity_nudge', params: { plantCount } }]
+    }),
+}
 
-  if (Array.isReadonlyArrayEmpty(anniversaryPlants)) return
+export const photoReminder: EngagementRule<
+  UserWithSettings,
+  EngagementRepository | NotificationRepository
+> = {
+  name: 'photo_reminder',
+  pastSlot: 'deliver',
+  decide: (user) =>
+    Effect.gen(function* () {
+      const engagementRepo = yield* EngagementRepository
+      const notificationRepo = yield* NotificationRepository
 
-  const userMap = new Map(
-    Array.map(usersWithCareReminders, (u) => [u.id, u] as const)
-  )
+      const stalePlants = yield* engagementRepo.getPlantsWithoutRecentPhoto(
+        user.id,
+        daysAgoAsDate(PHOTO_STALENESS_DAYS)
+      )
+      if (Array.isReadonlyArrayEmpty(stalePlants)) {
+        return yield* new SkipUserError({ reason: 'no_stale_plants' })
+      }
 
-  // Group plants by user so every plant for the same user shares ONE
-  // scheduledAt. Otherwise each plant picks its own random time and the
-  // notification scheduler picks them up across different polls, producing
-  // one push per plant instead of a single grouped push.
-  const userGroups = pipe(
-    Record.toEntries(Array.groupBy(anniversaryPlants, (p) => p.userId)),
-    Array.map(([userId, plants]) => ({ id: userId, userId, plants }))
-  )
-
-  yield* processUsers({
-    schedulerName: SCHEDULER_NAME,
-    notificationType: 'plant_anniversary',
-    users: userGroups,
-    processUser: (group) =>
-      Effect.gen(function* () {
-        const user = userMap.get(group.userId)
-        if (!user) {
-          return yield* new SkipUserError({
-            reason: 'care_reminders_disabled',
-          })
-        }
-
-        const timezone = resolveTimezone(user.timezone)
-
-        const randomValue = yield* Random.next
-        const scheduledAt = yield* pickNotificationTime(
-          { ...user, timezone },
-          randomValue
+      const unreminded = yield* Effect.filter(stalePlants, (plant) =>
+        Effect.map(
+          notificationRepo.hasNotificationIn({
+            ...sinceDaysAgo(user.id, 'photo_reminder', PHOTO_DEDUP_DAYS),
+            plantId: plant.plantId,
+          }),
+          (sent) => !sent
         )
+      )
+      return Array.map(
+        unreminded,
+        (plant): Nudge => ({
+          topic: 'photo_reminder',
+          params: {
+            plantName: plant.plantName,
+            daysSincePhoto: daysSince(
+              Option.getOrElse(
+                Option.fromNullishOr(plant.lastPhotoAt),
+                () => plant.dateAdded
+              )
+            ),
+          },
+          plantId: plant.plantId,
+        })
+      )
+    }),
+}
 
-        const createdForUser = yield* Ref.make(0)
+export const plantParentMilestone: EngagementRule<
+  UserWithSettings,
+  NotificationRepository
+> = {
+  name: 'milestone',
+  pastSlot: 'deliver',
+  decide: (user) =>
+    Effect.gen(function* () {
+      const daysSinceJoin = daysSince(user.createdAt)
+      const milestone = yield* pipe(
+        Array.findFirst(MILESTONES, (m) => m === daysSinceJoin),
+        Option.match({
+          onNone: () => new SkipUserError({ reason: 'no_milestone' }),
+          onSome: Effect.succeed,
+        })
+      )
 
-        yield* Effect.forEach(group.plants, (plant) =>
-          Effect.gen(function* () {
-            const alreadySent = yield* notificationRepo.hasNotificationIn({
-              userId: user.id,
-              topics: ['plant_anniversary'],
-              plantId: plant.plantId,
-              counting: 'produced',
-              from: daysAgoAsDate(32),
+      // Use a long lookback (milestone value + 1 day) to prevent re-sends
+      yield* unlessNotified(
+        sinceDaysAgo(user.id, 'plant_parent_milestone', milestone + 1)
+      )
+      return [
+        {
+          topic: 'plant_parent_milestone',
+          params: { daysSinceJoin: milestone },
+        },
+      ]
+    }),
+}
+
+export const streakAtRisk = (
+  streaks: ReadonlyMap<string, number>
+): EngagementRule<
+  UserWithSettings,
+  CareLogRepository | EngagementRepository | NotificationRepository
+> => ({
+  name: 'streak_at_risk',
+  pastSlot: 'deliver',
+  decide: (user, timezone) =>
+    Effect.gen(function* () {
+      const careLogRepo = yield* CareLogRepository
+      const engagementRepo = yield* EngagementRepository
+
+      const streak = streakOf(streaks, user.id)
+      if (streak < STREAK_AT_RISK_MIN) {
+        return yield* new SkipUserError({ reason: 'streak_too_short' })
+      }
+
+      const localNow = withTimeZone(DateTime.nowUnsafe(), timezone)
+      if (DateTime.toParts(localNow).hour < STREAK_AT_RISK_HOUR) {
+        return yield* new SkipUserError({ reason: 'before_6pm' })
+      }
+
+      yield* unlessNotified({
+        userId: user.id,
+        topics: ['streak_at_risk'],
+        counting: 'produced',
+        from: startOfTodayAsDate(timezone),
+        until: startOfTomorrowAsDate(timezone),
+      })
+
+      const todayCount = yield* careLogRepo.countTodayPerformedByUser(
+        user.id,
+        timezone
+      )
+      if (todayCount > 0) {
+        return yield* new SkipUserError({ reason: 'care_done_today' })
+      }
+
+      const plantNames = yield* engagementRepo.getPlantNamesForUser(user.id)
+      return [
+        {
+          topic: 'streak_at_risk',
+          params: pipe(
+            Array.head(plantNames),
+            Option.match({
+              onNone: () => ({ streakCount: streak }),
+              onSome: (plantName) => ({ streakCount: streak, plantName }),
             })
-            if (alreadySent) return
+          ),
+        },
+      ]
+    }),
+})
 
-            const monthsSinceAdded = Math.round(
-              daysSince(plant.dateAdded) / 30.44
-            )
+export const streakMilestone = (
+  streaks: ReadonlyMap<string, number>
+): EngagementRule<UserWithSettings, NotificationRepository> => ({
+  name: 'streak_milestone',
+  pastSlot: 'deliver',
+  decide: (user) =>
+    Effect.gen(function* () {
+      const streak = streakOf(streaks, user.id)
+      if (!Array.contains(STREAK_MILESTONES, streak)) {
+        return yield* new SkipUserError({ reason: 'no_milestone' })
+      }
+      yield* unlessNotified(
+        sinceDaysAgo(user.id, 'streak_milestone', streak + 1)
+      )
+      return [{ topic: 'streak_milestone', params: { streakCount: streak } }]
+    }),
+})
 
-            const dateAddedStr = new Intl.DateTimeFormat(user.language, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            }).format(plant.dateAdded)
+export const trialEnding = (
+  daysLeft: number
+): EngagementRule<TrialingUser, NotificationRepository> => ({
+  name: 'trial_ending',
+  pastSlot: 'deliver',
+  decide: (user) =>
+    Effect.gen(function* () {
+      yield* unlessNotified(sinceDaysAgo(user.id, 'trial_ending', daysLeft + 1))
+      return [{ topic: 'trial_ending', params: { trialDaysLeft: daysLeft } }]
+    }),
+})
 
-            yield* recordNotificationAt(
-              'plant_anniversary',
-              user.id,
-              {
-                plantName: plant.plantName,
-                anniversaryMonths: monthsSinceAdded,
-                dateAdded: dateAddedStr,
-              },
-              user.language,
-              {},
-              { scheduledAt, plantId: plant.plantId }
-            )
+/** Every anniversary of a user's plants goes out in one push. */
+export const plantAnniversary = (
+  plants: ReadonlyArray<PlantAnniversary>
+): EngagementRule<UserWithSettings, NotificationRepository> => {
+  const plantsOf = Array.groupBy(plants, (p) => p.userId)
+  return {
+    name: 'plant_anniversary',
+    pastSlot: 'deliver',
+    decide: (user) =>
+      Effect.gen(function* () {
+        const notificationRepo = yield* NotificationRepository
+        const theirs = Option.fromNullishOr(plantsOf[user.id])
+        if (Option.isNone(theirs)) {
+          return yield* new SkipUserError({ reason: 'no_anniversary' })
+        }
 
-            yield* Ref.update(createdForUser, (n) => n + 1)
+        const uncelebrated = yield* Effect.filter(theirs.value, (plant) =>
+          Effect.map(
+            notificationRepo.hasNotificationIn({
+              ...sinceDaysAgo(
+                user.id,
+                'plant_anniversary',
+                ANNIVERSARY_DEDUP_DAYS
+              ),
+              plantId: plant.plantId,
+            }),
+            (sent) => !sent
+          )
+        )
+        return Array.map(
+          uncelebrated,
+          (plant): Nudge => ({
+            topic: 'plant_anniversary',
+            params: {
+              plantName: plant.plantName,
+              anniversaryMonths: Math.round(daysSince(plant.dateAdded) / 30.44),
+              dateAdded: new Intl.DateTimeFormat(user.language, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              }).format(plant.dateAdded),
+            },
+            plantId: plant.plantId,
           })
         )
-
-        const createdCount = yield* Ref.get(createdForUser)
-        if (createdCount === 0) {
-          return yield* new SkipUserError({ reason: 'already_sent' })
-        }
       }),
-  })
-})
+  }
+}
 
 export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
   yield* Effect.log('Running engagement notification check...')
@@ -538,27 +317,38 @@ export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
   )
 
   if (!Array.isReadonlyArrayEmpty(usersWithTips)) {
-    yield* Effect.all([
-      processInactivityNudges(usersWithTips),
-      processPhotoReminders(usersWithTips),
-      processPlantParentMilestones(usersWithTips),
+    yield* runRules(SCHEDULER_NAME, usersWithTips, [
+      inactivityNudge,
+      photoReminder,
+      plantParentMilestone,
     ])
   }
 
   if (!Array.isReadonlyArrayEmpty(usersWithCareReminders)) {
     const achievementRepo = yield* AchievementRepository
-    const streakMap = yield* achievementRepo.getBatchCareStreaks(
+    const streaks = yield* achievementRepo.getBatchCareStreaks(
       Array.map(usersWithCareReminders, (u) => u.id)
     )
+    const anniversaries =
+      yield* engagementRepo.getPlantsWithAnniversary(ANNIVERSARY_MONTHS)
 
-    yield* Effect.all([
-      processStreakAtRisk(usersWithCareReminders, streakMap),
-      processStreakMilestones(usersWithCareReminders, streakMap),
-      processPlantAnniversaries(usersWithCareReminders),
+    yield* runRules(SCHEDULER_NAME, usersWithCareReminders, [
+      streakAtRisk(streaks),
+      streakMilestone(streaks),
+      plantAnniversary(anniversaries),
     ])
   }
 
-  yield* processTrialEnding()
+  yield* Effect.forEach(
+    TRIAL_ENDING_DAYS,
+    (daysLeft) =>
+      Effect.flatMap(
+        engagementRepo.getTrialingUsersWithTrialEndingSoon(daysLeft),
+        (trialingUsers) =>
+          runRules(SCHEDULER_NAME, trialingUsers, [trialEnding(daysLeft)])
+      ),
+    { discard: true }
+  )
 }).pipe(
   Effect.catchTags({
     SqlError: (error) =>

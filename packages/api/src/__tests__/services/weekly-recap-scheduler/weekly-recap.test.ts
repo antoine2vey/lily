@@ -3,7 +3,9 @@ import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { processWeeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
+import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
+import { runRules } from '@lily/api/services/helpers/engagement-rules'
+import { weeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -48,6 +50,9 @@ const findNonSundayTimezone = (): string | null => {
   }
   return null
 }
+
+const processWeeklyRecap = (users: ReadonlyArray<UserWithSettings>) =>
+  runRules('weekly-recap-scheduler', users, [weeklyRecap])
 
 describe('processWeeklyRecap', () => {
   it('creates recap notification on Sunday for user with activity', async () => {
