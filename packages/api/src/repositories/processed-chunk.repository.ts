@@ -1,9 +1,9 @@
 import { KnowledgeDrizzle, processedChunks } from '@lily/knowledge-db'
-import type { ChunkSearchResult, ContentCategory } from '@lily/shared/knowledge'
+import { type ChunkSearchResult, ContentCategory } from '@lily/shared/knowledge'
 import { count, eq, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe, Schema } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
-import { unwrapPgRows } from './helpers/pagination'
+import { queryRows } from './helpers/raw-query'
 
 export interface SearchChunksParams {
   embedding: number[]
@@ -13,22 +13,24 @@ export interface SearchChunksParams {
   minSimilarity?: number | undefined
 }
 
-interface SearchRow {
-  id: string
-  content: string
-  source: string
-  source_url: string | null
-  plant_type: string | null
-  category: ContentCategory | null
-  metadata: Record<string, unknown> | null
-  similarity: string | number
-}
+const SearchRow = Schema.Struct({
+  id: Schema.String,
+  content: Schema.String,
+  source: Schema.String,
+  source_url: Schema.NullOr(Schema.String),
+  plant_type: Schema.NullOr(Schema.String),
+  category: Schema.NullOr(ContentCategory),
+  metadata: Schema.Unknown,
+  similarity: Schema.Finite,
+})
+
+const UnembeddedChunkRow = Schema.Struct({
+  id: Schema.String,
+  text: Schema.String,
+})
 
 /** A chunk search cannot return yet, with the text its embedding is made from. */
-export interface UnembeddedChunk {
-  readonly id: string
-  readonly text: string
-}
+export type UnembeddedChunk = typeof UnembeddedChunkRow.Type
 
 export interface IProcessedChunkRepository {
   readonly search: (
@@ -87,7 +89,8 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
         const candidateLimitRaw = sql.raw(String(candidateLimit))
         const limitRaw = sql.raw(String(limit))
 
-        const dbResult = yield* db.execute(sql`
+        const rows = yield* db
+          .execute(sql`
 
               WITH fts_query AS (
                 SELECT plainto_tsquery('english', ${params.queryText}) AS q
@@ -145,20 +148,19 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               FROM deduped
               ORDER BY rrf_score DESC, vector_similarity DESC LIMIT ${limitRaw}
             `)
-
-        const rawRows = unwrapPgRows<SearchRow>(dbResult)
+          .pipe(queryRows(SearchRow))
 
         return Array.map(
-          rawRows,
+          rows,
           (r): ChunkSearchResult => ({
             id: r.id,
             content: r.content,
             source: r.source,
             sourceUrl: toUndefined(r.source_url),
             plantType: toUndefined(r.plant_type),
-            category: toUndefined(r.category) as ContentCategory | undefined,
+            category: toUndefined(r.category),
             metadata: toUndefined(r.metadata),
-            similarity: Number(r.similarity),
+            similarity: r.similarity,
           })
         )
       }),
@@ -188,7 +190,8 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
 
       findUnembedded: Effect.fn('ProcessedChunkRepository.findUnembedded')(
         function* (limit: number) {
-          const dbResult = yield* db.execute(sql`
+          return yield* db
+            .execute(sql`
             SELECT pc.id, COALESCE(pc.embedding_content, pc.content) AS text
             FROM processed_chunks pc
             WHERE pc.embedding IS NULL
@@ -199,8 +202,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
             ORDER BY random()
             LIMIT ${limit}
           `)
-
-          return unwrapPgRows<UnembeddedChunk>(dbResult)
+            .pipe(queryRows(UnembeddedChunkRow))
         }
       ),
 

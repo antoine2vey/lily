@@ -10,11 +10,18 @@ import {
 } from '@lily/db/schema'
 import type { AchievementKey, CareType, PlantOwner } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe, Schema } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 import { isLivingPlant } from './helpers/living-plant'
-import { unwrapPgRows } from './helpers/pagination'
 import { ownedBy } from './helpers/plant-owner'
+import { queryOne, queryRows } from './helpers/raw-query'
+
+const StreakRow = Schema.Struct({ streak: Schema.Finite })
+const UserIdRow = Schema.Struct({ user_id: Schema.String })
+const UserStreakRow = Schema.Struct({
+  user_id: Schema.String,
+  streak: Schema.Finite,
+})
 
 export interface IAchievementRepository {
   readonly findByUserId: (
@@ -174,7 +181,8 @@ export const AchievementRepositoryLive = Layer.effect(
           // ROW_NUMBER must be ASC so that consecutive dates produce the same
           // group key (care_date - rn gives the same value for each run).
           // We then pick the group of the most recent date and count its rows.
-          const result = yield* db.execute(sql`
+          const row = yield* db
+            .execute(sql`
             WITH daily_care AS (
               SELECT DISTINCT DATE(cl.date) as care_date
               FROM care_logs cl
@@ -188,20 +196,14 @@ export const AchievementRepositoryLive = Layer.effect(
             latest_grp AS (
               SELECT grp FROM streak ORDER BY care_date DESC LIMIT 1
             )
-            SELECT COUNT(*) as streak
+            SELECT COUNT(*)::int AS streak
             FROM streak
             WHERE grp = (SELECT grp FROM latest_grp)
               AND (SELECT care_date FROM streak ORDER BY care_date DESC LIMIT 1)
                     >= CURRENT_DATE - INTERVAL '1 day'
           `)
-          return Number(
-            pipe(
-              unwrapPgRows<{ streak: unknown }>(result),
-              Array.head,
-              Option.flatMap((row) => Option.fromNullishOr(row.streak)),
-              Option.getOrElse(() => 0)
-            )
-          )
+            .pipe(queryOne(StreakRow))
+          return row.streak
         }
       ),
 
@@ -270,7 +272,8 @@ export const AchievementRepositoryLive = Layer.effect(
       }),
 
       findUserIdsWithProgress: Effect.gen(function* () {
-        const result = yield* db.execute(sql`
+        const rows = yield* db
+          .execute(sql`
           SELECT created_by_user_id AS user_id FROM plants
           WHERE created_by_user_id IS NOT NULL
           UNION
@@ -280,10 +283,8 @@ export const AchievementRepositoryLive = Layer.effect(
           SELECT performed_by_user_id FROM care_logs
           WHERE performed_by_user_id IS NOT NULL
         `)
-        return Array.map(
-          unwrapPgRows<{ user_id: string }>(result),
-          (r) => r.user_id
-        )
+          .pipe(queryRows(UserIdRow))
+        return Array.map(rows, (r) => r.user_id)
       }).pipe(Effect.withSpan('AchievementRepository.findUserIdsWithProgress')),
 
       getBatchCareStreaks: Effect.fn(
@@ -291,7 +292,8 @@ export const AchievementRepositoryLive = Layer.effect(
       )(function* (userIds: readonly string[]) {
         if (userIds.length === 0) return new Map<string, number>()
 
-        const result = yield* db.execute(sql`
+        const rows = yield* db
+          .execute(sql`
           WITH daily_care AS (
             SELECT DISTINCT cl.performed_by_user_id AS user_id, DATE(cl.date) AS care_date
             FROM care_logs cl
@@ -313,16 +315,14 @@ export const AchievementRepositoryLive = Layer.effect(
             FROM streak
             ORDER BY user_id, care_date DESC
           )
-          SELECT s.user_id, COUNT(*) AS streak
+          SELECT s.user_id, COUNT(*)::int AS streak
           FROM streak s
           JOIN latest_grp lg ON lg.user_id = s.user_id AND lg.grp = s.grp
           WHERE lg.care_date >= CURRENT_DATE - INTERVAL '1 day'
           GROUP BY s.user_id
         `)
-        const rows = unwrapPgRows<{ user_id: string; streak: unknown }>(result)
-        return new Map(
-          Array.map(rows, (r) => [r.user_id, Number(r.streak)] as const)
-        )
+          .pipe(queryRows(UserStreakRow))
+        return new Map(Array.map(rows, (r) => [r.user_id, r.streak] as const))
       }),
     }
   })
