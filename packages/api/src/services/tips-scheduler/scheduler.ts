@@ -11,6 +11,7 @@ import {
   nowAsDate,
   pickNotificationTime,
 } from '@lily/shared'
+import { CARE_TOPICS } from '@lily/shared/server'
 import { Array, Config, DateTime, Effect, Option, Random } from 'effect'
 import { generateDailyTip } from './generator'
 
@@ -108,12 +109,12 @@ export const checkAndGenerateTip = Effect.gen(function* () {
         )
         if (alreadySent) return
 
-        // Fatigue prevention: skip if a care reminder was sent today
+        // Fatigue prevention: skip if a care reminder was recorded today
         const careReminderToday =
-          yield* notificationRepo.hasNotificationOfTypeTodayForUser(
+          yield* notificationRepo.hasNotificationOfTypesTodayForUser(
             user.id,
             timezone,
-            'watering_reminder'
+            CARE_TOPICS
           )
         if (careReminderToday) return
 

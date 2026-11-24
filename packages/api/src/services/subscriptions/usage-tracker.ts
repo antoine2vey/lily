@@ -156,10 +156,10 @@ export const UsageTrackerLive = Layer.effect(
         const timezone = resolveTimezone(user.timezone)
 
         const alreadySent =
-          yield* notificationRepo.hasNotificationOfTypeTodayForUser(
+          yield* notificationRepo.hasNotificationOfTypesTodayForUser(
             userId,
             timezone,
-            'approaching_limit'
+            ['approaching_limit']
           )
         if (alreadySent) return
 

@@ -75,10 +75,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return Effect.runPromise(
         Effect.gen(function* () {
           const repo = yield* NotificationRepository
-          return yield* repo.hasNotificationOfTypeTodayForUser(
+          return yield* repo.hasNotificationOfTypesTodayForUser(
             user.id,
             timezone,
-            'streak_at_risk'
+            ['streak_at_risk']
           )
         }).pipe(Effect.provide(DatabaseLive))
       )
