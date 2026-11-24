@@ -7,29 +7,37 @@ import {
   type Invitation,
 } from '@lily/api/contexts/canopy/domain/canopy'
 import {
-  type CanopyChanges,
-  CanopyWrite,
-  createCanopy,
-  createLink,
-  declineInvitation,
   dissolve,
+  leave,
+  removeMember,
+} from '@lily/api/contexts/canopy/domain/endings'
+import {
+  declineInvitation,
   Entry,
   invite,
   join,
-  leave,
+  withdrawInvitation,
+} from '@lily/api/contexts/canopy/domain/entry'
+import {
   type MoveFacts,
+  setMute,
+  sharePlant,
+  unsharePlant,
+} from '@lily/api/contexts/canopy/domain/moves'
+import {
+  createCanopy,
+  createLink,
+  revokeLink,
+  updateCanopy,
+} from '@lily/api/contexts/canopy/domain/settings'
+import {
+  type CanopyChanges,
+  CanopyWrite,
   Notice,
   type Placement,
   Refusal,
   RoomMove,
-  removeMember,
-  revokeLink,
-  setMute,
-  sharePlant,
-  unsharePlant,
-  updateCanopy,
-  withdrawInvitation,
-} from '@lily/api/contexts/canopy/domain/decide'
+} from '@lily/api/contexts/canopy/domain/vocabulary'
 import { decision } from '@lily/api/kernel/transact'
 import {
   CANOPY_MAX_MEMBERS,

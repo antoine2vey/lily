@@ -1,41 +1,49 @@
 import { type Held, takesASlot } from '@lily/api/contexts/canopy/domain/canopy'
 import {
-  type CanopyChanges,
-  createCanopy,
-  createLink,
-  declineInvitation,
   dissolve,
+  type LeaveOutcome,
+  leave,
+  removeMember,
+} from '@lily/api/contexts/canopy/domain/endings'
+import {
+  declineInvitation,
   Entry,
   invite,
   join,
-  type LeaveOutcome,
-  leave,
-  Notice,
-  type Placement,
-  type Refusal,
-  RoomMove,
-  removeMember,
-  revokeLink,
-  setMute,
-  sharePlant,
-  unsharePlant,
-  updateCanopy,
   withdrawInvitation,
-} from '@lily/api/contexts/canopy/domain/decide'
+} from '@lily/api/contexts/canopy/domain/entry'
 import { CanopyTopic } from '@lily/api/contexts/canopy/domain/events'
 import {
   hashInviteToken,
   newInviteToken,
 } from '@lily/api/contexts/canopy/domain/invitation'
 import {
-  CanopyStore,
+  setMute,
+  sharePlant,
+  unsharePlant,
+} from '@lily/api/contexts/canopy/domain/moves'
+import {
+  createCanopy,
+  createLink,
+  revokeLink,
+  updateCanopy,
+} from '@lily/api/contexts/canopy/domain/settings'
+import {
+  type CanopyChanges,
+  Notice,
+  type Placement,
+  type Refusal,
+  RoomMove,
+} from '@lily/api/contexts/canopy/domain/vocabulary'
+import { CanopyStore } from '@lily/api/contexts/canopy/store'
+import {
   Find,
   InvitationScope,
   type LockPlan,
   lockPlan,
   PlantScope,
   RoomScope,
-} from '@lily/api/contexts/canopy/store'
+} from '@lily/api/contexts/canopy/store/lock-plan'
 import { Outbox } from '@lily/api/kernel/outbox'
 import { Actor, type PlantPermit } from '@lily/api/kernel/permit'
 import { type RefusalTable, refusals } from '@lily/api/kernel/refusals'

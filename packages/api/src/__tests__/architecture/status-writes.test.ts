@@ -288,7 +288,7 @@ const ALLOWED: ReadonlyArray<Write & { readonly why: string }> = [
     why: 'update. Its data holds a status only when the admin edit of an account puts one there.',
   },
   {
-    file: 'api/src/contexts/canopy/store.ts',
+    file: 'api/src/contexts/canopy/store/write.ts',
     table: 'canopyDirectInvites, on conflict',
     hides: 'the variable opened',
     why: 'OpenInvitation reopens the invitation of a pair from any resolved state. The command holds that row FOR UPDATE under the canopy lock.',
@@ -397,7 +397,7 @@ describe('status writes', () => {
         .map(({ file }) => file)
     ).toEqual([
       'api/src/contexts/absence/store.ts',
-      'api/src/contexts/care/store.ts',
+      'api/src/contexts/care/store/write.ts',
     ])
   })
 

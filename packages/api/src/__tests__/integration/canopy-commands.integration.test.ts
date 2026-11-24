@@ -22,16 +22,19 @@ import {
   hashInviteToken,
   JoinVia,
 } from '@lily/api/contexts/canopy'
-import { CanopyWrite, RoomMove } from '@lily/api/contexts/canopy/domain/decide'
 import {
-  CanopyStore,
+  CanopyWrite,
+  RoomMove,
+} from '@lily/api/contexts/canopy/domain/vocabulary'
+import { CanopyStore } from '@lily/api/contexts/canopy/store'
+import {
   Find,
   InvitationScope,
   type LockPlan,
   lockPlan,
   PlantScope,
   RoomScope,
-} from '@lily/api/contexts/canopy/store'
+} from '@lily/api/contexts/canopy/store/lock-plan'
 import {
   Care,
   CareReadsLive,

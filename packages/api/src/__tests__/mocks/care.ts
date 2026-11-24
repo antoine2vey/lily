@@ -481,7 +481,6 @@ export const createInMemoryCare = (
             Array.difference(actorIds, options.goneAccounts ?? [])
           ),
         })),
-      weatherProfiles: () => Effect.succeed([]),
       linkPlanToMessage: (planId, chatMessageId) =>
         Effect.sync(() =>
           changePlan(planId, (plan) => ({ ...plan, chatMessageId }))

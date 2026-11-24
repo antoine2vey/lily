@@ -16,15 +16,18 @@ import type {
   Held,
   Invitation,
 } from '@lily/api/contexts/canopy/domain/canopy'
-import { CanopyWrite, RoomMove } from '@lily/api/contexts/canopy/domain/decide'
 import {
-  CanopyStore,
+  CanopyWrite,
+  RoomMove,
+} from '@lily/api/contexts/canopy/domain/vocabulary'
+import { CanopyStore } from '@lily/api/contexts/canopy/store'
+import {
   Find,
   InvitationScope,
   type LockPlan,
   PlantScope,
   RoomScope,
-} from '@lily/api/contexts/canopy/store'
+} from '@lily/api/contexts/canopy/store/lock-plan'
 import { Outbox } from '@lily/api/kernel/outbox'
 import { expectWritten } from '@lily/api/kernel/written'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
