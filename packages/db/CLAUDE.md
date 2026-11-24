@@ -68,7 +68,7 @@ The primary Postgres database. This package holds the Drizzle schema in `src/sch
 ### Bridge
 
 - **Queries are Effects.** Every Drizzle query is an `Effect<A, SqlError>` that runs on the ambient `SqlClient`, so `SqlClient.withTransaction` covers it. A duplicate key fails with a `SqlError` whose `reason._tag` is `UniqueViolation`.
-- **`db.execute` returns `[{ rows }]`**, one array element around the driver result. Read it with `unwrapPgRows` from `packages/api/src/repositories/helpers/pagination.ts`. A raw `int8` decodes as `bigint`. `count()` and `::int` give a `number`.
+- **`db.execute` returns `[{ rows }]`**, one array element around the driver result. Decode it with `queryRows` or `queryOne` from `packages/api/src/repositories/helpers/raw-query.ts`, which take a row schema and die on a row that does not match it. Name in the schema what the driver returns. A raw `int8`, such as an uncast `count(*)`, decodes as `bigint`, and `count()` and `::int` give a `number`. A `numeric` decodes as a string, a `date` as a `YYYY-MM-DD` string and a `timestamptz` as a `Date`.
 - **A custom column type needs a codec.** The client reads results in binary, so a type with no codec in its `PgTypes` registry comes back garbled or fails with `PgTypesCodecError`. knowledge-db's `halfvec` codec is the worked example.
 
 ### Seeds

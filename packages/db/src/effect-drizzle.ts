@@ -72,7 +72,7 @@ const makeRemoteCallback = Effect.gen(function* () {
   const callback: RemoteCallback = (sql, params, method) => {
     const statement = client.unsafe(sql, params)
     const query = Match.type<Method>().pipe(
-      // rows = [QueryResult]; unwrapPgRows relies on that.
+      // rows = [QueryResult]; queryRows in the api's raw-query helper relies on that.
       Match.when('execute', () =>
         Effect.map(statement.raw, (result) => ({ rows: [result] }))
       ),

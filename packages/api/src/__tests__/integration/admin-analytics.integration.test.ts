@@ -6,9 +6,10 @@ import {
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { UsersByStatusResponse } from '@lily/shared/admin/analytics'
-import { eq, inArray } from 'drizzle-orm'
+import { defectOf } from '@lily/shared/testing'
+import { and, eq, inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Layer, Option, pipe, Schema } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -23,6 +24,13 @@ const analytics = <A, E>(
   use: (repo: AnalyticsRepository['Service']) => Effect.Effect<A, E>
 ) =>
   Effect.runPromise(
+    Effect.provide(Effect.flatMap(AnalyticsRepository, use), AppLive)
+  )
+
+const analyticsExit = <A, E>(
+  use: (repo: AnalyticsRepository['Service']) => Effect.Effect<A, E>
+) =>
+  Effect.runPromiseExit(
     Effect.provide(Effect.flatMap(AnalyticsRepository, use), AppLive)
   )
 
@@ -356,6 +364,31 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         dau.mau,
       ])
       expect(read.churn.currentRate).toBe(churn.rate)
+    })
+
+    it('dies on a stored snapshot that does not match its metric', async () => {
+      await db
+        .insert(schema.analyticsDailySnapshots)
+        .values({ date: today, metricKey: 'mrr_estimate', value: { mrr: 1 } })
+        .onConflictDoUpdate({
+          target: [
+            schema.analyticsDailySnapshots.date,
+            schema.analyticsDailySnapshots.metricKey,
+          ],
+          set: { value: { mrr: 1 } },
+        })
+
+      const exit = await analyticsExit((repo) => repo.getMrrEstimate)
+
+      await db
+        .delete(schema.analyticsDailySnapshots)
+        .where(
+          and(
+            eq(schema.analyticsDailySnapshots.date, today),
+            eq(schema.analyticsDailySnapshots.metricKey, 'mrr_estimate')
+          )
+        )
+      expect(defectOf(exit)).toBeInstanceOf(Schema.SchemaError)
     })
   }
 )
