@@ -1,7 +1,13 @@
 import { HELD_NOTHING, type Held } from '@lily/api/kernel/ladder'
 import { Outbox, type OutboxTopic } from '@lily/api/kernel/outbox'
+import type {
+  ErrorOf,
+  RefusalMapper,
+  RefusalTable,
+} from '@lily/api/kernel/refusals'
 import {
   Array,
+  absurd,
   Context,
   Effect,
   identity,
@@ -13,17 +19,20 @@ import {
 import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-export interface Decision<W, E, A> {
+export interface Decision<W, E, A, N = never> {
   readonly writes: ReadonlyArray<W>
   readonly events: ReadonlyArray<E>
+  /** What the command owes its users, recorded with the writes. */
+  readonly notices: ReadonlyArray<N>
   readonly outcome: A
 }
 
-export const decision = <W, E, A>(
+export const decision = <W, E, A, N = never>(
   outcome: A,
   writes: ReadonlyArray<W> = [],
-  events: ReadonlyArray<E> = []
-): Decision<W, E, A> => ({ writes, events, outcome })
+  events: ReadonlyArray<E> = [],
+  notices: ReadonlyArray<N> = []
+): Decision<W, E, A, N> => ({ writes, events, notices, outcome })
 
 /**
  * The open transaction of the caller. An operation requires it when a lock it
@@ -159,3 +168,119 @@ export const runCommand = <Agg, W, E, A, Refusal, R>(
     Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
     Effect.withSpan(spec.name)
   )
+
+export interface Notices<N, Recorded, R = never> {
+  /** Records one notice in the transaction of the command. */
+  readonly record: (notice: N) => Effect.Effect<Recorded, SqlError, R>
+  /** Sends what was recorded. Runs once the outermost transaction commits. */
+  readonly dispatch: (recorded: ReadonlyArray<Recorded>) => Effect.Effect<void>
+}
+
+/** For a context whose decisions owe no notice. */
+export const noNotices: Notices<never, never> = {
+  record: absurd,
+  dispatch: () => Effect.void,
+}
+
+export interface NoticedCommandSpec<Agg, W, E, A, N, Recorded, Refusal, R> {
+  readonly topic: OutboxTopic<E>
+  /** Reads current state and takes the locks the command needs. */
+  readonly load: Effect.Effect<Agg, SqlError, R>
+  readonly decide: (
+    aggregate: Agg
+  ) => Result.Result<Decision<W, E, A, N>, Refusal>
+  readonly apply: (writes: ReadonlyArray<W>) => Effect.Effect<void, SqlError, R>
+  readonly notices: Notices<N, Recorded, R>
+}
+
+/**
+ * Load, decide, apply, the outbox append and the notices, with no transaction
+ * of its own. For a command that must put more in the transaction than its
+ * own writes: a failure after this body rolls the writes, the events and the
+ * notices back with it, and nothing is dispatched.
+ */
+export const noticedCommandBody = <Agg, W, E, A, N, Recorded, Refusal, R>(
+  spec: NoticedCommandSpec<Agg, W, E, A, N, Recorded, Refusal, R>
+): Effect.Effect<
+  A,
+  Refusal | SqlError | Schema.SchemaError,
+  R | Outbox | Transaction
+> =>
+  Effect.gen(function* () {
+    const outbox = yield* Outbox
+    const transaction = yield* Transaction
+    const aggregate = yield* spec.load
+    const decided = yield* Effect.fromResult(spec.decide(aggregate))
+    yield* spec.apply(decided.writes)
+    yield* outbox.append(spec.topic, decided.events)
+    const recorded = yield* Effect.forEach(decided.notices, spec.notices.record)
+    yield* transaction.afterCommit(spec.notices.dispatch(recorded))
+    return decided.outcome
+  })
+
+/**
+ * The two ways a context runs its commands, built once from what every
+ * command of the context shares.
+ *
+ * ```typescript
+ * const { run, body } = commandsOf(
+ *   { topic: CanopyTopic, apply: store.apply, notices, asError },
+ *   context
+ * )
+ * ```
+ */
+export const commandsOf = <
+  W,
+  E,
+  N,
+  Recorded,
+  Refusal extends { readonly _tag: string },
+  M extends RefusalTable<Refusal>,
+>(
+  config: {
+    readonly topic: OutboxTopic<E>
+    readonly apply: (
+      writes: ReadonlyArray<W>
+    ) => Effect.Effect<void, SqlError, Transaction>
+    readonly notices: Notices<N, Recorded, Transaction>
+    readonly asError: RefusalMapper<Refusal, M>
+  },
+  context: Context.Context<Outbox | SqlClient.SqlClient>
+) => {
+  /**
+   * One command in the transaction of its caller, for a caller that puts
+   * more in that transaction. Fails with the refusal itself, and keeps
+   * `SqlError` for the caller to handle.
+   */
+  const body = <Agg, A, F extends Refusal>(
+    load: Effect.Effect<Agg, SqlError, Transaction>,
+    decide: (aggregate: Agg) => Result.Result<Decision<W, E, A, N>, F>
+  ): Effect.Effect<A, F | SqlError, Transaction> =>
+    noticedCommandBody({
+      topic: config.topic,
+      load,
+      decide,
+      apply: config.apply,
+      notices: config.notices,
+    }).pipe(Effect.catchTag('SchemaError', Effect.die), Effect.provide(context))
+
+  /**
+   * One command in one transaction (a savepoint when the caller already
+   * holds one), under the span `name`, `<context>.<command>`. A refusal
+   * rolls back and is the only failure, answered as its error. A database
+   * error is a defect.
+   */
+  const run = <Agg, A, F extends Refusal>(
+    name: string,
+    load: Effect.Effect<Agg, SqlError, Transaction>,
+    decide: (aggregate: Agg) => Result.Result<Decision<W, E, A, N>, F>
+  ): Effect.Effect<A, ErrorOf<Refusal, M, F>> =>
+    transact(body(load, decide)).pipe(
+      Effect.catchTag('SqlError', Effect.die),
+      Effect.withSpan(name),
+      Effect.mapError((refusal: F) => config.asError(refusal)),
+      Effect.provide(context)
+    )
+
+  return { run, body }
+}
