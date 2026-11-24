@@ -35,10 +35,10 @@ const nudgeOverflow = (
     }
     const notificationRepo = yield* NotificationRepository
     const alreadySentNudge =
-      yield* notificationRepo.hasNotificationOfTypesTodayForUser(
+      yield* notificationRepo.hasNotificationOfTypeTodayForUser(
         userId,
         timezoneOf(settings),
-        ['resubscribe_nudge']
+        'resubscribe_nudge'
       )
     if (alreadySentNudge) return
     yield* recordNotification(

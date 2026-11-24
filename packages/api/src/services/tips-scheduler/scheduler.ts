@@ -1,6 +1,5 @@
 import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
 import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { recordNotificationAt } from '@lily/api/services/helpers/schedule-notification'
 import {
@@ -10,9 +9,9 @@ import {
   localDayKey,
   nowAsDate,
   pickNotificationTime,
+  startOfTodayAsDate,
 } from '@lily/shared'
-import { CARE_TOPICS } from '@lily/shared/server'
-import { Array, Config, DateTime, Effect, Option, Random } from 'effect'
+import { Array, Config, DateTime, Effect, Option, Order, Random } from 'effect'
 import { generateDailyTip } from './generator'
 
 const TIP_DEDUP_DAYS = 3
@@ -60,8 +59,8 @@ const tipOfToday = Effect.gen(function* () {
 })
 
 // Every run offers today's tip to every user. A run that stopped midway is
-// finished by the next one, and the three-day check below keeps a user who
-// already has the tip from getting it again.
+// finished by the next one, and a user's own daily_tip row of the last three
+// days keeps them from getting it again.
 export const checkAndGenerateTip = Effect.gen(function* () {
   const enabled = yield* Config.withDefault(
     Config.Boolean('TIPS_GENERATION_ENABLED'),
@@ -73,7 +72,6 @@ export const checkAndGenerateTip = Effect.gen(function* () {
     return
   }
 
-  const notificationRepo = yield* NotificationRepository
   const engagementRepo = yield* EngagementRepository
 
   const published = yield* tipOfToday
@@ -84,40 +82,61 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   const allUsers = yield* engagementRepo.getUsersWithTipsEnabled
   const users = Array.filter(allUsers, (u) => !isOnVacation(u, nowAsDate()))
 
-  if (Array.isReadonlyArrayEmpty(users)) return
+  if (!Array.isReadonlyArrayNonEmpty(users)) return
 
   yield* Effect.log('Sending daily tip notifications', {
     userCount: Array.length(users),
   })
 
+  const awaited = Array.map(users, (user) => {
+    const timezone = Option.getOrElse(
+      Option.fromNullishOr(user.timezone),
+      () => DEFAULT_TIMEZONE
+    )
+    return { user, timezone, today: startOfTodayAsDate(timezone) }
+  })
+
+  // One read for every user, whatever their number: the hourly run must not
+  // cost a query per user.
+  const recent = yield* engagementRepo.getTipFatigueNotifications({
+    tipsSince: daysAgoAsDate(TIP_DEDUP_DAYS),
+    careRemindersSince: Array.min(
+      Array.map(awaited, ({ today }) => today),
+      Order.Date
+    ),
+  })
+  const tippedRecently = new Set(
+    Array.map(
+      Array.filter(recent, (n) => n.kind === 'tip'),
+      (n) => n.userId
+    )
+  )
+  const careRemindersOf = Array.groupBy(
+    Array.filter(recent, (n) => n.kind === 'careReminder'),
+    (n) => n.userId
+  )
+
+  // Fatigue prevention: no tip within three days of the last one, and none on
+  // a local day that already has a care reminder.
+  const due = Array.filter(
+    awaited,
+    ({ user, today }) =>
+      !tippedRecently.has(user.id) &&
+      !Array.some(
+        Option.getOrElse(
+          Option.fromNullishOr(careRemindersOf[user.id]),
+          () => []
+        ),
+        (n) => n.createdAt >= today
+      )
+  )
+
   // Create pending notification records with randomized send times
   // within morning/evening windows, respecting DND — same as overdue reminders
   yield* Effect.forEach(
-    users,
-    (user) =>
+    due,
+    ({ user, timezone }) =>
       Effect.gen(function* () {
-        const timezone = Option.getOrElse(
-          Option.fromNullishOr(user.timezone),
-          () => DEFAULT_TIMEZONE
-        )
-
-        // Fatigue prevention: skip if already sent a tip in last 3 days
-        const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
-          user.id,
-          'daily_tip',
-          daysAgoAsDate(TIP_DEDUP_DAYS)
-        )
-        if (alreadySent) return
-
-        // Fatigue prevention: skip if a care reminder was recorded today
-        const careReminderToday =
-          yield* notificationRepo.hasNotificationOfTypesTodayForUser(
-            user.id,
-            timezone,
-            CARE_TOPICS
-          )
-        if (careReminderToday) return
-
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
           user.id,

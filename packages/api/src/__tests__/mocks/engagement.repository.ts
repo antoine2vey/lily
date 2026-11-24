@@ -7,6 +7,7 @@ import {
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
 import type { Notification } from '@lily/shared/notification'
+import { CARE_TOPICS } from '@lily/shared/server'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 interface MockEngagementRepositoryData {
@@ -98,6 +99,27 @@ export const createMockEngagementRepository = (
         pipe(
           Option.fromNullishOr(plantsWithoutRecentPhoto[userId]),
           Option.getOrElse(() => [] as ReadonlyArray<PlantWithoutRecentPhoto>)
+        )
+      ),
+
+    getTipFatigueNotifications: ({ tipsSince, careRemindersSince }) =>
+      Effect.sync(() =>
+        pipe(
+          Array.filter(recorded, (n) =>
+            Array.contains(['pending', 'queued', 'sent'], n.status)
+          ),
+          Array.map((n) => ({
+            userId: n.userId,
+            kind:
+              n.type === 'daily_tip'
+                ? ('tip' as const)
+                : ('careReminder' as const),
+            since: n.type === 'daily_tip' ? tipsSince : careRemindersSince,
+            counted:
+              n.type === 'daily_tip' || Array.contains(CARE_TOPICS, n.type),
+            createdAt: n.createdAt,
+          })),
+          Array.filter((n) => n.counted && n.createdAt >= n.since)
         )
       ),
 

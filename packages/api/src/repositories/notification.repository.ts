@@ -246,11 +246,10 @@ export interface INotificationRepository {
     ids: readonly string[],
     error: string
   ) => Effect.Effect<void, SqlError>
-  /** A notification of one of `types` was recorded for the user on today's day in `timezone`. */
-  readonly hasNotificationOfTypesTodayForUser: (
+  readonly hasNotificationOfTypeTodayForUser: (
     userId: string,
     timezone: string,
-    types: ReadonlyArray<NotificationTopic>
+    type: NotificationTopic
   ) => Effect.Effect<boolean, SqlError>
   readonly countUnreadByUserId: (
     userId: string
@@ -958,13 +957,9 @@ export const NotificationRepositoryLive = Layer.effect(
         }
       ),
 
-      hasNotificationOfTypesTodayForUser: Effect.fn(
-        'NotificationRepository.hasNotificationOfTypesTodayForUser'
-      )(function* (
-        userId: string,
-        timezone: string,
-        types: ReadonlyArray<NotificationTopic>
-      ) {
+      hasNotificationOfTypeTodayForUser: Effect.fn(
+        'NotificationRepository.hasNotificationOfTypeTodayForUser'
+      )(function* (userId: string, timezone: string, type: NotificationTopic) {
         const today = startOfTodayAsDate(timezone)
         const tomorrow = startOfTomorrowAsDate(timezone)
 
@@ -974,7 +969,7 @@ export const NotificationRepositoryLive = Layer.effect(
           .where(
             and(
               eq(notifications.userId, userId),
-              inArray(notifications.type, [...types]),
+              eq(notifications.type, type),
               inArray(notifications.status, ['pending', 'queued', 'sent']),
               sql`${notifications.createdAt} >= ${today}`,
               sql`${notifications.createdAt} < ${tomorrow}`

@@ -267,10 +267,10 @@ export const processStreakAtRisk = Effect.fn(
         }
 
         const alreadySent =
-          yield* notificationRepo.hasNotificationOfTypesTodayForUser(
+          yield* notificationRepo.hasNotificationOfTypeTodayForUser(
             user.id,
             timezone,
-            ['streak_at_risk']
+            'streak_at_risk'
           )
         if (alreadySent) {
           return yield* new SkipUserError({ reason: 'already_sent' })

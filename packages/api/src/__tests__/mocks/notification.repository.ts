@@ -546,17 +546,17 @@ export const createMockNotificationRepository = (
         })
       }),
 
-    hasNotificationOfTypesTodayForUser: (
+    hasNotificationOfTypeTodayForUser: (
       userId: string,
       timezone: string,
-      types: ReadonlyArray<string>
+      type: string
     ) =>
       Effect.sync(() =>
         Array.some(
           notificationsState,
           (n) =>
             n.userId === userId &&
-            Array.contains(types, n.type) &&
+            n.type === type &&
             (n.status === 'pending' ||
               n.status === 'queued' ||
               n.status === 'sent') &&

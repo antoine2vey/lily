@@ -24,8 +24,8 @@ import {
   startOfWeek,
   type VacationStatus,
 } from '@lily/shared'
-import type { NotificationTopic } from '@lily/shared/server'
-import { and, count, desc, eq, gte, or, sql } from 'drizzle-orm'
+import { CARE_TOPICS, type NotificationTopic } from '@lily/shared/server'
+import { and, count, desc, eq, gte, inArray, or, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -51,6 +51,12 @@ export interface UserWithSettings {
   readonly vacationStatus: VacationStatus
   readonly vacationStart: Date | null
   readonly vacationEnd: Date | null
+}
+
+export interface TipFatigueNotification {
+  readonly userId: string
+  readonly kind: 'tip' | 'careReminder'
+  readonly createdAt: Date
 }
 
 export interface PlantWithoutRecentPhoto {
@@ -96,6 +102,14 @@ export interface IEngagementRepository {
     userId: string,
     beforeDate: Date
   ) => Effect.Effect<ReadonlyArray<PlantWithoutRecentPhoto>, SqlError>
+  /**
+   * Every daily tip recorded since `tipsSince` and every care reminder
+   * recorded since `careRemindersSince`, for all users, in one query.
+   */
+  readonly getTipFatigueNotifications: (window: {
+    readonly tipsSince: Date
+    readonly careRemindersSince: Date
+  }) => Effect.Effect<ReadonlyArray<TipFatigueNotification>, SqlError>
   readonly hasNotificationInPeriod: (
     userId: string,
     type: NotificationTopic,
@@ -231,6 +245,44 @@ export const EngagementRepositoryLive = Layer.effect(
           )
 
         return Array.filter(rows, hasUserOwner)
+      }),
+
+      getTipFatigueNotifications: Effect.fn(
+        'EngagementRepository.getTipFatigueNotifications'
+      )(function* (window: {
+        readonly tipsSince: Date
+        readonly careRemindersSince: Date
+      }) {
+        const rows = yield* db
+          .select({
+            userId: notifications.userId,
+            type: notifications.type,
+            createdAt: notifications.createdAt,
+          })
+          .from(notifications)
+          .where(
+            and(
+              inArray(notifications.status, ['pending', 'queued', 'sent']),
+              or(
+                and(
+                  eq(notifications.type, 'daily_tip'),
+                  gte(notifications.createdAt, window.tipsSince)
+                ),
+                and(
+                  inArray(notifications.type, [...CARE_TOPICS]),
+                  gte(notifications.createdAt, window.careRemindersSince)
+                )
+              )
+            )
+          )
+        return Array.map(
+          rows,
+          ({ userId, type, createdAt }): TipFatigueNotification => ({
+            userId,
+            kind: type === 'daily_tip' ? 'tip' : 'careReminder',
+            createdAt,
+          })
+        )
       }),
 
       hasNotificationInPeriod: Effect.fn(

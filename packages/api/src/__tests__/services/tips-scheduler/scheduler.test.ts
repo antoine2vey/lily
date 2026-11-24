@@ -8,6 +8,7 @@ import {
   type DailyTip,
   DailyTipRepository,
 } from '@lily/api/repositories/daily-tip.repository'
+import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
 import {
   type INotificationRepository,
   NotificationRepository,
@@ -163,6 +164,7 @@ describe('checkAndGenerateTip', () => {
       createMockNotificationRepository(recorded),
       createMockEngagementRepository({
         usersWithTips: [makeUserWithSettings({ id: 'user-1' })],
+        notifications: recorded,
       }),
       createMockRagService(),
       createMockDailyTipRepository([]),
@@ -172,6 +174,85 @@ describe('checkAndGenerateTip', () => {
     await Effect.runPromise(checkAndGenerateTip.pipe(Effect.provide(layer)))
 
     expect(Array.map(recorded, (n) => n.type)).toEqual([type])
+  })
+
+  it('reads the same number of times for forty users as for two', async () => {
+    const callsFor = async (userCount: number) => {
+      const recorded: Notification[] = []
+      const calls: string[] = []
+      const counted = <S extends object>(service: S): S =>
+        new Proxy(service, {
+          get: (target, method, receiver) => {
+            const member = Reflect.get(target, method, receiver)
+            if (typeof member !== 'function') {
+              calls.push(String(method))
+              return member
+            }
+            return (...args: ReadonlyArray<unknown>) => {
+              calls.push(String(method))
+              return Reflect.apply(member, target, args)
+            }
+          },
+        })
+      const mocks = Layer.mergeAll(
+        createMockNotificationRepository(recorded),
+        createMockEngagementRepository({
+          usersWithTips: Array.makeBy(userCount, (n) =>
+            makeUserWithSettings({ id: `user-${n}` })
+          ),
+          notifications: recorded,
+        }),
+        createMockDailyTipRepository([])
+      )
+      const countedRepositories = Layer.mergeAll(
+        Layer.effect(
+          NotificationRepository,
+          Effect.gen(function* () {
+            return counted(yield* NotificationRepository)
+          })
+        ),
+        Layer.effect(
+          EngagementRepository,
+          Effect.gen(function* () {
+            return counted(yield* EngagementRepository)
+          })
+        ),
+        Layer.effect(
+          DailyTipRepository,
+          Effect.gen(function* () {
+            return counted(yield* DailyTipRepository)
+          })
+        )
+      ).pipe(Layer.provide(mocks))
+
+      await Effect.runPromise(
+        checkAndGenerateTip.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              countedRepositories,
+              createMockRagService(),
+              enabledConfig
+            )
+          )
+        )
+      )
+
+      return {
+        reads: Array.filter(calls, (method) => method !== 'create'),
+        tipsRecorded: recorded.length,
+      }
+    }
+
+    const two = await callsFor(2)
+    const forty = await callsFor(40)
+
+    expect(forty.reads).toEqual(two.reads)
+    expect(two.reads).toEqual([
+      'findByDate',
+      'getUsersWithTipsEnabled',
+      'getTipFatigueNotifications',
+    ])
+    expect([two.tipsRecorded, forty.tipsRecorded]).toEqual([2, 40])
   })
 
   it('reaches on the next run the users a run that died left without the tip', async () => {
