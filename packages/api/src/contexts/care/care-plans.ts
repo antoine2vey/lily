@@ -1,14 +1,14 @@
+import { careCommands } from '@lily/api/contexts/care/commands'
 import type {
   CarePlant,
   DecideEnv,
 } from '@lily/api/contexts/care/domain/care-plant'
 import {
-  type Decision,
+  type AccountsHeld,
   type Refusal,
   type RefusalOf,
   requireActor,
 } from '@lily/api/contexts/care/domain/decide'
-import { CareTopic } from '@lily/api/contexts/care/domain/events'
 import type { ProposedStep } from '@lily/api/contexts/care/domain/plan'
 import {
   acceptPlan,
@@ -20,16 +20,13 @@ import {
   tickStep,
   untickStep,
 } from '@lily/api/contexts/care/domain/plan-decide'
-import { asError } from '@lily/api/contexts/care/refusals'
 import { CareStore } from '@lily/api/contexts/care/store'
 import { WeatherAdvisor } from '@lily/api/contexts/care/weather'
-import type { Outbox } from '@lily/api/kernel/outbox'
 import {
   Actor,
   type PlanPermit,
   type PlantPermit,
 } from '@lily/api/kernel/permit'
-import { runCommand } from '@lily/api/kernel/transact'
 import type { CareType } from '@lily/shared'
 import type { CarePlanSource } from '@lily/shared/care-plan'
 import type {
@@ -48,7 +45,6 @@ import {
   Option,
   Result,
 } from 'effect'
-import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -150,51 +146,21 @@ export const CarePlansLive = Layer.effect(
   Effect.gen(function* () {
     const store = yield* CareStore
     const advisor = yield* WeatherAdvisor
-    const context = yield* Effect.context<Outbox | SqlClient.SqlClient>()
+    const { onPlant } = yield* careCommands
 
-    const onPlantOf = <A, R extends Refusal>(
-      name: string,
-      permit: { readonly plantId: string },
-      careTypes: ReadonlyArray<CareType>,
-      decide: (plant: Option.Option<CarePlant>) => Result.Result<Decision<A>, R>
-    ) =>
-      runCommand({
-        name,
-        topic: CareTopic,
-        load: store.lockAndLoad([permit.plantId], careTypes),
-        decide: (plants) =>
-          decide(Option.fromNullishOr(plants.get(permit.plantId))),
-        apply: store.apply,
-      }).pipe(
-        Effect.provide(context),
-        Effect.mapError((refusal: R) => asError(refusal))
-      )
-
-    const onPlantOfBy = <A, R extends Refusal>(
-      name: string,
-      permit: { readonly plantId: string },
-      by: string,
-      careTypes: ReadonlyArray<CareType>,
-      decide: (plant: Option.Option<CarePlant>) => Result.Result<Decision<A>, R>
-    ) =>
-      runCommand({
-        name,
-        topic: CareTopic,
-        load: store.lockAndLoadFor([by], [permit.plantId], careTypes),
-        decide: ({
-          plants,
-          accountsHeld,
-        }): Result.Result<Decision<A>, R | RefusalOf<'ActorGone'>> =>
-          Result.flatMap(requireActor(accountsHeld, by, permit.plantId), () =>
-            decide(Option.fromNullishOr(plants.get(permit.plantId)))
-          ),
-        apply: store.apply,
-      }).pipe(
-        Effect.provide(context),
-        Effect.mapError((refusal: R | RefusalOf<'ActorGone'>) =>
-          asError(refusal)
+    const heldBy =
+      <D, R extends Refusal>(
+        by: string,
+        plantId: string,
+        decide: (plant: Option.Option<CarePlant>) => Result.Result<D, R>
+      ) =>
+      (
+        plant: Option.Option<CarePlant>,
+        accountsHeld: AccountsHeld
+      ): Result.Result<D, R | RefusalOf<'ActorGone'>> =>
+        Result.flatMap(requireActor(accountsHeld, by, plantId), () =>
+          decide(plant)
         )
-      )
 
     const authorOf = (permit: PlantPermit<'chat'>) =>
       Actor.$match(permit.actor, {
@@ -230,34 +196,43 @@ export const CarePlansLive = Layer.effect(
     return CarePlans.of({
       propose: ({ permit, title, source, steps }) =>
         Effect.flatMap(authorOf(permit), (authorId) =>
-          onPlantOfBy('care.proposePlan', permit, authorId, [], (plant) =>
-            proposePlan(plant, {
-              planId: crypto.randomUUID(),
-              plantId: permit.plantId,
-              authorId,
-              title,
-              source,
-              steps,
-            })
+          onPlant(
+            'care.proposePlan',
+            permit.plantId,
+            [],
+            heldBy(authorId, permit.plantId, (plant) =>
+              proposePlan(plant, {
+                planId: crypto.randomUUID(),
+                plantId: permit.plantId,
+                authorId,
+                title,
+                source,
+                steps,
+              })
+            ),
+            { actorIds: [authorId] }
           )
         ),
       accept: ({ permit }) =>
         Effect.gen(function* () {
           const careTypes = yield* careTypesOf(permit)
           const now = yield* DateTime.now
-          yield* onPlantOf('care.acceptPlan', permit, careTypes, (plant) =>
-            acceptPlan(plant, permit.planId, now)
+          yield* onPlant(
+            'care.acceptPlan',
+            permit.plantId,
+            careTypes,
+            (plant) => acceptPlan(plant, permit.planId, now)
           )
         }),
       dismiss: ({ permit }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          onPlantOf('care.dismissPlan', permit, [], (plant) =>
+          onPlant('care.dismissPlan', permit.plantId, [], (plant) =>
             dismissPlan(plant, permit.planId, now)
           )
         ),
       delete: ({ permit }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          onPlantOf('care.deletePlan', permit, [], (plant) =>
+          onPlant('care.deletePlan', permit.plantId, [], (plant) =>
             deletePlan(plant, permit.planId, now)
           )
         ),
@@ -265,29 +240,31 @@ export const CarePlansLive = Layer.effect(
         Effect.gen(function* () {
           const careTypes = yield* careTypesOf(permit)
           const env = yield* tickEnv(permit, careTypes)
-          yield* onPlantOfBy(
+          yield* onPlant(
             'care.tickPlanStep',
-            permit,
-            permit.by,
+            permit.plantId,
             careTypes,
-            (plant) => tickStep(plant, permit.planId, stepId, env)
+            heldBy(permit.by, permit.plantId, (plant) =>
+              tickStep(plant, permit.planId, stepId, env)
+            ),
+            { actorIds: [permit.by] }
           )
         }),
       untickStep: ({ permit, stepId }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          onPlantOf('care.untickPlanStep', permit, [], (plant) =>
+          onPlant('care.untickPlanStep', permit.plantId, [], (plant) =>
             untickStep(plant, permit.planId, stepId, now)
           )
         ),
       dropStep: ({ permit, stepId }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          onPlantOf('care.dropPlanStep', permit, [], (plant) =>
+          onPlant('care.dropPlanStep', permit.plantId, [], (plant) =>
             dropStep(plant, permit.planId, stepId, now)
           )
         ),
       linkToDiagnosis: ({ permit, planId, diagnosisId }) =>
         Effect.flatMap(DateTime.now, (now) =>
-          onPlantOf('care.linkPlanToDiagnosis', permit, [], (plant) =>
+          onPlant('care.linkPlanToDiagnosis', permit.plantId, [], (plant) =>
             linkPlanToDiagnosis(plant, planId, diagnosisId, now)
           )
         ),

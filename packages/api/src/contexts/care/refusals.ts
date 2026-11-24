@@ -1,4 +1,5 @@
-import type { Refusal, RefusalOf } from '@lily/api/contexts/care/domain/decide'
+import type { Refusal } from '@lily/api/contexts/care/domain/decide'
+import { type RefusalTable, refusals } from '@lily/api/kernel/refusals'
 import { CareLogNotFoundError } from '@lily/shared/errors/care-log'
 import {
   CarePlanNotFoundError,
@@ -15,7 +16,6 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { UnauthorizedError } from '@lily/shared/errors/user'
-import { Match } from 'effect'
 
 const errorOf = {
   AlreadyCared: ({ careType }) => new AlreadyCaredTodayError({ careType }),
@@ -36,13 +36,6 @@ const errorOf = {
   ActorGone: ({ plantId }) => new PlantNotFoundError({ plantId }),
   CreatorGone: () =>
     new UnauthorizedError({ message: 'Authentication failed' }),
-} satisfies {
-  readonly [T in Refusal['_tag']]: (refusal: RefusalOf<T>) => unknown
-}
+} satisfies RefusalTable<Refusal>
 
-export type ErrorOf<T extends Refusal['_tag']> = ReturnType<(typeof errorOf)[T]>
-
-const refusalAsError = Match.type<Refusal>().pipe(Match.tagsExhaustive(errorOf))
-
-export const asError = <R extends Refusal>(refusal: R) =>
-  refusalAsError(refusal) as ErrorOf<R['_tag']>
+export const asError = refusals<Refusal>()(errorOf)
