@@ -203,7 +203,7 @@ describe('sendNudge', () => {
         users: mockFollowUsers,
       }),
       createMockUserRepository([frenchTarget]),
-      createMockNotificationRepository(notifications),
+      notificationMocks(notifications).notices,
       createMockMessageQueue()
     )
 
