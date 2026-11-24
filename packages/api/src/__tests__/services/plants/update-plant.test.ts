@@ -21,11 +21,13 @@ import { Dirty } from '@lily/api/contexts/reminders'
 import { Actor } from '@lily/api/kernel/permit'
 import { withUserOwner } from '@lily/api/repositories/helpers/plant-owner'
 import {
+  type IPlantRepository,
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { RoomNotFoundError } from '@lily/shared'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer, Option } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
@@ -130,17 +132,143 @@ describe('updatePlant', () => {
     ])
   })
 
-  it('should update health status', async () => {
-    const { layer } = createTestLayer()
-    const plant = toPlantWithRoom(mockPlants[0]!)
-    const result = await Effect.runPromise(
-      updatePlant(plant, permit, {
-        id: 'plant-1',
-        health: 'THRIVING',
-      } as Parameters<typeof updatePlant>[2]).pipe(Effect.provide(layer))
+  const withRepository = (
+    patch: (repo: IPlantRepository) => Partial<IPlantRepository>,
+    sql = MockSqlClientLive
+  ) =>
+    Layer.mergeAll(
+      createMockRoomRepository(roomsWithStranger),
+      Layer.effect(
+        PlantRepository,
+        Effect.map(PlantRepository, (repo) => ({ ...repo, ...patch(repo) }))
+      ).pipe(Layer.provide(createMockPlantRepository({ plants: mockPlants }))),
+      createStubCare().layer,
+      createMockOutbox().layer,
+      sql,
+      createMockGCSService(),
+      createMockStoredRefRepository(),
+      Layer.succeed(FileSystem, {} as any)
     )
 
-    expect(result.health).toBe('THRIVING')
+  const writtenBy = async (request: Parameters<typeof updatePlant>[2]) => {
+    const written: unknown[] = []
+    await Effect.runPromise(
+      updatePlant(toPlantWithRoom(mockPlants[0]!), permit, request).pipe(
+        Effect.provide(
+          withRepository((repo) => ({
+            update: (id, owner, data) => {
+              written.push(data)
+              return repo.update(id, owner, data)
+            },
+          }))
+        )
+      )
+    )
+    return written
+  }
+
+  describe('the columns it writes', () => {
+    it('writes every plant field of the request and no schedule frequency', async () => {
+      expect(
+        await writtenBy({
+          id: 'plant-1',
+          name: 'Updated Name',
+          description: 'Updated description',
+          category: 'Fern',
+          wateringFrequencyDays: 14,
+          fertilizationFrequencyDays: null,
+          mistingFrequencyDays: 3,
+          repottingFrequencyDays: 365,
+          humidityRating: 4,
+          lightingRating: 2,
+          petToxicityRating: 1,
+          wateringRating: 5,
+          isFavorite: true,
+          remindersEnabled: false,
+          potWidthCm: 12,
+          potHeightCm: null,
+          roomId: 'room-2',
+        })
+      ).toEqual([
+        {
+          name: 'Updated Name',
+          description: 'Updated description',
+          category: 'Fern',
+          humidityRating: 4,
+          lightingRating: 2,
+          petToxicityRating: 1,
+          wateringRating: 5,
+          isFavorite: true,
+          remindersEnabled: false,
+          potWidthCm: 12,
+          potHeightCm: null,
+          roomId: 'room-2',
+        },
+      ])
+    })
+
+    it('leaves out a request key that names a column the endpoint does not own', async () => {
+      expect(
+        await writtenBy({
+          id: 'plant-1',
+          name: 'Updated Name',
+          health: 'THRIVING',
+          userId: 'user-stranger',
+          canopyId: 'canopy-1',
+          createdByUserId: 'user-stranger',
+          diedAt: new Date('2026-11-01T00:00:00Z'),
+          deathCause: 'unknown',
+          dateAdded: new Date('2020-01-01T00:00:00Z'),
+          imageUrl: 'https://example.com/someone-elses.png',
+        } as Parameters<typeof updatePlant>[2])
+      ).toEqual([{ name: 'Updated Name' }])
+    })
+  })
+
+  describe('the plant it answers with', () => {
+    it('reads the plant before its transaction commits', async () => {
+      const events: string[] = []
+      await Effect.runPromise(
+        updatePlant(toPlantWithRoom(mockPlants[0]!), permit, {
+          id: 'plant-1',
+          name: 'Updated Name',
+        }).pipe(
+          Effect.provide(
+            withRepository(
+              (repo) => ({
+                findById: (id) =>
+                  Effect.andThen(
+                    Effect.sync(() => events.push('read')),
+                    repo.findById(id)
+                  ),
+              }),
+              createMockSqlClient({
+                onTransaction: (event) => events.push(event),
+              })
+            )
+          )
+        )
+      )
+
+      expect(events).toEqual(['begin', 'read', 'commit'])
+    })
+
+    it('answers PlantNotFoundError, not the plant as it was, when the row is gone', async () => {
+      const exit = await Effect.runPromiseExit(
+        updatePlant(toPlantWithRoom(mockPlants[0]!), permit, {
+          id: 'plant-1',
+          name: 'Updated Name',
+        }).pipe(
+          Effect.provide(
+            withRepository(() => ({ findById: () => Effect.succeed(null) }))
+          )
+        )
+      )
+
+      expect(failureOf(exit)).toEqual(
+        new PlantNotFoundError({ plantId: 'plant-1' })
+      )
+    })
   })
 
   describe('reminders', () => {
