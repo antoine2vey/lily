@@ -78,6 +78,15 @@ export interface PlantingGround {
 
 const DEFAULT_WATERING_FREQUENCY_DAYS = 7
 
+export const weatherPlaceOf = (row: {
+  readonly latitude: number | null
+  readonly longitude: number | null
+}): Option.Option<{ readonly latitude: number; readonly longitude: number }> =>
+  Option.all({
+    latitude: Option.fromNullishOr(row.latitude),
+    longitude: Option.fromNullishOr(row.longitude),
+  })
+
 export class CareStore extends Context.Service<
   CareStore,
   {
@@ -775,26 +784,25 @@ export const CareStoreLive = Layer.effect(
         return Array.flatMap(
           rows,
           (row): ReadonlyArray<WeatherProfile> =>
-            row.latitude && row.longitude
-              ? [
-                  {
-                    latitude: row.latitude,
-                    longitude: row.longitude,
-                    plant: {
-                      id: row.id,
-                      category: row.category,
-                      lightingRating: row.lightingRating,
-                      humidityRating: row.humidityRating,
-                      wateringRating: row.wateringRating,
-                      wateringFrequencyDays:
-                        row.frequencyDays ?? DEFAULT_WATERING_FREQUENCY_DAYS,
-                      isOutdoor: row.isOutdoor ?? false,
-                      roomLuminosity: row.roomLuminosity,
-                      roomOrientation: row.roomOrientation,
-                    },
-                  },
-                ]
-              : []
+            pipe(
+              weatherPlaceOf(row),
+              Option.map((place) => ({
+                ...place,
+                plant: {
+                  id: row.id,
+                  category: row.category,
+                  lightingRating: row.lightingRating,
+                  humidityRating: row.humidityRating,
+                  wateringRating: row.wateringRating,
+                  wateringFrequencyDays:
+                    row.frequencyDays ?? DEFAULT_WATERING_FREQUENCY_DAYS,
+                  isOutdoor: row.isOutdoor ?? false,
+                  roomLuminosity: row.roomLuminosity,
+                  roomOrientation: row.roomOrientation,
+                },
+              })),
+              Option.toArray
+            )
         )
       }),
     })
