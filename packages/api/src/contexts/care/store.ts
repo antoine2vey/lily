@@ -38,6 +38,7 @@ import {
   CareDays,
   type CareType,
   type PlantOwner,
+  weatherPlaceOf,
 } from '@lily/shared'
 import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import {
@@ -77,15 +78,6 @@ export interface PlantingGround {
 }
 
 const DEFAULT_WATERING_FREQUENCY_DAYS = 7
-
-export const weatherPlaceOf = (row: {
-  readonly latitude: number | null
-  readonly longitude: number | null
-}): Option.Option<{ readonly latitude: number; readonly longitude: number }> =>
-  Option.all({
-    latitude: Option.fromNullishOr(row.latitude),
-    longitude: Option.fromNullishOr(row.longitude),
-  })
 
 export class CareStore extends Context.Service<
   CareStore,

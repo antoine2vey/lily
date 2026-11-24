@@ -9,6 +9,7 @@ import {
   WEATHER_ZONE_RADIUS_KM,
   type WeatherFetchError,
   WeatherNotAvailableError,
+  weatherPlaceOf,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -73,7 +74,7 @@ export const getWeatherForLocation = (
     return forecast
   })
 
-/** A user's coordinates, when weather is on. 0 is a real latitude or longitude. */
+/** A user's coordinates, when weather is on. */
 export const userWeatherPlace = (
   user: {
     readonly weatherEnabled: boolean
@@ -88,12 +89,7 @@ export const userWeatherPlace = (
     pipe(
       Option.fromNullishOr(user),
       Option.filter((u) => u.weatherEnabled),
-      Option.flatMap((u) =>
-        Option.all({
-          latitude: Option.fromNullishOr(u.latitude),
-          longitude: Option.fromNullishOr(u.longitude),
-        })
-      )
+      Option.flatMap(weatherPlaceOf)
     ),
     () => new WeatherNotAvailableError({})
   )
