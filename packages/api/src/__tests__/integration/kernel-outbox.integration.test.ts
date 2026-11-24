@@ -8,7 +8,12 @@ import {
   topic,
 } from '@lily/api/kernel/outbox'
 import type { Transaction } from '@lily/api/kernel/transact'
-import { commandBody, decision, transact } from '@lily/api/kernel/transact'
+import {
+  commandBody,
+  decision,
+  noNotices,
+  transact,
+} from '@lily/api/kernel/transact'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
@@ -348,7 +353,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Outbox - Integration', () => {
     describe('around a command body', () => {
       const water = (plantId: string) =>
         commandBody({
-          name: 'test.water',
           topic: care,
           load: Effect.succeed(plantId),
           decide: (loaded: string) =>
@@ -362,6 +366,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Outbox - Integration', () => {
                 { discard: true }
               )
             ),
+          notices: noNotices,
         })
 
       const written = async () =>

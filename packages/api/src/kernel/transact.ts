@@ -57,15 +57,54 @@ export class Transaction extends Context.Service<
   }
 >()('kernel/Transaction') {}
 
-export interface CommandSpec<Agg, W, E, A, Refusal, R> {
-  /** Span name, `<context>.<command>`. */
-  readonly name: string
+export interface Notices<N, Recorded, R = never> {
+  /** Records one notice in the transaction of the command. */
+  readonly record: (notice: N) => Effect.Effect<Recorded, SqlError, R>
+  /** Sends what was recorded. Runs once the outermost transaction commits. */
+  readonly dispatch: (recorded: ReadonlyArray<Recorded>) => Effect.Effect<void>
+}
+
+/** For a context whose decisions owe no notice. */
+export const noNotices: Notices<never, never> = {
+  record: absurd,
+  dispatch: () => Effect.void,
+}
+
+export interface CommandSpec<Agg, W, E, A, N, Recorded, Refusal, R> {
   readonly topic: OutboxTopic<E>
   /** Reads current state and takes the locks the command needs. */
   readonly load: Effect.Effect<Agg, SqlError, R>
-  readonly decide: (aggregate: Agg) => Result.Result<Decision<W, E, A>, Refusal>
+  readonly decide: (
+    aggregate: Agg
+  ) => Result.Result<Decision<W, E, A, N>, Refusal>
   readonly apply: (writes: ReadonlyArray<W>) => Effect.Effect<void, SqlError, R>
+  readonly notices: Notices<N, Recorded, R>
 }
+
+/**
+ * Load, decide, apply, the outbox append and the notices, with no transaction
+ * of its own. For a command that must put more in the transaction than its
+ * own writes: a failure after this body rolls the writes, the events and the
+ * notices back with it, and nothing is dispatched.
+ */
+export const commandBody = <Agg, W, E, A, N, Recorded, Refusal, R>(
+  spec: CommandSpec<Agg, W, E, A, N, Recorded, Refusal, R>
+): Effect.Effect<
+  A,
+  Refusal | SqlError | Schema.SchemaError,
+  R | Outbox | Transaction
+> =>
+  Effect.gen(function* () {
+    const outbox = yield* Outbox
+    const transaction = yield* Transaction
+    const aggregate = yield* spec.load
+    const decided = yield* Effect.fromResult(spec.decide(aggregate))
+    yield* spec.apply(decided.writes)
+    yield* outbox.append(spec.topic, decided.events)
+    const recorded = yield* Effect.forEach(decided.notices, spec.notices.record)
+    yield* transaction.afterCommit(spec.notices.dispatch(recorded))
+    return decided.outcome
+  })
 
 /**
  * One transaction (a savepoint when the caller already holds one) with no
@@ -132,93 +171,6 @@ export const transact = <A, E, R>(
   })
 
 /**
- * Load, decide, apply and the outbox append, with no transaction of its own.
- * For a command that must put more in the transaction than its own writes: a
- * failure after this body rolls the writes and the events back with it.
- */
-export const commandBody = <Agg, W, E, A, Refusal, R>(
-  spec: CommandSpec<Agg, W, E, A, Refusal, R>
-): Effect.Effect<
-  A,
-  Refusal | SqlError | Schema.SchemaError,
-  R | Outbox | Transaction
-> =>
-  Effect.gen(function* () {
-    const outbox = yield* Outbox
-    const aggregate = yield* spec.load
-    const decided = yield* Effect.fromResult(spec.decide(aggregate))
-    yield* spec.apply(decided.writes)
-    yield* outbox.append(spec.topic, decided.events)
-    return decided.outcome
-  })
-
-/**
- * Runs one command: load, decide, apply and the outbox append, all in one
- * transaction (a savepoint when the caller already holds one). A refusal
- * rolls back and is the only failure; a database error is a defect.
- */
-export const runCommand = <Agg, W, E, A, Refusal, R>(
-  spec: CommandSpec<Agg, W, E, A, Refusal, R>
-): Effect.Effect<
-  A,
-  Refusal,
-  Exclude<R, Transaction> | SqlClient.SqlClient | Outbox
-> =>
-  transact(commandBody(spec)).pipe(
-    Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-    Effect.withSpan(spec.name)
-  )
-
-export interface Notices<N, Recorded, R = never> {
-  /** Records one notice in the transaction of the command. */
-  readonly record: (notice: N) => Effect.Effect<Recorded, SqlError, R>
-  /** Sends what was recorded. Runs once the outermost transaction commits. */
-  readonly dispatch: (recorded: ReadonlyArray<Recorded>) => Effect.Effect<void>
-}
-
-/** For a context whose decisions owe no notice. */
-export const noNotices: Notices<never, never> = {
-  record: absurd,
-  dispatch: () => Effect.void,
-}
-
-export interface NoticedCommandSpec<Agg, W, E, A, N, Recorded, Refusal, R> {
-  readonly topic: OutboxTopic<E>
-  /** Reads current state and takes the locks the command needs. */
-  readonly load: Effect.Effect<Agg, SqlError, R>
-  readonly decide: (
-    aggregate: Agg
-  ) => Result.Result<Decision<W, E, A, N>, Refusal>
-  readonly apply: (writes: ReadonlyArray<W>) => Effect.Effect<void, SqlError, R>
-  readonly notices: Notices<N, Recorded, R>
-}
-
-/**
- * Load, decide, apply, the outbox append and the notices, with no transaction
- * of its own. For a command that must put more in the transaction than its
- * own writes: a failure after this body rolls the writes, the events and the
- * notices back with it, and nothing is dispatched.
- */
-export const noticedCommandBody = <Agg, W, E, A, N, Recorded, Refusal, R>(
-  spec: NoticedCommandSpec<Agg, W, E, A, N, Recorded, Refusal, R>
-): Effect.Effect<
-  A,
-  Refusal | SqlError | Schema.SchemaError,
-  R | Outbox | Transaction
-> =>
-  Effect.gen(function* () {
-    const outbox = yield* Outbox
-    const transaction = yield* Transaction
-    const aggregate = yield* spec.load
-    const decided = yield* Effect.fromResult(spec.decide(aggregate))
-    yield* spec.apply(decided.writes)
-    yield* outbox.append(spec.topic, decided.events)
-    const recorded = yield* Effect.forEach(decided.notices, spec.notices.record)
-    yield* transaction.afterCommit(spec.notices.dispatch(recorded))
-    return decided.outcome
-  })
-
-/**
  * The two ways a context runs its commands, built once from what every
  * command of the context shares.
  *
@@ -256,7 +208,7 @@ export const commandsOf = <
     load: Effect.Effect<Agg, SqlError, Transaction>,
     decide: (aggregate: Agg) => Result.Result<Decision<W, E, A, N>, F>
   ): Effect.Effect<A, F | SqlError, Transaction> =>
-    noticedCommandBody({
+    commandBody({
       topic: config.topic,
       load,
       decide,
