@@ -1,15 +1,23 @@
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import { RecordOutcome, Refusal } from '@lily/api/contexts/care'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import {
+  type IPlantRepository,
+  PlantRepository,
+} from '@lily/api/repositories/plant.repository'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
 import { CareDay, CareDays } from '@lily/shared'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { failureOf } from '@lily/shared/testing'
 import { Array, DateTime, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { mockPlants, type TestPlant } from '../../fixtures/plants'
 import { createMockCanopyRepository } from '../../mocks/canopy.repository'
 import { createMockDelegationRepository } from '../../mocks/delegation.repository'
+import { createMockOutbox } from '../../mocks/outbox'
 import { createMockPlantRepository } from '../../mocks/plant.repository'
 import { createMockCurrentUser } from '../../mocks/session'
+import { createMockSqlClient, MockSqlClientLive } from '../../mocks/sql-client'
 
 type DelegationMockData = NonNullable<
   Parameters<typeof createMockDelegationRepository>[0]
@@ -50,6 +58,8 @@ const setup = (
     delegationPlants?: DelegationMockData['delegationPlants']
     rooms?: { id: string; name: string; icon: string }[]
     outcomeOf?: (plantId: string) => RecordOutcome
+    reading?: (repo: IPlantRepository) => Partial<IPlantRepository>
+    sql?: ReturnType<typeof createMockSqlClient>
   } = {}
 ) => {
   const plants = overrides.plants ?? [plant1, plant2, plant3]
@@ -57,11 +67,23 @@ const setup = (
   return {
     care,
     layer: Layer.mergeAll(
-      createMockPlantRepository({
-        plants,
-        schedules: schedulesFromPlants(plants),
-        rooms: overrides.rooms as never,
-      }),
+      Layer.effect(
+        PlantRepository,
+        Effect.map(PlantRepository, (repo) => ({
+          ...repo,
+          ...overrides.reading?.(repo),
+        }))
+      ).pipe(
+        Layer.provide(
+          createMockPlantRepository({
+            plants,
+            schedules: schedulesFromPlants(plants),
+            rooms: overrides.rooms as never,
+          })
+        )
+      ),
+      createMockOutbox().layer,
+      overrides.sql ?? MockSqlClientLive,
       createMockDelegationRepository({
         delegations: overrides.delegations,
         delegationPlants: overrides.delegationPlants,
@@ -73,15 +95,18 @@ const setup = (
   }
 }
 
-const careFor = (
+const caring = (
   plantIds: ReadonlyArray<string>,
   test: ReturnType<typeof setup>
 ) =>
-  Effect.runPromise(
-    careMultiplePlants({ plantIds, careType: 'watering' }).pipe(
-      Effect.provide(test.layer)
-    )
+  careMultiplePlants({ plantIds, careType: 'watering' }).pipe(
+    Effect.provide(test.layer)
   )
+
+const careFor = (
+  plantIds: ReadonlyArray<string>,
+  test: ReturnType<typeof setup>
+) => Effect.runPromise(caring(plantIds, test))
 
 describe('careMultiplePlants', () => {
   it('returns nothing for no plants', async () => {
@@ -202,5 +227,37 @@ describe('careMultiplePlants', () => {
     const result = await careFor(['plant-room'], test)
 
     expect(result[0]?.plant?.room?.name).toBe('Living Room')
+  })
+
+  it('reads the cared plants in one query, before the transaction of the care commits', async () => {
+    const events: string[] = []
+    const test = setup({
+      reading: (repo) => ({
+        findWithRoomByIds: (ids) =>
+          Effect.andThen(
+            Effect.sync(() => events.push('read')),
+            repo.findWithRoomByIds(ids)
+          ),
+      }),
+      sql: createMockSqlClient({
+        onTransaction: (event) => events.push(event),
+      }),
+    })
+
+    await careFor(['plant-1', 'plant-2'], test)
+
+    expect(events).toEqual(['begin', 'read', 'commit'])
+  })
+
+  it('answers PlantNotFoundError, not success: false, when a plant it cared for cannot be read', async () => {
+    const test = setup({
+      reading: () => ({ findWithRoomByIds: () => Effect.succeed([]) }),
+    })
+
+    const exit = await Effect.runPromiseExit(caring(['plant-1'], test))
+
+    expect(failureOf(exit)).toEqual(
+      new PlantNotFoundError({ plantId: 'plant-1' })
+    )
   })
 })

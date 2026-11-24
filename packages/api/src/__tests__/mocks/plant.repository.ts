@@ -15,10 +15,12 @@ import {
   PlantRepository,
   type PlantWithRoom,
   seeCareWithLastDays,
+  type UpdatePlantData,
 } from '@lily/api/repositories/plant.repository'
 import type { plantPhotos, plants } from '@lily/db/schema'
 import {
   CareDay,
+  compact,
   type Orientation,
   type PlantOwner,
   paginate,
@@ -166,11 +168,8 @@ export const createMockPlantRepository = (
     return filtered
   }
 
-  const patchPlant = (
-    id: string,
-    owner: PlantOwner,
-    patch: Partial<PlantRecord>
-  ) => {
+  const patchPlant = (id: string, owner: PlantOwner, data: UpdatePlantData) => {
+    const patch = compact(data) as Partial<PlantRecord>
     const idxOption = Array.findFirstIndex(
       plantsData,
       (p) => p.id === id && sameOwner(withOwner(p).owner, owner)
@@ -329,6 +328,14 @@ export const createMockPlantRepository = (
           Array.findFirst(plantsData, (p) => p.id === id),
           Option.map(toPlantWithRoom),
           Option.getOrNull
+        )
+      ),
+
+    findWithRoomByIds: (ids: readonly string[]) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(plantsData, (p) => Array.contains(ids, p.id)),
+          Array.map(toPlantWithRoom)
         )
       ),
 

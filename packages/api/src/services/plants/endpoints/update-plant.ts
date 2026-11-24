@@ -6,6 +6,7 @@ import { transact } from '@lily/api/kernel/transact'
 import {
   PlantRepository,
   type PlantWithRoom,
+  type UpdatePlantData,
 } from '@lily/api/repositories/plant.repository'
 import type { RoomRepository } from '@lily/api/repositories/room.repository'
 import type { StoredRefRepository } from '@lily/api/repositories/stored-ref.repository'
@@ -30,12 +31,29 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
-import { Effect, Option, pipe, Record } from 'effect'
+import { Effect, Option, Struct } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'
 import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
+
+const REQUEST_COLUMNS = [
+  'name',
+  'description',
+  'category',
+  'humidityRating',
+  'lightingRating',
+  'petToxicityRating',
+  'wateringRating',
+  'isFavorite',
+  'remindersEnabled',
+  'potWidthCm',
+  'potHeightCm',
+  'roomId',
+] as const satisfies ReadonlyArray<
+  keyof PlantUpdateRequest & keyof UpdatePlantData
+>
 
 export const updatePlant = (
   plant: PlantWithRoom,
@@ -67,21 +85,17 @@ export const updatePlant = (
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
     yield* assertRoomFits(request.roomId, plant.owner)
 
-    const imageUrl = image
-      ? yield* uploadToPlantFolder(request.id, image)
-      : undefined
+    const upload = Option.fromUndefinedOr(
+      image ? yield* uploadToPlantFolder(request.id, image) : undefined
+    )
 
-    const data = pipe(
-      Record.fromEntries(
-        Record.toEntries<string, unknown>({ ...request, imageUrl })
-      ),
-      Record.remove('id'),
-      Record.remove('wateringFrequencyDays'),
-      Record.remove('fertilizationFrequencyDays'),
-      Record.remove('mistingFrequencyDays'),
-      Record.remove('repottingFrequencyDays'),
-      Record.filter((value) => value !== undefined)
-    ) as Record<string, unknown>
+    const data: UpdatePlantData = {
+      ...Struct.pick(request, REQUEST_COLUMNS),
+      ...Option.match(upload, {
+        onNone: () => ({}),
+        onSome: (imageUrl) => ({ imageUrl }),
+      }),
+    }
 
     const write = Effect.gen(function* () {
       const written = yield* repo.update(request.id, plant.owner, data)
@@ -95,19 +109,18 @@ export const updatePlant = (
       if (request.remindersEnabled !== undefined) {
         yield* Reminders.request(Dirty.Plants({ plantIds: [request.id] }))
       }
+      const updated = yield* repo.findById(request.id)
+      if (!updated) {
+        return yield* new PlantNotFoundError({ plantId: request.id })
+      }
+      return updated
     })
 
-    yield* Option.match(Option.fromUndefinedOr(imageUrl), {
+    return yield* Option.match(upload, {
       onNone: () => transact(write),
       onSome: (url) =>
         transact(releasing(plantHeld(request.id), write)).pipe(
           releasingRefusedUpload(Holder.Plant({ plantId: request.id }), url)
         ),
     })
-
-    const updated = yield* repo.findById(request.id)
-    return pipe(
-      Option.fromNullishOr(updated),
-      Option.getOrElse(() => plant)
-    )
   }).pipe(Effect.withSpan('PlantsService.updatePlant'))
