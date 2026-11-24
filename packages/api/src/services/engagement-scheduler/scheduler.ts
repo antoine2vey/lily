@@ -56,7 +56,6 @@ export const inactivityNudge: EngagementRule<
   EngagementRepository | NotificationRepository
 > = {
   name: 'inactivity',
-  pastSlot: 'deliver',
   decide: (user) =>
     Effect.gen(function* () {
       const engagementRepo = yield* EngagementRepository
@@ -89,7 +88,6 @@ export const photoReminder: EngagementRule<
   EngagementRepository | NotificationRepository
 > = {
   name: 'photo_reminder',
-  pastSlot: 'deliver',
   decide: (user) =>
     Effect.gen(function* () {
       const engagementRepo = yield* EngagementRepository
@@ -136,7 +134,6 @@ export const plantParentMilestone: EngagementRule<
   NotificationRepository
 > = {
   name: 'milestone',
-  pastSlot: 'deliver',
   decide: (user) =>
     Effect.gen(function* () {
       const daysSinceJoin = daysSince(user.createdAt)
@@ -168,7 +165,6 @@ export const streakAtRisk = (
   CareLogRepository | EngagementRepository | NotificationRepository
 > => ({
   name: 'streak_at_risk',
-  pastSlot: 'deliver',
   decide: (user, timezone) =>
     Effect.gen(function* () {
       const careLogRepo = yield* CareLogRepository
@@ -220,7 +216,6 @@ export const streakMilestone = (
   streaks: ReadonlyMap<string, number>
 ): EngagementRule<UserWithSettings, NotificationRepository> => ({
   name: 'streak_milestone',
-  pastSlot: 'deliver',
   decide: (user) =>
     Effect.gen(function* () {
       const streak = streakOf(streaks, user.id)
@@ -238,7 +233,6 @@ export const trialEnding = (
   daysLeft: number
 ): EngagementRule<TrialingUser, NotificationRepository> => ({
   name: 'trial_ending',
-  pastSlot: 'deliver',
   decide: (user) =>
     Effect.gen(function* () {
       yield* unlessNotified(sinceDaysAgo(user.id, 'trial_ending', daysLeft + 1))
@@ -253,7 +247,6 @@ export const plantAnniversary = (
   const plantsOf = Array.groupBy(plants, (p) => p.userId)
   return {
     name: 'plant_anniversary',
-    pastSlot: 'deliver',
     decide: (user) =>
       Effect.gen(function* () {
         const notificationRepo = yield* NotificationRepository

@@ -1,3 +1,7 @@
+import {
+  freezeClock,
+  SUNDAY_10_IN_PARIS,
+} from '@lily/api/__tests__/fixtures/clock'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { makeUserWithSettings } from '@lily/api/__tests__/fixtures/users'
 import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engagement.repository'
@@ -8,6 +12,9 @@ import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+// The runner records a slot only while a window of the local day is left.
+freezeClock(SUNDAY_10_IN_PARIS)
 
 const processStreakMilestones = (
   users: ReadonlyArray<UserWithSettings>,
