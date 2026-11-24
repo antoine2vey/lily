@@ -19,6 +19,7 @@ import {
   transition,
   transitionEach,
 } from '@lily/api/kernel/transition'
+import { expectWritten } from '@lily/api/kernel/written'
 import {
   ownedBy,
   ownerColumns,
@@ -133,42 +134,6 @@ export class CanopyStore extends Context.Service<
     ) => Effect.Effect<void, SqlError, Transaction>
   }
 >()('canopy/CanopyStore') {}
-
-export class PlantsNotMovedDefect extends Data.TaggedError(
-  'PlantsNotMovedDefect'
-)<{
-  readonly plantIds: ReadonlyArray<string>
-  readonly moved: number
-}> {}
-
-export const allMoved = (
-  plantIds: ReadonlyArray<string>,
-  moved: number
-): Effect.Effect<void> =>
-  moved === plantIds.length
-    ? Effect.void
-    : Effect.die(new PlantsNotMovedDefect({ plantIds, moved }))
-
-export class RowsNotWrittenDefect extends Data.TaggedError(
-  'RowsNotWrittenDefect'
-)<{
-  readonly write:
-    | 'MoveRooms'
-    | 'RemoveMember'
-    | 'ResolveInvitation'
-    | 'SetOwner'
-  readonly named: number
-  readonly written: number
-}> {}
-
-export const allWritten = (
-  write: RowsNotWrittenDefect['write'],
-  named: number,
-  written: number
-): Effect.Effect<void> =>
-  written === named
-    ? Effect.void
-    : Effect.die(new RowsNotWrittenDefect({ write, named, written }))
 
 type LockClass = (
   plan: LockPlan,
@@ -664,7 +629,7 @@ export const CanopyStoreLive = Layer.effect(
               .delete(canopyMembers)
               .where(memberRow(w))
               .returning({ id: canopyMembers.id })
-            yield* allWritten('RemoveMember', 1, removed.length)
+            yield* expectWritten(canopyMembers, w)(removed)
             yield* notifications.deleteUndeliveredNonCareForMemberOnCanopy(
               w.userId,
               w.canopyId
@@ -677,7 +642,7 @@ export const CanopyStoreLive = Layer.effect(
               .set({ role: 'owner' })
               .where(memberRow(w))
               .returning({ id: canopyMembers.id }),
-            (promoted) => allWritten('SetOwner', 1, promoted.length)
+            expectWritten(canopyMembers, w)
           ),
         ReplaceLink: (w) =>
           Effect.asVoid(
@@ -743,7 +708,7 @@ export const CanopyStoreLive = Layer.effect(
             }),
             Transition.$match({
               Moved: () => Effect.void,
-              LostRace: () => allWritten('ResolveInvitation', 1, 0),
+              LostRace: () => expectWritten(canopyDirectInvites, w)([]),
             })
           ),
         WithdrawInvitationsSentByOrTo: (w) =>
@@ -805,7 +770,7 @@ export const CanopyStoreLive = Layer.effect(
                 )
               )
               .returning({ id: rooms.id })
-            yield* allWritten('MoveRooms', w.roomIds.length, moved.length)
+            yield* expectWritten(rooms, w, w.roomIds.length)(moved)
           }),
         MovePlants: (w) =>
           Effect.gen(function* () {
@@ -823,7 +788,7 @@ export const CanopyStoreLive = Layer.effect(
                 )
               )
               .returning({ id: plants.id })
-            yield* allMoved(w.plantIds, moved.length)
+            yield* expectWritten(plants, w, w.plantIds.length)(moved)
             yield* dropWhatTheCanopyHeld(w.from)(w.plantIds)
           }),
       })

@@ -23,6 +23,7 @@ import {
 } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
 import { Transition, transitionDecided } from '@lily/api/kernel/transition'
+import { expectWritten } from '@lily/api/kernel/written'
 import { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
@@ -66,7 +67,6 @@ import {
 import {
   Array,
   Context,
-  Data,
   DateTime,
   Effect,
   Layer,
@@ -121,30 +121,6 @@ export class AbsenceStore extends Context.Service<
   }
 >()('absence/AbsenceStore') {}
 
-export class DelegationNotMovedDefect extends Data.TaggedError(
-  'DelegationNotMovedDefect'
-)<{
-  readonly delegationId: string
-  readonly from: Status
-  readonly to: Status
-  readonly moved: number
-}> {}
-
-export const movedOnce = (
-  write: Extract<DelegationWrite, { readonly _tag: 'MoveDelegation' }>,
-  moved: number
-): Effect.Effect<void> =>
-  moved === 1
-    ? Effect.void
-    : Effect.die(
-        new DelegationNotMovedDefect({
-          delegationId: write.id,
-          from: write.from,
-          to: write.to,
-          moved,
-        })
-      )
-
 export const OPEN_STATUSES = [
   'pending',
   'accepted',
@@ -198,30 +174,6 @@ export const DUE_AT = {
       | typeof careDelegations.endDate
   }
 >
-
-export class VacationNotSetDefect extends Data.TaggedError(
-  'VacationNotSetDefect'
-)<{
-  readonly userId: string
-  readonly expected: VacationStatus
-  readonly next: Vacation['_tag']
-  readonly set: number
-}> {}
-
-export const setOnce = (
-  write: Extract<VacationWrite, { readonly _tag: 'SetVacation' }>,
-  set: number
-): Effect.Effect<void> =>
-  set === 1
-    ? Effect.void
-    : Effect.die(
-        new VacationNotSetDefect({
-          userId: write.userId,
-          expected: write.expected.status,
-          next: write.next._tag,
-          set,
-        })
-      )
 
 const asInstant = (date: Date | null) =>
   Option.map(Option.fromNullishOr(date), DateTime.fromDateUnsafe)
@@ -627,7 +579,7 @@ export const AbsenceStoreLive = Layer.effect(
               }),
               Transition.$match({
                 Moved: () => Effect.void,
-                LostRace: () => movedOnce(w, 0),
+                LostRace: () => expectWritten(careDelegations, w)([]),
               })
             ),
           MoveDueDaysAfterAbsence: (w) =>
@@ -662,7 +614,7 @@ export const AbsenceStoreLive = Layer.effect(
               }),
               Transition.$match({
                 Moved: () => Effect.void,
-                LostRace: () => setOnce(w, 0),
+                LostRace: () => expectWritten(users, w)([]),
               })
             )
           },

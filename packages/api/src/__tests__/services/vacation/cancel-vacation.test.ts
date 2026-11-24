@@ -2,10 +2,7 @@ import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createVacationWorld } from '@lily/api/__tests__/mocks/vacation-world'
 import { Vacation } from '@lily/api/contexts/absence/domain/vacation'
-import {
-  type AbsenceStore,
-  VacationNotSetDefect,
-} from '@lily/api/contexts/absence/store'
+import type { AbsenceStore } from '@lily/api/contexts/absence/store'
 import { DueMove } from '@lily/api/contexts/care'
 import { cancelVacation } from '@lily/api/services/vacation/endpoints/cancel-vacation'
 import { CARE_TYPES, type User } from '@lily/shared'
@@ -184,14 +181,18 @@ describe('cancelVacation', () => {
       onFailure: (cause) => Cause.squash(cause),
       onSuccess: () => null,
     })
-    expect(defect).toEqual(
-      new VacationNotSetDefect({
+    expect(defect).toMatchObject({
+      _tag: 'RowsNotWrittenDefect',
+      table: 'users',
+      write: {
+        _tag: 'SetVacation',
         userId: 'user-1',
-        expected: 'scheduled',
-        next: Vacation.None()._tag,
-        set: 0,
-      })
-    )
+        expected: { status: 'scheduled' },
+        next: { _tag: Vacation.None()._tag },
+      },
+      expected: 1,
+      written: 0,
+    })
     expect(users[0]).toMatchObject({
       vacationStatus: 'scheduled',
       vacationEnd: movedEnd,

@@ -471,9 +471,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ),
       ]
 
-      expect(Array.map(exits, (exit) => String(defectOf(exit)))).toEqual(
-        Array.replicate('PlanRowNotWrittenDefect', 6)
-      )
+      expect(Array.map(exits, (exit) => String(defectOf(exit)))).toEqual([
+        'RowsNotWrittenDefect: SetPlanStatus wrote 0 of 1 rows of care_plans',
+        'RowsNotWrittenDefect: CompletePlanStep wrote 0 of 1 rows of care_plan_steps',
+        'RowsNotWrittenDefect: ReopenPlanStep wrote 0 of 1 rows of care_plan_steps',
+        'RowsNotWrittenDefect: DeletePlanStep wrote 0 of 1 rows of care_plan_steps',
+        'RowsNotWrittenDefect: DeletePlan wrote 0 of 1 rows of care_plans',
+        'RowsNotWrittenDefect: LinkPlanToDiagnosis wrote 0 of 1 rows of care_plans',
+      ])
       expect((await planNow(planId)).plan?.status).toBe('proposed')
     })
 

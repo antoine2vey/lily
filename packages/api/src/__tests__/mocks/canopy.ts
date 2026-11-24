@@ -18,8 +18,6 @@ import type {
 } from '@lily/api/contexts/canopy/domain/canopy'
 import { CanopyWrite, RoomMove } from '@lily/api/contexts/canopy/domain/decide'
 import {
-  allMoved,
-  allWritten,
   CanopyStore,
   Find,
   InvitationScope,
@@ -28,6 +26,7 @@ import {
   RoomScope,
 } from '@lily/api/contexts/canopy/store'
 import { Outbox } from '@lily/api/kernel/outbox'
+import { expectWritten } from '@lily/api/kernel/written'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
   ownerColumns,
@@ -35,6 +34,12 @@ import {
 } from '@lily/api/repositories/helpers/plant-owner'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
+import {
+  canopyDirectInvites,
+  canopyMembers,
+  plants,
+  rooms,
+} from '@lily/db/schema'
 import type { CanopyId, User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
@@ -394,8 +399,9 @@ export const createInMemoryCanopy = (
             (mute) =>
               mute.userId !== w.userId || !Array.contains(held, mute.plantId)
           )
-          const removed = keep(data.members, (member) => !isMember(w)(member))
-          yield* allWritten('RemoveMember', 1, removed)
+          const removed = Array.filter(data.members, isMember(w))
+          keep(data.members, (member) => !isMember(w)(member))
+          yield* expectWritten(canopyMembers, w)(removed)
           yield* notificationRepo.deleteUndeliveredNonCareForMemberOnCanopy(
             w.userId,
             w.canopyId
@@ -419,7 +425,7 @@ export const createInMemoryCanopy = (
               role: 'owner',
             })
           })
-          return allWritten('SetOwner', 1, promoted.length)
+          return expectWritten(canopyMembers, w)(promoted)
         }),
       ReplaceLink: change((w) => {
         revokeLinks(w.canopyId, w.at, Option.none())
@@ -478,7 +484,7 @@ export const createInMemoryCanopy = (
               resolvedAt: DateTime.toDateUtc(w.at),
             })
           )
-          return allWritten('ResolveInvitation', 1, pending.length)
+          return expectWritten(canopyDirectInvites, w)(pending)
         }),
       WithdrawInvitationsSentByOrTo: change((w) =>
         Array.forEach(data.invitations, (row) => {
@@ -517,7 +523,7 @@ export const createInMemoryCanopy = (
           Array.forEach(moving, (room) => {
             Object.assign(room, { userId: w.toUserId, canopyId: null })
           })
-          return allWritten('MoveRooms', w.roomIds.length, moving.length)
+          return expectWritten(rooms, w, w.roomIds.length)(moving)
         }),
       MovePlants: (w) =>
         Effect.gen(function* () {
@@ -534,7 +540,7 @@ export const createInMemoryCanopy = (
               updatedAt: new Date(),
             })
           })
-          yield* allMoved(w.plantIds, moving.length)
+          yield* expectWritten(plants, w, w.plantIds.length)(moving)
           if (w.from._tag !== 'Canopy') return
           keep(data.mutes, (mute) => !Array.contains(w.plantIds, mute.plantId))
           yield* notificationRepo.deleteUndeliveredNonCareOfNonOwners(

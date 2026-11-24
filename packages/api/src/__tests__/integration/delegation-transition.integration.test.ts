@@ -19,7 +19,6 @@ import { DelegationWrite } from '@lily/api/contexts/absence/domain/delegation'
 import {
   AbsenceStore,
   AbsenceStoreLive,
-  DelegationNotMovedDefect,
 } from '@lily/api/contexts/absence/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import { Dirty, Reminders } from '@lily/api/contexts/reminders'
@@ -187,14 +186,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).pipe(transactInMemory, Effect.provide(StoreLive))
       )
 
-      expect(defectOf(activated)).toEqual(
-        new DelegationNotMovedDefect({
-          delegationId,
+      expect(defectOf(activated)).toMatchObject({
+        _tag: 'RowsNotWrittenDefect',
+        table: 'care_delegations',
+        write: {
+          _tag: 'MoveDelegation',
+          id: delegationId,
           from: 'Accepted',
           to: 'Active',
-          moved: 0,
-        })
-      )
+        },
+        expected: 1,
+        written: 0,
+      })
       expect(await currentStatus()).toBe('canceled')
     })
 

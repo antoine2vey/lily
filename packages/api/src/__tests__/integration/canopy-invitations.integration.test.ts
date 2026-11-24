@@ -15,12 +15,10 @@ import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { Canopy, JoinVia } from '@lily/api/contexts/canopy'
 import { CanopyWrite } from '@lily/api/contexts/canopy/domain/decide'
-import {
-  CanopyStore,
-  RowsNotWrittenDefect,
-} from '@lily/api/contexts/canopy/store'
+import { CanopyStore } from '@lily/api/contexts/canopy/store'
 import { CareReadsLive } from '@lily/api/contexts/care'
 import type { Outbox } from '@lily/api/kernel/outbox'
+import { RowsNotWrittenDefect } from '@lily/api/kernel/written'
 import {
   CanopyRepository,
   CanopyRepositoryLive,
@@ -273,22 +271,24 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .set({ status: 'declined' })
         .where(eq(schema.canopyDirectInvites.id, id))
 
+      const withdraw = CanopyWrite.ResolveInvitation({
+        id,
+        to: 'withdrawn',
+        at: DateTime.nowUnsafe(),
+      })
+
       const withdrawn = await Effect.runPromiseExit(
-        Effect.flatMap(CanopyStore, (store) =>
-          store.apply([
-            CanopyWrite.ResolveInvitation({
-              id,
-              to: 'withdrawn',
-              at: DateTime.nowUnsafe(),
-            }),
-          ])
-        ).pipe(transactInMemory, Effect.provide(StoreLive))
+        Effect.flatMap(CanopyStore, (store) => store.apply([withdraw])).pipe(
+          transactInMemory,
+          Effect.provide(StoreLive)
+        )
       )
 
       expect(defectOf(withdrawn)).toEqual(
         new RowsNotWrittenDefect({
-          write: 'ResolveInvitation',
-          named: 1,
+          table: 'canopy_direct_invites',
+          write: withdraw,
+          expected: 1,
           written: 0,
         })
       )
