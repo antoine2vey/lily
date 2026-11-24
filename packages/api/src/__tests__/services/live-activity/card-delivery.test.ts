@@ -233,9 +233,7 @@ describe('Live Activity card delivery, every caller', () => {
         ],
         "pushes": [
           "start start-token-1 "1 plant needs care today" alert "1 plant needs care today"",
-          "start start-token-1 "1 plant needs care today" alert "Time to give your Test Plant a drink today."",
           "start start-token-2 "1 plant needs care today" alert "1 plant needs care today"",
-          "start start-token-2 "1 plant needs care today" alert "Time to give your Test Plant a drink today."",
         ],
         "regularPushes": 2,
       }
@@ -257,14 +255,15 @@ describe('Live Activity card delivery, every caller', () => {
           "active": [
             "start-token-1",
             "start-token-2",
-            "update-token-1",
           ],
           "admin": {
             "contentStateBuilt": false,
             "outcomes": [],
             "startTokenCount": 2,
           },
-          "pushes": [],
+          "pushes": [
+            "end update-token-1 immediate",
+          ],
         },
         "subscriber": {
           "active": [
@@ -288,9 +287,10 @@ describe('Live Activity card delivery, every caller', () => {
           "active": [
             "start-token-1",
             "start-token-2",
-            "update-token-1",
           ],
-          "pushes": [],
+          "pushes": [
+            "end update-token-1 immediate",
+          ],
           "regularPushes": 2,
         },
       }
@@ -317,14 +317,13 @@ describe('Live Activity card delivery, every caller', () => {
           "admin": {
             "contentStateBuilt": true,
             "outcomes": [
-              "token-1 accepted",
               "token-2 accepted",
             ],
             "startTokenCount": 2,
           },
           "pushes": [
-            "start start-token-1 "1 plant needs care today" alert "1 plant needs care today"",
             "start start-token-2 "1 plant needs care today" alert "1 plant needs care today"",
+            "update update-token-1 "1 plant needs care today"",
           ],
         },
         "subscriber": {
@@ -387,14 +386,13 @@ describe('Live Activity card delivery, every caller', () => {
           "admin": {
             "contentStateBuilt": true,
             "outcomes": [
-              "token-1 accepted",
               "token-2 accepted",
             ],
             "startTokenCount": 2,
           },
           "pushes": [
-            "start start-token-1 "2 plants need care today" alert "2 plants need care today"",
             "start start-token-2 "2 plants need care today" alert "2 plants need care today"",
+            "update update-token-1 "2 plants need care today"",
           ],
         },
         "subscriber": {
@@ -547,14 +545,13 @@ describe('Live Activity card delivery, every caller', () => {
           "admin": {
             "contentStateBuilt": true,
             "outcomes": [
-              "token-1 send-error",
               "token-2 send-error",
             ],
             "startTokenCount": 2,
           },
           "pushes": [
-            "start start-token-1 "1 plant needs care today" alert "1 plant needs care today"",
             "start start-token-2 "1 plant needs care today" alert "1 plant needs care today"",
+            "update update-token-1 "1 plant needs care today"",
           ],
         },
         "subscriber": {
@@ -604,9 +601,7 @@ describe('Live Activity card delivery, every caller', () => {
     ).toMatchInlineSnapshot(`
       {
         "admin": {
-          "active": [
-            "update-token-1",
-          ],
+          "active": [],
           "admin": {
             "contentStateBuilt": true,
             "outcomes": [
@@ -618,6 +613,7 @@ describe('Live Activity card delivery, every caller', () => {
           "pushes": [
             "start start-token-1 "1 plant needs care today" alert "1 plant needs care today"",
             "start start-token-2 "1 plant needs care today" alert "1 plant needs care today"",
+            "update update-token-1 "1 plant needs care today"",
           ],
         },
         "subscriber": {
@@ -674,14 +670,15 @@ describe('Live Activity card delivery, every caller', () => {
           "active": [
             "start-token-1",
             "start-token-2",
-            "update-token-1",
           ],
           "admin": {
             "contentStateBuilt": false,
             "outcomes": [],
             "startTokenCount": 2,
           },
-          "pushes": [],
+          "pushes": [
+            "end update-token-1 immediate",
+          ],
         },
         "subscriber": {
           "active": [
@@ -705,9 +702,10 @@ describe('Live Activity card delivery, every caller', () => {
           "active": [
             "start-token-1",
             "start-token-2",
-            "update-token-1",
           ],
-          "pushes": [],
+          "pushes": [
+            "end update-token-1 immediate",
+          ],
           "regularPushes": 2,
         },
       }
@@ -730,14 +728,15 @@ describe('Live Activity card delivery, every caller', () => {
           "active": [
             "start-token-1",
             "start-token-2",
-            "update-token-1",
           ],
           "admin": {
             "contentStateBuilt": false,
             "outcomes": [],
             "startTokenCount": 2,
           },
-          "pushes": [],
+          "pushes": [
+            "end update-token-1 immediate",
+          ],
         },
         "subscriber": {
           "active": [
@@ -761,9 +760,10 @@ describe('Live Activity card delivery, every caller', () => {
           "active": [
             "start-token-1",
             "start-token-2",
-            "update-token-1",
           ],
-          "pushes": [],
+          "pushes": [
+            "end update-token-1 immediate",
+          ],
           "regularPushes": 2,
         },
       }
