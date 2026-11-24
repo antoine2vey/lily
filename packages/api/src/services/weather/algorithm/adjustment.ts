@@ -273,6 +273,48 @@ function checkFertilizationSkip(currentWeather: WeatherData): {
   return { skip: false }
 }
 
+interface DayDemand {
+  readonly temperature: number
+  readonly humidity: number
+  readonly wind: number
+  readonly multiplier: number
+}
+
+/**
+ * How much water one weather day asks of a plant, relative to a normal day.
+ *
+ * The temperature, humidity and wind factors multiply because they compound:
+ * a hot, dry, windy day gives 1.2 x 1.15 x 1.1 = 1.518, where a sum (1.45)
+ * would understate the stress. Indoor plants with a known latitude take the
+ * location-aware light/growth + VPD demand model instead.
+ */
+const dayDemand = (
+  day: WeatherData,
+  recentHistory: ReadonlyArray<WeatherData>,
+  plant: IndoorPlantContext,
+  latitude: number | null
+): DayDemand => {
+  const temperature = calculateTemperatureFactor(
+    day,
+    recentHistory,
+    plant.isOutdoor
+  )
+  const humidity = calculateHumidityFactor(day, plant.isOutdoor)
+  const wind = calculateWindFactor(day, plant.isOutdoor)
+  return {
+    temperature,
+    humidity,
+    wind,
+    multiplier: pipe(
+      indoorDemandInput(plant, latitude, day, recentHistory),
+      Option.match({
+        onNone: () => temperature * humidity * wind,
+        onSome: calculateIndoorDemandFactor,
+      })
+    ),
+  }
+}
+
 export function calculatePlantAdjustment(
   plant: PlantForAdjustment,
   currentWeather: WeatherData,
@@ -280,112 +322,57 @@ export function calculatePlantAdjustment(
   forecast: ReadonlyArray<WeatherData> = [],
   latitude: number | null = null
 ): CareAdjustment {
-  const et0Value = pipe(
-    Option.fromNullishOr(currentWeather.et0),
-    Option.getOrElse(() => DEFAULT_ET0_MM_PER_DAY)
-  )
-
-  const temperatureFactor = calculateTemperatureFactor(
-    currentWeather,
-    recentHistory,
-    plant.isOutdoor
-  )
-
-  const humidityFactor = calculateHumidityFactor(
-    currentWeather,
-    plant.isOutdoor
-  )
-
-  const windFactor = calculateWindFactor(currentWeather, plant.isOutdoor)
-
+  const demand = dayDemand(currentWeather, recentHistory, plant, latitude)
   const precipCheck = checkPrecipitationSkip(
     currentWeather,
     forecast,
     plant.isOutdoor
   )
-
-  // Step 7: Combined multiplier and adjusted frequency.
-  // The factors multiply because they compound: a hot, dry, windy day gives
-  // 1.2 x 1.15 x 1.1 = 1.518, where a sum (1.45) would understate the stress.
-  // Indoor plants with a known latitude use the location-aware light/growth +
-  // VPD demand model; outdoor plants (and indoor plants without a location)
-  // keep the temperature × humidity × wind multiplier.
-  const combinedMultiplier = pipe(
-    indoorDemandInput(plant, latitude, currentWeather, recentHistory),
-    Option.match({
-      onNone: () => temperatureFactor * humidityFactor * windFactor,
-      onSome: calculateIndoorDemandFactor,
-    })
-  )
-  const adjustedDays = adjustedWateringDays(
-    plant.wateringFrequencyDays,
-    combinedMultiplier
-  )
-
   const fertCheck = checkFertilizationSkip(currentWeather)
 
   return {
     plantId: plant.id,
-    wateringMultiplier: Math.round(combinedMultiplier * 100) / 100,
-    adjustedWateringDays: adjustedDays,
+    wateringMultiplier: Math.round(demand.multiplier * 100) / 100,
+    adjustedWateringDays: adjustedWateringDays(
+      plant.wateringFrequencyDays,
+      demand.multiplier
+    ),
     skipWatering: precipCheck.skip,
     ...(precipCheck.reason ? { skipWateringReason: precipCheck.reason } : {}),
     skipFertilization: fertCheck.skip,
     ...(fertCheck.reason ? { skipFertilizationReason: fertCheck.reason } : {}),
     factors: {
-      temperature: temperatureFactor,
-      humidity: humidityFactor,
-      wind: windFactor,
+      temperature: demand.temperature,
+      humidity: demand.humidity,
+      wind: demand.wind,
       precipitation: pipe(
         Option.fromNullishOr(currentWeather.precipitation),
         Option.getOrElse(() => 0)
       ),
-      et0: et0Value,
+      et0: pipe(
+        Option.fromNullishOr(currentWeather.et0),
+        Option.getOrElse(() => DEFAULT_ET0_MM_PER_DAY)
+      ),
     },
   }
 }
 
 /**
- * Calculate the per-day weather multiplier for a single forecast day.
- *
- * Indoor plants with a known latitude use the location-aware light/growth + VPD
- * demand model. Outdoor plants (and indoor plants without a location) use the
- * temperature × humidity × wind multiplier, plus precipitation dampening for
- * outdoor (heavy rain day -> plant was watered by nature).
+ * A heavy rain day waters an outdoor plant, so the scheduler dampens it.
  */
-function calculateDayMultiplier(
+const rainDampened = (
   day: WeatherData,
-  recentHistory: ReadonlyArray<WeatherData>,
   plant: IndoorPlantContext,
-  latitude: number | null
-): number {
-  const indoorDemand = indoorDemandInput(plant, latitude, day, recentHistory)
-  if (Option.isSome(indoorDemand)) {
-    return calculateIndoorDemandFactor(indoorDemand.value)
-  }
-
-  const tempFactor = calculateTemperatureFactor(
-    day,
-    recentHistory,
-    plant.isOutdoor
+  multiplier: number
+): number =>
+  pipe(
+    Option.fromNullishOr(day.precipitation),
+    Option.filter((mm) => plant.isOutdoor && mm > PRECIP_SKIP_MM),
+    Option.match({
+      onNone: () => multiplier,
+      onSome: () => multiplier * PRECIP_DAMPENING_FACTOR,
+    })
   )
-  const humFactor = calculateHumidityFactor(day, plant.isOutdoor)
-  const windFactor = calculateWindFactor(day, plant.isOutdoor)
-
-  let multiplier = tempFactor * humFactor * windFactor
-
-  if (plant.isOutdoor) {
-    const precip = pipe(
-      Option.fromNullishOr(day.precipitation),
-      Option.getOrElse(() => 0)
-    )
-    if (precip > PRECIP_SKIP_MM) {
-      multiplier = multiplier * PRECIP_DAMPENING_FACTOR
-    }
-  }
-
-  return multiplier
-}
 
 /**
  * Calculate how many days to shift a plant's watering and fertilization
@@ -418,7 +405,11 @@ export function calculateScheduleDelta(
   }
 
   const dayMultipliers = Array.map(forecast, (day) =>
-    calculateDayMultiplier(day, recentHistory, plant, latitude)
+    rainDampened(
+      day,
+      plant,
+      dayDemand(day, recentHistory, plant, latitude).multiplier
+    )
   )
 
   const avgMultiplier = pipe(
