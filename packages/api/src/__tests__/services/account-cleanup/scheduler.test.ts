@@ -1,6 +1,7 @@
 import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
+import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { asUserRow } from '@lily/api/__tests__/mocks/user.repository'
@@ -74,6 +75,7 @@ const accounts = (failedPurges = 0) => {
     }),
     Layer.mock(Canopy, { leaveForDeletion: () => transactInMemory }),
     Layer.mock(Absence, { releaseForDeletion: () => Effect.void }),
+    createMockDeadLetterRepository(),
     createMockSubscriptionRepository(),
     NoStoredPhotosLive
   )

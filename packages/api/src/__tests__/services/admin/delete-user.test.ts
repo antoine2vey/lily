@@ -4,6 +4,7 @@ import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repo
 import { createInMemoryCanopy } from '@lily/api/__tests__/mocks/canopy'
 import { createMockCanopyRepository } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
+import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
@@ -43,6 +44,7 @@ const mockAdminLayer = Layer.mergeAll(
   MockSqlClientLive,
   MockOutboxLive,
   NoStoredPhotosLive,
+  createMockDeadLetterRepository(),
   createMockSubscriptionRepository()
 )
 

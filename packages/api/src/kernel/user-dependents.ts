@@ -254,5 +254,5 @@ export const UNLINKED_USER_COLUMNS = {
   'oauth_identities.provider_user_id':
     "the provider's id for the user, not a Lily id",
   'revenuecat_webhook_events.app_user_id':
-    "RevenueCat's app user id, which is the Lily user id. It marks an event as applied, and the purge deletes the user's rows",
+    "RevenueCat's app user id, which is the Lily user id. It marks an event as applied. The webhook records it only under a hold of the account, and the purge deletes the user's rows after the user",
 } as const satisfies Record<`${string}.${string}`, string>

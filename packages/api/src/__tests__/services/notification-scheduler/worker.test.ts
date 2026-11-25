@@ -1932,6 +1932,7 @@ describe('Notification Worker', () => {
       const failingDeadLetters = Layer.succeed(DeadLetterRepository, {
         create: () => Effect.fail(dbDown()),
         takeAlert: () => Effect.succeed(null),
+        deleteNaming: () => Effect.void,
       })
       const { queue, acked } = createInMemoryRedisQueue(['not json'])
       const alerter = createMockAlerter()
