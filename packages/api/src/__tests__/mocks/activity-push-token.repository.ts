@@ -140,10 +140,10 @@ export const createMockActivityPushTokenRepository = (
             row.userId === userId &&
             row.deviceTokenId === deviceTokenId
           ) {
-            const confirmsStart = Option.exists(
-              startId,
-              (id) => id === row.startActivityId
-            )
+            const confirmsStart = Option.match(startId, {
+              onNone: () => true,
+              onSome: (id) => id === row.startActivityId,
+            })
             store[i] = {
               ...row,
               lastConfirmedAt: now,

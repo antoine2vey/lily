@@ -13,7 +13,9 @@
 // - A PushConfigError behaves like a PushSendError, so Failed stands for both.
 // - An End push APNs accepts reaches the device.
 // - The app posts a card's update token with the activity id the start push
-//   carried in its attributes. A build that posts none confirms no start.
+//   carried in its attributes. A build that sends none confirms the latest
+//   start with any post, which la_confirm_any_post models: gap 2 of #367 is
+//   closed only for builds that send the id.
 // - The device keeps its device token row. Logging out deletes that row and
 //   both stamps with it.
 module la_start {
