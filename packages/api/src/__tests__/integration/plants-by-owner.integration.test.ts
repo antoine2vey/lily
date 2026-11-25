@@ -5,7 +5,12 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import type { CanopyId, CareType, PlantOwner } from '@lily/shared'
+import {
+  type CanopyId,
+  type CareType,
+  type PlantOwner,
+  Rating,
+} from '@lily/shared'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer, Order, pipe } from 'effect'
@@ -27,10 +32,10 @@ const livingOf = (owner: PlantOwner) =>
   )
 
 const plantValues = {
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 const summary = (plants: ReadonlyArray<PlantWithRoom>) =>
