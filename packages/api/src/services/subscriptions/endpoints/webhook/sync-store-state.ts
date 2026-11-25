@@ -1,3 +1,5 @@
+import { lockStoreSync } from '@lily/api/kernel/locks'
+import { type Transaction, transactQuietly } from '@lily/api/kernel/transact'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import {
   decideStoreSync,
@@ -6,17 +8,24 @@ import {
   toSubscriptionWrite,
 } from '@lily/api/services/subscriptions/endpoints/webhook/store-state'
 import { RevenueCatProvider } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
-import type { PaymentProviderError } from '@lily/shared'
-import { DateTime, Effect, Match, Option, pipe } from 'effect'
+import { PaymentProviderError } from '@lily/shared'
+import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type StoreSyncOutcome =
   | 'no_store_subscription'
+  | 'no_account'
   | 'kept_gift'
   | 'unchanged'
   | 'applied'
 
-export const fetchStoreState = (
+// The fetch runs inside a transaction. It must answer before the session's
+// `idle_in_transaction_session_timeout` ends that transaction, and before the
+// `statement_timeout` of a sync that waits behind it (`pgPoolConfig`).
+const STORE_FETCH_TIMEOUT = Duration.seconds(10)
+
+const fetchStoreState = (
   userId: string
 ): Effect.Effect<
   Option.Option<StoreSubscriptionState>,
@@ -25,7 +34,18 @@ export const fetchStoreState = (
 > =>
   Effect.gen(function* () {
     const provider = yield* RevenueCatProvider
-    const info = yield* provider.getSubscriberInfo(userId)
+    const info = yield* provider.getSubscriberInfo(userId).pipe(
+      Effect.timeoutOrElse({
+        duration: STORE_FETCH_TIMEOUT,
+        orElse: () =>
+          Effect.fail(
+            new PaymentProviderError({
+              message: 'RevenueCat subscriber fetch timed out',
+              code: 'revenuecat_timeout',
+            })
+          ),
+      })
+    )
     return deriveStoreState(info, provider.environment, DateTime.nowUnsafe())
   })
 
@@ -34,17 +54,27 @@ export const fetchStoreState = (
  * with the same state changes nothing, so a redelivered, reordered or nightly
  * repeated call converges on the same row.
  */
-export const applyStoreState = (params: {
+const applyStoreState = (params: {
   readonly userId: string
   readonly state: Option.Option<StoreSubscriptionState>
-  // The webhook's original transaction id; a reconciliation keeps the row's.
   readonly externalSubscriptionId: Option.Option<string>
   readonly source: string
-}): Effect.Effect<StoreSyncOutcome, SqlError, SubscriptionRepository> =>
+}): Effect.Effect<
+  StoreSyncOutcome,
+  SqlError,
+  SubscriptionRepository | Transaction
+> =>
   Effect.gen(function* () {
     const subRepo = yield* SubscriptionRepository
     if (Option.isNone(params.state)) return 'no_store_subscription' as const
     const state = params.state.value
+
+    // Held before the first write. A deletion of the account that starts
+    // after the row is updated holds the account and waits for that row, and
+    // the event insert would then wait for the account.
+    if (!(yield* subRepo.holdAccount(params.userId))) {
+      return 'no_account' as const
+    }
 
     const existing = yield* subRepo.findByUserId(params.userId)
     const write = toSubscriptionWrite(
@@ -86,5 +116,28 @@ export const applyStoreState = (params: {
   }).pipe(
     Effect.withSpan('SubscriptionService.applyStoreState', {
       attributes: { 'user.id': params.userId, 'sync.source': params.source },
+    })
+  )
+
+/**
+ * Fetches the user's current store state and writes it, as one step per
+ * user. A sync that starts while another runs for the same user fetches
+ * after that one has committed, so the state fetched last is written last.
+ */
+export const syncStoreState = (params: {
+  readonly userId: string
+  // The webhook's original transaction id; a reconciliation keeps the row's.
+  readonly externalSubscriptionId: Option.Option<string>
+  readonly source: string
+}): Effect.Effect<
+  StoreSyncOutcome,
+  PaymentProviderError | SqlError,
+  RevenueCatProvider | SubscriptionRepository | SqlClient.SqlClient
+> =>
+  transactQuietly(
+    Effect.gen(function* () {
+      yield* lockStoreSync(params.userId)
+      const state = yield* fetchStoreState(params.userId)
+      return yield* applyStoreState({ ...params, state })
     })
   )

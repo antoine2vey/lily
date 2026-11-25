@@ -134,6 +134,7 @@ export const createMockSubscriptionRepository = (
         ? [subscription]
         : []
     ),
+    holdAccount: () => Effect.succeed(true),
     claimWebhookEvent: () => Effect.succeed(true),
     create: (data) => {
       if (failingCreates > 0) {

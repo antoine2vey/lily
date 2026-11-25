@@ -1,9 +1,6 @@
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
-import {
-  applyStoreState,
-  fetchStoreState,
-} from '@lily/api/services/subscriptions/endpoints/webhook/sync-store-state'
+import { syncStoreState } from '@lily/api/services/subscriptions/endpoints/webhook/sync-store-state'
 import { Effect, Option } from 'effect'
 
 // A missed webhook leaves a store-linked row stale until the next event.
@@ -17,10 +14,8 @@ export const reconcileStoreSubscriptions = Effect.gen(function* () {
     rows,
     (row) =>
       Effect.gen(function* () {
-        const state = yield* fetchStoreState(row.userId)
-        const outcome = yield* applyStoreState({
+        const outcome = yield* syncStoreState({
           userId: row.userId,
-          state,
           externalSubscriptionId: Option.none(),
           source: 'reconciliation',
         })

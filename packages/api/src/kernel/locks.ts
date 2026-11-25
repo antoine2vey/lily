@@ -30,6 +30,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 const OWNER_LOCK_KEYSPACE = 1
 const REMINDER_PLANT_KEYSPACE = 2
+const STORE_SYNC_KEYSPACE = 3
 
 const ROWS = {
   Canopy: { table: canopies, id: canopies.id },
@@ -238,7 +239,7 @@ export const writeAccount = <A, E, R>(
   )
 
 const advisory = (
-  kind: 'UserKey' | 'ReminderPlantKey',
+  kind: 'StoreSyncKey' | 'UserKey' | 'ReminderPlantKey',
   keyspace: number,
   ids: ReadonlyArray<string>
 ): Effect.Effect<void, SqlError, SqlClient.SqlClient | Transaction> =>
@@ -288,3 +289,15 @@ export const lockReminderPlants = (
   Array.isReadonlyArrayEmpty(plantIds)
     ? Effect.void
     : advisory('ReminderPlantKey', REMINDER_PLANT_KEYSPACE, plantIds)
+
+/**
+ * The advisory lock of one user's store subscription sync, so two syncs of
+ * that user fetch and write one after the other. Its holder keeps it across
+ * the request to the store, so it has a keyspace of its own, where nothing
+ * else waits, and the first rung of `LADDER`: a transaction that already
+ * holds a lock dies here instead of keeping that lock across the request.
+ */
+export const lockStoreSync = (
+  userId: string
+): Effect.Effect<void, SqlError, SqlClient.SqlClient | Transaction> =>
+  advisory('StoreSyncKey', STORE_SYNC_KEYSPACE, [userId])

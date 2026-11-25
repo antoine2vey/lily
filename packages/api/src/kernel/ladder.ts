@@ -10,6 +10,7 @@ import { Array, Data, Option, Order, Result } from 'effect'
  * sees that. One cycle through such an insert is known (issue #384).
  */
 export const LADDER = [
+  'StoreSyncKey',
   'UserKey',
   'Canopy',
   'Delegation',

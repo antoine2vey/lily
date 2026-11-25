@@ -1,11 +1,9 @@
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import {
-  applyStoreState,
-  fetchStoreState,
-} from '@lily/api/services/subscriptions/endpoints/webhook/sync-store-state'
+import { syncStoreState } from '@lily/api/services/subscriptions/endpoints/webhook/sync-store-state'
 import { RevenueCatProvider } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
 import type { PaymentProviderError } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -20,7 +18,7 @@ export const handleRevenueCatWebhook = (
 ): Effect.Effect<
   void,
   PaymentProviderError | SqlError,
-  RevenueCatProvider | SubscriptionRepository
+  RevenueCatProvider | SubscriptionRepository | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const provider = yield* RevenueCatProvider
@@ -49,14 +47,11 @@ export const handleRevenueCatWebhook = (
       return
     }
 
-    const state = yield* fetchStoreState(event.app_user_id)
-
     // Applied before the event is recorded: applying the fetched state is
     // idempotent, so a crash between the two only means a redelivery applies
     // it again. Recording first would make that redelivery a silent no-op.
-    const outcome = yield* applyStoreState({
+    const outcome = yield* syncStoreState({
       userId: event.app_user_id,
-      state,
       externalSubscriptionId: pipe(
         Option.fromNullishOr(event.original_transaction_id),
         Option.orElse(() => Option.some(event.id))

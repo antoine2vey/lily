@@ -120,11 +120,12 @@ export const RevenueCatProviderLive = Layer.effect(
         }
 
         const body = yield* Effect.tryPromise({
-          try: async () => {
+          try: async (signal) => {
             const response = await fetch(
               `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}`,
               {
                 method: 'GET',
+                signal,
                 headers: {
                   Authorization: `Bearer ${apiKey}`,
                   'Content-Type': 'application/json',

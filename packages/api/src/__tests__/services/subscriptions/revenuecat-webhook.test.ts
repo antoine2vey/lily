@@ -1,4 +1,5 @@
 import { createMockRevenueCatProvider } from '@lily/api/__tests__/mocks/revenuecat.provider'
+import { createMockSqlClient } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { handleRevenueCatWebhook } from '@lily/api/services/subscriptions/endpoints/webhook/handle-revenuecat-webhook'
@@ -13,7 +14,8 @@ import {
   type RevenueCatSubscriberSubscription,
 } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
-import { DateTime, Effect, Layer } from 'effect'
+import { DateTime, Duration, Effect, Fiber, Layer } from 'effect'
+import { TestClock } from 'effect/testing'
 import { describe, expect, it, vi } from 'vitest'
 
 const now = DateTime.nowUnsafe()
@@ -117,7 +119,8 @@ const harness = (options: Harness = {}) => {
     createMockRevenueCatProvider({
       environment: options.environment ?? 'PRODUCTION',
       getSubscriberInfo,
-    })
+    }),
+    createMockSqlClient()
   )
   const deliver = (payload: string) =>
     Effect.runPromiseExit(
@@ -255,6 +258,27 @@ describe('handleRevenueCatWebhook', () => {
 
     expect((await h.currentRow())?.status).toBe('active')
   })
+
+  it('fails the request when RevenueCat does not answer in time', () =>
+    Effect.gen(function* () {
+      const h = harness({ subscriberInfo: Effect.never })
+
+      const delivery = yield* Effect.forkChild(
+        Effect.exit(
+          handleRevenueCatWebhook(
+            webhookPayload('RENEWAL', 'evt-1'),
+            'Bearer test'
+          ).pipe(Effect.provide(h.layer))
+        )
+      )
+      yield* TestClock.adjust(Duration.seconds(10))
+
+      expect(failureOf(yield* Fiber.join(delivery))).toMatchObject({
+        _tag: 'PaymentProviderError',
+        code: 'revenuecat_timeout',
+      })
+      expect(yield* Effect.promise(h.currentRow)).toBeNull()
+    }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise))
 
   it('does not write when the row already matches the store', async () => {
     const h = harness({ subscription: storeRow })
