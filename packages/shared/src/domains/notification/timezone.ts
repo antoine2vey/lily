@@ -24,6 +24,17 @@ export const TimeString = Schema.String.pipe(
 
 export type TimeString = typeof TimeString.Type
 
+export const DEFAULT_DND_START = '22:00'
+export const DEFAULT_DND_END = '07:00'
+
+/** A stored do-not-disturb bound, or `fallback` when it is null or not HH:mm. */
+export const dndBoundOr = (time: string | null, fallback: string): string =>
+  pipe(
+    Option.fromNullishOr(time),
+    Option.filter(Schema.is(TimeString)),
+    Option.getOrElse(() => fallback)
+  )
+
 export const validateTimeFormat = (
   time: string
 ): Effect.Effect<string, InvalidTimeFormatError> =>

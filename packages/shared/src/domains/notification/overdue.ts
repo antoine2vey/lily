@@ -2,7 +2,12 @@ import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import { zoneFromName } from '../common/date/timezone'
 import type { ZoneName } from '../common/date/zone-name'
 import { DndWindowBlockedError } from './errors'
-import { timeToMinutes } from './timezone'
+import {
+  DEFAULT_DND_END,
+  DEFAULT_DND_START,
+  dndBoundOr,
+  timeToMinutes,
+} from './timezone'
 
 /** Minutes of the local day, `end` excluded. */
 interface MinuteRange {
@@ -31,16 +36,10 @@ const dndRanges = (recipient: SlotRecipient): ReadonlyArray<MinuteRange> => {
   if (!recipient.doNotDisturb) return []
 
   const start = timeToMinutes(
-    Option.getOrElse(
-      Option.fromNullishOr(recipient.doNotDisturbStart),
-      () => '22:00'
-    )
+    dndBoundOr(recipient.doNotDisturbStart, DEFAULT_DND_START)
   )
   const end = timeToMinutes(
-    Option.getOrElse(
-      Option.fromNullishOr(recipient.doNotDisturbEnd),
-      () => '07:00'
-    )
+    dndBoundOr(recipient.doNotDisturbEnd, DEFAULT_DND_END)
   )
   if (start === end) return []
   return start < end
