@@ -29,13 +29,18 @@ type EngagementTopic =
   | 'weekly_recap'
   | 'daily_tip'
 
-/** A notification a rule owes a user. */
+/**
+ * A notification a rule owes a user. A daily tip names the user's local day,
+ * which holds one tip.
+ */
 export type Nudge = {
   readonly [T in EngagementTopic]: {
     readonly topic: T
     readonly params: ParamsOf<T>
     readonly plantId?: string
-  }
+  } & (T extends 'daily_tip'
+    ? { readonly occasionDay: string }
+    : { readonly occasionDay?: never })
 }[EngagementTopic]
 
 export interface Recipient {
@@ -111,21 +116,26 @@ const runRule = <U extends Recipient, R>(
               onSome: Effect.succeed,
             })
           )
-          yield* Effect.forEach(
+          const recorded = yield* Effect.forEach(
             nudges,
-            ({ topic, params, plantId }) =>
+            ({ topic, params, ...placement }) =>
               recordNotificationAt(
                 topic,
                 user.id,
                 params,
                 user.language,
                 {},
-                plantId === undefined
-                  ? { scheduledAt }
-                  : { scheduledAt, plantId }
-              ),
-            { discard: true }
+                {
+                  scheduledAt,
+                  ...placement,
+                }
+              )
           )
+          // Another process recorded the user's tip of the day since the rule
+          // decided.
+          if (!Array.some(recorded, Boolean)) {
+            return yield* new SkipUserError({ reason: 'already_sent' })
+          }
           yield* Ref.update(created, (n) => n + 1)
         }).pipe(
           Effect.catchTags({

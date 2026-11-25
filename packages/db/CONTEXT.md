@@ -22,7 +22,7 @@ The vocabulary of the primary database package. It covers how migrations reach a
 | **Living plant** | A `plants` row whose `died_at` is null. The partial indexes `plants_user_id_living_idx` and `plants_canopy_id_living_idx` cover living plants only. | |
 | **Care day** | `care_logs.care_day`, a `date`. The unique index `care_logs_one_per_care_day` allows one care per plant, care type and care day. | `care_logs.date`, which is the instant the care was logged |
 | **Due day** | `plant_care_schedules.due_day`, a `date`. | `next_care_at`, which is an instant |
-| **Occasion** | `notifications.occasion_day`, a `date`. | |
+| **Occasion** | `notifications.occasion_day`, a `date`. On a `daily_tip` row it is the user's local day, and the unique index `notifications_daily_tip_day_unique` allows one tip per user and day. Tips recorded before migration `0096` have none. | |
 | **Sharer** | `plants.created_by_user_id`. The trigger `plants_creator_fallback` sets it to `user_id` when an insert leaves it null. | |
 
 ## Relationships

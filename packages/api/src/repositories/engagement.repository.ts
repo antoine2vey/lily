@@ -251,17 +251,17 @@ export const EngagementRepositoryLive = Layer.effect(
           })
           .from(notifications)
           .where(
-            and(
-              inArray(notifications.status, ['pending', 'queued', 'sent']),
-              or(
-                and(
-                  eq(notifications.type, 'daily_tip'),
-                  gte(notifications.createdAt, window.tipsSince)
-                ),
-                and(
-                  inArray(notifications.type, [...CARE_TOPICS]),
-                  gte(notifications.createdAt, window.careRemindersSince)
-                )
+            or(
+              // A tip that failed counts too: the failure already raised a
+              // dead letter, and a retry would raise one each hour.
+              and(
+                eq(notifications.type, 'daily_tip'),
+                gte(notifications.createdAt, window.tipsSince)
+              ),
+              and(
+                inArray(notifications.type, [...CARE_TOPICS]),
+                inArray(notifications.status, ['pending', 'queued', 'sent']),
+                gte(notifications.createdAt, window.careRemindersSince)
               )
             )
           )

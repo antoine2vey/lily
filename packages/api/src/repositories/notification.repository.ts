@@ -13,7 +13,7 @@ import {
   TOPIC_CATEGORY,
 } from '@lily/shared'
 import type { MetadataOf, NotificationStatus } from '@lily/shared/notification'
-import { and, eq, gte, inArray, isNull, lt, notInArray } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNull, lt, notInArray, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -24,6 +24,8 @@ interface CreateNotificationFields {
   scheduledAt: Date
   userId: string
   plantId?: string
+  /** The user's local day of a daily tip, which holds one per day. */
+  occasionDay?: string
   status?: Extract<NotificationStatus, 'pending' | 'queued'>
 }
 
@@ -50,6 +52,7 @@ export const exceptReminders = (
   Array.filter(topics, (topic): topic is OtherTopic => !isReminderTopic(topic))
 
 export interface INotificationRepository {
+  /** Null when the user already has the daily tip of `occasionDay`. */
   readonly create: <T extends OtherTopic>(
     data: CreateNotificationData<T>
   ) => Effect.Effect<NotificationRow | null, SqlError>
@@ -134,6 +137,13 @@ export const NotificationRepositoryLive = Layer.effect(
             status,
             queuedAt: status === 'queued' ? nowAsDate() : null,
             metadata: data.metadata,
+            occasionDay: Option.getOrNull(
+              Option.fromNullishOr(data.occasionDay)
+            ),
+          })
+          .onConflictDoNothing({
+            target: [notifications.userId, notifications.occasionDay],
+            where: sql`${notifications.type} = 'daily_tip' AND ${notifications.occasionDay} IS NOT NULL`,
           })
           .returning()
         return row ? mapToNotification(row) : null

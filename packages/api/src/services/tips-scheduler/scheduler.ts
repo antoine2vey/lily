@@ -34,9 +34,12 @@ const resolveLocalized = (
     Option.getOrElse(Option.fromNullishOr(localized.en), () => '')
   )
 
-const dailyTip = (tip: DailyTip): EngagementRule<UserWithSettings, never> => ({
+const dailyTip = (
+  tip: DailyTip,
+  now: DateTime.Utc
+): EngagementRule<UserWithSettings, never> => ({
   name: 'daily_tip',
-  decide: (user) =>
+  decide: (user, timezone) =>
     Effect.succeed([
       {
         topic: 'daily_tip',
@@ -44,6 +47,7 @@ const dailyTip = (tip: DailyTip): EngagementRule<UserWithSettings, never> => ({
           tipTitle: resolveLocalized(tip.title, user.language),
           tipBody: resolveLocalized(tip.body, user.language),
         },
+        occasionDay: localDayKey(now, timezone),
       },
     ]),
 })
@@ -161,7 +165,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   yield* runRules(
     'tips-scheduler',
     Array.map(due, ({ user }) => user),
-    [dailyTip(tip)]
+    [dailyTip(tip, now)]
   )
 }).pipe(Effect.withSpan('tips-scheduler.check'))
 

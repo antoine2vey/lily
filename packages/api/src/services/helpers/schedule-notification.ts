@@ -36,6 +36,7 @@ const insertSimpleNotification = <T extends SimpleNotificationType>(
     readonly status: 'pending' | 'queued'
     readonly scheduledAt: Date
     readonly plantId?: string
+    readonly occasionDay?: string
   }
 ) =>
   Effect.gen(function* () {
@@ -62,17 +63,10 @@ const insertSimpleNotification = <T extends SimpleNotificationType>(
       metadata,
       ...delivery,
     })
-    return yield* Option.match(Option.fromNullishOr(row), {
-      onNone: () =>
-        Effect.die(new Error(`Notification insert returned no row: ${type}`)),
-      onSome: ({ id }) =>
-        Effect.succeed<RecordedNotification>({
-          id,
-          type,
-          userId,
-          metadata,
-        }),
-    })
+    return Option.map(
+      Option.fromNullishOr(row),
+      ({ id }): RecordedNotification => ({ id, type, userId, metadata })
+    )
   })
 
 export const recordNotification = <T extends SimpleNotificationType>(
@@ -85,20 +79,33 @@ export const recordNotification = <T extends SimpleNotificationType>(
   insertSimpleNotification(type, userId, params, language, metadata, {
     status: 'queued',
     scheduledAt: nowAsDate(),
-  })
+  }).pipe(
+    Effect.flatMap(
+      Option.match({
+        onNone: () =>
+          Effect.die(new Error(`Notification insert returned no row: ${type}`)),
+        onSome: Effect.succeed,
+      })
+    )
+  )
 
+/** False when the user already has the daily tip of `occasionDay`. */
 export const recordNotificationAt = <T extends SimpleNotificationType>(
   type: T,
   userId: string,
   params: ParamsOf<T>,
   language: LanguageCode,
   metadata: MetadataOf<T>,
-  at: { readonly scheduledAt: Date; readonly plantId?: string }
+  at: {
+    readonly scheduledAt: Date
+    readonly plantId?: string
+    readonly occasionDay?: string
+  }
 ) =>
   insertSimpleNotification(type, userId, params, language, metadata, {
     status: 'pending',
     ...at,
-  }).pipe(Effect.asVoid)
+  }).pipe(Effect.map(Option.isSome))
 
 export const dispatchNow = (notification: RecordedNotification) =>
   Effect.gen(function* () {
