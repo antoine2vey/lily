@@ -25,9 +25,11 @@ import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.r
 import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
+import { OAuthCodeRepositoryLive } from '@lily/api/repositories/oauth-code.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { deleteExpiredSignInRows } from '@lily/api/services/auth/cleanup-scheduler'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
@@ -69,11 +71,13 @@ const BaseLive = Layer.mergeAll(
   DeviceTokenRepositoryLive,
   MagicLinkRepositoryLive,
   NotificationRepositoryLive,
+  OAuthCodeRepositoryLive,
   ReminderStoreLive,
   NotificationDeliveryLive,
   PlantRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
+  SubscriptionRepositoryLive,
   UserRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 

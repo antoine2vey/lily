@@ -99,6 +99,11 @@ export interface ISubscriptionRepository {
     event: RevenueCatWebhookEventRecord
   ) => Effect.Effect<boolean, SqlError>
 
+  // The events have no foreign key to users, so the account purge calls this.
+  readonly deleteWebhookEvents: (
+    userId: string
+  ) => Effect.Effect<void, SqlError>
+
   readonly create: (
     data: CreateSubscriptionData
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
@@ -244,6 +249,14 @@ export const SubscriptionRepositoryLive = Layer.effect(
           return Array.isReadonlyArrayNonEmpty(inserted)
         }
       ),
+
+      deleteWebhookEvents: Effect.fn(
+        'SubscriptionRepository.deleteWebhookEvents'
+      )(function* (userId: string) {
+        yield* db
+          .delete(revenuecatWebhookEvents)
+          .where(eq(revenuecatWebhookEvents.appUserId, userId))
+      }),
 
       create: Effect.fn('SubscriptionRepository.create')(function* (
         data: CreateSubscriptionData

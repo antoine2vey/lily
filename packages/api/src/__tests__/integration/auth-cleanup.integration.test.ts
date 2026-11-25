@@ -1,4 +1,5 @@
 import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
+import { OAuthCodeRepositoryLive } from '@lily/api/repositories/oauth-code.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { deleteExpiredSignInRows } from '@lily/api/services/auth/cleanup-scheduler'
 import { DrizzleLive } from '@lily/db'
@@ -26,6 +27,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const RepositoriesLive = Layer.mergeAll(
       MagicLinkRepositoryLive,
+      OAuthCodeRepositoryLive,
       RefreshTokenRepositoryLive
     ).pipe(
       Layer.provide(DrizzleLive),

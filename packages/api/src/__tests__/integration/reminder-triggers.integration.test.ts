@@ -55,6 +55,7 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
 import { StoredRefRepositoryLive } from '@lily/api/repositories/stored-ref.repository'
+import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-canopy'
 import { updateMyCanopy } from '@lily/api/services/canopy/endpoints/update-my-canopy'
@@ -100,6 +101,7 @@ const ReposLive = Layer.mergeAll(
   StoredRefRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
+  SubscriptionRepositoryLive,
   UserRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
