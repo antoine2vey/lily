@@ -11,7 +11,7 @@ import { resolveTierConfig } from '@lily/api/services/subscriptions/effective-ti
 import { limitsDisabled } from '@lily/api/services/subscriptions/limits-config'
 import {
   LimitExceededError,
-  pickNotificationTime,
+  pickNextNotificationTime,
   type SubscriptionUsage,
   startOfTodayAsDate,
   startOfTomorrowAsDate,
@@ -166,7 +166,7 @@ export const UsageTrackerLive = Layer.effect(
 
         const randomValue = yield* Random.next
         const scheduledAt = yield* Effect.catchTag(
-          pickNotificationTime({ ...user, timezone }, randomValue),
+          pickNextNotificationTime({ ...user, timezone }, randomValue),
           'DndWindowBlockedError',
           () => Effect.succeed(new Date())
         )

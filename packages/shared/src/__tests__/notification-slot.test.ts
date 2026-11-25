@@ -10,6 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { localDayKey, withTimeZone, ZoneName } from '../domains/common/date'
 import {
+  pickNextNotificationTime,
   pickNotificationTime,
   pickUpcomingNotificationTime,
   type SlotRecipient,
@@ -49,9 +50,16 @@ const minuteOfDay = (local: DateTime.Zoned): number => {
 const nowIn = (timezone: ZoneName): DateTime.Zoned =>
   withTimeZone(DateTime.nowUnsafe(), timezone)
 
-/** The rules `slot` breaks, read on the recipient's local clock. */
+/**
+ * The rules `slot` breaks, read on the recipient's local clock. It belongs on
+ * `day`, today when absent.
+ */
 const faultsOf =
-  (timezone: ZoneName, [start, end]: Dnd) =>
+  (
+    timezone: ZoneName,
+    [start, end]: Dnd,
+    day = localDayKey(DateTime.nowUnsafe(), timezone)
+  ) =>
   (slot: Date): ReadonlyArray<string> => {
     const local = withTimeZone(DateTime.makeUnsafe(slot), timezone)
     const minute = minuteOfDay(local)
@@ -65,11 +73,7 @@ const faultsOf =
           !Array.some(SEND_WINDOWS, (w) => minute >= w.start && minute < w.end),
           'is outside both send windows',
         ],
-        [
-          localDayKey(local, timezone) !==
-            localDayKey(DateTime.nowUnsafe(), timezone),
-          'is not on the local day',
-        ],
+        [localDayKey(local, timezone) !== day, `is not on ${day}`],
       ] as const,
       Array.filter(([broken]) => broken),
       Array.map(([, rule]) => `${DateTime.formatIsoZoned(local)} ${rule}`)
@@ -205,6 +209,105 @@ describe('send slots and do-not-disturb', () => {
                 Effect.runSyncExit(
                   pickUpcomingNotificationTime(recipient, roll)
                 )
+              )._tag
+          )
+        )
+      ).toEqual(['DndWindowBlockedError'])
+    })
+  })
+
+  describe('pickNextNotificationTime', () => {
+    const nextSlots = (recipient: SlotRecipient): ReadonlyArray<Date> =>
+      Array.map(ROLLS, (roll) =>
+        Effect.runSync(pickNextNotificationTime(recipient, roll))
+      )
+
+    const iso = (recipient: SlotRecipient, roll: number): string =>
+      Effect.runSync(pickNextNotificationTime(recipient, roll)).toISOString()
+
+    it.each(PARTIAL_RANGES)(
+      'at 23:30 picks an open minute of the next local day outside a do-not-disturb of %s-%s, which %s',
+      (start, end) => {
+        vi.setSystemTime(new Date('2026-06-14T21:30:00.000Z'))
+        const dnd = [start, end] as const
+
+        expect(
+          Array.flatMap(
+            nextSlots(recipientWith(PARIS, dnd)),
+            faultsOf(PARIS, dnd, '2026-06-15')
+          )
+        ).toEqual([])
+      }
+    )
+
+    it('at 21:59 waits for the next local day, the last minute being under way', () => {
+      vi.setSystemTime(new Date('2026-06-14T19:59:00.000Z'))
+      const recipient = recipientWith(PARIS, ['23:00', '05:00'])
+
+      expect([iso(recipient, 0), iso(recipient, 0.5)]).toEqual([
+        '2026-06-15T04:00:00.000Z',
+        '2026-06-15T16:00:00.000Z',
+      ])
+    })
+
+    it('at local midnight keeps both windows of the day just begun', () => {
+      vi.setSystemTime(new Date('2026-06-14T22:00:00.000Z'))
+      const recipient = recipientWith(PARIS, ['23:00', '05:00'])
+
+      expect([iso(recipient, 0), iso(recipient, 0.5)]).toEqual([
+        '2026-06-15T04:00:00.000Z',
+        '2026-06-15T16:00:00.000Z',
+      ])
+      expect(
+        Array.flatMap(
+          nextSlots(recipient),
+          faultsOf(PARIS, ['23:00', '05:00'], '2026-06-15')
+        )
+      ).toEqual([])
+    })
+
+    it('picks what is left of today while a window is under way', () => {
+      vi.setSystemTime(new Date('2026-11-16T19:30:00.000Z'))
+      const recipient = recipientWith(UTC, ['22:00', '07:00'])
+
+      expect(Array.map(nextSlots(recipient), Option.some)).toEqual(
+        upcomingSlots(recipient)
+      )
+    })
+
+    it.each([
+      [
+        'the end of a month',
+        '2026-06-30T21:30:00.000Z',
+        '2026-07-01T04:00:00.000Z',
+      ],
+      [
+        'the eve of a spring-forward',
+        '2026-03-28T22:30:00.000Z',
+        '2026-03-29T04:00:00.000Z',
+      ],
+      [
+        'the eve of a fall-back',
+        '2026-10-24T21:30:00.000Z',
+        '2026-10-25T05:00:00.000Z',
+      ],
+    ])('rolls over %s to 06:00 local', (_day, elevenThirtyLocal, sixLocal) => {
+      vi.setSystemTime(new Date(elevenThirtyLocal))
+
+      expect(iso(recipientWith(PARIS, ['23:00', '05:00']), 0)).toBe(sixLocal)
+    })
+
+    it('fails with DndWindowBlockedError when do-not-disturb covers both windows', () => {
+      vi.setSystemTime(new Date('2026-06-14T21:30:00.000Z'))
+      const recipient = recipientWith(PARIS, ['05:00', '23:00'])
+
+      expect(
+        Array.dedupe(
+          Array.map(
+            ROLLS,
+            (roll) =>
+              failureOf(
+                Effect.runSyncExit(pickNextNotificationTime(recipient, roll))
               )._tag
           )
         )

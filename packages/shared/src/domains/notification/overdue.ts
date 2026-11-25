@@ -110,14 +110,15 @@ const minuteIn = (
 const localNow = (timezone: ZoneName) =>
   DateTime.setZone(DateTime.nowUnsafe(), zoneFromName(timezone))
 
-const todayAtMinute = (now: DateTime.Zoned, minute: number): Date => {
+/** `minute` of the local day `now` falls on, or of a later one. */
+const atMinute = (now: DateTime.Zoned, minute: number, daysLater = 0): Date => {
   const { year, month, day } = DateTime.toParts(now)
   return DateTime.toDateUtc(
     DateTime.makeZonedUnsafe(
       {
         year,
         month,
-        day,
+        day: day + daysLater,
         hour: Math.floor(minute / 60),
         minute: minute % 60,
         second: 0,
@@ -145,13 +146,29 @@ export const pickNotificationTime = (
       onNone: () => new DndWindowBlockedError({ userId: recipient.id }),
       onSome: (window) =>
         Effect.succeed(
-          todayAtMinute(
-            localNow(recipient.timezone),
-            minuteIn(window, randomValue)
-          )
+          atMinute(localNow(recipient.timezone), minuteIn(window, randomValue))
         ),
     })
   )
+
+/** A slot in what is left of today's `open` windows, none when they are over. */
+const upcomingToday = (
+  open: ReadonlyArray<ReadonlyArray<MinuteRange>>,
+  now: DateTime.Zoned,
+  randomValue: number
+): Option.Option<Date> => {
+  const { hour, minute } = DateTime.toParts(now)
+  const nextMinute = hour * 60 + minute + 1
+  return pipe(
+    Array.map(open, (window) =>
+      Array.flatMap(window, (range) =>
+        without(range, { start: 0, end: nextMinute })
+      )
+    ),
+    Array.findFirst(Array.isReadonlyArrayNonEmpty),
+    Option.map((left) => atMinute(now, minuteIn(left, randomValue)))
+  )
+}
 
 /**
  * Pick a random send time in what is left of today's windows, so it is always
@@ -169,18 +186,36 @@ export const pickUpcomingNotificationTime = (
   if (Array.isReadonlyArrayEmpty(open)) {
     return Effect.fail(new DndWindowBlockedError({ userId: recipient.id }))
   }
-  const now = localNow(recipient.timezone)
-  const { hour, minute } = DateTime.toParts(now)
-  const nextMinute = hour * 60 + minute + 1
   return Effect.succeed(
-    pipe(
-      Array.map(open, (window) =>
-        Array.flatMap(window, (range) =>
-          without(range, { start: 0, end: nextMinute })
+    upcomingToday(open, localNow(recipient.timezone), randomValue)
+  )
+}
+
+/**
+ * Pick a random send time after now: in what is left of today's windows, or
+ * else in the next local day's. For a notice that fires once and is lost if
+ * skipped. Fails with DndWindowBlockedError when do-not-disturb blocks both
+ * windows.
+ *
+ * @param randomValue - A number in [0, 1), passed in for deterministic tests
+ */
+export const pickNextNotificationTime = (
+  recipient: SlotRecipient,
+  randomValue: number
+): Effect.Effect<Date, DndWindowBlockedError> => {
+  const open = openWindows(recipient, randomValue)
+  return pipe(
+    Array.head(open),
+    Option.match({
+      onNone: () => new DndWindowBlockedError({ userId: recipient.id }),
+      onSome: (preferred) => {
+        const now = localNow(recipient.timezone)
+        return Effect.succeed(
+          Option.getOrElse(upcomingToday(open, now, randomValue), () =>
+            atMinute(now, minuteIn(preferred, randomValue), 1)
+          )
         )
-      ),
-      Array.findFirst(Array.isReadonlyArrayNonEmpty),
-      Option.map((left) => todayAtMinute(now, minuteIn(left, randomValue)))
-    )
+      },
+    })
   )
 }
