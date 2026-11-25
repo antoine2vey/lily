@@ -586,6 +586,33 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'failed',
         ])
       })
+
+      it('releases stale unclaimed rows without waiting on a sent row another session holds', async () => {
+        await insertRows([
+          { id: earlier, status: 'sent', queuedAt: minutesAgo(20) },
+          { id: later, status: 'queued', queuedAt: minutesAgo(20) },
+        ])
+
+        const holder = await pool.connect()
+        try {
+          await holder.query('BEGIN')
+          await holder.query(
+            'SELECT id FROM notifications WHERE id = $1 FOR UPDATE',
+            [earlier]
+          )
+          const sweep = withRepo((repo) =>
+            repo.releaseUnclaimedOlderThan(minutesAgo(10))
+          )
+
+          expect(await waitsForALock(pool, sweep)).toBe(false)
+          expect(await sweep).toBe(1)
+        } finally {
+          await holder.query('ROLLBACK')
+          holder.release()
+        }
+
+        expect(await statusesOf([earlier, later])).toEqual(['sent', 'pending'])
+      })
     })
 
     describe('deferred rows', () => {
