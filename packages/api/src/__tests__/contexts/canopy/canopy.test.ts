@@ -555,6 +555,7 @@ describe('Canopy', () => {
           canopy: Find.ByInvitation({ invitationId: 'invitation-1' }),
           absenceOf: Option.none(),
           accounts: ['sam'],
+          members: 'read',
           invitations: InvitationScope.One({ invitationId: 'invitation-1' }),
           rooms: RoomScope.None(),
           plants: PlantScope.None(),
@@ -564,6 +565,7 @@ describe('Canopy', () => {
           canopy: Find.ByLink({ tokenHash: hashInviteToken('cabin-token') }),
           absenceOf: Option.none(),
           accounts: ['sam'],
+          members: 'read',
           invitations: InvitationScope.None(),
           rooms: RoomScope.None(),
           plants: PlantScope.None(),
@@ -1373,6 +1375,7 @@ describe('Canopy', () => {
     const ending = (userId: string) =>
       lockPlan({
         canopy: Find.OfMember({ userId }),
+        members: 'pin',
         invitations: InvitationScope.All(),
         rooms: RoomScope.OfCanopy(),
         plants: PlantScope.OfCanopy(),
@@ -1814,6 +1817,7 @@ describe('Canopy', () => {
         canopy: Find.None(),
         absenceOf: Option.none(),
         accounts: ['sam'],
+        members: 'read',
         invitations: InvitationScope.None(),
         rooms: RoomScope.None(),
         plants: PlantScope.None(),

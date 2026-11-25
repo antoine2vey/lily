@@ -208,16 +208,17 @@ export const makeLockAndLoad = Effect.gen(function* () {
 
   const accounts: LockClass = (plan, held) =>
     Effect.gen(function* () {
-      const named = Array.dedupe(plan.accounts)
+      const members = pipe(
+        Option.toArray(held.canopy),
+        Array.flatMap((state) => state.members),
+        Array.map((member) => member.userId)
+      )
+      const named = Array.dedupe([
+        ...plan.accounts,
+        ...(plan.members === 'pin' ? members : []),
+      ])
       const known = Array.difference(
-        Array.dedupe([
-          ...Option.toArray(plan.actor),
-          ...pipe(
-            Option.toArray(held.canopy),
-            Array.flatMap((state) => state.members),
-            Array.map((member) => member.userId)
-          ),
-        ]),
+        Array.dedupe([...Option.toArray(plan.actor), ...members]),
         named
       )
       const locked = Array.isReadonlyArrayEmpty(named)

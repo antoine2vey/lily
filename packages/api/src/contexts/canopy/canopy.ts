@@ -360,6 +360,7 @@ const movePlan = (by: string, plantId: string, roomId: Option.Option<string>) =>
 const ending = (userId: string) =>
   lockPlan({
     canopy: Find.OfMember({ userId }),
+    members: 'pin',
     invitations: InvitationScope.All(),
     rooms: RoomScope.OfCanopy(),
     plants: PlantScope.OfCanopy(),
