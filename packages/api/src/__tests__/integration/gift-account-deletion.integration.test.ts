@@ -133,12 +133,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     }
 
     /**
-     * Pauses `command` at its insert into `subscription_events`, deletes the
-     * account from a second session, and lets the command go once the
-     * deletion waits or has ended.
+     * Pauses `command` at its insert into `pausedAt`, deletes the account from
+     * a second session, and lets the command go once the deletion waits or
+     * has ended.
      */
     const deleteWhilePaused = async (
       userId: string,
+      pausedAt: 'subscription_events' | 'gift_code_redemptions',
       command: () => Promise<string>
     ) => {
       const pause = `pause_gift_${crypto.randomUUID().replaceAll('-', '')}`
@@ -149,7 +150,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           `CREATE FUNCTION ${pause}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock(${PAUSE_KEYSPACE}, 0); RETURN NEW; END $$`
         )
         await pool.query(
-          `CREATE TRIGGER ${pause} BEFORE INSERT ON subscription_events FOR EACH ROW WHEN (NEW.user_id = '${userId}') EXECUTE FUNCTION ${pause}()`
+          `CREATE TRIGGER ${pause} BEFORE INSERT ON ${pausedAt} FOR EACH ROW WHEN (NEW.user_id = '${userId}') EXECUTE FUNCTION ${pause}()`
         )
 
         const running = command()
@@ -195,8 +196,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('lets the account be deleted while a gift is between its two writes', async () => {
       const userId = await aSubscriber()
 
-      const outcome = await deleteWhilePaused(userId, () =>
-        endingOf(giftSubscription(userId, '1m'))
+      const outcome = await deleteWhilePaused(
+        userId,
+        'subscription_events',
+        () => endingOf(giftSubscription(userId, '1m'))
       )
 
       expect(outcome).toEqual({
@@ -206,26 +209,33 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     })
 
-    it('lets the account be deleted while a redemption is between its two writes', async () => {
+    it('holds no row of the account when a redemption reaches its redemption insert', async () => {
       const userId = await aSubscriber()
       const code = await aGiftCode()
 
-      const outcome = await deleteWhilePaused(userId, () =>
-        endingOf(redeemGiftCode(userId, code))
+      const outcome = await deleteWhilePaused(
+        userId,
+        'gift_code_redemptions',
+        () => endingOf(redeemGiftCode(userId, code))
       )
 
+      // The deletion wins, so the redemption insert breaks its foreign key.
+      // A subscription write placed before that insert would hold the row the
+      // deletion waits for, and this deletion would end in 40P01.
       expect(outcome).toEqual({
         paused: 1,
         deletion: 'deleted',
-        command: 'Success',
+        command: 'SqlError',
       })
     })
 
     it('lets the account be deleted while a revocation is between its two writes', async () => {
       const userId = await aSubscriber()
 
-      const outcome = await deleteWhilePaused(userId, () =>
-        endingOf(revokeGiftSubscription(userId))
+      const outcome = await deleteWhilePaused(
+        userId,
+        'subscription_events',
+        () => endingOf(revokeGiftSubscription(userId))
       )
 
       expect(outcome).toEqual({
