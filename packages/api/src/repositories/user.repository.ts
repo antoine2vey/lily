@@ -139,6 +139,14 @@ export class UserRepository extends Context.Service<
   IUserRepository
 >()('UserRepository') {}
 
+/**
+ * `deleted_at` dates a deletion request, so it holds only while the status
+ * is `pending_deletion`. A write that moves the status anywhere else clears
+ * it, or the account would stay hidden from search and the social reads.
+ */
+const deletedAtAfter = (status: UserStatus | undefined) =>
+  status === undefined || status === 'pending_deletion' ? undefined : null
+
 export const UserRepositoryLive = Layer.effect(
   UserRepository,
   Effect.gen(function* () {
@@ -203,7 +211,11 @@ export const UserRepositoryLive = Layer.effect(
         const [user] = yield* writeAccount(
           db,
           id,
-          { ...data, updatedAt: nowAsDate() },
+          {
+            ...data,
+            deletedAt: deletedAtAfter(data.status),
+            updatedAt: nowAsDate(),
+          },
           (written) => written.returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
@@ -302,7 +314,7 @@ export const UserRepositoryLive = Layer.effect(
         const [user] = yield* writeAccount(
           db,
           id,
-          { status, updatedAt: nowAsDate() },
+          { status, deletedAt: deletedAtAfter(status), updatedAt: nowAsDate() },
           (written) => written.returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
