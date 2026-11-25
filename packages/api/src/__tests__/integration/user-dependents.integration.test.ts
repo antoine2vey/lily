@@ -249,22 +249,8 @@ const SEEDS: Record<UserDependentColumn, Seed> = {
     )
     return eq(schema.chatMessages.id, row.id)
   },
-  'dead_letter_messages.user_id': async (db, w) => {
-    const row = returned(
-      await db
-        .insert(schema.deadLetterMessages)
-        .values({
-          originalMessageId: 'message-1',
-          topic: 'notifications',
-          payload: {},
-          error: 'gave up',
-          retryCount: 5,
-          userId: w.subject,
-        })
-        .returning()
-    )
-    return eq(schema.deadLetterMessages.id, row.id)
-  },
+  'dead_letter_messages.user_id': async (db, w) =>
+    eq(schema.deadLetterMessages.id, await deadLetter(db, w.subject)),
   'device_tokens.user_id': async (db, w) => {
     const row = returned(
       await db
@@ -495,6 +481,21 @@ const SEEDS: Record<UserDependentColumn, Seed> = {
     return eq(schema.userSubscriptions.id, row.id)
   },
 }
+
+const deadLetter = async (db: Db, userId: string) =>
+  returned(
+    await db
+      .insert(schema.deadLetterMessages)
+      .values({
+        originalMessageId: `message-${userId}`,
+        topic: 'notifications',
+        payload: { userId },
+        error: 'gave up',
+        retryCount: 5,
+        userId,
+      })
+      .returning()
+  ).id
 
 const delegation = async (
   db: Db,
@@ -727,6 +728,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
     }
 
+    const tablesNaming = async (userId: string) => {
+      const { rows } = await db.execute<{ table: string }>(sql`
+        SELECT 'dead_letter_messages' AS "table" FROM dead_letter_messages
+        WHERE user_id = ${userId}::uuid OR payload->>'userId' = ${userId}
+        ORDER BY 1
+      `)
+      return Array.map(rows, (row) => row.table)
+    }
+
     beforeAll(async () => {
       pool = new Pool({ connectionString: process.env.DATABASE_URL_TEST })
       db = drizzle(pool, { schema })
@@ -836,5 +846,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(Array.getSomes(problems)).toEqual([])
       }
     )
+
+    it('leaves no row that names the user outside a foreign key after the purge, and keeps the rows of another user', async () => {
+      await reset()
+      const w = await world()
+      await deadLetter(db, w.subject)
+      await deadLetter(db, w.owner)
+
+      await run(purgeAccount(w.subject))
+
+      expect(await tablesNaming(w.subject)).toEqual([])
+      expect(await tablesNaming(w.owner)).toEqual(['dead_letter_messages'])
+    })
   }
 )
