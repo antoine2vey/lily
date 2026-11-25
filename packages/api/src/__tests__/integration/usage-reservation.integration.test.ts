@@ -1,4 +1,5 @@
 import { delivered } from '@lily/api/__tests__/integration/canopy-layers'
+import { sessionsWaitingForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -48,6 +49,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 const { Pool } = pg
 
 const PARALLELISM = 20
+
+// The advisory keyspace the pause trigger waits in. No kernel lock uses it.
+const PAUSE_KEYSPACE = 372_372
 
 const endOfNextMonth = () => {
   const now = new Date()
@@ -297,6 +301,56 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(row?.aiChatsCount).toBe(
           Arr.filter(races, (race) => race.charged).length
         )
+      })
+
+      it('lets the account be deleted while a refund is between its writes', async () => {
+        const leaver = await insertUser('refund-deletion')
+        const reserved = await runtime.runPromise(
+          Effect.flatMap(SubscriptionRepository, (repo) =>
+            Effect.flatMap(
+              repo.reserveUsage(leaver, 'aiChats', null),
+              Effect.fromNullishOr
+            )
+          )
+        )
+        const pause = `pause_refund_${crypto.randomUUID().replaceAll('-', '')}`
+        const gate = await pool.connect()
+        try {
+          await gate.query('SELECT pg_advisory_lock($1, 0)', [PAUSE_KEYSPACE])
+          await pool.query(
+            `CREATE FUNCTION ${pause}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock(${PAUSE_KEYSPACE}, 0); RETURN NEW; END $$`
+          )
+          await pool.query(
+            `CREATE TRIGGER ${pause} BEFORE UPDATE ON usage_reservations FOR EACH ROW WHEN (NEW.id = '${reserved.reservationId}') EXECUTE FUNCTION ${pause}()`
+          )
+
+          const refund = runtime.runPromise(
+            Effect.flatMap(SubscriptionRepository, (repo) =>
+              repo.releaseUsage(reserved.reservationId)
+            )
+          )
+          const paused = await sessionsWaitingForALock(pool, 1)
+          const ended = new AbortController()
+          const deletion = pool
+            .query('DELETE FROM users WHERE id = $1', [leaver])
+            .then(
+              () => 'deleted',
+              (error: { code?: string }) => `failed ${error.code}`
+            )
+            .finally(() => ended.abort())
+          await sessionsWaitingForALock(pool, 2, ended.signal)
+          await gate.query('SELECT pg_advisory_unlock_all()')
+
+          expect({
+            paused,
+            deletion: await deletion,
+            refunded: await refund,
+          }).toEqual({ paused: 1, deletion: 'deleted', refunded: true })
+        } finally {
+          await gate.query('SELECT pg_advisory_unlock_all()')
+          gate.release()
+          await pool.query(`DROP FUNCTION IF EXISTS ${pause}() CASCADE`)
+        }
       })
 
       it('deleteSettledReservations keeps open months and reserved rows', async () => {
