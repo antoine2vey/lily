@@ -1,5 +1,6 @@
 import { pinAccounts } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
+import { expectWritten } from '@lily/api/kernel/written'
 import { getPaginationParams } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -37,6 +38,7 @@ import {
 import {
   Array,
   Context,
+  Data,
   Effect,
   Layer,
   Match,
@@ -51,6 +53,12 @@ const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown))
 
 export const ReservationId = Schema.String.pipe(Schema.brand('ReservationId'))
 export type ReservationId = typeof ReservationId.Type
+
+// Rolls back the unit a refund gave back when a charge, or another refund,
+// took the reservation between the refund's read and its move.
+class ReservationSettledMeanwhile extends Data.TaggedError(
+  'ReservationSettledMeanwhile'
+) {}
 
 /** The usage row after the unit was counted, and the reservation holding it. */
 export interface ReservedUsage {
@@ -532,38 +540,68 @@ export const SubscriptionRepositoryLive = Layer.effect(
           .returning()
         if (!usage) return null
 
-        const [reservation] = yield* db
+        const reservationId = ReservationId.make(crypto.randomUUID())
+        yield* db
           .insert(usageReservations)
-          .values({ usageId: usage.id, field, createdAt: nowAsDate() })
+          .values({
+            id: reservationId,
+            usageId: usage.id,
+            field,
+            createdAt: nowAsDate(),
+          })
           .returning({ id: usageReservations.id })
-        if (!reservation) {
-          return yield* Effect.die(
-            new Error('usage_reservations insert returned no row')
+          .pipe(
+            Effect.flatMap(
+              expectWritten(usageReservations, { _tag: 'ReserveUsage' })
+            )
           )
-        }
 
-        return {
-          reservationId: ReservationId.make(reservation.id),
-          usage,
-        } satisfies ReservedUsage
+        return { reservationId, usage } satisfies ReservedUsage
       }, client.withTransaction),
 
       releaseUsage: Effect.fn('SubscriptionRepository.releaseUsage')(function* (
         reservationId: ReservationId
       ) {
-        const [refunded] = yield* leaveReserved(reservationId, 'refunded')
-        if (!refunded) return false
+        const [reservation] = yield* db
+          .select({
+            usageId: usageReservations.usageId,
+            field: usageReservations.field,
+          })
+          .from(usageReservations)
+          .where(
+            and(
+              eq(usageReservations.id, reservationId),
+              eq(usageReservations.state, 'reserved')
+            )
+          )
+        if (!reservation) return false
 
-        const { column, columnName } = usageColumn(refunded.field)
-        yield* db
+        // The usage row is written first, the order reserveUsage and the
+        // cascade of an account deletion take it in, and written once: a
+        // second update of a row this transaction already wrote checks its
+        // foreign key to `users` again and waits for the deletion. Either
+        // other order deadlocks with a deletion of the account.
+        const { column, columnName } = usageColumn(reservation.field)
+        return yield* db
           .update(subscriptionUsage)
           .set({
             [columnName]: sql`GREATEST(${column} - 1, 0)`,
             updatedAt: nowAsDate(),
           })
-          .where(eq(subscriptionUsage.id, refunded.usageId))
-        return true
-      }, client.withTransaction),
+          .where(eq(subscriptionUsage.id, reservation.usageId))
+          .pipe(
+            Effect.andThen(leaveReserved(reservationId, 'refunded')),
+            Effect.filterOrFail(
+              Array.isArrayNonEmpty,
+              () => new ReservationSettledMeanwhile()
+            ),
+            Effect.as(true),
+            client.withTransaction,
+            Effect.catchTag('ReservationSettledMeanwhile', () =>
+              Effect.succeed(false)
+            )
+          )
+      }),
 
       chargeUsage: Effect.fn('SubscriptionRepository.chargeUsage')(function* (
         reservationId: ReservationId
