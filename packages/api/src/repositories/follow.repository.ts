@@ -4,6 +4,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import { isSocialVisibleUser } from '@lily/api/repositories/helpers/social-visible-user'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plants, userFollows, userNudges, users } from '@lily/db/schema'
 import {
@@ -12,12 +13,12 @@ import {
   desc,
   eq,
   ilike,
-  isNull,
   ne,
   or,
   type SQLWrapper,
   sql,
 } from 'drizzle-orm'
+import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -107,6 +108,10 @@ export interface IFollowRepository {
     currentUserId: string
   }) => Effect.Effect<PublicProfileRow | null, SqlError>
 
+  readonly findVisibleUser: (
+    userId: string
+  ) => Effect.Effect<{ publicProfile: boolean } | null, SqlError>
+
   readonly getLastNudge: (
     fromUserId: string,
     toUserId: string
@@ -142,6 +147,17 @@ const listedFollowees = (params: { userId: string; currentUserId: string }) =>
   params.userId === params.currentUserId
     ? undefined
     : eq(users.publicProfile, true)
+
+const visibleFollowCount = (
+  userId: string,
+  side: AnyPgColumn,
+  peer: AnyPgColumn
+) =>
+  sql<number>`(
+    SELECT count(*)::int FROM ${userFollows}
+    INNER JOIN ${users} ON ${eq(users.id, peer)}
+    WHERE ${and(eq(side, userId), isSocialVisibleUser())}
+  )`
 
 export const FollowRepositoryLive = Layer.effect(
   FollowRepository,
@@ -203,7 +219,8 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followingId, params.userId),
-                eq(users.publicProfile, true)
+                eq(users.publicProfile, true),
+                isSocialVisibleUser()
               )
             )
           const total = extractCount(countResult)
@@ -221,7 +238,8 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followingId, params.userId),
-                eq(users.publicProfile, true)
+                eq(users.publicProfile, true),
+                isSocialVisibleUser()
               )
             )
             .orderBy(desc(userFollows.createdAt))
@@ -248,7 +266,8 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followerId, params.userId),
-                listedFollowees(params)
+                listedFollowees(params),
+                isSocialVisibleUser()
               )
             )
           const total = extractCount(countResult)
@@ -266,7 +285,8 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followerId, params.userId),
-                listedFollowees(params)
+                listedFollowees(params),
+                isSocialVisibleUser()
               )
             )
             .orderBy(desc(userFollows.createdAt))
@@ -294,8 +314,7 @@ export const FollowRepositoryLive = Layer.effect(
           )
           const exactHandleMatch = ilike(users.name, escaped)
           const whereClause = and(
-            eq(users.status, 'active'),
-            isNull(users.deletedAt),
+            isSocialVisibleUser(),
             ne(users.id, params.currentUserId),
             or(publicNameMatch, exactHandleMatch)
           )
@@ -345,6 +364,7 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(users.publicProfile, true),
+                isSocialVisibleUser(),
                 ne(users.id, params.currentUserId),
                 sql`${users.id} IN (
                   SELECT DISTINCT f2.following_id
@@ -374,14 +394,16 @@ export const FollowRepositoryLive = Layer.effect(
               image: users.image,
               bio: users.bio,
               plantCount: plantCountFor(params.targetUserId),
-              followerCount: sql<number>`(
-                SELECT count(*)::int FROM user_follows
-                WHERE following_id = ${params.targetUserId}
-              )`,
-              followingCount: sql<number>`(
-                SELECT count(*)::int FROM user_follows
-                WHERE follower_id = ${params.targetUserId}
-              )`,
+              followerCount: visibleFollowCount(
+                params.targetUserId,
+                userFollows.followingId,
+                userFollows.followerId
+              ),
+              followingCount: visibleFollowCount(
+                params.targetUserId,
+                userFollows.followerId,
+                userFollows.followingId
+              ),
               isFollowing: sql<boolean>`EXISTS (
                 SELECT 1 FROM user_follows
                 WHERE follower_id = ${params.currentUserId}
@@ -392,7 +414,9 @@ export const FollowRepositoryLive = Layer.effect(
               createdAt: users.createdAt,
             })
             .from(users)
-            .where(eq(users.id, params.targetUserId))
+            .where(
+              and(eq(users.id, params.targetUserId), isSocialVisibleUser())
+            )
 
           if (!row) return null
 
@@ -410,6 +434,16 @@ export const FollowRepositoryLive = Layer.effect(
           return { ...row, recentPlants }
         }
       ),
+
+      findVisibleUser: Effect.fn('FollowRepository.findVisibleUser')(function* (
+        userId: string
+      ) {
+        const [row] = yield* db
+          .select({ publicProfile: users.publicProfile })
+          .from(users)
+          .where(and(eq(users.id, userId), isSocialVisibleUser()))
+        return Option.getOrNull(Option.fromNullishOr(row))
+      }),
 
       getLastNudge: Effect.fn('FollowRepository.getLastNudge')(function* (
         fromUserId: string,
