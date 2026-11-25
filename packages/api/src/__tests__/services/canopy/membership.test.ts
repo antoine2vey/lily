@@ -442,7 +442,7 @@ describe('updateMyCanopy', () => {
     expect(failureOf(exit)).toEqual(new NotCanopyOwnerError())
     expect(store.canopies[0]).toMatchObject({
       name: 'Home',
-      timezone: ZoneName.make('Europe/Paris'),
+      timezone: 'Europe/Paris',
     })
 
     const owner = await run(

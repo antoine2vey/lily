@@ -33,6 +33,7 @@ import {
   exceptReminders,
   NotificationRepository,
 } from '@lily/api/repositories/notification.repository'
+import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careDelegations,
@@ -215,7 +216,7 @@ export const vacationLeftOn = (
   now: DateTime.Utc
 ): Held => ({
   userId: account.id,
-  timezone: account.timezone ?? 'UTC',
+  timezone: resolveTimezone(account.timezone),
   stored: storedVacationOf(account),
   vacation: vacationOf(storedVacationOf(account), now),
 })

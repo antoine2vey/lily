@@ -20,7 +20,6 @@ export const createMockApiClient = (
     createPlant: () => Effect.die(new Error('Not mocked')),
     getCareLogs: () => Effect.succeed(emptyPaginated),
     carePlant: () => Effect.die(new Error('Not mocked')),
-    getUserTimezone: Effect.succeed('UTC'),
     getCareTasks: Effect.succeed({
       overdue: [],
       today: [],

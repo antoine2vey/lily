@@ -25,6 +25,7 @@ import {
   vacationColumnsOf,
 } from '@lily/api/contexts/absence/store'
 import {
+  DEFAULT_ZONE,
   type UserStatus,
   VACATION_MAX_DURATION_DAYS,
   VacationDateError,
@@ -45,7 +46,10 @@ const over: Away = { start: daysFromNow(-9), end: daysFromNow(-2) }
 const storedAs = (vacation: Vacation): StoredVacation =>
   storedVacationOf(vacationColumnsOf(vacation))
 
-const holding = (vacation: Vacation, timezone = 'UTC'): Held => ({
+const holding = (
+  vacation: Vacation,
+  timezone: ZoneName = DEFAULT_ZONE
+): Held => ({
   userId: 'alex',
   timezone,
   vacation,
@@ -592,7 +596,9 @@ describe('daysAway', () => {
       0,
     ],
   ] as const)('counts %s', (_what, start, endedAt, timezone, days) => {
-    expect(daysAway(away(start), at(endedAt), timezone)).toBe(days)
+    expect(daysAway(away(start), at(endedAt), ZoneName.make(timezone))).toBe(
+      days
+    )
   })
 })
 

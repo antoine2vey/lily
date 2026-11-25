@@ -1,4 +1,5 @@
 import type { CareTask, CareTasksResponse, CareType } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
 import i18n from '@/i18n'
 import {
@@ -75,7 +76,7 @@ const response = (
 
 const ready = (
   tasks: CareTasksResponse,
-  timezone = 'Europe/Paris'
+  timezone = ZoneName.make('Europe/Paris')
 ): Option.Option<TodayWidgetSnapshot> =>
   buildTodayWidgetSnapshot({ _tag: 'Ready', tasks, timezone }, stubCopy)
 
@@ -118,7 +119,6 @@ describe('buildTodayWidgetSnapshot', () => {
     expect(
       ready(response({ windowDays: ['2026-03-26', 'garbage'] }))
     ).toStrictEqual(Option.none())
-    expect(ready(response(), 'Not/AZone')).toStrictEqual(Option.none())
   })
 
   it('emits one day per window key, anchored at each local midnight', () => {

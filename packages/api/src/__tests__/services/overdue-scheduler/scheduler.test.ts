@@ -32,6 +32,7 @@ import type { QueueMessage } from '@lily/api/services/message-queue/types'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import type { userSubscriptions } from '@lily/db/schema'
 import {
+  DEFAULT_ZONE,
   pickNotificationTime,
   type SlotRecipient,
   type TierConfig,
@@ -106,7 +107,10 @@ const check = (
             mutes,
             caretakers: activeCaretakers(delegationData),
             timezones: Object.fromEntries([
-              ...Arr.map(users, (u) => [u.id, u.timezone ?? 'UTC'] as const),
+              ...Arr.map(
+                users,
+                (u) => [u.id, u.timezone ?? DEFAULT_ZONE] as const
+              ),
               ...Arr.map(canopies, (c) => [c.id, c.timezone] as const),
             ]),
           }),
@@ -376,16 +380,6 @@ describe('pickNotificationTime', () => {
       )
       // Tokyo is UTC+9, so 6:00 Tokyo = 21:00 UTC (previous day)
       expect(date instanceof Date).toBe(true)
-    })
-
-    it('should fall back to UTC for invalid timezone', () => {
-      const date = Effect.runSync(
-        pickNotificationTime({ ...anyone, timezone: 'Invalid/Timezone' }, 0.25)
-      )
-      const hours = date.getUTCHours()
-      // Should use UTC, so morning window is 6:00-8:00 UTC
-      expect(hours).toBeGreaterThanOrEqual(6)
-      expect(hours).toBeLessThan(8)
     })
   })
 })

@@ -99,7 +99,7 @@ describe('buildPlantSystemPrompt schedules', () => {
       },
       daysSinceAdded: 10,
       careHistoryText: '',
-      timezone: row.zone,
+      timezone: ZoneName.make(row.zone),
       now: DateTime.makeUnsafe(row.now),
     })
 

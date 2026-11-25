@@ -36,11 +36,7 @@ export const createCanopy = (
       CanopyWrite.CreateCanopy({
         id: command.canopyId,
         name: command.name,
-        timezone: pipe(
-          Option.fromNullishOr(creator.timezone),
-          Option.flatMap(Schema.decodeUnknownOption(ZoneName)),
-          Option.getOrElse(() => DEFAULT_ZONE)
-        ),
+        timezone: creator.timezone ?? DEFAULT_ZONE,
         location: creator.location,
       }),
       CanopyWrite.AddMember({

@@ -1,6 +1,7 @@
 import { Array, DateTime, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { localDayKey, startOfLocalDay } from '../domains/common/date'
+import { ZoneName } from '../domains/common/date/zone-name'
 
 const isoOf = (
   dayKey: string,
@@ -8,7 +9,7 @@ const isoOf = (
   daysLater?: number
 ): Option.Option<string> =>
   pipe(
-    startOfLocalDay(dayKey, timezone, daysLater),
+    startOfLocalDay(dayKey, ZoneName.make(timezone), daysLater),
     Option.map((dt) => DateTime.formatIso(dt))
   )
 
@@ -63,21 +64,21 @@ describe('startOfLocalDay', () => {
     ]
     const roundTripped = Array.map(keys, (key) =>
       pipe(
-        startOfLocalDay(key, 'Europe/Paris'),
-        Option.map((dt) => localDayKey(dt, 'Europe/Paris'))
+        startOfLocalDay(key, ZoneName.make('Europe/Paris')),
+        Option.map((dt) => localDayKey(dt, ZoneName.make('Europe/Paris')))
       )
     )
     expect(roundTripped).toEqual(Array.map(keys, Option.some))
   })
 
   it('rejects keys that are not real calendar dates', () => {
-    expect(startOfLocalDay('2026-02-30', 'UTC')).toEqual(Option.none())
-    expect(startOfLocalDay('2026-1-5', 'UTC')).toEqual(Option.none())
-    expect(startOfLocalDay('not-a-day', 'UTC')).toEqual(Option.none())
-  })
-
-  it('rejects unknown timezones', () => {
-    expect(startOfLocalDay('2026-01-15', 'Mars/Olympus_Mons')).toEqual(
+    expect(startOfLocalDay('2026-02-30', ZoneName.make('UTC'))).toEqual(
+      Option.none()
+    )
+    expect(startOfLocalDay('2026-1-5', ZoneName.make('UTC'))).toEqual(
+      Option.none()
+    )
+    expect(startOfLocalDay('not-a-day', ZoneName.make('UTC'))).toEqual(
       Option.none()
     )
   })

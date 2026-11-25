@@ -78,7 +78,7 @@ const update = (
     readonly user?: typeof testUser
     readonly plants?: TestPlant[]
     readonly canopy?: Layer.Layer<CanopyRepository>
-    readonly careTimezones?: Readonly<Record<string, string>>
+    readonly careTimezones?: Readonly<Record<string, ZoneName>>
   }
 ) => {
   const plants = scenario.plants ?? [testPlant]
@@ -229,7 +229,7 @@ describe('updateUserSettings - reminder rebuild', () => {
       {
         notifications,
         plants: [canopyPlant],
-        careTimezones: { [mockCanopyId]: 'Europe/Paris' },
+        careTimezones: { [mockCanopyId]: ZoneName.make('Europe/Paris') },
         canopy: createMockCanopyRepository(
           createCanopyStore({
             canopies: [

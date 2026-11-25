@@ -12,7 +12,7 @@ import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
 // Find a timezone where it's currently Sunday, or null if none found
-const findSundayTimezone = (): string | null => {
+const findSundayTimezone = (): ZoneName | null => {
   const candidates = [
     'Pacific/Auckland',
     'Asia/Tokyo',
@@ -27,13 +27,13 @@ const findSundayTimezone = (): string | null => {
       DateTime.nowUnsafe(),
       DateTime.zoneMakeNamedUnsafe(tz)
     )
-    if (DateTime.toParts(zoned).weekDay === 0) return tz
+    if (DateTime.toParts(zoned).weekDay === 0) return ZoneName.make(tz)
   }
   return null
 }
 
 // Find a timezone where it's currently NOT Sunday
-const findNonSundayTimezone = (): string | null => {
+const findNonSundayTimezone = (): ZoneName | null => {
   const candidates = [
     'UTC',
     'America/New_York',
@@ -47,7 +47,7 @@ const findNonSundayTimezone = (): string | null => {
       DateTime.nowUnsafe(),
       DateTime.zoneMakeNamedUnsafe(tz)
     )
-    if (DateTime.toParts(zoned).weekDay !== 0) return tz
+    if (DateTime.toParts(zoned).weekDay !== 0) return ZoneName.make(tz)
   }
   return null
 }

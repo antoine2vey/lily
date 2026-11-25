@@ -3,13 +3,13 @@ import {
   decodeDndBounds,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
-import type { ZoneName } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const adjust = (
   scheduledAt: Date,
-  timezone: ZoneName | null,
+  timezone: ZoneName,
   dndStart: string | null,
   dndEnd: string | null
 ) =>
@@ -19,7 +19,7 @@ const adjust = (
 
 const inWindow = (
   currentTime: Date,
-  timezone: ZoneName | null,
+  timezone: ZoneName,
   dndStart: string | null,
   dndEnd: string | null
 ) =>
@@ -37,7 +37,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T21:59:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -48,7 +48,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T22:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -61,7 +61,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -73,7 +73,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T00:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -86,7 +86,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T02:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -98,7 +98,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T07:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -108,7 +108,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T07:01:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -118,7 +118,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T12:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -133,7 +133,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T00:59:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -143,7 +143,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T01:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(6)
@@ -155,7 +155,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T03:30:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.getUTCHours()).toBe(6)
@@ -166,7 +166,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T06:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -176,7 +176,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T06:01:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', dndStart, dndEnd)
+        adjust(scheduledAt, ZoneName.make('UTC'), dndStart, dndEnd)
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -190,7 +190,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T03:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'America/New_York', '22:00', '07:00')
+        adjust(scheduledAt, ZoneName.make('America/New_York'), '22:00', '07:00')
       )
 
       // 07:00 ET (EDT = UTC-4) → 11:00 UTC
@@ -204,7 +204,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T14:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'Asia/Tokyo', '22:00', '07:00')
+        adjust(scheduledAt, ZoneName.make('Asia/Tokyo'), '22:00', '07:00')
       )
 
       // 07:00 JST (UTC+9) → 22:00 UTC (previous day)
@@ -216,20 +216,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', '22:00', '07:00')
-      )
-
-      expect(result.getUTCHours()).toBe(7)
-      expect(result.getUTCDate()).toBe(16)
-    })
-
-    it('should fall back to UTC for invalid timezone', async () => {
-      // With invalid timezone, falls back to UTC
-      // 23:00 UTC is in DND 22:00-07:00 UTC
-      const scheduledAt = new Date('2025-06-15T23:00:00Z')
-
-      const result = await Effect.runPromise(
-        adjust(scheduledAt, 'Invalid/Timezone', '22:00', '07:00')
+        adjust(scheduledAt, ZoneName.make('UTC'), '22:00', '07:00')
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -244,7 +231,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2026-09-26T11:30:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'Pacific/Auckland', '22:00', '07:00')
+        adjust(scheduledAt, ZoneName.make('Pacific/Auckland'), '22:00', '07:00')
       )
 
       expect(result.toISOString()).toBe('2026-09-26T18:00:00.000Z')
@@ -256,7 +243,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2027-04-03T10:30:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'Pacific/Auckland', '22:00', '07:00')
+        adjust(scheduledAt, ZoneName.make('Pacific/Auckland'), '22:00', '07:00')
       )
 
       expect(result.toISOString()).toBe('2027-04-03T19:00:00.000Z')
@@ -268,7 +255,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2026-03-09T03:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'America/New_York', '22:00', '02:30')
+        adjust(scheduledAt, ZoneName.make('America/New_York'), '22:00', '02:30')
       )
 
       expect(result.toISOString()).toBe('2026-03-09T06:30:00.000Z')
@@ -280,7 +267,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2026-03-08T04:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'America/New_York', '22:00', '02:30')
+        adjust(scheduledAt, ZoneName.make('America/New_York'), '22:00', '02:30')
       )
 
       expect(result.toISOString()).toBe('2026-03-08T07:30:00.000Z')
@@ -292,7 +279,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T12:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', '22:00', '22:00')
+        adjust(scheduledAt, ZoneName.make('UTC'), '22:00', '22:00')
       )
 
       expect(result.toISOString()).toBe(scheduledAt.toISOString())
@@ -304,7 +291,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', null, null)
+        adjust(scheduledAt, ZoneName.make('UTC'), null, null)
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -315,7 +302,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:59:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', '22:00', '07:00')
+        adjust(scheduledAt, ZoneName.make('UTC'), '22:00', '07:00')
       )
 
       expect(result.getUTCHours()).toBe(7)
@@ -326,7 +313,7 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', '22:00', '9999999999:00')
+        adjust(scheduledAt, ZoneName.make('UTC'), '22:00', '9999999999:00')
       )
 
       expect(result.toISOString()).toBe('2025-06-16T07:00:00.000Z')
@@ -336,21 +323,10 @@ describe('adjustForDoNotDisturb', () => {
       const scheduledAt = new Date('2025-06-15T23:00:00Z')
 
       const result = await Effect.runPromise(
-        adjust(scheduledAt, 'UTC', 'abc', '07:00')
+        adjust(scheduledAt, ZoneName.make('UTC'), 'abc', '07:00')
       )
 
       expect(result.toISOString()).toBe('2025-06-16T07:00:00.000Z')
-    })
-
-    it('should handle null timezone by falling back to UTC', async () => {
-      const scheduledAt = new Date('2025-06-15T23:00:00Z')
-
-      const result = await Effect.runPromise(
-        adjust(scheduledAt, null, '22:00', '07:00')
-      )
-
-      expect(result.getUTCHours()).toBe(7)
-      expect(result.getUTCDate()).toBe(16)
     })
   })
 })
@@ -360,7 +336,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T23:00:00Z')
 
     const result = await Effect.runPromise(
-      inWindow(currentTime, 'UTC', '22:00', '07:00')
+      inWindow(currentTime, ZoneName.make('UTC'), '22:00', '07:00')
     )
 
     expect(result).toBe(true)
@@ -370,7 +346,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T12:00:00Z')
 
     const result = await Effect.runPromise(
-      inWindow(currentTime, 'UTC', '22:00', '07:00')
+      inWindow(currentTime, ZoneName.make('UTC'), '22:00', '07:00')
     )
 
     expect(result).toBe(false)
@@ -380,7 +356,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T22:00:00Z')
 
     const result = await Effect.runPromise(
-      inWindow(currentTime, 'UTC', '22:00', '22:00')
+      inWindow(currentTime, ZoneName.make('UTC'), '22:00', '22:00')
     )
 
     expect(result).toBe(false)
@@ -391,7 +367,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T03:00:00Z')
 
     const result = await Effect.runPromise(
-      inWindow(currentTime, 'America/New_York', '22:00', '07:00')
+      inWindow(currentTime, ZoneName.make('America/New_York'), '22:00', '07:00')
     )
 
     expect(result).toBe(true)
@@ -401,7 +377,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T03:00:00Z')
 
     const result = await Effect.runPromise(
-      inWindow(currentTime, 'UTC', '22:00', '9999999999:00')
+      inWindow(currentTime, ZoneName.make('UTC'), '22:00', '9999999999:00')
     )
 
     expect(result).toBe(true)
@@ -411,7 +387,7 @@ describe('isInDoNotDisturbWindow', () => {
     const currentTime = new Date('2025-06-15T07:00:00Z')
 
     const result = await Effect.runPromise(
-      inWindow(currentTime, 'UTC', '22:00', '07:00')
+      inWindow(currentTime, ZoneName.make('UTC'), '22:00', '07:00')
     )
 
     expect(result).toBe(false)

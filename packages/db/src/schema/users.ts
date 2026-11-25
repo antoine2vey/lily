@@ -19,6 +19,8 @@ import {
   subscriptionUsage,
   userSubscriptions,
 } from '@lily/db/schema/subscriptions'
+import { zoneName } from '@lily/db/schema/zone-name'
+import { DEFAULT_ZONE } from '@lily/shared'
 import { relations } from 'drizzle-orm'
 import {
   boolean,
@@ -65,7 +67,7 @@ export const users = pgTable('users', {
   historyViewCount: integer('history_view_count').notNull().default(0),
   role: userRoleEnum('role').notNull().default('user'),
   status: userStatusEnum('status').notNull().default('active'),
-  timezone: text('timezone').default('UTC'),
+  timezone: zoneName('timezone').default(DEFAULT_ZONE),
   preferredNotificationTime: text('preferred_notification_time').default(
     '09:00'
   ),

@@ -1,4 +1,5 @@
 import { formatCarePlansText } from '@lily/api/services/ai-chat/build-system-prompt'
+import { ZoneName } from '@lily/shared'
 import type { CarePlan } from '@lily/shared/care-plan'
 import { describe, expect, it } from 'vitest'
 
@@ -19,9 +20,12 @@ const basePlan = (overrides: Partial<CarePlan>): CarePlan => ({
 
 describe('formatCarePlansText', () => {
   it('returns an empty string when no plan was accepted', () => {
-    expect(formatCarePlansText([basePlan({ status: 'proposed' })], 'UTC')).toBe(
-      ''
-    )
+    expect(
+      formatCarePlansText(
+        [basePlan({ status: 'proposed' })],
+        ZoneName.make('UTC')
+      )
+    ).toBe('')
   })
 
   it('lists open steps of accepted plans and recently completed ones', () => {
@@ -47,7 +51,7 @@ describe('formatCarePlansText', () => {
           ],
         }),
       ],
-      'UTC'
+      ZoneName.make('UTC')
     )
     expect(text).toContain(
       '[ ] Repot (care: repotting, due 2024-01-05) [plan: Recovery]'
@@ -94,7 +98,7 @@ describe('formatCarePlansText', () => {
           ],
         }),
       ],
-      row.zone
+      ZoneName.make(row.zone)
     )
     expect(text).toContain(row.line)
   })

@@ -27,6 +27,7 @@ import {
   CareDay,
   CareDays,
   type CareType,
+  DEFAULT_ZONE,
   type PlantOwner,
   type ZoneName,
 } from '@lily/shared'
@@ -269,7 +270,7 @@ export const makeLocks = Effect.gen(function* () {
     lockAndLoadForPlanting: Effect.fn('CareStore.lockAndLoadForPlanting')(
       function* (userIds: ReadonlyArray<string>, owner: PlantOwner) {
         const accountsHeld = yield* holdAccounts(userIds)
-        const stored: ReadonlyArray<string | null> = yield* Match.value(
+        const stored: ReadonlyArray<ZoneName | null> = yield* Match.value(
           owner
         ).pipe(
           Match.tagsExhaustive({
@@ -294,7 +295,7 @@ export const makeLocks = Effect.gen(function* () {
         const timezone = pipe(
           Array.head(stored),
           Option.flatMap(Option.fromNullishOr),
-          Option.getOrElse(() => 'UTC')
+          Option.getOrElse(() => DEFAULT_ZONE)
         )
         return { timezone, accountsHeld }
       }

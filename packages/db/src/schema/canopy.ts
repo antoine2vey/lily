@@ -5,6 +5,8 @@ import {
 import { plants } from '@lily/db/schema/plants'
 import { rooms } from '@lily/db/schema/rooms'
 import { users } from '@lily/db/schema/users'
+import { zoneName } from '@lily/db/schema/zone-name'
+import { DEFAULT_ZONE } from '@lily/shared'
 import { relations, sql } from 'drizzle-orm'
 import {
   doublePrecision,
@@ -20,7 +22,7 @@ import {
 export const canopies = pgTable('canopies', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  timezone: text('timezone').notNull().default('UTC'),
+  timezone: zoneName('timezone').notNull().default(DEFAULT_ZONE),
   latitude: doublePrecision('latitude'),
   longitude: doublePrecision('longitude'),
   createdAt: timestamp('created_at', { withTimezone: true })

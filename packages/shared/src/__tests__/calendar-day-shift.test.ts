@@ -248,7 +248,10 @@ describe('the day after and the day before, one calendar day from now', () => {
     vi.setSystemTime(new Date('2026-10-25T22:30:00.000Z'))
 
     expect(
-      getDateGroupLabel(at('2026-10-24T10:00:00.000Z'), 'Europe/Paris')
+      getDateGroupLabel(
+        at('2026-10-24T10:00:00.000Z'),
+        ZoneName.make('Europe/Paris')
+      )
     ).toBe('Yesterday')
   })
 })

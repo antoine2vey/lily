@@ -1,24 +1,13 @@
 import {
   Array,
-  DateTime,
   Effect,
   String as EffectString,
-  identity,
   Option,
   pipe,
-  Record,
   Schema,
-  SchemaTransformation,
 } from 'effect'
 
-import { CANONICAL_TIME_ZONES, TIME_ZONE_ALIASES } from './time-zones.generated'
-
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
-
-export class InvalidTimezoneError extends Schema.TaggedError<
-  InvalidTimezoneError,
-  { readonly brand: unique symbol }
->()('InvalidTimezoneError', { timezone: Schema.String }) {}
 
 export class InvalidTimeFormatError extends Schema.TaggedError<
   InvalidTimeFormatError,
@@ -34,44 +23,6 @@ export const TimeString = Schema.String.pipe(
 )
 
 export type TimeString = typeof TimeString.Type
-
-const canonicalZones: ReadonlySet<string> = new Set(CANONICAL_TIME_ZONES)
-
-/**
- * A canonical IANA zone name, the form stored in `users.timezone` and
- * `canopies.timezone`: a tzdata `Zone` line or a zone `zone.tab` lists.
- * Decoding maps a renamed or legacy name such as `Eire` to its zone
- * (`Europe/Dublin`). A stored zone stays canonical so day math does not depend
- * on whichever tzdata build a runtime ships.
- */
-export const ZoneName = Schema.String.pipe(
-  Schema.decodeTo(
-    Schema.String.check(
-      Schema.makeFilter(
-        (zone) => canonicalZones.has(zone) || 'a canonical IANA time zone',
-        { identifier: 'ZoneName' }
-      )
-    ).pipe(Schema.brand('ZoneName')),
-    SchemaTransformation.transform({
-      decode: (zone: string) =>
-        Option.getOrElse(Record.get(TIME_ZONE_ALIASES, zone), () => zone),
-      encode: identity,
-    })
-  )
-)
-
-export type ZoneName = typeof ZoneName.Type
-
-export const validateTimezone = (
-  timezone: ZoneName
-): Effect.Effect<string, InvalidTimezoneError> =>
-  Effect.gen(function* () {
-    const result = DateTime.zoneMakeNamed(timezone)
-    if (Option.isNone(result)) {
-      return yield* new InvalidTimezoneError({ timezone })
-    }
-    return timezone
-  })
 
 export const validateTimeFormat = (
   time: string
@@ -100,7 +51,6 @@ export const parseTime = (
     }
   })
 
-export const DEFAULT_ZONE: ZoneName = ZoneName.make('UTC')
 export const DEFAULT_NOTIFICATION_TIME = '09:00'
 
 /**

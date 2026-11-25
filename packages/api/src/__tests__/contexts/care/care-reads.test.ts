@@ -76,7 +76,7 @@ describe('duePrune', () => {
       Array.flatMap(WINDOWS, (upTo) => {
         const prune = duePrune(upTo, now)
         const candidates = Array.makeBy(14, (i) =>
-          scheduled(timezone, now, i - 3)
+          scheduled(ZoneName.make(timezone), now, i - 3)
         )
         return Array.flatMap(seeDue(candidates, upTo, now), (care) =>
           care.dueDay <= prune.day
@@ -93,10 +93,13 @@ describe('duePrune', () => {
     const now = DateTime.makeUnsafe('2026-11-11T23:30:00Z')
 
     expect(duePrune(DueWindow.DueOrOverdue(), now).day).toBe(
-      CareDays.today('Pacific/Kiritimati', now)
+      CareDays.today(ZoneName.make('Pacific/Kiritimati'), now)
     )
     expect(duePrune(DueWindow.Ahead({ days: 7 }), now).day).toBe(
-      CareDays.addDays(CareDays.today('Pacific/Kiritimati', now), 7)
+      CareDays.addDays(
+        CareDays.today(ZoneName.make('Pacific/Kiritimati'), now),
+        7
+      )
     )
   })
 })
@@ -105,7 +108,7 @@ describe('seeDue', () => {
   it('decides the status from the stored due day, not from the instant', () => {
     const now = DateTime.makeUnsafe('2026-11-11T23:30:00Z')
     const care = {
-      ...scheduled('Europe/Paris', now, 0),
+      ...scheduled(ZoneName.make('Europe/Paris'), now, 0),
       careTimezone: ZoneName.make('America/Los_Angeles'),
     }
 

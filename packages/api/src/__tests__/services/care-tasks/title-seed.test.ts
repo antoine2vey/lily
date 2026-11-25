@@ -1,9 +1,10 @@
 import { titleSeedOf } from '@lily/api/services/care-tasks/helpers/group-tasks'
+import { ZoneName } from '@lily/shared'
 import { DateTime } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const seedAt = (iso: string) =>
-  titleSeedOf('Europe/Paris', DateTime.makeUnsafe(iso))
+  titleSeedOf(ZoneName.make('Europe/Paris'), DateTime.makeUnsafe(iso))
 
 describe('titleSeedOf', () => {
   it('changes at local midnight', () => {

@@ -239,6 +239,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         Effect.tryPromise({
           try: async () =>
             await createDiagnosisTool({
+              timezone: ZoneName.make('UTC'),
               runtime,
               userId: alex,
               permit: chatPermit(plantId, alex),

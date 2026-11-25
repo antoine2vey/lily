@@ -295,7 +295,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
     const dueDay = CareDays.addDays(recorded.day, 7)
     expect(recorded.dueDay).toEqual(Option.some(dueDay))
     expect(schedule?.nextCareAt).toEqual(
-      DateTime.toDateUtc(CareDays.startOf(dueDay, 'Europe/Paris'))
+      DateTime.toDateUtc(
+        CareDays.startOf(dueDay, ZoneName.make('Europe/Paris'))
+      )
     )
     expect(schedule?.lastCareAt).toBeInstanceOf(Date)
   })
@@ -371,7 +373,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
 
   describe('editing history', () => {
     const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000)
-    const dayOf = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
+    const dayOf = (date: Date) =>
+      CareDays.of(DateTime.makeUnsafe(date), ZoneName.make('UTC'))
     const addCare = async (
       plantId: string,
       date: Date,
@@ -764,7 +767,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       expect(
         CareDays.of(
           DateTime.makeUnsafe(reminders[0]?.scheduledAt ?? new Date(0)),
-          'UTC'
+          ZoneName.make('UTC')
         )
       ).toBe(dueDay)
       expect(Array.map(publishedEvents, (e) => e._tag)).toEqual([
@@ -899,7 +902,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
 
   describe('schedules', () => {
     const DAY = 86_400_000
-    const utcDay = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
+    const utcDay = (date: Date) =>
+      CareDays.of(DateTime.makeUnsafe(date), ZoneName.make('UTC'))
     const editPermit = (plantId: string) =>
       mintPermit(plantId, 'edit', Actor.User({ userId }))
     const setWatering = (plantId: string, days: Option.Option<number>) =>

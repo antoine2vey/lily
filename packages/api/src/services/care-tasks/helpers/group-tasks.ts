@@ -13,7 +13,13 @@ import type {
   CareGroupContent,
   LiveActivityContentState,
 } from '@lily/api/services/push/types'
-import { CareDay, CareDays, type CareType, type ZoneName } from '@lily/shared'
+import {
+  CareDay,
+  CareDays,
+  type CareType,
+  DEFAULT_ZONE,
+  type ZoneName,
+} from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -48,7 +54,7 @@ export const buildLiveActivityContentState = (
     const timezone = pipe(
       userOpt,
       Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrElse(() => 'UTC')
+      Option.getOrElse(() => DEFAULT_ZONE)
     )
     const language = pipe(
       userOpt,

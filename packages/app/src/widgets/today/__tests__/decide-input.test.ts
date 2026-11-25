@@ -37,7 +37,7 @@ const authenticated = (timezone?: ZoneName): AuthState => ({
 })
 
 const base: TodayWidgetAppState = {
-  auth: authenticated('Europe/Paris'),
+  auth: authenticated(ZoneName.make('Europe/Paris')),
   localizationReady: true,
   appActive: true,
   tasks: Option.some(tasks),
@@ -49,17 +49,13 @@ const decide = (overrides: Partial<TodayWidgetAppState>) =>
 describe('decideTodayWidgetInput', () => {
   it('writes Ready with the profile timezone once tasks are loaded', () => {
     expect(decide({})).toStrictEqual(
-      Option.some({
-        _tag: 'Ready',
-        tasks,
-        timezone: ZoneName.make('Europe/Paris'),
-      })
+      Option.some({ _tag: 'Ready', tasks, timezone: 'Europe/Paris' })
     )
   })
 
   it('falls back to UTC like the server when the profile has no timezone', () => {
     expect(decide({ auth: authenticated() })).toStrictEqual(
-      Option.some({ _tag: 'Ready', tasks, timezone: ZoneName.make('UTC') })
+      Option.some({ _tag: 'Ready', tasks, timezone: 'UTC' })
     )
   })
 
@@ -100,11 +96,7 @@ describe('decideTodayWidgetInput', () => {
 
   it('still refreshes a signed-in widget from a background launch', () => {
     expect(decide({ appActive: false })).toStrictEqual(
-      Option.some({
-        _tag: 'Ready',
-        tasks,
-        timezone: ZoneName.make('Europe/Paris'),
-      })
+      Option.some({ _tag: 'Ready', tasks, timezone: 'Europe/Paris' })
     )
   })
 })

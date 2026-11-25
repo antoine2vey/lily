@@ -72,8 +72,8 @@ const kolkataClock = (date: Date) =>
 
 const etcZoneWithLocalHour = (localHour: number, now: Date) => {
   const offset = ((localHour - now.getUTCHours() + 36) % 24) - 12
-  if (offset === 0) return 'UTC'
-  return offset > 0 ? `Etc/GMT-${offset}` : `Etc/GMT+${-offset}`
+  if (offset === 0) return ZoneName.make('UTC')
+  return ZoneName.make(offset > 0 ? `Etc/GMT-${offset}` : `Etc/GMT+${-offset}`)
 }
 
 const floorToHour = (date: Date) =>

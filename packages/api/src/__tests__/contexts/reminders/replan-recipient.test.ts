@@ -73,7 +73,7 @@ const run = (
             nextCareAt: options.dueToday,
             dueDay: CareDays.of(
               DateTime.makeUnsafe(options.dueToday),
-              'Europe/Paris'
+              ZoneName.make('Europe/Paris')
             ),
           }),
         ]),
@@ -125,7 +125,7 @@ const run = (
                 plants,
                 schedules,
                 memberships: members,
-                timezones: { [mockCanopyId]: 'Europe/Paris' },
+                timezones: { [mockCanopyId]: ZoneName.make('Europe/Paris') },
               }),
               createMockPlantRepository({ plants }),
               createMockDelegationRepository()

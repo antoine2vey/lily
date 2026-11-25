@@ -476,7 +476,8 @@ describe('loadPlantFacts', () => {
       }
     )
     expect(facts.get('plant-1')?.hasOverdueCare).toBe(true)
-    const dayOf = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
+    const dayOf = (date: Date) =>
+      CareDays.of(DateTime.makeUnsafe(date), ZoneName.make('UTC'))
     expect(facts.get('plant-1')?.nearlyDue).toEqual([
       dueOn('watering', dayOf(yesterday)),
     ])

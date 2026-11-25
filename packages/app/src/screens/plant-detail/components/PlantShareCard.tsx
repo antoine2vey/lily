@@ -1,4 +1,4 @@
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import { DateTime, String as EffectString, Match, Option, pipe } from 'effect'
 import type { Ref } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -47,8 +47,8 @@ const getHealthLabel = (
 const computeAgeDays = (dateAdded: Date): number =>
   Math.abs(
     CareDays.daysBetween(
-      CareDays.of(DateTime.fromDateUnsafe(dateAdded), 'UTC'),
-      CareDays.today('UTC', DateTime.nowUnsafe())
+      CareDays.of(DateTime.fromDateUnsafe(dateAdded), ZoneName.make('UTC')),
+      CareDays.today(ZoneName.make('UTC'), DateTime.nowUnsafe())
     )
   )
 

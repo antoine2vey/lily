@@ -23,6 +23,7 @@ import { streakAtRisk } from '@lily/api/services/engagement-scheduler/scheduler'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { and, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer } from 'effect'
@@ -62,9 +63,11 @@ const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000)
 const eveningZone = () => {
   const ahead = (20 - new Date().getUTCHours() + 24) % 24
   const offset = ahead > 12 ? ahead - 24 : ahead
-  return offset === 0
-    ? 'Etc/GMT'
-    : `Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`
+  return ZoneName.make(
+    offset === 0
+      ? 'Etc/GMT'
+      : `Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`
+  )
 }
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
@@ -264,9 +267,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           const engagement = yield* EngagementRepository
           const careLogs = yield* CareLogRepository
           return {
-            lilyWeek: yield* engagement.getCareLogsCountForWeek(lilyId, 'UTC'),
-            alexWeek: yield* engagement.getCareLogsCountForWeek(alexId, 'UTC'),
-            samWeek: yield* engagement.getCareLogsCountForWeek(samId, 'UTC'),
+            lilyWeek: yield* engagement.getCareLogsCountForWeek(
+              lilyId,
+              ZoneName.make('UTC')
+            ),
+            alexWeek: yield* engagement.getCareLogsCountForWeek(
+              alexId,
+              ZoneName.make('UTC')
+            ),
+            samWeek: yield* engagement.getCareLogsCountForWeek(
+              samId,
+              ZoneName.make('UTC')
+            ),
             lilyTotal: yield* careLogs.countByUser(lilyId),
             alexTotal: yield* careLogs.countByUser(alexId),
           }

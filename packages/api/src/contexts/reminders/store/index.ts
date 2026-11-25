@@ -21,6 +21,7 @@ import {
   PlantRepository,
   type PlantRow,
 } from '@lily/api/repositories/plant.repository'
+import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
 import {
   adjustForDoNotDisturb,
   decodeDndBounds,
@@ -32,7 +33,8 @@ import {
   CareDays,
   pickNotificationTime,
   type VacationFields,
-  type ZoneName,
+  ZoneName,
+  zoneFromName,
 } from '@lily/shared'
 import {
   Array,
@@ -125,32 +127,26 @@ export const plantsOf = (
       }),
   })
 
-const zoneOf = (timezone: ZoneName | null) =>
-  pipe(
-    Option.fromNullishOr(timezone),
-    Option.flatMap(DateTime.zoneMakeNamed),
-    Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe('UTC'))
-  )
-
-const noonOn = (day: CareDay, timezone: ZoneName | null): Date => {
+const noonOn = (day: CareDay, timezone: ZoneName): Date => {
   const {
     year,
     month,
     day: dayOfMonth,
-  } = DateTime.toPartsUtc(CareDays.startOf(day, 'UTC'))
+  } = DateTime.toPartsUtc(CareDays.startOf(day, ZoneName.make('UTC')))
   return DateTime.toDateUtc(
     DateTime.makeZonedUnsafe(
       { year, month, day: dayOfMonth, hour: 12 },
-      { timeZone: zoneOf(timezone), adjustForTimeZone: true }
+      { timeZone: zoneFromName(timezone), adjustForTimeZone: true }
     )
   )
 }
 
 const sendTimeOn = (day: CareDay, user: RecipientRow) =>
   Effect.gen(function* () {
+    const timezone = resolveTimezone(user.timezone)
     const preferred = yield* preferredTimeOn(
-      noonOn(day, user.timezone),
-      user.timezone,
+      noonOn(day, timezone),
+      timezone,
       user.preferredNotificationTime
     )
     const sendAt = user.doNotDisturb
@@ -160,7 +156,7 @@ const sendTimeOn = (day: CareDay, user: RecipientRow) =>
         ).pipe(
           Effect.annotateLogs({ userId: user.id }),
           Effect.flatMap((bounds) =>
-            adjustForDoNotDisturb(preferred, user.timezone, bounds)
+            adjustForDoNotDisturb(preferred, timezone, bounds)
           )
         )
       : preferred
@@ -326,7 +322,7 @@ export const loadDigest = (
       return Option.none()
     }
     const user = account.value
-    const timezone = zoneOf(user.timezone).id
+    const timezone = resolveTimezone(user.timezone)
     const day = CareDays.of(loaded.now, timezone)
     const slot = yield* pickNotificationTime({ ...user, timezone }, roll).pipe(
       Effect.map(DateTime.makeUnsafe),

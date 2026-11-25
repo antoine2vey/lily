@@ -401,7 +401,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
 
       it('keeps its reminders on the stored due days (declared change: they moved to the days of the new timezone before)', async () => {
-        const before = await inKiritimatiWith(dueDayIn('Pacific/Kiritimati'))
+        const before = await inKiritimatiWith(
+          dueDayIn(ZoneName.make('Pacific/Kiritimati'))
+        )
 
         await as(
           alex,
@@ -409,7 +411,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
 
         expect(before).toEqual(
-          Array.replicate(dueDayIn('Pacific/Kiritimati'), 2)
+          Array.replicate(dueDayIn(ZoneName.make('Pacific/Kiritimati')), 2)
         )
         expect(await occasions()).toEqual(before)
       })

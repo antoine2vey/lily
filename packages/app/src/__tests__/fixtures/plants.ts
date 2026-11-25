@@ -15,16 +15,22 @@ export const careToday = {
 // Status as the API reports it, decided on a UTC care day.
 const seen = (dueAt: Date | null) => {
   if (dueAt === null) return { dueDay: null, status: null }
-  const dueDay = CareDays.of(DateTime.makeUnsafe(dueAt), 'UTC')
+  const dueDay = CareDays.of(DateTime.makeUnsafe(dueAt), ZoneName.make('UTC'))
   return {
     dueDay,
-    status: careStatus(dueDay, CareDays.today('UTC', DateTime.nowUnsafe())),
+    status: careStatus(
+      dueDay,
+      CareDays.today(ZoneName.make('UTC'), DateTime.nowUnsafe())
+    ),
   }
 }
 
 const lastCare = (at: Date | null) => ({
   lastCareAt: at,
-  lastCareDay: at === null ? null : CareDays.of(DateTime.makeUnsafe(at), 'UTC'),
+  lastCareDay:
+    at === null
+      ? null
+      : CareDays.of(DateTime.makeUnsafe(at), ZoneName.make('UTC')),
 })
 
 export type PlantRecord = Plant

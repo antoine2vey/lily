@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 
-import { TimeString, ZoneName } from '../notification/timezone'
+import { StoredZoneName, ZoneName } from '../common/date/zone-name'
+import { TimeString } from '../notification/timezone'
 import { VacationStatus } from '../vacation/schema'
 
 export const UserRole = Schema.Literals(['user', 'admin'])
@@ -41,7 +42,7 @@ export const User = Schema.Struct({
   historyViewCount: Schema.Finite,
   role: UserRole,
   status: UserStatus,
-  timezone: Schema.NullOr(Schema.String),
+  timezone: Schema.NullOr(StoredZoneName),
   preferredNotificationTime: Schema.NullOr(Schema.String),
   publicProfile: Schema.Boolean,
   shareGrowthData: Schema.Boolean,
@@ -81,7 +82,7 @@ export const UserSettings = Schema.Struct({
     shareGrowthData: Schema.Boolean,
     personalizedTips: Schema.Boolean,
   }),
-  timezone: Schema.NullOr(Schema.String),
+  timezone: Schema.NullOr(StoredZoneName),
   preferredNotificationTime: Schema.NullOr(Schema.String),
   language: LanguageCode,
   temperatureUnit: TemperatureUnit,

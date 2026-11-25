@@ -4,6 +4,7 @@ import {
   formatRelativeTime,
   getApiDateGroupLabel,
   parseApiDate,
+  ZoneName,
 } from '@lily/shared'
 import { Array, Match, Option, pipe, Record } from 'effect'
 import { router } from 'expo-router'
@@ -103,7 +104,7 @@ const groupByDate = (items: readonly Notification[]): SectionItem[] => {
   const groupOrder: string[] = []
 
   Array.forEach(items, (item) => {
-    const label = getApiDateGroupLabel(item.createdAt, 'UTC')
+    const label = getApiDateGroupLabel(item.createdAt, ZoneName.make('UTC'))
     const group = groups.get(label)
     if (group) {
       group.push(item)

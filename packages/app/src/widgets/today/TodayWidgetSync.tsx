@@ -1,4 +1,4 @@
-import type { CareTasksResponse } from '@lily/shared'
+import { type CareTasksResponse, DEFAULT_ZONE } from '@lily/shared'
 import * as Sentry from '@sentry/react-native'
 import { Effect, Match, Option, pipe } from 'effect'
 import { useEffect, useRef, useState } from 'react'
@@ -51,7 +51,7 @@ export const decideTodayWidgetInput = ({
           tasks: response,
           timezone: pipe(
             Option.fromNullishOr(user.timezone),
-            Option.getOrElse(() => 'UTC')
+            Option.getOrElse(() => DEFAULT_ZONE)
           ),
         })
       )

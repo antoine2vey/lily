@@ -14,6 +14,7 @@ import {
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import {
   CanopyId,
+  DEFAULT_ZONE,
   type PlantOwner,
   roundCoord,
   type ZoneName,
@@ -60,7 +61,7 @@ const toWeatherScope = (
       timezone: pipe(
         Option.fromNullishOr(row.timezone),
         Option.filter(Str.isNonEmpty),
-        Option.getOrElse(() => 'UTC')
+        Option.getOrElse(() => DEFAULT_ZONE)
       ),
     })
   )

@@ -380,8 +380,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const [withCanopy, personalOnly] = await run(
         Effect.flatMap(CareLogRepository, (repo) =>
           Effect.all([
-            repo.countTodayByUser(alex, 'UTC', canopyId),
-            repo.countTodayByUser(alex, 'UTC', null),
+            repo.countTodayByUser(alex, ZoneName.make('UTC'), canopyId),
+            repo.countTodayByUser(alex, ZoneName.make('UTC'), null),
           ])
         )
       )

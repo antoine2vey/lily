@@ -12,7 +12,13 @@ import {
   type ReminderType,
   reminderTypeOf,
 } from '@lily/api/contexts/reminders/domain/plan'
-import { CareDay, CareDays, type CareType, careStatus } from '@lily/shared'
+import {
+  CareDay,
+  CareDays,
+  type CareType,
+  careStatus,
+  ZoneName,
+} from '@lily/shared'
 import { Array, DateTime, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -54,7 +60,9 @@ const recipient = (
           const dueDay = CareDays.addDays(TODAY, offset)
           return [
             dueDay,
-            DateTime.add(CareDays.startOf(dueDay, 'UTC'), { hours: hour }),
+            DateTime.add(CareDays.startOf(dueDay, ZoneName.make('UTC')), {
+              hours: hour,
+            }),
           ] as const
         })
       ),

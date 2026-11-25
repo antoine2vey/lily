@@ -69,7 +69,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .values({
           email: `alias-${Date.now()}@example.com`,
           emailVerified: true,
-          timezone: ALIAS,
+          timezone: sql`${ALIAS}`,
         })
         .returning()
       if (!user) throw new Error('user insert returned nothing')
@@ -94,6 +94,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     afterAll(async () => {
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
       await pool.end()
+    })
+
+    it('reads the stored alias as the zone it names', () => {
+      expect(timezone).toBe('Europe/Dublin')
     })
 
     it("counts the week's care for the weekly recap", async () => {

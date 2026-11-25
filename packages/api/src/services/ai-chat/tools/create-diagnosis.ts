@@ -5,7 +5,7 @@ import {
   type CreateDiagnosisData,
   DiagnosisRepository,
 } from '@lily/api/repositories/diagnosis.repository'
-import { CARE_PLAN_MAX_STEPS } from '@lily/shared'
+import { CARE_PLAN_MAX_STEPS, type ZoneName } from '@lily/shared'
 import { type Tool, tool } from 'ai'
 import { Array, Effect, Option, pipe } from 'effect'
 import { z } from 'zod'
@@ -13,7 +13,10 @@ import { z } from 'zod'
 import { carePlanStepSchema, toProposedStep } from './care-plan-step-schema'
 import type { ToolDeps } from './index'
 
-type PlantToolDeps = ToolDeps & { permit: PlantPermit<'chat'> }
+type PlantToolDeps = ToolDeps & {
+  permit: PlantPermit<'chat'>
+  timezone: ZoneName
+}
 
 export const createDiagnosisTool = (deps: PlantToolDeps): Tool =>
   tool({
@@ -50,10 +53,7 @@ export const createDiagnosisTool = (deps: PlantToolDeps): Tool =>
           const repo = yield* DiagnosisRepository
           const carePlans = yield* CarePlans
           const { permit } = deps
-          const timezone = pipe(
-            Option.fromNullishOr(deps.timezone),
-            Option.getOrElse(() => 'UTC')
-          )
+          const { timezone } = deps
 
           const data: CreateDiagnosisData = {
             plantId: permit.plantId,

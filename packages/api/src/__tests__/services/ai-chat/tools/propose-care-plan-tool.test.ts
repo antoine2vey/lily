@@ -84,6 +84,7 @@ describe('proposeCarePlanTool', () => {
       createTestCarePlant('plant-1', { life: LifeState.Dead() })
     )
     const planTool = proposeCarePlanTool({
+      timezone: ZoneName.make('UTC'),
       runtime: await managedRuntime.context(),
       userId: 'user-1',
       permit: chatPermit('plant-1'),
@@ -107,6 +108,7 @@ describe('proposeCarePlanTool', () => {
   it('rejects more than the maximum number of steps at the schema level', async () => {
     const managedRuntime = runtimeOver()
     const planTool = proposeCarePlanTool({
+      timezone: ZoneName.make('UTC'),
       runtime: await managedRuntime.context(),
       userId: 'user-1',
       permit: chatPermit('plant-1'),
@@ -134,7 +136,7 @@ describe('proposeCarePlanTool', () => {
 describe('resolveDueDate', () => {
   it('lands on the local midnight of the target day', () => {
     const now = DateTime.makeUnsafe('2024-06-10T15:30:00Z')
-    const due = resolveDueDate(2, 'Europe/Paris', now)
+    const due = resolveDueDate(2, ZoneName.make('Europe/Paris'), now)
     // Paris is UTC+2 in June: local midnight on June 12 is 22:00 UTC on June 11.
     expect(due?.toISOString()).toBe('2024-06-11T22:00:00.000Z')
   })
@@ -195,6 +197,6 @@ describe('resolveDueDate', () => {
   )
 
   it('returns undefined when no offset is given', () => {
-    expect(resolveDueDate(undefined, 'UTC')).toBeUndefined()
+    expect(resolveDueDate(undefined, ZoneName.make('UTC'))).toBeUndefined()
   })
 })

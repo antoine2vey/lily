@@ -77,7 +77,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { ZoneName } from '@lily/shared'
+import { DEFAULT_ZONE, ZoneName } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -171,7 +171,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ) as Effect.Effect<A, E, Layer.Success<typeof BaseLive>>
       )
 
-    const user = async (name: string, timezone = 'UTC') => {
+    const user = async (name: string, timezone: ZoneName = DEFAULT_ZONE) => {
       const [row] = await db
         .insert(schema.users)
         .values({

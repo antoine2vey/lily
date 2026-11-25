@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import type { ZoneName } from '@lily/shared'
 
 /**
  * Seed script to create demo data for visual testing
@@ -24,6 +23,7 @@ import {
   userFollows,
   users,
 } from '@lily/db/schema'
+import type { ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, eq, inArray, or } from 'drizzle-orm'
 import { Array as A, Console, Duration, Effect, Option } from 'effect'

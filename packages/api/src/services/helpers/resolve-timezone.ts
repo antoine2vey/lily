@@ -1,7 +1,8 @@
 import { DEFAULT_ZONE, ZoneName } from '@lily/shared'
 import { Option, pipe, Schema } from 'effect'
 
-export const resolveTimezone = (tz: string | null): string =>
+/** The zone of an account, `DEFAULT_ZONE` when it stores none. */
+export const resolveTimezone = (tz: ZoneName | null): ZoneName =>
   Option.getOrElse(Option.fromNullishOr(tz), () => DEFAULT_ZONE)
 
 /**

@@ -70,7 +70,7 @@ function formatTimeString(date: Date): string {
   return `${hours}:${minutes}`
 }
 
-function getTimezoneLabel(timezone: ZoneName): string {
+function getTimezoneLabel(timezone: string): string {
   return pipe(
     Array.findFirst(TIMEZONE_OPTIONS, (tz) => tz.value === timezone),
     Option.map((tz) => tz.label),

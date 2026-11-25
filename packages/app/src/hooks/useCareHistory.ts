@@ -16,6 +16,7 @@ import {
 } from 'effect'
 import { type CareActor, careActorFor } from '@/utils/canopy-plants'
 import { useEffectQuery } from '@/utils/client'
+import { getDeviceTimezone } from '@/utils/notifications'
 
 interface CareEvent {
   id: string
@@ -92,15 +93,7 @@ function groupByDate(
     Array.map(([dateKey, events]) => {
       const sortedEvents = Array.sort(events, eventCreatedAtOrder)
       return {
-        date: getApiDateGroupLabel(
-          dateKey,
-          pipe(
-            Option.fromNullishOr(
-              Intl.DateTimeFormat().resolvedOptions().timeZone
-            ),
-            Option.getOrElse(() => 'UTC')
-          )
-        ),
+        date: getApiDateGroupLabel(dateKey, getDeviceTimezone()),
         dateKey,
         events: sortedEvents,
       }
@@ -139,13 +132,7 @@ interface UseCareHistoryParams {
 const diedGroup = (plantId: string, diedAt: Date): CareHistoryGroup => {
   const dateKey = getDateKey(diedAt)
   return {
-    date: getApiDateGroupLabel(
-      dateKey,
-      pipe(
-        Option.fromNullishOr(Intl.DateTimeFormat().resolvedOptions().timeZone),
-        Option.getOrElse(() => 'UTC')
-      )
-    ),
+    date: getApiDateGroupLabel(dateKey, getDeviceTimezone()),
     events: [
       {
         id: `died-${plantId}`,

@@ -11,7 +11,7 @@ import {
   type DelegationRow,
   type IDelegationRepository,
 } from '@lily/api/repositories/delegation.repository'
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
 
 interface MockUser {
@@ -66,10 +66,10 @@ export const createMockDelegationRepository = (
             ...schedule,
             dueDay: CareDays.of(
               DateTime.makeUnsafe(schedule.nextCareAt),
-              'UTC'
+              ZoneName.make('UTC')
             ),
           })),
-          'UTC',
+          ZoneName.make('UTC'),
           DateTime.nowUnsafe()
         ).schedules,
       })),

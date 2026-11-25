@@ -1,6 +1,7 @@
 import { CareReads, DueScope, DueWindow } from '@lily/api/contexts/care'
 import { Reminders } from '@lily/api/contexts/reminders'
 import type { NotificationRow } from '@lily/api/repositories/helpers/notification-row'
+import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
 import {
   adjustForDoNotDisturb,
   decodeDndBounds,
@@ -228,10 +229,11 @@ const dndEnd = (
       user.doNotDisturbStart,
       user.doNotDisturbEnd
     ).pipe(Effect.annotateLogs({ userId: user.id }))
-    if (!(yield* isInDoNotDisturbWindow(now, user.timezone, bounds))) {
+    const timezone = resolveTimezone(user.timezone)
+    if (!(yield* isInDoNotDisturbWindow(now, timezone, bounds))) {
       return Option.none()
     }
-    return Option.some(yield* adjustForDoNotDisturb(now, user.timezone, bounds))
+    return Option.some(yield* adjustForDoNotDisturb(now, timezone, bounds))
   })
 
 export const loadRecipients = (

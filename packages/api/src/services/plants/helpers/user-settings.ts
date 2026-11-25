@@ -105,15 +105,3 @@ export const getUserNotificationSettings = (
     Effect.flatMap(UserRepository, (repo) => repo.findById(userId)),
     notificationSettingsOf
   )
-
-export const getUserTimezone = (
-  userId: string,
-  defaultTimezone = 'UTC'
-): Effect.Effect<string, SqlError, UserRepository> =>
-  Effect.gen(function* () {
-    const { timezone } = yield* getUserNotificationSettings(userId)
-    return pipe(
-      Option.fromNullishOr(timezone),
-      Option.getOrElse(() => defaultTimezone)
-    )
-  })

@@ -3,7 +3,7 @@ import {
   type ScheduleSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import { DateTime } from 'effect'
 
 export const createTestSchedule = (
@@ -16,7 +16,7 @@ export const createTestSchedule = (
     careType: 'watering',
     frequencyDays: 7,
     lastCareAt: null,
-    dueDay: CareDays.of(DateTime.makeUnsafe(nextCareAt), 'UTC'),
+    dueDay: CareDays.of(DateTime.makeUnsafe(nextCareAt), ZoneName.make('UTC')),
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

@@ -21,18 +21,24 @@ export const seen = (
     const lastCareDay =
       schedule.lastCareAt === null
         ? null
-        : CareDays.of(DateTime.makeUnsafe(schedule.lastCareAt), 'UTC')
+        : CareDays.of(
+            DateTime.makeUnsafe(schedule.lastCareAt),
+            ZoneName.make('UTC')
+          )
     if (schedule.nextCareAt === null) {
       return { ...schedule, lastCareDay, dueDay: null, status: null }
     }
-    const dueDay = CareDays.of(DateTime.makeUnsafe(schedule.nextCareAt), 'UTC')
+    const dueDay = CareDays.of(
+      DateTime.makeUnsafe(schedule.nextCareAt),
+      ZoneName.make('UTC')
+    )
     return {
       ...schedule,
       lastCareDay,
       dueDay,
       status: careStatus(
         dueDay,
-        CareDays.today('UTC', DateTime.makeUnsafe(today))
+        CareDays.today(ZoneName.make('UTC'), DateTime.makeUnsafe(today))
       ),
     }
   })

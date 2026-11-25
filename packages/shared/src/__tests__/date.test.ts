@@ -35,6 +35,7 @@ import {
   startOfWeek,
   withTimeZone,
 } from '../domains/common/date'
+import { ZoneName } from '../domains/common/date/zone-name'
 
 const createFixedDateTime = (
   year: number,
@@ -369,24 +370,34 @@ describe('Date Utilities', () => {
 
     it('should return true for today', () => {
       const today = createFixedDateTime(2024, 6, 15, 8, 0)
-      expect(isToday(today, DateTime.nowUnsafe(), 'UTC')).toBe(true)
+      expect(isToday(today, DateTime.nowUnsafe(), ZoneName.make('UTC'))).toBe(
+        true
+      )
     })
 
     it('should return true for today at different times', () => {
       const todayMorning = createFixedDateTime(2024, 6, 15, 6, 0)
       const todayEvening = createFixedDateTime(2024, 6, 15, 22, 0)
-      expect(isToday(todayMorning, DateTime.nowUnsafe(), 'UTC')).toBe(true)
-      expect(isToday(todayEvening, DateTime.nowUnsafe(), 'UTC')).toBe(true)
+      expect(
+        isToday(todayMorning, DateTime.nowUnsafe(), ZoneName.make('UTC'))
+      ).toBe(true)
+      expect(
+        isToday(todayEvening, DateTime.nowUnsafe(), ZoneName.make('UTC'))
+      ).toBe(true)
     })
 
     it('should return false for yesterday', () => {
       const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
-      expect(isToday(yesterday, DateTime.nowUnsafe(), 'UTC')).toBe(false)
+      expect(
+        isToday(yesterday, DateTime.nowUnsafe(), ZoneName.make('UTC'))
+      ).toBe(false)
     })
 
     it('should return false for tomorrow', () => {
       const tomorrow = createFixedDateTime(2024, 6, 16, 12, 0)
-      expect(isToday(tomorrow, DateTime.nowUnsafe(), 'UTC')).toBe(false)
+      expect(
+        isToday(tomorrow, DateTime.nowUnsafe(), ZoneName.make('UTC'))
+      ).toBe(false)
     })
   })
 
@@ -402,24 +413,24 @@ describe('Date Utilities', () => {
 
     it('should return true for yesterday', () => {
       const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
-      expect(isYesterday(yesterday, 'UTC')).toBe(true)
+      expect(isYesterday(yesterday, ZoneName.make('UTC'))).toBe(true)
     })
 
     it('should return true for yesterday at any time', () => {
       const yesterdayMorning = createFixedDateTime(2024, 6, 14, 6, 0)
       const yesterdayEvening = createFixedDateTime(2024, 6, 14, 23, 59)
-      expect(isYesterday(yesterdayMorning, 'UTC')).toBe(true)
-      expect(isYesterday(yesterdayEvening, 'UTC')).toBe(true)
+      expect(isYesterday(yesterdayMorning, ZoneName.make('UTC'))).toBe(true)
+      expect(isYesterday(yesterdayEvening, ZoneName.make('UTC'))).toBe(true)
     })
 
     it('should return false for today', () => {
       const today = createFixedDateTime(2024, 6, 15, 12, 0)
-      expect(isYesterday(today, 'UTC')).toBe(false)
+      expect(isYesterday(today, ZoneName.make('UTC'))).toBe(false)
     })
 
     it('should return false for two days ago', () => {
       const twoDaysAgo = createFixedDateTime(2024, 6, 13, 12, 0)
-      expect(isYesterday(twoDaysAgo, 'UTC')).toBe(false)
+      expect(isYesterday(twoDaysAgo, ZoneName.make('UTC'))).toBe(false)
     })
   })
 
@@ -488,7 +499,7 @@ describe('Date Utilities', () => {
   describe('startOfDay', () => {
     it('should return 00:00:00.000 of the same day', () => {
       const dateTime = createFixedDateTime(2024, 6, 15, 14, 30, 45)
-      const result = startOfDay(dateTime, 'UTC')
+      const result = startOfDay(dateTime, ZoneName.make('UTC'))
       const parts = DateTime.toParts(result)
 
       expect(parts.year).toBe(2024)
@@ -502,7 +513,7 @@ describe('Date Utilities', () => {
 
     it('should handle already at midnight', () => {
       const midnight = createFixedDateTime(2024, 6, 15, 0, 0, 0)
-      const result = startOfDay(midnight, 'UTC')
+      const result = startOfDay(midnight, ZoneName.make('UTC'))
       const parts = DateTime.toParts(result)
 
       expect(parts.hour).toBe(0)
@@ -512,7 +523,7 @@ describe('Date Utilities', () => {
 
     it('should handle end of day', () => {
       const endOfDayTime = createFixedDateTime(2024, 6, 15, 23, 59, 59)
-      const result = startOfDay(endOfDayTime, 'UTC')
+      const result = startOfDay(endOfDayTime, ZoneName.make('UTC'))
       const parts = DateTime.toParts(result)
 
       expect(parts.day).toBe(15)
@@ -527,7 +538,7 @@ describe('Date Utilities', () => {
     it('returns Monday 00:00 for a Sunday, the last day of the week', () => {
       const sunday = DateTime.makeUnsafe('2026-11-15T16:15:00.000Z')
 
-      expect(instantOf(startOfWeek(sunday, 'UTC'))).toBe(
+      expect(instantOf(startOfWeek(sunday, ZoneName.make('UTC')))).toBe(
         '2026-11-09T00:00:00.000Z'
       )
     })
@@ -535,7 +546,7 @@ describe('Date Utilities', () => {
     it('returns the same instant for a Monday at midnight', () => {
       const monday = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
 
-      expect(instantOf(startOfWeek(monday, 'UTC'))).toBe(
+      expect(instantOf(startOfWeek(monday, ZoneName.make('UTC')))).toBe(
         '2026-11-09T00:00:00.000Z'
       )
     })
@@ -543,25 +554,17 @@ describe('Date Utilities', () => {
     it('uses the local week when the zone is already on Monday', () => {
       const sundayInUtc = DateTime.makeUnsafe('2026-11-15T16:15:00.000Z')
 
-      expect(instantOf(startOfWeek(sundayInUtc, 'Pacific/Auckland'))).toBe(
-        '2026-11-15T11:00:00.000Z'
-      )
+      expect(
+        instantOf(startOfWeek(sundayInUtc, ZoneName.make('Pacific/Auckland')))
+      ).toBe('2026-11-15T11:00:00.000Z')
     })
 
     it('crosses a month boundary', () => {
       const wednesday = DateTime.makeUnsafe('2026-07-01T12:00:00.000Z')
 
-      expect(instantOf(startOfWeek(wednesday, 'Europe/Paris'))).toBe(
-        '2026-06-28T22:00:00.000Z'
-      )
-    })
-
-    it('resolves a zone alias like the zone it names', () => {
-      const instant = DateTime.makeUnsafe('2026-07-01T12:00:00.000Z')
-
-      expect(instantOf(startOfWeek(instant, 'Eire'))).toBe(
-        instantOf(startOfWeek(instant, 'Europe/Dublin'))
-      )
+      expect(
+        instantOf(startOfWeek(wednesday, ZoneName.make('Europe/Paris')))
+      ).toBe('2026-06-28T22:00:00.000Z')
     })
   })
 
@@ -577,17 +580,19 @@ describe('Date Utilities', () => {
 
     it('should return "Today" for today', () => {
       const today = createFixedDateTime(2024, 6, 15, 8, 0)
-      expect(getDateGroupLabel(today, 'UTC')).toBe('Today')
+      expect(getDateGroupLabel(today, ZoneName.make('UTC'))).toBe('Today')
     })
 
     it('should return "Yesterday" for yesterday', () => {
       const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
-      expect(getDateGroupLabel(yesterday, 'UTC')).toBe('Yesterday')
+      expect(getDateGroupLabel(yesterday, ZoneName.make('UTC'))).toBe(
+        'Yesterday'
+      )
     })
 
     it('should return formatted date for other days', () => {
       const lastWeek = createFixedDateTime(2024, 6, 10, 12, 0)
-      const result = getDateGroupLabel(lastWeek, 'UTC')
+      const result = getDateGroupLabel(lastWeek, ZoneName.make('UTC'))
       expect(result).not.toBe('Today')
       expect(result).not.toBe('Yesterday')
       expect(result.length).toBeGreaterThan(0)
@@ -651,12 +656,12 @@ describe('Date Utilities', () => {
     describe('getApiDateGroupLabel', () => {
       it('should return "Today" for today', () => {
         const today = new Date('2024-06-15T08:00:00Z')
-        const result = getApiDateGroupLabel(today, 'UTC')
+        const result = getApiDateGroupLabel(today, ZoneName.make('UTC'))
         expect(result).toBe('Today')
       })
 
       it('should return default for null', () => {
-        const result = getApiDateGroupLabel(null, 'UTC')
+        const result = getApiDateGroupLabel(null, ZoneName.make('UTC'))
         expect(result).toBe('Unknown')
       })
     })
@@ -785,7 +790,7 @@ describe('Date Utilities', () => {
 
     it('withTimeZone should convert UTC DateTime to zoned with local parts', () => {
       const utcDt = createFixedDateTime(2025, 1, 29, 0, 30)
-      const zoned = withTimeZone(utcDt, 'Asia/Tokyo')
+      const zoned = withTimeZone(utcDt, ZoneName.make('Asia/Tokyo'))
       const parts = DateTime.toParts(zoned)
       // UTC 00:30 + 9h = 09:30 JST
       expect(parts.hour).toBe(9)
@@ -796,7 +801,7 @@ describe('Date Utilities', () => {
       const utcDt = createFixedDateTime(2025, 1, 29, 0, 30)
       const ref = createFixedDateTime(2025, 1, 29, 0, 30)
       // In Tokyo (UTC+9), 00:30 UTC Jan 29 = 09:30 Jan 29 → today
-      expect(isToday(utcDt, ref, 'Asia/Tokyo')).toBe(true)
+      expect(isToday(utcDt, ref, ZoneName.make('Asia/Tokyo'))).toBe(true)
     })
 
     it('isToday with timezone — New York sees Jan 28 for UTC 00:30 Jan 29', () => {
@@ -804,7 +809,7 @@ describe('Date Utilities', () => {
       const ref = createFixedDateTime(2025, 1, 29, 0, 30)
       // In New York (UTC-5), 00:30 UTC Jan 29 = 19:30 Jan 28 → both ref and target are Jan 28
       // Both are Jan 28 in NY, so isToday is true (they're the same day in that TZ)
-      expect(isToday(utcDt, ref, 'America/New_York')).toBe(true)
+      expect(isToday(utcDt, ref, ZoneName.make('America/New_York'))).toBe(true)
     })
 
     it('isToday with timezone — day boundary: Jan 28 23:30 UTC is Jan 29 in Paris', () => {
@@ -813,12 +818,12 @@ describe('Date Utilities', () => {
       // Reference is Jan 28 12:00 UTC = Jan 28 13:00 Paris
       const ref = createFixedDateTime(2025, 1, 28, 12, 0)
       // In Paris: target is Jan 29, ref is Jan 28 → not today
-      expect(isToday(utcDt, ref, 'Europe/Paris')).toBe(false)
+      expect(isToday(utcDt, ref, ZoneName.make('Europe/Paris'))).toBe(false)
     })
 
     it('startOfDay with timezone returns midnight in user timezone', () => {
       const utcDt = createFixedDateTime(2025, 1, 29, 10, 30)
-      const result = startOfDay(utcDt, 'America/New_York')
+      const result = startOfDay(utcDt, ZoneName.make('America/New_York'))
       const parts = DateTime.toParts(result)
       expect(parts.hour).toBe(0)
       expect(parts.minute).toBe(0)
@@ -831,10 +836,12 @@ describe('Date Utilities', () => {
       const ref = createFixedDateTime(2025, 1, 29, 12, 0)
       const target = createFixedDateTime(2025, 1, 29, 8, 0)
 
-      expect(isToday(target, ref, 'UTC')).toBe(true)
-      expect(isToday(target, DateTime.nowUnsafe(), 'UTC')).toBe(true)
+      expect(isToday(target, ref, ZoneName.make('UTC'))).toBe(true)
+      expect(isToday(target, DateTime.nowUnsafe(), ZoneName.make('UTC'))).toBe(
+        true
+      )
 
-      const sod = startOfDay(ref, 'UTC')
+      const sod = startOfDay(ref, ZoneName.make('UTC'))
       const parts = DateTime.toParts(sod)
       expect(parts.hour).toBe(0)
       expect(parts.day).toBe(29)
@@ -947,7 +954,9 @@ describe('Date Utilities', () => {
       ['2024-06-14T12:00:00Z', '1 days overdue'],
       ['2025-01-01T00:00:00Z', 'In 200 days'],
     ])('reads %s from noon UTC on 2024-06-15 as "%s"', (target, expected) => {
-      expect(formatDaysUntilHuman(new Date(target), noon, 'UTC')).toBe(expected)
+      expect(
+        formatDaysUntilHuman(new Date(target), noon, ZoneName.make('UTC'))
+      ).toBe(expected)
     })
 
     // A due day is stored as the local midnight that starts it, which is on
@@ -1000,15 +1009,21 @@ describe('Date Utilities', () => {
         formatDaysUntilHuman(
           new Date(row.due),
           DateTime.makeUnsafe(row.now),
-          row.zone
+          ZoneName.make(row.zone)
         )
       ).toBe(row.expected)
     })
 
     it('returns the default value for a missing date', () => {
-      expect(formatDaysUntilHuman(null, noon, 'UTC')).toBe('Not scheduled')
-      expect(formatDaysUntilHuman(undefined, noon, 'UTC')).toBe('Not scheduled')
-      expect(formatDaysUntilHuman(null, noon, 'UTC', 'Not set')).toBe('Not set')
+      expect(formatDaysUntilHuman(null, noon, ZoneName.make('UTC'))).toBe(
+        'Not scheduled'
+      )
+      expect(formatDaysUntilHuman(undefined, noon, ZoneName.make('UTC'))).toBe(
+        'Not scheduled'
+      )
+      expect(
+        formatDaysUntilHuman(null, noon, ZoneName.make('UTC'), 'Not set')
+      ).toBe('Not set')
     })
   })
 
@@ -1090,25 +1105,27 @@ describe('Date Utilities', () => {
   describe('localDayKey', () => {
     it('returns the UTC calendar day for a UTC timezone', () => {
       const dt = DateTime.makeUnsafe('2025-01-29T23:30:00Z')
-      expect(localDayKey(dt, 'UTC')).toBe('2025-01-29')
+      expect(localDayKey(dt, ZoneName.make('UTC'))).toBe('2025-01-29')
     })
 
     it('rolls into the next day for a timezone ahead of UTC', () => {
       // 23:30Z is 00:30 the next day in Paris (UTC+1) and 08:30 in Tokyo (UTC+9)
       const dt = DateTime.makeUnsafe('2025-01-29T23:30:00Z')
-      expect(localDayKey(dt, 'Europe/Paris')).toBe('2025-01-30')
-      expect(localDayKey(dt, 'Asia/Tokyo')).toBe('2025-01-30')
+      expect(localDayKey(dt, ZoneName.make('Europe/Paris'))).toBe('2025-01-30')
+      expect(localDayKey(dt, ZoneName.make('Asia/Tokyo'))).toBe('2025-01-30')
     })
 
     it('rolls into the previous day for a timezone behind UTC', () => {
       // 02:00Z is 21:00 the previous day in New York (UTC-5)
       const dt = DateTime.makeUnsafe('2025-01-29T02:00:00Z')
-      expect(localDayKey(dt, 'America/New_York')).toBe('2025-01-28')
+      expect(localDayKey(dt, ZoneName.make('America/New_York'))).toBe(
+        '2025-01-28'
+      )
     })
 
     it('zero-pads single-digit month and day', () => {
       const dt = DateTime.makeUnsafe('2025-03-05T12:00:00Z')
-      expect(localDayKey(dt, 'UTC')).toBe('2025-03-05')
+      expect(localDayKey(dt, ZoneName.make('UTC'))).toBe('2025-03-05')
     })
   })
 
@@ -1117,15 +1134,23 @@ describe('Date Utilities', () => {
 
     it('is 0 for the same calendar day', () => {
       const target = DateTime.makeUnsafe('2025-01-29T20:00:00Z')
-      expect(localDayOffset(target, ref, 'UTC')).toBe(0)
+      expect(localDayOffset(target, ref, ZoneName.make('UTC'))).toBe(0)
     })
 
     it('is positive for future days and negative for past days', () => {
       expect(
-        localDayOffset(DateTime.makeUnsafe('2025-01-30T08:00:00Z'), ref, 'UTC')
+        localDayOffset(
+          DateTime.makeUnsafe('2025-01-30T08:00:00Z'),
+          ref,
+          ZoneName.make('UTC')
+        )
       ).toBe(1)
       expect(
-        localDayOffset(DateTime.makeUnsafe('2025-01-28T08:00:00Z'), ref, 'UTC')
+        localDayOffset(
+          DateTime.makeUnsafe('2025-01-28T08:00:00Z'),
+          ref,
+          ZoneName.make('UTC')
+        )
       ).toBe(-1)
     })
 
@@ -1134,16 +1159,20 @@ describe('Date Utilities', () => {
       const skewRef = DateTime.makeUnsafe('2025-01-29T23:30:00Z')
       const target = DateTime.makeUnsafe('2025-01-30T20:00:00Z')
       // UTC: Jan 29 -> Jan 30 = +1 day
-      expect(localDayOffset(target, skewRef, 'UTC')).toBe(1)
+      expect(localDayOffset(target, skewRef, ZoneName.make('UTC'))).toBe(1)
       // Paris: both are Jan 30 = same day
-      expect(localDayOffset(target, skewRef, 'Europe/Paris')).toBe(0)
+      expect(
+        localDayOffset(target, skewRef, ZoneName.make('Europe/Paris'))
+      ).toBe(0)
     })
 
     it('stays correct across a DST spring-forward transition', () => {
       // Europe/Paris springs forward 2025-03-30 (a 23-hour local day).
       const before = DateTime.makeUnsafe('2025-03-29T10:00:00Z')
       const after = DateTime.makeUnsafe('2025-04-02T10:00:00Z')
-      expect(localDayOffset(after, before, 'Europe/Paris')).toBe(4)
+      expect(localDayOffset(after, before, ZoneName.make('Europe/Paris'))).toBe(
+        4
+      )
     })
   })
 

@@ -31,13 +31,14 @@ export interface ToolDeps {
   readonly image?: ChatImage | undefined
   readonly permit?: PlantPermit<'chat'> | undefined
   readonly plantName?: string | undefined
-  // IANA timezone used to resolve relative due dates ("in 2 days") to the
-  // user's local midnight. Defaults to UTC when unknown.
-  readonly timezone?: ZoneName | undefined
 }
 
 export const buildPlantChatTools = (
-  deps: ToolDeps & { permit: PlantPermit<'chat'>; plantName: string }
+  deps: ToolDeps & {
+    permit: PlantPermit<'chat'>
+    plantName: string
+    timezone: ZoneName
+  }
 ): ToolSet => ({
   createDiagnosis: createDiagnosisTool(deps),
   proposeCarePlan: proposeCarePlanTool(deps),

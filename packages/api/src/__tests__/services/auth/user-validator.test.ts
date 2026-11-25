@@ -2,6 +2,7 @@ import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
 import type { User } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { Data, Effect, Layer, Redacted } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -29,7 +30,7 @@ const mockUser: User = {
   status: 'active',
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-15'),
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   preferredNotificationTime: '09:00',
   publicProfile: true,
   shareGrowthData: true,

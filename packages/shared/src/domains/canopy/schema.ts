@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { ZoneName } from '../notification/timezone'
+import { StoredZoneName, ZoneName } from '../common/date/zone-name'
 
 export const CANOPY_MAX_MEMBERS = 10
 export const CANOPY_NAME_MAX_LENGTH = 50
@@ -67,7 +67,7 @@ export type CanopyPendingInvitation = typeof CanopyPendingInvitation.Type
 export const Canopy = Schema.Struct({
   id: CanopyId,
   name: Schema.String,
-  timezone: Schema.String,
+  timezone: StoredZoneName,
   latitude: Schema.NullOr(Schema.Finite),
   longitude: Schema.NullOr(Schema.Finite),
   role: CanopyMemberRole,

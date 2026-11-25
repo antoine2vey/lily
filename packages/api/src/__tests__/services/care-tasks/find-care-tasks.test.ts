@@ -997,7 +997,7 @@ describe('findCareTasks', () => {
         createMockCareScheduleRepository({
           schedules: schedulesFromPlants(parisPlants),
           plants: parisPlants,
-          timezones: { 'user-paris': 'Europe/Paris' },
+          timezones: { 'user-paris': ZoneName.make('Europe/Paris') },
         }),
         createMockCurrentUser({ id: 'user-paris' }),
         createMockUserRepository([...mockUsers, parisUser]),

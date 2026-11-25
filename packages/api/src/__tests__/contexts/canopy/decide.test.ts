@@ -166,31 +166,27 @@ describe('createCanopy', () => {
   })
 
   it.each([
-    ['Eire', 'Europe/Dublin'],
-    ['Asia/Calcutta', 'Asia/Kolkata'],
-    ['Mars/Base', 'UTC'],
-  ])(
-    'creates the canopy in the canonical zone of a creator on %j',
-    (stored, zone) => {
-      const decided = create({
-        ...HELD_NOTHING,
-        accounts: new Map([['sam', account({ timezone: stored })]]),
-      })
+    [ZoneName.make('Asia/Kolkata'), 'Asia/Kolkata'],
+    [null, 'UTC'],
+  ])('creates the canopy in the zone of a creator on %j', (stored, zone) => {
+    const decided = create({
+      ...HELD_NOTHING,
+      accounts: new Map([['sam', account({ timezone: stored })]]),
+    })
 
-      expect(Result.map(decided, ({ writes }) => Array.head(writes))).toEqual(
-        Result.succeed(
-          Option.some(
-            CanopyWrite.CreateCanopy({
-              id: CanopyId.make('canopy-2'),
-              name: 'Cabin',
-              timezone: ZoneName.make(zone),
-              location: Option.none(),
-            })
-          )
+    expect(Result.map(decided, ({ writes }) => Array.head(writes))).toEqual(
+      Result.succeed(
+        Option.some(
+          CanopyWrite.CreateCanopy({
+            id: CanopyId.make('canopy-2'),
+            name: 'Cabin',
+            timezone: ZoneName.make(zone),
+            location: Option.none(),
+          })
         )
       )
-    }
-  )
+    )
+  })
 
   it('refuses a creator whose account is gone', () => {
     const decided = create({
@@ -263,10 +259,10 @@ describe('updateCanopy', () => {
         (decided) => decided.events
       )
 
-    expect(events('Asia/Tokyo')).toEqual(
+    expect(events(ZoneName.make('Asia/Tokyo'))).toEqual(
       Result.succeed([{ _tag: 'CanopyTimezoneChanged', canopyId: homeId }])
     )
-    expect(events('Europe/Paris')).toEqual(Result.succeed([]))
+    expect(events(ZoneName.make('Europe/Paris'))).toEqual(Result.succeed([]))
   })
 
   it('says nothing about the timezone when only the location moves', () => {

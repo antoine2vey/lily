@@ -153,7 +153,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const dayIn = (days: number) =>
       CareDays.of(
         DateTime.makeUnsafe(new Date(Date.now() + days * DAY_MS)),
-        'UTC'
+        ZoneName.make('UTC')
       )
     const tomorrow = () => dayIn(1)
 

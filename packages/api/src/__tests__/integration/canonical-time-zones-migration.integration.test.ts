@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import * as schema from '@lily/db/schema'
-import { TIME_ZONE_ALIASES } from '@lily/shared'
+import { TIME_ZONE_ALIASES, ZoneName } from '@lily/shared'
 import { asc, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Record } from 'effect'
@@ -67,7 +67,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const user = async (email: string, timezone: string) => {
       const [row] = await db
         .insert(schema.users)
-        .values({ email, emailVerified: true, timezone })
+        .values({ email, emailVerified: true, timezone: sql`${timezone}` })
         .returning({ id: schema.users.id })
       if (!row) throw new Error(`Failed to create ${email}`)
       return row.id
@@ -110,7 +110,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           await db
             .select({
               id: schema.users.id,
-              timezone: schema.users.timezone,
+              timezone: sql<string>`${schema.users.timezone}`,
             })
             .from(schema.users),
           ({ id, timezone }) => [id, timezone] as const
@@ -118,7 +118,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ),
       canopy: (
         await db
-          .select({ timezone: schema.canopies.timezone })
+          .select({ timezone: sql<string>`${schema.canopies.timezone}` })
           .from(schema.canopies)
       )[0]?.timezone,
     })
@@ -138,7 +138,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       elsewhere = await user(`mars-${Date.now()}@example.com`, 'Mars/Base')
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'Asia/Calcutta' })
+        .values({ name: 'Flat', timezone: sql`${'Asia/Calcutta'}` })
         .returning({ id: schema.canopies.id })
       if (!canopy) throw new Error('Failed to create canopy')
       const bonsai = await plant('Bonsai', { userId: traveller })
@@ -148,7 +148,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           plantId: bonsai,
           type: 'watering',
           date: parisEvening,
-          careDay: careDayOf(parisEvening, 'Europe/Paris'),
+          careDay: careDayOf(parisEvening, ZoneName.make('Europe/Paris')),
           performedByUserId: traveller,
         },
         {
@@ -164,7 +164,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         careType: 'watering',
         frequencyDays: 7,
         nextCareAt: parisDue,
-        dueDay: careDayOf(parisDue, 'Europe/Paris'),
+        dueDay: careDayOf(parisDue, ZoneName.make('Europe/Paris')),
       })
     })
 

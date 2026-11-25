@@ -1,81 +1,17 @@
 import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Option, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_ZONE, ZoneName } from '../domains/common/date/zone-name'
 import { COUNTRY_TIME_ZONES } from '../domains/notification/time-zones.generated'
 import {
   DEFAULT_NOTIFICATION_TIME,
-  DEFAULT_ZONE,
   InvalidTimeFormatError,
-  InvalidTimezoneError,
   parseTime,
   TimeString,
   validateTimeFormat,
-  validateTimezone,
-  ZoneName,
 } from '../domains/notification/timezone'
 
 describe('Timezone Utilities', () => {
-  describe('validateTimezone', () => {
-    it('should accept valid IANA timezone - UTC', async () => {
-      const result = await Effect.runPromise(validateTimezone('UTC'))
-
-      expect(result).toBe('UTC')
-    })
-
-    it('should accept valid IANA timezone - America/New_York', async () => {
-      const result = await Effect.runPromise(
-        validateTimezone('America/New_York')
-      )
-
-      expect(result).toBe('America/New_York')
-    })
-
-    it('should accept valid IANA timezone - Europe/Paris', async () => {
-      const result = await Effect.runPromise(validateTimezone('Europe/Paris'))
-
-      expect(result).toBe('Europe/Paris')
-    })
-
-    it('should accept valid IANA timezone - Asia/Tokyo', async () => {
-      const result = await Effect.runPromise(validateTimezone('Asia/Tokyo'))
-
-      expect(result).toBe('Asia/Tokyo')
-    })
-
-    it('should accept valid IANA timezone - Pacific/Auckland', async () => {
-      const result = await Effect.runPromise(
-        validateTimezone('Pacific/Auckland')
-      )
-
-      expect(result).toBe('Pacific/Auckland')
-    })
-
-    it('should fail for invalid timezone', async () => {
-      const result = await Effect.runPromiseExit(
-        validateTimezone('Invalid/Timezone')
-      )
-
-      expect(failureOf(result)._tag).toBe('InvalidTimezoneError')
-    })
-
-    it('should fail for empty string', async () => {
-      const result = await Effect.runPromiseExit(validateTimezone(''))
-
-      expect(failureOf(result)._tag).toBe('InvalidTimezoneError')
-    })
-
-    it('should return InvalidTimezoneError with correct timezone', async () => {
-      const result = await Effect.runPromiseExit(
-        validateTimezone('NotReal/Zone')
-      )
-
-      const error = failureOf(result)
-      expect(error).toBeInstanceOf(InvalidTimezoneError)
-      expect(error._tag).toBe('InvalidTimezoneError')
-      expect(error.timezone).toBe('NotReal/Zone')
-    })
-  })
-
   describe('validateTimeFormat', () => {
     it('should accept valid time - midnight', async () => {
       const result = await Effect.runPromise(validateTimeFormat('00:00'))
@@ -311,22 +247,9 @@ describe('Timezone Utilities', () => {
 
       expect(result).toBe('09:00')
     })
-
-    it('default timezone should be valid', async () => {
-      const result = await Effect.runPromise(validateTimezone(DEFAULT_ZONE))
-
-      expect(result).toBe('UTC')
-    })
   })
 
   describe('Error classes', () => {
-    it('InvalidTimezoneError should be a Schema.TaggedError', () => {
-      const error = new InvalidTimezoneError({ timezone: 'Bad/Zone' })
-
-      expect(error._tag).toBe('InvalidTimezoneError')
-      expect(error.timezone).toBe('Bad/Zone')
-    })
-
     it('InvalidTimeFormatError should be a Schema.TaggedError', () => {
       const error = new InvalidTimeFormatError({ time: 'bad-time' })
 

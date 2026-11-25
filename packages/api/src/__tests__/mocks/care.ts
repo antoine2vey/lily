@@ -44,7 +44,13 @@ import {
 import type { EventBus } from '@lily/api/services/event-bus/service'
 import type { AppEvent } from '@lily/api/services/event-bus/types'
 import type { plants as plantsTable } from '@lily/db/schema'
-import { CareDays, type CareType, type PlantOwner } from '@lily/shared'
+import {
+  CareDays,
+  type CareType,
+  DEFAULT_ZONE,
+  type PlantOwner,
+  type ZoneName,
+} from '@lily/shared'
 import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
 
 type PlantRow = typeof plantsTable.$inferSelect
@@ -171,13 +177,13 @@ export const createInMemoryCare = (
     readonly wateringDays?: Readonly<Record<string, number>>
     readonly plans?: CarePlanRows
     readonly plantRows?: PlantRow[]
-    readonly timezones?: Readonly<Record<string, string>>
+    readonly timezones?: Readonly<Record<string, ZoneName>>
     readonly goneAccounts?: ReadonlyArray<string>
   } = {}
 ) => {
   const plantRows = options.plantRows ?? []
   const timezoneOf = (owner: PlantOwner) =>
-    options.timezones?.[ownerIdOf(owner)] ?? 'UTC'
+    options.timezones?.[ownerIdOf(owner)] ?? DEFAULT_ZONE
   const carePlantOf = (
     id: string,
     owner: PlantOwner,

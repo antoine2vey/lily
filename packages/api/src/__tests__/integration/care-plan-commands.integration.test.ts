@@ -79,7 +79,8 @@ const RepositoriesLive = Layer.mergeAll(
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const daysFromNow = (days: number) => new Date(Date.now() + days * 86_400_000)
-const dayOf = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
+const dayOf = (date: Date) =>
+  CareDays.of(DateTime.makeUnsafe(date), ZoneName.make('UTC'))
 
 interface SeedStep {
   readonly title: string
@@ -569,6 +570,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.tryPromise({
             try: async () =>
               (await createDiagnosisTool({
+                timezone: ZoneName.make('UTC'),
                 runtime,
                 userId: alexId,
                 permit: chatPermit(plantId, alexId),

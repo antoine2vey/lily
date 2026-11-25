@@ -9,6 +9,7 @@ import {
 } from '@lily/api/repositories/care-schedule.repository'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
 import type { plants } from '@lily/db/schema'
+import type { ZoneName } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
@@ -27,7 +28,7 @@ export interface MockCareScheduleData {
   mutes?: Array<{ userId: string; plantId: string }>
   caretakers?: Array<{ plantId: string; caretakerId: string }>
   /** Care timezone by owner id (user id or canopy id). Defaults to UTC. */
-  timezones?: Readonly<Record<string, string>>
+  timezones?: Readonly<Record<string, ZoneName>>
   dueUnlessScheduled?: boolean
 }
 

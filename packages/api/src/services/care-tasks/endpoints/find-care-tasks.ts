@@ -10,6 +10,7 @@ import {
   CareDays,
   type CareTask,
   type CareTasksResponse,
+  DEFAULT_ZONE,
 } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -41,7 +42,7 @@ export const findCareTasks = (
     const timezone = pipe(
       Option.fromNullishOr(user),
       Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
-      Option.getOrElse(() => 'UTC')
+      Option.getOrElse(() => DEFAULT_ZONE)
     )
 
     const canopyId = includeCanopy ? yield* memberCanopyId(userId) : null

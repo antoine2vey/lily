@@ -69,7 +69,9 @@ const dueDayOf = (plants: ReadonlyMap<string, CarePlant>, id: string) =>
 describe('Care', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(DateTime.toDateUtc(CareDays.startOf(today, 'UTC')))
+    vi.setSystemTime(
+      DateTime.toDateUtc(CareDays.startOf(today, ZoneName.make('UTC')))
+    )
   })
   afterEach(() => {
     vi.useRealTimers()

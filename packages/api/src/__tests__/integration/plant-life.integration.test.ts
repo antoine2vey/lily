@@ -104,7 +104,9 @@ type App =
   | Absence
 
 const aTimezoneOnAnotherDay = () =>
-  new Date().getUTCHours() >= 10 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago'
+  ZoneName.make(
+    new Date().getUTCHours() >= 10 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago'
+  )
 
 const request = {
   name: 'Fern',
@@ -303,8 +305,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           rows.map((row) => [row.id, row.userId, row.createdByUserId])
         ).toEqual([[created.id, alex, alex]])
         expect(await schedulesOf(created.id)).toEqual([
-          dueOn('watering', 7, todayIn('UTC'), 'UTC'),
-          dueOn('misting', 3, todayIn('UTC'), 'UTC'),
+          dueOn(
+            'watering',
+            7,
+            todayIn(ZoneName.make('UTC')),
+            ZoneName.make('UTC')
+          ),
+          dueOn(
+            'misting',
+            3,
+            todayIn(ZoneName.make('UTC')),
+            ZoneName.make('UTC')
+          ),
         ])
         expect((await published()).sort()).toEqual([
           'care:PlantLifeChanged:Planted',
@@ -404,7 +416,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         const created = await done(alex, createPlant(request))
 
-        expect(todayIn(timezone)).not.toBe(todayIn('UTC'))
+        expect(todayIn(timezone)).not.toBe(todayIn(ZoneName.make('UTC')))
         expect(created.careTimezone).toBe(timezone)
         expect(await schedulesOf(created.id)).toEqual([
           dueOn('watering', 7, todayIn(timezone), timezone),
@@ -423,7 +435,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createPlant({ ...request, owner: 'canopy' })
         )
 
-        expect(todayIn(timezone)).not.toBe(todayIn('UTC'))
+        expect(todayIn(timezone)).not.toBe(todayIn(ZoneName.make('UTC')))
         expect(created.careTimezone).toBe(timezone)
         expect(await schedulesOf(created.id)).toEqual([
           dueOn('watering', 7, todayIn(timezone), timezone),
@@ -467,7 +479,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         const revived = await done(alex, reviveAsCurrentUser(plantId))
 
-        expect(todayIn(timezone)).not.toBe(todayIn('UTC'))
+        expect(todayIn(timezone)).not.toBe(todayIn(ZoneName.make('UTC')))
         expect(revived.diedAt).toBeNull()
         expect(await schedulesOf(plantId)).toEqual(restarted(timezone))
         expect((await published()).sort()).toEqual([
@@ -487,7 +499,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         await done(alex, reviveAsCurrentUser(plantId))
 
-        expect(todayIn(timezone)).not.toBe(todayIn('UTC'))
+        expect(todayIn(timezone)).not.toBe(todayIn(ZoneName.make('UTC')))
         expect(await schedulesOf(plantId)).toEqual(restarted(timezone))
       })
     })

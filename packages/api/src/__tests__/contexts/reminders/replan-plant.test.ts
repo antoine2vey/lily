@@ -22,6 +22,7 @@ import type { DelegationRow } from '@lily/api/repositories/delegation.repository
 import {
   CareDays,
   type CareType,
+  DEFAULT_ZONE,
   type PlantOwner,
   ZoneName,
 } from '@lily/shared'
@@ -78,7 +79,7 @@ const replanPlant = (
             createMockPlantRepository({ plants }),
             createMockCareScheduleRepository({
               plants,
-              timezones: { [ownerId]: params.careTimezone ?? 'UTC' },
+              timezones: { [ownerId]: params.careTimezone ?? DEFAULT_ZONE },
               schedules: [
                 createTestSchedule({
                   plantId: params.plant.id,
@@ -86,7 +87,7 @@ const replanPlant = (
                   nextCareAt: params.scheduledDate,
                   dueDay: CareDays.of(
                     DateTime.makeUnsafe(params.scheduledDate),
-                    params.careTimezone ?? 'UTC'
+                    params.careTimezone ?? DEFAULT_ZONE
                   ),
                 }),
               ],
@@ -962,7 +963,7 @@ describe('replanning one plant', () => {
         mutes?: { userId: string; plantId: string }[]
         existing?: Notification[]
         occasionDays?: Record<string, string>
-        canopyTimezone?: string
+        canopyTimezone?: ZoneName
         scheduledDate?: Date
       } = {}
     ) => {
@@ -973,7 +974,7 @@ describe('replanning one plant', () => {
             plant: canopyPlant,
             type: 'watering_reminder',
             scheduledDate: options.scheduledDate ?? createFutureDate(7),
-            careTimezone: options.canopyTimezone ?? 'UTC',
+            careTimezone: options.canopyTimezone ?? DEFAULT_ZONE,
           },
           notificationMocks(rows, {
             occasionDays: options.occasionDays ?? {},
@@ -988,7 +989,7 @@ describe('replanning one plant', () => {
                   canopies: [
                     createTestCanopyRow({
                       id: mockCanopyId,
-                      timezone: options.canopyTimezone ?? 'UTC',
+                      timezone: options.canopyTimezone ?? DEFAULT_ZONE,
                     }),
                   ],
                   members,
@@ -1021,7 +1022,7 @@ describe('replanning one plant', () => {
       })
       const parisMidnightJul15 = new Date('2099-07-14T22:00:00.000Z')
       const pending = await runCanopy([alex, newYorker], {
-        canopyTimezone: 'Europe/Paris',
+        canopyTimezone: ZoneName.make('Europe/Paris'),
         scheduledDate: parisMidnightJul15,
       })
       const lilyRow = Array.findFirst(pending, (n) => n.userId === 'lily')

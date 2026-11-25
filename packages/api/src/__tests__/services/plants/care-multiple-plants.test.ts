@@ -6,7 +6,7 @@ import {
   PlantRepository,
 } from '@lily/api/repositories/plant.repository'
 import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-multiple-plants'
-import { CareDay, CareDays } from '@lily/shared'
+import { CareDay, CareDays, ZoneName } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { failureOf } from '@lily/shared/testing'
 import { Array, DateTime, Effect, Layer, Option } from 'effect'
@@ -32,7 +32,10 @@ const schedulesFromPlants = (plants: TestPlant[]): CareScheduleRow[] =>
       frequencyDays: s.frequencyDays,
       lastCareAt: s.lastCareAt,
       nextCareAt: s.nextCareAt,
-      dueDay: CareDays.of(DateTime.makeUnsafe(s.nextCareAt), 'UTC'),
+      dueDay: CareDays.of(
+        DateTime.makeUnsafe(s.nextCareAt),
+        ZoneName.make('UTC')
+      ),
       createdAt: new Date(),
       updatedAt: new Date(),
     }))

@@ -3,7 +3,7 @@ import {
   type StoredSchedule,
   seePlantCare,
 } from '@lily/api/contexts/care'
-import { CareDay } from '@lily/shared'
+import { CareDay, ZoneName } from '@lily/shared'
 import { DateTime } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -27,13 +27,13 @@ describe('seePlantCare', () => {
     const paris = seePlantCare(
       living('HEALTHY'),
       [dueNov11InParis],
-      'Europe/Paris',
+      ZoneName.make('Europe/Paris'),
       now
     )
     const losAngeles = seePlantCare(
       living('HEALTHY'),
       [watering('2026-11-11T08:00:00Z', '2026-11-11')],
-      'America/Los_Angeles',
+      ZoneName.make('America/Los_Angeles'),
       now
     )
 
@@ -51,7 +51,7 @@ describe('seePlantCare', () => {
     const movedToLosAngeles = seePlantCare(
       living('HEALTHY'),
       [dueNov11InParis],
-      'America/Los_Angeles',
+      ZoneName.make('America/Los_Angeles'),
       now
     )
 
@@ -64,7 +64,12 @@ describe('seePlantCare', () => {
 
   it('needs attention exactly while a care is overdue', () => {
     const health = (schedule: StoredSchedule) =>
-      seePlantCare(living('THRIVING'), [schedule], 'Europe/Paris', now).health
+      seePlantCare(
+        living('THRIVING'),
+        [schedule],
+        ZoneName.make('Europe/Paris'),
+        now
+      ).health
 
     expect(health(dueNov11InParis)).toBe('NEEDS_ATTENTION')
     // Due today (Nov 12 in Paris) is not overdue.
@@ -75,8 +80,12 @@ describe('seePlantCare', () => {
 
   it('keeps a sick or recovering condition over an overdue care', () => {
     const health = (stored: PlantCondition) =>
-      seePlantCare(living(stored), [dueNov11InParis], 'Europe/Paris', now)
-        .health
+      seePlantCare(
+        living(stored),
+        [dueNov11InParis],
+        ZoneName.make('Europe/Paris'),
+        now
+      ).health
 
     expect(health('SICK')).toBe('SICK')
     expect(health('RECOVERING')).toBe('RECOVERING')
@@ -86,7 +95,7 @@ describe('seePlantCare', () => {
     const care = seePlantCare(
       { health: 'HEALTHY', diedAt: new Date('2026-11-01T00:00:00Z') },
       [dueNov11InParis],
-      'Europe/Paris',
+      ZoneName.make('Europe/Paris'),
       now
     )
 
